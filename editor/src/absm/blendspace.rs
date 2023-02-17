@@ -1,17 +1,265 @@
+use crate::{
+    absm::selection::{AbsmSelection, SelectedEntity},
+    send_sync_message,
+};
 use fyrox::{
-    core::pool::Handle,
+    animation::machine::{MachineLayer, PoseNode},
+    core::{
+        algebra::Vector2,
+        color::Color,
+        math::{Rect, TriangleDefinition},
+        pool::Handle,
+    },
     gui::{
-        border::BorderBuilder,
+        brush::Brush,
+        define_constructor, define_widget_deref,
+        draw::{CommandTexture, Draw, DrawingContext},
         grid::{Column, GridBuilder, Row},
-        message::MessageDirection,
-        numeric::NumericUpDownBuilder,
+        message::{MessageDirection, UiMessage},
+        numeric::{NumericUpDownBuilder, NumericUpDownMessage},
         stack_panel::StackPanelBuilder,
+        text::TextMessage,
         text_box::TextBoxBuilder,
-        widget::WidgetBuilder,
+        widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Orientation, UiNode, UserInterface, VerticalAlignment,
+        BuildContext, Control, Orientation, UiNode, UserInterface, VerticalAlignment,
     },
 };
+use std::{
+    any::{Any, TypeId},
+    ops::{Deref, DerefMut},
+};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum BlendSpaceFieldMessage {
+    Points(Vec<Vector2<f32>>),
+    Triangles(Vec<TriangleDefinition>),
+}
+
+impl BlendSpaceFieldMessage {
+    define_constructor!(BlendSpaceFieldMessage:Points => fn points(Vec<Vector2<f32>>), layout: false);
+    define_constructor!(BlendSpaceFieldMessage:Triangles => fn triangles(Vec<TriangleDefinition>), layout: false);
+}
+
+#[derive(Clone)]
+struct BlendSpaceField {
+    widget: Widget,
+    points: Vec<Handle<UiNode>>,
+    min_values: Vector2<f32>,
+    max_values: Vector2<f32>,
+    snap_step: Vector2<f32>,
+    point_positions: Vec<Vector2<f32>>,
+    triangles: Vec<TriangleDefinition>,
+}
+
+define_widget_deref!(BlendSpaceField);
+
+fn blend_to_local(
+    p: Vector2<f32>,
+    min: Vector2<f32>,
+    max: Vector2<f32>,
+    bounds: Rect<f32>,
+) -> Vector2<f32> {
+    let kx = (p.x - min.x) / (max.x - min.x);
+    let ky = (p.y - min.y) / (max.y - min.y);
+    bounds.position + Vector2::new(kx * bounds.w(), ky * bounds.h())
+}
+
+fn make_points(points: &[Vector2<f32>], ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
+    points
+        .iter()
+        .map(|p| {
+            BlendSpaceFieldPointBuilder::new(
+                WidgetBuilder::new().with_foreground(Brush::Solid(Color::WHITE)),
+            )
+            .with_position(*p)
+            .build(ctx)
+        })
+        .collect()
+}
+
+impl Control for BlendSpaceField {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
+    fn draw(&self, drawing_context: &mut DrawingContext) {
+        let bounds = self.bounding_rect();
+
+        drawing_context.push_rect_filled(&bounds, None);
+        drawing_context.commit(
+            self.clip_bounds(),
+            self.background(),
+            CommandTexture::None,
+            None,
+        );
+
+        for triangle in self.triangles.iter() {
+            let a = blend_to_local(
+                self.point_positions[triangle[0] as usize],
+                self.min_values,
+                self.max_values,
+                bounds,
+            );
+            let b = blend_to_local(
+                self.point_positions[triangle[1] as usize],
+                self.min_values,
+                self.max_values,
+                bounds,
+            );
+            let c = blend_to_local(
+                self.point_positions[triangle[2] as usize],
+                self.min_values,
+                self.max_values,
+                bounds,
+            );
+
+            for (begin, end) in [(a, b), (b, c), (c, a)] {
+                drawing_context.push_line(begin, end, 2.0);
+            }
+        }
+
+        drawing_context.commit(
+            self.clip_bounds(),
+            self.foreground.clone(),
+            CommandTexture::None,
+            None,
+        );
+    }
+
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
+        self.widget.handle_routed_message(ui, message);
+
+        if message.destination() == self.handle {
+            if let Some(msg) = message.data::<BlendSpaceFieldMessage>() {
+                match msg {
+                    BlendSpaceFieldMessage::Points(points) => {
+                        let points = make_points(points, &mut ui.build_ctx());
+
+                        for &pt in self.points.iter() {
+                            ui.send_message(WidgetMessage::remove(pt, MessageDirection::ToWidget));
+                        }
+
+                        for &new_pt in points.iter() {
+                            ui.send_message(WidgetMessage::link(
+                                new_pt,
+                                MessageDirection::ToWidget,
+                                self.handle,
+                            ));
+                        }
+
+                        self.points = points;
+                    }
+                    BlendSpaceFieldMessage::Triangles(triangles) => {
+                        self.triangles = triangles.clone();
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct BlendSpaceFieldBuilder {
+    widget_builder: WidgetBuilder,
+    min_values: Vector2<f32>,
+    max_values: Vector2<f32>,
+    snap_step: Vector2<f32>,
+    point_positions: Vec<Vector2<f32>>,
+    triangles: Vec<TriangleDefinition>,
+}
+
+impl BlendSpaceFieldBuilder {
+    fn new(widget_builder: WidgetBuilder) -> Self {
+        Self {
+            widget_builder,
+            min_values: Default::default(),
+            max_values: Default::default(),
+            snap_step: Default::default(),
+            point_positions: Default::default(),
+            triangles: Default::default(),
+        }
+    }
+
+    fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let points = make_points(&self.point_positions, ctx);
+
+        let field = BlendSpaceField {
+            widget: self.widget_builder.build(),
+            points,
+            min_values: self.min_values,
+            max_values: self.max_values,
+            snap_step: self.snap_step,
+            point_positions: self.point_positions,
+            triangles: self.triangles,
+        };
+
+        ctx.add_node(UiNode::new(field))
+    }
+}
+
+#[derive(Clone)]
+struct BlendSpaceFieldPoint {
+    widget: Widget,
+    position: Vector2<f32>,
+}
+
+define_widget_deref!(BlendSpaceFieldPoint);
+
+impl Control for BlendSpaceFieldPoint {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        if type_id == TypeId::of::<Self>() {
+            Some(self)
+        } else {
+            None
+        }
+    }
+
+    fn draw(&self, drawing_context: &mut DrawingContext) {
+        drawing_context.push_circle(self.position, 4.0, 16, Color::WHITE);
+        drawing_context.commit(
+            self.clip_bounds(),
+            self.foreground(),
+            CommandTexture::None,
+            None,
+        );
+    }
+
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
+        self.widget.handle_routed_message(ui, message)
+    }
+}
+
+struct BlendSpaceFieldPointBuilder {
+    widget_builder: WidgetBuilder,
+    position: Vector2<f32>,
+}
+
+impl BlendSpaceFieldPointBuilder {
+    fn new(widget_builder: WidgetBuilder) -> Self {
+        Self {
+            widget_builder,
+            position: Default::default(),
+        }
+    }
+
+    fn with_position(mut self, position: Vector2<f32>) -> Self {
+        self.position = position;
+        self
+    }
+
+    fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let point = BlendSpaceFieldPoint {
+            widget: self.widget_builder.build(),
+            position: self.position,
+        };
+
+        ctx.add_node(UiNode::new(point))
+    }
+}
 
 pub struct BlendSpaceEditor {
     pub window: Handle<UiNode>,
@@ -21,6 +269,7 @@ pub struct BlendSpaceEditor {
     max_y: Handle<UiNode>,
     x_axis_name: Handle<UiNode>,
     y_axis_name: Handle<UiNode>,
+    field: Handle<UiNode>,
 }
 
 impl BlendSpaceEditor {
@@ -31,6 +280,7 @@ impl BlendSpaceEditor {
         let max_y;
         let x_axis_name;
         let y_axis_name;
+        let field;
         let content = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(
@@ -89,10 +339,13 @@ impl BlendSpaceEditor {
                                 .add_column(Column::strict(50.0))
                                 .build(ctx),
                             )
-                            .with_child(
-                                BorderBuilder::new(WidgetBuilder::new().on_row(0).on_column(1))
-                                    .build(ctx),
-                            )
+                            .with_child({
+                                field = BlendSpaceFieldBuilder::new(
+                                    WidgetBuilder::new().on_row(0).on_column(1),
+                                )
+                                .build(ctx);
+                                field
+                            })
                             .with_child(
                                 GridBuilder::new(
                                     WidgetBuilder::new()
@@ -167,6 +420,7 @@ impl BlendSpaceEditor {
             max_y,
             x_axis_name,
             y_axis_name,
+            field,
         }
     }
 
@@ -176,5 +430,81 @@ impl BlendSpaceEditor {
             MessageDirection::ToWidget,
             true,
         ));
+    }
+
+    pub fn sync_to_model(
+        &mut self,
+        layer: &MachineLayer,
+        selection: &AbsmSelection,
+        ui: &mut UserInterface,
+    ) {
+        if let Some(SelectedEntity::PoseNode(first)) = selection.entities.first() {
+            if let PoseNode::BlendSpace(blend_space) = layer.node(*first) {
+                send_sync_message(
+                    ui,
+                    NumericUpDownMessage::value(
+                        self.min_x,
+                        MessageDirection::ToWidget,
+                        blend_space.min_values().x,
+                    ),
+                );
+                send_sync_message(
+                    ui,
+                    NumericUpDownMessage::value(
+                        self.max_x,
+                        MessageDirection::ToWidget,
+                        blend_space.max_values().x,
+                    ),
+                );
+                send_sync_message(
+                    ui,
+                    NumericUpDownMessage::value(
+                        self.min_y,
+                        MessageDirection::ToWidget,
+                        blend_space.min_values().y,
+                    ),
+                );
+                send_sync_message(
+                    ui,
+                    NumericUpDownMessage::value(
+                        self.max_y,
+                        MessageDirection::ToWidget,
+                        blend_space.max_values().y,
+                    ),
+                );
+                send_sync_message(
+                    ui,
+                    TextMessage::text(
+                        self.x_axis_name,
+                        MessageDirection::ToWidget,
+                        blend_space.x_axis_name().to_string(),
+                    ),
+                );
+                send_sync_message(
+                    ui,
+                    TextMessage::text(
+                        self.y_axis_name,
+                        MessageDirection::ToWidget,
+                        blend_space.y_axis_name().to_string(),
+                    ),
+                );
+                send_sync_message(
+                    ui,
+                    BlendSpaceFieldMessage::points(
+                        self.field,
+                        MessageDirection::ToWidget,
+                        blend_space.points().iter().map(|p| p.position).collect(),
+                    ),
+                );
+                send_sync_message(
+                    ui,
+                    BlendSpaceFieldMessage::triangles(
+                        self.field,
+                        MessageDirection::ToWidget,
+                        blend_space.triangles().clone(),
+                    ),
+                )
+            }
+        }
     }
 }

@@ -158,6 +158,10 @@ impl BlendSpace {
         &mut self.points
     }
 
+    pub fn triangles(&self) -> Ref<Vec<TriangleDefinition>> {
+        self.triangles.borrow()
+    }
+
     pub fn children(&self) -> Vec<Handle<PoseNode>> {
         self.points.iter().map(|p| p.pose_source).collect()
     }

@@ -303,6 +303,7 @@ impl AbsmEditor {
                         absm_node,
                         &scene.graph,
                     );
+                    self.blend_space_editor.sync_to_model(layer, &selection, ui);
                 }
             }
         } else {
