@@ -293,7 +293,8 @@ impl AbsmEditor {
             self.parameter_panel.sync_to_model(ui, absm_node);
             self.toolbar.sync_to_model(absm_node, ui, &selection);
             if let Some(layer_index) = selection.layer {
-                if let Some(layer) = absm_node.machine().layers().get(layer_index) {
+                let machine = absm_node.machine();
+                if let Some(layer) = machine.layers().get(layer_index) {
                     self.state_graph_viewer
                         .sync_to_model(layer, ui, editor_scene);
                     self.state_viewer.sync_to_model(
@@ -303,7 +304,12 @@ impl AbsmEditor {
                         absm_node,
                         &scene.graph,
                     );
-                    self.blend_space_editor.sync_to_model(layer, &selection, ui);
+                    self.blend_space_editor.sync_to_model(
+                        machine.parameters(),
+                        layer,
+                        &selection,
+                        ui,
+                    );
                 }
             }
         } else {

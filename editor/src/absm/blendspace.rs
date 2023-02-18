@@ -3,7 +3,7 @@ use crate::{
     send_sync_message,
 };
 use fyrox::{
-    animation::machine::{MachineLayer, PoseNode},
+    animation::machine::{MachineLayer, Parameter, ParameterContainer, PoseNode},
     core::{
         algebra::Vector2,
         color::Color,
@@ -38,6 +38,7 @@ pub enum BlendSpaceFieldMessage {
     MinValues(Vector2<f32>),
     MaxValues(Vector2<f32>),
     SnapStep(Vector2<f32>),
+    SamplingPoint(Vector2<f32>),
 }
 
 impl BlendSpaceFieldMessage {
@@ -46,6 +47,7 @@ impl BlendSpaceFieldMessage {
     define_constructor!(BlendSpaceFieldMessage:MinValues => fn min_values(Vector2<f32>), layout: false);
     define_constructor!(BlendSpaceFieldMessage:MaxValues => fn max_values(Vector2<f32>), layout: false);
     define_constructor!(BlendSpaceFieldMessage:SnapStep => fn snap_step(Vector2<f32>), layout: false);
+    define_constructor!(BlendSpaceFieldMessage:SamplingPoint => fn sampling_point(Vector2<f32>), layout: false);
 }
 
 #[derive(Clone)]
@@ -58,6 +60,7 @@ struct BlendSpaceField {
     point_positions: Vec<Vector2<f32>>,
     triangles: Vec<TriangleDefinition>,
     grid_brush: Brush,
+    sampling_point: Vector2<f32>,
 }
 
 define_widget_deref!(BlendSpaceField);
@@ -192,7 +195,31 @@ impl Control for BlendSpaceField {
                 drawing_context.push_line(begin, end, 2.0);
             }
         }
+        drawing_context.commit(
+            self.clip_bounds(),
+            self.foreground.clone(),
+            CommandTexture::None,
+            None,
+        );
 
+        // Draw sampling crosshair.
+        let size = 14.0;
+        let sampling_point = blend_to_local(
+            self.sampling_point,
+            self.min_values,
+            self.max_values,
+            bounds,
+        );
+        drawing_context.push_line(
+            Vector2::new(sampling_point.x - size * 0.5, sampling_point.y),
+            Vector2::new(sampling_point.x + size * 0.5, sampling_point.y),
+            2.0,
+        );
+        drawing_context.push_line(
+            Vector2::new(sampling_point.x, sampling_point.y - size * 0.5),
+            Vector2::new(sampling_point.x, sampling_point.y + size * 0.5),
+            2.0,
+        );
         drawing_context.commit(
             self.clip_bounds(),
             self.foreground.clone(),
@@ -237,6 +264,9 @@ impl Control for BlendSpaceField {
                     BlendSpaceFieldMessage::SnapStep(snap_step) => {
                         self.snap_step = *snap_step;
                     }
+                    BlendSpaceFieldMessage::SamplingPoint(sampling_point) => {
+                        self.sampling_point = *sampling_point;
+                    }
                 }
             }
         }
@@ -270,6 +300,7 @@ impl BlendSpaceFieldBuilder {
             point_positions: Default::default(),
             triangles: Default::default(),
             grid_brush: BRUSH_LIGHT,
+            sampling_point: Vector2::new(0.25, 0.5),
         };
 
         ctx.add_node(UiNode::new(field))
@@ -571,6 +602,7 @@ impl BlendSpaceEditor {
 
     pub fn sync_to_model(
         &mut self,
+        parameters: &ParameterContainer,
         layer: &MachineLayer,
         selection: &AbsmSelection,
         ui: &mut UserInterface,
@@ -648,6 +680,19 @@ impl BlendSpaceEditor {
                         blend_space.triangles().to_vec(),
                     ),
                 );
+
+                if let Some(Parameter::SamplingPoint(pt)) =
+                    parameters.get(blend_space.sampling_parameter())
+                {
+                    send_sync_message(
+                        ui,
+                        BlendSpaceFieldMessage::sampling_point(
+                            self.field,
+                            MessageDirection::ToWidget,
+                            *pt,
+                        ),
+                    );
+                }
             }
         }
     }
