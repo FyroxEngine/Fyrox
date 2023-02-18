@@ -15,7 +15,7 @@ use crate::{
 };
 use spade::{DelaunayTriangulation, Point2, Triangulation};
 use std::{
-    cell::{Cell, Ref, RefCell},
+    cell::{Ref, RefCell},
     ops::{Deref, DerefMut},
 };
 
@@ -31,12 +31,7 @@ pub struct BlendSpace {
 
     points: Vec<BlendSpacePoint>,
 
-    #[reflect(hidden)]
-    triangles: RefCell<Vec<TriangleDefinition>>,
-
-    #[reflect(hidden)]
-    #[visit(skip)]
-    triangles_dirty: Cell<bool>,
+    triangles: Vec<TriangleDefinition>,
 
     #[reflect(setter = "set_x_axis_name")]
     x_axis_name: String,
@@ -67,7 +62,6 @@ impl Default for BlendSpace {
             base: Default::default(),
             points: vec![],
             triangles: Default::default(),
-            triangles_dirty: Cell::new(true),
             x_axis_name: "X".to_string(),
             y_axis_name: "Y".to_string(),
             min_values: Default::default(),
@@ -132,34 +126,51 @@ impl EvaluatePose for BlendSpace {
     }
 }
 
+pub struct PointsMut<'a> {
+    blend_space: &'a mut BlendSpace,
+}
+
+impl<'a> Deref for PointsMut<'a> {
+    type Target = Vec<BlendSpacePoint>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.blend_space.points
+    }
+}
+
+impl<'a> DerefMut for PointsMut<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.blend_space.points
+    }
+}
+
 impl BlendSpace {
-    pub fn add_point(&mut self, point: BlendSpacePoint) {
+    pub fn add_point(&mut self, point: BlendSpacePoint) -> bool {
         self.points.push(point);
-        self.triangles_dirty.set(true);
+        self.triangulate()
     }
 
     /// Sets new points to the blend space.
-    pub fn set_points(&mut self, points: Vec<BlendSpacePoint>) {
+    pub fn set_points(&mut self, points: Vec<BlendSpacePoint>) -> bool {
         self.points = points;
-        self.triangles_dirty.set(true);
+        self.triangulate()
     }
 
     pub fn clear_points(&mut self) {
         self.points.clear();
-        self.triangles_dirty.set(true);
+        self.triangles.clear();
     }
 
     pub fn points(&self) -> &[BlendSpacePoint] {
         &self.points
     }
 
-    pub fn points_mut(&mut self) -> &mut Vec<BlendSpacePoint> {
-        self.triangles_dirty.set(true);
-        &mut self.points
+    pub fn points_mut(&mut self) -> PointsMut {
+        PointsMut { blend_space: self }
     }
 
-    pub fn triangles(&self) -> Ref<Vec<TriangleDefinition>> {
-        self.triangles.borrow()
+    pub fn triangles(&self) -> &[TriangleDefinition] {
+        &self.triangles
     }
 
     pub fn children(&self) -> Vec<Handle<PoseNode>> {
@@ -217,11 +228,6 @@ impl BlendSpace {
     }
 
     pub fn fetch_weights(&self, sampling_point: Vector2<f32>) -> Option<[(usize, f32); 3]> {
-        if self.triangles_dirty.get() {
-            self.triangulate();
-            self.triangles_dirty.set(false);
-        }
-
         if self.points.is_empty() {
             return None;
         }
@@ -241,7 +247,7 @@ impl BlendSpace {
             }
         }
 
-        let triangles = self.triangles.borrow();
+        let triangles = &self.triangles;
 
         // Try to find a triangle that contains the sampling point.
         for triangle in triangles.iter() {
@@ -299,10 +305,8 @@ impl BlendSpace {
         weights
     }
 
-    fn triangulate(&self) -> bool {
-        let mut triangles = self.triangles.borrow_mut();
-
-        triangles.clear();
+    fn triangulate(&mut self) -> bool {
+        self.triangles.clear();
 
         if self.points.len() < 3 {
             return false;
@@ -321,7 +325,7 @@ impl BlendSpace {
 
         for face in triangulation.inner_faces() {
             let edges = face.adjacent_edges();
-            triangles.push(TriangleDefinition([
+            self.triangles.push(TriangleDefinition([
                 edges[0].from().index() as u32,
                 edges[1].from().index() as u32,
                 edges[2].from().index() as u32,
@@ -338,7 +342,6 @@ mod test {
         animation::machine::node::blendspace::{BlendSpace, BlendSpacePoint},
         core::{algebra::Vector2, math::TriangleDefinition},
     };
-    use std::cell::RefCell;
 
     #[test]
     fn test_blend_space_triangulation() {
@@ -367,10 +370,7 @@ mod test {
 
         assert_eq!(
             blend_space.triangles,
-            RefCell::new(vec![
-                TriangleDefinition([2, 0, 1]),
-                TriangleDefinition([3, 0, 2])
-            ])
+            vec![TriangleDefinition([2, 0, 1]), TriangleDefinition([3, 0, 2])]
         )
     }
 

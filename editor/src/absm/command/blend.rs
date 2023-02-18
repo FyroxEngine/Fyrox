@@ -39,11 +39,8 @@ define_push_element_to_collection_command!(AddBlendSpacePointCommand<Handle<Pose
 define_set_collection_element_command!(
     SetBlendAnimationByIndexInputPoseSourceCommand<Handle<PoseNode>, Handle<PoseNode>>(self, context) {
         let machine = fetch_machine(context, self.node_handle);
-        match machine.layers_mut()[self.layer_index].nodes_mut()[self.handle] {
-            PoseNode::BlendAnimationsByIndex(ref mut definition) => {
-                &mut definition.inputs[self.index].pose_source
-            }
-            _ => unreachable!(),
+        if let PoseNode::BlendAnimationsByIndex(ref mut definition) = machine.layers_mut()[self.layer_index].nodes_mut()[self.handle] {
+            std::mem::swap(&mut definition.inputs[self.index].pose_source, &mut self.value)
         }
     }
 );
@@ -51,11 +48,8 @@ define_set_collection_element_command!(
 define_set_collection_element_command!(
     SetBlendAnimationsPoseSourceCommand<Handle<PoseNode>, Handle<PoseNode>>(self, context) {
         let machine = fetch_machine(context, self.node_handle);
-        match machine.layers_mut()[self.layer_index].nodes_mut()[self.handle] {
-            PoseNode::BlendAnimations(ref mut definition) => {
-                &mut definition.pose_sources[self.index].pose_source
-            }
-            _ => unreachable!(),
+        if let PoseNode::BlendAnimations(ref mut definition) = machine.layers_mut()[self.layer_index].nodes_mut()[self.handle] {
+            std::mem::swap(&mut definition.pose_sources[self.index].pose_source, &mut self.value);
         }
     }
 );
@@ -63,11 +57,8 @@ define_set_collection_element_command!(
 define_set_collection_element_command!(
     SetBlendSpacePoseSourceCommand<Handle<PoseNode>, Handle<PoseNode>>(self, context) {
         let machine = fetch_machine(context, self.node_handle);
-        match machine.layers_mut()[self.layer_index].nodes_mut()[self.handle] {
-            PoseNode::BlendSpace(ref mut definition) => {
-                &mut definition.points_mut()[self.index].pose_source
-            }
-            _ => unreachable!(),
+        if let PoseNode::BlendSpace(ref mut definition) = machine.layers_mut()[self.layer_index].nodes_mut()[self.handle] {
+            std::mem::swap( &mut definition.points_mut()[self.index].pose_source, &mut self.value);
         }
     }
 );

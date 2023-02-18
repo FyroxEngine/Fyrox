@@ -607,13 +607,11 @@ macro_rules! define_push_element_to_collection_command {
             }
 
             fn execute(&mut $self, $context: &mut SceneContext) {
-                let collection = $get_collection;
-                collection.push($self.value.take().unwrap());
+                ($get_collection).push($self.value.take().unwrap());
             }
 
             fn revert(&mut $self, $context: &mut SceneContext) {
-                let collection = $get_collection;
-                $self.value = Some(collection.pop().unwrap());
+                $self.value = Some(($get_collection).pop().unwrap());
             }
         }
     };
@@ -660,7 +658,7 @@ macro_rules! define_remove_collection_element_command {
 
 #[macro_export]
 macro_rules! define_set_collection_element_command {
-    ($name:ident<$model_handle:ty, $value_type:ty>($self:ident, $context:ident) $get_value:block) => {
+    ($name:ident<$model_handle:ty, $value_type:ty>($self:ident, $context:ident) $swap_value:block) => {
         #[derive(Debug)]
         pub struct $name {
             pub node_handle: Handle<Node>,
@@ -672,8 +670,7 @@ macro_rules! define_set_collection_element_command {
 
         impl $name {
             pub fn swap(&mut $self, $context: &mut SceneContext) {
-                let value = $get_value;
-                std::mem::swap(value, &mut $self.value);
+                 $swap_value
             }
         }
 

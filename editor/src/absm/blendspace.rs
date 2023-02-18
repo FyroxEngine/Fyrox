@@ -22,7 +22,8 @@ use fyrox::{
         text_box::TextBoxBuilder,
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Control, Orientation, UiNode, UserInterface, VerticalAlignment,
+        BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        VerticalAlignment, BRUSH_DARK,
     },
 };
 use std::{
@@ -34,11 +35,17 @@ use std::{
 pub enum BlendSpaceFieldMessage {
     Points(Vec<Vector2<f32>>),
     Triangles(Vec<TriangleDefinition>),
+    MinValues(Vector2<f32>),
+    MaxValues(Vector2<f32>),
+    SnapStep(Vector2<f32>),
 }
 
 impl BlendSpaceFieldMessage {
     define_constructor!(BlendSpaceFieldMessage:Points => fn points(Vec<Vector2<f32>>), layout: false);
     define_constructor!(BlendSpaceFieldMessage:Triangles => fn triangles(Vec<TriangleDefinition>), layout: false);
+    define_constructor!(BlendSpaceFieldMessage:MinValues => fn min_values(Vector2<f32>), layout: false);
+    define_constructor!(BlendSpaceFieldMessage:MaxValues => fn max_values(Vector2<f32>), layout: false);
+    define_constructor!(BlendSpaceFieldMessage:SnapStep => fn snap_step(Vector2<f32>), layout: false);
 }
 
 #[derive(Clone)]
@@ -65,14 +72,16 @@ fn blend_to_local(
     bounds.position + Vector2::new(kx * bounds.w(), ky * bounds.h())
 }
 
-fn make_points(points: &[Vector2<f32>], ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
+fn make_points<P: Iterator<Item = Vector2<f32>>>(
+    points: P,
+    ctx: &mut BuildContext,
+) -> Vec<Handle<UiNode>> {
     points
-        .iter()
         .map(|p| {
             BlendSpaceFieldPointBuilder::new(
                 WidgetBuilder::new().with_foreground(Brush::Solid(Color::WHITE)),
             )
-            .with_position(*p)
+            .with_position(p)
             .build(ctx)
         })
         .collect()
@@ -138,13 +147,19 @@ impl Control for BlendSpaceField {
             if let Some(msg) = message.data::<BlendSpaceFieldMessage>() {
                 match msg {
                     BlendSpaceFieldMessage::Points(points) => {
-                        let points = make_points(points, &mut ui.build_ctx());
+                        let min = self.min_values;
+                        let max = self.max_values;
+                        let bounds = self.bounding_rect();
+                        let point_views = make_points(
+                            points.iter().map(|p| blend_to_local(*p, min, max, bounds)),
+                            &mut ui.build_ctx(),
+                        );
 
                         for &pt in self.points.iter() {
                             ui.send_message(WidgetMessage::remove(pt, MessageDirection::ToWidget));
                         }
 
-                        for &new_pt in points.iter() {
+                        for &new_pt in point_views.iter() {
                             ui.send_message(WidgetMessage::link(
                                 new_pt,
                                 MessageDirection::ToWidget,
@@ -152,10 +167,20 @@ impl Control for BlendSpaceField {
                             ));
                         }
 
-                        self.points = points;
+                        self.points = point_views;
+                        self.point_positions = points.clone();
                     }
                     BlendSpaceFieldMessage::Triangles(triangles) => {
                         self.triangles = triangles.clone();
+                    }
+                    BlendSpaceFieldMessage::MinValues(min) => {
+                        self.min_values = *min;
+                    }
+                    BlendSpaceFieldMessage::MaxValues(max) => {
+                        self.max_values = *max;
+                    }
+                    BlendSpaceFieldMessage::SnapStep(snap_step) => {
+                        self.snap_step = *snap_step;
                     }
                 }
             }
@@ -168,8 +193,6 @@ struct BlendSpaceFieldBuilder {
     min_values: Vector2<f32>,
     max_values: Vector2<f32>,
     snap_step: Vector2<f32>,
-    point_positions: Vec<Vector2<f32>>,
-    triangles: Vec<TriangleDefinition>,
 }
 
 impl BlendSpaceFieldBuilder {
@@ -179,22 +202,18 @@ impl BlendSpaceFieldBuilder {
             min_values: Default::default(),
             max_values: Default::default(),
             snap_step: Default::default(),
-            point_positions: Default::default(),
-            triangles: Default::default(),
         }
     }
 
     fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let points = make_points(&self.point_positions, ctx);
-
         let field = BlendSpaceField {
             widget: self.widget_builder.build(),
-            points,
+            points: Default::default(),
             min_values: self.min_values,
             max_values: self.max_values,
             snap_step: self.snap_step,
-            point_positions: self.point_positions,
-            triangles: self.triangles,
+            point_positions: Default::default(),
+            triangles: Default::default(),
         };
 
         ctx.add_node(UiNode::new(field))
@@ -300,6 +319,7 @@ impl BlendSpaceEditor {
                                             max_y = NumericUpDownBuilder::new(
                                                 WidgetBuilder::new()
                                                     .on_row(0)
+                                                    .with_height(22.0)
                                                     .with_vertical_alignment(
                                                         VerticalAlignment::Top,
                                                     ),
@@ -317,12 +337,14 @@ impl BlendSpaceEditor {
                                                         VerticalAlignment::Center,
                                                     ),
                                             )
+                                            .with_vertical_text_alignment(VerticalAlignment::Center)
                                             .build(ctx);
                                             y_axis_name
                                         })
                                         .with_child({
                                             min_y = NumericUpDownBuilder::new(
                                                 WidgetBuilder::new()
+                                                    .with_height(22.0)
                                                     .on_row(2)
                                                     .with_vertical_alignment(
                                                         VerticalAlignment::Bottom,
@@ -341,7 +363,11 @@ impl BlendSpaceEditor {
                             )
                             .with_child({
                                 field = BlendSpaceFieldBuilder::new(
-                                    WidgetBuilder::new().on_row(0).on_column(1),
+                                    WidgetBuilder::new()
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .on_row(0)
+                                        .on_column(1)
+                                        .with_background(BRUSH_DARK),
                                 )
                                 .build(ctx);
                                 field
@@ -355,8 +381,9 @@ impl BlendSpaceEditor {
                                             min_x = NumericUpDownBuilder::new(
                                                 WidgetBuilder::new()
                                                     .on_column(0)
-                                                    .with_vertical_alignment(
-                                                        VerticalAlignment::Top,
+                                                    .with_width(50.0)
+                                                    .with_horizontal_alignment(
+                                                        HorizontalAlignment::Left,
                                                     ),
                                             )
                                             .with_value(0.0f32)
@@ -367,10 +394,12 @@ impl BlendSpaceEditor {
                                             x_axis_name = TextBoxBuilder::new(
                                                 WidgetBuilder::new()
                                                     .on_column(1)
-                                                    .with_vertical_alignment(
-                                                        VerticalAlignment::Center,
+                                                    .with_width(50.0)
+                                                    .with_horizontal_alignment(
+                                                        HorizontalAlignment::Center,
                                                     ),
                                             )
+                                            .with_vertical_text_alignment(VerticalAlignment::Center)
                                             .build(ctx);
                                             x_axis_name
                                         })
@@ -378,8 +407,9 @@ impl BlendSpaceEditor {
                                             max_x = NumericUpDownBuilder::new(
                                                 WidgetBuilder::new()
                                                     .on_column(2)
-                                                    .with_vertical_alignment(
-                                                        VerticalAlignment::Bottom,
+                                                    .with_width(50.0)
+                                                    .with_horizontal_alignment(
+                                                        HorizontalAlignment::Right,
                                                     ),
                                             )
                                             .with_value(0.0f32)
@@ -501,9 +531,33 @@ impl BlendSpaceEditor {
                     BlendSpaceFieldMessage::triangles(
                         self.field,
                         MessageDirection::ToWidget,
-                        blend_space.triangles().clone(),
+                        blend_space.triangles().to_vec(),
                     ),
-                )
+                );
+                send_sync_message(
+                    ui,
+                    BlendSpaceFieldMessage::min_values(
+                        self.field,
+                        MessageDirection::ToWidget,
+                        blend_space.min_values(),
+                    ),
+                );
+                send_sync_message(
+                    ui,
+                    BlendSpaceFieldMessage::max_values(
+                        self.field,
+                        MessageDirection::ToWidget,
+                        blend_space.max_values(),
+                    ),
+                );
+                send_sync_message(
+                    ui,
+                    BlendSpaceFieldMessage::snap_step(
+                        self.field,
+                        MessageDirection::ToWidget,
+                        blend_space.snap_step(),
+                    ),
+                );
             }
         }
     }
