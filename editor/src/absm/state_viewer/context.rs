@@ -18,7 +18,8 @@ use crate::{
     },
     Message,
 };
-use fyrox::animation::machine::node::blendspace::BlendSpace;
+use fyrox::animation::machine::node::blendspace::{BlendSpace, BlendSpacePoint};
+use fyrox::core::algebra::Vector2;
 use fyrox::{
     animation::machine::{
         node::BasePoseNode, BlendAnimations, BlendAnimationsByIndex, MachineLayer, PlayAnimation,
@@ -142,6 +143,24 @@ impl CanvasContextMenu {
 
                 blend_space.position = position;
                 blend_space.parent_state = current_state;
+                blend_space.set_points(vec![
+                    BlendSpacePoint {
+                        position: Vector2::new(0.0, 0.0),
+                        pose_source: Default::default(),
+                    },
+                    BlendSpacePoint {
+                        position: Vector2::new(1.0, 0.0),
+                        pose_source: Default::default(),
+                    },
+                    BlendSpacePoint {
+                        position: Vector2::new(1.0, 1.0),
+                        pose_source: Default::default(),
+                    },
+                    BlendSpacePoint {
+                        position: Vector2::new(0.5, 0.5),
+                        pose_source: Default::default(),
+                    },
+                ]);
 
                 Some(PoseNode::BlendSpace(blend_space))
             } else {

@@ -29,8 +29,10 @@ pub struct BlendSpacePoint {
 pub struct BlendSpace {
     base: BasePoseNode,
 
+    #[reflect(hidden)]
     points: Vec<BlendSpacePoint>,
 
+    #[reflect(hidden)]
     triangles: Vec<TriangleDefinition>,
 
     #[reflect(setter = "set_x_axis_name")]

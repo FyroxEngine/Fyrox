@@ -3,6 +3,7 @@ use crate::{
     define_set_collection_element_command, scene::commands::SceneContext,
 };
 use fyrox::animation::machine::node::blendspace::BlendSpacePoint;
+use fyrox::core::algebra::Vector2;
 use fyrox::{
     animation::machine::node::{
         blend::{BlendPose, IndexedBlendInput},
@@ -62,3 +63,30 @@ define_set_collection_element_command!(
         }
     }
 );
+
+define_set_collection_element_command!(
+    SetBlendSpacePointPositionCommand<Handle<PoseNode>, Vector2<f32>>(self, context) {
+        let machine = fetch_machine(context, self.node_handle);
+        if let PoseNode::BlendSpace(ref mut definition) = machine.layers_mut()[self.layer_index].nodes_mut()[self.handle] {
+            std::mem::swap( &mut definition.points_mut()[self.index].position, &mut self.value);
+        }
+    }
+);
+
+/*
+pub struct SetBlendSpacePointPosition {
+    scene_node_handle: Handle<Node>,
+    layer_index: usize,
+    node_handle: Handle<PoseNode>,
+    point_index: usize,
+    position: Vector2<f32>
+}
+
+impl SetBlendSpacePointPosition {
+    fn swap(&mut self, context: &mut SceneContext) {
+        let machine = fetch_machine(context, self.scene_node_handle);
+        if let PoseNode::BlendSpace(ref mut definition) = machine.layers_mut()[self.layer_index].nodes_mut()[self.node_handle] {
+            std::mem::swap(&mut definition.points_mut()[self.point_index].position, &mut self.position);
+        }
+    }
+}*/
