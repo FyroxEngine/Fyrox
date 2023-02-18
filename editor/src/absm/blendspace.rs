@@ -18,7 +18,7 @@ use fyrox::{
         message::{MessageDirection, UiMessage},
         numeric::{NumericUpDownBuilder, NumericUpDownMessage},
         stack_panel::StackPanelBuilder,
-        text::TextMessage,
+        text::{TextBuilder, TextMessage},
         text_box::TextBoxBuilder,
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
@@ -343,6 +343,8 @@ pub struct BlendSpaceEditor {
     x_axis_name: Handle<UiNode>,
     y_axis_name: Handle<UiNode>,
     field: Handle<UiNode>,
+    snap_step_x: Handle<UiNode>,
+    snap_step_y: Handle<UiNode>,
 }
 
 impl BlendSpaceEditor {
@@ -354,12 +356,54 @@ impl BlendSpaceEditor {
         let x_axis_name;
         let y_axis_name;
         let field;
+        let snap_step_x;
+        let snap_step_y;
         let content = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(
-                    StackPanelBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
-                        .with_orientation(Orientation::Horizontal)
-                        .build(ctx),
+                    StackPanelBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(0)
+                            .on_column(0)
+                            .with_child(
+                                TextBuilder::new(
+                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_text("Snapping X:")
+                                .with_vertical_text_alignment(VerticalAlignment::Center)
+                                .build(ctx),
+                            )
+                            .with_child({
+                                snap_step_x = NumericUpDownBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_row(0)
+                                        .with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_value(0.0f32)
+                                .build(ctx);
+                                snap_step_x
+                            })
+                            .with_child(
+                                TextBuilder::new(
+                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_text("Y:")
+                                .with_vertical_text_alignment(VerticalAlignment::Center)
+                                .build(ctx),
+                            )
+                            .with_child({
+                                snap_step_y = NumericUpDownBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_row(0)
+                                        .with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_value(0.0f32)
+                                .build(ctx);
+                                snap_step_y
+                            }),
+                    )
+                    .with_orientation(Orientation::Horizontal)
+                    .build(ctx),
                 )
                 .with_child(
                     GridBuilder::new(
@@ -373,6 +417,7 @@ impl BlendSpaceEditor {
                                             max_y = NumericUpDownBuilder::new(
                                                 WidgetBuilder::new()
                                                     .on_row(0)
+                                                    .with_margin(Thickness::uniform(1.0))
                                                     .with_height(22.0)
                                                     .with_vertical_alignment(
                                                         VerticalAlignment::Top,
@@ -387,6 +432,7 @@ impl BlendSpaceEditor {
                                                 WidgetBuilder::new()
                                                     .with_height(22.0)
                                                     .on_row(1)
+                                                    .with_margin(Thickness::uniform(1.0))
                                                     .with_vertical_alignment(
                                                         VerticalAlignment::Center,
                                                     ),
@@ -400,6 +446,7 @@ impl BlendSpaceEditor {
                                                 WidgetBuilder::new()
                                                     .with_height(22.0)
                                                     .on_row(2)
+                                                    .with_margin(Thickness::uniform(1.0))
                                                     .with_vertical_alignment(
                                                         VerticalAlignment::Bottom,
                                                     ),
@@ -436,6 +483,7 @@ impl BlendSpaceEditor {
                                             min_x = NumericUpDownBuilder::new(
                                                 WidgetBuilder::new()
                                                     .on_column(0)
+                                                    .with_margin(Thickness::uniform(1.0))
                                                     .with_width(50.0)
                                                     .with_horizontal_alignment(
                                                         HorizontalAlignment::Left,
@@ -449,6 +497,7 @@ impl BlendSpaceEditor {
                                             x_axis_name = TextBoxBuilder::new(
                                                 WidgetBuilder::new()
                                                     .on_column(1)
+                                                    .with_margin(Thickness::uniform(1.0))
                                                     .with_width(50.0)
                                                     .with_horizontal_alignment(
                                                         HorizontalAlignment::Center,
@@ -462,6 +511,7 @@ impl BlendSpaceEditor {
                                             max_x = NumericUpDownBuilder::new(
                                                 WidgetBuilder::new()
                                                     .on_column(2)
+                                                    .with_margin(Thickness::uniform(1.0))
                                                     .with_width(50.0)
                                                     .with_horizontal_alignment(
                                                         HorizontalAlignment::Right,
@@ -486,7 +536,7 @@ impl BlendSpaceEditor {
                     .build(ctx),
                 ),
         )
-        .add_row(Row::strict(22.0))
+        .add_row(Row::strict(24.0))
         .add_row(Row::stretch())
         .add_column(Column::stretch())
         .build(ctx);
@@ -506,6 +556,8 @@ impl BlendSpaceEditor {
             x_axis_name,
             y_axis_name,
             field,
+            snap_step_x,
+            snap_step_y,
         }
     }
 
@@ -525,38 +577,20 @@ impl BlendSpaceEditor {
     ) {
         if let Some(SelectedEntity::PoseNode(first)) = selection.entities.first() {
             if let PoseNode::BlendSpace(blend_space) = layer.node(*first) {
-                send_sync_message(
-                    ui,
-                    NumericUpDownMessage::value(
-                        self.min_x,
-                        MessageDirection::ToWidget,
-                        blend_space.min_values().x,
-                    ),
-                );
-                send_sync_message(
-                    ui,
-                    NumericUpDownMessage::value(
-                        self.max_x,
-                        MessageDirection::ToWidget,
-                        blend_space.max_values().x,
-                    ),
-                );
-                send_sync_message(
-                    ui,
-                    NumericUpDownMessage::value(
-                        self.min_y,
-                        MessageDirection::ToWidget,
-                        blend_space.min_values().y,
-                    ),
-                );
-                send_sync_message(
-                    ui,
-                    NumericUpDownMessage::value(
-                        self.max_y,
-                        MessageDirection::ToWidget,
-                        blend_space.max_values().y,
-                    ),
-                );
+                let sync_numeric = |destination: Handle<UiNode>, v: f32| {
+                    send_sync_message(
+                        ui,
+                        NumericUpDownMessage::value(destination, MessageDirection::ToWidget, v),
+                    );
+                };
+
+                sync_numeric(self.min_x, blend_space.min_values().x);
+                sync_numeric(self.max_x, blend_space.max_values().x);
+                sync_numeric(self.min_y, blend_space.min_values().y);
+                sync_numeric(self.max_y, blend_space.max_values().y);
+                sync_numeric(self.snap_step_x, blend_space.snap_step().x);
+                sync_numeric(self.snap_step_y, blend_space.snap_step().y);
+
                 send_sync_message(
                     ui,
                     TextMessage::text(
