@@ -23,7 +23,7 @@ use fyrox::{
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-        VerticalAlignment, BRUSH_DARK,
+        VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT, BRUSH_LIGHTEST,
     },
 };
 use std::{
@@ -41,7 +41,7 @@ pub enum BlendSpaceFieldMessage {
 }
 
 impl BlendSpaceFieldMessage {
-    define_constructor!(BlendSpaceFieldMessage:Points => fn points(Vec<Vector2<f32>>), layout: false);
+    define_constructor!(BlendSpaceFieldMessage:Points => fn points(Vec<Vector2<f32>>), layout: true);
     define_constructor!(BlendSpaceFieldMessage:Triangles => fn triangles(Vec<TriangleDefinition>), layout: false);
     define_constructor!(BlendSpaceFieldMessage:MinValues => fn min_values(Vector2<f32>), layout: false);
     define_constructor!(BlendSpaceFieldMessage:MaxValues => fn max_values(Vector2<f32>), layout: false);
@@ -57,6 +57,7 @@ struct BlendSpaceField {
     snap_step: Vector2<f32>,
     point_positions: Vec<Vector2<f32>>,
     triangles: Vec<TriangleDefinition>,
+    grid_brush: Brush,
 }
 
 define_widget_deref!(BlendSpaceField);
@@ -79,9 +80,10 @@ fn make_points<P: Iterator<Item = Vector2<f32>>>(
     points
         .map(|p| {
             BlendSpaceFieldPointBuilder::new(
-                WidgetBuilder::new().with_foreground(Brush::Solid(Color::WHITE)),
+                WidgetBuilder::new()
+                    .with_foreground(Brush::Solid(Color::WHITE))
+                    .with_desired_position(p),
             )
-            .with_position(p)
             .build(ctx)
         })
         .collect()
@@ -96,9 +98,45 @@ impl Control for BlendSpaceField {
         }
     }
 
+    fn measure_override(&self, ui: &UserInterface, _available_size: Vector2<f32>) -> Vector2<f32> {
+        let size_for_child = Vector2::new(f32::INFINITY, f32::INFINITY);
+
+        for child_handle in self.widget.children() {
+            ui.measure_node(*child_handle, size_for_child);
+        }
+
+        Vector2::default()
+    }
+
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
+        for &child_handle in self.widget.children() {
+            let child = ui.node(child_handle);
+
+            let position = blend_to_local(
+                child.desired_local_position(),
+                self.min_values,
+                self.max_values,
+                Rect::new(0.0, 0.0, final_size.x, final_size.y),
+            ) - child.desired_size().scale(0.5);
+
+            ui.arrange_node(
+                child_handle,
+                &Rect::new(
+                    position.x,
+                    position.y,
+                    child.desired_size().x,
+                    child.desired_size().y,
+                ),
+            );
+        }
+
+        final_size
+    }
+
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.bounding_rect();
 
+        // Draw background first.
         drawing_context.push_rect_filled(&bounds, None);
         drawing_context.commit(
             self.clip_bounds(),
@@ -107,6 +145,29 @@ impl Control for BlendSpaceField {
             None,
         );
 
+        // Draw grid.
+        let dvalue = self.max_values - self.min_values;
+        let nx = ((dvalue.x / self.snap_step.x) as usize).min(256);
+        let ny = ((dvalue.y / self.snap_step.y) as usize).min(256);
+
+        for xs in 0..=nx {
+            let x = (xs as f32 / nx as f32) * bounds.w();
+            drawing_context.push_line(Vector2::new(x, 0.0), Vector2::new(x, bounds.h()), 1.0);
+        }
+
+        for ys in 0..=ny {
+            let y = (ys as f32 / ny as f32) * bounds.h();
+            drawing_context.push_line(Vector2::new(0.0, y), Vector2::new(bounds.w(), y), 1.0);
+        }
+
+        drawing_context.commit(
+            self.clip_bounds(),
+            self.grid_brush.clone(),
+            CommandTexture::None,
+            None,
+        );
+
+        // Draw triangles.
         for triangle in self.triangles.iter() {
             let a = blend_to_local(
                 self.point_positions[triangle[0] as usize],
@@ -147,17 +208,11 @@ impl Control for BlendSpaceField {
             if let Some(msg) = message.data::<BlendSpaceFieldMessage>() {
                 match msg {
                     BlendSpaceFieldMessage::Points(points) => {
-                        let min = self.min_values;
-                        let max = self.max_values;
-                        let bounds = self.bounding_rect();
-                        let point_views = make_points(
-                            points.iter().map(|p| blend_to_local(*p, min, max, bounds)),
-                            &mut ui.build_ctx(),
-                        );
-
                         for &pt in self.points.iter() {
                             ui.send_message(WidgetMessage::remove(pt, MessageDirection::ToWidget));
                         }
+
+                        let point_views = make_points(points.iter().cloned(), &mut ui.build_ctx());
 
                         for &new_pt in point_views.iter() {
                             ui.send_message(WidgetMessage::link(
@@ -214,6 +269,7 @@ impl BlendSpaceFieldBuilder {
             snap_step: self.snap_step,
             point_positions: Default::default(),
             triangles: Default::default(),
+            grid_brush: BRUSH_LIGHT,
         };
 
         ctx.add_node(UiNode::new(field))
@@ -223,7 +279,6 @@ impl BlendSpaceFieldBuilder {
 #[derive(Clone)]
 struct BlendSpaceFieldPoint {
     widget: Widget,
-    position: Vector2<f32>,
 }
 
 define_widget_deref!(BlendSpaceFieldPoint);
@@ -238,7 +293,12 @@ impl Control for BlendSpaceFieldPoint {
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
-        drawing_context.push_circle(self.position, 4.0, 16, Color::WHITE);
+        drawing_context.push_circle(
+            Vector2::new(self.width * 0.5, self.height * 0.5),
+            (self.width + self.height) * 0.25,
+            16,
+            Color::WHITE,
+        );
         drawing_context.commit(
             self.clip_bounds(),
             self.foreground(),
@@ -254,26 +314,20 @@ impl Control for BlendSpaceFieldPoint {
 
 struct BlendSpaceFieldPointBuilder {
     widget_builder: WidgetBuilder,
-    position: Vector2<f32>,
 }
 
 impl BlendSpaceFieldPointBuilder {
     fn new(widget_builder: WidgetBuilder) -> Self {
-        Self {
-            widget_builder,
-            position: Default::default(),
-        }
-    }
-
-    fn with_position(mut self, position: Vector2<f32>) -> Self {
-        self.position = position;
-        self
+        Self { widget_builder }
     }
 
     fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let point = BlendSpaceFieldPoint {
-            widget: self.widget_builder.build(),
-            position: self.position,
+            widget: self
+                .widget_builder
+                .with_width(10.0)
+                .with_height(10.0)
+                .build(),
         };
 
         ctx.add_node(UiNode::new(point))
@@ -367,6 +421,7 @@ impl BlendSpaceEditor {
                                         .with_margin(Thickness::uniform(1.0))
                                         .on_row(0)
                                         .on_column(1)
+                                        .with_foreground(BRUSH_LIGHTEST)
                                         .with_background(BRUSH_DARK),
                                 )
                                 .build(ctx);
@@ -518,22 +573,7 @@ impl BlendSpaceEditor {
                         blend_space.y_axis_name().to_string(),
                     ),
                 );
-                send_sync_message(
-                    ui,
-                    BlendSpaceFieldMessage::points(
-                        self.field,
-                        MessageDirection::ToWidget,
-                        blend_space.points().iter().map(|p| p.position).collect(),
-                    ),
-                );
-                send_sync_message(
-                    ui,
-                    BlendSpaceFieldMessage::triangles(
-                        self.field,
-                        MessageDirection::ToWidget,
-                        blend_space.triangles().to_vec(),
-                    ),
-                );
+
                 send_sync_message(
                     ui,
                     BlendSpaceFieldMessage::min_values(
@@ -556,6 +596,22 @@ impl BlendSpaceEditor {
                         self.field,
                         MessageDirection::ToWidget,
                         blend_space.snap_step(),
+                    ),
+                );
+                send_sync_message(
+                    ui,
+                    BlendSpaceFieldMessage::points(
+                        self.field,
+                        MessageDirection::ToWidget,
+                        blend_space.points().iter().map(|p| p.position).collect(),
+                    ),
+                );
+                send_sync_message(
+                    ui,
+                    BlendSpaceFieldMessage::triangles(
+                        self.field,
+                        MessageDirection::ToWidget,
+                        blend_space.triangles().to_vec(),
                     ),
                 );
             }
