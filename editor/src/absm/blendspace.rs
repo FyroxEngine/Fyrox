@@ -70,7 +70,7 @@ fn blend_to_local(
 ) -> Vector2<f32> {
     let kx = (p.x - min.x) / (max.x - min.x);
     let ky = (p.y - min.y) / (max.y - min.y);
-    bounds.position + Vector2::new(kx * bounds.w(), ky * bounds.h())
+    bounds.position + Vector2::new(kx * bounds.w(), bounds.h() - ky * bounds.h())
 }
 
 fn make_points<P: Iterator<Item = Vector2<f32>>>(
