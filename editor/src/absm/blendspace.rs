@@ -1,24 +1,33 @@
 use crate::{
     absm::{
-        command::blend::SetBlendSpacePointPositionCommand,
+        command::blend::{
+            AddBlendSpacePointCommand, RemoveBlendSpacePointCommand,
+            SetBlendSpacePointPositionCommand,
+        },
         selection::{AbsmSelection, SelectedEntity},
     },
+    menu::create_menu_item,
     send_sync_message, Message,
 };
 use fyrox::{
-    animation::machine::{Machine, MachineLayer, Parameter, ParameterContainer, PoseNode},
+    animation::machine::{
+        node::blendspace::BlendSpacePoint, Machine, MachineLayer, Parameter, ParameterContainer,
+        PoseNode,
+    },
     core::{
         algebra::Vector2,
         color::Color,
         math::{Rect, TriangleDefinition},
         pool::Handle,
     },
-    gui::message::MouseButton,
     gui::{
         brush::Brush,
         define_constructor, define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
-        message::{MessageDirection, UiMessage},
+        menu::MenuItemMessage,
+        message::{MessageDirection, MouseButton, UiMessage},
+        popup::{Placement, PopupBuilder, PopupMessage},
+        stack_panel::StackPanelBuilder,
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Control, Thickness, UiNode, UserInterface, BRUSH_DARK, BRUSH_LIGHT,
@@ -27,6 +36,7 @@ use fyrox::{
 };
 use std::{
     any::{Any, TypeId},
+    cell::Cell,
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
@@ -43,6 +53,8 @@ pub enum BlendSpaceFieldMessage {
         index: usize,
         position: Vector2<f32>,
     },
+    AddPoint(Vector2<f32>),
+    RemovePoint(usize),
 }
 
 impl BlendSpaceFieldMessage {
@@ -53,6 +65,17 @@ impl BlendSpaceFieldMessage {
     define_constructor!(BlendSpaceFieldMessage:SnapStep => fn snap_step(Vector2<f32>), layout: false);
     define_constructor!(BlendSpaceFieldMessage:SamplingPoint => fn sampling_point(Vector2<f32>), layout: false);
     define_constructor!(BlendSpaceFieldMessage:MovePoint  => fn move_point(index: usize, position: Vector2<f32>), layout: false);
+    define_constructor!(BlendSpaceFieldMessage:AddPoint  => fn add_point(Vector2<f32>), layout: false);
+    define_constructor!(BlendSpaceFieldMessage:RemovePoint  => fn remove_point(usize), layout: false);
+}
+
+#[derive(Clone)]
+struct ContextMenu {
+    menu: Handle<UiNode>,
+    add_point: Handle<UiNode>,
+    placement_target: Cell<Handle<UiNode>>,
+    screen_position: Cell<Vector2<f32>>,
+    remove_point: Handle<UiNode>,
 }
 
 #[derive(Clone)]
@@ -73,6 +96,7 @@ struct BlendSpaceField {
     grid_brush: Brush,
     sampling_point: Vector2<f32>,
     drag_context: Option<DragContext>,
+    field_context_menu: ContextMenu,
 }
 
 define_widget_deref!(BlendSpaceField);
@@ -104,12 +128,14 @@ fn screen_to_blend(
 
 fn make_points<P: Iterator<Item = Vector2<f32>>>(
     points: P,
+    context_menu: Handle<UiNode>,
     ctx: &mut BuildContext,
 ) -> Vec<Handle<UiNode>> {
     points
         .map(|p| {
             BlendSpaceFieldPointBuilder::new(
                 WidgetBuilder::new()
+                    .with_context_menu(context_menu)
                     .with_background(BRUSH_LIGHTEST)
                     .with_foreground(Brush::Solid(Color::WHITE))
                     .with_desired_position(p),
@@ -266,7 +292,11 @@ impl Control for BlendSpaceField {
                             ui.send_message(WidgetMessage::remove(pt, MessageDirection::ToWidget));
                         }
 
-                        let point_views = make_points(points.iter().cloned(), &mut ui.build_ctx());
+                        let point_views = make_points(
+                            points.iter().cloned(),
+                            self.field_context_menu.menu,
+                            &mut ui.build_ctx(),
+                        );
 
                         for &new_pt in point_views.iter() {
                             ui.send_message(WidgetMessage::link(
@@ -297,7 +327,9 @@ impl Control for BlendSpaceField {
                             ui.send_message(message.reverse());
                         }
                     }
-                    BlendSpaceFieldMessage::MovePoint { .. } => {
+                    BlendSpaceFieldMessage::MovePoint { .. }
+                    | BlendSpaceFieldMessage::AddPoint(_)
+                    | BlendSpaceFieldMessage::RemovePoint(_) => {
                         // Do nothing
                     }
                 }
@@ -375,6 +407,50 @@ impl Control for BlendSpaceField {
             }
         }
     }
+
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
+        if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
+            if message.destination() == self.field_context_menu.menu {
+                self.field_context_menu.placement_target.set(*target);
+
+                ui.send_message(WidgetMessage::enabled(
+                    self.field_context_menu.remove_point,
+                    MessageDirection::ToWidget,
+                    self.points.contains(target),
+                ));
+
+                self.field_context_menu
+                    .screen_position
+                    .set(ui.cursor_position());
+            }
+        } else if let Some(MenuItemMessage::Click) = message.data() {
+            if message.destination() == self.field_context_menu.add_point {
+                let pos = screen_to_blend(
+                    self.field_context_menu.screen_position.get(),
+                    self.min_values,
+                    self.max_values,
+                    self.screen_bounds(),
+                );
+                ui.send_message(BlendSpaceFieldMessage::add_point(
+                    self.handle,
+                    MessageDirection::FromWidget,
+                    pos,
+                ));
+            } else if message.destination() == self.field_context_menu.remove_point {
+                if let Some(pos) = self
+                    .points
+                    .iter()
+                    .position(|p| *p == self.field_context_menu.placement_target.get())
+                {
+                    ui.send_message(BlendSpaceFieldMessage::remove_point(
+                        self.handle,
+                        MessageDirection::FromWidget,
+                        pos,
+                    ));
+                }
+            }
+        }
+    }
 }
 
 struct BlendSpaceFieldBuilder {
@@ -395,8 +471,31 @@ impl BlendSpaceFieldBuilder {
     }
 
     fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let add_point;
+        let remove_point;
+        let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+            .with_content(
+                StackPanelBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child({
+                            add_point = create_menu_item("Add Point", vec![], ctx);
+                            add_point
+                        })
+                        .with_child({
+                            remove_point = create_menu_item("Remove Point", vec![], ctx);
+                            remove_point
+                        }),
+                )
+                .build(ctx),
+            )
+            .build(ctx);
+
         let field = BlendSpaceField {
-            widget: self.widget_builder.build(),
+            widget: self
+                .widget_builder
+                .with_preview_messages(true)
+                .with_context_menu(menu)
+                .build(),
             points: Default::default(),
             min_values: self.min_values,
             max_values: self.max_values,
@@ -406,6 +505,13 @@ impl BlendSpaceFieldBuilder {
             grid_brush: BRUSH_LIGHT,
             sampling_point: Vector2::new(0.25, 0.5),
             drag_context: None,
+            field_context_menu: ContextMenu {
+                menu,
+                add_point,
+                placement_target: Default::default(),
+                screen_position: Default::default(),
+                remove_point,
+            },
         };
 
         ctx.add_node(UiNode::new(field))
@@ -630,6 +736,26 @@ impl BlendSpaceEditor {
                                         ))
                                         .unwrap();
                                 }
+                                BlendSpaceFieldMessage::RemovePoint(index) => sender
+                                    .send(Message::do_scene_command(RemoveBlendSpacePointCommand {
+                                        scene_node_handle: selection.absm_node_handle,
+                                        node_handle: *first,
+                                        layer_index,
+                                        point_index: index,
+                                        point: None,
+                                    }))
+                                    .unwrap(),
+                                BlendSpaceFieldMessage::AddPoint(pos) => sender
+                                    .send(Message::do_scene_command(AddBlendSpacePointCommand {
+                                        node_handle: selection.absm_node_handle,
+                                        handle: *first,
+                                        layer_index,
+                                        value: Some(BlendSpacePoint {
+                                            position: pos,
+                                            pose_source: Default::default(),
+                                        }),
+                                    }))
+                                    .unwrap(),
                                 _ => (),
                             }
                         }

@@ -2,14 +2,13 @@ use crate::{
     absm::command::fetch_machine, command::Command, define_push_element_to_collection_command,
     define_set_collection_element_command, scene::commands::SceneContext,
 };
-use fyrox::animation::machine::node::blendspace::BlendSpacePoint;
-use fyrox::core::algebra::Vector2;
 use fyrox::{
     animation::machine::node::{
         blend::{BlendPose, IndexedBlendInput},
+        blendspace::BlendSpacePoint,
         PoseNode,
     },
-    core::pool::Handle,
+    core::{algebra::Vector2, pool::Handle},
     scene::node::Node,
 };
 
@@ -73,3 +72,38 @@ define_set_collection_element_command!(
         }
     }
 );
+
+#[derive(Debug)]
+pub struct RemoveBlendSpacePointCommand {
+    pub scene_node_handle: Handle<Node>,
+    pub layer_index: usize,
+    pub node_handle: Handle<PoseNode>,
+    pub point_index: usize,
+    pub point: Option<BlendSpacePoint>,
+}
+
+impl Command for RemoveBlendSpacePointCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Remove Blend Space Point".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        let machine = fetch_machine(context, self.scene_node_handle);
+        if let PoseNode::BlendSpace(ref mut definition) =
+            machine.layers_mut()[self.layer_index].nodes_mut()[self.node_handle]
+        {
+            self.point = Some(definition.points_mut().remove(self.point_index));
+        }
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        let machine = fetch_machine(context, self.scene_node_handle);
+        if let PoseNode::BlendSpace(ref mut definition) =
+            machine.layers_mut()[self.layer_index].nodes_mut()[self.node_handle]
+        {
+            definition
+                .points_mut()
+                .insert(self.point_index, self.point.take().unwrap());
+        }
+    }
+}
