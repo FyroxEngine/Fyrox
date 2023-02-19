@@ -397,8 +397,13 @@ impl AbsmEditor {
                     layer_index,
                     editor_scene,
                 );
-                self.blend_space_editor
-                    .handle_ui_message(&selection, message, sender);
+                self.blend_space_editor.handle_ui_message(
+                    &selection,
+                    message,
+                    sender,
+                    absm_node.machine_mut(),
+                    self.preview_mode_data.is_some(),
+                );
             }
 
             self.parameter_panel.handle_ui_message(

@@ -6,7 +6,7 @@ use crate::{
     send_sync_message, Message,
 };
 use fyrox::{
-    animation::machine::{MachineLayer, Parameter, ParameterContainer, PoseNode},
+    animation::machine::{Machine, MachineLayer, Parameter, ParameterContainer, PoseNode},
     core::{
         algebra::Vector2,
         color::Color,
@@ -56,8 +56,9 @@ impl BlendSpaceFieldMessage {
 }
 
 #[derive(Clone)]
-struct DragContext {
-    point: usize,
+enum DragContext {
+    SamplingPoint,
+    Point { point: usize },
 }
 
 #[derive(Clone)]
@@ -291,7 +292,10 @@ impl Control for BlendSpaceField {
                         self.snap_step = *snap_step;
                     }
                     BlendSpaceFieldMessage::SamplingPoint(sampling_point) => {
-                        self.sampling_point = *sampling_point;
+                        if message.direction == MessageDirection::ToWidget {
+                            self.sampling_point = *sampling_point;
+                            ui.send_message(message.reverse());
+                        }
                     }
                     BlendSpaceFieldMessage::MovePoint { .. } => {
                         // Do nothing
@@ -307,31 +311,35 @@ impl Control for BlendSpaceField {
                         if let Some(pos) =
                             self.points.iter().position(|p| *p == message.destination())
                         {
-                            self.drag_context = Some(DragContext { point: pos });
+                            self.drag_context = Some(DragContext::Point { point: pos });
 
                             ui.send_message(BlendSpaceFieldPointMessage::select(
                                 self.points[pos],
                                 MessageDirection::ToWidget,
                             ));
-
-                            ui.capture_mouse(self.handle);
+                        } else {
+                            self.drag_context = Some(DragContext::SamplingPoint);
                         }
+
+                        ui.capture_mouse(self.handle);
                     }
                 }
                 WidgetMessage::MouseUp { button, pos, .. } => {
                     if let Some(drag_context) = self.drag_context.take() {
                         if *button == MouseButton::Left {
-                            ui.send_message(BlendSpaceFieldMessage::move_point(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                                drag_context.point,
-                                screen_to_blend(
-                                    *pos,
-                                    self.min_values,
-                                    self.max_values,
-                                    self.screen_bounds(),
-                                ),
-                            ));
+                            if let DragContext::Point { point } = drag_context {
+                                ui.send_message(BlendSpaceFieldMessage::move_point(
+                                    self.handle,
+                                    MessageDirection::ToWidget,
+                                    point,
+                                    screen_to_blend(
+                                        *pos,
+                                        self.min_values,
+                                        self.max_values,
+                                        self.screen_bounds(),
+                                    ),
+                                ));
+                            }
 
                             ui.release_mouse_capture();
                         }
@@ -345,12 +353,22 @@ impl Control for BlendSpaceField {
                             self.max_values,
                             self.screen_bounds(),
                         );
-
-                        ui.send_message(WidgetMessage::desired_position(
-                            self.points[drag_context.point],
-                            MessageDirection::ToWidget,
-                            blend_pos,
-                        ));
+                        match drag_context {
+                            DragContext::SamplingPoint => {
+                                ui.send_message(BlendSpaceFieldMessage::sampling_point(
+                                    self.handle,
+                                    MessageDirection::ToWidget,
+                                    blend_pos,
+                                ));
+                            }
+                            DragContext::Point { point } => {
+                                ui.send_message(WidgetMessage::desired_position(
+                                    self.points[*point],
+                                    MessageDirection::ToWidget,
+                                    blend_pos,
+                                ));
+                            }
+                        }
                     }
                 }
                 _ => (),
@@ -576,24 +594,45 @@ impl BlendSpaceEditor {
         selection: &AbsmSelection,
         message: &UiMessage,
         sender: &Sender<Message>,
+        machine: &mut Machine,
+        is_preview_mode_active: bool,
     ) {
         if let Some(SelectedEntity::PoseNode(first)) = selection.entities.first() {
             if let Some(layer_index) = selection.layer {
-                if message.destination() == self.field {
-                    if let Some(&BlendSpaceFieldMessage::MovePoint { index, position }) =
-                        message.data()
-                    {
-                        sender
-                            .send(Message::do_scene_command(
-                                SetBlendSpacePointPositionCommand {
-                                    node_handle: selection.absm_node_handle,
-                                    handle: *first,
-                                    layer_index,
-                                    index,
-                                    value: position,
-                                },
-                            ))
-                            .unwrap();
+                if let PoseNode::BlendSpace(blend_space) =
+                    machine.layers()[layer_index].node(*first)
+                {
+                    if message.destination() == self.field {
+                        if let Some(msg) = message.data::<BlendSpaceFieldMessage>() {
+                            match *msg {
+                                BlendSpaceFieldMessage::SamplingPoint(point) => {
+                                    if is_preview_mode_active
+                                        && message.direction() == MessageDirection::FromWidget
+                                    {
+                                        let param = blend_space.sampling_parameter().to_string();
+                                        if let Some(Parameter::SamplingPoint(param)) =
+                                            machine.parameters_mut().get_mut(&param)
+                                        {
+                                            *param = point;
+                                        }
+                                    }
+                                }
+                                BlendSpaceFieldMessage::MovePoint { index, position } => {
+                                    sender
+                                        .send(Message::do_scene_command(
+                                            SetBlendSpacePointPositionCommand {
+                                                node_handle: selection.absm_node_handle,
+                                                handle: *first,
+                                                layer_index,
+                                                index,
+                                                value: position,
+                                            },
+                                        ))
+                                        .unwrap();
+                                }
+                                _ => (),
+                            }
+                        }
                     }
                 }
             }
