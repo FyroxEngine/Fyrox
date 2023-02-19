@@ -28,6 +28,7 @@ use fyrox::{
         message::{MessageDirection, MouseButton, UiMessage},
         popup::{Placement, PopupBuilder, PopupMessage},
         stack_panel::StackPanelBuilder,
+        text::TextBuilder,
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Control, Thickness, UiNode, UserInterface, BRUSH_DARK, BRUSH_LIGHT,
@@ -132,13 +133,15 @@ fn make_points<P: Iterator<Item = Vector2<f32>>>(
     ctx: &mut BuildContext,
 ) -> Vec<Handle<UiNode>> {
     points
-        .map(|p| {
+        .enumerate()
+        .map(|(i, p)| {
             BlendSpaceFieldPointBuilder::new(
                 WidgetBuilder::new()
                     .with_context_menu(context_menu)
                     .with_background(BRUSH_LIGHTEST)
                     .with_foreground(Brush::Solid(Color::WHITE))
                     .with_desired_position(p),
+                i,
             )
             .build(ctx)
         })
@@ -493,6 +496,7 @@ impl BlendSpaceFieldBuilder {
         let field = BlendSpaceField {
             widget: self
                 .widget_builder
+                .with_clip_to_bounds(false)
                 .with_preview_messages(true)
                 .with_context_menu(menu)
                 .build(),
@@ -576,17 +580,31 @@ impl Control for BlendSpaceFieldPoint {
 
 struct BlendSpaceFieldPointBuilder {
     widget_builder: WidgetBuilder,
+    index: usize,
 }
 
 impl BlendSpaceFieldPointBuilder {
-    fn new(widget_builder: WidgetBuilder) -> Self {
-        Self { widget_builder }
+    fn new(widget_builder: WidgetBuilder, index: usize) -> Self {
+        Self {
+            widget_builder,
+            index,
+        }
     }
 
     fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let point = BlendSpaceFieldPoint {
             widget: self
                 .widget_builder
+                .with_clip_to_bounds(false)
+                .with_child(
+                    TextBuilder::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::left(10.0))
+                            .with_clip_to_bounds(false),
+                    )
+                    .with_text(format!("{:?}", self.index))
+                    .build(ctx),
+                )
                 .with_width(10.0)
                 .with_height(10.0)
                 .build(),
@@ -606,7 +624,7 @@ impl BlendSpaceEditor {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let field = BlendSpaceFieldBuilder::new(
             WidgetBuilder::new()
-                .with_margin(Thickness::uniform(10.0))
+                .with_margin(Thickness::uniform(15.0))
                 .with_foreground(BRUSH_LIGHTEST)
                 .with_background(BRUSH_DARK),
         )
