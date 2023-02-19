@@ -1,6 +1,6 @@
 //! Parameter is a name variable of a fixed type. See [`Parameter`] docs for more info.
 
-use crate::core::{reflect::prelude::*, visitor::prelude::*};
+use crate::core::{algebra::Vector2, reflect::prelude::*, visitor::prelude::*};
 use fxhash::FxHashMap;
 use std::{
     cell::{Cell, RefCell},
@@ -21,6 +21,9 @@ pub enum Parameter {
 
     /// An index of a pose.
     Index(u32),
+
+    /// A sampling point. Usually it is used together with BlendSpace nodes.
+    SamplingPoint(Vector2<f32>),
 }
 
 impl Default for Parameter {

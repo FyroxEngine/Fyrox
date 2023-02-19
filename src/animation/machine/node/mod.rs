@@ -4,7 +4,7 @@
 use crate::{
     animation::{
         machine::{
-            node::{blend::BlendAnimations, play::PlayAnimation},
+            node::{blend::BlendAnimations, blendspace::BlendSpace, play::PlayAnimation},
             BlendAnimationsByIndex, BlendPose, IndexedBlendInput, ParameterContainer, State,
         },
         Animation, AnimationContainer, AnimationPose,
@@ -22,6 +22,7 @@ use std::{
 };
 
 pub mod blend;
+pub mod blendspace;
 pub mod play;
 
 /// A set of common data fields that is used in every node.
@@ -46,6 +47,9 @@ pub enum PoseNode {
 
     /// See docs for [`BlendAnimationsByIndex`].
     BlendAnimationsByIndex(BlendAnimationsByIndex),
+
+    /// See doc for [`BlendSpace`]
+    BlendSpace(BlendSpace),
 }
 
 impl Default for PoseNode {
@@ -81,8 +85,9 @@ impl PoseNode {
                 // No children nodes.
                 vec![]
             }
-            Self::BlendAnimations(definition) => definition.children(),
-            Self::BlendAnimationsByIndex(definition) => definition.children(),
+            Self::BlendAnimations(blend_animations) => blend_animations.children(),
+            Self::BlendAnimationsByIndex(blend_by_index) => blend_by_index.children(),
+            Self::BlendSpace(blend_space) => blend_space.children(),
         }
     }
 }
@@ -93,6 +98,7 @@ macro_rules! static_dispatch {
             PoseNode::PlayAnimation(v) => v.$func($($args),*),
             PoseNode::BlendAnimations(v) => v.$func($($args),*),
             PoseNode::BlendAnimationsByIndex(v) => v.$func($($args),*),
+            PoseNode::BlendSpace(v) => v.$func($($args),*),
         }
     };
 }

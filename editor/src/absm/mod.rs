@@ -1,6 +1,7 @@
 use crate::{
     absm::{
-        command::blend::{AddInputCommand, AddPoseSourceCommand},
+        blendspace::BlendSpaceEditor,
+        command::blend::{AddBlendSpacePointCommand, AddInputCommand, AddPoseSourceCommand},
         node::{AbsmNode, AbsmNodeMessage},
         parameter::ParameterPanel,
         selection::AbsmSelection,
@@ -11,11 +12,14 @@ use crate::{
     scene::{EditorScene, Selection},
     Message,
 };
-use fyrox::fxhash::FxHashSet;
 use fyrox::{
-    animation::machine::{BlendPose, Event, IndexedBlendInput, Machine, PoseNode, State},
+    animation::machine::{
+        node::blendspace::BlendSpacePoint, BlendPose, Event, IndexedBlendInput, Machine, PoseNode,
+        State,
+    },
     core::{color::Color, pool::Handle},
     engine::Engine,
+    fxhash::FxHashSet,
     gui::{
         check_box::CheckBoxMessage,
         dock::{DockingManagerBuilder, TileBuilder, TileContent},
@@ -33,6 +37,7 @@ use fyrox::{
 };
 use std::sync::mpsc::Sender;
 
+mod blendspace;
 mod canvas;
 pub mod command;
 mod connection;
@@ -91,6 +96,7 @@ pub struct AbsmEditor {
     prev_absm: Handle<Node>,
     toolbar: Toolbar,
     preview_mode_data: Option<PreviewModeData>,
+    blend_space_editor: BlendSpaceEditor,
 }
 
 impl AbsmEditor {
@@ -98,6 +104,7 @@ impl AbsmEditor {
         let state_graph_viewer = StateGraphViewer::new(ctx);
         let state_viewer = StateViewer::new(ctx);
         let parameter_panel = ParameterPanel::new(ctx, sender);
+        let blend_space_editor = BlendSpaceEditor::new(ctx);
 
         let docking_manager = DockingManagerBuilder::new(
             WidgetBuilder::new().on_row(1).with_child(
@@ -128,6 +135,7 @@ impl AbsmEditor {
                     .build(ctx),
             ),
         )
+        .with_floating_windows(vec![blend_space_editor.window])
         .build(ctx);
 
         let toolbar = Toolbar::new(ctx);
@@ -156,6 +164,7 @@ impl AbsmEditor {
             prev_absm: Default::default(),
             toolbar,
             preview_mode_data: None,
+            blend_space_editor,
         }
     }
 
@@ -284,7 +293,8 @@ impl AbsmEditor {
             self.parameter_panel.sync_to_model(ui, absm_node);
             self.toolbar.sync_to_model(absm_node, ui, &selection);
             if let Some(layer_index) = selection.layer {
-                if let Some(layer) = absm_node.machine().layers().get(layer_index) {
+                let machine = absm_node.machine();
+                if let Some(layer) = machine.layers().get(layer_index) {
                     self.state_graph_viewer
                         .sync_to_model(layer, ui, editor_scene);
                     self.state_viewer.sync_to_model(
@@ -293,6 +303,12 @@ impl AbsmEditor {
                         editor_scene,
                         absm_node,
                         &scene.graph,
+                    );
+                    self.blend_space_editor.sync_to_model(
+                        machine.parameters(),
+                        layer,
+                        &selection,
+                        ui,
                     );
                 }
             }
@@ -380,6 +396,13 @@ impl AbsmEditor {
                     absm_node,
                     layer_index,
                     editor_scene,
+                );
+                self.blend_space_editor.handle_ui_message(
+                    &selection,
+                    message,
+                    sender,
+                    absm_node.machine_mut(),
+                    self.preview_mode_data.is_some(),
                 );
             }
 
@@ -475,6 +498,21 @@ impl AbsmEditor {
                             }
                         }
                     }
+                    AbsmNodeMessage::Edit => {
+                        if let Some(node) = ui
+                            .node(message.destination())
+                            .query_component::<AbsmNode<PoseNode>>()
+                        {
+                            if let Some(layer_index) = selection.layer {
+                                let model_ref = &absm_node.machine().layers()[layer_index].nodes()
+                                    [node.model_handle];
+
+                                if let PoseNode::BlendSpace(_) = model_ref {
+                                    self.blend_space_editor.open(ui);
+                                }
+                            }
+                        }
+                    }
                     AbsmNodeMessage::AddInput => {
                         if let Some(node) = ui
                             .node(message.destination())
@@ -508,6 +546,18 @@ impl AbsmEditor {
                                                 layer_index,
                                                 IndexedBlendInput::default(),
                                             )))
+                                            .unwrap();
+                                    }
+                                    PoseNode::BlendSpace(_) => {
+                                        sender
+                                            .send(Message::do_scene_command(
+                                                AddBlendSpacePointCommand::new(
+                                                    selection.absm_node_handle,
+                                                    node.model_handle,
+                                                    layer_index,
+                                                    BlendSpacePoint::default(),
+                                                ),
+                                            ))
                                             .unwrap();
                                     }
                                 }

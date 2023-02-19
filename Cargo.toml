@@ -60,6 +60,7 @@ strum = "0.24.0"
 strum_macros = "0.24.0"
 notify = "5"
 clap = { version = "4", features = ["derive"] }
+spade = "2.1.0"
 
 [features]
 enable_profiler = ["fyrox-core/enable_profiler"]

@@ -3,7 +3,8 @@ use crate::{
         canvas::{AbsmCanvasBuilder, AbsmCanvasMessage},
         command::{
             blend::{
-                SetBlendAnimationByIndexInputPoseSourceCommand, SetBlendAnimationsPoseSourceCommand,
+                SetBlendAnimationByIndexInputPoseSourceCommand,
+                SetBlendAnimationsPoseSourceCommand, SetBlendSpacePoseSourceCommand,
             },
             MovePoseNodeCommand,
         },
@@ -126,6 +127,9 @@ fn make_pose_node_name(
             "Blend {} Animations By Index",
             blend_animations_by_index.inputs.len()
         ),
+        PoseNode::BlendSpace(blend_space) => {
+            format!("Blend Space: {:?} animations", blend_space.points().len())
+        }
     }
 }
 
@@ -338,6 +342,19 @@ impl StateViewer {
                                         ))
                                         .unwrap();
                                 }
+                                PoseNode::BlendSpace(_) => {
+                                    sender
+                                        .send(Message::do_scene_command(
+                                            SetBlendSpacePoseSourceCommand {
+                                                node_handle: absm_node_handle,
+                                                layer_index,
+                                                handle: dest_node,
+                                                index: dest_socket_ref.index,
+                                                value: source_node,
+                                            },
+                                        ))
+                                        .unwrap();
+                                }
                             }
                         }
                         _ => (),
@@ -447,22 +464,28 @@ impl StateViewer {
                         }) {
                             let node_ref = &machine_layer.nodes()[pose_definition];
 
-                            let (input_socket_count, name, can_add_sockets) = match node_ref {
-                                PoseNode::PlayAnimation(_) => {
-                                    // No input sockets
-                                    (0, "Play Animation", false)
-                                }
-                                PoseNode::BlendAnimations(blend_animations) => (
-                                    blend_animations.pose_sources.len(),
-                                    "Blend Animations",
-                                    true,
-                                ),
-                                PoseNode::BlendAnimationsByIndex(blend_animations) => (
-                                    blend_animations.inputs.len(),
-                                    "Blend Animations By Index",
-                                    true,
-                                ),
-                            };
+                            let (input_socket_count, name, can_add_sockets, editable) =
+                                match node_ref {
+                                    PoseNode::PlayAnimation(_) => {
+                                        // No input sockets
+                                        (0, "Play Animation", false, false)
+                                    }
+                                    PoseNode::BlendAnimations(blend_animations) => (
+                                        blend_animations.pose_sources.len(),
+                                        "Blend Animations",
+                                        true,
+                                        false,
+                                    ),
+                                    PoseNode::BlendAnimationsByIndex(blend_animations) => (
+                                        blend_animations.inputs.len(),
+                                        "Blend Animations By Index",
+                                        true,
+                                        false,
+                                    ),
+                                    PoseNode::BlendSpace(blend_space) => {
+                                        (blend_space.points().len(), "Blend Space", true, true)
+                                    }
+                                };
 
                             let node_view = AbsmNodeBuilder::new(
                                 WidgetBuilder::new()
@@ -494,6 +517,7 @@ impl StateViewer {
                             } else {
                                 SELECTED_BACKGROUND
                             })
+                            .with_editable(editable)
                             .with_model_handle(pose_definition)
                             .build(&mut ui.build_ctx());
 

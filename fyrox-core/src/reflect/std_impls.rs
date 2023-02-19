@@ -10,11 +10,12 @@ use fyrox_core_derive::impl_reflect;
 use parking_lot::Mutex;
 use std::{
     any::Any,
-    cell::Cell,
+    cell::{Cell, RefCell},
     collections::HashMap,
     fmt::Debug,
     hash::{BuildHasher, Hash},
     ops::{Deref, DerefMut, Range},
+    rc::Rc,
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -278,7 +279,7 @@ impl<T: ?Sized + Reflect> Reflect for Box<T> {
     delegate_reflect!();
 }
 
-macro_rules! impl_mutex_reflect {
+macro_rules! impl_reflect_inner_mutability {
     ($self:ident, $acquire_lock_guard:block) => {
         fn type_name(&$self) -> &'static str {
             std::any::type_name::<T>()
@@ -399,18 +400,26 @@ macro_rules! impl_mutex_reflect {
 }
 
 impl<T: Reflect + Clone> Reflect for Mutex<T> {
-    impl_mutex_reflect!(self, { self.lock() });
+    impl_reflect_inner_mutability!(self, { self.lock() });
 }
 
 #[allow(clippy::mut_mutex_lock)]
 impl<T: Reflect + Clone> Reflect for std::sync::Mutex<T> {
-    impl_mutex_reflect!(self, { self.lock().unwrap() });
+    impl_reflect_inner_mutability!(self, { self.lock().unwrap() });
 }
 
 impl<T: Reflect + Clone> Reflect for Arc<Mutex<T>> {
-    impl_mutex_reflect!(self, { self.lock() });
+    impl_reflect_inner_mutability!(self, { self.lock() });
 }
 
 impl<T: Reflect + Clone> Reflect for Arc<std::sync::Mutex<T>> {
-    impl_mutex_reflect!(self, { self.lock().unwrap() });
+    impl_reflect_inner_mutability!(self, { self.lock().unwrap() });
+}
+
+impl<T: Reflect + Clone> Reflect for RefCell<T> {
+    impl_reflect_inner_mutability!(self, { self.borrow_mut() });
+}
+
+impl<T: Reflect + Clone> Reflect for Rc<RefCell<T>> {
+    impl_reflect_inner_mutability!(self, { self.borrow_mut() });
 }
