@@ -229,6 +229,16 @@ impl BlendSpace {
         &self.y_axis_name
     }
 
+    pub fn try_snap_points(&mut self) {
+        for point in self.points.iter_mut() {
+            let x = math::round_to_step(point.position.x, self.snap_step.x)
+                .clamp(self.min_values.x, self.max_values.x);
+            let y = math::round_to_step(point.position.y, self.snap_step.y)
+                .clamp(self.min_values.y, self.max_values.y);
+            point.position = Vector2::new(x, y);
+        }
+    }
+
     pub fn fetch_weights(&self, sampling_point: Vector2<f32>) -> Option<[(usize, f32); 3]> {
         if self.points.is_empty() {
             return None;
