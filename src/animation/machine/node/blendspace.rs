@@ -94,8 +94,8 @@ impl EvaluatePose for BlendSpace {
         &self,
         nodes: &Pool<PoseNode>,
         params: &ParameterContainer,
-        _animations: &AnimationContainer,
-        _dt: f32,
+        animations: &AnimationContainer,
+        dt: f32,
     ) -> Ref<AnimationPose> {
         let mut pose = self.pose.borrow_mut();
 
@@ -113,12 +113,14 @@ impl EvaluatePose for BlendSpace {
                     nodes.try_borrow(self.points[ib].pose_source),
                     nodes.try_borrow(self.points[ic].pose_source),
                 ) {
-                    pose.blend_with(&pose_a.pose(), wa);
-                    pose.blend_with(&pose_b.pose(), wb);
-                    pose.blend_with(&pose_c.pose(), wc);
+                    pose.blend_with(&pose_a.eval_pose(nodes, params, animations, dt), wa);
+                    pose.blend_with(&pose_b.eval_pose(nodes, params, animations, dt), wb);
+                    pose.blend_with(&pose_c.eval_pose(nodes, params, animations, dt), wc);
                 }
             }
         }
+
+        drop(pose);
 
         self.pose.borrow()
     }
