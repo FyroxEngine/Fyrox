@@ -146,6 +146,12 @@ impl<'a> DerefMut for PointsMut<'a> {
     }
 }
 
+impl<'a> Drop for PointsMut<'a> {
+    fn drop(&mut self) {
+        self.blend_space.triangulate();
+    }
+}
+
 impl BlendSpace {
     pub fn add_point(&mut self, point: BlendSpacePoint) -> bool {
         self.points.push(point);
