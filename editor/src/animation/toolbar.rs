@@ -1096,8 +1096,6 @@ impl Toolbar {
                             } else {
                                 format!("{} {}", file_stem, i)
                             });
-
-                            animation.set_enabled(false);
                         }
 
                         match self.import_mode {
