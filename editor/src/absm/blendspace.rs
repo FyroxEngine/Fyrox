@@ -24,15 +24,16 @@ use fyrox::{
         brush::Brush,
         define_constructor, define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
+        grid::{Column, GridBuilder, Row},
         menu::MenuItemMessage,
         message::{MessageDirection, MouseButton, UiMessage},
         popup::{Placement, PopupBuilder, PopupMessage},
         stack_panel::StackPanelBuilder,
-        text::TextBuilder,
+        text::{TextBuilder, TextMessage},
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Control, Thickness, UiNode, UserInterface, BRUSH_DARK, BRUSH_LIGHT,
-        BRUSH_LIGHTEST,
+        BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
+        VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT, BRUSH_LIGHTEST,
     },
 };
 use std::{
@@ -617,6 +618,12 @@ impl BlendSpaceFieldPointBuilder {
 
 pub struct BlendSpaceEditor {
     pub window: Handle<UiNode>,
+    min_x: Handle<UiNode>,
+    max_x: Handle<UiNode>,
+    min_y: Handle<UiNode>,
+    max_y: Handle<UiNode>,
+    x_axis_name: Handle<UiNode>,
+    y_axis_name: Handle<UiNode>,
     field: Handle<UiNode>,
 }
 
@@ -624,19 +631,153 @@ impl BlendSpaceEditor {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let field = BlendSpaceFieldBuilder::new(
             WidgetBuilder::new()
+                .on_row(0)
+                .on_column(1)
                 .with_margin(Thickness::uniform(15.0))
                 .with_foreground(BRUSH_LIGHTEST)
                 .with_background(BRUSH_DARK),
         )
         .build(ctx);
 
+        let min_x;
+        let max_x;
+        let min_y;
+        let max_y;
+        let x_axis_name;
+        let y_axis_name;
+        let content = GridBuilder::new(
+            WidgetBuilder::new().with_child(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .on_row(1)
+                        .on_column(0)
+                        .with_child(
+                            GridBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_child({
+                                        max_y = TextBuilder::new(
+                                            WidgetBuilder::new()
+                                                .on_row(0)
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .with_height(22.0)
+                                                .with_vertical_alignment(VerticalAlignment::Top),
+                                        )
+                                        .build(ctx);
+                                        max_y
+                                    })
+                                    .with_child({
+                                        y_axis_name = TextBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_height(22.0)
+                                                .on_row(1)
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .with_vertical_alignment(VerticalAlignment::Center),
+                                        )
+                                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                                        .build(ctx);
+                                        y_axis_name
+                                    })
+                                    .with_child({
+                                        min_y = TextBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_height(22.0)
+                                                .on_row(2)
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .with_vertical_alignment(VerticalAlignment::Bottom),
+                                        )
+                                        .build(ctx);
+                                        min_y
+                                    }),
+                            )
+                            .add_row(Row::stretch())
+                            .add_row(Row::stretch())
+                            .add_row(Row::stretch())
+                            .add_column(Column::strict(24.0))
+                            .build(ctx),
+                        )
+                        .with_child(field)
+                        .with_child(
+                            GridBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(1)
+                                    .on_column(1)
+                                    .with_child({
+                                        min_x = TextBuilder::new(
+                                            WidgetBuilder::new()
+                                                .on_column(0)
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .with_width(50.0)
+                                                .with_horizontal_alignment(
+                                                    HorizontalAlignment::Left,
+                                                ),
+                                        )
+                                        .build(ctx);
+                                        min_x
+                                    })
+                                    .with_child({
+                                        x_axis_name = TextBuilder::new(
+                                            WidgetBuilder::new()
+                                                .on_column(1)
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .with_width(50.0)
+                                                .with_horizontal_alignment(
+                                                    HorizontalAlignment::Center,
+                                                ),
+                                        )
+                                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                                        .build(ctx);
+                                        x_axis_name
+                                    })
+                                    .with_child({
+                                        max_x = TextBuilder::new(
+                                            WidgetBuilder::new()
+                                                .on_column(2)
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .with_width(50.0)
+                                                .with_horizontal_alignment(
+                                                    HorizontalAlignment::Right,
+                                                ),
+                                        )
+                                        .with_horizontal_text_alignment(HorizontalAlignment::Right)
+                                        .build(ctx);
+                                        max_x
+                                    }),
+                            )
+                            .add_column(Column::stretch())
+                            .add_column(Row::stretch())
+                            .add_column(Row::stretch())
+                            .add_row(Column::strict(22.0))
+                            .build(ctx),
+                        ),
+                )
+                .add_row(Row::stretch())
+                .add_row(Row::auto())
+                .add_column(Column::auto())
+                .add_column(Column::stretch())
+                .build(ctx),
+            ),
+        )
+        .add_row(Row::strict(24.0))
+        .add_row(Row::stretch())
+        .add_column(Column::stretch())
+        .build(ctx);
+
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(500.0).with_height(400.0))
             .open(false)
-            .with_content(field)
+            .with_content(content)
             .with_title(WindowTitle::text("Blend Space Editor"))
             .build(ctx);
 
-        Self { window, field }
+        Self {
+            window,
+            min_x,
+            max_x,
+            min_y,
+            max_y,
+            x_axis_name,
+            y_axis_name,
+            field,
+        }
     }
 
     pub fn open(&self, ui: &UserInterface) {
@@ -656,6 +797,20 @@ impl BlendSpaceEditor {
     ) {
         if let Some(SelectedEntity::PoseNode(first)) = selection.entities.first() {
             if let PoseNode::BlendSpace(blend_space) = layer.node(*first) {
+                let sync_text = |destination: Handle<UiNode>, text: String| {
+                    send_sync_message(
+                        ui,
+                        TextMessage::text(destination, MessageDirection::ToWidget, text),
+                    );
+                };
+
+                sync_text(self.min_x, blend_space.min_values().x.to_string());
+                sync_text(self.max_x, blend_space.max_values().x.to_string());
+                sync_text(self.min_y, blend_space.min_values().y.to_string());
+                sync_text(self.max_y, blend_space.max_values().y.to_string());
+                sync_text(self.x_axis_name, blend_space.x_axis_name().to_string());
+                sync_text(self.y_axis_name, blend_space.y_axis_name().to_string());
+
                 send_sync_message(
                     ui,
                     BlendSpaceFieldMessage::min_values(
