@@ -26,7 +26,7 @@ use fyrox::{
         draw::{CommandTexture, Draw, DrawingContext},
         grid::{Column, GridBuilder, Row},
         menu::MenuItemMessage,
-        message::{MessageDirection, MouseButton, UiMessage},
+        message::{CursorIcon, MessageDirection, MouseButton, UiMessage},
         popup::{Placement, PopupBuilder, PopupMessage},
         stack_panel::StackPanelBuilder,
         text::{TextBuilder, TextMessage},
@@ -596,6 +596,7 @@ impl BlendSpaceFieldPointBuilder {
         let point = BlendSpaceFieldPoint {
             widget: self
                 .widget_builder
+                .with_cursor(Some(CursorIcon::Hand))
                 .with_clip_to_bounds(false)
                 .with_child(
                     TextBuilder::new(
