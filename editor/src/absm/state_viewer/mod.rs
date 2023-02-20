@@ -58,6 +58,7 @@ pub struct StateViewer {
 fn create_socket(
     direction: SocketDirection,
     index: usize,
+    show_index: bool,
     parent_node: Handle<PoseNode>,
     ui: &mut UserInterface,
 ) -> Handle<UiNode> {
@@ -65,6 +66,7 @@ fn create_socket(
         .with_direction(direction)
         .with_parent_node(parent_node)
         .with_index(index)
+        .with_show_index(show_index)
         .build(&mut ui.build_ctx())
 }
 
@@ -75,7 +77,7 @@ fn create_sockets(
     ui: &mut UserInterface,
 ) -> Vec<Handle<UiNode>> {
     (0..count)
-        .map(|index| create_socket(direction, index, parent_node, ui))
+        .map(|index| create_socket(direction, index, true, parent_node, ui))
         .collect::<Vec<_>>()
 }
 
@@ -504,6 +506,7 @@ impl StateViewer {
                             .with_output_socket(create_socket(
                                 SocketDirection::Output,
                                 0,
+                                false,
                                 pose_definition,
                                 ui,
                             ))

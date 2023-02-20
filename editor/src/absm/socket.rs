@@ -1,14 +1,16 @@
-use fyrox::animation::machine::PoseNode;
 use fyrox::{
+    animation::machine::PoseNode,
     core::{algebra::Vector2, color::Color, pool::Handle},
     gui::{
         brush::Brush,
         define_constructor, define_widget_deref,
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, MouseButton, UiMessage},
+        stack_panel::StackPanelBuilder,
+        text::TextBuilder,
         vector_image::{Primitive, VectorImageBuilder},
         widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, UiNode, UserInterface,
+        BuildContext, Control, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
 };
 use std::{
@@ -121,6 +123,7 @@ pub struct SocketBuilder {
     direction: SocketDirection,
     editor: Handle<UiNode>,
     index: usize,
+    show_index: bool,
 }
 
 impl SocketBuilder {
@@ -131,6 +134,7 @@ impl SocketBuilder {
             direction: SocketDirection::Input,
             editor: Default::default(),
             index: 0,
+            show_index: true,
         }
     }
 
@@ -155,6 +159,11 @@ impl SocketBuilder {
         self
     }
 
+    pub fn with_show_index(mut self, show_index: bool) -> Self {
+        self.show_index = show_index;
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         if let Some(editor) = ctx.try_get_node_mut(self.editor) {
             editor.set_row(0).set_column(1);
@@ -163,21 +172,38 @@ impl SocketBuilder {
         let pin;
         let grid = GridBuilder::new(
             WidgetBuilder::new()
-                .with_child({
-                    pin = VectorImageBuilder::new(
+                .with_child(
+                    StackPanelBuilder::new(
                         WidgetBuilder::new()
-                            .on_row(0)
-                            .on_column(0)
-                            .with_foreground(NORMAL_BRUSH),
+                            .with_child({
+                                pin = VectorImageBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_row(0)
+                                        .on_column(0)
+                                        .with_foreground(NORMAL_BRUSH),
+                                )
+                                .with_primitives(vec![Primitive::Circle {
+                                    center: Vector2::new(RADIUS, RADIUS),
+                                    radius: RADIUS,
+                                    segments: 16,
+                                }])
+                                .build(ctx);
+                                pin
+                            })
+                            .with_child(if self.show_index {
+                                TextBuilder::new(
+                                    WidgetBuilder::new().with_margin(Thickness::left(2.0)),
+                                )
+                                .with_vertical_text_alignment(VerticalAlignment::Center)
+                                .with_text(format!("{:?}", self.index))
+                                .build(ctx)
+                            } else {
+                                Handle::NONE
+                            }),
                     )
-                    .with_primitives(vec![Primitive::Circle {
-                        center: Vector2::new(RADIUS, RADIUS),
-                        radius: RADIUS,
-                        segments: 16,
-                    }])
-                    .build(ctx);
-                    pin
-                })
+                    .with_orientation(Orientation::Horizontal)
+                    .build(ctx),
+                )
                 .with_child(self.editor),
         )
         .add_row(Row::auto())
