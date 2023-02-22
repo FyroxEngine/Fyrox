@@ -238,7 +238,7 @@ pub enum Message {
         handle: ErasedHandle,
     },
     SetEditorCameraProjection(Projection),
-    SwitchToPlayMode,
+    SwitchToBuildMode,
     SwitchToEditMode,
     SwitchMode,
     OpenLoadSceneDialog,
@@ -1873,7 +1873,7 @@ impl Editor {
                         Mode::Edit => self.set_build_mode(),
                         _ => self.set_editor_mode(),
                     },
-                    Message::SwitchToPlayMode => self.set_play_mode(),
+                    Message::SwitchToBuildMode => self.set_build_mode(),
                     Message::SwitchToEditMode => self.set_editor_mode(),
                     Message::OpenLoadSceneDialog => {
                         self.menu

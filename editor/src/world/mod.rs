@@ -237,6 +237,7 @@ impl WorldViewer {
                                     .with_child({
                                         track_selection = CheckBoxBuilder::new(
                                             WidgetBuilder::new()
+                                                .with_vertical_alignment(VerticalAlignment::Center)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
                                         .with_content(
@@ -279,7 +280,7 @@ impl WorldViewer {
                         }),
                 )
                 .add_column(Column::stretch())
-                .add_row(Row::strict(24.0))
+                .add_row(Row::strict(30.0))
                 .add_row(Row::strict(20.0))
                 .add_row(Row::stretch())
                 .add_row(Row::auto())

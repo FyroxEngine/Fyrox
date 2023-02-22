@@ -60,7 +60,7 @@ fn make_history_entry_widget(ctx: &mut BuildContext, entry: &HistoryEntry) -> Ha
                 bottom: 1.0,
             })
             .with_child(
-                TextBuilder::new(WidgetBuilder::new())
+                TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::left(5.0)))
                     .with_text(format!("{}", entry.work_dir.display(),))
                     .with_vertical_text_alignment(VerticalAlignment::Center)
                     .build(ctx),

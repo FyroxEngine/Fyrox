@@ -93,7 +93,7 @@ pub fn make_image_button_with_tooltip(
         ImageBuilder::new(
             WidgetBuilder::new()
                 .with_background(Brush::Solid(Color::opaque(180, 180, 180)))
-                .with_margin(Thickness::uniform(1.0))
+                .with_margin(Thickness::uniform(2.0))
                 .with_width(width)
                 .with_height(height),
         )

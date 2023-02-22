@@ -6,6 +6,7 @@ use crate::{
     GraphSelection, InteractionMode, InteractionModeKind, Message, Mode, SceneCommand, Selection,
     SetMeshTextureCommand, Settings,
 };
+use fyrox::gui::BRUSH_DARKER;
 use fyrox::{
     core::{
         algebra::{Vector2, Vector3},
@@ -18,7 +19,7 @@ use fyrox::{
     fxhash::FxHashSet,
     gui::{
         border::BorderBuilder,
-        brush::{Brush, GradientPoint},
+        brush::Brush,
         button::{Button, ButtonBuilder, ButtonContent, ButtonMessage},
         canvas::CanvasBuilder,
         decorator::{DecoratorBuilder, DecoratorMessage},
@@ -32,8 +33,7 @@ use fyrox::{
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-        BRUSH_BRIGHT_BLUE, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST,
-        COLOR_LIGHTEST,
+        BRUSH_BRIGHT_BLUE, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
     },
     resource::texture::{Texture, TextureState},
     scene::{
@@ -63,7 +63,8 @@ pub struct SceneViewer {
     navmesh_mode: Handle<UiNode>,
     terrain_mode: Handle<UiNode>,
     camera_projection: Handle<UiNode>,
-    switch_mode: Handle<UiNode>,
+    play: Handle<UiNode>,
+    stop: Handle<UiNode>,
     build_profile: Handle<UiNode>,
     sender: Sender<Message>,
     interaction_mode_panel: Handle<UiNode>,
@@ -81,29 +82,17 @@ fn make_interaction_mode_button(
     ButtonBuilder::new(
         WidgetBuilder::new()
             .with_tooltip(make_simple_tooltip(ctx, tooltip))
-            .with_margin(Thickness::uniform(1.0)),
+            .with_margin(Thickness {
+                left: 1.0,
+                top: 0.0,
+                right: 1.0,
+                bottom: 1.0,
+            }),
     )
     .with_back(
         DecoratorBuilder::new(
-            BorderBuilder::new(WidgetBuilder::new().with_foreground(Brush::LinearGradient {
-                from: Vector2::new(0.5, 0.0),
-                to: Vector2::new(0.5, 1.0),
-                stops: vec![
-                    GradientPoint {
-                        stop: 0.0,
-                        color: COLOR_LIGHTEST,
-                    },
-                    GradientPoint {
-                        stop: 0.25,
-                        color: COLOR_LIGHTEST,
-                    },
-                    GradientPoint {
-                        stop: 1.0,
-                        color: COLOR_DARKEST,
-                    },
-                ],
-            }))
-            .with_stroke_thickness(Thickness::uniform(1.0)),
+            BorderBuilder::new(WidgetBuilder::new().with_foreground(BRUSH_DARKER))
+                .with_stroke_thickness(Thickness::uniform(1.0)),
         )
         .with_normal_brush(BRUSH_LIGHT)
         .with_hover_brush(BRUSH_LIGHTER)
@@ -115,9 +104,10 @@ fn make_interaction_mode_button(
     .with_content(
         ImageBuilder::new(
             WidgetBuilder::new()
-                .with_margin(Thickness::uniform(1.0))
-                .with_width(32.0)
-                .with_height(32.0),
+                .with_background(Brush::Solid(Color::opaque(220, 220, 220)))
+                .with_margin(Thickness::uniform(3.0))
+                .with_width(28.0)
+                .with_height(28.0),
         )
         .with_opt_texture(load_image(image))
         .build(ctx),
@@ -165,12 +155,13 @@ impl SceneViewer {
         let terrain_mode;
         let selection_frame;
         let camera_projection;
-        let switch_mode;
+        let play;
+        let stop;
         let build_profile;
 
         let interaction_mode_panel = StackPanelBuilder::new(
             WidgetBuilder::new()
-                .with_margin(Thickness::uniform(1.0))
+                .with_margin(Thickness::left_right(1.0))
                 .on_row(0)
                 .on_column(0)
                 .with_child({
@@ -238,11 +229,11 @@ impl SceneViewer {
                     camera_projection = DropdownListBuilder::new(
                         WidgetBuilder::new()
                             .with_margin(Thickness::uniform(1.0))
-                            .with_width(150.0),
+                            .with_width(40.0),
                     )
                     .with_items(vec![
-                        make_dropdown_list_option_with_height(ctx, "Perspective (3D)", 22.0),
-                        make_dropdown_list_option_with_height(ctx, "Orthographic (2D)", 22.0),
+                        make_dropdown_list_option_with_height(ctx, "3D", 22.0),
+                        make_dropdown_list_option_with_height(ctx, "2D", 22.0),
                     ])
                     .with_selected(0)
                     .build(ctx);
@@ -259,20 +250,15 @@ impl SceneViewer {
                         WidgetBuilder::new()
                             .with_horizontal_alignment(HorizontalAlignment::Right)
                             .with_child({
-                                switch_mode = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_margin(Thickness::uniform(1.0))
-                                        .with_width(100.0),
-                                )
-                                .with_text("Play")
-                                .build(ctx);
-                                switch_mode
-                            })
-                            .with_child({
                                 build_profile = DropdownListBuilder::new(
                                     WidgetBuilder::new()
+                                        .with_tooltip(make_simple_tooltip(
+                                            ctx,
+                                            "Build Configuration\nDefines cargo build \
+                                            profile - debug or release.",
+                                        ))
                                         .with_margin(Thickness::uniform(1.0))
-                                        .with_width(100.0),
+                                        .with_width(90.0),
                                 )
                                 .with_items(vec![
                                     make_dropdown_list_option(ctx, "Debug"),
@@ -281,6 +267,55 @@ impl SceneViewer {
                                 .with_selected(0)
                                 .build(ctx);
                                 build_profile
+                            })
+                            .with_child({
+                                play = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_width(26.0),
+                                )
+                                .with_content(
+                                    ImageBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_width(16.0)
+                                            .with_height(16.0)
+                                            .with_margin(Thickness::uniform(4.0))
+                                            .with_background(Brush::Solid(Color::opaque(
+                                                0, 200, 0,
+                                            ))),
+                                    )
+                                    .with_opt_texture(load_image(include_bytes!(
+                                        "../resources/embed/play.png"
+                                    )))
+                                    .build(ctx),
+                                )
+                                .build(ctx);
+                                play
+                            })
+                            .with_child({
+                                stop = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_enabled(false)
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_width(26.0),
+                                )
+                                .with_content(
+                                    ImageBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_width(16.0)
+                                            .with_height(16.0)
+                                            .with_margin(Thickness::uniform(4.0))
+                                            .with_background(Brush::Solid(Color::opaque(
+                                                200, 0, 0,
+                                            ))),
+                                    )
+                                    .with_opt_texture(load_image(include_bytes!(
+                                        "../resources/embed/stop.png"
+                                    )))
+                                    .build(ctx),
+                                )
+                                .build(ctx);
+                                stop
                             }),
                     )
                     .with_orientation(Orientation::Horizontal)
@@ -370,7 +405,7 @@ impl SceneViewer {
                 )
                 .add_row(Row::strict(25.0))
                 .add_row(Row::stretch())
-                .add_row(Row::strict(25.0))
+                .add_row(Row::strict(20.0))
                 .add_column(Column::stretch())
                 .build(ctx),
             )
@@ -391,12 +426,13 @@ impl SceneViewer {
             terrain_mode,
             camera_projection,
             click_mouse_pos: None,
-            switch_mode,
+            play,
             interaction_mode_panel,
             contextual_actions,
             global_position_display,
             build_profile,
             preview_instance: None,
+            stop,
         }
     }
 }
@@ -485,8 +521,10 @@ impl SceneViewer {
                 self.sender
                     .send(Message::SetInteractionMode(InteractionModeKind::Terrain))
                     .unwrap();
-            } else if message.destination() == self.switch_mode {
-                self.sender.send(Message::SwitchMode).unwrap();
+            } else if message.destination() == self.play {
+                self.sender.send(Message::SwitchToBuildMode).unwrap();
+            } else if message.destination() == self.stop {
+                self.sender.send(Message::SwitchToEditMode).unwrap();
             }
         } else if let Some(WidgetMessage::MouseDown { button, .. }) =
             message.data::<WidgetMessage>()
@@ -698,14 +736,20 @@ impl SceneViewer {
 
     pub fn on_mode_changed(&self, ui: &UserInterface, mode: &Mode) {
         let enabled = mode.is_edit();
-        ui.send_message(ButtonMessage::content(
-            self.switch_mode,
-            MessageDirection::ToWidget,
-            ButtonContent::text(if enabled { "Play" } else { "Stop" }),
-        ));
         for widget in [self.interaction_mode_panel, self.contextual_actions] {
             enable_widget(widget, enabled, ui);
         }
+
+        ui.send_message(WidgetMessage::enabled(
+            self.play,
+            MessageDirection::ToWidget,
+            mode.is_edit(),
+        ));
+        ui.send_message(WidgetMessage::enabled(
+            self.stop,
+            MessageDirection::ToWidget,
+            !mode.is_edit(),
+        ));
     }
 
     pub fn set_render_target(&self, ui: &UserInterface, render_target: Option<Texture>) {
