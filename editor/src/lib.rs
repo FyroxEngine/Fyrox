@@ -1367,11 +1367,12 @@ impl Editor {
         self.menu
             .sync_to_model(self.scene.as_ref(), &mut engine.user_interface);
 
+        self.scene_viewer.sync_to_model(self.scene.as_ref(), engine);
+
         if let Some(editor_scene) = self.scene.as_mut() {
             self.animation_editor.sync_to_model(editor_scene, engine);
             self.absm_editor.sync_to_model(editor_scene, engine);
             self.scene_settings.sync_to_model(editor_scene, engine);
-            self.scene_viewer.sync_to_model(editor_scene, engine);
             self.inspector.sync_to_model(editor_scene, engine);
             self.navmesh_panel.sync_to_model(editor_scene, engine);
             self.world_viewer.sync_to_model(editor_scene, engine);

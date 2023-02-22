@@ -1,12 +1,11 @@
 use crate::{
     camera::PickingOptions, gui::make_dropdown_list_option,
-    gui::make_dropdown_list_option_with_height, load_image, settings::keys::KeyBindings,
-    utils::enable_widget, AddModelCommand, AssetItem, AssetKind, BuildProfile,
-    ChangeSelectionCommand, CommandGroup, DropdownListBuilder, EditorScene, GameEngine,
-    GraphSelection, InteractionMode, InteractionModeKind, Message, Mode, SceneCommand, Selection,
-    SetMeshTextureCommand, Settings,
+    gui::make_dropdown_list_option_with_height, load_image, send_sync_message,
+    settings::keys::KeyBindings, utils::enable_widget, AddModelCommand, AssetItem, AssetKind,
+    BuildProfile, ChangeSelectionCommand, CommandGroup, DropdownListBuilder, EditorScene,
+    GameEngine, GraphSelection, InteractionMode, InteractionModeKind, Message, Mode, SceneCommand,
+    Selection, SetMeshTextureCommand, Settings,
 };
-use fyrox::gui::BRUSH_DARKER;
 use fyrox::{
     core::{
         algebra::{Vector2, Vector3},
@@ -20,20 +19,23 @@ use fyrox::{
     gui::{
         border::BorderBuilder,
         brush::Brush,
-        button::{Button, ButtonBuilder, ButtonContent, ButtonMessage},
+        button::{Button, ButtonBuilder, ButtonMessage},
         canvas::CanvasBuilder,
         decorator::{DecoratorBuilder, DecoratorMessage},
         dropdown_list::DropdownListMessage,
+        formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         image::{ImageBuilder, ImageMessage},
         message::{KeyCode, MessageDirection, MouseButton, UiMessage},
         stack_panel::StackPanelBuilder,
+        text::TextBuilder,
         utils::make_simple_tooltip,
         vec::vec3::{Vec3EditorBuilder, Vec3EditorMessage},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-        BRUSH_BRIGHT_BLUE, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
+        VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_DARKER, BRUSH_DARKEST, BRUSH_LIGHT,
+        BRUSH_LIGHTER, BRUSH_LIGHTEST,
     },
     resource::texture::{Texture, TextureState},
     scene::{
@@ -71,6 +73,7 @@ pub struct SceneViewer {
     contextual_actions: Handle<UiNode>,
     global_position_display: Handle<UiNode>,
     preview_instance: Option<PreviewInstance>,
+    no_scene_reminder: Handle<UiNode>,
 }
 
 fn make_interaction_mode_button(
@@ -351,6 +354,17 @@ impl SceneViewer {
         .with_orientation(Orientation::Horizontal)
         .build(ctx);
 
+        let no_scene_reminder = TextBuilder::new(
+            WidgetBuilder::new()
+                .with_hit_test_visibility(false)
+                .with_foreground(BRUSH_DARKEST),
+        )
+        .with_text("No scene loaded. Create a new scene (File -> New Scene) or load existing (File -> Load Scene)")
+        .with_vertical_text_alignment(VerticalAlignment::Center)
+        .with_horizontal_text_alignment(HorizontalAlignment::Center)
+        .with_wrap(WrapMode::Word)
+        .build(ctx);
+
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_close(false)
             .can_minimize(false)
@@ -366,6 +380,7 @@ impl SceneViewer {
                                     .with_child({
                                         frame = ImageBuilder::new(
                                             WidgetBuilder::new()
+                                                .with_child(no_scene_reminder)
                                                 .on_row(0)
                                                 .on_column(1)
                                                 .with_allow_drop(true),
@@ -433,6 +448,7 @@ impl SceneViewer {
             build_profile,
             preview_instance: None,
             stop,
+            no_scene_reminder,
         }
     }
 }
@@ -721,17 +737,28 @@ impl SceneViewer {
         }
     }
 
-    pub fn sync_to_model(&self, editor_scene: &EditorScene, engine: &Engine) {
-        if let Selection::Graph(ref selection) = editor_scene.selection {
-            let scene = &engine.scenes[editor_scene.scene];
-            if let Some((_, position)) = selection.global_rotation_position(&scene.graph) {
-                engine.user_interface.send_message(Vec3EditorMessage::value(
-                    self.global_position_display,
-                    MessageDirection::ToWidget,
-                    position,
-                ));
+    pub fn sync_to_model(&self, editor_scene: Option<&EditorScene>, engine: &Engine) {
+        if let Some(editor_scene) = editor_scene {
+            if let Selection::Graph(ref selection) = editor_scene.selection {
+                let scene = &engine.scenes[editor_scene.scene];
+                if let Some((_, position)) = selection.global_rotation_position(&scene.graph) {
+                    engine.user_interface.send_message(Vec3EditorMessage::value(
+                        self.global_position_display,
+                        MessageDirection::ToWidget,
+                        position,
+                    ));
+                }
             }
         }
+
+        send_sync_message(
+            &engine.user_interface,
+            WidgetMessage::visibility(
+                self.no_scene_reminder,
+                MessageDirection::ToWidget,
+                editor_scene.is_none(),
+            ),
+        );
     }
 
     pub fn on_mode_changed(&self, ui: &UserInterface, mode: &Mode) {
