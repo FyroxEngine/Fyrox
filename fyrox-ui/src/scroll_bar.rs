@@ -1,6 +1,6 @@
 use crate::{
     border::BorderBuilder,
-    brush::{Brush, GradientPoint},
+    brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
     canvas::CanvasBuilder,
     core::{algebra::Vector2, color::Color, pool::Handle},
@@ -12,8 +12,7 @@ use crate::{
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness, UiNode,
-    UserInterface, VerticalAlignment, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST,
-    COLOR_LIGHTEST,
+    UserInterface, VerticalAlignment, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
 };
 use std::{
     any::{Any, TypeId},
@@ -433,28 +432,11 @@ impl ScrollBarBuilder {
 
         let indicator = self.indicator.unwrap_or_else(|| {
             DecoratorBuilder::new(
-                BorderBuilder::new(WidgetBuilder::new().with_foreground(Brush::LinearGradient {
-                    from: Vector2::new(0.5, 0.0),
-                    to: Vector2::new(0.5, 1.0),
-                    stops: vec![
-                        GradientPoint {
-                            stop: 0.0,
-                            color: COLOR_DARKEST,
-                        },
-                        GradientPoint {
-                            stop: 0.25,
-                            color: COLOR_LIGHTEST,
-                        },
-                        GradientPoint {
-                            stop: 0.75,
-                            color: COLOR_LIGHTEST,
-                        },
-                        GradientPoint {
-                            stop: 1.0,
-                            color: COLOR_DARKEST,
-                        },
-                    ],
-                }))
+                BorderBuilder::new(
+                    WidgetBuilder::new()
+                        .with_margin(Thickness::uniform(1.0))
+                        .with_foreground(Brush::Solid(Color::TRANSPARENT)),
+                )
                 .with_stroke_thickness(Thickness::uniform(1.0)),
             )
             .with_normal_brush(BRUSH_LIGHT)
@@ -465,14 +447,10 @@ impl ScrollBarBuilder {
 
         match orientation {
             Orientation::Vertical => {
-                ctx[indicator]
-                    .set_min_size(Vector2::new(0.0, 30.0))
-                    .set_width(30.0);
+                ctx[indicator].set_min_size(Vector2::new(0.0, 30.0));
             }
             Orientation::Horizontal => {
-                ctx[indicator]
-                    .set_min_size(Vector2::new(30.0, 0.0))
-                    .set_height(30.0);
+                ctx[indicator].set_min_size(Vector2::new(30.0, 0.0));
             }
         }
 
@@ -539,11 +517,9 @@ impl ScrollBarBuilder {
         .build(ctx);
 
         let body = self.body.unwrap_or_else(|| {
-            BorderBuilder::new(
-                WidgetBuilder::new().with_background(Brush::Solid(Color::opaque(60, 60, 60))),
-            )
-            .with_stroke_thickness(Thickness::uniform(1.0))
-            .build(ctx)
+            BorderBuilder::new(WidgetBuilder::new().with_background(BRUSH_DARKER))
+                .with_stroke_thickness(Thickness::uniform(1.0))
+                .build(ctx)
         });
         ctx.link(grid, body);
 

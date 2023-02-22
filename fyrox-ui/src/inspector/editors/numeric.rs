@@ -48,7 +48,7 @@ where
         let value = ctx.property_info.cast_value::<T>()?;
         Ok(PropertyEditorInstance::Simple {
             editor: NumericUpDownBuilder::new(
-                WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                WidgetBuilder::new().with_margin(Thickness::top_bottom(1.0)),
             )
             .with_min_value(
                 ctx.property_info

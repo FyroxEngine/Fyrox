@@ -1,8 +1,10 @@
-use crate::numeric::NumericType;
 use crate::{
-    border::BorderBuilder, brush::Brush, core::color::Color, core::pool::Handle,
-    numeric::NumericUpDownBuilder, text::TextBuilder, widget::WidgetBuilder, BuildContext,
-    Thickness, UiNode, VerticalAlignment,
+    border::BorderBuilder,
+    brush::Brush,
+    core::{color::Color, pool::Handle},
+    numeric::{NumericType, NumericUpDownBuilder},
+    widget::WidgetBuilder,
+    BuildContext, Thickness, UiNode,
 };
 
 pub mod vec2;
@@ -32,24 +34,14 @@ pub fn make_numeric_input<T: NumericType>(
     .build(ctx)
 }
 
-pub fn make_mark(
-    ctx: &mut BuildContext,
-    text: &str,
-    column: usize,
-    color: Color,
-) -> Handle<UiNode> {
+pub fn make_mark(ctx: &mut BuildContext, column: usize, color: Color) -> Handle<UiNode> {
     BorderBuilder::new(
         WidgetBuilder::new()
             .on_row(0)
             .on_column(column)
             .with_background(Brush::Solid(color))
             .with_foreground(Brush::Solid(Color::TRANSPARENT))
-            .with_child(
-                TextBuilder::new(WidgetBuilder::new())
-                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                    .with_text(text)
-                    .build(ctx),
-            ),
+            .with_width(4.0),
     )
     .build(ctx)
 }

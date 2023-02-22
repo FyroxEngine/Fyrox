@@ -5,7 +5,7 @@ use crate::{
     message::{ButtonState, MessageDirection, OsEvent, UiMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, RestrictionEntry, Thickness, UiNode, UserInterface,
-    BRUSH_DARKER, BRUSH_LIGHTER,
+    BRUSH_DARKEST, BRUSH_PRIMARY,
 };
 use std::{
     any::{Any, TypeId},
@@ -310,8 +310,8 @@ impl PopupBuilder {
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let body = BorderBuilder::new(
             WidgetBuilder::new()
-                .with_background(BRUSH_DARKER)
-                .with_foreground(BRUSH_LIGHTER)
+                .with_background(BRUSH_PRIMARY)
+                .with_foreground(BRUSH_DARKEST)
                 .with_child(self.content),
         )
         .with_stroke_thickness(Thickness::uniform(1.0))

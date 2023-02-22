@@ -342,7 +342,7 @@ where
         let variant_selector = DropdownListBuilder::new(
             WidgetBuilder::new()
                 .on_column(1)
-                .with_margin(Thickness::uniform(1.0)),
+                .with_margin(Thickness::top_bottom(1.0)),
         )
         .with_selected((self.index_generator)(value))
         .with_items(

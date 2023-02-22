@@ -89,18 +89,20 @@ use std::{
 };
 
 // TODO: Make this part of UserInterface struct.
+pub const COLOR_COAL_BLACK: Color = Color::opaque(10, 10, 10);
 pub const COLOR_DARKEST: Color = Color::opaque(20, 20, 20);
 pub const COLOR_DARKER: Color = Color::opaque(30, 30, 30);
 pub const COLOR_DARK: Color = Color::opaque(40, 40, 40);
 pub const COLOR_PRIMARY: Color = Color::opaque(50, 50, 50);
-pub const COLOR_LIGHT: Color = Color::opaque(65, 65, 65);
-pub const COLOR_LIGHTER: Color = Color::opaque(80, 80, 80);
-pub const COLOR_LIGHTEST: Color = Color::opaque(95, 95, 95);
+pub const COLOR_LIGHT: Color = Color::opaque(70, 70, 70);
+pub const COLOR_LIGHTER: Color = Color::opaque(85, 85, 85);
+pub const COLOR_LIGHTEST: Color = Color::opaque(100, 100, 100);
 pub const COLOR_BRIGHT: Color = Color::opaque(130, 130, 130);
 pub const COLOR_BRIGHT_BLUE: Color = Color::opaque(80, 118, 178);
 pub const COLOR_TEXT: Color = Color::opaque(220, 220, 220);
 pub const COLOR_FOREGROUND: Color = Color::WHITE;
 
+pub const BRUSH_COAL_BLACK: Brush = Brush::Solid(COLOR_COAL_BLACK);
 pub const BRUSH_DARKEST: Brush = Brush::Solid(COLOR_DARKEST);
 pub const BRUSH_DARKER: Brush = Brush::Solid(COLOR_DARKER);
 pub const BRUSH_DARK: Brush = Brush::Solid(COLOR_DARK);

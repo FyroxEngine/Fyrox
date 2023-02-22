@@ -156,17 +156,17 @@ impl<T: NumericType> Vec3EditorBuilder<T> {
         let z_field;
         let grid = GridBuilder::new(
             WidgetBuilder::new()
-                .with_child(make_mark(ctx, "X", 0, Color::opaque(120, 0, 0)))
+                .with_child(make_mark(ctx, 0, Color::opaque(120, 0, 0)))
                 .with_child({
                     x_field = make_numeric_input(ctx, 1, self.value.x, self.editable);
                     x_field
                 })
-                .with_child(make_mark(ctx, "Y", 2, Color::opaque(0, 120, 0)))
+                .with_child(make_mark(ctx, 2, Color::opaque(0, 120, 0)))
                 .with_child({
                     y_field = make_numeric_input(ctx, 3, self.value.y, self.editable);
                     y_field
                 })
-                .with_child(make_mark(ctx, "Z", 4, Color::opaque(0, 0, 120)))
+                .with_child(make_mark(ctx, 4, Color::opaque(0, 0, 120)))
                 .with_child({
                     z_field = make_numeric_input(ctx, 5, self.value.z, self.editable);
                     z_field

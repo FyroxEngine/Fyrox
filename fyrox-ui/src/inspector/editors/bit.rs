@@ -44,9 +44,11 @@ where
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<T>()?;
         Ok(PropertyEditorInstance::Simple {
-            editor: BitFieldBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
-                .with_value(*value)
-                .build(ctx.build_context),
+            editor: BitFieldBuilder::new(
+                WidgetBuilder::new().with_margin(Thickness::top_bottom(1.0)),
+            )
+            .with_value(*value)
+            .build(ctx.build_context),
         })
     }
 

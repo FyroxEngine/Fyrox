@@ -1,7 +1,6 @@
 use crate::{
     border::BorderBuilder,
-    brush::{Brush, GradientPoint},
-    core::{algebra::Vector2, pool::Handle},
+    core::pool::Handle,
     decorator::DecoratorBuilder,
     define_constructor,
     message::{MessageDirection, UiMessage},
@@ -9,8 +8,7 @@ use crate::{
     ttf::SharedFont,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
-    UserInterface, VerticalAlignment, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST,
-    COLOR_LIGHTEST,
+    UserInterface, VerticalAlignment, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
 };
 use std::{
     any::{Any, TypeId},
@@ -181,24 +179,7 @@ impl ButtonBuilder {
             DecoratorBuilder::new(
                 BorderBuilder::new(
                     WidgetBuilder::new()
-                        .with_foreground(Brush::LinearGradient {
-                            from: Vector2::new(0.5, 0.0),
-                            to: Vector2::new(0.5, 1.0),
-                            stops: vec![
-                                GradientPoint {
-                                    stop: 0.0,
-                                    color: COLOR_LIGHTEST,
-                                },
-                                GradientPoint {
-                                    stop: 0.25,
-                                    color: COLOR_LIGHTEST,
-                                },
-                                GradientPoint {
-                                    stop: 1.0,
-                                    color: COLOR_DARKEST,
-                                },
-                            ],
-                        })
+                        .with_foreground(BRUSH_DARKER)
                         .with_child(content),
                 )
                 .with_stroke_thickness(Thickness::uniform(1.0)),

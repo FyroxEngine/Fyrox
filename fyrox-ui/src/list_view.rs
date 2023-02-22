@@ -328,7 +328,7 @@ impl ListViewBuilder {
         .build(ctx);
 
         let scroll_viewer = self.scroll_viewer.unwrap_or_else(|| {
-            ScrollViewerBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(3.0)))
+            ScrollViewerBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(0.0)))
                 .build(ctx)
         });
         let scroll_viewer_ref = ctx[scroll_viewer]

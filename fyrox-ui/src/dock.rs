@@ -907,7 +907,7 @@ pub struct TileBuilder {
     content: TileContent,
 }
 
-pub const DEFAULT_SPLITTER_SIZE: f32 = 4.0;
+pub const DEFAULT_SPLITTER_SIZE: f32 = 5.0;
 pub const DEFAULT_ANCHOR_COLOR: Color = Color::opaque(150, 150, 150);
 
 pub fn make_default_anchor(ctx: &mut BuildContext, row: usize, column: usize) -> Handle<UiNode> {
@@ -989,9 +989,9 @@ impl TileBuilder {
                     TileContent::HorizontalTiles { .. } => Some(CursorIcon::WResize),
                     TileContent::VerticalTiles { .. } => Some(CursorIcon::NResize),
                     _ => None,
-                })
-                .with_margin(Thickness::uniform(1.0)),
+                }),
         )
+        .with_stroke_thickness(Thickness::uniform(0.0))
         .build(ctx);
 
         if let TileContent::Window(window) = self.content {

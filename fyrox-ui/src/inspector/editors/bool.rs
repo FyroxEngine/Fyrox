@@ -30,7 +30,7 @@ impl PropertyEditorDefinition for BoolPropertyEditorDefinition {
         Ok(PropertyEditorInstance::Simple {
             editor: CheckBoxBuilder::new(
                 WidgetBuilder::new()
-                    .with_margin(Thickness::uniform(1.0))
+                    .with_margin(Thickness::top_bottom(1.0))
                     .with_vertical_alignment(VerticalAlignment::Center),
             )
             .checked(Some(*value))

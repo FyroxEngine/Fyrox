@@ -8,7 +8,8 @@ use crate::{
     vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, MouseButton, NodeHandleMapping, Thickness, UiNode,
-    UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_DARK, BRUSH_LIGHT, BRUSH_TEXT,
+    UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE, BRUSH_DARKEST, BRUSH_LIGHT,
+    BRUSH_TEXT,
 };
 use fyrox_core::algebra::Vector2;
 use std::{
@@ -197,24 +198,37 @@ impl CheckBoxBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let check_mark = self.check_mark.unwrap_or_else(|| {
-            VectorImageBuilder::new(
+            BorderBuilder::new(
                 WidgetBuilder::new()
-                    .with_vertical_alignment(VerticalAlignment::Center)
-                    .with_horizontal_alignment(HorizontalAlignment::Center)
-                    .with_foreground(BRUSH_TEXT),
+                    .with_background(BRUSH_BRIGHT_BLUE)
+                    .with_child(
+                        VectorImageBuilder::new(
+                            WidgetBuilder::new()
+                                .with_margin(Thickness::uniform(3.0))
+                                .with_vertical_alignment(VerticalAlignment::Center)
+                                .with_horizontal_alignment(HorizontalAlignment::Center)
+                                .with_foreground(BRUSH_TEXT),
+                        )
+                        .with_primitives({
+                            let size = 8.0;
+                            let half_size = size * 0.5;
+                            vec![
+                                Primitive::Line {
+                                    begin: Vector2::new(0.0, half_size),
+                                    end: Vector2::new(half_size, size),
+                                    thickness: 2.0,
+                                },
+                                Primitive::Line {
+                                    begin: Vector2::new(half_size, size),
+                                    end: Vector2::new(size, 0.0),
+                                    thickness: 2.0,
+                                },
+                            ]
+                        })
+                        .build(ctx),
+                    ),
             )
-            .with_primitives(vec![
-                Primitive::Line {
-                    begin: Vector2::new(0.0, 6.0),
-                    end: Vector2::new(6.0, 12.0),
-                    thickness: 2.0,
-                },
-                Primitive::Line {
-                    begin: Vector2::new(6.0, 12.0),
-                    end: Vector2::new(12.0, 0.0),
-                    thickness: 2.0,
-                },
-            ])
+            .with_stroke_thickness(Thickness::uniform(0.0))
             .build(ctx)
         });
         ctx[check_mark].set_visibility(self.checked.unwrap_or(false));
@@ -222,9 +236,13 @@ impl CheckBoxBuilder {
         let uncheck_mark = self.uncheck_mark.unwrap_or_else(|| {
             BorderBuilder::new(
                 WidgetBuilder::new()
+                    .with_margin(Thickness::uniform(3.0))
+                    .with_width(10.0)
+                    .with_height(9.0)
                     .with_background(Brush::Solid(Color::TRANSPARENT))
                     .with_foreground(Brush::Solid(Color::TRANSPARENT)),
             )
+            .with_stroke_thickness(Thickness::uniform(0.0))
             .build(ctx)
         });
         ctx[uncheck_mark].set_visibility(!self.checked.unwrap_or(true));
@@ -232,7 +250,7 @@ impl CheckBoxBuilder {
         let undefined_mark = self.undefined_mark.unwrap_or_else(|| {
             BorderBuilder::new(
                 WidgetBuilder::new()
-                    .with_margin(Thickness::uniform(1.0))
+                    .with_margin(Thickness::uniform(4.0))
                     .with_background(BRUSH_BRIGHT)
                     .with_foreground(Brush::Solid(Color::TRANSPARENT)),
             )
@@ -247,7 +265,8 @@ impl CheckBoxBuilder {
         let background = self.background.unwrap_or_else(|| {
             BorderBuilder::new(
                 WidgetBuilder::new()
-                    .with_background(BRUSH_DARK)
+                    .with_vertical_alignment(VerticalAlignment::Center)
+                    .with_background(BRUSH_DARKEST)
                     .with_foreground(BRUSH_LIGHT),
             )
             .with_stroke_thickness(Thickness::uniform(1.0))

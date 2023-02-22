@@ -11,7 +11,8 @@ use crate::{
     popup::{Placement, PopupBuilder, PopupMessage},
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, NodeHandleMapping, UiNode, UserInterface, BRUSH_LIGHT,
+    BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface, BRUSH_DARKER,
+    BRUSH_LIGHT,
 };
 use std::{
     any::{Any, TypeId},
@@ -228,6 +229,11 @@ impl DropdownList {
                     self.main_grid,
                 ));
                 ui.node(self.current).request_update_visibility();
+                ui.send_message(WidgetMessage::margin(
+                    self.current,
+                    MessageDirection::ToWidget,
+                    Thickness::uniform(0.0),
+                ));
             } else {
                 self.current = Handle::NONE;
             }
@@ -297,13 +303,14 @@ impl DropdownListBuilder {
         };
 
         let arrow = make_arrow(ctx, ArrowDirection::Bottom, 10.0);
+        ctx[arrow].set_margin(Thickness::left_right(2.0));
         ctx[arrow].set_column(1);
 
         let main_grid =
             GridBuilder::new(WidgetBuilder::new().with_child(current).with_child(arrow))
                 .add_row(Row::stretch())
                 .add_column(Column::stretch())
-                .add_column(Column::strict(20.0))
+                .add_column(Column::auto())
                 .build(ctx);
 
         let dropdown_list = UiNode::new(DropdownList {
@@ -313,6 +320,7 @@ impl DropdownListBuilder {
                 .with_child(
                     BorderBuilder::new(
                         WidgetBuilder::new()
+                            .with_background(BRUSH_DARKER)
                             .with_foreground(BRUSH_LIGHT)
                             .with_child(main_grid),
                     )

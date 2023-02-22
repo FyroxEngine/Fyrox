@@ -1,13 +1,13 @@
 use crate::{
     border::{Border, BorderBuilder},
-    brush::{Brush, GradientPoint},
+    brush::Brush,
     core::{algebra::Vector2, color::Color, pool::Handle},
     define_constructor,
     draw::DrawingContext,
     message::{MessageDirection, UiMessage},
     widget::{Widget, WidgetMessage},
-    BuildContext, Control, NodeHandleMapping, UiNode, UserInterface, BRUSH_BRIGHT, BRUSH_LIGHT,
-    BRUSH_LIGHTER, BRUSH_LIGHTEST, COLOR_DARKEST, COLOR_LIGHTEST,
+    BuildContext, Control, NodeHandleMapping, UiNode, UserInterface, BRUSH_BRIGHT, BRUSH_DARKER,
+    BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
 };
 use std::{
     any::{Any, TypeId},
@@ -277,24 +277,7 @@ impl DecoratorBuilder {
         let selected_brush = self.selected_brush.unwrap_or(BRUSH_BRIGHT);
 
         if self.border_builder.widget_builder.foreground.is_none() {
-            self.border_builder.widget_builder.foreground = Some(Brush::LinearGradient {
-                from: Vector2::new(0.5, 0.0),
-                to: Vector2::new(0.5, 1.0),
-                stops: vec![
-                    GradientPoint {
-                        stop: 0.0,
-                        color: COLOR_LIGHTEST,
-                    },
-                    GradientPoint {
-                        stop: 0.25,
-                        color: COLOR_LIGHTEST,
-                    },
-                    GradientPoint {
-                        stop: 1.0,
-                        color: COLOR_DARKEST,
-                    },
-                ],
-            });
+            self.border_builder.widget_builder.foreground = Some(BRUSH_DARKER);
         }
 
         let mut border = self.border_builder.build_border();

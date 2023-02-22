@@ -609,7 +609,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                         TextBuilder::new(
                             WidgetBuilder::new()
                                 .with_vertical_alignment(VerticalAlignment::Center)
-                                .with_margin(Thickness::uniform(1.0))
+                                .with_margin(Thickness::left(2.0))
                                 .on_column(1),
                         )
                         .with_text(text)

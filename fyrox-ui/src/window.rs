@@ -1,6 +1,6 @@
 use crate::{
     border::BorderBuilder,
-    brush::{Brush, GradientPoint},
+    brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
     decorator::DecoratorBuilder,
@@ -11,8 +11,7 @@ use crate::{
     vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, RestrictionEntry, Thickness,
-    UiNode, UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_LIGHT, BRUSH_LIGHTER,
-    BRUSH_LIGHTEST, COLOR_DARK, COLOR_DARKEST,
+    UiNode, UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_LIGHT, BRUSH_LIGHTEST,
 };
 use std::{
     any::{Any, TypeId},
@@ -720,12 +719,12 @@ fn make_mark(ctx: &mut BuildContext, button: HeaderButton) -> Handle<UiNode> {
                 Primitive::Line {
                     begin: Vector2::new(0.0, 0.0),
                     end: Vector2::new(12.0, 12.0),
-                    thickness: 3.0,
+                    thickness: 1.0,
                 },
                 Primitive::Line {
                     begin: Vector2::new(12.0, 0.0),
                     end: Vector2::new(0.0, 12.0),
-                    thickness: 3.0,
+                    thickness: 1.0,
                 },
             ]
         }
@@ -733,12 +732,12 @@ fn make_mark(ctx: &mut BuildContext, button: HeaderButton) -> Handle<UiNode> {
             vec![Primitive::Line {
                 begin: Vector2::new(0.0, 0.0),
                 end: Vector2::new(12.0, 0.0),
-                thickness: 3.0,
+                thickness: 1.0,
             }]
         }
         HeaderButton::Maximize => {
             let size = 12.0;
-            let thickness = 3.0;
+            let thickness = 1.25;
             let half_thickness = thickness * 0.5;
 
             vec![
@@ -868,30 +867,15 @@ impl WindowBuilder {
         let maximize_button;
         let close_button;
 
+        let blue_tint = Brush::Solid(Color::opaque(60, 60, 64));
+
         let title;
         let title_grid;
         let header = BorderBuilder::new(
             WidgetBuilder::new()
                 .with_horizontal_alignment(HorizontalAlignment::Stretch)
-                .with_height(25.0)
-                .with_background(Brush::LinearGradient {
-                    from: Vector2::new(0.5, 0.0),
-                    to: Vector2::new(0.5, 1.0),
-                    stops: vec![
-                        GradientPoint {
-                            stop: 0.0,
-                            color: COLOR_DARK,
-                        },
-                        GradientPoint {
-                            stop: 0.85,
-                            color: COLOR_DARK,
-                        },
-                        GradientPoint {
-                            stop: 1.0,
-                            color: COLOR_DARKEST,
-                        },
-                    ],
-                })
+                .with_height(22.0)
+                .with_background(blue_tint.clone())
                 .with_child({
                     title_grid = GridBuilder::new(
                         WidgetBuilder::new()
@@ -911,7 +895,7 @@ impl WindowBuilder {
                                 });
                                 ctx[minimize_button]
                                     .set_visibility(self.can_minimize)
-                                    .set_width(30.0)
+                                    .set_width(20.0)
                                     .set_row(0)
                                     .set_column(1);
                                 minimize_button
@@ -922,7 +906,7 @@ impl WindowBuilder {
                                 });
                                 ctx[maximize_button]
                                     .set_visibility(self.can_maximize)
-                                    .set_width(30.0)
+                                    .set_width(20.0)
                                     .set_row(0)
                                     .set_column(2);
                                 maximize_button
@@ -932,7 +916,7 @@ impl WindowBuilder {
                                     make_header_button(ctx, HeaderButton::Close)
                                 });
                                 ctx[close_button]
-                                    .set_width(30.0)
+                                    .set_width(20.0)
                                     .set_visibility(self.can_close)
                                     .set_row(0)
                                     .set_column(3);
@@ -949,6 +933,7 @@ impl WindowBuilder {
                 })
                 .on_row(0),
         )
+        .with_stroke_thickness(Thickness::uniform(0.0))
         .build(ctx);
 
         if self.content.is_some() {
@@ -960,19 +945,17 @@ impl WindowBuilder {
                 .with_visibility(self.open)
                 .with_child(
                     BorderBuilder::new(
-                        WidgetBuilder::new()
-                            .with_foreground(BRUSH_LIGHTER)
-                            .with_child(
-                                GridBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_child(self.content)
-                                        .with_child(header),
-                                )
-                                .add_column(Column::stretch())
-                                .add_row(Row::auto())
-                                .add_row(Row::stretch())
-                                .build(ctx),
-                            ),
+                        WidgetBuilder::new().with_foreground(blue_tint).with_child(
+                            GridBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_child(self.content)
+                                    .with_child(header),
+                            )
+                            .add_column(Column::stretch())
+                            .add_row(Row::auto())
+                            .add_row(Row::stretch())
+                            .build(ctx),
+                        ),
                     )
                     .with_stroke_thickness(Thickness::uniform(1.0))
                     .build(ctx),
