@@ -174,6 +174,7 @@ pub struct MenuItem {
     pub popup: Handle<UiNode>,
     pub panel: Handle<UiNode>,
     pub placement: MenuItemPlacement,
+    pub clickable_when_not_empty: bool,
 }
 
 crate::define_widget_deref!(MenuItem);
@@ -279,10 +280,12 @@ impl Control for MenuItem {
                 }
                 WidgetMessage::MouseUp { .. } => {
                     if !message.handled() {
-                        ui.send_message(MenuItemMessage::click(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                        ));
+                        if self.items.is_empty() || self.clickable_when_not_empty {
+                            ui.send_message(MenuItemMessage::click(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                            ));
+                        }
                         if self.items.is_empty() {
                             let menu = find_menu(self.parent(), ui);
                             if menu.is_some() {
@@ -565,6 +568,7 @@ pub struct MenuItemBuilder<'a, 'b> {
     items: Vec<Handle<UiNode>>,
     content: Option<MenuItemContent<'a, 'b>>,
     back: Option<Handle<UiNode>>,
+    clickable_when_not_empty: bool,
 }
 
 impl<'a, 'b> MenuItemBuilder<'a, 'b> {
@@ -574,6 +578,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
             items: Default::default(),
             content: None,
             back: None,
+            clickable_when_not_empty: false,
         }
     }
 
@@ -591,6 +596,11 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
     /// it can be any kind of node, by default it is Decorator.
     pub fn with_back(mut self, handle: Handle<UiNode>) -> Self {
         self.back = Some(handle);
+        self
+    }
+
+    pub fn with_clickable_when_not_empty(mut self, value: bool) -> Self {
+        self.clickable_when_not_empty = value;
         self
     }
 
@@ -688,6 +698,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
             items: self.items,
             placement: MenuItemPlacement::Right,
             panel,
+            clickable_when_not_empty: false,
         };
 
         let handle = ctx.add_node(UiNode::new(menu));
