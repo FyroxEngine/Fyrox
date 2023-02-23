@@ -730,6 +730,7 @@ pub struct FileBrowserBuilder {
     filter: Option<Filter>,
     root: Option<PathBuf>,
     mode: FileBrowserMode,
+    show_path: bool,
 }
 
 impl FileBrowserBuilder {
@@ -740,6 +741,7 @@ impl FileBrowserBuilder {
             filter: None,
             root: None,
             mode: FileBrowserMode::Open,
+            show_path: true,
         }
     }
 
@@ -755,6 +757,11 @@ impl FileBrowserBuilder {
 
     pub fn with_mode(mut self, mode: FileBrowserMode) -> Self {
         self.mode = mode;
+        self
+    }
+
+    pub fn with_show_path(mut self, show_path: bool) -> Self {
+        self.show_path = show_path;
         self
     }
 
@@ -815,6 +822,8 @@ impl FileBrowserBuilder {
                 .with_child(
                     GridBuilder::new(
                         WidgetBuilder::new()
+                            .with_visibility(self.show_path)
+                            .with_height(24.0)
                             .with_child(
                                 TextBuilder::new(
                                     WidgetBuilder::new()
@@ -852,10 +861,10 @@ impl FileBrowserBuilder {
         .add_column(Column::stretch())
         .add_rows(match self.mode {
             FileBrowserMode::Open => {
-                vec![Row::strict(24.0), Row::stretch()]
+                vec![Row::auto(), Row::stretch()]
             }
             FileBrowserMode::Save { .. } => {
-                vec![Row::strict(24.0), Row::strict(24.0), Row::stretch()]
+                vec![Row::auto(), Row::strict(24.0), Row::stretch()]
             }
         })
         .build(ctx);
