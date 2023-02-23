@@ -6,7 +6,7 @@ use crate::{
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
     text::TextMessage,
-    text_box::TextBoxBuilder,
+    text_box::{TextBoxBuilder, TextCommitMode},
     utils::make_cross,
     vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder},
@@ -131,6 +131,7 @@ impl SearchBarBuilder {
                                         .on_column(1)
                                         .with_margin(Thickness::uniform(1.0)),
                                 )
+                                .with_text_commit_mode(TextCommitMode::Immediate)
                                 .with_vertical_text_alignment(VerticalAlignment::Center)
                                 .build(ctx);
                                 text_box
