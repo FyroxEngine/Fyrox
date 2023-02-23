@@ -108,9 +108,9 @@ fn make_interaction_mode_button(
         ImageBuilder::new(
             WidgetBuilder::new()
                 .with_background(Brush::Solid(Color::opaque(220, 220, 220)))
-                .with_margin(Thickness::uniform(3.0))
-                .with_width(28.0)
-                .with_height(28.0),
+                .with_margin(Thickness::uniform(2.0))
+                .with_width(23.0)
+                .with_height(23.0),
         )
         .with_opt_texture(load_image(image))
         .build(ctx),
@@ -164,9 +164,9 @@ impl SceneViewer {
 
         let interaction_mode_panel = StackPanelBuilder::new(
             WidgetBuilder::new()
-                .with_margin(Thickness::left_right(1.0))
-                .on_row(0)
-                .on_column(0)
+                .with_margin(Thickness::uniform(1.0))
+                .with_vertical_alignment(VerticalAlignment::Top)
+                .with_horizontal_alignment(HorizontalAlignment::Left)
                 .with_child({
                     select_mode = make_interaction_mode_button(
                         ctx,
@@ -373,8 +373,7 @@ impl SceneViewer {
                                         frame = ImageBuilder::new(
                                             WidgetBuilder::new()
                                                 .with_child(no_scene_reminder)
-                                                .on_row(0)
-                                                .on_column(1)
+                                                .with_child(interaction_mode_panel)
                                                 .with_allow_drop(true),
                                         )
                                         .with_flip(true)
@@ -382,29 +381,25 @@ impl SceneViewer {
                                         frame
                                     })
                                     .with_child(
-                                        CanvasBuilder::new(
-                                            WidgetBuilder::new().on_column(1).with_child({
-                                                selection_frame = BorderBuilder::new(
-                                                    WidgetBuilder::new()
-                                                        .with_visibility(false)
-                                                        .with_background(Brush::Solid(
-                                                            Color::from_rgba(255, 255, 255, 40),
-                                                        ))
-                                                        .with_foreground(Brush::Solid(
-                                                            Color::opaque(0, 255, 0),
-                                                        )),
-                                                )
-                                                .with_stroke_thickness(Thickness::uniform(1.0))
-                                                .build(ctx);
-                                                selection_frame
-                                            }),
-                                        )
+                                        CanvasBuilder::new(WidgetBuilder::new().with_child({
+                                            selection_frame = BorderBuilder::new(
+                                                WidgetBuilder::new()
+                                                    .with_visibility(false)
+                                                    .with_background(Brush::Solid(
+                                                        Color::from_rgba(255, 255, 255, 40),
+                                                    ))
+                                                    .with_foreground(Brush::Solid(Color::opaque(
+                                                        0, 255, 0,
+                                                    ))),
+                                            )
+                                            .with_stroke_thickness(Thickness::uniform(1.0))
+                                            .build(ctx);
+                                            selection_frame
+                                        }))
                                         .build(ctx),
-                                    )
-                                    .with_child(interaction_mode_panel),
+                                    ),
                             )
                             .add_row(Row::stretch())
-                            .add_column(Column::auto())
                             .add_column(Column::stretch())
                             .build(ctx),
                         ),
