@@ -1,9 +1,12 @@
-use crate::{gui::make_dropdown_list_option, Brush, Color, DropdownListBuilder, GameEngine};
+use crate::{
+    gui::{make_dropdown_list_option, make_image_button_with_tooltip},
+    load_image, Brush, Color, DropdownListBuilder, GameEngine,
+};
 use fyrox::{
     core::{pool::Handle, scope_profile},
     gui::{
         border::BorderBuilder,
-        button::{ButtonBuilder, ButtonMessage},
+        button::ButtonMessage,
         copypasta::ClipboardProvider,
         dropdown_list::DropdownListMessage,
         formatted_text::WrapMode,
@@ -101,13 +104,15 @@ impl LogPanel {
                                     .on_row(0)
                                     .on_column(0)
                                     .with_child({
-                                        clear = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_width(120.0)
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_text("Clear")
-                                        .build(ctx);
+                                        clear = make_image_button_with_tooltip(
+                                            ctx,
+                                            24.0,
+                                            24.0,
+                                            load_image(include_bytes!(
+                                                "../resources/embed/clear.png"
+                                            )),
+                                            "Clear the log.",
+                                        );
                                         clear
                                     })
                                     .with_child({
