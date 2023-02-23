@@ -1,20 +1,25 @@
-use crate::gui::AssetItemMessage;
-use crate::load_image;
-use fyrox::core::color::Color;
-use fyrox::core::pool::Handle;
-use fyrox::engine::resource_manager::ResourceManager;
-use fyrox::gui::brush::Brush;
-use fyrox::gui::draw::{CommandTexture, Draw, DrawingContext};
-use fyrox::gui::grid::{Column, GridBuilder, Row};
-use fyrox::gui::image::ImageBuilder;
-use fyrox::gui::message::{MessageDirection, UiMessage};
-use fyrox::gui::text::TextBuilder;
-use fyrox::gui::widget::{Widget, WidgetBuilder, WidgetMessage};
-use fyrox::gui::{BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface};
-use fyrox::utils::into_gui_texture;
-use std::any::{Any, TypeId};
-use std::ops::{Deref, DerefMut};
-use std::path::{Path, PathBuf};
+use crate::{gui::AssetItemMessage, load_image};
+use fyrox::{
+    core::{color::Color, pool::Handle},
+    engine::resource_manager::ResourceManager,
+    gui::{
+        brush::Brush,
+        draw::{CommandTexture, Draw, DrawingContext},
+        grid::{Column, GridBuilder, Row},
+        image::ImageBuilder,
+        message::{MessageDirection, UiMessage},
+        text::TextBuilder,
+        utils::make_simple_tooltip,
+        widget::{Widget, WidgetBuilder, WidgetMessage},
+        BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
+    },
+    utils::into_gui_texture,
+};
+use std::{
+    any::{Any, TypeId},
+    ops::{Deref, DerefMut},
+    path::{Path, PathBuf},
+};
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -181,6 +186,7 @@ impl AssetItemBuilder {
                 .with_margin(Thickness::uniform(1.0))
                 .with_allow_drag(true)
                 .with_foreground(Brush::Solid(Color::opaque(50, 50, 50)))
+                .with_tooltip(make_simple_tooltip(ctx, &format!("{:?}", path)))
                 .with_child(
                     GridBuilder::new(
                         WidgetBuilder::new()
