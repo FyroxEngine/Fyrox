@@ -555,10 +555,10 @@ fn build_expander(
 
 #[derive(Debug, Clone)]
 pub struct TreeRoot {
-    widget: Widget,
-    panel: Handle<UiNode>,
-    items: Vec<Handle<UiNode>>,
-    selected: Vec<Handle<UiNode>>,
+    pub widget: Widget,
+    pub panel: Handle<UiNode>,
+    pub items: Vec<Handle<UiNode>>,
+    pub selected: Vec<Handle<UiNode>>,
 }
 
 crate::define_widget_deref!(TreeRoot);
