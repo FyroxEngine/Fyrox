@@ -57,7 +57,6 @@ pub mod search;
 pub struct WorldViewer {
     pub window: Handle<UiNode>,
     tree_root: Handle<UiNode>,
-    graph_folder: Handle<UiNode>,
     sender: Sender<Message>,
     track_selection: Handle<UiNode>,
     search_bar: SearchBar,
@@ -154,21 +153,6 @@ fn colorize(handle: Handle<UiNode>, ui: &UserInterface, index: &mut usize) {
     }
 }
 
-fn make_folder(ctx: &mut BuildContext, name: &str) -> Handle<UiNode> {
-    TreeBuilder::new(WidgetBuilder::new())
-        .with_content(
-            TextBuilder::new(
-                WidgetBuilder::new()
-                    .with_margin(Thickness::left(5.0))
-                    .with_foreground(Brush::Solid(Color::opaque(153, 217, 234))),
-            )
-            .with_vertical_text_alignment(VerticalAlignment::Center)
-            .with_text(name)
-            .build(ctx),
-        )
-        .build(ctx)
-}
-
 impl WorldViewer {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>, settings: &Settings) -> Self {
         let small_font = SharedFont::new(
@@ -186,7 +170,6 @@ impl WorldViewer {
         let scroll_view;
         let track_selection;
         let search_bar = SearchBar::new(ctx);
-        let graph_folder = make_folder(ctx, "Scene Graph");
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_minimize(false)
             .with_title(WindowTitle::text("World Viewer"))
@@ -270,9 +253,8 @@ impl WorldViewer {
                         .with_child({
                             scroll_view = ScrollViewerBuilder::new(WidgetBuilder::new().on_row(2))
                                 .with_content({
-                                    tree_root = TreeRootBuilder::new(WidgetBuilder::new())
-                                        .with_items(vec![graph_folder])
-                                        .build(ctx);
+                                    tree_root =
+                                        TreeRootBuilder::new(WidgetBuilder::new()).build(ctx);
                                     tree_root
                                 })
                                 .build(ctx);
@@ -296,7 +278,6 @@ impl WorldViewer {
             window,
             sender,
             tree_root,
-            graph_folder,
             node_path,
             stack: Default::default(),
             sync_selection: false,
@@ -332,7 +313,7 @@ impl WorldViewer {
     ) {
         let ctx = &mut ui.build_ctx();
 
-        let element = ButtonBuilder::new(WidgetBuilder::new().with_height(20.0))
+        let element = ButtonBuilder::new(WidgetBuilder::new().with_height(16.0))
             .with_back(
                 DecoratorBuilder::new(BorderBuilder::new(
                     WidgetBuilder::new().with_foreground(BRUSH_PRIMARY),
@@ -342,7 +323,7 @@ impl WorldViewer {
                 .build(ctx),
             )
             .with_content(
-                TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                TextBuilder::new(WidgetBuilder::new())
                     .with_vertical_text_alignment(VerticalAlignment::Center)
                     .with_text(if self.breadcrumbs.is_empty() {
                         name.to_owned()
@@ -384,7 +365,7 @@ impl WorldViewer {
                 while node_handle.is_some() {
                     let node = &scene.graph[node_handle];
 
-                    let view = ui.find_by_criteria_down(self.graph_folder, &|n| {
+                    let view = ui.find_by_criteria_down(self.tree_root, &|n| {
                         n.cast::<SceneItem<Node>>()
                             .map(|i| i.entity_handle == node_handle)
                             .unwrap_or_default()
@@ -401,7 +382,7 @@ impl WorldViewer {
     fn sync_graph(&mut self, ui: &mut UserInterface, editor_scene: &EditorScene, graph: &Graph) {
         // Sync tree structure with graph structure.
         self.stack.clear();
-        self.stack.push((self.graph_folder, graph.get_root()));
+        self.stack.push((self.tree_root, graph.get_root()));
         while let Some((tree_handle, node_handle)) = self.stack.pop() {
             // Hide all editor nodes.
             if node_handle == editor_scene.editor_objects_root {
@@ -496,8 +477,8 @@ impl WorldViewer {
                         }
                     }
                 }
-            } else if let Some(folder) = ui_node.cast::<Tree>() {
-                if folder.items.is_empty() {
+            } else if let Some(tree_root) = ui_node.cast::<TreeRoot>() {
+                if tree_root.items.is_empty() {
                     let graph_node_item = make_graph_node_item(
                         node,
                         node_handle,
@@ -506,7 +487,7 @@ impl WorldViewer {
                     );
                     send_sync_message(
                         ui,
-                        TreeMessage::add_item(
+                        TreeRootMessage::add_item(
                             tree_handle,
                             MessageDirection::ToWidget,
                             graph_node_item,
@@ -515,7 +496,7 @@ impl WorldViewer {
                     self.node_to_view_map.insert(node_handle, graph_node_item);
                     self.stack.push((graph_node_item, node_handle));
                 } else {
-                    self.stack.push((folder.items[0], node_handle));
+                    self.stack.push((tree_root.items[0], node_handle));
                 }
             }
         }
@@ -542,9 +523,6 @@ impl WorldViewer {
                 }
             } else if let Some(root) = ui_node.cast::<TreeRoot>() {
                 stack.extend_from_slice(root.items())
-            } else if let Some(tree) = ui_node.cast::<Tree>() {
-                // Make sure to take folders into account.
-                stack.extend_from_slice(&tree.items)
             }
         }
 
@@ -788,7 +766,7 @@ impl WorldViewer {
     fn map_selection(&self, selection: &Selection, engine: &GameEngine) -> Vec<Handle<UiNode>> {
         match selection {
             Selection::Graph(selection) => {
-                map_selection(selection.nodes(), self.graph_folder, &engine.user_interface)
+                map_selection(selection.nodes(), self.tree_root, &engine.user_interface)
             }
             _ => Default::default(),
         }
@@ -822,8 +800,8 @@ impl WorldViewer {
     pub fn clear(&mut self, ui: &UserInterface) {
         self.node_to_view_map.clear();
         self.clear_breadcrumbs(ui);
-        ui.send_message(TreeMessage::set_items(
-            self.graph_folder,
+        ui.send_message(TreeRootMessage::items(
+            self.tree_root,
             MessageDirection::ToWidget,
             vec![],
         ));
@@ -873,7 +851,7 @@ impl WorldViewer {
 
 fn map_selection<T>(
     selection: &[Handle<T>],
-    folder: Handle<UiNode>,
+    root_node: Handle<UiNode>,
     ui: &UserInterface,
 ) -> Vec<Handle<UiNode>>
 where
@@ -882,7 +860,7 @@ where
     selection
         .iter()
         .filter_map(|&handle| {
-            let item = ui.find_by_criteria_down(folder, &|n| {
+            let item = ui.find_by_criteria_down(root_node, &|n| {
                 n.cast::<SceneItem<T>>()
                     .map(|n| n.entity_handle == handle)
                     .unwrap_or_default()
