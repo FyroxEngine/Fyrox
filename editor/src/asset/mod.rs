@@ -211,6 +211,7 @@ impl AssetBrowser {
                                         folder_browser = FileBrowserBuilder::new(
                                             WidgetBuilder::new().on_column(0),
                                         )
+                                        .with_show_path(false)
                                         .with_filter(Filter::new(|p: &Path| p.is_dir()))
                                         .build(ctx);
                                         folder_browser
