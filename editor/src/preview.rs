@@ -1,4 +1,4 @@
-use crate::{utils::built_in_skybox, GameEngine};
+use crate::{load_image, utils::built_in_skybox, GameEngine};
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -14,7 +14,7 @@ use fyrox::{
         message::{CursorIcon, MessageDirection, MouseButton, UiMessage},
         stack_panel::StackPanelBuilder,
         widget::{WidgetBuilder, WidgetMessage},
-        Orientation, Thickness, UiNode,
+        HorizontalAlignment, Orientation, Thickness, UiNode, VerticalAlignment,
     },
     resource::texture::{Texture, TextureKind},
     scene::{
@@ -172,6 +172,39 @@ impl PreviewPanel {
                 .with_child({
                     frame = ImageBuilder::new(
                         WidgetBuilder::new()
+                            .with_child({
+                                tools_panel = StackPanelBuilder::new(
+                                    WidgetBuilder::new()
+                                        .with_vertical_alignment(VerticalAlignment::Top)
+                                        .with_horizontal_alignment(HorizontalAlignment::Right)
+                                        .with_cursor(Some(CursorIcon::Arrow))
+                                        .with_opacity(Some(0.7))
+                                        .on_row(0)
+                                        .with_child({
+                                            fit = ButtonBuilder::new(
+                                                WidgetBuilder::new()
+                                                    .with_margin(Thickness::uniform(1.0)),
+                                            )
+                                            .with_content(
+                                                ImageBuilder::new(
+                                                    WidgetBuilder::new()
+                                                        .with_width(18.0)
+                                                        .with_height(18.0)
+                                                        .with_margin(Thickness::uniform(2.0)),
+                                                )
+                                                .with_opt_texture(load_image(include_bytes!(
+                                                    "../resources/embed/fit.png"
+                                                )))
+                                                .build(ctx),
+                                            )
+                                            .build(ctx);
+                                            fit
+                                        }),
+                                )
+                                .with_orientation(Orientation::Horizontal)
+                                .build(ctx);
+                                tools_panel
+                            })
                             .on_row(1)
                             .with_cursor(Some(CursorIcon::Grab)),
                     )
@@ -179,24 +212,6 @@ impl PreviewPanel {
                     .with_texture(into_gui_texture(render_target))
                     .build(ctx);
                     frame
-                })
-                .with_child({
-                    tools_panel = StackPanelBuilder::new(
-                        WidgetBuilder::new()
-                            .with_height(22.0)
-                            .on_row(0)
-                            .with_child({
-                                fit = ButtonBuilder::new(
-                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_text("Fit")
-                                .build(ctx);
-                                fit
-                            }),
-                    )
-                    .with_orientation(Orientation::Horizontal)
-                    .build(ctx);
-                    tools_panel
                 }),
         )
         .add_row(Row::auto())
@@ -289,6 +304,7 @@ impl PreviewPanel {
                     WidgetMessage::MouseUp { button, .. } => {
                         if (button == MouseButton::Left || button == MouseButton::Middle)
                             && self.mode != Mode::None
+                            && !message.handled()
                         {
                             engine.user_interface.release_mouse_capture();
                             self.mode = Mode::None;
