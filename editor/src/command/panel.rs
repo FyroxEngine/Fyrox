@@ -152,9 +152,18 @@ impl CommandStackViewer {
                     Brush::Solid(Color::opaque(100, 100, 100))
                 };
 
-                TextBuilder::new(WidgetBuilder::new().with_foreground(brush))
-                    .with_text(cmd.name(ctx))
-                    .build(&mut ui.build_ctx())
+                TextBuilder::new(
+                    WidgetBuilder::new()
+                        .with_margin(Thickness {
+                            left: 2.0,
+                            top: 1.0,
+                            right: 2.0,
+                            bottom: 0.0,
+                        })
+                        .with_foreground(brush),
+                )
+                .with_text(cmd.name(ctx))
+                .build(&mut ui.build_ctx())
             })
             .collect();
 
