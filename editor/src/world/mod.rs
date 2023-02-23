@@ -36,7 +36,7 @@ use fyrox::{
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         tree::{
-            Tree, TreeBuilder, TreeExpansionStrategy, TreeMessage, TreeRoot, TreeRootBuilder,
+            TreeBuilder, TreeExpansionStrategy, TreeMessage, TreeRoot, TreeRootBuilder,
             TreeRootMessage,
         },
         ttf::{FontBuilder, SharedFont},
@@ -170,6 +170,7 @@ impl WorldViewer {
         let scroll_view;
         let track_selection;
         let search_bar = SearchBar::new(ctx);
+        let size = 15.0;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_minimize(false)
             .with_title(WindowTitle::text("World Viewer"))
@@ -184,8 +185,8 @@ impl WorldViewer {
                                     .with_child({
                                         collapse_all = make_image_button_with_tooltip(
                                             ctx,
-                                            20.0,
-                                            20.0,
+                                            size,
+                                            size,
                                             load_image(include_bytes!(
                                                 "../../resources/embed/collapse.png"
                                             )),
@@ -196,8 +197,8 @@ impl WorldViewer {
                                     .with_child({
                                         expand_all = make_image_button_with_tooltip(
                                             ctx,
-                                            20.0,
-                                            20.0,
+                                            size,
+                                            size,
                                             load_image(include_bytes!(
                                                 "../../resources/embed/expand.png"
                                             )),
@@ -208,8 +209,8 @@ impl WorldViewer {
                                     .with_child({
                                         locate_selection = make_image_button_with_tooltip(
                                             ctx,
-                                            20.0,
-                                            20.0,
+                                            size,
+                                            size,
                                             load_image(include_bytes!(
                                                 "../../resources/embed/locate.png"
                                             )),
@@ -262,7 +263,7 @@ impl WorldViewer {
                         }),
                 )
                 .add_column(Column::stretch())
-                .add_row(Row::strict(30.0))
+                .add_row(Row::strict(25.0))
                 .add_row(Row::strict(20.0))
                 .add_row(Row::stretch())
                 .add_row(Row::auto())
