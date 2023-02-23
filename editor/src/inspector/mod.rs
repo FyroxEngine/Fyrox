@@ -161,7 +161,7 @@ impl Inspector {
                         .with_child({
                             type_name_text = TextBuilder::new(
                                 WidgetBuilder::new()
-                                    .with_margin(Thickness::left(4.0))
+                                    .with_margin(Thickness::uniform(4.0))
                                     .on_row(1),
                             )
                             .with_wrap(WrapMode::Word)

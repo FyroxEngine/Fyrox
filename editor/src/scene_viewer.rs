@@ -224,6 +224,7 @@ impl SceneViewer {
         )
         .build(ctx);
 
+        let global_position_display;
         let contextual_actions = StackPanelBuilder::new(
             WidgetBuilder::new()
                 .on_column(1)
@@ -241,6 +242,20 @@ impl SceneViewer {
                     .with_selected(0)
                     .build(ctx);
                     camera_projection
+                })
+                .with_child({
+                    global_position_display = Vec3EditorBuilder::<f32>::new(
+                        WidgetBuilder::new()
+                            .with_margin(Thickness::uniform(1.0))
+                            .with_tooltip(make_simple_tooltip(
+                                ctx,
+                                "Global Coordinates of the Current Selection",
+                            ))
+                            .with_width(200.0),
+                    )
+                    .with_editable(false)
+                    .build(ctx);
+                    global_position_display
                 }),
         )
         .with_orientation(Orientation::Horizontal)
@@ -331,29 +346,6 @@ impl SceneViewer {
         .add_row(Row::stretch())
         .build(ctx);
 
-        let global_position_display;
-        let bottom_toolbar = StackPanelBuilder::new(
-            WidgetBuilder::new()
-                .with_horizontal_alignment(HorizontalAlignment::Right)
-                .with_margin(Thickness::uniform(1.0))
-                .with_child({
-                    global_position_display = Vec3EditorBuilder::<f32>::new(
-                        WidgetBuilder::new()
-                            .with_tooltip(make_simple_tooltip(
-                                ctx,
-                                "Global Coordinates of the Current Selection",
-                            ))
-                            .with_width(200.0),
-                    )
-                    .with_editable(false)
-                    .build(ctx);
-                    global_position_display
-                })
-                .on_row(2),
-        )
-        .with_orientation(Orientation::Horizontal)
-        .build(ctx);
-
         let no_scene_reminder = TextBuilder::new(
             WidgetBuilder::new()
                 .with_hit_test_visibility(false)
@@ -415,12 +407,10 @@ impl SceneViewer {
                             .add_column(Column::auto())
                             .add_column(Column::stretch())
                             .build(ctx),
-                        )
-                        .with_child(bottom_toolbar),
+                        ),
                 )
                 .add_row(Row::strict(25.0))
                 .add_row(Row::stretch())
-                .add_row(Row::strict(20.0))
                 .add_column(Column::stretch())
                 .build(ctx),
             )
