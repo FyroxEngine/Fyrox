@@ -18,7 +18,7 @@ use fyrox::{
     core::{
         color::Color, futures::executor::block_on, make_relative_path, pool::Handle, scope_profile,
     },
-    engine::Engine,
+    engine::{resource_manager::ResourceManager, Engine},
     gui::{
         border::BorderBuilder,
         brush::Brush,
@@ -29,8 +29,8 @@ use fyrox::{
         message::{MessageDirection, UiMessage},
         popup::{Placement, PopupBuilder, PopupMessage},
         scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
+        searchbar::{SearchBarBuilder, SearchBarMessage},
         stack_panel::StackPanelBuilder,
-        text::{TextBuilder, TextMessage},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowTitle},
         wrap_panel::WrapPanelBuilder,
@@ -178,12 +178,21 @@ pub struct AssetBrowser {
     content_panel: Handle<UiNode>,
     folder_browser: Handle<UiNode>,
     scroll_panel: Handle<UiNode>,
-    selected_properties: Handle<UiNode>,
+    search_bar: Handle<UiNode>,
     preview: PreviewPanel,
     items: Vec<Handle<UiNode>>,
     item_to_select: Option<PathBuf>,
     inspector: AssetInspector,
     context_menu: ContextMenu,
+    selected_path: PathBuf,
+}
+
+fn is_engine_resource(ext: &OsStr) -> bool {
+    let ext = ext.to_string_lossy().to_lowercase();
+    matches!(
+        ext.as_str(),
+        "rgs" | "fbx" | "jpg" | "tga" | "png" | "bmp" | "ogg" | "wav" | "shader"
+    )
 }
 
 impl AssetBrowser {
@@ -195,7 +204,7 @@ impl AssetBrowser {
 
         let content_panel;
         let folder_browser;
-        let selected_properties;
+        let search_bar;
         let scroll_panel;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_minimize(false)
@@ -224,10 +233,11 @@ impl AssetBrowser {
                                 WidgetBuilder::new()
                                     .on_column(1)
                                     .with_child({
-                                        selected_properties =
-                                            TextBuilder::new(WidgetBuilder::new().on_row(0))
-                                                .build(ctx);
-                                        selected_properties
+                                        search_bar = SearchBarBuilder::new(
+                                            WidgetBuilder::new().with_height(22.0),
+                                        )
+                                        .build(ctx);
+                                        search_bar
                                     })
                                     .with_child({
                                         scroll_panel = ScrollViewerBuilder::new(
@@ -251,7 +261,7 @@ impl AssetBrowser {
                                         scroll_panel
                                     }),
                             )
-                            .add_row(Row::strict(20.0))
+                            .add_row(Row::auto())
                             .add_row(Row::stretch())
                             .add_column(Column::stretch())
                             .build(ctx),
@@ -292,11 +302,12 @@ impl AssetBrowser {
             folder_browser,
             preview,
             scroll_panel,
-            selected_properties,
+            search_bar,
             items: Default::default(),
             item_to_select: None,
             inspector,
             context_menu,
+            selected_path: Default::default(),
         }
     }
 
@@ -312,6 +323,82 @@ impl AssetBrowser {
             MessageDirection::ToWidget,
             Some(dir.to_owned()),
         ));
+    }
+
+    fn add_asset(
+        &mut self,
+        path: &Path,
+        ui: &mut UserInterface,
+        resource_manager: &ResourceManager,
+    ) -> Handle<UiNode> {
+        let asset_item =
+            AssetItemBuilder::new(WidgetBuilder::new().with_context_menu(self.context_menu.menu))
+                .with_path(path.clone())
+                .build(&mut ui.build_ctx(), resource_manager.clone());
+
+        self.items.push(asset_item);
+
+        ui.send_message(WidgetMessage::link(
+            asset_item,
+            MessageDirection::ToWidget,
+            self.content_panel,
+        ));
+
+        asset_item
+    }
+
+    fn clear_assets(&mut self, ui: &UserInterface) {
+        for child in self.items.drain(..) {
+            ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
+        }
+    }
+
+    fn set_path(
+        &mut self,
+        path: &Path,
+        ui: &mut UserInterface,
+        resource_manager: &ResourceManager,
+    ) {
+        self.selected_path = path.to_path_buf();
+
+        let item_to_select = self.item_to_select.take();
+        let mut handle_to_select = Handle::NONE;
+
+        // Clean content panel first.
+        self.clear_assets(ui);
+
+        // Get all supported assets from folder and generate previews for them.
+        if let Ok(dir_iter) = std::fs::read_dir(path) {
+            for entry in dir_iter.flatten() {
+                if let Ok(entry_path) = make_relative_path(entry.path()) {
+                    if !entry_path.is_dir()
+                        && entry_path.extension().map_or(false, is_engine_resource)
+                    {
+                        let asset_item = self.add_asset(&entry_path, ui, resource_manager);
+
+                        if let Some(item_to_select) = item_to_select.as_ref() {
+                            if item_to_select == &entry_path {
+                                handle_to_select = asset_item;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if handle_to_select.is_some() {
+            ui.send_message(AssetItemMessage::select(
+                handle_to_select,
+                MessageDirection::ToWidget,
+                true,
+            ));
+
+            ui.send_message(ScrollViewerMessage::bring_into_view(
+                self.scroll_panel,
+                MessageDirection::ToWidget,
+                handle_to_select,
+            ));
+        }
     }
 
     pub fn handle_ui_message(
@@ -342,11 +429,6 @@ impl AssetBrowser {
                 .node(message.destination())
                 .cast::<AssetItem>()
                 .expect("Must be AssetItem");
-            ui.send_message(TextMessage::text(
-                self.selected_properties,
-                MessageDirection::ToWidget,
-                format!("Path: {:?}", item.path),
-            ));
 
             match item.kind {
                 AssetKind::Unknown => {}
@@ -373,82 +455,46 @@ impl AssetBrowser {
                 AssetKind::Shader => {
                     Log::warn("Implement me!");
                 }
-                AssetKind::Absm => {
-                    Log::warn("Implement me!");
-                }
             }
         } else if let Some(FileBrowserMessage::Path(path)) = message.data::<FileBrowserMessage>() {
             if message.destination() == self.folder_browser
                 && message.direction() == MessageDirection::FromWidget
             {
-                let item_to_select = self.item_to_select.take();
-                let mut handle_to_select = Handle::NONE;
-
-                // Clean content panel first.
-                for child in self.items.drain(..) {
-                    ui.send_message(WidgetMessage::remove(child, MessageDirection::ToWidget));
-                }
-
-                // Get all supported assets from folder and generate previews for them.
-                if let Ok(dir_iter) = std::fs::read_dir(path) {
-                    for entry in dir_iter.flatten() {
-                        fn check_ext(ext: &OsStr) -> bool {
-                            let ext = ext.to_string_lossy().to_lowercase();
-                            matches!(
-                                ext.as_str(),
-                                "rgs"
-                                    | "fbx"
-                                    | "jpg"
-                                    | "tga"
-                                    | "png"
-                                    | "bmp"
-                                    | "ogg"
-                                    | "wav"
-                                    | "shader"
-                                    | "absm"
-                            )
-                        }
-
-                        if let Ok(entry_path) = make_relative_path(entry.path()) {
-                            if !entry_path.is_dir()
-                                && entry_path.extension().map_or(false, check_ext)
-                            {
-                                let asset_item = AssetItemBuilder::new(
-                                    WidgetBuilder::new().with_context_menu(self.context_menu.menu),
-                                )
-                                .with_path(entry_path.clone())
-                                .build(&mut ui.build_ctx(), engine.resource_manager.clone());
-
-                                self.items.push(asset_item);
-
-                                ui.send_message(WidgetMessage::link(
-                                    asset_item,
-                                    MessageDirection::ToWidget,
-                                    self.content_panel,
-                                ));
-
-                                if let Some(item_to_select) = item_to_select.as_ref() {
-                                    if item_to_select == &entry_path {
-                                        handle_to_select = asset_item;
+                ui.send_message(SearchBarMessage::text(
+                    self.search_bar,
+                    MessageDirection::ToWidget,
+                    Default::default(),
+                ));
+                self.set_path(path, ui, &engine.resource_manager);
+            }
+        } else if let Some(SearchBarMessage::Text(search_text)) = message.data() {
+            if message.destination() == self.search_bar {
+                if search_text.is_empty() {
+                    let path = self.selected_path.clone();
+                    self.set_path(&path, ui, &engine.resource_manager);
+                } else {
+                    self.clear_assets(ui);
+                    let search_text = search_text.to_lowercase();
+                    for dir in fyrox::walkdir::WalkDir::new(".").into_iter().flatten() {
+                        if let Some(extension) = dir.path().extension() {
+                            if is_engine_resource(extension) {
+                                let file_stem = dir
+                                    .path()
+                                    .file_stem()
+                                    .map(|s| s.to_string_lossy().to_lowercase())
+                                    .unwrap_or_default();
+                                if file_stem.contains(&search_text) {
+                                    if let Ok(relative_path) = make_relative_path(dir.path()) {
+                                        self.add_asset(
+                                            &relative_path,
+                                            ui,
+                                            &engine.resource_manager,
+                                        );
                                     }
                                 }
                             }
                         }
                     }
-                }
-
-                if handle_to_select.is_some() {
-                    ui.send_message(AssetItemMessage::select(
-                        handle_to_select,
-                        MessageDirection::ToWidget,
-                        true,
-                    ));
-
-                    ui.send_message(ScrollViewerMessage::bring_into_view(
-                        self.scroll_panel,
-                        MessageDirection::ToWidget,
-                        handle_to_select,
-                    ));
                 }
             }
         }
