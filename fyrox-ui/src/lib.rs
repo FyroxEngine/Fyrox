@@ -43,6 +43,7 @@ pub mod rect;
 pub mod scroll_bar;
 pub mod scroll_panel;
 pub mod scroll_viewer;
+pub mod searchbar;
 pub mod stack_panel;
 pub mod tab_control;
 pub mod text;
