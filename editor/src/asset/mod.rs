@@ -333,7 +333,7 @@ impl AssetBrowser {
     ) -> Handle<UiNode> {
         let asset_item =
             AssetItemBuilder::new(WidgetBuilder::new().with_context_menu(self.context_menu.menu))
-                .with_path(path.clone())
+                .with_path(path)
                 .build(&mut ui.build_ctx(), resource_manager.clone());
 
         self.items.push(asset_item);
