@@ -12,7 +12,7 @@ use crate::{
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness, UiNode,
-    UserInterface, VerticalAlignment, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
+    UserInterface, VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
 };
 use std::{
     any::{Any, TypeId},
@@ -517,7 +517,7 @@ impl ScrollBarBuilder {
         .build(ctx);
 
         let body = self.body.unwrap_or_else(|| {
-            BorderBuilder::new(WidgetBuilder::new().with_background(BRUSH_DARKER))
+            BorderBuilder::new(WidgetBuilder::new().with_background(BRUSH_DARK))
                 .with_stroke_thickness(Thickness::uniform(1.0))
                 .build(ctx)
         });
