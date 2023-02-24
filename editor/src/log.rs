@@ -100,7 +100,7 @@ impl LogPanel {
                         .with_child(
                             StackPanelBuilder::new(
                                 WidgetBuilder::new()
-                                    .with_horizontal_alignment(HorizontalAlignment::Right)
+                                    .with_horizontal_alignment(HorizontalAlignment::Left)
                                     .on_row(0)
                                     .on_column(0)
                                     .with_child({
