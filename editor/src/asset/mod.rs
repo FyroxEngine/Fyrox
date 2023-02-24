@@ -34,8 +34,8 @@ use fyrox::{
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowTitle},
         wrap_panel::WrapPanelBuilder,
-        BuildContext, HorizontalAlignment, Orientation, UiNode, UserInterface, VerticalAlignment,
-        BRUSH_DARK,
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        VerticalAlignment, BRUSH_DARK,
     },
     utils::log::Log,
 };
@@ -234,7 +234,9 @@ impl AssetBrowser {
                                     .on_column(1)
                                     .with_child({
                                         search_bar = SearchBarBuilder::new(
-                                            WidgetBuilder::new().with_height(22.0),
+                                            WidgetBuilder::new()
+                                                .with_height(22.0)
+                                                .with_margin(Thickness::uniform(1.0)),
                                         )
                                         .build(ctx);
                                         search_bar
