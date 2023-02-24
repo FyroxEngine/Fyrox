@@ -7,16 +7,14 @@ use crate::{
     },
     send_sync_message,
     utils::window_content,
-    world::{
-        graph::{
-            item::{SceneItem, SceneItemBuilder, SceneItemMessage},
-            menu::ItemContextMenu,
-            selection::GraphSelection,
-        },
-        search::SearchBar,
+    world::graph::{
+        item::{SceneItem, SceneItemBuilder, SceneItemMessage},
+        menu::ItemContextMenu,
+        selection::GraphSelection,
     },
     GameEngine, Message, Mode, Settings,
 };
+use fyrox::gui::searchbar::SearchBarMessage;
 use fyrox::{
     core::{
         color::Color,
@@ -33,6 +31,7 @@ use fyrox::{
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, UiMessage},
         scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
+        searchbar::SearchBarBuilder,
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         tree::{
@@ -52,14 +51,13 @@ use fyrox::{
 use std::{any::TypeId, cmp::Ordering, collections::HashMap, sync::mpsc::Sender};
 
 pub mod graph;
-pub mod search;
 
 pub struct WorldViewer {
     pub window: Handle<UiNode>,
     tree_root: Handle<UiNode>,
     sender: Sender<Message>,
     track_selection: Handle<UiNode>,
-    search_bar: SearchBar,
+    search_bar: Handle<UiNode>,
     filter: String,
     stack: Vec<(Handle<UiNode>, Handle<Node>)>,
     /// Hack. Due to delayed execution of UI code we can't sync immediately after we
@@ -169,7 +167,12 @@ impl WorldViewer {
         let locate_selection;
         let scroll_view;
         let track_selection;
-        let search_bar = SearchBar::new(ctx);
+        let search_bar = SearchBarBuilder::new(
+            WidgetBuilder::new()
+                .on_row(1)
+                .with_margin(Thickness::uniform(1.0)),
+        )
+        .build(ctx);
         let size = 15.0;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_minimize(false)
@@ -240,17 +243,7 @@ impl WorldViewer {
                             .with_orientation(Orientation::Horizontal)
                             .build(ctx),
                         )
-                        .with_child(search_bar.container)
-                        .with_child({
-                            node_path = WrapPanelBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(3)
-                                    .with_vertical_alignment(VerticalAlignment::Top),
-                            )
-                            .with_orientation(Orientation::Horizontal)
-                            .build(ctx);
-                            node_path
-                        })
+                        .with_child(search_bar)
                         .with_child({
                             scroll_view = ScrollViewerBuilder::new(WidgetBuilder::new().on_row(2))
                                 .with_content({
@@ -260,11 +253,21 @@ impl WorldViewer {
                                 })
                                 .build(ctx);
                             scroll_view
+                        })
+                        .with_child({
+                            node_path = WrapPanelBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(3)
+                                    .with_vertical_alignment(VerticalAlignment::Top),
+                            )
+                            .with_orientation(Orientation::Horizontal)
+                            .build(ctx);
+                            node_path
                         }),
                 )
                 .add_column(Column::stretch())
                 .add_row(Row::strict(25.0))
-                .add_row(Row::strict(20.0))
+                .add_row(Row::strict(22.0))
                 .add_row(Row::stretch())
                 .add_row(Row::auto())
                 .build(ctx),
@@ -581,8 +584,6 @@ impl WorldViewer {
 
         self.item_context_menu
             .handle_ui_message(message, editor_scene, engine, &self.sender);
-        self.search_bar
-            .handle_ui_message(message, &engine.user_interface, &self.sender);
 
         if let Some(TreeRootMessage::Selected(selection)) = message.data::<TreeRootMessage>() {
             if message.destination() == self.tree_root
@@ -637,6 +638,14 @@ impl WorldViewer {
                 if *value {
                     self.locate_selection(&editor_scene.selection, engine);
                 }
+            }
+        } else if let Some(SearchBarMessage::Text(text)) = message.data() {
+            if message.destination() == self.search_bar
+                && message.direction == MessageDirection::FromWidget
+            {
+                self.sender
+                    .send(Message::SetWorldViewerFilter(text.clone()))
+                    .unwrap();
             }
         }
     }
