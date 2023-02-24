@@ -9,11 +9,10 @@ use fyrox::{
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, OsEvent, UiMessage},
         scroll_viewer::ScrollViewerBuilder,
+        searchbar::{SearchBarBuilder, SearchBarMessage},
         stack_panel::StackPanelBuilder,
-        text::{TextBuilder, TextMessage},
-        text_box::{TextBoxBuilder, TextCommitMode},
+        text::TextBuilder,
         tree::{Tree, TreeBuilder, TreeRootBuilder, TreeRootMessage},
-        utils,
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{Window, WindowBuilder, WindowMessage},
         BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness,
@@ -111,8 +110,7 @@ struct TreeData {
 pub struct NodeSelector {
     widget: Widget,
     tree_root: Handle<UiNode>,
-    filter_text: Handle<UiNode>,
-    clear_filter: Handle<UiNode>,
+    search_bar: Handle<UiNode>,
     selected: Vec<Handle<Node>>,
 }
 
@@ -199,8 +197,8 @@ impl Control for NodeSelector {
                     }
                 }
             }
-        } else if let Some(TextMessage::Text(filter_text)) = message.data() {
-            if message.destination() == self.filter_text
+        } else if let Some(SearchBarMessage::Text(filter_text)) = message.data() {
+            if message.destination() == self.search_bar
                 && message.direction() == MessageDirection::FromWidget
             {
                 apply_filter_recursive(self.tree_root, &filter_text.to_lowercase(), ui);
@@ -216,14 +214,6 @@ impl Control for NodeSelector {
                         .iter()
                         .map(|s| ui.node(*s).user_data_ref::<TreeData>().unwrap().handle)
                         .collect(),
-                ));
-            }
-        } else if let Some(ButtonMessage::Click) = message.data() {
-            if message.destination() == self.clear_filter {
-                ui.send_message(TextMessage::text(
-                    self.filter_text,
-                    MessageDirection::ToWidget,
-                    Default::default(),
                 ));
             }
         }
@@ -257,43 +247,13 @@ impl NodeSelectorBuilder {
         let tree_root = TreeRootBuilder::new(WidgetBuilder::new())
             .with_items(items)
             .build(ctx);
-        let filter_text;
-        let clear_filter;
-
+        let search_bar;
         let content = GridBuilder::new(
             WidgetBuilder::new()
-                .with_child(
-                    GridBuilder::new(
-                        WidgetBuilder::new()
-                            .with_child({
-                                filter_text = TextBoxBuilder::new(
-                                    WidgetBuilder::new()
-                                        .on_column(0)
-                                        .on_row(0)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_text_commit_mode(TextCommitMode::Immediate)
-                                .build(ctx);
-                                filter_text
-                            })
-                            .with_child({
-                                clear_filter = ButtonBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_width(20.0)
-                                        .on_column(1)
-                                        .on_row(0)
-                                        .with_margin(Thickness::uniform(1.0)),
-                                )
-                                .with_content(utils::make_cross(ctx, 10.0, 2.0))
-                                .build(ctx);
-                                clear_filter
-                            }),
-                    )
-                    .add_row(Row::strict(22.0))
-                    .add_column(Column::stretch())
-                    .add_column(Column::strict(22.0))
-                    .build(ctx),
-                )
+                .with_child({
+                    search_bar = SearchBarBuilder::new(WidgetBuilder::new()).build(ctx);
+                    search_bar
+                })
                 .with_child(
                     BorderBuilder::new(
                         WidgetBuilder::new()
@@ -319,9 +279,7 @@ impl NodeSelectorBuilder {
         let selector = NodeSelector {
             widget: self.widget_builder.with_child(content).build(),
             tree_root,
-            filter_text,
-            clear_filter,
-
+            search_bar,
             selected: Default::default(),
         };
 
