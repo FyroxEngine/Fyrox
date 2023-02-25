@@ -11,7 +11,7 @@ use crate::{
     decorator::DecoratorBuilder,
     define_constructor,
     grid::{Column, GridBuilder, Row},
-    message::{KeyCode, MessageDirection, UiMessage},
+    message::{KeyCode, MessageDirection, MouseButton, UiMessage},
     text::TextMessage,
     text_box::{TextBox, TextBoxBuilder},
     utils::{make_arrow, ArrowDirection},
@@ -21,6 +21,7 @@ use crate::{
 };
 use std::{
     any::{Any, TypeId},
+    cmp::Ordering,
     fmt::{Debug, Display},
     ops::{Deref, DerefMut},
     rc::Rc,
@@ -97,6 +98,17 @@ impl<T: NumericType> NumericUpDownMessage<T> {
 }
 
 #[derive(Clone)]
+pub enum DragContext<T: NumericType> {
+    PreDrag {
+        start_mouse_pos: f32,
+    },
+    Dragging {
+        start_value: T,
+        start_mouse_pos: f32,
+    },
+}
+
+#[derive(Clone)]
 pub struct NumericUpDown<T: NumericType> {
     pub widget: Widget,
     pub field: Handle<UiNode>,
@@ -107,6 +119,8 @@ pub struct NumericUpDown<T: NumericType> {
     pub min_value: T,
     pub max_value: T,
     pub precision: usize,
+    pub drag_context: Option<DragContext<T>>,
+    pub drag_value_scaling: f32,
 }
 
 impl<T: NumericType> Deref for NumericUpDown<T> {
@@ -188,6 +202,31 @@ where
     }
 }
 
+fn calculate_value_by_offset<T: NumericType>(
+    start_value: T,
+    offset: i32,
+    step: T,
+    min: T,
+    max: T,
+) -> T {
+    let mut new_value = start_value;
+    match offset.cmp(&0) {
+        Ordering::Less => {
+            for _ in 0..(-offset) {
+                new_value = saturating_sub(new_value, step);
+            }
+        }
+        Ordering::Equal => {}
+        Ordering::Greater => {
+            for _ in 0..offset {
+                new_value = saturating_add(new_value, step);
+            }
+        }
+    }
+    new_value = clamp(new_value, min, max);
+    new_value
+}
+
 impl<T: NumericType> Control for NumericUpDown<T> {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
         if type_id == TypeId::of::<Self>() {
@@ -219,6 +258,61 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                     }
                     _ => {}
                 }
+            }
+
+            match msg {
+                WidgetMessage::MouseDown { button, pos, .. } => {
+                    // We can activate dragging either by clicking on increase or decrease buttons.
+                    if *button == MouseButton::Left
+                        && (ui
+                            .node(self.increase)
+                            .has_descendant(message.destination(), ui)
+                            || ui
+                                .node(self.decrease)
+                                .has_descendant(message.destination(), ui))
+                    {
+                        self.drag_context = Some(DragContext::PreDrag {
+                            start_mouse_pos: pos.y,
+                        });
+                    }
+                }
+                WidgetMessage::MouseMove { pos, .. } => {
+                    if let Some(drag_context) = self.drag_context.as_ref() {
+                        match drag_context {
+                            DragContext::PreDrag { start_mouse_pos } => {
+                                if (pos.y - start_mouse_pos).abs() >= 5.0 {
+                                    self.drag_context = Some(DragContext::Dragging {
+                                        start_value: self.value,
+                                        start_mouse_pos: *start_mouse_pos,
+                                    });
+                                }
+                            }
+                            DragContext::Dragging {
+                                start_value,
+                                start_mouse_pos,
+                            } => {
+                                // Just change visual value while dragging; do not touch actual value.
+                                ui.send_message(TextMessage::text(
+                                    self.field,
+                                    MessageDirection::ToWidget,
+                                    format!(
+                                        "{:.1$}",
+                                        calculate_value_by_offset(
+                                            *start_value,
+                                            ((*start_mouse_pos - pos.y) * self.drag_value_scaling)
+                                                as i32,
+                                            self.step,
+                                            self.min_value,
+                                            self.max_value
+                                        ),
+                                        self.precision
+                                    ),
+                                ));
+                            }
+                        }
+                    }
+                }
+                _ => {}
             }
         } else if let Some(msg) = message.data::<NumericUpDownMessage<T>>() {
             if message.direction() == MessageDirection::ToWidget
@@ -274,21 +368,40 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                 }
             }
         } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
-            if message.destination() == self.decrease {
-                let value = self.clamp_value(saturating_sub(self.value, self.step));
-                ui.send_message(NumericUpDownMessage::value(
-                    self.handle(),
-                    MessageDirection::ToWidget,
-                    value,
-                ));
-            } else if message.destination() == self.increase {
-                let value = self.clamp_value(saturating_add(self.value, self.step));
+            if message.destination() == self.decrease || message.destination() == self.increase {
+                if let Some(DragContext::Dragging {
+                    start_value,
+                    start_mouse_pos,
+                }) = self.drag_context.take()
+                {
+                    ui.send_message(NumericUpDownMessage::value(
+                        self.handle,
+                        MessageDirection::ToWidget,
+                        calculate_value_by_offset(
+                            start_value,
+                            ((start_mouse_pos - ui.cursor_position().y) * self.drag_value_scaling)
+                                as i32,
+                            self.step,
+                            self.min_value,
+                            self.max_value,
+                        ),
+                    ));
+                } else if message.destination() == self.decrease {
+                    let value = self.clamp_value(saturating_sub(self.value, self.step));
+                    ui.send_message(NumericUpDownMessage::value(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        value,
+                    ));
+                } else if message.destination() == self.increase {
+                    let value = self.clamp_value(saturating_add(self.value, self.step));
 
-                ui.send_message(NumericUpDownMessage::value(
-                    self.handle(),
-                    MessageDirection::ToWidget,
-                    value,
-                ));
+                    ui.send_message(NumericUpDownMessage::value(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        value,
+                    ));
+                }
             }
         }
     }
@@ -302,6 +415,7 @@ pub struct NumericUpDownBuilder<T: NumericType> {
     max_value: T,
     precision: usize,
     editable: bool,
+    drag_value_scaling: f32,
 }
 
 pub fn make_button(
@@ -339,6 +453,7 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
             max_value: T::max_value(),
             precision: 3,
             editable: true,
+            drag_value_scaling: 0.1,
         }
     }
 
@@ -378,6 +493,11 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
 
     pub fn with_editable(mut self, editable: bool) -> Self {
         self.editable = editable;
+        self
+    }
+
+    pub fn with_drag_value_scaling(mut self, drag_value_scaling: f32) -> Self {
+        self.drag_value_scaling = drag_value_scaling;
         self
     }
 
@@ -446,6 +566,8 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
             min_value: self.min_value,
             max_value: self.max_value,
             precision: self.precision,
+            drag_context: None,
+            drag_value_scaling: self.drag_value_scaling,
         };
 
         ctx.add_node(UiNode::new(node))
