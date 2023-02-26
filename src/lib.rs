@@ -21,12 +21,9 @@ pub mod utils;
 
 pub use crate::core::rand;
 pub use fxhash;
-#[cfg(not(target_arch = "wasm32"))]
-pub use glutin::*;
 pub use lazy_static;
 pub use tbc;
 pub use walkdir;
-#[cfg(target_arch = "wasm32")]
 pub use winit::*;
 
 #[doc(inline)]

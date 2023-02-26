@@ -1,6 +1,7 @@
 //! All possible errors that can happen in the engine.
 
 use crate::{renderer::framework::error::FrameworkError, scene::sound::SoundError};
+use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
 /// See module docs.
@@ -39,15 +40,14 @@ impl From<FrameworkError> for EngineError {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-impl From<glutin::CreationError> for EngineError {
-    fn from(e: glutin::CreationError) -> Self {
+impl From<glutin::error::Error> for EngineError {
+    fn from(e: glutin::error::Error) -> Self {
         Self::Custom(format!("{:?}", e))
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-impl From<glutin::ContextError> for EngineError {
-    fn from(e: glutin::ContextError) -> Self {
+impl From<Box<dyn Error>> for EngineError {
+    fn from(e: Box<dyn Error>) -> Self {
         Self::Custom(format!("{:?}", e))
     }
 }

@@ -82,6 +82,12 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use glow::HasContext;
+#[cfg(not(target_arch = "wasm32"))]
+use glutin::{
+    context::PossiblyCurrentContext,
+    prelude::GlSurface,
+    surface::{Surface, WindowSurface},
+};
 use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
@@ -1740,11 +1746,12 @@ impl Renderer {
         &mut self,
         scenes: &SceneContainer,
         drawing_context: &DrawingContext,
-        context: &glutin::WindowedContext<glutin::PossiblyCurrent>,
+        surface: &Surface<WindowSurface>,
+        context: &PossiblyCurrentContext,
     ) -> Result<(), FrameworkError> {
         self.render_frame(scenes, drawing_context)?;
         self.statistics.end_frame();
-        context.swap_buffers()?;
+        surface.swap_buffers(context)?;
         self.state.check_error();
         self.statistics.finalize();
         self.statistics.pipeline = self.state.pipeline_statistics();

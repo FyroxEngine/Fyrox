@@ -36,6 +36,21 @@ use crate::{
     window::{Window, WindowBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
+use glutin::surface::SwapInterval;
+#[cfg(not(target_arch = "wasm32"))]
+use glutin::{
+    config::ConfigTemplateBuilder,
+    context::{
+        ContextApi, ContextAttributesBuilder, GlProfile, NotCurrentGlContextSurfaceAccessor,
+        PossiblyCurrentContext, Version,
+    },
+    display::{GetGlDisplay, GlDisplay},
+    surface::{GlSurface, Surface, WindowSurface},
+};
+#[cfg(not(target_arch = "wasm32"))]
+use glutin_winit::{DisplayBuilder, GlWindow};
+#[cfg(not(target_arch = "wasm32"))]
+use raw_window_handle::HasRawWindowHandle;
 use std::{
     any::TypeId,
     collections::{HashSet, VecDeque},
@@ -47,6 +62,8 @@ use std::{
     },
     time::Duration,
 };
+#[cfg(not(target_arch = "wasm32"))]
+use std::{ffi::CString, num::NonZeroU32};
 
 /// Serialization context holds runtime type information that allows to create unknown types using
 /// their UUIDs and a respective constructors.
@@ -99,9 +116,10 @@ impl Display for PerformanceStatistics {
 /// See module docs.
 pub struct Engine {
     #[cfg(not(target_arch = "wasm32"))]
-    context: glutin::WindowedContext<glutin::PossiblyCurrent>,
-    #[cfg(target_arch = "wasm32")]
-    window: winit::window::Window,
+    gl_context: PossiblyCurrentContext,
+    #[cfg(not(target_arch = "wasm32"))]
+    gl_surface: Surface<WindowSurface>,
+    window: Window,
     /// Current renderer. You should call at least [render](Self::render) method to see your scene on
     /// screen.
     pub renderer: Renderer,
@@ -687,19 +705,6 @@ pub(crate) fn process_scripts<T>(
     }
 }
 
-macro_rules! get_window {
-    ($self:ident) => {{
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            $self.context.window()
-        }
-        #[cfg(target_arch = "wasm32")]
-        {
-            &$self.window
-        }
-    }};
-}
-
 impl Engine {
     /// Creates new instance of engine from given initialization parameters.
     ///
@@ -735,7 +740,7 @@ impl Engine {
     pub fn new(params: EngineInitParams) -> Result<Self, EngineError> {
         let EngineInitParams {
             window_builder,
-            serialization_context: node_constructors,
+            serialization_context,
             resource_manager,
             events_loop,
             vsync,
@@ -743,39 +748,66 @@ impl Engine {
         } = params;
 
         #[cfg(not(target_arch = "wasm32"))]
-        let (context, client_size) = {
-            let context_wrapper: glutin::WindowedContext<glutin::NotCurrent> =
-                glutin::ContextBuilder::new()
-                    .with_vsync(vsync)
-                    .with_gl_profile(glutin::GlProfile::Core)
-                    .with_gl(glutin::GlRequest::GlThenGles {
-                        opengl_version: (3, 3),
-                        opengles_version: (3, 0),
-                    })
-                    .build_windowed(window_builder, events_loop)?;
+        let (window, gl_context, gl_surface, glow_context) = {
+            let template = ConfigTemplateBuilder::new()
+                .prefer_hardware_accelerated(Some(true))
+                .with_stencil_size(8)
+                .with_depth_size(24);
 
-            let ctx = match unsafe { context_wrapper.make_current() } {
-                Ok(context) => context,
-                Err((_, e)) => return Err(EngineError::from(e)),
-            };
-            let inner_size = ctx.window().inner_size();
-            (
-                ctx,
-                Vector2::new(inner_size.width as f32, inner_size.height as f32),
-            )
+            let (opt_window, gl_config) = DisplayBuilder::new()
+                .with_window_builder(Some(window_builder))
+                .build(events_loop, template, |mut configs| configs.next().unwrap())?;
+
+            let window = opt_window.unwrap();
+
+            let raw_window_handle = window.raw_window_handle();
+
+            let gl_display = gl_config.display();
+
+            let context_attributes = ContextAttributesBuilder::new()
+                .with_profile(GlProfile::Core)
+                .with_context_api(ContextApi::OpenGl(Some(Version::new(3, 3))))
+                .build(Some(raw_window_handle));
+
+            unsafe {
+                let attrs = window.build_surface_attributes(Default::default());
+
+                let gl_surface = gl_config
+                    .display()
+                    .create_window_surface(&gl_config, &attrs)?;
+
+                let gl_context = gl_display
+                    .create_context(&gl_config, &context_attributes)?
+                    .make_current(&gl_surface)?;
+
+                if vsync {
+                    Log::verify(gl_surface.set_swap_interval(
+                        &gl_context,
+                        SwapInterval::Wait(NonZeroU32::new(1).unwrap()),
+                    ));
+                }
+
+                (
+                    window,
+                    gl_context,
+                    gl_surface,
+                    glow::Context::from_loader_function(|s| {
+                        gl_display.get_proc_address(&CString::new(s).unwrap())
+                    }),
+                )
+            }
         };
 
         #[cfg(target_arch = "wasm32")]
-        let (window, client_size, glow_context) = {
-            let winit_window = window_builder.build(events_loop).unwrap();
+        let (window, glow_context) = {
+            let window = window_builder.build(events_loop).unwrap();
 
             use crate::core::wasm_bindgen::JsCast;
             use crate::platform::web::WindowExtWebSys;
 
-            let canvas = winit_window.canvas();
+            let canvas = window.canvas();
 
-            let window = crate::core::web_sys::window().unwrap();
-            let document = window.document().unwrap();
+            let document = crate::core::web_sys::window().unwrap().document().unwrap();
             let body = document.body().unwrap();
 
             body.append_child(&canvas)
@@ -787,19 +819,13 @@ impl Engine {
                 .unwrap()
                 .dyn_into::<crate::core::web_sys::WebGl2RenderingContext>()
                 .unwrap();
-            let glow_context = glow::Context::from_webgl2_context(webgl2_context);
-
-            let inner_size = winit_window.inner_size();
-            (
-                winit_window,
-                Vector2::new(inner_size.width as f32, inner_size.height as f32),
-                glow_context,
-            )
+            (window, glow::Context::from_webgl2_context(webgl2_context))
         };
 
-        #[cfg(not(target_arch = "wasm32"))]
-        let glow_context =
-            { unsafe { glow::Context::from_loader_function(|s| context.get_proc_address(s)) } };
+        let client_size = Vector2::new(
+            window.inner_size().width as f32,
+            window.inner_size().height as f32,
+        );
 
         let sound_engine = if headless {
             SoundEngine::new_headless()
@@ -830,11 +856,12 @@ impl Engine {
             user_interface: UserInterface::new(Vector2::new(client_size.x, client_size.y)),
             performance_statistics: Default::default(),
             #[cfg(not(target_arch = "wasm32"))]
-            context,
-            #[cfg(target_arch = "wasm32")]
+            gl_context,
+            #[cfg(not(target_arch = "wasm32"))]
+            gl_surface,
             window,
             plugins: Default::default(),
-            serialization_context: node_constructors,
+            serialization_context,
             script_processor: Default::default(),
             plugins_enabled: false,
             plugin_constructors: Default::default(),
@@ -848,7 +875,11 @@ impl Engine {
         self.renderer.set_frame_size(new_size)?;
 
         #[cfg(not(target_arch = "wasm32"))]
-        self.context.resize(new_size.into());
+        self.gl_surface.resize(
+            &self.gl_context,
+            NonZeroU32::new(new_size.0).unwrap_or_else(|| NonZeroU32::new(1).unwrap()),
+            NonZeroU32::new(new_size.1).unwrap_or_else(|| NonZeroU32::new(1).unwrap()),
+        );
 
         Ok(())
     }
@@ -864,7 +895,7 @@ impl Engine {
     /// size of window, its title, etc.
     #[inline]
     pub fn get_window(&self) -> &Window {
-        get_window!(self)
+        &self.window
     }
 
     /// Performs single update tick with given time delta. Engine internally will perform update
@@ -991,7 +1022,7 @@ impl Engine {
                 lag,
                 user_interface: &mut self.user_interface,
                 serialization_context: &self.serialization_context,
-                window: get_window!(self),
+                window: &self.window,
                 performance_statistics: &self.performance_statistics,
             };
 
@@ -1008,7 +1039,7 @@ impl Engine {
                     lag,
                     user_interface: &mut self.user_interface,
                     serialization_context: &self.serialization_context,
-                    window: get_window!(self),
+                    window: &self.window,
                     performance_statistics: &self.performance_statistics,
                 };
 
@@ -1041,7 +1072,7 @@ impl Engine {
                         lag,
                         user_interface: &mut self.user_interface,
                         serialization_context: &self.serialization_context,
-                        window: get_window!(self),
+                        window: &self.window,
                         performance_statistics: &self.performance_statistics,
                     },
                     control_flow,
@@ -1127,7 +1158,8 @@ impl Engine {
             self.renderer.render_and_swap_buffers(
                 &self.scenes,
                 self.user_interface.get_drawing_context(),
-                &self.context,
+                &self.gl_surface,
+                &self.gl_context,
             )
         }
         #[cfg(target_arch = "wasm32")]
@@ -1155,7 +1187,7 @@ impl Engine {
                             lag: &mut 0.0,
                             user_interface: &mut self.user_interface,
                             serialization_context: &self.serialization_context,
-                            window: get_window!(self),
+                            window: &self.window,
                             performance_statistics: &self.performance_statistics,
                         },
                     ));
@@ -1173,7 +1205,7 @@ impl Engine {
                         lag: &mut 0.0,
                         user_interface: &mut self.user_interface,
                         serialization_context: &self.serialization_context,
-                        window: get_window!(self),
+                        window: &self.window,
                         performance_statistics: &self.performance_statistics,
                     });
                 }
