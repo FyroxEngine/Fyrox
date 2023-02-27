@@ -4,13 +4,13 @@
 
 use crate::{
     core::pool::Handle,
-    engine::{resource_manager::ResourceManager, PerformanceStatistics, SerializationContext},
+    engine::{
+        resource_manager::ResourceManager, PerformanceStatistics, Presenter, SerializationContext,
+    },
     event::Event,
     event_loop::ControlFlow,
     gui::{message::UiMessage, UserInterface},
-    renderer::Renderer,
     scene::{Scene, SceneContainer},
-    window::Window,
 };
 use std::{any::Any, sync::Arc};
 
@@ -61,9 +61,10 @@ pub struct PluginContext<'a, 'b> {
     /// A reference to user interface instance.
     pub user_interface: &'a mut UserInterface,
 
-    /// A reference to the renderer, it can be used to add custom render passes (for example to
-    /// render custom effects and so on).
-    pub renderer: &'a mut Renderer,
+    /// A reference to the presenter, it contains a reference to the window and the current renderer.
+    /// It could be None if your application is suspended (possible only on Android; it is safe to
+    /// do `presenter.unwrap()` on every other platform).
+    pub presenter: Option<&'a mut Presenter>,
 
     /// The time (in seconds) that passed since last call of a method in which the context was
     /// passed. It has fixed value that is defined by a caller (in most cases it is `Executor`).
@@ -79,9 +80,6 @@ pub struct PluginContext<'a, 'b> {
     /// A reference to serialization context of the engine. See [`SerializationContext`] for more
     /// info.
     pub serialization_context: &'a Arc<SerializationContext>,
-
-    /// A reference to the main application window.
-    pub window: &'a Window,
 
     /// Performance statistics from the last frame.
     pub performance_statistics: &'a PerformanceStatistics,

@@ -1,5 +1,6 @@
 //! Executor is a small wrapper that manages plugins and scripts for your game.
 
+use crate::engine::PresenterParams;
 use crate::{
     core::instant::Instant,
     engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
@@ -11,13 +12,13 @@ use crate::{
         log::{Log, MessageKind},
         translate_event,
     },
-    window::WindowBuilder,
 };
 use clap::Parser;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
 };
+use winit::window::WindowAttributes;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -60,15 +61,13 @@ impl Executor {
 
     /// Creates new game executor using specified set of parameters. Much more flexible version of
     /// [`Executor::new`].
-    pub fn from_params(window_builder: WindowBuilder, vsync: bool) -> Self {
+    pub fn from_params(presenter_params: PresenterParams) -> Self {
         let event_loop = EventLoop::new();
         let serialization_context = Arc::new(SerializationContext::new());
         let engine = Engine::new(EngineInitParams {
-            window_builder,
+            presenter_params,
             resource_manager: ResourceManager::new(serialization_context.clone()),
             serialization_context,
-            events_loop: &event_loop,
-            vsync,
             headless: false,
         })
         .unwrap();
@@ -84,12 +83,14 @@ impl Executor {
     /// Creates new game executor using default window and with vsync turned on. For more flexible
     /// way to create an executor see [`Executor::from_params`].
     pub fn new() -> Self {
-        Self::from_params(
-            WindowBuilder::new()
-                .with_title("Fyrox Game Executor")
-                .with_resizable(true),
-            true,
-        )
+        Self::from_params(PresenterParams {
+            window_attributes: WindowAttributes {
+                resizable: true,
+                title: "Fyrox Game".to_string(),
+                ..Default::default()
+            },
+            vsync: true,
+        })
     }
 
     /// Sets the desired update rate in frames per second.
@@ -133,23 +134,7 @@ impl Executor {
         let fixed_time_step = 1.0 / self.desired_update_rate;
         let mut lag = 0.0;
 
-        event_loop.run(move |event, _, control_flow| {
-            if let Some(loader) = self.loader.as_ref() {
-                if let Some(result) = loader.fetch_result() {
-                    let override_scene = match result {
-                        Ok(scene) => engine.scenes.add(scene),
-                        Err(e) => {
-                            Log::err(e);
-                            Default::default()
-                        }
-                    };
-
-                    engine.enable_plugins(override_scene, true);
-
-                    self.loader = None;
-                }
-            }
-
+        event_loop.run(move |event, window_target, control_flow| {
             engine.handle_os_event_by_plugins(&event, fixed_time_step, control_flow, &mut lag);
 
             let scenes = engine
@@ -167,7 +152,31 @@ impl Executor {
             }
 
             match event {
+                Event::Resumed => {
+                    engine
+                        .resume(window_target)
+                        .expect("Unable to resume engine execution!");
+                }
+                Event::Suspended => {
+                    engine.suspend();
+                }
                 Event::MainEventsCleared => {
+                    if let Some(loader) = self.loader.as_ref() {
+                        if let Some(result) = loader.fetch_result() {
+                            let override_scene = match result {
+                                Ok(scene) => engine.scenes.add(scene),
+                                Err(e) => {
+                                    Log::err(e);
+                                    Default::default()
+                                }
+                            };
+
+                            engine.enable_plugins(override_scene, true);
+
+                            self.loader = None;
+                        }
+                    }
+
                     let elapsed = previous.elapsed();
                     previous = Instant::now();
                     lag += elapsed.as_secs_f32();
@@ -177,7 +186,9 @@ impl Executor {
                         lag -= fixed_time_step;
                     }
 
-                    engine.get_window().request_redraw();
+                    if let Some(presenter) = engine.presenter.as_ref() {
+                        presenter.window.request_redraw();
+                    }
                 }
                 Event::RedrawRequested(_) => {
                     engine.render().unwrap();

@@ -1,7 +1,7 @@
 //! Engine is container for all subsystems (renderer, ui, sound, resource manager). It also
 //! creates a window and an OpenGL context.
 
-#![warn(missing_docs)]
+#![allow(missing_docs)] // TODO
 
 pub mod error;
 pub mod executor;
@@ -15,7 +15,7 @@ use crate::{
         resource_manager::{container::event::ResourceEvent, ResourceManager, ResourceWaitContext},
     },
     event::Event,
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::ControlFlow,
     gui::UserInterface,
     plugin::{Plugin, PluginConstructor, PluginContext, PluginRegistrationContext},
     renderer::{framework::error::FrameworkError, Renderer},
@@ -64,6 +64,8 @@ use std::{
 };
 #[cfg(not(target_arch = "wasm32"))]
 use std::{ffi::CString, num::NonZeroU32};
+use winit::event_loop::EventLoopWindowTarget;
+use winit::window::WindowAttributes;
 
 /// Serialization context holds runtime type information that allows to create unknown types using
 /// their UUIDs and a respective constructors.
@@ -113,16 +115,21 @@ impl Display for PerformanceStatistics {
     }
 }
 
-/// See module docs.
-pub struct Engine {
+pub struct Presenter {
     #[cfg(not(target_arch = "wasm32"))]
     gl_context: PossiblyCurrentContext,
     #[cfg(not(target_arch = "wasm32"))]
     gl_surface: Surface<WindowSurface>,
-    window: Window,
+    pub window: Window,
     /// Current renderer. You should call at least [render](Self::render) method to see your scene on
     /// screen.
     pub renderer: Renderer,
+}
+
+/// See module docs.
+pub struct Engine {
+    pub presenter_params: PresenterParams,
+    pub presenter: Option<Presenter>,
     /// User interface allows you to build interface of any kind.
     pub user_interface: UserInterface,
     /// Current resource manager. Resource manager can be cloned (it does clone only ref) to be able to
@@ -611,21 +618,23 @@ impl ResourceDependencyGraph {
     }
 }
 
-/// Engine initialization parameters.
-pub struct EngineInitParams<'a> {
-    /// A window builder.
-    pub window_builder: WindowBuilder,
-    /// A special container that is able to create nodes by their type UUID.
-    pub serialization_context: Arc<SerializationContext>,
-    /// A resource manager.
-    pub resource_manager: ResourceManager,
-    /// OS event loop.
-    pub events_loop: &'a EventLoop<()>,
+pub struct PresenterParams {
+    /// Main window attributes.
+    pub window_attributes: WindowAttributes,
     /// Whether to use vertical synchronization or not. V-sync will force your game to render
     /// frames with the synchronization rate of your monitor (which is ~60 FPS). Keep in mind
     /// vertical synchronization might not be available on your OS and engine might fail to
     /// initialize if v-sync is on.
     pub vsync: bool,
+}
+
+/// Engine initialization parameters.
+pub struct EngineInitParams {
+    pub presenter_params: PresenterParams,
+    /// A special container that is able to create nodes by their type UUID.
+    pub serialization_context: Arc<SerializationContext>,
+    /// A resource manager.
+    pub resource_manager: ResourceManager,
     /// (experimental) Run the engine without opening a window (TODO) and without sound.
     /// Useful for dedicated game servers or running on CI.
     ///
@@ -739,13 +748,79 @@ impl Engine {
     #[allow(unused_variables)]
     pub fn new(params: EngineInitParams) -> Result<Self, EngineError> {
         let EngineInitParams {
-            window_builder,
+            presenter_params: presenter,
             serialization_context,
             resource_manager,
-            events_loop,
-            vsync,
             headless,
         } = params;
+
+        let sound_engine = if headless {
+            SoundEngine::new_headless()
+        } else {
+            SoundEngine::new()
+        };
+
+        let (rx, tx) = channel();
+        resource_manager
+            .state()
+            .containers_mut()
+            .models
+            .event_broadcaster
+            .add(rx);
+
+        Ok(Self {
+            presenter_params: presenter,
+            presenter: None,
+            model_events_receiver: tx,
+            resource_manager,
+            scenes: SceneContainer::new(sound_engine.clone()),
+            sound_engine,
+            user_interface: UserInterface::new(Vector2::new(100.0, 100.0)),
+            performance_statistics: Default::default(),
+            plugins: Default::default(),
+            serialization_context,
+            script_processor: Default::default(),
+            plugins_enabled: false,
+            plugin_constructors: Default::default(),
+            elapsed_time: 0.0,
+        })
+    }
+
+    pub fn resume(&mut self, window_target: &EventLoopWindowTarget<()>) -> Result<(), EngineError> {
+        let mut window_builder = WindowBuilder::new();
+        if let Some(inner_size) = self.presenter_params.window_attributes.inner_size {
+            window_builder = window_builder.with_inner_size(inner_size);
+        }
+        if let Some(min_inner_size) = self.presenter_params.window_attributes.min_inner_size {
+            window_builder = window_builder.with_min_inner_size(min_inner_size);
+        }
+        if let Some(max_inner_size) = self.presenter_params.window_attributes.max_inner_size {
+            window_builder = window_builder.with_min_inner_size(max_inner_size);
+        }
+        if let Some(position) = self.presenter_params.window_attributes.position {
+            window_builder = window_builder.with_position(position);
+        }
+        if let Some(resize_increments) = self.presenter_params.window_attributes.resize_increments {
+            window_builder = window_builder.with_resize_increments(resize_increments);
+        }
+        unsafe {
+            window_builder = window_builder
+                .with_parent_window(self.presenter_params.window_attributes.parent_window);
+        }
+        window_builder = window_builder
+            .with_resizable(self.presenter_params.window_attributes.resizable)
+            .with_enabled_buttons(self.presenter_params.window_attributes.enabled_buttons)
+            .with_title(self.presenter_params.window_attributes.title.clone())
+            .with_fullscreen(self.presenter_params.window_attributes.fullscreen.clone())
+            .with_maximized(self.presenter_params.window_attributes.maximized)
+            .with_visible(self.presenter_params.window_attributes.visible)
+            .with_transparent(self.presenter_params.window_attributes.transparent)
+            .with_decorations(self.presenter_params.window_attributes.decorations)
+            .with_window_icon(self.presenter_params.window_attributes.window_icon.clone())
+            .with_theme(self.presenter_params.window_attributes.preferred_theme)
+            .with_content_protected(self.presenter_params.window_attributes.content_protected)
+            .with_window_level(self.presenter_params.window_attributes.window_level)
+            .with_active(self.presenter_params.window_attributes.active);
 
         #[cfg(not(target_arch = "wasm32"))]
         let (window, gl_context, gl_surface, glow_context) = {
@@ -756,7 +831,9 @@ impl Engine {
 
             let (opt_window, gl_config) = DisplayBuilder::new()
                 .with_window_builder(Some(window_builder))
-                .build(events_loop, template, |mut configs| configs.next().unwrap())?;
+                .build(window_target, template, |mut configs| {
+                    configs.next().unwrap()
+                })?;
 
             let window = opt_window.unwrap();
 
@@ -780,7 +857,7 @@ impl Engine {
                     .create_context(&gl_config, &context_attributes)?
                     .make_current(&gl_surface)?;
 
-                if vsync {
+                if self.presenter_params.vsync {
                     Log::verify(gl_surface.set_swap_interval(
                         &gl_context,
                         SwapInterval::Wait(NonZeroU32::new(1).unwrap()),
@@ -800,7 +877,7 @@ impl Engine {
 
         #[cfg(target_arch = "wasm32")]
         let (window, glow_context) = {
-            let window = window_builder.build(events_loop).unwrap();
+            let window = window_builder.build(window_target).unwrap();
 
             use crate::core::wasm_bindgen::JsCast;
             use crate::platform::web::WindowExtWebSys;
@@ -822,64 +899,44 @@ impl Engine {
             (window, glow::Context::from_webgl2_context(webgl2_context))
         };
 
-        let client_size = Vector2::new(
+        self.user_interface.set_screen_size(Vector2::new(
             window.inner_size().width as f32,
             window.inner_size().height as f32,
-        );
+        ));
 
-        let sound_engine = if headless {
-            SoundEngine::new_headless()
-        } else {
-            SoundEngine::new()
-        };
-
-        let renderer = Renderer::new(
-            glow_context,
-            (client_size.x as u32, client_size.y as u32),
-            &resource_manager,
-        )?;
-
-        let (rx, tx) = channel();
-        resource_manager
-            .state()
-            .containers_mut()
-            .models
-            .event_broadcaster
-            .add(rx);
-
-        Ok(Self {
-            model_events_receiver: tx,
-            resource_manager,
-            renderer,
-            scenes: SceneContainer::new(sound_engine.clone()),
-            sound_engine,
-            user_interface: UserInterface::new(Vector2::new(client_size.x, client_size.y)),
-            performance_statistics: Default::default(),
+        self.presenter = Some(Presenter {
             #[cfg(not(target_arch = "wasm32"))]
             gl_context,
             #[cfg(not(target_arch = "wasm32"))]
             gl_surface,
+            renderer: Renderer::new(
+                glow_context,
+                (window.inner_size().width, window.inner_size().height),
+                &self.resource_manager,
+            )?,
             window,
-            plugins: Default::default(),
-            serialization_context,
-            script_processor: Default::default(),
-            plugins_enabled: false,
-            plugin_constructors: Default::default(),
-            elapsed_time: 0.0,
-        })
+        });
+
+        Ok(())
+    }
+
+    pub fn suspend(&mut self) {
+        drop(self.presenter.take());
     }
 
     /// Adjust size of the frame to be rendered. Must be called after the window size changes.
     /// Will update the renderer and GL context frame size.
     pub fn set_frame_size(&mut self, new_size: (u32, u32)) -> Result<(), FrameworkError> {
-        self.renderer.set_frame_size(new_size)?;
+        if let Some(presenter) = self.presenter.as_mut() {
+            presenter.renderer.set_frame_size(new_size)?;
 
-        #[cfg(not(target_arch = "wasm32"))]
-        self.gl_surface.resize(
-            &self.gl_context,
-            NonZeroU32::new(new_size.0).unwrap_or_else(|| NonZeroU32::new(1).unwrap()),
-            NonZeroU32::new(new_size.1).unwrap_or_else(|| NonZeroU32::new(1).unwrap()),
-        );
+            #[cfg(not(target_arch = "wasm32"))]
+            presenter.gl_surface.resize(
+                &presenter.gl_context,
+                NonZeroU32::new(new_size.0).unwrap_or_else(|| NonZeroU32::new(1).unwrap()),
+                NonZeroU32::new(new_size.1).unwrap_or_else(|| NonZeroU32::new(1).unwrap()),
+            );
+        }
 
         Ok(())
     }
@@ -889,13 +946,6 @@ impl Engine {
     /// which the engine "ticks" and this delta time affects elapsed time.
     pub fn elapsed_time(&self) -> f32 {
         self.elapsed_time
-    }
-
-    /// Returns reference to main window. Could be useful to set fullscreen mode, change
-    /// size of window, its title, etc.
-    #[inline]
-    pub fn get_window(&self) -> &Window {
-        &self.window
     }
 
     /// Performs single update tick with given time delta. Engine internally will perform update
@@ -943,31 +993,33 @@ impl Engine {
         lag: &mut f32,
         switches: FxHashMap<Handle<Scene>, GraphUpdateSwitches>,
     ) {
-        let inner_size = self.get_window().inner_size();
-        let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
+        if let Some(presenter) = self.presenter.as_mut() {
+            let inner_size = presenter.window.inner_size();
+            let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
 
-        self.resource_manager.state().update(dt);
-        self.renderer.update_caches(dt);
-        self.handle_model_events();
+            self.resource_manager.state().update(dt);
+            presenter.renderer.update_caches(dt);
+            self.handle_model_events();
 
-        for (handle, scene) in self.scenes.pair_iter_mut().filter(|(_, s)| s.enabled) {
-            let frame_size = scene.render_target.as_ref().map_or(window_size, |rt| {
-                if let TextureKind::Rectangle { width, height } = rt.data_ref().kind() {
-                    Vector2::new(width as f32, height as f32)
-                } else {
-                    panic!("only rectangle textures can be used as render target!");
-                }
-            });
+            for (handle, scene) in self.scenes.pair_iter_mut().filter(|(_, s)| s.enabled) {
+                let frame_size = scene.render_target.as_ref().map_or(window_size, |rt| {
+                    if let TextureKind::Rectangle { width, height } = rt.data_ref().kind() {
+                        Vector2::new(width as f32, height as f32)
+                    } else {
+                        panic!("only rectangle textures can be used as render target!");
+                    }
+                });
 
-            scene.update(
-                frame_size,
-                dt,
-                switches.get(&handle).cloned().unwrap_or_default(),
-            );
+                scene.update(
+                    frame_size,
+                    dt,
+                    switches.get(&handle).cloned().unwrap_or_default(),
+                );
+            }
+
+            self.update_plugins(dt, control_flow, lag);
+            self.handle_scripts(dt);
         }
-
-        self.update_plugins(dt, control_flow, lag);
-        self.handle_scripts(dt);
     }
 
     /// Performs post update for the engine.
@@ -975,13 +1027,15 @@ impl Engine {
     /// Normally, this is called from `Engine::update()`.
     /// You should only call this manually if you don't use that method.
     pub fn post_update(&mut self, dt: f32) {
-        let inner_size = self.get_window().inner_size();
-        let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
+        if let Some(presenter) = self.presenter.as_ref() {
+            let inner_size = presenter.window.inner_size();
+            let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
 
-        let time = instant::Instant::now();
-        self.user_interface.update(window_size, dt);
-        self.performance_statistics.ui_time = instant::Instant::now() - time;
-        self.elapsed_time += dt;
+            let time = instant::Instant::now();
+            self.user_interface.update(window_size, dt);
+            self.performance_statistics.ui_time = instant::Instant::now() - time;
+            self.elapsed_time += dt;
+        }
     }
 
     /// Returns true if the scene is registered for script processing.
@@ -1017,12 +1071,11 @@ impl Engine {
             let mut context = PluginContext {
                 scenes: &mut self.scenes,
                 resource_manager: &self.resource_manager,
-                renderer: &mut self.renderer,
+                presenter: self.presenter.as_mut(),
                 dt,
                 lag,
                 user_interface: &mut self.user_interface,
                 serialization_context: &self.serialization_context,
-                window: &self.window,
                 performance_statistics: &self.performance_statistics,
             };
 
@@ -1034,12 +1087,11 @@ impl Engine {
                 let mut context = PluginContext {
                     scenes: &mut self.scenes,
                     resource_manager: &self.resource_manager,
-                    renderer: &mut self.renderer,
+                    presenter: self.presenter.as_mut(),
                     dt,
                     lag,
                     user_interface: &mut self.user_interface,
                     serialization_context: &self.serialization_context,
-                    window: &self.window,
                     performance_statistics: &self.performance_statistics,
                 };
 
@@ -1067,12 +1119,11 @@ impl Engine {
                     PluginContext {
                         scenes: &mut self.scenes,
                         resource_manager: &self.resource_manager,
-                        renderer: &mut self.renderer,
+                        presenter: self.presenter.as_mut(),
                         dt,
                         lag,
                         user_interface: &mut self.user_interface,
                         serialization_context: &self.serialization_context,
-                        window: &self.window,
                         performance_statistics: &self.performance_statistics,
                     },
                     control_flow,
@@ -1153,20 +1204,26 @@ impl Engine {
     pub fn render(&mut self) -> Result<(), FrameworkError> {
         self.user_interface.draw();
 
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            self.renderer.render_and_swap_buffers(
-                &self.scenes,
-                self.user_interface.get_drawing_context(),
-                &self.gl_surface,
-                &self.gl_context,
-            )
+        if let Some(presenter) = self.presenter.as_mut() {
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                presenter.renderer.render_and_swap_buffers(
+                    &self.scenes,
+                    self.user_interface.get_drawing_context(),
+                    &presenter.gl_surface,
+                    &presenter.gl_context,
+                )?;
+            }
+            #[cfg(target_arch = "wasm32")]
+            {
+                presenter.renderer.render_and_swap_buffers(
+                    &self.scenes,
+                    &self.user_interface.get_drawing_context(),
+                )?;
+            }
         }
-        #[cfg(target_arch = "wasm32")]
-        {
-            self.renderer
-                .render_and_swap_buffers(&self.scenes, &self.user_interface.get_drawing_context())
-        }
+
+        Ok(())
     }
 
     /// Enables or disables registered plugins.
@@ -1182,12 +1239,11 @@ impl Engine {
                         PluginContext {
                             scenes: &mut self.scenes,
                             resource_manager: &self.resource_manager,
-                            renderer: &mut self.renderer,
+                            presenter: self.presenter.as_mut(),
                             dt: 0.0,
                             lag: &mut 0.0,
                             user_interface: &mut self.user_interface,
                             serialization_context: &self.serialization_context,
-                            window: &self.window,
                             performance_statistics: &self.performance_statistics,
                         },
                     ));
@@ -1200,12 +1256,11 @@ impl Engine {
                     plugin.on_deinit(PluginContext {
                         scenes: &mut self.scenes,
                         resource_manager: &self.resource_manager,
-                        renderer: &mut self.renderer,
+                        presenter: self.presenter.as_mut(),
                         dt: 0.0,
                         lag: &mut 0.0,
                         user_interface: &mut self.user_interface,
                         serialization_context: &self.serialization_context,
-                        window: &self.window,
                         performance_statistics: &self.performance_statistics,
                     });
                 }

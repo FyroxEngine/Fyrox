@@ -74,6 +74,8 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
+use fyrox::engine::PresenterParams;
+use fyrox::window::WindowAttributes;
 use fyrox::{
     core::{
         algebra::{Matrix3, Vector2},
@@ -509,34 +511,42 @@ impl Editor {
             LogicalSize::new(1024.0, 768.0)
         };
 
-        let window_builder = fyrox::window::WindowBuilder::new()
-            .with_inner_size(inner_size)
-            .with_title("Fyroxed")
-            .with_resizable(true);
+        let presenter_params = PresenterParams {
+            window_attributes: WindowAttributes {
+                inner_size: Some(inner_size.into()),
+                resizable: true,
+                title: "FyroxEd".to_string(),
+                ..Default::default()
+            },
+            vsync: true,
+        };
 
         let serialization_context = Arc::new(SerializationContext::new());
         let mut engine = Engine::new(EngineInitParams {
-            window_builder,
+            presenter_params,
             resource_manager: ResourceManager::new(serialization_context.clone()),
             serialization_context,
-            events_loop: event_loop,
-            vsync: true,
             headless: false,
         })
         .unwrap();
 
+        // Editor cannot run on Android so we can safely call `resume` here.
+        engine.resume(event_loop).unwrap();
+
+        let presenter = engine.presenter.as_mut().unwrap();
+
         // High-DPI screen support
-        let logical_size = engine
-            .get_window()
+        let logical_size = presenter
+            .window
             .inner_size()
-            .to_logical(engine.get_window().scale_factor());
+            .to_logical(presenter.window.scale_factor());
         set_ui_scaling(
             &engine.user_interface,
-            engine.get_window().scale_factor() as f32,
+            presenter.window.scale_factor() as f32,
         );
 
-        let overlay_pass = OverlayRenderPass::new(engine.renderer.pipeline_state());
-        engine.renderer.add_render_pass(overlay_pass.clone());
+        let overlay_pass = OverlayRenderPass::new(presenter.renderer.pipeline_state());
+        presenter.renderer.add_render_pass(overlay_pass.clone());
 
         let (message_sender, message_receiver) = mpsc::channel();
 
@@ -562,7 +572,7 @@ impl Editor {
 
                 println!("Editor settings were loaded successfully!");
 
-                match engine
+                match presenter
                     .renderer
                     .set_quality_settings(&settings.graphics.quality)
                 {
@@ -861,6 +871,9 @@ impl Editor {
 
         match self
             .engine
+            .presenter
+            .as_mut()
+            .unwrap()
             .renderer
             .set_quality_settings(&self.settings.graphics.quality)
         {
@@ -954,7 +967,7 @@ impl Editor {
         );
         self.scene_viewer
             .reset_camera_projection(&self.engine.user_interface);
-        self.engine.renderer.flush();
+        self.engine.presenter.as_mut().unwrap().renderer.flush();
     }
 
     fn set_interaction_mode(&mut self, mode: Option<InteractionModeKind>) {
@@ -1618,8 +1631,10 @@ impl Editor {
 
         let engine = &mut self.engine;
 
-        engine
-            .get_window()
+        let presenter = engine.presenter.as_mut().unwrap();
+
+        presenter
+            .window
             .set_title(&format!("Fyroxed: {}", working_directory.to_string_lossy()));
 
         match FileSystemWatcher::new(&working_directory, Duration::from_secs(1)) {
@@ -1633,7 +1648,7 @@ impl Editor {
 
         engine.resource_manager.state().destroy_unused_resources();
 
-        engine.renderer.flush();
+        presenter.renderer.flush();
 
         self.asset_browser
             .set_working_directory(engine, &working_directory);
@@ -2082,7 +2097,14 @@ impl Editor {
                             );
                         }
 
-                        let logical_size = size.to_logical(self.engine.get_window().scale_factor());
+                        let logical_size = size.to_logical(
+                            self.engine
+                                .presenter
+                                .as_ref()
+                                .unwrap()
+                                .window
+                                .scale_factor(),
+                        );
                         self.engine
                             .user_interface
                             .send_message(WidgetMessage::width(
@@ -2158,7 +2180,7 @@ fn update(editor: &mut Editor, control_flow: &mut ControlFlow) {
         }
     }
 
-    let window = editor.engine.get_window();
+    let window = &editor.engine.presenter.as_ref().unwrap().window;
     window.set_cursor_icon(translate_cursor_icon(editor.engine.user_interface.cursor()));
     window.request_redraw();
 }

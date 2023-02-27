@@ -855,6 +855,10 @@ impl UserInterface {
         self.screen_size
     }
 
+    pub fn set_screen_size(&mut self, screen_size: Vector2<f32>) {
+        self.screen_size = screen_size;
+    }
+
     fn handle_layout_events(&mut self) {
         fn invalidate_recursive_up(
             nodes: &Pool<UiNode>,
