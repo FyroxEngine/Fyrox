@@ -1,5 +1,4 @@
-use std::io::Error;
-use std::path::Path;
+use std::{ffi::CString, io::Error, path::Path};
 
 #[derive(Debug)]
 pub enum FileLoadError {
@@ -13,6 +12,10 @@ impl From<std::io::Error> for FileLoadError {
     }
 }
 
+#[cfg(target_os = "android")]
+pub static ANDROID_APP: once_cell::sync::OnceCell<android_activity::AndroidApp> =
+    once_cell::sync::OnceCell::new();
+
 #[cfg(target_arch = "wasm32")]
 impl From<wasm_bindgen::JsValue> for FileLoadError {
     fn from(value: wasm_bindgen::JsValue) -> Self {
@@ -25,7 +28,7 @@ impl From<wasm_bindgen::JsValue> for FileLoadError {
 }
 
 pub async fn load_file<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, FileLoadError> {
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
     {
         use std::fs::File;
         use std::io::Read;
@@ -34,6 +37,19 @@ pub async fn load_file<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, FileLoadError
         let mut buffer = Vec::new();
         file.read_to_end(&mut buffer)?;
         Ok(buffer)
+    }
+
+    #[cfg(target_os = "android")]
+    {
+        let asset_manager = ANDROID_APP
+            .get()
+            .ok_or_else(|| FileLoadError::Custom("ANDROID_APP is not set".to_string()))?
+            .asset_manager();
+        let mut opened_asset = asset_manager
+            .open(&CString::new(path.as_ref().to_str().unwrap()).unwrap())
+            .ok_or_else(|| FileLoadError::Custom(format!("File {:?} not found!", path.as_ref())))?;
+        let bytes = opened_asset.get_buffer()?;
+        Ok(bytes.to_vec())
     }
 
     #[cfg(target_arch = "wasm32")]
@@ -58,9 +74,21 @@ pub async fn load_file<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, FileLoadError
 }
 
 pub async fn exists<P: AsRef<Path>>(path: P) -> bool {
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
     {
         path.as_ref().exists()
+    }
+
+    #[cfg(target_os = "android")]
+    {
+        ANDROID_APP
+            .get()
+            .map(|v| {
+                v.asset_manager()
+                    .open(&CString::new(path.as_ref().to_str().unwrap()).unwrap())
+                    .is_some()
+            })
+            .unwrap_or_default()
     }
 
     #[cfg(target_arch = "wasm32")]
