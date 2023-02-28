@@ -628,6 +628,15 @@ pub struct PresenterParams {
     pub vsync: bool,
 }
 
+impl Default for PresenterParams {
+    fn default() -> Self {
+        Self {
+            window_attributes: Default::default(),
+            vsync: true,
+        }
+    }
+}
+
 /// Engine initialization parameters.
 pub struct EngineInitParams {
     pub presenter_params: PresenterParams,
