@@ -61,8 +61,7 @@ impl Executor {
 
     /// Creates new game executor using specified set of parameters. Much more flexible version of
     /// [`Executor::new`].
-    pub fn from_params(presenter_params: PresenterParams) -> Self {
-        let event_loop = EventLoop::new();
+    pub fn from_params(event_loop: EventLoop<()>, presenter_params: PresenterParams) -> Self {
         let serialization_context = Arc::new(SerializationContext::new());
         let engine = Engine::new(EngineInitParams {
             presenter_params,
@@ -83,14 +82,17 @@ impl Executor {
     /// Creates new game executor using default window and with vsync turned on. For more flexible
     /// way to create an executor see [`Executor::from_params`].
     pub fn new() -> Self {
-        Self::from_params(PresenterParams {
-            window_attributes: WindowAttributes {
-                resizable: true,
-                title: "Fyrox Game".to_string(),
-                ..Default::default()
+        Self::from_params(
+            EventLoop::new(),
+            PresenterParams {
+                window_attributes: WindowAttributes {
+                    resizable: true,
+                    title: "Fyrox Game".to_string(),
+                    ..Default::default()
+                },
+                vsync: true,
             },
-            vsync: true,
-        })
+        )
     }
 
     /// Sets the desired update rate in frames per second.
