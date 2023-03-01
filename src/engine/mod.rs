@@ -850,9 +850,14 @@ impl Engine {
 
             let gl_display = gl_config.display();
 
-            let context_attributes = ContextAttributesBuilder::new()
+            let gl3_3_core_context_attributes = ContextAttributesBuilder::new()
                 .with_profile(GlProfile::Core)
                 .with_context_api(ContextApi::OpenGl(Some(Version::new(3, 3))))
+                .build(Some(raw_window_handle));
+
+            let gles3_context_attributes = ContextAttributesBuilder::new()
+                .with_profile(GlProfile::Core)
+                .with_context_api(ContextApi::Gles(Some(Version::new(3, 0))))
                 .build(Some(raw_window_handle));
 
             unsafe {
@@ -862,9 +867,15 @@ impl Engine {
                     .display()
                     .create_window_surface(&gl_config, &attrs)?;
 
-                let gl_context = gl_display
-                    .create_context(&gl_config, &context_attributes)?
-                    .make_current(&gl_surface)?;
+                let non_current_gl_context = if let Ok(gl3_3_core_context) =
+                    gl_display.create_context(&gl_config, &gl3_3_core_context_attributes)
+                {
+                    gl3_3_core_context
+                } else {
+                    gl_display.create_context(&gl_config, &gles3_context_attributes)?
+                };
+
+                let gl_context = non_current_gl_context.make_current(&gl_surface)?;
 
                 if self.presenter_params.vsync {
                     Log::verify(gl_surface.set_swap_interval(
