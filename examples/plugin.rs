@@ -20,9 +20,11 @@ impl Plugin for Game {
         self.hue += 24.0 * context.dt;
 
         // Slowly change color of the window.
-        context
-            .renderer
-            .set_backbuffer_clear_color(Color::from(Hsv::new(self.hue % 360.0, 100.0, 100.0)))
+        if let Some(graphics_context) = context.graphics_context.as_mut() {
+            graphics_context
+                .renderer
+                .set_backbuffer_clear_color(Color::from(Hsv::new(self.hue % 360.0, 100.0, 100.0)))
+        }
     }
 }
 
@@ -40,7 +42,7 @@ impl PluginConstructor for GameConstructor {
 
 fn main() {
     let mut executor = Executor::new();
-    executor.get_window().set_title("Example - Plugins");
+    executor.graphics_context_params.window_attributes.title = "Example - Plugins".to_string();
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

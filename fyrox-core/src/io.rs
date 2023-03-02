@@ -1,4 +1,4 @@
-use std::{ffi::CString, io::Error, path::Path};
+use std::{io::Error, path::Path};
 
 #[derive(Debug)]
 pub enum FileLoadError {
@@ -46,7 +46,7 @@ pub async fn load_file<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, FileLoadError
             .ok_or_else(|| FileLoadError::Custom("ANDROID_APP is not set".to_string()))?
             .asset_manager();
         let mut opened_asset = asset_manager
-            .open(&CString::new(path.as_ref().to_str().unwrap()).unwrap())
+            .open(&std::ffi::CString::new(path.as_ref().to_str().unwrap()).unwrap())
             .ok_or_else(|| FileLoadError::Custom(format!("File {:?} not found!", path.as_ref())))?;
         let bytes = opened_asset.get_buffer()?;
         Ok(bytes.to_vec())

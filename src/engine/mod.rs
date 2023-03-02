@@ -115,7 +115,7 @@ impl Display for PerformanceStatistics {
     }
 }
 
-pub struct Presenter {
+pub struct GraphicsContext {
     #[cfg(not(target_arch = "wasm32"))]
     gl_context: PossiblyCurrentContext,
     #[cfg(not(target_arch = "wasm32"))]
@@ -128,8 +128,8 @@ pub struct Presenter {
 
 /// See module docs.
 pub struct Engine {
-    pub presenter_params: PresenterParams,
-    pub presenter: Option<Presenter>,
+    pub graphics_context_params: GraphicsContextParams,
+    pub graphics_context: Option<GraphicsContext>,
     /// User interface allows you to build interface of any kind.
     pub user_interface: UserInterface,
     /// Current resource manager. Resource manager can be cloned (it does clone only ref) to be able to
@@ -618,7 +618,7 @@ impl ResourceDependencyGraph {
     }
 }
 
-pub struct PresenterParams {
+pub struct GraphicsContextParams {
     /// Main window attributes.
     pub window_attributes: WindowAttributes,
     /// Whether to use vertical synchronization or not. V-sync will force your game to render
@@ -628,7 +628,7 @@ pub struct PresenterParams {
     pub vsync: bool,
 }
 
-impl Default for PresenterParams {
+impl Default for GraphicsContextParams {
     fn default() -> Self {
         Self {
             window_attributes: Default::default(),
@@ -639,7 +639,7 @@ impl Default for PresenterParams {
 
 /// Engine initialization parameters.
 pub struct EngineInitParams {
-    pub presenter_params: PresenterParams,
+    pub graphics_context_params: GraphicsContextParams,
     /// A special container that is able to create nodes by their type UUID.
     pub serialization_context: Arc<SerializationContext>,
     /// A resource manager.
@@ -723,32 +723,39 @@ pub(crate) fn process_scripts<T>(
     }
 }
 
+mod kek {}
+
 impl Engine {
-    /// Creates new instance of engine from given initialization parameters.
-    ///
-    /// Automatically creates all sub-systems (renderer, sound, ui, etc.).
+    /// Creates new instance of engine from given initialization parameters. Automatically creates all sub-systems
+    /// (sound, ui, resource manager, etc.) **except** graphics context. Graphics context **must** be created
+    /// only on [`Event::Resumed`] by calling [`Self::resume`] and destroyed on [`Event::Suspended`] by calling
+    /// [`Self::suspend`].
     ///
     /// # Examples
     ///
     /// ```no_run
-    /// use fyrox::engine::{Engine, EngineInitParams};
-    /// use fyrox::window::WindowBuilder;
-    /// use fyrox::engine::resource_manager::ResourceManager;
-    /// use fyrox::event_loop::EventLoop;
+    /// use fyrox::{
+    ///     engine::{
+    ///         resource_manager::ResourceManager, Engine, EngineInitParams, GraphicsContextParams,
+    ///         SerializationContext,
+    ///     },
+    ///     event_loop::EventLoop,
+    ///     window::WindowAttributes,
+    /// };
     /// use std::sync::Arc;
-    /// use fyrox::engine::SerializationContext;
     ///
-    /// let evt = EventLoop::new();
-    /// let window_builder = WindowBuilder::new()
-    ///     .with_title("Test")
-    ///     .with_fullscreen(None);
+    /// let graphics_context_params = GraphicsContextParams {
+    ///     window_attributes: WindowAttributes {
+    ///         title: "Some title".to_string(),
+    ///         ..Default::default()
+    ///     },
+    ///     vsync: true,
+    /// };
     /// let serialization_context = Arc::new(SerializationContext::new());
-    /// let mut engine = Engine::new(EngineInitParams {
-    ///     window_builder,
+    /// Engine::new(EngineInitParams {
+    ///     graphics_context_params,
     ///     resource_manager: ResourceManager::new(serialization_context.clone()),
     ///     serialization_context,
-    ///     events_loop: &evt,
-    ///     vsync: false,
     ///     headless: false,
     /// })
     /// .unwrap();
@@ -757,7 +764,7 @@ impl Engine {
     #[allow(unused_variables)]
     pub fn new(params: EngineInitParams) -> Result<Self, EngineError> {
         let EngineInitParams {
-            presenter_params: presenter,
+            graphics_context_params,
             serialization_context,
             resource_manager,
             headless,
@@ -778,8 +785,8 @@ impl Engine {
             .add(rx);
 
         Ok(Self {
-            presenter_params: presenter,
-            presenter: None,
+            graphics_context_params,
+            graphics_context: None,
             model_events_receiver: tx,
             resource_manager,
             scenes: SceneContainer::new(sound_engine.clone()),
@@ -797,39 +804,73 @@ impl Engine {
 
     pub fn resume(&mut self, window_target: &EventLoopWindowTarget<()>) -> Result<(), EngineError> {
         let mut window_builder = WindowBuilder::new();
-        if let Some(inner_size) = self.presenter_params.window_attributes.inner_size {
+        if let Some(inner_size) = self.graphics_context_params.window_attributes.inner_size {
             window_builder = window_builder.with_inner_size(inner_size);
         }
-        if let Some(min_inner_size) = self.presenter_params.window_attributes.min_inner_size {
+        if let Some(min_inner_size) = self
+            .graphics_context_params
+            .window_attributes
+            .min_inner_size
+        {
             window_builder = window_builder.with_min_inner_size(min_inner_size);
         }
-        if let Some(max_inner_size) = self.presenter_params.window_attributes.max_inner_size {
+        if let Some(max_inner_size) = self
+            .graphics_context_params
+            .window_attributes
+            .max_inner_size
+        {
             window_builder = window_builder.with_min_inner_size(max_inner_size);
         }
-        if let Some(position) = self.presenter_params.window_attributes.position {
+        if let Some(position) = self.graphics_context_params.window_attributes.position {
             window_builder = window_builder.with_position(position);
         }
-        if let Some(resize_increments) = self.presenter_params.window_attributes.resize_increments {
+        if let Some(resize_increments) = self
+            .graphics_context_params
+            .window_attributes
+            .resize_increments
+        {
             window_builder = window_builder.with_resize_increments(resize_increments);
         }
         unsafe {
             window_builder = window_builder
-                .with_parent_window(self.presenter_params.window_attributes.parent_window);
+                .with_parent_window(self.graphics_context_params.window_attributes.parent_window);
         }
         window_builder = window_builder
-            .with_resizable(self.presenter_params.window_attributes.resizable)
-            .with_enabled_buttons(self.presenter_params.window_attributes.enabled_buttons)
-            .with_title(self.presenter_params.window_attributes.title.clone())
-            .with_fullscreen(self.presenter_params.window_attributes.fullscreen.clone())
-            .with_maximized(self.presenter_params.window_attributes.maximized)
-            .with_visible(self.presenter_params.window_attributes.visible)
-            .with_transparent(self.presenter_params.window_attributes.transparent)
-            .with_decorations(self.presenter_params.window_attributes.decorations)
-            .with_window_icon(self.presenter_params.window_attributes.window_icon.clone())
-            .with_theme(self.presenter_params.window_attributes.preferred_theme)
-            .with_content_protected(self.presenter_params.window_attributes.content_protected)
-            .with_window_level(self.presenter_params.window_attributes.window_level)
-            .with_active(self.presenter_params.window_attributes.active);
+            .with_resizable(self.graphics_context_params.window_attributes.resizable)
+            .with_enabled_buttons(
+                self.graphics_context_params
+                    .window_attributes
+                    .enabled_buttons,
+            )
+            .with_title(self.graphics_context_params.window_attributes.title.clone())
+            .with_fullscreen(
+                self.graphics_context_params
+                    .window_attributes
+                    .fullscreen
+                    .clone(),
+            )
+            .with_maximized(self.graphics_context_params.window_attributes.maximized)
+            .with_visible(self.graphics_context_params.window_attributes.visible)
+            .with_transparent(self.graphics_context_params.window_attributes.transparent)
+            .with_decorations(self.graphics_context_params.window_attributes.decorations)
+            .with_window_icon(
+                self.graphics_context_params
+                    .window_attributes
+                    .window_icon
+                    .clone(),
+            )
+            .with_theme(
+                self.graphics_context_params
+                    .window_attributes
+                    .preferred_theme,
+            )
+            .with_content_protected(
+                self.graphics_context_params
+                    .window_attributes
+                    .content_protected,
+            )
+            .with_window_level(self.graphics_context_params.window_attributes.window_level)
+            .with_active(self.graphics_context_params.window_attributes.active);
 
         #[cfg(not(target_arch = "wasm32"))]
         let (window, gl_context, gl_surface, glow_context) = {
@@ -877,7 +918,7 @@ impl Engine {
 
                 let gl_context = non_current_gl_context.make_current(&gl_surface)?;
 
-                if self.presenter_params.vsync {
+                if self.graphics_context_params.vsync {
                     Log::verify(gl_surface.set_swap_interval(
                         &gl_context,
                         SwapInterval::Wait(NonZeroU32::new(1).unwrap()),
@@ -924,7 +965,7 @@ impl Engine {
             window.inner_size().height as f32,
         ));
 
-        self.presenter = Some(Presenter {
+        self.graphics_context = Some(GraphicsContext {
             #[cfg(not(target_arch = "wasm32"))]
             gl_context,
             #[cfg(not(target_arch = "wasm32"))]
@@ -941,18 +982,18 @@ impl Engine {
     }
 
     pub fn suspend(&mut self) {
-        drop(self.presenter.take());
+        drop(self.graphics_context.take());
     }
 
     /// Adjust size of the frame to be rendered. Must be called after the window size changes.
     /// Will update the renderer and GL context frame size.
     pub fn set_frame_size(&mut self, new_size: (u32, u32)) -> Result<(), FrameworkError> {
-        if let Some(presenter) = self.presenter.as_mut() {
-            presenter.renderer.set_frame_size(new_size)?;
+        if let Some(graphics_context) = self.graphics_context.as_mut() {
+            graphics_context.renderer.set_frame_size(new_size)?;
 
             #[cfg(not(target_arch = "wasm32"))]
-            presenter.gl_surface.resize(
-                &presenter.gl_context,
+            graphics_context.gl_surface.resize(
+                &graphics_context.gl_context,
                 NonZeroU32::new(new_size.0).unwrap_or_else(|| NonZeroU32::new(1).unwrap()),
                 NonZeroU32::new(new_size.1).unwrap_or_else(|| NonZeroU32::new(1).unwrap()),
             );
@@ -1013,12 +1054,12 @@ impl Engine {
         lag: &mut f32,
         switches: FxHashMap<Handle<Scene>, GraphUpdateSwitches>,
     ) {
-        if let Some(presenter) = self.presenter.as_mut() {
-            let inner_size = presenter.window.inner_size();
+        if let Some(graphics_context) = self.graphics_context.as_mut() {
+            let inner_size = graphics_context.window.inner_size();
             let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
 
             self.resource_manager.state().update(dt);
-            presenter.renderer.update_caches(dt);
+            graphics_context.renderer.update_caches(dt);
             self.handle_model_events();
 
             for (handle, scene) in self.scenes.pair_iter_mut().filter(|(_, s)| s.enabled) {
@@ -1047,8 +1088,8 @@ impl Engine {
     /// Normally, this is called from `Engine::update()`.
     /// You should only call this manually if you don't use that method.
     pub fn post_update(&mut self, dt: f32) {
-        if let Some(presenter) = self.presenter.as_ref() {
-            let inner_size = presenter.window.inner_size();
+        if let Some(graphics_context) = self.graphics_context.as_ref() {
+            let inner_size = graphics_context.window.inner_size();
             let window_size = Vector2::new(inner_size.width as f32, inner_size.height as f32);
 
             let time = instant::Instant::now();
@@ -1091,7 +1132,7 @@ impl Engine {
             let mut context = PluginContext {
                 scenes: &mut self.scenes,
                 resource_manager: &self.resource_manager,
-                presenter: self.presenter.as_mut(),
+                graphics_context: self.graphics_context.as_mut(),
                 dt,
                 lag,
                 user_interface: &mut self.user_interface,
@@ -1107,7 +1148,7 @@ impl Engine {
                 let mut context = PluginContext {
                     scenes: &mut self.scenes,
                     resource_manager: &self.resource_manager,
-                    presenter: self.presenter.as_mut(),
+                    graphics_context: self.graphics_context.as_mut(),
                     dt,
                     lag,
                     user_interface: &mut self.user_interface,
@@ -1124,8 +1165,7 @@ impl Engine {
         self.performance_statistics.plugins_time = instant::Instant::now() - time;
     }
 
-    /// Processes an OS event by every registered plugin.
-    pub fn handle_os_event_by_plugins(
+    pub(crate) fn handle_os_event_by_plugins(
         &mut self,
         event: &Event<()>,
         dt: f32,
@@ -1139,7 +1179,57 @@ impl Engine {
                     PluginContext {
                         scenes: &mut self.scenes,
                         resource_manager: &self.resource_manager,
-                        presenter: self.presenter.as_mut(),
+                        graphics_context: self.graphics_context.as_mut(),
+                        dt,
+                        lag,
+                        user_interface: &mut self.user_interface,
+                        serialization_context: &self.serialization_context,
+                        performance_statistics: &self.performance_statistics,
+                    },
+                    control_flow,
+                );
+            }
+        }
+    }
+
+    pub(crate) fn handle_graphics_context_created_by_plugins(
+        &mut self,
+        dt: f32,
+        control_flow: &mut ControlFlow,
+        lag: &mut f32,
+    ) {
+        if self.plugins_enabled {
+            for plugin in self.plugins.iter_mut() {
+                plugin.on_graphics_context_created(
+                    PluginContext {
+                        scenes: &mut self.scenes,
+                        resource_manager: &self.resource_manager,
+                        graphics_context: self.graphics_context.as_mut(),
+                        dt,
+                        lag,
+                        user_interface: &mut self.user_interface,
+                        serialization_context: &self.serialization_context,
+                        performance_statistics: &self.performance_statistics,
+                    },
+                    control_flow,
+                );
+            }
+        }
+    }
+
+    pub(crate) fn handle_graphics_context_destroyed_by_plugins(
+        &mut self,
+        dt: f32,
+        control_flow: &mut ControlFlow,
+        lag: &mut f32,
+    ) {
+        if self.plugins_enabled {
+            for plugin in self.plugins.iter_mut() {
+                plugin.on_graphics_context_destroyed(
+                    PluginContext {
+                        scenes: &mut self.scenes,
+                        resource_manager: &self.resource_manager,
+                        graphics_context: self.graphics_context.as_mut(),
                         dt,
                         lag,
                         user_interface: &mut self.user_interface,
@@ -1224,19 +1314,19 @@ impl Engine {
     pub fn render(&mut self) -> Result<(), FrameworkError> {
         self.user_interface.draw();
 
-        if let Some(presenter) = self.presenter.as_mut() {
+        if let Some(graphics_context) = self.graphics_context.as_mut() {
             #[cfg(not(target_arch = "wasm32"))]
             {
-                presenter.renderer.render_and_swap_buffers(
+                graphics_context.renderer.render_and_swap_buffers(
                     &self.scenes,
                     self.user_interface.get_drawing_context(),
-                    &presenter.gl_surface,
-                    &presenter.gl_context,
+                    &graphics_context.gl_surface,
+                    &graphics_context.gl_context,
                 )?;
             }
             #[cfg(target_arch = "wasm32")]
             {
-                presenter.renderer.render_and_swap_buffers(
+                graphics_context.renderer.render_and_swap_buffers(
                     &self.scenes,
                     &self.user_interface.get_drawing_context(),
                 )?;
@@ -1259,7 +1349,7 @@ impl Engine {
                         PluginContext {
                             scenes: &mut self.scenes,
                             resource_manager: &self.resource_manager,
-                            presenter: self.presenter.as_mut(),
+                            graphics_context: self.graphics_context.as_mut(),
                             dt: 0.0,
                             lag: &mut 0.0,
                             user_interface: &mut self.user_interface,
@@ -1276,7 +1366,7 @@ impl Engine {
                     plugin.on_deinit(PluginContext {
                         scenes: &mut self.scenes,
                         resource_manager: &self.resource_manager,
-                        presenter: self.presenter.as_mut(),
+                        graphics_context: self.graphics_context.as_mut(),
                         dt: 0.0,
                         lag: &mut 0.0,
                         user_interface: &mut self.user_interface,

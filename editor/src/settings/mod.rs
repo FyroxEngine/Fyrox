@@ -272,12 +272,12 @@ impl SettingsWindow {
             }
         }
 
-        let presenter = engine.presenter.as_mut().unwrap();
+        let graphics_context = engine.graphics_context.as_mut().unwrap();
 
         // Apply only if anything changed.
         if settings != &old_settings {
-            if settings.graphics.quality != presenter.renderer.get_quality_settings() {
-                if let Err(e) = presenter
+            if settings.graphics.quality != graphics_context.renderer.get_quality_settings() {
+                if let Err(e) = graphics_context
                     .renderer
                     .set_quality_settings(&settings.graphics.quality)
                 {

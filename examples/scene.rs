@@ -9,6 +9,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::engine::GraphicsContextParams;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -31,6 +32,7 @@ use fyrox::{
     },
 };
 use std::{sync::Arc, time::Instant};
+use winit::window::WindowAttributes;
 
 fn create_ui(ctx: &mut BuildContext) -> Handle<UiNode> {
     TextBuilder::new(WidgetBuilder::new()).build(ctx)
@@ -77,17 +79,20 @@ struct InputController {
 fn main() {
     let event_loop = EventLoop::new();
 
-    let window_builder = fyrox::window::WindowBuilder::new()
-        .with_title("Example - Scene")
-        .with_resizable(true);
+    let graphics_context_params = GraphicsContextParams {
+        window_attributes: WindowAttributes {
+            title: "Example - Scene".to_string(),
+            resizable: true,
+            ..Default::default()
+        },
+        vsync: true,
+    };
 
     let serialization_context = Arc::new(SerializationContext::new());
     let mut engine = Engine::new(EngineInitParams {
-        window_builder,
+        graphics_context_params,
         resource_manager: ResourceManager::new(serialization_context.clone()),
         serialization_context,
-        events_loop: &event_loop,
-        vsync: true,
         headless: false,
     })
     .unwrap();
@@ -149,16 +154,18 @@ fn main() {
                         UnitQuaternion::from_axis_angle(&Vector3::y_axis(), model_angle),
                     );
 
-                    let fps = engine.renderer.get_statistics().frames_per_second;
-                    let text = format!(
-                        "Example 05 - Scene\nUse [A][D] keys to rotate camera.\nFPS: {}",
-                        fps
-                    );
-                    engine.user_interface.send_message(TextMessage::text(
-                        debug_text,
-                        MessageDirection::ToWidget,
-                        text,
-                    ));
+                    if let Some(graphics_context) = engine.graphics_context.as_mut() {
+                        let fps = graphics_context.renderer.get_statistics().frames_per_second;
+                        let text = format!(
+                            "Example 05 - Scene\nUse [A][D] keys to rotate camera.\nFPS: {}",
+                            fps
+                        );
+                        engine.user_interface.send_message(TextMessage::text(
+                            debug_text,
+                            MessageDirection::ToWidget,
+                            text,
+                        ));
+                    }
 
                     engine.update(fixed_timestep, control_flow, &mut lag, Default::default());
 
@@ -177,7 +184,9 @@ fn main() {
                 }
 
                 // Rendering must be explicitly requested and handled after RedrawRequested event is received.
-                engine.get_window().request_redraw();
+                if let Some(graphics_context) = engine.graphics_context.as_mut() {
+                    graphics_context.window.request_redraw();
+                }
             }
             Event::RedrawRequested(_) => {
                 // Run renderer at max speed - it is not tied to game code.

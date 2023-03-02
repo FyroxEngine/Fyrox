@@ -4,6 +4,7 @@
 //!
 //! This example shows how to create custom game loop.
 
+use fyrox::engine::GraphicsContextParams;
 use fyrox::{
     core::instant::Instant,
     engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
@@ -15,22 +16,25 @@ use fyrox::{
     },
 };
 use std::sync::Arc;
+use winit::window::WindowAttributes;
 
 fn main() {
     let event_loop = EventLoop::new();
 
     // Create window builder first.
-    let window_builder = fyrox::window::WindowBuilder::new()
-        .with_title("Example - Custom Game Loop")
-        .with_resizable(true);
+    let graphics_context_params = GraphicsContextParams {
+        window_attributes: WindowAttributes {
+            title: "Example - Custom Game Loop".to_string(),
+            ..Default::default()
+        },
+        vsync: true,
+    };
 
     let serialization_context = Arc::new(SerializationContext::new());
     let mut engine = Engine::new(EngineInitParams {
-        window_builder,
+        graphics_context_params,
         resource_manager: ResourceManager::new(serialization_context.clone()),
         serialization_context,
-        events_loop: &event_loop,
-        vsync: true,
         headless: false,
     })
     .unwrap();
@@ -79,7 +83,9 @@ fn main() {
                 }
 
                 // Rendering must be explicitly requested and handled after RedrawRequested event is received.
-                engine.get_window().request_redraw();
+                if let Some(graphics_context) = engine.graphics_context.as_mut() {
+                    graphics_context.window.request_redraw();
+                }
             }
             Event::RedrawRequested(_) => {
                 // Run renderer at max speed - it is not tied to game code.

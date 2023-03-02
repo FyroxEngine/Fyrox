@@ -12,10 +12,9 @@ use fyrox::{
     scene::Scene,
     utils::into_gui_texture,
 };
+use winit::event_loop::ControlFlow;
 
 struct Game;
-
-impl Plugin for Game {}
 
 struct GameConstructor;
 
@@ -35,10 +34,6 @@ impl PluginConstructor for GameConstructor {
             .set_default_import_options(
                 TextureImportOptions::default().with_compression(CompressionOptions::Quality),
             );
-
-        context
-            .renderer
-            .set_backbuffer_clear_color(Color::opaque(120, 120, 120));
 
         ImageBuilder::new(
             WidgetBuilder::new()
@@ -67,6 +62,21 @@ impl PluginConstructor for GameConstructor {
         .build(&mut context.user_interface.build_ctx());
 
         Box::new(Game)
+    }
+}
+
+impl Plugin for Game {
+    fn on_graphics_context_created(
+        &mut self,
+        mut context: PluginContext,
+        _control_flow: &mut ControlFlow,
+    ) {
+        context
+            .graphics_context
+            .as_mut()
+            .unwrap()
+            .renderer
+            .set_backbuffer_clear_color(Color::opaque(120, 120, 120));
     }
 }
 

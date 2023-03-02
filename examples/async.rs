@@ -288,16 +288,33 @@ impl Plugin for Game {
         }
 
         // While scene is loading, we will update progress bar.
-        let fps = context.renderer.get_statistics().frames_per_second;
-        let debug_text = format!(
-            "Example 02 - Asynchronous Scene Loading\nUse [A][D] keys to rotate model.\nFPS: {}",
-            fps
-        );
-        context.user_interface.send_message(TextMessage::text(
-            self.interface.debug_text,
-            MessageDirection::ToWidget,
-            debug_text,
-        ));
+        if let Some(graphics_context) = context.graphics_context.as_mut() {
+            let fps = graphics_context.renderer.get_statistics().frames_per_second;
+            let debug_text = format!(
+                "Example 02 - Asynchronous Scene Loading\nUse [A][D] keys to rotate model.\nFPS: {}",
+                fps
+            );
+            context.user_interface.send_message(TextMessage::text(
+                self.interface.debug_text,
+                MessageDirection::ToWidget,
+                debug_text,
+            ));
+
+            let size = graphics_context
+                .window
+                .inner_size()
+                .to_logical(graphics_context.window.scale_factor());
+            context.user_interface.send_message(WidgetMessage::width(
+                self.interface.root,
+                MessageDirection::ToWidget,
+                size.width,
+            ));
+            context.user_interface.send_message(WidgetMessage::height(
+                self.interface.root,
+                MessageDirection::ToWidget,
+                size.height,
+            ));
+        }
     }
 
     fn on_os_event(
@@ -308,21 +325,6 @@ impl Plugin for Game {
     ) {
         if let Event::WindowEvent { event, .. } = event {
             match event {
-                WindowEvent::Resized(size) => {
-                    // Root UI node should be resized, otherwise progress bar will stay
-                    // in wrong position after resize.
-                    let size = size.to_logical(context.window.scale_factor());
-                    context.user_interface.send_message(WidgetMessage::width(
-                        self.interface.root,
-                        MessageDirection::ToWidget,
-                        size.width,
-                    ));
-                    context.user_interface.send_message(WidgetMessage::height(
-                        self.interface.root,
-                        MessageDirection::ToWidget,
-                        size.height,
-                    ));
-                }
                 WindowEvent::KeyboardInput { input, .. } => {
                     // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
                     if let Some(key_code) = input.virtual_keycode {

@@ -57,14 +57,16 @@ impl Plugin for Game {
 
         self.time += context.dt;
 
-        context.user_interface.send_message(TextMessage::text(
-            self.debug_text,
-            MessageDirection::ToWidget,
-            format!(
-                "Example - Materials and Shaders\nFPS: {}",
-                context.renderer.get_statistics().frames_per_second
-            ),
-        ));
+        if let Some(graphics_context) = context.graphics_context {
+            context.user_interface.send_message(TextMessage::text(
+                self.debug_text,
+                MessageDirection::ToWidget,
+                format!(
+                    "Example - Materials and Shaders\nFPS: {:?}",
+                    graphics_context.renderer.get_statistics().frames_per_second
+                ),
+            ));
+        }
     }
 }
 
@@ -142,9 +144,8 @@ impl PluginConstructor for GameConstructor {
 
 fn main() {
     let mut executor = Executor::new();
-    executor
-        .get_window()
-        .set_title("Example - Materials and Shaders");
+    executor.graphics_context_params.window_attributes.title =
+        "Example - Materials and Shaders".to_string();
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

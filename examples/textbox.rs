@@ -41,7 +41,7 @@ impl PluginConstructor for GameConstructor {
 
 fn main() {
     let mut executor = Executor::new();
-    executor.get_window().set_title("Example - Text Box");
+    executor.graphics_context_params.window_attributes.title = "Example - Text Box".to_string();
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

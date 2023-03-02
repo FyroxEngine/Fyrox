@@ -156,27 +156,30 @@ impl Plugin for Game {
 
         scene.drawing_context.clear_lines();
 
-        let ray = scene.graph[self.camera]
-            .as_camera()
-            .make_ray(self.mouse_position, context.renderer.get_frame_bounds());
+        if let Some(graphics_context) = context.graphics_context.as_mut() {
+            let ray = scene.graph[self.camera].as_camera().make_ray(
+                self.mouse_position,
+                graphics_context.renderer.get_frame_bounds(),
+            );
 
-        let mut buffer = ArrayVec::<Intersection, 64>::new();
-        scene.graph.physics.cast_ray(
-            RayCastOptions {
-                ray_origin: Point3::from(ray.origin),
-                ray_direction: ray.dir,
-                max_len: 9999.0,
-                groups: Default::default(),
-                sort_results: true,
-            },
-            &mut buffer,
-        );
+            let mut buffer = ArrayVec::<Intersection, 64>::new();
+            scene.graph.physics.cast_ray(
+                RayCastOptions {
+                    ray_origin: Point3::from(ray.origin),
+                    ray_direction: ray.dir,
+                    max_len: 9999.0,
+                    groups: Default::default(),
+                    sort_results: true,
+                },
+                &mut buffer,
+            );
 
-        if let Some(first) = buffer.first() {
-            self.target_position = first.position.coords;
-            scene.graph[self.cursor]
-                .local_transform_mut()
-                .set_position(self.target_position);
+            if let Some(first) = buffer.first() {
+                self.target_position = first.position.coords;
+                scene.graph[self.cursor]
+                    .local_transform_mut()
+                    .set_position(self.target_position);
+            }
         }
 
         let navmesh = scene.navmeshes.iter_mut().next().unwrap();
@@ -209,16 +212,18 @@ impl Plugin for Game {
             });
         }
 
-        let fps = context.renderer.get_statistics().frames_per_second;
-        let text = format!(
-            "Example 12 - Navigation Mesh\nFPS: {}\nAgent time: {:?}",
-            fps, agent_time
-        );
-        context.user_interface.send_message(TextMessage::text(
-            self.debug_text,
-            MessageDirection::ToWidget,
-            text,
-        ));
+        if let Some(graphics_context) = context.graphics_context.as_mut() {
+            let fps = graphics_context.renderer.get_statistics().frames_per_second;
+            let text = format!(
+                "Example 12 - Navigation Mesh\nFPS: {}\nAgent time: {:?}",
+                fps, agent_time
+            );
+            context.user_interface.send_message(TextMessage::text(
+                self.debug_text,
+                MessageDirection::ToWidget,
+                text,
+            ));
+        }
     }
 
     fn on_os_event(
@@ -246,9 +251,11 @@ impl Plugin for Game {
                     }
                 }
                 WindowEvent::CursorMoved { position, .. } => {
-                    let p: LogicalPosition<f32> =
-                        position.to_logical(context.window.scale_factor());
-                    self.mouse_position = Vector2::new(p.x, p.y);
+                    if let Some(graphics_context) = context.graphics_context.as_mut() {
+                        let p: LogicalPosition<f32> =
+                            position.to_logical(graphics_context.window.scale_factor());
+                        self.mouse_position = Vector2::new(p.x, p.y);
+                    }
                 }
                 _ => (),
             }
@@ -300,9 +307,8 @@ impl PluginConstructor for GameConstructor {
 
 fn main() {
     let mut executor = Executor::new();
-    executor
-        .get_window()
-        .set_title("Example 12 - Navigation Mesh");
+    executor.graphics_context_params.window_attributes.title =
+        "Example 12 - Navigation Mesh".to_string();
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

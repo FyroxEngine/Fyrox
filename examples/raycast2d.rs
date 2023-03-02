@@ -173,7 +173,7 @@ impl PluginConstructor for GameConstructor {
 
 fn main() {
     let mut executor = Executor::new();
-    executor.get_window().set_title("Example - Plugins");
+    executor.graphics_context_params.window_attributes.title = "Example - Plugins".to_string();
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

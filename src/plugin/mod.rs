@@ -5,7 +5,8 @@
 use crate::{
     core::pool::Handle,
     engine::{
-        resource_manager::ResourceManager, PerformanceStatistics, Presenter, SerializationContext,
+        resource_manager::ResourceManager, GraphicsContext, PerformanceStatistics,
+        SerializationContext,
     },
     event::Event,
     event_loop::ControlFlow,
@@ -61,10 +62,10 @@ pub struct PluginContext<'a, 'b> {
     /// A reference to user interface instance.
     pub user_interface: &'a mut UserInterface,
 
-    /// A reference to the presenter, it contains a reference to the window and the current renderer.
+    /// A reference to the graphics_context, it contains a reference to the window and the current renderer.
     /// It could be None if your application is suspended (possible only on Android; it is safe to
-    /// do `presenter.unwrap()` on every other platform).
-    pub presenter: Option<&'a mut Presenter>,
+    /// do `graphics_context.unwrap()` on every other platform).
+    pub graphics_context: Option<&'a mut GraphicsContext>,
 
     /// The time (in seconds) that passed since last call of a method in which the context was
     /// passed. It has fixed value that is defined by a caller (in most cases it is `Executor`).
@@ -186,6 +187,23 @@ pub trait Plugin: BasePlugin {
     fn on_os_event(
         &mut self,
         #[allow(unused_variables)] event: &Event<()>,
+        #[allow(unused_variables)] context: PluginContext,
+        #[allow(unused_variables)] control_flow: &mut ControlFlow,
+    ) {
+    }
+
+    /// The method is called when a graphics context was successfully created. It could be useful
+    /// to catch the moment when it was just created and do something in response.
+    fn on_graphics_context_created(
+        &mut self,
+        #[allow(unused_variables)] context: PluginContext,
+        #[allow(unused_variables)] control_flow: &mut ControlFlow,
+    ) {
+    }
+
+    /// The method is called when the current graphics context was destroyed.
+    fn on_graphics_context_destroyed(
+        &mut self,
         #[allow(unused_variables)] context: PluginContext,
         #[allow(unused_variables)] control_flow: &mut ControlFlow,
     ) {

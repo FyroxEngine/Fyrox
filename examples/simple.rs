@@ -168,14 +168,16 @@ impl Plugin for Game {
                 self.model_angle,
             ));
 
-        context.user_interface.send_message(TextMessage::text(
-            self.debug_text,
-            MessageDirection::ToWidget,
-            format!(
-                "Example 01 - Simple Scene\nUse [A][D] keys to rotate model.\nFPS: {}",
-                context.renderer.get_statistics().frames_per_second
-            ),
-        ));
+        if let Some(graphics_context) = context.graphics_context.as_mut() {
+            context.user_interface.send_message(TextMessage::text(
+                self.debug_text,
+                MessageDirection::ToWidget,
+                format!(
+                    "Example 01 - Simple Scene\nUse [A][D] keys to rotate model.\nFPS: {}",
+                    graphics_context.renderer.get_statistics().frames_per_second
+                ),
+            ));
+        }
     }
 
     fn on_os_event(
@@ -234,7 +236,7 @@ impl PluginConstructor for GameConstructor {
 
 fn main() {
     let mut executor = Executor::new();
-    executor.get_window().set_title("Example 01 - Simple");
+    executor.graphics_context_params.window_attributes.title = "Example 01 - Simple".to_string();
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

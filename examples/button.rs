@@ -29,23 +29,25 @@ impl Plugin for Game {
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.button {
                 // Generate random position in the window.
-                let client_size = context.window.inner_size();
+                if let Some(graphics_context) = context.graphics_context.as_ref() {
+                    let client_size = graphics_context.window.inner_size();
 
-                let mut rng = thread_rng();
+                    let mut rng = thread_rng();
 
-                let new_position = Vector2::new(
-                    rng.gen_range(0.0..(client_size.width as f32 - 100.0)),
-                    rng.gen_range(0.0..(client_size.height as f32 - 100.0)),
-                );
+                    let new_position = Vector2::new(
+                        rng.gen_range(0.0..(client_size.width as f32 - 100.0)),
+                        rng.gen_range(0.0..(client_size.height as f32 - 100.0)),
+                    );
 
-                // "Tell" the button to "teleport" in the new location.
-                context
-                    .user_interface
-                    .send_message(WidgetMessage::desired_position(
-                        self.button,
-                        MessageDirection::ToWidget,
-                        new_position,
-                    ));
+                    // "Tell" the button to "teleport" in the new location.
+                    context
+                        .user_interface
+                        .send_message(WidgetMessage::desired_position(
+                            self.button,
+                            MessageDirection::ToWidget,
+                            new_position,
+                        ));
+                }
             }
         }
     }
@@ -72,7 +74,7 @@ impl PluginConstructor for GameConstructor {
 
 fn main() {
     let mut executor = Executor::new();
-    executor.get_window().set_title("Example - Button");
+    executor.graphics_context_params.window_attributes.title = "Example - Button".to_string();
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

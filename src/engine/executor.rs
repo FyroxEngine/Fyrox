@@ -1,9 +1,11 @@
 //! Executor is a small wrapper that manages plugins and scripts for your game.
 
-use crate::engine::PresenterParams;
 use crate::{
     core::instant::Instant,
-    engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
+    engine::{
+        resource_manager::ResourceManager, Engine, EngineInitParams, GraphicsContextParams,
+        SerializationContext,
+    },
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     plugin::PluginConstructor,
@@ -61,10 +63,13 @@ impl Executor {
 
     /// Creates new game executor using specified set of parameters. Much more flexible version of
     /// [`Executor::new`].
-    pub fn from_params(event_loop: EventLoop<()>, presenter_params: PresenterParams) -> Self {
+    pub fn from_params(
+        event_loop: EventLoop<()>,
+        graphics_context_params: GraphicsContextParams,
+    ) -> Self {
         let serialization_context = Arc::new(SerializationContext::new());
         let engine = Engine::new(EngineInitParams {
-            presenter_params,
+            graphics_context_params,
             resource_manager: ResourceManager::new(serialization_context.clone()),
             serialization_context,
             headless: false,
@@ -84,7 +89,7 @@ impl Executor {
     pub fn new() -> Self {
         Self::from_params(
             EventLoop::new(),
-            PresenterParams {
+            GraphicsContextParams {
                 window_attributes: WindowAttributes {
                     resizable: true,
                     title: "Fyrox Game".to_string(),
@@ -158,9 +163,21 @@ impl Executor {
                     engine
                         .resume(window_target)
                         .expect("Unable to resume engine execution!");
+
+                    engine.handle_graphics_context_created_by_plugins(
+                        fixed_time_step,
+                        control_flow,
+                        &mut lag,
+                    );
                 }
                 Event::Suspended => {
                     engine.suspend();
+
+                    engine.handle_graphics_context_destroyed_by_plugins(
+                        fixed_time_step,
+                        control_flow,
+                        &mut lag,
+                    );
                 }
                 Event::MainEventsCleared => {
                     if let Some(loader) = self.loader.as_ref() {
@@ -188,8 +205,8 @@ impl Executor {
                         lag -= fixed_time_step;
                     }
 
-                    if let Some(presenter) = engine.presenter.as_ref() {
-                        presenter.window.request_redraw();
+                    if let Some(graphics_context) = engine.graphics_context.as_ref() {
+                        graphics_context.window.request_redraw();
                     }
                 }
                 Event::RedrawRequested(_) => {
