@@ -1,5 +1,6 @@
 //! Executor is a small wrapper that manages plugins and scripts for your game.
 
+use crate::engine::GraphicsContext;
 use crate::{
     core::instant::Instant,
     engine::{
@@ -161,8 +162,8 @@ impl Executor {
             match event {
                 Event::Resumed => {
                     engine
-                        .resume(window_target)
-                        .expect("Unable to resume engine execution!");
+                        .initialize_graphics_context(window_target)
+                        .expect("Unable to initialize graphics context!");
 
                     engine.handle_graphics_context_created_by_plugins(
                         fixed_time_step,
@@ -171,7 +172,9 @@ impl Executor {
                     );
                 }
                 Event::Suspended => {
-                    engine.suspend();
+                    engine
+                        .destroy_graphics_context()
+                        .expect("Unable to destroy graphics context!");
 
                     engine.handle_graphics_context_destroyed_by_plugins(
                         fixed_time_step,
@@ -205,8 +208,8 @@ impl Executor {
                         lag -= fixed_time_step;
                     }
 
-                    if let Some(graphics_context) = engine.graphics_context.as_ref() {
-                        graphics_context.window.request_redraw();
+                    if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                        ctx.window.request_redraw();
                     }
                 }
                 Event::RedrawRequested(_) => {

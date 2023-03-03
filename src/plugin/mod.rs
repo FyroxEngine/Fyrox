@@ -63,9 +63,10 @@ pub struct PluginContext<'a, 'b> {
     pub user_interface: &'a mut UserInterface,
 
     /// A reference to the graphics_context, it contains a reference to the window and the current renderer.
-    /// It could be None if your application is suspended (possible only on Android; it is safe to
-    /// do `graphics_context.unwrap()` on every other platform).
-    pub graphics_context: Option<&'a mut GraphicsContext>,
+    /// It could be [`GraphicsContext::Uninitialized`] if your application is suspended (possible only on
+    /// Android; it is safe to call [`GraphicsContext::as_initialized_ref`] or [`GraphicsContext::as_initialized_mut`]
+    /// on every other platform).
+    pub graphics_context: &'a mut GraphicsContext,
 
     /// The time (in seconds) that passed since last call of a method in which the context was
     /// passed. It has fixed value that is defined by a caller (in most cases it is `Executor`).

@@ -272,7 +272,7 @@ impl SettingsWindow {
             }
         }
 
-        let graphics_context = engine.graphics_context.as_mut().unwrap();
+        let graphics_context = engine.graphics_context.as_initialized_mut();
 
         // Apply only if anything changed.
         if settings != &old_settings {
