@@ -195,7 +195,7 @@ pub trait Plugin: BasePlugin {
 
     /// The method is called when a graphics context was successfully created. It could be useful
     /// to catch the moment when it was just created and do something in response.
-    fn on_graphics_context_created(
+    fn on_graphics_context_initialized(
         &mut self,
         #[allow(unused_variables)] context: PluginContext,
         #[allow(unused_variables)] control_flow: &mut ControlFlow,

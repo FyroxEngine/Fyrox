@@ -14,7 +14,10 @@ use fyrox::{
         futures,
         pool::Handle,
     },
-    engine::{executor::Executor, resource_manager::ResourceManager},
+    engine::{
+        executor::Executor, resource_manager::ResourceManager, GraphicsContext,
+        GraphicsContextParams,
+    },
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
@@ -27,6 +30,7 @@ use fyrox::{
     },
     plugin::{Plugin, PluginConstructor, PluginContext},
     scene::{node::Node, Scene},
+    window::WindowAttributes,
 };
 use std::sync::{Arc, Mutex};
 
@@ -288,7 +292,7 @@ impl Plugin for Game {
         }
 
         // While scene is loading, we will update progress bar.
-        if let Some(graphics_context) = context.graphics_context.as_mut() {
+        if let GraphicsContext::Initialized(ref graphics_context) = context.graphics_context {
             let fps = graphics_context.renderer.get_statistics().frames_per_second;
             let debug_text = format!(
                 "Example 02 - Asynchronous Scene Loading\nUse [A][D] keys to rotate model.\nFPS: {}",
@@ -356,13 +360,9 @@ impl PluginConstructor for GameConstructor {
         context: PluginContext,
     ) -> Box<dyn Plugin> {
         // Create simple user interface that will show some useful info.
-        let screen_size = context
-            .window
-            .inner_size()
-            .to_logical(context.window.scale_factor());
         let interface = create_ui(
             &mut context.user_interface.build_ctx(),
-            Vector2::new(screen_size.width, screen_size.height),
+            Vector2::new(100.0, 100.0),
         );
 
         Box::new(Game {
@@ -379,10 +379,16 @@ impl PluginConstructor for GameConstructor {
 }
 
 fn main() {
-    let mut executor = Executor::new();
-    executor
-        .get_window()
-        .set_title("Example - Asynchronous Scene Loading");
+    let mut executor = Executor::from_params(
+        Default::default(),
+        GraphicsContextParams {
+            window_attributes: WindowAttributes {
+                title: "Example - Asynchronous Scene Loading".to_string(),
+                ..Default::default()
+            },
+            vsync: true,
+        },
+    );
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

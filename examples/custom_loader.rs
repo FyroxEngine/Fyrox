@@ -9,12 +9,12 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use fyrox::material::SharedMaterial;
-use fyrox::scene::mesh::surface::SurfaceSharedData;
+use fyrox::engine::GraphicsContext;
 use fyrox::{
     core::{
         algebra::{Matrix4, Vector3},
         color::Color,
+        futures::executor::block_on,
         instant::Instant,
         sstorage::ImmutableString,
     },
@@ -26,11 +26,11 @@ use fyrox::{
             },
             ResourceManager,
         },
-        Engine, EngineInitParams, SerializationContext,
+        Engine, EngineInitParams, GraphicsContextParams, SerializationContext,
     },
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    material::{shader::SamplerFallback, Material, PropertyValue},
+    material::{shader::SamplerFallback, Material, PropertyValue, SharedMaterial},
     resource::{
         model::{Model, ModelImportOptions},
         texture::{Texture, TextureImportOptions},
@@ -39,7 +39,7 @@ use fyrox::{
         base::BaseBuilder,
         light::{point::PointLightBuilder, BaseLightBuilder},
         mesh::{
-            surface::{SurfaceBuilder, SurfaceData},
+            surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
             MeshBuilder,
         },
         transform::TransformBuilder,
@@ -49,9 +49,8 @@ use fyrox::{
         log::{Log, MessageKind},
         translate_event,
     },
-    window::WindowBuilder,
+    window::WindowAttributes,
 };
-use fyrox_core::futures::executor::block_on;
 use std::sync::Arc;
 
 struct CustomModelLoader(Arc<ModelLoader>);
@@ -178,11 +177,14 @@ impl GameSceneLoader {
 
 fn main() {
     let event_loop = EventLoop::new();
-
-    let window_builder = WindowBuilder::new()
-        .with_title("Example 12 - Custom resource loader")
-        .with_resizable(true);
-
+    let graphics_context_params = GraphicsContextParams {
+        window_attributes: WindowAttributes {
+            title: "Example - Custom Resource Loader".to_string(),
+            resizable: true,
+            ..Default::default()
+        },
+        vsync: true,
+    };
     let serialization_context = Arc::new(SerializationContext::new());
     let resource_manager = ResourceManager::new(serialization_context.clone());
 
@@ -198,11 +200,9 @@ fn main() {
     }
 
     let mut engine = Engine::new(EngineInitParams {
-        window_builder,
+        graphics_context_params,
         resource_manager: ResourceManager::new(serialization_context.clone()),
         serialization_context,
-        events_loop: &event_loop,
-        vsync: false,
         headless: false,
     })
     .unwrap();
@@ -224,7 +224,9 @@ fn main() {
                 lag -= fixed_timestep;
             }
 
-            engine.get_window().request_redraw();
+            if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                ctx.window.request_redraw();
+            }
         }
         Event::RedrawRequested(_) => {
             engine.render().unwrap();

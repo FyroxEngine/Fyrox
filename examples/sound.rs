@@ -9,6 +9,7 @@
 pub mod shared;
 
 use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene};
+use fyrox::engine::GraphicsContext;
 use fyrox::{
     animation::AnimationSignal,
     core::{
@@ -287,21 +288,24 @@ fn main() {
 
                         // Root UI node should be resized too, otherwise progress bar will stay
                         // in wrong position after resize.
-                        let size = size.to_logical(game.engine.get_window().scale_factor());
-                        game.engine
-                            .user_interface
-                            .send_message(WidgetMessage::width(
-                                interface.root,
-                                MessageDirection::ToWidget,
-                                size.width,
-                            ));
-                        game.engine
-                            .user_interface
-                            .send_message(WidgetMessage::height(
-                                interface.root,
-                                MessageDirection::ToWidget,
-                                size.height,
-                            ));
+                        if let GraphicsContext::Initialized(ref ctx) = game.engine.graphics_context
+                        {
+                            let size = size.to_logical(ctx.window.scale_factor());
+                            game.engine
+                                .user_interface
+                                .send_message(WidgetMessage::width(
+                                    interface.root,
+                                    MessageDirection::ToWidget,
+                                    size.width,
+                                ));
+                            game.engine
+                                .user_interface
+                                .send_message(WidgetMessage::height(
+                                    interface.root,
+                                    MessageDirection::ToWidget,
+                                    size.height,
+                                ));
+                        }
                     }
                     WindowEvent::KeyboardInput { input, .. } => {
                         if let Some(code) = input.virtual_keycode {

@@ -7,7 +7,6 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
@@ -18,7 +17,10 @@ use fyrox::{
         sstorage::ImmutableString,
     },
     dpi::LogicalPosition,
-    engine::{executor::Executor, resource_manager::ResourceManager},
+    engine::{
+        executor::Executor, resource_manager::ResourceManager, GraphicsContext,
+        GraphicsContextParams,
+    },
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
@@ -44,6 +46,7 @@ use fyrox::{
         Scene,
     },
     utils::navmesh::NavmeshAgent,
+    window::WindowAttributes,
 };
 
 fn create_ui(ctx: &mut BuildContext) -> Handle<UiNode> {
@@ -156,7 +159,7 @@ impl Plugin for Game {
 
         scene.drawing_context.clear_lines();
 
-        if let Some(graphics_context) = context.graphics_context.as_mut() {
+        if let GraphicsContext::Initialized(ref graphics_context) = context.graphics_context {
             let ray = scene.graph[self.camera].as_camera().make_ray(
                 self.mouse_position,
                 graphics_context.renderer.get_frame_bounds(),
@@ -212,7 +215,7 @@ impl Plugin for Game {
             });
         }
 
-        if let Some(graphics_context) = context.graphics_context.as_mut() {
+        if let GraphicsContext::Initialized(ref graphics_context) = context.graphics_context {
             let fps = graphics_context.renderer.get_statistics().frames_per_second;
             let text = format!(
                 "Example 12 - Navigation Mesh\nFPS: {}\nAgent time: {:?}",
@@ -251,7 +254,9 @@ impl Plugin for Game {
                     }
                 }
                 WindowEvent::CursorMoved { position, .. } => {
-                    if let Some(graphics_context) = context.graphics_context.as_mut() {
+                    if let GraphicsContext::Initialized(ref graphics_context) =
+                        context.graphics_context
+                    {
                         let p: LogicalPosition<f32> =
                             position.to_logical(graphics_context.window.scale_factor());
                         self.mouse_position = Vector2::new(p.x, p.y);
@@ -306,9 +311,16 @@ impl PluginConstructor for GameConstructor {
 }
 
 fn main() {
-    let mut executor = Executor::new();
-    executor.graphics_context_params.window_attributes.title =
-        "Example 12 - Navigation Mesh".to_string();
+    let mut executor = Executor::from_params(
+        Default::default(),
+        GraphicsContextParams {
+            window_attributes: WindowAttributes {
+                title: "Example 12 - Navigation Mesh".to_string(),
+                ..Default::default()
+            },
+            vsync: true,
+        },
+    );
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

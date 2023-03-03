@@ -9,7 +9,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use fyrox::engine::GraphicsContextParams;
+use fyrox::engine::{GraphicsContext, GraphicsContextParams};
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -154,7 +154,9 @@ fn main() {
                         UnitQuaternion::from_axis_angle(&Vector3::y_axis(), model_angle),
                     );
 
-                    if let Some(graphics_context) = engine.graphics_context.as_mut() {
+                    if let GraphicsContext::Initialized(ref graphics_context) =
+                        engine.graphics_context
+                    {
                         let fps = graphics_context.renderer.get_statistics().frames_per_second;
                         let text = format!(
                             "Example 05 - Scene\nUse [A][D] keys to rotate camera.\nFPS: {}",
@@ -184,7 +186,8 @@ fn main() {
                 }
 
                 // Rendering must be explicitly requested and handled after RedrawRequested event is received.
-                if let Some(graphics_context) = engine.graphics_context.as_mut() {
+                if let GraphicsContext::Initialized(ref graphics_context) = engine.graphics_context
+                {
                     graphics_context.window.request_redraw();
                 }
             }

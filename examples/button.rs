@@ -1,6 +1,6 @@
 use fyrox::{
     core::{algebra::Vector2, pool::Handle, rand::Rng},
-    engine::executor::Executor,
+    engine::{executor::Executor, GraphicsContext, GraphicsContextParams},
     event_loop::ControlFlow,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
@@ -11,6 +11,7 @@ use fyrox::{
     plugin::{Plugin, PluginConstructor, PluginContext},
     rand::thread_rng,
     scene::Scene,
+    window::WindowAttributes,
 };
 
 struct Game {
@@ -29,7 +30,8 @@ impl Plugin for Game {
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.button {
                 // Generate random position in the window.
-                if let Some(graphics_context) = context.graphics_context.as_ref() {
+                if let GraphicsContext::Initialized(ref graphics_context) = context.graphics_context
+                {
                     let client_size = graphics_context.window.inner_size();
 
                     let mut rng = thread_rng();
@@ -73,8 +75,16 @@ impl PluginConstructor for GameConstructor {
 }
 
 fn main() {
-    let mut executor = Executor::new();
-    executor.graphics_context_params.window_attributes.title = "Example - Button".to_string();
+    let mut executor = Executor::from_params(
+        Default::default(),
+        GraphicsContextParams {
+            window_attributes: WindowAttributes {
+                title: "Example - Button".to_string(),
+                ..Default::default()
+            },
+            vsync: true,
+        },
+    );
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

@@ -39,15 +39,14 @@ impl Plugin for Game {
         self.angle += context.dt;
     }
 
-    fn on_graphics_context_created(
+    fn on_graphics_context_initialized(
         &mut self,
-        mut context: PluginContext,
+        context: PluginContext,
         _control_flow: &mut ControlFlow,
     ) {
         context
             .graphics_context
-            .as_mut()
-            .unwrap()
+            .as_initialized_mut()
             .renderer
             .set_backbuffer_clear_color(Color::TRANSPARENT);
     }

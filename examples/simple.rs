@@ -14,7 +14,10 @@ use fyrox::{
         pool::Handle,
         sstorage::ImmutableString,
     },
-    engine::{executor::Executor, resource_manager::ResourceManager},
+    engine::{
+        executor::Executor, resource_manager::ResourceManager, GraphicsContext,
+        GraphicsContextParams,
+    },
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
@@ -36,6 +39,7 @@ use fyrox::{
         transform::TransformBuilder,
         Scene,
     },
+    window::WindowAttributes,
 };
 
 struct GameSceneLoader {
@@ -168,7 +172,7 @@ impl Plugin for Game {
                 self.model_angle,
             ));
 
-        if let Some(graphics_context) = context.graphics_context.as_mut() {
+        if let GraphicsContext::Initialized(ref graphics_context) = context.graphics_context {
             context.user_interface.send_message(TextMessage::text(
                 self.debug_text,
                 MessageDirection::ToWidget,
@@ -235,8 +239,16 @@ impl PluginConstructor for GameConstructor {
 }
 
 fn main() {
-    let mut executor = Executor::new();
-    executor.graphics_context_params.window_attributes.title = "Example 01 - Simple".to_string();
+    let mut executor = Executor::from_params(
+        Default::default(),
+        GraphicsContextParams {
+            window_attributes: WindowAttributes {
+                title: "Example - Simple".to_string(),
+                ..Default::default()
+            },
+            vsync: true,
+        },
+    );
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

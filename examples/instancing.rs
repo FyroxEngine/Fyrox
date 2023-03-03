@@ -15,7 +15,10 @@ use fyrox::{
         pool::Handle,
         sstorage::ImmutableString,
     },
-    engine::{executor::Executor, resource_manager::ResourceManager},
+    engine::{
+        executor::Executor, resource_manager::ResourceManager, GraphicsContext,
+        GraphicsContextParams,
+    },
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
@@ -24,8 +27,7 @@ use fyrox::{
         widget::WidgetBuilder,
         UiNode,
     },
-    material::SharedMaterial,
-    material::{shader::SamplerFallback, Material, PropertyValue},
+    material::{shader::SamplerFallback, Material, PropertyValue, SharedMaterial},
     plugin::{Plugin, PluginConstructor, PluginContext},
     rand::Rng,
     renderer::QualitySettings,
@@ -41,6 +43,7 @@ use fyrox::{
         transform::TransformBuilder,
         Scene,
     },
+    window::WindowAttributes,
 };
 
 struct SceneLoader {
@@ -196,16 +199,33 @@ impl Plugin for Game {
             UnitQuaternion::from_axis_angle(&Vector3::y_axis(), self.camera_angle),
         );
 
-        context.user_interface.send_message(TextMessage::text(
-            self.debug_text,
-            MessageDirection::ToWidget,
-            format!(
-                "Example 10 - Instancing\n\
+        if let GraphicsContext::Initialized(ref ctx) = context.graphics_context {
+            context.user_interface.send_message(TextMessage::text(
+                self.debug_text,
+                MessageDirection::ToWidget,
+                format!(
+                    "Example 10 - Instancing\n\
                     Use [A][D] keys to rotate camera.\n\
                     {}",
-                context.renderer.get_statistics()
-            ),
-        ));
+                    ctx.renderer.get_statistics()
+                ),
+            ));
+        }
+    }
+
+    fn on_graphics_context_initialized(
+        &mut self,
+        context: PluginContext,
+        _control_flow: &mut ControlFlow,
+    ) {
+        let mut settings = QualitySettings::ultra();
+        settings.point_shadows_distance = 1000.0;
+        context
+            .graphics_context
+            .as_initialized_mut()
+            .renderer
+            .set_quality_settings(&settings)
+            .unwrap();
     }
 
     fn on_os_event(
@@ -242,10 +262,6 @@ impl PluginConstructor for GameConstructor {
         _override_scene: Handle<Scene>,
         context: PluginContext,
     ) -> Box<dyn Plugin> {
-        let mut settings = QualitySettings::ultra();
-        settings.point_shadows_distance = 1000.0;
-        context.renderer.set_quality_settings(&settings).unwrap();
-
         // Create test scene.
         let loader = fyrox::core::futures::executor::block_on(SceneLoader::load_with(
             context.resource_manager.clone(),
@@ -266,8 +282,16 @@ impl PluginConstructor for GameConstructor {
 }
 
 fn main() {
-    let mut executor = Executor::new();
-    executor.get_window().set_title("Example - Instancing");
+    let mut executor = Executor::from_params(
+        Default::default(),
+        GraphicsContextParams {
+            window_attributes: WindowAttributes {
+                title: "Example - Instancing".to_string(),
+                ..Default::default()
+            },
+            vsync: true,
+        },
+    );
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

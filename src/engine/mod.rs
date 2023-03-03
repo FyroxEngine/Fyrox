@@ -1234,7 +1234,7 @@ impl Engine {
     ) {
         if self.plugins_enabled {
             for plugin in self.plugins.iter_mut() {
-                plugin.on_graphics_context_created(
+                plugin.on_graphics_context_initialized(
                     PluginContext {
                         scenes: &mut self.scenes,
                         resource_manager: &self.resource_manager,

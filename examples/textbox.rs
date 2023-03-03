@@ -1,12 +1,12 @@
 use fyrox::{
     core::{algebra::Vector2, color::Color, pool::Handle},
-    engine::executor::Executor,
+    engine::{executor::Executor, GraphicsContextParams},
     gui::{brush::Brush, text_box::TextBoxBuilder, widget::WidgetBuilder},
+    gui::{formatted_text::WrapMode, text_box::TextCommitMode},
     plugin::{Plugin, PluginConstructor, PluginContext},
     scene::Scene,
+    window::WindowAttributes,
 };
-use fyrox_ui::formatted_text::WrapMode;
-use fyrox_ui::text_box::TextCommitMode;
 
 struct Game {}
 
@@ -40,8 +40,16 @@ impl PluginConstructor for GameConstructor {
 }
 
 fn main() {
-    let mut executor = Executor::new();
-    executor.graphics_context_params.window_attributes.title = "Example - Text Box".to_string();
+    let mut executor = Executor::from_params(
+        Default::default(),
+        GraphicsContextParams {
+            window_attributes: WindowAttributes {
+                title: "Example - Text Box".to_string(),
+                ..Default::default()
+            },
+            vsync: true,
+        },
+    );
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

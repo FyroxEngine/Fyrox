@@ -1,6 +1,6 @@
-use fyrox::engine::executor::Executor;
 use fyrox::{
     core::pool::Handle,
+    engine::{executor::Executor, GraphicsContextParams},
     gui::{
         button::ButtonBuilder,
         grid::{Column, GridBuilder, Row},
@@ -9,6 +9,7 @@ use fyrox::{
     },
     plugin::{Plugin, PluginConstructor, PluginContext},
     scene::Scene,
+    window::WindowAttributes,
 };
 
 struct Game {}
@@ -55,8 +56,16 @@ impl PluginConstructor for GameConstructor {
 }
 
 fn main() {
-    let mut executor = Executor::new();
-    executor.graphics_context_params.window_attributes.title = "Example - Grid".to_string();
+    let mut executor = Executor::from_params(
+        Default::default(),
+        GraphicsContextParams {
+            window_attributes: WindowAttributes {
+                title: "Example - Grid".to_string(),
+                ..Default::default()
+            },
+            vsync: true,
+        },
+    );
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

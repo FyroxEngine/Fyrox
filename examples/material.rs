@@ -7,8 +7,6 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use fyrox::material::SharedMaterial;
-use fyrox::scene::mesh::surface::SurfaceSharedData;
 use fyrox::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -17,7 +15,10 @@ use fyrox::{
         pool::Handle,
         sstorage::ImmutableString,
     },
-    engine::{executor::Executor, resource_manager::ResourceManager},
+    engine::{
+        executor::Executor, resource_manager::ResourceManager, GraphicsContext,
+        GraphicsContextParams,
+    },
     event_loop::ControlFlow,
     gui::{
         message::MessageDirection,
@@ -25,18 +26,19 @@ use fyrox::{
         widget::WidgetBuilder,
         UiNode,
     },
-    material::{shader::SamplerFallback, Material, PropertyValue},
+    material::{shader::SamplerFallback, Material, PropertyValue, SharedMaterial},
     plugin::{Plugin, PluginConstructor, PluginContext},
     scene::{
         base::BaseBuilder,
         light::{point::PointLightBuilder, BaseLightBuilder},
         mesh::{
-            surface::{SurfaceBuilder, SurfaceData},
+            surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
             MeshBuilder,
         },
         transform::TransformBuilder,
         Scene,
     },
+    window::WindowAttributes,
 };
 
 struct Game {
@@ -57,7 +59,7 @@ impl Plugin for Game {
 
         self.time += context.dt;
 
-        if let Some(graphics_context) = context.graphics_context {
+        if let GraphicsContext::Initialized(ref graphics_context) = context.graphics_context {
             context.user_interface.send_message(TextMessage::text(
                 self.debug_text,
                 MessageDirection::ToWidget,
@@ -143,9 +145,16 @@ impl PluginConstructor for GameConstructor {
 }
 
 fn main() {
-    let mut executor = Executor::new();
-    executor.graphics_context_params.window_attributes.title =
-        "Example - Materials and Shaders".to_string();
+    let mut executor = Executor::from_params(
+        Default::default(),
+        GraphicsContextParams {
+            window_attributes: WindowAttributes {
+                title: "Materials and Shaders".to_string(),
+                ..Default::default()
+            },
+            vsync: true,
+        },
+    );
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

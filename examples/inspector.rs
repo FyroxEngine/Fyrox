@@ -30,8 +30,10 @@ use fyrox::{
     },
 };
 
+use fyrox::engine::{GraphicsContext, GraphicsContextParams};
 use std::sync::Arc;
 use std::{rc::Rc, time::Instant};
+use winit::window::WindowAttributes;
 
 struct Interface {
     debug_text: Handle<UiNode>,
@@ -106,18 +108,19 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
 
 fn main() {
     let event_loop = EventLoop::new();
-
-    let window_builder = fyrox::window::WindowBuilder::new()
-        .with_title("Example - User Interface")
-        .with_resizable(true);
-
+    let graphics_context_params = GraphicsContextParams {
+        window_attributes: WindowAttributes {
+            title: "Example - User Interface".to_string(),
+            resizable: true,
+            ..Default::default()
+        },
+        vsync: false,
+    };
     let serialization_context = Arc::new(SerializationContext::new());
     let mut engine = Engine::new(EngineInitParams {
-        window_builder,
+        graphics_context_params,
         resource_manager: ResourceManager::new(serialization_context.clone()),
         serialization_context,
-        events_loop: &event_loop,
-        vsync: false,
         headless: false,
     })
     .unwrap();
@@ -175,12 +178,14 @@ fn main() {
                     // Put your game logic here.
                     // ************************
 
-                    let fps = engine.renderer.get_statistics().frames_per_second;
-                    engine.user_interface.send_message(TextMessage::text(
-                        interface.debug_text,
-                        MessageDirection::ToWidget,
-                        format!("Example 04 - User Interface\nFPS: {}", fps),
-                    ));
+                    if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                        let fps = ctx.renderer.get_statistics().frames_per_second;
+                        engine.user_interface.send_message(TextMessage::text(
+                            interface.debug_text,
+                            MessageDirection::ToWidget,
+                            format!("Example 04 - User Interface\nFPS: {}", fps),
+                        ));
+                    }
 
                     engine.update(fixed_timestep, control_flow, &mut lag, Default::default());
                     lag -= fixed_timestep;
@@ -229,7 +234,9 @@ fn main() {
                 }
 
                 // Rendering must be explicitly requested and handled after RedrawRequested event is received.
-                engine.get_window().request_redraw();
+                if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                    ctx.window.request_redraw();
+                }
             }
             Event::RedrawRequested(_) => {
                 // Run renderer at max speed - it is not tied to game code.

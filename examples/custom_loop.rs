@@ -4,7 +4,7 @@
 //!
 //! This example shows how to create custom game loop.
 
-use fyrox::engine::GraphicsContextParams;
+use fyrox::engine::{GraphicsContext, GraphicsContextParams};
 use fyrox::{
     core::instant::Instant,
     engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
@@ -83,7 +83,9 @@ fn main() {
                 }
 
                 // Rendering must be explicitly requested and handled after RedrawRequested event is received.
-                if let Some(graphics_context) = engine.graphics_context.as_mut() {
+                if let GraphicsContext::Initialized(ref mut graphics_context) =
+                    engine.graphics_context
+                {
                     graphics_context.window.request_redraw();
                 }
             }

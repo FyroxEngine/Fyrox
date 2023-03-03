@@ -1,9 +1,10 @@
 //! Shows how to create a grid widget with some content that is buttom-right anchored.
 //! It also shows how to automatically adjust UI to new window size.
 
+use fyrox::engine::GraphicsContext;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle},
-    engine::executor::Executor,
+    engine::{executor::Executor, GraphicsContextParams},
     event::{Event, WindowEvent},
     event_loop::ControlFlow,
     gui::{
@@ -15,6 +16,7 @@ use fyrox::{
     },
     plugin::{Plugin, PluginConstructor, PluginContext},
     scene::Scene,
+    window::WindowAttributes,
 };
 
 struct Game {
@@ -56,12 +58,12 @@ impl Plugin for Game {
         }
     }
 
-    fn on_graphics_context_created(
+    fn on_graphics_context_initialized(
         &mut self,
         context: PluginContext,
         _control_flow: &mut ControlFlow,
     ) {
-        if let Some(graphics_context) = context.graphics_context.as_ref() {
+        if let GraphicsContext::Initialized(ref graphics_context) = context.graphics_context {
             let size = graphics_context.window.inner_size();
             self.handle_resize(
                 context.user_interface,
@@ -114,9 +116,16 @@ impl PluginConstructor for GameConstructor {
 }
 
 fn main() {
-    let mut executor = Executor::new();
-    executor.graphics_context_params.window_attributes.title =
-        "Example - Right Anchored Button".to_string();
+    let mut executor = Executor::from_params(
+        Default::default(),
+        GraphicsContextParams {
+            window_attributes: WindowAttributes {
+                title: "Example - Right Anchored Button".to_string(),
+                ..Default::default()
+            },
+            vsync: true,
+        },
+    );
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

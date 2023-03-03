@@ -9,13 +9,17 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::engine::GraphicsContext;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
         pool::Handle,
     },
-    engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
+    engine::{
+        resource_manager::ResourceManager, Engine, EngineInitParams, GraphicsContextParams,
+        SerializationContext,
+    },
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -39,10 +43,9 @@ use fyrox::{
         log::{Log, MessageKind},
         translate_event,
     },
-    window::Fullscreen,
+    window::{Fullscreen, WindowAttributes},
 };
-use std::sync::Arc;
-use std::time::Instant;
+use std::{sync::Arc, time::Instant};
 
 const DEFAULT_MODEL_ROTATION: f32 = 180.0;
 const DEFAULT_MODEL_SCALE: f32 = 0.05;
@@ -321,18 +324,19 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
 
 fn main() {
     let event_loop = EventLoop::new();
-
-    let window_builder = fyrox::window::WindowBuilder::new()
-        .with_title("Example - User Interface")
-        .with_resizable(true);
-
+    let graphics_context_params = GraphicsContextParams {
+        window_attributes: WindowAttributes {
+            title: "Example - User Interface".to_string(),
+            resizable: true,
+            ..Default::default()
+        },
+        vsync: true,
+    };
     let serialization_context = Arc::new(SerializationContext::new());
     let mut engine = Engine::new(EngineInitParams {
-        window_builder,
+        graphics_context_params,
         resource_manager: ResourceManager::new(serialization_context.clone()),
         serialization_context,
-        events_loop: &event_loop,
-        vsync: false,
         headless: false,
     })
     .unwrap();
@@ -388,12 +392,15 @@ fn main() {
                             model_angle.to_radians(),
                         ));
 
-                    let fps = engine.renderer.get_statistics().frames_per_second;
-                    engine.user_interface.send_message(TextMessage::text(
-                        interface.debug_text,
-                        MessageDirection::ToWidget,
-                        format!("Example 04 - User Interface\nFPS: {}", fps),
-                    ));
+                    if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                        let fps = ctx.renderer.get_statistics().frames_per_second;
+                        engine.user_interface.send_message(TextMessage::text(
+                            interface.debug_text,
+                            MessageDirection::ToWidget,
+                            format!("Example 04 - User Interface\nFPS: {}", fps),
+                        ));
+                    }
+
                     engine.update(fixed_timestep, control_flow, &mut lag, Default::default());
                     lag -= fixed_timestep;
                 }
@@ -439,25 +446,31 @@ fn main() {
                         // Video mode has changed and we must change video mode to what user wants.
                         if ui_message.destination() == interface.resolutions {
                             let video_mode = interface.video_modes.get(*idx).unwrap();
-                            engine
-                                .get_window()
-                                .set_fullscreen(Some(Fullscreen::Exclusive(video_mode.clone())));
 
-                            // Due to some weird bug in winit it does not send Resized event.
-                            if let Err(e) = engine
-                                .set_frame_size((video_mode.size().width, video_mode.size().height))
-                            {
-                                Log::writeln(
-                                    MessageKind::Error,
-                                    format!("Unable to set frame size: {:?}", e),
-                                );
+                            if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                                ctx.window.set_fullscreen(Some(Fullscreen::Exclusive(
+                                    video_mode.clone(),
+                                )));
+
+                                // Due to some weird bug in winit it does not send Resized event.
+                                if let Err(e) = engine.set_frame_size((
+                                    video_mode.size().width,
+                                    video_mode.size().height,
+                                )) {
+                                    Log::writeln(
+                                        MessageKind::Error,
+                                        format!("Unable to set frame size: {:?}", e),
+                                    );
+                                }
                             }
                         }
                     }
                 }
 
                 // Rendering must be explicitly requested and handled after RedrawRequested event is received.
-                engine.get_window().request_redraw();
+                if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                    ctx.window.request_redraw();
+                }
             }
             Event::RedrawRequested(_) => {
                 // Run renderer at max speed - it is not tied to game code.
