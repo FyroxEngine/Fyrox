@@ -354,7 +354,7 @@ fn main() {
     // Finally run our event loop which will respond to OS and window events and update
     // engine state accordingly. Engine lets you to decide which event should be handled,
     // this is minimal working example if how it should be.
-    event_loop.run(move |event, _, control_flow| {
+    event_loop.run(move |event, window_target, control_flow| {
         match event {
             Event::MainEventsCleared => {
                 // This main game loop - it has fixed time step which means that game
@@ -454,15 +454,17 @@ fn main() {
                     }
 
                     // While scene is loading, we will update progress bar.
-                    let debug_text = format!(
-                        "Example 09 - Lightmap\nUse [A][D] keys to rotate model.\n{}",
-                        engine.renderer.get_statistics()
-                    );
-                    engine.user_interface.send_message(TextMessage::text(
-                        interface.debug_text,
-                        MessageDirection::ToWidget,
-                        debug_text,
-                    ));
+                    if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                        let debug_text = format!(
+                            "Example 09 - Lightmap\nUse [A][D] keys to rotate model.\n{}",
+                            ctx.renderer.get_statistics()
+                        );
+                        engine.user_interface.send_message(TextMessage::text(
+                            interface.debug_text,
+                            MessageDirection::ToWidget,
+                            debug_text,
+                        ));
+                    }
 
                     while let Some(ui_event) = engine.user_interface.poll_message() {
                         if let Some(ButtonMessage::Click) = ui_event.data::<ButtonMessage>() {
@@ -530,6 +532,12 @@ fn main() {
                     ctx.window.request_redraw();
                 }
             }
+            Event::Resumed => {
+                engine.initialize_graphics_context(window_target).unwrap();
+            }
+            Event::Suspended => {
+                engine.destroy_graphics_context().unwrap();
+            }
             Event::RedrawRequested(_) => {
                 // Run renderer at max speed - it is not tied to game code.
                 engine.render().unwrap();
@@ -550,17 +558,19 @@ fn main() {
 
                         // Root UI node should be resized too, otherwise progress bar will stay
                         // in wrong position after resize.
-                        let size = size.to_logical(engine.get_window().scale_factor());
-                        engine.user_interface.send_message(WidgetMessage::width(
-                            interface.root,
-                            MessageDirection::ToWidget,
-                            size.width,
-                        ));
-                        engine.user_interface.send_message(WidgetMessage::height(
-                            interface.root,
-                            MessageDirection::ToWidget,
-                            size.height,
-                        ));
+                        if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                            let size = size.to_logical(ctx.window.scale_factor());
+                            engine.user_interface.send_message(WidgetMessage::width(
+                                interface.root,
+                                MessageDirection::ToWidget,
+                                size.width,
+                            ));
+                            engine.user_interface.send_message(WidgetMessage::height(
+                                interface.root,
+                                MessageDirection::ToWidget,
+                                size.height,
+                            ));
+                        }
                     }
                     WindowEvent::KeyboardInput { input, .. } => {
                         // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)

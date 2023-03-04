@@ -214,7 +214,7 @@ fn main() {
     let fixed_timestep = 1.0 / 60.0;
     let mut lag = 0.0;
 
-    event_loop.run(move |event, _, control_flow| match event {
+    event_loop.run(move |event, window_target, control_flow| match event {
         Event::MainEventsCleared => {
             let elapsed = previous.elapsed();
             previous = Instant::now();
@@ -227,6 +227,12 @@ fn main() {
             if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
                 ctx.window.request_redraw();
             }
+        }
+        Event::Resumed => {
+            engine.initialize_graphics_context(window_target).unwrap();
+        }
+        Event::Suspended => {
+            engine.destroy_graphics_context().unwrap();
         }
         Event::RedrawRequested(_) => {
             engine.render().unwrap();

@@ -125,7 +125,7 @@ fn main() {
     // Finally run our event loop which will respond to OS and window events and update
     // engine state accordingly. Engine lets you to decide which event should be handled,
     // this is minimal working example if how it should be.
-    event_loop.run(move |event, _, control_flow| {
+    event_loop.run(move |event, window_target, control_flow| {
         match event {
             Event::MainEventsCleared => {
                 // This main game loop - it has fixed time step which means that game
@@ -190,6 +190,12 @@ fn main() {
                 {
                     graphics_context.window.request_redraw();
                 }
+            }
+            Event::Resumed => {
+                engine.initialize_graphics_context(window_target).unwrap();
+            }
+            Event::Suspended => {
+                engine.destroy_graphics_context().unwrap();
             }
             Event::RedrawRequested(_) => {
                 // Run renderer at max speed - it is not tied to game code.

@@ -44,11 +44,9 @@ fn main() {
     let (mut game, event_loop) = Game::new("Example 07 - Sound");
 
     // Create simple user interface that will show some useful info.
-    let window = game.engine.get_window();
-    let screen_size = window.inner_size().to_logical(window.scale_factor());
     let interface = create_ui(
         &mut game.engine.user_interface.build_ctx(),
-        Vector2::new(screen_size.width, screen_size.height),
+        Vector2::new(100.0, 100.0),
     );
 
     let mut previous = Instant::now();
@@ -76,7 +74,7 @@ fn main() {
 
     // Finally run our event loop which will respond to OS and window events and update
     // engine state accordingly.
-    event_loop.run(move |event, _, control_flow| {
+    event_loop.run(move |event, window_target, control_flow| {
         match event {
             Event::MainEventsCleared => {
                 // This is main game loop - it has fixed time step which means that game
@@ -233,17 +231,19 @@ fn main() {
                         }
                     }
 
-                    let fps = game.engine.renderer.get_statistics().frames_per_second;
-                    let debug_text = format!(
-                        "Example 07 - Sound\n[W][S][A][D] - walk, [SPACE] - jump.\n\
+                    if let GraphicsContext::Initialized(ref ctx) = game.engine.graphics_context {
+                        let fps = ctx.renderer.get_statistics().frames_per_second;
+                        let debug_text = format!(
+                            "Example 07 - Sound\n[W][S][A][D] - walk, [SPACE] - jump.\n\
                         FPS: {}\nUse [1][2][3][4] to select graphics quality.",
-                        fps
-                    );
-                    game.engine.user_interface.send_message(TextMessage::text(
-                        interface.debug_text,
-                        MessageDirection::ToWidget,
-                        debug_text,
-                    ));
+                            fps
+                        );
+                        game.engine.user_interface.send_message(TextMessage::text(
+                            interface.debug_text,
+                            MessageDirection::ToWidget,
+                            debug_text,
+                        ));
+                    }
 
                     // It is very important to "pump" messages from UI. Even if don't need to
                     // respond to such message, you should call this method, otherwise UI
@@ -263,7 +263,17 @@ fn main() {
                 }
 
                 // Rendering must be explicitly requested and handled after RedrawRequested event is received.
-                game.engine.get_window().request_redraw();
+                if let GraphicsContext::Initialized(ref ctx) = game.engine.graphics_context {
+                    ctx.window.request_redraw();
+                }
+            }
+            Event::Resumed => {
+                game.engine
+                    .initialize_graphics_context(window_target)
+                    .unwrap();
+            }
+            Event::Suspended => {
+                game.engine.destroy_graphics_context().unwrap();
             }
             Event::RedrawRequested(_) => {
                 // Run renderer at max speed - it is not tied to game code.
@@ -323,10 +333,13 @@ fn main() {
                             };
 
                             if let Some(settings) = settings {
-                                game.engine
-                                    .renderer
-                                    .set_quality_settings(&fix_shadows_distance(settings))
-                                    .unwrap();
+                                if let GraphicsContext::Initialized(ref mut ctx) =
+                                    game.engine.graphics_context
+                                {
+                                    ctx.renderer
+                                        .set_quality_settings(&fix_shadows_distance(settings))
+                                        .unwrap();
+                                }
                             }
                         }
                     }

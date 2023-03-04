@@ -324,28 +324,25 @@ impl Plugin for Game {
     fn on_os_event(
         &mut self,
         event: &Event<()>,
-        context: PluginContext,
+        _context: PluginContext,
         _control_flow: &mut ControlFlow,
     ) {
-        if let Event::WindowEvent { event, .. } = event {
-            match event {
-                WindowEvent::KeyboardInput { input, .. } => {
-                    // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
-                    if let Some(key_code) = input.virtual_keycode {
-                        match key_code {
-                            VirtualKeyCode::A => {
-                                self.input_controller.rotate_left =
-                                    input.state == ElementState::Pressed
-                            }
-                            VirtualKeyCode::D => {
-                                self.input_controller.rotate_right =
-                                    input.state == ElementState::Pressed
-                            }
-                            _ => (),
-                        }
+        if let Event::WindowEvent {
+            event: WindowEvent::KeyboardInput { input, .. },
+            ..
+        } = event
+        {
+            // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
+            if let Some(key_code) = input.virtual_keycode {
+                match key_code {
+                    VirtualKeyCode::A => {
+                        self.input_controller.rotate_left = input.state == ElementState::Pressed
                     }
+                    VirtualKeyCode::D => {
+                        self.input_controller.rotate_right = input.state == ElementState::Pressed
+                    }
+                    _ => (),
                 }
-                _ => (),
             }
         }
     }

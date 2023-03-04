@@ -134,18 +134,13 @@ impl Game {
         };
 
         let serialization_context = Arc::new(SerializationContext::new());
-        let mut engine = Engine::new(EngineInitParams {
+        let engine = Engine::new(EngineInitParams {
             graphics_context_params,
             resource_manager: ResourceManager::new(serialization_context.clone()),
             serialization_context,
             headless: false,
         })
         .unwrap();
-
-        engine
-            .renderer
-            .set_quality_settings(&fix_shadows_distance(QualitySettings::high()))
-            .unwrap();
 
         let game = Self {
             // Initially scene is None, once scene is loaded it'll have actual state.
