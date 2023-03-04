@@ -96,7 +96,7 @@ impl GBuffer {
         let mut diffuse_texture = GpuTexture::new(
             state,
             GpuTextureKind::Rectangle { width, height },
-            PixelKind::SRGBA8,
+            PixelKind::RGBA8,
             MinificationFilter::Nearest,
             MagnificationFilter::Nearest,
             1,

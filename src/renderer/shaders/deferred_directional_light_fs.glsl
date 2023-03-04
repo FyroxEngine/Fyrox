@@ -40,7 +40,7 @@ void main()
     vec3 fragmentPosition = S_UnProject(vec3(texCoord, texture(depthTexture, texCoord).r), invViewProj);
 
     TPBRContext ctx;
-    ctx.albedo = texture(colorTexture, texCoord).rgb;
+    ctx.albedo = S_SRGBToLinear(texture(colorTexture, texCoord)).rgb;
     ctx.fragmentToLight = lightDirection;
     ctx.fragmentNormal = normalize(texture(normalTexture, texCoord).xyz * 2.0 - 1.0);
     ctx.lightColor = lightColor.rgb;

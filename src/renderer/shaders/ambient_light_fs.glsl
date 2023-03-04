@@ -10,7 +10,7 @@ void main()
 {
     float ambientOcclusion = texture(aoSampler, texCoord).r;
     vec4 ambientPixel = texture(ambientTexture, texCoord);
-    FragColor = (ambientColor + ambientPixel) * texture(diffuseTexture, texCoord);
+    FragColor = (ambientColor + ambientPixel) * S_SRGBToLinear(texture(diffuseTexture, texCoord));
     FragColor.rgb *= ambientOcclusion;
     FragColor.a = ambientPixel.a;
 

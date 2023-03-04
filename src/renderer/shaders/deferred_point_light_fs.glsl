@@ -26,7 +26,7 @@ void main()
     float distance = length(fragmentToLight);
 
     TPBRContext ctx;
-    ctx.albedo = texture(colorTexture, texCoord).rgb;
+    ctx.albedo = S_SRGBToLinear(texture(colorTexture, texCoord)).rgb;
     ctx.fragmentToLight = fragmentToLight / distance;
     ctx.fragmentNormal = normalize(texture(normalTexture, texCoord).xyz * 2.0 - 1.0);
     ctx.lightColor = lightColor.rgb;
