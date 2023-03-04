@@ -36,7 +36,6 @@ use crate::{
     window::{Window, WindowBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
-use glutin::surface::SwapInterval;
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{
     config::ConfigTemplateBuilder,
@@ -45,7 +44,7 @@ use glutin::{
         PossiblyCurrentContext, Version,
     },
     display::{GetGlDisplay, GlDisplay},
-    surface::{GlSurface, Surface, WindowSurface},
+    surface::{GlSurface, Surface, SwapInterval, WindowSurface},
 };
 #[cfg(not(target_arch = "wasm32"))]
 use glutin_winit::{DisplayBuilder, GlWindow};
