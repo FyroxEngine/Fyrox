@@ -71,6 +71,9 @@ glutin = "0.30.6"
 glutin-winit = "0.3.0"
 raw-window-handle = "0.5.0"
 
+[target.'cfg(target_os = "android")'.dependencies]
+winit = { version = "0.28.1", features = ["android-native-activity"] }
+
 [profile.github-ci]
 inherits = "dev"
 strip = "symbols"

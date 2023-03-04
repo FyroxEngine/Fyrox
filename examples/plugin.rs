@@ -1,12 +1,14 @@
+use fyrox::engine::GraphicsContext;
 use fyrox::{
     core::{
         color::{Color, Hsv},
         pool::Handle,
     },
-    engine::executor::Executor,
+    engine::{executor::Executor, GraphicsContextParams},
     event_loop::ControlFlow,
     plugin::{Plugin, PluginConstructor, PluginContext},
     scene::Scene,
+    window::WindowAttributes,
 };
 
 struct Game {
@@ -20,9 +22,11 @@ impl Plugin for Game {
         self.hue += 24.0 * context.dt;
 
         // Slowly change color of the window.
-        context
-            .renderer
-            .set_backbuffer_clear_color(Color::from(Hsv::new(self.hue % 360.0, 100.0, 100.0)))
+        if let GraphicsContext::Initialized(ref mut graphics_context) = context.graphics_context {
+            graphics_context
+                .renderer
+                .set_backbuffer_clear_color(Color::from(Hsv::new(self.hue % 360.0, 100.0, 100.0)))
+        }
     }
 }
 
@@ -39,8 +43,16 @@ impl PluginConstructor for GameConstructor {
 }
 
 fn main() {
-    let mut executor = Executor::new();
-    executor.get_window().set_title("Example - Plugins");
+    let mut executor = Executor::from_params(
+        Default::default(),
+        GraphicsContextParams {
+            window_attributes: WindowAttributes {
+                title: "Example - Plugins".to_string(),
+                ..Default::default()
+            },
+            vsync: true,
+        },
+    );
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

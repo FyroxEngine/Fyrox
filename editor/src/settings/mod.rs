@@ -272,10 +272,12 @@ impl SettingsWindow {
             }
         }
 
+        let graphics_context = engine.graphics_context.as_initialized_mut();
+
         // Apply only if anything changed.
         if settings != &old_settings {
-            if settings.graphics.quality != engine.renderer.get_quality_settings() {
-                if let Err(e) = engine
+            if settings.graphics.quality != graphics_context.renderer.get_quality_settings() {
+                if let Err(e) = graphics_context
                     .renderer
                     .set_quality_settings(&settings.graphics.quality)
                 {

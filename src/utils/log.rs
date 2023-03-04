@@ -35,7 +35,7 @@ pub struct LogMessage {
 
 lazy_static! {
     static ref LOG: Mutex<Log> = Mutex::new(Log {
-        #[cfg(not(target_arch = "wasm32"))]
+        #[cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))]
         file: std::fs::File::create("fyrox.log").unwrap(),
         verbosity: MessageKind::Information,
         listeners: Default::default(),
@@ -67,7 +67,7 @@ impl MessageKind {
 
 /// See module docs.
 pub struct Log {
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))]
     file: std::fs::File,
     verbosity: MessageKind,
     listeners: Vec<Sender<LogMessage>>,
@@ -96,10 +96,15 @@ impl Log {
                 log(&msg);
             }
 
-            #[cfg(not(target_arch = "wasm32"))]
+            #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
             {
                 let _ = io::stdout().write_all(msg.as_bytes());
                 let _ = self.file.write_all(msg.as_bytes());
+            }
+
+            #[cfg(target_os = "android")]
+            {
+                let _ = io::stdout().write_all(msg.as_bytes());
             }
         }
     }

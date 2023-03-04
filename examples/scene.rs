@@ -9,6 +9,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::engine::{GraphicsContext, GraphicsContextParams};
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -31,6 +32,7 @@ use fyrox::{
     },
 };
 use std::{sync::Arc, time::Instant};
+use winit::window::WindowAttributes;
 
 fn create_ui(ctx: &mut BuildContext) -> Handle<UiNode> {
     TextBuilder::new(WidgetBuilder::new()).build(ctx)
@@ -77,17 +79,20 @@ struct InputController {
 fn main() {
     let event_loop = EventLoop::new();
 
-    let window_builder = fyrox::window::WindowBuilder::new()
-        .with_title("Example - Scene")
-        .with_resizable(true);
+    let graphics_context_params = GraphicsContextParams {
+        window_attributes: WindowAttributes {
+            title: "Example - Scene".to_string(),
+            resizable: true,
+            ..Default::default()
+        },
+        vsync: true,
+    };
 
     let serialization_context = Arc::new(SerializationContext::new());
     let mut engine = Engine::new(EngineInitParams {
-        window_builder,
+        graphics_context_params,
         resource_manager: ResourceManager::new(serialization_context.clone()),
         serialization_context,
-        events_loop: &event_loop,
-        vsync: true,
         headless: false,
     })
     .unwrap();
@@ -120,7 +125,7 @@ fn main() {
     // Finally run our event loop which will respond to OS and window events and update
     // engine state accordingly. Engine lets you to decide which event should be handled,
     // this is minimal working example if how it should be.
-    event_loop.run(move |event, _, control_flow| {
+    event_loop.run(move |event, window_target, control_flow| {
         match event {
             Event::MainEventsCleared => {
                 // This main game loop - it has fixed time step which means that game
@@ -149,16 +154,20 @@ fn main() {
                         UnitQuaternion::from_axis_angle(&Vector3::y_axis(), model_angle),
                     );
 
-                    let fps = engine.renderer.get_statistics().frames_per_second;
-                    let text = format!(
-                        "Example 05 - Scene\nUse [A][D] keys to rotate camera.\nFPS: {}",
-                        fps
-                    );
-                    engine.user_interface.send_message(TextMessage::text(
-                        debug_text,
-                        MessageDirection::ToWidget,
-                        text,
-                    ));
+                    if let GraphicsContext::Initialized(ref graphics_context) =
+                        engine.graphics_context
+                    {
+                        let fps = graphics_context.renderer.get_statistics().frames_per_second;
+                        let text = format!(
+                            "Example 05 - Scene\nUse [A][D] keys to rotate camera.\nFPS: {}",
+                            fps
+                        );
+                        engine.user_interface.send_message(TextMessage::text(
+                            debug_text,
+                            MessageDirection::ToWidget,
+                            text,
+                        ));
+                    }
 
                     engine.update(fixed_timestep, control_flow, &mut lag, Default::default());
 
@@ -177,7 +186,16 @@ fn main() {
                 }
 
                 // Rendering must be explicitly requested and handled after RedrawRequested event is received.
-                engine.get_window().request_redraw();
+                if let GraphicsContext::Initialized(ref graphics_context) = engine.graphics_context
+                {
+                    graphics_context.window.request_redraw();
+                }
+            }
+            Event::Resumed => {
+                engine.initialize_graphics_context(window_target).unwrap();
+            }
+            Event::Suspended => {
+                engine.destroy_graphics_context().unwrap();
             }
             Event::RedrawRequested(_) => {
                 // Run renderer at max speed - it is not tied to game code.

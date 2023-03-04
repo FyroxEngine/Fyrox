@@ -156,7 +156,7 @@ impl FrameBuffer {
             }
 
             if color_buffers.is_empty() {
-                state.gl.draw_buffer(glow::NONE)
+                state.gl.draw_buffers(&[glow::NONE])
             } else {
                 state.gl.draw_buffers(&color_buffers);
             }

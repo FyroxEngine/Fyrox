@@ -8,6 +8,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::engine::GraphicsContext;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -16,7 +17,10 @@ use fyrox::{
         pool::Handle,
         visitor::Visitor,
     },
-    engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
+    engine::{
+        resource_manager::ResourceManager, Engine, EngineInitParams, GraphicsContextParams,
+        SerializationContext,
+    },
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -30,13 +34,13 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Thickness, UiNode, VerticalAlignment,
     },
-    scene::light::BaseLight,
-    scene::{node::Node, Scene, SceneLoader},
+    scene::{light::BaseLight, node::Node, Scene, SceneLoader},
     utils::{
         lightmap::{CancellationToken, Lightmap, ProgressIndicator, ProgressStage},
         log::{Log, MessageKind},
         translate_event,
     },
+    window::WindowAttributes,
 };
 use std::{
     path::Path,
@@ -284,28 +288,27 @@ struct InputController {
 
 fn main() {
     let event_loop = EventLoop::new();
-
-    let window_builder = fyrox::window::WindowBuilder::new()
-        .with_title("Example 09 - Lightmap")
-        .with_resizable(true);
-
+    let graphics_context_params = GraphicsContextParams {
+        window_attributes: WindowAttributes {
+            title: "Example - Lightmap".to_string(),
+            resizable: true,
+            ..Default::default()
+        },
+        vsync: true,
+    };
     let serialization_context = Arc::new(SerializationContext::new());
     let mut engine = Engine::new(EngineInitParams {
-        window_builder,
+        graphics_context_params,
         resource_manager: ResourceManager::new(serialization_context.clone()),
         serialization_context,
-        events_loop: &event_loop,
-        vsync: true,
         headless: false,
     })
     .unwrap();
 
     // Create simple user interface that will show some useful info.
-    let window = engine.get_window();
-    let screen_size = window.inner_size().to_logical(window.scale_factor());
     let interface = create_ui(
         &mut engine.user_interface.build_ctx(),
-        Vector2::new(screen_size.width, screen_size.height),
+        Vector2::new(100.0, 100.0),
     );
 
     let mut game_scene = if Path::new(LIGHTMAP_SCENE_PATH).exists() {
@@ -351,7 +354,7 @@ fn main() {
     // Finally run our event loop which will respond to OS and window events and update
     // engine state accordingly. Engine lets you to decide which event should be handled,
     // this is minimal working example if how it should be.
-    event_loop.run(move |event, _, control_flow| {
+    event_loop.run(move |event, window_target, control_flow| {
         match event {
             Event::MainEventsCleared => {
                 // This main game loop - it has fixed time step which means that game
@@ -451,15 +454,17 @@ fn main() {
                     }
 
                     // While scene is loading, we will update progress bar.
-                    let debug_text = format!(
-                        "Example 09 - Lightmap\nUse [A][D] keys to rotate model.\n{}",
-                        engine.renderer.get_statistics()
-                    );
-                    engine.user_interface.send_message(TextMessage::text(
-                        interface.debug_text,
-                        MessageDirection::ToWidget,
-                        debug_text,
-                    ));
+                    if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                        let debug_text = format!(
+                            "Example 09 - Lightmap\nUse [A][D] keys to rotate model.\n{}",
+                            ctx.renderer.get_statistics()
+                        );
+                        engine.user_interface.send_message(TextMessage::text(
+                            interface.debug_text,
+                            MessageDirection::ToWidget,
+                            debug_text,
+                        ));
+                    }
 
                     while let Some(ui_event) = engine.user_interface.poll_message() {
                         if let Some(ButtonMessage::Click) = ui_event.data::<ButtonMessage>() {
@@ -523,7 +528,15 @@ fn main() {
                 }
 
                 // Rendering must be explicitly requested and handled after RedrawRequested event is received.
-                engine.get_window().request_redraw();
+                if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                    ctx.window.request_redraw();
+                }
+            }
+            Event::Resumed => {
+                engine.initialize_graphics_context(window_target).unwrap();
+            }
+            Event::Suspended => {
+                engine.destroy_graphics_context().unwrap();
             }
             Event::RedrawRequested(_) => {
                 // Run renderer at max speed - it is not tied to game code.
@@ -545,17 +558,19 @@ fn main() {
 
                         // Root UI node should be resized too, otherwise progress bar will stay
                         // in wrong position after resize.
-                        let size = size.to_logical(engine.get_window().scale_factor());
-                        engine.user_interface.send_message(WidgetMessage::width(
-                            interface.root,
-                            MessageDirection::ToWidget,
-                            size.width,
-                        ));
-                        engine.user_interface.send_message(WidgetMessage::height(
-                            interface.root,
-                            MessageDirection::ToWidget,
-                            size.height,
-                        ));
+                        if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                            let size = size.to_logical(ctx.window.scale_factor());
+                            engine.user_interface.send_message(WidgetMessage::width(
+                                interface.root,
+                                MessageDirection::ToWidget,
+                                size.width,
+                            ));
+                            engine.user_interface.send_message(WidgetMessage::height(
+                                interface.root,
+                                MessageDirection::ToWidget,
+                                size.height,
+                            ));
+                        }
                     }
                     WindowEvent::KeyboardInput { input, .. } => {
                         // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)

@@ -4,6 +4,9 @@
 //!
 //! Warning - Work in progress!
 
+use fyrox::dpi::Size;
+use fyrox::engine::{GraphicsContext, GraphicsContextParams};
+use fyrox::window::WindowAttributes;
 use fyrox::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
@@ -270,25 +273,24 @@ pub fn main_js() {
 
     let event_loop = EventLoop::new();
 
-    let window_builder = fyrox::window::WindowBuilder::new()
-        .with_inner_size(LogicalSize::new(800, 600))
-        .with_title("Example - WASM")
-        .with_resizable(true);
+    let graphics_context_params = GraphicsContextParams {
+        window_attributes: WindowAttributes {
+            title: "Example - WASM".to_string(),
+            resizable: true,
+            inner_size: Some(Size::Logical(LogicalSize::new(800.0, 600.0))),
+            ..Default::default()
+        },
+        vsync: true,
+    };
 
     let serialization_context = Arc::new(SerializationContext::new());
     let mut engine = Engine::new(EngineInitParams {
-        window_builder,
+        graphics_context_params,
         resource_manager: ResourceManager::new(serialization_context.clone()),
         serialization_context,
-        events_loop: &event_loop,
-        vsync: true,
         headless: false,
     })
     .unwrap();
-
-    engine
-        .renderer
-        .set_backbuffer_clear_color(Color::opaque(150, 150, 255));
 
     let load_context = Arc::new(Mutex::new(SceneContext { data: None }));
 
@@ -319,7 +321,7 @@ pub fn main_js() {
     // Finally run our event loop which will respond to OS and window events and update
     // engine state accordingly. Engine lets you to decide which event should be handled,
     // this is minimal working example if how it should be.
-    event_loop.run(move |event, _, control_flow| {
+    event_loop.run(move |event, window_target, control_flow| {
         match event {
             Event::MainEventsCleared => {
                 // This main game loop - it has fixed time step which means that game
@@ -352,16 +354,18 @@ pub fn main_js() {
                             ));
                     }
 
-                    let fps = engine.renderer.get_statistics().frames_per_second;
-                    let text = format!(
-                        "Example - WASM\nUse [A][D] keys to rotate model.\nFPS: {}\nAngle: {}",
-                        fps, model_angle
-                    );
-                    engine.user_interface.send_message(TextMessage::text(
-                        debug_text,
-                        MessageDirection::ToWidget,
-                        text,
-                    ));
+                    if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                        let fps = ctx.renderer.get_statistics().frames_per_second;
+                        let text = format!(
+                            "Example - WASM\nUse [A][D] keys to rotate model.\nFPS: {}\nAngle: {}",
+                            fps, model_angle
+                        );
+                        engine.user_interface.send_message(TextMessage::text(
+                            debug_text,
+                            MessageDirection::ToWidget,
+                            text,
+                        ));
+                    }
 
                     engine.update(fixed_timestep, control_flow, &mut lag, Default::default());
 
@@ -380,7 +384,20 @@ pub fn main_js() {
                 }
 
                 // Rendering must be explicitly requested and handled after RedrawRequested event is received.
-                engine.get_window().request_redraw();
+                if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                    ctx.window.request_redraw();
+                }
+            }
+            Event::Resumed => {
+                engine.initialize_graphics_context(window_target).unwrap();
+                engine
+                    .graphics_context
+                    .as_initialized_mut()
+                    .renderer
+                    .set_backbuffer_clear_color(Color::opaque(150, 150, 255));
+            }
+            Event::Suspended => {
+                engine.destroy_graphics_context().unwrap();
             }
             Event::RedrawRequested(_) => {
                 // Run renderer at max speed - it is not tied to game code.

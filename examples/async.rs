@@ -14,7 +14,10 @@ use fyrox::{
         futures,
         pool::Handle,
     },
-    engine::{executor::Executor, resource_manager::ResourceManager},
+    engine::{
+        executor::Executor, resource_manager::ResourceManager, GraphicsContext,
+        GraphicsContextParams,
+    },
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
@@ -27,6 +30,7 @@ use fyrox::{
     },
     plugin::{Plugin, PluginConstructor, PluginContext},
     scene::{node::Node, Scene},
+    window::WindowAttributes,
 };
 use std::sync::{Arc, Mutex};
 
@@ -288,58 +292,57 @@ impl Plugin for Game {
         }
 
         // While scene is loading, we will update progress bar.
-        let fps = context.renderer.get_statistics().frames_per_second;
-        let debug_text = format!(
-            "Example 02 - Asynchronous Scene Loading\nUse [A][D] keys to rotate model.\nFPS: {}",
-            fps
-        );
-        context.user_interface.send_message(TextMessage::text(
-            self.interface.debug_text,
-            MessageDirection::ToWidget,
-            debug_text,
-        ));
+        if let GraphicsContext::Initialized(ref graphics_context) = context.graphics_context {
+            let fps = graphics_context.renderer.get_statistics().frames_per_second;
+            let debug_text = format!(
+                "Example 02 - Asynchronous Scene Loading\nUse [A][D] keys to rotate model.\nFPS: {}",
+                fps
+            );
+            context.user_interface.send_message(TextMessage::text(
+                self.interface.debug_text,
+                MessageDirection::ToWidget,
+                debug_text,
+            ));
+
+            let size = graphics_context
+                .window
+                .inner_size()
+                .to_logical(graphics_context.window.scale_factor());
+            context.user_interface.send_message(WidgetMessage::width(
+                self.interface.root,
+                MessageDirection::ToWidget,
+                size.width,
+            ));
+            context.user_interface.send_message(WidgetMessage::height(
+                self.interface.root,
+                MessageDirection::ToWidget,
+                size.height,
+            ));
+        }
     }
 
     fn on_os_event(
         &mut self,
         event: &Event<()>,
-        context: PluginContext,
+        _context: PluginContext,
         _control_flow: &mut ControlFlow,
     ) {
-        if let Event::WindowEvent { event, .. } = event {
-            match event {
-                WindowEvent::Resized(size) => {
-                    // Root UI node should be resized, otherwise progress bar will stay
-                    // in wrong position after resize.
-                    let size = size.to_logical(context.window.scale_factor());
-                    context.user_interface.send_message(WidgetMessage::width(
-                        self.interface.root,
-                        MessageDirection::ToWidget,
-                        size.width,
-                    ));
-                    context.user_interface.send_message(WidgetMessage::height(
-                        self.interface.root,
-                        MessageDirection::ToWidget,
-                        size.height,
-                    ));
-                }
-                WindowEvent::KeyboardInput { input, .. } => {
-                    // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
-                    if let Some(key_code) = input.virtual_keycode {
-                        match key_code {
-                            VirtualKeyCode::A => {
-                                self.input_controller.rotate_left =
-                                    input.state == ElementState::Pressed
-                            }
-                            VirtualKeyCode::D => {
-                                self.input_controller.rotate_right =
-                                    input.state == ElementState::Pressed
-                            }
-                            _ => (),
-                        }
+        if let Event::WindowEvent {
+            event: WindowEvent::KeyboardInput { input, .. },
+            ..
+        } = event
+        {
+            // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
+            if let Some(key_code) = input.virtual_keycode {
+                match key_code {
+                    VirtualKeyCode::A => {
+                        self.input_controller.rotate_left = input.state == ElementState::Pressed
                     }
+                    VirtualKeyCode::D => {
+                        self.input_controller.rotate_right = input.state == ElementState::Pressed
+                    }
+                    _ => (),
                 }
-                _ => (),
             }
         }
     }
@@ -354,13 +357,9 @@ impl PluginConstructor for GameConstructor {
         context: PluginContext,
     ) -> Box<dyn Plugin> {
         // Create simple user interface that will show some useful info.
-        let screen_size = context
-            .window
-            .inner_size()
-            .to_logical(context.window.scale_factor());
         let interface = create_ui(
             &mut context.user_interface.build_ctx(),
-            Vector2::new(screen_size.width, screen_size.height),
+            Vector2::new(100.0, 100.0),
         );
 
         Box::new(Game {
@@ -377,10 +376,16 @@ impl PluginConstructor for GameConstructor {
 }
 
 fn main() {
-    let mut executor = Executor::new();
-    executor
-        .get_window()
-        .set_title("Example - Asynchronous Scene Loading");
+    let mut executor = Executor::from_params(
+        Default::default(),
+        GraphicsContextParams {
+            window_attributes: WindowAttributes {
+                title: "Example - Asynchronous Scene Loading".to_string(),
+                ..Default::default()
+            },
+            vsync: true,
+        },
+    );
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

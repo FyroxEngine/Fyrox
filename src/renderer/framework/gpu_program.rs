@@ -90,7 +90,7 @@ fn prepare_source_code(code: &str) -> String {
     let mut full_source_code = "#version 330 core\n// include 'shared.glsl'\n".to_owned();
 
     // HACK
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(any(target_arch = "wasm32", target_os = "android"))]
     {
         full_source_code += r#"    
             precision highp float;
@@ -104,12 +104,12 @@ fn prepare_source_code(code: &str) -> String {
     full_source_code += code;
 
     // HACK
-    #[cfg(target_arch = "wasm32")]
+    #[cfg(any(target_arch = "wasm32", target_os = "android"))]
     {
         full_source_code.replace("#version 330 core", "#version 300 es")
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
     full_source_code
 }
 

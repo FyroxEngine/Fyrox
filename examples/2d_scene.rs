@@ -6,7 +6,10 @@
 
 use fyrox::{
     core::{algebra::Vector3, color::Color, futures::executor::block_on, pool::Handle},
-    engine::{executor::Executor, resource_manager::ResourceManager},
+    engine::{
+        executor::Executor, resource_manager::ResourceManager, GraphicsContext,
+        GraphicsContextParams,
+    },
     event::Event,
     event::{ElementState, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
@@ -23,6 +26,7 @@ use fyrox::{
         node::Node,
         Scene,
     },
+    window::WindowAttributes,
 };
 
 struct SceneLoader {
@@ -92,11 +96,16 @@ impl Plugin for Game {
                 .offset(offset.scale(0.1));
         }
 
-        context.user_interface.send_message(TextMessage::text(
-            self.debug_text,
-            MessageDirection::ToWidget,
-            format!("Example - 2D\n{}", context.renderer.get_statistics()),
-        ));
+        if let GraphicsContext::Initialized(ref mut graphics_context) = context.graphics_context {
+            context.user_interface.send_message(TextMessage::text(
+                self.debug_text,
+                MessageDirection::ToWidget,
+                format!(
+                    "Example - 2D\n{}",
+                    graphics_context.renderer.get_statistics()
+                ),
+            ));
+        }
     }
 
     fn on_os_event(
@@ -164,8 +173,16 @@ impl PluginConstructor for GameConstructor {
 }
 
 fn main() {
-    let mut executor = Executor::new();
-    executor.get_window().set_title("Example - 2D Scene");
+    let mut executor = Executor::from_params(
+        Default::default(),
+        GraphicsContextParams {
+            window_attributes: WindowAttributes {
+                title: "Example - 2D Scene".to_string(),
+                ..Default::default()
+            },
+            vsync: true,
+        },
+    );
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

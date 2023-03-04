@@ -14,7 +14,10 @@ use fyrox::{
         pool::Handle,
         sstorage::ImmutableString,
     },
-    engine::{executor::Executor, resource_manager::ResourceManager},
+    engine::{
+        executor::Executor, resource_manager::ResourceManager, GraphicsContext,
+        GraphicsContextParams,
+    },
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
@@ -36,6 +39,7 @@ use fyrox::{
         transform::TransformBuilder,
         Scene,
     },
+    window::WindowAttributes,
 };
 
 struct GameSceneLoader {
@@ -168,14 +172,16 @@ impl Plugin for Game {
                 self.model_angle,
             ));
 
-        context.user_interface.send_message(TextMessage::text(
-            self.debug_text,
-            MessageDirection::ToWidget,
-            format!(
-                "Example 01 - Simple Scene\nUse [A][D] keys to rotate model.\nFPS: {}",
-                context.renderer.get_statistics().frames_per_second
-            ),
-        ));
+        if let GraphicsContext::Initialized(ref graphics_context) = context.graphics_context {
+            context.user_interface.send_message(TextMessage::text(
+                self.debug_text,
+                MessageDirection::ToWidget,
+                format!(
+                    "Example 01 - Simple Scene\nUse [A][D] keys to rotate model.\nFPS: {}",
+                    graphics_context.renderer.get_statistics().frames_per_second
+                ),
+            ));
+        }
     }
 
     fn on_os_event(
@@ -233,8 +239,16 @@ impl PluginConstructor for GameConstructor {
 }
 
 fn main() {
-    let mut executor = Executor::new();
-    executor.get_window().set_title("Example 01 - Simple");
+    let mut executor = Executor::from_params(
+        Default::default(),
+        GraphicsContextParams {
+            window_attributes: WindowAttributes {
+                title: "Example - Simple".to_string(),
+                ..Default::default()
+            },
+            vsync: true,
+        },
+    );
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

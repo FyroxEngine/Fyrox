@@ -4,6 +4,7 @@
 // some parts can be unused in some examples.
 #![allow(dead_code)]
 
+use fyrox::engine::GraphicsContextParams;
 use fyrox::{
     animation::{
         machine::{Machine, MachineLayer, Parameter, PoseNode, State, Transition},
@@ -53,6 +54,7 @@ use std::{
     path::Path,
     sync::{Arc, Mutex},
 };
+use winit::window::WindowAttributes;
 
 /// Creates a camera at given position with a skybox.
 pub async fn create_camera(
@@ -122,25 +124,23 @@ impl Game {
     pub fn new(title: &str) -> (Self, EventLoop<()>) {
         let event_loop = EventLoop::new();
 
-        let window_builder = fyrox::window::WindowBuilder::new()
-            .with_title(title)
-            .with_resizable(true);
+        let graphics_context_params = GraphicsContextParams {
+            window_attributes: WindowAttributes {
+                title: title.to_string(),
+                resizable: true,
+                ..Default::default()
+            },
+            vsync: false,
+        };
 
         let serialization_context = Arc::new(SerializationContext::new());
-        let mut engine = Engine::new(EngineInitParams {
-            window_builder,
+        let engine = Engine::new(EngineInitParams {
+            graphics_context_params,
             resource_manager: ResourceManager::new(serialization_context.clone()),
             serialization_context,
-            events_loop: &event_loop,
-            vsync: false,
             headless: false,
         })
         .unwrap();
-
-        engine
-            .renderer
-            .set_quality_settings(&fix_shadows_distance(QualitySettings::high()))
-            .unwrap();
 
         let game = Self {
             // Initially scene is None, once scene is loaded it'll have actual state.

@@ -5,17 +5,17 @@
 
 use fyrox::{
     core::{algebra::Vector2, color::Color, pool::Handle},
-    engine::executor::Executor,
+    engine::{executor::Executor, GraphicsContextParams},
+    event_loop::ControlFlow,
     gui::{image::ImageBuilder, widget::WidgetBuilder},
     plugin::{Plugin, PluginConstructor, PluginContext},
     resource::texture::{CompressionOptions, TextureImportOptions},
     scene::Scene,
     utils::into_gui_texture,
+    window::WindowAttributes,
 };
 
 struct Game;
-
-impl Plugin for Game {}
 
 struct GameConstructor;
 
@@ -35,10 +35,6 @@ impl PluginConstructor for GameConstructor {
             .set_default_import_options(
                 TextureImportOptions::default().with_compression(CompressionOptions::Quality),
             );
-
-        context
-            .renderer
-            .set_backbuffer_clear_color(Color::opaque(120, 120, 120));
 
         ImageBuilder::new(
             WidgetBuilder::new()
@@ -70,8 +66,31 @@ impl PluginConstructor for GameConstructor {
     }
 }
 
+impl Plugin for Game {
+    fn on_graphics_context_initialized(
+        &mut self,
+        context: PluginContext,
+        _control_flow: &mut ControlFlow,
+    ) {
+        context
+            .graphics_context
+            .as_initialized_mut()
+            .renderer
+            .set_backbuffer_clear_color(Color::opaque(120, 120, 120));
+    }
+}
+
 fn main() {
-    let mut executor = Executor::new();
+    let mut executor = Executor::from_params(
+        Default::default(),
+        GraphicsContextParams {
+            window_attributes: WindowAttributes {
+                title: "Example - Compressed Textures".to_string(),
+                ..Default::default()
+            },
+            vsync: true,
+        },
+    );
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

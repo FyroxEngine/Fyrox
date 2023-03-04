@@ -4,13 +4,14 @@
 
 use crate::{
     core::pool::Handle,
-    engine::{resource_manager::ResourceManager, PerformanceStatistics, SerializationContext},
+    engine::{
+        resource_manager::ResourceManager, GraphicsContext, PerformanceStatistics,
+        SerializationContext,
+    },
     event::Event,
     event_loop::ControlFlow,
     gui::{message::UiMessage, UserInterface},
-    renderer::Renderer,
     scene::{Scene, SceneContainer},
-    window::Window,
 };
 use std::{any::Any, sync::Arc};
 
@@ -61,9 +62,11 @@ pub struct PluginContext<'a, 'b> {
     /// A reference to user interface instance.
     pub user_interface: &'a mut UserInterface,
 
-    /// A reference to the renderer, it can be used to add custom render passes (for example to
-    /// render custom effects and so on).
-    pub renderer: &'a mut Renderer,
+    /// A reference to the graphics_context, it contains a reference to the window and the current renderer.
+    /// It could be [`GraphicsContext::Uninitialized`] if your application is suspended (possible only on
+    /// Android; it is safe to call [`GraphicsContext::as_initialized_ref`] or [`GraphicsContext::as_initialized_mut`]
+    /// on every other platform).
+    pub graphics_context: &'a mut GraphicsContext,
 
     /// The time (in seconds) that passed since last call of a method in which the context was
     /// passed. It has fixed value that is defined by a caller (in most cases it is `Executor`).
@@ -79,9 +82,6 @@ pub struct PluginContext<'a, 'b> {
     /// A reference to serialization context of the engine. See [`SerializationContext`] for more
     /// info.
     pub serialization_context: &'a Arc<SerializationContext>,
-
-    /// A reference to the main application window.
-    pub window: &'a Window,
 
     /// Performance statistics from the last frame.
     pub performance_statistics: &'a PerformanceStatistics,
@@ -188,6 +188,23 @@ pub trait Plugin: BasePlugin {
     fn on_os_event(
         &mut self,
         #[allow(unused_variables)] event: &Event<()>,
+        #[allow(unused_variables)] context: PluginContext,
+        #[allow(unused_variables)] control_flow: &mut ControlFlow,
+    ) {
+    }
+
+    /// The method is called when a graphics context was successfully created. It could be useful
+    /// to catch the moment when it was just created and do something in response.
+    fn on_graphics_context_initialized(
+        &mut self,
+        #[allow(unused_variables)] context: PluginContext,
+        #[allow(unused_variables)] control_flow: &mut ControlFlow,
+    ) {
+    }
+
+    /// The method is called when the current graphics context was destroyed.
+    fn on_graphics_context_destroyed(
+        &mut self,
         #[allow(unused_variables)] context: PluginContext,
         #[allow(unused_variables)] control_flow: &mut ControlFlow,
     ) {

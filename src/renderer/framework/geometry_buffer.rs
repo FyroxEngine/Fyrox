@@ -321,7 +321,7 @@ impl GeometryBuffer {
         let usage = buffer.kind as u32;
 
         unsafe {
-            if buffer.size_bytes < size {
+            if buffer.size_bytes < size || size == 0 {
                 state
                     .gl
                     .buffer_data_u8_slice(glow::ARRAY_BUFFER, array_as_u8_slice(data), usage);

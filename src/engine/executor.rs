@@ -1,8 +1,12 @@
 //! Executor is a small wrapper that manages plugins and scripts for your game.
 
+use crate::engine::GraphicsContext;
 use crate::{
     core::instant::Instant,
-    engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
+    engine::{
+        resource_manager::ResourceManager, Engine, EngineInitParams, GraphicsContextParams,
+        SerializationContext,
+    },
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     plugin::PluginConstructor,
@@ -11,13 +15,13 @@ use crate::{
         log::{Log, MessageKind},
         translate_event,
     },
-    window::WindowBuilder,
 };
 use clap::Parser;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
 };
+use winit::window::WindowAttributes;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -60,15 +64,15 @@ impl Executor {
 
     /// Creates new game executor using specified set of parameters. Much more flexible version of
     /// [`Executor::new`].
-    pub fn from_params(window_builder: WindowBuilder, vsync: bool) -> Self {
-        let event_loop = EventLoop::new();
+    pub fn from_params(
+        event_loop: EventLoop<()>,
+        graphics_context_params: GraphicsContextParams,
+    ) -> Self {
         let serialization_context = Arc::new(SerializationContext::new());
         let engine = Engine::new(EngineInitParams {
-            window_builder,
+            graphics_context_params,
             resource_manager: ResourceManager::new(serialization_context.clone()),
             serialization_context,
-            events_loop: &event_loop,
-            vsync,
             headless: false,
         })
         .unwrap();
@@ -85,10 +89,15 @@ impl Executor {
     /// way to create an executor see [`Executor::from_params`].
     pub fn new() -> Self {
         Self::from_params(
-            WindowBuilder::new()
-                .with_title("Fyrox Game Executor")
-                .with_resizable(true),
-            true,
+            EventLoop::new(),
+            GraphicsContextParams {
+                window_attributes: WindowAttributes {
+                    resizable: true,
+                    title: "Fyrox Game".to_string(),
+                    ..Default::default()
+                },
+                vsync: true,
+            },
         )
     }
 
@@ -133,23 +142,7 @@ impl Executor {
         let fixed_time_step = 1.0 / self.desired_update_rate;
         let mut lag = 0.0;
 
-        event_loop.run(move |event, _, control_flow| {
-            if let Some(loader) = self.loader.as_ref() {
-                if let Some(result) = loader.fetch_result() {
-                    let override_scene = match result {
-                        Ok(scene) => engine.scenes.add(scene),
-                        Err(e) => {
-                            Log::err(e);
-                            Default::default()
-                        }
-                    };
-
-                    engine.enable_plugins(override_scene, true);
-
-                    self.loader = None;
-                }
-            }
-
+        event_loop.run(move |event, window_target, control_flow| {
             engine.handle_os_event_by_plugins(&event, fixed_time_step, control_flow, &mut lag);
 
             let scenes = engine
@@ -167,7 +160,45 @@ impl Executor {
             }
 
             match event {
+                Event::Resumed => {
+                    engine
+                        .initialize_graphics_context(window_target)
+                        .expect("Unable to initialize graphics context!");
+
+                    engine.handle_graphics_context_created_by_plugins(
+                        fixed_time_step,
+                        control_flow,
+                        &mut lag,
+                    );
+                }
+                Event::Suspended => {
+                    engine
+                        .destroy_graphics_context()
+                        .expect("Unable to destroy graphics context!");
+
+                    engine.handle_graphics_context_destroyed_by_plugins(
+                        fixed_time_step,
+                        control_flow,
+                        &mut lag,
+                    );
+                }
                 Event::MainEventsCleared => {
+                    if let Some(loader) = self.loader.as_ref() {
+                        if let Some(result) = loader.fetch_result() {
+                            let override_scene = match result {
+                                Ok(scene) => engine.scenes.add(scene),
+                                Err(e) => {
+                                    Log::err(e);
+                                    Default::default()
+                                }
+                            };
+
+                            engine.enable_plugins(override_scene, true);
+
+                            self.loader = None;
+                        }
+                    }
+
                     let elapsed = previous.elapsed();
                     previous = Instant::now();
                     lag += elapsed.as_secs_f32();
@@ -177,7 +208,9 @@ impl Executor {
                         lag -= fixed_time_step;
                     }
 
-                    engine.get_window().request_redraw();
+                    if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                        ctx.window.request_redraw();
+                    }
                 }
                 Event::RedrawRequested(_) => {
                     engine.render().unwrap();

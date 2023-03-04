@@ -413,6 +413,68 @@ fn main() {{
     );
 }
 
+fn init_android_executor(base_path: &Path, name: &str) {
+    Command::new("cargo")
+        .args(["init", "--bin", "--vcs", "none"])
+        .arg(base_path.join("executor-android"))
+        .output()
+        .unwrap();
+
+    // Write Cargo.toml
+    write_file(
+        base_path.join("executor-android/Cargo.toml"),
+        format!(
+            r#"
+[package]
+name = "executor-android"
+version = "0.1.0"
+edition = "2021"
+
+[package.metadata.android]
+assets = "../data"
+strip = "strip"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+fyrox = {{ path = "../../Fyrox" }}
+{} = {{ path = "../game" }}"#,
+            name,
+        ),
+    );
+
+    // Write main.rs
+    write_file(
+        base_path.join("executor/src/lib.rs"),
+        format!(
+            r#"//! Android executor with your game connected to it as a plugin.
+use fyrox::{{
+    core::io, engine::executor::Executor, event_loop::EventLoopBuilder,
+    platform::android::EventLoopBuilderExtAndroid,
+}};
+use {}::GameConstructor;
+
+#[no_mangle]
+fn android_main(app: fyrox::platform::android::activity::AndroidApp) {{
+    io::ANDROID_APP
+        .set(app.clone())
+        .expect("ANDROID_APP cannot be set twice.");
+    let event_loop = EventLoopBuilder::new().with_android_app(app).build();
+    let mut executor = Executor::from_params(event_loop, Default::default());
+    executor.add_plugin_constructor(GameConstructor);
+    executor.run()
+}}"#,
+            name
+        ),
+    );
+
+    write_file_binary(
+        base_path.join("executor-android/README.md"),
+        include_bytes!("android/README.md"),
+    );
+}
+
 fn init_workspace(base_path: &Path) {
     Command::new("cargo")
         .args(["init", "--vcs", "git"])
@@ -430,7 +492,7 @@ fn init_workspace(base_path: &Path) {
         base_path.join("Cargo.toml"),
         r#"
 [workspace]
-members = ["editor", "executor", "executor-wasm", "game"]
+members = ["editor", "executor", "executor-wasm", "executor-android", "game"]
 
 # Optimize the engine in debug builds, but leave project's code non-optimized.
 # By using this technique, you can still debug you code, but engine will be fully
@@ -554,6 +616,7 @@ fn main() {
             init_editor(base_path, name);
             init_executor(base_path, name);
             init_wasm_executor(base_path, name);
+            init_android_executor(base_path, name);
 
             println!("Project {} was generated successfully!", name);
             println!(
@@ -564,6 +627,9 @@ fn main() {
             println!("\tRun the Executor: cargo run --package executor --release");
             println!(
                 "\tFor WebAssembly builds - see instructions at README.md in executor-wasm folder"
+            );
+            println!(
+                "\tFor Android builds - see instructions at README.md in executor-android folder"
             );
         }
         Commands::Script { name } => {

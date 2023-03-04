@@ -10,7 +10,10 @@ use fyrox::{
         color::Color,
         pool::Handle,
     },
-    engine::{executor::Executor, resource_manager::ResourceManager},
+    engine::{
+        executor::Executor, resource_manager::ResourceManager, GraphicsContext,
+        GraphicsContextParams,
+    },
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
@@ -29,6 +32,7 @@ use fyrox::{
         transform::TransformBuilder,
         Scene,
     },
+    window::WindowAttributes,
 };
 
 struct SceneLoader {
@@ -153,11 +157,16 @@ impl Plugin for Game {
             * UnitQuaternion::from_euler_angles(0.0, 0.0, 1.0f32.to_radians());
         local_transform.set_rotation(new_rotation);
 
-        context.user_interface.send_message(TextMessage::text(
-            self.debug_text,
-            MessageDirection::ToWidget,
-            format!("Example - 2D\n{}", context.renderer.get_statistics()),
-        ));
+        if let GraphicsContext::Initialized(ref graphics_context) = context.graphics_context {
+            context.user_interface.send_message(TextMessage::text(
+                self.debug_text,
+                MessageDirection::ToWidget,
+                format!(
+                    "Example - 2D\n{}",
+                    graphics_context.renderer.get_statistics()
+                ),
+            ));
+        }
     }
 
     fn on_os_event(
@@ -225,8 +234,16 @@ impl PluginConstructor for GameConstructor {
 }
 
 fn main() {
-    let mut executor = Executor::new();
-    executor.get_window().set_title("Example - 2D");
+    let mut executor = Executor::from_params(
+        Default::default(),
+        GraphicsContextParams {
+            window_attributes: WindowAttributes {
+                title: "Example - 2D".to_string(),
+                ..Default::default()
+            },
+            vsync: true,
+        },
+    );
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

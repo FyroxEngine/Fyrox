@@ -1,3 +1,5 @@
+use fyrox::engine::GraphicsContextParams;
+use fyrox::window::WindowAttributes;
 use fyrox::{
     core::{
         algebra::{Point2, Vector2, Vector3},
@@ -172,8 +174,16 @@ impl PluginConstructor for GameConstructor {
 }
 
 fn main() {
-    let mut executor = Executor::new();
-    executor.get_window().set_title("Example - Plugins");
+    let mut executor = Executor::from_params(
+        Default::default(),
+        GraphicsContextParams {
+            window_attributes: WindowAttributes {
+                title: "Example - 2D Raycasting".to_string(),
+                ..Default::default()
+            },
+            vsync: true,
+        },
+    );
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

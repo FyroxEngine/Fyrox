@@ -3,7 +3,6 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use fyrox::material::SharedMaterial;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -13,7 +12,10 @@ use fyrox::{
         sstorage::ImmutableString,
         uuid::{uuid, Uuid},
     },
-    engine::{executor::Executor, resource_manager::ResourceManager},
+    engine::{
+        executor::Executor, resource_manager::ResourceManager, GraphicsContext,
+        GraphicsContextParams,
+    },
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
@@ -22,7 +24,7 @@ use fyrox::{
         widget::WidgetBuilder,
         UiNode,
     },
-    material::{shader::SamplerFallback, Material, PropertyValue},
+    material::{shader::SamplerFallback, Material, PropertyValue, SharedMaterial},
     plugin::{Plugin, PluginConstructor, PluginContext},
     rand::thread_rng,
     scene::{
@@ -33,6 +35,7 @@ use fyrox::{
         transform::TransformBuilder,
         Scene,
     },
+    window::WindowAttributes,
 };
 
 struct SceneLoader {
@@ -198,14 +201,16 @@ impl Plugin for Game {
                 self.model_angle,
             ));
 
-        context.user_interface.send_message(TextMessage::text(
-            self.debug_text,
-            MessageDirection::ToWidget,
-            format!(
-                "Example - Terrain\nUse [A][D] keys to rotate camera.\nFPS: {}",
-                context.renderer.get_statistics().frames_per_second
-            ),
-        ));
+        if let GraphicsContext::Initialized(ref graphics_context) = context.graphics_context {
+            context.user_interface.send_message(TextMessage::text(
+                self.debug_text,
+                MessageDirection::ToWidget,
+                format!(
+                    "Example - Terrain\nUse [A][D] keys to rotate camera.\nFPS: {}",
+                    graphics_context.renderer.get_statistics().frames_per_second
+                ),
+            ));
+        }
     }
 
     fn on_os_event(
@@ -269,8 +274,16 @@ impl PluginConstructor for GameConstructor {
 }
 
 fn main() {
-    let mut executor = Executor::new();
-    executor.get_window().set_title("Example - Terrain");
+    let mut executor = Executor::from_params(
+        Default::default(),
+        GraphicsContextParams {
+            window_attributes: WindowAttributes {
+                title: "Example - Terrain".to_string(),
+                ..Default::default()
+            },
+            vsync: true,
+        },
+    );
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

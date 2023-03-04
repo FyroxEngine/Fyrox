@@ -1,25 +1,24 @@
-use fyrox::scene::mesh::surface::SurfaceSharedData;
 use fyrox::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
         color::Color,
         pool::Handle,
     },
-    engine::executor::Executor,
-    event_loop::ControlFlow,
+    engine::{executor::Executor, GraphicsContextParams},
+    event_loop::{ControlFlow, EventLoop},
     plugin::{Plugin, PluginConstructor, PluginContext},
     scene::{
         base::BaseBuilder,
         camera::CameraBuilder,
         mesh::{
-            surface::{SurfaceBuilder, SurfaceData},
+            surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
             MeshBuilder,
         },
         node::Node,
         transform::TransformBuilder,
         Scene,
     },
-    window::WindowBuilder,
+    window::WindowAttributes,
 };
 
 struct Game {
@@ -39,6 +38,18 @@ impl Plugin for Game {
 
         self.angle += context.dt;
     }
+
+    fn on_graphics_context_initialized(
+        &mut self,
+        context: PluginContext,
+        _control_flow: &mut ControlFlow,
+    ) {
+        context
+            .graphics_context
+            .as_initialized_mut()
+            .renderer
+            .set_backbuffer_clear_color(Color::TRANSPARENT);
+    }
 }
 
 struct GameConstructor;
@@ -49,10 +60,6 @@ impl PluginConstructor for GameConstructor {
         _override_scene: Handle<Scene>,
         context: PluginContext,
     ) -> Box<dyn Plugin> {
-        context
-            .renderer
-            .set_backbuffer_clear_color(Color::TRANSPARENT);
-
         let mut scene = Scene::new();
 
         CameraBuilder::new(
@@ -83,10 +90,15 @@ impl PluginConstructor for GameConstructor {
 
 fn main() {
     let mut executor = Executor::from_params(
-        WindowBuilder::new()
-            .with_transparent(true)
-            .with_title("Example - Transparent Window"),
-        true,
+        EventLoop::new(),
+        GraphicsContextParams {
+            window_attributes: WindowAttributes {
+                transparent: true,
+                title: "Example - Transparent Window".to_string(),
+                ..Default::default()
+            },
+            vsync: true,
+        },
     );
     executor.add_plugin_constructor(GameConstructor);
     executor.run()

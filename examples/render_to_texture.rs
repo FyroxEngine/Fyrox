@@ -1,6 +1,6 @@
 use fyrox::{
-    core::{futures::executor::block_on, pool::Handle},
-    engine::executor::Executor,
+    core::{algebra::Vector2, futures::executor::block_on, pool::Handle},
+    engine::{executor::Executor, GraphicsContext, GraphicsContextParams},
     event_loop::ControlFlow,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
@@ -14,6 +14,7 @@ use fyrox::{
     resource::texture::{Texture, TextureKind},
     scene::{Scene, SceneLoader},
     utils,
+    window::WindowAttributes,
 };
 
 struct Game {
@@ -48,17 +49,19 @@ impl Plugin for Game {
         }
 
         // Keep grid's size equal to window inner size.
-        let window_size = context.window.inner_size();
-        context.user_interface.send_message(WidgetMessage::width(
-            self.grid,
-            MessageDirection::ToWidget,
-            window_size.width as f32,
-        ));
-        context.user_interface.send_message(WidgetMessage::height(
-            self.grid,
-            MessageDirection::ToWidget,
-            window_size.height as f32,
-        ));
+        if let GraphicsContext::Initialized(ref mut graphics_context) = context.graphics_context {
+            let window_size = graphics_context.window.inner_size();
+            context.user_interface.send_message(WidgetMessage::width(
+                self.grid,
+                MessageDirection::ToWidget,
+                window_size.width as f32,
+            ));
+            context.user_interface.send_message(WidgetMessage::height(
+                self.grid,
+                MessageDirection::ToWidget,
+                window_size.height as f32,
+            ));
+        }
     }
 
     fn on_ui_message(
@@ -96,8 +99,8 @@ impl PluginConstructor for GameConstructor {
         let mut scene = load_scene(&context);
 
         // Create render target and force the scene to render into it.
-        let window_size = context.window.inner_size();
-        let render_target = Texture::new_render_target(window_size.width, window_size.height);
+        let rt_size = Vector2::new(100.0, 100.0);
+        let render_target = Texture::new_render_target(rt_size.x as u32, rt_size.y as u32);
         scene.render_target = Some(render_target.clone());
 
         // Add the loaded scene to the engine.
@@ -126,8 +129,8 @@ impl PluginConstructor for GameConstructor {
         // Create the grid.
         let grid = GridBuilder::new(
             WidgetBuilder::new()
-                .with_width(window_size.width as f32)
-                .with_height(window_size.height as f32)
+                .with_width(rt_size.x)
+                .with_height(rt_size.y)
                 .with_child(scene_image)
                 .with_child(exit),
         )
@@ -147,8 +150,16 @@ impl PluginConstructor for GameConstructor {
 }
 
 fn main() {
-    let mut executor = Executor::new();
-    executor.get_window().set_title("Example - Render Target");
+    let mut executor = Executor::from_params(
+        Default::default(),
+        GraphicsContextParams {
+            window_attributes: WindowAttributes {
+                title: "Example - Render Target".to_string(),
+                ..Default::default()
+            },
+            vsync: true,
+        },
+    );
     executor.add_plugin_constructor(GameConstructor);
     executor.run()
 }

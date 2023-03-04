@@ -766,7 +766,7 @@ impl PipelineState {
                     format!("{} error has occurred! Stability is not guaranteed!", code),
                 );
 
-                #[cfg(not(target_arch = "wasm32"))]
+                #[cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))]
                 {
                     for entry in self.gl.get_debug_message_log(64) {
                         Log::writeln(MessageKind::Error, format!("OpenGL message: {:?}", entry))
