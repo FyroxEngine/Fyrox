@@ -244,9 +244,13 @@ fn create_scene_async(
                     .unwrap()
                     .instantiate(&mut scene);
 
-                if let Ok(lightmap) =
-                    Lightmap::new(&mut scene, 64, cancellation_token, progress_indicator)
-                {
+                if let Ok(lightmap) = Lightmap::new(
+                    &mut scene,
+                    64,
+                    |_, _| true,
+                    cancellation_token,
+                    progress_indicator,
+                ) {
                     lightmap
                         .save("examples/data/lightmaps/", resource_manager)
                         .unwrap();
