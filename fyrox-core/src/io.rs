@@ -85,7 +85,7 @@ pub async fn exists<P: AsRef<Path>>(path: P) -> bool {
             .get()
             .map(|v| {
                 v.asset_manager()
-                    .open(&CString::new(path.as_ref().to_str().unwrap()).unwrap())
+                    .open(&std::ffi::CString::new(path.as_ref().to_str().unwrap()).unwrap())
                     .is_some()
             })
             .unwrap_or_default()
