@@ -9,6 +9,7 @@
 
 #![forbid(unsafe_code)]
 
+use crate::material::PropertyValue;
 use crate::{
     asset::Resource,
     core::{
@@ -34,6 +35,7 @@ use crate::{
     utils::{uvgen, uvgen::SurfaceDataPatch},
 };
 use fxhash::FxHashMap;
+use fyrox_core::sstorage::ImmutableString;
 use rayon::prelude::*;
 use std::fmt::{Display, Formatter};
 use std::{
@@ -234,24 +236,30 @@ impl Lightmap {
     /// lightmap will be generated, but also it will be slow to generate.
     /// `progress_indicator` allows you to get info about current progress.
     /// `cancellation_token` allows you to stop generation in any time.
-    pub fn new(
+    pub fn new<F>(
         scene: &mut Scene,
         texels_per_unit: u32,
+        mut filter: F,
         cancellation_token: CancellationToken,
         progress_indicator: ProgressIndicator,
-    ) -> Result<Self, LightmapGenerationError> {
+    ) -> Result<Self, LightmapGenerationError>
+    where
+        F: FnMut(Handle<Node>, &Node) -> bool,
+    {
         scene.graph.update_hierarchical_data();
 
         // Extract info about lights first. We need it to be in separate array because
         // it won't be possible to store immutable references to light sources and at the
         // same time modify meshes. Also it precomputes a lot of things for faster calculations.
         let mut light_count = 0;
-        for node in scene.graph.linear_iter() {
-            if node.cast::<PointLight>().is_some()
-                || node.cast::<SpotLight>().is_some()
-                || node.cast::<DirectionalLight>().is_some()
-            {
-                light_count += 1;
+        for (handle, node) in scene.graph.pair_iter() {
+            if filter(handle, node) {
+                if node.cast::<PointLight>().is_some()
+                    || node.cast::<SpotLight>().is_some()
+                    || node.cast::<DirectionalLight>().is_some()
+                {
+                    light_count += 1;
+                }
             }
         }
 
@@ -259,44 +267,48 @@ impl Lightmap {
 
         let mut lights = Vec::with_capacity(light_count as usize);
 
-        for (handle, light) in scene.graph.pair_iter() {
+        for (handle, node) in scene.graph.pair_iter() {
+            if !filter(handle, node) {
+                continue;
+            }
+
             if cancellation_token.is_cancelled() {
                 return Err(LightmapGenerationError::Cancelled);
             }
 
-            if !light.is_globally_enabled() {
+            if !node.is_globally_enabled() {
                 continue;
             }
 
-            if let Some(point) = light.cast::<PointLight>() {
+            if let Some(point) = node.cast::<PointLight>() {
                 lights.push(LightDefinition::Point(PointLightDefinition {
                     handle,
                     intensity: 1.0,
-                    position: light.global_position(),
+                    position: node.global_position(),
                     color: point.base_light_ref().color().srgb_to_linear().as_frgb(),
                     radius: point.radius(),
                     sqr_radius: point.radius() * point.radius(),
                 }))
-            } else if let Some(spot) = light.cast::<SpotLight>() {
+            } else if let Some(spot) = node.cast::<SpotLight>() {
                 lights.push(LightDefinition::Spot(SpotLightDefinition {
                     handle,
                     intensity: 1.0,
                     edge0: ((spot.hotspot_cone_angle() + spot.falloff_angle_delta()) * 0.5).cos(),
                     edge1: (spot.hotspot_cone_angle() * 0.5).cos(),
                     color: spot.base_light_ref().color().srgb_to_linear().as_frgb(),
-                    direction: light
+                    direction: node
                         .up_vector()
                         .try_normalize(std::f32::EPSILON)
                         .unwrap_or_else(Vector3::y),
-                    position: light.global_position(),
+                    position: node.global_position(),
                     distance: spot.distance(),
                     sqr_distance: spot.distance() * spot.distance(),
                 }))
-            } else if let Some(directional) = light.cast::<DirectionalLight>() {
+            } else if let Some(directional) = node.cast::<DirectionalLight>() {
                 lights.push(LightDefinition::Directional(DirectionalLightDefinition {
                     handle,
                     intensity: 1.0,
-                    direction: light
+                    direction: node
                         .up_vector()
                         .try_normalize(std::f32::EPSILON)
                         .unwrap_or_else(Vector3::y),
@@ -316,13 +328,28 @@ impl Lightmap {
         let mut instances = Vec::new();
         let mut data_set = FxHashMap::default();
 
-        for (handle, node) in scene.graph.pair_iter() {
+        'node_loop: for (handle, node) in scene.graph.pair_iter() {
+            if !filter(handle, node) {
+                continue 'node_loop;
+            }
+
             if let Some(mesh) = node.cast::<Mesh>() {
                 if !mesh.global_visibility() || !mesh.is_globally_enabled() {
                     continue;
                 }
                 let global_transform = mesh.global_transform();
-                for surface in mesh.surfaces() {
+                'surface_loop: for surface in mesh.surfaces() {
+                    // Check material for compatibility.
+                    let material = surface.material().lock();
+                    if !material
+                        .properties()
+                        .get(&ImmutableString::new("lightmapTexture"))
+                        .map(|v| matches!(v, PropertyValue::Sampler { .. }))
+                        .unwrap_or_default()
+                    {
+                        continue 'surface_loop;
+                    }
+
                     // Gather unique "list" of surface data to generate UVs for.
                     let data = surface.data();
                     let key = &*data.lock() as *const _ as u64;

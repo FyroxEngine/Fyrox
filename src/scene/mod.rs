@@ -686,13 +686,23 @@ impl Scene {
     {
         let (graph, old_new_map) = self.graph.clone(filter);
 
+        let mut lightmap = self.lightmap.clone();
+        if let Some(lightmap) = lightmap.as_mut() {
+            let mut map = FxHashMap::default();
+            for (mut handle, entry) in std::mem::take(&mut lightmap.map) {
+                if old_new_map.try_map(&mut handle) {
+                    map.insert(handle, entry);
+                }
+            }
+        }
+
         (
             Self {
                 graph,
                 // Render target is intentionally not copied, because it does not makes sense - a copy
                 // will redraw frame completely.
                 render_target: Default::default(),
-                lightmap: self.lightmap.clone(),
+                lightmap,
                 drawing_context: self.drawing_context.clone(),
                 navmeshes: self.navmeshes.clone(),
                 performance_statistics: Default::default(),

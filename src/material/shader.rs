@@ -13,10 +13,7 @@ use crate::{
     },
     engine::resource_manager::options::ImportOptions,
     lazy_static::lazy_static,
-    renderer::{
-        cache::{shader::ShaderSet, CacheEntry},
-        framework::framebuffer::DrawParameters,
-    },
+    renderer::framework::framebuffer::DrawParameters,
 };
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
@@ -64,7 +61,7 @@ pub struct ShaderState {
     /// Shader definition contains description of properties and render passes.
     pub definition: ShaderDefinition,
 
-    pub(crate) cache_index: AtomicIndex<CacheEntry<ShaderSet>>,
+    pub(crate) cache_index: AtomicIndex,
 }
 
 impl Visit for ShaderState {

@@ -17,7 +17,6 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     material::{Material, SharedMaterial},
-    renderer::{cache::CacheEntry, framework},
     scene::{
         mesh::{
             buffer::{
@@ -45,7 +44,7 @@ pub struct SurfaceData {
     // If true - indicates that surface was generated and does not have reference
     // resource. Procedural data will be serialized.
     is_procedural: bool,
-    pub(crate) cache_entry: AtomicIndex<CacheEntry<framework::geometry_buffer::GeometryBuffer>>,
+    pub(crate) cache_entry: AtomicIndex,
 }
 
 impl SurfaceData {

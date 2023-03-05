@@ -120,7 +120,7 @@ pub struct VertexAttributeDescriptor {
 
 /// Vertex attribute is a simple "bridge" between raw data and its interpretation. In
 /// other words it defines how to treat raw data in vertex shader.
-#[derive(Visit, Copy, Clone, Default, Debug)]
+#[derive(Visit, Copy, Clone, Default, Debug, Hash)]
 pub struct VertexAttribute {
     /// Claimed usage of the attribute. It could be Position, Normal, etc.
     pub usage: VertexAttributeUsage,
@@ -149,6 +149,13 @@ pub struct VertexBuffer {
     vertex_count: u32,
     data: Vec<u8>,
     data_hash: u64,
+    layout_hash: u64,
+}
+
+fn calculate_layout_hash(layout: &[VertexAttribute]) -> u64 {
+    let mut hasher = FxHasher::default();
+    layout.hash(&mut hasher);
+    hasher.finish()
 }
 
 fn calculate_data_hash(data: &[u8]) -> u64 {
@@ -336,6 +343,8 @@ impl<'a> VertexBufferRefMut<'a> {
             self.vertex_buffer.sparse_layout[descriptor.usage as usize] = Some(vertex_attribute);
             self.vertex_buffer.dense_layout.push(vertex_attribute);
 
+            self.layout_hash = calculate_layout_hash(&self.vertex_buffer.dense_layout);
+
             let mut new_data = Vec::new();
 
             for chunk in self
@@ -488,6 +497,7 @@ impl VertexBuffer {
             vertex_count: vertex_count as u32,
             data_hash: calculate_data_hash(&bytes),
             data: bytes,
+            layout_hash: calculate_layout_hash(&dense_layout),
             sparse_layout,
             dense_layout,
         })
@@ -506,6 +516,12 @@ impl VertexBuffer {
     /// Returns cached data hash. Cached value is guaranteed to be in actual state.
     pub fn data_hash(&self) -> u64 {
         self.data_hash
+    }
+
+    /// Returns hash of vertex buffer layout. Cached value is guaranteed to be in actual state.
+    /// The hash could be used to check if the layout has changed.
+    pub fn layout_hash(&self) -> u64 {
+        self.layout_hash
     }
 
     /// Provides mutable access to content of the buffer.

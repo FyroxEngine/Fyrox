@@ -1,50 +1,37 @@
 use std::{
-    fmt::{Debug, Formatter},
-    marker::PhantomData,
+    fmt::Debug,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-pub struct AtomicIndex<T> {
+#[derive(Debug)]
+pub struct AtomicIndex {
     index: AtomicUsize,
-    phantom: PhantomData<T>,
 }
 
-impl<T> Debug for AtomicIndex<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "AtomicIndex: {}", self.get())
-    }
-}
-
-unsafe impl<T> Send for AtomicIndex<T> {}
-unsafe impl<T> Sync for AtomicIndex<T> {}
-
-impl<T> Clone for AtomicIndex<T> {
+impl Clone for AtomicIndex {
     fn clone(&self) -> Self {
         Self {
             index: AtomicUsize::new(self.index.load(Ordering::SeqCst)),
-            phantom: PhantomData,
         }
     }
 }
 
-impl<T> Default for AtomicIndex<T> {
+impl Default for AtomicIndex {
     fn default() -> Self {
         Self::unassigned()
     }
 }
 
-impl<T> AtomicIndex<T> {
+impl AtomicIndex {
     pub fn unassigned() -> Self {
         Self {
             index: AtomicUsize::new(usize::MAX),
-            phantom: PhantomData,
         }
     }
 
     fn new(index: usize) -> Self {
         Self {
             index: AtomicUsize::new(index),
-            phantom: PhantomData,
         }
     }
 
@@ -88,7 +75,7 @@ impl<T> SparseBuffer<T> {
         }
     }
 
-    pub fn spawn(&mut self, payload: T) -> AtomicIndex<T> {
+    pub fn spawn(&mut self, payload: T) -> AtomicIndex {
         match self.free.pop() {
             Some(free) => {
                 let old = self.vec[free].replace(payload);
@@ -103,7 +90,7 @@ impl<T> SparseBuffer<T> {
         }
     }
 
-    pub fn free(&mut self, index: &AtomicIndex<T>) -> Option<T> {
+    pub fn free(&mut self, index: &AtomicIndex) -> Option<T> {
         self.free_raw(index.get())
     }
 
@@ -132,15 +119,15 @@ impl<T> SparseBuffer<T> {
         self.vec.len() - self.free.len()
     }
 
-    pub fn is_index_valid(&self, index: &AtomicIndex<T>) -> bool {
+    pub fn is_index_valid(&self, index: &AtomicIndex) -> bool {
         self.get(index).is_some()
     }
 
-    pub fn get(&self, index: &AtomicIndex<T>) -> Option<&T> {
+    pub fn get(&self, index: &AtomicIndex) -> Option<&T> {
         self.get_raw(index.get())
     }
 
-    pub fn get_mut(&mut self, index: &AtomicIndex<T>) -> Option<&mut T> {
+    pub fn get_mut(&mut self, index: &AtomicIndex) -> Option<&mut T> {
         self.get_mut_raw(index.get())
     }
 

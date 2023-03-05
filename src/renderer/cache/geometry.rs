@@ -1,19 +1,45 @@
+use crate::scene::mesh::surface::SurfaceData;
 use crate::{
     core::{scope_profile, sparse::SparseBuffer},
     engine::resource_manager::container::entry::DEFAULT_RESOURCE_LIFETIME,
-    renderer::{
-        cache::CacheEntry,
-        framework::{
-            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
-            state::PipelineState,
-        },
+    renderer::framework::{
+        geometry_buffer::{GeometryBuffer, GeometryBufferKind},
+        state::PipelineState,
     },
     scene::mesh::surface::SurfaceSharedData,
 };
+use fyrox_core::sparse::AtomicIndex;
+
+struct CacheEntry {
+    buffer: GeometryBuffer,
+    data_hash: u64,
+    layout_hash: u64,
+    time_to_live: f32,
+}
 
 #[derive(Default)]
 pub struct GeometryCache {
-    buffer: SparseBuffer<CacheEntry<GeometryBuffer>>,
+    buffer: SparseBuffer<CacheEntry>,
+}
+
+fn create_geometry_buffer(
+    data: &SurfaceData,
+    state: &mut PipelineState,
+    buffer: &mut SparseBuffer<CacheEntry>,
+) -> AtomicIndex {
+    let geometry_buffer =
+        GeometryBuffer::from_surface_data(&data, GeometryBufferKind::StaticDraw, state);
+
+    let index = buffer.spawn(CacheEntry {
+        buffer: geometry_buffer,
+        time_to_live: DEFAULT_RESOURCE_LIFETIME,
+        data_hash: data.content_hash(),
+        layout_hash: data.vertex_buffer.layout_hash(),
+    });
+
+    data.cache_entry.set(index.get());
+
+    index
 }
 
 impl GeometryCache {
@@ -25,36 +51,35 @@ impl GeometryCache {
         scope_profile!();
 
         let data = data.lock();
-        let data_hash = data.content_hash();
 
-        if self.buffer.is_index_valid(&data.cache_entry) {
-            let entry = self.buffer.get_mut(&data.cache_entry).unwrap();
+        if let Some(entry) = self.buffer.get_mut(&data.cache_entry) {
+            // We also must check if buffer's layout changed, and if so - recreate the entire
+            // buffer.
+            if entry.layout_hash == data.vertex_buffer.layout_hash() {
+                let data_hash = data.content_hash();
+                if data_hash != entry.data_hash {
+                    // Content has changed, upload new content.
+                    entry
+                        .buffer
+                        .set_buffer_data(state, 0, data.vertex_buffer.raw_data());
+                    entry
+                        .buffer
+                        .bind(state)
+                        .set_triangles(data.geometry_buffer.triangles_ref());
 
-            if data_hash != entry.value_hash {
-                // Content has changed, upload new content.
-                entry.set_buffer_data(state, 0, data.vertex_buffer.raw_data());
-                entry
-                    .bind(state)
-                    .set_triangles(data.geometry_buffer.triangles_ref());
+                    entry.data_hash = data_hash;
+                }
 
-                entry.value_hash = data_hash;
+                entry.time_to_live = DEFAULT_RESOURCE_LIFETIME;
+
+                &mut self.buffer.get_mut(&data.cache_entry).unwrap().buffer
+            } else {
+                let index = create_geometry_buffer(&data, state, &mut self.buffer);
+                &mut self.buffer.get_mut(&index).unwrap().buffer
             }
-
-            entry.time_to_live = DEFAULT_RESOURCE_LIFETIME;
-            entry
         } else {
-            let geometry_buffer =
-                GeometryBuffer::from_surface_data(&data, GeometryBufferKind::StaticDraw, state);
-
-            let index = self.buffer.spawn(CacheEntry {
-                value: geometry_buffer,
-                time_to_live: DEFAULT_RESOURCE_LIFETIME,
-                value_hash: data_hash,
-            });
-
-            data.cache_entry.set(index.get());
-
-            self.buffer.get_mut(&index).unwrap()
+            let index = create_geometry_buffer(&data, state, &mut self.buffer);
+            &mut self.buffer.get_mut(&index).unwrap().buffer
         }
     }
 

@@ -132,6 +132,7 @@ impl LightPanel {
                 let lightmap = Lightmap::new(
                     scene,
                     self.texels_per_unit,
+                    |handle, _| handle != editor_scene.editor_objects_root,
                     Default::default(),
                     Default::default(),
                 )
