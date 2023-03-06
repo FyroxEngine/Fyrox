@@ -253,13 +253,12 @@ impl Lightmap {
         // same time modify meshes. Also it precomputes a lot of things for faster calculations.
         let mut light_count = 0;
         for (handle, node) in scene.graph.pair_iter() {
-            if filter(handle, node) {
-                if node.cast::<PointLight>().is_some()
+            if filter(handle, node)
+                && (node.cast::<PointLight>().is_some()
                     || node.cast::<SpotLight>().is_some()
-                    || node.cast::<DirectionalLight>().is_some()
-                {
-                    light_count += 1;
-                }
+                    || node.cast::<DirectionalLight>().is_some())
+            {
+                light_count += 1;
             }
         }
 
@@ -955,8 +954,14 @@ mod test {
         .with_radius(4.0)
         .build(&mut scene.graph);
 
-        let lightmap =
-            Lightmap::new(&mut scene, 64, Default::default(), Default::default()).unwrap();
+        let lightmap = Lightmap::new(
+            &mut scene,
+            64,
+            |_, _| true,
+            Default::default(),
+            Default::default(),
+        )
+        .unwrap();
 
         let mut counter = 0;
         for entry_set in lightmap.map.values() {

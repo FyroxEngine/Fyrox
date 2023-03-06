@@ -28,7 +28,7 @@ fn create_geometry_buffer(
     buffer: &mut SparseBuffer<CacheEntry>,
 ) -> AtomicIndex {
     let geometry_buffer =
-        GeometryBuffer::from_surface_data(&data, GeometryBufferKind::StaticDraw, state);
+        GeometryBuffer::from_surface_data(data, GeometryBufferKind::StaticDraw, state);
 
     let index = buffer.spawn(CacheEntry {
         buffer: geometry_buffer,
