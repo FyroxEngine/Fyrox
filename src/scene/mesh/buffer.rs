@@ -149,6 +149,7 @@ pub struct VertexBuffer {
     vertex_count: u32,
     data: Vec<u8>,
     data_hash: u64,
+    #[visit(optional)]
     layout_hash: u64,
 }
 
