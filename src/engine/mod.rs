@@ -1,7 +1,7 @@
 //! Engine is container for all subsystems (renderer, ui, sound, resource manager). It also
 //! creates a window and an OpenGL context.
 
-#![allow(missing_docs)] // TODO
+#![warn(missing_docs)]
 
 pub mod error;
 pub mod executor;
@@ -63,9 +63,11 @@ use std::{
 };
 #[cfg(not(target_arch = "wasm32"))]
 use std::{ffi::CString, num::NonZeroU32};
-use winit::dpi::{Position, Size};
-use winit::event_loop::EventLoopWindowTarget;
-use winit::window::WindowAttributes;
+use winit::{
+    dpi::{Position, Size},
+    event_loop::EventLoopWindowTarget,
+    window::WindowAttributes,
+};
 
 /// Serialization context holds runtime type information that allows to create unknown types using
 /// their UUIDs and a respective constructors.
@@ -115,8 +117,11 @@ impl Display for PerformanceStatistics {
     }
 }
 
+/// An initialized graphics context. It contains the main application window and the renderer instance.
 pub struct InitializedGraphicsContext {
+    /// Main application window.
     pub window: Window,
+
     /// Current renderer.
     pub renderer: Renderer,
 
@@ -127,13 +132,34 @@ pub struct InitializedGraphicsContext {
     gl_surface: Surface<WindowSurface>,
 }
 
+/// Graphics context of the engine, it could be in two main states:
+///
+/// - [`GraphicsContext::Initialized`] - active graphics context, that is fully initialized and ready for use.
+/// - [`GraphicsContext::Uninitialized`] - suspended graphics context, that contains a set of params that could
+/// be used for further initialization.
+///
+/// By default, when you creating an engine, there's no graphics context initialized. It must be initialized
+/// manually (if you need it) on [`Event::Resumed`]. On most operating systems, it is possible to initialize
+/// graphics context right after the engine was created. However Android won't allow you to do this, also on
+/// some versions of macOS immediate initialization could lead to panic.
+///
+/// You can switch between these states whenever you need, for example if your application does not need a
+/// window and a renderer at all you can just not create graphics context. This could be useful for game
+/// servers or background applications. When you destroy a graphics context, the engine will remember the options
+/// with which it was created and some of the main window parameters (position, size, etc.) and will re-use these
+/// parameters on a next initialization attempt.
 #[allow(clippy::large_enum_variant)]
 pub enum GraphicsContext {
+    /// Fully initialized graphics context. See [`InitializedGraphicsContext`] docs for more info.
     Initialized(InitializedGraphicsContext),
+
+    /// Uninitialized (suspended) graphics context. See [`GraphicsContextParams`] docs for more info.
     Uninitialized(GraphicsContextParams),
 }
 
 impl GraphicsContext {
+    /// Attempts to cast a graphics context to its initialized version. The method will panic if the context
+    /// is not initialized.
     pub fn as_initialized_ref(&self) -> &InitializedGraphicsContext {
         if let GraphicsContext::Initialized(ctx) = self {
             ctx
@@ -142,6 +168,8 @@ impl GraphicsContext {
         }
     }
 
+    /// Attempts to cast a graphics context to its initialized version. The method will panic if the context
+    /// is not initialized.
     pub fn as_initialized_mut(&mut self) -> &mut InitializedGraphicsContext {
         if let GraphicsContext::Initialized(ctx) = self {
             ctx
@@ -153,14 +181,18 @@ impl GraphicsContext {
 
 /// See module docs.
 pub struct Engine {
+    /// Graphics context of the engine. See [`GraphicsContext`] docs for more info.
     pub graphics_context: GraphicsContext,
+
     /// User interface allows you to build interface of any kind.
     pub user_interface: UserInterface,
+
     /// Current resource manager. Resource manager can be cloned (it does clone only ref) to be able to
     /// use resource manager from any thread, this is useful to load resources from multiple
     /// threads to decrease loading times of your game by utilizing all available power of
     /// your CPU.
     pub resource_manager: ResourceManager,
+
     /// All available scenes in the engine.
     pub scenes: SceneContainer,
 
@@ -642,14 +674,14 @@ impl ResourceDependencyGraph {
     }
 }
 
+/// A set of parameters that could be used to initialize graphics context.
 #[derive(Clone)]
 pub struct GraphicsContextParams {
-    /// Main window attributes.
+    /// Attributes of the main application window.
     pub window_attributes: WindowAttributes,
-    /// Whether to use vertical synchronization or not. V-sync will force your game to render
-    /// frames with the synchronization rate of your monitor (which is ~60 FPS). Keep in mind
-    /// vertical synchronization might not be available on your OS and engine might fail to
-    /// initialize if v-sync is on.
+
+    /// Whether to use vertical synchronization or not. V-sync will force your game to render frames with the synchronization
+    /// rate of your monitor (which is ~60 FPS). Keep in mind that vertical synchronization might not be available on your OS.
     pub vsync: bool,
 }
 
@@ -664,6 +696,10 @@ impl Default for GraphicsContextParams {
 
 /// Engine initialization parameters.
 pub struct EngineInitParams {
+    /// A set of parameters for graphics context initialization. Keep in mind that the engine **will not** initialize
+    /// graphics context for you. Instead, you need to call [`Engine::initialize_graphics_context`] on [`Event::Resumed`]
+    /// event and [`Engine::destroy_graphics_context`] on [`Event::Suspended`] event. If you don't need a graphics context
+    /// (for example for game servers), then you can pass [`Default::default`] here and do not call any methods.
     pub graphics_context_params: GraphicsContextParams,
     /// A special container that is able to create nodes by their type UUID.
     pub serialization_context: Arc<SerializationContext>,
@@ -752,9 +788,10 @@ mod kek {}
 
 impl Engine {
     /// Creates new instance of engine from given initialization parameters. Automatically creates all sub-systems
-    /// (sound, ui, resource manager, etc.) **except** graphics context. Graphics context **must** be created
-    /// only on [`Event::Resumed`] by calling [`Self::initialize_graphics_context`] and destroyed on [`Event::Suspended`] by calling
-    /// [`Self::destroy_graphics_context`].
+    /// (sound, ui, resource manager, etc.) **except** graphics context. Graphics context should be created manually
+    /// only on [`Event::Resumed`] by calling [`Engine::initialize_graphics_context`] and destroyed on [`Event::Suspended`]
+    /// by calling [`Engine::destroy_graphics_context`]. If you don't need a graphics context (for example if you're
+    /// making a game server), then you can ignore these methods.
     ///
     /// # Examples
     ///
@@ -826,6 +863,13 @@ impl Engine {
         })
     }
 
+    /// Tries to initialize the graphics context. The method will attempt to use the info stored in `graphics_context`
+    /// variable of the engine to attempt to initialize the graphics context. It will fail if the graphics context is
+    /// already initialized as well as if there any platform-dependent error (for example your hardware does not support
+    /// OpenGL 3.3 Core or OpenGL ES 3.0).
+    ///
+    /// This method should be called on [`Event::Resumed`] of your game loop, however you can ignore it if you don't need
+    /// graphics context at all (for example - if you're making game server).
     pub fn initialize_graphics_context(
         &mut self,
         window_target: &EventLoopWindowTarget<()>,
@@ -981,6 +1025,12 @@ impl Engine {
         }
     }
 
+    /// Tries to destroy current graphics context. It will succeed only if the `graphics_context` is fully initialized.
+    /// The method will try to save all possible runtime changes of the window, so the next [`Engine::initialize_graphics_context`]
+    /// will result in the almost exact copy of the context that was made before destruction.
+    ///
+    /// This method should be called on [`Event::Suspended`] of your game loop, however if you do not use any graphics context
+    /// (for example - if you're making a game server), then you can ignore this method completely.   
     pub fn destroy_graphics_context(&mut self) -> Result<(), EngineError> {
         if let GraphicsContext::Initialized(ref ctx) = self.graphics_context {
             let params = &ctx.params;
