@@ -462,7 +462,7 @@ fn make_expander_check_box(
     .with_content(
         TextBuilder::new(
             WidgetBuilder::new()
-                .with_tooltip(make_tooltip(ctx, property_description))
+                .with_opt_tooltip(make_tooltip(ctx, property_description))
                 .with_height(16.0)
                 .with_margin(Thickness::left(2.0)),
         )
@@ -505,11 +505,11 @@ fn create_header(ctx: &mut BuildContext, text: &str, layer_index: usize) -> Hand
         .build(ctx)
 }
 
-fn make_tooltip(ctx: &mut BuildContext, text: &str) -> Rc<Handle<UiNode>> {
+fn make_tooltip(ctx: &mut BuildContext, text: &str) -> Option<RcUiNodeHandle> {
     if text.is_empty() {
-        Rc::new(Handle::NONE)
+        None
     } else {
-        make_simple_tooltip(ctx, text)
+        Some(make_simple_tooltip(ctx, text))
     }
 }
 

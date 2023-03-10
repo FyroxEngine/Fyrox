@@ -610,7 +610,7 @@ pub struct RestrictionEntry {
 }
 
 struct TooltipEntry {
-    tooltip: Rc<Handle<UiNode>>,
+    tooltip: RcUiNodeHandle,
     /// Time remaining until this entry should disappear (in seconds).
     time: f32,
     /// Maximum time that it should be kept for
@@ -620,7 +620,7 @@ struct TooltipEntry {
     max_time: f32,
 }
 impl TooltipEntry {
-    fn new(tooltip: Rc<Handle<UiNode>>, time: f32) -> TooltipEntry {
+    fn new(tooltip: RcUiNodeHandle, time: f32) -> TooltipEntry {
         Self {
             tooltip,
             time,
@@ -1739,7 +1739,7 @@ impl UserInterface {
         self.node(self.root()).screen_to_local(position)
     }
 
-    fn show_tooltip(&self, tooltip: Rc<Handle<UiNode>>) {
+    fn show_tooltip(&self, tooltip: RcUiNodeHandle) {
         self.send_message(WidgetMessage::visibility(
             *tooltip,
             MessageDirection::ToWidget,
@@ -1753,7 +1753,7 @@ impl UserInterface {
         ));
     }
 
-    fn replace_or_update_tooltip(&mut self, tooltip: Rc<Handle<UiNode>>, time: f32) {
+    fn replace_or_update_tooltip(&mut self, tooltip: RcUiNodeHandle, time: f32) {
         if let Some(entry) = self.active_tooltip.as_mut() {
             if entry.tooltip == tooltip {
                 // Keep current visible.
@@ -1805,9 +1805,8 @@ impl UserInterface {
             // mutable access later
             let parent = node.parent();
 
-            if node.tooltip().is_some() {
+            if let Some(tooltip) = node.tooltip() {
                 // They have a tooltip, we stop here and use that.
-                let tooltip = node.tooltip();
                 let tooltip_time = node.tooltip_time();
                 self.replace_or_update_tooltip(tooltip, tooltip_time);
                 break;
@@ -2202,7 +2201,6 @@ impl UserInterface {
     fn remove_node(&mut self, node: Handle<UiNode>) {
         self.unlink_node_internal(node);
 
-        let mut tooltips = Vec::new();
         let sender = self.sender.clone();
         let mut stack = vec![node];
         while let Some(handle) = stack.pop() {
@@ -2223,22 +2221,12 @@ impl UserInterface {
             let node_ref = self.nodes.borrow(handle);
             stack.extend_from_slice(node_ref.children());
 
-            // We also must delete tooltips, since they're not in the tree of the widget they
-            // won't be deleted automatically.
-            if node_ref.tooltip.is_some() && Rc::strong_count(&node_ref.tooltip) == 1 {
-                tooltips.push(node_ref.tooltip.clone());
-            }
-
             // Notify node that it is about to be deleted so it will have a chance to remove
             // other widgets (like popups).
             node_ref.on_remove(&sender);
 
             self.nodes.free(handle);
             self.preview_set.remove(&handle);
-        }
-
-        for tooltip in tooltips {
-            self.remove_node(*tooltip);
         }
     }
 

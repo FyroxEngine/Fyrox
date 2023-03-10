@@ -374,7 +374,7 @@ pub struct Widget {
     pub enabled: bool,
     pub cursor: Option<CursorIcon>,
     pub opacity: Option<f32>,
-    pub tooltip: Rc<Handle<UiNode>>,
+    pub tooltip: Option<RcUiNodeHandle>,
     pub tooltip_time: f32,
     pub context_menu: Option<RcUiNodeHandle>,
     pub clip_to_bounds: bool,
@@ -1028,12 +1028,12 @@ impl Widget {
     }
 
     #[inline]
-    pub fn tooltip(&self) -> Rc<Handle<UiNode>> {
+    pub fn tooltip(&self) -> Option<RcUiNodeHandle> {
         self.tooltip.clone()
     }
 
     #[inline]
-    pub fn set_tooltip(&mut self, tooltip: Rc<Handle<UiNode>>) -> &mut Self {
+    pub fn set_tooltip(&mut self, tooltip: Option<RcUiNodeHandle>) -> &mut Self {
         self.tooltip = tooltip;
         self
     }
@@ -1106,7 +1106,7 @@ pub struct WidgetBuilder {
     pub enabled: bool,
     pub cursor: Option<CursorIcon>,
     pub opacity: Option<f32>,
-    pub tooltip: Rc<Handle<UiNode>>,
+    pub tooltip: Option<RcUiNodeHandle>,
     pub tooltip_time: f32,
     pub context_menu: Option<RcUiNodeHandle>,
     pub preview_messages: bool,
@@ -1322,10 +1322,19 @@ impl WidgetBuilder {
     ///
     /// The widget will share the tooltip, which means that when widget will be deleted, the
     /// tooltip will be deleted only if there's no one use the tooltip anymore.
-    pub fn with_tooltip(mut self, tooltip: Rc<Handle<UiNode>>) -> Self {
-        if tooltip.is_some() {
-            self.tooltip = tooltip;
-        }
+    pub fn with_tooltip(mut self, tooltip: RcUiNodeHandle) -> Self {
+        self.tooltip = Some(tooltip);
+        self
+    }
+
+    /// Sets the desired tooltip for the node.
+    ///
+    /// ## Important
+    ///
+    /// The widget will share the tooltip, which means that when widget will be deleted, the
+    /// tooltip will be deleted only if there's no one use the tooltip anymore.
+    pub fn with_opt_tooltip(mut self, tooltip: Option<RcUiNodeHandle>) -> Self {
+        self.tooltip = tooltip;
         self
     }
 
