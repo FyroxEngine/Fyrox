@@ -2234,13 +2234,12 @@ impl UserInterface {
             node_ref.on_remove(&sender);
 
             self.nodes.free(handle);
+            self.preview_set.remove(&handle);
         }
 
         for tooltip in tooltips {
             self.remove_node(*tooltip);
         }
-
-        self.preview_set.remove(&node);
     }
 
     pub fn drag_context(&self) -> &DragContext {
