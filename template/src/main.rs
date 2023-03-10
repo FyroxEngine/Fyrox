@@ -415,7 +415,7 @@ fn main() {{
 
 fn init_android_executor(base_path: &Path, name: &str) {
     Command::new("cargo")
-        .args(["init", "--bin", "--vcs", "none"])
+        .args(["init", "--lib", "--vcs", "none"])
         .arg(base_path.join("executor-android"))
         .output()
         .unwrap();
@@ -438,6 +438,7 @@ strip = "strip"
 crate-type = ["cdylib"]
 
 [dependencies]
+# TODO: This must be changed to 0.30 before releasing v0.30
 fyrox = {{ path = "../../Fyrox" }}
 {} = {{ path = "../game" }}"#,
             name,
@@ -446,7 +447,7 @@ fyrox = {{ path = "../../Fyrox" }}
 
     // Write main.rs
     write_file(
-        base_path.join("executor/src/lib.rs"),
+        base_path.join("executor-android/src/lib.rs"),
         format!(
             r#"//! Android executor with your game connected to it as a plugin.
 use fyrox::{{
