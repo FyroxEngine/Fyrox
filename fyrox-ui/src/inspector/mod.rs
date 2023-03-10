@@ -21,7 +21,7 @@ use crate::{
     text::TextBuilder,
     utils::{make_arrow, make_simple_tooltip, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
+    BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use copypasta::ClipboardProvider;
 use std::{
@@ -388,7 +388,7 @@ impl PartialEq for ContextEntry {
 #[derive(Default, Clone)]
 pub struct Menu {
     pub copy_value_as_string: Handle<UiNode>,
-    pub menu: Handle<UiNode>,
+    pub menu: Option<RcUiNodeHandle>,
     pub target: Cell<Handle<UiNode>>,
 }
 
@@ -655,10 +655,11 @@ impl InspectorContext {
                 .build(ctx),
             )
             .build(ctx);
+        let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         let stack_panel = StackPanelBuilder::new(
             WidgetBuilder::new()
-                .with_context_menu(menu)
+                .with_context_menu(menu.clone())
                 .with_children(editors),
         )
         .build(ctx);
@@ -667,7 +668,7 @@ impl InspectorContext {
             stack_panel,
             menu: Menu {
                 copy_value_as_string,
-                menu,
+                menu: Some(menu),
                 target: Default::default(),
             },
             entries,
@@ -801,22 +802,25 @@ impl Control for Inspector {
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         if message.destination() == self.context.menu.copy_value_as_string {
             if let Some(MenuItemMessage::Click) = message.data() {
-                let position = ui.node(self.context.menu.menu).screen_position();
+                if let Some(menu_handle) = self.context.menu.menu.as_ref().map(|h| **h) {
+                    let position = ui.node(menu_handle).screen_position();
 
-                let mut parent_handle = ui.hit_test_unrestricted(position - Vector2::new(1.0, 1.0));
+                    let mut parent_handle =
+                        ui.hit_test_unrestricted(position - Vector2::new(1.0, 1.0));
 
-                while let Some(parent) = ui.try_get_node(parent_handle) {
-                    for entry in self.context.entries.iter() {
-                        if entry.property_container == parent_handle {
-                            let _ = ui
-                                .clipboard_mut()
-                                .unwrap()
-                                .set_contents(entry.property_debug_output.clone());
-                            break;
+                    while let Some(parent) = ui.try_get_node(parent_handle) {
+                        for entry in self.context.entries.iter() {
+                            if entry.property_container == parent_handle {
+                                let _ = ui
+                                    .clipboard_mut()
+                                    .unwrap()
+                                    .set_contents(entry.property_debug_output.clone());
+                                break;
+                            }
                         }
-                    }
 
-                    parent_handle = parent.parent;
+                        parent_handle = parent.parent;
+                    }
                 }
             }
         }

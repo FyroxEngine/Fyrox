@@ -16,13 +16,12 @@ use crate::{
     popup::{Placement, PopupBuilder, PopupMessage},
     stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, UiNode, UserInterface,
+    BuildContext, Control, RcUiNodeHandle, UiNode, UserInterface,
 };
 use std::{
     any::{Any, TypeId},
     cell::Cell,
     ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -157,8 +156,8 @@ pub struct ColorGradientEditor {
     gradient_field: Handle<UiNode>,
     selector_field: Handle<UiNode>,
     points_canvas: Handle<UiNode>,
-    context_menu: Handle<UiNode>,
-    point_context_menu: Handle<UiNode>,
+    context_menu: RcUiNodeHandle,
+    point_context_menu: RcUiNodeHandle,
     add_point: Handle<UiNode>,
     remove_point: Handle<UiNode>,
     context_menu_target: Cell<Handle<UiNode>>,
@@ -173,14 +172,6 @@ impl Control for ColorGradientEditor {
             Some(self)
         } else {
             None
-        }
-    }
-
-    fn on_remove(&self, sender: &Sender<UiMessage>) {
-        for menu in [self.context_menu, self.point_context_menu] {
-            sender
-                .send(WidgetMessage::remove(menu, MessageDirection::ToWidget))
-                .unwrap();
         }
     }
 
@@ -201,8 +192,11 @@ impl Control for ColorGradientEditor {
                     ui.send_message(WidgetMessage::remove(point, MessageDirection::ToWidget));
                 }
 
-                let points =
-                    create_color_points(value, self.point_context_menu, &mut ui.build_ctx());
+                let points = create_color_points(
+                    value,
+                    self.point_context_menu.clone(),
+                    &mut ui.build_ctx(),
+                );
 
                 for point in points {
                     ui.send_message(WidgetMessage::link(
@@ -286,13 +280,13 @@ impl Control for ColorGradientEditor {
                 ));
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == self.context_menu
-                || message.destination() == self.point_context_menu
+            if message.destination() == *self.context_menu
+                || message.destination() == *self.point_context_menu
             {
                 self.context_menu_open_position.set(ui.cursor_position());
                 self.context_menu_target.set(*target);
 
-                if message.destination() == self.point_context_menu {
+                if message.destination() == *self.point_context_menu {
                     if let Some(point) = ui
                         .try_get_node(self.context_menu_target.get())
                         .and_then(|n| n.query_component::<ColorPoint>())
@@ -338,7 +332,7 @@ pub struct ColorGradientEditorBuilder {
 
 fn create_color_points(
     color_gradient: &ColorGradient,
-    point_context_menu: Handle<UiNode>,
+    point_context_menu: RcUiNodeHandle,
     ctx: &mut BuildContext,
 ) -> Vec<Handle<UiNode>> {
     color_gradient
@@ -347,7 +341,7 @@ fn create_color_points(
         .map(|pt| {
             ColorPointBuilder::new(
                 WidgetBuilder::new()
-                    .with_context_menu(point_context_menu)
+                    .with_context_menu(point_context_menu.clone())
                     .with_cursor(Some(CursorIcon::EwResize))
                     .with_width(6.0)
                     .with_foreground(Brush::Solid(pt.color())),
@@ -384,6 +378,7 @@ impl ColorGradientEditorBuilder {
                 .build(ctx),
             )
             .build(ctx);
+        let context_menu = RcUiNodeHandle::new(context_menu, ctx.sender());
 
         let selector_field;
         let remove_point;
@@ -407,6 +402,7 @@ impl ColorGradientEditorBuilder {
                 .build(ctx),
             )
             .build(ctx);
+        let point_context_menu = RcUiNodeHandle::new(point_context_menu, ctx.sender());
 
         let points_canvas = ColorPointsCanvasBuilder::new(
             WidgetBuilder::new()
@@ -415,7 +411,7 @@ impl ColorGradientEditorBuilder {
                 .on_column(0)
                 .with_children(create_color_points(
                     &self.color_gradient,
-                    point_context_menu,
+                    point_context_menu.clone(),
                     ctx,
                 )),
         )
@@ -444,7 +440,7 @@ impl ColorGradientEditorBuilder {
             widget: self
                 .widget_builder
                 .with_preview_messages(true)
-                .with_context_menu(context_menu)
+                .with_context_menu(context_menu.clone())
                 .with_child(grid)
                 .build(),
             points_canvas,

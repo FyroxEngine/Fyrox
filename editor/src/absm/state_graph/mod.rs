@@ -54,7 +54,7 @@ impl StateGraphViewer {
         let transition_context_menu = TransitionContextMenu::new(ctx);
 
         let canvas = AbsmCanvasBuilder::new(
-            WidgetBuilder::new().with_context_menu(canvas_context_menu.menu),
+            WidgetBuilder::new().with_context_menu(canvas_context_menu.menu.clone()),
         )
         .build(ctx);
 
@@ -73,7 +73,7 @@ impl StateGraphViewer {
             .build(ctx);
 
         canvas_context_menu.canvas = canvas;
-        canvas_context_menu.node_context_menu = node_context_menu.menu;
+        canvas_context_menu.node_context_menu = Some(node_context_menu.menu.clone());
         node_context_menu.canvas = canvas;
 
         Self {
@@ -299,7 +299,7 @@ impl StateGraphViewer {
                     }) {
                         let state_view_handle = AbsmNodeBuilder::new(
                             WidgetBuilder::new()
-                                .with_context_menu(self.node_context_menu.menu)
+                                .with_context_menu(self.node_context_menu.menu.clone())
                                 .with_desired_position(state.position),
                         )
                         .with_normal_color(if state_handle == machine_layer.entry_state() {
@@ -455,7 +455,7 @@ impl StateGraphViewer {
 
                         let transition_view = TransitionBuilder::new(
                             WidgetBuilder::new()
-                                .with_context_menu(self.transition_context_menu.menu),
+                                .with_context_menu(self.transition_context_menu.menu.clone()),
                         )
                         .with_source(find_state_view(transition.source(), &states, ui))
                         .with_dest(find_state_view(transition.dest(), &states, ui))

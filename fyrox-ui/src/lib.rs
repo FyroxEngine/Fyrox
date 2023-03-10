@@ -79,6 +79,7 @@ use crate::{
 };
 use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
+use std::fmt::Formatter;
 use std::{
     any::{Any, TypeId},
     cell::{Cell, Ref, RefCell, RefMut},
@@ -143,6 +144,56 @@ pub struct Thickness {
 impl Default for Thickness {
     fn default() -> Self {
         Self::uniform(0.0)
+    }
+}
+
+struct RcUiNodeHandleInner {
+    handle: Handle<UiNode>,
+    sender: Sender<UiMessage>,
+}
+
+impl Drop for RcUiNodeHandleInner {
+    fn drop(&mut self) {
+        let _ = self.sender.send(WidgetMessage::remove(
+            self.handle,
+            MessageDirection::ToWidget,
+        ));
+    }
+}
+
+#[derive(Clone)]
+pub struct RcUiNodeHandle(Rc<RcUiNodeHandleInner>);
+
+impl Debug for RcUiNodeHandle {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(
+            f,
+            "RcUiNodeHandle - {}:{} with {} uses",
+            self.0.handle.index(),
+            self.0.handle.generation(),
+            Rc::strong_count(&self.0)
+        )
+    }
+}
+
+impl PartialEq for RcUiNodeHandle {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.handle == other.0.handle
+    }
+}
+
+impl RcUiNodeHandle {
+    pub fn new(handle: Handle<UiNode>, sender: Sender<UiMessage>) -> Self {
+        assert!(handle.is_some());
+        Self(Rc::new(RcUiNodeHandleInner { handle, sender }))
+    }
+}
+
+impl Deref for RcUiNodeHandle {
+    type Target = Handle<UiNode>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0.handle
     }
 }
 
@@ -502,6 +553,10 @@ pub struct BuildContext<'a> {
 impl<'a> BuildContext<'a> {
     pub fn default_font(&self) -> SharedFont {
         self.ui.default_font.clone()
+    }
+
+    pub fn sender(&self) -> Sender<UiMessage> {
+        self.ui.sender()
     }
 
     pub fn add_node(&mut self, node: UiNode) -> Handle<UiNode> {
@@ -1522,6 +1577,7 @@ impl UserInterface {
                     self.update(self.screen_size, 0.0);
                 }
 
+                dbg!(self.preview_set.len(), self.nodes.alive_count());
                 for &handle in self.preview_set.iter() {
                     if let Some(node_ref) = self.nodes.try_borrow(handle) {
                         node_ref.preview_message(self, &mut message);
@@ -1611,17 +1667,7 @@ impl UserInterface {
                         WidgetMessage::ContextMenu(context_menu) => {
                             if message.destination().is_some() {
                                 let node = self.nodes.borrow_mut(message.destination());
-
-                                let prev_context_menu = node.context_menu();
-
-                                node.set_context_menu(*context_menu);
-
-                                if prev_context_menu.is_some() {
-                                    self.send_message(WidgetMessage::remove(
-                                        prev_context_menu,
-                                        MessageDirection::ToWidget,
-                                    ));
-                                }
+                                node.set_context_menu(context_menu.clone());
                             }
                         }
                         WidgetMessage::Center => {
@@ -1657,19 +1703,19 @@ impl UserInterface {
                                         if let Some(parent) = self.nodes.try_borrow(parent_handle) {
                                             (parent.context_menu(), parent_handle)
                                         } else {
-                                            (Handle::NONE, Handle::NONE)
+                                            (None, Handle::NONE)
                                         }
                                     };
 
                                     // Display context menu
-                                    if context_menu.is_some() {
+                                    if let Some(context_menu) = context_menu {
                                         self.send_message(PopupMessage::placement(
-                                            context_menu,
+                                            *context_menu,
                                             MessageDirection::ToWidget,
                                             Placement::Cursor(target),
                                         ));
                                         self.send_message(PopupMessage::open(
-                                            context_menu,
+                                            *context_menu,
                                             MessageDirection::ToWidget,
                                         ));
                                     }

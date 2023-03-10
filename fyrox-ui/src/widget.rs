@@ -3,8 +3,8 @@ use crate::{
     core::{algebra::Vector2, math::Rect, pool::Handle},
     define_constructor,
     message::{CursorIcon, KeyCode, MessageDirection, UiMessage},
-    HorizontalAlignment, LayoutEvent, MouseButton, MouseState, Thickness, UiNode, UserInterface,
-    VerticalAlignment, BRUSH_FOREGROUND, BRUSH_PRIMARY,
+    HorizontalAlignment, LayoutEvent, MouseButton, MouseState, RcUiNodeHandle, Thickness, UiNode,
+    UserInterface, VerticalAlignment, BRUSH_FOREGROUND, BRUSH_PRIMARY,
 };
 use fyrox_core::algebra::{Matrix3, Point2};
 use std::{
@@ -279,7 +279,7 @@ pub enum WidgetMessage {
     DoubleClick { button: MouseButton },
 
     /// A request to set new context menu for a widget. Old context menu will be removed.
-    ContextMenu(Handle<UiNode>),
+    ContextMenu(Option<RcUiNodeHandle>),
 }
 
 impl WidgetMessage {
@@ -311,7 +311,7 @@ impl WidgetMessage {
     define_constructor!(WidgetMessage:Opacity => fn opacity(Option<f32>), layout: false);
     define_constructor!(WidgetMessage:LayoutTransform => fn layout_transform(Matrix3<f32>), layout: false);
     define_constructor!(WidgetMessage:RenderTransform => fn render_transform(Matrix3<f32>), layout: false);
-    define_constructor!(WidgetMessage:ContextMenu => fn context_menu(Handle<UiNode>), layout: false);
+    define_constructor!(WidgetMessage:ContextMenu => fn context_menu(Option<RcUiNodeHandle>), layout: false);
     define_constructor!(WidgetMessage:Focus => fn focus(), layout: false);
     define_constructor!(WidgetMessage:Unfocus => fn unfocus(), layout: false);
 
@@ -376,7 +376,7 @@ pub struct Widget {
     pub opacity: Option<f32>,
     pub tooltip: Rc<Handle<UiNode>>,
     pub tooltip_time: f32,
-    pub context_menu: Handle<UiNode>,
+    pub context_menu: Option<RcUiNodeHandle>,
     pub clip_to_bounds: bool,
     pub layout_transform: Matrix3<f32>,
     pub render_transform: Matrix3<f32>,
@@ -1050,13 +1050,13 @@ impl Widget {
     }
 
     #[inline]
-    pub fn context_menu(&self) -> Handle<UiNode> {
-        self.context_menu
+    pub fn context_menu(&self) -> Option<RcUiNodeHandle> {
+        self.context_menu.clone()
     }
 
     #[inline]
     /// The context menu receives `PopupMessage`s for being displayed, and so should support those.
-    pub fn set_context_menu(&mut self, context_menu: Handle<UiNode>) -> &mut Self {
+    pub fn set_context_menu(&mut self, context_menu: Option<RcUiNodeHandle>) -> &mut Self {
         self.context_menu = context_menu;
         self
     }
@@ -1108,7 +1108,7 @@ pub struct WidgetBuilder {
     pub opacity: Option<f32>,
     pub tooltip: Rc<Handle<UiNode>>,
     pub tooltip_time: f32,
-    pub context_menu: Handle<UiNode>,
+    pub context_menu: Option<RcUiNodeHandle>,
     pub preview_messages: bool,
     pub handle_os_events: bool,
     pub layout_transform: Matrix3<f32>,
@@ -1151,7 +1151,7 @@ impl WidgetBuilder {
             opacity: None,
             tooltip: Default::default(),
             tooltip_time: 0.1,
-            context_menu: Handle::default(),
+            context_menu: Default::default(),
             preview_messages: false,
             handle_os_events: false,
             layout_transform: Matrix3::identity(),
@@ -1335,10 +1335,8 @@ impl WidgetBuilder {
     }
 
     /// The context menu receives `PopupMessage`s for being displayed, and so should support those.
-    pub fn with_context_menu(mut self, context_menu: Handle<UiNode>) -> Self {
-        if context_menu.is_some() {
-            self.context_menu = context_menu;
-        }
+    pub fn with_context_menu(mut self, context_menu: RcUiNodeHandle) -> Self {
+        self.context_menu = Some(context_menu);
         self
     }
 

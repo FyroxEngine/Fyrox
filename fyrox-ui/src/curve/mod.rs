@@ -20,7 +20,7 @@ use crate::{
     stack_panel::StackPanelBuilder,
     text::TextBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
+    BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fxhash::FxHashSet;
 use std::{
@@ -109,7 +109,7 @@ crate::define_widget_deref!(CurveEditor);
 
 #[derive(Clone)]
 struct ContextMenu {
-    widget: Handle<UiNode>,
+    widget: RcUiNodeHandle,
     add_key: Handle<UiNode>,
     remove: Handle<UiNode>,
     key: Handle<UiNode>,
@@ -622,7 +622,7 @@ impl Control for CurveEditor {
                     },
                 ));
             } else if message.destination() == self.context_menu.add_key {
-                let screen_pos = ui.node(self.context_menu.widget).screen_position();
+                let screen_pos = ui.node(*self.context_menu.widget).screen_position();
                 ui.send_message(CurveEditorMessage::add_key(
                     self.handle,
                     MessageDirection::ToWidget,
@@ -1417,6 +1417,7 @@ impl CurveEditorBuilder {
                 .build(ctx),
             )
             .build(ctx);
+        let context_menu = RcUiNodeHandle::new(context_menu, ctx.sender());
 
         if self.widget_builder.foreground.is_none() {
             self.widget_builder.foreground = Some(Brush::Solid(Color::opaque(130, 130, 130)))
@@ -1425,7 +1426,7 @@ impl CurveEditorBuilder {
         let editor = CurveEditor {
             widget: self
                 .widget_builder
-                .with_context_menu(context_menu)
+                .with_context_menu(context_menu.clone())
                 .with_preview_messages(true)
                 .build(),
             key_container: keys,

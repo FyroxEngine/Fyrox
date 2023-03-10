@@ -16,6 +16,7 @@ use crate::{
     },
     Message,
 };
+use fyrox::gui::RcUiNodeHandle;
 use fyrox::{
     animation::machine::State,
     core::pool::Handle,
@@ -33,9 +34,9 @@ use std::sync::mpsc::Sender;
 
 pub struct CanvasContextMenu {
     create_state: Handle<UiNode>,
-    pub menu: Handle<UiNode>,
+    pub menu: RcUiNodeHandle,
     pub canvas: Handle<UiNode>,
-    pub node_context_menu: Handle<UiNode>,
+    pub node_context_menu: Option<RcUiNodeHandle>,
 }
 
 impl CanvasContextMenu {
@@ -50,6 +51,7 @@ impl CanvasContextMenu {
                 .build(ctx),
             )
             .build(ctx);
+        let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         Self {
             create_state,
@@ -69,7 +71,7 @@ impl CanvasContextMenu {
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.create_state {
-                let screen_position = ui.node(self.menu).screen_position();
+                let screen_position = ui.node(*self.menu).screen_position();
 
                 sender
                     .send(Message::do_scene_command(AddStateCommand::new(
@@ -91,7 +93,7 @@ pub struct NodeContextMenu {
     create_transition: Handle<UiNode>,
     remove: Handle<UiNode>,
     set_as_entry_state: Handle<UiNode>,
-    pub menu: Handle<UiNode>,
+    pub menu: RcUiNodeHandle,
     pub canvas: Handle<UiNode>,
     placement_target: Handle<UiNode>,
 }
@@ -122,6 +124,7 @@ impl NodeContextMenu {
                 .build(ctx),
             )
             .build(ctx);
+        let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         Self {
             create_transition,
@@ -227,7 +230,7 @@ impl NodeContextMenu {
                     .unwrap();
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == self.menu {
+            if message.destination() == *self.menu {
                 self.placement_target = *target;
             }
         }
@@ -236,7 +239,7 @@ impl NodeContextMenu {
 
 pub struct TransitionContextMenu {
     remove: Handle<UiNode>,
-    pub menu: Handle<UiNode>,
+    pub menu: RcUiNodeHandle,
     placement_target: Handle<UiNode>,
 }
 
@@ -252,6 +255,7 @@ impl TransitionContextMenu {
                 .build(ctx),
             )
             .build(ctx);
+        let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         Self {
             menu,
@@ -298,7 +302,7 @@ impl TransitionContextMenu {
                 }
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == self.menu {
+            if message.destination() == *self.menu {
                 self.placement_target = *target;
             }
         }

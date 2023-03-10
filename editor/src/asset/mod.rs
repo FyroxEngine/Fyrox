@@ -14,6 +14,7 @@ use crate::{
     utils::window_content,
     AssetItem, AssetKind, GameEngine, Message, Mode,
 };
+use fyrox::gui::RcUiNodeHandle;
 use fyrox::{
     core::{
         color::Color, futures::executor::block_on, make_relative_path, pool::Handle, scope_profile,
@@ -50,7 +51,7 @@ mod inspector;
 pub mod item;
 
 struct ContextMenu {
-    menu: Handle<UiNode>,
+    menu: RcUiNodeHandle,
     open: Handle<UiNode>,
     copy_path: Handle<UiNode>,
     copy_file_name: Handle<UiNode>,
@@ -128,6 +129,7 @@ impl ContextMenu {
                 .build(ctx),
             )
             .build(ctx);
+        let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         Self {
             menu,
@@ -142,7 +144,7 @@ impl ContextMenu {
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
         if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == self.menu {
+            if message.destination() == *self.menu {
                 self.placement_target = *target;
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
@@ -333,10 +335,11 @@ impl AssetBrowser {
         ui: &mut UserInterface,
         resource_manager: &ResourceManager,
     ) -> Handle<UiNode> {
-        let asset_item =
-            AssetItemBuilder::new(WidgetBuilder::new().with_context_menu(self.context_menu.menu))
-                .with_path(path)
-                .build(&mut ui.build_ctx(), resource_manager.clone());
+        let asset_item = AssetItemBuilder::new(
+            WidgetBuilder::new().with_context_menu(self.context_menu.menu.clone()),
+        )
+        .with_path(path)
+        .build(&mut ui.build_ctx(), resource_manager.clone());
 
         self.items.push(asset_item);
 

@@ -9,6 +9,7 @@ use crate::{
     menu::create_menu_item,
     send_sync_message, Message,
 };
+use fyrox::gui::RcUiNodeHandle;
 use fyrox::{
     animation::machine::{
         node::blendspace::BlendSpacePoint, Machine, MachineLayer, Parameter, ParameterContainer,
@@ -73,7 +74,7 @@ impl BlendSpaceFieldMessage {
 
 #[derive(Clone)]
 struct ContextMenu {
-    menu: Handle<UiNode>,
+    menu: RcUiNodeHandle,
     add_point: Handle<UiNode>,
     placement_target: Cell<Handle<UiNode>>,
     screen_position: Cell<Vector2<f32>>,
@@ -130,7 +131,7 @@ fn screen_to_blend(
 
 fn make_points<P: Iterator<Item = Vector2<f32>>>(
     points: P,
-    context_menu: Handle<UiNode>,
+    context_menu: RcUiNodeHandle,
     ctx: &mut BuildContext,
 ) -> Vec<Handle<UiNode>> {
     points
@@ -138,7 +139,7 @@ fn make_points<P: Iterator<Item = Vector2<f32>>>(
         .map(|(i, p)| {
             BlendSpaceFieldPointBuilder::new(
                 WidgetBuilder::new()
-                    .with_context_menu(context_menu)
+                    .with_context_menu(context_menu.clone())
                     .with_background(BRUSH_LIGHTEST)
                     .with_foreground(Brush::Solid(Color::WHITE))
                     .with_desired_position(p),
@@ -298,7 +299,7 @@ impl Control for BlendSpaceField {
 
                         let point_views = make_points(
                             points.iter().cloned(),
-                            self.field_context_menu.menu,
+                            self.field_context_menu.menu.clone(),
                             &mut ui.build_ctx(),
                         );
 
@@ -414,7 +415,7 @@ impl Control for BlendSpaceField {
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == self.field_context_menu.menu {
+            if message.destination() == *self.field_context_menu.menu {
                 self.field_context_menu.placement_target.set(*target);
 
                 ui.send_message(WidgetMessage::enabled(
@@ -493,13 +494,14 @@ impl BlendSpaceFieldBuilder {
                 .build(ctx),
             )
             .build(ctx);
+        let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         let field = BlendSpaceField {
             widget: self
                 .widget_builder
                 .with_clip_to_bounds(false)
                 .with_preview_messages(true)
-                .with_context_menu(menu)
+                .with_context_menu(menu.clone())
                 .build(),
             points: Default::default(),
             min_values: self.min_values,

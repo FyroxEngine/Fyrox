@@ -142,7 +142,7 @@ impl StateViewer {
         let connection_context_menu = ConnectionContextMenu::new(ctx);
 
         let canvas = AbsmCanvasBuilder::new(
-            WidgetBuilder::new().with_context_menu(canvas_context_menu.menu),
+            WidgetBuilder::new().with_context_menu(canvas_context_menu.menu.clone()),
         )
         .build(ctx);
         let window = WindowBuilder::new(WidgetBuilder::new())
@@ -160,7 +160,7 @@ impl StateViewer {
             .build(ctx);
 
         canvas_context_menu.canvas = canvas;
-        canvas_context_menu.node_context_menu = node_context_menu.menu;
+        canvas_context_menu.node_context_menu = Some(node_context_menu.menu.clone());
         node_context_menu.canvas = canvas;
 
         Self {
@@ -208,7 +208,7 @@ impl StateViewer {
         ));
 
         ui.send_message(WidgetMessage::enabled(
-            self.canvas_context_menu.menu,
+            *self.canvas_context_menu.menu,
             MessageDirection::ToWidget,
             exists,
         ));
@@ -228,7 +228,7 @@ impl StateViewer {
         ));
 
         ui.send_message(WidgetMessage::enabled(
-            self.canvas_context_menu.menu,
+            *self.canvas_context_menu.menu,
             MessageDirection::ToWidget,
             false,
         ));
@@ -492,7 +492,7 @@ impl StateViewer {
                             let node_view = AbsmNodeBuilder::new(
                                 WidgetBuilder::new()
                                     .with_desired_position(node_ref.position)
-                                    .with_context_menu(self.node_context_menu.menu),
+                                    .with_context_menu(self.node_context_menu.menu.clone()),
                             )
                             .with_name("".to_owned())
                             .with_title(name.to_owned())
@@ -675,7 +675,7 @@ impl StateViewer {
 
                         let connection = ConnectionBuilder::new(
                             WidgetBuilder::new()
-                                .with_context_menu(self.connection_context_menu.menu),
+                                .with_context_menu(self.connection_context_menu.menu.clone()),
                         )
                         .with_source_socket(source.base.output_socket)
                         .with_source_node(source.handle())
