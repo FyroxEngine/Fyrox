@@ -79,12 +79,11 @@ use crate::{
 };
 use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
-use std::fmt::Formatter;
 use std::{
     any::{Any, TypeId},
     cell::{Cell, Ref, RefCell, RefMut},
-    collections::{hash_map::Entry, VecDeque},
-    fmt::Debug,
+    collections::{btree_set::BTreeSet, hash_map::Entry, VecDeque},
+    fmt::{Debug, Formatter},
     ops::{Deref, DerefMut, Index, IndexMut},
     rc::Rc,
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
@@ -359,6 +358,8 @@ pub trait BaseControl: 'static {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 
     fn clone_boxed(&self) -> Box<dyn Control>;
+
+    fn type_name(&self) -> &'static str;
 }
 
 impl<T: Any + Clone + 'static + Control> BaseControl for T {
@@ -372,6 +373,64 @@ impl<T: Any + Clone + 'static + Control> BaseControl for T {
 
     fn clone_boxed(&self) -> Box<dyn Control> {
         Box::new(self.clone())
+    }
+
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<T>()
+    }
+}
+
+#[derive(Default, Clone)]
+pub struct NodeStatistics(pub FxHashMap<&'static str, isize>);
+
+impl NodeStatistics {
+    pub fn new(ui: &UserInterface) -> NodeStatistics {
+        let mut statistics = Self::default();
+        for node in ui.nodes.iter() {
+            statistics
+                .0
+                .entry(node.type_name())
+                .and_modify(|counter| *counter += 1)
+                .or_insert(1);
+        }
+        statistics
+    }
+
+    fn unite_type_names(&self, prev_stats: &NodeStatistics) -> BTreeSet<&'static str> {
+        let mut union = BTreeSet::default();
+        for stats in [self, prev_stats] {
+            for &type_name in stats.0.keys() {
+                union.insert(type_name);
+            }
+        }
+        union
+    }
+
+    fn count_of(&self, type_name: &str) -> isize {
+        self.0.get(type_name).cloned().unwrap_or_default()
+    }
+
+    pub fn print_diff(&self, prev_stats: &NodeStatistics, show_unchanged: bool) {
+        println!("**** Diff UI Node Statistics ****");
+        for type_name in self.unite_type_names(prev_stats) {
+            let count = self.count_of(type_name);
+            let prev_count = prev_stats.count_of(type_name);
+            let delta = count - prev_count;
+            if delta != 0 || show_unchanged {
+                println!("{}: \x1b[93m{}\x1b[0m", type_name, delta);
+            }
+        }
+    }
+
+    pub fn print_changed(&self, prev_stats: &NodeStatistics) {
+        println!("**** Changed UI Node Statistics ****");
+        for type_name in self.unite_type_names(prev_stats) {
+            let count = self.count_of(type_name);
+            let prev_count = prev_stats.count_of(type_name);
+            if count - prev_count != 0 {
+                println!("{}: \x1b[93m{}\x1b[0m", type_name, count);
+            }
+        }
     }
 }
 
@@ -1577,7 +1636,6 @@ impl UserInterface {
                     self.update(self.screen_size, 0.0);
                 }
 
-                dbg!(self.preview_set.len(), self.nodes.alive_count());
                 for &handle in self.preview_set.iter() {
                     if let Some(node_ref) = self.nodes.try_borrow(handle) {
                         node_ref.preview_message(self, &mut message);
