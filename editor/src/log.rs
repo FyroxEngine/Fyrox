@@ -2,6 +2,7 @@ use crate::{
     gui::{make_dropdown_list_option, make_image_button_with_tooltip},
     load_image, Brush, Color, DropdownListBuilder, GameEngine,
 };
+use fyrox::gui::RcUiNodeHandle;
 use fyrox::{
     core::{pool::Handle, scope_profile},
     gui::{
@@ -27,7 +28,7 @@ use fyrox::{
 use std::sync::mpsc::Receiver;
 
 struct ContextMenu {
-    menu: Handle<UiNode>,
+    menu: RcUiNodeHandle,
     copy: Handle<UiNode>,
     placement_target: Handle<UiNode>,
 }
@@ -46,6 +47,7 @@ impl ContextMenu {
                 .build(ctx),
             )
             .build(ctx);
+        let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         Self {
             menu,
@@ -56,7 +58,7 @@ impl ContextMenu {
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
         if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == self.menu {
+            if message.destination() == *self.menu {
                 self.placement_target = *target;
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
@@ -231,7 +233,7 @@ impl LogPanel {
                     .with_child(
                         TextBuilder::new(
                             WidgetBuilder::new()
-                                .with_context_menu(self.context_menu.menu)
+                                .with_context_menu(self.context_menu.menu.clone())
                                 .with_margin(Thickness::uniform(1.0))
                                 .with_foreground(Brush::Solid(match msg.kind {
                                     MessageKind::Information => Color::opaque(210, 210, 210),

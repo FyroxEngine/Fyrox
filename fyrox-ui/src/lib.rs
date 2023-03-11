@@ -82,8 +82,8 @@ use fxhash::{FxHashMap, FxHashSet};
 use std::{
     any::{Any, TypeId},
     cell::{Cell, Ref, RefCell, RefMut},
-    collections::{hash_map::Entry, VecDeque},
-    fmt::Debug,
+    collections::{btree_set::BTreeSet, hash_map::Entry, VecDeque},
+    fmt::{Debug, Formatter},
     ops::{Deref, DerefMut, Index, IndexMut},
     rc::Rc,
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
@@ -143,6 +143,56 @@ pub struct Thickness {
 impl Default for Thickness {
     fn default() -> Self {
         Self::uniform(0.0)
+    }
+}
+
+struct RcUiNodeHandleInner {
+    handle: Handle<UiNode>,
+    sender: Sender<UiMessage>,
+}
+
+impl Drop for RcUiNodeHandleInner {
+    fn drop(&mut self) {
+        let _ = self.sender.send(WidgetMessage::remove(
+            self.handle,
+            MessageDirection::ToWidget,
+        ));
+    }
+}
+
+#[derive(Clone)]
+pub struct RcUiNodeHandle(Rc<RcUiNodeHandleInner>);
+
+impl Debug for RcUiNodeHandle {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(
+            f,
+            "RcUiNodeHandle - {}:{} with {} uses",
+            self.0.handle.index(),
+            self.0.handle.generation(),
+            Rc::strong_count(&self.0)
+        )
+    }
+}
+
+impl PartialEq for RcUiNodeHandle {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.handle == other.0.handle
+    }
+}
+
+impl RcUiNodeHandle {
+    pub fn new(handle: Handle<UiNode>, sender: Sender<UiMessage>) -> Self {
+        assert!(handle.is_some());
+        Self(Rc::new(RcUiNodeHandleInner { handle, sender }))
+    }
+}
+
+impl Deref for RcUiNodeHandle {
+    type Target = Handle<UiNode>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0.handle
     }
 }
 
@@ -308,6 +358,8 @@ pub trait BaseControl: 'static {
     fn as_any_mut(&mut self) -> &mut dyn Any;
 
     fn clone_boxed(&self) -> Box<dyn Control>;
+
+    fn type_name(&self) -> &'static str;
 }
 
 impl<T: Any + Clone + 'static + Control> BaseControl for T {
@@ -321,6 +373,64 @@ impl<T: Any + Clone + 'static + Control> BaseControl for T {
 
     fn clone_boxed(&self) -> Box<dyn Control> {
         Box::new(self.clone())
+    }
+
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<T>()
+    }
+}
+
+#[derive(Default, Clone)]
+pub struct NodeStatistics(pub FxHashMap<&'static str, isize>);
+
+impl NodeStatistics {
+    pub fn new(ui: &UserInterface) -> NodeStatistics {
+        let mut statistics = Self::default();
+        for node in ui.nodes.iter() {
+            statistics
+                .0
+                .entry(node.type_name())
+                .and_modify(|counter| *counter += 1)
+                .or_insert(1);
+        }
+        statistics
+    }
+
+    fn unite_type_names(&self, prev_stats: &NodeStatistics) -> BTreeSet<&'static str> {
+        let mut union = BTreeSet::default();
+        for stats in [self, prev_stats] {
+            for &type_name in stats.0.keys() {
+                union.insert(type_name);
+            }
+        }
+        union
+    }
+
+    fn count_of(&self, type_name: &str) -> isize {
+        self.0.get(type_name).cloned().unwrap_or_default()
+    }
+
+    pub fn print_diff(&self, prev_stats: &NodeStatistics, show_unchanged: bool) {
+        println!("**** Diff UI Node Statistics ****");
+        for type_name in self.unite_type_names(prev_stats) {
+            let count = self.count_of(type_name);
+            let prev_count = prev_stats.count_of(type_name);
+            let delta = count - prev_count;
+            if delta != 0 || show_unchanged {
+                println!("{}: \x1b[93m{}\x1b[0m", type_name, delta);
+            }
+        }
+    }
+
+    pub fn print_changed(&self, prev_stats: &NodeStatistics) {
+        println!("**** Changed UI Node Statistics ****");
+        for type_name in self.unite_type_names(prev_stats) {
+            let count = self.count_of(type_name);
+            let prev_count = prev_stats.count_of(type_name);
+            if count - prev_count != 0 {
+                println!("{}: \x1b[93m{}\x1b[0m", type_name, count);
+            }
+        }
     }
 }
 
@@ -504,6 +614,10 @@ impl<'a> BuildContext<'a> {
         self.ui.default_font.clone()
     }
 
+    pub fn sender(&self) -> Sender<UiMessage> {
+        self.ui.sender()
+    }
+
     pub fn add_node(&mut self, node: UiNode) -> Handle<UiNode> {
         self.ui.add_node(node)
     }
@@ -555,7 +669,7 @@ pub struct RestrictionEntry {
 }
 
 struct TooltipEntry {
-    tooltip: Rc<Handle<UiNode>>,
+    tooltip: RcUiNodeHandle,
     /// Time remaining until this entry should disappear (in seconds).
     time: f32,
     /// Maximum time that it should be kept for
@@ -565,7 +679,7 @@ struct TooltipEntry {
     max_time: f32,
 }
 impl TooltipEntry {
-    fn new(tooltip: Rc<Handle<UiNode>>, time: f32) -> TooltipEntry {
+    fn new(tooltip: RcUiNodeHandle, time: f32) -> TooltipEntry {
         Self {
             tooltip,
             time,
@@ -1611,17 +1725,7 @@ impl UserInterface {
                         WidgetMessage::ContextMenu(context_menu) => {
                             if message.destination().is_some() {
                                 let node = self.nodes.borrow_mut(message.destination());
-
-                                let prev_context_menu = node.context_menu();
-
-                                node.set_context_menu(*context_menu);
-
-                                if prev_context_menu.is_some() {
-                                    self.send_message(WidgetMessage::remove(
-                                        prev_context_menu,
-                                        MessageDirection::ToWidget,
-                                    ));
-                                }
+                                node.set_context_menu(context_menu.clone());
                             }
                         }
                         WidgetMessage::Center => {
@@ -1657,19 +1761,19 @@ impl UserInterface {
                                         if let Some(parent) = self.nodes.try_borrow(parent_handle) {
                                             (parent.context_menu(), parent_handle)
                                         } else {
-                                            (Handle::NONE, Handle::NONE)
+                                            (None, Handle::NONE)
                                         }
                                     };
 
                                     // Display context menu
-                                    if context_menu.is_some() {
+                                    if let Some(context_menu) = context_menu {
                                         self.send_message(PopupMessage::placement(
-                                            context_menu,
+                                            *context_menu,
                                             MessageDirection::ToWidget,
                                             Placement::Cursor(target),
                                         ));
                                         self.send_message(PopupMessage::open(
-                                            context_menu,
+                                            *context_menu,
                                             MessageDirection::ToWidget,
                                         ));
                                     }
@@ -1693,7 +1797,7 @@ impl UserInterface {
         self.node(self.root()).screen_to_local(position)
     }
 
-    fn show_tooltip(&self, tooltip: Rc<Handle<UiNode>>) {
+    fn show_tooltip(&self, tooltip: RcUiNodeHandle) {
         self.send_message(WidgetMessage::visibility(
             *tooltip,
             MessageDirection::ToWidget,
@@ -1707,7 +1811,7 @@ impl UserInterface {
         ));
     }
 
-    fn replace_or_update_tooltip(&mut self, tooltip: Rc<Handle<UiNode>>, time: f32) {
+    fn replace_or_update_tooltip(&mut self, tooltip: RcUiNodeHandle, time: f32) {
         if let Some(entry) = self.active_tooltip.as_mut() {
             if entry.tooltip == tooltip {
                 // Keep current visible.
@@ -1759,9 +1863,8 @@ impl UserInterface {
             // mutable access later
             let parent = node.parent();
 
-            if node.tooltip().is_some() {
+            if let Some(tooltip) = node.tooltip() {
                 // They have a tooltip, we stop here and use that.
-                let tooltip = node.tooltip();
                 let tooltip_time = node.tooltip_time();
                 self.replace_or_update_tooltip(tooltip, tooltip_time);
                 break;
@@ -2156,7 +2259,6 @@ impl UserInterface {
     fn remove_node(&mut self, node: Handle<UiNode>) {
         self.unlink_node_internal(node);
 
-        let mut tooltips = Vec::new();
         let sender = self.sender.clone();
         let mut stack = vec![node];
         while let Some(handle) = stack.pop() {
@@ -2177,24 +2279,13 @@ impl UserInterface {
             let node_ref = self.nodes.borrow(handle);
             stack.extend_from_slice(node_ref.children());
 
-            // We also must delete tooltips, since they're not in the tree of the widget they
-            // won't be deleted automatically.
-            if node_ref.tooltip.is_some() && Rc::strong_count(&node_ref.tooltip) == 1 {
-                tooltips.push(node_ref.tooltip.clone());
-            }
-
             // Notify node that it is about to be deleted so it will have a chance to remove
             // other widgets (like popups).
             node_ref.on_remove(&sender);
 
             self.nodes.free(handle);
+            self.preview_set.remove(&handle);
         }
-
-        for tooltip in tooltips {
-            self.remove_node(*tooltip);
-        }
-
-        self.preview_set.remove(&node);
     }
 
     pub fn drag_context(&self) -> &DragContext {

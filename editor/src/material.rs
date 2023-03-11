@@ -5,6 +5,7 @@ use crate::{
     scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
     send_sync_message, GameEngine, Message,
 };
+use fyrox::gui::RcUiNodeHandle;
 use fyrox::{
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
@@ -54,7 +55,7 @@ use fyrox::{
 use std::sync::mpsc::Sender;
 
 struct TextureContextMenu {
-    popup: Handle<UiNode>,
+    popup: RcUiNodeHandle,
     show_in_asset_browser: Handle<UiNode>,
     target: Handle<UiNode>,
 }
@@ -73,6 +74,7 @@ impl TextureContextMenu {
                 .build(ctx),
             )
             .build(ctx);
+        let popup = RcUiNodeHandle::new(popup, ctx.sender());
 
         Self {
             popup,
@@ -485,7 +487,7 @@ impl MaterialEditor {
                         PropertyValue::Sampler { value, .. } => ImageBuilder::new(
                             WidgetBuilder::new()
                                 .with_allow_drop(true)
-                                .with_context_menu(self.texture_context_menu.popup),
+                                .with_context_menu(self.texture_context_menu.popup.clone()),
                         )
                         .with_opt_texture(value.clone().map(into_gui_texture))
                         .build(ctx),
@@ -663,7 +665,7 @@ impl MaterialEditor {
             } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) =
                 message.data::<PopupMessage>()
             {
-                if message.destination() == self.texture_context_menu.popup {
+                if message.destination() == *self.texture_context_menu.popup {
                     self.texture_context_menu.target = *target;
                 }
             } else if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {

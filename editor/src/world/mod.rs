@@ -15,6 +15,7 @@ use crate::{
     GameEngine, Message, Mode, Settings,
 };
 use fyrox::gui::searchbar::SearchBarMessage;
+use fyrox::gui::RcUiNodeHandle;
 use fyrox::{
     core::{
         color::Color,
@@ -79,7 +80,7 @@ fn make_graph_node_item(
     node: &Node,
     handle: Handle<Node>,
     ctx: &mut BuildContext,
-    context_menu: Handle<UiNode>,
+    context_menu: RcUiNodeHandle,
 ) -> Handle<UiNode> {
     let icon = if node.is_point_light() || node.is_directional_light() || node.is_spot_light() {
         load_image(include_bytes!("../../resources/embed/light.png"))
@@ -465,7 +466,7 @@ impl WorldViewer {
                                     &graph[child_handle],
                                     child_handle,
                                     &mut ui.build_ctx(),
-                                    self.item_context_menu.menu,
+                                    self.item_context_menu.menu.clone(),
                                 );
                                 send_sync_message(
                                     ui,
@@ -487,7 +488,7 @@ impl WorldViewer {
                         node,
                         node_handle,
                         &mut ui.build_ctx(),
-                        self.item_context_menu.menu,
+                        self.item_context_menu.menu.clone(),
                     );
                     send_sync_message(
                         ui,

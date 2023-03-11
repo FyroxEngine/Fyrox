@@ -18,6 +18,7 @@ use crate::{
     },
     send_sync_message, utils, Message,
 };
+use fyrox::gui::RcUiNodeHandle;
 use fyrox::{
     animation::{
         container::{TrackDataContainer, TrackValueKind},
@@ -75,7 +76,7 @@ enum PropertyBindingMode {
 }
 
 struct TrackContextMenu {
-    menu: Handle<UiNode>,
+    menu: RcUiNodeHandle,
     remove_track: Handle<UiNode>,
 }
 
@@ -91,6 +92,7 @@ impl TrackContextMenu {
                 .build(ctx),
             )
             .build(ctx);
+        let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         Self { menu, remove_track }
     }
@@ -1100,7 +1102,8 @@ impl TrackList {
 
                         let track_view = TrackViewBuilder::new(
                             TreeBuilder::new(
-                                WidgetBuilder::new().with_context_menu(self.context_menu.menu),
+                                WidgetBuilder::new()
+                                    .with_context_menu(self.context_menu.menu.clone()),
                             )
                             .with_items(curves),
                         )

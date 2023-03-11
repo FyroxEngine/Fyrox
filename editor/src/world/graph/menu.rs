@@ -11,6 +11,7 @@ use crate::{
     world::graph::item::SceneItem,
     GameEngine, Message, MessageDirection, PasteCommand,
 };
+use fyrox::gui::RcUiNodeHandle;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
     gui::{
@@ -28,7 +29,7 @@ use fyrox::{
 use std::sync::mpsc::Sender;
 
 pub struct ItemContextMenu {
-    pub menu: Handle<UiNode>,
+    pub menu: RcUiNodeHandle,
     delete_selection: Handle<UiNode>,
     copy_selection: Handle<UiNode>,
     create_entity_menu: CreateEntityMenu,
@@ -104,6 +105,7 @@ impl ItemContextMenu {
                 .build(ctx),
             )
             .build(ctx);
+        let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         // TODO: Not sure if this is the right place for this dialog.
         let save_as_prefab_dialog = make_save_file_selector(ctx);
@@ -204,7 +206,7 @@ impl ItemContextMenu {
                     ));
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == self.menu {
+            if message.destination() == *self.menu {
                 self.placement_target = *target;
 
                 // Check if placement target is a Camera.

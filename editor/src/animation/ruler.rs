@@ -1,4 +1,5 @@
 use crate::menu::create_menu_item;
+use fyrox::gui::RcUiNodeHandle;
 use fyrox::{
     core::{
         algebra::{Matrix3, Point2, Vector2},
@@ -51,7 +52,7 @@ impl RulerMessage {
 
 #[derive(Clone)]
 struct ContextMenu {
-    menu: Handle<UiNode>,
+    menu: RcUiNodeHandle,
     add_signal: Handle<UiNode>,
     remove_signal: Handle<UiNode>,
     selected_position: Cell<f32>,
@@ -77,6 +78,7 @@ impl ContextMenu {
                 .build(ctx),
             )
             .build(ctx);
+        let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         Self {
             menu,
@@ -380,7 +382,7 @@ impl Control for Ruler {
                 for signal in self.signals.borrow().iter() {
                     if signal
                         .screen_bounds(self)
-                        .contains(ui.node(self.context_menu.menu).screen_position())
+                        .contains(ui.node(*self.context_menu.menu).screen_position())
                     {
                         ui.send_message(RulerMessage::remove_signal(
                             self.handle,
@@ -436,7 +438,7 @@ impl RulerBuilder {
             widget: self
                 .widget_builder
                 .with_preview_messages(true)
-                .with_context_menu(context_menu.menu)
+                .with_context_menu(context_menu.menu.clone())
                 .with_background(BRUSH_DARKER)
                 .with_foreground(BRUSH_LIGHTER)
                 .build(),
