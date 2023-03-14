@@ -61,11 +61,6 @@
 
 #![warn(missing_docs)]
 
-// Platform-dependent crates
-#[macro_use]
-#[cfg(target_os = "windows")]
-extern crate winapi;
-
 pub mod buffer;
 pub mod context;
 
@@ -86,4 +81,3 @@ pub use fyrox_core::pool;
 pub use hrtf;
 
 mod decoder;
-mod device;

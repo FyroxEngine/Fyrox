@@ -23,16 +23,4 @@ hrtf = "0.8.0"
 hound = "3.4.0"
 strum = "0.24.0"
 strum_macros = "0.24.0"
-
-[target.'cfg(target_os = "windows")'.dependencies]
-winapi = {version = "0.3.9", features = ["minwindef", "winnt", "windef", "winuser", "dsound", "synchapi", "winbase" ] }
-
-[target.'cfg(target_os = "linux")'.dependencies]
-alsa-sys = { version = "0.3.1" }
-
-[target.'cfg(target_os = "macos")'.dependencies]
-coreaudio-sys = { version = "0.2.8" }
-core-foundation-sys = { version = "0.8.2" }
-
-[features]
-enable_profiler = ["fyrox-core/enable_profiler"]
+tinyaudio = "0.1.0"

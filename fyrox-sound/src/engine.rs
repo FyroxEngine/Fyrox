@@ -4,7 +4,7 @@
 //!
 //! Sound engine manages contexts, feeds output device with data.
 
-use crate::{context::SoundContext, device};
+use crate::context::{SoundContext, SAMPLE_RATE};
 use fyrox_core::visitor::{Visit, VisitResult, Visitor};
 use std::sync::{Arc, Mutex};
 
@@ -12,6 +12,7 @@ use std::sync::{Arc, Mutex};
 #[derive(Default)]
 pub struct SoundEngine {
     contexts: Vec<SoundContext>,
+    output_device: Option<Box<dyn tinyaudio::BaseAudioOutputDevice>>,
 }
 
 impl SoundEngine {
@@ -31,19 +32,37 @@ impl SoundEngine {
     fn new_inner(headless: bool) -> Arc<Mutex<Self>> {
         let engine = Arc::new(Mutex::new(Self {
             contexts: Default::default(),
+            output_device: None,
         }));
 
-        // Run the default output device. Internally it creates separate thread, so we have
-        // to share sound engine instance with it, this is the only reason why it is wrapped
-        // in Arc<Mutex<>>
-        device::run_device(headless, 4 * SoundContext::SAMPLES_PER_CHANNEL as u32, {
-            let state = engine.clone();
-            move |buf| {
-                if let Ok(mut state) = state.lock() {
-                    state.render_inner(buf);
-                }
-            }
-        });
+        if !headless {
+            let device = tinyaudio::run_output_device(
+                tinyaudio::OutputDeviceParameters {
+                    sample_rate: SAMPLE_RATE as usize,
+                    channels_count: 2,
+                    channel_sample_count: SoundContext::SAMPLES_PER_CHANNEL,
+                },
+                {
+                    let state = engine.clone();
+                    move |buf| {
+                        // SAFETY: This is safe as long as channels count above is 2.
+                        let data = unsafe {
+                            std::slice::from_raw_parts_mut(
+                                buf.as_mut_ptr() as *mut (f32, f32),
+                                buf.len() / 2,
+                            )
+                        };
+
+                        if let Ok(mut state) = state.lock() {
+                            state.render(data);
+                        }
+                    }
+                },
+            )
+            .unwrap();
+
+            engine.lock().unwrap().output_device = Some(device);
+        }
 
         engine
     }
@@ -53,6 +72,7 @@ impl SoundEngine {
     pub fn without_device() -> Arc<Mutex<Self>> {
         Arc::new(Mutex::new(Self {
             contexts: Default::default(),
+            output_device: None,
         }))
     }
 
