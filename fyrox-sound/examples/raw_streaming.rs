@@ -52,12 +52,12 @@ impl RawStreamingDataSource for SamplesGenerator {
 
 fn main() {
     // Initialize sound engine with default output device.
-    let engine = SoundEngine::new();
+    let engine = SoundEngine::new().unwrap();
 
     // Initialize new sound context.
     let context = SoundContext::new();
 
-    engine.lock().unwrap().add_context(context.clone());
+    engine.state().add_context(context.clone());
 
     // Create sine wave generator
     let sine_wave = DataSource::RawStreaming(Box::new(SamplesGenerator::new()));

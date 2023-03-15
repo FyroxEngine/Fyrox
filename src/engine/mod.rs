@@ -57,7 +57,7 @@ use std::{
     ops::Deref,
     sync::{
         mpsc::{channel, Receiver},
-        Arc, Mutex,
+        Arc,
     },
     time::Duration,
 };
@@ -201,7 +201,7 @@ pub struct Engine {
     model_events_receiver: Receiver<ResourceEvent<Model>>,
 
     #[allow(dead_code)] // Keep engine instance alive.
-    sound_engine: Arc<Mutex<SoundEngine>>,
+    sound_engine: SoundEngine,
 
     // A set of plugin constructors.
     plugin_constructors: Vec<Box<dyn PluginConstructor>>,
@@ -705,12 +705,6 @@ pub struct EngineInitParams {
     pub serialization_context: Arc<SerializationContext>,
     /// A resource manager.
     pub resource_manager: ResourceManager,
-    /// (experimental) Run the engine without opening a window (TODO) and without sound.
-    /// Useful for dedicated game servers or running on CI.
-    ///
-    /// Headless support is incomplete, for progress see
-    /// <https://github.com/FyroxEngine/Fyrox/issues/222>.
-    pub headless: bool,
 }
 
 macro_rules! define_process_node {
@@ -818,7 +812,6 @@ impl Engine {
     ///     graphics_context_params,
     ///     resource_manager: ResourceManager::new(serialization_context.clone()),
     ///     serialization_context,
-    ///     headless: false,
     /// })
     /// .unwrap();
     /// ```
@@ -829,14 +822,7 @@ impl Engine {
             graphics_context_params,
             serialization_context,
             resource_manager,
-            headless,
         } = params;
-
-        let sound_engine = if headless {
-            SoundEngine::new_headless()
-        } else {
-            SoundEngine::new()
-        };
 
         let (rx, tx) = channel();
         resource_manager
@@ -845,6 +831,8 @@ impl Engine {
             .models
             .event_broadcaster
             .add(rx);
+
+        let sound_engine = SoundEngine::without_device();
 
         Ok(Self {
             graphics_context: GraphicsContext::Uninitialized(graphics_context_params),
@@ -1017,6 +1005,8 @@ impl Engine {
                 params: params.clone(),
             });
 
+            self.sound_engine.initialize_audio_output_device()?;
+
             Ok(())
         } else {
             Err(EngineError::Custom(
@@ -1059,6 +1049,8 @@ impl Engine {
                 },
                 vsync: params.vsync,
             });
+
+            self.sound_engine.destroy_audio_output_device();
 
             Ok(())
         } else {

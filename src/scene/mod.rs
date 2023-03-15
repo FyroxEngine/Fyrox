@@ -64,7 +64,7 @@ use std::{
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},
     path::Path,
-    sync::{Arc, Mutex},
+    sync::Arc,
 };
 
 /// A container for navigational meshes.
@@ -741,12 +741,12 @@ impl Scene {
 /// Container for scenes in the engine.
 pub struct SceneContainer {
     pool: Pool<Scene>,
-    sound_engine: Arc<Mutex<SoundEngine>>,
+    sound_engine: SoundEngine,
     pub(crate) destruction_list: Vec<(Handle<Scene>, Scene)>,
 }
 
 impl SceneContainer {
-    pub(crate) fn new(sound_engine: Arc<Mutex<SoundEngine>>) -> Self {
+    pub(crate) fn new(sound_engine: SoundEngine) -> Self {
         Self {
             pool: Pool::new(),
             sound_engine,
@@ -795,8 +795,7 @@ impl SceneContainer {
     #[inline]
     pub fn add(&mut self, scene: Scene) -> Handle<Scene> {
         self.sound_engine
-            .lock()
-            .unwrap()
+            .state()
             .add_context(scene.graph.sound_context.native.clone());
         self.pool.spawn(scene)
     }
@@ -811,8 +810,7 @@ impl SceneContainer {
     #[inline]
     pub fn remove(&mut self, handle: Handle<Scene>) {
         self.sound_engine
-            .lock()
-            .unwrap()
+            .state()
             .remove_context(self.pool[handle].graph.sound_context.native.clone());
         self.destruction_list.push((handle, self.pool.free(handle)));
     }

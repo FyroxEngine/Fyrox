@@ -16,7 +16,7 @@ use std::{
 
 fn main() {
     // Initialize sound engine with default output device.
-    let engine = SoundEngine::new();
+    let engine = SoundEngine::new().unwrap();
 
     let hrir_sphere =
         HrirSphere::from_file("examples/data/IRC_1002_C.bin", context::SAMPLE_RATE).unwrap();
@@ -24,7 +24,7 @@ fn main() {
     // Initialize new sound context with default output device.
     let context = SoundContext::new();
 
-    engine.lock().unwrap().add_context(context.clone());
+    engine.state().add_context(context.clone());
 
     // Set HRTF renderer instead of default.
     context

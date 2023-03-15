@@ -9,13 +9,13 @@ use std::{thread, time::Duration};
 
 fn main() {
     // Initialize sound engine with default output device.
-    let engine = SoundEngine::new();
+    let engine = SoundEngine::new().unwrap();
 
     // Create new context.
     let context = SoundContext::new();
 
     // Register context in the engine.
-    engine.lock().unwrap().add_context(context.clone());
+    engine.state().add_context(context.clone());
 
     // Load sound buffer.
     let door_open_buffer = SoundBufferResource::new_generic(

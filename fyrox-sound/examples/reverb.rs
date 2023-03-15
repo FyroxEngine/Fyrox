@@ -19,12 +19,12 @@ fn main() {
         HrirSphere::from_file("examples/data/IRC_1002_C.bin", context::SAMPLE_RATE).unwrap();
 
     // Initialize sound engine with default output device.
-    let engine = SoundEngine::new();
+    let engine = SoundEngine::new().unwrap();
 
     // Initialize new sound context.
     let context = SoundContext::new();
 
-    engine.lock().unwrap().add_context(context.clone());
+    engine.state().add_context(context.clone());
 
     // Set HRTF renderer instead of default for binaural sound.
     context

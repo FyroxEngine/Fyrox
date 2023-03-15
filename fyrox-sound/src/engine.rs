@@ -6,11 +6,22 @@
 
 use crate::context::{SoundContext, SAMPLE_RATE};
 use fyrox_core::visitor::{Visit, VisitResult, Visitor};
-use std::sync::{Arc, Mutex};
+use std::error::Error;
+use std::sync::{Arc, Mutex, MutexGuard};
 
-/// Internal state of sound engine.
-#[derive(Default)]
-pub struct SoundEngine {
+/// Sound engine manages contexts, feeds output device with data. Sound engine instance can be cloned,
+/// however this is always a "shallow" clone, because actual sound engine data is wrapped in Arc.
+#[derive(Clone)]
+pub struct SoundEngine(Arc<Mutex<State>>);
+
+impl Default for SoundEngine {
+    fn default() -> Self {
+        Self::without_device()
+    }
+}
+
+/// Internal state of the sound engine.
+pub struct State {
     contexts: Vec<SoundContext>,
     output_device: Option<Box<dyn tinyaudio::BaseAudioOutputDevice>>,
 }
@@ -19,63 +30,64 @@ impl SoundEngine {
     /// Creates new instance of the sound engine. It is possible to have multiple engines running at
     /// the same time, but you shouldn't do this because you can create multiple contexts which
     /// should cover 99% of use cases.
-    pub fn new() -> Arc<Mutex<Self>> {
-        Self::new_inner(false)
+    pub fn new() -> Result<Self, Box<dyn Error>> {
+        let engine = Self::without_device();
+        engine.initialize_audio_output_device()?;
+        Ok(engine)
     }
 
-    /// Like `new()` but won't use any OS sound devices.
-    /// Can be useful for running on CI where those might not be available.
-    pub fn new_headless() -> Arc<Mutex<Self>> {
-        Self::new_inner(true)
-    }
-
-    fn new_inner(headless: bool) -> Arc<Mutex<Self>> {
-        let engine = Arc::new(Mutex::new(Self {
+    /// Creates new instance of a sound engine without OS audio output device (so called headless mode).
+    /// The user should periodically run [`Self::render`] if they want to implement their own sample sending
+    /// method to an output device (or a file, etc.).
+    pub fn without_device() -> Self {
+        Self(Arc::new(Mutex::new(State {
             contexts: Default::default(),
             output_device: None,
-        }));
-
-        if !headless {
-            let device = tinyaudio::run_output_device(
-                tinyaudio::OutputDeviceParameters {
-                    sample_rate: SAMPLE_RATE as usize,
-                    channels_count: 2,
-                    channel_sample_count: SoundContext::SAMPLES_PER_CHANNEL,
-                },
-                {
-                    let state = engine.clone();
-                    move |buf| {
-                        // SAFETY: This is safe as long as channels count above is 2.
-                        let data = unsafe {
-                            std::slice::from_raw_parts_mut(
-                                buf.as_mut_ptr() as *mut (f32, f32),
-                                buf.len() / 2,
-                            )
-                        };
-
-                        if let Ok(mut state) = state.lock() {
-                            state.render(data);
-                        }
-                    }
-                },
-            )
-            .unwrap();
-
-            engine.lock().unwrap().output_device = Some(device);
-        }
-
-        engine
+        })))
     }
 
-    /// Creates new instance of a sound engine without running a device thread. The user must
-    /// periodically run [`Self::render`].
-    pub fn without_device() -> Arc<Mutex<Self>> {
-        Arc::new(Mutex::new(Self {
-            contexts: Default::default(),
-            output_device: None,
-        }))
+    /// Tries to initialize default audio output device.
+    pub fn initialize_audio_output_device(&self) -> Result<(), Box<dyn Error>> {
+        let state = self.clone();
+
+        let device = tinyaudio::run_output_device(
+            tinyaudio::OutputDeviceParameters {
+                sample_rate: SAMPLE_RATE as usize,
+                channels_count: 2,
+                channel_sample_count: SoundContext::SAMPLES_PER_CHANNEL,
+            },
+            {
+                move |buf| {
+                    // SAFETY: This is safe as long as channels count above is 2.
+                    let data = unsafe {
+                        std::slice::from_raw_parts_mut(
+                            buf.as_mut_ptr() as *mut (f32, f32),
+                            buf.len() / 2,
+                        )
+                    };
+
+                    state.state().render(data);
+                }
+            },
+        )?;
+
+        self.state().output_device = Some(device);
+
+        Ok(())
     }
 
+    /// Destroys current audio output device (if any).
+    pub fn destroy_audio_output_device(&self) {
+        self.state().output_device = None;
+    }
+
+    /// Provides direct access to actual engine data.
+    pub fn state(&self) -> MutexGuard<State> {
+        self.0.lock().unwrap()
+    }
+}
+
+impl State {
     /// Adds new context to the engine. Each context must be added to the engine to emit
     /// sounds.
     pub fn add_context(&mut self, context: SoundContext) {
@@ -131,7 +143,7 @@ impl SoundEngine {
     }
 }
 
-impl Visit for SoundEngine {
+impl Visit for State {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         if visitor.is_reading() {
             self.contexts.clear();

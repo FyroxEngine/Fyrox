@@ -73,7 +73,6 @@ impl Executor {
             graphics_context_params,
             resource_manager: ResourceManager::new(serialization_context.clone()),
             serialization_context,
-            headless: false,
         })
         .unwrap();
 

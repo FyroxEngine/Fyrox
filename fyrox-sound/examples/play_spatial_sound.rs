@@ -14,12 +14,12 @@ use std::{
 
 fn main() {
     // Initialize sound engine with default output device.
-    let engine = SoundEngine::new();
+    let engine = SoundEngine::new().unwrap();
 
     // Initialize new sound context.
     let context = SoundContext::new();
 
-    engine.lock().unwrap().add_context(context.clone());
+    engine.state().add_context(context.clone());
 
     // Load sound buffer.
     let drop_buffer = SoundBufferResource::new_generic(

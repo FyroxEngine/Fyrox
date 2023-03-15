@@ -526,11 +526,10 @@ impl Editor {
             graphics_context_params,
             resource_manager: ResourceManager::new(serialization_context.clone()),
             serialization_context,
-            headless: false,
         })
         .unwrap();
 
-        // Editor cannot run on Android so we can safely call `resume` here.
+        // Editor cannot run on Android so we can safely initialize graphics context here.
         engine.initialize_graphics_context(event_loop).unwrap();
 
         let graphics_context = engine.graphics_context.as_initialized_mut();

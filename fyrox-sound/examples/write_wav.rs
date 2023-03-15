@@ -1,3 +1,4 @@
+use fyrox_sound::engine::State;
 use fyrox_sound::{
     buffer::{DataSource, SoundBufferResource},
     context::SoundContext,
@@ -14,7 +15,7 @@ fn main() {
     let context = SoundContext::new();
 
     // Register context in the engine.
-    engine.lock().unwrap().add_context(context.clone());
+    engine.state().add_context(context.clone());
 
     // Load sound buffer.
     let door_open_buffer = SoundBufferResource::new_generic(
@@ -46,13 +47,13 @@ fn main() {
     let mut wav_writer = hound::WavWriter::create("output.wav", wav_spec).unwrap();
 
     // Create an output buffer.
-    let buf_len = SoundEngine::render_buffer_len();
+    let buf_len = State::render_buffer_len();
     let mut buf = vec![(0.0f32, 0.0f32); buf_len];
     let mut samples_written = 0;
 
     // Wait until sound will play completely.
     while samples_written < 3 * fyrox_sound::context::SAMPLE_RATE {
-        engine.lock().unwrap().render(&mut buf);
+        engine.state().render(&mut buf);
         for &(l, r) in buf.iter() {
             wav_writer.write_sample(l).unwrap();
             wav_writer.write_sample(r).unwrap();
