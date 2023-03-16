@@ -30,7 +30,7 @@ use fyrox::{
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         utils::make_simple_tooltip,
-        vec::vec3::{Vec3EditorBuilder, Vec3EditorMessage},
+        vec::{Vec3EditorBuilder, Vec3EditorMessage},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,

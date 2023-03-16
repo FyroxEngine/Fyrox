@@ -5,7 +5,6 @@ use crate::{
     scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
     send_sync_message, GameEngine, Message,
 };
-use fyrox::gui::RcUiNodeHandle;
 use fyrox::{
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
@@ -33,13 +32,12 @@ use fyrox::{
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         vec::{
-            vec2::{Vec2EditorBuilder, Vec2EditorMessage},
-            vec3::{Vec3EditorBuilder, Vec3EditorMessage},
-            vec4::{Vec4EditorBuilder, Vec4EditorMessage},
+            Vec2EditorBuilder, Vec2EditorMessage, Vec3EditorBuilder, Vec3EditorMessage,
+            Vec4EditorBuilder, Vec4EditorMessage,
         },
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowTitle},
-        BuildContext, Thickness, UiNode, UserInterface, VerticalAlignment,
+        BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
     material::{shader::Shader, Material, PropertyValue, SharedMaterial},
     resource::texture::TextureState,

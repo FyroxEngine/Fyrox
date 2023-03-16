@@ -5,7 +5,7 @@ use crate::{
     message::{MessageDirection, UiMessage},
     numeric::NumericType,
     text::TextBuilder,
-    vec::vec2::{Vec2EditorBuilder, Vec2EditorMessage},
+    vec::{VecEditorBuilder, VecEditorMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
@@ -82,7 +82,8 @@ where
 
                 ui.send_message(message.reverse());
             }
-        } else if let Some(Vec2EditorMessage::Value(value)) = message.data::<Vec2EditorMessage<T>>()
+        } else if let Some(VecEditorMessage::Value(value)) =
+            message.data::<VecEditorMessage<T, 2>>()
         {
             if message.direction() == MessageDirection::FromWidget {
                 if message.destination() == self.position {
@@ -136,7 +137,7 @@ fn create_field<T: NumericType>(
                     .build(ctx),
             )
             .with_child({
-                editor = Vec2EditorBuilder::new(WidgetBuilder::new().on_column(1))
+                editor = VecEditorBuilder::new(WidgetBuilder::new().on_column(1))
                     .with_value(value)
                     .build(ctx);
                 editor

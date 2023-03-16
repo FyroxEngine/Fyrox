@@ -13,7 +13,7 @@ use crate::{
     },
     message::{MessageDirection, UiMessage},
     numeric::NumericType,
-    vec::vec3::{Vec3EditorBuilder, Vec3EditorMessage},
+    vec::{VecEditorBuilder, VecEditorMessage},
     widget::WidgetBuilder,
     Thickness,
 };
@@ -56,7 +56,7 @@ where
         let value = ctx.property_info.cast_value::<UnitQuaternion<T>>()?;
         let euler = value.euler_angles();
         Ok(PropertyEditorInstance::Simple {
-            editor: Vec3EditorBuilder::new(
+            editor: VecEditorBuilder::new(
                 WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
             )
             .with_value(Vector3::new(
@@ -79,7 +79,7 @@ where
             euler.1.to_degrees(),
             euler.2.to_degrees(),
         );
-        Ok(Some(Vec3EditorMessage::value(
+        Ok(Some(VecEditorMessage::value(
             ctx.instance,
             MessageDirection::ToWidget,
             euler_degrees,
@@ -88,13 +88,13 @@ where
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
         if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(Vec3EditorMessage::Value(value)) =
-                ctx.message.data::<Vec3EditorMessage<T>>()
+            if let Some(VecEditorMessage::Value(value)) =
+                ctx.message.data::<VecEditorMessage<T, 3>>()
             {
                 let euler = Vector3::new(
-                    value.x.to_radians(),
-                    value.y.to_radians(),
-                    value.z.to_radians(),
+                    value[0].to_radians(),
+                    value[1].to_radians(),
+                    value[2].to_radians(),
                 );
                 let rotation = quat_from_euler(euler, RotationOrder::XYZ);
                 return Some(PropertyChanged {
