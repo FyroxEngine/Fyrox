@@ -1,7 +1,7 @@
 use crate::{
     border::BorderBuilder,
     brush::Brush,
-    core::{algebra::SVector, color::Color, pool::Handle},
+    core::{algebra::SVector, color::Color, num_traits, pool::Handle},
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
@@ -14,10 +14,12 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-pub fn make_numeric_input<T: NumericType>(
+fn make_numeric_input<T: NumericType>(
     ctx: &mut BuildContext,
     column: usize,
     value: T,
+    min: T,
+    max: T,
     editable: bool,
 ) -> Handle<UiNode> {
     NumericUpDownBuilder::new(
@@ -33,6 +35,8 @@ pub fn make_numeric_input<T: NumericType>(
     )
     .with_precision(3)
     .with_value(value)
+    .with_min_value(min)
+    .with_max_value(max)
     .with_editable(editable)
     .build(ctx)
 }
@@ -72,6 +76,8 @@ where
     pub widget: Widget,
     pub fields: Vec<Handle<UiNode>>,
     pub value: SVector<T, D>,
+    pub min: SVector<T, D>,
+    pub max: SVector<T, D>,
 }
 
 impl<T, const D: usize> Deref for VecEditor<T, D>
@@ -134,17 +140,19 @@ where
             if message.direction() == MessageDirection::ToWidget {
                 let mut changed = false;
 
-                for (editor, (current, new)) in self
-                    .fields
-                    .iter()
-                    .zip(self.value.iter_mut().zip(new_value.iter()))
-                {
-                    if current != new {
-                        *current = *new;
+                for i in 0..D {
+                    let editor = self.fields[i];
+                    let current = &mut self.value[i];
+                    let min = self.min[i];
+                    let max = self.max[i];
+                    let new = num_traits::clamp(new_value[i], min, max);
+
+                    if *current != new {
+                        *current = new;
                         ui.send_message(NumericUpDownMessage::value(
-                            *editor,
+                            editor,
                             MessageDirection::ToWidget,
-                            *new,
+                            new,
                         ));
                         changed = true;
                     }
@@ -165,6 +173,8 @@ where
     widget_builder: WidgetBuilder,
     value: SVector<T, D>,
     editable: bool,
+    min: SVector<T, D>,
+    max: SVector<T, D>,
 }
 
 impl<T, const D: usize> VecEditorBuilder<T, D>
@@ -176,6 +186,8 @@ where
             widget_builder,
             value: SVector::repeat(Default::default()),
             editable: true,
+            min: SVector::repeat(T::min_value()),
+            max: SVector::repeat(T::max_value()),
         }
     }
 
@@ -186,6 +198,16 @@ where
 
     pub fn with_editable(mut self, editable: bool) -> Self {
         self.editable = editable;
+        self
+    }
+
+    pub fn with_min(mut self, min: SVector<T, D>) -> Self {
+        self.min = min;
+        self
+    }
+
+    pub fn with_max(mut self, max: SVector<T, D>) -> Self {
+        self.max = max;
         self
     }
 
@@ -210,7 +232,14 @@ where
                 colors.get(i).cloned().unwrap_or(Color::ORANGE),
             ));
 
-            let field = make_numeric_input(ctx, i * 2 + 1, self.value[i], self.editable);
+            let field = make_numeric_input(
+                ctx,
+                i * 2 + 1,
+                self.value[i],
+                self.min[i],
+                self.max[i],
+                self.editable,
+            );
             children.push(field);
             fields.push(field);
 
@@ -227,6 +256,8 @@ where
             widget: self.widget_builder.with_child(grid).build(),
             fields,
             value: self.value,
+            min: self.min,
+            max: self.max,
         };
 
         ctx.add_node(UiNode::new(node))
