@@ -20,6 +20,7 @@ fn make_numeric_input<T: NumericType>(
     value: T,
     min: T,
     max: T,
+    step: T,
     editable: bool,
 ) -> Handle<UiNode> {
     NumericUpDownBuilder::new(
@@ -37,6 +38,7 @@ fn make_numeric_input<T: NumericType>(
     .with_value(value)
     .with_min_value(min)
     .with_max_value(max)
+    .with_step(step)
     .with_editable(editable)
     .build(ctx)
 }
@@ -78,6 +80,7 @@ where
     pub value: SVector<T, D>,
     pub min: SVector<T, D>,
     pub max: SVector<T, D>,
+    pub step: SVector<T, D>,
 }
 
 impl<T, const D: usize> Deref for VecEditor<T, D>
@@ -175,6 +178,7 @@ where
     editable: bool,
     min: SVector<T, D>,
     max: SVector<T, D>,
+    step: SVector<T, D>,
 }
 
 impl<T, const D: usize> VecEditorBuilder<T, D>
@@ -188,6 +192,7 @@ where
             editable: true,
             min: SVector::repeat(T::min_value()),
             max: SVector::repeat(T::max_value()),
+            step: SVector::repeat(T::one()),
         }
     }
 
@@ -208,6 +213,11 @@ where
 
     pub fn with_max(mut self, max: SVector<T, D>) -> Self {
         self.max = max;
+        self
+    }
+
+    pub fn with_step(mut self, step: SVector<T, D>) -> Self {
+        self.step = step;
         self
     }
 
@@ -238,6 +248,7 @@ where
                 self.value[i],
                 self.min[i],
                 self.max[i],
+                self.step[i],
                 self.editable,
             );
             children.push(field);
@@ -258,6 +269,7 @@ where
             value: self.value,
             min: self.min,
             max: self.max,
+            step: self.step,
         };
 
         ctx.add_node(UiNode::new(node))

@@ -1,5 +1,5 @@
 use crate::{
-    core::algebra::SVector,
+    core::{algebra::SVector, num_traits::NumCast},
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
@@ -44,6 +44,24 @@ impl<T: NumericType, const D: usize> PropertyEditorDefinition
             editor: VecEditorBuilder::new(
                 WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
             )
+            .with_min(SVector::repeat(
+                ctx.property_info
+                    .min_value
+                    .and_then(NumCast::from)
+                    .unwrap_or_else(T::min_value),
+            ))
+            .with_max(SVector::repeat(
+                ctx.property_info
+                    .max_value
+                    .and_then(NumCast::from)
+                    .unwrap_or_else(T::max_value),
+            ))
+            .with_step(SVector::repeat(
+                ctx.property_info
+                    .step
+                    .and_then(NumCast::from)
+                    .unwrap_or_else(T::one),
+            ))
             .with_value(*value)
             .build(ctx.build_context),
         })
