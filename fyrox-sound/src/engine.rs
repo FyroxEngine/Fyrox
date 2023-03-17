@@ -37,7 +37,7 @@ impl SoundEngine {
     }
 
     /// Creates new instance of a sound engine without OS audio output device (so called headless mode).
-    /// The user should periodically run [`Self::render`] if they want to implement their own sample sending
+    /// The user should periodically run [`State::render`] if they want to implement their own sample sending
     /// method to an output device (or a file, etc.).
     pub fn without_device() -> Self {
         Self(Arc::new(Mutex::new(State {
@@ -125,7 +125,7 @@ impl State {
 
     /// Renders the sound into buf. The buf must have at least [`Self::render_buffer_len()`]
     /// elements. This method must be used if and only if the engine was created via
-    /// [`Self::without_device`].
+    /// [`SoundEngine::without_device`].
     ///
     /// ## Deadlocks
     ///
