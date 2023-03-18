@@ -2,14 +2,15 @@ mod ascii;
 pub mod attribute;
 mod binary;
 
-use crate::core::algebra::Vector3;
-use crate::core::io;
 use crate::{
-    core::pool::{Handle, Pool},
+    core::{
+        algebra::Vector3,
+        io,
+        pool::{Handle, Pool},
+    },
     resource::fbx::{document::attribute::FbxAttribute, error::FbxError},
 };
-use std::io::Cursor;
-use std::path::Path;
+use std::{io::Cursor, path::Path};
 
 pub struct FbxNode {
     name: String,
@@ -52,7 +53,7 @@ impl FbxNode {
         self.attributes.len()
     }
 
-    pub fn attributes(&self) -> &Vec<FbxAttribute> {
+    pub fn attributes(&self) -> &[FbxAttribute] {
         &self.attributes
     }
 

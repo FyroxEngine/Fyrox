@@ -1,7 +1,7 @@
-use crate::core::color::Color;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
+        color::Color,
         pool::{Handle, Pool},
     },
     resource::fbx::{
@@ -10,7 +10,7 @@ use crate::{
         fix_index,
         scene::{
             animation::{FbxAnimationCurve, FbxAnimationCurveNode},
-            geometry::FbxGeometry,
+            geometry::{FbxMeshGeometry, FbxShapeGeometry},
             light::FbxLight,
             model::FbxModel,
             texture::FbxTexture,
@@ -53,11 +53,19 @@ impl FbxScene {
             let index = object.get_attrib(0)?.as_i64()?;
             let mut component_handle: Handle<FbxComponent> = Handle::NONE;
             match object.name() {
-                "Geometry" => {
-                    component_handle = components.spawn(FbxComponent::Geometry(Box::new(
-                        FbxGeometry::read(*object_handle, nodes)?,
-                    )));
-                }
+                "Geometry" => match object.get_attrib(2)?.as_string().as_str() {
+                    "Mesh" => {
+                        component_handle = components.spawn(FbxComponent::MeshGeometry(Box::new(
+                            FbxMeshGeometry::read(*object_handle, nodes)?,
+                        )));
+                    }
+                    "Shape" => {
+                        component_handle = components.spawn(FbxComponent::ShapeGeometry(Box::new(
+                            FbxShapeGeometry::read(*object_handle, nodes)?,
+                        )));
+                    }
+                    _ => (),
+                },
                 "Model" => {
                     component_handle = components.spawn(FbxComponent::Model(Box::new(
                         FbxModel::read(*object_handle, nodes)?,
@@ -156,7 +164,7 @@ fn link_child_with_parent_component(
     match parent {
         // Link model with other components
         FbxComponent::Model(model) => match child {
-            FbxComponent::Geometry(_) => model.geoms.push(child_handle),
+            FbxComponent::MeshGeometry(_) => model.geoms.push(child_handle),
             FbxComponent::Material(_) => model.materials.push(child_handle),
             FbxComponent::AnimationCurveNode(_) => model.animation_curve_nodes.push(child_handle),
             FbxComponent::Light(_) => model.light = child_handle,
@@ -182,7 +190,7 @@ fn link_child_with_parent_component(
             }
         }
         // Link geometry with deformers
-        FbxComponent::Geometry(geometry) => {
+        FbxComponent::MeshGeometry(geometry) => {
             if let FbxComponent::Deformer(_) = child {
                 geometry.deformers.push(child_handle);
             }
@@ -195,7 +203,7 @@ fn link_child_with_parent_component(
             }
         }
         FbxComponent::BlendShapeChannel(channel) => {
-            if let FbxComponent::Geometry(_) = child {
+            if let FbxComponent::MeshGeometry(_) = child {
                 channel.geometry = child_handle;
             }
         }
@@ -214,7 +222,8 @@ pub enum FbxComponent {
     Material(FbxMaterial),
     AnimationCurveNode(FbxAnimationCurveNode),
     AnimationCurve(FbxAnimationCurve),
-    Geometry(Box<FbxGeometry>),
+    MeshGeometry(Box<FbxMeshGeometry>),
+    ShapeGeometry(Box<FbxShapeGeometry>),
 }
 
 macro_rules! define_as {
@@ -241,7 +250,7 @@ impl FbxComponent {
     define_as!(self, as_texture, FbxTexture, Texture);
     define_as!(self, as_light, FbxLight, Light);
     define_as!(self, as_material, FbxMaterial, Material);
-    define_as!(self, as_geometry, FbxGeometry, Geometry);
+    define_as!(self, as_mesh_geometry, FbxMeshGeometry, MeshGeometry);
 }
 
 // https://help.autodesk.com/view/FBX/2016/ENU/?guid=__cpp_ref_class_fbx_anim_curve_html
@@ -414,14 +423,14 @@ impl FbxReference {
     }
 }
 
-pub struct FbxContainer<T> {
+pub struct FbxLayerElement<T> {
     pub elements: Vec<T>,
     pub index: Vec<i32>,
     pub mapping: FbxMapping,
     pub reference: FbxReference,
 }
 
-impl<T> FbxContainer<T> {
+impl<T> FbxLayerElement<T> {
     pub fn new<M, P>(
         nodes: &FbxNodeContainer,
         container_node: Handle<FbxNode>,
@@ -548,20 +557,26 @@ impl<T> FbxContainer<T> {
     }
 }
 
+pub fn attributes_to_vec3_array(
+    attributes: &[FbxAttribute],
+) -> Result<Vec<Vector3<f32>>, FbxError> {
+    let mut out_container = Vec::with_capacity(attributes.len() / 3);
+    for chunk in attributes.chunks_exact(3) {
+        out_container.push(Vector3::new(
+            chunk[0].as_f32()?,
+            chunk[1].as_f32()?,
+            chunk[2].as_f32()?,
+        ));
+    }
+    Ok(out_container)
+}
+
 pub fn make_vec3_container<P: AsRef<str>>(
     nodes: &FbxNodeContainer,
     container_node: Handle<FbxNode>,
     data_name: P,
-) -> Result<FbxContainer<Vector3<f32>>, FbxError> {
-    FbxContainer::new(nodes, container_node, data_name, |attributes| {
-        let mut normals = Vec::with_capacity(attributes.len() / 3);
-        for normal in attributes.chunks_exact(3) {
-            normals.push(Vector3::new(
-                normal[0].as_f32()?,
-                normal[1].as_f32()?,
-                normal[2].as_f32()?,
-            ));
-        }
-        Ok(normals)
+) -> Result<FbxLayerElement<Vector3<f32>>, FbxError> {
+    FbxLayerElement::new(nodes, container_node, data_name, |attributes| {
+        attributes_to_vec3_array(attributes)
     })
 }

@@ -30,7 +30,7 @@ use crate::{
             error::FbxError,
             scene::{
                 animation::{FbxAnimationCurveNode, FbxAnimationCurveNodeType},
-                geometry::FbxGeometry,
+                geometry::FbxMeshGeometry,
                 model::FbxModel,
                 FbxComponent, FbxMapping, FbxScene,
             },
@@ -185,7 +185,7 @@ impl Into<StaticVertex> for UnpackedVertex {
 }
 
 fn convert_vertex(
-    geom: &FbxGeometry,
+    geom: &FbxMeshGeometry,
     geometric_transform: &Matrix4<f32>,
     material_index: usize,
     index: usize,
@@ -424,7 +424,7 @@ async fn convert_mesh(
 
     let mut mesh_surfaces = Vec::new();
     for &geom_handle in &model.geoms {
-        let geom = fbx_scene.get(geom_handle).as_geometry()?;
+        let geom = fbx_scene.get(geom_handle).as_mesh_geometry()?;
         let skin_data = geom.get_skin_data(fbx_scene)?;
 
         let mut data_set = vec![
