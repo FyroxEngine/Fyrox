@@ -7,6 +7,7 @@
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
+        arrayvec::ArrayVec,
         hash_combine,
         math::TriangleDefinition,
         parking_lot::{Mutex, MutexGuard},
@@ -29,8 +30,23 @@ use crate::{
     },
     utils::raw_mesh::{RawMesh, RawMeshBuilder},
 };
-use fxhash::FxHasher;
-use std::{hash::Hasher, sync::Arc};
+use fxhash::{FxHashMap, FxHasher};
+use std::{error::Error, hash::Hasher, sync::Arc};
+
+#[derive(Debug, Clone)]
+pub struct BlendShape {
+    pub weight: f32,
+    pub vertex_buffer: VertexBuffer,
+}
+
+impl Default for BlendShape {
+    fn default() -> Self {
+        Self {
+            weight: 1.0,
+            vertex_buffer: Default::default(),
+        }
+    }
+}
 
 /// Data source of a surface. Each surface can share same data source, this is used
 /// in instancing technique to render multiple instances of same model at different
@@ -41,6 +57,8 @@ pub struct SurfaceData {
     pub vertex_buffer: VertexBuffer,
     /// Current geometry buffer.
     pub geometry_buffer: TriangleBuffer,
+    /// A list of blend shapes.
+    pub blend_shapes: FxHashMap<String, BlendShape>,
     // If true - indicates that surface was generated and does not have reference
     // resource. Procedural data will be serialized.
     is_procedural: bool,
@@ -57,9 +75,127 @@ impl SurfaceData {
         Self {
             vertex_buffer,
             geometry_buffer: triangles,
+            blend_shapes: Default::default(),
             is_procedural,
             cache_entry: AtomicIndex::unassigned(),
         }
+    }
+
+    pub fn set_blend_shapes(
+        &mut self,
+        blend_shapes: FxHashMap<String, BlendShape>,
+    ) -> Result<(), FxHashMap<String, BlendShape>> {
+        // Validate first.
+        for blend_shape in blend_shapes.values() {
+            if blend_shape.vertex_buffer.layout_hash() != self.vertex_buffer.layout_hash()
+                || blend_shape.vertex_buffer.vertex_size() != self.vertex_buffer.vertex_size()
+                || blend_shape.vertex_buffer.vertex_count() != self.vertex_buffer.vertex_count()
+            {
+                return Err(blend_shapes);
+            }
+        }
+
+        self.blend_shapes = blend_shapes;
+
+        Ok(())
+    }
+
+    pub fn update_blend_shape_weights(
+        &mut self,
+        weights: &[(&str, f32)],
+    ) -> Result<(), Box<dyn Error>> {
+        if weights.len() != self.blend_shapes.len() {
+            return Err(format!(
+                "Input amount of weights ({}) must match the amount of blend shapes ({})!",
+                weights.len(),
+                self.blend_shapes.len()
+            )
+            .into());
+        }
+
+        for (name, weight) in weights {
+            if let Some(blend_shape) = self.blend_shapes.get_mut(*name) {
+                blend_shape.weight = *weight;
+            }
+        }
+
+        self.apply_blend_shapes()
+    }
+
+    fn apply_blend_shapes(&mut self) -> Result<(), Box<dyn Error>> {
+        // Calculate weight sum to re-normalize the weights.
+        let sum = self
+            .blend_shapes
+            .iter()
+            .fold(0.0, |acc, bs| acc + bs.1.weight);
+
+        let mut blend_shapes = ArrayVec::<(&VertexBuffer, f32), 128>::new();
+
+        for blend_shape in self.blend_shapes.values() {
+            blend_shapes.push((&blend_shape.vertex_buffer, blend_shape.weight / sum));
+        }
+
+        // TODO: For now assume that blend shapes can only have positions, normals, tangents.
+        let mut vertex_buffer = self.vertex_buffer.modify();
+
+        let has_position = vertex_buffer.has_attribute(VertexAttributeUsage::Position);
+        let has_normal = vertex_buffer.has_attribute(VertexAttributeUsage::Normal);
+        let has_tangent = vertex_buffer.has_attribute(VertexAttributeUsage::Tangent);
+
+        for (i, mut vertex) in vertex_buffer.iter_mut().enumerate() {
+            if has_position {
+                let mut position = Vector3::default();
+
+                for (blend_shape_vertex_buffer, weight) in blend_shapes.iter() {
+                    let blend_shape_vertex = blend_shape_vertex_buffer
+                        .get(i)
+                        .expect("Validation failed!");
+
+                    position += blend_shape_vertex
+                        .read_3_f32(VertexAttributeUsage::Position)
+                        .expect("Validation failed")
+                        .scale(*weight);
+                }
+
+                vertex.write_3_f32(VertexAttributeUsage::Position, position)?;
+            }
+
+            if has_normal {
+                let mut normal = Vector3::default();
+
+                for (blend_shape_vertex_buffer, weight) in blend_shapes.iter() {
+                    let blend_shape_vertex = blend_shape_vertex_buffer
+                        .get(i)
+                        .expect("Validation failed!");
+
+                    normal += blend_shape_vertex
+                        .read_3_f32(VertexAttributeUsage::Normal)
+                        .expect("Validation failed")
+                        .scale(*weight);
+                }
+
+                vertex.write_3_f32(VertexAttributeUsage::Normal, normal)?;
+            }
+
+            if has_tangent {
+                let mut tangent = Vector4::default();
+
+                for (blend_shape_vertex_buffer, weight) in blend_shapes.iter() {
+                    let blend_shape_vertex = blend_shape_vertex_buffer
+                        .get(i)
+                        .expect("Validation failed!");
+
+                    tangent += blend_shape_vertex
+                        .read_4_f32(VertexAttributeUsage::Tangent)
+                        .expect("Validation failed")
+                        .scale(*weight);
+                }
+
+                vertex.write_4_f32(VertexAttributeUsage::Tangent, tangent)?;
+            }
+        }
+
+        Ok(())
     }
 
     /// Applies given transform for every spatial part of the data (vertex position, normal, tangent).
@@ -101,6 +237,7 @@ impl SurfaceData {
         Self {
             vertex_buffer: VertexBuffer::new(raw.vertices.len(), layout, raw.vertices).unwrap(),
             geometry_buffer: TriangleBuffer::new(raw.triangles),
+            blend_shapes: Default::default(),
             is_procedural,
             cache_entry: AtomicIndex::unassigned(),
         }

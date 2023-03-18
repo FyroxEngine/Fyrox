@@ -751,6 +751,8 @@ pub enum VertexFetchError {
     Io(std::io::Error),
 }
 
+impl std::error::Error for VertexFetchError {}
+
 impl Display for VertexFetchError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
