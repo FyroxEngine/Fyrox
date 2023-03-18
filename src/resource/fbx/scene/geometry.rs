@@ -178,7 +178,7 @@ impl FbxGeometry {
                 .sub_deformers
                 .iter()
             {
-                let sub_deformer = scene.get(sub_deformer_handle).as_sub_deformer()?;
+                let sub_deformer = scene.get(sub_deformer_handle).as_cluster()?;
                 for (index, weight) in sub_deformer.weights.iter() {
                     let bone_set = out
                         .get_mut(*index as usize)

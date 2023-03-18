@@ -93,11 +93,16 @@ impl FbxScene {
                 }
                 "Deformer" => match object.get_attrib(2)?.as_string().as_str() {
                     "Cluster" => {
-                        component_handle = components.spawn(FbxComponent::SubDeformer(
-                            FbxSubDeformer::read(*object_handle, nodes)?,
+                        component_handle = components.spawn(FbxComponent::Cluster(
+                            FbxCluster::read(*object_handle, nodes)?,
                         ));
                     }
-                    "Skin" => {
+                    "BlendShapeChannel" => {
+                        component_handle = components.spawn(FbxComponent::BlendShapeChannel(
+                            FbxBlendShapeChannel::read(*object_handle, nodes)?,
+                        ))
+                    }
+                    "Skin" | "BlendShape" => {
                         component_handle = components.spawn(FbxComponent::Deformer(
                             FbxDeformer::read(*object_handle, nodes),
                         ));
@@ -170,9 +175,9 @@ fn link_child_with_parent_component(
                 anim_curve_node.curves.insert(property, child_handle);
             }
         }
-        // Link deformer with sub-deformers
+        // Link deformer with sub-deformers (skin cluster, blend shape channel)
         FbxComponent::Deformer(deformer) => {
-            if let FbxComponent::SubDeformer(_) = child {
+            if let FbxComponent::Cluster(_) | FbxComponent::BlendShapeChannel(_) = child {
                 deformer.sub_deformers.push(child_handle);
             }
         }
@@ -182,11 +187,16 @@ fn link_child_with_parent_component(
                 geometry.deformers.push(child_handle);
             }
         }
-        // Link sub-deformer with model
-        FbxComponent::SubDeformer(sub_deformer) => {
+        // Link cluster with model (bones)
+        FbxComponent::Cluster(sub_deformer) => {
             if let FbxComponent::Model(model) = child {
                 sub_deformer.model = child_handle;
                 model.inv_bind_transform = sub_deformer.transform;
+            }
+        }
+        FbxComponent::BlendShapeChannel(channel) => {
+            if let FbxComponent::Geometry(_) = child {
+                channel.geometry = child_handle;
             }
         }
         // Ignore rest
@@ -196,7 +206,8 @@ fn link_child_with_parent_component(
 
 pub enum FbxComponent {
     Deformer(FbxDeformer),
-    SubDeformer(FbxSubDeformer),
+    Cluster(FbxCluster),
+    BlendShapeChannel(FbxBlendShapeChannel),
     Texture(FbxTexture),
     Light(FbxLight),
     Model(Box<FbxModel>),
@@ -220,7 +231,13 @@ macro_rules! define_as {
 
 impl FbxComponent {
     define_as!(self, as_deformer, FbxDeformer, Deformer);
-    define_as!(self, as_sub_deformer, FbxSubDeformer, SubDeformer);
+    define_as!(self, as_cluster, FbxCluster, Cluster);
+    define_as!(
+        self,
+        as_blend_shape_channel,
+        FbxBlendShapeChannel,
+        BlendShapeChannel
+    );
     define_as!(self, as_texture, FbxTexture, Texture);
     define_as!(self, as_light, FbxLight, Light);
     define_as!(self, as_material, FbxMaterial, Material);
@@ -230,27 +247,48 @@ impl FbxComponent {
 // https://help.autodesk.com/view/FBX/2016/ENU/?guid=__cpp_ref_class_fbx_anim_curve_html
 const FBX_TIME_UNIT: f64 = 1.0 / 46_186_158_000.0;
 
-pub struct FbxSubDeformer {
+pub struct FbxBlendShapeChannel {
+    geometry: Handle<FbxComponent>,
+    deform_percent: f32,
+}
+
+impl FbxBlendShapeChannel {
+    fn read(channel: Handle<FbxNode>, nodes: &FbxNodeContainer) -> Result<Self, String> {
+        let mut deform_percent = 100.0;
+
+        let props = nodes.get_by_name(channel, "Properties70")?;
+        for prop_handle in props.children() {
+            let prop = nodes.get(*prop_handle);
+            if let "DeformPercent" = prop.get_attrib(0)?.as_string().as_str() {
+                deform_percent = prop.get_attrib(4)?.as_f32()?;
+            }
+        }
+
+        Ok(Self {
+            geometry: Default::default(),
+            deform_percent,
+        })
+    }
+}
+
+pub struct FbxCluster {
     model: Handle<FbxComponent>,
     weights: Vec<(i32, f32)>,
     transform: Matrix4<f32>,
 }
 
-impl FbxSubDeformer {
-    fn read(
-        sub_deformer_handle: Handle<FbxNode>,
-        nodes: &FbxNodeContainer,
-    ) -> Result<Self, String> {
-        // For some reason FBX exported from Blender can have sub deformer without weights and
+impl FbxCluster {
+    fn read(cluster_handle: Handle<FbxNode>, nodes: &FbxNodeContainer) -> Result<Self, String> {
+        // For some reason FBX exported from Blender can have cluster without weights and
         // indices. This is still valid and we have to return dummy in this case, instead of
         // error.
-        if let Ok(indices_handle) = nodes.find(sub_deformer_handle, "Indexes") {
+        if let Ok(indices_handle) = nodes.find(cluster_handle, "Indexes") {
             let indices = nodes.get_by_name(indices_handle, "a")?;
 
-            let weights_handle = nodes.find(sub_deformer_handle, "Weights")?;
+            let weights_handle = nodes.find(cluster_handle, "Weights")?;
             let weights = nodes.get_by_name(weights_handle, "a")?;
 
-            let transform_handle = nodes.find(sub_deformer_handle, "Transform")?;
+            let transform_handle = nodes.find(cluster_handle, "Transform")?;
             let transform_node = nodes.get_by_name(transform_handle, "a")?;
 
             if transform_node.attrib_count() != 16 {
@@ -262,7 +300,7 @@ impl FbxSubDeformer {
 
             if indices.attrib_count() != weights.attrib_count() {
                 return Err(String::from(
-                    "invalid sub deformer, weights count does not match index count",
+                    "invalid cluster, weights count does not match index count",
                 ));
             }
 
@@ -271,22 +309,22 @@ impl FbxSubDeformer {
                 transform[i] = transform_node.get_attrib(i)?.as_f64()? as f32;
             }
 
-            let mut sub_deformer = FbxSubDeformer {
+            let mut cluster = FbxCluster {
                 model: Handle::NONE,
                 weights: Vec::with_capacity(weights.attrib_count()),
                 transform,
             };
 
             for i in 0..weights.attrib_count() {
-                sub_deformer.weights.push((
+                cluster.weights.push((
                     indices.get_attrib(i)?.as_i32()?,
                     weights.get_attrib(i)?.as_f64()? as f32,
                 ));
             }
 
-            Ok(sub_deformer)
+            Ok(cluster)
         } else {
-            Ok(FbxSubDeformer {
+            Ok(FbxCluster {
                 model: Handle::NONE,
                 weights: Default::default(),
                 transform: Default::default(),
