@@ -187,7 +187,7 @@ impl Plugin for Game {
                 self.debug_text,
                 MessageDirection::ToWidget,
                 format!(
-                    "Example 01 - Simple Scene\nUse [A][D] keys to rotate model.\nFPS: {}",
+                    "Example - Blend Shapes\nUse [A][D] keys to rotate the model and sliders to select facial expression.\nFPS: {}",
                     graphics_context.renderer.get_statistics().frames_per_second
                 ),
             ));
@@ -289,7 +289,7 @@ fn main() {
         Default::default(),
         GraphicsContextParams {
             window_attributes: WindowAttributes {
-                title: "Example - Simple".to_string(),
+                title: "Example - Blend Shapes".to_string(),
                 ..Default::default()
             },
             vsync: true,
