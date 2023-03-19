@@ -203,7 +203,7 @@ fn link_child_with_parent_component(
             }
         }
         FbxComponent::BlendShapeChannel(channel) => {
-            if let FbxComponent::MeshGeometry(_) = child {
+            if let FbxComponent::ShapeGeometry(_) = child {
                 channel.geometry = child_handle;
             }
         }

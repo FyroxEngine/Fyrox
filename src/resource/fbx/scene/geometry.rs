@@ -250,7 +250,7 @@ impl FbxShapeGeometry {
         Ok(Self {
             vertices: read_vec3_plain_array("Vertices", geom_node_handle, nodes)?
                 .ok_or_else(|| "No vertices element!".to_string())?,
-            indices: read_indices("Indices", geom_node_handle, nodes)?,
+            indices: read_indices("Indexes", geom_node_handle, nodes)?,
             normals: read_vec3_plain_array("Normals", geom_node_handle, nodes)?,
             tangents: read_vec3_plain_array("Tangents", geom_node_handle, nodes)?,
             binormals: read_vec3_plain_array("Binormals", geom_node_handle, nodes)?,
