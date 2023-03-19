@@ -102,24 +102,7 @@ impl SurfaceData {
         Ok(())
     }
 
-    pub fn update_blend_shape_weights(&mut self, weights: &[f32]) -> Result<(), Box<dyn Error>> {
-        if weights.len() != self.blend_shapes.len() {
-            return Err(format!(
-                "Input amount of weights ({}) must match the amount of blend shapes ({})!",
-                weights.len(),
-                self.blend_shapes.len()
-            )
-            .into());
-        }
-
-        for (weight, blend_shape) in weights.iter().zip(self.blend_shapes.iter_mut()) {
-            blend_shape.weight = *weight;
-        }
-
-        self.apply_blend_shapes()
-    }
-
-    fn apply_blend_shapes(&mut self) -> Result<(), Box<dyn Error>> {
+    pub fn apply_blend_shapes(&mut self) -> Result<(), Box<dyn Error>> {
         // Calculate weight sum to re-normalize the weights.
         let sum = self
             .blend_shapes
