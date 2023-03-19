@@ -47,7 +47,7 @@ impl GameSceneLoader {
     fn load_with(resource_manager: ResourceManager, ui: &mut UserInterface) -> Self {
         let mut scene = Scene::new();
 
-        scene.ambient_lighting_color = Color::opaque(200, 200, 200);
+        scene.ambient_lighting_color = Color::opaque(150, 150, 150);
 
         CameraBuilder::new(
             BaseBuilder::new().with_local_transform(
@@ -61,7 +61,7 @@ impl GameSceneLoader {
         PointLightBuilder::new(BaseLightBuilder::new(
             BaseBuilder::new().with_local_transform(
                 TransformBuilder::new()
-                    .with_local_position(Vector3::new(0.0, 12.0, 0.0))
+                    .with_local_position(Vector3::new(0.0, 12.0, -6.0))
                     .build(),
             ),
         ))
@@ -69,7 +69,7 @@ impl GameSceneLoader {
         .build(&mut scene.graph);
 
         let model_resource = block_on(
-            resource_manager.request_model("examples/data/blend_shape/Gunan_animated.fbx"),
+            resource_manager.request_model("examples/data/blend_shape/Gunan_animated2.fbx"),
         )
         .unwrap();
 
