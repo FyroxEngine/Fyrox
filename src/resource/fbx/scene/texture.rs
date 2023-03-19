@@ -22,11 +22,10 @@ impl FbxTexture {
             // Since most of FBX files were made on Windows in 3ds MAX or Maya, it contains
             // paths with double back slashes, we must fix this so this path can be used
             // on linux.
-            let str_path = relative_file_name_node
-                .get_attrib(0)?
-                .as_string()
-                .replace('\\', "/");
-            texture.filename = PathBuf::from(str_path);
+            if let Ok(attrib) = relative_file_name_node.get_attrib(0) {
+                let str_path = attrib.as_string().replace('\\', "/");
+                texture.filename = PathBuf::from(str_path);
+            }
         }
         Ok(texture)
     }
