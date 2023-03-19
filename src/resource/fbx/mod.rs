@@ -253,17 +253,24 @@ impl FbxMeshBuilder {
 }
 
 #[derive(Clone)]
+struct BlendShapeBuilder {
+    name: String,
+    mesh_builder: RawMeshBuilder<StaticVertex>,
+    weight: f32,
+}
+
+#[derive(Clone)]
 struct FbxSurfaceData {
     base_mesh_builder: FbxMeshBuilder,
-    blend_shape_mesh_builders: Vec<RawMeshBuilder<StaticVertex>>,
+    blend_shape_mesh_builders: Vec<BlendShapeBuilder>,
     skin_data: Vec<VertexWeightSet>,
 }
 
-fn make_blend_shapes(builders: Vec<RawMeshBuilder<StaticVertex>>) -> Vec<BlendShape> {
+fn make_blend_shapes(builders: Vec<BlendShapeBuilder>) -> Vec<BlendShape> {
     builders
         .into_iter()
         .map(|b| {
-            let raw_mesh = b.build();
+            let raw_mesh = b.mesh_builder.build();
 
             let vertex_buffer = VertexBuffer::new(
                 raw_mesh.vertices.len(),
@@ -274,8 +281,8 @@ fn make_blend_shapes(builders: Vec<RawMeshBuilder<StaticVertex>>) -> Vec<BlendSh
 
             BlendShape {
                 vertex_buffer,
-                weight: 100.0,
-                name: "BlendShape".to_string(),
+                weight: b.weight,
+                name: b.name,
             }
         })
         .collect()
@@ -465,10 +472,16 @@ async fn convert_mesh(
                 } else {
                     FbxMeshBuilder::Animated(RawMeshBuilder::new(1024, 1024))
                 },
-                blend_shape_mesh_builders: vec![
-                    RawMeshBuilder::new(1024, 1024);
-                    blend_shapes.len()
-                ],
+                blend_shape_mesh_builders: blend_shapes
+                    .iter()
+                    .map(|bs_channel| {
+                        BlendShapeBuilder {
+                            name: bs_channel.name.clone(),
+                            mesh_builder: RawMeshBuilder::new(1024, 1024),
+                            weight: bs_channel.deform_percent,
+                        }
+                    })
+                    .collect(),
                 skin_data: Default::default(),
             };
             model.materials.len().max(1)
@@ -514,7 +527,7 @@ async fn convert_mesh(
 
                     // Fill each blend shape, but modify the vertex first using the "offsets" from blend shapes.
                     assert_eq!(blend_shapes.len(), data.blend_shape_mesh_builders.len());
-                    for (blend_shape, builder) in blend_shapes
+                    for (blend_shape, blend_shape_builder) in blend_shapes
                         .iter()
                         .zip(data.blend_shape_mesh_builders.iter_mut())
                     {
@@ -540,7 +553,9 @@ async fn convert_mesh(
                             }
                         }
 
-                        builder.insert(blend_shape_vertex.into());
+                        blend_shape_builder
+                            .mesh_builder
+                            .insert(blend_shape_vertex.into());
                     }
                 }
             }

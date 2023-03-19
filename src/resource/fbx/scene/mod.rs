@@ -260,23 +260,29 @@ const FBX_TIME_UNIT: f64 = 1.0 / 46_186_158_000.0;
 pub struct FbxBlendShapeChannel {
     pub geometry: Handle<FbxComponent>,
     pub deform_percent: f32,
+    pub name: String,
 }
 
 impl FbxBlendShapeChannel {
     fn read(channel: Handle<FbxNode>, nodes: &FbxNodeContainer) -> Result<Self, String> {
-        let mut deform_percent = 100.0;
+        let deform_percent = nodes
+            .get_by_name(channel, "DeformPercent")
+            .and_then(|n| {
+                n.get_attrib(0)
+                    .and_then(|a| Ok(a.as_f32().unwrap_or(100.0)))
+            })
+            .unwrap_or(100.0);
 
-        let props = nodes.get_by_name(channel, "Properties70")?;
-        for prop_handle in props.children() {
-            let prop = nodes.get(*prop_handle);
-            if let "DeformPercent" = prop.get_attrib(0)?.as_string().as_str() {
-                deform_percent = prop.get_attrib(4)?.as_f32()?;
-            }
+        let mut name = nodes.get(channel).get_attrib(1)?.as_string();
+
+        if let Some(without_prefix) = name.strip_prefix("SubDeformer::") {
+            name = without_prefix.to_string();
         }
 
         Ok(Self {
             geometry: Default::default(),
             deform_percent,
+            name,
         })
     }
 }
