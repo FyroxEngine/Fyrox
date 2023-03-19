@@ -1,5 +1,6 @@
 pub mod shared;
 
+use crate::shared::create_camera;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -26,7 +27,6 @@ use fyrox::{
     plugin::{Plugin, PluginConstructor, PluginContext},
     scene::{
         base::BaseBuilder,
-        camera::CameraBuilder,
         light::{point::PointLightBuilder, BaseLightBuilder},
         node::Node,
         transform::TransformBuilder,
@@ -49,14 +49,11 @@ impl GameSceneLoader {
 
         scene.ambient_lighting_color = Color::opaque(150, 150, 150);
 
-        CameraBuilder::new(
-            BaseBuilder::new().with_local_transform(
-                TransformBuilder::new()
-                    .with_local_position(Vector3::new(0.0, 2.0, -8.0))
-                    .build(),
-            ),
-        )
-        .build(&mut scene.graph);
+        block_on(create_camera(
+            resource_manager.clone(),
+            Vector3::new(0.0, 2.0, -8.0),
+            &mut scene.graph,
+        ));
 
         PointLightBuilder::new(BaseLightBuilder::new(
             BaseBuilder::new().with_local_transform(
