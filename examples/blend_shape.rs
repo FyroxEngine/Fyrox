@@ -61,7 +61,7 @@ impl GameSceneLoader {
         .build(&mut scene.graph);
 
         let model_resource = resource_manager
-            .request_model("examples/data/morph.fbx")
+            .request_model("examples/data/morph2.fbx")
             .await
             .unwrap();
 
@@ -70,6 +70,15 @@ impl GameSceneLoader {
         scene.graph[model_handle]
             .local_transform_mut()
             .set_scale(Vector3::new(0.05, 0.05, 0.05));
+
+        let sphere = scene.graph.find_by_name_from_root("Sphere001").unwrap().0;
+        let blend_shape = scene.graph[sphere].as_mesh_mut();
+
+        for surface in blend_shape.surfaces_mut() {
+            let data = surface.data();
+            let mut data = data.lock();
+            data.update_blend_shape_weights(&[100.0, 100.0]).unwrap();
+        }
 
         Self {
             scene,
