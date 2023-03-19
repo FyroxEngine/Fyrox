@@ -240,13 +240,6 @@ macro_rules! define_as {
 
 impl FbxComponent {
     define_as!(self, as_deformer, FbxDeformer, Deformer);
-    define_as!(self, as_cluster, FbxCluster, Cluster);
-    define_as!(
-        self,
-        as_blend_shape_channel,
-        FbxBlendShapeChannel,
-        BlendShapeChannel
-    );
     define_as!(self, as_texture, FbxTexture, Texture);
     define_as!(self, as_light, FbxLight, Light);
     define_as!(self, as_material, FbxMaterial, Material);
@@ -267,10 +260,7 @@ impl FbxBlendShapeChannel {
     fn read(channel: Handle<FbxNode>, nodes: &FbxNodeContainer) -> Result<Self, String> {
         let deform_percent = nodes
             .get_by_name(channel, "DeformPercent")
-            .and_then(|n| {
-                n.get_attrib(0)
-                    .and_then(|a| Ok(a.as_f32().unwrap_or(100.0)))
-            })
+            .and_then(|n| n.get_attrib(0).map(|a| a.as_f32().unwrap_or(100.0)))
             .unwrap_or(100.0);
 
         let mut name = nodes.get(channel).get_attrib(1)?.as_string();

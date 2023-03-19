@@ -33,10 +33,14 @@ use crate::{
 use fxhash::FxHasher;
 use std::{error::Error, hash::Hasher, sync::Arc};
 
+/// A target shape for blending.
 #[derive(Debug, Clone)]
 pub struct BlendShape {
+    /// Weight of the shape.
     pub weight: f32,
+    /// Vertex buffer, that contains target vertex properties (usually just position, normals, tangets).
     pub vertex_buffer: VertexBuffer,
+    /// A name of the shape.
     pub name: String,
 }
 
@@ -50,8 +54,10 @@ impl Default for BlendShape {
     }
 }
 
+/// A container for multiple blend shapes/
 #[derive(Debug, Clone, Default)]
 pub struct BlendShapesContainer {
+    /// Base shape which will be used as a binding pose to calculate offsets for each blend shape.
     pub base_shape: VertexBuffer,
     /// A list of blend shapes.
     pub blend_shapes: Vec<BlendShape>,
@@ -66,6 +72,7 @@ pub struct SurfaceData {
     pub vertex_buffer: VertexBuffer,
     /// Current geometry buffer.
     pub geometry_buffer: TriangleBuffer,
+    /// A container for blend shapes.
     pub blend_shapes_container: Option<BlendShapesContainer>,
     // If true - indicates that surface was generated and does not have reference
     // resource. Procedural data will be serialized.
@@ -89,6 +96,7 @@ impl SurfaceData {
         }
     }
 
+    /// Tries to apply blend shapes (if any) to the surface data.   
     pub fn apply_blend_shapes(&mut self) -> Result<(), Box<dyn Error>> {
         if let Some(container) = self.blend_shapes_container.as_ref() {
             let mut blend_shapes = ArrayVec::<(&VertexBuffer, f32), 128>::new();
