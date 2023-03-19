@@ -251,14 +251,15 @@ impl FbxComponent {
     define_as!(self, as_light, FbxLight, Light);
     define_as!(self, as_material, FbxMaterial, Material);
     define_as!(self, as_mesh_geometry, FbxMeshGeometry, MeshGeometry);
+    define_as!(self, as_shape_geometry, FbxShapeGeometry, ShapeGeometry);
 }
 
 // https://help.autodesk.com/view/FBX/2016/ENU/?guid=__cpp_ref_class_fbx_anim_curve_html
 const FBX_TIME_UNIT: f64 = 1.0 / 46_186_158_000.0;
 
 pub struct FbxBlendShapeChannel {
-    geometry: Handle<FbxComponent>,
-    deform_percent: f32,
+    pub geometry: Handle<FbxComponent>,
+    pub deform_percent: f32,
 }
 
 impl FbxBlendShapeChannel {

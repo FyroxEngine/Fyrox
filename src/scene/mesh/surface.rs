@@ -30,19 +30,21 @@ use crate::{
     },
     utils::raw_mesh::{RawMesh, RawMeshBuilder},
 };
-use fxhash::{FxHashMap, FxHasher};
+use fxhash::FxHasher;
 use std::{error::Error, hash::Hasher, sync::Arc};
 
 #[derive(Debug, Clone)]
 pub struct BlendShape {
     pub weight: f32,
     pub vertex_buffer: VertexBuffer,
+    pub name: String,
 }
 
 impl Default for BlendShape {
     fn default() -> Self {
         Self {
             weight: 1.0,
+            name: Default::default(),
             vertex_buffer: Default::default(),
         }
     }
@@ -58,7 +60,7 @@ pub struct SurfaceData {
     /// Current geometry buffer.
     pub geometry_buffer: TriangleBuffer,
     /// A list of blend shapes.
-    pub blend_shapes: FxHashMap<String, BlendShape>,
+    pub blend_shapes: Vec<BlendShape>,
     // If true - indicates that surface was generated and does not have reference
     // resource. Procedural data will be serialized.
     is_procedural: bool,
@@ -83,10 +85,10 @@ impl SurfaceData {
 
     pub fn set_blend_shapes(
         &mut self,
-        blend_shapes: FxHashMap<String, BlendShape>,
-    ) -> Result<(), FxHashMap<String, BlendShape>> {
+        blend_shapes: Vec<BlendShape>,
+    ) -> Result<(), Vec<BlendShape>> {
         // Validate first.
-        for blend_shape in blend_shapes.values() {
+        for blend_shape in &blend_shapes {
             if blend_shape.vertex_buffer.layout_hash() != self.vertex_buffer.layout_hash()
                 || blend_shape.vertex_buffer.vertex_size() != self.vertex_buffer.vertex_size()
                 || blend_shape.vertex_buffer.vertex_count() != self.vertex_buffer.vertex_count()
@@ -100,10 +102,7 @@ impl SurfaceData {
         Ok(())
     }
 
-    pub fn update_blend_shape_weights(
-        &mut self,
-        weights: &[(&str, f32)],
-    ) -> Result<(), Box<dyn Error>> {
+    pub fn update_blend_shape_weights(&mut self, weights: &[f32]) -> Result<(), Box<dyn Error>> {
         if weights.len() != self.blend_shapes.len() {
             return Err(format!(
                 "Input amount of weights ({}) must match the amount of blend shapes ({})!",
@@ -113,10 +112,8 @@ impl SurfaceData {
             .into());
         }
 
-        for (name, weight) in weights {
-            if let Some(blend_shape) = self.blend_shapes.get_mut(*name) {
-                blend_shape.weight = *weight;
-            }
+        for (weight, blend_shape) in weights.iter().zip(self.blend_shapes.iter_mut()) {
+            blend_shape.weight = *weight;
         }
 
         self.apply_blend_shapes()
@@ -127,11 +124,11 @@ impl SurfaceData {
         let sum = self
             .blend_shapes
             .iter()
-            .fold(0.0, |acc, bs| acc + bs.1.weight);
+            .fold(0.0, |acc, bs| acc + bs.weight);
 
         let mut blend_shapes = ArrayVec::<(&VertexBuffer, f32), 128>::new();
 
-        for blend_shape in self.blend_shapes.values() {
+        for blend_shape in self.blend_shapes.iter() {
             blend_shapes.push((&blend_shape.vertex_buffer, blend_shape.weight / sum));
         }
 

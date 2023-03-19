@@ -1,3 +1,4 @@
+use crate::resource::fbx::scene::FbxBlendShapeChannel;
 use crate::{
     core::{
         algebra::{Vector2, Vector3},
@@ -178,7 +179,7 @@ impl FbxMeshGeometry {
                 .sub_deformers
                 .iter()
             {
-                // We must check for cluster here, because skinned meshes can also have blend shape reformers.
+                // We must check for cluster here, because skinned meshes can also have blend shape deformers.
                 if let FbxComponent::Cluster(cluster) = scene.get(sub_deformer_handle) {
                     for (index, weight) in cluster.weights.iter() {
                         let bone_set = out
@@ -196,6 +197,22 @@ impl FbxMeshGeometry {
             }
         }
         Ok(out)
+    }
+
+    pub fn collect_blend_shapes_refs<'a>(
+        &self,
+        scene: &'a FbxScene,
+    ) -> Result<Vec<&'a FbxBlendShapeChannel>, FbxError> {
+        let mut blend_shapes = Vec::new();
+        for &deformer_handle in &self.deformers {
+            let deformer = scene.get(deformer_handle).as_deformer()?;
+            for &sub_deformer in &deformer.sub_deformers {
+                if let FbxComponent::BlendShapeChannel(channel) = scene.get(sub_deformer) {
+                    blend_shapes.push(channel);
+                }
+            }
+        }
+        Ok(blend_shapes)
     }
 }
 
