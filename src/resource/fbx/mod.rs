@@ -10,6 +10,8 @@ mod document;
 pub mod error;
 mod scene;
 
+use crate::scene::mesh::buffer::VertexBuffer;
+use crate::scene::mesh::surface::{BlendShape, BlendShapesContainer};
 use crate::{
     animation::{track::Track, Animation, AnimationContainer},
     core::{
@@ -30,7 +32,7 @@ use crate::{
             error::FbxError,
             scene::{
                 animation::{FbxAnimationCurveNode, FbxAnimationCurveNodeType},
-                geometry::FbxGeometry,
+                geometry::FbxMeshGeometry,
                 model::FbxModel,
                 FbxComponent, FbxMapping, FbxScene,
             },
@@ -147,9 +149,10 @@ fn prepare_next_face(
     vertex_per_face
 }
 
+#[derive(Clone)]
 struct UnpackedVertex {
     // Index of surface this vertex belongs to.
-    surface: usize,
+    surface_index: usize,
     position: Vector3<f32>,
     normal: Vector3<f32>,
     tangent: Vector3<f32>,
@@ -185,7 +188,7 @@ impl Into<StaticVertex> for UnpackedVertex {
 }
 
 fn convert_vertex(
-    geom: &FbxGeometry,
+    geom: &FbxMeshGeometry,
     geometric_transform: &Matrix4<f32>,
     material_index: usize,
     index: usize,
@@ -221,7 +224,7 @@ fn convert_vertex(
         normal: geometric_transform.transform_vector(&normal),
         tangent: geometric_transform.transform_vector(&tangent),
         uv: Vector2::new(uv.x, 1.0 - uv.y), // Invert Y because OpenGL has origin at left *bottom* corner.
-        surface: material as usize,
+        surface_index: material as usize,
         weights: if geom.deformers.is_empty() {
             None
         } else {
@@ -250,9 +253,51 @@ impl FbxMeshBuilder {
 }
 
 #[derive(Clone)]
+struct BlendShapeBuilder {
+    name: String,
+    mesh_builder: RawMeshBuilder<StaticVertex>,
+    weight: f32,
+}
+
+#[derive(Clone)]
 struct FbxSurfaceData {
-    builder: FbxMeshBuilder,
+    base_mesh_builder: FbxMeshBuilder,
+    blend_shape_mesh_builders: Vec<BlendShapeBuilder>,
     skin_data: Vec<VertexWeightSet>,
+}
+
+fn make_blend_shapes_container(
+    base_shape: &VertexBuffer,
+    builders: Vec<BlendShapeBuilder>,
+) -> Option<BlendShapesContainer> {
+    if builders.is_empty() {
+        None
+    } else {
+        let shapes = builders
+            .into_iter()
+            .map(|b| {
+                let raw_mesh = b.mesh_builder.build();
+
+                let vertex_buffer = VertexBuffer::new(
+                    raw_mesh.vertices.len(),
+                    StaticVertex::layout(),
+                    raw_mesh.vertices,
+                )
+                .unwrap();
+
+                BlendShape {
+                    vertex_buffer,
+                    weight: b.weight,
+                    name: b.name,
+                }
+            })
+            .collect();
+
+        Some(BlendShapesContainer {
+            blend_shapes: shapes,
+            base_shape: base_shape.clone(),
+        })
+    }
 }
 
 async fn create_surfaces(
@@ -269,13 +314,23 @@ async fn create_surfaces(
     if model.materials.is_empty() {
         assert_eq!(data_set.len(), 1);
         let data = data_set.into_iter().next().unwrap();
-        let mut surface = Surface::new(SurfaceSharedData::new(data.builder.build()));
+        let mut surface_data = data.base_mesh_builder.build();
+        surface_data.blend_shapes_container = make_blend_shapes_container(
+            &surface_data.vertex_buffer,
+            data.blend_shape_mesh_builders,
+        );
+        let mut surface = Surface::new(SurfaceSharedData::new(surface_data));
         surface.vertex_weights = data.skin_data;
         surfaces.push(surface);
     } else {
         assert_eq!(data_set.len(), model.materials.len());
         for (&material_handle, data) in model.materials.iter().zip(data_set.into_iter()) {
-            let mut surface = Surface::new(SurfaceSharedData::new(data.builder.build()));
+            let mut surface_data = data.base_mesh_builder.build();
+            surface_data.blend_shapes_container = make_blend_shapes_container(
+                &surface_data.vertex_buffer,
+                data.blend_shape_mesh_builders,
+            );
+            let mut surface = Surface::new(SurfaceSharedData::new(surface_data));
             surface.vertex_weights = data.skin_data;
             let material = fbx_scene.get(material_handle).as_material()?;
             if let Err(e) = surface.material().lock().set_property(
@@ -424,16 +479,27 @@ async fn convert_mesh(
 
     let mut mesh_surfaces = Vec::new();
     for &geom_handle in &model.geoms {
-        let geom = fbx_scene.get(geom_handle).as_geometry()?;
+        let geom = fbx_scene.get(geom_handle).as_mesh_geometry()?;
         let skin_data = geom.get_skin_data(fbx_scene)?;
+        let blend_shapes = geom.collect_blend_shapes_refs(fbx_scene)?;
 
         let mut data_set = vec![
             FbxSurfaceData {
-                builder: if geom.deformers.is_empty() {
+                base_mesh_builder: if geom.deformers.is_empty() {
                     FbxMeshBuilder::Static(RawMeshBuilder::new(1024, 1024))
                 } else {
                     FbxMeshBuilder::Animated(RawMeshBuilder::new(1024, 1024))
                 },
+                blend_shape_mesh_builders: blend_shapes
+                    .iter()
+                    .map(|bs_channel| {
+                        BlendShapeBuilder {
+                            name: bs_channel.name.clone(),
+                            mesh_builder: RawMeshBuilder::new(1024, 1024),
+                            weight: bs_channel.deform_percent,
+                        }
+                    })
+                    .collect(),
                 skin_data: Default::default(),
             };
             model.materials.len().max(1)
@@ -461,16 +527,53 @@ async fn convert_mesh(
                         polygon_vertex_index,
                         &skin_data,
                     )?;
-                    let data = data_set.get_mut(vertex.surface).unwrap();
+                    let data = data_set.get_mut(vertex.surface_index).unwrap();
                     let weights = vertex.weights;
-                    let is_unique_vertex = match data.builder {
-                        FbxMeshBuilder::Static(ref mut builder) => builder.insert(vertex.into()),
-                        FbxMeshBuilder::Animated(ref mut builder) => builder.insert(vertex.into()),
+                    let is_unique_vertex = match data.base_mesh_builder {
+                        FbxMeshBuilder::Static(ref mut builder) => {
+                            builder.insert(vertex.clone().into())
+                        }
+                        FbxMeshBuilder::Animated(ref mut builder) => {
+                            builder.insert(vertex.clone().into())
+                        }
                     };
                     if is_unique_vertex {
                         if let Some(skin_data) = weights {
                             data.skin_data.push(skin_data);
                         }
+                    }
+
+                    // Fill each blend shape, but modify the vertex first using the "offsets" from blend shapes.
+                    assert_eq!(blend_shapes.len(), data.blend_shape_mesh_builders.len());
+                    for (blend_shape, blend_shape_builder) in blend_shapes
+                        .iter()
+                        .zip(data.blend_shape_mesh_builders.iter_mut())
+                    {
+                        let blend_shape_geometry =
+                            fbx_scene.get(blend_shape.geometry).as_shape_geometry()?;
+
+                        let mut blend_shape_vertex = vertex.clone();
+
+                        // Only certain vertices are affected by a blend shape, because FBX stores only changed
+                        // parts ("diff").
+                        for (relative_index, affected_vertex_index) in
+                            blend_shape_geometry.indices.iter().cloned().enumerate()
+                        {
+                            if index == affected_vertex_index as usize {
+                                blend_shape_vertex.position +=
+                                    blend_shape_geometry.vertices[relative_index];
+                                if let Some(normals) = blend_shape_geometry.normals.as_ref() {
+                                    blend_shape_vertex.normal += normals[relative_index];
+                                }
+                                if let Some(tangents) = blend_shape_geometry.tangents.as_ref() {
+                                    blend_shape_vertex.tangent += tangents[relative_index];
+                                }
+                            }
+                        }
+
+                        blend_shape_builder
+                            .mesh_builder
+                            .insert(blend_shape_vertex.into());
                     }
                 }
             }
