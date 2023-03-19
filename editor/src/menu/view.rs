@@ -11,7 +11,7 @@ use fyrox::{
 
 pub struct ViewMenu {
     pub menu: Handle<UiNode>,
-    sidebar: Handle<UiNode>,
+    inspector: Handle<UiNode>,
     world_viewer: Handle<UiNode>,
     asset_browser: Handle<UiNode>,
     light_panel: Handle<UiNode>,
@@ -32,7 +32,7 @@ fn switch_window_state(window: Handle<UiNode>, ui: &UserInterface, center: bool)
 
 impl ViewMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
-        let sidebar;
+        let inspector;
         let asset_browser;
         let world_viewer;
         let light_panel;
@@ -44,8 +44,8 @@ impl ViewMenu {
             "View",
             vec![
                 {
-                    sidebar = create_menu_item("Sidebar", vec![], ctx);
-                    sidebar
+                    inspector = create_menu_item("Inspector", vec![], ctx);
+                    inspector
                 },
                 {
                     asset_browser = create_menu_item("Asset Browser", vec![], ctx);
@@ -81,7 +81,7 @@ impl ViewMenu {
 
         Self {
             menu,
-            sidebar,
+            inspector,
             world_viewer,
             asset_browser,
             light_panel,
@@ -100,7 +100,7 @@ impl ViewMenu {
                 switch_window_state(panels.light_panel, ui, true);
             } else if message.destination() == self.world_viewer {
                 switch_window_state(panels.world_outliner_window, ui, false);
-            } else if message.destination() == self.sidebar {
+            } else if message.destination() == self.inspector {
                 switch_window_state(panels.inspector_window, ui, false);
             } else if message.destination() == self.log_panel {
                 switch_window_state(panels.log_panel, ui, false);
