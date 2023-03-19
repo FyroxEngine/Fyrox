@@ -15,8 +15,8 @@ use fyrox::{
     event_loop::ControlFlow,
     gui::{
         grid::{Column, GridBuilder, Row},
-        message::MessageDirection,
-        scroll_bar::ScrollBarBuilder,
+        message::{MessageDirection, UiMessage},
+        scroll_bar::{ScrollBarBuilder, ScrollBarMessage},
         scroll_viewer::ScrollViewerBuilder,
         text::{TextBuilder, TextMessage},
         widget::WidgetBuilder,
@@ -34,8 +34,6 @@ use fyrox::{
     },
     window::WindowAttributes,
 };
-use fyrox_ui::message::UiMessage;
-use fyrox_ui::scroll_bar::ScrollBarMessage;
 use std::collections::BTreeSet;
 
 struct GameSceneLoader {
@@ -88,8 +86,10 @@ impl GameSceneLoader {
         for surface in blend_shape.surfaces_mut() {
             let data = surface.data();
             let data = data.lock();
-            for blend_shape in data.blend_shapes.iter() {
-                blend_shape_names.insert(blend_shape.name.clone());
+            if let Some(container) = data.blend_shapes_container.as_ref() {
+                for blend_shape in container.blend_shapes.iter() {
+                    blend_shape_names.insert(blend_shape.name.clone());
+                }
             }
         }
 
@@ -212,10 +212,12 @@ impl Plugin for Game {
                             let data = surface.data();
                             let mut data = data.lock();
                             let mut changed = false;
-                            for blend_shape in data.blend_shapes.iter_mut() {
-                                if &blend_shape.name == name {
-                                    blend_shape.weight = *value;
-                                    changed = true;
+                            if let Some(container) = data.blend_shapes_container.as_mut() {
+                                for blend_shape in container.blend_shapes.iter_mut() {
+                                    if &blend_shape.name == name {
+                                        blend_shape.weight = *value;
+                                        changed = true;
+                                    }
                                 }
                             }
                             if changed {

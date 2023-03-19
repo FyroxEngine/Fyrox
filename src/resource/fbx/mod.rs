@@ -11,7 +11,7 @@ pub mod error;
 mod scene;
 
 use crate::scene::mesh::buffer::VertexBuffer;
-use crate::scene::mesh::surface::BlendShape;
+use crate::scene::mesh::surface::{BlendShape, BlendShapesContainer};
 use crate::{
     animation::{track::Track, Animation, AnimationContainer},
     core::{
@@ -266,26 +266,38 @@ struct FbxSurfaceData {
     skin_data: Vec<VertexWeightSet>,
 }
 
-fn make_blend_shapes(builders: Vec<BlendShapeBuilder>) -> Vec<BlendShape> {
-    builders
-        .into_iter()
-        .map(|b| {
-            let raw_mesh = b.mesh_builder.build();
+fn make_blend_shapes_container(
+    base_shape: &VertexBuffer,
+    builders: Vec<BlendShapeBuilder>,
+) -> Option<BlendShapesContainer> {
+    if builders.is_empty() {
+        None
+    } else {
+        let shapes = builders
+            .into_iter()
+            .map(|b| {
+                let raw_mesh = b.mesh_builder.build();
 
-            let vertex_buffer = VertexBuffer::new(
-                raw_mesh.vertices.len(),
-                StaticVertex::layout(),
-                raw_mesh.vertices,
-            )
-            .unwrap();
+                let vertex_buffer = VertexBuffer::new(
+                    raw_mesh.vertices.len(),
+                    StaticVertex::layout(),
+                    raw_mesh.vertices,
+                )
+                .unwrap();
 
-            BlendShape {
-                vertex_buffer,
-                weight: b.weight,
-                name: b.name,
-            }
+                BlendShape {
+                    vertex_buffer,
+                    weight: b.weight,
+                    name: b.name,
+                }
+            })
+            .collect();
+
+        Some(BlendShapesContainer {
+            blend_shapes: shapes,
+            base_shape: base_shape.clone(),
         })
-        .collect()
+    }
 }
 
 async fn create_surfaces(
@@ -303,7 +315,10 @@ async fn create_surfaces(
         assert_eq!(data_set.len(), 1);
         let data = data_set.into_iter().next().unwrap();
         let mut surface_data = data.base_mesh_builder.build();
-        surface_data.blend_shapes = make_blend_shapes(data.blend_shape_mesh_builders);
+        surface_data.blend_shapes_container = make_blend_shapes_container(
+            &surface_data.vertex_buffer,
+            data.blend_shape_mesh_builders,
+        );
         let mut surface = Surface::new(SurfaceSharedData::new(surface_data));
         surface.vertex_weights = data.skin_data;
         surfaces.push(surface);
@@ -311,7 +326,10 @@ async fn create_surfaces(
         assert_eq!(data_set.len(), model.materials.len());
         for (&material_handle, data) in model.materials.iter().zip(data_set.into_iter()) {
             let mut surface_data = data.base_mesh_builder.build();
-            surface_data.blend_shapes = make_blend_shapes(data.blend_shape_mesh_builders);
+            surface_data.blend_shapes_container = make_blend_shapes_container(
+                &surface_data.vertex_buffer,
+                data.blend_shape_mesh_builders,
+            );
             let mut surface = Surface::new(SurfaceSharedData::new(surface_data));
             surface.vertex_weights = data.skin_data;
             let material = fbx_scene.get(material_handle).as_material()?;
