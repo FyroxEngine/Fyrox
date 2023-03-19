@@ -2,8 +2,9 @@ pub mod shared;
 
 use fyrox::{
     core::{
-        algebra::{UnitQuaternion, Vector3},
+        algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
+        futures::executor::block_on,
         pool::Handle,
     },
     engine::{
@@ -13,10 +14,14 @@ use fyrox::{
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
+        grid::{Column, GridBuilder, Row},
         message::MessageDirection,
+        scroll_bar::ScrollBarBuilder,
+        scroll_viewer::ScrollViewerBuilder,
         text::{TextBuilder, TextMessage},
         widget::WidgetBuilder,
-        UiNode,
+        window::{WindowBuilder, WindowTitle},
+        UiNode, UserInterface,
     },
     plugin::{Plugin, PluginConstructor, PluginContext},
     scene::{
@@ -29,14 +34,19 @@ use fyrox::{
     },
     window::WindowAttributes,
 };
+use fyrox_ui::message::UiMessage;
+use fyrox_ui::scroll_bar::ScrollBarMessage;
+use std::collections::BTreeSet;
 
 struct GameSceneLoader {
     scene: Scene,
     model_handle: Handle<Node>,
+
+    sliders: Vec<(String, Handle<UiNode>)>,
 }
 
 impl GameSceneLoader {
-    async fn load_with(resource_manager: ResourceManager) -> Self {
+    fn load_with(resource_manager: ResourceManager, ui: &mut UserInterface) -> Self {
         let mut scene = Scene::new();
 
         scene.ambient_lighting_color = Color::opaque(200, 200, 200);
@@ -44,7 +54,7 @@ impl GameSceneLoader {
         CameraBuilder::new(
             BaseBuilder::new().with_local_transform(
                 TransformBuilder::new()
-                    .with_local_position(Vector3::new(0.0, 2.0, -5.0))
+                    .with_local_position(Vector3::new(0.0, 2.0, -8.0))
                     .build(),
             ),
         )
@@ -60,10 +70,10 @@ impl GameSceneLoader {
         .with_radius(20.0)
         .build(&mut scene.graph);
 
-        let model_resource = resource_manager
-            .request_model("examples/data/morph2.fbx")
-            .await
-            .unwrap();
+        let model_resource = block_on(
+            resource_manager.request_model("examples/data/blend_shape/Gunan_animated.fbx"),
+        )
+        .unwrap();
 
         let model_handle = model_resource.instantiate(&mut scene);
 
@@ -71,17 +81,70 @@ impl GameSceneLoader {
             .local_transform_mut()
             .set_scale(Vector3::new(0.05, 0.05, 0.05));
 
-        let sphere = scene.graph.find_by_name_from_root("Sphere001").unwrap().0;
+        let sphere = scene.graph.find_by_name_from_root("Head_Mesh").unwrap().0;
         let blend_shape = scene.graph[sphere].as_mesh_mut();
 
+        let mut blend_shape_names = BTreeSet::new();
         for surface in blend_shape.surfaces_mut() {
             let data = surface.data();
-            let mut data = data.lock();
-            data.update_blend_shape_weights(&[100.0, 100.0]).unwrap();
+            let data = data.lock();
+            for blend_shape in data.blend_shapes.iter() {
+                blend_shape_names.insert(blend_shape.name.clone());
+            }
         }
+
+        let ctx = &mut ui.build_ctx();
+
+        let mut children = Vec::new();
+        let mut sliders = Vec::new();
+
+        for (row, blend_shape_name) in blend_shape_names.iter().enumerate() {
+            let short_name = blend_shape_name
+                .strip_prefix("ExpressionBlendshapes.")
+                .map(|n| n.to_owned())
+                .unwrap_or_else(|| blend_shape_name.clone());
+
+            let name = TextBuilder::new(WidgetBuilder::new().on_row(row))
+                .with_text(short_name)
+                .build(ctx);
+            let slider = ScrollBarBuilder::new(WidgetBuilder::new().on_row(row).on_column(1))
+                .with_min(0.0)
+                .with_max(100.0)
+                .with_step(1.0)
+                .build(ctx);
+            children.push(name);
+            children.push(slider);
+            sliders.push((blend_shape_name.clone(), slider));
+        }
+
+        WindowBuilder::new(
+            WidgetBuilder::new()
+                .with_width(250.0)
+                .with_height(400.0)
+                .with_desired_position(Vector2::new(5.0, 50.0)),
+        )
+        .with_title(WindowTitle::text("Blend Shapes"))
+        .with_content(
+            ScrollViewerBuilder::new(WidgetBuilder::new())
+                .with_content(
+                    GridBuilder::new(WidgetBuilder::new().with_children(children))
+                        .add_column(Column::auto())
+                        .add_column(Column::stretch())
+                        .add_rows(
+                            blend_shape_names
+                                .iter()
+                                .map(|_| Row::strict(20.0))
+                                .collect(),
+                        )
+                        .build(ctx),
+                )
+                .build(ctx),
+        )
+        .build(ctx);
 
         Self {
             scene,
+            sliders,
             model_handle,
         }
     }
@@ -98,6 +161,7 @@ struct Game {
     input_controller: InputController,
     debug_text: Handle<UiNode>,
     model_angle: f32,
+    sliders: Vec<(String, Handle<UiNode>)>,
 }
 
 impl Plugin for Game {
@@ -127,6 +191,40 @@ impl Plugin for Game {
                     graphics_context.renderer.get_statistics().frames_per_second
                 ),
             ));
+        }
+    }
+
+    fn on_ui_message(
+        &mut self,
+        context: &mut PluginContext,
+        message: &UiMessage,
+        _control_flow: &mut ControlFlow,
+    ) {
+        if let Some(ScrollBarMessage::Value(value)) = message.data() {
+            if message.direction() == MessageDirection::FromWidget {
+                for (name, slider) in self.sliders.iter() {
+                    if message.destination() == *slider {
+                        let scene = &mut context.scenes[self.scene];
+                        let sphere = scene.graph.find_by_name_from_root("Head_Mesh").unwrap().0;
+                        let blend_shape = scene.graph[sphere].as_mesh_mut();
+
+                        for surface in blend_shape.surfaces_mut() {
+                            let data = surface.data();
+                            let mut data = data.lock();
+                            let mut changed = false;
+                            for blend_shape in data.blend_shapes.iter_mut() {
+                                if &blend_shape.name == name {
+                                    blend_shape.weight = *value;
+                                    changed = true;
+                                }
+                            }
+                            if changed {
+                                data.apply_blend_shapes().unwrap();
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -164,9 +262,8 @@ impl PluginConstructor for GameConstructor {
         _override_scene: Handle<Scene>,
         context: PluginContext,
     ) -> Box<dyn Plugin> {
-        let scene = fyrox::core::futures::executor::block_on(GameSceneLoader::load_with(
-            context.resource_manager.clone(),
-        ));
+        let scene =
+            GameSceneLoader::load_with(context.resource_manager.clone(), context.user_interface);
 
         Box::new(Game {
             debug_text: TextBuilder::new(WidgetBuilder::new())
@@ -180,6 +277,7 @@ impl PluginConstructor for GameConstructor {
             },
             // We will rotate model using keyboard input.
             model_angle: 180.0f32.to_radians(),
+            sliders: scene.sliders,
         })
     }
 }
