@@ -75,7 +75,7 @@ use crate::{
     world::{graph::selection::GraphSelection, WorldViewer},
 };
 use fyrox::engine::GraphicsContextParams;
-use fyrox::window::WindowAttributes;
+use fyrox::window::{Icon, WindowAttributes};
 use fyrox::{
     core::{
         algebra::{Matrix3, Vector2},
@@ -533,6 +533,19 @@ impl Editor {
         engine.initialize_graphics_context(event_loop).unwrap();
 
         let graphics_context = engine.graphics_context.as_initialized_mut();
+
+        if let Ok(icon_img) = Texture::load_from_memory(
+            include_bytes!("../resources/embed/icon.png"),
+            CompressionOptions::NoCompression,
+            false,
+        ) {
+            let data = icon_img.data_ref();
+            if let TextureKind::Rectangle { width, height } = data.kind() {
+                if let Ok(img) = Icon::from_rgba(data.data().to_vec(), width, height) {
+                    graphics_context.window.set_window_icon(Some(img));
+                }
+            }
+        }
 
         // High-DPI screen support
         let logical_size = graphics_context
