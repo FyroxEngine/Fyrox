@@ -1,11 +1,10 @@
 //! Executor is a small wrapper that manages plugins and scripts for your game.
 
-use crate::engine::GraphicsContext;
 use crate::{
     core::instant::Instant,
     engine::{
-        resource_manager::ResourceManager, Engine, EngineInitParams, GraphicsContextParams,
-        SerializationContext,
+        resource_manager::ResourceManager, Engine, EngineInitParams, GraphicsContext,
+        GraphicsContextParams, SerializationContext,
     },
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -36,6 +35,7 @@ pub struct Executor {
     engine: Engine,
     desired_update_rate: f32,
     loader: Option<AsyncSceneLoader>,
+    headless: bool,
 }
 
 impl Deref for Executor {
@@ -81,6 +81,7 @@ impl Executor {
             engine,
             desired_update_rate: Self::DEFAULT_UPDATE_RATE,
             loader: None,
+            headless: false,
         }
     }
 
@@ -98,6 +99,18 @@ impl Executor {
                 vsync: true,
             },
         )
+    }
+
+    /// Defines whether the executor should initialize graphics context or not. Headless mode could
+    /// be useful for game servers, where you don't need to have a window, renderer, sound, etc.
+    /// By default, headless mode is off.
+    pub fn set_headless(&mut self, headless: bool) {
+        self.headless = headless;
+    }
+
+    /// Returns `true` if the headless mode is turned on, `false` - otherwise.
+    pub fn is_headless(&self) -> bool {
+        self.headless
     }
 
     /// Sets the desired update rate in frames per second.
@@ -122,6 +135,7 @@ impl Executor {
     pub fn run(mut self) -> ! {
         let mut engine = self.engine;
         let event_loop = self.event_loop;
+        let headless = self.headless;
 
         let args = Args::parse();
 
@@ -159,7 +173,7 @@ impl Executor {
             }
 
             match event {
-                Event::Resumed => {
+                Event::Resumed if !headless => {
                     engine
                         .initialize_graphics_context(window_target)
                         .expect("Unable to initialize graphics context!");
@@ -170,7 +184,7 @@ impl Executor {
                         &mut lag,
                     );
                 }
-                Event::Suspended => {
+                Event::Suspended if !headless => {
                     engine
                         .destroy_graphics_context()
                         .expect("Unable to destroy graphics context!");
