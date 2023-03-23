@@ -25,6 +25,7 @@ use fyrox::{
             surface::{Surface, SurfaceData, SurfaceSharedData},
             MeshBuilder,
         },
+        navmesh::NavigationalMeshBuilder,
         node::Node,
         particle_system::{
             emitter::{base::BaseEmitterBuilder, sphere::SphereEmitterBuilder},
@@ -85,6 +86,7 @@ pub struct CreateEntityMenu {
     create_point_light: Handle<UiNode>,
     create_spot_light: Handle<UiNode>,
     create_directional_light: Handle<UiNode>,
+    create_navmesh: Handle<UiNode>,
     create_terrain: Handle<UiNode>,
     create_camera: Handle<UiNode>,
     create_sprite: Handle<UiNode>,
@@ -110,6 +112,7 @@ impl CreateEntityMenu {
         let create_camera;
         let create_sprite;
         let create_decal;
+        let create_navmesh;
         let create_particle_system;
         let create_terrain;
         let create_pivot;
@@ -208,6 +211,10 @@ impl CreateEntityMenu {
                 create_decal = create_menu_item("Decal", vec![], ctx);
                 create_decal
             },
+            {
+                create_navmesh = create_menu_item("Navmesh", vec![], ctx);
+                create_navmesh
+            },
         ];
 
         (
@@ -227,6 +234,7 @@ impl CreateEntityMenu {
                 create_terrain,
                 create_sound_source,
                 create_listener,
+                create_navmesh,
                 create_decal,
                 physics_menu,
                 physics2d_menu,
@@ -321,6 +329,11 @@ impl CreateEntityMenu {
                     } else if message.destination() == self.create_camera {
                         Some(
                             CameraBuilder::new(BaseBuilder::new().with_name("Camera")).build_node(),
+                        )
+                    } else if message.destination() == self.create_navmesh {
+                        Some(
+                            NavigationalMeshBuilder::new(BaseBuilder::new().with_name("Navmesh"))
+                                .build_node(),
                         )
                     } else if message.destination() == self.create_sprite {
                         Some(

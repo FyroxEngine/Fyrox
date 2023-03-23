@@ -10,6 +10,7 @@ use crate::{
         dim2::{self, rectangle::Rectangle},
         light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
         mesh::Mesh,
+        navmesh::NavigationalMesh,
         node::{Node, NodeTrait, TypeUuidProvider},
         particle_system::ParticleSystem,
         pivot::Pivot,
@@ -55,6 +56,7 @@ impl NodeConstructorContainer {
         container.add::<Terrain>();
         container.add::<AnimationPlayer>();
         container.add::<AnimationBlendingStateMachine>();
+        container.add::<NavigationalMesh>();
 
         container
     }

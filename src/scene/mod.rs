@@ -17,6 +17,7 @@ pub mod joint;
 pub mod light;
 pub mod loader;
 pub mod mesh;
+pub mod navmesh;
 pub mod node;
 pub mod particle_system;
 pub mod pivot;
