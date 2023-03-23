@@ -282,7 +282,7 @@ impl Lightmap {
             if let Some(point) = node.cast::<PointLight>() {
                 lights.push(LightDefinition::Point(PointLightDefinition {
                     handle,
-                    intensity: 1.0,
+                    intensity: point.base_light_ref().intensity(),
                     position: node.global_position(),
                     color: point.base_light_ref().color().srgb_to_linear().as_frgb(),
                     radius: point.radius(),
@@ -291,7 +291,7 @@ impl Lightmap {
             } else if let Some(spot) = node.cast::<SpotLight>() {
                 lights.push(LightDefinition::Spot(SpotLightDefinition {
                     handle,
-                    intensity: 1.0,
+                    intensity: spot.base_light_ref().intensity(),
                     edge0: ((spot.hotspot_cone_angle() + spot.falloff_angle_delta()) * 0.5).cos(),
                     edge1: (spot.hotspot_cone_angle() * 0.5).cos(),
                     color: spot.base_light_ref().color().srgb_to_linear().as_frgb(),
@@ -306,7 +306,7 @@ impl Lightmap {
             } else if let Some(directional) = node.cast::<DirectionalLight>() {
                 lights.push(LightDefinition::Directional(DirectionalLightDefinition {
                     handle,
-                    intensity: 1.0,
+                    intensity: directional.base_light_ref().intensity(),
                     direction: node
                         .up_vector()
                         .try_normalize(std::f32::EPSILON)
