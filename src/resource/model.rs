@@ -127,14 +127,6 @@ impl Model {
         .0;
         dest_scene.graph[instance_root].is_resource_instance_root = true;
 
-        // Embed navmeshes.
-        // TODO: This also must provide a map which will make it possible to extract navmesh
-        // from resource later on.
-
-        for navmesh in data.scene.navmeshes.iter() {
-            dest_scene.navmeshes.add(navmesh.clone());
-        }
-
         std::mem::drop(data);
 
         instance_root
