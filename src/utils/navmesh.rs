@@ -24,7 +24,6 @@ use crate::{
     },
 };
 use fxhash::FxHashSet;
-use std::hash::{Hash, Hasher};
 
 /// See module docs.
 #[derive(Clone, Debug, Default)]
@@ -66,28 +65,6 @@ impl Visit for Navmesh {
     }
 }
 
-#[derive(Copy, Clone)]
-struct Edge {
-    a: u32,
-    b: u32,
-}
-
-impl PartialEq for Edge {
-    fn eq(&self, other: &Self) -> bool {
-        // Direction-agnostic compare.
-        (self.a == other.a && self.b == other.b) || (self.a == other.b && self.b == other.a)
-    }
-}
-
-impl Eq for Edge {}
-
-impl Hash for Edge {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        // Direction-agnostic hash.
-        (self.a as u64 + self.b as u64).hash(state)
-    }
-}
-
 impl Navmesh {
     /// Creates new navigation mesh from given set of triangles and vertices. This is
     /// low level method that allows to specify triangles and vertices directly. In
@@ -111,18 +88,9 @@ impl Navmesh {
 
         let mut edges = FxHashSet::default();
         for triangle in triangles {
-            edges.insert(Edge {
-                a: triangle[0],
-                b: triangle[1],
-            });
-            edges.insert(Edge {
-                a: triangle[1],
-                b: triangle[2],
-            });
-            edges.insert(Edge {
-                a: triangle[2],
-                b: triangle[0],
-            });
+            for edge in triangle.edges() {
+                edges.insert(edge);
+            }
         }
 
         for edge in edges {
@@ -235,9 +203,74 @@ impl Navmesh {
         &self.triangles
     }
 
+    pub fn add_triangle(&mut self, triangle: TriangleDefinition) -> u32 {
+        let index = self.triangles.len();
+        for edge in triangle.edges() {
+            self.pathfinder
+                .link_bidirect(edge.a as usize, edge.b as usize);
+        }
+        self.triangles.push(triangle);
+        index as u32
+    }
+
+    pub fn remove_triangle(&mut self, index: usize) -> TriangleDefinition {
+        let triangle = self.triangles.remove(index);
+        for edge in triangle.edges() {
+            for (a, b) in [(edge.a, edge.b), (edge.b, edge.a)] {
+                if let Some(vertex) = self.pathfinder.vertex_mut(a as usize) {
+                    if let Some(position) = vertex.neighbours.iter().position(|n| *n == b) {
+                        vertex.neighbours.remove(position);
+                    }
+                }
+            }
+        }
+        triangle
+    }
+
+    pub fn pop_triangle(&mut self) -> Option<TriangleDefinition> {
+        if self.triangles.is_empty() {
+            None
+        } else {
+            Some(self.remove_triangle(self.triangles.len() - 1))
+        }
+    }
+
+    pub fn remove_vertex(&mut self, index: usize) -> PathVertex {
+        let mut i = 0;
+        while i < self.triangles.len() {
+            if self.triangles[i].indices().contains(&(index as u32)) {
+                self.remove_triangle(i);
+            } else {
+                i += 1;
+            }
+        }
+
+        self.pathfinder.remove_vertex(index)
+    }
+
     /// Returns reference to array of vertices.
     pub fn vertices(&self) -> &[PathVertex] {
         self.pathfinder.vertices()
+    }
+
+    pub fn vertices_mut(&mut self) -> &mut [PathVertex] {
+        self.pathfinder.vertices_mut()
+    }
+
+    pub fn add_vertex(&mut self, vertex: PathVertex) -> u32 {
+        self.pathfinder.add_vertex(vertex)
+    }
+
+    pub fn pop_vertex(&mut self) -> Option<PathVertex> {
+        if self.pathfinder.vertices().is_empty() {
+            None
+        } else {
+            Some(self.remove_vertex(self.pathfinder.vertices().len() - 1))
+        }
+    }
+
+    pub fn insert_vertex(&mut self, index: u32, vertex: PathVertex) {
+        self.pathfinder.insert_vertex(index, vertex)
     }
 
     /// Returns shared reference to inner octree.

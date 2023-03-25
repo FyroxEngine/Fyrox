@@ -6,10 +6,11 @@
 
 #![warn(missing_docs)]
 
-use crate::core::algebra::Vector3;
-use crate::core::math::{self, PositionProvider};
-use crate::core::visitor::Visit;
-use fyrox_core::visitor::{VisitResult, Visitor};
+use crate::core::{
+    algebra::Vector3,
+    math::{self, PositionProvider},
+    visitor::prelude::*,
+};
 use std::fmt::{Display, Formatter};
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -23,8 +24,9 @@ enum PathVertexState {
 /// vertices.
 #[derive(Clone, Debug, Visit)]
 pub struct PathVertex {
-    /// Position in world.
+    /// Position in the world coordinates
     pub position: Vector3<f32>,
+    pub(crate) neighbours: Vec<u32>,
     #[visit(skip)]
     state: PathVertexState,
     #[visit(skip)]
@@ -35,7 +37,6 @@ pub struct PathVertex {
     f_score: f32,
     #[visit(skip)]
     parent: Option<usize>,
-    neighbours: Vec<u32>,
 }
 
 impl Default for PathVertex {
@@ -190,18 +191,46 @@ impl PathFinder {
     /// means that there is no direct link between `b` to `a`, only from `a` to `b`.
     pub fn link_unidirect(&mut self, a: usize, b: usize) {
         if let Some(vertex_a) = self.vertices.get_mut(a) {
-            vertex_a.neighbours.push(b as u32);
+            if vertex_a.neighbours.iter().all(|n| *n != b as u32) {
+                vertex_a.neighbours.push(b as u32);
+            }
         }
     }
 
     /// Returns shared reference to path vertex at given index.
-    pub fn get_vertex(&self, index: usize) -> Option<&PathVertex> {
+    pub fn vertex(&self, index: usize) -> Option<&PathVertex> {
         self.vertices.get(index)
+    }
+
+    pub fn vertex_mut(&mut self, index: usize) -> Option<&mut PathVertex> {
+        self.vertices.get_mut(index)
     }
 
     /// Returns reference to array of vertices.
     pub fn vertices(&self) -> &[PathVertex] {
         &self.vertices
+    }
+
+    pub fn vertices_mut(&mut self) -> &mut [PathVertex] {
+        &mut self.vertices
+    }
+
+    pub fn add_vertex(&mut self, vertex: PathVertex) -> u32 {
+        let index = self.vertices.len();
+        self.vertices.push(vertex);
+        index as u32
+    }
+
+    pub fn pop_vertex(&mut self) -> Option<PathVertex> {
+        self.vertices.pop()
+    }
+
+    pub fn remove_vertex(&mut self, index: usize) -> PathVertex {
+        self.vertices.remove(index)
+    }
+
+    pub fn insert_vertex(&mut self, index: u32, vertex: PathVertex) {
+        self.vertices.insert(index as usize, vertex)
     }
 
     /// Tries to build path from begin point to end point. Returns path kind:
@@ -395,16 +424,16 @@ mod test {
 
                 assert_eq!(
                     *path.first().unwrap(),
-                    pathfinder.get_vertex(to).unwrap().position
+                    pathfinder.vertex(to).unwrap().position
                 );
                 assert_eq!(
                     *path.last().unwrap(),
-                    pathfinder.get_vertex(from).unwrap().position
+                    pathfinder.vertex(from).unwrap().position
                 );
             } else {
                 let point = *path.first().unwrap();
-                assert_eq!(point, pathfinder.get_vertex(to).unwrap().position);
-                assert_eq!(point, pathfinder.get_vertex(from).unwrap().position);
+                assert_eq!(point, pathfinder.vertex(to).unwrap().position);
+                assert_eq!(point, pathfinder.vertex(from).unwrap().position);
             }
 
             for pair in path.chunks(2) {

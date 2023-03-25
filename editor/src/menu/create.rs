@@ -7,6 +7,9 @@ use crate::{
     scene::commands::graph::AddNodeCommand,
     Message, Mode,
 };
+use fyrox::core::algebra::Vector3;
+use fyrox::core::math::TriangleDefinition;
+use fyrox::utils::navmesh::Navmesh;
 use fyrox::{
     core::{algebra::Matrix4, pool::Handle},
     gui::{
@@ -331,8 +334,18 @@ impl CreateEntityMenu {
                             CameraBuilder::new(BaseBuilder::new().with_name("Camera")).build_node(),
                         )
                     } else if message.destination() == self.create_navmesh {
+                        let navmesh = Navmesh::new(
+                            &[TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])],
+                            &[
+                                Vector3::new(-1.0, 0.0, 1.0),
+                                Vector3::new(1.0, 0.0, 1.0),
+                                Vector3::new(1.0, 0.0, -1.0),
+                                Vector3::new(-1.0, 0.0, -1.0),
+                            ],
+                        );
                         Some(
                             NavigationalMeshBuilder::new(BaseBuilder::new().with_name("Navmesh"))
+                                .with_navmesh(navmesh)
                                 .build_node(),
                         )
                     } else if message.destination() == self.create_sprite {

@@ -1,10 +1,9 @@
-use crate::interaction::navmesh::{
-    data_model::{Navmesh, NavmeshEdge},
-    NavmeshEntity, NavmeshVertex,
-};
+use crate::interaction::navmesh::NavmeshEntity;
+use fyrox::core::math::TriangleEdge;
 use fyrox::core::pool::Handle;
-use std::cell::Ref;
+use fyrox::scene::node::Node;
 use std::{
+    cell::Ref,
     cell::{Cell, RefCell},
     collections::HashSet,
 };
@@ -12,32 +11,32 @@ use std::{
 #[derive(PartialEq, Clone, Debug, Eq)]
 pub struct NavmeshSelection {
     dirty: Cell<bool>,
-    navmesh: Handle<Navmesh>,
+    navmesh_node: Handle<Node>,
     entities: Vec<NavmeshEntity>,
-    unique_vertices: RefCell<HashSet<Handle<NavmeshVertex>>>,
+    unique_vertices: RefCell<HashSet<usize>>,
 }
 
 impl NavmeshSelection {
-    pub fn empty(navmesh: Handle<Navmesh>) -> Self {
+    pub fn empty(navmesh: Handle<Node>) -> Self {
         Self {
             dirty: Cell::new(false),
-            navmesh,
+            navmesh_node: navmesh,
             entities: vec![],
             unique_vertices: Default::default(),
         }
     }
 
-    pub fn new(navmesh: Handle<Navmesh>, entities: Vec<NavmeshEntity>) -> Self {
+    pub fn new(navmesh: Handle<Node>, entities: Vec<NavmeshEntity>) -> Self {
         Self {
             dirty: Cell::new(true),
-            navmesh,
+            navmesh_node: navmesh,
             entities,
             unique_vertices: Default::default(),
         }
     }
 
-    pub fn navmesh(&self) -> Handle<Navmesh> {
-        self.navmesh
+    pub fn navmesh_node(&self) -> Handle<Node> {
+        self.navmesh_node
     }
 
     pub fn add(&mut self, entity: NavmeshEntity) {
@@ -67,7 +66,7 @@ impl NavmeshSelection {
         self.entities.len()
     }
 
-    pub fn unique_vertices(&self) -> Ref<'_, HashSet<Handle<NavmeshVertex>>> {
+    pub fn unique_vertices(&self) -> Ref<'_, HashSet<usize>> {
         if self.dirty.get() {
             let mut unique_vertices = self.unique_vertices.borrow_mut();
             unique_vertices.clear();
@@ -77,8 +76,8 @@ impl NavmeshSelection {
                         unique_vertices.insert(*v);
                     }
                     NavmeshEntity::Edge(edge) => {
-                        unique_vertices.insert(edge.begin);
-                        unique_vertices.insert(edge.end);
+                        unique_vertices.insert(edge.a as usize);
+                        unique_vertices.insert(edge.b as usize);
                     }
                 }
             }
@@ -91,7 +90,7 @@ impl NavmeshSelection {
         &self.entities
     }
 
-    pub fn contains_edge(&self, edge: NavmeshEdge) -> bool {
+    pub fn contains_edge(&self, edge: TriangleEdge) -> bool {
         self.entities.contains(&NavmeshEntity::Edge(edge))
     }
 }

@@ -1,22 +1,14 @@
 use crate::{
-    absm::selection::AbsmSelection,
-    animation::selection::AnimationSelection,
-    audio::AudioBusSelection,
-    camera::CameraController,
-    interaction::navmesh::{
-        data_model::{Navmesh, NavmeshContainer, NavmeshTriangle, NavmeshVertex},
-        selection::NavmeshSelection,
-    },
-    scene::clipboard::Clipboard,
-    settings::debugging::DebuggingSettings,
-    world::graph::selection::GraphSelection,
-    GameEngine, Settings,
+    absm::selection::AbsmSelection, animation::selection::AnimationSelection,
+    audio::AudioBusSelection, camera::CameraController,
+    interaction::navmesh::selection::NavmeshSelection, scene::clipboard::Clipboard,
+    world::graph::selection::GraphSelection, GameEngine, Settings,
 };
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector3},
         color::Color,
-        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Matrix4Ext, TriangleDefinition},
+        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Matrix4Ext},
         pool::Handle,
         visitor::Visitor,
     },
@@ -31,12 +23,13 @@ use fyrox::{
             buffer::{VertexAttributeUsage, VertexReadTrait},
             Mesh,
         },
+        navmesh::NavigationalMesh,
         node::Node,
         pivot::PivotBuilder,
         Scene,
     },
 };
-use std::{collections::HashMap, fmt::Write, path::PathBuf};
+use std::{fmt::Write, path::PathBuf};
 
 pub mod clipboard;
 pub mod property;
@@ -55,7 +48,6 @@ pub struct EditorScene {
     pub selection: Selection,
     pub clipboard: Clipboard,
     pub camera_controller: CameraController,
-    pub navmeshes: NavmeshContainer,
     pub preview_camera: Handle<Node>,
     pub graph_switches: GraphUpdateSwitches,
 }
@@ -85,34 +77,10 @@ impl EditorScene {
         scene.graph.physics.integration_parameters.dt = Some(0.0);
         scene.graph.physics2d.integration_parameters.dt = Some(0.0);
 
-        let mut navmeshes = NavmeshContainer::default();
-
-        for navmesh in scene.navmeshes.iter() {
-            let _ = navmeshes.spawn(Navmesh {
-                vertices: navmesh
-                    .vertices()
-                    .iter()
-                    .map(|vertex| NavmeshVertex {
-                        position: vertex.position,
-                    })
-                    .collect(),
-                triangles: navmesh
-                    .triangles()
-                    .iter()
-                    .map(|triangle| NavmeshTriangle {
-                        a: Handle::new(triangle[0], 1),
-                        b: Handle::new(triangle[1], 1),
-                        c: Handle::new(triangle[2], 1),
-                    })
-                    .collect(),
-            });
-        }
-
         EditorScene {
             path,
             editor_objects_root: root,
             camera_controller,
-            navmeshes,
             scene: engine.scenes.add(scene),
             selection: Default::default(),
             clipboard: Default::default(),
@@ -134,40 +102,7 @@ impl EditorScene {
         let scene = &mut engine.scenes[self.scene];
 
         let editor_root = self.editor_objects_root;
-        let (mut pure_scene, _) = scene.clone(&mut |node, _| node != editor_root);
-
-        pure_scene.navmeshes.clear();
-
-        for navmesh in self.navmeshes.iter() {
-            // Sparse-to-dense mapping - handle to index.
-            let mut vertex_map = HashMap::new();
-
-            let vertices = navmesh
-                .vertices
-                .pair_iter()
-                .enumerate()
-                .map(|(i, (handle, vertex))| {
-                    vertex_map.insert(handle, i);
-                    vertex.position
-                })
-                .collect::<Vec<_>>();
-
-            let triangles = navmesh
-                .triangles
-                .iter()
-                .map(|triangle| {
-                    TriangleDefinition([
-                        vertex_map[&triangle.a] as u32,
-                        vertex_map[&triangle.b] as u32,
-                        vertex_map[&triangle.c] as u32,
-                    ])
-                })
-                .collect::<Vec<_>>();
-
-            pure_scene
-                .navmeshes
-                .add(fyrox::utils::navmesh::Navmesh::new(&triangles, &vertices));
-        }
+        let (pure_scene, _) = scene.clone(&mut |node, _| node != editor_root);
 
         pure_scene
     }
@@ -242,7 +177,7 @@ impl EditorScene {
             graph: &Graph,
             ctx: &mut SceneDrawingContext,
             editor_scene: &EditorScene,
-            settings: &DebuggingSettings,
+            settings: &Settings,
         ) {
             // Ignore editor nodes.
             if node == editor_scene.editor_objects_root {
@@ -251,7 +186,7 @@ impl EditorScene {
 
             let node = &graph[node];
 
-            if settings.show_bounds {
+            if settings.debugging.show_bounds {
                 ctx.draw_oob(
                     &AxisAlignedBoundingBox::unit(),
                     node.global_transform(),
@@ -260,7 +195,7 @@ impl EditorScene {
             }
 
             if let Some(mesh) = node.cast::<Mesh>() {
-                if settings.show_tbn {
+                if settings.debugging.show_tbn {
                     let transform = node.global_transform();
 
                     for surface in mesh.surfaces() {
@@ -314,18 +249,18 @@ impl EditorScene {
                     }
                 }
             } else if let Some(camera) = node.query_component_ref::<Camera>() {
-                if settings.show_camera_bounds {
+                if settings.debugging.show_camera_bounds {
                     ctx.draw_frustum(
                         &Frustum::from(camera.view_projection_matrix()).unwrap_or_default(),
                         Color::ORANGE,
                     );
                 }
             } else if let Some(light) = node.query_component_ref::<PointLight>() {
-                if settings.show_light_bounds {
+                if settings.debugging.show_light_bounds {
                     ctx.draw_wire_sphere(light.global_position(), light.radius(), 30, Color::GREEN);
                 }
             } else if let Some(light) = node.query_component_ref::<SpotLight>() {
-                if settings.show_light_bounds {
+                if settings.debugging.show_light_bounds {
                     ctx.draw_cone(
                         16,
                         (light.full_cone_angle() * 0.5).tan() * light.distance(),
@@ -347,6 +282,47 @@ impl EditorScene {
                         false,
                     );
                 }
+            } else if let Some(navmesh) = node.query_component_ref::<NavigationalMesh>() {
+                if settings.navmesh.draw_all {
+                    let selection =
+                        if let Selection::Navmesh(ref selection) = editor_scene.selection {
+                            Some(selection)
+                        } else {
+                            None
+                        };
+
+                    for (index, vertex) in navmesh.navmesh_ref().vertices().iter().enumerate() {
+                        ctx.draw_sphere(
+                            vertex.position,
+                            10,
+                            10,
+                            settings.navmesh.vertex_radius,
+                            selection.map_or(Color::GREEN, |s| {
+                                if s.unique_vertices().contains(&index) {
+                                    Color::RED
+                                } else {
+                                    Color::GREEN
+                                }
+                            }),
+                        );
+                    }
+
+                    for triangle in navmesh.navmesh_ref().triangles().iter() {
+                        for edge in &triangle.edges() {
+                            ctx.add_line(Line {
+                                begin: navmesh.navmesh_ref().vertices()[edge.a as usize].position,
+                                end: navmesh.navmesh_ref().vertices()[edge.b as usize].position,
+                                color: selection.map_or(Color::GREEN, |s| {
+                                    if s.contains_edge(*edge) {
+                                        Color::RED
+                                    } else {
+                                        Color::GREEN
+                                    }
+                                }),
+                            });
+                        }
+                    }
+                }
             }
 
             for &child in node.children() {
@@ -360,16 +336,8 @@ impl EditorScene {
             &scene.graph,
             &mut scene.drawing_context,
             self,
-            debug_settings,
+            settings,
         );
-
-        let selection = if let Selection::Navmesh(ref selection) = self.selection {
-            Some(selection)
-        } else {
-            None
-        };
-        self.navmeshes
-            .draw(&mut scene.drawing_context, selection, &settings.navmesh);
     }
 }
 

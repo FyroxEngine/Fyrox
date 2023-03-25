@@ -62,6 +62,16 @@ impl NodeTrait for NavigationalMesh {
     }
 }
 
+impl NavigationalMesh {
+    pub fn navmesh_ref(&self) -> &Navmesh {
+        &self.navmesh
+    }
+
+    pub fn navmesh_mut(&mut self) -> &mut Navmesh {
+        &mut self.navmesh
+    }
+}
+
 pub struct NavigationalMeshBuilder {
     base_builder: BaseBuilder,
     navmesh: Navmesh,
