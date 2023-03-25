@@ -723,8 +723,8 @@ impl Scene {
         // Backward compatibility.
         let mut navmeshes = NavMeshContainer::default();
         if navmeshes.visit("NavMeshes", &mut region).is_ok() {
-            for navmesh in navmeshes.iter() {
-                NavigationalMeshBuilder::new(BaseBuilder::new())
+            for (i, navmesh) in navmeshes.iter().enumerate() {
+                NavigationalMeshBuilder::new(BaseBuilder::new().with_name(format!("Navmesh{i}")))
                     .with_navmesh(navmesh.clone())
                     .build(&mut self.graph);
             }
