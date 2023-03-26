@@ -101,7 +101,7 @@ impl Command for AddNavmeshEdgeCommand {
                 navmesh.pop_triangle();
                 let va = navmesh.pop_vertex().unwrap();
                 let vb = navmesh.pop_vertex().unwrap();
-                self.state = AddNavmeshEdgeCommandState::Reverted { edge: (va, vb) };
+                self.state = AddNavmeshEdgeCommandState::Reverted { edge: (vb, va) };
             }
             _ => unreachable!(),
         }
