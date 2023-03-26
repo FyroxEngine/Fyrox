@@ -22,7 +22,7 @@ enum PathVertexState {
 
 /// Graph vertex that contains position in world and list of indices of neighbour
 /// vertices.
-#[derive(Clone, Debug, Visit)]
+#[derive(Clone, Debug, Visit, PartialEq)]
 pub struct PathVertex {
     /// Position in the world coordinates
     pub position: Vector3<f32>,
@@ -197,53 +197,95 @@ impl PathFinder {
         }
     }
 
-    /// Returns shared reference to path vertex at given index.
+    /// Returns shared reference to a path vertex at the given index.
     pub fn vertex(&self, index: usize) -> Option<&PathVertex> {
         self.vertices.get(index)
     }
 
+    /// Returns mutable reference to a path vertex at the given index.
     pub fn vertex_mut(&mut self, index: usize) -> Option<&mut PathVertex> {
         self.vertices.get_mut(index)
     }
 
-    /// Returns reference to array of vertices.
+    /// Returns reference to the array of vertices.
     pub fn vertices(&self) -> &[PathVertex] {
         &self.vertices
     }
 
+    /// Returns reference to the array of vertices.
     pub fn vertices_mut(&mut self) -> &mut [PathVertex] {
         &mut self.vertices
     }
 
+    /// Adds a new vertex to the path finder.
     pub fn add_vertex(&mut self, vertex: PathVertex) -> u32 {
         let index = self.vertices.len();
+        // Since we're adding the vertex to the end of the array, we don't need to
+        // shift indices of neighbours (like `insert_vertex`)
         self.vertices.push(vertex);
         index as u32
     }
 
+    /// Removes last vertex from the graph. Automatically cleans "dangling" references to the deleted vertex
+    /// from every other vertex in the graph and shifts indices of neighbour vertices, to preserve graph
+    /// structure.
     pub fn pop_vertex(&mut self) -> Option<PathVertex> {
-        self.vertices.pop()
+        if self.vertices.is_empty() {
+            None
+        } else {
+            Some(self.remove_vertex(self.vertices.len() - 1))
+        }
     }
 
+    /// Removes a vertex at the given index from the graph. Automatically cleans "dangling" references to the
+    /// deleted vertex from every other vertex in the graph and shifts indices of neighbour vertices, to
+    /// preserve graph structure.
     pub fn remove_vertex(&mut self, index: usize) -> PathVertex {
+        for other_vertex in self.vertices.iter_mut() {
+            // Remove "references" to the vertex, that will be deleted.
+            if let Some(position) = other_vertex
+                .neighbours
+                .iter()
+                .position(|n| *n == index as u32)
+            {
+                other_vertex.neighbours.remove(position);
+            }
+
+            // Shift neighbour indices to preserve vertex indexation.
+            for neighbour_index in other_vertex.neighbours.iter_mut() {
+                if *neighbour_index > index as u32 {
+                    *neighbour_index -= 1;
+                }
+            }
+        }
+
         self.vertices.remove(index)
     }
 
+    /// Inserts the vertex at the given index. Automatically shifts neighbour indices of every other vertex
+    /// in the graph to preserve graph structure.
     pub fn insert_vertex(&mut self, index: u32, vertex: PathVertex) {
-        self.vertices.insert(index as usize, vertex)
+        self.vertices.insert(index as usize, vertex);
+
+        // Shift neighbour indices to preserve vertex indexation.
+        for other_vertex in self.vertices.iter_mut() {
+            for neighbour_index in other_vertex.neighbours.iter_mut() {
+                if *neighbour_index >= index as u32 {
+                    *neighbour_index += 1;
+                }
+            }
+        }
     }
 
     /// Tries to build path from begin point to end point. Returns path kind:
+    ///
     /// - Full: there are direct path from begin to end.
     /// - Partial: there are not direct path from begin to end, but it is closest.
-    /// - Empty: no path available - in most cases indicates some error in input
-    ///   params.
+    /// - Empty: no path available - in most cases indicates some error in input params.
     ///
     /// # Notes
     ///
-    /// This is more or less naive implementation, it most certainly will be slower
-    /// than specialized solutions. I haven't benchmarked this algorithm against any
-    /// other library!
+    /// This is more or less naive implementation, it most certainly will be slower than specialized solutions.
     pub fn build(
         &mut self,
         from: usize,
@@ -447,5 +489,54 @@ mod test {
         }
 
         assert!(paths_count > 0);
+    }
+
+    #[test]
+    fn test_remove_vertex() {
+        let mut pathfinder = PathFinder::new();
+
+        pathfinder.add_vertex(PathVertex::new(Vector3::new(0.0, 0.0, 0.0)));
+        pathfinder.add_vertex(PathVertex::new(Vector3::new(1.0, 0.0, 0.0)));
+        pathfinder.add_vertex(PathVertex::new(Vector3::new(1.0, 1.0, 0.0)));
+
+        pathfinder.link_bidirect(0, 1);
+        pathfinder.link_bidirect(1, 2);
+        pathfinder.link_bidirect(2, 0);
+
+        pathfinder.remove_vertex(0);
+
+        assert_eq!(pathfinder.vertex(0).unwrap().neighbours, vec![1]);
+        assert_eq!(pathfinder.vertex(1).unwrap().neighbours, vec![0]);
+        assert_eq!(pathfinder.vertex(2), None);
+
+        pathfinder.remove_vertex(0);
+
+        assert_eq!(pathfinder.vertex(0).unwrap().neighbours, vec![]);
+        assert_eq!(pathfinder.vertex(1), None);
+        assert_eq!(pathfinder.vertex(2), None);
+    }
+
+    #[test]
+    fn test_insert_vertex() {
+        let mut pathfinder = PathFinder::new();
+
+        pathfinder.add_vertex(PathVertex::new(Vector3::new(0.0, 0.0, 0.0)));
+        pathfinder.add_vertex(PathVertex::new(Vector3::new(1.0, 0.0, 0.0)));
+        pathfinder.add_vertex(PathVertex::new(Vector3::new(1.0, 1.0, 0.0)));
+
+        pathfinder.link_bidirect(0, 1);
+        pathfinder.link_bidirect(1, 2);
+        pathfinder.link_bidirect(2, 0);
+
+        assert_eq!(pathfinder.vertex(0).unwrap().neighbours, vec![1, 2]);
+        assert_eq!(pathfinder.vertex(1).unwrap().neighbours, vec![0, 2]);
+        assert_eq!(pathfinder.vertex(2).unwrap().neighbours, vec![1, 0]);
+
+        pathfinder.insert_vertex(0, PathVertex::new(Vector3::new(1.0, 1.0, 1.0)));
+
+        assert_eq!(pathfinder.vertex(0).unwrap().neighbours, vec![]);
+        assert_eq!(pathfinder.vertex(1).unwrap().neighbours, vec![2, 3]);
+        assert_eq!(pathfinder.vertex(2).unwrap().neighbours, vec![1, 3]);
+        assert_eq!(pathfinder.vertex(3).unwrap().neighbours, vec![2, 1]);
     }
 }

@@ -203,6 +203,8 @@ impl Navmesh {
         &self.triangles
     }
 
+    /// Adds the triangle to the navigational mesh and returns its index in the internal array. Vertex indices in
+    /// the triangle must be valid!
     pub fn add_triangle(&mut self, triangle: TriangleDefinition) -> u32 {
         let index = self.triangles.len();
         for edge in triangle.edges() {
@@ -213,6 +215,8 @@ impl Navmesh {
         index as u32
     }
 
+    /// Removes a triangle at the given index from the navigational mesh. Automatically fixes vertex links in the
+    /// internal navigational graph.
     pub fn remove_triangle(&mut self, index: usize) -> TriangleDefinition {
         let triangle = self.triangles.remove(index);
         for &vertex_index in triangle.indices() {
@@ -248,6 +252,8 @@ impl Navmesh {
         triangle
     }
 
+    /// Removes last triangle from the navigational mesh. Automatically fixes vertex links in the internal
+    /// navigational graph.
     pub fn pop_triangle(&mut self) -> Option<TriangleDefinition> {
         if self.triangles.is_empty() {
             None
@@ -256,6 +262,8 @@ impl Navmesh {
         }
     }
 
+    /// Removes a vertex at the given index from the navigational mesh. All triangles that share the vertex will
+    /// be also removed.
     pub fn remove_vertex(&mut self, index: usize) -> PathVertex {
         // Remove triangles that sharing the vertex first.
         let mut i = 0;
@@ -289,19 +297,22 @@ impl Navmesh {
         self.pathfinder.remove_vertex(index)
     }
 
-    /// Returns reference to array of vertices.
+    /// Returns reference to the internal array of vertices.
     pub fn vertices(&self) -> &[PathVertex] {
         self.pathfinder.vertices()
     }
 
+    /// Returns a mutable reference to the internal array of vertices.
     pub fn vertices_mut(&mut self) -> &mut [PathVertex] {
         self.pathfinder.vertices_mut()
     }
 
+    /// Adds the vertex to the navigational mesh. The vertex will **not** be connected with any other vertex.
     pub fn add_vertex(&mut self, vertex: PathVertex) -> u32 {
         self.pathfinder.add_vertex(vertex)
     }
 
+    /// Removes last vertex from the navigational mesh. All triangles that share the vertex will be also removed.
     pub fn pop_vertex(&mut self) -> Option<PathVertex> {
         if self.pathfinder.vertices().is_empty() {
             None
@@ -310,11 +321,12 @@ impl Navmesh {
         }
     }
 
+    /// Inserts the vertex at the given index. Automatically shift indices in triangles to preserve mesh structure.
     pub fn insert_vertex(&mut self, index: u32, vertex: PathVertex) {
         self.pathfinder.insert_vertex(index, vertex);
 
         // Shift vertex indices in triangles. Example:
-
+        //
         // 0:A 1:C 2:D 3:E
         // [A,C,D], [A,D,E], [D,C,E]
         // [0,1,2], [0,2,3], [2,1,3]
