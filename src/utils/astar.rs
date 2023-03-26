@@ -270,7 +270,7 @@ impl PathFinder {
         // Shift neighbour indices to preserve vertex indexation.
         for other_vertex in self.vertices.iter_mut() {
             for neighbour_index in other_vertex.neighbours.iter_mut() {
-                if *neighbour_index >= index as u32 {
+                if *neighbour_index >= index {
                     *neighbour_index += 1;
                 }
             }

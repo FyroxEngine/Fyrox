@@ -223,60 +223,58 @@ impl InteractionMode for EditNavmeshMode {
                     self.plane_kind = plane_kind;
                     self.drag_context = Some(DragContext::MoveSelection { initial_positions });
                 }
-            } else {
-                if let Some(navmesh) = graph
-                    .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())
-                    .map(|n| n.navmesh_ref())
-                {
-                    let mut new_selection = if engine.user_interface.keyboard_modifiers().shift {
-                        selection.clone()
-                    } else {
-                        NavmeshSelection::empty(selection.navmesh_node())
-                    };
+            } else if let Some(navmesh) = graph
+                .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())
+                .map(|n| n.navmesh_ref())
+            {
+                let mut new_selection = if engine.user_interface.keyboard_modifiers().shift {
+                    selection
+                } else {
+                    NavmeshSelection::empty(selection.navmesh_node())
+                };
 
-                    let mut picked = false;
-                    for (index, vertex) in navmesh.vertices().iter().enumerate() {
-                        if ray
-                            .sphere_intersection(&vertex.position, settings.navmesh.vertex_radius)
-                            .is_some()
-                        {
-                            new_selection.add(NavmeshEntity::Vertex(index));
-                            picked = true;
-                            break;
-                        }
+                let mut picked = false;
+                for (index, vertex) in navmesh.vertices().iter().enumerate() {
+                    if ray
+                        .sphere_intersection(&vertex.position, settings.navmesh.vertex_radius)
+                        .is_some()
+                    {
+                        new_selection.add(NavmeshEntity::Vertex(index));
+                        picked = true;
+                        break;
                     }
+                }
 
-                    if !picked {
-                        for triangle in navmesh.triangles().iter() {
-                            for edge in &triangle.edges() {
-                                let begin = navmesh.vertices()[edge.a as usize].position;
-                                let end = navmesh.vertices()[edge.b as usize].position;
-                                if ray
-                                    .cylinder_intersection(
-                                        &begin,
-                                        &end,
-                                        settings.navmesh.vertex_radius,
-                                        CylinderKind::Finite,
-                                    )
-                                    .is_some()
-                                {
-                                    new_selection.add(NavmeshEntity::Edge(*edge));
-                                    break;
-                                }
+                if !picked {
+                    for triangle in navmesh.triangles().iter() {
+                        for edge in &triangle.edges() {
+                            let begin = navmesh.vertices()[edge.a as usize].position;
+                            let end = navmesh.vertices()[edge.b as usize].position;
+                            if ray
+                                .cylinder_intersection(
+                                    &begin,
+                                    &end,
+                                    settings.navmesh.vertex_radius,
+                                    CylinderKind::Finite,
+                                )
+                                .is_some()
+                            {
+                                new_selection.add(NavmeshEntity::Edge(*edge));
+                                break;
                             }
                         }
                     }
+                }
 
-                    let new_selection = Selection::Navmesh(new_selection);
+                let new_selection = Selection::Navmesh(new_selection);
 
-                    if new_selection != editor_scene.selection {
-                        self.message_sender
-                            .send(Message::do_scene_command(ChangeSelectionCommand::new(
-                                new_selection,
-                                editor_scene.selection.clone(),
-                            )))
-                            .unwrap();
-                    }
+                if new_selection != editor_scene.selection {
+                    self.message_sender
+                        .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                            new_selection,
+                            editor_scene.selection.clone(),
+                        )))
+                        .unwrap();
                 }
             }
         }
@@ -309,7 +307,7 @@ impl InteractionMode for EditNavmeshMode {
                                     selection.navmesh_node(),
                                     *vertex,
                                     *initial_positions.get(vertex).unwrap(),
-                                    navmesh.vertices()[*vertex as usize].position,
+                                    navmesh.vertices()[*vertex].position,
                                 )));
                             }
                         }
@@ -347,7 +345,7 @@ impl InteractionMode for EditNavmeshMode {
         frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        if !self.drag_context.is_some() {
+        if self.drag_context.is_none() {
             return;
         }
 
@@ -515,28 +513,25 @@ impl InteractionMode for EditNavmeshMode {
                         .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())
                         .map(|n| n.navmesh_ref())
                         .is_some()
+                        && !selection.is_empty()
                     {
-                        if !selection.is_empty() {
-                            let mut commands = Vec::new();
+                        let mut commands = Vec::new();
 
-                            for &vertex in &*selection.unique_vertices() {
-                                commands.push(SceneCommand::new(DeleteNavmeshVertexCommand::new(
-                                    selection.navmesh_node(),
-                                    vertex,
-                                )));
-                            }
-
-                            commands.push(SceneCommand::new(ChangeSelectionCommand::new(
-                                Selection::Navmesh(NavmeshSelection::empty(
-                                    selection.navmesh_node(),
-                                )),
-                                editor_scene.selection.clone(),
+                        for &vertex in &*selection.unique_vertices() {
+                            commands.push(SceneCommand::new(DeleteNavmeshVertexCommand::new(
+                                selection.navmesh_node(),
+                                vertex,
                             )));
-
-                            self.message_sender
-                                .send(Message::do_scene_command(CommandGroup::from(commands)))
-                                .unwrap();
                         }
+
+                        commands.push(SceneCommand::new(ChangeSelectionCommand::new(
+                            Selection::Navmesh(NavmeshSelection::empty(selection.navmesh_node())),
+                            editor_scene.selection.clone(),
+                        )));
+
+                        self.message_sender
+                            .send(Message::do_scene_command(CommandGroup::from(commands)))
+                            .unwrap();
                     }
 
                     true
