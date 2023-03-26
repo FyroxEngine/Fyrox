@@ -5,6 +5,7 @@
 #![warn(missing_docs)]
 
 use crate::scene::graph::GraphUpdateSwitches;
+use crate::scene::navmesh::NavigationalMesh;
 use crate::scene::Scene;
 use crate::{
     core::{
@@ -437,6 +438,7 @@ impl Node {
     define_is_as!(dim2::joint::Joint => fn is_joint2d, fn as_joint2d, fn as_joint2d_mut);
     define_is_as!(Sound => fn is_sound, fn as_sound, fn as_sound_mut);
     define_is_as!(Listener => fn is_listener, fn as_listener, fn as_listener_mut);
+    define_is_as!(NavigationalMesh => fn is_navigational_mesh, fn as_navigational_mesh, fn as_navigational_mesh_mut);
 }
 
 impl Visit for Node {

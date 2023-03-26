@@ -1195,20 +1195,7 @@ impl Editor {
             self.scene_settings
                 .handle_ui_message(message, &self.message_sender);
 
-            self.navmesh_panel.handle_message(
-                message,
-                editor_scene,
-                engine,
-                if let Some(edit_mode) = self.interaction_modes
-                    [InteractionModeKind::Navmesh as usize]
-                    .as_any_mut()
-                    .downcast_mut()
-                {
-                    edit_mode
-                } else {
-                    unreachable!()
-                },
-            );
+            self.navmesh_panel.handle_message(message, editor_scene);
 
             self.inspector
                 .handle_ui_message(message, editor_scene, engine, &self.message_sender);
@@ -1404,7 +1391,6 @@ impl Editor {
             self.absm_editor.sync_to_model(editor_scene, engine);
             self.scene_settings.sync_to_model(editor_scene, engine);
             self.inspector.sync_to_model(editor_scene, engine);
-            self.navmesh_panel.sync_to_model(editor_scene, engine);
             self.world_viewer.sync_to_model(editor_scene, engine);
             self.material_editor
                 .sync_to_model(&mut engine.user_interface);

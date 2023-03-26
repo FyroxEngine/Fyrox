@@ -45,14 +45,18 @@ use crate::{
     },
     resource::{curve::CurveResource, model::Model, texture::Texture},
     scene::{
+        base::BaseBuilder,
         camera::Camera,
         debug::SceneDrawingContext,
         graph::{map::NodeHandleMap, Graph, GraphPerformanceStatistics, GraphUpdateSwitches},
-        mesh::buffer::{
-            VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
-            VertexWriteTrait,
+        mesh::{
+            buffer::{
+                VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
+                VertexWriteTrait,
+            },
+            Mesh,
         },
-        mesh::Mesh,
+        navmesh::NavigationalMeshBuilder,
         node::Node,
         sound::SoundEngine,
     },
@@ -167,10 +171,6 @@ pub struct Scene {
     #[reflect(hidden)]
     pub drawing_context: SceneDrawingContext,
 
-    /// A container for navigational meshes.
-    #[reflect(hidden)]
-    pub navmeshes: NavMeshContainer,
-
     /// Current lightmap.
     #[reflect(hidden)]
     lightmap: Option<Lightmap>,
@@ -199,7 +199,6 @@ impl Default for Scene {
             render_target: None,
             lightmap: None,
             drawing_context: Default::default(),
-            navmeshes: Default::default(),
             performance_statistics: Default::default(),
             ambient_lighting_color: Color::opaque(100, 100, 100),
             enabled: true,
@@ -530,7 +529,6 @@ impl Scene {
             render_target: None,
             lightmap: None,
             drawing_context: Default::default(),
-            navmeshes: Default::default(),
             performance_statistics: Default::default(),
             ambient_lighting_color: Color::opaque(100, 100, 100),
             enabled: true,
@@ -705,7 +703,6 @@ impl Scene {
                 render_target: Default::default(),
                 lightmap,
                 drawing_context: self.drawing_context.clone(),
-                navmeshes: self.navmeshes.clone(),
                 performance_statistics: Default::default(),
                 ambient_lighting_color: self.ambient_lighting_color,
                 enabled: self.enabled,
@@ -719,10 +716,19 @@ impl Scene {
 
         self.graph.visit("Graph", &mut region)?;
         self.lightmap.visit("Lightmap", &mut region)?;
-        self.navmeshes.visit("NavMeshes", &mut region)?;
         self.ambient_lighting_color
             .visit("AmbientLightingColor", &mut region)?;
         self.enabled.visit("Enabled", &mut region)?;
+
+        // Backward compatibility.
+        let mut navmeshes = NavMeshContainer::default();
+        if navmeshes.visit("NavMeshes", &mut region).is_ok() {
+            for (i, navmesh) in navmeshes.iter().enumerate() {
+                NavigationalMeshBuilder::new(BaseBuilder::new().with_name(format!("Navmesh{i}")))
+                    .with_navmesh(navmesh.clone())
+                    .build(&mut self.graph);
+            }
+        }
 
         Ok(())
     }

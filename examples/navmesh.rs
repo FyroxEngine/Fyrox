@@ -185,16 +185,10 @@ impl Plugin for Game {
             }
         }
 
-        let navmesh = scene.navmeshes.iter_mut().next().unwrap();
-
-        let last = std::time::Instant::now();
-        self.navmesh_agent.set_target(self.target_position);
-        let _ = self.navmesh_agent.update(context.dt, navmesh);
-        let agent_time = std::time::Instant::now() - last;
-
-        scene.graph[self.agent]
-            .local_transform_mut()
-            .set_position(self.navmesh_agent.position());
+        let navmesh_handle = scene.graph.find_by_name_from_root("Navmesh0").unwrap().0;
+        let navmesh = scene.graph[navmesh_handle]
+            .as_navigational_mesh_mut()
+            .navmesh_mut();
 
         // Debug drawing.
         for pt in navmesh.vertices() {
@@ -206,6 +200,15 @@ impl Plugin for Game {
                 });
             }
         }
+
+        let last = std::time::Instant::now();
+        self.navmesh_agent.set_target(self.target_position);
+        let _ = self.navmesh_agent.update(context.dt, navmesh);
+        let agent_time = std::time::Instant::now() - last;
+
+        scene.graph[self.agent]
+            .local_transform_mut()
+            .set_position(self.navmesh_agent.position());
 
         for pts in self.navmesh_agent.path().windows(2) {
             scene.drawing_context.add_line(Line {

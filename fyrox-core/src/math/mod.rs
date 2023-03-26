@@ -16,6 +16,7 @@ use crate::{
     reflect::prelude::*,
     visitor::prelude::*,
 };
+use std::hash::{Hash, Hasher};
 use std::ops::{Index, IndexMut};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Reflect)]
@@ -682,11 +683,11 @@ pub fn ray_rect_intersection(
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct TriangleEdge {
-    a: u32,
-    b: u32,
+    pub a: u32,
+    pub b: u32,
 }
 
 impl PartialEq for TriangleEdge {
@@ -696,6 +697,13 @@ impl PartialEq for TriangleEdge {
 }
 
 impl Eq for TriangleEdge {}
+
+impl Hash for TriangleEdge {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // Direction-agnostic hash.
+        (self.a as u64 + self.b as u64).hash(state)
+    }
+}
 
 #[derive(Clone, PartialEq, Eq, Debug, Default, Hash, Reflect)]
 #[repr(C)]
