@@ -215,11 +215,32 @@ impl Navmesh {
 
     pub fn remove_triangle(&mut self, index: usize) -> TriangleDefinition {
         let triangle = self.triangles.remove(index);
-        for edge in triangle.edges() {
-            for (a, b) in [(edge.a, edge.b), (edge.b, edge.a)] {
-                if let Some(vertex) = self.pathfinder.vertex_mut(a as usize) {
-                    if let Some(position) = vertex.neighbours.iter().position(|n| *n == b) {
-                        vertex.neighbours.remove(position);
+        for &vertex_index in triangle.indices() {
+            let mut isolated = true;
+            for other_triangle in self.triangles.iter() {
+                if other_triangle.indices().contains(&vertex_index) {
+                    isolated = false;
+                    break;
+                }
+            }
+
+            if isolated {
+                if let Some(vertex) = self.pathfinder.vertex_mut(vertex_index as usize) {
+                    let neighbour_indices = vertex.neighbours.clone();
+                    vertex.neighbours.clear();
+
+                    for neighbour_index in neighbour_indices {
+                        if let Some(neighbour_vertex) =
+                            self.pathfinder.vertex_mut(neighbour_index as usize)
+                        {
+                            if let Some(position) = neighbour_vertex
+                                .neighbours
+                                .iter()
+                                .position(|n| *n == vertex_index)
+                            {
+                                neighbour_vertex.neighbours.remove(position);
+                            }
+                        }
                     }
                 }
             }
@@ -236,12 +257,32 @@ impl Navmesh {
     }
 
     pub fn remove_vertex(&mut self, index: usize) -> PathVertex {
+        // Remove triangles that sharing the vertex first.
         let mut i = 0;
         while i < self.triangles.len() {
             if self.triangles[i].indices().contains(&(index as u32)) {
                 self.remove_triangle(i);
             } else {
                 i += 1;
+            }
+        }
+
+        // Shift vertex indices in triangles. Example:
+        //
+        // 0:A 1:B 2:C 3:D 4:E
+        // [A,B,C], [A,C,D], [A,D,E], [D,C,E]
+        // [0,1,2], [0,2,3], [0,3,4], [3,2,4]
+        //
+        // Remove B.
+        //
+        // 0:A 1:C 2:D 3:E
+        // [A,C,D], [A,D,E], [D,C,E]
+        // [0,1,2], [0,2,3], [2,1,3]
+        for triangle in self.triangles.iter_mut() {
+            for other_vertex_index in triangle.indices_mut() {
+                if *other_vertex_index > index as u32 {
+                    *other_vertex_index -= 1;
+                }
             }
         }
 
@@ -270,7 +311,26 @@ impl Navmesh {
     }
 
     pub fn insert_vertex(&mut self, index: u32, vertex: PathVertex) {
-        self.pathfinder.insert_vertex(index, vertex)
+        self.pathfinder.insert_vertex(index, vertex);
+
+        // Shift vertex indices in triangles. Example:
+
+        // 0:A 1:C 2:D 3:E
+        // [A,C,D], [A,D,E], [D,C,E]
+        // [0,1,2], [0,2,3], [2,1,3]
+        //
+        // Insert B.
+        //
+        // 0:A 1:B 2:C 3:D 4:E
+        // [A,C,D], [A,D,E], [D,C,E]
+        // [0,2,3], [0,3,4], [3,2,4]
+        for triangle in self.triangles.iter_mut() {
+            for other_vertex_index in triangle.indices_mut() {
+                if *other_vertex_index >= index {
+                    *other_vertex_index += 1;
+                }
+            }
+        }
     }
 
     /// Returns shared reference to inner octree.
@@ -652,5 +712,133 @@ impl NavmeshAgentBuilder {
             speed: self.speed,
             ..Default::default()
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        core::{algebra::Vector3, math::TriangleDefinition},
+        utils::navmesh::Navmesh,
+    };
+
+    fn make_navmesh() -> Navmesh {
+        //             0                 1
+        //              *---------------*
+        //            / | \       A     |
+        //           /  |     \         |
+        //          /   |   B     \     |
+        //         /    |             \ |
+        //        /   3 *---------------* 2
+        //       / C  /                /
+        //      /   /    D      /
+        //     /  /      /
+        //    / /   /
+        //   //
+        //    4
+        Navmesh::new(
+            &[
+                TriangleDefinition([0, 1, 2]),
+                TriangleDefinition([0, 2, 3]),
+                TriangleDefinition([0, 3, 4]),
+                TriangleDefinition([3, 2, 4]),
+            ],
+            &[
+                Vector3::new(-1.0, 0.0, 1.0),
+                Vector3::new(1.0, 0.0, 1.0),
+                Vector3::new(1.0, 0.0, -1.0),
+                Vector3::new(-1.0, 0.0, -1.0),
+                Vector3::new(-2.0, 0.0, 2.0),
+            ],
+        )
+    }
+
+    #[test]
+    fn test_remove_triangle() {
+        let mut navmesh = make_navmesh();
+
+        assert_eq!(navmesh.vertices()[0].neighbours, vec![4, 1, 2, 3]);
+        assert_eq!(navmesh.vertices()[1].neighbours, vec![2, 0]);
+        assert_eq!(navmesh.vertices()[2].neighbours, vec![1, 3, 0, 4]);
+        assert_eq!(navmesh.vertices()[3].neighbours, vec![4, 2, 0]);
+        assert_eq!(navmesh.vertices()[4].neighbours, vec![3, 0, 2]);
+
+        navmesh.remove_triangle(1); // B
+
+        assert_eq!(navmesh.vertices()[0].neighbours, vec![4, 1, 2, 3]);
+        assert_eq!(navmesh.vertices()[1].neighbours, vec![2, 0]);
+        assert_eq!(navmesh.vertices()[2].neighbours, vec![1, 3, 0, 4]);
+        assert_eq!(navmesh.vertices()[3].neighbours, vec![4, 2, 0]);
+        assert_eq!(navmesh.vertices()[4].neighbours, vec![3, 0, 2]);
+
+        navmesh.remove_triangle(0); // A
+
+        assert_eq!(navmesh.vertices()[0].neighbours, vec![4, 2, 3]);
+        assert_eq!(navmesh.vertices()[1].neighbours, vec![]);
+        assert_eq!(navmesh.vertices()[2].neighbours, vec![3, 0, 4]);
+        assert_eq!(navmesh.vertices()[3].neighbours, vec![4, 2, 0]);
+        assert_eq!(navmesh.vertices()[4].neighbours, vec![3, 0, 2]);
+
+        navmesh.remove_triangle(0); // C
+
+        assert_eq!(navmesh.vertices()[0].neighbours, vec![]);
+        assert_eq!(navmesh.vertices()[1].neighbours, vec![]);
+        assert_eq!(navmesh.vertices()[2].neighbours, vec![3, 4]);
+        assert_eq!(navmesh.vertices()[3].neighbours, vec![4, 2]);
+        assert_eq!(navmesh.vertices()[4].neighbours, vec![3, 2]);
+
+        navmesh.remove_triangle(0); // D
+
+        assert_eq!(navmesh.vertices()[0].neighbours, vec![]);
+        assert_eq!(navmesh.vertices()[1].neighbours, vec![]);
+        assert_eq!(navmesh.vertices()[2].neighbours, vec![]);
+        assert_eq!(navmesh.vertices()[3].neighbours, vec![]);
+        assert_eq!(navmesh.vertices()[4].neighbours, vec![]);
+    }
+
+    #[test]
+    fn test_remove_vertex() {
+        let mut navmesh = make_navmesh();
+
+        assert_eq!(navmesh.vertices()[0].neighbours, vec![4, 1, 2, 3]);
+        assert_eq!(navmesh.vertices()[1].neighbours, vec![2, 0]);
+        assert_eq!(navmesh.vertices()[2].neighbours, vec![1, 3, 0, 4]);
+        assert_eq!(navmesh.vertices()[3].neighbours, vec![4, 2, 0]);
+        assert_eq!(navmesh.vertices()[4].neighbours, vec![3, 0, 2]);
+
+        navmesh.remove_vertex(4);
+
+        assert_eq!(navmesh.triangles().len(), 2);
+
+        assert_eq!(navmesh.vertices()[0].neighbours, vec![1, 2, 3]);
+        assert_eq!(navmesh.vertices()[1].neighbours, vec![2, 0]);
+        assert_eq!(navmesh.vertices()[2].neighbours, vec![1, 3, 0]);
+        assert_eq!(navmesh.vertices()[3].neighbours, vec![2, 0]);
+
+        navmesh.remove_vertex(3);
+
+        assert_eq!(navmesh.triangles().len(), 1);
+
+        assert_eq!(navmesh.vertices()[0].neighbours, vec![1, 2]);
+        assert_eq!(navmesh.vertices()[1].neighbours, vec![2, 0]);
+        assert_eq!(navmesh.vertices()[2].neighbours, vec![1, 0]);
+
+        navmesh.remove_vertex(2);
+
+        assert_eq!(navmesh.triangles().len(), 0);
+
+        assert_eq!(navmesh.vertices()[0].neighbours, vec![]);
+        assert_eq!(navmesh.vertices()[1].neighbours, vec![]);
+
+        navmesh.remove_vertex(1);
+
+        assert_eq!(navmesh.triangles().len(), 0);
+
+        assert_eq!(navmesh.vertices()[0].neighbours, vec![]);
+
+        navmesh.remove_vertex(0);
+
+        assert_eq!(navmesh.triangles().len(), 0);
+        assert_eq!(navmesh.vertices().len(), 0);
     }
 }
