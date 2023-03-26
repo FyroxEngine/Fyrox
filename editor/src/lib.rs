@@ -74,8 +74,6 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
-use fyrox::engine::GraphicsContextParams;
-use fyrox::window::{Icon, WindowAttributes};
 use fyrox::{
     core::{
         algebra::{Matrix3, Vector2},
@@ -87,7 +85,10 @@ use fyrox::{
         visitor::Visitor,
     },
     dpi::LogicalSize,
-    engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
+    engine::{
+        resource_manager::ResourceManager, Engine, EngineInitParams, GraphicsContextParams,
+        SerializationContext,
+    },
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     fxhash::FxHashMap,
@@ -122,6 +123,7 @@ use fyrox::{
         translate_cursor_icon, translate_event,
         watcher::FileSystemWatcher,
     },
+    window::{Icon, WindowAttributes},
 };
 use std::{
     any::TypeId,
@@ -694,35 +696,9 @@ impl Editor {
                                                                 ))
                                                                 .build(ctx),
                                                             TileBuilder::new(WidgetBuilder::new())
-                                                                .with_content(
-                                                                    TileContent::HorizontalTiles {
-                                                                        splitter: 0.5,
-                                                                        tiles: [
-                                                                            TileBuilder::new(
-                                                                                WidgetBuilder::new(
-                                                                                ),
-                                                                            )
-                                                                            .with_content(
-                                                                                TileContent::Window(
-                                                                                    navmesh_panel
-                                                                                        .window,
-                                                                                ),
-                                                                            )
-                                                                            .build(ctx),
-                                                                            TileBuilder::new(
-                                                                                WidgetBuilder::new(
-                                                                                ),
-                                                                            )
-                                                                            .with_content(
-                                                                                TileContent::Window(
-                                                                                    audio_panel
-                                                                                        .window,
-                                                                                ),
-                                                                            )
-                                                                            .build(ctx),
-                                                                        ],
-                                                                    },
-                                                                )
+                                                                .with_content(TileContent::Window(
+                                                                    audio_panel.window,
+                                                                ))
                                                                 .build(ctx),
                                                         ],
                                                     })
@@ -739,6 +715,7 @@ impl Editor {
                         absm_editor.window,
                         particle_system_control_panel.window,
                         audio_preview_panel.window,
+                        navmesh_panel.window,
                     ])
                     .build(ctx),
                 ),
@@ -1395,6 +1372,7 @@ impl Editor {
             self.material_editor
                 .sync_to_model(&mut engine.user_interface);
             self.audio_panel.sync_to_model(editor_scene, engine);
+            self.navmesh_panel.sync_to_model(engine, editor_scene);
             self.command_stack_viewer.sync_to_model(
                 &mut self.command_stack,
                 &SceneContext {

@@ -29,13 +29,14 @@ use fyrox::{
         pool::Handle,
         scope_profile,
     },
+    engine::Engine,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
         message::{KeyCode, MessageDirection, UiMessage},
         stack_panel::StackPanelBuilder,
         widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowTitle},
+        window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Orientation, Thickness, UiNode, UserInterface,
     },
     scene::{camera::Camera, navmesh::NavigationalMesh, node::Node},
@@ -48,7 +49,7 @@ pub mod selection;
 
 pub struct NavmeshPanel {
     pub window: Handle<UiNode>,
-    connect: Handle<UiNode>,
+    connect_edges: Handle<UiNode>,
     sender: Sender<Message>,
 }
 
@@ -67,19 +68,20 @@ fn fetch_selection(editor_selection: &Selection) -> Option<NavmeshSelection> {
 
 impl NavmeshPanel {
     pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
-        let connect;
+        let connect_edges;
         let window = WindowBuilder::new(WidgetBuilder::new())
+            .open(false)
             .with_title(WindowTitle::text("Navmesh"))
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new().with_child(
                         StackPanelBuilder::new(WidgetBuilder::new().with_child({
-                            connect = ButtonBuilder::new(
+                            connect_edges = ButtonBuilder::new(
                                 WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                             )
-                            .with_text("Connect")
+                            .with_text("Connect Edges")
                             .build(ctx);
-                            connect
+                            connect_edges
                         }))
                         .with_orientation(Orientation::Horizontal)
                         .build(ctx),
@@ -94,7 +96,7 @@ impl NavmeshPanel {
         Self {
             window,
             sender,
-            connect,
+            connect_edges,
         }
     }
 
@@ -102,7 +104,7 @@ impl NavmeshPanel {
         scope_profile!();
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
-            if message.destination() == self.connect {
+            if message.destination() == self.connect_edges {
                 if let Some(selection) = fetch_selection(&editor_scene.selection) {
                     let vertices = selection
                         .entities()
@@ -124,6 +126,30 @@ impl NavmeshPanel {
                         .unwrap();
                 }
             }
+        }
+    }
+
+    pub fn sync_to_model(&mut self, engine: &Engine, editor_scene: &EditorScene) {
+        let mut navmesh_selected = false;
+
+        let graph = &engine.scenes[editor_scene.scene].graph;
+        if let Some(selection) = fetch_selection(&editor_scene.selection) {
+            navmesh_selected = graph
+                .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())
+                .is_some();
+        }
+
+        if navmesh_selected {
+            engine.user_interface.send_message(WindowMessage::open(
+                self.window,
+                MessageDirection::ToWidget,
+                false,
+            ));
+        } else {
+            engine.user_interface.send_message(WindowMessage::close(
+                self.window,
+                MessageDirection::ToWidget,
+            ));
         }
     }
 
