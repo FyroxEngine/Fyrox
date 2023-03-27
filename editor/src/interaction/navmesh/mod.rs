@@ -543,7 +543,7 @@ impl InteractionMode for EditNavmeshMode {
                     {
                         let mut commands = Vec::new();
 
-                        for &vertex in &*selection.unique_vertices() {
+                        for vertex in selection.unique_vertices().iter().rev().cloned() {
                             commands.push(SceneCommand::new(DeleteNavmeshVertexCommand::new(
                                 selection.navmesh_node(),
                                 vertex,

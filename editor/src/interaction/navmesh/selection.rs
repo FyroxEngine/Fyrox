@@ -1,11 +1,11 @@
 use crate::interaction::navmesh::NavmeshEntity;
-use fyrox::core::math::TriangleEdge;
-use fyrox::core::pool::Handle;
-use fyrox::scene::node::Node;
+use fyrox::{
+    core::{math::TriangleEdge, pool::Handle},
+    scene::node::Node,
+};
 use std::{
-    cell::Ref,
-    cell::{Cell, RefCell},
-    collections::HashSet,
+    cell::{Cell, Ref, RefCell},
+    collections::BTreeSet,
 };
 
 #[derive(PartialEq, Clone, Debug, Eq)]
@@ -13,7 +13,7 @@ pub struct NavmeshSelection {
     dirty: Cell<bool>,
     navmesh_node: Handle<Node>,
     entities: Vec<NavmeshEntity>,
-    unique_vertices: RefCell<HashSet<usize>>,
+    unique_vertices: RefCell<BTreeSet<usize>>,
 }
 
 impl NavmeshSelection {
@@ -66,7 +66,7 @@ impl NavmeshSelection {
         self.entities.len()
     }
 
-    pub fn unique_vertices(&self) -> Ref<'_, HashSet<usize>> {
+    pub fn unique_vertices(&self) -> Ref<'_, BTreeSet<usize>> {
         if self.dirty.get() {
             let mut unique_vertices = self.unique_vertices.borrow_mut();
             unique_vertices.clear();
