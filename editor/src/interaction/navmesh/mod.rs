@@ -3,7 +3,7 @@ use crate::{
     interaction::{
         calculate_gizmo_distance_scaling,
         gizmo::move_gizmo::MoveGizmo,
-        navmesh::{data_model::NavmeshEntity, selection::NavmeshSelection},
+        navmesh::selection::{NavmeshEntity, NavmeshSelection},
         plane::PlaneKind,
         InteractionMode,
     },
@@ -44,7 +44,6 @@ use fyrox::{
 };
 use std::{collections::HashMap, sync::mpsc::Sender};
 
-pub mod data_model;
 pub mod selection;
 
 pub struct NavmeshPanel {

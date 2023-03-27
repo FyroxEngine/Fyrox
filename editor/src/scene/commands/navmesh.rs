@@ -1,6 +1,6 @@
 use crate::{
     command::Command,
-    interaction::{navmesh::data_model::NavmeshEntity, navmesh::selection::NavmeshSelection},
+    interaction::navmesh::selection::{NavmeshEntity, NavmeshSelection},
     scene::{commands::SceneContext, Selection},
 };
 use fyrox::{

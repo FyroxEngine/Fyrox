@@ -1,4 +1,3 @@
-use crate::interaction::navmesh::NavmeshEntity;
 use fyrox::{
     core::{math::TriangleEdge, pool::Handle},
     scene::node::Node,
@@ -7,6 +6,12 @@ use std::{
     cell::{Cell, Ref, RefCell},
     collections::BTreeSet,
 };
+
+#[derive(PartialEq, Clone, Debug, Eq)]
+pub enum NavmeshEntity {
+    Vertex(usize),
+    Edge(TriangleEdge),
+}
 
 #[derive(PartialEq, Clone, Debug, Eq)]
 pub struct NavmeshSelection {
