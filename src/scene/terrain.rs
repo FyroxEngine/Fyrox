@@ -254,32 +254,54 @@ pub struct Terrain {
     #[reflect(setter = "set_decal_layer_index")]
     decal_layer_index: InheritableVariable<u8>,
 
-    #[reflect(read_only)]
-    #[reflect(hidden)]
+    #[reflect(
+        min_value = 0.001,
+        description = "Width of the terrain in meters. Warning: any change to this value will result in resampling!",
+        setter = "set_width"
+    )]
     width: f32,
 
-    #[reflect(read_only)]
-    #[reflect(hidden)]
+    #[reflect(
+        min_value = 0.001,
+        description = "Length of the terrain in meters. Warning: any change to this value will result in resampling!",
+        setter = "set_length"
+    )]
     length: f32,
 
-    #[reflect(read_only)]
-    #[reflect(hidden)]
+    #[reflect(
+        min_value = 1.0,
+        step = 1.0,
+        description = "Blending mask resolution in pixels per meter. Warning: any change to this value will result in resampling!",
+        setter = "set_mask_resolution"
+    )]
     mask_resolution: f32,
 
-    #[reflect(read_only)]
-    #[reflect(hidden)]
+    #[reflect(
+        min_value = 1.0,
+        step = 1.0,
+        description = "Height map resolution in pixels per meter. Warning: any change to this value will result in resampling!",
+        setter = "set_height_map_resolution"
+    )]
     height_map_resolution: f32,
+
+    #[reflect(
+        min_value = 1.0,
+        step = 1.0,
+        description = "Amount of subdivisions along the width axis. Warning: any change to this value will result in resampling!",
+        setter = "set_width_chunk_count"
+    )]
+    width_chunks: u32,
+
+    #[reflect(
+        min_value = 1.0,
+        step = 1.0,
+        description = "Amount of subdivisions along the length axis. Warning: any change to this value will result in resampling!",
+        setter = "set_length_chunk_count"
+    )]
+    length_chunks: u32,
 
     #[reflect(hidden)]
     chunks: Vec<Chunk>,
-
-    #[reflect(read_only)]
-    #[reflect(hidden)]
-    width_chunks: u32,
-
-    #[reflect(read_only)]
-    #[reflect(hidden)]
-    length_chunks: u32,
 
     #[reflect(hidden)]
     bounding_box_dirty: Cell<bool>,
@@ -326,9 +348,19 @@ impl Terrain {
         self.width
     }
 
+    pub fn set_width(&mut self, width: f32) {
+        self.width = width;
+        self.resample();
+    }
+
     /// Returns amount of chunks along X axis.
     pub fn width_chunk_count(&self) -> usize {
         self.width_chunks as usize
+    }
+
+    pub fn set_width_chunk_count(&mut self, chunk_count: usize) {
+        self.width_chunks = chunk_count as u32;
+        self.resample();
     }
 
     /// Returns length of the terrain in local coordinates.
@@ -336,9 +368,29 @@ impl Terrain {
         self.length
     }
 
+    pub fn set_length(&mut self, length: f32) {
+        self.length = length;
+        self.resample();
+    }
+
     /// Returns amount of chunks along Z axis
     pub fn length_chunk_count(&self) -> usize {
         self.length_chunks as usize
+    }
+
+    pub fn set_length_chunk_count(&mut self, chunk_count: usize) {
+        self.length_chunks = chunk_count as u32;
+        self.resample();
+    }
+
+    pub fn set_mask_resolution(&mut self, resolution: f32) {
+        self.mask_resolution = resolution.max(0.001);
+        self.resample();
+    }
+
+    pub fn set_height_map_resolution(&mut self, resolution: f32) {
+        self.height_map_resolution = resolution.max(0.001);
+        self.resample();
     }
 
     /// Returns a reference to chunks of the terrain.
@@ -619,6 +671,10 @@ impl Terrain {
                 .collect(),
         }
     }
+
+    fn resample(&mut self) {
+        // TODO
+    }
 }
 
 impl NodeTrait for Terrain {
@@ -872,7 +928,6 @@ impl TerrainBuilder {
                     position: Vector3::new(x as f32 * chunk_width, 0.0, z as f32 * chunk_length),
                     width: chunk_width,
                     surface_data: make_surface_data(),
-
                     length: chunk_length,
                 };
 
