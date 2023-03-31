@@ -26,6 +26,7 @@ use crate::{
         node::{Node, NodeTrait, TypeUuidProvider},
     },
 };
+use std::collections::HashMap;
 use std::ops::Range;
 use std::{
     cell::Cell,
@@ -48,23 +49,11 @@ pub struct Layer {
     ///
     /// It will be used in the renderer to set appropriate chunk mask to the copy of the material.
     pub mask_property_name: String,
-
-    #[reflect(hidden)]
-    pub(crate) chunk_masks: Vec<Texture>,
 }
 
 impl PartialEq for Layer {
     fn eq(&self, other: &Self) -> bool {
-        self.mask_property_name == other.mask_property_name
-            && self.chunk_masks == other.chunk_masks
-            && self.material == other.material
-    }
-}
-
-impl Layer {
-    /// Returns a slice containing a set of masks for every chunk in the layer.
-    pub fn chunk_masks(&self) -> &[Texture] {
-        &self.chunk_masks
+        self.mask_property_name == other.mask_property_name && self.material == other.material
     }
 }
 
@@ -80,6 +69,7 @@ pub struct Chunk {
     physical_size: Vector2<f32>,
     height_map_size: Vector2<u32>,
     surface_data: SurfaceSharedData,
+    pub layer_masks: Vec<Texture>,
 }
 
 // Manual implementation of the trait because we need to serialize heightmap differently.
@@ -93,6 +83,7 @@ impl Visit for Chunk {
         self.position.visit("Position", &mut region)?;
         self.physical_size.visit("PhysicalSize", &mut region)?;
         self.height_map_size.visit("HeightMapSize", &mut region)?;
+        self.layer_masks.visit("LayerMasks", &mut region)?;
         // self.surface_data is are not serialized.
 
         if region.is_reading() {
@@ -111,6 +102,7 @@ impl Default for Chunk {
             physical_size: Default::default(),
             height_map_size: Default::default(),
             surface_data: make_surface_data(),
+            layer_masks: Default::default(),
         }
     }
 }
@@ -374,11 +366,71 @@ impl Terrain {
     }
 
     pub fn set_width_chunks(&mut self, chunks: Range<i32>) {
-        self.width_chunks = chunks;
+        self.resize(chunks, self.length_chunks.clone());
     }
 
     pub fn set_length_chunks(&mut self, chunks: Range<i32>) {
-        self.length_chunks = chunks;
+        self.resize(self.width_chunks.clone(), chunks);
+    }
+
+    pub fn resize(&mut self, width_chunks: Range<i32>, length_chunks: Range<i32>) {
+        let mut chunks = self
+            .chunks
+            .drain(..)
+            .enumerate()
+            .map(|(i, c)| {
+                (
+                    Vector2::new(i % self.width_chunks.len(), i / self.length_chunks.len()),
+                    c,
+                )
+            })
+            .collect::<HashMap<_, _>>();
+
+        self.width_chunks = width_chunks;
+        self.length_chunks = length_chunks;
+
+        for (z, iy) in self.length_chunks.clone().zip(0..self.length_chunks.len()) {
+            for (x, ix) in self.width_chunks.clone().zip(0..self.width_chunks.len()) {
+                let chunk = if let Some(existing_chunk) = chunks.remove(&Vector2::new(ix, iy)) {
+                    // Put previous chunk back at its position.
+                    existing_chunk
+                } else {
+                    // Create new chunk.
+                    let mut new_chunk = Chunk {
+                        heightmap: vec![
+                            0.0;
+                            (self.height_map_size.x * self.height_map_size.y) as usize
+                        ],
+                        position: Vector3::new(
+                            x as f32 * self.chunk_size.x,
+                            0.0,
+                            z as f32 * self.chunk_size.y,
+                        ),
+                        physical_size: self.chunk_size,
+                        height_map_size: self.height_map_size,
+                        surface_data: make_surface_data(),
+                        layer_masks: self
+                            .layers
+                            .iter()
+                            .enumerate()
+                            .map(|(i, _)| {
+                                create_layer_mask(
+                                    self.mask_size.x,
+                                    self.mask_size.y,
+                                    if i == 0 { 255 } else { 0 },
+                                )
+                            })
+                            .collect::<Vec<_>>(),
+                    };
+
+                    new_chunk.rebuild_geometry();
+
+                    new_chunk
+                };
+
+                self.chunks.push(chunk);
+            }
+        }
     }
 
     /// Returns a reference to chunks of the terrain.
@@ -454,10 +506,9 @@ impl Terrain {
             BrushMode::DrawOnMask { layer, alpha } => {
                 let alpha = alpha.clamp(-1.0, 1.0);
 
-                for (chunk_index, chunk) in self.chunks.iter_mut().enumerate() {
+                for chunk in self.chunks.iter_mut() {
                     let chunk_position = chunk.local_position();
-                    let layer = &mut self.layers.get_value_mut_and_mark_modified()[layer];
-                    let mut texture_data = layer.chunk_masks[chunk_index].data_ref();
+                    let mut texture_data = chunk.layer_masks[layer].data_ref();
                     let mut texture_data_mut = texture_data.modify();
 
                     let (texture_width, texture_height) =
@@ -642,24 +693,6 @@ impl Terrain {
         self.layers
             .get_value_mut_and_mark_modified()
             .insert(index, layer)
-    }
-
-    /// Creates new layer with given parameters, but does **not** add it to the terrain.
-    pub fn create_layer(
-        &self,
-        value: u8,
-        material: SharedMaterial,
-        mask_property_name: String,
-    ) -> Layer {
-        Layer {
-            material,
-            mask_property_name,
-            chunk_masks: self
-                .chunks
-                .iter()
-                .map(|_| create_layer_mask(self.mask_size.x, self.mask_size.y, value))
-                .collect(),
-        }
     }
 
     fn resample_masks(&mut self) {
@@ -903,6 +936,19 @@ impl TerrainBuilder {
                     ),
                     physical_size: self.chunk_size,
                     surface_data: make_surface_data(),
+                    layer_masks: self
+                        .layers
+                        .iter()
+                        .enumerate()
+                        .map(|(i, _)| {
+                            create_layer_mask(
+                                self.mask_size.x,
+                                self.mask_size.y,
+                                // Base layer is opaque, every other by default - transparent.
+                                if i == 0 { 255 } else { 0 },
+                            )
+                        })
+                        .collect::<Vec<_>>(),
                 };
 
                 chunk.rebuild_geometry();
@@ -917,23 +963,9 @@ impl TerrainBuilder {
             layers: self
                 .layers
                 .into_iter()
-                .enumerate()
-                .map(|(layer_index, definition)| {
-                    Layer {
-                        material: definition.material,
-                        mask_property_name: definition.mask_property_name,
-                        chunk_masks: chunks
-                            .iter()
-                            .map(|_| {
-                                create_layer_mask(
-                                    self.mask_size.x,
-                                    self.mask_size.y,
-                                    // Base layer is opaque, every other by default - transparent.
-                                    if layer_index == 0 { 255 } else { 0 },
-                                )
-                            })
-                            .collect(),
-                    }
+                .map(|definition| Layer {
+                    material: definition.material,
+                    mask_property_name: definition.mask_property_name,
                 })
                 .collect::<Vec<_>>()
                 .into(),

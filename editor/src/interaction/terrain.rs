@@ -115,11 +115,13 @@ impl BrushGizmo {
 }
 
 fn copy_layer_masks(terrain: &Terrain, layer: usize) -> Vec<Vec<u8>> {
-    terrain.layers()[layer]
-        .chunk_masks()
-        .iter()
-        .map(|mask| mask.data_ref().data().to_vec())
-        .collect()
+    let mut masks = Vec::new();
+
+    for chunk in terrain.chunks_ref() {
+        masks.push(chunk.layer_masks[layer].data_ref().data().to_vec());
+    }
+
+    masks
 }
 
 impl InteractionMode for TerrainInteractionMode {

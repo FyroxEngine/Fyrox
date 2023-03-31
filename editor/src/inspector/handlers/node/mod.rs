@@ -20,15 +20,15 @@ impl SceneNodePropertyChangedHandler {
         &self,
         args: &PropertyChanged,
         handle: Handle<Node>,
-        node: &mut Node,
+        _node: &mut Node,
     ) -> Option<SceneCommand> {
         // Terrain is special and have its own commands for specific properties.
         if args.path() == Terrain::LAYERS && args.owner_type_id == TypeId::of::<Terrain>() {
             match args.value {
                 FieldKind::Collection(ref collection_changed) => match **collection_changed {
-                    CollectionChanged::Add(_) => Some(SceneCommand::new(
-                        AddTerrainLayerCommand::new(handle, node.as_terrain()),
-                    )),
+                    CollectionChanged::Add(_) => {
+                        Some(SceneCommand::new(AddTerrainLayerCommand::new(handle)))
+                    }
                     CollectionChanged::Remove(index) => Some(SceneCommand::new(
                         DeleteTerrainLayerCommand::new(handle, index),
                     )),

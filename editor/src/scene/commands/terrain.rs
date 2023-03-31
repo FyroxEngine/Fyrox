@@ -1,7 +1,7 @@
 use crate::{command::Command, create_terrain_layer_material, scene::commands::SceneContext};
 use fyrox::{
     core::pool::Handle,
-    scene::{node::Node, terrain::Layer, terrain::Terrain},
+    scene::{node::Node, terrain::Layer},
 };
 
 #[derive(Debug)]
@@ -11,14 +11,13 @@ pub struct AddTerrainLayerCommand {
 }
 
 impl AddTerrainLayerCommand {
-    pub fn new(terrain_handle: Handle<Node>, terrain: &Terrain) -> Self {
+    pub fn new(terrain_handle: Handle<Node>) -> Self {
         Self {
             terrain: terrain_handle,
-            layer: Some(terrain.create_layer(
-                0,
-                create_terrain_layer_material(),
-                "maskTexture".to_owned(),
-            )),
+            layer: Some(Layer {
+                material: create_terrain_layer_material(),
+                mask_property_name: "maskTexture".to_owned(),
+            }),
         }
     }
 }
@@ -153,11 +152,12 @@ impl ModifyTerrainLayerMaskCommand {
 
     pub fn swap(&mut self, context: &mut SceneContext) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
-        for (chunk_mask, (old, new)) in terrain.layers_mut()[self.layer]
-            .chunk_masks()
-            .iter()
-            .zip(self.old_masks.iter_mut().zip(self.new_masks.iter_mut()))
-        {
+
+        for (i, chunk) in terrain.chunks_mut().iter_mut().enumerate() {
+            let old = &mut self.old_masks[i];
+            let new = &mut self.new_masks[i];
+            let chunk_mask = &mut chunk.layer_masks[self.layer];
+
             let mut texture_data = chunk_mask.data_ref();
 
             for (mask_pixel, new_pixel) in
