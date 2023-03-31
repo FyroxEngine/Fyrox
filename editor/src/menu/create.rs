@@ -375,7 +375,6 @@ impl CreateEntityMenu {
                                     material: create_terrain_layer_material(),
                                     mask_property_name: "maskTexture".to_owned(),
                                 }])
-                                .with_height_map_resolution(4.0)
                                 .build_node(),
                         )
                     } else if message.destination() == self.create_decal {

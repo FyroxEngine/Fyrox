@@ -575,34 +575,30 @@ fn make_heightfield(terrain: &Terrain) -> SharedShape {
     assert!(!terrain.chunks_ref().is_empty());
 
     // Count rows and columns.
-    let first_chunk = terrain.chunks_ref().first().unwrap();
-    let chunk_size = Vector2::new(
-        first_chunk.width_point_count(),
-        first_chunk.length_point_count(),
-    );
-    let nrows = chunk_size.y * terrain.length_chunk_count() as u32;
-    let ncols = chunk_size.x * terrain.width_chunk_count() as u32;
+    let height_map_size = terrain.height_map_size();
+    let nrows = height_map_size.y * terrain.length_chunks().len() as u32;
+    let ncols = height_map_size.x * terrain.width_chunks().len() as u32;
 
     // Combine height map of each chunk into bigger one.
     let mut ox = 0;
     let mut oz = 0;
     let mut data = vec![0.0; (nrows * ncols) as usize];
-    for cz in 0..terrain.length_chunk_count() {
-        for cx in 0..terrain.width_chunk_count() {
-            let chunk = &terrain.chunks_ref()[cz * terrain.width_chunk_count() + cx];
+    for cz in 0..terrain.length_chunks().len() {
+        for cx in 0..terrain.width_chunks().len() {
+            let chunk = &terrain.chunks_ref()[cz * terrain.width_chunks().len() + cx];
 
-            for z in 0..chunk.length_point_count() {
-                for x in 0..chunk.width_point_count() {
-                    let value = chunk.heightmap()[(z * chunk.width_point_count() + x) as usize];
-                    data[((ox + x) * nrows + oz + z) as usize] = value;
+            for iy in 0..height_map_size.y {
+                for ix in 0..height_map_size.x {
+                    let value = chunk.heightmap()[(iy * height_map_size.x + ix) as usize];
+                    data[((ox + ix) * nrows + oz + iy) as usize] = value;
                 }
             }
 
-            ox += chunk_size.x;
+            ox += height_map_size.x;
         }
 
         ox = 0;
-        oz += chunk_size.y;
+        oz += height_map_size.y;
     }
 
     SharedShape::heightfield(
@@ -611,7 +607,7 @@ fn make_heightfield(terrain: &Terrain) -> SharedShape {
             Dyn(ncols as usize),
             data,
         )),
-        Vector3::new(terrain.width(), 1.0, terrain.length()),
+        Vector3::new(terrain.chunk_size().x, 1.0, terrain.chunk_size().y),
     )
 }
 
