@@ -329,6 +329,22 @@ impl Terrain {
 
     pub fn set_chunk_size(&mut self, chunk_size: Vector2<f32>) {
         self.chunk_size = chunk_size;
+
+        // Re-position each chunk according to its position on the grid.
+        for (z, iy) in self.length_chunks.clone().zip(0..self.length_chunks.len()) {
+            for (x, ix) in self.width_chunks.clone().zip(0..self.width_chunks.len()) {
+                let position = Vector3::new(
+                    x as f32 * self.chunk_size.x,
+                    0.0,
+                    z as f32 * self.chunk_size.y,
+                );
+
+                let chunk = &mut self.chunks[iy * self.width_chunks.len() + ix];
+                chunk.position = position;
+                chunk.physical_size = chunk_size;
+                chunk.rebuild_geometry();
+            }
+        }
     }
 
     pub fn width_chunks(&self) -> Range<i32> {
