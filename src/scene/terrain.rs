@@ -272,7 +272,8 @@ pub struct Terrain {
     #[reflect(
         min_value = 1.0,
         step = 1.0,
-        description = "Size of the blending mask per chunk, in pixels. Warning: any change to this value will result in resampling!"
+        description = "Size of the blending mask per chunk, in pixels. Warning: any change to this value will result in resampling!",
+        setter = "set_mask_size"
     )]
     mask_size: Vector2<u32>,
 
