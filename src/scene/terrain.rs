@@ -324,7 +324,8 @@ impl Terrain {
         self.chunk_size
     }
 
-    pub fn set_chunk_size(&mut self, chunk_size: Vector2<f32>) {
+    pub fn set_chunk_size(&mut self, chunk_size: Vector2<f32>) -> Vector2<f32> {
+        let old = self.chunk_size;
         self.chunk_size = chunk_size;
 
         // Re-position each chunk according to its position on the grid.
@@ -342,6 +343,7 @@ impl Terrain {
                 chunk.rebuild_geometry();
             }
         }
+        old
     }
 
     pub fn width_chunks(&self) -> Range<i32> {
@@ -356,24 +358,32 @@ impl Terrain {
         self.height_map_size
     }
 
-    pub fn set_height_map_size(&mut self, height_map_size: Vector2<u32>) {
+    pub fn set_height_map_size(&mut self, height_map_size: Vector2<u32>) -> Vector2<u32> {
+        let old = self.height_map_size;
         self.resize_height_maps(height_map_size);
+        old
     }
 
     pub fn mask_size(&self) -> Vector2<u32> {
         self.mask_size
     }
 
-    pub fn set_mask_size(&mut self, mask_size: Vector2<u32>) {
+    pub fn set_mask_size(&mut self, mask_size: Vector2<u32>) -> Vector2<u32> {
+        let old = self.mask_size;
         self.resize_masks(mask_size);
+        old
     }
 
-    pub fn set_width_chunks(&mut self, chunks: Range<i32>) {
+    pub fn set_width_chunks(&mut self, chunks: Range<i32>) -> Range<i32> {
+        let old = self.width_chunks.clone();
         self.resize(chunks, self.length_chunks.clone());
+        old
     }
 
-    pub fn set_length_chunks(&mut self, chunks: Range<i32>) {
+    pub fn set_length_chunks(&mut self, chunks: Range<i32>) -> Range<i32> {
+        let old = self.length_chunks.clone();
         self.resize(self.width_chunks.clone(), chunks);
+        old
     }
 
     pub fn resize(&mut self, width_chunks: Range<i32>, length_chunks: Range<i32>) {
