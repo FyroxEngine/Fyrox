@@ -1,6 +1,7 @@
 use crate::{command::Command, create_terrain_layer_material, scene::commands::SceneContext};
 use fyrox::{
     core::pool::Handle,
+    resource::texture::Texture,
     scene::{node::Node, terrain::Layer},
 };
 
@@ -8,6 +9,7 @@ use fyrox::{
 pub struct AddTerrainLayerCommand {
     terrain: Handle<Node>,
     layer: Option<Layer>,
+    masks: Vec<Texture>,
 }
 
 impl AddTerrainLayerCommand {
@@ -18,6 +20,7 @@ impl AddTerrainLayerCommand {
                 material: create_terrain_layer_material(),
                 mask_property_name: "maskTexture".to_owned(),
             }),
+            masks: Default::default(),
         }
     }
 }
@@ -29,12 +32,14 @@ impl Command for AddTerrainLayerCommand {
 
     fn execute(&mut self, context: &mut SceneContext) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
-        terrain.add_layer(self.layer.take().unwrap());
+        terrain.add_layer(self.layer.take().unwrap(), std::mem::take(&mut self.masks));
     }
 
     fn revert(&mut self, context: &mut SceneContext) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
-        self.layer = terrain.pop_layer();
+        let (layer, masks) = terrain.pop_layer().unwrap();
+        self.layer = Some(layer);
+        self.masks = masks;
     }
 }
 
@@ -43,6 +48,7 @@ pub struct DeleteTerrainLayerCommand {
     terrain: Handle<Node>,
     layer: Option<Layer>,
     index: usize,
+    masks: Vec<Texture>,
 }
 
 impl DeleteTerrainLayerCommand {
@@ -51,6 +57,7 @@ impl DeleteTerrainLayerCommand {
             terrain,
             layer: Default::default(),
             index,
+            masks: Default::default(),
         }
     }
 }
@@ -61,16 +68,21 @@ impl Command for DeleteTerrainLayerCommand {
     }
 
     fn execute(&mut self, context: &mut SceneContext) {
-        self.layer = Some(
-            context.scene.graph[self.terrain]
-                .as_terrain_mut()
-                .remove_layer(self.index),
-        );
+        let (layer, masks) = context.scene.graph[self.terrain]
+            .as_terrain_mut()
+            .remove_layer(self.index);
+
+        self.layer = Some(layer);
+        self.masks = masks;
     }
 
     fn revert(&mut self, context: &mut SceneContext) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
-        terrain.insert_layer(self.layer.take().unwrap(), self.index);
+        terrain.insert_layer(
+            self.layer.take().unwrap(),
+            std::mem::take(&mut self.masks),
+            self.index,
+        );
     }
 }
 

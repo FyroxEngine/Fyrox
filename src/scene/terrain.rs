@@ -674,25 +674,49 @@ impl Terrain {
     /// Adds new layer to the chunk. It is possible to have different layer count per chunk
     /// in the same terrain, however it seems to not have practical usage, so try to keep
     /// equal layer count per each chunk in your terrains.
-    pub fn add_layer(&mut self, layer: Layer) {
-        self.layers.get_value_mut_and_mark_modified().push(layer);
+    pub fn add_layer(&mut self, layer: Layer, masks: Vec<Texture>) {
+        self.insert_layer(layer, masks, self.layers.len().saturating_sub(1))
     }
 
-    /// Removes given layers from the terrain.
-    pub fn remove_layer(&mut self, layer: usize) -> Layer {
-        self.layers.get_value_mut_and_mark_modified().remove(layer)
+    pub fn remove_layer(&mut self, layer_index: usize) -> (Layer, Vec<Texture>) {
+        let layer = self
+            .layers
+            .get_value_mut_and_mark_modified()
+            .remove(layer_index);
+        let mut layer_masks = Vec::new();
+        for chunk in self.chunks_mut() {
+            layer_masks.push(chunk.layer_masks.remove(layer_index));
+        }
+        (layer, layer_masks)
     }
 
-    /// Tries to remove last layer from the terrain.
-    pub fn pop_layer(&mut self) -> Option<Layer> {
-        self.layers.get_value_mut_and_mark_modified().pop()
+    pub fn pop_layer(&mut self) -> Option<(Layer, Vec<Texture>)> {
+        if self.layers.is_empty() {
+            None
+        } else {
+            Some(self.remove_layer(self.layers.len() - 1))
+        }
     }
 
-    /// Inserts new layer at given position in the terrain.
-    pub fn insert_layer(&mut self, layer: Layer, index: usize) {
+    pub fn insert_layer(&mut self, layer: Layer, mut masks: Vec<Texture>, index: usize) {
         self.layers
             .get_value_mut_and_mark_modified()
-            .insert(index, layer)
+            .insert(index, layer);
+
+        for chunk in self.chunks.iter_mut().rev() {
+            if let Some(mask) = masks.pop() {
+                chunk.layer_masks.insert(index, mask);
+            } else {
+                chunk.layer_masks.insert(
+                    index,
+                    create_layer_mask(
+                        self.mask_size.x,
+                        self.mask_size.y,
+                        if index == 0 { 255 } else { 0 },
+                    ),
+                )
+            }
+        }
     }
 
     fn resize_masks(&mut self, mut new_size: Vector2<u32>) {
