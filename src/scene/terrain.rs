@@ -675,7 +675,7 @@ impl Terrain {
     /// in the same terrain, however it seems to not have practical usage, so try to keep
     /// equal layer count per each chunk in your terrains.
     pub fn add_layer(&mut self, layer: Layer, masks: Vec<Texture>) {
-        self.insert_layer(layer, masks, self.layers.len().saturating_sub(1))
+        self.insert_layer(layer, masks, self.layers.len())
     }
 
     pub fn remove_layer(&mut self, layer_index: usize) -> (Layer, Vec<Texture>) {
