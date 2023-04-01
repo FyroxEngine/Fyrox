@@ -26,6 +26,7 @@ use crate::{
         node::{Node, NodeTrait, TypeUuidProvider},
     },
 };
+use image::{imageops::FilterType, ImageBuffer, Luma};
 use std::{
     cell::Cell,
     cmp::Ordering,
@@ -116,8 +117,8 @@ impl Chunk {
         let mut surface_data = self.surface_data.lock();
         surface_data.clear();
 
-        assert_eq!(self.height_map_size.x & 1, 0);
-        assert_eq!(self.height_map_size.y & 1, 0);
+        assert!(self.height_map_size.x > 1);
+        assert!(self.height_map_size.y > 1);
 
         let mut vertex_buffer_mut = surface_data.vertex_buffer.modify();
         // Form vertex buffer.
@@ -261,9 +262,10 @@ pub struct Terrain {
     length_chunks: Range<i32>,
 
     #[reflect(
-        min_value = 1.0,
+        min_value = 2.0,
         step = 1.0,
-        description = "Size of the height map per chunk, in pixels. Warning: any change to this value will result in resampling!"
+        description = "Size of the height map per chunk, in pixels. Warning: any change to this value will result in resampling!",
+        setter = "set_height_map_size"
     )]
     height_map_size: Vector2<u32>,
 
@@ -354,8 +356,7 @@ impl Terrain {
     }
 
     pub fn set_height_map_size(&mut self, height_map_size: Vector2<u32>) {
-        self.height_map_size = height_map_size;
-        self.resample_height_maps();
+        self.resample_height_maps(height_map_size);
     }
 
     pub fn mask_size(&self) -> Vector2<u32> {
@@ -698,8 +699,50 @@ impl Terrain {
         // TODO
     }
 
-    fn resample_height_maps(&mut self) {
-        // TODO
+    fn resample_height_maps(&mut self, mut new_size: Vector2<u32>) {
+        new_size = new_size.sup(&Vector2::repeat(2));
+
+        for chunk in self.chunks.iter_mut() {
+            let mut heightmap = std::mem::take(&mut chunk.heightmap);
+
+            let mut max = -f32::MAX;
+            for &height in &heightmap {
+                if height > max {
+                    max = height;
+                }
+            }
+
+            for height in &mut heightmap {
+                *height /= max;
+            }
+
+            let heightmap_image = ImageBuffer::<Luma<f32>, Vec<f32>>::from_vec(
+                chunk.height_map_size.x,
+                chunk.height_map_size.y,
+                heightmap,
+            )
+            .unwrap();
+
+            let resampled_heightmap_image = image::imageops::resize(
+                &heightmap_image,
+                new_size.x,
+                new_size.y,
+                FilterType::Lanczos3,
+            );
+
+            let mut resampled_heightmap = resampled_heightmap_image.into_raw();
+
+            for height in &mut resampled_heightmap {
+                *height *= max;
+            }
+
+            chunk.height_map_size = new_size;
+            chunk.heightmap = resampled_heightmap;
+            chunk.rebuild_geometry();
+        }
+
+        self.height_map_size = new_size;
+        self.bounding_box_dirty.set(true);
     }
 }
 
