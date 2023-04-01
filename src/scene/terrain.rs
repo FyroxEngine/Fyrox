@@ -356,7 +356,7 @@ impl Terrain {
     }
 
     pub fn set_height_map_size(&mut self, height_map_size: Vector2<u32>) {
-        self.resample_height_maps(height_map_size);
+        self.resize_height_maps(height_map_size);
     }
 
     pub fn mask_size(&self) -> Vector2<u32> {
@@ -364,8 +364,7 @@ impl Terrain {
     }
 
     pub fn set_mask_size(&mut self, mask_size: Vector2<u32>) {
-        self.mask_size = mask_size;
-        self.resample_masks();
+        self.resize_masks(mask_size);
     }
 
     pub fn set_width_chunks(&mut self, chunks: Range<i32>) {
@@ -695,11 +694,40 @@ impl Terrain {
             .insert(index, layer)
     }
 
-    fn resample_masks(&mut self) {
-        // TODO
+    fn resize_masks(&mut self, mut new_size: Vector2<u32>) {
+        new_size = new_size.sup(&Vector2::repeat(1));
+
+        for chunk in self.chunks.iter_mut() {
+            for mask in chunk.layer_masks.iter_mut() {
+                let mut data = mask.data_ref();
+                let mut data_mut = data.modify();
+
+                let mask_image = ImageBuffer::<Luma<u8>, Vec<u8>>::from_vec(
+                    self.mask_size.x,
+                    self.mask_size.y,
+                    data_mut.data().to_vec(),
+                )
+                .unwrap();
+
+                let resampled_mask_image = image::imageops::resize(
+                    &mask_image,
+                    new_size.x,
+                    new_size.y,
+                    FilterType::Lanczos3,
+                );
+
+                let new_mask = resampled_mask_image.into_raw();
+
+                for (mask_pixel, new_mask_pixel) in data_mut.data_mut().iter_mut().zip(new_mask) {
+                    *mask_pixel = new_mask_pixel;
+                }
+            }
+        }
+
+        self.mask_size = new_size;
     }
 
-    fn resample_height_maps(&mut self, mut new_size: Vector2<u32>) {
+    fn resize_height_maps(&mut self, mut new_size: Vector2<u32>) {
         new_size = new_size.sup(&Vector2::repeat(2));
 
         for chunk in self.chunks.iter_mut() {
