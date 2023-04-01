@@ -26,12 +26,11 @@ use crate::{
         node::{Node, NodeTrait, TypeUuidProvider},
     },
 };
-use std::collections::HashMap;
-use std::ops::Range;
 use std::{
     cell::Cell,
     cmp::Ordering,
-    ops::{Deref, DerefMut},
+    collections::HashMap,
+    ops::{Deref, DerefMut, Range},
 };
 
 /// Layers is a set of textures for rendering + mask texture to exclude some pixels from
@@ -69,6 +68,7 @@ pub struct Chunk {
     physical_size: Vector2<f32>,
     height_map_size: Vector2<u32>,
     surface_data: SurfaceSharedData,
+    grid_position: Vector2<i32>,
     pub layer_masks: Vec<Texture>,
 }
 
@@ -84,7 +84,8 @@ impl Visit for Chunk {
         self.physical_size.visit("PhysicalSize", &mut region)?;
         self.height_map_size.visit("HeightMapSize", &mut region)?;
         self.layer_masks.visit("LayerMasks", &mut region)?;
-        // self.surface_data is are not serialized.
+        self.grid_position.visit("GridPosition", &mut region)?;
+        // self.surface_data is not serialized.
 
         if region.is_reading() {
             self.rebuild_geometry();
@@ -102,6 +103,7 @@ impl Default for Chunk {
             physical_size: Default::default(),
             height_map_size: Default::default(),
             surface_data: make_surface_data(),
+            grid_position: Default::default(),
             layer_masks: Default::default(),
         }
     }
@@ -377,22 +379,16 @@ impl Terrain {
         let mut chunks = self
             .chunks
             .drain(..)
-            .enumerate()
-            .map(|(i, c)| {
-                (
-                    Vector2::new(i % self.width_chunks.len(), i / self.length_chunks.len()),
-                    c,
-                )
-            })
+            .map(|c| (c.grid_position, c))
             .collect::<HashMap<_, _>>();
 
         self.width_chunks = width_chunks;
         self.length_chunks = length_chunks;
 
-        for (z, iy) in self.length_chunks.clone().zip(0..self.length_chunks.len()) {
-            for (x, ix) in self.width_chunks.clone().zip(0..self.width_chunks.len()) {
-                let chunk = if let Some(existing_chunk) = chunks.remove(&Vector2::new(ix, iy)) {
-                    // Put previous chunk back at its position.
+        for z in self.length_chunks.clone() {
+            for x in self.width_chunks.clone() {
+                let chunk = if let Some(existing_chunk) = chunks.remove(&Vector2::new(x, z)) {
+                    // Put existing chunk back at its position.
                     existing_chunk
                 } else {
                     // Create new chunk.
@@ -409,6 +405,7 @@ impl Terrain {
                         physical_size: self.chunk_size,
                         height_map_size: self.height_map_size,
                         surface_data: make_surface_data(),
+                        grid_position: Vector2::new(x, z),
                         layer_masks: self
                             .layers
                             .iter()
@@ -431,6 +428,8 @@ impl Terrain {
                 self.chunks.push(chunk);
             }
         }
+
+        self.bounding_box_dirty.set(true);
     }
 
     /// Returns a reference to chunks of the terrain.
@@ -936,6 +935,7 @@ impl TerrainBuilder {
                     ),
                     physical_size: self.chunk_size,
                     surface_data: make_surface_data(),
+                    grid_position: Vector2::new(x, z),
                     layer_masks: self
                         .layers
                         .iter()
