@@ -7,11 +7,12 @@ use crate::{
     scene::commands::graph::AddNodeCommand,
     Message, Mode,
 };
-use fyrox::core::algebra::Vector3;
-use fyrox::core::math::TriangleDefinition;
-use fyrox::utils::navmesh::Navmesh;
 use fyrox::{
-    core::{algebra::Matrix4, pool::Handle},
+    core::{
+        algebra::{Matrix4, Vector3},
+        math::TriangleDefinition,
+        pool::Handle,
+    },
     gui::{
         menu::MenuItemMessage, message::MessageDirection, message::UiMessage,
         widget::WidgetMessage, BuildContext, UiNode, UserInterface,
@@ -37,8 +38,9 @@ use fyrox::{
         pivot::PivotBuilder,
         sound::{listener::ListenerBuilder, SoundBuilder},
         sprite::SpriteBuilder,
-        terrain::{LayerDefinition, TerrainBuilder},
+        terrain::{Layer, TerrainBuilder},
     },
+    utils::navmesh::Navmesh,
 };
 use std::sync::mpsc::Sender;
 
@@ -371,11 +373,10 @@ impl CreateEntityMenu {
                     } else if message.destination() == self.create_terrain {
                         Some(
                             TerrainBuilder::new(BaseBuilder::new().with_name("Terrain"))
-                                .with_layers(vec![LayerDefinition {
+                                .with_layers(vec![Layer {
                                     material: create_terrain_layer_material(),
                                     mask_property_name: "maskTexture".to_owned(),
                                 }])
-                                .with_height_map_resolution(4.0)
                                 .build_node(),
                         )
                     } else if message.destination() == self.create_decal {

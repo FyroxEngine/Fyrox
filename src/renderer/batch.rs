@@ -191,7 +191,7 @@ impl BatchStorage {
                 }
             } else if let Some(terrain) = node.cast::<Terrain>() {
                 for (layer_index, layer) in terrain.layers().iter().enumerate() {
-                    for (chunk_index, chunk) in terrain.chunks_ref().iter().enumerate() {
+                    for chunk in terrain.chunks_ref().iter() {
                         let data = chunk.data();
                         let data_key = data.key();
 
@@ -199,7 +199,7 @@ impl BatchStorage {
                         match material.set_property(
                             &ImmutableString::new(&layer.mask_property_name),
                             PropertyValue::Sampler {
-                                value: Some(layer.chunk_masks[chunk_index].clone()),
+                                value: Some(chunk.layer_masks[layer_index].clone()),
                                 fallback: Default::default(),
                             },
                         ) {

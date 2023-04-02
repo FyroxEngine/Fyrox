@@ -26,11 +26,16 @@ use crate::{
         node::{Node, NodeTrait, TypeUuidProvider},
     },
 };
+use image::{imageops::FilterType, ImageBuffer, Luma};
 use std::{
     cell::Cell,
     cmp::Ordering,
-    ops::{Deref, DerefMut},
+    collections::HashMap,
+    ops::{Deref, DerefMut, Range},
 };
+
+/// Current implementation version marker.
+pub const VERSION: u8 = 1;
 
 /// Layers is a set of textures for rendering + mask texture to exclude some pixels from
 /// rendering. Terrain can have as many layers as you want, but each layer slightly decreases
@@ -47,23 +52,11 @@ pub struct Layer {
     ///
     /// It will be used in the renderer to set appropriate chunk mask to the copy of the material.
     pub mask_property_name: String,
-
-    #[reflect(hidden)]
-    pub(crate) chunk_masks: Vec<Texture>,
 }
 
 impl PartialEq for Layer {
     fn eq(&self, other: &Self) -> bool {
-        self.mask_property_name == other.mask_property_name
-            && self.chunk_masks == other.chunk_masks
-            && self.material == other.material
-    }
-}
-
-impl Layer {
-    /// Returns a slice containing a set of masks for every chunk in the layer.
-    pub fn chunk_masks(&self) -> &[Texture] {
-        &self.chunk_masks
+        self.mask_property_name == other.mask_property_name && self.material == other.material
     }
 }
 
@@ -72,15 +65,53 @@ impl Layer {
 /// is very limiting because you need to have very huge mask texture and most of wide-spread
 /// GPUs have 16k texture size limit. Multiple chunks provide different LODs to renderer
 /// so distant chunks can be rendered with low details reducing GPU load.
-#[derive(Debug, Clone)]
+#[derive(Debug, Reflect, PartialEq)]
 pub struct Chunk {
-    heightmap: Vec<f32>,
-    position: Vector3<f32>,
-    width: f32,
-    length: f32,
-    width_point_count: u32,
-    length_point_count: u32,
     surface_data: SurfaceSharedData,
+    #[reflect(hidden)]
+    version: u8,
+    #[reflect(hidden)]
+    heightmap: Vec<f32>,
+    #[reflect(hidden)]
+    position: Vector3<f32>,
+    #[reflect(hidden)]
+    physical_size: Vector2<f32>,
+    #[reflect(hidden)]
+    height_map_size: Vector2<u32>,
+    #[reflect(hidden)]
+    grid_position: Vector2<i32>,
+    /// Layer blending masks of the chunk.
+    #[reflect(hidden)]
+    pub layer_masks: Vec<Texture>,
+}
+
+impl Clone for Chunk {
+    // Deep cloning.
+    fn clone(&self) -> Self {
+        Self {
+            surface_data: self.surface_data.deep_clone(),
+            version: self.version,
+            heightmap: self.heightmap.clone(),
+            position: self.position,
+            physical_size: self.physical_size,
+            height_map_size: self.height_map_size,
+            grid_position: self.grid_position,
+            layer_masks: self
+                .layer_masks
+                .iter()
+                .map(|m| {
+                    let data = m.data_ref();
+                    Texture::from_bytes(
+                        data.kind(),
+                        data.pixel_kind(),
+                        data.data().to_vec(),
+                        data.is_serializing_content(),
+                    )
+                    .unwrap()
+                })
+                .collect::<Vec<_>>(),
+        }
+    }
 }
 
 // Manual implementation of the trait because we need to serialize heightmap differently.
@@ -88,17 +119,49 @@ impl Visit for Chunk {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        let mut view = PodVecView::from_pod_vec(&mut self.heightmap);
-        view.visit("Heightmap", &mut region)?;
+        let mut version = if region.is_reading() {
+            0u8
+        } else {
+            self.version
+        };
+        let _ = version.visit("Version", &mut region);
 
-        self.position.visit("Position", &mut region)?;
-        self.width.visit("Width", &mut region)?;
-        self.length.visit("Length", &mut region)?;
-        self.width_point_count
-            .visit("WidthPointCount", &mut region)?;
-        self.length_point_count
-            .visit("LengthPointCount", &mut region)?;
-        // self.surface_data is are not serialized.
+        match version {
+            0 => {
+                let mut view = PodVecView::from_pod_vec(&mut self.heightmap);
+                view.visit("Heightmap", &mut region)?;
+                self.position.visit("Position", &mut region)?;
+
+                let mut width = 0.0f32;
+                width.visit("Width", &mut region)?;
+                let mut length = 0.0f32;
+                length.visit("Length", &mut region)?;
+                self.physical_size = Vector2::new(width, length);
+
+                let mut width_point_count = 0u32;
+                width_point_count.visit("WidthPointCount", &mut region)?;
+                let mut length_point_count = 0u32;
+                length_point_count.visit("LengthPointCount", &mut region)?;
+                self.height_map_size = Vector2::new(width_point_count, length_point_count);
+
+                self.grid_position = Vector2::new(
+                    (self.position.x / width) as i32,
+                    (self.position.y / length) as i32,
+                );
+            }
+            VERSION => {
+                let mut view = PodVecView::from_pod_vec(&mut self.heightmap);
+                view.visit("Heightmap", &mut region)?;
+
+                self.position.visit("Position", &mut region)?;
+                self.physical_size.visit("PhysicalSize", &mut region)?;
+                self.height_map_size.visit("HeightMapSize", &mut region)?;
+                self.layer_masks.visit("LayerMasks", &mut region)?;
+                self.grid_position.visit("GridPosition", &mut region)?;
+                // self.surface_data is not serialized.
+            }
+            _ => (),
+        }
 
         if region.is_reading() {
             self.rebuild_geometry();
@@ -111,13 +174,14 @@ impl Visit for Chunk {
 impl Default for Chunk {
     fn default() -> Self {
         Self {
+            version: VERSION,
             heightmap: Default::default(),
             position: Default::default(),
-            width: 0.0,
-            length: 0.0,
-            width_point_count: 0,
-            length_point_count: 0,
+            physical_size: Default::default(),
+            height_map_size: Default::default(),
             surface_data: make_surface_data(),
+            grid_position: Default::default(),
+            layer_masks: Default::default(),
         }
     }
 }
@@ -129,21 +193,21 @@ impl Chunk {
         let mut surface_data = self.surface_data.lock();
         surface_data.clear();
 
-        assert_eq!(self.width_point_count & 1, 0);
-        assert_eq!(self.length_point_count & 1, 0);
+        assert!(self.height_map_size.x > 1);
+        assert!(self.height_map_size.y > 1);
 
         let mut vertex_buffer_mut = surface_data.vertex_buffer.modify();
         // Form vertex buffer.
-        for z in 0..self.length_point_count {
-            let kz = z as f32 / ((self.length_point_count - 1) as f32);
-            let pz = self.position.z + kz * self.length;
+        for iy in 0..self.height_map_size.y {
+            let kz = iy as f32 / ((self.height_map_size.y - 1) as f32);
+            let pz = self.position.z + kz * self.physical_size.y;
 
-            for x in 0..self.width_point_count {
-                let index = z * self.width_point_count + x;
+            for x in 0..self.height_map_size.x {
+                let index = iy * self.height_map_size.x + x;
                 let height = self.heightmap[index as usize];
-                let kx = x as f32 / ((self.width_point_count - 1) as f32);
+                let kx = x as f32 / ((self.height_map_size.x - 1) as f32);
 
-                let px = self.position.x + kx * self.width;
+                let px = self.position.x + kx * self.physical_size.x;
                 let py = self.position.y + height;
 
                 vertex_buffer_mut
@@ -162,15 +226,15 @@ impl Chunk {
         let mut geometry_buffer_mut = surface_data.geometry_buffer.modify();
         // Form index buffer.
         // TODO: Generate LODs.
-        for z in 0..self.length_point_count - 1 {
-            let z_next = z + 1;
-            for x in 0..self.width_point_count - 1 {
+        for iy in 0..self.height_map_size.y - 1 {
+            let iy_next = iy + 1;
+            for x in 0..self.height_map_size.x - 1 {
                 let x_next = x + 1;
 
-                let i0 = z * self.width_point_count + x;
-                let i1 = z_next * self.width_point_count + x;
-                let i2 = z_next * self.width_point_count + x_next;
-                let i3 = z * self.width_point_count + x_next;
+                let i0 = iy * self.height_map_size.x + x;
+                let i1 = iy_next * self.height_map_size.x + x;
+                let i2 = iy_next * self.height_map_size.x + x_next;
+                let i3 = iy * self.height_map_size.x + x_next;
 
                 geometry_buffer_mut.push(TriangleDefinition([i0, i1, i2]));
                 geometry_buffer_mut.push(TriangleDefinition([i2, i3, i0]));
@@ -205,14 +269,14 @@ impl Chunk {
         self.surface_data.clone()
     }
 
-    /// Returns width of height map in dots.
-    pub fn width_point_count(&self) -> u32 {
-        self.width_point_count
+    /// Returns the size of the chunk in meters.
+    pub fn physical_size(&self) -> Vector2<f32> {
+        self.physical_size
     }
 
-    /// Returns length of height map in dots.
-    pub fn length_point_count(&self) -> u32 {
-        self.length_point_count
+    /// Returns amount of pixels in the height map along each dimension.
+    pub fn height_map_size(&self) -> Vector2<u32> {
+        self.height_map_size
     }
 }
 
@@ -237,14 +301,7 @@ pub struct TerrainRayCastResult {
 /// Terrain is a height field where each point has fixed coordinates in XZ plane, but variable
 /// Y coordinate. It can be used to create landscapes. It supports multiple layers, where each
 /// layer has its own material and mask.
-///
-/// # Prefab inheritance notes
-///
-/// There is very limited inheritance possible, only layers, decal layer index and cast shadows flag
-/// are inheritable. You cannot inherit width, height, chunks and other things because these cannot
-/// be modified at runtime because changing width (for example) will invalidate the entire height
-/// map which makes runtime modification useless.  
-#[derive(Visit, Debug, Default, Reflect, Clone)]
+#[derive(Debug, Default, Reflect, Clone)]
 pub struct Terrain {
     base: Base,
 
@@ -254,38 +311,152 @@ pub struct Terrain {
     #[reflect(setter = "set_decal_layer_index")]
     decal_layer_index: InheritableVariable<u8>,
 
-    #[reflect(read_only)]
-    #[reflect(hidden)]
-    width: f32,
+    #[reflect(
+        min_value = 0.001,
+        description = "Size of the chunk, in meters.",
+        setter = "set_chunk_size"
+    )]
+    chunk_size: InheritableVariable<Vector2<f32>>,
+
+    #[reflect(
+        step = 1.0,
+        description = "Min and max 'coordinate' of chunks along X axis.",
+        setter = "set_width_chunks"
+    )]
+    width_chunks: InheritableVariable<Range<i32>>,
+
+    #[reflect(
+        step = 1.0,
+        description = "Min and max 'coordinate' of chunks along Y axis.",
+        setter = "set_length_chunks"
+    )]
+    length_chunks: InheritableVariable<Range<i32>>,
+
+    #[reflect(
+        min_value = 2.0,
+        step = 1.0,
+        description = "Size of the height map per chunk, in pixels. Warning: any change to this value will result in resampling!",
+        setter = "set_height_map_size"
+    )]
+    height_map_size: InheritableVariable<Vector2<u32>>,
+
+    #[reflect(
+        min_value = 1.0,
+        step = 1.0,
+        description = "Size of the blending mask per chunk, in pixels. Warning: any change to this value will result in resampling!",
+        setter = "set_mask_size"
+    )]
+    mask_size: InheritableVariable<Vector2<u32>>,
 
     #[reflect(read_only)]
-    #[reflect(hidden)]
-    length: f32,
-
-    #[reflect(read_only)]
-    #[reflect(hidden)]
-    mask_resolution: f32,
-
-    #[reflect(read_only)]
-    #[reflect(hidden)]
-    height_map_resolution: f32,
-
-    #[reflect(hidden)]
-    chunks: Vec<Chunk>,
-
-    #[reflect(read_only)]
-    #[reflect(hidden)]
-    width_chunks: u32,
-
-    #[reflect(read_only)]
-    #[reflect(hidden)]
-    length_chunks: u32,
+    chunks: InheritableVariable<Vec<Chunk>>,
 
     #[reflect(hidden)]
     bounding_box_dirty: Cell<bool>,
 
     #[reflect(hidden)]
     bounding_box: Cell<AxisAlignedBoundingBox>,
+
+    #[reflect(hidden)]
+    version: u8,
+}
+
+#[derive(Visit, Default)]
+struct OldLayer {
+    pub material: SharedMaterial,
+    pub mask_property_name: String,
+    pub chunk_masks: Vec<Texture>,
+}
+
+impl Visit for Terrain {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+
+        let mut version = if region.is_reading() {
+            0u8
+        } else {
+            self.version
+        };
+        let _ = version.visit("Version", &mut region);
+
+        match version {
+            0 => {
+                // Old version.
+                self.base.visit("Base", &mut region)?;
+                self.decal_layer_index
+                    .visit("DecalLayerIndex", &mut region)?;
+
+                let mut layers = InheritableVariable::<Vec<OldLayer>>::new(Default::default());
+                layers.visit("Layers", &mut region)?;
+
+                let mut width = 0.0f32;
+                width.visit("Width", &mut region)?;
+                let mut length = 0.0f32;
+                length.visit("Length", &mut region)?;
+
+                let mut mask_resolution = 0.0f32;
+                mask_resolution.visit("MaskResolution", &mut region)?;
+
+                let mut height_map_resolution = 0.0f32;
+                height_map_resolution.visit("HeightMapResolution", &mut region)?;
+
+                let mut chunks = Vec::<Chunk>::new();
+                chunks.visit("Chunks", &mut region)?;
+
+                let mut width_chunks = 0u32;
+                width_chunks.visit("WidthChunks", &mut region)?;
+                self.width_chunks = (0..(width_chunks as i32)).into();
+
+                let mut length_chunks = 0u32;
+                length_chunks.visit("LengthChunks", &mut region)?;
+                self.length_chunks = (0..(length_chunks as i32)).into();
+
+                self.chunk_size =
+                    Vector2::new(width / width_chunks as f32, length / length_chunks as f32).into();
+
+                self.mask_size = Vector2::new(
+                    (self.chunk_size.x * mask_resolution) as u32,
+                    (self.chunk_size.y * mask_resolution) as u32,
+                )
+                .into();
+                self.height_map_size = Vector2::new(
+                    (self.chunk_size.x * height_map_resolution) as u32,
+                    (self.chunk_size.y * height_map_resolution) as u32,
+                )
+                .into();
+
+                // Convert to new format.
+                for mut layer in layers.take() {
+                    for chunk in chunks.iter_mut().rev() {
+                        chunk.layer_masks.push(layer.chunk_masks.pop().unwrap());
+                    }
+
+                    self.layers.push(Layer {
+                        material: layer.material,
+                        mask_property_name: layer.mask_property_name,
+                    })
+                }
+
+                self.chunks = chunks.into();
+            }
+            VERSION => {
+                // Current version
+                self.base.visit("Base", &mut region)?;
+                self.layers.visit("Layers", &mut region)?;
+                self.decal_layer_index
+                    .visit("DecalLayerIndex", &mut region)?;
+                self.chunk_size.visit("ChunkSize", &mut region)?;
+                self.width_chunks.visit("WidthChunks", &mut region)?;
+                self.length_chunks.visit("LengthChunks", &mut region)?;
+                self.height_map_size.visit("HeightMapSize", &mut region)?;
+                self.mask_size.visit("MaskSize", &mut region)?;
+                self.chunks.visit("Chunks", &mut region)?;
+            }
+            _ => (),
+        }
+
+        Ok(())
+    }
 }
 
 impl Deref for Terrain {
@@ -321,24 +492,147 @@ impl TypeUuidProvider for Terrain {
 }
 
 impl Terrain {
-    /// Returns width of the terrain in local coordinates.
-    pub fn width(&self) -> f32 {
-        self.width
+    /// Returns chunk size in meters.
+    pub fn chunk_size(&self) -> Vector2<f32> {
+        *self.chunk_size
     }
 
-    /// Returns amount of chunks along X axis.
-    pub fn width_chunk_count(&self) -> usize {
-        self.width_chunks as usize
+    /// Sets new chunk size of the terrain (in meters). All chunks in the terrain will be repositioned and their
+    /// geometry will be rebuilt.
+    pub fn set_chunk_size(&mut self, chunk_size: Vector2<f32>) -> Vector2<f32> {
+        let old = *self.chunk_size;
+        self.chunk_size.set_value_and_mark_modified(chunk_size);
+
+        // Re-position each chunk according to its position on the grid.
+        for (z, iy) in (*self.length_chunks)
+            .clone()
+            .zip(0..self.length_chunks.len())
+        {
+            for (x, ix) in (*self.width_chunks).clone().zip(0..self.width_chunks.len()) {
+                let position = Vector3::new(
+                    x as f32 * self.chunk_size.x,
+                    0.0,
+                    z as f32 * self.chunk_size.y,
+                );
+
+                let chunk = &mut self.chunks[iy * self.width_chunks.len() + ix];
+                chunk.position = position;
+                chunk.physical_size = chunk_size;
+                chunk.rebuild_geometry();
+            }
+        }
+        old
     }
 
-    /// Returns length of the terrain in local coordinates.
-    pub fn length(&self) -> f32 {
-        self.length
+    /// Returns height map dimensions along each axis.
+    pub fn height_map_size(&self) -> Vector2<u32> {
+        *self.height_map_size
     }
 
-    /// Returns amount of chunks along Z axis
-    pub fn length_chunk_count(&self) -> usize {
-        self.length_chunks as usize
+    /// Sets new size of the height map for every chunk. Heightmaps in every chunk will be resampled which may
+    /// cause precision loss if the size was decreased.
+    pub fn set_height_map_size(&mut self, height_map_size: Vector2<u32>) -> Vector2<u32> {
+        let old = *self.height_map_size;
+        self.resize_height_maps(height_map_size);
+        old
+    }
+
+    /// Returns amount of pixels along each axis of the layer blending mask.
+    pub fn mask_size(&self) -> Vector2<u32> {
+        *self.mask_size
+    }
+
+    /// Sets new size of the layer blending mask in pixels. Every layer mask will be resampled which may cause
+    /// precision loss if the size was decreased.
+    pub fn set_mask_size(&mut self, mask_size: Vector2<u32>) -> Vector2<u32> {
+        let old = *self.mask_size;
+        self.resize_masks(mask_size);
+        old
+    }
+
+    /// Returns a numeric range along width axis which defines start and end chunk indices on a chunks grid.
+    pub fn width_chunks(&self) -> Range<i32> {
+        (*self.width_chunks).clone()
+    }
+
+    /// Sets amount of chunks along width axis.
+    pub fn set_width_chunks(&mut self, chunks: Range<i32>) -> Range<i32> {
+        let old = (*self.width_chunks).clone();
+        self.resize(chunks, self.length_chunks());
+        old
+    }
+
+    /// Returns a numeric range along length axis which defines start and end chunk indices on a chunks grid.
+    pub fn length_chunks(&self) -> Range<i32> {
+        (*self.length_chunks).clone()
+    }
+
+    /// Sets amount of chunks along length axis.
+    pub fn set_length_chunks(&mut self, chunks: Range<i32>) -> Range<i32> {
+        let old = (*self.length_chunks).clone();
+        self.resize(self.width_chunks(), chunks);
+        old
+    }
+
+    /// Sets new chunks ranges for each axis of the terrain. This function automatically adds new chunks if you're
+    /// increasing size of the terrain and removes existing if you shrink the terrain.
+    pub fn resize(&mut self, width_chunks: Range<i32>, length_chunks: Range<i32>) {
+        let mut chunks = self
+            .chunks
+            .drain(..)
+            .map(|c| (c.grid_position, c))
+            .collect::<HashMap<_, _>>();
+
+        self.width_chunks.set_value_and_mark_modified(width_chunks);
+        self.length_chunks
+            .set_value_and_mark_modified(length_chunks);
+
+        for z in (*self.length_chunks).clone() {
+            for x in (*self.width_chunks).clone() {
+                let chunk = if let Some(existing_chunk) = chunks.remove(&Vector2::new(x, z)) {
+                    // Put existing chunk back at its position.
+                    existing_chunk
+                } else {
+                    // Create new chunk.
+                    let mut new_chunk = Chunk {
+                        heightmap: vec![
+                            0.0;
+                            (self.height_map_size.x * self.height_map_size.y) as usize
+                        ],
+                        position: Vector3::new(
+                            x as f32 * self.chunk_size.x,
+                            0.0,
+                            z as f32 * self.chunk_size.y,
+                        ),
+                        physical_size: *self.chunk_size,
+                        height_map_size: *self.height_map_size,
+                        surface_data: make_surface_data(),
+                        grid_position: Vector2::new(x, z),
+                        layer_masks: self
+                            .layers
+                            .iter()
+                            .enumerate()
+                            .map(|(i, _)| {
+                                create_layer_mask(
+                                    self.mask_size.x,
+                                    self.mask_size.y,
+                                    if i == 0 { 255 } else { 0 },
+                                )
+                            })
+                            .collect::<Vec<_>>(),
+                        version: VERSION,
+                    };
+
+                    new_chunk.rebuild_geometry();
+
+                    new_chunk
+                };
+
+                self.chunks.push(chunk);
+            }
+        }
+
+        self.bounding_box_dirty.set(true);
     }
 
     /// Returns a reference to chunks of the terrain.
@@ -379,13 +673,16 @@ impl Terrain {
                 for chunk in self.chunks.iter_mut() {
                     let mut modified = false;
 
-                    for z in 0..chunk.length_point_count {
-                        let kz = z as f32 / (chunk.length_point_count - 1) as f32;
-                        for x in 0..chunk.width_point_count {
-                            let kx = x as f32 / (chunk.width_point_count - 1) as f32;
+                    for iy in 0..chunk.height_map_size.y {
+                        let kz = iy as f32 / (chunk.height_map_size.y - 1) as f32;
+                        for ix in 0..chunk.height_map_size.y {
+                            let kx = ix as f32 / (chunk.height_map_size.x - 1) as f32;
 
                             let pixel_position = chunk.local_position()
-                                + Vector2::new(kx * chunk.width, kz * chunk.length);
+                                + Vector2::new(
+                                    kx * chunk.physical_size.x,
+                                    kz * chunk.physical_size.y,
+                                );
 
                             let k = match brush.shape {
                                 BrushShape::Circle { radius } => {
@@ -395,7 +692,7 @@ impl Terrain {
                             };
 
                             if brush.shape.contains(center, pixel_position) {
-                                chunk.heightmap[(z * chunk.width_point_count + x) as usize] +=
+                                chunk.heightmap[(iy * chunk.height_map_size.x + ix) as usize] +=
                                     k * amount;
 
                                 modified = true;
@@ -411,10 +708,9 @@ impl Terrain {
             BrushMode::DrawOnMask { layer, alpha } => {
                 let alpha = alpha.clamp(-1.0, 1.0);
 
-                for (chunk_index, chunk) in self.chunks.iter_mut().enumerate() {
+                for chunk in self.chunks.iter_mut() {
                     let chunk_position = chunk.local_position();
-                    let layer = &mut self.layers.get_value_mut_and_mark_modified()[layer];
-                    let mut texture_data = layer.chunk_masks[chunk_index].data_ref();
+                    let mut texture_data = chunk.layer_masks[layer].data_ref();
                     let mut texture_data_mut = texture_data.modify();
 
                     let (texture_width, texture_height) =
@@ -429,8 +725,11 @@ impl Terrain {
                         for x in 0..texture_width {
                             let kx = x as f32 / (texture_width - 1) as f32;
 
-                            let pixel_position =
-                                chunk_position + Vector2::new(kx * chunk.width, kz * chunk.length);
+                            let pixel_position = chunk_position
+                                + Vector2::new(
+                                    kx * chunk.physical_size.x,
+                                    kz * chunk.physical_size.y,
+                                );
 
                             let k = match brush.shape {
                                 BrushShape::Circle { radius } => {
@@ -478,19 +777,19 @@ impl Terrain {
 
             // Check each cell of each chunk for intersection in 2D.
             'chunk_loop: for (chunk_index, chunk) in self.chunks.iter().enumerate() {
-                let cell_width = chunk.width / (chunk.width_point_count - 1) as f32;
-                let cell_length = chunk.length / (chunk.length_point_count - 1) as f32;
+                let cell_width = chunk.physical_size.x / (chunk.height_map_size.x - 1) as f32;
+                let cell_length = chunk.physical_size.y / (chunk.height_map_size.y - 1) as f32;
 
-                for z in 0..chunk.length_point_count {
-                    let kz = z as f32 / (chunk.length_point_count - 1) as f32;
-                    let nz = z + 1;
+                for iy in 0..chunk.height_map_size.y {
+                    let kz = iy as f32 / (chunk.height_map_size.y - 1) as f32;
+                    let next_iy = iy + 1;
 
-                    for x in 0..chunk.width_point_count {
-                        let kx = x as f32 / (chunk.width_point_count - 1) as f32;
-                        let nx = x + 1;
+                    for ix in 0..chunk.height_map_size.x {
+                        let kx = ix as f32 / (chunk.height_map_size.x - 1) as f32;
+                        let next_ix = ix + 1;
 
                         let pixel_position = chunk.local_position()
-                            + Vector2::new(kx * chunk.width, kz * chunk.length);
+                            + Vector2::new(kx * chunk.physical_size.x, kz * chunk.physical_size.y);
 
                         let cell_bounds =
                             Rect::new(pixel_position.x, pixel_position.y, cell_width, cell_length);
@@ -498,11 +797,13 @@ impl Terrain {
                         if ray_rect_intersection(cell_bounds, origin_proj, dir_proj).is_some() {
                             // If we have 2D intersection, go back in 3D and do precise intersection
                             // check.
-                            if nx < chunk.width_point_count && nz < chunk.length_point_count {
-                                let i0 = (z * chunk.width_point_count + x) as usize;
-                                let i1 = ((z + 1) * chunk.width_point_count + x) as usize;
-                                let i2 = ((z + 1) * chunk.width_point_count + x + 1) as usize;
-                                let i3 = (z * chunk.width_point_count + x + 1) as usize;
+                            if next_ix < chunk.height_map_size.x
+                                && next_iy < chunk.height_map_size.y
+                            {
+                                let i0 = (iy * chunk.height_map_size.x + ix) as usize;
+                                let i1 = ((iy + 1) * chunk.height_map_size.x + ix) as usize;
+                                let i2 = ((iy + 1) * chunk.height_map_size.x + ix + 1) as usize;
+                                let i3 = (iy * chunk.height_map_size.x + ix + 1) as usize;
 
                                 let v0 = Vector3::new(
                                     pixel_position.x,
@@ -575,49 +876,141 @@ impl Terrain {
     /// Adds new layer to the chunk. It is possible to have different layer count per chunk
     /// in the same terrain, however it seems to not have practical usage, so try to keep
     /// equal layer count per each chunk in your terrains.
-    pub fn add_layer(&mut self, layer: Layer) {
-        self.layers.get_value_mut_and_mark_modified().push(layer);
+    pub fn add_layer(&mut self, layer: Layer, masks: Vec<Texture>) {
+        self.insert_layer(layer, masks, self.layers.len())
     }
 
-    /// Removes given layers from the terrain.
-    pub fn remove_layer(&mut self, layer: usize) -> Layer {
-        self.layers.get_value_mut_and_mark_modified().remove(layer)
+    /// Removes a layer at the given index together with its respective blending masks from each chunk.
+    pub fn remove_layer(&mut self, layer_index: usize) -> (Layer, Vec<Texture>) {
+        let layer = self
+            .layers
+            .get_value_mut_and_mark_modified()
+            .remove(layer_index);
+        let mut layer_masks = Vec::new();
+        for chunk in self.chunks_mut() {
+            layer_masks.push(chunk.layer_masks.remove(layer_index));
+        }
+        (layer, layer_masks)
     }
 
-    /// Tries to remove last layer from the terrain.
-    pub fn pop_layer(&mut self) -> Option<Layer> {
-        self.layers.get_value_mut_and_mark_modified().pop()
+    /// Removes last terrain layer together with its respective blending masks from each chunk.
+    pub fn pop_layer(&mut self) -> Option<(Layer, Vec<Texture>)> {
+        if self.layers.is_empty() {
+            None
+        } else {
+            Some(self.remove_layer(self.layers.len() - 1))
+        }
     }
 
-    /// Inserts new layer at given position in the terrain.
-    pub fn insert_layer(&mut self, layer: Layer, index: usize) {
+    /// Inserts the layer at the given index together with its blending masks for each chunk.
+    pub fn insert_layer(&mut self, layer: Layer, mut masks: Vec<Texture>, index: usize) {
         self.layers
             .get_value_mut_and_mark_modified()
-            .insert(index, layer)
+            .insert(index, layer);
+
+        for chunk in self.chunks.iter_mut().rev() {
+            if let Some(mask) = masks.pop() {
+                chunk.layer_masks.insert(index, mask);
+            } else {
+                chunk.layer_masks.insert(
+                    index,
+                    create_layer_mask(
+                        self.mask_size.x,
+                        self.mask_size.y,
+                        if index == 0 { 255 } else { 0 },
+                    ),
+                )
+            }
+        }
     }
 
-    /// Creates new layer with given parameters, but does **not** add it to the terrain.
-    pub fn create_layer(
-        &self,
-        value: u8,
-        material: SharedMaterial,
-        mask_property_name: String,
-    ) -> Layer {
-        Layer {
-            material,
-            mask_property_name,
-            chunk_masks: self
-                .chunks
-                .iter()
-                .map(|c| {
-                    create_layer_mask(
-                        (c.width * self.mask_resolution) as u32,
-                        (c.length * self.mask_resolution) as u32,
-                        value,
-                    )
-                })
-                .collect(),
+    fn resize_masks(&mut self, mut new_size: Vector2<u32>) {
+        new_size = new_size.sup(&Vector2::repeat(1));
+
+        for chunk in self.chunks.iter_mut() {
+            for mask in chunk.layer_masks.iter_mut() {
+                let data = mask.data_ref();
+
+                let mask_image = ImageBuffer::<Luma<u8>, Vec<u8>>::from_vec(
+                    self.mask_size.x,
+                    self.mask_size.y,
+                    data.data().to_vec(),
+                )
+                .unwrap();
+
+                let resampled_mask_image = image::imageops::resize(
+                    &mask_image,
+                    new_size.x,
+                    new_size.y,
+                    FilterType::Lanczos3,
+                );
+
+                let new_mask = resampled_mask_image.into_raw();
+                let new_mask_texture = Texture::from_bytes(
+                    TextureKind::Rectangle {
+                        width: new_size.x,
+                        height: new_size.y,
+                    },
+                    data.pixel_kind(),
+                    new_mask,
+                    true,
+                )
+                .unwrap();
+
+                drop(data);
+                *mask = new_mask_texture;
+            }
         }
+
+        self.mask_size.set_value_and_mark_modified(new_size);
+    }
+
+    fn resize_height_maps(&mut self, mut new_size: Vector2<u32>) {
+        new_size = new_size.sup(&Vector2::repeat(2));
+
+        for chunk in self.chunks.iter_mut() {
+            let mut heightmap = std::mem::take(&mut chunk.heightmap);
+
+            let mut max = -f32::MAX;
+            for &height in &heightmap {
+                if height > max {
+                    max = height;
+                }
+            }
+
+            if max != 0.0 {
+                for height in &mut heightmap {
+                    *height /= max;
+                }
+            }
+
+            let heightmap_image = ImageBuffer::<Luma<f32>, Vec<f32>>::from_vec(
+                chunk.height_map_size.x,
+                chunk.height_map_size.y,
+                heightmap,
+            )
+            .unwrap();
+
+            let resampled_heightmap_image = image::imageops::resize(
+                &heightmap_image,
+                new_size.x,
+                new_size.y,
+                FilterType::Lanczos3,
+            );
+
+            let mut resampled_heightmap = resampled_heightmap_image.into_raw();
+
+            for height in &mut resampled_heightmap {
+                *height *= max;
+            }
+
+            chunk.height_map_size = new_size;
+            chunk.heightmap = resampled_heightmap;
+            chunk.rebuild_geometry();
+        }
+
+        self.height_map_size.set_value_and_mark_modified(new_size);
+        self.bounding_box_dirty.set(true);
     }
 }
 
@@ -638,8 +1031,16 @@ impl NodeTrait for Terrain {
             }
 
             let bounding_box = AxisAlignedBoundingBox::from_min_max(
-                Default::default(),
-                Vector3::new(self.width, max_height, self.length),
+                Vector3::new(
+                    self.chunk_size.x * self.width_chunks.start as f32,
+                    max_height,
+                    self.chunk_size.y * self.length_chunks.start as f32,
+                ),
+                Vector3::new(
+                    self.chunk_size.x * self.width_chunks.end as f32,
+                    max_height,
+                    self.chunk_size.y * self.length_chunks.end as f32,
+                ),
             );
             self.bounding_box.set(bounding_box);
             self.bounding_box_dirty.set(false);
@@ -723,39 +1124,16 @@ pub struct Brush {
     pub mode: BrushMode,
 }
 
-/// Layer definition for a terrain builder.
-pub struct LayerDefinition {
-    /// Material of the layer.
-    pub material: SharedMaterial,
-
-    /// Name of the mask sampler in the material. It should be `maskTexture` if standard material shader
-    /// is used.
-    ///
-    /// # Implementation details
-    ///
-    /// It will be used in the renderer to set appropriate chunk mask to the copy of the material.
-    pub mask_property_name: String,
-}
-
 /// Terrain builder allows you to quickly build a terrain with required features.
 pub struct TerrainBuilder {
     base_builder: BaseBuilder,
-    width: f32,
-    length: f32,
-    mask_resolution: f32,
-    width_chunks: usize,
-    length_chunks: usize,
-    height_map_resolution: f32,
-    layers: Vec<LayerDefinition>,
+    chunk_size: Vector2<f32>,
+    mask_size: Vector2<u32>,
+    width_chunks: Range<i32>,
+    length_chunks: Range<i32>,
+    height_map_size: Vector2<u32>,
+    layers: Vec<Layer>,
     decal_layer_index: u8,
-}
-
-fn make_divisible_by_2(n: u32) -> u32 {
-    if n & 1 == 1 {
-        n + 1
-    } else {
-        n
-    }
 }
 
 fn create_layer_mask(width: u32, height: u32, value: u8) -> Texture {
@@ -789,61 +1167,48 @@ impl TerrainBuilder {
     pub fn new(base_builder: BaseBuilder) -> Self {
         Self {
             base_builder,
-            width: 64.0,
-            length: 64.0,
-            width_chunks: 2,
-            length_chunks: 2,
-            mask_resolution: 16.0,
-            height_map_resolution: 8.0,
+            chunk_size: Vector2::new(16.0, 16.0),
+            width_chunks: 0..2,
+            length_chunks: 0..2,
+            mask_size: Vector2::new(256, 256),
+            height_map_size: Vector2::new(256, 256),
             layers: Default::default(),
             decal_layer_index: 0,
         }
     }
 
-    /// Sets desired terrain height in local coordinates.
-    pub fn with_width(mut self, width: f32) -> Self {
-        self.width = width;
+    /// Sets desired chunk size in meters.
+    pub fn with_chunk_size(mut self, size: Vector2<f32>) -> Self {
+        self.chunk_size = size;
         self
     }
 
-    /// Sets desired terrain length in local coordinates.
-    pub fn with_length(mut self, length: f32) -> Self {
-        self.length = length;
+    /// Sets desired mask size in pixels.
+    pub fn with_mask_size(mut self, size: Vector2<u32>) -> Self {
+        self.mask_size = size;
         self
     }
 
-    /// Sets desired mask resolution in pixels per unit. For example you have width = height = 16
-    /// and you set resolution to 4 - then mask will have width = height = 4*16 = 64x64 pixels.
-    pub fn with_mask_resolution(mut self, resolution: f32) -> Self {
-        self.mask_resolution = resolution;
+    /// Sets desired chunk amount along width axis.
+    pub fn with_width_chunks(mut self, width_chunks: Range<i32>) -> Self {
+        self.width_chunks = width_chunks;
         self
     }
 
-    /// Sets desired terrain width subdivision. The value passed in should correlate with desired
-    /// width of the terrain. For example if you have small terrain, 2 chunks will be enough, however
-    /// if you have huge terrain, the value should be 8+.
-    pub fn with_width_chunks(mut self, count: usize) -> Self {
-        self.width_chunks = count.max(1);
+    /// Sets desired chunk amount along length axis.
+    pub fn with_length_chunks(mut self, length_chunks: Range<i32>) -> Self {
+        self.length_chunks = length_chunks;
         self
     }
 
-    /// Sets desired terrain length subdivision. The value passed in should correlate with desired
-    /// length of the terrain. For example if you have small terrain, 2 chunks will be enough, however
-    /// if you have huge terrain, the value should be 8+.
-    pub fn with_length_chunks(mut self, count: usize) -> Self {
-        self.length_chunks = count.max(1);
-        self
-    }
-
-    /// Sets desired height map resolution in dots per unit. For example you have width = height = 16
-    /// and you set resolution to 4 - then height map will have width = height = 4*16 = 64x64 dots.
-    pub fn with_height_map_resolution(mut self, resolution: f32) -> Self {
-        self.height_map_resolution = resolution;
+    /// Sets desired height map size in pixels.
+    pub fn with_height_map_size(mut self, size: Vector2<u32>) -> Self {
+        self.height_map_size = size;
         self
     }
 
     /// Sets desired layers that will be used for each chunk in the terrain.
-    pub fn with_layers(mut self, layers: Vec<LayerDefinition>) -> Self {
+    pub fn with_layers(mut self, layers: Vec<Layer>) -> Self {
         self.layers = layers;
         self
     }
@@ -857,23 +1222,36 @@ impl TerrainBuilder {
     /// Build terrain node.
     pub fn build_node(self) -> Node {
         let mut chunks = Vec::new();
-        let chunk_length = self.length / self.length_chunks as f32;
-        let chunk_width = self.width / self.width_chunks as f32;
-        let chunk_length_points =
-            make_divisible_by_2((chunk_length * self.height_map_resolution) as u32);
-        let chunk_width_points =
-            make_divisible_by_2((chunk_width * self.height_map_resolution) as u32);
-        for z in 0..self.length_chunks {
-            for x in 0..self.width_chunks {
+        for z in self.length_chunks.clone() {
+            for x in self.width_chunks.clone() {
                 let mut chunk = Chunk {
-                    width_point_count: chunk_width_points,
-                    length_point_count: chunk_length_points,
-                    heightmap: vec![0.0; (chunk_length_points * chunk_width_points) as usize],
-                    position: Vector3::new(x as f32 * chunk_width, 0.0, z as f32 * chunk_length),
-                    width: chunk_width,
+                    height_map_size: self.height_map_size,
+                    heightmap: vec![
+                        0.0;
+                        (self.height_map_size.x * self.height_map_size.y) as usize
+                    ],
+                    position: Vector3::new(
+                        x as f32 * self.chunk_size.x,
+                        0.0,
+                        z as f32 * self.chunk_size.y,
+                    ),
+                    physical_size: self.chunk_size,
                     surface_data: make_surface_data(),
-
-                    length: chunk_length,
+                    grid_position: Vector2::new(x, z),
+                    layer_masks: self
+                        .layers
+                        .iter()
+                        .enumerate()
+                        .map(|(i, _)| {
+                            create_layer_mask(
+                                self.mask_size.x,
+                                self.mask_size.y,
+                                // Base layer is opaque, every other by default - transparent.
+                                if i == 0 { 255 } else { 0 },
+                            )
+                        })
+                        .collect::<Vec<_>>(),
+                    version: VERSION,
                 };
 
                 chunk.rebuild_geometry();
@@ -882,43 +1260,19 @@ impl TerrainBuilder {
             }
         }
 
-        let mask_resolution = self.mask_resolution;
-
         let terrain = Terrain {
-            width: self.width,
-            length: self.length,
+            chunk_size: self.chunk_size.into(),
             base: self.base_builder.build_base(),
-            layers: self
-                .layers
-                .into_iter()
-                .enumerate()
-                .map(|(layer_index, definition)| {
-                    Layer {
-                        material: definition.material,
-                        mask_property_name: definition.mask_property_name,
-                        chunk_masks: chunks
-                            .iter()
-                            .map(|c| {
-                                create_layer_mask(
-                                    (c.width * mask_resolution) as u32,
-                                    (c.length * mask_resolution) as u32,
-                                    // Base layer is opaque, every other by default - transparent.
-                                    if layer_index == 0 { 255 } else { 0 },
-                                )
-                            })
-                            .collect(),
-                    }
-                })
-                .collect::<Vec<_>>()
-                .into(),
-            chunks,
+            layers: self.layers.into(),
+            chunks: chunks.into(),
             bounding_box_dirty: Cell::new(true),
             bounding_box: Default::default(),
-            mask_resolution: self.mask_resolution,
-            height_map_resolution: self.height_map_resolution,
-            width_chunks: self.width_chunks as u32,
-            length_chunks: self.length_chunks as u32,
+            mask_size: self.mask_size.into(),
+            height_map_size: self.height_map_size.into(),
+            width_chunks: self.width_chunks.into(),
+            length_chunks: self.length_chunks.into(),
             decal_layer_index: self.decal_layer_index.into(),
+            version: VERSION,
         };
 
         Node::new(terrain)

@@ -1,24 +1,26 @@
 use crate::{command::Command, create_terrain_layer_material, scene::commands::SceneContext};
 use fyrox::{
     core::pool::Handle,
-    scene::{node::Node, terrain::Layer, terrain::Terrain},
+    resource::texture::Texture,
+    scene::{node::Node, terrain::Layer},
 };
 
 #[derive(Debug)]
 pub struct AddTerrainLayerCommand {
     terrain: Handle<Node>,
     layer: Option<Layer>,
+    masks: Vec<Texture>,
 }
 
 impl AddTerrainLayerCommand {
-    pub fn new(terrain_handle: Handle<Node>, terrain: &Terrain) -> Self {
+    pub fn new(terrain_handle: Handle<Node>) -> Self {
         Self {
             terrain: terrain_handle,
-            layer: Some(terrain.create_layer(
-                0,
-                create_terrain_layer_material(),
-                "maskTexture".to_owned(),
-            )),
+            layer: Some(Layer {
+                material: create_terrain_layer_material(),
+                mask_property_name: "maskTexture".to_owned(),
+            }),
+            masks: Default::default(),
         }
     }
 }
@@ -30,12 +32,14 @@ impl Command for AddTerrainLayerCommand {
 
     fn execute(&mut self, context: &mut SceneContext) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
-        terrain.add_layer(self.layer.take().unwrap());
+        terrain.add_layer(self.layer.take().unwrap(), std::mem::take(&mut self.masks));
     }
 
     fn revert(&mut self, context: &mut SceneContext) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
-        self.layer = terrain.pop_layer();
+        let (layer, masks) = terrain.pop_layer().unwrap();
+        self.layer = Some(layer);
+        self.masks = masks;
     }
 }
 
@@ -44,6 +48,7 @@ pub struct DeleteTerrainLayerCommand {
     terrain: Handle<Node>,
     layer: Option<Layer>,
     index: usize,
+    masks: Vec<Texture>,
 }
 
 impl DeleteTerrainLayerCommand {
@@ -52,6 +57,7 @@ impl DeleteTerrainLayerCommand {
             terrain,
             layer: Default::default(),
             index,
+            masks: Default::default(),
         }
     }
 }
@@ -62,16 +68,21 @@ impl Command for DeleteTerrainLayerCommand {
     }
 
     fn execute(&mut self, context: &mut SceneContext) {
-        self.layer = Some(
-            context.scene.graph[self.terrain]
-                .as_terrain_mut()
-                .remove_layer(self.index),
-        );
+        let (layer, masks) = context.scene.graph[self.terrain]
+            .as_terrain_mut()
+            .remove_layer(self.index);
+
+        self.layer = Some(layer);
+        self.masks = masks;
     }
 
     fn revert(&mut self, context: &mut SceneContext) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
-        terrain.insert_layer(self.layer.take().unwrap(), self.index);
+        terrain.insert_layer(
+            self.layer.take().unwrap(),
+            std::mem::take(&mut self.masks),
+            self.index,
+        );
     }
 }
 
@@ -153,11 +164,12 @@ impl ModifyTerrainLayerMaskCommand {
 
     pub fn swap(&mut self, context: &mut SceneContext) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
-        for (chunk_mask, (old, new)) in terrain.layers_mut()[self.layer]
-            .chunk_masks()
-            .iter()
-            .zip(self.old_masks.iter_mut().zip(self.new_masks.iter_mut()))
-        {
+
+        for (i, chunk) in terrain.chunks_mut().iter_mut().enumerate() {
+            let old = &mut self.old_masks[i];
+            let new = &mut self.new_masks[i];
+            let chunk_mask = &mut chunk.layer_masks[self.layer];
+
             let mut texture_data = chunk_mask.data_ref();
 
             for (mask_pixel, new_pixel) in

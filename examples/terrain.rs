@@ -31,7 +31,7 @@ use fyrox::{
         base::BaseBuilder,
         light::{point::PointLightBuilder, BaseLightBuilder},
         node::{Node, TypeUuidProvider},
-        terrain::{Brush, BrushMode, BrushShape, LayerDefinition, TerrainBuilder},
+        terrain::{Brush, BrushMode, BrushShape, Layer, TerrainBuilder},
         transform::TransformBuilder,
         Scene,
     },
@@ -93,7 +93,7 @@ impl SceneLoader {
         // Add terrain.
         let terrain = TerrainBuilder::new(BaseBuilder::new())
             .with_layers(vec![
-                LayerDefinition {
+                Layer {
                     material: {
                         let mut material = Material::standard_terrain();
                         setup_layer_material(
@@ -106,7 +106,7 @@ impl SceneLoader {
                     },
                     mask_property_name: "maskTexture".to_string(),
                 },
-                LayerDefinition {
+                Layer {
                     material: {
                         let mut material = Material::standard_terrain();
                         setup_layer_material(
