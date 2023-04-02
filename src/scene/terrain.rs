@@ -62,15 +62,49 @@ impl PartialEq for Layer {
 /// is very limiting because you need to have very huge mask texture and most of wide-spread
 /// GPUs have 16k texture size limit. Multiple chunks provide different LODs to renderer
 /// so distant chunks can be rendered with low details reducing GPU load.
-#[derive(Debug, Clone)]
+#[derive(Debug, Reflect, PartialEq)]
 pub struct Chunk {
-    heightmap: Vec<f32>,
-    position: Vector3<f32>,
-    physical_size: Vector2<f32>,
-    height_map_size: Vector2<u32>,
     surface_data: SurfaceSharedData,
+    #[reflect(hidden)]
+    heightmap: Vec<f32>,
+    #[reflect(hidden)]
+    position: Vector3<f32>,
+    #[reflect(hidden)]
+    physical_size: Vector2<f32>,
+    #[reflect(hidden)]
+    height_map_size: Vector2<u32>,
+    #[reflect(hidden)]
     grid_position: Vector2<i32>,
+    #[reflect(hidden)]
     pub layer_masks: Vec<Texture>,
+}
+
+impl Clone for Chunk {
+    // Deep cloning.
+    fn clone(&self) -> Self {
+        Self {
+            surface_data: self.surface_data.deep_clone(),
+            heightmap: self.heightmap.clone(),
+            position: self.position,
+            physical_size: self.physical_size,
+            height_map_size: self.height_map_size,
+            grid_position: self.grid_position,
+            layer_masks: self
+                .layer_masks
+                .iter()
+                .map(|m| {
+                    let data = m.data_ref();
+                    Texture::from_bytes(
+                        data.kind(),
+                        data.pixel_kind(),
+                        data.data().to_vec(),
+                        data.is_serializing_content(),
+                    )
+                    .unwrap()
+                })
+                .collect::<Vec<_>>(),
+        }
+    }
 }
 
 // Manual implementation of the trait because we need to serialize heightmap differently.
@@ -223,13 +257,6 @@ pub struct TerrainRayCastResult {
 /// Terrain is a height field where each point has fixed coordinates in XZ plane, but variable
 /// Y coordinate. It can be used to create landscapes. It supports multiple layers, where each
 /// layer has its own material and mask.
-///
-/// # Prefab inheritance notes
-///
-/// There is very limited inheritance possible, only layers, decal layer index and cast shadows flag
-/// are inheritable. You cannot inherit width, height, chunks and other things because these cannot
-/// be modified at runtime because changing width (for example) will invalidate the entire height
-/// map which makes runtime modification useless.  
 #[derive(Visit, Debug, Default, Reflect, Clone)]
 pub struct Terrain {
     base: Base,
@@ -245,21 +272,21 @@ pub struct Terrain {
         description = "Size of the chunk, in meters.",
         setter = "set_chunk_size"
     )]
-    chunk_size: Vector2<f32>,
+    chunk_size: InheritableVariable<Vector2<f32>>,
 
     #[reflect(
         step = 1.0,
         description = "Min and max 'coordinate' of chunks along X axis.",
         setter = "set_width_chunks"
     )]
-    width_chunks: Range<i32>,
+    width_chunks: InheritableVariable<Range<i32>>,
 
     #[reflect(
         step = 1.0,
         description = "Min and max 'coordinate' of chunks along Y axis.",
         setter = "set_length_chunks"
     )]
-    length_chunks: Range<i32>,
+    length_chunks: InheritableVariable<Range<i32>>,
 
     #[reflect(
         min_value = 2.0,
@@ -267,7 +294,7 @@ pub struct Terrain {
         description = "Size of the height map per chunk, in pixels. Warning: any change to this value will result in resampling!",
         setter = "set_height_map_size"
     )]
-    height_map_size: Vector2<u32>,
+    height_map_size: InheritableVariable<Vector2<u32>>,
 
     #[reflect(
         min_value = 1.0,
@@ -275,10 +302,10 @@ pub struct Terrain {
         description = "Size of the blending mask per chunk, in pixels. Warning: any change to this value will result in resampling!",
         setter = "set_mask_size"
     )]
-    mask_size: Vector2<u32>,
+    mask_size: InheritableVariable<Vector2<u32>>,
 
-    #[reflect(hidden)]
-    chunks: Vec<Chunk>,
+    #[reflect(read_only)]
+    chunks: InheritableVariable<Vec<Chunk>>,
 
     #[reflect(hidden)]
     bounding_box_dirty: Cell<bool>,
@@ -321,16 +348,19 @@ impl TypeUuidProvider for Terrain {
 
 impl Terrain {
     pub fn chunk_size(&self) -> Vector2<f32> {
-        self.chunk_size
+        *self.chunk_size
     }
 
     pub fn set_chunk_size(&mut self, chunk_size: Vector2<f32>) -> Vector2<f32> {
-        let old = self.chunk_size;
-        self.chunk_size = chunk_size;
+        let old = *self.chunk_size;
+        self.chunk_size.set_value_and_mark_modified(chunk_size);
 
         // Re-position each chunk according to its position on the grid.
-        for (z, iy) in self.length_chunks.clone().zip(0..self.length_chunks.len()) {
-            for (x, ix) in self.width_chunks.clone().zip(0..self.width_chunks.len()) {
+        for (z, iy) in (*self.length_chunks)
+            .clone()
+            .zip(0..self.length_chunks.len())
+        {
+            for (x, ix) in (*self.width_chunks).clone().zip(0..self.width_chunks.len()) {
                 let position = Vector3::new(
                     x as f32 * self.chunk_size.x,
                     0.0,
@@ -347,42 +377,42 @@ impl Terrain {
     }
 
     pub fn width_chunks(&self) -> Range<i32> {
-        self.width_chunks.clone()
+        (*self.width_chunks).clone()
     }
 
     pub fn length_chunks(&self) -> Range<i32> {
-        self.length_chunks.clone()
+        (*self.length_chunks).clone()
     }
 
     pub fn height_map_size(&self) -> Vector2<u32> {
-        self.height_map_size
+        *self.height_map_size
     }
 
     pub fn set_height_map_size(&mut self, height_map_size: Vector2<u32>) -> Vector2<u32> {
-        let old = self.height_map_size;
+        let old = *self.height_map_size;
         self.resize_height_maps(height_map_size);
         old
     }
 
     pub fn mask_size(&self) -> Vector2<u32> {
-        self.mask_size
+        *self.mask_size
     }
 
     pub fn set_mask_size(&mut self, mask_size: Vector2<u32>) -> Vector2<u32> {
-        let old = self.mask_size;
+        let old = *self.mask_size;
         self.resize_masks(mask_size);
         old
     }
 
     pub fn set_width_chunks(&mut self, chunks: Range<i32>) -> Range<i32> {
-        let old = self.width_chunks.clone();
-        self.resize(chunks, self.length_chunks.clone());
+        let old = (*self.width_chunks).clone();
+        self.resize(chunks, self.length_chunks());
         old
     }
 
     pub fn set_length_chunks(&mut self, chunks: Range<i32>) -> Range<i32> {
-        let old = self.length_chunks.clone();
-        self.resize(self.width_chunks.clone(), chunks);
+        let old = (*self.length_chunks).clone();
+        self.resize(self.width_chunks(), chunks);
         old
     }
 
@@ -393,11 +423,12 @@ impl Terrain {
             .map(|c| (c.grid_position, c))
             .collect::<HashMap<_, _>>();
 
-        self.width_chunks = width_chunks;
-        self.length_chunks = length_chunks;
+        self.width_chunks.set_value_and_mark_modified(width_chunks);
+        self.length_chunks
+            .set_value_and_mark_modified(length_chunks);
 
-        for z in self.length_chunks.clone() {
-            for x in self.width_chunks.clone() {
+        for z in (*self.length_chunks).clone() {
+            for x in (*self.width_chunks).clone() {
                 let chunk = if let Some(existing_chunk) = chunks.remove(&Vector2::new(x, z)) {
                     // Put existing chunk back at its position.
                     existing_chunk
@@ -413,8 +444,8 @@ impl Terrain {
                             0.0,
                             z as f32 * self.chunk_size.y,
                         ),
-                        physical_size: self.chunk_size,
-                        height_map_size: self.height_map_size,
+                        physical_size: *self.chunk_size,
+                        height_map_size: *self.height_map_size,
                         surface_data: make_surface_data(),
                         grid_position: Vector2::new(x, z),
                         layer_masks: self
@@ -759,7 +790,7 @@ impl Terrain {
             }
         }
 
-        self.mask_size = new_size;
+        self.mask_size.set_value_and_mark_modified(new_size);
     }
 
     fn resize_height_maps(&mut self, mut new_size: Vector2<u32>) {
@@ -804,7 +835,7 @@ impl Terrain {
             chunk.rebuild_geometry();
         }
 
-        self.height_map_size = new_size;
+        self.height_map_size.set_value_and_mark_modified(new_size);
         self.bounding_box_dirty.set(true);
     }
 }
@@ -1064,7 +1095,7 @@ impl TerrainBuilder {
         }
 
         let terrain = Terrain {
-            chunk_size: self.chunk_size,
+            chunk_size: self.chunk_size.into(),
             base: self.base_builder.build_base(),
             layers: self
                 .layers
@@ -1075,13 +1106,13 @@ impl TerrainBuilder {
                 })
                 .collect::<Vec<_>>()
                 .into(),
-            chunks,
+            chunks: chunks.into(),
             bounding_box_dirty: Cell::new(true),
             bounding_box: Default::default(),
-            mask_size: self.mask_size,
-            height_map_size: self.height_map_size,
-            width_chunks: self.width_chunks,
-            length_chunks: self.length_chunks,
+            mask_size: self.mask_size.into(),
+            height_map_size: self.height_map_size.into(),
+            width_chunks: self.width_chunks.into(),
+            length_chunks: self.length_chunks.into(),
             decal_layer_index: self.decal_layer_index.into(),
         };
 

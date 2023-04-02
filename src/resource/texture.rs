@@ -1382,6 +1382,11 @@ impl TextureData {
     pub fn modify(&mut self) -> TextureDataRefMut<'_> {
         TextureDataRefMut { texture: self }
     }
+
+    /// Returns `true` if the texture is serializing its content, `false` - otherwise.
+    pub fn is_serializing_content(&self) -> bool {
+        self.serialize_content
+    }
 }
 
 /// A special reference holder that provides mutable access to content of the
