@@ -607,7 +607,11 @@ fn make_heightfield(terrain: &Terrain) -> SharedShape {
             Dyn(ncols as usize),
             data,
         )),
-        Vector3::new(terrain.chunk_size().x, 1.0, terrain.chunk_size().y),
+        Vector3::new(
+            terrain.chunk_size().x * terrain.width_chunks().len() as f32,
+            1.0,
+            terrain.chunk_size().y * terrain.length_chunks().len() as f32,
+        ),
     )
 }
 
