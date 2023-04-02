@@ -957,8 +957,10 @@ impl Terrain {
                 }
             }
 
-            for height in &mut heightmap {
-                *height /= max;
+            if max != 0.0 {
+                for height in &mut heightmap {
+                    *height /= max;
+                }
             }
 
             let heightmap_image = ImageBuffer::<Luma<f32>, Vec<f32>>::from_vec(
