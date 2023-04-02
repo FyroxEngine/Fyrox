@@ -34,6 +34,9 @@ use std::{
     ops::{Deref, DerefMut, Range},
 };
 
+/// Current implementation version marker.
+pub const VERSION: u8 = 1;
+
 /// Layers is a set of textures for rendering + mask texture to exclude some pixels from
 /// rendering. Terrain can have as many layers as you want, but each layer slightly decreases
 /// performance, so keep amount of layers on reasonable level (1 - 5 should be enough for most
@@ -66,6 +69,8 @@ impl PartialEq for Layer {
 pub struct Chunk {
     surface_data: SurfaceSharedData,
     #[reflect(hidden)]
+    version: u8,
+    #[reflect(hidden)]
     heightmap: Vec<f32>,
     #[reflect(hidden)]
     position: Vector3<f32>,
@@ -84,6 +89,7 @@ impl Clone for Chunk {
     fn clone(&self) -> Self {
         Self {
             surface_data: self.surface_data.deep_clone(),
+            version: self.version,
             heightmap: self.heightmap.clone(),
             position: self.position,
             physical_size: self.physical_size,
@@ -112,15 +118,49 @@ impl Visit for Chunk {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        let mut view = PodVecView::from_pod_vec(&mut self.heightmap);
-        view.visit("Heightmap", &mut region)?;
+        let mut version = if region.is_reading() {
+            0u8
+        } else {
+            self.version
+        };
+        let _ = version.visit("Version", &mut region);
 
-        self.position.visit("Position", &mut region)?;
-        self.physical_size.visit("PhysicalSize", &mut region)?;
-        self.height_map_size.visit("HeightMapSize", &mut region)?;
-        self.layer_masks.visit("LayerMasks", &mut region)?;
-        self.grid_position.visit("GridPosition", &mut region)?;
-        // self.surface_data is not serialized.
+        match version {
+            0 => {
+                let mut view = PodVecView::from_pod_vec(&mut self.heightmap);
+                view.visit("Heightmap", &mut region)?;
+                self.position.visit("Position", &mut region)?;
+
+                let mut width = 0.0f32;
+                width.visit("Width", &mut region)?;
+                let mut length = 0.0f32;
+                length.visit("Length", &mut region)?;
+                self.physical_size = Vector2::new(width, length);
+
+                let mut width_point_count = 0u32;
+                width_point_count.visit("WidthPointCount", &mut region)?;
+                let mut length_point_count = 0u32;
+                length_point_count.visit("LengthPointCount", &mut region)?;
+                self.height_map_size = Vector2::new(width_point_count, length_point_count);
+
+                self.grid_position = Vector2::new(
+                    (self.position.x / width) as i32,
+                    (self.position.y / length) as i32,
+                );
+            }
+            VERSION => {
+                let mut view = PodVecView::from_pod_vec(&mut self.heightmap);
+                view.visit("Heightmap", &mut region)?;
+
+                self.position.visit("Position", &mut region)?;
+                self.physical_size.visit("PhysicalSize", &mut region)?;
+                self.height_map_size.visit("HeightMapSize", &mut region)?;
+                self.layer_masks.visit("LayerMasks", &mut region)?;
+                self.grid_position.visit("GridPosition", &mut region)?;
+                // self.surface_data is not serialized.
+            }
+            _ => (),
+        }
 
         if region.is_reading() {
             self.rebuild_geometry();
@@ -133,6 +173,7 @@ impl Visit for Chunk {
 impl Default for Chunk {
     fn default() -> Self {
         Self {
+            version: VERSION,
             heightmap: Default::default(),
             position: Default::default(),
             physical_size: Default::default(),
@@ -257,7 +298,7 @@ pub struct TerrainRayCastResult {
 /// Terrain is a height field where each point has fixed coordinates in XZ plane, but variable
 /// Y coordinate. It can be used to create landscapes. It supports multiple layers, where each
 /// layer has its own material and mask.
-#[derive(Visit, Debug, Default, Reflect, Clone)]
+#[derive(Debug, Default, Reflect, Clone)]
 pub struct Terrain {
     base: Base,
 
@@ -312,6 +353,103 @@ pub struct Terrain {
 
     #[reflect(hidden)]
     bounding_box: Cell<AxisAlignedBoundingBox>,
+
+    #[reflect(hidden)]
+    version: u8,
+}
+
+#[derive(Visit, Default)]
+struct OldLayer {
+    pub material: SharedMaterial,
+    pub mask_property_name: String,
+    pub chunk_masks: Vec<Texture>,
+}
+
+impl Visit for Terrain {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+
+        let mut version = 0u8;
+        let _ = version.visit("Version", &mut region);
+
+        match version {
+            0 => {
+                // Old version.
+                self.base.visit("Base", &mut region)?;
+                self.decal_layer_index
+                    .visit("DecalLayerIndex", &mut region)?;
+
+                let mut layers = InheritableVariable::<Vec<OldLayer>>::new(Default::default());
+                layers.visit("Layers", &mut region)?;
+
+                let mut width = 0.0f32;
+                width.visit("Width", &mut region)?;
+                let mut length = 0.0f32;
+                length.visit("Length", &mut region)?;
+
+                let mut mask_resolution = 0.0f32;
+                mask_resolution.visit("MaskResolution", &mut region)?;
+
+                let mut height_map_resolution = 0.0f32;
+                height_map_resolution.visit("HeightMapResolution", &mut region)?;
+
+                let mut chunks = Vec::<Chunk>::new();
+                chunks.visit("Chunks", &mut region)?;
+
+                let mut width_chunks = 0u32;
+                width_chunks.visit("WidthChunks", &mut region)?;
+                self.width_chunks = (0..(width_chunks as i32)).into();
+
+                let mut length_chunks = 0u32;
+                length_chunks.visit("LengthChunks", &mut region)?;
+                self.length_chunks = (0..(length_chunks as i32)).into();
+
+                self.chunk_size =
+                    Vector2::new(width / width_chunks as f32, length / length_chunks as f32).into();
+
+                self.mask_size = Vector2::new(
+                    (self.chunk_size.x * mask_resolution) as u32,
+                    (self.chunk_size.y * mask_resolution) as u32,
+                )
+                .into();
+                self.height_map_size = Vector2::new(
+                    (self.chunk_size.x * height_map_resolution) as u32,
+                    (self.chunk_size.y * height_map_resolution) as u32,
+                )
+                .into();
+
+                // Convert to new format.
+                for mut layer in layers.take() {
+                    for mut chunk in chunks.iter_mut().rev() {
+                        chunk.layer_masks.push(layer.chunk_masks.pop().unwrap());
+                    }
+
+                    self.layers.push(Layer {
+                        material: layer.material,
+                        mask_property_name: layer.mask_property_name,
+                    })
+                }
+
+                self.chunks = chunks.into();
+            }
+            VERSION => {
+                // Current version
+                self.base.visit("Base", &mut region)?;
+                self.layers.visit("Layers", &mut region)?;
+                self.decal_layer_index
+                    .visit("DecalLayerIndex", &mut region)?;
+                self.chunk_size.visit("ChunkSize", &mut region)?;
+                self.width_chunks.visit("WidthChunks", &mut region)?;
+                self.length_chunks.visit("LengthChunks", &mut region)?;
+                self.height_map_size.visit("HeightMapSize", &mut region)?;
+                self.mask_size.visit("MaskSize", &mut region)?;
+                self.chunks.visit("Chunks", &mut region)?;
+            }
+            _ => (),
+        }
+
+        Ok(())
+    }
 }
 
 impl Deref for Terrain {
@@ -460,6 +598,7 @@ impl Terrain {
                                 )
                             })
                             .collect::<Vec<_>>(),
+                        version: VERSION,
                     };
 
                     new_chunk.rebuild_geometry();
@@ -958,20 +1097,6 @@ pub struct Brush {
     pub mode: BrushMode,
 }
 
-/// Layer definition for a terrain builder.
-pub struct LayerDefinition {
-    /// Material of the layer.
-    pub material: SharedMaterial,
-
-    /// Name of the mask sampler in the material. It should be `maskTexture` if standard material shader
-    /// is used.
-    ///
-    /// # Implementation details
-    ///
-    /// It will be used in the renderer to set appropriate chunk mask to the copy of the material.
-    pub mask_property_name: String,
-}
-
 /// Terrain builder allows you to quickly build a terrain with required features.
 pub struct TerrainBuilder {
     base_builder: BaseBuilder,
@@ -980,7 +1105,7 @@ pub struct TerrainBuilder {
     width_chunks: Range<i32>,
     length_chunks: Range<i32>,
     height_map_size: Vector2<u32>,
-    layers: Vec<LayerDefinition>,
+    layers: Vec<Layer>,
     decal_layer_index: u8,
 }
 
@@ -1051,7 +1176,7 @@ impl TerrainBuilder {
     }
 
     /// Sets desired layers that will be used for each chunk in the terrain.
-    pub fn with_layers(mut self, layers: Vec<LayerDefinition>) -> Self {
+    pub fn with_layers(mut self, layers: Vec<Layer>) -> Self {
         self.layers = layers;
         self
     }
@@ -1094,6 +1219,7 @@ impl TerrainBuilder {
                             )
                         })
                         .collect::<Vec<_>>(),
+                    version: VERSION,
                 };
 
                 chunk.rebuild_geometry();
@@ -1105,15 +1231,7 @@ impl TerrainBuilder {
         let terrain = Terrain {
             chunk_size: self.chunk_size.into(),
             base: self.base_builder.build_base(),
-            layers: self
-                .layers
-                .into_iter()
-                .map(|definition| Layer {
-                    material: definition.material,
-                    mask_property_name: definition.mask_property_name,
-                })
-                .collect::<Vec<_>>()
-                .into(),
+            layers: self.layers.into(),
             chunks: chunks.into(),
             bounding_box_dirty: Cell::new(true),
             bounding_box: Default::default(),
@@ -1122,6 +1240,7 @@ impl TerrainBuilder {
             width_chunks: self.width_chunks.into(),
             length_chunks: self.length_chunks.into(),
             decal_layer_index: self.decal_layer_index.into(),
+            version: VERSION,
         };
 
         Node::new(terrain)
