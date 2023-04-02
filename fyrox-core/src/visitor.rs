@@ -1010,15 +1010,15 @@ impl Field {
     }
 }
 
-pub struct Node {
+pub struct VisitorNode {
     name: String,
     fields: Vec<Field>,
-    parent: Handle<Node>,
-    children: Vec<Handle<Node>>,
+    parent: Handle<VisitorNode>,
+    children: Vec<Handle<VisitorNode>>,
 }
 
-impl Node {
-    fn new(name: &str, parent: Handle<Node>) -> Self {
+impl VisitorNode {
+    fn new(name: &str, parent: Handle<VisitorNode>) -> Self {
         Self {
             name: name.to_owned(),
             fields: Vec::new(),
@@ -1028,7 +1028,7 @@ impl Node {
     }
 }
 
-impl Default for Node {
+impl Default for VisitorNode {
     fn default() -> Self {
         Self {
             name: String::new(),
@@ -1065,12 +1065,12 @@ impl<'a> Drop for RegionGuard<'a> {
 }
 
 pub struct Visitor {
-    nodes: Pool<Node>,
+    nodes: Pool<VisitorNode>,
     rc_map: FxHashMap<u64, Rc<dyn Any>>,
     arc_map: FxHashMap<u64, Arc<dyn Any + Send + Sync>>,
     reading: bool,
-    current_node: Handle<Node>,
-    root: Handle<Node>,
+    current_node: Handle<VisitorNode>,
+    root: Handle<VisitorNode>,
     pub environment: Option<Arc<dyn Any>>,
 }
 
@@ -1089,7 +1089,7 @@ impl Visitor {
 
     pub fn new() -> Self {
         let mut nodes = Pool::new();
-        let root = nodes.spawn(Node::new("__ROOT__", Handle::NONE));
+        let root = nodes.spawn(VisitorNode::new("__ROOT__", Handle::NONE));
         Self {
             nodes,
             rc_map: FxHashMap::default(),
@@ -1113,7 +1113,7 @@ impl Visitor {
         self.reading
     }
 
-    fn current_node(&mut self) -> &mut Node {
+    fn current_node(&mut self) -> &mut VisitorNode {
         self.nodes.borrow_mut(self.current_node)
     }
 
@@ -1143,7 +1143,7 @@ impl Visitor {
                 }
             }
 
-            let node_handle = self.nodes.spawn(Node::new(name, self.current_node));
+            let node_handle = self.nodes.spawn(VisitorNode::new(name, self.current_node));
             self.nodes
                 .borrow_mut(self.current_node)
                 .children
@@ -1169,7 +1169,12 @@ impl Visitor {
         }
     }
 
-    fn print_node(&self, node_handle: Handle<Node>, nesting: usize, out_string: &mut String) {
+    fn print_node(
+        &self,
+        node_handle: Handle<VisitorNode>,
+        nesting: usize,
+        out_string: &mut String,
+    ) {
         let offset = (0..nesting).map(|_| "\t").collect::<String>();
         let node = self.nodes.borrow(node_handle);
         *out_string += format!(
@@ -1228,14 +1233,14 @@ impl Visitor {
         self.save_binary_to_memory(writer)
     }
 
-    fn load_node_binary(&mut self, file: &mut dyn Read) -> Result<Handle<Node>, VisitError> {
+    fn load_node_binary(&mut self, file: &mut dyn Read) -> Result<Handle<VisitorNode>, VisitError> {
         let name_len = file.read_u32::<LittleEndian>()? as usize;
         let mut raw_name = vec![Default::default(); name_len];
         file.read_exact(raw_name.as_mut_slice())?;
 
-        let mut node = Node {
+        let mut node = VisitorNode {
             name: String::from_utf8(raw_name)?,
-            ..Node::default()
+            ..VisitorNode::default()
         };
 
         let field_count = file.read_u32::<LittleEndian>()? as usize;
