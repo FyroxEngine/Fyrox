@@ -369,7 +369,11 @@ impl Visit for Terrain {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        let mut version = 0u8;
+        let mut version = if region.is_reading() {
+            0u8
+        } else {
+            self.version
+        };
         let _ = version.visit("Version", &mut region);
 
         match version {
