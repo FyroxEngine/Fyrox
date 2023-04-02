@@ -766,12 +766,11 @@ impl Terrain {
         for chunk in self.chunks.iter_mut() {
             for mask in chunk.layer_masks.iter_mut() {
                 let mut data = mask.data_ref();
-                let mut data_mut = data.modify();
 
                 let mask_image = ImageBuffer::<Luma<u8>, Vec<u8>>::from_vec(
                     self.mask_size.x,
                     self.mask_size.y,
-                    data_mut.data().to_vec(),
+                    data.data().to_vec(),
                 )
                 .unwrap();
 
@@ -783,10 +782,19 @@ impl Terrain {
                 );
 
                 let new_mask = resampled_mask_image.into_raw();
+                let new_mask_texture = Texture::from_bytes(
+                    TextureKind::Rectangle {
+                        width: new_size.x,
+                        height: new_size.y,
+                    },
+                    data.pixel_kind(),
+                    new_mask,
+                    true,
+                )
+                .unwrap();
 
-                for (mask_pixel, new_mask_pixel) in data_mut.data_mut().iter_mut().zip(new_mask) {
-                    *mask_pixel = new_mask_pixel;
-                }
+                drop(data);
+                *mask = new_mask_texture;
             }
         }
 
