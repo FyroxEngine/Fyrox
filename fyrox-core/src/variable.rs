@@ -204,6 +204,11 @@ impl<T> InheritableVariable<T> {
             .insert(VariableFlags::MODIFIED | VariableFlags::NEED_SYNC);
     }
 
+    /// Deconstructs the variable and returns the wrapped value.
+    pub fn take(self) -> T {
+        self.value
+    }
+
     fn mark_modified_and_need_sync(&mut self) {
         self.flags
             .get_mut()
