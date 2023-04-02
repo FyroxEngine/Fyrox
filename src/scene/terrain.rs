@@ -80,6 +80,7 @@ pub struct Chunk {
     height_map_size: Vector2<u32>,
     #[reflect(hidden)]
     grid_position: Vector2<i32>,
+    /// Layer blending masks of the chunk.
     #[reflect(hidden)]
     pub layer_masks: Vec<Texture>,
 }
@@ -268,10 +269,12 @@ impl Chunk {
         self.surface_data.clone()
     }
 
+    /// Returns the size of the chunk in meters.
     pub fn physical_size(&self) -> Vector2<f32> {
         self.physical_size
     }
 
+    /// Returns amount of pixels in the height map along each dimension.
     pub fn height_map_size(&self) -> Vector2<u32> {
         self.height_map_size
     }
@@ -424,7 +427,7 @@ impl Visit for Terrain {
 
                 // Convert to new format.
                 for mut layer in layers.take() {
-                    for mut chunk in chunks.iter_mut().rev() {
+                    for chunk in chunks.iter_mut().rev() {
                         chunk.layer_masks.push(layer.chunk_masks.pop().unwrap());
                     }
 
@@ -489,10 +492,13 @@ impl TypeUuidProvider for Terrain {
 }
 
 impl Terrain {
+    /// Returns chunk size in meters.
     pub fn chunk_size(&self) -> Vector2<f32> {
         *self.chunk_size
     }
 
+    /// Sets new chunk size of the terrain (in meters). All chunks in the terrain will be repositioned and their
+    /// geometry will be rebuilt.
     pub fn set_chunk_size(&mut self, chunk_size: Vector2<f32>) -> Vector2<f32> {
         let old = *self.chunk_size;
         self.chunk_size.set_value_and_mark_modified(chunk_size);
@@ -518,46 +524,58 @@ impl Terrain {
         old
     }
 
-    pub fn width_chunks(&self) -> Range<i32> {
-        (*self.width_chunks).clone()
-    }
-
-    pub fn length_chunks(&self) -> Range<i32> {
-        (*self.length_chunks).clone()
-    }
-
+    /// Returns height map dimensions along each axis.
     pub fn height_map_size(&self) -> Vector2<u32> {
         *self.height_map_size
     }
 
+    /// Sets new size of the height map for every chunk. Heightmaps in every chunk will be resampled which may
+    /// cause precision loss if the size was decreased.
     pub fn set_height_map_size(&mut self, height_map_size: Vector2<u32>) -> Vector2<u32> {
         let old = *self.height_map_size;
         self.resize_height_maps(height_map_size);
         old
     }
 
+    /// Returns amount of pixels along each axis of the layer blending mask.
     pub fn mask_size(&self) -> Vector2<u32> {
         *self.mask_size
     }
 
+    /// Sets new size of the layer blending mask in pixels. Every layer mask will be resampled which may cause
+    /// precision loss if the size was decreased.
     pub fn set_mask_size(&mut self, mask_size: Vector2<u32>) -> Vector2<u32> {
         let old = *self.mask_size;
         self.resize_masks(mask_size);
         old
     }
 
+    /// Returns a numeric range along width axis which defines start and end chunk indices on a chunks grid.
+    pub fn width_chunks(&self) -> Range<i32> {
+        (*self.width_chunks).clone()
+    }
+
+    /// Sets amount of chunks along width axis.
     pub fn set_width_chunks(&mut self, chunks: Range<i32>) -> Range<i32> {
         let old = (*self.width_chunks).clone();
         self.resize(chunks, self.length_chunks());
         old
     }
 
+    /// Returns a numeric range along length axis which defines start and end chunk indices on a chunks grid.
+    pub fn length_chunks(&self) -> Range<i32> {
+        (*self.length_chunks).clone()
+    }
+
+    /// Sets amount of chunks along length axis.
     pub fn set_length_chunks(&mut self, chunks: Range<i32>) -> Range<i32> {
         let old = (*self.length_chunks).clone();
         self.resize(self.width_chunks(), chunks);
         old
     }
 
+    /// Sets new chunks ranges for each axis of the terrain. This function automatically adds new chunks if you're
+    /// increasing size of the terrain and removes existing if you shrink the terrain.
     pub fn resize(&mut self, width_chunks: Range<i32>, length_chunks: Range<i32>) {
         let mut chunks = self
             .chunks
@@ -862,6 +880,7 @@ impl Terrain {
         self.insert_layer(layer, masks, self.layers.len())
     }
 
+    /// Removes a layer at the given index together with its respective blending masks from each chunk.
     pub fn remove_layer(&mut self, layer_index: usize) -> (Layer, Vec<Texture>) {
         let layer = self
             .layers
@@ -874,6 +893,7 @@ impl Terrain {
         (layer, layer_masks)
     }
 
+    /// Removes last terrain layer together with its respective blending masks from each chunk.
     pub fn pop_layer(&mut self) -> Option<(Layer, Vec<Texture>)> {
         if self.layers.is_empty() {
             None
@@ -882,6 +902,7 @@ impl Terrain {
         }
     }
 
+    /// Inserts the layer at the given index together with its blending masks for each chunk.
     pub fn insert_layer(&mut self, layer: Layer, mut masks: Vec<Texture>, index: usize) {
         self.layers
             .get_value_mut_and_mark_modified()
@@ -908,7 +929,7 @@ impl Terrain {
 
         for chunk in self.chunks.iter_mut() {
             for mask in chunk.layer_masks.iter_mut() {
-                let mut data = mask.data_ref();
+                let data = mask.data_ref();
 
                 let mask_image = ImageBuffer::<Luma<u8>, Vec<u8>>::from_vec(
                     self.mask_size.x,
@@ -1156,26 +1177,31 @@ impl TerrainBuilder {
         }
     }
 
+    /// Sets desired chunk size in meters.
     pub fn with_chunk_size(mut self, size: Vector2<f32>) -> Self {
         self.chunk_size = size;
         self
     }
 
+    /// Sets desired mask size in pixels.
     pub fn with_mask_size(mut self, size: Vector2<u32>) -> Self {
         self.mask_size = size;
         self
     }
 
+    /// Sets desired chunk amount along width axis.
     pub fn with_width_chunks(mut self, width_chunks: Range<i32>) -> Self {
         self.width_chunks = width_chunks;
         self
     }
 
+    /// Sets desired chunk amount along length axis.
     pub fn with_length_chunks(mut self, length_chunks: Range<i32>) -> Self {
         self.length_chunks = length_chunks;
         self
     }
 
+    /// Sets desired height map size in pixels.
     pub fn with_height_map_size(mut self, size: Vector2<u32>) -> Self {
         self.height_map_size = size;
         self
