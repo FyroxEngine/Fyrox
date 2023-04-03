@@ -11,6 +11,7 @@ use crate::{
     },
     scene::mesh::surface::{VertexWeight, VertexWeightSet},
 };
+use fxhash::FxHashMap;
 
 pub struct FbxMeshGeometry {
     // Only vertices and indices are required.
@@ -222,7 +223,7 @@ impl FbxMeshGeometry {
 pub struct FbxShapeGeometry {
     // Only vertices and indices are required.
     pub vertices: Vec<Vector3<f32>>,
-    pub indices: Vec<i32>,
+    pub indices: FxHashMap<i32, i32>,
     // The rest is optional.
     pub normals: Option<Vec<Vector3<f32>>>,
     pub tangents: Option<Vec<Vector3<f32>>>,
@@ -250,7 +251,11 @@ impl FbxShapeGeometry {
         Ok(Self {
             vertices: read_vec3_plain_array("Vertices", geom_node_handle, nodes)?
                 .ok_or_else(|| "No vertices element!".to_string())?,
-            indices: read_indices("Indexes", geom_node_handle, nodes)?,
+            indices: read_indices("Indexes", geom_node_handle, nodes)?
+                .into_iter()
+                .enumerate()
+                .map(|(k, i)| (i, k as i32))
+                .collect(),
             normals: read_vec3_plain_array("Normals", geom_node_handle, nodes)?,
             tangents: read_vec3_plain_array("Tangents", geom_node_handle, nodes)?,
             binormals: read_vec3_plain_array("Binormals", geom_node_handle, nodes)?,

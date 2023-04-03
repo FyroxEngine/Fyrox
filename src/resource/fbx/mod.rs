@@ -556,18 +556,17 @@ async fn convert_mesh(
 
                         // Only certain vertices are affected by a blend shape, because FBX stores only changed
                         // parts ("diff").
-                        for (relative_index, affected_vertex_index) in
-                            blend_shape_geometry.indices.iter().cloned().enumerate()
+                        if let Some(relative_index) =
+                            blend_shape_geometry.indices.get(&(index as i32))
                         {
-                            if index == affected_vertex_index as usize {
-                                blend_shape_vertex.position +=
-                                    blend_shape_geometry.vertices[relative_index];
-                                if let Some(normals) = blend_shape_geometry.normals.as_ref() {
-                                    blend_shape_vertex.normal += normals[relative_index];
-                                }
-                                if let Some(tangents) = blend_shape_geometry.tangents.as_ref() {
-                                    blend_shape_vertex.tangent += tangents[relative_index];
-                                }
+                            let relative_index = *relative_index as usize;
+                            blend_shape_vertex.position +=
+                                blend_shape_geometry.vertices[relative_index];
+                            if let Some(normals) = blend_shape_geometry.normals.as_ref() {
+                                blend_shape_vertex.normal += normals[relative_index];
+                            }
+                            if let Some(tangents) = blend_shape_geometry.tangents.as_ref() {
+                                blend_shape_vertex.tangent += tangents[relative_index];
                             }
                         }
 
