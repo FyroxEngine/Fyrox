@@ -169,22 +169,22 @@ impl BatchStorage {
                     batch.sort_index = surface.material_id();
                     batch.material = surface.material().clone();
 
+                    let mut bone_matrices = ArrayVec::<Matrix4<f32>, BONE_MATRICES_COUNT>::new();
+                    for &bone_handle in surface.bones.iter() {
+                        if let Some(bone_node) = graph.try_get(bone_handle) {
+                            Log::verify(bone_matrices.try_push(
+                                bone_node.global_transform() * bone_node.inv_bind_pose_transform(),
+                            ));
+                        } else {
+                            Log::verify(bone_matrices.try_push(Matrix4::identity()));
+                        }
+                    }
+
                     batch.instances.push(SurfaceInstance {
                         world_transform: world,
                         flags: SurfaceInstanceFlags::from_node(node),
                         world_aabb: node.world_bounding_box(),
-                        bone_matrices: surface
-                            .bones
-                            .iter()
-                            .map(|&bone_handle| {
-                                if let Some(bone_node) = graph.try_get(bone_handle) {
-                                    bone_node.global_transform()
-                                        * bone_node.inv_bind_pose_transform()
-                                } else {
-                                    Matrix4::identity()
-                                }
-                            })
-                            .collect(),
+                        bone_matrices,
                         owner: handle,
                         depth_offset: mesh.depth_offset_factor(),
                     });
