@@ -102,6 +102,11 @@ impl SurfaceData {
             let mut blend_shapes = ArrayVec::<(&VertexBuffer, f32), 128>::new();
 
             for blend_shape in container.blend_shapes.iter() {
+                assert_eq!(
+                    blend_shape.vertex_buffer.vertex_count(),
+                    self.vertex_buffer.vertex_count()
+                );
+
                 blend_shapes.push((&blend_shape.vertex_buffer, blend_shape.weight / 100.0));
             }
 

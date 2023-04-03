@@ -141,6 +141,11 @@ where
         }
     }
 
+    /// Returns total amount of vertices in the mesh builder so far.
+    pub fn vertex_count(&self) -> usize {
+        self.vertices.len()
+    }
+
     /// Creates new raw mesh from internal set of vertices and indices. If last "triangle" has
     /// insufficient vertex count (less than 3), it will be discarded.
     pub fn build(self) -> RawMesh<T> {
