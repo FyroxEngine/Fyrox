@@ -470,6 +470,7 @@ impl Coordinate {
 pub struct TextureBinding<'a> {
     state: &'a mut PipelineState,
     texture: &'a mut GpuTexture,
+    sampler_index: u32,
 }
 
 #[derive(Copy, Clone)]
@@ -650,7 +651,7 @@ impl<'a> TextureBinding<'a> {
 
         unsafe {
             self.state
-                .set_texture(0, target, Some(self.texture.texture));
+                .set_texture(self.sampler_index, target, Some(self.texture.texture));
 
             self.state
                 .gl
@@ -1009,6 +1010,7 @@ impl GpuTexture {
             TextureBinding {
                 state,
                 texture: &mut result,
+                sampler_index: 0,
             }
             .set_data(kind, pixel_kind, mip_count, data)?;
 
@@ -1046,6 +1048,7 @@ impl GpuTexture {
         TextureBinding {
             state,
             texture: self,
+            sampler_index,
         }
     }
 
