@@ -652,6 +652,10 @@ impl<'a> TextureBinding<'a> {
             self.state
                 .set_texture(0, target, Some(self.texture.texture));
 
+            self.state
+                .gl
+                .tex_parameter_i32(target, glow::TEXTURE_MAX_LEVEL, mip_count as i32 - 1);
+
             let (type_, format, internal_format, swizzle_mask) = match pixel_kind {
                 PixelKind::F32 => (glow::FLOAT, glow::RED, glow::R32F, None),
                 PixelKind::F16 => (glow::FLOAT, glow::RED, glow::R16F, None),
