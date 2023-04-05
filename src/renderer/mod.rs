@@ -17,6 +17,7 @@ pub mod batch;
 pub mod cache;
 pub mod debug_renderer;
 pub mod renderer2d;
+pub mod storage;
 pub mod ui_renderer;
 
 mod bloom;
@@ -74,6 +75,7 @@ use crate::{
         particle_system_renderer::{ParticleSystemRenderContext, ParticleSystemRenderer},
         renderer2d::Renderer2d,
         sprite_renderer::{SpriteRenderContext, SpriteRenderer},
+        storage::MatrixStorage,
         ui_renderer::{UiRenderContext, UiRenderer},
     },
     resource::texture::{Texture, TextureKind},
@@ -707,6 +709,7 @@ pub struct Renderer {
     renderer2d: Renderer2d,
     texture_event_receiver: Receiver<ResourceEvent<Texture>>,
     shader_event_receiver: Receiver<ResourceEvent<Shader>>,
+    matrix_storage: MatrixStorage,
     // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
     // like ones used to render UI instances.
     ui_frame_buffers: FxHashMap<usize, FrameBuffer>,
@@ -909,6 +912,7 @@ pub(crate) struct MaterialContext<'a, 'b, 'c> {
     pub material: &'a Material,
     pub program_binding: &'a mut GpuProgramBinding<'b, 'c>,
     pub texture_cache: &'a mut TextureCache,
+    pub matrix_storage: &'a mut MatrixStorage,
 
     // Built-in uniforms.
     pub world_matrix: &'a Matrix4<f32>,
@@ -936,8 +940,14 @@ pub(crate) fn apply_material(ctx: MaterialContext) {
         ctx.program_binding.set_matrix4(location, ctx.wvp_matrix);
     }
     if let Some(location) = &built_in_uniforms[BuiltInUniform::BoneMatrices as usize] {
+        let active_sampler = ctx.program_binding.active_sampler();
+
         ctx.program_binding
-            .set_matrix4_array(location, ctx.bone_matrices);
+            .set_texture(location, ctx.matrix_storage.texture());
+
+        ctx.matrix_storage
+            .upload(ctx.program_binding.state, ctx.bone_matrices, active_sampler)
+            .expect("Failed to upload bone matrices!");
     }
     if let Some(location) = &built_in_uniforms[BuiltInUniform::UseSkeletalAnimation as usize] {
         ctx.program_binding
@@ -1166,9 +1176,10 @@ impl Renderer {
             renderer2d: Renderer2d::new(&mut state)?,
             shader_event_receiver,
             texture_event_receiver,
-            state,
             shader_cache: ShaderCache::default(),
             scene_render_passes: Default::default(),
+            matrix_storage: MatrixStorage::new(&mut state)?,
+            state,
         })
     }
 
@@ -1516,6 +1527,7 @@ impl Renderer {
                     white_dummy: self.white_dummy.clone(),
                     black_dummy: self.black_dummy.clone(),
                     graph,
+                    matrix_storage: &mut self.matrix_storage,
                 });
 
                 scene_associated_data.copy_depth_stencil_to_scene_framebuffer(state);
@@ -1545,6 +1557,7 @@ impl Renderer {
                             shader_cache: &mut self.shader_cache,
                             normal_dummy: self.normal_dummy.clone(),
                             black_dummy: self.black_dummy.clone(),
+                            matrix_storage: &mut self.matrix_storage,
                         });
 
                 self.statistics.lighting += light_stats;
@@ -1601,6 +1614,7 @@ impl Renderer {
                     white_dummy: self.white_dummy.clone(),
                     normal_dummy: self.normal_dummy.clone(),
                     black_dummy: self.black_dummy.clone(),
+                    matrix_storage: &mut self.matrix_storage,
                 });
 
                 for render_pass in self.scene_render_passes.iter() {

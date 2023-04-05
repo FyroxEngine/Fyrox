@@ -2,8 +2,8 @@
 
 use crate::{
     core::{
-        algebra::Matrix4, arrayvec::ArrayVec, math::aabb::AxisAlignedBoundingBox, pool::Handle,
-        scope_profile, sstorage::ImmutableString,
+        algebra::Matrix4, math::aabb::AxisAlignedBoundingBox, pool::Handle, scope_profile,
+        sstorage::ImmutableString,
     },
     material::{PropertyValue, SharedMaterial},
     scene::{
@@ -20,9 +20,6 @@ use std::{
     fmt::{Debug, Formatter},
     hash::Hasher,
 };
-
-/// Maximum amount of bone matrices per instance.
-pub const BONE_MATRICES_COUNT: usize = 64;
 
 bitflags! {
     /// A set of flags for surface instance. It is just a compact way for storing multiple boolean
@@ -69,7 +66,7 @@ pub struct SurfaceInstance {
     /// World space axis-aligned bounding box.
     pub world_aabb: AxisAlignedBoundingBox,
     /// A set of bone matrices.
-    pub bone_matrices: ArrayVec<Matrix4<f32>, BONE_MATRICES_COUNT>,
+    pub bone_matrices: Vec<Matrix4<f32>>,
     /// A depth-hack value.
     pub depth_offset: f32,
 }
@@ -169,22 +166,22 @@ impl BatchStorage {
                     batch.sort_index = surface.material_id();
                     batch.material = surface.material().clone();
 
-                    let mut bone_matrices = ArrayVec::<Matrix4<f32>, BONE_MATRICES_COUNT>::new();
-                    for &bone_handle in surface.bones.iter() {
-                        if let Some(bone_node) = graph.try_get(bone_handle) {
-                            Log::verify(bone_matrices.try_push(
-                                bone_node.global_transform() * bone_node.inv_bind_pose_transform(),
-                            ));
-                        } else {
-                            Log::verify(bone_matrices.try_push(Matrix4::identity()));
-                        }
-                    }
-
                     batch.instances.push(SurfaceInstance {
                         world_transform: world,
                         flags: SurfaceInstanceFlags::from_node(node),
                         world_aabb: node.world_bounding_box(),
-                        bone_matrices,
+                        bone_matrices: surface
+                            .bones
+                            .iter()
+                            .map(|bone_handle| {
+                                if let Some(bone_node) = graph.try_get(*bone_handle) {
+                                    bone_node.global_transform()
+                                        * bone_node.inv_bind_pose_transform()
+                                } else {
+                                    Matrix4::identity()
+                                }
+                            })
+                            .collect::<Vec<_>>(),
                         owner: handle,
                         depth_offset: mesh.depth_offset_factor(),
                     });

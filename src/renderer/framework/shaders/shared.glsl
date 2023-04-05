@@ -333,3 +333,21 @@ vec4 S_SRGBToLinear(vec4 color) {
 float S_Luminance(vec3 x) {
     return dot(x, vec3(0.299, 0.587, 0.114));
 }
+
+ivec2 S_LinearIndexToPosition(int index, int textureWidth) {
+    int y = index / textureWidth;
+    int x = index - textureWidth * y; // index % textureWidth
+    return ivec2(x, y);
+}
+
+mat4 S_FetchMatrix(in sampler2D storage, int index) {
+    int textureWidth = textureSize(storage, 0).x;
+    ivec2 pos = S_LinearIndexToPosition(4 * index, textureWidth);
+
+    vec4 col1 = texelFetch(storage, ivec2(pos.x, pos.y), 0);
+    vec4 col2 = texelFetch(storage, ivec2(pos.x + 1, pos.y), 0);
+    vec4 col3 = texelFetch(storage, ivec2(pos.x + 2, pos.y), 0);
+    vec4 col4 = texelFetch(storage, ivec2(pos.x + 3, pos.y), 0);
+
+    return mat4(col1, col2, col3, col4);
+}

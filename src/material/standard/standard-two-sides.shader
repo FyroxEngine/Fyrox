@@ -89,8 +89,8 @@
                 // required data to these uniforms.
                 uniform mat4 fyrox_worldMatrix;
                 uniform mat4 fyrox_worldViewProjection;
-                uniform mat4 fyrox_boneMatrices[60];
                 uniform bool fyrox_useSkeletalAnimation;
+                uniform sampler2D fyrox_boneMatrices;
 
                 out vec3 position;
                 out vec3 normal;
@@ -114,10 +114,10 @@
                         int i2 = int(boneIndices.z);
                         int i3 = int(boneIndices.w);
 
-                        mat4 m0 = fyrox_boneMatrices[i0];
-                        mat4 m1 = fyrox_boneMatrices[i1];
-                        mat4 m2 = fyrox_boneMatrices[i2];
-                        mat4 m3 = fyrox_boneMatrices[i3];
+                        mat4 m0 = S_FetchMatrix(fyrox_boneMatrices, i0);
+                        mat4 m1 = S_FetchMatrix(fyrox_boneMatrices, i1);
+                        mat4 m2 = S_FetchMatrix(fyrox_boneMatrices, i2);
+                        mat4 m3 = S_FetchMatrix(fyrox_boneMatrices, i3);
 
                         localPosition += m0 * vertex * boneWeights.x;
                         localPosition += m1 * vertex * boneWeights.y;
@@ -263,7 +263,7 @@
 
                 uniform mat4 fyrox_worldViewProjection;
                 uniform bool fyrox_useSkeletalAnimation;
-                uniform mat4 fyrox_boneMatrices[60];
+                uniform sampler2D fyrox_boneMatrices;
 
                 out vec3 position;
                 out vec2 texCoord;
@@ -280,10 +280,15 @@
                         int i2 = int(boneIndices.z);
                         int i3 = int(boneIndices.w);
 
-                        localPosition += fyrox_boneMatrices[i0] * vertex * boneWeights.x;
-                        localPosition += fyrox_boneMatrices[i1] * vertex * boneWeights.y;
-                        localPosition += fyrox_boneMatrices[i2] * vertex * boneWeights.z;
-                        localPosition += fyrox_boneMatrices[i3] * vertex * boneWeights.w;
+                        mat4 m0 = S_FetchMatrix(fyrox_boneMatrices, i0);
+                        mat4 m1 = S_FetchMatrix(fyrox_boneMatrices, i1);
+                        mat4 m2 = S_FetchMatrix(fyrox_boneMatrices, i2);
+                        mat4 m3 = S_FetchMatrix(fyrox_boneMatrices, i3);
+
+                        localPosition += m0 * vertex * boneWeights.x;
+                        localPosition += m1 * vertex * boneWeights.y;
+                        localPosition += m2 * vertex * boneWeights.z;
+                        localPosition += m3 * vertex * boneWeights.w;
                     }
                     else
                     {
@@ -341,7 +346,7 @@
 
                 uniform mat4 fyrox_worldViewProjection;
                 uniform bool fyrox_useSkeletalAnimation;
-                uniform mat4 fyrox_boneMatrices[60];
+                uniform sampler2D fyrox_boneMatrices;
 
                 out vec2 texCoord;
 
@@ -353,10 +358,15 @@
                     {
                         vec4 vertex = vec4(vertexPosition, 1.0);
 
-                        localPosition += fyrox_boneMatrices[int(boneIndices.x)] * vertex * boneWeights.x;
-                        localPosition += fyrox_boneMatrices[int(boneIndices.y)] * vertex * boneWeights.y;
-                        localPosition += fyrox_boneMatrices[int(boneIndices.z)] * vertex * boneWeights.z;
-                        localPosition += fyrox_boneMatrices[int(boneIndices.w)] * vertex * boneWeights.w;
+                        mat4 m0 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.x));
+                        mat4 m1 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.y));
+                        mat4 m2 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.z));
+                        mat4 m3 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.w));
+
+                        localPosition += m0 * vertex * boneWeights.x;
+                        localPosition += m1 * vertex * boneWeights.y;
+                        localPosition += m2 * vertex * boneWeights.z;
+                        localPosition += m3 * vertex * boneWeights.w;
                     }
                     else
                     {
@@ -412,7 +422,7 @@
 
                 uniform mat4 fyrox_worldViewProjection;
                 uniform bool fyrox_useSkeletalAnimation;
-                uniform mat4 fyrox_boneMatrices[60];
+                uniform sampler2D fyrox_boneMatrices;
 
                 out vec2 texCoord;
 
@@ -424,10 +434,15 @@
                     {
                         vec4 vertex = vec4(vertexPosition, 1.0);
 
-                        localPosition += fyrox_boneMatrices[int(boneIndices.x)] * vertex * boneWeights.x;
-                        localPosition += fyrox_boneMatrices[int(boneIndices.y)] * vertex * boneWeights.y;
-                        localPosition += fyrox_boneMatrices[int(boneIndices.z)] * vertex * boneWeights.z;
-                        localPosition += fyrox_boneMatrices[int(boneIndices.w)] * vertex * boneWeights.w;
+                        mat4 m0 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.x));
+                        mat4 m1 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.y));
+                        mat4 m2 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.z));
+                        mat4 m3 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.w));
+
+                        localPosition += m0 * vertex * boneWeights.x;
+                        localPosition += m1 * vertex * boneWeights.y;
+                        localPosition += m2 * vertex * boneWeights.z;
+                        localPosition += m3 * vertex * boneWeights.w;
                     }
                     else
                     {
@@ -484,7 +499,7 @@
                 uniform mat4 fyrox_worldMatrix;
                 uniform mat4 fyrox_worldViewProjection;
                 uniform bool fyrox_useSkeletalAnimation;
-                uniform mat4 fyrox_boneMatrices[60];
+                uniform sampler2D fyrox_boneMatrices;
 
                 out vec2 texCoord;
                 out vec3 worldPosition;
@@ -497,10 +512,15 @@
                     {
                         vec4 vertex = vec4(vertexPosition, 1.0);
 
-                        localPosition += fyrox_boneMatrices[int(boneIndices.x)] * vertex * boneWeights.x;
-                        localPosition += fyrox_boneMatrices[int(boneIndices.y)] * vertex * boneWeights.y;
-                        localPosition += fyrox_boneMatrices[int(boneIndices.z)] * vertex * boneWeights.z;
-                        localPosition += fyrox_boneMatrices[int(boneIndices.w)] * vertex * boneWeights.w;
+                        mat4 m0 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.x));
+                        mat4 m1 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.y));
+                        mat4 m2 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.z));
+                        mat4 m3 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.w));
+
+                        localPosition += m0 * vertex * boneWeights.x;
+                        localPosition += m1 * vertex * boneWeights.y;
+                        localPosition += m2 * vertex * boneWeights.z;
+                        localPosition += m3 * vertex * boneWeights.w;
                     }
                     else
                     {

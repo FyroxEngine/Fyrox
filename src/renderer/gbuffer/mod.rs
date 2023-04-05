@@ -9,16 +9,13 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
-use crate::core::sstorage::ImmutableString;
-use crate::renderer::framework::framebuffer::BlendParameters;
-use crate::renderer::framework::geometry_buffer::{GeometryBuffer, GeometryBufferKind};
-use crate::scene::decal::Decal;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
         color::Color,
         math::Rect,
         scope_profile,
+        sstorage::ImmutableString,
     },
     renderer::{
         apply_material,
@@ -26,7 +23,10 @@ use crate::{
         cache::shader::ShaderCache,
         framework::{
             error::FrameworkError,
-            framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
+            framebuffer::{
+                Attachment, AttachmentKind, BlendParameters, DrawParameters, FrameBuffer,
+            },
+            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
             gpu_program::GpuProgramBinding,
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
@@ -35,9 +35,15 @@ use crate::{
             state::{BlendFactor, BlendFunc, PipelineState},
         },
         gbuffer::decal::DecalShader,
+        storage::MatrixStorage,
         GeometryCache, MaterialContext, RenderPassStatistics, TextureCache,
     },
-    scene::{camera::Camera, graph::Graph, mesh::surface::SurfaceData, mesh::RenderPath},
+    scene::{
+        camera::Camera,
+        decal::Decal,
+        graph::Graph,
+        mesh::{surface::SurfaceData, RenderPath},
+    },
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -67,6 +73,7 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub black_dummy: Rc<RefCell<GpuTexture>>,
     pub use_parallax_mapping: bool,
     pub graph: &'b Graph,
+    pub matrix_storage: &'a mut MatrixStorage,
 }
 
 impl GBuffer {
@@ -271,6 +278,7 @@ impl GBuffer {
             normal_dummy,
             black_dummy,
             graph,
+            matrix_storage,
             ..
         } = args;
 
@@ -312,6 +320,7 @@ impl GBuffer {
                                 material: &material,
                                 program_binding: &mut program_binding,
                                 texture_cache,
+                                matrix_storage,
                                 world_matrix: &instance.world_transform,
                                 wvp_matrix: &(view_projection * instance.world_transform),
                                 bone_matrices: &instance.bone_matrices,

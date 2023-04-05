@@ -6,14 +6,14 @@
 //! For now it is used **only** to render transparent meshes (or any other mesh that has Forward render
 //! path).
 
-use crate::core::sstorage::ImmutableString;
 use crate::{
-    core::{math::Rect, scope_profile},
+    core::{math::Rect, scope_profile, sstorage::ImmutableString},
     renderer::{
         apply_material,
         batch::BatchStorage,
         cache::{shader::ShaderCache, texture::TextureCache},
         framework::{framebuffer::FrameBuffer, gpu_texture::GpuTexture, state::PipelineState},
+        storage::MatrixStorage,
         GeometryCache, MaterialContext, QualitySettings, RenderPassStatistics,
     },
     scene::{camera::Camera, mesh::RenderPath},
@@ -37,6 +37,7 @@ pub(crate) struct ForwardRenderContext<'a, 'b> {
     pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
     pub black_dummy: Rc<RefCell<GpuTexture>>,
+    pub matrix_storage: &'a mut MatrixStorage,
 }
 
 impl ForwardRenderer {
@@ -64,6 +65,7 @@ impl ForwardRenderer {
             white_dummy,
             normal_dummy,
             black_dummy,
+            matrix_storage,
         } = args;
 
         let initial_view_projection = camera.view_projection_matrix();
@@ -111,6 +113,7 @@ impl ForwardRenderer {
                                     normal_dummy: normal_dummy.clone(),
                                     white_dummy: white_dummy.clone(),
                                     black_dummy: black_dummy.clone(),
+                                    matrix_storage,
                                 });
                             },
                         );

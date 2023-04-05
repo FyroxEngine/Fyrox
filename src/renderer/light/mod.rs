@@ -1,12 +1,6 @@
-use crate::renderer::framework::framebuffer::BlendParameters;
-use crate::renderer::framework::geometry_buffer::{GeometryBuffer, GeometryBufferKind};
-use crate::renderer::shadow::csm::CsmRenderContext;
-use crate::scene::light::directional::DirectionalLight;
-use crate::scene::light::point::PointLight;
-use crate::scene::light::spot::SpotLight;
 use crate::{
     core::{
-        algebra::{Matrix4, Point3, Vector3},
+        algebra::{Matrix4, Point3, Vector2, Vector3},
         color::Color,
         math::{frustum::Frustum, Matrix4Ext, Rect, TriangleDefinition},
         scope_profile,
@@ -17,7 +11,8 @@ use crate::{
         flat_shader::FlatShader,
         framework::{
             error::FrameworkError,
-            framebuffer::{CullFace, DrawParameters, FrameBuffer},
+            framebuffer::{BlendParameters, CullFace, DrawParameters, FrameBuffer},
+            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
             gpu_texture::GpuTexture,
             state::{
                 BlendFactor, BlendFunc, ColorMask, CompareFunc, PipelineState, StencilAction,
@@ -31,16 +26,18 @@ use crate::{
         },
         light_volume::LightVolumeRenderer,
         shadow::{
-            csm::CsmRenderer,
+            csm::{CsmRenderContext, CsmRenderer},
             point::{PointShadowMapRenderContext, PointShadowMapRenderer},
             spot::SpotShadowMapRenderer,
         },
         skybox_shader::SkyboxShader,
         ssao::ScreenSpaceAmbientOcclusionRenderer,
+        storage::MatrixStorage,
         GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
     },
     scene::{
         camera::Camera,
+        light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
         mesh::{
             buffer::{TriangleBuffer, VertexBuffer},
             surface::SurfaceData,
@@ -49,7 +46,6 @@ use crate::{
         Scene,
     },
 };
-use fyrox_core::algebra::Vector2;
 use std::{
     cell::RefCell,
     fmt::{Display, Formatter},
@@ -136,6 +132,7 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
     pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub black_dummy: Rc<RefCell<GpuTexture>>,
+    pub matrix_storage: &'a mut MatrixStorage,
 }
 
 impl DeferredLightRenderer {
@@ -316,6 +313,7 @@ impl DeferredLightRenderer {
             batch_storage,
             frame_buffer,
             black_dummy,
+            matrix_storage,
         } = args;
 
         let viewport = Rect::new(0, 0, gbuffer.width, gbuffer.height);
@@ -530,6 +528,7 @@ impl DeferredLightRenderer {
                         normal_dummy.clone(),
                         white_dummy.clone(),
                         black_dummy.clone(),
+                        matrix_storage,
                     );
 
                     light_stats.spot_shadow_maps_rendered += 1;
@@ -548,6 +547,7 @@ impl DeferredLightRenderer {
                                 normal_dummy: normal_dummy.clone(),
                                 white_dummy: white_dummy.clone(),
                                 black_dummy: black_dummy.clone(),
+                                matrix_storage,
                             });
 
                     light_stats.point_shadow_maps_rendered += 1;
@@ -565,6 +565,7 @@ impl DeferredLightRenderer {
                         normal_dummy: normal_dummy.clone(),
                         white_dummy: white_dummy.clone(),
                         black_dummy: black_dummy.clone(),
+                        matrix_storage,
                     });
 
                     light_stats.csm_rendered += 1;

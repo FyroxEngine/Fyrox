@@ -17,6 +17,7 @@ use crate::{
             },
             state::{ColorMask, PipelineState},
         },
+        storage::MatrixStorage,
         MaterialContext, RenderPassStatistics, ShadowMapPrecision,
     },
     scene::{
@@ -107,6 +108,7 @@ pub(crate) struct CsmRenderContext<'a, 'c> {
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
     pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub black_dummy: Rc<RefCell<GpuTexture>>,
+    pub matrix_storage: &'a mut MatrixStorage,
 }
 
 impl CsmRenderer {
@@ -155,6 +157,7 @@ impl CsmRenderer {
             normal_dummy,
             white_dummy,
             black_dummy,
+            matrix_storage,
         } = ctx;
 
         let light_direction = -light
@@ -282,6 +285,7 @@ impl CsmRenderer {
                                     material: &material,
                                     program_binding: &mut program_binding,
                                     texture_cache,
+                                    matrix_storage,
                                     world_matrix: &instance.world_transform,
                                     wvp_matrix: &(light_view_projection * instance.world_transform),
                                     bone_matrices: &instance.bone_matrices,

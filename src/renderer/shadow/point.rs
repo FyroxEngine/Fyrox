@@ -20,6 +20,7 @@ use crate::{
             state::PipelineState,
         },
         shadow::{cascade_size, should_cast_shadows},
+        storage::MatrixStorage,
         GeometryCache, MaterialContext, RenderPassStatistics, ShadowMapPrecision,
     },
 };
@@ -51,6 +52,7 @@ pub(crate) struct PointShadowMapRenderContext<'a> {
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
     pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub black_dummy: Rc<RefCell<GpuTexture>>,
+    pub matrix_storage: &'a mut MatrixStorage,
 }
 
 impl PointShadowMapRenderer {
@@ -200,6 +202,7 @@ impl PointShadowMapRenderer {
             normal_dummy,
             white_dummy,
             black_dummy,
+            matrix_storage,
         } = args;
 
         let framebuffer = &mut self.cascades[cascade];
@@ -250,6 +253,7 @@ impl PointShadowMapRenderer {
                                         material: &material,
                                         program_binding: &mut program_binding,
                                         texture_cache,
+                                        matrix_storage,
                                         world_matrix: &instance.world_transform,
                                         wvp_matrix: &(light_view_projection_matrix
                                             * instance.world_transform),

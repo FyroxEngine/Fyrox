@@ -1,17 +1,15 @@
-use crate::core::sstorage::ImmutableString;
 use crate::{
     core::{
-        algebra::Matrix2,
-        algebra::{Matrix3, Matrix4, Vector2, Vector3, Vector4},
+        algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,
+        sstorage::ImmutableString,
     },
     renderer::framework::{error::FrameworkError, gpu_texture::GpuTexture, state::PipelineState},
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
 use glow::HasContext;
-use std::ops::Deref;
-use std::{cell::RefCell, marker::PhantomData, rc::Rc};
+use std::{cell::RefCell, marker::PhantomData, ops::Deref, rc::Rc};
 
 pub struct GpuProgram {
     state: *mut PipelineState,
@@ -122,6 +120,10 @@ pub struct GpuProgramBinding<'a, 'b> {
 impl<'a, 'b> GpuProgramBinding<'a, 'b> {
     pub fn uniform_location(&self, name: &ImmutableString) -> Option<UniformLocation> {
         self.program.uniform_location_internal(self.state, name)
+    }
+
+    pub fn active_sampler(&self) -> u32 {
+        self.active_sampler
     }
 
     #[inline(always)]
