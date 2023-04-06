@@ -883,10 +883,12 @@ impl<'a> VertexReadTrait for VertexViewMut<'a> {
 }
 
 impl<'a> VertexWriteTrait for VertexViewMut<'a> {
+    #[inline(always)]
     fn data_layout_mut(&mut self) -> (&mut [u8], &[Option<VertexAttribute>]) {
         (self.vertex_data, self.sparse_layout)
     }
 
+    #[inline(always)]
     fn write_2_f32(
         &mut self,
         usage: VertexAttributeUsage,
@@ -902,6 +904,7 @@ impl<'a> VertexWriteTrait for VertexViewMut<'a> {
         }
     }
 
+    #[inline(always)]
     fn write_3_f32(
         &mut self,
         usage: VertexAttributeUsage,
@@ -918,6 +921,7 @@ impl<'a> VertexWriteTrait for VertexViewMut<'a> {
         }
     }
 
+    #[inline(always)]
     fn write_4_f32(
         &mut self,
         usage: VertexAttributeUsage,
@@ -935,6 +939,7 @@ impl<'a> VertexWriteTrait for VertexViewMut<'a> {
         }
     }
 
+    #[inline(always)]
     fn write_4_u8(
         &mut self,
         usage: VertexAttributeUsage,
