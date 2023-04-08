@@ -2,13 +2,17 @@
 
 use clap::{Parser, Subcommand};
 use convert_case::{Case, Casing};
+use lazy_static::lazy_static;
+use regex::Regex;
 use std::{
+    collections::HashMap,
     fmt::Display,
     fs::{create_dir_all, remove_dir_all, File},
-    io::Write,
+    io::{Read, Write},
     path::Path,
-    process::Command,
+    process::{exit, Command},
 };
+use toml_edit::{table, value, Document};
 use uuid::Uuid;
 
 #[derive(Parser, Debug)]
@@ -35,6 +39,32 @@ enum Commands {
         #[clap(short, long, default_value = "MyScript")]
         name: String,
     },
+    /// Updates project's engine version to specified. It could be latest stable version,
+    /// nightly (latest from GitHub), or specific version in 'major.minor.patch' SemVer format.
+    #[clap(arg_required_else_help = true)]
+    Upgrade {
+        #[clap(short, long)]
+        version: String,
+    },
+}
+
+lazy_static! {
+    static ref CURRENT_ENGINE_VERSION: String = {
+        let engine_manifest = include_str!("../../Cargo.toml");
+        let table = engine_manifest.parse::<toml::Table>().unwrap();
+        table["package"].as_table().unwrap()["version"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    };
+    static ref CURRENT_EDITOR_VERSION: String = {
+        let editor_manifest = include_str!("../../editor/Cargo.toml");
+        let table = editor_manifest.parse::<toml::Table>().unwrap();
+        table["package"].as_table().unwrap()["version"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    };
 }
 
 fn write_file<P: AsRef<Path>, S: AsRef<str>>(path: P, content: S) {
@@ -103,19 +133,20 @@ fn init_game(base_path: &Path, name: &str) {
         .output()
         .unwrap();
 
+    let engine_version = &*CURRENT_ENGINE_VERSION;
+
     // Write Cargo.toml
     write_file(
         base_path.join("game/Cargo.toml"),
         format!(
             r#"
 [package]
-name = "{}"
+name = "{name}"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fyrox = "0.29""#,
-            name,
+fyrox = "{engine_version}""#,
         ),
     );
 
@@ -221,6 +252,8 @@ fn init_executor(base_path: &Path, name: &str) {
         .output()
         .unwrap();
 
+    let engine_version = &*CURRENT_ENGINE_VERSION;
+
     // Write Cargo.toml
     write_file(
         base_path.join("executor/Cargo.toml"),
@@ -232,9 +265,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fyrox = "0.29"
-{} = {{ path = "../game" }}"#,
-            name,
+fyrox = "{engine_version}"
+{name} = {{ path = "../game" }}"#,
         ),
     );
 
@@ -263,6 +295,8 @@ fn init_wasm_executor(base_path: &Path, name: &str) {
         .output()
         .unwrap();
 
+    let engine_version = &*CURRENT_ENGINE_VERSION;
+
     // Write Cargo.toml
     write_file(
         base_path.join("executor-wasm/Cargo.toml"),
@@ -277,9 +311,8 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-fyrox = "0.29"
-{} = {{ path = "../game" }}"#,
-            name,
+fyrox = "{engine_version}"
+{name} = {{ path = "../game" }}"#,
         ),
     );
 
@@ -369,6 +402,9 @@ fn init_editor(base_path: &Path, name: &str) {
         .output()
         .unwrap();
 
+    let engine_version = &*CURRENT_ENGINE_VERSION;
+    let editor_version = &*CURRENT_EDITOR_VERSION;
+
     // Write Cargo.toml
     write_file(
         base_path.join("editor/Cargo.toml"),
@@ -380,10 +416,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fyrox = "0.29"
-fyroxed_base = "0.16"
-{} = {{ path = "../game" }}"#,
-            name,
+fyrox = "{engine_version}"
+fyroxed_base = "{editor_version}"
+{name} = {{ path = "../game" }}"#,
         ),
     );
 
@@ -635,6 +670,89 @@ fn main() {
         }
         Commands::Script { name } => {
             init_script(&name);
+        }
+        Commands::Upgrade { version } => {
+            let engine_version = &*CURRENT_ENGINE_VERSION;
+            let editor_version = &*CURRENT_EDITOR_VERSION;
+
+            let semver_regex = Regex::new(include_str!("regex")).unwrap();
+
+            if version != "latest" && version != "nightly" && !semver_regex.is_match(&version) {
+                println!(
+                        "Invalid version: {version}. Please specify one of the following:\n\
+                    \tnightly - uses latest nightly version of the engine from GitHub directly.\
+                    \tlatest - uses latest stable version of the engine.\n\
+                    \tmajor.minor.patch - uses specific stable version from crates.io (0.29.0 for example).",
+                    );
+                exit(1);
+            }
+
+            // Engine -> Editor version mapping.
+            let editor_versions = [
+                ("0.29.0".to_string(), "0.16.0".to_string()),
+                ("0.28.0".to_string(), "0.15.0".to_string()),
+                ("0.27.1".to_string(), "0.14.1".to_string()),
+                ("0.27.0".to_string(), "0.14.0".to_string()),
+                ("0.26.0".to_string(), "0.13.0".to_string()),
+            ]
+            .into_iter()
+            .collect::<HashMap<String, String>>();
+
+            for (path, is_editor) in [
+                ("game/Cargo.toml", false),
+                ("editor/Cargo.toml", true),
+                ("executor/Cargo.toml", false),
+                ("executor-android/Cargo.toml", false),
+                ("executor-wasm/Cargo.toml", false),
+            ] {
+                // Some executors might be missing if user decided to not use them, so here we check if
+                // manifest exists.
+                if let Ok(mut file) = File::open(path) {
+                    let mut toml = String::new();
+                    if file.read_to_string(&mut toml).is_ok() {
+                        drop(file);
+
+                        if let Ok(mut document) = toml.parse::<Document>() {
+                            if let Some(dependencies) = document
+                                .get_mut("dependencies")
+                                .and_then(|i| i.as_table_mut())
+                            {
+                                if version == "latest" {
+                                    dependencies["fyrox"] = value(engine_version);
+                                    if is_editor {
+                                        dependencies["fyroxed_base"] = value(editor_version);
+                                    }
+                                } else if version == "nightly" {
+                                    let mut table = table();
+                                    table["git"] = value("https://github.com/FyroxEngine/Fyrox");
+
+                                    dependencies["fyrox"] = table.clone();
+                                    if is_editor {
+                                        dependencies["fyroxed_base"] = table;
+                                    }
+                                } else {
+                                    dependencies["fyrox"] = value(version.clone());
+                                    if is_editor {
+                                        if let Some(editor_version) = editor_versions.get(&version)
+                                        {
+                                            dependencies["fyroxed_base"] = value(editor_version);
+                                        } else {
+                                            println!("WARNING: matching editor version not found!");
+                                        }
+                                    }
+                                }
+                            }
+
+                            let mut file = File::create(path).unwrap();
+                            file.write_all(document.to_string().as_bytes()).unwrap();
+                        }
+                    }
+                }
+            }
+
+            Command::new("cargo").args(["update"]).output().unwrap();
+
+            println!("Fyrox version was successfully set to '{}'!", version);
         }
     }
 }
