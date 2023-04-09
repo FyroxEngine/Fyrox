@@ -7,7 +7,6 @@
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
-        arrayvec::ArrayVec,
         hash_combine,
         math::TriangleDefinition,
         parking_lot::{Mutex, MutexGuard},
@@ -30,7 +29,7 @@ use crate::{
     },
     utils::raw_mesh::{RawMesh, RawMeshBuilder},
 };
-use fxhash::FxHasher;
+use fxhash::{FxHashMap, FxHasher};
 use std::{error::Error, hash::Hasher, sync::Arc};
 
 /// A target shape for blending.
@@ -38,8 +37,9 @@ use std::{error::Error, hash::Hasher, sync::Arc};
 pub struct BlendShape {
     /// Weight of the shape.
     pub weight: f32,
-    /// Vertex buffer, that contains target vertex properties (usually just position, normals, tangets).
-    pub vertex_buffer: VertexBuffer,
+    pub positions: FxHashMap<u32, Vector3<f32>>,
+    pub normals: FxHashMap<u32, Vector3<f32>>,
+    pub tangents: FxHashMap<u32, Vector3<f32>>,
     /// A name of the shape.
     pub name: String,
 }
@@ -48,8 +48,10 @@ impl Default for BlendShape {
     fn default() -> Self {
         Self {
             weight: 1.0,
+            positions: Default::default(),
+            normals: Default::default(),
+            tangents: Default::default(),
             name: Default::default(),
-            vertex_buffer: Default::default(),
         }
     }
 }
@@ -99,82 +101,59 @@ impl SurfaceData {
     /// Tries to apply blend shapes (if any) to the surface data.   
     pub fn apply_blend_shapes(&mut self) -> Result<(), Box<dyn Error>> {
         if let Some(container) = self.blend_shapes_container.as_ref() {
-            let mut blend_shapes = ArrayVec::<(&VertexBuffer, f32), 128>::new();
-
-            for blend_shape in container.blend_shapes.iter() {
-                assert_eq!(
-                    blend_shape.vertex_buffer.vertex_count(),
-                    self.vertex_buffer.vertex_count()
-                );
-
-                blend_shapes.push((&blend_shape.vertex_buffer, blend_shape.weight / 100.0));
-            }
-
-            // TODO: For now assume that blend shapes can only have positions, normals, tangents.
             let mut vertex_buffer = self.vertex_buffer.modify();
 
             let has_position = vertex_buffer.has_attribute(VertexAttributeUsage::Position);
             let has_normal = vertex_buffer.has_attribute(VertexAttributeUsage::Normal);
             let has_tangent = vertex_buffer.has_attribute(VertexAttributeUsage::Tangent);
 
-            for (i, (mut vertex, base_vertex)) in
-                (vertex_buffer.iter_mut().zip(container.base_shape.iter())).enumerate()
-            {
-                if has_position {
-                    let base_position = base_vertex.read_3_f32(VertexAttributeUsage::Position)?;
-                    let mut position = base_position;
+            for blend_shape in container.blend_shapes.iter() {
+                let weight = blend_shape.weight / 100.0;
 
-                    for (blend_shape_vertex_buffer, weight) in blend_shapes.iter() {
-                        let blend_shape_vertex = blend_shape_vertex_buffer
-                            .get(i)
-                            .expect("Validation failed!");
-
-                        position += (blend_shape_vertex
-                            .read_3_f32(VertexAttributeUsage::Position)
-                            .expect("Validation failed")
-                            - base_position)
-                            .scale(*weight);
+                if weight.abs() > 5.0 * f32::EPSILON {
+                    if has_position {
+                        for (index, position) in blend_shape.positions.iter() {
+                            if let (Some(mut vertex), Some(base_vertex)) = (
+                                vertex_buffer.get_mut(*index as usize),
+                                container.base_shape.get(*index as usize),
+                            ) {
+                                vertex.write_3_f32(
+                                    VertexAttributeUsage::Position,
+                                    base_vertex.read_3_f32(VertexAttributeUsage::Position)?
+                                        + position.scale(weight),
+                                )?;
+                            }
+                        }
                     }
-
-                    vertex.write_3_f32(VertexAttributeUsage::Position, position)?;
-                }
-
-                if has_normal {
-                    let base_normal = base_vertex.read_3_f32(VertexAttributeUsage::Normal)?;
-                    let mut normal = base_normal;
-
-                    for (blend_shape_vertex_buffer, weight) in blend_shapes.iter() {
-                        let blend_shape_vertex = blend_shape_vertex_buffer
-                            .get(i)
-                            .expect("Validation failed!");
-
-                        normal += (blend_shape_vertex
-                            .read_3_f32(VertexAttributeUsage::Normal)
-                            .expect("Validation failed")
-                            - base_normal)
-                            .scale(*weight);
+                    if has_normal {
+                        for (index, normal) in blend_shape.normals.iter() {
+                            if let (Some(mut vertex), Some(base_vertex)) = (
+                                vertex_buffer.get_mut(*index as usize),
+                                container.base_shape.get(*index as usize),
+                            ) {
+                                vertex.write_3_f32(
+                                    VertexAttributeUsage::Normal,
+                                    base_vertex.read_3_f32(VertexAttributeUsage::Normal)?
+                                        + normal.scale(weight),
+                                )?;
+                            }
+                        }
                     }
-
-                    vertex.write_3_f32(VertexAttributeUsage::Normal, normal)?;
-                }
-
-                if has_tangent {
-                    let base_tangent = base_vertex.read_4_f32(VertexAttributeUsage::Tangent)?;
-                    let mut tangent = base_tangent;
-
-                    for (blend_shape_vertex_buffer, weight) in blend_shapes.iter() {
-                        let blend_shape_vertex = blend_shape_vertex_buffer
-                            .get(i)
-                            .expect("Validation failed!");
-
-                        tangent += (blend_shape_vertex
-                            .read_4_f32(VertexAttributeUsage::Tangent)
-                            .expect("Validation failed")
-                            - base_tangent)
-                            .scale(*weight);
+                    if has_tangent {
+                        for (index, tangent) in blend_shape.tangents.iter() {
+                            if let (Some(mut vertex), Some(base_vertex)) = (
+                                vertex_buffer.get_mut(*index as usize),
+                                container.base_shape.get(*index as usize),
+                            ) {
+                                vertex.write_4_f32(
+                                    VertexAttributeUsage::Tangent,
+                                    base_vertex.read_4_f32(VertexAttributeUsage::Tangent)?
+                                        + Vector4::new(tangent.x, tangent.y, tangent.z, 0.0)
+                                            .scale(weight),
+                                )?;
+                            }
+                        }
                     }
-
-                    vertex.write_4_f32(VertexAttributeUsage::Tangent, tangent)?;
                 }
             }
         }

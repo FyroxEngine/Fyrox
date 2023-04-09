@@ -6,20 +6,20 @@
 //! almost every GPU supports up to 16 vertex attributes with 16 bytes of size each, which
 //! gives exactly 256 bytes.
 
-use crate::core::math::TriangleDefinition;
 use crate::{
     core::{
         algebra::{Vector2, Vector3, Vector4},
         arrayvec::ArrayVec,
-        byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt},
+        byteorder::{ByteOrder, LittleEndian},
         futures::io::Error,
+        math::TriangleDefinition,
         visitor::prelude::*,
     },
     utils::value_as_u8_slice,
 };
 use fxhash::FxHasher;
-use std::fmt::{Display, Formatter};
 use std::{
+    fmt::{Display, Formatter},
     hash::{Hash, Hasher},
     marker::PhantomData,
     mem::MaybeUninit,
@@ -782,8 +782,8 @@ pub trait VertexReadTrait {
     fn read_2_f32(&self, usage: VertexAttributeUsage) -> Result<Vector2<f32>, VertexFetchError> {
         let (data, layout) = self.data_layout_ref();
         if let Some(attribute) = layout.get(usage as usize).unwrap() {
-            let x = (&data[(attribute.offset as usize)..]).read_f32::<LittleEndian>()?;
-            let y = (&data[(attribute.offset as usize + 4)..]).read_f32::<LittleEndian>()?;
+            let x = LittleEndian::read_f32(&data[(attribute.offset as usize)..]);
+            let y = LittleEndian::read_f32(&data[(attribute.offset as usize + 4)..]);
             Ok(Vector2::new(x, y))
         } else {
             Err(VertexFetchError::NoSuchAttribute(usage))
@@ -795,9 +795,9 @@ pub trait VertexReadTrait {
     fn read_3_f32(&self, usage: VertexAttributeUsage) -> Result<Vector3<f32>, VertexFetchError> {
         let (data, layout) = self.data_layout_ref();
         if let Some(attribute) = layout.get(usage as usize).unwrap() {
-            let x = (&data[(attribute.offset as usize)..]).read_f32::<LittleEndian>()?;
-            let y = (&data[(attribute.offset as usize + 4)..]).read_f32::<LittleEndian>()?;
-            let z = (&data[(attribute.offset as usize + 8)..]).read_f32::<LittleEndian>()?;
+            let x = LittleEndian::read_f32(&data[(attribute.offset as usize)..]);
+            let y = LittleEndian::read_f32(&data[(attribute.offset as usize + 4)..]);
+            let z = LittleEndian::read_f32(&data[(attribute.offset as usize + 8)..]);
             Ok(Vector3::new(x, y, z))
         } else {
             Err(VertexFetchError::NoSuchAttribute(usage))
@@ -809,10 +809,10 @@ pub trait VertexReadTrait {
     fn read_4_f32(&self, usage: VertexAttributeUsage) -> Result<Vector4<f32>, VertexFetchError> {
         let (data, layout) = self.data_layout_ref();
         if let Some(attribute) = layout.get(usage as usize).unwrap() {
-            let x = (&data[(attribute.offset as usize)..]).read_f32::<LittleEndian>()?;
-            let y = (&data[(attribute.offset as usize + 4)..]).read_f32::<LittleEndian>()?;
-            let z = (&data[(attribute.offset as usize + 8)..]).read_f32::<LittleEndian>()?;
-            let w = (&data[(attribute.offset as usize + 12)..]).read_f32::<LittleEndian>()?;
+            let x = LittleEndian::read_f32(&data[(attribute.offset as usize)..]);
+            let y = LittleEndian::read_f32(&data[(attribute.offset as usize + 4)..]);
+            let z = LittleEndian::read_f32(&data[(attribute.offset as usize + 8)..]);
+            let w = LittleEndian::read_f32(&data[(attribute.offset as usize + 12)..]);
             Ok(Vector4::new(x, y, z, w))
         } else {
             Err(VertexFetchError::NoSuchAttribute(usage))
@@ -896,8 +896,8 @@ impl<'a> VertexWriteTrait for VertexViewMut<'a> {
     ) -> Result<(), VertexFetchError> {
         let (data, layout) = self.data_layout_mut();
         if let Some(attribute) = layout.get(usage as usize).unwrap() {
-            (&mut data[(attribute.offset as usize)..]).write_f32::<LittleEndian>(value.x)?;
-            (&mut data[(attribute.offset as usize + 4)..]).write_f32::<LittleEndian>(value.y)?;
+            LittleEndian::write_f32(&mut data[(attribute.offset as usize)..], value.x);
+            LittleEndian::write_f32(&mut data[(attribute.offset as usize + 4)..], value.y);
             Ok(())
         } else {
             Err(VertexFetchError::NoSuchAttribute(usage))
@@ -912,9 +912,9 @@ impl<'a> VertexWriteTrait for VertexViewMut<'a> {
     ) -> Result<(), VertexFetchError> {
         let (data, layout) = self.data_layout_mut();
         if let Some(attribute) = layout.get(usage as usize).unwrap() {
-            (&mut data[(attribute.offset as usize)..]).write_f32::<LittleEndian>(value.x)?;
-            (&mut data[(attribute.offset as usize + 4)..]).write_f32::<LittleEndian>(value.y)?;
-            (&mut data[(attribute.offset as usize + 8)..]).write_f32::<LittleEndian>(value.z)?;
+            LittleEndian::write_f32(&mut data[(attribute.offset as usize)..], value.x);
+            LittleEndian::write_f32(&mut data[(attribute.offset as usize + 4)..], value.y);
+            LittleEndian::write_f32(&mut data[(attribute.offset as usize + 8)..], value.z);
             Ok(())
         } else {
             Err(VertexFetchError::NoSuchAttribute(usage))
@@ -929,10 +929,10 @@ impl<'a> VertexWriteTrait for VertexViewMut<'a> {
     ) -> Result<(), VertexFetchError> {
         let (data, layout) = self.data_layout_mut();
         if let Some(attribute) = layout.get(usage as usize).unwrap() {
-            (&mut data[(attribute.offset as usize)..]).write_f32::<LittleEndian>(value.x)?;
-            (&mut data[(attribute.offset as usize + 4)..]).write_f32::<LittleEndian>(value.y)?;
-            (&mut data[(attribute.offset as usize + 8)..]).write_f32::<LittleEndian>(value.z)?;
-            (&mut data[(attribute.offset as usize + 12)..]).write_f32::<LittleEndian>(value.w)?;
+            LittleEndian::write_f32(&mut data[(attribute.offset as usize)..], value.x);
+            LittleEndian::write_f32(&mut data[(attribute.offset as usize + 4)..], value.y);
+            LittleEndian::write_f32(&mut data[(attribute.offset as usize + 8)..], value.z);
+            LittleEndian::write_f32(&mut data[(attribute.offset as usize + 12)..], value.w);
             Ok(())
         } else {
             Err(VertexFetchError::NoSuchAttribute(usage))

@@ -42,7 +42,7 @@ use crate::{
         base::{BaseBuilder, InstanceId},
         graph::Graph,
         mesh::{
-            buffer::{VertexAttributeUsage, VertexBuffer, VertexReadTrait, VertexWriteTrait},
+            buffer::{VertexAttributeUsage, VertexBuffer, VertexWriteTrait},
             surface::{
                 BlendShape, BlendShapesContainer, Surface, SurfaceData, SurfaceSharedData,
                 VertexWeightSet,
@@ -253,94 +253,27 @@ impl FbxMeshBuilder {
     }
 }
 
-#[derive(Default, Clone)]
-struct VertexOffsets {
-    position: Vector3<f32>,
-    normal: Vector3<f32>,
-    tangent: Vector3<f32>,
-}
-
-#[derive(Clone)]
-struct BlendShapeBuilder {
-    name: String,
-    vertex_offsets: FxHashMap<usize, VertexOffsets>,
-    weight: f32,
-}
-
 #[derive(Clone)]
 struct FbxSurfaceData {
     base_mesh_builder: FbxMeshBuilder,
-    blend_shape_mesh_builders: Vec<BlendShapeBuilder>,
+    blend_shapes: Vec<BlendShape>,
     skin_data: Vec<VertexWeightSet>,
 }
 
 fn make_blend_shapes_container(
     base_shape: &VertexBuffer,
-    builders: Vec<BlendShapeBuilder>,
+    mut blend_shapes: Vec<BlendShape>,
 ) -> Option<BlendShapesContainer> {
-    if builders.is_empty() {
+    if blend_shapes.is_empty() {
         None
     } else {
-        let shapes = builders
-            .into_iter()
-            .map(|b| {
-                let mut vertex_buffer = base_shape.clone();
-
-                // Apply the offsets.
-                let has_position = vertex_buffer.has_attribute(VertexAttributeUsage::Position);
-                let has_normal = vertex_buffer.has_attribute(VertexAttributeUsage::Normal);
-                let has_tangent = vertex_buffer.has_attribute(VertexAttributeUsage::Tangent);
-
-                for (i, mut v) in vertex_buffer.modify().iter_mut().enumerate() {
-                    if let Some(offsets) = b.vertex_offsets.get(&i) {
-                        if has_position {
-                            if let Ok(position) = v.read_3_f32(VertexAttributeUsage::Position) {
-                                v.write_3_f32(
-                                    VertexAttributeUsage::Position,
-                                    position + offsets.position,
-                                )
-                                .unwrap();
-                            }
-                        }
-
-                        if has_normal {
-                            if let Ok(normal) = v.read_3_f32(VertexAttributeUsage::Normal) {
-                                v.write_3_f32(
-                                    VertexAttributeUsage::Normal,
-                                    normal + offsets.normal,
-                                )
-                                .unwrap();
-                            }
-                        }
-
-                        if has_tangent {
-                            if let Ok(tangent) = v.read_4_f32(VertexAttributeUsage::Tangent) {
-                                v.write_4_f32(
-                                    VertexAttributeUsage::Tangent,
-                                    tangent
-                                        + Vector4::new(
-                                            offsets.tangent.x,
-                                            offsets.tangent.y,
-                                            offsets.tangent.z,
-                                            0.0,
-                                        ),
-                                )
-                                .unwrap();
-                            }
-                        }
-                    }
-                }
-
-                BlendShape {
-                    vertex_buffer,
-                    weight: b.weight,
-                    name: b.name,
-                }
-            })
-            .collect();
-
+        for blend_shape in blend_shapes.iter_mut() {
+            blend_shape.positions.shrink_to_fit();
+            blend_shape.normals.shrink_to_fit();
+            blend_shape.tangents.shrink_to_fit();
+        }
         Some(BlendShapesContainer {
-            blend_shapes: shapes,
+            blend_shapes,
             base_shape: base_shape.clone(),
         })
     }
@@ -361,10 +294,8 @@ async fn create_surfaces(
         assert_eq!(data_set.len(), 1);
         let data = data_set.into_iter().next().unwrap();
         let mut surface_data = data.base_mesh_builder.build();
-        surface_data.blend_shapes_container = make_blend_shapes_container(
-            &surface_data.vertex_buffer,
-            data.blend_shape_mesh_builders,
-        );
+        surface_data.blend_shapes_container =
+            make_blend_shapes_container(&surface_data.vertex_buffer, data.blend_shapes);
         let mut surface = Surface::new(SurfaceSharedData::new(surface_data));
         surface.vertex_weights = data.skin_data;
         surfaces.push(surface);
@@ -372,10 +303,8 @@ async fn create_surfaces(
         assert_eq!(data_set.len(), model.materials.len());
         for (&material_handle, data) in model.materials.iter().zip(data_set.into_iter()) {
             let mut surface_data = data.base_mesh_builder.build();
-            surface_data.blend_shapes_container = make_blend_shapes_container(
-                &surface_data.vertex_buffer,
-                data.blend_shape_mesh_builders,
-            );
+            surface_data.blend_shapes_container =
+                make_blend_shapes_container(&surface_data.vertex_buffer, data.blend_shapes);
             let mut surface = Surface::new(SurfaceSharedData::new(surface_data));
             surface.vertex_weights = data.skin_data;
             let material = fbx_scene.get(material_handle).as_material()?;
@@ -536,13 +465,15 @@ async fn convert_mesh(
                 } else {
                     FbxMeshBuilder::Animated(RawMeshBuilder::new(1024, 1024))
                 },
-                blend_shape_mesh_builders: blend_shapes
+                blend_shapes: blend_shapes
                     .iter()
                     .map(|bs_channel| {
-                        BlendShapeBuilder {
+                        BlendShape {
                             name: bs_channel.name.clone(),
-                            vertex_offsets: Default::default(),
                             weight: bs_channel.deform_percent,
+                            positions: Default::default(),
+                            normals: Default::default(),
+                            tangents: Default::default(),
                         }
                     })
                     .collect(),
@@ -593,33 +524,33 @@ async fn convert_mesh(
                     }
 
                     // Fill each blend shape, but modify the vertex first using the "offsets" from blend shapes.
-                    assert_eq!(blend_shapes.len(), data.blend_shape_mesh_builders.len());
-                    for (blend_shape, blend_shape_builder) in blend_shapes
-                        .iter()
-                        .zip(data.blend_shape_mesh_builders.iter_mut())
+                    assert_eq!(blend_shapes.len(), data.blend_shapes.len());
+                    for (fbx_blend_shape, blend_shape) in
+                        blend_shapes.iter().zip(data.blend_shapes.iter_mut())
                     {
-                        let blend_shape_geometry =
-                            fbx_scene.get(blend_shape.geometry).as_shape_geometry()?;
+                        let blend_shape_geometry = fbx_scene
+                            .get(fbx_blend_shape.geometry)
+                            .as_shape_geometry()?;
 
                         // Only certain vertices are affected by a blend shape, because FBX stores only changed
                         // parts ("diff").
                         if let Some(relative_index) =
                             blend_shape_geometry.indices.get(&(index as i32))
                         {
-                            let mut vertex_offsets = VertexOffsets::default();
-
-                            let relative_index = *relative_index as usize;
-                            vertex_offsets.position = blend_shape_geometry.vertices[relative_index];
+                            blend_shape.positions.insert(
+                                final_index as u32,
+                                blend_shape_geometry.vertices[*relative_index as usize],
+                            );
                             if let Some(normals) = blend_shape_geometry.normals.as_ref() {
-                                vertex_offsets.normal = normals[relative_index];
+                                blend_shape
+                                    .normals
+                                    .insert(final_index as u32, normals[*relative_index as usize]);
                             }
                             if let Some(tangents) = blend_shape_geometry.tangents.as_ref() {
-                                vertex_offsets.tangent = tangents[relative_index];
+                                blend_shape
+                                    .normals
+                                    .insert(final_index as u32, tangents[*relative_index as usize]);
                             }
-
-                            blend_shape_builder
-                                .vertex_offsets
-                                .insert(final_index, vertex_offsets);
                         }
                     }
                 }
