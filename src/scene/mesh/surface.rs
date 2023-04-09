@@ -37,8 +37,11 @@ use std::{error::Error, hash::Hasher, sync::Arc};
 pub struct BlendShape {
     /// Weight of the shape.
     pub weight: f32,
+    /// An `index -> position` map. Could be empty if the blend shape does not change positions.
     pub positions: FxHashMap<u32, Vector3<f32>>,
+    /// An `index -> normal` map. Could be empty if the blend shape does not change normals.
     pub normals: FxHashMap<u32, Vector3<f32>>,
+    /// An `index -> tangent` map. Could be empty if the blend shape does not change tangents.
     pub tangents: FxHashMap<u32, Vector3<f32>>,
     /// A name of the shape.
     pub name: String,
