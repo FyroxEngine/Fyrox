@@ -17,6 +17,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     material::{Material, SharedMaterial},
+    resource::texture::{Texture, TextureKind, TexturePixelKind},
     scene::{
         mesh::{
             buffer::{
@@ -27,33 +28,30 @@ use crate::{
         },
         node::Node,
     },
-    utils::raw_mesh::{RawMesh, RawMeshBuilder},
+    utils::{
+        self,
+        raw_mesh::{RawMesh, RawMeshBuilder},
+    },
 };
 use fxhash::{FxHashMap, FxHasher};
-use std::{error::Error, hash::Hasher, sync::Arc};
+use half::f16;
+use std::{hash::Hasher, sync::Arc};
 
 /// A target shape for blending.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Visit, Reflect, PartialEq)]
 pub struct BlendShape {
     /// Weight of the shape.
+    #[reflect(min_value = 0.0, max_value = 100.0, step = 1.0)]
     pub weight: f32,
-    /// An `index -> position` map. Could be empty if the blend shape does not change positions.
-    pub positions: FxHashMap<u32, Vector3<f32>>,
-    /// An `index -> normal` map. Could be empty if the blend shape does not change normals.
-    pub normals: FxHashMap<u32, Vector3<f32>>,
-    /// An `index -> tangent` map. Could be empty if the blend shape does not change tangents.
-    pub tangents: FxHashMap<u32, Vector3<f32>>,
     /// A name of the shape.
+    #[reflect(read_only)]
     pub name: String,
 }
 
 impl Default for BlendShape {
     fn default() -> Self {
         Self {
-            weight: 1.0,
-            positions: Default::default(),
-            normals: Default::default(),
-            tangents: Default::default(),
+            weight: 100.0,
             name: Default::default(),
         }
     }
@@ -62,10 +60,133 @@ impl Default for BlendShape {
 /// A container for multiple blend shapes/
 #[derive(Debug, Clone, Default)]
 pub struct BlendShapesContainer {
-    /// Base shape which will be used as a binding pose to calculate offsets for each blend shape.
-    pub base_shape: VertexBuffer,
     /// A list of blend shapes.
     pub blend_shapes: Vec<BlendShape>,
+    /// A volume texture that stores all blend shapes at once.
+    pub blend_shape_storage: Option<Texture>,
+}
+
+/// A set of offsets for particular vertices.
+#[derive(Clone)]
+pub struct InputBlendShapeData {
+    /// Weight of the shape.
+    pub default_weight: f32,
+    /// A name of the shape.
+    pub name: String,
+    /// An `index -> position` map. Could be empty if the blend shape does not change positions.
+    pub positions: FxHashMap<u32, Vector3<f16>>,
+    /// An `index -> normal` map. Could be empty if the blend shape does not change normals.
+    pub normals: FxHashMap<u32, Vector3<f16>>,
+    /// An `index -> tangent` map. Could be empty if the blend shape does not change tangents.
+    pub tangents: FxHashMap<u32, Vector3<f16>>,
+}
+
+impl BlendShapesContainer {
+    /// Packs all blend shapes into one volume texture.
+    pub fn from_lists(
+        base_shape: &VertexBuffer,
+        input_blend_shapes: &[InputBlendShapeData],
+    ) -> Self {
+        #[repr(C)]
+        #[derive(Default, Clone, Copy)]
+        struct VertexData {
+            position: Vector3<f16>,
+            normal: Vector3<f16>,
+            tangent: Vector3<f16>,
+        }
+
+        #[inline]
+        fn coord_to_index(x: usize, y: usize, z: usize, width: usize, height: usize) -> usize {
+            z * width * height + y * width + x
+        }
+
+        #[inline]
+        fn index_to_2d_coord(index: usize, width: usize) -> Vector2<usize> {
+            let y = index / width;
+            let x = index - width * y; // index % textureWidth
+            Vector2::new(x, y)
+        }
+
+        #[inline]
+        fn fetch(
+            vertices: &mut [VertexData],
+            vertex_index: usize,
+            width: u32,
+            height: u32,
+            layer: usize,
+        ) -> Option<&mut VertexData> {
+            let coord = index_to_2d_coord(vertex_index, width as usize);
+            vertices.get_mut(coord_to_index(
+                coord.x,
+                coord.y,
+                layer,
+                width as usize,
+                height as usize,
+            ))
+        }
+
+        let width = base_shape.vertex_count().min(512);
+        let height = (base_shape.vertex_count() as f32 / width as f32).ceil() as u32;
+        let depth = input_blend_shapes.len() as u32;
+
+        let mut vertex_data = vec![VertexData::default(); (width * height * depth) as usize];
+
+        for (layer, blend_shape) in input_blend_shapes.iter().enumerate() {
+            for (index, position) in blend_shape.positions.iter() {
+                if let Some(mut vertex) =
+                    fetch(&mut vertex_data, *index as usize, width, height, layer)
+                {
+                    vertex.position = *position;
+                }
+            }
+
+            for (index, normal) in blend_shape.normals.iter() {
+                if let Some(mut vertex) =
+                    fetch(&mut vertex_data, *index as usize, width, height, layer)
+                {
+                    vertex.normal = *normal;
+                }
+            }
+
+            for (index, tangent) in blend_shape.tangents.iter() {
+                if let Some(mut vertex) =
+                    fetch(&mut vertex_data, *index as usize, width, height, layer)
+                {
+                    vertex.tangent = *tangent;
+                }
+            }
+        }
+
+        let bytes = utils::transmute_vec_as_bytes(vertex_data);
+
+        assert_eq!(
+            bytes.len(),
+            (width * height * depth) as usize * std::mem::size_of::<VertexData>()
+        );
+
+        Self {
+            blend_shapes: input_blend_shapes
+                .iter()
+                .map(|bs| BlendShape {
+                    weight: bs.default_weight,
+                    name: bs.name.clone(),
+                })
+                .collect(),
+            blend_shape_storage: Some(
+                Texture::from_bytes(
+                    TextureKind::Volume {
+                        width: width * 3,
+                        height,
+                        depth,
+                    },
+                    TexturePixelKind::RGB16F,
+                    bytes,
+                    false,
+                )
+                .unwrap(),
+            ),
+        }
+    }
 }
 
 /// Data source of a surface. Each surface can share same data source, this is used
@@ -99,69 +220,6 @@ impl SurfaceData {
             is_procedural,
             cache_entry: AtomicIndex::unassigned(),
         }
-    }
-
-    /// Tries to apply blend shapes (if any) to the surface data.   
-    pub fn apply_blend_shapes(&mut self) -> Result<(), Box<dyn Error>> {
-        if let Some(container) = self.blend_shapes_container.as_ref() {
-            let mut vertex_buffer = self.vertex_buffer.modify();
-
-            let has_position = vertex_buffer.has_attribute(VertexAttributeUsage::Position);
-            let has_normal = vertex_buffer.has_attribute(VertexAttributeUsage::Normal);
-            let has_tangent = vertex_buffer.has_attribute(VertexAttributeUsage::Tangent);
-
-            for blend_shape in container.blend_shapes.iter() {
-                let weight = blend_shape.weight / 100.0;
-
-                if weight.abs() > 5.0 * f32::EPSILON {
-                    if has_position {
-                        for (index, position) in blend_shape.positions.iter() {
-                            if let (Some(mut vertex), Some(base_vertex)) = (
-                                vertex_buffer.get_mut(*index as usize),
-                                container.base_shape.get(*index as usize),
-                            ) {
-                                vertex.write_3_f32(
-                                    VertexAttributeUsage::Position,
-                                    base_vertex.read_3_f32(VertexAttributeUsage::Position)?
-                                        + position.scale(weight),
-                                )?;
-                            }
-                        }
-                    }
-                    if has_normal {
-                        for (index, normal) in blend_shape.normals.iter() {
-                            if let (Some(mut vertex), Some(base_vertex)) = (
-                                vertex_buffer.get_mut(*index as usize),
-                                container.base_shape.get(*index as usize),
-                            ) {
-                                vertex.write_3_f32(
-                                    VertexAttributeUsage::Normal,
-                                    base_vertex.read_3_f32(VertexAttributeUsage::Normal)?
-                                        + normal.scale(weight),
-                                )?;
-                            }
-                        }
-                    }
-                    if has_tangent {
-                        for (index, tangent) in blend_shape.tangents.iter() {
-                            if let (Some(mut vertex), Some(base_vertex)) = (
-                                vertex_buffer.get_mut(*index as usize),
-                                container.base_shape.get(*index as usize),
-                            ) {
-                                vertex.write_4_f32(
-                                    VertexAttributeUsage::Tangent,
-                                    base_vertex.read_4_f32(VertexAttributeUsage::Tangent)?
-                                        + Vector4::new(tangent.x, tangent.y, tangent.z, 0.0)
-                                            .scale(weight),
-                                )?;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(())
     }
 
     /// Applies given transform for every spatial part of the data (vertex position, normal, tangent).

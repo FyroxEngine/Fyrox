@@ -21,6 +21,8 @@ use crate::{
     },
     resource::texture::Texture,
 };
+use fyrox_core::algebra::Vector3;
+use half::f16;
 use std::{any::Any, hash::Hasher, sync::Arc};
 
 /// Translated key code to fyrox-ui key code.
@@ -491,6 +493,18 @@ pub fn value_as_u8_slice<T: Sized>(v: &T) -> &'_ [u8] {
     unsafe { std::slice::from_raw_parts(v as *const T as *const u8, std::mem::size_of::<T>()) }
 }
 
+/// Takes a vector of trivially-copyable values and turns it into a vector of bytes.
+pub fn transmute_vec_as_bytes<T: Copy>(vec: Vec<T>) -> Vec<u8> {
+    unsafe {
+        let mut vec = std::mem::ManuallyDrop::new(vec);
+        Vec::from_raw_parts(
+            vec.as_mut_ptr() as *mut u8,
+            vec.len() * std::mem::size_of::<T>(),
+            vec.capacity() * std::mem::size_of::<T>(),
+        )
+    }
+}
+
 /// Performs hashing of a sized value by interpreting it as raw memory.
 pub fn hash_as_bytes<T: Sized, H: Hasher>(value: &T, hasher: &mut H) {
     hasher.write(value_as_u8_slice(value))
@@ -520,4 +534,14 @@ where
     S: AsRef<str>,
 {
     iter.find(|(_, value)| value.name() == name.as_ref())
+}
+
+/// Converts Vector3<f32> -> Vector3<f16>.
+pub fn vec3_f16_from_f32(v: Vector3<f32>) -> Vector3<f16> {
+    v.map(f16::from_f32)
+}
+
+/// Converts Vector3<f16> -> Vector3<f32>.
+pub fn vec3_f32_from_f16(v: Vector3<f16>) -> Vector3<f32> {
+    v.map(|v| v.to_f32())
 }

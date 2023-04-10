@@ -235,6 +235,12 @@ impl PointShadowMapRenderer {
             for batch in batch_storage.batches.iter() {
                 let material = batch.material.lock();
                 let geometry = geom_cache.get(state, &batch.data);
+                let blend_shapes_storage = batch
+                    .data
+                    .lock()
+                    .blend_shapes_container
+                    .as_ref()
+                    .and_then(|c| c.blend_shape_storage.clone());
 
                 if let Some(render_pass) = shader_cache
                     .get(state, material.shader())
@@ -262,6 +268,8 @@ impl PointShadowMapRenderer {
                                         camera_position: &Default::default(),
                                         use_pom: false,
                                         light_position: &light_pos,
+                                        blend_shapes_storage: blend_shapes_storage.as_ref(),
+                                        blend_shapes_weights: &instance.blend_shapes_weights,
                                         normal_dummy: normal_dummy.clone(),
                                         white_dummy: white_dummy.clone(),
                                         black_dummy: black_dummy.clone(),

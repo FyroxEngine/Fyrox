@@ -69,6 +69,8 @@ pub struct SurfaceInstance {
     pub bone_matrices: Vec<Matrix4<f32>>,
     /// A depth-hack value.
     pub depth_offset: f32,
+    /// A set of weights for each blend shape in the surface.
+    pub blend_shapes_weights: Vec<f32>,
 }
 
 /// A set of surface instances that share the same vertex/index data and a material.
@@ -184,6 +186,11 @@ impl BatchStorage {
                             .collect::<Vec<_>>(),
                         owner: handle,
                         depth_offset: mesh.depth_offset_factor(),
+                        blend_shapes_weights: mesh
+                            .blend_shapes()
+                            .iter()
+                            .map(|bs| bs.weight / 100.0)
+                            .collect(),
                     });
                 }
             } else if let Some(terrain) = node.cast::<Terrain>() {
@@ -241,6 +248,7 @@ impl BatchStorage {
                                     bone_matrices: Default::default(),
                                     owner: handle,
                                     depth_offset: terrain.depth_offset_factor(),
+                                    blend_shapes_weights: Default::default(),
                                 });
                             }
                             Err(e) => Log::writeln(

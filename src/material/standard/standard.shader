@@ -91,6 +91,9 @@
                 uniform mat4 fyrox_worldViewProjection;
                 uniform bool fyrox_useSkeletalAnimation;
                 uniform sampler2D fyrox_boneMatrices;
+                uniform sampler3D fyrox_blendShapesStorage;
+                uniform float fyrox_blendShapesWeights[128];
+                uniform int fyrox_blendShapesCount;
 
                 out vec3 position;
                 out vec3 normal;
@@ -105,10 +108,20 @@
                     vec3 localNormal = vec3(0);
                     vec3 localTangent = vec3(0);
 
+                    vec4 inputPosition = vec4(vertexPosition, 1.0);
+                    vec3 inputNormal = vertexNormal;
+                    vec3 inputTangent = vertexTangent.xyz;
+
+                    for (int i = 0; i < fyrox_blendShapesCount; ++i) {
+                        TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(fyrox_blendShapesStorage, gl_VertexID, i);
+                        float weight = fyrox_blendShapesWeights[i];
+                        inputPosition.xyz += offsets.position * weight;
+                        inputNormal += offsets.normal * weight;
+                        inputTangent += offsets.tangent * weight;
+                    }
+
                     if (fyrox_useSkeletalAnimation)
                     {
-                        vec4 vertex = vec4(vertexPosition, 1.0);
-
                         int i0 = int(boneIndices.x);
                         int i1 = int(boneIndices.y);
                         int i2 = int(boneIndices.z);
@@ -119,26 +132,26 @@
                         mat4 m2 = S_FetchMatrix(fyrox_boneMatrices, i2);
                         mat4 m3 = S_FetchMatrix(fyrox_boneMatrices, i3);
 
-                        localPosition += m0 * vertex * boneWeights.x;
-                        localPosition += m1 * vertex * boneWeights.y;
-                        localPosition += m2 * vertex * boneWeights.z;
-                        localPosition += m3 * vertex * boneWeights.w;
+                        localPosition += m0 * inputPosition * boneWeights.x;
+                        localPosition += m1 * inputPosition * boneWeights.y;
+                        localPosition += m2 * inputPosition * boneWeights.z;
+                        localPosition += m3 * inputPosition * boneWeights.w;
 
-                        localNormal += mat3(m0) * vertexNormal * boneWeights.x;
-                        localNormal += mat3(m1) * vertexNormal * boneWeights.y;
-                        localNormal += mat3(m2) * vertexNormal * boneWeights.z;
-                        localNormal += mat3(m3) * vertexNormal * boneWeights.w;
+                        localNormal += mat3(m0) * inputNormal * boneWeights.x;
+                        localNormal += mat3(m1) * inputNormal * boneWeights.y;
+                        localNormal += mat3(m2) * inputNormal * boneWeights.z;
+                        localNormal += mat3(m3) * inputNormal * boneWeights.w;
 
-                        localTangent += mat3(m0) * vertexTangent.xyz * boneWeights.x;
-                        localTangent += mat3(m1) * vertexTangent.xyz * boneWeights.y;
-                        localTangent += mat3(m2) * vertexTangent.xyz * boneWeights.z;
-                        localTangent += mat3(m3) * vertexTangent.xyz * boneWeights.w;
+                        localTangent += mat3(m0) * inputTangent * boneWeights.x;
+                        localTangent += mat3(m1) * inputTangent * boneWeights.y;
+                        localTangent += mat3(m2) * inputTangent * boneWeights.z;
+                        localTangent += mat3(m3) * inputTangent * boneWeights.w;
                     }
                     else
                     {
-                        localPosition = vec4(vertexPosition, 1.0);
-                        localNormal = vertexNormal;
-                        localTangent = vertexTangent.xyz;
+                        localPosition = inputPosition;
+                        localNormal = inputNormal;
+                        localTangent = inputTangent;
                     }
 
                     mat3 nm = mat3(fyrox_worldMatrix);
@@ -264,6 +277,9 @@
                 uniform mat4 fyrox_worldViewProjection;
                 uniform bool fyrox_useSkeletalAnimation;
                 uniform sampler2D fyrox_boneMatrices;
+                uniform sampler3D fyrox_blendShapesStorage;
+                uniform float fyrox_blendShapesWeights[128];
+                uniform int fyrox_blendShapesCount;
 
                 out vec3 position;
                 out vec2 texCoord;
@@ -271,6 +287,15 @@
                 void main()
                 {
                     vec4 localPosition = vec4(0);
+
+                    vec4 inputPosition = vec4(vertexPosition, 1.0);
+
+                    for (int i = 0; i < fyrox_blendShapesCount; ++i) {
+                        TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(fyrox_blendShapesStorage, gl_VertexID, i);
+                        float weight = fyrox_blendShapesWeights[i];
+                        inputPosition.xyz += offsets.position * weight;
+                    }
+
                     if (fyrox_useSkeletalAnimation)
                     {
                         vec4 vertex = vec4(vertexPosition, 1.0);
@@ -285,14 +310,14 @@
                         mat4 m2 = S_FetchMatrix(fyrox_boneMatrices, i2);
                         mat4 m3 = S_FetchMatrix(fyrox_boneMatrices, i3);
 
-                        localPosition += m0 * vertex * boneWeights.x;
-                        localPosition += m1 * vertex * boneWeights.y;
-                        localPosition += m2 * vertex * boneWeights.z;
-                        localPosition += m3 * vertex * boneWeights.w;
+                        localPosition += m0 * inputPosition * boneWeights.x;
+                        localPosition += m1 * inputPosition * boneWeights.y;
+                        localPosition += m2 * inputPosition * boneWeights.z;
+                        localPosition += m3 * inputPosition * boneWeights.w;
                     }
                     else
                     {
-                        localPosition = vec4(vertexPosition, 1.0);
+                        localPosition = inputPosition;
                     }
                     gl_Position = fyrox_worldViewProjection * localPosition;
                     texCoord = vertexTexCoord;
@@ -347,12 +372,23 @@
                 uniform mat4 fyrox_worldViewProjection;
                 uniform bool fyrox_useSkeletalAnimation;
                 uniform sampler2D fyrox_boneMatrices;
+                uniform sampler3D fyrox_blendShapesStorage;
+                uniform float fyrox_blendShapesWeights[128];
+                uniform int fyrox_blendShapesCount;
 
                 out vec2 texCoord;
 
                 void main()
                 {
                     vec4 localPosition = vec4(0);
+
+                    vec4 inputPosition = vec4(vertexPosition, 1.0);
+
+                    for (int i = 0; i < fyrox_blendShapesCount; ++i) {
+                        TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(fyrox_blendShapesStorage, gl_VertexID, i);
+                        float weight = fyrox_blendShapesWeights[i];
+                        inputPosition.xyz += offsets.position * weight;
+                    }
 
                     if (fyrox_useSkeletalAnimation)
                     {
@@ -363,14 +399,14 @@
                         mat4 m2 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.z));
                         mat4 m3 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.w));
 
-                        localPosition += m0 * vertex * boneWeights.x;
-                        localPosition += m1 * vertex * boneWeights.y;
-                        localPosition += m2 * vertex * boneWeights.z;
-                        localPosition += m3 * vertex * boneWeights.w;
+                        localPosition += m0 * inputPosition * boneWeights.x;
+                        localPosition += m1 * inputPosition * boneWeights.y;
+                        localPosition += m2 * inputPosition * boneWeights.z;
+                        localPosition += m3 * inputPosition * boneWeights.w;
                     }
                     else
                     {
-                        localPosition = vec4(vertexPosition, 1.0);
+                        localPosition = inputPosition;
                     }
 
                     gl_Position = fyrox_worldViewProjection * localPosition;
@@ -423,12 +459,23 @@
                 uniform mat4 fyrox_worldViewProjection;
                 uniform bool fyrox_useSkeletalAnimation;
                 uniform sampler2D fyrox_boneMatrices;
+                uniform sampler3D fyrox_blendShapesStorage;
+                uniform float fyrox_blendShapesWeights[128];
+                uniform int fyrox_blendShapesCount;
 
                 out vec2 texCoord;
 
                 void main()
                 {
                     vec4 localPosition = vec4(0);
+
+                    vec4 inputPosition = vec4(vertexPosition, 1.0);
+
+                    for (int i = 0; i < fyrox_blendShapesCount; ++i) {
+                        TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(fyrox_blendShapesStorage, gl_VertexID, i);
+                        float weight = fyrox_blendShapesWeights[i];
+                        inputPosition.xyz += offsets.position * weight;
+                    }
 
                     if (fyrox_useSkeletalAnimation)
                     {
@@ -439,14 +486,14 @@
                         mat4 m2 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.z));
                         mat4 m3 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.w));
 
-                        localPosition += m0 * vertex * boneWeights.x;
-                        localPosition += m1 * vertex * boneWeights.y;
-                        localPosition += m2 * vertex * boneWeights.z;
-                        localPosition += m3 * vertex * boneWeights.w;
+                        localPosition += m0 * inputPosition * boneWeights.x;
+                        localPosition += m1 * inputPosition * boneWeights.y;
+                        localPosition += m2 * inputPosition * boneWeights.z;
+                        localPosition += m3 * inputPosition * boneWeights.w;
                     }
                     else
                     {
-                        localPosition = vec4(vertexPosition, 1.0);
+                        localPosition = inputPosition;
                     }
 
                     gl_Position = fyrox_worldViewProjection * localPosition;
@@ -500,6 +547,9 @@
                 uniform mat4 fyrox_worldViewProjection;
                 uniform bool fyrox_useSkeletalAnimation;
                 uniform sampler2D fyrox_boneMatrices;
+                uniform sampler3D fyrox_blendShapesStorage;
+                uniform float fyrox_blendShapesWeights[128];
+                uniform int fyrox_blendShapesCount;
 
                 out vec2 texCoord;
                 out vec3 worldPosition;
@@ -507,6 +557,14 @@
                 void main()
                 {
                     vec4 localPosition = vec4(0);
+
+                    vec4 inputPosition = vec4(vertexPosition, 1.0);
+
+                    for (int i = 0; i < fyrox_blendShapesCount; ++i) {
+                        TBlendShapeOffsets offsets = S_FetchBlendShapeOffsets(fyrox_blendShapesStorage, gl_VertexID, i);
+                        float weight = fyrox_blendShapesWeights[i];
+                        inputPosition.xyz += offsets.position * weight;
+                    }
 
                     if (fyrox_useSkeletalAnimation)
                     {
@@ -517,14 +575,14 @@
                         mat4 m2 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.z));
                         mat4 m3 = S_FetchMatrix(fyrox_boneMatrices, int(boneIndices.w));
 
-                        localPosition += m0 * vertex * boneWeights.x;
-                        localPosition += m1 * vertex * boneWeights.y;
-                        localPosition += m2 * vertex * boneWeights.z;
-                        localPosition += m3 * vertex * boneWeights.w;
+                        localPosition += m0 * inputPosition * boneWeights.x;
+                        localPosition += m1 * inputPosition * boneWeights.y;
+                        localPosition += m2 * inputPosition * boneWeights.z;
+                        localPosition += m3 * inputPosition * boneWeights.w;
                     }
                     else
                     {
-                        localPosition = vec4(vertexPosition, 1.0);
+                        localPosition = inputPosition;
                     }
 
                     gl_Position = fyrox_worldViewProjection * localPosition;

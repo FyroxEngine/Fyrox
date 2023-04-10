@@ -203,22 +203,13 @@ impl Plugin for Game {
                     if message.destination() == *slider {
                         let scene = &mut context.scenes[self.scene];
                         let sphere = scene.graph.find_by_name_from_root("Head_Mesh").unwrap().0;
-                        let blend_shape = scene.graph[sphere].as_mesh_mut();
-
-                        for surface in blend_shape.surfaces_mut() {
-                            let data = surface.data();
-                            let mut data = data.lock();
-                            let mut changed = false;
-                            if let Some(container) = data.blend_shapes_container.as_mut() {
-                                for blend_shape in container.blend_shapes.iter_mut() {
-                                    if &blend_shape.name == name {
-                                        blend_shape.weight = *value;
-                                        changed = true;
-                                    }
-                                }
-                            }
-                            if changed {
-                                data.apply_blend_shapes().unwrap();
+                        for blend_shape in scene.graph[sphere]
+                            .as_mesh_mut()
+                            .blend_shapes_mut()
+                            .iter_mut()
+                        {
+                            if &blend_shape.name == name {
+                                blend_shape.weight = *value;
                             }
                         }
                     }

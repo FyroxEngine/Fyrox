@@ -30,6 +30,9 @@ pub enum BuiltInUniform {
     CameraPosition,
     UsePOM,
     LightPosition,
+    BlendShapesStorage,
+    BlendShapesWeights,
+    BlendShapesCount,
     // Must be last.
     Count,
 }
@@ -433,6 +436,12 @@ fn fetch_built_in_uniform_locations(
         fetch_uniform_location(state, program, "fyrox_usePOM");
     locations[BuiltInUniform::LightPosition as usize] =
         fetch_uniform_location(state, program, "fyrox_lightPosition");
+    locations[BuiltInUniform::BlendShapesStorage as usize] =
+        fetch_uniform_location(state, program, "fyrox_blendShapesStorage");
+    locations[BuiltInUniform::BlendShapesWeights as usize] =
+        fetch_uniform_location(state, program, "fyrox_blendShapesWeights");
+    locations[BuiltInUniform::BlendShapesCount as usize] =
+        fetch_uniform_location(state, program, "fyrox_blendShapesCount");
 
     locations
 }

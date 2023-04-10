@@ -8,6 +8,7 @@
 //! modelling software or just download some model you like and load it in engine. But since
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
+use crate::scene::mesh::surface::BlendShape;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -97,6 +98,8 @@ pub struct Mesh {
     #[reflect(setter = "set_decal_layer_index")]
     decal_layer_index: InheritableVariable<u8>,
 
+    blend_shapes: InheritableVariable<Vec<BlendShape>>,
+
     #[reflect(hidden)]
     #[visit(skip)]
     local_bounding_box: Cell<AxisAlignedBoundingBox>,
@@ -120,6 +123,7 @@ impl Default for Mesh {
             local_bounding_box_dirty: Cell::new(true),
             render_path: InheritableVariable::new(RenderPath::Deferred),
             decal_layer_index: InheritableVariable::new(0),
+            blend_shapes: Default::default(),
         }
     }
 }
@@ -177,6 +181,16 @@ impl Mesh {
             .get_value_mut_and_mark_modified()
             .push(surface);
         self.local_bounding_box_dirty.set(true);
+    }
+
+    /// Returns a list of blend shapes.
+    pub fn blend_shapes(&self) -> &[BlendShape] {
+        &self.blend_shapes
+    }
+
+    /// Returns a list of blend shapes.
+    pub fn blend_shapes_mut(&mut self) -> &mut [BlendShape] {
+        self.blend_shapes.get_value_mut_and_mark_modified()
     }
 
     /// Sets new render path for the mesh.
@@ -323,6 +337,7 @@ pub struct MeshBuilder {
     surfaces: Vec<Surface>,
     render_path: RenderPath,
     decal_layer_index: u8,
+    blend_shapes: Vec<BlendShape>,
 }
 
 impl MeshBuilder {
@@ -333,6 +348,7 @@ impl MeshBuilder {
             surfaces: Default::default(),
             render_path: RenderPath::Deferred,
             decal_layer_index: 0,
+            blend_shapes: Default::default(),
         }
     }
 
@@ -355,9 +371,17 @@ impl MeshBuilder {
         self
     }
 
+    /// Sets the list of blend shapes. Keep in mind that actual blend shape data must be baked in surface data
+    /// of every surface used by the mesh. Blend shapes are shared across all surfaces.
+    pub fn with_blend_shapes(mut self, blend_shapes: Vec<BlendShape>) -> Self {
+        self.blend_shapes = blend_shapes;
+        self
+    }
+
     /// Creates new mesh.
     pub fn build_node(self) -> Node {
         Node::new(Mesh {
+            blend_shapes: self.blend_shapes.into(),
             base: self.base_builder.build_base(),
             surfaces: self.surfaces.into(),
             local_bounding_box: Default::default(),

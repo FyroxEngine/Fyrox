@@ -922,6 +922,8 @@ pub(crate) struct MaterialContext<'a, 'b, 'c> {
     pub camera_position: &'a Vector3<f32>,
     pub use_pom: bool,
     pub light_position: &'a Vector3<f32>,
+    pub blend_shapes_storage: Option<&'a Texture>,
+    pub blend_shapes_weights: &'a [f32],
 
     // Fallback samplers.
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
@@ -963,6 +965,24 @@ pub(crate) fn apply_material(ctx: MaterialContext) {
     if let Some(location) = &built_in_uniforms[BuiltInUniform::LightPosition as usize] {
         ctx.program_binding
             .set_vector3(location, ctx.light_position);
+    }
+    if let Some(blend_shapes_storage) = ctx.blend_shapes_storage.as_ref() {
+        if let Some(location) = &built_in_uniforms[BuiltInUniform::BlendShapesStorage as usize] {
+            if let Some(texture) = ctx
+                .texture_cache
+                .get(ctx.program_binding.state, blend_shapes_storage)
+            {
+                ctx.program_binding.set_texture(location, &texture);
+            }
+        }
+    }
+    if let Some(location) = &built_in_uniforms[BuiltInUniform::BlendShapesWeights as usize] {
+        ctx.program_binding
+            .set_f32_slice(location, ctx.blend_shapes_weights);
+    }
+    if let Some(location) = &built_in_uniforms[BuiltInUniform::BlendShapesCount as usize] {
+        ctx.program_binding
+            .set_i32(location, ctx.blend_shapes_weights.len() as i32);
     }
 
     // Apply material properties.

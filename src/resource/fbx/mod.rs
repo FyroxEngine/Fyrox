@@ -10,6 +10,7 @@ mod document;
 pub mod error;
 mod scene;
 
+use crate::scene::mesh::surface::{BlendShape, InputBlendShapeData};
 use crate::{
     animation::{track::Track, Animation, AnimationContainer},
     core::{
@@ -44,8 +45,7 @@ use crate::{
         mesh::{
             buffer::{VertexAttributeUsage, VertexBuffer, VertexWriteTrait},
             surface::{
-                BlendShape, BlendShapesContainer, Surface, SurfaceData, SurfaceSharedData,
-                VertexWeightSet,
+                BlendShapesContainer, Surface, SurfaceData, SurfaceSharedData, VertexWeightSet,
             },
             vertex::{AnimatedVertex, StaticVertex},
             Mesh, MeshBuilder,
@@ -55,6 +55,7 @@ use crate::{
         transform::TransformBuilder,
         Scene,
     },
+    utils,
     utils::{
         log::{Log, MessageKind},
         raw_mesh::RawMeshBuilder,
@@ -256,26 +257,18 @@ impl FbxMeshBuilder {
 #[derive(Clone)]
 struct FbxSurfaceData {
     base_mesh_builder: FbxMeshBuilder,
-    blend_shapes: Vec<BlendShape>,
+    blend_shapes: Vec<InputBlendShapeData>,
     skin_data: Vec<VertexWeightSet>,
 }
 
 fn make_blend_shapes_container(
     base_shape: &VertexBuffer,
-    mut blend_shapes: Vec<BlendShape>,
+    blend_shapes: Vec<InputBlendShapeData>,
 ) -> Option<BlendShapesContainer> {
     if blend_shapes.is_empty() {
         None
     } else {
-        for blend_shape in blend_shapes.iter_mut() {
-            blend_shape.positions.shrink_to_fit();
-            blend_shape.normals.shrink_to_fit();
-            blend_shape.tangents.shrink_to_fit();
-        }
-        Some(BlendShapesContainer {
-            blend_shapes,
-            base_shape: base_shape.clone(),
-        })
+        Some(BlendShapesContainer::from_lists(base_shape, &blend_shapes))
     }
 }
 
@@ -453,10 +446,23 @@ async fn convert_mesh(
     let mut face_triangles = Vec::new();
 
     let mut mesh_surfaces = Vec::new();
+    let mut mesh_blend_shapes = Vec::new();
+
     for &geom_handle in &model.geoms {
         let geom = fbx_scene.get(geom_handle).as_mesh_geometry()?;
         let skin_data = geom.get_skin_data(fbx_scene)?;
         let blend_shapes = geom.collect_blend_shapes_refs(fbx_scene)?;
+
+        if !mesh_blend_shapes.is_empty() {
+            Log::warn("More than two geoms with blend shapes?");
+        }
+        mesh_blend_shapes = blend_shapes
+            .iter()
+            .map(|bs| BlendShape {
+                weight: bs.deform_percent,
+                name: bs.name.clone(),
+            })
+            .collect();
 
         let mut data_set = vec![
             FbxSurfaceData {
@@ -468,9 +474,9 @@ async fn convert_mesh(
                 blend_shapes: blend_shapes
                     .iter()
                     .map(|bs_channel| {
-                        BlendShape {
+                        InputBlendShapeData {
                             name: bs_channel.name.clone(),
-                            weight: bs_channel.deform_percent,
+                            default_weight: bs_channel.deform_percent,
                             positions: Default::default(),
                             normals: Default::default(),
                             tangents: Default::default(),
@@ -539,17 +545,21 @@ async fn convert_mesh(
                         {
                             blend_shape.positions.insert(
                                 final_index as u32,
-                                blend_shape_geometry.vertices[*relative_index as usize],
+                                utils::vec3_f16_from_f32(
+                                    blend_shape_geometry.vertices[*relative_index as usize],
+                                ),
                             );
                             if let Some(normals) = blend_shape_geometry.normals.as_ref() {
-                                blend_shape
-                                    .normals
-                                    .insert(final_index as u32, normals[*relative_index as usize]);
+                                blend_shape.normals.insert(
+                                    final_index as u32,
+                                    utils::vec3_f16_from_f32(normals[*relative_index as usize]),
+                                );
                             }
                             if let Some(tangents) = blend_shape_geometry.tangents.as_ref() {
-                                blend_shape
-                                    .normals
-                                    .insert(final_index as u32, tangents[*relative_index as usize]);
+                                blend_shape.normals.insert(
+                                    final_index as u32,
+                                    utils::vec3_f16_from_f32(tangents[*relative_index as usize]),
+                                );
                             }
                         }
                     }
@@ -584,6 +594,7 @@ async fn convert_mesh(
     }
 
     Ok(MeshBuilder::new(base)
+        .with_blend_shapes(mesh_blend_shapes)
         .with_surfaces(mesh_surfaces)
         .build(graph))
 }

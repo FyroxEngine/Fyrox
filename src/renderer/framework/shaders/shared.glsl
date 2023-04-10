@@ -344,10 +344,25 @@ mat4 S_FetchMatrix(in sampler2D storage, int index) {
     int textureWidth = textureSize(storage, 0).x;
     ivec2 pos = S_LinearIndexToPosition(4 * index, textureWidth);
 
-    vec4 col1 = texelFetch(storage, ivec2(pos.x, pos.y), 0);
+    vec4 col1 = texelFetch(storage, pos, 0);
     vec4 col2 = texelFetch(storage, ivec2(pos.x + 1, pos.y), 0);
     vec4 col3 = texelFetch(storage, ivec2(pos.x + 2, pos.y), 0);
     vec4 col4 = texelFetch(storage, ivec2(pos.x + 3, pos.y), 0);
 
     return mat4(col1, col2, col3, col4);
+}
+
+struct TBlendShapeOffsets {
+    vec3 position;
+    vec3 normal;
+    vec3 tangent;
+};
+
+TBlendShapeOffsets S_FetchBlendShapeOffsets(in sampler3D storage, int vertexIndex, int blendShapeIndex) {
+    int textureWidth = textureSize(storage, 0).x;
+    ivec3 pos = ivec3(S_LinearIndexToPosition(3 * vertexIndex, textureWidth), blendShapeIndex);
+    vec3 position = texelFetch(storage, pos, 0).xyz;
+    vec3 normal = texelFetch(storage, ivec3(pos.x + 1, pos.y, pos.z), 0).xyz;
+    vec3 tangent = texelFetch(storage, ivec3(pos.x + 2, pos.y, pos.z), 0).xyz;
+    return TBlendShapeOffsets(position, normal, tangent);
 }

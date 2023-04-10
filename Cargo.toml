@@ -62,6 +62,7 @@ notify = "5"
 clap = { version = "4", features = ["derive"] }
 spade = "2.1.0"
 winit = { version = "0.28.1", features = ["serde"] }
+half = "2.2.1"
 
 [features]
 enable_profiler = ["fyrox-core/enable_profiler"]
