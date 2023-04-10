@@ -128,6 +128,7 @@ impl SpotShadowMapRenderer {
         normal_dummy: Rc<RefCell<GpuTexture>>,
         white_dummy: Rc<RefCell<GpuTexture>>,
         black_dummy: Rc<RefCell<GpuTexture>>,
+        volume_dummy: Rc<RefCell<GpuTexture>>,
         matrix_storage: &mut MatrixStorage,
     ) -> RenderPassStatistics {
         scope_profile!();
@@ -190,6 +191,7 @@ impl SpotShadowMapRenderer {
                                     normal_dummy: normal_dummy.clone(),
                                     white_dummy: white_dummy.clone(),
                                     black_dummy: black_dummy.clone(),
+                                    volume_dummy: volume_dummy.clone(),
                                 });
                             },
                         );

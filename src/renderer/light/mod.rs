@@ -132,6 +132,7 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
     pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub black_dummy: Rc<RefCell<GpuTexture>>,
+    pub volume_dummy: Rc<RefCell<GpuTexture>>,
     pub matrix_storage: &'a mut MatrixStorage,
 }
 
@@ -313,6 +314,7 @@ impl DeferredLightRenderer {
             batch_storage,
             frame_buffer,
             black_dummy,
+            volume_dummy,
             matrix_storage,
         } = args;
 
@@ -528,6 +530,7 @@ impl DeferredLightRenderer {
                         normal_dummy.clone(),
                         white_dummy.clone(),
                         black_dummy.clone(),
+                        volume_dummy.clone(),
                         matrix_storage,
                     );
 
@@ -547,6 +550,7 @@ impl DeferredLightRenderer {
                                 normal_dummy: normal_dummy.clone(),
                                 white_dummy: white_dummy.clone(),
                                 black_dummy: black_dummy.clone(),
+                                volume_dummy: volume_dummy.clone(),
                                 matrix_storage,
                             });
 
@@ -565,6 +569,7 @@ impl DeferredLightRenderer {
                         normal_dummy: normal_dummy.clone(),
                         white_dummy: white_dummy.clone(),
                         black_dummy: black_dummy.clone(),
+                        volume_dummy: volume_dummy.clone(),
                         matrix_storage,
                     });
 

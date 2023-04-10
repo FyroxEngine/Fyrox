@@ -37,6 +37,7 @@ pub(crate) struct ForwardRenderContext<'a, 'b> {
     pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
     pub black_dummy: Rc<RefCell<GpuTexture>>,
+    pub volume_dummy: Rc<RefCell<GpuTexture>>,
     pub matrix_storage: &'a mut MatrixStorage,
 }
 
@@ -65,6 +66,7 @@ impl ForwardRenderer {
             white_dummy,
             normal_dummy,
             black_dummy,
+            volume_dummy,
             matrix_storage,
         } = args;
 
@@ -121,6 +123,7 @@ impl ForwardRenderer {
                                     normal_dummy: normal_dummy.clone(),
                                     white_dummy: white_dummy.clone(),
                                     black_dummy: black_dummy.clone(),
+                                    volume_dummy: volume_dummy.clone(),
                                     matrix_storage,
                                 });
                             },

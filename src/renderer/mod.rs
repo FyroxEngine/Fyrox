@@ -688,6 +688,8 @@ pub struct Renderer {
     // Dummy one pixel texture used as stub when rendering something without a
     // metallic texture. Default metalness is 0.0
     metallic_dummy: Rc<RefCell<GpuTexture>>,
+    // Dummy, one pixel, volume texture.
+    volume_dummy: Rc<RefCell<GpuTexture>>,
     /// User interface renderer.
     pub ui_renderer: UiRenderer,
     statistics: Statistics,
@@ -929,6 +931,7 @@ pub(crate) struct MaterialContext<'a, 'b, 'c> {
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
     pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub black_dummy: Rc<RefCell<GpuTexture>>,
+    pub volume_dummy: Rc<RefCell<GpuTexture>>,
 }
 
 pub(crate) fn apply_material(ctx: MaterialContext) {
@@ -966,14 +969,19 @@ pub(crate) fn apply_material(ctx: MaterialContext) {
         ctx.program_binding
             .set_vector3(location, ctx.light_position);
     }
-    if let Some(blend_shapes_storage) = ctx.blend_shapes_storage.as_ref() {
-        if let Some(location) = &built_in_uniforms[BuiltInUniform::BlendShapesStorage as usize] {
-            if let Some(texture) = ctx
-                .texture_cache
-                .get(ctx.program_binding.state, blend_shapes_storage)
-            {
-                ctx.program_binding.set_texture(location, &texture);
-            }
+
+    if let Some(location) = &built_in_uniforms[BuiltInUniform::BlendShapesStorage as usize] {
+        if let Some(texture) = ctx
+            .blend_shapes_storage
+            .as_ref()
+            .and_then(|blend_shapes_storage| {
+                ctx.texture_cache
+                    .get(ctx.program_binding.state, blend_shapes_storage)
+            })
+        {
+            ctx.program_binding.set_texture(location, &texture);
+        } else {
+            ctx.program_binding.set_texture(location, &ctx.volume_dummy);
         }
     }
     if let Some(location) = &built_in_uniforms[BuiltInUniform::BlendShapesWeights as usize] {
@@ -1168,6 +1176,19 @@ impl Renderer {
                 GpuTextureKind::Rectangle {
                     width: 1,
                     height: 1,
+                },
+                PixelKind::RGBA8,
+                MinificationFilter::Linear,
+                MagnificationFilter::Linear,
+                1,
+                Some(&[0u8, 0u8, 0u8, 0u8]),
+            )?)),
+            volume_dummy: Rc::new(RefCell::new(GpuTexture::new(
+                &mut state,
+                GpuTextureKind::Volume {
+                    width: 1,
+                    height: 1,
+                    depth: 1,
                 },
                 PixelKind::RGBA8,
                 MinificationFilter::Linear,
@@ -1546,6 +1567,7 @@ impl Renderer {
                     normal_dummy: self.normal_dummy.clone(),
                     white_dummy: self.white_dummy.clone(),
                     black_dummy: self.black_dummy.clone(),
+                    volume_dummy: self.volume_dummy.clone(),
                     graph,
                     matrix_storage: &mut self.matrix_storage,
                 });
@@ -1577,6 +1599,7 @@ impl Renderer {
                             shader_cache: &mut self.shader_cache,
                             normal_dummy: self.normal_dummy.clone(),
                             black_dummy: self.black_dummy.clone(),
+                            volume_dummy: self.volume_dummy.clone(),
                             matrix_storage: &mut self.matrix_storage,
                         });
 
@@ -1634,6 +1657,7 @@ impl Renderer {
                     white_dummy: self.white_dummy.clone(),
                     normal_dummy: self.normal_dummy.clone(),
                     black_dummy: self.black_dummy.clone(),
+                    volume_dummy: self.volume_dummy.clone(),
                     matrix_storage: &mut self.matrix_storage,
                 });
 

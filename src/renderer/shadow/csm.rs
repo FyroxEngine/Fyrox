@@ -108,6 +108,7 @@ pub(crate) struct CsmRenderContext<'a, 'c> {
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
     pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub black_dummy: Rc<RefCell<GpuTexture>>,
+    pub volume_dummy: Rc<RefCell<GpuTexture>>,
     pub matrix_storage: &'a mut MatrixStorage,
 }
 
@@ -157,6 +158,7 @@ impl CsmRenderer {
             normal_dummy,
             white_dummy,
             black_dummy,
+            volume_dummy,
             matrix_storage,
         } = ctx;
 
@@ -304,6 +306,7 @@ impl CsmRenderer {
                                     normal_dummy: normal_dummy.clone(),
                                     white_dummy: white_dummy.clone(),
                                     black_dummy: black_dummy.clone(),
+                                    volume_dummy: volume_dummy.clone(),
                                 });
                             },
                         );

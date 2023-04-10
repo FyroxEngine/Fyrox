@@ -71,6 +71,7 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
     pub black_dummy: Rc<RefCell<GpuTexture>>,
+    pub volume_dummy: Rc<RefCell<GpuTexture>>,
     pub use_parallax_mapping: bool,
     pub graph: &'b Graph,
     pub matrix_storage: &'a mut MatrixStorage,
@@ -277,6 +278,7 @@ impl GBuffer {
             white_dummy,
             normal_dummy,
             black_dummy,
+            volume_dummy,
             graph,
             matrix_storage,
             ..
@@ -339,6 +341,7 @@ impl GBuffer {
                                 normal_dummy: normal_dummy.clone(),
                                 white_dummy: white_dummy.clone(),
                                 black_dummy: black_dummy.clone(),
+                                volume_dummy: volume_dummy.clone(),
                             });
                         };
 
