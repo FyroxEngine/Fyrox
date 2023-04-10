@@ -720,6 +720,9 @@ pub enum TexturePixelKind {
     /// - WebAssembly - not supported, the image will act like [`Self::RG16`] format, which
     ///   will have (R, G, R, G) pixels.
     LuminanceAlpha16 = 21,
+
+    /// Red, green, blue components, each by 2 byte half-precision float.
+    RGB16F = 22,
 }
 
 impl TexturePixelKind {
@@ -747,6 +750,7 @@ impl TexturePixelKind {
             19 => Ok(Self::LuminanceAlpha8),
             20 => Ok(Self::Luminance16),
             21 => Ok(Self::LuminanceAlpha16),
+            22 => Ok(Self::RGB16F),
             _ => Err(format!("Invalid texture kind {}!", id)),
         }
     }
@@ -954,7 +958,7 @@ fn bytes_in_first_mip(kind: TextureKind, pixel_kind: TexturePixelKind) -> u32 {
         | TexturePixelKind::BGRA8
         | TexturePixelKind::RG16
         | TexturePixelKind::LuminanceAlpha16 => 4 * pixel_count,
-        TexturePixelKind::RGB16 => 6 * pixel_count,
+        TexturePixelKind::RGB16 | TexturePixelKind::RGB16F => 6 * pixel_count,
         TexturePixelKind::RGBA16 => 8 * pixel_count,
         TexturePixelKind::RGB32F => 12 * pixel_count,
         TexturePixelKind::RGBA32F => 16 * pixel_count,
@@ -1362,7 +1366,8 @@ impl TextureData {
             | TexturePixelKind::R8RGTC
             | TexturePixelKind::RG8RGTC
             | TexturePixelKind::BGR8
-            | TexturePixelKind::BGRA8 => return Err(TextureError::UnsupportedFormat),
+            | TexturePixelKind::BGRA8
+            | TexturePixelKind::RGB16F => return Err(TextureError::UnsupportedFormat),
         };
         if let TextureKind::Rectangle { width, height } = self.kind {
             Ok(image::save_buffer(

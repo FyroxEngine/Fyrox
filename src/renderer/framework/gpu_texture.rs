@@ -118,6 +118,7 @@ impl From<TexturePixelKind> for PixelKind {
             TexturePixelKind::BGRA8 => Self::BGRA8,
             TexturePixelKind::RGB16 => Self::RGB16,
             TexturePixelKind::RGBA16 => Self::RGBA16,
+            TexturePixelKind::RGB16F => Self::RGB16F,
             TexturePixelKind::DXT1RGB => Self::DXT1RGB,
             TexturePixelKind::DXT1RGBA => Self::DXT1RGBA,
             TexturePixelKind::DXT3RGBA => Self::DXT3RGBA,
@@ -702,7 +703,6 @@ impl<'a> TextureBinding<'a> {
                 PixelKind::RG16 => (glow::UNSIGNED_SHORT, glow::RG, glow::RG16, None),
                 PixelKind::R16 => (glow::UNSIGNED_SHORT, glow::RED, glow::R16, None),
                 PixelKind::RGB16 => (glow::UNSIGNED_SHORT, glow::RGB, glow::RGB16, None),
-                PixelKind::RGB16F => (glow::FLOAT, glow::RGB, glow::RGB16F, None),
                 PixelKind::RGBA16 => (glow::UNSIGNED_SHORT, glow::RGBA, glow::RGBA16, None),
                 PixelKind::RGB10A2 => (
                     glow::UNSIGNED_INT_2_10_10_10_REV,
@@ -718,7 +718,8 @@ impl<'a> TextureBinding<'a> {
                 PixelKind::RG8RGTC => (0, 0, COMPRESSED_RG_RGTC2, None),
                 PixelKind::RGB32F => (glow::FLOAT, glow::RGB, glow::RGB32F, None),
                 PixelKind::RGBA32F => (glow::FLOAT, glow::RGBA, glow::RGBA32F, None),
-                PixelKind::RGBA16F => (glow::FLOAT, glow::RGBA, glow::RGBA16F, None),
+                PixelKind::RGBA16F => (glow::HALF_FLOAT, glow::RGBA, glow::RGBA16F, None),
+                PixelKind::RGB16F => (glow::HALF_FLOAT, glow::RGB, glow::RGB16F, None),
                 PixelKind::R11G11B10F => (glow::FLOAT, glow::RGB, glow::R11F_G11F_B10F, None),
                 PixelKind::L8 => (
                     glow::UNSIGNED_BYTE,
@@ -931,7 +932,7 @@ impl<'a> TextureBinding<'a> {
                             if is_compressed {
                                 self.state.gl.compressed_tex_image_3d(
                                     glow::TEXTURE_3D,
-                                    0,
+                                    mip as i32,
                                     internal_format as i32,
                                     width as i32,
                                     height as i32,
@@ -943,7 +944,7 @@ impl<'a> TextureBinding<'a> {
                             } else {
                                 self.state.gl.tex_image_3d(
                                     glow::TEXTURE_3D,
-                                    0,
+                                    mip as i32,
                                     internal_format as i32,
                                     width as i32,
                                     height as i32,
