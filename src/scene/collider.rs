@@ -35,7 +35,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 #[derive(Clone, Debug, PartialEq, Visit, Reflect)]
 pub struct BallShape {
     /// Radius of the sphere.
-    #[reflect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.001, step = 0.05)]
     pub radius: f32,
 }
 
@@ -49,10 +49,10 @@ impl Default for BallShape {
 #[derive(Clone, Debug, Visit, Reflect, PartialEq)]
 pub struct CylinderShape {
     /// Half height of the cylinder, actual height will be 2 times bigger.
-    #[reflect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.001, step = 0.05)]
     pub half_height: f32,
     /// Radius of the cylinder.
-    #[reflect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.001, step = 0.05)]
     pub radius: f32,
 }
 
@@ -69,10 +69,10 @@ impl Default for CylinderShape {
 #[derive(Clone, Debug, Visit, Reflect, PartialEq)]
 pub struct ConeShape {
     /// Half height of the cone, actual height will be 2 times bigger.
-    #[reflect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.001, step = 0.05)]
     pub half_height: f32,
     /// Radius of the cone base.
-    #[reflect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.001, step = 0.05)]
     pub radius: f32,
 }
 
@@ -90,6 +90,7 @@ impl Default for ConeShape {
 pub struct CuboidShape {
     /// Half extents of the box. X - half width, Y - half height, Z - half depth.
     /// Actual _size_ will be 2 times bigger.
+    #[reflect(min_value = 0.001, step = 0.05)]
     pub half_extents: Vector3<f32>,
 }
 
@@ -109,7 +110,7 @@ pub struct CapsuleShape {
     /// End point of the capsule.
     pub end: Vector3<f32>,
     /// Radius of the capsule.
-    #[reflect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.001, step = 0.05)]
     pub radius: f32,
 }
 

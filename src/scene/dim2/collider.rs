@@ -35,7 +35,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 #[derive(Clone, Debug, Visit, PartialEq, Reflect)]
 pub struct BallShape {
     /// Radius of the sphere.
-    #[reflect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.001, step = 0.05)]
     pub radius: f32,
 }
 
@@ -50,6 +50,7 @@ impl Default for BallShape {
 pub struct CuboidShape {
     /// Half extents of the box. X - half width, Y - half height.
     /// Actual _size_ will be 2 times bigger.
+    #[reflect(min_value = 0.001, step = 0.05)]
     pub half_extents: Vector2<f32>,
 }
 
@@ -69,7 +70,7 @@ pub struct CapsuleShape {
     /// End point of the capsule.
     pub end: Vector2<f32>,
     /// Radius of the capsule.
-    #[reflect(min_value = 0.0, step = 0.05)]
+    #[reflect(min_value = 0.001, step = 0.05)]
     pub radius: f32,
 }
 
