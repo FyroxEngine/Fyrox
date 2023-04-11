@@ -353,6 +353,40 @@ impl Graph {
 
     /// Begins multi-borrow that allows you borrow to as many (`N`) **unique** references to the graph
     /// nodes as you need. See [`MultiBorrowContext::try_get`] for more info.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// # use fyrox::{
+    /// #     core::pool::Handle,
+    /// #     scene::{base::BaseBuilder, graph::Graph, node::Node, pivot::PivotBuilder},
+    /// # };
+    /// #
+    /// let mut graph = Graph::new();
+    ///
+    /// let handle1 = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
+    /// let handle2 = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
+    /// let handle3 = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
+    /// let handle4 = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
+    ///
+    /// // Begin multi-borrowing by creating borrowing context with max 3 references.
+    /// let mut ctx = graph.begin_multi_borrow::<3>();
+    ///
+    /// let node1 = ctx.try_get(handle1);
+    /// let node2 = ctx.try_get(handle2);
+    /// let node3 = ctx.try_get(handle3);
+    /// let node4 = ctx.try_get(handle4);
+    ///
+    /// // First three borrows will be successful.
+    /// assert!(node1.is_some());
+    /// assert!(node2.is_some());
+    /// assert!(node3.is_some());
+    ///
+    /// // Fourth borrow will fail, because borrowing context has capacity of 3.
+    /// assert!(node4.is_none());
+    /// // An attempt to borrow the same node twice will fail too.
+    /// assert!(ctx.try_get(handle1).is_none());
+    /// ```
     pub fn begin_multi_borrow<const N: usize>(
         &mut self,
     ) -> MultiBorrowContext<N, Node, NodeContainer> {

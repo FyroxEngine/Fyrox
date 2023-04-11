@@ -536,12 +536,12 @@ where
     iter.find(|(_, value)| value.name() == name.as_ref())
 }
 
-/// Converts Vector3<f32> -> Vector3<f16>.
+/// Converts `Vector3<f32>` -> `Vector3<f16>`.
 pub fn vec3_f16_from_f32(v: Vector3<f32>) -> Vector3<f16> {
     v.map(f16::from_f32)
 }
 
-/// Converts Vector3<f16> -> Vector3<f32>.
+/// Converts `Vector3<f16>` -> `Vector3<f32>`.
 pub fn vec3_f32_from_f16(v: Vector3<f16>) -> Vector3<f32> {
     v.map(|v| v.to_f32())
 }
