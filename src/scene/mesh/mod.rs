@@ -98,6 +98,7 @@ pub struct Mesh {
     #[reflect(setter = "set_decal_layer_index")]
     decal_layer_index: InheritableVariable<u8>,
 
+    #[visit(optional)]
     blend_shapes: InheritableVariable<Vec<BlendShape>>,
 
     #[reflect(hidden)]
