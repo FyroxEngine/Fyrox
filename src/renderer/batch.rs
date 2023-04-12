@@ -194,11 +194,11 @@ impl BatchStorage {
                     });
                 }
             } else if let Some(terrain) = node.cast::<Terrain>() {
+                let data = terrain.data();
+                let data_key = data.key();
+
                 for (layer_index, layer) in terrain.layers().iter().enumerate() {
                     for chunk in terrain.chunks_ref().iter() {
-                        let data = chunk.data();
-                        let data_key = data.key();
-
                         let mut material = (*layer.material.lock()).clone();
                         match material.set_property(
                             &ImmutableString::new(&layer.mask_property_name),

@@ -67,7 +67,6 @@ impl PartialEq for Layer {
 /// so distant chunks can be rendered with low details reducing GPU load.
 #[derive(Debug, Reflect, PartialEq)]
 pub struct Chunk {
-    surface_data: SurfaceSharedData,
     #[reflect(hidden)]
     version: u8,
     #[reflect(hidden)]
@@ -89,7 +88,6 @@ impl Clone for Chunk {
     // Deep cloning.
     fn clone(&self) -> Self {
         Self {
-            surface_data: self.surface_data.deep_clone(),
             version: self.version,
             heightmap: self.heightmap.clone(),
             position: self.position,
@@ -163,10 +161,6 @@ impl Visit for Chunk {
             _ => (),
         }
 
-        if region.is_reading() {
-            self.rebuild_geometry();
-        }
-
         Ok(())
     }
 }
@@ -179,7 +173,6 @@ impl Default for Chunk {
             position: Default::default(),
             physical_size: Default::default(),
             height_map_size: Default::default(),
-            surface_data: make_surface_data(),
             grid_position: Default::default(),
             layer_masks: Default::default(),
         }
@@ -187,65 +180,6 @@ impl Default for Chunk {
 }
 
 impl Chunk {
-    /// Updates vertex and index buffers needed for rendering. In most cases there is no need
-    /// to call this method manually, engine will automatically call it when needed.
-    pub fn rebuild_geometry(&mut self) {
-        let mut surface_data = self.surface_data.lock();
-        surface_data.clear();
-
-        assert!(self.height_map_size.x > 1);
-        assert!(self.height_map_size.y > 1);
-
-        let mut vertex_buffer_mut = surface_data.vertex_buffer.modify();
-        // Form vertex buffer.
-        for iy in 0..self.height_map_size.y {
-            let kz = iy as f32 / ((self.height_map_size.y - 1) as f32);
-            let pz = self.position.z + kz * self.physical_size.y;
-
-            for x in 0..self.height_map_size.x {
-                let index = iy * self.height_map_size.x + x;
-                let height = self.heightmap[index as usize];
-                let kx = x as f32 / ((self.height_map_size.x - 1) as f32);
-
-                let px = self.position.x + kx * self.physical_size.x;
-                let py = self.position.y + height;
-
-                vertex_buffer_mut
-                    .push_vertex(&StaticVertex {
-                        position: Vector3::new(px, py, pz),
-                        tex_coord: Vector2::new(kx, kz),
-                        // Normals and tangents will be calculated later.
-                        normal: Default::default(),
-                        tangent: Default::default(),
-                    })
-                    .unwrap();
-            }
-        }
-        drop(vertex_buffer_mut);
-
-        let mut geometry_buffer_mut = surface_data.geometry_buffer.modify();
-        // Form index buffer.
-        // TODO: Generate LODs.
-        for iy in 0..self.height_map_size.y - 1 {
-            let iy_next = iy + 1;
-            for x in 0..self.height_map_size.x - 1 {
-                let x_next = x + 1;
-
-                let i0 = iy * self.height_map_size.x + x;
-                let i1 = iy_next * self.height_map_size.x + x;
-                let i2 = iy_next * self.height_map_size.x + x_next;
-                let i3 = iy * self.height_map_size.x + x_next;
-
-                geometry_buffer_mut.push(TriangleDefinition([i0, i1, i2]));
-                geometry_buffer_mut.push(TriangleDefinition([i2, i3, i0]));
-            }
-        }
-        drop(geometry_buffer_mut);
-
-        surface_data.calculate_normals().unwrap();
-        surface_data.calculate_tangents().unwrap();
-    }
-
     /// Returns position of the chunk in local 2D coordinates relative to origin of the
     /// terrain.
     pub fn local_position(&self) -> Vector2<f32> {
@@ -261,12 +195,6 @@ impl Chunk {
     pub fn set_heightmap(&mut self, heightmap: Vec<f32>) {
         assert_eq!(self.heightmap.len(), heightmap.len());
         self.heightmap = heightmap;
-        self.rebuild_geometry();
-    }
-
-    /// Returns data for rendering (vertex and index buffers).
-    pub fn data(&self) -> SurfaceSharedData {
-        self.surface_data.clone()
     }
 
     /// Returns the size of the chunk in meters.
@@ -349,6 +277,9 @@ pub struct Terrain {
     mask_size: InheritableVariable<Vector2<u32>>,
 
     #[reflect(read_only)]
+    mesh_size: Vector2<u32>,
+
+    #[reflect(read_only)]
     chunks: InheritableVariable<Vec<Chunk>>,
 
     #[reflect(hidden)]
@@ -356,6 +287,9 @@ pub struct Terrain {
 
     #[reflect(hidden)]
     bounding_box: Cell<AxisAlignedBoundingBox>,
+
+    #[reflect(hidden)]
+    surface_data: SurfaceSharedData,
 
     #[reflect(hidden)]
     version: u8,
@@ -455,6 +389,10 @@ impl Visit for Terrain {
             _ => (),
         }
 
+        if region.is_reading() {
+            self.rebuild_geometry();
+        }
+
         Ok(())
     }
 }
@@ -518,7 +456,6 @@ impl Terrain {
                 let chunk = &mut self.chunks[iy * self.width_chunks.len() + ix];
                 chunk.position = position;
                 chunk.physical_size = chunk_size;
-                chunk.rebuild_geometry();
             }
         }
         old
@@ -594,7 +531,7 @@ impl Terrain {
                     existing_chunk
                 } else {
                     // Create new chunk.
-                    let mut new_chunk = Chunk {
+                    let new_chunk = Chunk {
                         heightmap: vec![
                             0.0;
                             (self.height_map_size.x * self.height_map_size.y) as usize
@@ -606,7 +543,6 @@ impl Terrain {
                         ),
                         physical_size: *self.chunk_size,
                         height_map_size: *self.height_map_size,
-                        surface_data: make_surface_data(),
                         grid_position: Vector2::new(x, z),
                         layer_masks: self
                             .layers
@@ -622,8 +558,6 @@ impl Terrain {
                             .collect::<Vec<_>>(),
                         version: VERSION,
                     };
-
-                    new_chunk.rebuild_geometry();
 
                     new_chunk
                 };
@@ -671,8 +605,6 @@ impl Terrain {
         match brush.mode {
             BrushMode::ModifyHeightMap { amount } => {
                 for chunk in self.chunks.iter_mut() {
-                    let mut modified = false;
-
                     for iy in 0..chunk.height_map_size.y {
                         let kz = iy as f32 / (chunk.height_map_size.y - 1) as f32;
                         for ix in 0..chunk.height_map_size.y {
@@ -694,14 +626,8 @@ impl Terrain {
                             if brush.shape.contains(center, pixel_position) {
                                 chunk.heightmap[(iy * chunk.height_map_size.x + ix) as usize] +=
                                     k * amount;
-
-                                modified = true;
                             }
                         }
-                    }
-
-                    if modified {
-                        chunk.rebuild_geometry();
                     }
                 }
             }
@@ -1006,11 +932,62 @@ impl Terrain {
 
             chunk.height_map_size = new_size;
             chunk.heightmap = resampled_heightmap;
-            chunk.rebuild_geometry();
         }
 
         self.height_map_size.set_value_and_mark_modified(new_size);
         self.bounding_box_dirty.set(true);
+    }
+
+    /// Returns data for rendering (vertex and index buffers).
+    pub fn data(&self) -> SurfaceSharedData {
+        self.surface_data.clone()
+    }
+
+    /// Updates vertex and index buffers needed for rendering. In most cases there is no need
+    /// to call this method manually, engine will automatically call it when needed.
+    fn rebuild_geometry(&mut self) {
+        let mut surface_data = self.surface_data.lock();
+        surface_data.clear();
+
+        let mut vertex_buffer_mut = surface_data.vertex_buffer.modify();
+        // Form vertex buffer.
+        for iy in 0..self.mesh_size.y {
+            let kz = iy as f32 / ((self.mesh_size.y - 1) as f32);
+            for x in 0..self.mesh_size.x {
+                let kx = x as f32 / ((self.mesh_size.x - 1) as f32);
+
+                vertex_buffer_mut
+                    .push_vertex(&StaticVertex {
+                        position: Vector3::new(kx, 0.0, kz),
+                        tex_coord: Vector2::new(kx, kz),
+                        // Normals and tangents will be calculated later.
+                        normal: Default::default(),
+                        tangent: Default::default(),
+                    })
+                    .unwrap();
+            }
+        }
+        drop(vertex_buffer_mut);
+
+        let mut geometry_buffer_mut = surface_data.geometry_buffer.modify();
+        for iy in 0..self.mesh_size.y - 1 {
+            let iy_next = iy + 1;
+            for x in 0..self.mesh_size.x - 1 {
+                let x_next = x + 1;
+
+                let i0 = iy * self.mesh_size.x + x;
+                let i1 = iy_next * self.mesh_size.x + x;
+                let i2 = iy_next * self.mesh_size.x + x_next;
+                let i3 = iy * self.mesh_size.x + x_next;
+
+                geometry_buffer_mut.push(TriangleDefinition([i0, i1, i2]));
+                geometry_buffer_mut.push(TriangleDefinition([i2, i3, i0]));
+            }
+        }
+        drop(geometry_buffer_mut);
+
+        surface_data.calculate_normals().unwrap();
+        surface_data.calculate_tangents().unwrap();
     }
 }
 
@@ -1224,7 +1201,7 @@ impl TerrainBuilder {
         let mut chunks = Vec::new();
         for z in self.length_chunks.clone() {
             for x in self.width_chunks.clone() {
-                let mut chunk = Chunk {
+                let chunk = Chunk {
                     height_map_size: self.height_map_size,
                     heightmap: vec![
                         0.0;
@@ -1236,7 +1213,6 @@ impl TerrainBuilder {
                         z as f32 * self.chunk_size.y,
                     ),
                     physical_size: self.chunk_size,
-                    surface_data: make_surface_data(),
                     grid_position: Vector2::new(x, z),
                     layer_masks: self
                         .layers
@@ -1254,13 +1230,11 @@ impl TerrainBuilder {
                     version: VERSION,
                 };
 
-                chunk.rebuild_geometry();
-
                 chunks.push(chunk);
             }
         }
 
-        let terrain = Terrain {
+        let mut terrain = Terrain {
             chunk_size: self.chunk_size.into(),
             base: self.base_builder.build_base(),
             layers: self.layers.into(),
@@ -1273,7 +1247,11 @@ impl TerrainBuilder {
             length_chunks: self.length_chunks.into(),
             decal_layer_index: self.decal_layer_index.into(),
             version: VERSION,
+            mesh_size: Vector2::new(64, 64),
+            surface_data: make_surface_data(),
         };
+
+        terrain.rebuild_geometry();
 
         Node::new(terrain)
     }
