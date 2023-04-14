@@ -24,6 +24,7 @@ use crate::{
             vertex::StaticVertex,
         },
         node::{Node, NodeTrait, TypeUuidProvider},
+        terrain::quadtree::QuadTree,
     },
 };
 use image::{imageops::FilterType, ImageBuffer, Luma};
@@ -33,6 +34,8 @@ use std::{
     collections::HashMap,
     ops::{Deref, DerefMut, Range},
 };
+
+mod quadtree;
 
 /// Current implementation version marker.
 pub const VERSION: u8 = 1;
@@ -68,6 +71,8 @@ impl PartialEq for Layer {
 #[derive(Debug, Reflect, PartialEq)]
 pub struct Chunk {
     #[reflect(hidden)]
+    quad_tree: QuadTree,
+    #[reflect(hidden)]
     version: u8,
     #[reflect(hidden)]
     heightmap: Vec<f32>,
@@ -77,6 +82,8 @@ pub struct Chunk {
     physical_size: Vector2<f32>,
     #[reflect(hidden)]
     height_map_size: Vector2<u32>,
+    #[reflect(hidden)]
+    block_size: Vector2<u32>,
     #[reflect(hidden)]
     grid_position: Vector2<i32>,
     /// Layer blending masks of the chunk.
@@ -93,6 +100,7 @@ impl Clone for Chunk {
             position: self.position,
             physical_size: self.physical_size,
             height_map_size: self.height_map_size,
+            block_size: self.block_size,
             grid_position: self.grid_position,
             layer_masks: self
                 .layer_masks
@@ -108,6 +116,7 @@ impl Clone for Chunk {
                     .unwrap()
                 })
                 .collect::<Vec<_>>(),
+            quad_tree: QuadTree::new(&self.heightmap, self.height_map_size, self.block_size),
         }
     }
 }
@@ -168,11 +177,13 @@ impl Visit for Chunk {
 impl Default for Chunk {
     fn default() -> Self {
         Self {
+            quad_tree: Default::default(),
             version: VERSION,
             heightmap: Default::default(),
             position: Default::default(),
             physical_size: Default::default(),
             height_map_size: Default::default(),
+            block_size: Default::default(),
             grid_position: Default::default(),
             layer_masks: Default::default(),
         }
@@ -267,6 +278,9 @@ pub struct Terrain {
         setter = "set_height_map_size"
     )]
     height_map_size: InheritableVariable<Vector2<u32>>,
+
+    #[reflect(min_value = 8.0, step = 1.0)]
+    block_size: InheritableVariable<Vector2<u32>>,
 
     #[reflect(
         min_value = 1.0,
@@ -383,6 +397,7 @@ impl Visit for Terrain {
                 self.width_chunks.visit("WidthChunks", &mut region)?;
                 self.length_chunks.visit("LengthChunks", &mut region)?;
                 self.height_map_size.visit("HeightMapSize", &mut region)?;
+                let _ = self.block_size.visit("BlockSize", &mut region);
                 self.mask_size.visit("MaskSize", &mut region)?;
                 self.chunks.visit("Chunks", &mut region)?;
             }
@@ -531,11 +546,11 @@ impl Terrain {
                     existing_chunk
                 } else {
                     // Create new chunk.
+                    let heightmap =
+                        vec![0.0; (self.height_map_size.x * self.height_map_size.y) as usize];
                     let new_chunk = Chunk {
-                        heightmap: vec![
-                            0.0;
-                            (self.height_map_size.x * self.height_map_size.y) as usize
-                        ],
+                        quad_tree: QuadTree::new(&heightmap, *self.block_size, *self.block_size),
+                        heightmap,
                         position: Vector3::new(
                             x as f32 * self.chunk_size.x,
                             0.0,
@@ -543,6 +558,7 @@ impl Terrain {
                         ),
                         physical_size: *self.chunk_size,
                         height_map_size: *self.height_map_size,
+                        block_size: *self.block_size,
                         grid_position: Vector2::new(x, z),
                         layer_masks: self
                             .layers
@@ -1109,6 +1125,7 @@ pub struct TerrainBuilder {
     width_chunks: Range<i32>,
     length_chunks: Range<i32>,
     height_map_size: Vector2<u32>,
+    block_size: Vector2<u32>,
     layers: Vec<Layer>,
     decal_layer_index: u8,
 }
@@ -1149,6 +1166,7 @@ impl TerrainBuilder {
             length_chunks: 0..2,
             mask_size: Vector2::new(256, 256),
             height_map_size: Vector2::new(256, 256),
+            block_size: Vector2::new(32, 32),
             layers: Default::default(),
             decal_layer_index: 0,
         }
@@ -1196,17 +1214,24 @@ impl TerrainBuilder {
         self
     }
 
+    /// Sets desired block size. Block - is a smallest renderable piece of terrain which will be used for
+    /// level-of-detail functionality.
+    pub fn with_block_size(mut self, block_size: Vector2<u32>) -> Self {
+        self.block_size = block_size;
+        self
+    }
+
     /// Build terrain node.
     pub fn build_node(self) -> Node {
         let mut chunks = Vec::new();
         for z in self.length_chunks.clone() {
             for x in self.width_chunks.clone() {
+                let heightmap =
+                    vec![0.0; (self.height_map_size.x * self.height_map_size.y) as usize];
                 let chunk = Chunk {
+                    quad_tree: QuadTree::new(&heightmap, self.height_map_size, self.block_size),
                     height_map_size: self.height_map_size,
-                    heightmap: vec![
-                        0.0;
-                        (self.height_map_size.x * self.height_map_size.y) as usize
-                    ],
+                    heightmap,
                     position: Vector3::new(
                         x as f32 * self.chunk_size.x,
                         0.0,
@@ -1228,6 +1253,7 @@ impl TerrainBuilder {
                         })
                         .collect::<Vec<_>>(),
                     version: VERSION,
+                    block_size: self.block_size,
                 };
 
                 chunks.push(chunk);
@@ -1249,6 +1275,7 @@ impl TerrainBuilder {
             version: VERSION,
             mesh_size: Vector2::new(64, 64),
             surface_data: make_surface_data(),
+            block_size: self.block_size.into(),
         };
 
         terrain.rebuild_geometry();
