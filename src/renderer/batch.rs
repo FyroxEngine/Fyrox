@@ -194,7 +194,7 @@ impl BatchStorage {
                     });
                 }
             } else if let Some(terrain) = node.cast::<Terrain>() {
-                let data = terrain.data();
+                let data = &terrain.geometry().data;
                 let data_key = data.key();
 
                 for (layer_index, layer) in terrain.layers().iter().enumerate() {

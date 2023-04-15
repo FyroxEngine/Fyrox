@@ -4,9 +4,7 @@ use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         arrayvec::ArrayVec,
-        math::{
-            aabb::AxisAlignedBoundingBox, ray::Ray, ray_rect_intersection, Rect, TriangleDefinition,
-        },
+        math::{aabb::AxisAlignedBoundingBox, ray::Ray, ray_rect_intersection, Rect},
         pool::Handle,
         reflect::prelude::*,
         uuid::{uuid, Uuid},
@@ -18,13 +16,8 @@ use crate::{
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        mesh::{
-            buffer::{TriangleBuffer, VertexBuffer},
-            surface::{SurfaceData, SurfaceSharedData},
-            vertex::StaticVertex,
-        },
         node::{Node, NodeTrait, TypeUuidProvider},
-        terrain::quadtree::QuadTree,
+        terrain::{geometry::TerrainGeometry, quadtree::QuadTree},
     },
 };
 use image::{imageops::FilterType, ImageBuffer, Luma};
@@ -35,6 +28,7 @@ use std::{
     ops::{Deref, DerefMut, Range},
 };
 
+mod geometry;
 mod quadtree;
 
 /// Current implementation version marker.
@@ -291,9 +285,6 @@ pub struct Terrain {
     mask_size: InheritableVariable<Vector2<u32>>,
 
     #[reflect(read_only)]
-    mesh_size: Vector2<u32>,
-
-    #[reflect(read_only)]
     chunks: InheritableVariable<Vec<Chunk>>,
 
     #[reflect(hidden)]
@@ -303,7 +294,7 @@ pub struct Terrain {
     bounding_box: Cell<AxisAlignedBoundingBox>,
 
     #[reflect(hidden)]
-    surface_data: SurfaceSharedData,
+    geometry: TerrainGeometry,
 
     #[reflect(hidden)]
     version: u8,
@@ -405,7 +396,7 @@ impl Visit for Terrain {
         }
 
         if region.is_reading() {
-            self.rebuild_geometry();
+            self.geometry = TerrainGeometry::new(*self.block_size);
         }
 
         Ok(())
@@ -955,55 +946,8 @@ impl Terrain {
     }
 
     /// Returns data for rendering (vertex and index buffers).
-    pub fn data(&self) -> SurfaceSharedData {
-        self.surface_data.clone()
-    }
-
-    /// Updates vertex and index buffers needed for rendering. In most cases there is no need
-    /// to call this method manually, engine will automatically call it when needed.
-    fn rebuild_geometry(&mut self) {
-        let mut surface_data = self.surface_data.lock();
-        surface_data.clear();
-
-        let mut vertex_buffer_mut = surface_data.vertex_buffer.modify();
-        // Form vertex buffer.
-        for iy in 0..self.mesh_size.y {
-            let kz = iy as f32 / ((self.mesh_size.y - 1) as f32);
-            for x in 0..self.mesh_size.x {
-                let kx = x as f32 / ((self.mesh_size.x - 1) as f32);
-
-                vertex_buffer_mut
-                    .push_vertex(&StaticVertex {
-                        position: Vector3::new(kx, 0.0, kz),
-                        tex_coord: Vector2::new(kx, kz),
-                        // Normals and tangents will be calculated later.
-                        normal: Default::default(),
-                        tangent: Default::default(),
-                    })
-                    .unwrap();
-            }
-        }
-        drop(vertex_buffer_mut);
-
-        let mut geometry_buffer_mut = surface_data.geometry_buffer.modify();
-        for iy in 0..self.mesh_size.y - 1 {
-            let iy_next = iy + 1;
-            for x in 0..self.mesh_size.x - 1 {
-                let x_next = x + 1;
-
-                let i0 = iy * self.mesh_size.x + x;
-                let i1 = iy_next * self.mesh_size.x + x;
-                let i2 = iy_next * self.mesh_size.x + x_next;
-                let i3 = iy * self.mesh_size.x + x_next;
-
-                geometry_buffer_mut.push(TriangleDefinition([i0, i1, i2]));
-                geometry_buffer_mut.push(TriangleDefinition([i2, i3, i0]));
-            }
-        }
-        drop(geometry_buffer_mut);
-
-        surface_data.calculate_normals().unwrap();
-        surface_data.calculate_tangents().unwrap();
+    pub fn geometry(&self) -> &TerrainGeometry {
+        &self.geometry
     }
 }
 
@@ -1148,14 +1092,6 @@ fn create_layer_mask(width: u32, height: u32, value: u8) -> Texture {
     mask
 }
 
-fn make_surface_data() -> SurfaceSharedData {
-    SurfaceSharedData::new(SurfaceData::new(
-        VertexBuffer::new::<StaticVertex>(0, StaticVertex::layout(), vec![]).unwrap(),
-        TriangleBuffer::default(),
-        false,
-    ))
-}
-
 impl TerrainBuilder {
     /// Creates new builder instance.
     pub fn new(base_builder: BaseBuilder) -> Self {
@@ -1260,7 +1196,7 @@ impl TerrainBuilder {
             }
         }
 
-        let mut terrain = Terrain {
+        let terrain = Terrain {
             chunk_size: self.chunk_size.into(),
             base: self.base_builder.build_base(),
             layers: self.layers.into(),
@@ -1273,13 +1209,9 @@ impl TerrainBuilder {
             length_chunks: self.length_chunks.into(),
             decal_layer_index: self.decal_layer_index.into(),
             version: VERSION,
-            mesh_size: Vector2::new(64, 64),
-            surface_data: make_surface_data(),
+            geometry: TerrainGeometry::new(self.block_size),
             block_size: self.block_size.into(),
         };
-
-        terrain.rebuild_geometry();
-
         Node::new(terrain)
     }
 
