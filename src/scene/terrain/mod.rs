@@ -1019,7 +1019,11 @@ impl NodeTrait for Terrain {
         for (layer_index, layer) in self.layers().iter().enumerate() {
             for chunk in self.chunks_ref().iter() {
                 let levels = (0..chunk.quad_tree.max_level)
-                    .map(|n| ctx.z_far * (n as f32 / chunk.quad_tree.max_level as f32))
+                    .map(|n| {
+                        ctx.z_far
+                            * ((chunk.quad_tree.max_level - n) as f32
+                                / chunk.quad_tree.max_level as f32)
+                    })
                     .collect::<Vec<_>>();
 
                 let mut selection = Vec::new();
@@ -1033,8 +1037,6 @@ impl NodeTrait for Terrain {
                     &mut selection,
                 );
 
-                dbg!(&selection);
-
                 let mut material = (*layer.material.lock()).clone();
                 match material.set_property(
                     &ImmutableString::new(&layer.mask_property_name),
@@ -1047,6 +1049,22 @@ impl NodeTrait for Terrain {
                         let material = SharedMaterial::new(material);
 
                         for node in selection {
+                            let transform = self.global_transform()
+                                * Matrix4::new_translation(&Vector3::new(
+                                    node.position.x as f32 / self.height_map_size.x as f32
+                                        * self.chunk_size.x,
+                                    0.0,
+                                    node.position.y as f32 / self.height_map_size.y as f32
+                                        * self.chunk_size.y,
+                                ))
+                                * Matrix4::new_nonuniform_scaling(&Vector3::new(
+                                    node.size.x as f32 / self.height_map_size.x as f32
+                                        * self.chunk_size.x,
+                                    0.0,
+                                    node.size.y as f32 / self.height_map_size.y as f32
+                                        * self.chunk_size.y,
+                                ));
+
                             if node.is_draw_full() {
                                 ctx.storage.push(
                                     &self.geometry.data,
@@ -1055,7 +1073,7 @@ impl NodeTrait for Terrain {
                                     self.decal_layer_index(),
                                     layer_index as u64,
                                     SurfaceInstanceData {
-                                        world_transform: self.global_transform(),
+                                        world_transform: transform,
                                         bone_matrices: Default::default(),
                                         depth_offset: self.depth_offset_factor(),
                                         blend_shapes_weights: Default::default(),
@@ -1072,7 +1090,7 @@ impl NodeTrait for Terrain {
                                             self.decal_layer_index(),
                                             layer_index as u64,
                                             SurfaceInstanceData {
-                                                world_transform: self.global_transform(),
+                                                world_transform: transform,
                                                 bone_matrices: Default::default(),
                                                 depth_offset: self.depth_offset_factor(),
                                                 blend_shapes_weights: Default::default(),
