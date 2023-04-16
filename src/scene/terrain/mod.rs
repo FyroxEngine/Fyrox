@@ -7,18 +7,22 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, ray::Ray, ray_rect_intersection, Rect},
         pool::Handle,
         reflect::prelude::*,
+        sstorage::ImmutableString,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::{prelude::*, PodVecView},
     },
-    material::SharedMaterial,
+    material::{PropertyValue, SharedMaterial},
+    renderer::batch::{RenderContext, SurfaceInstanceData},
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureWrapMode},
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
+        mesh::RenderPath,
         node::{Node, NodeTrait, TypeUuidProvider},
         terrain::{geometry::TerrainGeometry, quadtree::QuadTree},
     },
+    utils::log::{Log, MessageKind},
 };
 use image::{imageops::FilterType, ImageBuffer, Luma};
 use std::{
@@ -996,6 +1000,47 @@ impl NodeTrait for Terrain {
 
     fn id(&self) -> Uuid {
         Self::type_uuid()
+    }
+
+    fn collect_render_data(&self, ctx: &mut RenderContext) {
+        for (layer_index, layer) in self.layers().iter().enumerate() {
+            for chunk in self.chunks_ref().iter() {
+                let mut material = (*layer.material.lock()).clone();
+                match material.set_property(
+                    &ImmutableString::new(&layer.mask_property_name),
+                    PropertyValue::Sampler {
+                        value: Some(chunk.layer_masks[layer_index].clone()),
+                        fallback: Default::default(),
+                    },
+                ) {
+                    Ok(_) => {
+                        let material = SharedMaterial::new(material);
+
+                        ctx.storage.push(
+                            &self.geometry.data,
+                            &material,
+                            RenderPath::Deferred,
+                            self.decal_layer_index(),
+                            layer_index as u64,
+                            SurfaceInstanceData {
+                                world_transform: self.global_transform(),
+                                bone_matrices: Default::default(),
+                                depth_offset: self.depth_offset_factor(),
+                                blend_shapes_weights: Default::default(),
+                            },
+                        );
+                    }
+                    Err(e) => Log::writeln(
+                        MessageKind::Error,
+                        format!(
+                            "Failed to prepare batch for terrain chunk.\
+                                 Unable to set mask texture for terrain material. Reason: {:?}",
+                            e
+                        ),
+                    ),
+                }
+            }
+        }
     }
 }
 

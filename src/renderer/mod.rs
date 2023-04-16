@@ -51,7 +51,7 @@ use crate::{
         Material, PropertyValue,
     },
     renderer::{
-        batch::BatchStorage,
+        batch::RenderDataBatchStorage,
         bloom::BloomRenderer,
         cache::{geometry::GeometryCache, shader::ShaderCache, texture::TextureCache, CacheEntry},
         debug_renderer::DebugRenderer,
@@ -83,6 +83,7 @@ use crate::{
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
+use fyrox_core::sstorage::ImmutableString;
 use glow::HasContext;
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{
@@ -90,6 +91,7 @@ use glutin::{
     prelude::GlSurface,
     surface::{Surface, WindowSurface},
 };
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::{
     cell::RefCell,
@@ -99,6 +101,20 @@ use std::{
     sync::mpsc::Receiver,
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+
+lazy_static! {
+    static ref GBUFFER_PASS_NAME: ImmutableString = ImmutableString::new("GBuffer");
+    static ref DIRECTIONAL_SHADOW_PASS_NAME: ImmutableString =
+        ImmutableString::new("DirectionalShadow");
+    static ref SPOT_SHADOW_PASS_NAME: ImmutableString = ImmutableString::new("SpotShadow");
+    static ref POINT_SHADOW_PASS_NAME: ImmutableString = ImmutableString::new("PointShadow");
+}
+
+pub fn is_shadow_pass(render_pass_name: &str) -> bool {
+    render_pass_name == &**DIRECTIONAL_SHADOW_PASS_NAME
+        || render_pass_name == &**SPOT_SHADOW_PASS_NAME
+        || render_pass_name == &**POINT_SHADOW_PASS_NAME
+}
 
 /// Renderer statistics for one frame, also includes current frames per second
 /// amount.
@@ -705,7 +721,6 @@ pub struct Renderer {
     pub texture_cache: TextureCache,
     shader_cache: ShaderCache,
     geometry_cache: GeometryCache,
-    batch_storage: BatchStorage,
     forward_renderer: ForwardRenderer,
     fxaa_renderer: FxaaRenderer,
     renderer2d: Renderer2d,
@@ -779,7 +794,7 @@ pub struct SceneRenderPassContext<'a, 'b> {
     pub geometry_cache: &'a mut GeometryCache,
 
     /// A storage that contains "pre-compiled" groups of render data (batches).
-    pub batch_storage: &'a BatchStorage,
+    pub batch_storage: &'a RenderDataBatchStorage,
 
     /// Current quality settings of the renderer.
     pub quality_settings: &'a QualitySettings,
@@ -1209,7 +1224,6 @@ impl Renderer {
             backbuffer_clear_color: Color::BLACK,
             texture_cache: Default::default(),
             geometry_cache: Default::default(),
-            batch_storage: Default::default(),
             forward_renderer: ForwardRenderer::new(),
             ui_frame_buffers: Default::default(),
             fxaa_renderer: FxaaRenderer::new(&mut state)?,
@@ -1500,8 +1514,6 @@ impl Renderer {
 
             let state = &mut self.state;
 
-            self.batch_storage.generate_batches(graph);
-
             let scene_associated_data = self
                 .scene_data_map
                 .entry(scene_handle)
@@ -1555,11 +1567,18 @@ impl Renderer {
             {
                 let viewport = camera.viewport_pixels(frame_size);
 
+                let batch_storage = RenderDataBatchStorage::from_graph(
+                    graph,
+                    camera.view_matrix(),
+                    camera.projection_matrix(),
+                    GBUFFER_PASS_NAME.clone(),
+                );
+
                 self.statistics += scene_associated_data.gbuffer.fill(GBufferRenderContext {
                     state,
                     camera,
                     geom_cache: &mut self.geometry_cache,
-                    batch_storage: &self.batch_storage,
+                    batch_storage: &batch_storage,
                     texture_cache: &mut self.texture_cache,
                     shader_cache: &mut self.shader_cache,
                     environment_dummy: self.environment_dummy.clone(),
@@ -1594,7 +1613,6 @@ impl Renderer {
                             settings: &self.quality_settings,
                             textures: &mut self.texture_cache,
                             geometry_cache: &mut self.geometry_cache,
-                            batch_storage: &self.batch_storage,
                             frame_buffer: &mut scene_associated_data.hdr_scene_framebuffer,
                             shader_cache: &mut self.shader_cache,
                             normal_dummy: self.normal_dummy.clone(),
@@ -1650,7 +1668,7 @@ impl Renderer {
                     geom_cache: &mut self.geometry_cache,
                     texture_cache: &mut self.texture_cache,
                     shader_cache: &mut self.shader_cache,
-                    batch_storage: &self.batch_storage,
+                    batch_storage: &batch_storage,
                     framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
                     viewport,
                     quality_settings: &self.quality_settings,
@@ -1670,7 +1688,7 @@ impl Renderer {
                                 texture_cache: &mut self.texture_cache,
                                 geometry_cache: &mut self.geometry_cache,
                                 quality_settings: &self.quality_settings,
-                                batch_storage: &self.batch_storage,
+                                batch_storage: &batch_storage,
                                 viewport,
                                 scene,
                                 camera,
@@ -1751,7 +1769,7 @@ impl Renderer {
                                 texture_cache: &mut self.texture_cache,
                                 geometry_cache: &mut self.geometry_cache,
                                 quality_settings: &self.quality_settings,
-                                batch_storage: &self.batch_storage,
+                                batch_storage: &batch_storage,
                                 viewport,
                                 scene,
                                 camera,

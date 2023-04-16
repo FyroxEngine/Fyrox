@@ -10,7 +10,7 @@ use crate::{
     core::{math::Rect, scope_profile, sstorage::ImmutableString},
     renderer::{
         apply_material,
-        batch::BatchStorage,
+        batch::RenderDataBatchStorage,
         cache::{shader::ShaderCache, texture::TextureCache},
         framework::{framebuffer::FrameBuffer, gpu_texture::GpuTexture, state::PipelineState},
         storage::MatrixStorage,
@@ -30,7 +30,7 @@ pub(crate) struct ForwardRenderContext<'a, 'b> {
     pub geom_cache: &'a mut GeometryCache,
     pub texture_cache: &'a mut TextureCache,
     pub shader_cache: &'a mut ShaderCache,
-    pub batch_storage: &'a BatchStorage,
+    pub batch_storage: &'a RenderDataBatchStorage,
     pub framebuffer: &'a mut FrameBuffer,
     pub viewport: Rect<i32>,
     pub quality_settings: &'a QualitySettings,
@@ -91,44 +91,42 @@ impl ForwardRenderer {
                 .and_then(|shader_set| shader_set.render_passes.get(&self.render_pass_name))
             {
                 for instance in batch.instances.iter() {
-                    if camera.visibility_cache.is_visible(instance.owner) {
-                        let view_projection = if instance.depth_offset != 0.0 {
-                            let mut projection = camera.projection_matrix();
-                            projection[14] -= instance.depth_offset;
-                            projection * camera.view_matrix()
-                        } else {
-                            initial_view_projection
-                        };
+                    let view_projection = if instance.depth_offset != 0.0 {
+                        let mut projection = camera.projection_matrix();
+                        projection[14] -= instance.depth_offset;
+                        projection * camera.view_matrix()
+                    } else {
+                        initial_view_projection
+                    };
 
-                        statistics += framebuffer.draw(
-                            geometry,
-                            state,
-                            viewport,
-                            &render_pass.program,
-                            &render_pass.draw_params,
-                            |mut program_binding| {
-                                apply_material(MaterialContext {
-                                    material: &material,
-                                    program_binding: &mut program_binding,
-                                    texture_cache,
-                                    world_matrix: &instance.world_transform,
-                                    wvp_matrix: &(view_projection * instance.world_transform),
-                                    bone_matrices: &instance.bone_matrices,
-                                    use_skeletal_animation: batch.is_skinned,
-                                    camera_position: &camera.global_position(),
-                                    use_pom: quality_settings.use_parallax_mapping,
-                                    light_position: &Default::default(),
-                                    blend_shapes_storage: blend_shapes_storage.as_ref(),
-                                    blend_shapes_weights: &instance.blend_shapes_weights,
-                                    normal_dummy: normal_dummy.clone(),
-                                    white_dummy: white_dummy.clone(),
-                                    black_dummy: black_dummy.clone(),
-                                    volume_dummy: volume_dummy.clone(),
-                                    matrix_storage,
-                                });
-                            },
-                        );
-                    }
+                    statistics += framebuffer.draw(
+                        geometry,
+                        state,
+                        viewport,
+                        &render_pass.program,
+                        &render_pass.draw_params,
+                        |mut program_binding| {
+                            apply_material(MaterialContext {
+                                material: &material,
+                                program_binding: &mut program_binding,
+                                texture_cache,
+                                world_matrix: &instance.world_transform,
+                                wvp_matrix: &(view_projection * instance.world_transform),
+                                bone_matrices: &instance.bone_matrices,
+                                use_skeletal_animation: batch.is_skinned,
+                                camera_position: &camera.global_position(),
+                                use_pom: quality_settings.use_parallax_mapping,
+                                light_position: &Default::default(),
+                                blend_shapes_storage: blend_shapes_storage.as_ref(),
+                                blend_shapes_weights: &instance.blend_shapes_weights,
+                                normal_dummy: normal_dummy.clone(),
+                                white_dummy: white_dummy.clone(),
+                                black_dummy: black_dummy.clone(),
+                                volume_dummy: volume_dummy.clone(),
+                                matrix_storage,
+                            });
+                        },
+                    );
                 }
             }
         }

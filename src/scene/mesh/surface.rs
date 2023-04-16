@@ -1277,6 +1277,12 @@ impl Surface {
         (*self.data).clone()
     }
 
+    /// Returns current data used by surface.
+    #[inline]
+    pub fn data_ref(&self) -> &SurfaceSharedData {
+        &self.data
+    }
+
     /// Returns current material of the surface.
     pub fn material(&self) -> &SharedMaterial {
         &self.material

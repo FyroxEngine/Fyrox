@@ -8,7 +8,6 @@
 //! modelling software or just download some model you like and load it in engine. But since
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
-use crate::scene::mesh::surface::BlendShape;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -19,12 +18,14 @@ use crate::{
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
+    renderer,
+    renderer::batch::{RenderContext, SurfaceInstanceData},
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
         mesh::{
             buffer::{VertexAttributeUsage, VertexReadTrait},
-            surface::Surface,
+            surface::{BlendShape, Surface},
         },
         node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
     },
@@ -327,6 +328,57 @@ impl NodeTrait for Mesh {
             self.world_bounding_box.set(
                 self.local_bounding_box()
                     .transform(&self.global_transform()),
+            );
+        }
+    }
+
+    fn collect_render_data(&self, ctx: &mut RenderContext) {
+        if !self.global_visibility()
+            || !self.is_globally_enabled()
+            || !ctx.frustum.is_intersects_aabb(&self.world_bounding_box())
+        {
+            return;
+        }
+
+        if renderer::is_shadow_pass(&ctx.render_pass_name) && !self.cast_shadows() {
+            return;
+        }
+
+        for surface in self.surfaces().iter() {
+            let is_skinned = !surface.bones.is_empty();
+
+            let world = if is_skinned {
+                Matrix4::identity()
+            } else {
+                self.global_transform()
+            };
+
+            ctx.storage.push(
+                surface.data_ref(),
+                surface.material(),
+                self.render_path(),
+                self.decal_layer_index(),
+                surface.material().key(),
+                SurfaceInstanceData {
+                    world_transform: world,
+                    bone_matrices: surface
+                        .bones
+                        .iter()
+                        .map(|bone_handle| {
+                            if let Some(bone_node) = ctx.graph.try_get(*bone_handle) {
+                                bone_node.global_transform() * bone_node.inv_bind_pose_transform()
+                            } else {
+                                Matrix4::identity()
+                            }
+                        })
+                        .collect::<Vec<_>>(),
+                    depth_offset: self.depth_offset_factor(),
+                    blend_shapes_weights: self
+                        .blend_shapes()
+                        .iter()
+                        .map(|bs| bs.weight / 100.0)
+                        .collect(),
+                },
             );
         }
     }

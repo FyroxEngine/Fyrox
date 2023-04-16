@@ -6,7 +6,6 @@ use crate::{
         scope_profile,
     },
     renderer::{
-        batch::BatchStorage,
         cache::shader::ShaderCache,
         flat_shader::FlatShader,
         framework::{
@@ -126,7 +125,6 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub settings: &'a QualitySettings,
     pub textures: &'a mut TextureCache,
     pub geometry_cache: &'a mut GeometryCache,
-    pub batch_storage: &'a BatchStorage,
     pub frame_buffer: &'a mut FrameBuffer,
     pub shader_cache: &'a mut ShaderCache,
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
@@ -311,7 +309,6 @@ impl DeferredLightRenderer {
             settings,
             textures,
             geometry_cache,
-            batch_storage,
             frame_buffer,
             black_dummy,
             volume_dummy,
@@ -521,8 +518,9 @@ impl DeferredLightRenderer {
 
                     pass_stats += self.spot_shadow_map_renderer.render(
                         state,
-                        &light_view_projection,
-                        batch_storage,
+                        &scene.graph,
+                        light_view_matrix,
+                        light_projection_matrix,
                         geometry_cache,
                         cascade_index,
                         shader_cache,
@@ -540,11 +538,11 @@ impl DeferredLightRenderer {
                         self.point_shadow_map_renderer
                             .render(PointShadowMapRenderContext {
                                 state,
+                                graph: &scene.graph,
                                 light_pos: light_position,
                                 light_radius,
                                 geom_cache: geometry_cache,
                                 cascade: cascade_index,
-                                batch_storage,
                                 shader_cache,
                                 texture_cache: textures,
                                 normal_dummy: normal_dummy.clone(),
@@ -563,7 +561,6 @@ impl DeferredLightRenderer {
                         light: directional,
                         camera,
                         geom_cache: geometry_cache,
-                        batch_storage,
                         shader_cache,
                         texture_cache: textures,
                         normal_dummy: normal_dummy.clone(),

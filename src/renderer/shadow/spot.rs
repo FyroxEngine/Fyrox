@@ -1,14 +1,9 @@
+use crate::renderer::SPOT_SHADOW_PASS_NAME;
 use crate::{
-    core::{
-        algebra::Matrix4,
-        color::Color,
-        math::{frustum::Frustum, Rect},
-        scope_profile,
-        sstorage::ImmutableString,
-    },
+    core::{algebra::Matrix4, color::Color, math::Rect, scope_profile},
     renderer::{
         apply_material,
-        batch::BatchStorage,
+        batch::RenderDataBatchStorage,
         cache::{shader::ShaderCache, texture::TextureCache},
         framework::{
             error::FrameworkError,
@@ -19,10 +14,11 @@ use crate::{
             },
             state::{ColorMask, PipelineState},
         },
-        shadow::{cascade_size, should_cast_shadows},
+        shadow::cascade_size,
         storage::MatrixStorage,
         GeometryCache, MaterialContext, RenderPassStatistics, ShadowMapPrecision,
     },
+    scene::graph::Graph,
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -34,7 +30,6 @@ pub struct SpotShadowMapRenderer {
     //  2 - small, for farthest lights.
     cascades: [FrameBuffer; 3],
     size: usize,
-    render_pass_name: ImmutableString,
 }
 
 impl SpotShadowMapRenderer {
@@ -91,7 +86,6 @@ impl SpotShadowMapRenderer {
                 make_cascade(state, cascade_size(size, 1), precision)?,
                 make_cascade(state, cascade_size(size, 2), precision)?,
             ],
-            render_pass_name: ImmutableString::new("SpotShadow"),
         })
     }
 
@@ -119,8 +113,9 @@ impl SpotShadowMapRenderer {
     pub(crate) fn render(
         &mut self,
         state: &mut PipelineState,
-        light_view_projection: &Matrix4<f32>,
-        batches: &BatchStorage,
+        graph: &Graph,
+        light_view_matrix: Matrix4<f32>,
+        light_projection_matrix: Matrix4<f32>,
         geom_cache: &mut GeometryCache,
         cascade: usize,
         shader_cache: &mut ShaderCache,
@@ -141,7 +136,14 @@ impl SpotShadowMapRenderer {
         let viewport = Rect::new(0, 0, cascade_size as i32, cascade_size as i32);
 
         framebuffer.clear(state, viewport, None, Some(1.0), None);
-        let frustum = Frustum::from(*light_view_projection).unwrap_or_default();
+
+        let light_view_projection = light_projection_matrix * light_view_matrix;
+        let batches = RenderDataBatchStorage::from_graph(
+            graph,
+            light_view_matrix,
+            light_projection_matrix,
+            SPOT_SHADOW_PASS_NAME.clone(),
+        );
 
         for batch in batches.batches.iter() {
             let material = batch.material.lock();
@@ -155,47 +157,45 @@ impl SpotShadowMapRenderer {
 
             if let Some(render_pass) = shader_cache
                 .get(state, material.shader())
-                .and_then(|shader_set| shader_set.render_passes.get(&self.render_pass_name))
+                .and_then(|shader_set| shader_set.render_passes.get(&SPOT_SHADOW_PASS_NAME))
             {
                 for instance in batch.instances.iter() {
-                    if should_cast_shadows(instance, &frustum) {
-                        statistics += framebuffer.draw(
-                            geometry,
-                            state,
-                            viewport,
-                            &render_pass.program,
-                            &DrawParameters {
-                                cull_face: Some(CullFace::Back),
-                                color_write: ColorMask::all(false),
-                                depth_write: true,
-                                stencil_test: None,
-                                depth_test: true,
-                                blend: None,
-                                stencil_op: Default::default(),
-                            },
-                            |mut program_binding| {
-                                apply_material(MaterialContext {
-                                    material: &material,
-                                    program_binding: &mut program_binding,
-                                    texture_cache,
-                                    matrix_storage,
-                                    world_matrix: &instance.world_transform,
-                                    wvp_matrix: &(light_view_projection * instance.world_transform),
-                                    bone_matrices: &instance.bone_matrices,
-                                    use_skeletal_animation: batch.is_skinned,
-                                    camera_position: &Default::default(),
-                                    use_pom: false,
-                                    light_position: &Default::default(),
-                                    blend_shapes_storage: blend_shapes_storage.as_ref(),
-                                    blend_shapes_weights: &instance.blend_shapes_weights,
-                                    normal_dummy: normal_dummy.clone(),
-                                    white_dummy: white_dummy.clone(),
-                                    black_dummy: black_dummy.clone(),
-                                    volume_dummy: volume_dummy.clone(),
-                                });
-                            },
-                        );
-                    }
+                    statistics += framebuffer.draw(
+                        geometry,
+                        state,
+                        viewport,
+                        &render_pass.program,
+                        &DrawParameters {
+                            cull_face: Some(CullFace::Back),
+                            color_write: ColorMask::all(false),
+                            depth_write: true,
+                            stencil_test: None,
+                            depth_test: true,
+                            blend: None,
+                            stencil_op: Default::default(),
+                        },
+                        |mut program_binding| {
+                            apply_material(MaterialContext {
+                                material: &material,
+                                program_binding: &mut program_binding,
+                                texture_cache,
+                                matrix_storage,
+                                world_matrix: &instance.world_transform,
+                                wvp_matrix: &(light_view_projection * instance.world_transform),
+                                bone_matrices: &instance.bone_matrices,
+                                use_skeletal_animation: batch.is_skinned,
+                                camera_position: &Default::default(),
+                                use_pom: false,
+                                light_position: &Default::default(),
+                                blend_shapes_storage: blend_shapes_storage.as_ref(),
+                                blend_shapes_weights: &instance.blend_shapes_weights,
+                                normal_dummy: normal_dummy.clone(),
+                                white_dummy: white_dummy.clone(),
+                                black_dummy: black_dummy.clone(),
+                                volume_dummy: volume_dummy.clone(),
+                            });
+                        },
+                    );
                 }
             }
         }

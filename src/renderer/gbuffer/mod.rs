@@ -9,6 +9,7 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
+use crate::renderer::batch::RenderDataBatchStorage;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -19,7 +20,6 @@ use crate::{
     },
     renderer::{
         apply_material,
-        batch::BatchStorage,
         cache::shader::ShaderCache,
         framework::{
             error::FrameworkError,
@@ -63,7 +63,7 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub state: &'a mut PipelineState,
     pub camera: &'b Camera,
     pub geom_cache: &'a mut GeometryCache,
-    pub batch_storage: &'a BatchStorage,
+    pub batch_storage: &'a RenderDataBatchStorage,
     pub texture_cache: &'a mut TextureCache,
     pub shader_cache: &'a mut ShaderCache,
     #[allow(dead_code)]
@@ -314,46 +314,44 @@ impl GBuffer {
                 .and_then(|shader_set| shader_set.render_passes.get(&self.render_pass_name))
             {
                 for instance in batch.instances.iter() {
-                    if camera.visibility_cache.is_visible(instance.owner) {
-                        let apply_uniforms = |mut program_binding: GpuProgramBinding| {
-                            let view_projection = if instance.depth_offset != 0.0 {
-                                let mut projection = camera.projection_matrix();
-                                projection[14] -= instance.depth_offset;
-                                projection * camera.view_matrix()
-                            } else {
-                                initial_view_projection
-                            };
-
-                            apply_material(MaterialContext {
-                                material: &material,
-                                program_binding: &mut program_binding,
-                                texture_cache,
-                                matrix_storage,
-                                world_matrix: &instance.world_transform,
-                                wvp_matrix: &(view_projection * instance.world_transform),
-                                bone_matrices: &instance.bone_matrices,
-                                use_skeletal_animation: batch.is_skinned,
-                                camera_position: &camera.global_position(),
-                                use_pom: use_parallax_mapping,
-                                light_position: &Default::default(),
-                                blend_shapes_storage: blend_shapes_storage.as_ref(),
-                                blend_shapes_weights: &instance.blend_shapes_weights,
-                                normal_dummy: normal_dummy.clone(),
-                                white_dummy: white_dummy.clone(),
-                                black_dummy: black_dummy.clone(),
-                                volume_dummy: volume_dummy.clone(),
-                            });
+                    let apply_uniforms = |mut program_binding: GpuProgramBinding| {
+                        let view_projection = if instance.depth_offset != 0.0 {
+                            let mut projection = camera.projection_matrix();
+                            projection[14] -= instance.depth_offset;
+                            projection * camera.view_matrix()
+                        } else {
+                            initial_view_projection
                         };
 
-                        statistics += self.framebuffer.draw(
-                            geometry,
-                            state,
-                            viewport,
-                            &render_pass.program,
-                            &render_pass.draw_params,
-                            apply_uniforms,
-                        );
-                    }
+                        apply_material(MaterialContext {
+                            material: &material,
+                            program_binding: &mut program_binding,
+                            texture_cache,
+                            matrix_storage,
+                            world_matrix: &instance.world_transform,
+                            wvp_matrix: &(view_projection * instance.world_transform),
+                            bone_matrices: &instance.bone_matrices,
+                            use_skeletal_animation: batch.is_skinned,
+                            camera_position: &camera.global_position(),
+                            use_pom: use_parallax_mapping,
+                            light_position: &Default::default(),
+                            blend_shapes_storage: blend_shapes_storage.as_ref(),
+                            blend_shapes_weights: &instance.blend_shapes_weights,
+                            normal_dummy: normal_dummy.clone(),
+                            white_dummy: white_dummy.clone(),
+                            black_dummy: black_dummy.clone(),
+                            volume_dummy: volume_dummy.clone(),
+                        });
+                    };
+
+                    statistics += self.framebuffer.draw(
+                        geometry,
+                        state,
+                        viewport,
+                        &render_pass.program,
+                        &render_pass.draw_params,
+                        apply_uniforms,
+                    );
                 }
             }
         }
