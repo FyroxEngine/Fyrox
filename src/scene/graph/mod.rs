@@ -464,8 +464,8 @@ impl Graph {
         let local_position = relative_transform.position();
         let local_rotation = UnitQuaternion::from_matrix(
             &relative_transform.basis());
-        self.pool[child].local_transform_mut().set_position(local_position);
-        self.pool[child].local_transform_mut().set_rotation(local_rotation);
+        self.pool[child].local_transform_mut().set_position(local_position)
+            .set_rotation(local_rotation);
         self.link_nodes(child, parent);
     }
 
