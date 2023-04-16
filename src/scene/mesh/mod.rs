@@ -340,7 +340,7 @@ impl NodeTrait for Mesh {
             return;
         }
 
-        if renderer::is_shadow_pass(&ctx.render_pass_name) && !self.cast_shadows() {
+        if renderer::is_shadow_pass(ctx.render_pass_name) && !self.cast_shadows() {
             return;
         }
 

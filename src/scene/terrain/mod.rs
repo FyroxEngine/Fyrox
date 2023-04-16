@@ -13,6 +13,7 @@ use crate::{
         visitor::{prelude::*, PodVecView},
     },
     material::{PropertyValue, SharedMaterial},
+    renderer,
     renderer::batch::{RenderContext, SurfaceInstanceData},
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureWrapMode},
     scene::{
@@ -1003,6 +1004,17 @@ impl NodeTrait for Terrain {
     }
 
     fn collect_render_data(&self, ctx: &mut RenderContext) {
+        if !self.global_visibility()
+            || !self.is_globally_enabled()
+            || !ctx.frustum.is_intersects_aabb(&self.world_bounding_box())
+        {
+            return;
+        }
+
+        if renderer::is_shadow_pass(ctx.render_pass_name) && !self.cast_shadows() {
+            return;
+        }
+
         for (layer_index, layer) in self.layers().iter().enumerate() {
             for chunk in self.chunks_ref().iter() {
                 let mut material = (*layer.material.lock()).clone();
