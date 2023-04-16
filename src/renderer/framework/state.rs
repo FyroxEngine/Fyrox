@@ -187,6 +187,9 @@ pub struct PipelineState {
     clear_depth: f32,
     scissor_test: bool,
 
+    polygon_face: PolygonFace,
+    polygon_fill_mode: PolygonFillMode,
+
     framebuffer: Option<glow::Framebuffer>,
     viewport: Rect<i32>,
 
@@ -326,6 +329,34 @@ impl Default for StencilOp {
     }
 }
 
+#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit, Eq)]
+#[repr(u32)]
+pub enum PolygonFace {
+    Front = glow::FRONT,
+    Back = glow::BACK,
+    FrontAndBack = glow::FRONT_AND_BACK,
+}
+
+impl Default for PolygonFace {
+    fn default() -> Self {
+        Self::FrontAndBack
+    }
+}
+
+#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit, Eq)]
+#[repr(u32)]
+pub enum PolygonFillMode {
+    Point = glow::POINT,
+    Line = glow::LINE,
+    Fill = glow::FILL,
+}
+
+impl Default for PolygonFillMode {
+    fn default() -> Self {
+        Self::Fill
+    }
+}
+
 impl PipelineState {
     pub fn new(context: glow::Context) -> Self {
         unsafe {
@@ -347,6 +378,8 @@ impl PipelineState {
             clear_stencil: 0,
             clear_depth: 1.0,
             scissor_test: false,
+            polygon_face: Default::default(),
+            polygon_fill_mode: Default::default(),
             framebuffer: None,
             blend_func: Default::default(),
             viewport: Rect::new(0, 0, 1, 1),
@@ -358,6 +391,22 @@ impl PipelineState {
             vbo: Default::default(),
             frame_statistics: Default::default(),
             blend_equation: Default::default(),
+        }
+    }
+
+    pub fn set_polygon_fill_mode(
+        &mut self,
+        polygon_face: PolygonFace,
+        polygon_fill_mode: PolygonFillMode,
+    ) {
+        if self.polygon_fill_mode != polygon_fill_mode || self.polygon_face != polygon_face {
+            self.polygon_fill_mode = polygon_fill_mode;
+            self.polygon_face = polygon_face;
+
+            unsafe {
+                self.gl
+                    .polygon_mode(self.polygon_face as u32, self.polygon_fill_mode as u32)
+            }
         }
     }
 
