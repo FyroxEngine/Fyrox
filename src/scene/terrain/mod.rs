@@ -165,10 +165,13 @@ impl Visit for Chunk {
                 self.height_map_size.visit("HeightMapSize", &mut region)?;
                 self.layer_masks.visit("LayerMasks", &mut region)?;
                 self.grid_position.visit("GridPosition", &mut region)?;
+                let _ = self.block_size.visit("BlockSize", &mut region);
                 // self.surface_data is not serialized.
             }
             _ => (),
         }
+
+        self.quad_tree = QuadTree::new(&self.heightmap, self.height_map_size, self.block_size);
 
         Ok(())
     }
