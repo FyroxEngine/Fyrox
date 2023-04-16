@@ -1,11 +1,12 @@
 use crate::{
-    core::{color::Color, math::Rect, visitor::prelude::*},
+    core::{color::Color, math::Rect, reflect::prelude::*, visitor::prelude::*},
     renderer::framework::framebuffer::{CullFace, DrawParameters},
     utils::log::{Log, MessageKind},
 };
 use glow::{Framebuffer, HasContext};
 use serde::Deserialize;
 use std::fmt::{Display, Formatter};
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 #[derive(Debug, Default, Copy, Clone)]
 pub struct PipelineStatistics {
@@ -38,7 +39,22 @@ impl Display for PipelineStatistics {
     }
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Visit, Deserialize, Debug)]
+#[derive(
+    Copy,
+    Clone,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Ord,
+    Hash,
+    Visit,
+    Deserialize,
+    Debug,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
 #[repr(u32)]
 pub enum CompareFunc {
     /// Never passes.
@@ -72,7 +88,22 @@ impl Default for CompareFunc {
     }
 }
 
-#[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord, Deserialize, Visit, Debug)]
+#[derive(
+    Copy,
+    Clone,
+    Hash,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Ord,
+    Deserialize,
+    Visit,
+    Debug,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
 #[repr(u32)]
 pub enum BlendFactor {
     Zero = glow::ZERO,
@@ -270,7 +301,21 @@ impl Default for StencilFunc {
     }
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit, Eq)]
+#[derive(
+    Copy,
+    Clone,
+    PartialOrd,
+    PartialEq,
+    Hash,
+    Debug,
+    Deserialize,
+    Visit,
+    Eq,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
 #[repr(u32)]
 pub enum StencilAction {
     /// Keeps the current value.
@@ -329,7 +374,21 @@ impl Default for StencilOp {
     }
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit, Eq)]
+#[derive(
+    Copy,
+    Clone,
+    PartialOrd,
+    PartialEq,
+    Hash,
+    Debug,
+    Deserialize,
+    Visit,
+    Eq,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
 #[repr(u32)]
 pub enum PolygonFace {
     Front = glow::FRONT,
@@ -343,7 +402,21 @@ impl Default for PolygonFace {
     }
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit, Eq)]
+#[derive(
+    Copy,
+    Clone,
+    PartialOrd,
+    PartialEq,
+    Hash,
+    Debug,
+    Deserialize,
+    Visit,
+    Eq,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
 #[repr(u32)]
 pub enum PolygonFillMode {
     Point = glow::POINT,

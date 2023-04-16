@@ -36,6 +36,7 @@ mod ssao;
 
 use crate::renderer::batch::ObserverInfo;
 use crate::renderer::framework::geometry_buffer::ElementRange;
+use crate::renderer::framework::state::{PolygonFace, PolygonFillMode};
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -1582,6 +1583,11 @@ impl Renderer {
                     GBUFFER_PASS_NAME.clone(),
                 );
 
+                state.set_polygon_fill_mode(
+                    PolygonFace::FrontAndBack,
+                    scene.polygon_rasterization_mode,
+                );
+
                 self.statistics += scene_associated_data.gbuffer.fill(GBufferRenderContext {
                     state,
                     camera,
@@ -1598,6 +1604,8 @@ impl Renderer {
                     graph,
                     matrix_storage: &mut self.matrix_storage,
                 })?;
+
+                state.set_polygon_fill_mode(PolygonFace::FrontAndBack, PolygonFillMode::Fill);
 
                 scene_associated_data.copy_depth_stencil_to_scene_framebuffer(state);
 
@@ -1809,6 +1817,9 @@ impl Renderer {
                 )?;
             }
         }
+
+        self.pipeline_state()
+            .set_polygon_fill_mode(PolygonFace::FrontAndBack, PolygonFillMode::Fill);
 
         // Render UI on top of everything without gamma correction.
         self.statistics += self.ui_renderer.render(UiRenderContext {

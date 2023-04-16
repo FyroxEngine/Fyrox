@@ -28,6 +28,7 @@ pub mod terrain;
 pub mod transform;
 pub mod visibility;
 
+use crate::renderer::framework::state::PolygonFillMode;
 use crate::{
     core::{
         algebra::Vector2,
@@ -190,6 +191,10 @@ pub struct Scene {
     /// to false for menu's scene and when you need to open a menu - set it to true and
     /// set `enabled` flag to false for level's scene.
     pub enabled: bool,
+
+    /// Defines how polygons of the scene will be rasterized. By default it set to [`PolygonFillMode::Fill`],
+    /// [`PolygonFillMode::Line`] could be used to render the scene in wireframe mode.
+    pub polygon_rasterization_mode: PolygonFillMode,
 }
 
 impl Default for Scene {
@@ -202,6 +207,7 @@ impl Default for Scene {
             performance_statistics: Default::default(),
             ambient_lighting_color: Color::opaque(100, 100, 100),
             enabled: true,
+            polygon_rasterization_mode: Default::default(),
         }
     }
 }
@@ -532,6 +538,7 @@ impl Scene {
             performance_statistics: Default::default(),
             ambient_lighting_color: Color::opaque(100, 100, 100),
             enabled: true,
+            polygon_rasterization_mode: Default::default(),
         }
     }
 
@@ -706,6 +713,7 @@ impl Scene {
                 performance_statistics: Default::default(),
                 ambient_lighting_color: self.ambient_lighting_color,
                 enabled: self.enabled,
+                polygon_rasterization_mode: self.polygon_rasterization_mode,
             },
             old_new_map,
         )
@@ -719,8 +727,11 @@ impl Scene {
         self.ambient_lighting_color
             .visit("AmbientLightingColor", &mut region)?;
         self.enabled.visit("Enabled", &mut region)?;
+        let _ = self
+            .polygon_rasterization_mode
+            .visit("PolygonRasterizationMode", &mut region);
 
-        // Backward compatibility.
+        // Backward compatibility.\
         let mut navmeshes = NavMeshContainer::default();
         if navmeshes.visit("NavMeshes", &mut region).is_ok() {
             for (i, navmesh) in navmeshes.iter().enumerate() {

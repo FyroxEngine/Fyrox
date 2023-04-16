@@ -15,6 +15,7 @@ use crate::{
     Message,
 };
 use fyrox::animation::machine::node::blendspace::{BlendSpace, BlendSpacePoint};
+use fyrox::renderer::framework::state::PolygonFillMode;
 use fyrox::scene::terrain::Chunk;
 use fyrox::{
     animation::{
@@ -337,6 +338,7 @@ pub fn make_property_editors_container(
     container.insert(InspectablePropertyEditorDefinition::<NotNode>::new());
 
     container.insert(InspectablePropertyEditorDefinition::<ParticleSystemRng>::new());
+    container.insert(EnumPropertyEditorDefinition::<PolygonFillMode>::new());
 
     container
 }
