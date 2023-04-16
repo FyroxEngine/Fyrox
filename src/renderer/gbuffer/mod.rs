@@ -10,6 +10,7 @@
 //! now I don't know better solution.
 
 use crate::renderer::batch::RenderDataBatchStorage;
+use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -262,7 +263,10 @@ impl GBuffer {
     }
 
     #[must_use]
-    pub(crate) fn fill(&mut self, args: GBufferRenderContext) -> RenderPassStatistics {
+    pub(crate) fn fill(
+        &mut self,
+        args: GBufferRenderContext,
+    ) -> Result<RenderPassStatistics, FrameworkError> {
         scope_profile!();
 
         let mut statistics = RenderPassStatistics::default();
@@ -350,8 +354,9 @@ impl GBuffer {
                         viewport,
                         &render_pass.program,
                         &render_pass.draw_params,
+                        instance.element_range,
                         apply_uniforms,
-                    );
+                    )?;
                 }
             }
         }
@@ -398,6 +403,7 @@ impl GBuffer {
                     }),
                     stencil_op: Default::default(),
                 },
+                ElementRange::Full,
                 |mut program_binding| {
                     program_binding
                         .set_matrix4(&shader.world_view_projection, &world_view_proj)
@@ -414,9 +420,9 @@ impl GBuffer {
                         .set_u32(&shader.layer_index, decal.layer() as u32)
                         .set_linear_color(&shader.color, &decal.color());
                 },
-            );
+            )?;
         }
 
-        statistics
+        Ok(statistics)
     }
 }

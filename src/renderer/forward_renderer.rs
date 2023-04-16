@@ -12,7 +12,10 @@ use crate::{
         apply_material,
         batch::RenderDataBatchStorage,
         cache::{shader::ShaderCache, texture::TextureCache},
-        framework::{framebuffer::FrameBuffer, gpu_texture::GpuTexture, state::PipelineState},
+        framework::{
+            error::FrameworkError, framebuffer::FrameBuffer, gpu_texture::GpuTexture,
+            state::PipelineState,
+        },
         storage::MatrixStorage,
         GeometryCache, MaterialContext, QualitySettings, RenderPassStatistics,
     },
@@ -48,7 +51,10 @@ impl ForwardRenderer {
         }
     }
 
-    pub(crate) fn render(&self, args: ForwardRenderContext) -> RenderPassStatistics {
+    pub(crate) fn render(
+        &self,
+        args: ForwardRenderContext,
+    ) -> Result<RenderPassStatistics, FrameworkError> {
         scope_profile!();
 
         let mut statistics = RenderPassStatistics::default();
@@ -105,6 +111,7 @@ impl ForwardRenderer {
                         viewport,
                         &render_pass.program,
                         &render_pass.draw_params,
+                        instance.element_range,
                         |mut program_binding| {
                             apply_material(MaterialContext {
                                 material: &material,
@@ -126,11 +133,11 @@ impl ForwardRenderer {
                                 matrix_storage,
                             });
                         },
-                    );
+                    )?;
                 }
             }
         }
 
-        statistics
+        Ok(statistics)
     }
 }

@@ -41,6 +41,12 @@ pub struct SelectedNode {
     pub active_quadrants: [bool; 4],
 }
 
+impl SelectedNode {
+    pub fn is_draw_full(&self) -> bool {
+        self.active_quadrants.iter().all(|s| *s)
+    }
+}
+
 impl QuadTreeNode {
     pub fn new(
         height_map: &[f32],
@@ -256,7 +262,7 @@ impl QuadTree {
         camera_position: Vector3<f32>,
         level_ranges: &[f32],
         selection: &mut Vec<SelectedNode>,
-    ) -> bool {
+    ) {
         self.root.select(
             transform,
             height_map_size,
@@ -265,7 +271,7 @@ impl QuadTree {
             camera_position,
             level_ranges,
             selection,
-        )
+        );
     }
 }
 

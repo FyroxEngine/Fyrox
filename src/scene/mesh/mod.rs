@@ -8,6 +8,7 @@
 //! modelling software or just download some model you like and load it in engine. But since
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
+use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -378,6 +379,7 @@ impl NodeTrait for Mesh {
                         .iter()
                         .map(|bs| bs.weight / 100.0)
                         .collect(),
+                    element_range: ElementRange::Full,
                 },
             );
         }

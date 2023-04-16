@@ -1,4 +1,5 @@
 use crate::core::sstorage::ImmutableString;
+use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
     core::{math::Rect, scope_profile},
     renderer::{
@@ -104,7 +105,7 @@ impl BloomRenderer {
         state: &mut PipelineState,
         quad: &GeometryBuffer,
         hdr_scene_frame: Rc<RefCell<GpuTexture>>,
-    ) -> RenderPassStatistics {
+    ) -> Result<RenderPassStatistics, FrameworkError> {
         scope_profile!();
 
         let mut stats = RenderPassStatistics::default();
@@ -126,6 +127,7 @@ impl BloomRenderer {
                 blend: None,
                 stencil_op: Default::default(),
             },
+            ElementRange::Full,
             |mut program_binding| {
                 program_binding
                     .set_matrix4(
@@ -134,10 +136,10 @@ impl BloomRenderer {
                     )
                     .set_texture(&shader.hdr_sampler, &hdr_scene_frame);
             },
-        );
+        )?;
 
-        stats += self.blur.render(state, quad, self.glow_texture());
+        stats += self.blur.render(state, quad, self.glow_texture())?;
 
-        stats
+        Ok(stats)
     }
 }

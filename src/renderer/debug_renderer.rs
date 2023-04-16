@@ -4,6 +4,7 @@
 //! on. It contains implementations to draw most common shapes (line, box, oob, frustum, etc).
 
 use crate::core::sstorage::ImmutableString;
+use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
     core::{algebra::Vector3, math::Rect, scope_profile},
     renderer::framework::{
@@ -88,7 +89,7 @@ impl DebugRenderer {
         framebuffer: &mut FrameBuffer,
         drawing_context: &SceneDrawingContext,
         camera: &Camera,
-    ) -> RenderPassStatistics {
+    ) -> Result<RenderPassStatistics, FrameworkError> {
         scope_profile!();
 
         let mut statistics = RenderPassStatistics::default();
@@ -127,14 +128,15 @@ impl DebugRenderer {
                 blend: None,
                 stencil_op: Default::default(),
             },
+            ElementRange::Full,
             |mut program_binding| {
                 program_binding
                     .set_matrix4(&self.shader.wvp_matrix, &camera.view_projection_matrix());
             },
-        );
+        )?;
 
         statistics.draw_calls += 1;
 
-        statistics
+        Ok(statistics)
     }
 }

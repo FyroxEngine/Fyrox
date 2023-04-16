@@ -1,5 +1,6 @@
 //! The module responsible for batch generation for rendering optimizations.
 
+use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
     core::{algebra::Matrix4, math::frustum::Frustum, sstorage::ImmutableString},
     material::SharedMaterial,
@@ -9,12 +10,24 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
+use fyrox_core::algebra::Vector3;
 use std::{
     fmt::{Debug, Formatter},
     hash::Hasher,
 };
 
+pub struct ObserverInfo {
+    pub observer_position: Vector3<f32>,
+    pub z_near: f32,
+    pub z_far: f32,
+    pub view_matrix: Matrix4<f32>,
+    pub projection_matrix: Matrix4<f32>,
+}
+
 pub struct RenderContext<'a> {
+    pub observer_position: &'a Vector3<f32>,
+    pub z_near: f32,
+    pub z_far: f32,
     pub view_matrix: &'a Matrix4<f32>,
     pub projection_matrix: &'a Matrix4<f32>,
     pub frustum: &'a Frustum,
@@ -33,6 +46,7 @@ pub struct SurfaceInstanceData {
     pub depth_offset: f32,
     /// A set of weights for each blend shape in the surface.
     pub blend_shapes_weights: Vec<f32>,
+    pub element_range: ElementRange,
 }
 
 /// A set of surface instances that share the same vertex/index data and a material.
@@ -74,8 +88,7 @@ pub struct RenderDataBatchStorage {
 impl RenderDataBatchStorage {
     pub fn from_graph(
         graph: &Graph,
-        view_matrix: Matrix4<f32>,
-        projection_matrix: Matrix4<f32>,
+        observer_info: ObserverInfo,
         render_pass_name: ImmutableString,
     ) -> Self {
         // Aim for the worst-case scenario when every node has unique render data.
@@ -85,17 +98,23 @@ impl RenderDataBatchStorage {
             batches: Vec::with_capacity(capacity),
         };
 
-        let frustum = Frustum::from(projection_matrix * view_matrix).unwrap_or_default();
+        let frustum = Frustum::from(observer_info.projection_matrix * observer_info.view_matrix)
+            .unwrap_or_default();
+
+        let mut ctx = RenderContext {
+            observer_position: &observer_info.observer_position,
+            z_near: observer_info.z_near,
+            z_far: observer_info.z_far,
+            view_matrix: &observer_info.view_matrix,
+            projection_matrix: &observer_info.projection_matrix,
+            frustum: &frustum,
+            storage: &mut storage,
+            graph,
+            render_pass_name: &render_pass_name,
+        };
 
         for node in graph.linear_iter() {
-            node.collect_render_data(&mut RenderContext {
-                view_matrix: &view_matrix,
-                projection_matrix: &projection_matrix,
-                frustum: &frustum,
-                storage: &mut storage,
-                graph,
-                render_pass_name: &render_pass_name,
-            });
+            node.collect_render_data(&mut ctx);
         }
 
         storage.sort();

@@ -1,4 +1,5 @@
 use crate::renderer::framework::framebuffer::BlendParameters;
+use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::scene::sprite::Sprite;
 use crate::{
     core::{
@@ -87,7 +88,10 @@ impl SpriteRenderer {
     }
 
     #[must_use]
-    pub(crate) fn render(&mut self, args: SpriteRenderContext) -> RenderPassStatistics {
+    pub(crate) fn render(
+        &mut self,
+        args: SpriteRenderContext,
+    ) -> Result<RenderPassStatistics, FrameworkError> {
         scope_profile!();
 
         let mut statistics = RenderPassStatistics::default();
@@ -151,6 +155,7 @@ impl SpriteRenderer {
                     }),
                     stencil_op: Default::default(),
                 },
+                ElementRange::Full,
                 |mut program_binding| {
                     program_binding
                         .set_texture(&self.shader.diffuse_texture, &diffuse_texture)
@@ -162,9 +167,9 @@ impl SpriteRenderer {
                         .set_linear_color(&self.shader.color, &sprite.color())
                         .set_f32(&self.shader.rotation, sprite.rotation());
                 },
-            );
+            )?;
         }
 
-        statistics
+        Ok(statistics)
     }
 }

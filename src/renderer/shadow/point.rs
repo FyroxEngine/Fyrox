@@ -7,7 +7,7 @@ use crate::{
     },
     renderer::{
         apply_material,
-        batch::RenderDataBatchStorage,
+        batch::{ObserverInfo, RenderDataBatchStorage},
         cache::{shader::ShaderCache, texture::TextureCache},
         framework::{
             error::FrameworkError,
@@ -185,7 +185,10 @@ impl PointShadowMapRenderer {
             .clone()
     }
 
-    pub(crate) fn render(&mut self, args: PointShadowMapRenderContext) -> RenderPassStatistics {
+    pub(crate) fn render(
+        &mut self,
+        args: PointShadowMapRenderContext,
+    ) -> Result<RenderPassStatistics, FrameworkError> {
         scope_profile!();
 
         let mut statistics = RenderPassStatistics::default();
@@ -211,8 +214,10 @@ impl PointShadowMapRenderer {
 
         let viewport = Rect::new(0, 0, cascade_size as i32, cascade_size as i32);
 
+        let z_near = 0.01;
+        let z_far = light_radius;
         let light_projection_matrix =
-            Matrix4::new_perspective(1.0, std::f32::consts::FRAC_PI_2, 0.01, light_radius);
+            Matrix4::new_perspective(1.0, std::f32::consts::FRAC_PI_2, z_near, z_far);
 
         for face in self.faces.iter() {
             framebuffer.set_cubemap_face(state, 0, face.face).clear(
@@ -233,8 +238,13 @@ impl PointShadowMapRenderer {
 
             let batches = RenderDataBatchStorage::from_graph(
                 graph,
-                light_view_matrix,
-                light_projection_matrix,
+                ObserverInfo {
+                    observer_position: light_pos,
+                    z_near,
+                    z_far,
+                    view_matrix: light_view_matrix,
+                    projection_matrix: light_projection_matrix,
+                },
                 POINT_SHADOW_PASS_NAME.clone(),
             );
 
@@ -259,6 +269,7 @@ impl PointShadowMapRenderer {
                             viewport,
                             &render_pass.program,
                             &render_pass.draw_params,
+                            instance.element_range,
                             |mut program_binding| {
                                 apply_material(MaterialContext {
                                     material: &material,
@@ -281,12 +292,12 @@ impl PointShadowMapRenderer {
                                     volume_dummy: volume_dummy.clone(),
                                 });
                             },
-                        );
+                        )?;
                     }
                 }
             }
         }
 
-        statistics
+        Ok(statistics)
     }
 }

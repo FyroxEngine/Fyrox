@@ -3,6 +3,7 @@ use crate::{
         algebra::{Vector2, Vector3},
         math::TriangleDefinition,
     },
+    renderer::framework::geometry_buffer::ElementRange,
     scene::mesh::{
         buffer::{TriangleBuffer, VertexBuffer},
         surface::{SurfaceData, SurfaceSharedData},
@@ -13,8 +14,8 @@ use crate::{
 #[derive(Default, Debug, Clone)]
 pub struct TerrainGeometry {
     pub data: SurfaceSharedData,
-    /// Triangle index offsets for each quadrant (in clockwise order; left-top -> right-top -> right-bottom -> left-bottom)  
-    pub quadrants: [u32; 4],
+    /// Triangle ranges for each quadrant (in clockwise order; left-top -> right-top -> right-bottom -> left-bottom)  
+    pub quadrants: [ElementRange; 4],
 }
 
 impl TerrainGeometry {
@@ -49,7 +50,7 @@ impl TerrainGeometry {
 
         let half_size = mesh_size / 2;
 
-        let mut quadrants = [0; 4];
+        let mut quadrants = [ElementRange::Full; 4];
         for ((x_range, y_range), quadrant) in [
             (0..half_size.x, 0..half_size.y),
             (half_size.x..mesh_size.x, 0..half_size.y),
@@ -59,7 +60,10 @@ impl TerrainGeometry {
         .into_iter()
         .zip(&mut quadrants)
         {
-            *quadrant = geometry_buffer_mut.len() as u32;
+            *quadrant = ElementRange::Specific {
+                offset: geometry_buffer_mut.len(),
+                count: (half_size.x * half_size.y) as usize,
+            };
 
             for iy in y_range.start..y_range.end - 1 {
                 let iy_next = iy + 1;

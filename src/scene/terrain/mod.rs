@@ -1,5 +1,6 @@
 //! Everything related to terrains.
 
+use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -1017,6 +1018,23 @@ impl NodeTrait for Terrain {
 
         for (layer_index, layer) in self.layers().iter().enumerate() {
             for chunk in self.chunks_ref().iter() {
+                let levels = (0..chunk.quad_tree.max_level)
+                    .map(|n| ctx.z_far * (n as f32 / chunk.quad_tree.max_level as f32))
+                    .collect::<Vec<_>>();
+
+                let mut selection = Vec::new();
+                chunk.quad_tree.select(
+                    &self.global_transform(),
+                    self.height_map_size(),
+                    self.chunk_size(),
+                    ctx.frustum,
+                    *ctx.observer_position,
+                    &levels,
+                    &mut selection,
+                );
+
+                dbg!(&selection);
+
                 let mut material = (*layer.material.lock()).clone();
                 match material.set_property(
                     &ImmutableString::new(&layer.mask_property_name),
@@ -1028,19 +1046,43 @@ impl NodeTrait for Terrain {
                     Ok(_) => {
                         let material = SharedMaterial::new(material);
 
-                        ctx.storage.push(
-                            &self.geometry.data,
-                            &material,
-                            RenderPath::Deferred,
-                            self.decal_layer_index(),
-                            layer_index as u64,
-                            SurfaceInstanceData {
-                                world_transform: self.global_transform(),
-                                bone_matrices: Default::default(),
-                                depth_offset: self.depth_offset_factor(),
-                                blend_shapes_weights: Default::default(),
-                            },
-                        );
+                        for node in selection {
+                            if node.is_draw_full() {
+                                ctx.storage.push(
+                                    &self.geometry.data,
+                                    &material,
+                                    RenderPath::Deferred,
+                                    self.decal_layer_index(),
+                                    layer_index as u64,
+                                    SurfaceInstanceData {
+                                        world_transform: self.global_transform(),
+                                        bone_matrices: Default::default(),
+                                        depth_offset: self.depth_offset_factor(),
+                                        blend_shapes_weights: Default::default(),
+                                        element_range: ElementRange::Full,
+                                    },
+                                );
+                            } else {
+                                for (i, draw_quadrant) in node.active_quadrants.iter().enumerate() {
+                                    if *draw_quadrant {
+                                        ctx.storage.push(
+                                            &self.geometry.data,
+                                            &material,
+                                            RenderPath::Deferred,
+                                            self.decal_layer_index(),
+                                            layer_index as u64,
+                                            SurfaceInstanceData {
+                                                world_transform: self.global_transform(),
+                                                bone_matrices: Default::default(),
+                                                depth_offset: self.depth_offset_factor(),
+                                                blend_shapes_weights: Default::default(),
+                                                element_range: self.geometry.quadrants[i],
+                                            },
+                                        );
+                                    }
+                                }
+                            }
+                        }
                     }
                     Err(e) => Log::writeln(
                         MessageKind::Error,

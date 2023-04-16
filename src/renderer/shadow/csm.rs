@@ -5,7 +5,7 @@ use crate::{
     },
     renderer::{
         apply_material,
-        batch::RenderDataBatchStorage,
+        batch::{ObserverInfo, RenderDataBatchStorage},
         cache::{geometry::GeometryCache, shader::ShaderCache, texture::TextureCache},
         framework::{
             error::FrameworkError,
@@ -136,7 +136,10 @@ impl CsmRenderer {
         &self.cascades
     }
 
-    pub(crate) fn render(&mut self, ctx: CsmRenderContext) -> RenderPassStatistics {
+    pub(crate) fn render(
+        &mut self,
+        ctx: CsmRenderContext,
+    ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
         let CsmRenderContext {
@@ -181,18 +184,18 @@ impl CsmRenderer {
         };
 
         for i in 0..CSM_NUM_CASCADES {
-            let znear = z_values[i];
-            let mut zfar = z_values[i + 1];
+            let z_near = z_values[i];
+            let mut z_far = z_values[i + 1];
 
-            if zfar.eq(&znear) {
-                zfar += 10.0 * f32::EPSILON;
+            if z_far.eq(&z_near) {
+                z_far += 10.0 * f32::EPSILON;
             }
 
             let projection_matrix = camera
                 .projection()
                 .clone()
-                .with_z_near(znear)
-                .with_z_far(zfar)
+                .with_z_near(z_near)
+                .with_z_far(z_far)
                 .matrix(frame_size);
 
             let frustum =
@@ -207,8 +210,13 @@ impl CsmRenderer {
 
             let batches = RenderDataBatchStorage::from_graph(
                 graph,
-                light_view_matrix,
-                projection_matrix,
+                ObserverInfo {
+                    observer_position: camera.global_position(),
+                    z_near,
+                    z_far,
+                    view_matrix: light_view_matrix,
+                    projection_matrix,
+                },
                 DIRECTIONAL_SHADOW_PASS_NAME.clone(),
             );
 
@@ -239,7 +247,7 @@ impl CsmRenderer {
 
             let light_view_projection = cascade_projection_matrix * light_view_matrix;
             self.cascades[i].view_proj_matrix = light_view_projection;
-            self.cascades[i].z_far = zfar;
+            self.cascades[i].z_far = z_far;
 
             let viewport = Rect::new(0, 0, self.size as i32, self.size as i32);
             let framebuffer = &mut self.cascades[i].frame_buffer;
@@ -277,6 +285,7 @@ impl CsmRenderer {
                                 blend: None,
                                 stencil_op: Default::default(),
                             },
+                            instance.element_range,
                             |mut program_binding| {
                                 apply_material(MaterialContext {
                                     material: &material,
@@ -298,12 +307,12 @@ impl CsmRenderer {
                                     volume_dummy: volume_dummy.clone(),
                                 });
                             },
-                        );
+                        )?;
                     }
                 }
             }
         }
 
-        stats
+        Ok(stats)
     }
 }

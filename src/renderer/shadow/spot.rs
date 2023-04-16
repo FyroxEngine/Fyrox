@@ -1,9 +1,13 @@
-use crate::renderer::SPOT_SHADOW_PASS_NAME;
 use crate::{
-    core::{algebra::Matrix4, color::Color, math::Rect, scope_profile},
+    core::{
+        algebra::{Matrix4, Vector3},
+        color::Color,
+        math::Rect,
+        scope_profile,
+    },
     renderer::{
         apply_material,
-        batch::RenderDataBatchStorage,
+        batch::{ObserverInfo, RenderDataBatchStorage},
         cache::{shader::ShaderCache, texture::TextureCache},
         framework::{
             error::FrameworkError,
@@ -17,6 +21,7 @@ use crate::{
         shadow::cascade_size,
         storage::MatrixStorage,
         GeometryCache, MaterialContext, RenderPassStatistics, ShadowMapPrecision,
+        SPOT_SHADOW_PASS_NAME,
     },
     scene::graph::Graph,
 };
@@ -114,7 +119,10 @@ impl SpotShadowMapRenderer {
         &mut self,
         state: &mut PipelineState,
         graph: &Graph,
+        light_position: Vector3<f32>,
         light_view_matrix: Matrix4<f32>,
+        z_near: f32,
+        z_far: f32,
         light_projection_matrix: Matrix4<f32>,
         geom_cache: &mut GeometryCache,
         cascade: usize,
@@ -125,7 +133,7 @@ impl SpotShadowMapRenderer {
         black_dummy: Rc<RefCell<GpuTexture>>,
         volume_dummy: Rc<RefCell<GpuTexture>>,
         matrix_storage: &mut MatrixStorage,
-    ) -> RenderPassStatistics {
+    ) -> Result<RenderPassStatistics, FrameworkError> {
         scope_profile!();
 
         let mut statistics = RenderPassStatistics::default();
@@ -140,8 +148,13 @@ impl SpotShadowMapRenderer {
         let light_view_projection = light_projection_matrix * light_view_matrix;
         let batches = RenderDataBatchStorage::from_graph(
             graph,
-            light_view_matrix,
-            light_projection_matrix,
+            ObserverInfo {
+                observer_position: light_position,
+                z_near,
+                z_far,
+                view_matrix: light_view_matrix,
+                projection_matrix: light_projection_matrix,
+            },
             SPOT_SHADOW_PASS_NAME.clone(),
         );
 
@@ -174,6 +187,7 @@ impl SpotShadowMapRenderer {
                             blend: None,
                             stencil_op: Default::default(),
                         },
+                        instance.element_range,
                         |mut program_binding| {
                             apply_material(MaterialContext {
                                 material: &material,
@@ -195,11 +209,11 @@ impl SpotShadowMapRenderer {
                                 volume_dummy: volume_dummy.clone(),
                             });
                         },
-                    );
+                    )?;
                 }
             }
         }
 
-        statistics
+        Ok(statistics)
     }
 }

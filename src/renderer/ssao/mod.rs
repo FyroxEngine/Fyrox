@@ -1,3 +1,4 @@
+use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
     core::{
         algebra::{Matrix3, Matrix4, Vector2, Vector3},
@@ -204,7 +205,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
         gbuffer: &GBuffer,
         projection_matrix: Matrix4<f32>,
         view_matrix: Matrix3<f32>,
-    ) -> RenderPassStatistics {
+    ) -> Result<RenderPassStatistics, FrameworkError> {
         scope_profile!();
 
         let mut stats = RenderPassStatistics::default();
@@ -254,6 +255,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                 blend: None,
                 stencil_op: Default::default(),
             },
+            ElementRange::Full,
             |mut program_binding| {
                 program_binding
                     .set_texture(&shader.depth_sampler, &gbuffer.depth())
@@ -270,10 +272,10 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                     )
                     .set_matrix3(&shader.view_matrix, &view_matrix);
             },
-        );
+        )?;
 
-        self.blur.render(state, self.raw_ao_map());
+        self.blur.render(state, self.raw_ao_map())?;
 
-        stats
+        Ok(stats)
     }
 }

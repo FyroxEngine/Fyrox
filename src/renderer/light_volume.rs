@@ -1,4 +1,5 @@
 use crate::renderer::framework::framebuffer::BlendParameters;
+use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::scene::light::point::PointLight;
 use crate::scene::light::spot::SpotLight;
 use crate::{
@@ -149,7 +150,7 @@ impl LightVolumeRenderer {
         viewport: Rect<i32>,
         graph: &Graph,
         frame_buffer: &mut FrameBuffer,
-    ) -> RenderPassStatistics {
+    ) -> Result<RenderPassStatistics, FrameworkError> {
         scope_profile!();
 
         let mut stats = RenderPassStatistics::default();
@@ -173,7 +174,7 @@ impl LightVolumeRenderer {
 
         if let Some(spot) = light.cast::<SpotLight>() {
             if !spot.base_light_ref().is_scatter_enabled() {
-                return stats;
+                return Ok(stats);
             }
 
             let direction = view.transform_vector(
@@ -224,10 +225,11 @@ impl LightVolumeRenderer {
                         write_mask: 0xFFFF_FFFF,
                     },
                 },
+                ElementRange::Full,
                 |mut program_binding| {
                     program_binding.set_matrix4(&self.flat_shader.wvp_matrix, &mvp);
                 },
-            );
+            )?;
 
             // Finally draw fullscreen quad, GPU will calculate scattering only on pixels that were
             // marked in stencil buffer. For distant lights it will be very low amount of pixels and
@@ -259,6 +261,7 @@ impl LightVolumeRenderer {
                         ..Default::default()
                     },
                 },
+                ElementRange::Full,
                 |mut program_binding| {
                     program_binding
                         .set_matrix4(&shader.world_view_proj_matrix, &frame_matrix)
@@ -273,10 +276,10 @@ impl LightVolumeRenderer {
                         )
                         .set_vector3(&shader.scatter_factor, &spot.base_light_ref().scatter());
                 },
-            )
+            )?
         } else if let Some(point) = light.cast::<PointLight>() {
             if !point.base_light_ref().is_scatter_enabled() {
-                return stats;
+                return Ok(stats);
             }
 
             frame_buffer.clear(state, viewport, None, None, Some(0));
@@ -312,10 +315,11 @@ impl LightVolumeRenderer {
                         write_mask: 0xFFFF_FFFF,
                     },
                 },
+                ElementRange::Full,
                 |mut program_binding| {
                     program_binding.set_matrix4(&self.flat_shader.wvp_matrix, &mvp);
                 },
-            );
+            )?;
 
             // Finally draw fullscreen quad, GPU will calculate scattering only on pixels that were
             // marked in stencil buffer. For distant lights it will be very low amount of pixels and
@@ -347,6 +351,7 @@ impl LightVolumeRenderer {
                         ..Default::default()
                     },
                 },
+                ElementRange::Full,
                 |mut program_binding| {
                     program_binding
                         .set_matrix4(&shader.world_view_proj_matrix, &frame_matrix)
@@ -360,9 +365,9 @@ impl LightVolumeRenderer {
                         )
                         .set_vector3(&shader.scatter_factor, &point.base_light_ref().scatter());
                 },
-            )
+            )?
         }
 
-        stats
+        Ok(stats)
     }
 }

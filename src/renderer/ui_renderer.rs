@@ -1,6 +1,7 @@
 //! See [`UiRenderer`] docs.
 
 use crate::renderer::framework::framebuffer::BlendParameters;
+use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
     asset::Resource,
     core::{
@@ -247,10 +248,11 @@ impl UiRenderer {
                             ..Default::default()
                         },
                     },
+                    ElementRange::Full,
                     |mut program_binding| {
                         program_binding.set_matrix4(&self.shader.wvp_matrix, &ortho);
                     },
-                );
+                )?;
 
                 // Make sure main geometry will be drawn only on marked pixels.
                 stencil_test = Some(StencilFunc {
@@ -326,14 +328,16 @@ impl UiRenderer {
             };
 
             let shader = &self.shader;
-            statistics += frame_buffer.draw_part(
+            statistics += frame_buffer.draw(
                 &self.geometry_buffer,
                 state,
                 viewport,
                 &self.shader.program,
-                params,
-                cmd.triangles.start,
-                cmd.triangles.end - cmd.triangles.start,
+                &params,
+                ElementRange::Specific {
+                    offset: cmd.triangles.start,
+                    count: cmd.triangles.end - cmd.triangles.start,
+                },
                 |mut program_binding| {
                     program_binding
                         .set_texture(&shader.diffuse_texture, &diffuse_texture)

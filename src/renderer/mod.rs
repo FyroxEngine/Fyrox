@@ -34,6 +34,8 @@ mod skybox_shader;
 mod sprite_renderer;
 mod ssao;
 
+use crate::renderer::batch::ObserverInfo;
+use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -889,7 +891,7 @@ fn blit_pixels(
     shader: &FlatShader,
     viewport: Rect<i32>,
     quad: &GeometryBuffer,
-) -> DrawCallStatistics {
+) -> Result<DrawCallStatistics, FrameworkError> {
     framebuffer.draw(
         quad,
         state,
@@ -904,6 +906,7 @@ fn blit_pixels(
             blend: None,
             stencil_op: Default::default(),
         },
+        ElementRange::Full,
         |mut program_binding| {
             program_binding
                 .set_matrix4(&shader.wvp_matrix, &{
@@ -1569,8 +1572,13 @@ impl Renderer {
 
                 let batch_storage = RenderDataBatchStorage::from_graph(
                     graph,
-                    camera.view_matrix(),
-                    camera.projection_matrix(),
+                    ObserverInfo {
+                        observer_position: camera.global_position(),
+                        z_near: camera.projection().z_near(),
+                        z_far: camera.projection().z_far(),
+                        view_matrix: camera.view_matrix(),
+                        projection_matrix: camera.projection_matrix(),
+                    },
                     GBUFFER_PASS_NAME.clone(),
                 );
 
@@ -1589,7 +1597,7 @@ impl Renderer {
                     volume_dummy: self.volume_dummy.clone(),
                     graph,
                     matrix_storage: &mut self.matrix_storage,
-                });
+                })?;
 
                 scene_associated_data.copy_depth_stencil_to_scene_framebuffer(state);
 
@@ -1619,7 +1627,7 @@ impl Renderer {
                             black_dummy: self.black_dummy.clone(),
                             volume_dummy: self.volume_dummy.clone(),
                             matrix_storage: &mut self.matrix_storage,
-                        });
+                        })?;
 
                 self.statistics.lighting += light_stats;
                 self.statistics.geometry += pass_stats;
@@ -1639,7 +1647,7 @@ impl Renderer {
                             frame_height: frame_size.y,
                             viewport,
                             texture_cache: &mut self.texture_cache,
-                        });
+                        })?;
 
                 self.statistics += self.sprite_renderer.render(SpriteRenderContext {
                     state,
@@ -1649,7 +1657,7 @@ impl Renderer {
                     white_dummy: self.white_dummy.clone(),
                     viewport,
                     textures: &mut self.texture_cache,
-                });
+                })?;
 
                 self.statistics += self.renderer2d.render(
                     state,
@@ -1677,7 +1685,7 @@ impl Renderer {
                     black_dummy: self.black_dummy.clone(),
                     volume_dummy: self.volume_dummy.clone(),
                     matrix_storage: &mut self.matrix_storage,
-                });
+                })?;
 
                 for render_pass in self.scene_render_passes.iter() {
                     self.statistics +=
@@ -1713,7 +1721,7 @@ impl Renderer {
                     state,
                     quad,
                     scene_associated_data.hdr_scene_frame_texture(),
-                );
+                )?;
 
                 // Convert high dynamic range frame to low dynamic range (sRGB) with tone mapping and gamma correction.
                 self.statistics.geometry += scene_associated_data.hdr_renderer.render(
@@ -1728,7 +1736,7 @@ impl Renderer {
                     camera.color_grading_lut_ref(),
                     camera.color_grading_enabled(),
                     &mut self.texture_cache,
-                );
+                )?;
 
                 // Apply FXAA if needed.
                 if self.quality_settings.fxaa {
@@ -1737,7 +1745,7 @@ impl Renderer {
                         viewport,
                         scene_associated_data.ldr_scene_frame_texture(),
                         &mut scene_associated_data.ldr_temp_framebuffer,
-                    );
+                    )?;
 
                     let quad = &self.quad;
                     let temp_frame_texture = scene_associated_data.ldr_temp_frame_texture();
@@ -1748,7 +1756,7 @@ impl Renderer {
                         &self.flat_shader,
                         viewport,
                         quad,
-                    );
+                    )?;
                 }
 
                 // Render debug geometry in the LDR frame buffer.
@@ -1758,7 +1766,7 @@ impl Renderer {
                     &mut scene_associated_data.ldr_scene_framebuffer,
                     &scene.drawing_context,
                     camera,
-                );
+                )?;
 
                 for render_pass in self.scene_render_passes.iter() {
                     self.statistics +=
@@ -1798,7 +1806,7 @@ impl Renderer {
                     &self.flat_shader,
                     window_viewport,
                     quad,
-                );
+                )?;
             }
         }
 

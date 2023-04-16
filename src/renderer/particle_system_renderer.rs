@@ -1,5 +1,6 @@
 use crate::core::sstorage::ImmutableString;
 use crate::renderer::framework::framebuffer::BlendParameters;
+use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::renderer::framework::state::{BlendFactor, BlendFunc};
 use crate::scene::particle_system::ParticleSystem;
 use crate::{
@@ -135,7 +136,10 @@ impl ParticleSystemRenderer {
     }
 
     #[must_use]
-    pub(crate) fn render(&mut self, args: ParticleSystemRenderContext) -> RenderPassStatistics {
+    pub(crate) fn render(
+        &mut self,
+        args: ParticleSystemRenderContext,
+    ) -> Result<RenderPassStatistics, FrameworkError> {
         scope_profile!();
 
         let mut statistics = RenderPassStatistics::default();
@@ -204,6 +208,7 @@ impl ParticleSystemRenderer {
                 viewport,
                 &self.shader.program,
                 &draw_params,
+                ElementRange::Full,
                 |mut program_binding| {
                     program_binding
                         .set_texture(&self.shader.depth_buffer_texture, &depth)
@@ -219,9 +224,9 @@ impl ParticleSystemRenderer {
                             particle_system.soft_boundary_sharpness_factor(),
                         );
                 },
-            );
+            )?;
         }
 
-        statistics
+        Ok(statistics)
     }
 }
