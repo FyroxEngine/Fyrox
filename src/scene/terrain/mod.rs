@@ -1026,6 +1026,7 @@ impl NodeTrait for Terrain {
                         ctx.z_far
                             * ((chunk.quad_tree.max_level - n) as f32
                                 / chunk.quad_tree.max_level as f32)
+                                .powf(3.0)
                     })
                     .collect::<Vec<_>>();
 
