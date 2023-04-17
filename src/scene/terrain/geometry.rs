@@ -53,17 +53,17 @@ impl TerrainGeometry {
         let mut quadrants = [ElementRange::Full; 4];
         for ((x_range, y_range), quadrant) in [
             (0..half_size.x, 0..half_size.y),
-            (half_size.x..mesh_size.x, 0..half_size.y),
-            (half_size.x..mesh_size.x, half_size.y..mesh_size.y),
-            (0..half_size.x, half_size.y..mesh_size.y),
+            ((half_size.x - 1)..mesh_size.x, 0..half_size.y),
+            (
+                (half_size.x - 1)..mesh_size.x,
+                (half_size.y - 1)..mesh_size.y,
+            ),
+            (0..half_size.x, (half_size.y - 1)..mesh_size.y),
         ]
         .into_iter()
         .zip(&mut quadrants)
         {
-            *quadrant = ElementRange::Specific {
-                offset: geometry_buffer_mut.len(),
-                count: (half_size.x * half_size.y) as usize,
-            };
+            let offset = geometry_buffer_mut.len();
 
             for iy in y_range.start..y_range.end - 1 {
                 let iy_next = iy + 1;
@@ -79,6 +79,11 @@ impl TerrainGeometry {
                     geometry_buffer_mut.push(TriangleDefinition([i2, i3, i0]));
                 }
             }
+
+            *quadrant = ElementRange::Specific {
+                offset,
+                count: geometry_buffer_mut.len() - offset,
+            };
         }
         drop(geometry_buffer_mut);
 
