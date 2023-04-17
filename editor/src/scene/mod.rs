@@ -5,13 +5,7 @@ use crate::{
     world::graph::selection::GraphSelection, GameEngine, Settings,
 };
 use fyrox::{
-    core::{
-        algebra::{Matrix4, Point3, UnitQuaternion, Vector3},
-        color::Color,
-        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Matrix4Ext},
-        pool::Handle,
-        visitor::Visitor,
-    },
+    core::{color::Color, math::aabb::AxisAlignedBoundingBox, pool::Handle, visitor::Visitor},
     engine::Engine,
     scene::{
         base::BaseBuilder,
@@ -19,13 +13,11 @@ use fyrox::{
         debug::{Line, SceneDrawingContext},
         graph::{Graph, GraphUpdateSwitches},
         light::{point::PointLight, spot::SpotLight},
-        mesh::{
-            buffer::{VertexAttributeUsage, VertexReadTrait},
-            Mesh,
-        },
+        mesh::Mesh,
         navmesh::NavigationalMesh,
         node::Node,
         pivot::PivotBuilder,
+        terrain::Terrain,
         Scene,
     },
 };
@@ -194,93 +186,25 @@ impl EditorScene {
                 );
             }
 
-            if let Some(mesh) = node.cast::<Mesh>() {
+            if node.cast::<Mesh>().is_some() {
                 if settings.debugging.show_tbn {
-                    let transform = node.global_transform();
-
-                    for surface in mesh.surfaces() {
-                        for vertex in surface.data().lock().vertex_buffer.iter() {
-                            let len = 0.025;
-                            let position = transform
-                                .transform_point(&Point3::from(
-                                    vertex.read_3_f32(VertexAttributeUsage::Position).unwrap(),
-                                ))
-                                .coords;
-                            let vertex_tangent =
-                                vertex.read_4_f32(VertexAttributeUsage::Tangent).unwrap();
-                            let tangent = transform
-                                .transform_vector(&vertex_tangent.xyz())
-                                .normalize()
-                                .scale(len);
-                            let normal = transform
-                                .transform_vector(
-                                    &vertex
-                                        .read_3_f32(VertexAttributeUsage::Normal)
-                                        .unwrap()
-                                        .xyz(),
-                                )
-                                .normalize()
-                                .scale(len);
-                            let binormal = tangent
-                                .xyz()
-                                .cross(&normal)
-                                .scale(vertex_tangent.w)
-                                .normalize()
-                                .scale(len);
-
-                            ctx.add_line(Line {
-                                begin: position,
-                                end: position + tangent,
-                                color: Color::RED,
-                            });
-
-                            ctx.add_line(Line {
-                                begin: position,
-                                end: position + normal,
-                                color: Color::BLUE,
-                            });
-
-                            ctx.add_line(Line {
-                                begin: position,
-                                end: position + binormal,
-                                color: Color::GREEN,
-                            });
-                        }
-                    }
+                    node.debug_draw(ctx);
                 }
-            } else if let Some(camera) = node.query_component_ref::<Camera>() {
+            } else if node.query_component_ref::<Camera>().is_some() {
                 if settings.debugging.show_camera_bounds {
-                    ctx.draw_frustum(
-                        &Frustum::from(camera.view_projection_matrix()).unwrap_or_default(),
-                        Color::ORANGE,
-                    );
+                    node.debug_draw(ctx);
                 }
-            } else if let Some(light) = node.query_component_ref::<PointLight>() {
+            } else if node.query_component_ref::<PointLight>().is_some() {
                 if settings.debugging.show_light_bounds {
-                    ctx.draw_wire_sphere(light.global_position(), light.radius(), 30, Color::GREEN);
+                    node.debug_draw(ctx);
                 }
-            } else if let Some(light) = node.query_component_ref::<SpotLight>() {
+            } else if node.query_component_ref::<SpotLight>().is_some() {
                 if settings.debugging.show_light_bounds {
-                    ctx.draw_cone(
-                        16,
-                        (light.full_cone_angle() * 0.5).tan() * light.distance(),
-                        light.distance(),
-                        Matrix4::new_translation(&light.global_position())
-                            * UnitQuaternion::from_matrix_eps(
-                                &light.global_transform().basis(),
-                                f32::EPSILON,
-                                16,
-                                UnitQuaternion::identity(),
-                            )
-                            .to_homogeneous()
-                            * Matrix4::new_translation(&Vector3::new(
-                                0.0,
-                                -light.distance() * 0.5,
-                                0.0,
-                            )),
-                        Color::GREEN,
-                        false,
-                    );
+                    node.debug_draw(ctx);
+                }
+            } else if node.query_component_ref::<Terrain>().is_some() {
+                if settings.debugging.show_terrains {
+                    node.debug_draw(ctx);
                 }
             } else if let Some(navmesh) = node.query_component_ref::<NavigationalMesh>() {
                 if settings.navmesh.draw_all {
@@ -323,6 +247,8 @@ impl EditorScene {
                         }
                     }
                 }
+            } else {
+                node.debug_draw(ctx);
             }
 
             for &child in node.children() {

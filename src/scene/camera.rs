@@ -15,8 +15,10 @@
 //! almost double load of your GPU.
 
 use crate::{
+    asset::ResourceState,
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
+        color::Color,
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, ray::Ray, Rect},
         pool::Handle,
         reflect::prelude::*,
@@ -27,15 +29,15 @@ use crate::{
     resource::texture::{Texture, TextureError, TextureKind, TexturePixelKind, TextureWrapMode},
     scene::{
         base::{Base, BaseBuilder},
+        debug::SceneDrawingContext,
         graph::Graph,
         node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
         visibility::VisibilityCache,
     },
     utils::log::Log,
 };
-use fyrox_resource::ResourceState;
-use std::fmt::{Display, Formatter};
 use std::{
+    fmt::{Display, Formatter},
     ops::{Deref, DerefMut},
     sync::Arc,
 };
@@ -617,6 +619,13 @@ impl NodeTrait for Camera {
             self.projection().z_near(),
             self.projection().z_far(),
             Some(&[&Frustum::from(self.view_projection_matrix()).unwrap_or_default()]),
+        );
+    }
+
+    fn debug_draw(&self, ctx: &mut SceneDrawingContext) {
+        ctx.draw_frustum(
+            &Frustum::from(self.view_projection_matrix()).unwrap_or_default(),
+            Color::ORANGE,
         );
     }
 }

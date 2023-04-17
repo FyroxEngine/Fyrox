@@ -24,7 +24,9 @@
 
 use crate::{
     core::{
-        math::aabb::AxisAlignedBoundingBox,
+        algebra::{Matrix4, UnitQuaternion, Vector3},
+        color::Color,
+        math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::Handle,
         reflect::prelude::*,
         uuid::{uuid, Uuid},
@@ -34,6 +36,7 @@ use crate::{
     resource::texture::Texture,
     scene::{
         base::Base,
+        debug::SceneDrawingContext,
         graph::Graph,
         light::{BaseLight, BaseLightBuilder},
         node::{Node, NodeTrait, TypeUuidProvider},
@@ -201,6 +204,25 @@ impl NodeTrait for SpotLight {
 
     fn id(&self) -> Uuid {
         Self::type_uuid()
+    }
+
+    fn debug_draw(&self, ctx: &mut SceneDrawingContext) {
+        ctx.draw_cone(
+            16,
+            (self.full_cone_angle() * 0.5).tan() * self.distance(),
+            self.distance(),
+            Matrix4::new_translation(&self.global_position())
+                * UnitQuaternion::from_matrix_eps(
+                    &self.global_transform().basis(),
+                    f32::EPSILON,
+                    16,
+                    UnitQuaternion::identity(),
+                )
+                .to_homogeneous()
+                * Matrix4::new_translation(&Vector3::new(0.0, -self.distance() * 0.5, 0.0)),
+            Color::GREEN,
+            false,
+        );
     }
 }
 

@@ -1,8 +1,12 @@
 //! Special, terrain-specific quadtree.
 
-use crate::core::{
-    algebra::{Matrix4, Vector2, Vector3},
-    math::{aabb::AxisAlignedBoundingBox, frustum::Frustum},
+use crate::{
+    core::{
+        algebra::{Matrix4, Vector2, Vector3},
+        color::Color,
+        math::{aabb::AxisAlignedBoundingBox, frustum::Frustum},
+    },
+    scene::debug::SceneDrawingContext,
 };
 
 #[derive(Default, Debug, PartialEq)]
@@ -144,6 +148,25 @@ impl QuadTreeNode {
         AxisAlignedBoundingBox::from_min_max(min, max).transform(transform)
     }
 
+    pub fn debug_draw(
+        &self,
+        transform: &Matrix4<f32>,
+        height_map_size: Vector2<u32>,
+        physical_size: Vector2<f32>,
+        drawing_context: &mut SceneDrawingContext,
+    ) {
+        drawing_context.draw_aabb(
+            &self.aabb(transform, height_map_size, physical_size),
+            Color::RED,
+        );
+
+        if let QuadTreeNodeKind::Branch { ref leafs } = self.kind {
+            for leaf in leafs {
+                leaf.debug_draw(transform, height_map_size, physical_size, drawing_context);
+            }
+        }
+    }
+
     /// `level_ranges` contains a list of distances for every lod in farthest-to-closest direction (first will be the
     /// most distant range).
     pub fn select(
@@ -272,6 +295,17 @@ impl QuadTree {
             level_ranges,
             selection,
         );
+    }
+
+    pub fn debug_draw(
+        &self,
+        transform: &Matrix4<f32>,
+        height_map_size: Vector2<u32>,
+        physical_size: Vector2<f32>,
+        drawing_context: &mut SceneDrawingContext,
+    ) {
+        self.root
+            .debug_draw(transform, height_map_size, physical_size, drawing_context);
     }
 }
 

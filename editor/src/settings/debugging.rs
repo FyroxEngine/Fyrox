@@ -7,6 +7,8 @@ pub struct DebuggingSettings {
     pub show_bounds: bool,
     pub show_tbn: bool,
     #[serde(default)]
+    pub show_terrains: bool,
+    #[serde(default)]
     pub show_light_bounds: bool,
     #[serde(default)]
     pub show_camera_bounds: bool,
@@ -21,6 +23,7 @@ impl Default for DebuggingSettings {
             show_physics: true,
             show_bounds: true,
             show_tbn: false,
+            show_terrains: false,
             show_light_bounds: true,
             show_camera_bounds: true,
             pictogram_size: 0.33,

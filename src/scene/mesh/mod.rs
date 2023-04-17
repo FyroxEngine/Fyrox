@@ -8,10 +8,10 @@
 //! modelling software or just download some model you like and load it in engine. But since
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
-use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
+        color::Color,
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
@@ -19,10 +19,14 @@ use crate::{
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
-    renderer,
-    renderer::batch::{RenderContext, SurfaceInstanceData},
+    renderer::{
+        self,
+        batch::{RenderContext, SurfaceInstanceData},
+        framework::geometry_buffer::ElementRange,
+    },
     scene::{
         base::{Base, BaseBuilder},
+        debug::{Line, SceneDrawingContext},
         graph::Graph,
         mesh::{
             buffer::{VertexAttributeUsage, VertexReadTrait},
@@ -382,6 +386,59 @@ impl NodeTrait for Mesh {
                     element_range: ElementRange::Full,
                 },
             );
+        }
+    }
+
+    fn debug_draw(&self, ctx: &mut SceneDrawingContext) {
+        let transform = self.global_transform();
+
+        for surface in self.surfaces() {
+            for vertex in surface.data().lock().vertex_buffer.iter() {
+                let len = 0.025;
+                let position = transform
+                    .transform_point(&Point3::from(
+                        vertex.read_3_f32(VertexAttributeUsage::Position).unwrap(),
+                    ))
+                    .coords;
+                let vertex_tangent = vertex.read_4_f32(VertexAttributeUsage::Tangent).unwrap();
+                let tangent = transform
+                    .transform_vector(&vertex_tangent.xyz())
+                    .normalize()
+                    .scale(len);
+                let normal = transform
+                    .transform_vector(
+                        &vertex
+                            .read_3_f32(VertexAttributeUsage::Normal)
+                            .unwrap()
+                            .xyz(),
+                    )
+                    .normalize()
+                    .scale(len);
+                let binormal = tangent
+                    .xyz()
+                    .cross(&normal)
+                    .scale(vertex_tangent.w)
+                    .normalize()
+                    .scale(len);
+
+                ctx.add_line(Line {
+                    begin: position,
+                    end: position + tangent,
+                    color: Color::RED,
+                });
+
+                ctx.add_line(Line {
+                    begin: position,
+                    end: position + normal,
+                    color: Color::BLUE,
+                });
+
+                ctx.add_line(Line {
+                    begin: position,
+                    end: position + binormal,
+                    color: Color::GREEN,
+                });
+            }
         }
     }
 }

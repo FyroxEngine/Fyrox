@@ -1,6 +1,5 @@
 //! Everything related to terrains.
 
-use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -14,11 +13,15 @@ use crate::{
         visitor::{prelude::*, PodVecView},
     },
     material::{PropertyValue, SharedMaterial},
-    renderer,
-    renderer::batch::{RenderContext, SurfaceInstanceData},
+    renderer::{
+        self,
+        batch::{RenderContext, SurfaceInstanceData},
+        framework::geometry_buffer::ElementRange,
+    },
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureWrapMode},
     scene::{
         base::{Base, BaseBuilder},
+        debug::SceneDrawingContext,
         graph::Graph,
         mesh::RenderPath,
         node::{Node, NodeTrait, TypeUuidProvider},
@@ -219,6 +222,13 @@ impl Chunk {
     /// Returns amount of pixels in the height map along each dimension.
     pub fn height_map_size(&self) -> Vector2<u32> {
         self.height_map_size
+    }
+
+    pub fn debug_draw(&self, transform: &Matrix4<f32>, ctx: &mut SceneDrawingContext) {
+        let transform = *transform * Matrix4::new_translation(&self.position);
+
+        self.quad_tree
+            .debug_draw(&transform, self.height_map_size, self.physical_size, ctx)
     }
 }
 
@@ -1118,6 +1128,12 @@ impl NodeTrait for Terrain {
                     ),
                 }
             }
+        }
+    }
+
+    fn debug_draw(&self, ctx: &mut SceneDrawingContext) {
+        for chunk in self.chunks.iter() {
+            chunk.debug_draw(&self.global_transform(), ctx)
         }
     }
 }
