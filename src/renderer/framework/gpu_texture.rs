@@ -69,8 +69,8 @@ impl GpuTextureKind {
 
 #[derive(Copy, Clone, Debug)]
 pub enum PixelKind {
-    F32,
-    F16,
+    R32F,
+    R16F,
     D32F,
     D16,
     D24S8,
@@ -131,6 +131,8 @@ impl From<TexturePixelKind> for PixelKind {
             TexturePixelKind::LuminanceAlpha8 => Self::LA8,
             TexturePixelKind::Luminance16 => Self::L16,
             TexturePixelKind::LuminanceAlpha16 => Self::LA16,
+            TexturePixelKind::R32F => Self::R32F,
+            TexturePixelKind::R16F => Self::R16F,
         }
     }
 }
@@ -158,9 +160,9 @@ impl PixelKind {
             | Self::LA16
             | Self::D24S8
             | Self::D32F
-            | Self::F32
+            | Self::R32F
             | Self::RGB10A2 => Some(4),
-            Self::RG8 | Self::LA8 | Self::D16 | Self::F16 | Self::L16 | Self::R16 => Some(2),
+            Self::RG8 | Self::LA8 | Self::D16 | Self::R16F | Self::L16 | Self::R16 => Some(2),
             Self::R8
             | Self::L8
             | Self::R8UI
@@ -201,10 +203,10 @@ impl PixelKind {
             | Self::R16
             | Self::D24S8
             | Self::D32F
-            | Self::F32
+            | Self::R32F
             | Self::RG8
             | Self::D16
-            | Self::F16
+            | Self::R16F
             | Self::R8
             | Self::R8UI
             | Self::RGB32F
@@ -220,8 +222,8 @@ impl PixelKind {
 
     pub fn element_kind(self) -> PixelElementKind {
         match self {
-            Self::F32
-            | Self::F16
+            Self::R32F
+            | Self::R16F
             | Self::RGB32F
             | Self::RGBA32F
             | Self::RGBA16F
@@ -291,7 +293,7 @@ fn image_3d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize, depth
         | PixelKind::LA16
         | PixelKind::D24S8
         | PixelKind::D32F
-        | PixelKind::F32
+        | PixelKind::R32F
         | PixelKind::R11G11B10F
         | PixelKind::RGB10A2 => 4 * pixel_count,
         PixelKind::RGB8 | PixelKind::SRGB8 | PixelKind::BGR8 => 3 * pixel_count,
@@ -300,7 +302,7 @@ fn image_3d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize, depth
         | PixelKind::R16
         | PixelKind::L16
         | PixelKind::D16
-        | PixelKind::F16 => 2 * pixel_count,
+        | PixelKind::R16F => 2 * pixel_count,
         PixelKind::R8 | PixelKind::L8 | PixelKind::R8UI => pixel_count,
         PixelKind::DXT1RGB | PixelKind::DXT1RGBA | PixelKind::R8RGTC => {
             let block_size = 8;
@@ -327,7 +329,7 @@ fn image_2d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize) -> us
         | PixelKind::LA16
         | PixelKind::D24S8
         | PixelKind::D32F
-        | PixelKind::F32
+        | PixelKind::R32F
         | PixelKind::R11G11B10F
         | PixelKind::RGB10A2 => 4 * pixel_count,
         PixelKind::RGB8 | PixelKind::SRGB8 | PixelKind::BGR8 => 3 * pixel_count,
@@ -336,7 +338,7 @@ fn image_2d_size_bytes(pixel_kind: PixelKind, width: usize, height: usize) -> us
         | PixelKind::R16
         | PixelKind::L16
         | PixelKind::D16
-        | PixelKind::F16 => 2 * pixel_count,
+        | PixelKind::R16F => 2 * pixel_count,
         PixelKind::R8 | PixelKind::L8 | PixelKind::R8UI => pixel_count,
         PixelKind::DXT1RGB | PixelKind::DXT1RGBA | PixelKind::R8RGTC => {
             let block_size = 8;
@@ -362,7 +364,7 @@ fn image_1d_size_bytes(pixel_kind: PixelKind, length: usize) -> usize {
         | PixelKind::LA16
         | PixelKind::D24S8
         | PixelKind::D32F
-        | PixelKind::F32
+        | PixelKind::R32F
         | PixelKind::R11G11B10F
         | PixelKind::RGB10A2 => 4 * length,
         PixelKind::RGB8 | PixelKind::SRGB8 | PixelKind::BGR8 => 3 * length,
@@ -371,7 +373,7 @@ fn image_1d_size_bytes(pixel_kind: PixelKind, length: usize) -> usize {
         | PixelKind::L16
         | PixelKind::R16
         | PixelKind::D16
-        | PixelKind::F16 => 2 * length,
+        | PixelKind::R16F => 2 * length,
         PixelKind::R8 | PixelKind::L8 | PixelKind::R8UI => length,
         PixelKind::DXT1RGB | PixelKind::DXT1RGBA | PixelKind::R8RGTC => {
             let block_size = 8;
@@ -671,8 +673,8 @@ impl<'a> TextureBinding<'a> {
                 .tex_parameter_i32(target, glow::TEXTURE_MAX_LEVEL, mip_count as i32 - 1);
 
             let (type_, format, internal_format, swizzle_mask) = match pixel_kind {
-                PixelKind::F32 => (glow::FLOAT, glow::RED, glow::R32F, None),
-                PixelKind::F16 => (glow::FLOAT, glow::RED, glow::R16F, None),
+                PixelKind::R32F => (glow::FLOAT, glow::RED, glow::R32F, None),
+                PixelKind::R16F => (glow::FLOAT, glow::RED, glow::R16F, None),
                 PixelKind::D32F => (
                     glow::FLOAT,
                     glow::DEPTH_COMPONENT,

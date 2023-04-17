@@ -101,7 +101,7 @@ impl PointShadowMapRenderer {
                 let mut texture = GpuTexture::new(
                     state,
                     kind,
-                    PixelKind::F16,
+                    PixelKind::R16F,
                     MinificationFilter::Linear,
                     MagnificationFilter::Linear,
                     1,

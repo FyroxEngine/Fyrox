@@ -46,7 +46,7 @@ impl LumBuffer {
                 width: size,
                 height: size,
             },
-            PixelKind::F32,
+            PixelKind::R32F,
             MinificationFilter::Nearest,
             MagnificationFilter::Nearest,
             1,

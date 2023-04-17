@@ -60,7 +60,7 @@ impl Blur {
             let mut texture = GpuTexture::new(
                 state,
                 kind,
-                PixelKind::F32,
+                PixelKind::R32F,
                 MinificationFilter::Nearest,
                 MagnificationFilter::Nearest,
                 1,
