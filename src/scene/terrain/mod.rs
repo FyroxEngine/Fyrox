@@ -1030,9 +1030,11 @@ impl NodeTrait for Terrain {
                     })
                     .collect::<Vec<_>>();
 
+                let transform = self.global_transform() * Matrix4::new_translation(&chunk.position);
+
                 let mut selection = Vec::new();
                 chunk.quad_tree.select(
-                    &self.global_transform(),
+                    &transform,
                     self.height_map_size(),
                     self.chunk_size(),
                     ctx.frustum,
@@ -1053,7 +1055,7 @@ impl NodeTrait for Terrain {
                         let material = SharedMaterial::new(material);
 
                         for node in selection {
-                            let transform = self.global_transform()
+                            let transform = transform
                                 * Matrix4::new_translation(&Vector3::new(
                                     node.position.x as f32 / self.height_map_size.x as f32
                                         * self.chunk_size.x,
