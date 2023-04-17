@@ -230,6 +230,11 @@ impl Chunk {
         self.quad_tree
             .debug_draw(&transform, self.height_map_size, self.physical_size, ctx)
     }
+
+    fn set_block_size(&mut self, block_size: Vector2<u32>) {
+        self.block_size = block_size;
+        self.quad_tree = QuadTree::new(&self.heightmap, self.height_map_size, block_size);
+    }
 }
 
 fn map_to_local(v: Vector3<f32>) -> Vector2<f32> {
@@ -292,7 +297,7 @@ pub struct Terrain {
     )]
     height_map_size: InheritableVariable<Vector2<u32>>,
 
-    #[reflect(min_value = 8.0, step = 1.0)]
+    #[reflect(min_value = 8.0, step = 1.0, setter = "set_block_size")]
     block_size: InheritableVariable<Vector2<u32>>,
 
     #[reflect(
@@ -497,6 +502,20 @@ impl Terrain {
         let old = *self.height_map_size;
         self.resize_height_maps(height_map_size);
         old
+    }
+
+    pub fn set_block_size(&mut self, block_size: Vector2<u32>) -> Vector2<u32> {
+        let old = *self.block_size;
+        self.block_size.set_value_and_mark_modified(block_size);
+        self.geometry = TerrainGeometry::new(*self.block_size);
+        for chunk in self.chunks.iter_mut() {
+            chunk.set_block_size(*self.block_size);
+        }
+        old
+    }
+
+    pub fn block_size(&self) -> Vector2<u32> {
+        *self.block_size
     }
 
     /// Returns amount of pixels along each axis of the layer blending mask.
