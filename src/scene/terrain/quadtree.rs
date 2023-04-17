@@ -174,10 +174,10 @@ impl QuadTreeNode {
         {
             match self.kind {
                 QuadTreeNodeKind::Branch { ref leafs } => {
-                    let mut selected_leafs = [false; 4];
+                    let mut active_quadrants = [false; 4];
 
-                    for (leaf, selected) in leafs.iter().zip(selected_leafs.iter_mut()) {
-                        *selected = leaf.select(
+                    for (leaf, is_active) in leafs.iter().zip(active_quadrants.iter_mut()) {
+                        *is_active = !leaf.select(
                             transform,
                             height_map_size,
                             physical_size,
@@ -191,7 +191,7 @@ impl QuadTreeNode {
                     selection.push(SelectedNode {
                         position: self.position,
                         size: self.size,
-                        active_quadrants: selected_leafs,
+                        active_quadrants,
                     });
                 }
                 QuadTreeNodeKind::Leaf => {
