@@ -185,7 +185,7 @@ impl DerefMut for TextureBytes {
 }
 
 /// Actual texture data.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TextureData {
     path: PathBuf,
     kind: TextureKind,
@@ -475,6 +475,10 @@ impl Texture {
         Some(Self(Resource::new(TextureState::Ok(
             TextureData::from_bytes(kind, pixel_kind, bytes, serialize_content)?,
         ))))
+    }
+
+    pub fn deep_clone(&self) -> Self {
+        Self(Resource::new(ResourceState::Ok(self.data_ref().clone())))
     }
 }
 
