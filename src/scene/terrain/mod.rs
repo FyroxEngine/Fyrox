@@ -1,5 +1,6 @@
 //! Everything related to terrains.
 
+use crate::resource::texture::TextureData;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
@@ -29,6 +30,7 @@ use crate::{
     },
     utils::{self, log::Log},
 };
+use fyrox_resource::{Resource, ResourceState};
 use image::{imageops::FilterType, ImageBuffer, Luma};
 use std::{
     cell::Cell,
@@ -87,6 +89,24 @@ fn make_quad_tree(
     QuadTree::new(height_map, height_map_size, block_size)
 }
 
+fn make_height_map_texture(height_map: Vec<f32>, size: Vector2<u32>) -> Texture {
+    let mut data = TextureData::from_bytes(
+        TextureKind::Rectangle {
+            width: size.x,
+            height: size.y,
+        },
+        TexturePixelKind::R32F,
+        utils::transmute_vec_as_bytes(height_map),
+        true,
+    )
+    .unwrap();
+
+    data.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
+    data.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
+
+    Texture(Resource::new(ResourceState::Ok(data)))
+}
+
 /// Chunk is smaller block of a terrain. Terrain can have as many chunks as you need.
 /// Can't we just use one big chunk? Well, potentially yes. However in practice, it
 /// is very limiting because you need to have very huge mask texture and most of wide-spread
@@ -120,7 +140,7 @@ impl Clone for Chunk {
     fn clone(&self) -> Self {
         Self {
             version: self.version,
-            heightmap: self.heightmap.clone(),
+            heightmap: Some(self.heightmap.as_ref().unwrap().deep_clone()),
             position: self.position,
             physical_size: self.physical_size,
             height_map_size: self.height_map_size,
@@ -129,16 +149,7 @@ impl Clone for Chunk {
             layer_masks: self
                 .layer_masks
                 .iter()
-                .map(|m| {
-                    let data = m.data_ref();
-                    Texture::from_bytes(
-                        data.kind(),
-                        data.pixel_kind(),
-                        data.data().to_vec(),
-                        data.is_serializing_content(),
-                    )
-                    .unwrap()
-                })
+                .map(|m| m.deep_clone())
                 .collect::<Vec<_>>(),
             quad_tree: make_quad_tree(&self.heightmap, self.height_map_size, self.block_size),
         }
@@ -182,18 +193,10 @@ impl Visit for Chunk {
                     (self.position.y / length) as i32,
                 );
 
-                self.heightmap = Some(
-                    Texture::from_bytes(
-                        TextureKind::Rectangle {
-                            width: width_point_count,
-                            height: length_point_count,
-                        },
-                        TexturePixelKind::R32F,
-                        utils::transmute_vec_as_bytes(height_map),
-                        true,
-                    )
-                    .unwrap(),
-                );
+                self.heightmap = Some(make_height_map_texture(
+                    height_map,
+                    Vector2::new(width_point_count, length_point_count),
+                ));
             }
             VERSION => {
                 self.heightmap.visit("Heightmap", &mut region)?;
@@ -635,18 +638,7 @@ impl Terrain {
                         vec![0.0; (self.height_map_size.x * self.height_map_size.y) as usize];
                     let new_chunk = Chunk {
                         quad_tree: QuadTree::new(&heightmap, *self.block_size, *self.block_size),
-                        heightmap: Some(
-                            Texture::from_bytes(
-                                TextureKind::Rectangle {
-                                    width: self.height_map_size.x,
-                                    height: self.height_map_size.y,
-                                },
-                                TexturePixelKind::R32F,
-                                utils::transmute_vec_as_bytes(heightmap),
-                                true,
-                            )
-                            .unwrap(),
-                        ),
+                        heightmap: Some(make_height_map_texture(heightmap, self.height_map_size())),
                         position: Vector3::new(
                             x as f32 * self.chunk_size.x,
                             0.0,
@@ -1052,18 +1044,7 @@ impl Terrain {
             drop(texture);
 
             chunk.height_map_size = new_size;
-            chunk.heightmap = Some(
-                Texture::from_bytes(
-                    TextureKind::Rectangle {
-                        width: new_size.x,
-                        height: new_size.y,
-                    },
-                    TexturePixelKind::R32F,
-                    utils::transmute_vec_as_bytes(resampled_heightmap),
-                    true,
-                )
-                .unwrap(),
-            );
+            chunk.heightmap = Some(make_height_map_texture(resampled_heightmap, new_size));
         }
 
         self.height_map_size.set_value_and_mark_modified(new_size);
@@ -1430,18 +1411,7 @@ impl TerrainBuilder {
                 let chunk = Chunk {
                     quad_tree: QuadTree::new(&heightmap, self.height_map_size, self.block_size),
                     height_map_size: self.height_map_size,
-                    heightmap: Some(
-                        Texture::from_bytes(
-                            TextureKind::Rectangle {
-                                width: self.height_map_size.x,
-                                height: self.height_map_size.y,
-                            },
-                            TexturePixelKind::R32F,
-                            utils::transmute_vec_as_bytes(heightmap),
-                            true,
-                        )
-                        .unwrap(),
-                    ),
+                    heightmap: Some(make_height_map_texture(heightmap, self.height_map_size)),
                     position: Vector3::new(
                         x as f32 * self.chunk_size.x,
                         0.0,
