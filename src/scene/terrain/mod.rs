@@ -1211,7 +1211,7 @@ impl NodeTrait for Terrain {
                         ))
                         * Matrix4::new_nonuniform_scaling(&Vector3::new(
                             kw * self.chunk_size.x,
-                            0.0,
+                            1.0,
                             kh * self.chunk_size.y,
                         ));
 
