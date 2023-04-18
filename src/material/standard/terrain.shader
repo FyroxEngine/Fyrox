@@ -124,8 +124,10 @@
 
                 void main()
                 {
-                    vec2 heightMapTexCoords = vec2(vertexTexCoord * nodeUvOffsets.zw + nodeUvOffsets.xy);
-                    float height = texture(heightMapTexture, heightMapTexCoords).r;
+                    // Each node has tex coords in [0; 1] range, here we must scale and offset it
+                    // to match the actual position.
+                    vec2 actualTexCoords = vec2(vertexTexCoord * nodeUvOffsets.zw + nodeUvOffsets.xy);
+                    float height = texture(heightMapTexture, actualTexCoords).r;
 
                     vec4 finalVertexPosition = vec4(vertexPosition.x, height, vertexPosition.z, 1.0);
 
@@ -133,7 +135,7 @@
                     normal = normalize(nm * vertexNormal);
                     tangent = normalize(nm * vertexTangent.xyz);
                     binormal = normalize(vertexTangent.w * cross(tangent, normal));
-                    texCoord = vertexTexCoord;
+                    texCoord = actualTexCoords;
                     position = vec3(fyrox_worldMatrix * finalVertexPosition);
                     secondTexCoord = vertexSecondTexCoord;
                     gl_Position = fyrox_worldViewProjection * finalVertexPosition;
