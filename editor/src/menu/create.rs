@@ -375,7 +375,7 @@ impl CreateEntityMenu {
                             TerrainBuilder::new(BaseBuilder::new().with_name("Terrain"))
                                 .with_layers(vec![Layer {
                                     material: create_terrain_layer_material(),
-                                    mask_property_name: "maskTexture".to_owned(),
+                                    ..Default::default()
                                 }])
                                 .build_node(),
                         )

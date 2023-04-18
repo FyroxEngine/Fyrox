@@ -2,7 +2,7 @@
 
 use crate::{
     core::{
-        algebra::{Matrix4, Point3, Vector2, Vector3},
+        algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         arrayvec::ArrayVec,
         math::{aabb::AxisAlignedBoundingBox, ray::Ray, ray_rect_intersection, Rect},
         pool::Handle,
@@ -27,7 +27,7 @@ use crate::{
         node::{Node, NodeTrait, TypeUuidProvider},
         terrain::{geometry::TerrainGeometry, quadtree::QuadTree},
     },
-    utils::log::{Log, MessageKind},
+    utils::{self, log::Log},
 };
 use image::{imageops::FilterType, ImageBuffer, Luma};
 use std::{
@@ -47,7 +47,7 @@ pub const VERSION: u8 = 1;
 /// rendering. Terrain can have as many layers as you want, but each layer slightly decreases
 /// performance, so keep amount of layers on reasonable level (1 - 5 should be enough for most
 /// cases).
-#[derive(Default, Debug, Clone, Visit, Reflect)]
+#[derive(Debug, Clone, Visit, Reflect, PartialEq)]
 pub struct Layer {
     /// Material of the layer.
     pub material: SharedMaterial,
@@ -58,12 +58,33 @@ pub struct Layer {
     ///
     /// It will be used in the renderer to set appropriate chunk mask to the copy of the material.
     pub mask_property_name: String,
+
+    #[visit(optional)]
+    pub height_map_property_name: String,
+
+    #[visit(optional)]
+    pub node_uv_offsets_property_name: String,
 }
 
-impl PartialEq for Layer {
-    fn eq(&self, other: &Self) -> bool {
-        self.mask_property_name == other.mask_property_name && self.material == other.material
+impl Default for Layer {
+    fn default() -> Self {
+        Self {
+            material: Default::default(),
+            mask_property_name: "maskTexture".to_string(),
+            height_map_property_name: "heightMapTexture".to_string(),
+            node_uv_offsets_property_name: "nodeUvOffsets".to_string(),
+        }
     }
+}
+
+fn make_quad_tree(
+    texture: &Option<Texture>,
+    height_map_size: Vector2<u32>,
+    block_size: Vector2<u32>,
+) -> QuadTree {
+    let texture = texture.as_ref().unwrap().data_ref();
+    let height_map = texture.data_of_type::<f32>().unwrap();
+    QuadTree::new(height_map, height_map_size, block_size)
 }
 
 /// Chunk is smaller block of a terrain. Terrain can have as many chunks as you need.
@@ -78,7 +99,7 @@ pub struct Chunk {
     #[reflect(hidden)]
     version: u8,
     #[reflect(hidden)]
-    heightmap: Vec<f32>,
+    heightmap: Option<Texture>,
     #[reflect(hidden)]
     position: Vector3<f32>,
     #[reflect(hidden)]
@@ -119,7 +140,7 @@ impl Clone for Chunk {
                     .unwrap()
                 })
                 .collect::<Vec<_>>(),
-            quad_tree: QuadTree::new(&self.heightmap, self.height_map_size, self.block_size),
+            quad_tree: make_quad_tree(&self.heightmap, self.height_map_size, self.block_size),
         }
     }
 }
@@ -138,8 +159,10 @@ impl Visit for Chunk {
 
         match version {
             0 => {
-                let mut view = PodVecView::from_pod_vec(&mut self.heightmap);
+                let mut height_map = Vec::<f32>::new();
+                let mut view = PodVecView::from_pod_vec(&mut height_map);
                 view.visit("Heightmap", &mut region)?;
+
                 self.position.visit("Position", &mut region)?;
 
                 let mut width = 0.0f32;
@@ -158,11 +181,22 @@ impl Visit for Chunk {
                     (self.position.x / width) as i32,
                     (self.position.y / length) as i32,
                 );
+
+                self.heightmap = Some(
+                    Texture::from_bytes(
+                        TextureKind::Rectangle {
+                            width: width_point_count,
+                            height: length_point_count,
+                        },
+                        TexturePixelKind::R32F,
+                        utils::transmute_vec_as_bytes(height_map),
+                        true,
+                    )
+                    .unwrap(),
+                );
             }
             VERSION => {
-                let mut view = PodVecView::from_pod_vec(&mut self.heightmap);
-                view.visit("Heightmap", &mut region)?;
-
+                self.heightmap.visit("Heightmap", &mut region)?;
                 self.position.visit("Position", &mut region)?;
                 self.physical_size.visit("PhysicalSize", &mut region)?;
                 self.height_map_size.visit("HeightMapSize", &mut region)?;
@@ -174,7 +208,7 @@ impl Visit for Chunk {
             _ => (),
         }
 
-        self.quad_tree = QuadTree::new(&self.heightmap, self.height_map_size, self.block_size);
+        self.quad_tree = make_quad_tree(&self.heightmap, self.height_map_size, self.block_size);
 
         Ok(())
     }
@@ -204,14 +238,35 @@ impl Chunk {
     }
 
     /// Returns a reference to height map.
-    pub fn heightmap(&self) -> &[f32] {
-        &self.heightmap
+    pub fn heightmap(&self) -> &Texture {
+        self.heightmap.as_ref().unwrap()
+    }
+
+    pub fn heightmap_owned(&self) -> Vec<f32> {
+        self.heightmap
+            .as_ref()
+            .unwrap()
+            .data_ref()
+            .data_of_type::<f32>()
+            .unwrap()
+            .to_vec()
     }
 
     /// Sets new height map. New height map must be equal with size of current.
-    pub fn set_heightmap(&mut self, heightmap: Vec<f32>) {
-        assert_eq!(self.heightmap.len(), heightmap.len());
-        self.heightmap = heightmap;
+    pub fn set_heightmap(&mut self, heightmap: Texture) -> Result<(), Texture> {
+        let data = heightmap.data_ref();
+        if let TextureKind::Rectangle { width, height } = data.kind() {
+            if data.pixel_kind() == TexturePixelKind::R32F
+                && self.height_map_size.x == width
+                && self.height_map_size.y == height
+            {
+                drop(data);
+                self.heightmap = Some(heightmap);
+                return Ok(());
+            }
+        }
+        drop(data);
+        Err(heightmap)
     }
 
     /// Returns the size of the chunk in meters.
@@ -233,7 +288,7 @@ impl Chunk {
 
     fn set_block_size(&mut self, block_size: Vector2<u32>) {
         self.block_size = block_size;
-        self.quad_tree = QuadTree::new(&self.heightmap, self.height_map_size, block_size);
+        self.quad_tree = make_quad_tree(&self.heightmap, self.height_map_size, block_size);
     }
 }
 
@@ -397,7 +452,8 @@ impl Visit for Terrain {
                     self.layers.push(Layer {
                         material: layer.material,
                         mask_property_name: layer.mask_property_name,
-                    })
+                        ..Default::default()
+                    });
                 }
 
                 self.chunks = chunks.into();
@@ -579,7 +635,18 @@ impl Terrain {
                         vec![0.0; (self.height_map_size.x * self.height_map_size.y) as usize];
                     let new_chunk = Chunk {
                         quad_tree: QuadTree::new(&heightmap, *self.block_size, *self.block_size),
-                        heightmap,
+                        heightmap: Some(
+                            Texture::from_bytes(
+                                TextureKind::Rectangle {
+                                    width: self.height_map_size.x,
+                                    height: self.height_map_size.y,
+                                },
+                                TexturePixelKind::R32F,
+                                utils::transmute_vec_as_bytes(heightmap),
+                                true,
+                            )
+                            .unwrap(),
+                        ),
                         position: Vector3::new(
                             x as f32 * self.chunk_size.x,
                             0.0,
@@ -650,6 +717,10 @@ impl Terrain {
         match brush.mode {
             BrushMode::ModifyHeightMap { amount } => {
                 for chunk in self.chunks.iter_mut() {
+                    let mut texture_data = chunk.heightmap.as_ref().unwrap().data_ref();
+                    let mut texture_modifier = texture_data.modify();
+                    let height_map = texture_modifier.data_mut_of_type::<f32>().unwrap();
+
                     for iy in 0..chunk.height_map_size.y {
                         let kz = iy as f32 / (chunk.height_map_size.y - 1) as f32;
                         for ix in 0..chunk.height_map_size.y {
@@ -669,7 +740,7 @@ impl Terrain {
                             };
 
                             if brush.shape.contains(center, pixel_position) {
-                                chunk.heightmap[(iy * chunk.height_map_size.x + ix) as usize] +=
+                                height_map[(iy * chunk.height_map_size.x + ix) as usize] +=
                                     k * amount;
                             }
                         }
@@ -748,6 +819,9 @@ impl Terrain {
 
             // Check each cell of each chunk for intersection in 2D.
             'chunk_loop: for (chunk_index, chunk) in self.chunks.iter().enumerate() {
+                let texture = chunk.heightmap.as_ref().unwrap().data_ref();
+                let height_map = texture.data_of_type::<f32>().unwrap();
+
                 let cell_width = chunk.physical_size.x / (chunk.height_map_size.x - 1) as f32;
                 let cell_length = chunk.physical_size.y / (chunk.height_map_size.y - 1) as f32;
 
@@ -778,13 +852,12 @@ impl Terrain {
 
                                 let v0 = Vector3::new(
                                     pixel_position.x,
-                                    chunk.heightmap[i0],
+                                    height_map[i0],
                                     pixel_position.y, // Remember Z -> Y mapping!
                                 );
-                                let v1 =
-                                    Vector3::new(v0.x, chunk.heightmap[i1], v0.z + cell_length);
-                                let v2 = Vector3::new(v1.x + cell_width, chunk.heightmap[i2], v1.z);
-                                let v3 = Vector3::new(v0.x + cell_width, chunk.heightmap[i3], v0.z);
+                                let v1 = Vector3::new(v0.x, height_map[i1], v0.z + cell_length);
+                                let v2 = Vector3::new(v1.x + cell_width, height_map[i2], v1.z);
+                                let v3 = Vector3::new(v0.x + cell_width, height_map[i3], v0.z);
 
                                 for vertices in &[[v0, v1, v2], [v2, v3, v0]] {
                                     if let Some((toi, intersection)) =
@@ -940,7 +1013,8 @@ impl Terrain {
         new_size = new_size.sup(&Vector2::repeat(2));
 
         for chunk in self.chunks.iter_mut() {
-            let mut heightmap = std::mem::take(&mut chunk.heightmap);
+            let texture = chunk.heightmap.as_ref().unwrap().data_ref();
+            let mut heightmap = texture.data_of_type::<f32>().unwrap().to_vec();
 
             let mut max = -f32::MAX;
             for &height in &heightmap {
@@ -975,8 +1049,21 @@ impl Terrain {
                 *height *= max;
             }
 
+            drop(texture);
+
             chunk.height_map_size = new_size;
-            chunk.heightmap = resampled_heightmap;
+            chunk.heightmap = Some(
+                Texture::from_bytes(
+                    TextureKind::Rectangle {
+                        width: new_size.x,
+                        height: new_size.y,
+                    },
+                    TexturePixelKind::R32F,
+                    utils::transmute_vec_as_bytes(resampled_heightmap),
+                    true,
+                )
+                .unwrap(),
+            );
         }
 
         self.height_map_size.set_value_and_mark_modified(new_size);
@@ -998,7 +1085,9 @@ impl NodeTrait for Terrain {
         if self.bounding_box_dirty.get() {
             let mut max_height = -f32::MAX;
             for chunk in self.chunks.iter() {
-                for &height in chunk.heightmap.iter() {
+                let texture = chunk.heightmap.as_ref().unwrap().data_ref();
+                let height_map = texture.data_of_type::<f32>().unwrap();
+                for &height in height_map {
                     if height > max_height {
                         max_height = height;
                     }
@@ -1059,11 +1148,12 @@ impl NodeTrait for Terrain {
                     })
                     .collect::<Vec<_>>();
 
-                let transform = self.global_transform() * Matrix4::new_translation(&chunk.position);
+                let chunk_transform =
+                    self.global_transform() * Matrix4::new_translation(&chunk.position);
 
                 let mut selection = Vec::new();
                 chunk.quad_tree.select(
-                    &transform,
+                    &chunk_transform,
                     self.height_map_size(),
                     self.chunk_size(),
                     ctx.frustum,
@@ -1073,34 +1163,76 @@ impl NodeTrait for Terrain {
                 );
 
                 let mut material = (*layer.material.lock()).clone();
-                match material.set_property(
-                    &ImmutableString::new(&layer.mask_property_name),
-                    PropertyValue::Sampler {
-                        value: Some(chunk.layer_masks[layer_index].clone()),
-                        fallback: Default::default(),
-                    },
-                ) {
-                    Ok(_) => {
-                        let material = SharedMaterial::new(material);
 
-                        for node in selection {
-                            let transform = transform
-                                * Matrix4::new_translation(&Vector3::new(
-                                    node.position.x as f32 / self.height_map_size.x as f32
-                                        * self.chunk_size.x,
-                                    0.0,
-                                    node.position.y as f32 / self.height_map_size.y as f32
-                                        * self.chunk_size.y,
-                                ))
-                                * Matrix4::new_nonuniform_scaling(&Vector3::new(
-                                    node.size.x as f32 / self.height_map_size.x as f32
-                                        * self.chunk_size.x,
-                                    0.0,
-                                    node.size.y as f32 / self.height_map_size.y as f32
-                                        * self.chunk_size.y,
-                                ));
+                Log::verify_message(
+                    material.set_property(
+                        &ImmutableString::new(&layer.mask_property_name),
+                        PropertyValue::Sampler {
+                            value: Some(chunk.layer_masks[layer_index].clone()),
+                            fallback: Default::default(),
+                        },
+                    ),
+                    "Unable to set mask texture for terrain material.",
+                );
 
-                            if node.is_draw_full() {
+                Log::verify_message(
+                    material.set_property(
+                        &ImmutableString::new(&layer.height_map_property_name),
+                        PropertyValue::Sampler {
+                            value: chunk.heightmap.clone(),
+                            fallback: Default::default(),
+                        },
+                    ),
+                    "Unable to set height map texture for terrain material.",
+                );
+
+                for node in selection {
+                    let kx = node.position.x as f32 / self.height_map_size.x as f32;
+                    let kz = node.position.y as f32 / self.height_map_size.y as f32;
+
+                    let kw = node.size.x as f32 / self.height_map_size.x as f32;
+                    let kh = node.size.y as f32 / self.height_map_size.y as f32;
+
+                    Log::verify_message(
+                        material.set_property(
+                            &ImmutableString::new(&layer.node_uv_offsets_property_name),
+                            PropertyValue::Vector4(Vector4::new(kx, kz, kw, kh)),
+                        ),
+                        "Unable to set node uv offsets for terrain material.",
+                    );
+
+                    let material = SharedMaterial::new(material.clone());
+
+                    let node_transform = chunk_transform
+                        * Matrix4::new_translation(&Vector3::new(
+                            kx * self.chunk_size.x,
+                            0.0,
+                            kz * self.chunk_size.y,
+                        ))
+                        * Matrix4::new_nonuniform_scaling(&Vector3::new(
+                            kw * self.chunk_size.x,
+                            0.0,
+                            kh * self.chunk_size.y,
+                        ));
+
+                    if node.is_draw_full() {
+                        ctx.storage.push(
+                            &self.geometry.data,
+                            &material,
+                            RenderPath::Deferred,
+                            self.decal_layer_index(),
+                            layer_index as u64,
+                            SurfaceInstanceData {
+                                world_transform: node_transform,
+                                bone_matrices: Default::default(),
+                                depth_offset: self.depth_offset_factor(),
+                                blend_shapes_weights: Default::default(),
+                                element_range: ElementRange::Full,
+                            },
+                        );
+                    } else {
+                        for (i, draw_quadrant) in node.active_quadrants.iter().enumerate() {
+                            if *draw_quadrant {
                                 ctx.storage.push(
                                     &self.geometry.data,
                                     &material,
@@ -1108,43 +1240,16 @@ impl NodeTrait for Terrain {
                                     self.decal_layer_index(),
                                     layer_index as u64,
                                     SurfaceInstanceData {
-                                        world_transform: transform,
+                                        world_transform: node_transform,
                                         bone_matrices: Default::default(),
                                         depth_offset: self.depth_offset_factor(),
                                         blend_shapes_weights: Default::default(),
-                                        element_range: ElementRange::Full,
+                                        element_range: self.geometry.quadrants[i],
                                     },
                                 );
-                            } else {
-                                for (i, draw_quadrant) in node.active_quadrants.iter().enumerate() {
-                                    if *draw_quadrant {
-                                        ctx.storage.push(
-                                            &self.geometry.data,
-                                            &material,
-                                            RenderPath::Deferred,
-                                            self.decal_layer_index(),
-                                            layer_index as u64,
-                                            SurfaceInstanceData {
-                                                world_transform: transform,
-                                                bone_matrices: Default::default(),
-                                                depth_offset: self.depth_offset_factor(),
-                                                blend_shapes_weights: Default::default(),
-                                                element_range: self.geometry.quadrants[i],
-                                            },
-                                        );
-                                    }
-                                }
                             }
                         }
                     }
-                    Err(e) => Log::writeln(
-                        MessageKind::Error,
-                        format!(
-                            "Failed to prepare batch for terrain chunk.\
-                                 Unable to set mask texture for terrain material. Reason: {:?}",
-                            e
-                        ),
-                    ),
                 }
             }
         }
@@ -1325,7 +1430,18 @@ impl TerrainBuilder {
                 let chunk = Chunk {
                     quad_tree: QuadTree::new(&heightmap, self.height_map_size, self.block_size),
                     height_map_size: self.height_map_size,
-                    heightmap,
+                    heightmap: Some(
+                        Texture::from_bytes(
+                            TextureKind::Rectangle {
+                                width: self.height_map_size.x,
+                                height: self.height_map_size.y,
+                            },
+                            TexturePixelKind::R32F,
+                            utils::transmute_vec_as_bytes(heightmap),
+                            true,
+                        )
+                        .unwrap(),
+                    ),
                     position: Vector3::new(
                         x as f32 * self.chunk_size.x,
                         0.0,

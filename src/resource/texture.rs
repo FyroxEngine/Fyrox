@@ -994,12 +994,14 @@ fn bytes_in_first_mip(kind: TextureKind, pixel_kind: TexturePixelKind) -> u32 {
         TexturePixelKind::R16
         | TexturePixelKind::LuminanceAlpha8
         | TexturePixelKind::Luminance16
-        | TexturePixelKind::RG8 => 2 * pixel_count,
+        | TexturePixelKind::RG8
+        | TexturePixelKind::R16F => 2 * pixel_count,
         TexturePixelKind::RGB8 | TexturePixelKind::BGR8 => 3 * pixel_count,
         TexturePixelKind::RGBA8
         | TexturePixelKind::BGRA8
         | TexturePixelKind::RG16
-        | TexturePixelKind::LuminanceAlpha16 => 4 * pixel_count,
+        | TexturePixelKind::LuminanceAlpha16
+        | TexturePixelKind::R32F => 4 * pixel_count,
         TexturePixelKind::RGB16 | TexturePixelKind::RGB16F => 6 * pixel_count,
         TexturePixelKind::RGBA16 => 8 * pixel_count,
         TexturePixelKind::RGB32F => 12 * pixel_count,
@@ -1418,7 +1420,9 @@ impl TextureData {
             | TexturePixelKind::RG8RGTC
             | TexturePixelKind::BGR8
             | TexturePixelKind::BGRA8
-            | TexturePixelKind::RGB16F => return Err(TextureError::UnsupportedFormat),
+            | TexturePixelKind::RGB16F
+            | TexturePixelKind::R32F
+            | TexturePixelKind::R16F => return Err(TextureError::UnsupportedFormat),
         };
         if let TextureKind::Rectangle { width, height } = self.kind {
             Ok(image::save_buffer(
@@ -1477,7 +1481,7 @@ impl<'a> TextureDataRefMut<'a> {
         &mut self.texture.bytes
     }
 
-    pub fn data_mut_of_type<T: Sized>(&self) -> Option<&mut [T]> {
+    pub fn data_mut_of_type<T: Sized>(&mut self) -> Option<&mut [T]> {
         if let Some(pixel_size) = self.texture.pixel_kind.size_in_bytes() {
             if pixel_size == std::mem::size_of::<T>() {
                 return Some(transmute_slice_mut(&mut self.texture.bytes));
