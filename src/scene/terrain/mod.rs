@@ -1,7 +1,7 @@
 //! Everything related to terrains.
 
-use crate::resource::texture::TextureData;
 use crate::{
+    asset::{Resource, ResourceState},
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         arrayvec::ArrayVec,
@@ -19,7 +19,7 @@ use crate::{
         batch::{RenderContext, SurfaceInstanceData},
         framework::geometry_buffer::ElementRange,
     },
-    resource::texture::{Texture, TextureKind, TexturePixelKind, TextureWrapMode},
+    resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind, TextureWrapMode},
     scene::{
         base::{Base, BaseBuilder},
         debug::SceneDrawingContext,
@@ -30,7 +30,6 @@ use crate::{
     },
     utils::{self, log::Log},
 };
-use fyrox_resource::{Resource, ResourceState};
 use image::{imageops::FilterType, ImageBuffer, Luma};
 use std::{
     cell::Cell,
