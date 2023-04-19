@@ -13,7 +13,7 @@ use crate::{
         variable::InheritableVariable,
         visitor::{prelude::*, PodVecView},
     },
-    material::{PropertyValue, SharedMaterial},
+    material::{Material, PropertyValue, SharedMaterial},
     renderer::{
         self,
         batch::{RenderContext, SurfaceInstanceData},
@@ -70,7 +70,7 @@ pub struct Layer {
 impl Default for Layer {
     fn default() -> Self {
         Self {
-            material: Default::default(),
+            material: SharedMaterial::new(Material::standard_terrain()),
             mask_property_name: "maskTexture".to_string(),
             height_map_property_name: "heightMapTexture".to_string(),
             node_uv_offsets_property_name: "nodeUvOffsets".to_string(),
@@ -205,7 +205,6 @@ impl Visit for Chunk {
                 self.layer_masks.visit("LayerMasks", &mut region)?;
                 self.grid_position.visit("GridPosition", &mut region)?;
                 let _ = self.block_size.visit("BlockSize", &mut region);
-                // self.surface_data is not serialized.
             }
             _ => (),
         }
@@ -225,7 +224,7 @@ impl Default for Chunk {
             position: Default::default(),
             physical_size: Default::default(),
             height_map_size: Default::default(),
-            block_size: Default::default(),
+            block_size: Vector2::new(32, 32),
             grid_position: Default::default(),
             layer_masks: Default::default(),
         }
@@ -315,7 +314,7 @@ pub struct TerrainRayCastResult {
 /// Terrain is a height field where each point has fixed coordinates in XZ plane, but variable
 /// Y coordinate. It can be used to create landscapes. It supports multiple layers, where each
 /// layer has its own material and mask.
-#[derive(Debug, Default, Reflect, Clone)]
+#[derive(Debug, Reflect, Clone)]
 pub struct Terrain {
     base: Base,
 
@@ -381,11 +380,42 @@ pub struct Terrain {
     version: u8,
 }
 
-#[derive(Visit, Default)]
+impl Default for Terrain {
+    fn default() -> Self {
+        Self {
+            base: Default::default(),
+            layers: Default::default(),
+            decal_layer_index: Default::default(),
+            chunk_size: Vector2::new(16.0, 16.0).into(),
+            width_chunks: Default::default(),
+            length_chunks: Default::default(),
+            height_map_size: Default::default(),
+            block_size: Vector2::new(32, 32).into(),
+            mask_size: Default::default(),
+            chunks: Default::default(),
+            bounding_box_dirty: Cell::new(true),
+            bounding_box: Cell::new(Default::default()),
+            geometry: Default::default(),
+            version: VERSION,
+        }
+    }
+}
+
+#[derive(Visit)]
 struct OldLayer {
     pub material: SharedMaterial,
     pub mask_property_name: String,
     pub chunk_masks: Vec<Texture>,
+}
+
+impl Default for OldLayer {
+    fn default() -> Self {
+        Self {
+            material: SharedMaterial::new(Material::standard_terrain()),
+            mask_property_name: "maskTexture".to_string(),
+            chunk_masks: Default::default(),
+        }
+    }
 }
 
 impl Visit for Terrain {
