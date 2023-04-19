@@ -52,13 +52,13 @@ impl TerrainGeometry {
 
         let mut quadrants = [ElementRange::Full; 4];
         for ((x_range, y_range), quadrant) in [
-            (0..half_size.x, 0..half_size.y),
-            ((half_size.x - 1)..mesh_size.x, 0..half_size.y),
+            (0..(half_size.x + 1), 0..(half_size.y + 1)),
+            ((half_size.x - 1)..mesh_size.x, 0..(half_size.y + 1)),
             (
                 (half_size.x - 1)..mesh_size.x,
                 (half_size.y - 1)..mesh_size.y,
             ),
-            (0..half_size.x, (half_size.y - 1)..mesh_size.y),
+            (0..(half_size.x + 1), (half_size.y - 1)..mesh_size.y),
         ]
         .into_iter()
         .zip(&mut quadrants)
