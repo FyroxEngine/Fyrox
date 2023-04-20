@@ -778,6 +778,12 @@ impl Terrain {
                             }
                         }
                     }
+
+                    drop(texture_modifier);
+                    drop(texture_data);
+
+                    chunk.quad_tree =
+                        make_quad_tree(&chunk.heightmap, chunk.height_map_size, chunk.block_size);
                 }
 
                 self.bounding_box_dirty.set(true);
