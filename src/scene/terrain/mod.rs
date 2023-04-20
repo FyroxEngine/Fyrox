@@ -481,8 +481,16 @@ impl Visit for Terrain {
                         chunk.layer_masks.push(layer.chunk_masks.pop().unwrap());
                     }
 
+                    // TODO: Due to the bug in resource system, material properties are not kept in sync
+                    // so here we must re-create the material and put every property from the old material
+                    // to the new.
+                    let mut new_material = Material::standard_terrain();
+                    for (name, value) in layer.material.lock().properties() {
+                        Log::verify(new_material.set_property(name, value.clone()));
+                    }
+
                     self.layers.push(Layer {
-                        material: layer.material,
+                        material: SharedMaterial::new(new_material),
                         mask_property_name: layer.mask_property_name,
                         ..Default::default()
                     });
