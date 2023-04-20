@@ -1114,6 +1114,7 @@ impl NodeTrait for Terrain {
     fn local_bounding_box(&self) -> AxisAlignedBoundingBox {
         if self.bounding_box_dirty.get() {
             let mut max_height = -f32::MAX;
+            let mut min_height = f32::MAX;
             for chunk in self.chunks.iter() {
                 let texture = chunk.heightmap.as_ref().unwrap().data_ref();
                 let height_map = texture.data_of_type::<f32>().unwrap();
@@ -1121,13 +1122,16 @@ impl NodeTrait for Terrain {
                     if height > max_height {
                         max_height = height;
                     }
+                    if height < min_height {
+                        min_height = height;
                 }
+            }
             }
 
             let bounding_box = AxisAlignedBoundingBox::from_min_max(
                 Vector3::new(
                     self.chunk_size.x * self.width_chunks.start as f32,
-                    max_height,
+                    min_height,
                     self.chunk_size.y * self.length_chunks.start as f32,
                 ),
                 Vector3::new(
