@@ -1,3 +1,4 @@
+use fyrox::renderer::framework::geometry_buffer::ElementRange;
 use fyrox::{
     core::{algebra::Matrix4, math::Matrix4Ext, sstorage::ImmutableString},
     renderer::{
@@ -130,6 +131,7 @@ impl SceneRenderPass for OverlayRenderPass {
                     }),
                     stencil_op: Default::default(),
                 },
+                ElementRange::Full,
                 |mut program_binding| {
                     program_binding
                         .set_matrix4(&shader.view_projection_matrix, &view_projection)
@@ -139,7 +141,7 @@ impl SceneRenderPass for OverlayRenderPass {
                         .set_f32(&shader.size, self.pictogram_size)
                         .set_texture(&shader.diffuse_texture, &icon);
                 },
-            );
+            )?;
         }
 
         Ok(Default::default())

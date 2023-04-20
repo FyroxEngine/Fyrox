@@ -1,3 +1,4 @@
+use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -67,7 +68,7 @@ impl FxaaRenderer {
         viewport: Rect<i32>,
         frame_texture: Rc<RefCell<GpuTexture>>,
         frame_buffer: &mut FrameBuffer,
-    ) -> RenderPassStatistics {
+    ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut statistics = RenderPassStatistics::default();
 
         let frame_matrix = Matrix4::new_orthographic(
@@ -97,6 +98,7 @@ impl FxaaRenderer {
                 blend: None,
                 stencil_op: Default::default(),
             },
+            ElementRange::Full,
             |mut program_binding| {
                 program_binding
                     .set_matrix4(&self.shader.wvp_matrix, &frame_matrix)
@@ -106,8 +108,8 @@ impl FxaaRenderer {
                     )
                     .set_texture(&self.shader.screen_texture, &frame_texture);
             },
-        );
+        )?;
 
-        statistics
+        Ok(statistics)
     }
 }

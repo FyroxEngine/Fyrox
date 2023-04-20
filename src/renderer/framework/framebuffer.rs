@@ -1,3 +1,4 @@
+use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::renderer::framework::state::BlendEquation;
 use crate::{
     core::{color::Color, math::Rect, scope_profile, visitor::prelude::*},
@@ -342,12 +343,14 @@ impl FrameBuffer {
         viewport: Rect<i32>,
         program: &GpuProgram,
         params: &DrawParameters,
+        element_range: ElementRange,
         apply_uniforms: F,
-    ) -> DrawCallStatistics {
+    ) -> Result<DrawCallStatistics, FrameworkError> {
         scope_profile!();
 
         pre_draw(self.id(), state, viewport, program, params, apply_uniforms);
-        geometry.bind(state).draw()
+
+        geometry.bind(state).draw(element_range)
     }
 
     pub fn draw_instances<F: FnOnce(GpuProgramBinding<'_, '_>)>(
@@ -364,23 +367,6 @@ impl FrameBuffer {
 
         pre_draw(self.id(), state, viewport, program, params, apply_uniforms);
         geometry.bind(state).draw_instances(count)
-    }
-
-    pub fn draw_part<F: FnOnce(GpuProgramBinding<'_, '_>)>(
-        &mut self,
-        geometry: &GeometryBuffer,
-        state: &mut PipelineState,
-        viewport: Rect<i32>,
-        program: &GpuProgram,
-        params: DrawParameters,
-        offset: usize,
-        count: usize,
-        apply_uniforms: F,
-    ) -> Result<DrawCallStatistics, FrameworkError> {
-        scope_profile!();
-
-        pre_draw(self.id(), state, viewport, program, &params, apply_uniforms);
-        geometry.bind(state).draw_part(offset, count)
     }
 }
 

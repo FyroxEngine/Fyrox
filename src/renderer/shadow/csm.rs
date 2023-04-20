@@ -2,11 +2,10 @@ use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Rect},
-        sstorage::ImmutableString,
     },
     renderer::{
         apply_material,
-        batch::BatchStorage,
+        batch::{ObserverInfo, RenderDataBatchStorage},
         cache::{geometry::GeometryCache, shader::ShaderCache, texture::TextureCache},
         framework::{
             error::FrameworkError,
@@ -18,14 +17,12 @@ use crate::{
             state::{ColorMask, PipelineState},
         },
         storage::MatrixStorage,
-        MaterialContext, RenderPassStatistics, ShadowMapPrecision,
+        MaterialContext, RenderPassStatistics, ShadowMapPrecision, DIRECTIONAL_SHADOW_PASS_NAME,
     },
     scene::{
         camera::Camera,
         graph::Graph,
         light::directional::{DirectionalLight, FrustumSplitOptions, CSM_NUM_CASCADES},
-        mesh::Mesh,
-        terrain::Terrain,
     },
 };
 use std::{cell::RefCell, rc::Rc};
@@ -92,7 +89,6 @@ pub struct CsmRenderer {
     cascades: [Cascade; CSM_NUM_CASCADES],
     size: usize,
     precision: ShadowMapPrecision,
-    render_pass_name: ImmutableString,
 }
 
 pub(crate) struct CsmRenderContext<'a, 'c> {
@@ -102,7 +98,6 @@ pub(crate) struct CsmRenderContext<'a, 'c> {
     pub light: &'c DirectionalLight,
     pub camera: &'c Camera,
     pub geom_cache: &'a mut GeometryCache,
-    pub batch_storage: &'a BatchStorage,
     pub shader_cache: &'a mut ShaderCache,
     pub texture_cache: &'a mut TextureCache,
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
@@ -121,7 +116,6 @@ impl CsmRenderer {
         Ok(Self {
             precision,
             size,
-            render_pass_name: ImmutableString::new("DirectionalShadow"),
             cascades: [
                 Cascade::new(state, size, precision)?,
                 Cascade::new(state, size, precision)?,
@@ -142,7 +136,10 @@ impl CsmRenderer {
         &self.cascades
     }
 
-    pub(crate) fn render(&mut self, ctx: CsmRenderContext) -> RenderPassStatistics {
+    pub(crate) fn render(
+        &mut self,
+        ctx: CsmRenderContext,
+    ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
 
         let CsmRenderContext {
@@ -152,7 +149,6 @@ impl CsmRenderer {
             light,
             camera,
             geom_cache,
-            batch_storage,
             shader_cache,
             texture_cache,
             normal_dummy,
@@ -188,28 +184,41 @@ impl CsmRenderer {
         };
 
         for i in 0..CSM_NUM_CASCADES {
-            let znear = z_values[i];
-            let mut zfar = z_values[i + 1];
+            let z_near = z_values[i];
+            let mut z_far = z_values[i + 1];
 
-            if zfar.eq(&znear) {
-                zfar += 10.0 * f32::EPSILON;
+            if z_far.eq(&z_near) {
+                z_far += 10.0 * f32::EPSILON;
             }
 
             let projection_matrix = camera
                 .projection()
                 .clone()
-                .with_z_near(znear)
-                .with_z_far(zfar)
+                .with_z_near(z_near)
+                .with_z_far(z_far)
                 .matrix(frame_size);
 
             let frustum =
-                Frustum::from(projection_matrix * camera.view_matrix()).unwrap_or_default();
+                Frustum::from_view_projection_matrix(projection_matrix * camera.view_matrix())
+                    .unwrap_or_default();
 
             let center = frustum.center();
             let light_view_matrix = Matrix4::look_at_lh(
                 &Point3::from(center + light_direction),
                 &Point3::from(center),
                 &light_up_vec,
+            );
+
+            let batches = RenderDataBatchStorage::from_graph(
+                graph,
+                ObserverInfo {
+                    observer_position: camera.global_position(),
+                    z_near,
+                    z_far,
+                    view_matrix: light_view_matrix,
+                    projection_matrix,
+                },
+                DIRECTIONAL_SHADOW_PASS_NAME.clone(),
             );
 
             let mut aabb = AxisAlignedBoundingBox::default();
@@ -239,13 +248,13 @@ impl CsmRenderer {
 
             let light_view_projection = cascade_projection_matrix * light_view_matrix;
             self.cascades[i].view_proj_matrix = light_view_projection;
-            self.cascades[i].z_far = zfar;
+            self.cascades[i].z_far = z_far;
 
             let viewport = Rect::new(0, 0, self.size as i32, self.size as i32);
             let framebuffer = &mut self.cascades[i].frame_buffer;
             framebuffer.clear(state, viewport, None, Some(1.0), None);
 
-            for batch in batch_storage.batches.iter() {
+            for batch in batches.batches.iter() {
                 let material = batch.material.lock();
                 let geometry = geom_cache.get(state, &batch.data);
                 let blend_shapes_storage = batch
@@ -255,25 +264,14 @@ impl CsmRenderer {
                     .as_ref()
                     .and_then(|c| c.blend_shape_storage.clone());
 
-                if let Some(render_pass) = shader_cache
-                    .get(state, material.shader())
-                    .and_then(|shader_set| shader_set.render_passes.get(&self.render_pass_name))
+                if let Some(render_pass) =
+                    shader_cache
+                        .get(state, material.shader())
+                        .and_then(|shader_set| {
+                            shader_set.render_passes.get(&DIRECTIONAL_SHADOW_PASS_NAME)
+                        })
                 {
                     for instance in batch.instances.iter() {
-                        let node = &graph[instance.owner];
-
-                        let visible = if let Some(mesh) = node.cast::<Mesh>() {
-                            mesh.global_visibility() && mesh.cast_shadows()
-                        } else if let Some(terrain) = node.cast::<Terrain>() {
-                            terrain.global_visibility() && terrain.cast_shadows()
-                        } else {
-                            false
-                        };
-
-                        if !visible {
-                            continue;
-                        }
-
                         stats += framebuffer.draw(
                             geometry,
                             state,
@@ -288,6 +286,7 @@ impl CsmRenderer {
                                 blend: None,
                                 stencil_op: Default::default(),
                             },
+                            instance.element_range,
                             |mut program_binding| {
                                 apply_material(MaterialContext {
                                     material: &material,
@@ -309,12 +308,12 @@ impl CsmRenderer {
                                     volume_dummy: volume_dummy.clone(),
                                 });
                             },
-                        );
+                        )?;
                     }
                 }
             }
         }
 
-        stats
+        Ok(stats)
     }
 }

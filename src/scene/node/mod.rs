@@ -4,9 +4,6 @@
 
 #![warn(missing_docs)]
 
-use crate::scene::graph::GraphUpdateSwitches;
-use crate::scene::navmesh::NavigationalMesh;
-use crate::scene::Scene;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -16,19 +13,23 @@ use crate::{
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
+    renderer::batch::RenderContext,
     scene::{
         self,
         base::Base,
         camera::Camera,
+        debug::SceneDrawingContext,
         decal::Decal,
         dim2::{self, rectangle::Rectangle},
-        graph::{self, Graph, NodePool},
+        graph::{self, Graph, GraphUpdateSwitches, NodePool},
         light::{point::PointLight, spot::SpotLight},
         mesh::Mesh,
+        navmesh::NavigationalMesh,
         particle_system::ParticleSystem,
         sound::{context::SoundContext, listener::Listener, Sound},
         sprite::Sprite,
         terrain::Terrain,
+        Scene,
     },
 };
 use std::{
@@ -200,6 +201,14 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
 
     /// Updates internal state of the node.
     fn update(&mut self, #[allow(unused_variables)] context: &mut UpdateContext) {}
+
+    /// Allows the node to emit a set of render data. This is a high-level rendering method which can only
+    /// do culling and provide render data. Render data is just a surface (vertex + index buffers) and a
+    /// material.
+    fn collect_render_data(&self, #[allow(unused_variables)] ctx: &mut RenderContext) {}
+
+    /// Allows the node to draw simple shapes to visualize internal data structures for debugging purposes.
+    fn debug_draw(&self, #[allow(unused_variables)] ctx: &mut SceneDrawingContext) {}
 
     /// Validates internal state of a scene node. It can check handles validity, if a handle "points"
     /// to a node of particular type, if node's parameters are in range, etc. It's main usage is to

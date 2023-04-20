@@ -586,10 +586,11 @@ fn make_heightfield(terrain: &Terrain) -> SharedShape {
     for cz in 0..terrain.length_chunks().len() {
         for cx in 0..terrain.width_chunks().len() {
             let chunk = &terrain.chunks_ref()[cz * terrain.width_chunks().len() + cx];
-
+            let texture = chunk.heightmap().data_ref();
+            let height_map = texture.data_of_type::<f32>().unwrap();
             for iy in 0..height_map_size.y {
                 for ix in 0..height_map_size.x {
-                    let value = chunk.heightmap()[(iy * height_map_size.x + ix) as usize];
+                    let value = height_map[(iy * height_map_size.x + ix) as usize];
                     data[((ox + ix) * nrows + oz + iy) as usize] = value;
                 }
             }

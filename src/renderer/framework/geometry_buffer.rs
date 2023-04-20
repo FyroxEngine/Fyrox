@@ -155,6 +155,18 @@ pub enum ElementKind {
     Line,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum ElementRange {
+    Full,
+    Specific { offset: usize, count: usize },
+}
+
+impl Default for ElementRange {
+    fn default() -> Self {
+        Self::Full
+    }
+}
+
 impl ElementKind {
     fn index_per_element(self) -> usize {
         match self {
@@ -207,12 +219,13 @@ impl<'a> GeometryBufferBinding<'a> {
             .buffer_data_u8_slice(glow::ELEMENT_ARRAY_BUFFER, data, glow::DYNAMIC_DRAW);
     }
 
-    pub fn draw_part(
-        &self,
-        offset: usize,
-        count: usize,
-    ) -> Result<DrawCallStatistics, FrameworkError> {
+    pub fn draw(&self, element_range: ElementRange) -> Result<DrawCallStatistics, FrameworkError> {
         scope_profile!();
+
+        let (offset, count) = match element_range {
+            ElementRange::Full => (0, self.buffer.element_count.get()),
+            ElementRange::Specific { offset, count } => (offset, count),
+        };
 
         let last_triangle_index = offset + count;
 
@@ -239,20 +252,6 @@ impl<'a> GeometryBufferBinding<'a> {
         match self.buffer.element_kind {
             ElementKind::Triangle => glow::TRIANGLES,
             ElementKind::Line => glow::LINES,
-        }
-    }
-
-    pub fn draw(&self) -> DrawCallStatistics {
-        scope_profile!();
-
-        let start_index = 0;
-        let index_per_element = self.buffer.element_kind.index_per_element();
-        let index_count = self.buffer.element_count.get() * index_per_element;
-
-        unsafe { self.draw_internal(start_index, index_count) }
-
-        DrawCallStatistics {
-            triangles: self.buffer.element_count.get(),
         }
     }
 
@@ -352,6 +351,10 @@ impl GeometryBuffer {
             state,
             buffer: self,
         }
+    }
+
+    pub fn element_count(&self) -> usize {
+        self.element_count.get()
     }
 }
 

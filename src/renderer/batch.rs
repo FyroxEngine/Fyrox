@@ -2,84 +2,85 @@
 
 use crate::{
     core::{
-        algebra::Matrix4, math::aabb::AxisAlignedBoundingBox, pool::Handle, scope_profile,
+        algebra::{Matrix4, Vector3},
+        math::frustum::Frustum,
         sstorage::ImmutableString,
     },
-    material::{PropertyValue, SharedMaterial},
+    material::SharedMaterial,
+    renderer::framework::geometry_buffer::ElementRange,
     scene::{
         graph::Graph,
-        mesh::{surface::SurfaceSharedData, Mesh, RenderPath},
-        node::Node,
-        terrain::Terrain,
+        mesh::{surface::SurfaceSharedData, RenderPath},
     },
-    utils::log::{Log, MessageKind},
 };
-use bitflags::bitflags;
-use fxhash::{FxHashMap, FxHasher};
+use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
 use std::{
     fmt::{Debug, Formatter},
     hash::Hasher,
 };
 
-bitflags! {
-    /// A set of flags for surface instance. It is just a compact way for storing multiple boolean
-    /// flags.
-    pub struct SurfaceInstanceFlags: u32 {
-        /// Empty flags.
-        const NONE = 0;
-        /// Whether the instance is visible or not.
-        const IS_VISIBLE = 0b0000_0001;
-        /// Whether the instance is able to cast shadows or not.
-        const CAST_SHADOWS = 0b0000_0010;
-        /// Whether the isntance should use frustum culling or not.
-        const FRUSTUM_CULLING = 0b0000_0100;
-    }
+/// Observer info contains all the data, that describes an observer. It could be a real camera, light source's
+/// "virtual camera" that is used for shadow mapping, etc.
+pub struct ObserverInfo {
+    /// World-space position of the observer.
+    pub observer_position: Vector3<f32>,
+    /// Location of the near clipping plane.
+    pub z_near: f32,
+    /// Location of the far clipping plane.
+    pub z_far: f32,
+    /// View matrix of the observer.
+    pub view_matrix: Matrix4<f32>,
+    /// Projection matrix of the observer.
+    pub projection_matrix: Matrix4<f32>,
 }
 
-impl SurfaceInstanceFlags {
-    /// Fills surface instance flags using node properties.
-    pub fn from_node(node: &Node) -> Self {
-        let mut flags = Self::NONE;
-
-        if node.cast_shadows() {
-            flags.insert(SurfaceInstanceFlags::CAST_SHADOWS);
-        }
-        if node.global_visibility() {
-            flags.insert(SurfaceInstanceFlags::IS_VISIBLE);
-        }
-        if node.frustum_culling() {
-            flags.insert(SurfaceInstanceFlags::FRUSTUM_CULLING);
-        }
-
-        flags
-    }
+/// Render context is used to collect render data from the scene nodes. It provides all required information about
+/// the observer (camera, light source virtual camera, etc.), that could be used for culling.
+pub struct RenderContext<'a> {
+    /// World-space position of the observer.
+    pub observer_position: &'a Vector3<f32>,
+    /// Location of the near clipping plane.
+    pub z_near: f32,
+    /// Location of the far clipping plane.
+    pub z_far: f32,
+    /// View matrix of the observer.
+    pub view_matrix: &'a Matrix4<f32>,
+    /// Projection matrix of the observer.
+    pub projection_matrix: &'a Matrix4<f32>,
+    /// Frustum of the observer, it is built using observer's view and projection matrix. Use the frustum to do
+    /// frustum culling.
+    pub frustum: &'a Frustum,
+    /// Render data batch storage. Your scene node must write at least one surface instance here for the node to
+    /// be rendered.
+    pub storage: &'a mut RenderDataBatchStorage,
+    /// A reference to the graph that is being rendered. Allows you to get access to other scene nodes to do
+    /// some useful job.
+    pub graph: &'a Graph,
+    /// A name of the render pass for which the context was created for.
+    pub render_pass_name: &'a ImmutableString,
 }
 
 /// A set of data of a surface for rendering.  
-pub struct SurfaceInstance {
-    /// A handle to an owner node.
-    pub owner: Handle<Node>,
+pub struct SurfaceInstanceData {
     /// A world matrix.
     pub world_transform: Matrix4<f32>,
-    /// A set of flags for surface instance.
-    pub flags: SurfaceInstanceFlags,
-    /// World space axis-aligned bounding box.
-    pub world_aabb: AxisAlignedBoundingBox,
     /// A set of bone matrices.
     pub bone_matrices: Vec<Matrix4<f32>>,
     /// A depth-hack value.
     pub depth_offset: f32,
     /// A set of weights for each blend shape in the surface.
     pub blend_shapes_weights: Vec<f32>,
+    /// A range of elements of the instance. Allows you to draw either the full range ([`ElementRange::Full`])
+    /// of the graphics primitives from the surface data or just a part of it ([`ElementRange::Specific`]).
+    pub element_range: ElementRange,
 }
 
 /// A set of surface instances that share the same vertex/index data and a material.
-pub struct Batch {
-    id: u64,
+pub struct RenderDataBatch {
     /// A pointer to shared surface data.
     pub data: SurfaceSharedData,
     /// A set of instances.
-    pub instances: Vec<SurfaceInstance>,
+    pub instances: Vec<SurfaceInstanceData>,
     /// A material that is shared across all instances.
     pub material: SharedMaterial,
     /// Whether the batch is using GPU skinning or not.
@@ -91,7 +92,7 @@ pub struct Batch {
     sort_index: u64,
 }
 
-impl Debug for Batch {
+impl Debug for RenderDataBatch {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -105,174 +106,97 @@ impl Debug for Batch {
 /// Batch storage handles batch generation for a scene before rendering. It is used to optimize
 /// rendering by reducing amount of state changes of OpenGL context.
 #[derive(Default)]
-pub struct BatchStorage {
-    buffers: FxHashMap<u64, Vec<SurfaceInstance>>,
+pub struct RenderDataBatchStorage {
     batch_map: FxHashMap<u64, usize>,
-    /// Sorted list of batches.
-    pub batches: Vec<Batch>,
+    /// A sorted list of batches.
+    pub batches: Vec<RenderDataBatch>,
 }
 
-impl BatchStorage {
-    pub(crate) fn generate_batches(&mut self, graph: &Graph) {
-        scope_profile!();
+impl RenderDataBatchStorage {
+    /// Creates a new render batch storage from the given graph and observer info. It "asks" every node in the
+    /// graph one-by-one to give render data which is then put in the storage, sorted and ready for rendering.
+    /// Frustum culling is done on scene node side ([`crate::scene::node::NodeTrait::collect_render_data`]).
+    pub fn from_graph(
+        graph: &Graph,
+        observer_info: ObserverInfo,
+        render_pass_name: ImmutableString,
+    ) -> Self {
+        // Aim for the worst-case scenario when every node has unique render data.
+        let capacity = graph.node_count() as usize;
+        let mut storage = Self {
+            batch_map: FxHashMap::with_capacity_and_hasher(capacity, FxBuildHasher::default()),
+            batches: Vec::with_capacity(capacity),
+        };
 
-        for batch in self.batches.iter_mut() {
-            batch.instances.clear();
-            self.buffers
-                .insert(batch.id, std::mem::take(&mut batch.instances));
+        let frustum = Frustum::from_view_projection_matrix(
+            observer_info.projection_matrix * observer_info.view_matrix,
+        )
+        .unwrap_or_default();
+
+        let mut ctx = RenderContext {
+            observer_position: &observer_info.observer_position,
+            z_near: observer_info.z_near,
+            z_far: observer_info.z_far,
+            view_matrix: &observer_info.view_matrix,
+            projection_matrix: &observer_info.projection_matrix,
+            frustum: &frustum,
+            storage: &mut storage,
+            graph,
+            render_pass_name: &render_pass_name,
+        };
+
+        for node in graph.linear_iter() {
+            node.collect_render_data(&mut ctx);
         }
 
-        self.batches.clear();
-        self.batch_map.clear();
+        storage.sort();
 
-        for (handle, node) in graph
-            .pair_iter()
-            .filter(|(_, node)| node.is_globally_enabled())
-        {
-            if let Some(mesh) = node.cast::<Mesh>() {
-                for surface in mesh.surfaces().iter() {
-                    let is_skinned = !surface.bones.is_empty();
+        storage
+    }
 
-                    let world = if is_skinned {
-                        Matrix4::identity()
-                    } else {
-                        mesh.global_transform()
-                    };
+    /// Adds a new surface instance to the storage. The method will automatically put the instance in the appropriate
+    /// batch. Batch selection is done using the material, surface data, render path, decal layer index, skinning flag.
+    /// If only one of these parameters is different, then the surface instance will be put in a separate batch.
+    pub fn push(
+        &mut self,
+        data: &SurfaceSharedData,
+        material: &SharedMaterial,
+        render_path: RenderPath,
+        decal_layer_index: u8,
+        sort_index: u64,
+        instance_data: SurfaceInstanceData,
+    ) {
+        let is_skinned = !instance_data.bone_matrices.is_empty();
 
-                    let data = surface.data();
-                    let batch_id = surface.batch_id();
+        let mut hasher = FxHasher::default();
+        hasher.write_u64(material.key());
+        hasher.write_u64(data.key());
+        hasher.write_u8(if is_skinned { 1 } else { 0 });
+        hasher.write_u8(decal_layer_index);
+        hasher.write_u32(render_path as u32);
+        let key = hasher.finish();
 
-                    let batch = if let Some(&batch_index) = self.batch_map.get(&batch_id) {
-                        self.batches.get_mut(batch_index).unwrap()
-                    } else {
-                        self.batch_map.insert(batch_id, self.batches.len());
-                        self.batches.push(Batch {
-                            id: batch_id,
-                            data,
-                            // Batches from meshes will be sorted using materials.
-                            // This will significantly reduce pipeline state changes.
-                            sort_index: surface.material_id(),
-                            instances: self
-                                .buffers
-                                .remove_entry(&batch_id)
-                                .map(|(_, buf)| buf)
-                                .unwrap_or_default(),
-                            material: surface.material().clone(),
-                            is_skinned: !surface.bones.is_empty(),
-                            render_path: mesh.render_path(),
-                            decal_layer_index: mesh.decal_layer_index(),
-                        });
-                        self.batches.last_mut().unwrap()
-                    };
+        let batch = if let Some(&batch_index) = self.batch_map.get(&key) {
+            self.batches.get_mut(batch_index).unwrap()
+        } else {
+            self.batch_map.insert(key, self.batches.len());
+            self.batches.push(RenderDataBatch {
+                data: data.clone(),
+                sort_index,
+                instances: Default::default(),
+                material: material.clone(),
+                is_skinned,
+                render_path,
+                decal_layer_index,
+            });
+            self.batches.last_mut().unwrap()
+        };
 
-                    batch.sort_index = surface.material_id();
-                    batch.material = surface.material().clone();
+        batch.instances.push(instance_data)
+    }
 
-                    batch.instances.push(SurfaceInstance {
-                        world_transform: world,
-                        flags: SurfaceInstanceFlags::from_node(node),
-                        world_aabb: node.world_bounding_box(),
-                        bone_matrices: surface
-                            .bones
-                            .iter()
-                            .map(|bone_handle| {
-                                if let Some(bone_node) = graph.try_get(*bone_handle) {
-                                    bone_node.global_transform()
-                                        * bone_node.inv_bind_pose_transform()
-                                } else {
-                                    Matrix4::identity()
-                                }
-                            })
-                            .collect::<Vec<_>>(),
-                        owner: handle,
-                        depth_offset: mesh.depth_offset_factor(),
-                        blend_shapes_weights: mesh
-                            .blend_shapes()
-                            .iter()
-                            .map(|bs| bs.weight / 100.0)
-                            .collect(),
-                    });
-                }
-            } else if let Some(terrain) = node.cast::<Terrain>() {
-                for (layer_index, layer) in terrain.layers().iter().enumerate() {
-                    for chunk in terrain.chunks_ref().iter() {
-                        let data = chunk.data();
-                        let data_key = data.key();
-
-                        let mut material = (*layer.material.lock()).clone();
-                        match material.set_property(
-                            &ImmutableString::new(&layer.mask_property_name),
-                            PropertyValue::Sampler {
-                                value: Some(chunk.layer_masks[layer_index].clone()),
-                                fallback: Default::default(),
-                            },
-                        ) {
-                            Ok(_) => {
-                                let material = SharedMaterial::new(material);
-
-                                let mut hasher = FxHasher::default();
-
-                                hasher.write_u64(material.key());
-                                hasher.write_u64(data_key);
-
-                                let key = hasher.finish();
-
-                                let batch = if let Some(&batch_index) = self.batch_map.get(&key) {
-                                    self.batches.get_mut(batch_index).unwrap()
-                                } else {
-                                    self.batch_map.insert(key, self.batches.len());
-                                    self.batches.push(Batch {
-                                        id: key,
-                                        data: data.clone(),
-                                        instances: self
-                                            .buffers
-                                            .remove_entry(&key)
-                                            .map(|(_, buf)| buf)
-                                            .unwrap_or_default(),
-                                        material: material.clone(),
-                                        is_skinned: false,
-                                        render_path: RenderPath::Deferred,
-                                        sort_index: layer_index as u64,
-                                        decal_layer_index: terrain.decal_layer_index(),
-                                    });
-                                    self.batches.last_mut().unwrap()
-                                };
-
-                                batch.sort_index = layer_index as u64;
-                                batch.material = material;
-
-                                batch.instances.push(SurfaceInstance {
-                                    world_transform: terrain.global_transform(),
-                                    flags: SurfaceInstanceFlags::from_node(node),
-                                    world_aabb: terrain.world_bounding_box(),
-                                    bone_matrices: Default::default(),
-                                    owner: handle,
-                                    depth_offset: terrain.depth_offset_factor(),
-                                    blend_shapes_weights: Default::default(),
-                                });
-                            }
-                            Err(e) => Log::writeln(
-                                MessageKind::Error,
-                                format!(
-                                    "Failed to prepare batch for terrain chunk.\
-                                 Unable to set mask texture for terrain material. Reason: {:?}",
-                                    e
-                                ),
-                            ),
-                        }
-                    }
-                }
-            }
-        }
-
-        for batch in self.batches.iter_mut() {
-            // We have to shrink instance storage if it has a lot of backing memory, to keep memory
-            // consumption at reasonable levels.
-            if batch.instances.capacity() >= 3 * batch.instances.len() {
-                batch.instances.shrink_to_fit();
-            }
-        }
-
+    /// Sorts the batches by their respective sort index.
+    pub fn sort(&mut self) {
         self.batches.sort_unstable_by_key(|b| b.sort_index);
     }
 }

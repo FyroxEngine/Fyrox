@@ -2,13 +2,12 @@ use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
         color::Color,
-        math::{frustum::Frustum, Rect},
+        math::Rect,
         scope_profile,
-        sstorage::ImmutableString,
     },
     renderer::{
         apply_material,
-        batch::BatchStorage,
+        batch::{ObserverInfo, RenderDataBatchStorage},
         cache::{shader::ShaderCache, texture::TextureCache},
         framework::{
             error::FrameworkError,
@@ -19,10 +18,12 @@ use crate::{
             },
             state::PipelineState,
         },
-        shadow::{cascade_size, should_cast_shadows},
+        shadow::cascade_size,
         storage::MatrixStorage,
         GeometryCache, MaterialContext, RenderPassStatistics, ShadowMapPrecision,
+        POINT_SHADOW_PASS_NAME,
     },
+    scene::graph::Graph,
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -31,7 +32,6 @@ pub struct PointShadowMapRenderer {
     cascades: [FrameBuffer; 3],
     size: usize,
     faces: [PointShadowCubeMapFace; 6],
-    render_pass_name: ImmutableString,
 }
 
 struct PointShadowCubeMapFace {
@@ -42,11 +42,11 @@ struct PointShadowCubeMapFace {
 
 pub(crate) struct PointShadowMapRenderContext<'a> {
     pub state: &'a mut PipelineState,
+    pub graph: &'a Graph,
     pub light_pos: Vector3<f32>,
     pub light_radius: f32,
     pub geom_cache: &'a mut GeometryCache,
     pub cascade: usize,
-    pub batch_storage: &'a BatchStorage,
     pub shader_cache: &'a mut ShaderCache,
     pub texture_cache: &'a mut TextureCache,
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
@@ -101,7 +101,7 @@ impl PointShadowMapRenderer {
                 let mut texture = GpuTexture::new(
                     state,
                     kind,
-                    PixelKind::F16,
+                    PixelKind::R16F,
                     MinificationFilter::Linear,
                     MagnificationFilter::Linear,
                     1,
@@ -168,7 +168,6 @@ impl PointShadowMapRenderer {
                     up: Vector3::new(0.0, -1.0, 0.0),
                 },
             ],
-            render_pass_name: ImmutableString::new("PointShadow"),
         })
     }
 
@@ -186,18 +185,21 @@ impl PointShadowMapRenderer {
             .clone()
     }
 
-    pub(crate) fn render(&mut self, args: PointShadowMapRenderContext) -> RenderPassStatistics {
+    pub(crate) fn render(
+        &mut self,
+        args: PointShadowMapRenderContext,
+    ) -> Result<RenderPassStatistics, FrameworkError> {
         scope_profile!();
 
         let mut statistics = RenderPassStatistics::default();
 
         let PointShadowMapRenderContext {
             state,
+            graph,
             light_pos,
             light_radius,
             geom_cache,
             cascade,
-            batch_storage,
             shader_cache,
             texture_cache,
             normal_dummy,
@@ -212,8 +214,10 @@ impl PointShadowMapRenderer {
 
         let viewport = Rect::new(0, 0, cascade_size as i32, cascade_size as i32);
 
+        let z_near = 0.01;
+        let z_far = light_radius;
         let light_projection_matrix =
-            Matrix4::new_perspective(1.0, std::f32::consts::FRAC_PI_2, 0.01, light_radius);
+            Matrix4::new_perspective(1.0, std::f32::consts::FRAC_PI_2, z_near, z_far);
 
         for face in self.faces.iter() {
             framebuffer.set_cubemap_face(state, 0, face.face).clear(
@@ -232,9 +236,19 @@ impl PointShadowMapRenderer {
             );
             let light_view_projection_matrix = light_projection_matrix * light_view_matrix;
 
-            let frustum = Frustum::from(light_view_projection_matrix).unwrap_or_default();
+            let batches = RenderDataBatchStorage::from_graph(
+                graph,
+                ObserverInfo {
+                    observer_position: light_pos,
+                    z_near,
+                    z_far,
+                    view_matrix: light_view_matrix,
+                    projection_matrix: light_projection_matrix,
+                },
+                POINT_SHADOW_PASS_NAME.clone(),
+            );
 
-            for batch in batch_storage.batches.iter() {
+            for batch in batches.batches.iter() {
                 let material = batch.material.lock();
                 let geometry = geom_cache.get(state, &batch.data);
                 let blend_shapes_storage = batch
@@ -246,45 +260,44 @@ impl PointShadowMapRenderer {
 
                 if let Some(render_pass) = shader_cache
                     .get(state, material.shader())
-                    .and_then(|shader_set| shader_set.render_passes.get(&self.render_pass_name))
+                    .and_then(|shader_set| shader_set.render_passes.get(&POINT_SHADOW_PASS_NAME))
                 {
                     for instance in batch.instances.iter() {
-                        if should_cast_shadows(instance, &frustum) {
-                            statistics += framebuffer.draw(
-                                geometry,
-                                state,
-                                viewport,
-                                &render_pass.program,
-                                &render_pass.draw_params,
-                                |mut program_binding| {
-                                    apply_material(MaterialContext {
-                                        material: &material,
-                                        program_binding: &mut program_binding,
-                                        texture_cache,
-                                        matrix_storage,
-                                        world_matrix: &instance.world_transform,
-                                        wvp_matrix: &(light_view_projection_matrix
-                                            * instance.world_transform),
-                                        bone_matrices: &instance.bone_matrices,
-                                        use_skeletal_animation: batch.is_skinned,
-                                        camera_position: &Default::default(),
-                                        use_pom: false,
-                                        light_position: &light_pos,
-                                        blend_shapes_storage: blend_shapes_storage.as_ref(),
-                                        blend_shapes_weights: &instance.blend_shapes_weights,
-                                        normal_dummy: normal_dummy.clone(),
-                                        white_dummy: white_dummy.clone(),
-                                        black_dummy: black_dummy.clone(),
-                                        volume_dummy: volume_dummy.clone(),
-                                    });
-                                },
-                            );
-                        }
+                        statistics += framebuffer.draw(
+                            geometry,
+                            state,
+                            viewport,
+                            &render_pass.program,
+                            &render_pass.draw_params,
+                            instance.element_range,
+                            |mut program_binding| {
+                                apply_material(MaterialContext {
+                                    material: &material,
+                                    program_binding: &mut program_binding,
+                                    texture_cache,
+                                    matrix_storage,
+                                    world_matrix: &instance.world_transform,
+                                    wvp_matrix: &(light_view_projection_matrix
+                                        * instance.world_transform),
+                                    bone_matrices: &instance.bone_matrices,
+                                    use_skeletal_animation: batch.is_skinned,
+                                    camera_position: &Default::default(),
+                                    use_pom: false,
+                                    light_position: &light_pos,
+                                    blend_shapes_storage: blend_shapes_storage.as_ref(),
+                                    blend_shapes_weights: &instance.blend_shapes_weights,
+                                    normal_dummy: normal_dummy.clone(),
+                                    white_dummy: white_dummy.clone(),
+                                    black_dummy: black_dummy.clone(),
+                                    volume_dummy: volume_dummy.clone(),
+                                });
+                            },
+                        )?;
                     }
                 }
             }
         }
 
-        statistics
+        Ok(statistics)
     }
 }

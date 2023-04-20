@@ -1,4 +1,5 @@
 use crate::core::sstorage::ImmutableString;
+use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
     core::{algebra::Vector2, math::Rect, scope_profile},
     renderer::{
@@ -115,7 +116,7 @@ impl GaussianBlur {
         state: &mut PipelineState,
         quad: &GeometryBuffer,
         input: Rc<RefCell<GpuTexture>>,
-    ) -> RenderPassStatistics {
+    ) -> Result<RenderPassStatistics, FrameworkError> {
         scope_profile!();
 
         let mut stats = RenderPassStatistics::default();
@@ -140,6 +141,7 @@ impl GaussianBlur {
                 blend: None,
                 stencil_op: Default::default(),
             },
+            ElementRange::Full,
             |mut program_binding| {
                 program_binding
                     .set_matrix4(
@@ -150,7 +152,7 @@ impl GaussianBlur {
                     .set_bool(&shader.horizontal, true)
                     .set_texture(&shader.image, &input);
             },
-        );
+        )?;
 
         // Then blur vertically.
         let h_blurred_texture = self.h_blurred();
@@ -168,6 +170,7 @@ impl GaussianBlur {
                 blend: None,
                 stencil_op: Default::default(),
             },
+            ElementRange::Full,
             |mut program_binding| {
                 program_binding
                     .set_matrix4(
@@ -178,8 +181,8 @@ impl GaussianBlur {
                     .set_bool(&shader.horizontal, false)
                     .set_texture(&shader.image, &h_blurred_texture);
             },
-        );
+        )?;
 
-        stats
+        Ok(stats)
     }
 }

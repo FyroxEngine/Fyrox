@@ -1,11 +1,12 @@
 use crate::{
-    core::{color::Color, math::Rect, visitor::prelude::*},
+    core::{color::Color, math::Rect, reflect::prelude::*, visitor::prelude::*},
     renderer::framework::framebuffer::{CullFace, DrawParameters},
     utils::log::{Log, MessageKind},
 };
 use glow::{Framebuffer, HasContext};
 use serde::Deserialize;
 use std::fmt::{Display, Formatter};
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 #[derive(Debug, Default, Copy, Clone)]
 pub struct PipelineStatistics {
@@ -38,7 +39,22 @@ impl Display for PipelineStatistics {
     }
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Visit, Deserialize, Debug)]
+#[derive(
+    Copy,
+    Clone,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Ord,
+    Hash,
+    Visit,
+    Deserialize,
+    Debug,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
 #[repr(u32)]
 pub enum CompareFunc {
     /// Never passes.
@@ -72,7 +88,22 @@ impl Default for CompareFunc {
     }
 }
 
-#[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord, Deserialize, Visit, Debug)]
+#[derive(
+    Copy,
+    Clone,
+    Hash,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Ord,
+    Deserialize,
+    Visit,
+    Debug,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
 #[repr(u32)]
 pub enum BlendFactor {
     Zero = glow::ZERO,
@@ -187,6 +218,9 @@ pub struct PipelineState {
     clear_depth: f32,
     scissor_test: bool,
 
+    polygon_face: PolygonFace,
+    polygon_fill_mode: PolygonFillMode,
+
     framebuffer: Option<glow::Framebuffer>,
     viewport: Rect<i32>,
 
@@ -267,7 +301,21 @@ impl Default for StencilFunc {
     }
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit, Eq)]
+#[derive(
+    Copy,
+    Clone,
+    PartialOrd,
+    PartialEq,
+    Hash,
+    Debug,
+    Deserialize,
+    Visit,
+    Eq,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
 #[repr(u32)]
 pub enum StencilAction {
     /// Keeps the current value.
@@ -326,6 +374,62 @@ impl Default for StencilOp {
     }
 }
 
+#[derive(
+    Copy,
+    Clone,
+    PartialOrd,
+    PartialEq,
+    Hash,
+    Debug,
+    Deserialize,
+    Visit,
+    Eq,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
+#[repr(u32)]
+pub enum PolygonFace {
+    Front = glow::FRONT,
+    Back = glow::BACK,
+    FrontAndBack = glow::FRONT_AND_BACK,
+}
+
+impl Default for PolygonFace {
+    fn default() -> Self {
+        Self::FrontAndBack
+    }
+}
+
+#[derive(
+    Copy,
+    Clone,
+    PartialOrd,
+    PartialEq,
+    Hash,
+    Debug,
+    Deserialize,
+    Visit,
+    Eq,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
+#[repr(u32)]
+pub enum PolygonFillMode {
+    Point = glow::POINT,
+    Line = glow::LINE,
+    Fill = glow::FILL,
+}
+
+impl Default for PolygonFillMode {
+    fn default() -> Self {
+        Self::Fill
+    }
+}
+
 impl PipelineState {
     pub fn new(context: glow::Context) -> Self {
         unsafe {
@@ -347,6 +451,8 @@ impl PipelineState {
             clear_stencil: 0,
             clear_depth: 1.0,
             scissor_test: false,
+            polygon_face: Default::default(),
+            polygon_fill_mode: Default::default(),
             framebuffer: None,
             blend_func: Default::default(),
             viewport: Rect::new(0, 0, 1, 1),
@@ -358,6 +464,22 @@ impl PipelineState {
             vbo: Default::default(),
             frame_statistics: Default::default(),
             blend_equation: Default::default(),
+        }
+    }
+
+    pub fn set_polygon_fill_mode(
+        &mut self,
+        polygon_face: PolygonFace,
+        polygon_fill_mode: PolygonFillMode,
+    ) {
+        if self.polygon_fill_mode != polygon_fill_mode || self.polygon_face != polygon_face {
+            self.polygon_fill_mode = polygon_fill_mode;
+            self.polygon_face = polygon_face;
+
+            unsafe {
+                self.gl
+                    .polygon_mode(self.polygon_face as u32, self.polygon_fill_mode as u32)
+            }
         }
     }
 

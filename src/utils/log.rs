@@ -2,7 +2,7 @@
 
 use crate::core::parking_lot::Mutex;
 use crate::lazy_static::lazy_static;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use fyrox_core::instant::Instant;
 #[cfg(not(target_arch = "wasm32"))]
@@ -183,6 +183,22 @@ impl Log {
                 MessageKind::Error,
                 format!("Operation failed! Reason: {:?}", e),
             );
+        }
+    }
+
+    /// Allows you to verify that the result of operation is Ok, or print the error in the log.
+    ///
+    /// # Use cases
+    ///
+    /// Typical use case for this method is that when you _can_ ignore errors, but want them to
+    /// be in the log.
+    pub fn verify_message<S, T, E>(result: Result<T, E>, msg: S)
+    where
+        E: Debug,
+        S: Display,
+    {
+        if let Err(e) = result {
+            Self::writeln(MessageKind::Error, format!("{}. Reason: {:?}", msg, e));
         }
     }
 }

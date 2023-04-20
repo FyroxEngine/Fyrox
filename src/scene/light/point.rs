@@ -19,6 +19,7 @@
 
 use crate::{
     core::{
+        color::Color,
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
@@ -28,6 +29,7 @@ use crate::{
     },
     scene::{
         base::Base,
+        debug::SceneDrawingContext,
         graph::Graph,
         light::{BaseLight, BaseLightBuilder},
         node::{Node, NodeTrait, TypeUuidProvider},
@@ -119,6 +121,10 @@ impl NodeTrait for PointLight {
 
     fn id(&self) -> Uuid {
         Self::type_uuid()
+    }
+
+    fn debug_draw(&self, ctx: &mut SceneDrawingContext) {
+        ctx.draw_wire_sphere(self.global_position(), self.radius(), 30, Color::GREEN);
     }
 }
 

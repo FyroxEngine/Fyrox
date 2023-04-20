@@ -185,7 +185,7 @@ impl DerefMut for TextureBytes {
 }
 
 /// Actual texture data.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TextureData {
     path: PathBuf,
     kind: TextureKind,
@@ -476,6 +476,12 @@ impl Texture {
             TextureData::from_bytes(kind, pixel_kind, bytes, serialize_content)?,
         ))))
     }
+
+    /// Creates a deep clone of the texture. Unlike [`Texture::clone`], this method clones the actual texture data,
+    /// which could be slow.
+    pub fn deep_clone(&self) -> Self {
+        Self(Resource::new(ResourceState::Ok(self.data_ref().clone())))
+    }
 }
 
 /// The texture magnification function is used when the pixel being textured maps to an area
@@ -723,6 +729,12 @@ pub enum TexturePixelKind {
 
     /// Red, green, blue components, each by 2 byte half-precision float.
     RGB16F = 22,
+
+    /// Red component as 4-byte, medium-precision float.
+    R32F = 23,
+
+    /// Red component as 2-byte, half-precision float.
+    R16F = 24,
 }
 
 impl TexturePixelKind {
@@ -751,12 +763,39 @@ impl TexturePixelKind {
             20 => Ok(Self::Luminance16),
             21 => Ok(Self::LuminanceAlpha16),
             22 => Ok(Self::RGB16F),
+            23 => Ok(Self::R32F),
+            24 => Ok(Self::R16F),
             _ => Err(format!("Invalid texture kind {}!", id)),
         }
     }
 
     fn id(self) -> u32 {
         self as u32
+    }
+
+    /// Tries to get size of the pixel in bytes. Pixels of compressed textures consumes less than a byte, so
+    /// there's no way to express their size on whole number of bytes, in this case `None` is returned.
+    pub fn size_in_bytes(&self) -> Option<usize> {
+        match self {
+            Self::R8 | Self::Luminance8 => Some(1),
+            Self::RGB8 | Self::BGR8 => Some(3),
+            Self::RGBA8 | Self::RG16 | Self::BGRA8 | Self::LuminanceAlpha16 | Self::R32F => Some(4),
+            Self::RG8 | Self::R16 | Self::LuminanceAlpha8 | Self::Luminance16 | Self::R16F => {
+                Some(2)
+            }
+            Self::RGB16 | Self::RGB16F => Some(6),
+            Self::RGBA16 => Some(8),
+            Self::RGB32F => Some(12),
+            Self::RGBA32F => Some(16),
+            // Pixels of compressed textures consumes less than a byte, so there's no way to express
+            // their size on whole number of bytes.
+            Self::DXT1RGB
+            | Self::DXT1RGBA
+            | Self::DXT3RGBA
+            | Self::DXT5RGBA
+            | Self::R8RGTC
+            | Self::RG8RGTC => None,
+        }
     }
 }
 
@@ -861,11 +900,22 @@ impl Default for CompressionOptions {
 }
 
 fn transmute_slice<T>(bytes: &[u8]) -> &'_ [T] {
-    // This is absolutely safe because `image` crate's Rgb8/Rgba8/etc. and `tbc`s Rgb8/Rgba8/etc.
+    // SAFETY: This is absolutely safe because `image` crate's Rgb8/Rgba8/etc. and `tbc`s Rgb8/Rgba8/etc.
     // have exactly the same memory layout.
     unsafe {
         std::slice::from_raw_parts(
             bytes.as_ptr() as *const T,
+            bytes.len() / std::mem::size_of::<T>(),
+        )
+    }
+}
+
+fn transmute_slice_mut<T>(bytes: &mut [u8]) -> &'_ mut [T] {
+    // SAFETY: This is absolutely safe because `image` crate's Rgb8/Rgba8/etc. and `tbc`s Rgb8/Rgba8/etc.
+    // have exactly the same memory layout.
+    unsafe {
+        std::slice::from_raw_parts_mut(
+            bytes.as_ptr() as *mut T,
             bytes.len() / std::mem::size_of::<T>(),
         )
     }
@@ -952,12 +1002,14 @@ fn bytes_in_first_mip(kind: TextureKind, pixel_kind: TexturePixelKind) -> u32 {
         TexturePixelKind::R16
         | TexturePixelKind::LuminanceAlpha8
         | TexturePixelKind::Luminance16
-        | TexturePixelKind::RG8 => 2 * pixel_count,
+        | TexturePixelKind::RG8
+        | TexturePixelKind::R16F => 2 * pixel_count,
         TexturePixelKind::RGB8 | TexturePixelKind::BGR8 => 3 * pixel_count,
         TexturePixelKind::RGBA8
         | TexturePixelKind::BGRA8
         | TexturePixelKind::RG16
-        | TexturePixelKind::LuminanceAlpha16 => 4 * pixel_count,
+        | TexturePixelKind::LuminanceAlpha16
+        | TexturePixelKind::R32F => 4 * pixel_count,
         TexturePixelKind::RGB16 | TexturePixelKind::RGB16F => 6 * pixel_count,
         TexturePixelKind::RGBA16 => 8 * pixel_count,
         TexturePixelKind::RGB32F => 12 * pixel_count,
@@ -1303,6 +1355,21 @@ impl TextureData {
         &self.bytes
     }
 
+    /// Tries to cast the internal data buffer to the given type. Type casting will succeed only if the the
+    /// size of the type `T` is equal with the size of the pixel. **WARNING:** While this function is safe, there's
+    /// no guarantee that the actual type-casted data will match the layout of your data structure. For example,
+    /// you could have a pixel of type `RG16`, where each pixel consumes 2 bytes (4 in total) and cast it to the
+    /// structure `struct Rgba8 { r: u8, g: u8, b: u8, a: u8 }` which is safe in terms of memory access (both are 4
+    /// bytes total), but not ok in terms of actual data. Be careful when using the method.
+    pub fn data_of_type<T: Sized>(&self) -> Option<&[T]> {
+        if let Some(pixel_size) = self.pixel_kind.size_in_bytes() {
+            if pixel_size == std::mem::size_of::<T>() {
+                return Some(transmute_slice(&self.bytes));
+            }
+        }
+        None
+    }
+
     /// Returns data of the first mip level.
     pub fn first_mip_level_data(&self) -> &[u8] {
         &self.bytes[0..bytes_in_first_mip(self.kind, self.pixel_kind) as usize]
@@ -1367,7 +1434,9 @@ impl TextureData {
             | TexturePixelKind::RG8RGTC
             | TexturePixelKind::BGR8
             | TexturePixelKind::BGRA8
-            | TexturePixelKind::RGB16F => return Err(TextureError::UnsupportedFormat),
+            | TexturePixelKind::RGB16F
+            | TexturePixelKind::R32F
+            | TexturePixelKind::R16F => return Err(TextureError::UnsupportedFormat),
         };
         if let TextureKind::Rectangle { width, height } = self.kind {
             Ok(image::save_buffer(
@@ -1424,6 +1493,21 @@ impl<'a> TextureDataRefMut<'a> {
     /// Returns mutable reference to the data of the texture.
     pub fn data_mut(&mut self) -> &mut [u8] {
         &mut self.texture.bytes
+    }
+
+    /// Tries to cast the internal data buffer to the given type. Type casting will succeed only if the the
+    /// size of the type `T` is equal with the size of the pixel. **WARNING:** While this function is safe, there's
+    /// no guarantee that the actual type-casted data will match the layout of your data structure. For example,
+    /// you could have a pixel of type `RG16`, where each pixel consumes 2 bytes (4 in total) and cast it to the
+    /// structure `struct Rgba8 { r: u8, g: u8, b: u8, a: u8 }` which is safe in terms of memory access (both are 4
+    /// bytes total), but not ok in terms of actual data. Be careful when using the method.
+    pub fn data_mut_of_type<T: Sized>(&mut self) -> Option<&mut [T]> {
+        if let Some(pixel_size) = self.texture.pixel_kind.size_in_bytes() {
+            if pixel_size == std::mem::size_of::<T>() {
+                return Some(transmute_slice_mut(&mut self.texture.bytes));
+            }
+        }
+        None
     }
 }
 

@@ -92,6 +92,9 @@ impl SceneLoader {
 
         // Add terrain.
         let terrain = TerrainBuilder::new(BaseBuilder::new())
+            .with_chunk_size(Vector2::new(32.0, 32.0))
+            .with_width_chunks(0..2)
+            .with_length_chunks(0..2)
             .with_layers(vec![
                 Layer {
                     material: {
@@ -104,7 +107,7 @@ impl SceneLoader {
                         );
                         SharedMaterial::new(material)
                     },
-                    mask_property_name: "maskTexture".to_string(),
+                    ..Default::default()
                 },
                 Layer {
                     material: {
@@ -117,7 +120,7 @@ impl SceneLoader {
                         );
                         SharedMaterial::new(material)
                     },
-                    mask_property_name: "maskTexture".to_string(),
+                    ..Default::default()
                 },
             ])
             .build(&mut scene.graph);

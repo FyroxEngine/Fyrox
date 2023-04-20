@@ -1,3 +1,4 @@
+use crate::renderer::framework::geometry_buffer::{DrawCallStatistics, ElementRange};
 use crate::{
     core::{math::Rect, scope_profile, sstorage::ImmutableString},
     renderer::{
@@ -59,7 +60,7 @@ impl Blur {
             let mut texture = GpuTexture::new(
                 state,
                 kind,
-                PixelKind::F32,
+                PixelKind::R32F,
                 MinificationFilter::Nearest,
                 MagnificationFilter::Nearest,
                 1,
@@ -96,7 +97,11 @@ impl Blur {
         self.framebuffer.color_attachments()[0].texture.clone()
     }
 
-    pub(crate) fn render(&mut self, state: &mut PipelineState, input: Rc<RefCell<GpuTexture>>) {
+    pub(crate) fn render(
+        &mut self,
+        state: &mut PipelineState,
+        input: Rc<RefCell<GpuTexture>>,
+    ) -> Result<DrawCallStatistics, FrameworkError> {
         scope_profile!();
 
         let viewport = Rect::new(0, 0, self.width as i32, self.height as i32);
@@ -116,6 +121,7 @@ impl Blur {
                 blend: None,
                 stencil_op: Default::default(),
             },
+            ElementRange::Full,
             |mut program_binding| {
                 program_binding
                     .set_matrix4(
@@ -124,6 +130,6 @@ impl Blur {
                     )
                     .set_texture(&shader.input_texture, &input);
             },
-        );
+        )
     }
 }

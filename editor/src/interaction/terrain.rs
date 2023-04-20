@@ -144,7 +144,7 @@ impl InteractionMode for TerrainInteractionMode {
                             self.heightmaps = terrain
                                 .chunks_ref()
                                 .iter()
-                                .map(|c| c.heightmap().to_vec())
+                                .map(|c| c.heightmap_owned())
                                 .collect();
                         }
                         BrushMode::DrawOnMask { layer, .. } => {
@@ -176,7 +176,7 @@ impl InteractionMode for TerrainInteractionMode {
                         let new_heightmaps = terrain
                             .chunks_ref()
                             .iter()
-                            .map(|c| c.heightmap().to_vec())
+                            .map(|c| c.heightmap_owned())
                             .collect();
 
                         match self.brush.mode {

@@ -1,3 +1,4 @@
+use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -45,7 +46,7 @@ impl LumBuffer {
                 width: size,
                 height: size,
             },
-            PixelKind::F32,
+            PixelKind::R32F,
             MinificationFilter::Nearest,
             MagnificationFilter::Nearest,
             1,
@@ -137,7 +138,7 @@ impl HighDynamicRangeRenderer {
         state: &mut PipelineState,
         scene_frame: Rc<RefCell<GpuTexture>>,
         quad: &GeometryBuffer,
-    ) -> DrawCallStatistics {
+    ) -> Result<DrawCallStatistics, FrameworkError> {
         self.frame_luminance.clear(state);
         let frame_matrix = self.frame_luminance.matrix();
 
@@ -162,6 +163,7 @@ impl HighDynamicRangeRenderer {
                 blend: None,
                 stencil_op: Default::default(),
             },
+            ElementRange::Full,
             |mut program_binding| {
                 program_binding
                     .set_matrix4(&shader.wvp_matrix, &frame_matrix)
@@ -175,7 +177,7 @@ impl HighDynamicRangeRenderer {
         &mut self,
         state: &mut PipelineState,
         quad: &GeometryBuffer,
-    ) -> RenderPassStatistics {
+    ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
         let shader = &self.downscale_shader;
         let mut prev_luminance = self.frame_luminance.texture();
@@ -196,17 +198,18 @@ impl HighDynamicRangeRenderer {
                     blend: None,
                     stencil_op: Default::default(),
                 },
+                ElementRange::Full,
                 |mut program_binding| {
                     program_binding
                         .set_matrix4(&shader.wvp_matrix, &matrix)
                         .set_vector2(&shader.inv_size, &Vector2::new(inv_size, inv_size))
                         .set_texture(&shader.lum_sampler, &prev_luminance);
                 },
-            );
+            )?;
 
             prev_luminance = lum_buffer.texture();
         }
-        stats
+        Ok(stats)
     }
 
     fn adaptation(
@@ -214,7 +217,7 @@ impl HighDynamicRangeRenderer {
         state: &mut PipelineState,
         quad: &GeometryBuffer,
         dt: f32,
-    ) -> DrawCallStatistics {
+    ) -> Result<DrawCallStatistics, FrameworkError> {
         let new_lum = self.downscale_chain.last().unwrap().texture();
         let ctx = self.adaptation_chain.begin();
         let viewport = Rect::new(0, 0, ctx.lum_buffer.size as i32, ctx.lum_buffer.size as i32);
@@ -235,6 +238,7 @@ impl HighDynamicRangeRenderer {
                 blend: None,
                 stencil_op: Default::default(),
             },
+            ElementRange::Full,
             |mut program_binding| {
                 program_binding
                     .set_matrix4(&shader.wvp_matrix, &matrix)
@@ -258,7 +262,7 @@ impl HighDynamicRangeRenderer {
         color_grading_lut: Option<&ColorGradingLut>,
         use_color_grading: bool,
         texture_cache: &mut TextureCache,
-    ) -> DrawCallStatistics {
+    ) -> Result<DrawCallStatistics, FrameworkError> {
         let shader = &self.map_shader;
         let frame_matrix = make_viewport_matrix(viewport);
         let avg_lum = self.adaptation_chain.avg_lum_texture();
@@ -281,6 +285,7 @@ impl HighDynamicRangeRenderer {
                 blend: None,
                 stencil_op: Default::default(),
             },
+            ElementRange::Full,
             |mut program_binding| {
                 let program_binding = program_binding
                     .set_matrix4(&shader.wvp_matrix, &frame_matrix)
@@ -328,11 +333,11 @@ impl HighDynamicRangeRenderer {
         color_grading_lut: Option<&ColorGradingLut>,
         use_color_grading: bool,
         texture_cache: &mut TextureCache,
-    ) -> RenderPassStatistics {
+    ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
-        stats += self.calculate_frame_luminance(state, hdr_scene_frame.clone(), quad);
-        stats += self.calculate_avg_frame_luminance(state, quad);
-        stats += self.adaptation(state, quad, dt);
+        stats += self.calculate_frame_luminance(state, hdr_scene_frame.clone(), quad)?;
+        stats += self.calculate_avg_frame_luminance(state, quad)?;
+        stats += self.adaptation(state, quad, dt)?;
         stats += self.map_hdr_to_ldr(
             state,
             hdr_scene_frame,
@@ -344,7 +349,7 @@ impl HighDynamicRangeRenderer {
             color_grading_lut,
             use_color_grading,
             texture_cache,
-        );
-        stats
+        )?;
+        Ok(stats)
     }
 }

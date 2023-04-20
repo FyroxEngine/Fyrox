@@ -1,8 +1,10 @@
 use crate::{command::Command, create_terrain_layer_material, scene::commands::SceneContext};
+use fyrox::resource::texture::{TextureKind, TexturePixelKind};
 use fyrox::{
     core::pool::Handle,
     resource::texture::Texture,
     scene::{node::Node, terrain::Layer},
+    utils,
 };
 
 #[derive(Debug)]
@@ -18,7 +20,7 @@ impl AddTerrainLayerCommand {
             terrain: terrain_handle,
             layer: Some(Layer {
                 material: create_terrain_layer_material(),
-                mask_property_name: "maskTexture".to_owned(),
+                ..Default::default()
             }),
             masks: Default::default(),
         }
@@ -111,12 +113,26 @@ impl ModifyTerrainHeightCommand {
 
     pub fn swap(&mut self, context: &mut SceneContext) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
+        let heigth_map_size = terrain.height_map_size();
         for (chunk, (old, new)) in terrain.chunks_mut().iter_mut().zip(
             self.old_heightmaps
                 .iter_mut()
                 .zip(self.new_heightmaps.iter_mut()),
         ) {
-            chunk.set_heightmap(new.clone());
+            chunk
+                .set_heightmap(
+                    Texture::from_bytes(
+                        TextureKind::Rectangle {
+                            width: heigth_map_size.x,
+                            height: heigth_map_size.y,
+                        },
+                        TexturePixelKind::R32F,
+                        utils::transmute_vec_as_bytes(new.clone()),
+                        true,
+                    )
+                    .unwrap(),
+                )
+                .unwrap();
             std::mem::swap(old, new);
         }
     }

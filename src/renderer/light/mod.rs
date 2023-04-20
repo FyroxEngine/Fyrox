@@ -1,3 +1,4 @@
+use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -6,7 +7,6 @@ use crate::{
         scope_profile,
     },
     renderer::{
-        batch::BatchStorage,
         cache::shader::ShaderCache,
         flat_shader::FlatShader,
         framework::{
@@ -126,7 +126,6 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub settings: &'a QualitySettings,
     pub textures: &'a mut TextureCache,
     pub geometry_cache: &'a mut GeometryCache,
-    pub batch_storage: &'a BatchStorage,
     pub frame_buffer: &'a mut FrameBuffer,
     pub shader_cache: &'a mut ShaderCache,
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
@@ -289,11 +288,10 @@ impl DeferredLightRenderer {
         Ok(())
     }
 
-    #[must_use]
     pub(crate) fn render(
         &mut self,
         args: DeferredRendererContext,
-    ) -> (RenderPassStatistics, LightingStatistics) {
+    ) -> Result<(RenderPassStatistics, LightingStatistics), FrameworkError> {
         scope_profile!();
 
         let mut pass_stats = RenderPassStatistics::default();
@@ -311,7 +309,6 @@ impl DeferredLightRenderer {
             settings,
             textures,
             geometry_cache,
-            batch_storage,
             frame_buffer,
             black_dummy,
             volume_dummy,
@@ -319,7 +316,8 @@ impl DeferredLightRenderer {
         } = args;
 
         let viewport = Rect::new(0, 0, gbuffer.width, gbuffer.height);
-        let frustum = Frustum::from(camera.view_projection_matrix()).unwrap_or_default();
+        let frustum = Frustum::from_view_projection_matrix(camera.view_projection_matrix())
+            .unwrap_or_default();
 
         let frame_matrix = Matrix4::new_orthographic(
             0.0,
@@ -347,7 +345,7 @@ impl DeferredLightRenderer {
                 gbuffer,
                 projection_matrix,
                 camera.view_matrix().basis(),
-            );
+            )?;
         }
 
         // Render skybox (if any).
@@ -361,30 +359,30 @@ impl DeferredLightRenderer {
                 .and_then(|cube_map| textures.get(state, cube_map))
             {
                 let shader = &self.skybox_shader;
-                pass_stats += frame_buffer
-                    .draw_part(
-                        &self.skybox,
-                        state,
-                        viewport,
-                        &shader.program,
-                        DrawParameters {
-                            cull_face: None,
-                            color_write: Default::default(),
-                            depth_write: false,
-                            stencil_test: None,
-                            depth_test: false,
-                            blend: None,
-                            stencil_op: Default::default(),
-                        },
-                        0,
-                        12,
-                        |mut program_binding| {
-                            program_binding
-                                .set_texture(&shader.cubemap_texture, &gpu_texture)
-                                .set_matrix4(&shader.wvp_matrix, &(view_projection * wvp));
-                        },
-                    )
-                    .unwrap();
+                pass_stats += frame_buffer.draw(
+                    &self.skybox,
+                    state,
+                    viewport,
+                    &shader.program,
+                    &DrawParameters {
+                        cull_face: None,
+                        color_write: Default::default(),
+                        depth_write: false,
+                        stencil_test: None,
+                        depth_test: false,
+                        blend: None,
+                        stencil_op: Default::default(),
+                    },
+                    ElementRange::Specific {
+                        offset: 0,
+                        count: 12,
+                    },
+                    |mut program_binding| {
+                        program_binding
+                            .set_texture(&shader.cubemap_texture, &gpu_texture)
+                            .set_matrix4(&shader.wvp_matrix, &(view_projection * wvp));
+                    },
+                )?;
             }
         }
 
@@ -396,7 +394,7 @@ impl DeferredLightRenderer {
         let gbuffer_ambient_map = gbuffer.ambient_texture();
         let ao_map = self.ssao_renderer.ao_map();
 
-        frame_buffer.draw(
+        pass_stats += frame_buffer.draw(
             &self.quad,
             state,
             viewport,
@@ -413,6 +411,7 @@ impl DeferredLightRenderer {
                 }),
                 stencil_op: Default::default(),
             },
+            ElementRange::Full,
             |mut program_binding| {
                 program_binding
                     .set_matrix4(&self.ambient_light_shader.wvp_matrix, &frame_matrix)
@@ -434,7 +433,7 @@ impl DeferredLightRenderer {
                         &gbuffer_ambient_map,
                     );
             },
-        );
+        )?;
 
         for (light_handle, light) in scene.graph.pair_iter() {
             if !light.global_visibility() || !light.is_globally_enabled() {
@@ -501,8 +500,10 @@ impl DeferredLightRenderer {
 
             if shadows_enabled {
                 if let Some(spot) = light.cast::<SpotLight>() {
+                    let z_near = 0.01;
+                    let z_far = light_radius;
                     let light_projection_matrix =
-                        Matrix4::new_perspective(1.0, spot.full_cone_angle(), 0.01, light_radius);
+                        Matrix4::new_perspective(1.0, spot.full_cone_angle(), z_near, z_far);
 
                     let light_look_at = light_position - emit_direction;
 
@@ -521,8 +522,12 @@ impl DeferredLightRenderer {
 
                     pass_stats += self.spot_shadow_map_renderer.render(
                         state,
-                        &light_view_projection,
-                        batch_storage,
+                        &scene.graph,
+                        light_position,
+                        light_view_matrix,
+                        z_near,
+                        z_far,
+                        light_projection_matrix,
                         geometry_cache,
                         cascade_index,
                         shader_cache,
@@ -532,7 +537,7 @@ impl DeferredLightRenderer {
                         black_dummy.clone(),
                         volume_dummy.clone(),
                         matrix_storage,
-                    );
+                    )?;
 
                     light_stats.spot_shadow_maps_rendered += 1;
                 } else if light.cast::<PointLight>().is_some() {
@@ -540,11 +545,11 @@ impl DeferredLightRenderer {
                         self.point_shadow_map_renderer
                             .render(PointShadowMapRenderContext {
                                 state,
+                                graph: &scene.graph,
                                 light_pos: light_position,
                                 light_radius,
                                 geom_cache: geometry_cache,
                                 cascade: cascade_index,
-                                batch_storage,
                                 shader_cache,
                                 texture_cache: textures,
                                 normal_dummy: normal_dummy.clone(),
@@ -552,7 +557,7 @@ impl DeferredLightRenderer {
                                 black_dummy: black_dummy.clone(),
                                 volume_dummy: volume_dummy.clone(),
                                 matrix_storage,
-                            });
+                            })?;
 
                     light_stats.point_shadow_maps_rendered += 1;
                 } else if let Some(directional) = light.cast::<DirectionalLight>() {
@@ -563,7 +568,6 @@ impl DeferredLightRenderer {
                         light: directional,
                         camera,
                         geom_cache: geometry_cache,
-                        batch_storage,
                         shader_cache,
                         texture_cache: textures,
                         normal_dummy: normal_dummy.clone(),
@@ -571,7 +575,7 @@ impl DeferredLightRenderer {
                         black_dummy: black_dummy.clone(),
                         volume_dummy: volume_dummy.clone(),
                         matrix_storage,
-                    });
+                    })?;
 
                     light_stats.csm_rendered += 1;
                 };
@@ -601,6 +605,7 @@ impl DeferredLightRenderer {
                     depth_test: true,
                     blend: None,
                 },
+                ElementRange::Full,
                 |mut program_binding| {
                     program_binding.set_matrix4(
                         &self.flat_shader.wvp_matrix,
@@ -609,7 +614,7 @@ impl DeferredLightRenderer {
                             * Matrix4::new_nonuniform_scaling(&light_radius_vec)),
                     );
                 },
-            );
+            )?;
 
             pass_stats += frame_buffer.draw(
                 sphere,
@@ -631,6 +636,7 @@ impl DeferredLightRenderer {
                     depth_test: true,
                     blend: None,
                 },
+                ElementRange::Full,
                 |mut program_binding| {
                     program_binding.set_matrix4(
                         &self.flat_shader.wvp_matrix,
@@ -639,7 +645,7 @@ impl DeferredLightRenderer {
                             * Matrix4::new_nonuniform_scaling(&light_radius_vec)),
                     );
                 },
-            );
+            )?;
 
             let draw_params = DrawParameters {
                 cull_face: None,
@@ -684,6 +690,7 @@ impl DeferredLightRenderer {
                     viewport,
                     &shader.program,
                     &draw_params,
+                    ElementRange::Full,
                     |mut program_binding| {
                         program_binding
                             .set_bool(&shader.shadows_enabled, shadows_enabled)
@@ -728,7 +735,7 @@ impl DeferredLightRenderer {
                                 spot_light.base_light_ref().intensity(),
                             );
                     },
-                )
+                )?
             } else if let Some(point_light) = light.cast::<PointLight>() {
                 let shader = &self.point_light_shader;
 
@@ -740,6 +747,7 @@ impl DeferredLightRenderer {
                     viewport,
                     &shader.program,
                     &draw_params,
+                    ElementRange::Full,
                     |mut program_binding| {
                         program_binding
                             .set_bool(&shader.shadows_enabled, shadows_enabled)
@@ -769,7 +777,7 @@ impl DeferredLightRenderer {
                                     .cascade_texture(cascade_index),
                             );
                     },
-                )
+                )?
             } else if let Some(directional) = light.cast::<DirectionalLight>() {
                 let shader = &self.directional_light_shader;
 
@@ -792,6 +800,7 @@ impl DeferredLightRenderer {
                         }),
                         stencil_op: Default::default(),
                     },
+                    ElementRange::Full,
                     |mut program_binding| {
                         let distances = [
                             self.csm_renderer.cascades()[0].z_far,
@@ -842,7 +851,7 @@ impl DeferredLightRenderer {
                             .set_bool(&shader.soft_shadows, settings.csm_settings.pcf)
                             .set_f32(&shader.shadow_map_inv_size, 1.0 / csm_map_size);
                     },
-                )
+                )?
             } else {
                 unreachable!()
             };
@@ -860,10 +869,10 @@ impl DeferredLightRenderer {
                     viewport,
                     &scene.graph,
                     frame_buffer,
-                );
+                )?;
             }
         }
 
-        (pass_stats, light_stats)
+        Ok((pass_stats, light_stats))
     }
 }
