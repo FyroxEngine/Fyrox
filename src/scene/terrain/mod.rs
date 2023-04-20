@@ -584,6 +584,9 @@ impl Terrain {
                 chunk.physical_size = chunk_size;
             }
         }
+
+        self.bounding_box_dirty.set(true);
+
         old
     }
 
@@ -717,6 +720,7 @@ impl Terrain {
 
     /// Returns a mutable reference to chunks of the terrain.
     pub fn chunks_mut(&mut self) -> &mut [Chunk] {
+        self.bounding_box_dirty.set(true);
         &mut self.chunks
     }
 
@@ -775,6 +779,8 @@ impl Terrain {
                         }
                     }
                 }
+
+                self.bounding_box_dirty.set(true);
             }
             BrushMode::DrawOnMask { layer, alpha } => {
                 let alpha = alpha.clamp(-1.0, 1.0);
