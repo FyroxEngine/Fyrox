@@ -92,6 +92,9 @@ impl SceneLoader {
 
         // Add terrain.
         let terrain = TerrainBuilder::new(BaseBuilder::new())
+            .with_chunk_size(Vector2::new(32.0, 32.0))
+            .with_width_chunks(0..2)
+            .with_length_chunks(0..2)
             .with_layers(vec![
                 Layer {
                     material: {
