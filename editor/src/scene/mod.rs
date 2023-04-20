@@ -194,11 +194,9 @@ impl EditorScene {
                 if settings.debugging.show_camera_bounds {
                     node.debug_draw(ctx);
                 }
-            } else if node.query_component_ref::<PointLight>().is_some() {
-                if settings.debugging.show_light_bounds {
-                    node.debug_draw(ctx);
-                }
-            } else if node.query_component_ref::<SpotLight>().is_some() {
+            } else if node.query_component_ref::<PointLight>().is_some()
+                || node.query_component_ref::<SpotLight>().is_some()
+            {
                 if settings.debugging.show_light_bounds {
                     node.debug_draw(ctx);
                 }

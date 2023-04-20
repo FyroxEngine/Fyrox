@@ -235,7 +235,7 @@ impl Frustum {
     }
 
     #[deprecated(
-        since = "0.29",
+        since = "0.29.0",
         note = "this method does not handle all cases and could give weird results"
     )]
     #[inline]

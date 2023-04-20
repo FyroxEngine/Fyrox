@@ -262,7 +262,6 @@ impl GBuffer {
         self.framebuffer.color_attachments()[4].texture.clone()
     }
 
-    #[must_use]
     pub(crate) fn fill(
         &mut self,
         args: GBufferRenderContext,

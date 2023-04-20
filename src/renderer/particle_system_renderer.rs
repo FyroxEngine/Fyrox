@@ -135,7 +135,6 @@ impl ParticleSystemRenderer {
         })
     }
 
-    #[must_use]
     pub(crate) fn render(
         &mut self,
         args: ParticleSystemRenderContext,

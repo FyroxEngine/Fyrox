@@ -87,7 +87,6 @@ impl SpriteRenderer {
         })
     }
 
-    #[must_use]
     pub(crate) fn render(
         &mut self,
         args: SpriteRenderContext,

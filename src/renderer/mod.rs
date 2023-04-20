@@ -113,6 +113,7 @@ lazy_static! {
     static ref POINT_SHADOW_PASS_NAME: ImmutableString = ImmutableString::new("PointShadow");
 }
 
+/// Checks whether the provided render pass name is one of the names of built-in shadow render passes.
 pub fn is_shadow_pass(render_pass_name: &str) -> bool {
     render_pass_name == &**DIRECTIONAL_SHADOW_PASS_NAME
         || render_pass_name == &**SPOT_SHADOW_PASS_NAME

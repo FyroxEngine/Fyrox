@@ -53,16 +53,14 @@ pub struct Layer {
     /// Material of the layer.
     pub material: SharedMaterial,
 
-    /// Name of the mask sampler in the material.
-    ///
-    /// # Implementation details
-    ///
-    /// It will be used in the renderer to set appropriate chunk mask to the copy of the material.
+    /// Name of the mask sampler property in the material.
     pub mask_property_name: String,
 
+    /// Name of the height map sampler property in the material.
     #[visit(optional)]
     pub height_map_property_name: String,
 
+    /// Name of the node uv offsets property in the material.
     #[visit(optional)]
     pub node_uv_offsets_property_name: String,
 }
@@ -243,6 +241,7 @@ impl Chunk {
         self.heightmap.as_ref().unwrap()
     }
 
+    /// Returns the height map of the terrain as an array of `f32`s.
     pub fn heightmap_owned(&self) -> Vec<f32> {
         self.heightmap
             .as_ref()
@@ -280,6 +279,7 @@ impl Chunk {
         self.height_map_size
     }
 
+    /// Performs debug drawing of the chunk. It draws internal quad-tree structure for debugging purposes.
     pub fn debug_draw(&self, transform: &Matrix4<f32>, ctx: &mut SceneDrawingContext) {
         let transform = *transform * Matrix4::new_translation(&self.position);
 
@@ -603,6 +603,8 @@ impl Terrain {
         old
     }
 
+    /// Sets the new block size. Block size defines "granularity" of the terrain; the minimal terrain patch that
+    /// will be used for rendering. It directly affects level-of-detail system of the terrain.
     pub fn set_block_size(&mut self, block_size: Vector2<u32>) -> Vector2<u32> {
         let old = *self.block_size;
         self.block_size.set_value_and_mark_modified(block_size);
@@ -613,6 +615,7 @@ impl Terrain {
         old
     }
 
+    /// Returns current block size.
     pub fn block_size(&self) -> Vector2<u32> {
         *self.block_size
     }

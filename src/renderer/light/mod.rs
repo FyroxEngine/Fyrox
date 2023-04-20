@@ -288,7 +288,6 @@ impl DeferredLightRenderer {
         Ok(())
     }
 
-    #[must_use]
     pub(crate) fn render(
         &mut self,
         args: DeferredRendererContext,

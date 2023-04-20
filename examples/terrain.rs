@@ -104,7 +104,7 @@ impl SceneLoader {
                         );
                         SharedMaterial::new(material)
                     },
-                    mask_property_name: "maskTexture".to_string(),
+                    ..Default::default()
                 },
                 Layer {
                     material: {
@@ -117,7 +117,7 @@ impl SceneLoader {
                         );
                         SharedMaterial::new(material)
                     },
-                    mask_property_name: "maskTexture".to_string(),
+                    ..Default::default()
                 },
             ])
             .build(&mut scene.graph);

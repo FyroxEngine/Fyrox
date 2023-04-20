@@ -362,7 +362,7 @@ mod test {
                 &mut selection,
             );
 
-            dbg!(iteration, selection);
+            dbg!(iteration, &selection);
 
             if iteration == 1 {
                 assert!(selection.is_empty());

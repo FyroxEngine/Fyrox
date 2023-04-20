@@ -349,7 +349,8 @@ impl FrameBuffer {
         scope_profile!();
 
         pre_draw(self.id(), state, viewport, program, params, apply_uniforms);
-        Ok(geometry.bind(state).draw(element_range)?)
+
+        geometry.bind(state).draw(element_range)
     }
 
     pub fn draw_instances<F: FnOnce(GpuProgramBinding<'_, '_>)>(

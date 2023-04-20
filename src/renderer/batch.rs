@@ -1,38 +1,62 @@
 //! The module responsible for batch generation for rendering optimizations.
 
-use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
-    core::{algebra::Matrix4, math::frustum::Frustum, sstorage::ImmutableString},
+    core::{
+        algebra::{Matrix4, Vector3},
+        math::frustum::Frustum,
+        sstorage::ImmutableString,
+    },
     material::SharedMaterial,
+    renderer::framework::geometry_buffer::ElementRange,
     scene::{
         graph::Graph,
         mesh::{surface::SurfaceSharedData, RenderPath},
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
-use fyrox_core::algebra::Vector3;
 use std::{
     fmt::{Debug, Formatter},
     hash::Hasher,
 };
 
+/// Observer info contains all the data, that describes an observer. It could be a real camera, light source's
+/// "virtual camera" that is used for shadow mapping, etc.
 pub struct ObserverInfo {
+    /// World-space position of the observer.
     pub observer_position: Vector3<f32>,
+    /// Location of the near clipping plane.
     pub z_near: f32,
+    /// Location of the far clipping plane.
     pub z_far: f32,
+    /// View matrix of the observer.
     pub view_matrix: Matrix4<f32>,
+    /// Projection matrix of the observer.
     pub projection_matrix: Matrix4<f32>,
 }
 
+/// Render context is used to collect render data from the scene nodes. It provides all required information about
+/// the observer (camera, light source virtual camera, etc.), that could be used for culling.
 pub struct RenderContext<'a> {
+    /// World-space position of the observer.
     pub observer_position: &'a Vector3<f32>,
+    /// Location of the near clipping plane.
     pub z_near: f32,
+    /// Location of the far clipping plane.
     pub z_far: f32,
+    /// View matrix of the observer.
     pub view_matrix: &'a Matrix4<f32>,
+    /// Projection matrix of the observer.
     pub projection_matrix: &'a Matrix4<f32>,
+    /// Frustum of the observer, it is built using observer's view and projection matrix. Use the frustum to do
+    /// frustum culling.
     pub frustum: &'a Frustum,
+    /// Render data batch storage. Your scene node must write at least one surface instance here for the node to
+    /// be rendered.
     pub storage: &'a mut RenderDataBatchStorage,
+    /// A reference to the graph that is being rendered. Allows you to get access to other scene nodes to do
+    /// some useful job.
     pub graph: &'a Graph,
+    /// A name of the render pass for which the context was created for.
     pub render_pass_name: &'a ImmutableString,
 }
 
@@ -46,6 +70,8 @@ pub struct SurfaceInstanceData {
     pub depth_offset: f32,
     /// A set of weights for each blend shape in the surface.
     pub blend_shapes_weights: Vec<f32>,
+    /// A range of elements of the instance. Allows you to draw either the full range ([`ElementRange::Full`])
+    /// of the graphics primitives from the surface data or just a part of it ([`ElementRange::Specific`]).
     pub element_range: ElementRange,
 }
 
@@ -82,10 +108,14 @@ impl Debug for RenderDataBatch {
 #[derive(Default)]
 pub struct RenderDataBatchStorage {
     batch_map: FxHashMap<u64, usize>,
+    /// A sorted list of batches.
     pub batches: Vec<RenderDataBatch>,
 }
 
 impl RenderDataBatchStorage {
+    /// Creates a new render batch storage from the given graph and observer info. It "asks" every node in the
+    /// graph one-by-one to give render data which is then put in the storage, sorted and ready for rendering.
+    /// Frustum culling is done on scene node side ([`crate::scene::node::NodeTrait::collect_render_data`]).
     pub fn from_graph(
         graph: &Graph,
         observer_info: ObserverInfo,
@@ -124,6 +154,9 @@ impl RenderDataBatchStorage {
         storage
     }
 
+    /// Adds a new surface instance to the storage. The method will automatically put the instance in the appropriate
+    /// batch. Batch selection is done using the material, surface data, render path, decal layer index, skinning flag.
+    /// If only one of these parameters is different, then the surface instance will be put in a separate batch.
     pub fn push(
         &mut self,
         data: &SurfaceSharedData,
@@ -162,6 +195,7 @@ impl RenderDataBatchStorage {
         batch.instances.push(instance_data)
     }
 
+    /// Sorts the batches by their respective sort index.
     pub fn sort(&mut self) {
         self.batches.sort_unstable_by_key(|b| b.sort_index);
     }

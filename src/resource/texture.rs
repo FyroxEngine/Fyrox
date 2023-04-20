@@ -477,6 +477,8 @@ impl Texture {
         ))))
     }
 
+    /// Creates a deep clone of the texture. Unlike [`Texture::clone`], this method clones the actual texture data,
+    /// which could be slow.
     pub fn deep_clone(&self) -> Self {
         Self(Resource::new(ResourceState::Ok(self.data_ref().clone())))
     }
@@ -771,6 +773,8 @@ impl TexturePixelKind {
         self as u32
     }
 
+    /// Tries to get size of the pixel in bytes. Pixels of compressed textures consumes less than a byte, so
+    /// there's no way to express their size on whole number of bytes, in this case `None` is returned.
     pub fn size_in_bytes(&self) -> Option<usize> {
         match self {
             Self::R8 | Self::Luminance8 => Some(1),
@@ -1351,6 +1355,12 @@ impl TextureData {
         &self.bytes
     }
 
+    /// Tries to cast the internal data buffer to the given type. Type casting will succeed only if the the
+    /// size of the type `T` is equal with the size of the pixel. **WARNING:** While this function is safe, there's
+    /// no guarantee that the actual type-casted data will match the layout of your data structure. For example,
+    /// you could have a pixel of type `RG16`, where each pixel consumes 2 bytes (4 in total) and cast it to the
+    /// structure `struct Rgba8 { r: u8, g: u8, b: u8, a: u8 }` which is safe in terms of memory access (both are 4
+    /// bytes total), but not ok in terms of actual data. Be careful when using the method.
     pub fn data_of_type<T: Sized>(&self) -> Option<&[T]> {
         if let Some(pixel_size) = self.pixel_kind.size_in_bytes() {
             if pixel_size == std::mem::size_of::<T>() {
@@ -1485,6 +1495,12 @@ impl<'a> TextureDataRefMut<'a> {
         &mut self.texture.bytes
     }
 
+    /// Tries to cast the internal data buffer to the given type. Type casting will succeed only if the the
+    /// size of the type `T` is equal with the size of the pixel. **WARNING:** While this function is safe, there's
+    /// no guarantee that the actual type-casted data will match the layout of your data structure. For example,
+    /// you could have a pixel of type `RG16`, where each pixel consumes 2 bytes (4 in total) and cast it to the
+    /// structure `struct Rgba8 { r: u8, g: u8, b: u8, a: u8 }` which is safe in terms of memory access (both are 4
+    /// bytes total), but not ok in terms of actual data. Be careful when using the method.
     pub fn data_mut_of_type<T: Sized>(&mut self) -> Option<&mut [T]> {
         if let Some(pixel_size) = self.texture.pixel_kind.size_in_bytes() {
             if pixel_size == std::mem::size_of::<T>() {
