@@ -453,18 +453,22 @@ impl Graph {
     /// Links specified child with specified parent while keeping the
     /// child's global position and rotation.
     #[inline]
-    pub fn link_nodes_keep_global_position_rotation (
+    pub fn link_nodes_keep_global_position_rotation(
         &mut self,
         child: Handle<Node>,
-        parent: Handle<Node>) {
+        parent: Handle<Node>,
+    ) {
         let parent_transform_inv = self.pool[parent]
-            .global_transform().try_inverse().unwrap_or_default();
+            .global_transform()
+            .try_inverse()
+            .unwrap_or_default();
         let child_transform = self.pool[child].global_transform();
         let relative_transform = parent_transform_inv * child_transform;
         let local_position = relative_transform.position();
-        let local_rotation = UnitQuaternion::from_matrix(
-            &relative_transform.basis());
-        self.pool[child].local_transform_mut().set_position(local_position)
+        let local_rotation = UnitQuaternion::from_matrix(&relative_transform.basis());
+        self.pool[child]
+            .local_transform_mut()
+            .set_position(local_position)
             .set_rotation(local_rotation);
         self.link_nodes(child, parent);
     }
