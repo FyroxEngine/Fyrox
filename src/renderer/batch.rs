@@ -98,8 +98,10 @@ impl RenderDataBatchStorage {
             batches: Vec::with_capacity(capacity),
         };
 
-        let frustum = Frustum::from(observer_info.projection_matrix * observer_info.view_matrix)
-            .unwrap_or_default();
+        let frustum = Frustum::from_view_projection_matrix(
+            observer_info.projection_matrix * observer_info.view_matrix,
+        )
+        .unwrap_or_default();
 
         let mut ctx = RenderContext {
             observer_position: &observer_info.observer_position,

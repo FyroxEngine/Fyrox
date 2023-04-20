@@ -349,7 +349,7 @@ mod test {
         {
             let view_matrix = Matrix4::look_at_rh(&position, &target, &Vector3::y());
             let projection = Matrix4::new_perspective(1.0, 90.0f32.to_radians(), 0.025, z_far);
-            let frustum = Frustum::from(projection * view_matrix).unwrap();
+            let frustum = Frustum::from_view_projection_matrix(projection * view_matrix).unwrap();
 
             let mut selection = Vec::new();
             quadtree.select(

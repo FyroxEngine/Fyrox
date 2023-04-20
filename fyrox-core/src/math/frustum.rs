@@ -9,12 +9,13 @@ use nalgebra::Point3;
 pub struct Frustum {
     /// 0 - left, 1 - right, 2 - top, 3 - bottom, 4 - far, 5 - near
     planes: [Plane; 6],
+    corners: [Vector3<f32>; 8],
 }
 
 impl Default for Frustum {
     #[inline]
     fn default() -> Self {
-        Self::from(Matrix4::new_perspective(
+        Self::from_view_projection_matrix(Matrix4::new_perspective(
             1.0,
             std::f32::consts::FRAC_PI_2,
             0.01,
@@ -25,18 +26,42 @@ impl Default for Frustum {
 }
 
 impl Frustum {
+    pub const LEFT: usize = 0;
+    pub const RIGHT: usize = 1;
+    pub const TOP: usize = 2;
+    pub const BOTTOM: usize = 3;
+    pub const FAR: usize = 4;
+    pub const NEAR: usize = 5;
+
     #[inline]
-    pub fn from(m: Matrix4<f32>) -> Option<Self> {
-        Some(Self {
-            planes: [
-                Plane::from_abcd(m[3] + m[0], m[7] + m[4], m[11] + m[8], m[15] + m[12])?,
-                Plane::from_abcd(m[3] - m[0], m[7] - m[4], m[11] - m[8], m[15] - m[12])?,
-                Plane::from_abcd(m[3] - m[1], m[7] - m[5], m[11] - m[9], m[15] - m[13])?,
-                Plane::from_abcd(m[3] + m[1], m[7] + m[5], m[11] + m[9], m[15] + m[13])?,
-                Plane::from_abcd(m[3] - m[2], m[7] - m[6], m[11] - m[10], m[15] - m[14])?,
-                Plane::from_abcd(m[3] + m[2], m[7] + m[6], m[11] + m[10], m[15] + m[14])?,
-            ],
-        })
+    pub fn from_view_projection_matrix(m: Matrix4<f32>) -> Option<Self> {
+        let planes = [
+            // Left
+            Plane::from_abcd(m[3] + m[0], m[7] + m[4], m[11] + m[8], m[15] + m[12])?,
+            // Right
+            Plane::from_abcd(m[3] - m[0], m[7] - m[4], m[11] - m[8], m[15] - m[12])?,
+            // Top
+            Plane::from_abcd(m[3] - m[1], m[7] - m[5], m[11] - m[9], m[15] - m[13])?,
+            // Bottom
+            Plane::from_abcd(m[3] + m[1], m[7] + m[5], m[11] + m[9], m[15] + m[13])?,
+            // Far
+            Plane::from_abcd(m[3] - m[2], m[7] - m[6], m[11] - m[10], m[15] - m[14])?,
+            // Near
+            Plane::from_abcd(m[3] + m[2], m[7] + m[6], m[11] + m[10], m[15] + m[14])?,
+        ];
+
+        let corners = [
+            planes[Self::LEFT].intersection_point(&planes[Self::TOP], &planes[Self::FAR]),
+            planes[Self::LEFT].intersection_point(&planes[Self::BOTTOM], &planes[Self::FAR]),
+            planes[Self::RIGHT].intersection_point(&planes[Self::BOTTOM], &planes[Self::FAR]),
+            planes[Self::RIGHT].intersection_point(&planes[Self::TOP], &planes[Self::FAR]),
+            planes[Self::LEFT].intersection_point(&planes[Self::TOP], &planes[Self::NEAR]),
+            planes[Self::LEFT].intersection_point(&planes[Self::BOTTOM], &planes[Self::NEAR]),
+            planes[Self::RIGHT].intersection_point(&planes[Self::BOTTOM], &planes[Self::NEAR]),
+            planes[Self::RIGHT].intersection_point(&planes[Self::TOP], &planes[Self::NEAR]),
+        ];
+
+        Some(Self { planes, corners })
     }
 
     #[inline]
@@ -76,42 +101,42 @@ impl Frustum {
 
     #[inline]
     pub fn left_top_front_corner(&self) -> Vector3<f32> {
-        self.left().intersection_point(self.top(), self.far())
+        self.corners[0]
     }
 
     #[inline]
     pub fn left_bottom_front_corner(&self) -> Vector3<f32> {
-        self.left().intersection_point(self.bottom(), self.far())
+        self.corners[1]
     }
 
     #[inline]
     pub fn right_bottom_front_corner(&self) -> Vector3<f32> {
-        self.right().intersection_point(self.bottom(), self.far())
+        self.corners[2]
     }
 
     #[inline]
     pub fn right_top_front_corner(&self) -> Vector3<f32> {
-        self.right().intersection_point(self.top(), self.far())
+        self.corners[3]
     }
 
     #[inline]
     pub fn left_top_back_corner(&self) -> Vector3<f32> {
-        self.left().intersection_point(self.top(), self.near())
+        self.corners[4]
     }
 
     #[inline]
     pub fn left_bottom_back_corner(&self) -> Vector3<f32> {
-        self.left().intersection_point(self.bottom(), self.near())
+        self.corners[5]
     }
 
     #[inline]
     pub fn right_bottom_back_corner(&self) -> Vector3<f32> {
-        self.right().intersection_point(self.bottom(), self.near())
+        self.corners[6]
     }
 
     #[inline]
     pub fn right_top_back_corner(&self) -> Vector3<f32> {
-        self.right().intersection_point(self.top(), self.near())
+        self.corners[7]
     }
 
     #[inline]
@@ -166,7 +191,17 @@ impl Frustum {
             Vector3::new(aabb.max.x, aabb.max.y, aabb.min.z),
         ];
 
-        self.is_intersects_point_cloud(&corners)
+        if self.is_intersects_point_cloud(&corners) {
+            return true;
+        }
+
+        for corner in self.corners.iter() {
+            if aabb.is_contains_point(*corner) {
+                return true;
+            }
+        }
+
+        false
     }
 
     #[inline]
@@ -186,9 +221,23 @@ impl Frustum {
             Vector3::new(aabb.max.x, aabb.max.y, aabb.min.z) + offset,
         ];
 
-        self.is_intersects_point_cloud(&corners)
+        if self.is_intersects_point_cloud(&corners) {
+            return true;
+        }
+
+        for corner in self.corners.iter() {
+            if aabb.is_contains_point(*corner) {
+                return true;
+            }
+        }
+
+        false
     }
 
+    #[deprecated(
+        since = "0.29",
+        note = "this method does not handle all cases and could give weird results"
+    )]
     #[inline]
     pub fn is_intersects_aabb_transform(
         &self,

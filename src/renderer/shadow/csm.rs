@@ -199,7 +199,8 @@ impl CsmRenderer {
                 .matrix(frame_size);
 
             let frustum =
-                Frustum::from(projection_matrix * camera.view_matrix()).unwrap_or_default();
+                Frustum::from_view_projection_matrix(projection_matrix * camera.view_matrix())
+                    .unwrap_or_default();
 
             let center = frustum.center();
             let light_view_matrix = Matrix4::look_at_lh(

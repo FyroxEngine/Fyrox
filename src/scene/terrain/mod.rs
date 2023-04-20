@@ -1124,8 +1124,8 @@ impl NodeTrait for Terrain {
                     }
                     if height < min_height {
                         min_height = height;
+                    }
                 }
-            }
             }
 
             let bounding_box = AxisAlignedBoundingBox::from_min_max(

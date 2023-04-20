@@ -215,7 +215,8 @@ impl Renderer2d {
 
         let view_projection = camera.view_projection_matrix();
 
-        let frustum = Frustum::from(camera.view_projection_matrix()).unwrap_or_default();
+        let frustum = Frustum::from_view_projection_matrix(camera.view_projection_matrix())
+            .unwrap_or_default();
 
         const MAX_LIGHTS: usize = 16;
         let mut light_count = 0;

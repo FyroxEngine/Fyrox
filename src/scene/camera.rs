@@ -618,13 +618,17 @@ impl NodeTrait for Camera {
             self.global_position(),
             self.projection().z_near(),
             self.projection().z_far(),
-            Some(&[&Frustum::from(self.view_projection_matrix()).unwrap_or_default()]),
+            Some(&[
+                &Frustum::from_view_projection_matrix(self.view_projection_matrix())
+                    .unwrap_or_default(),
+            ]),
         );
     }
 
     fn debug_draw(&self, ctx: &mut SceneDrawingContext) {
         ctx.draw_frustum(
-            &Frustum::from(self.view_projection_matrix()).unwrap_or_default(),
+            &Frustum::from_view_projection_matrix(self.view_projection_matrix())
+                .unwrap_or_default(),
             Color::ORANGE,
         );
     }
