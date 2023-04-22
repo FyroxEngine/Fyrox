@@ -28,9 +28,9 @@
 
 #![allow(clippy::float_cmp)]
 
-use crate::bus::AudioBusGraph;
 use crate::{
     buffer::{streaming::StreamingBuffer, SoundBufferResource, SoundBufferState},
+    bus::AudioBusGraph,
     context::DistanceModel,
     error::SoundError,
     listener::Listener,
@@ -40,7 +40,7 @@ use fyrox_core::{
     reflect::prelude::*,
     visitor::{Visit, VisitResult, Visitor},
 };
-use fyrox_resource::ResourceState;
+use fyrox_resource::ResourceStateRefMut;
 use std::time::Duration;
 
 /// Status (state) of sound source.
@@ -216,9 +216,11 @@ impl SoundSource {
         }
 
         if let Some(buffer) = buffer.clone() {
-            match *buffer.state() {
-                ResourceState::LoadError { .. } => return Err(SoundError::BufferFailedToLoad),
-                ResourceState::Ok(ref mut locked_buffer) => {
+            match buffer.state().get_mut() {
+                ResourceStateRefMut::LoadError { .. } => {
+                    return Err(SoundError::BufferFailedToLoad)
+                }
+                ResourceStateRefMut::Ok(locked_buffer) => {
                     // Check new buffer if streaming - it must not be used by anyone else.
                     if let SoundBufferState::Streaming(ref mut streaming) = *locked_buffer {
                         if streaming.use_count != 0 {
@@ -232,7 +234,7 @@ impl SoundSource {
                     let sample_rate = locked_buffer.sample_rate() as f64;
                     self.resampling_multiplier = sample_rate / device_sample_rate;
                 }
-                ResourceState::Pending { .. } => unreachable!(),
+                ResourceStateRefMut::Pending { .. } => unreachable!(),
             }
         }
 
@@ -494,7 +496,7 @@ impl SoundSource {
 
         if let Some(buffer) = self.buffer.clone() {
             let mut state = buffer.state();
-            if let ResourceState::Ok(ref mut buffer) = *state {
+            if let ResourceStateRefMut::Ok(buffer) = state.get_mut() {
                 if self.status == Status::Playing && !buffer.is_empty() {
                     self.render_playing(buffer, amount);
                 }

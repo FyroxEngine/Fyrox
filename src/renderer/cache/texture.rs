@@ -9,11 +9,12 @@ use crate::{
             state::PipelineState,
         },
     },
-    resource::texture::{Texture, TextureState},
+    resource::texture::Texture,
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
-use std::{cell::RefCell, collections::hash_map::Entry, ops::Deref, rc::Rc};
+use fyrox_resource::ResourceStateRef;
+use std::{cell::RefCell, collections::hash_map::Entry, rc::Rc};
 
 #[derive(Default)]
 pub struct TextureCache {
@@ -31,7 +32,7 @@ impl TextureCache {
         let key = texture.key();
         let texture = texture.state();
 
-        if let TextureState::Ok(texture) = texture.deref() {
+        if let ResourceStateRef::Ok(texture) = texture.get() {
             let gpu_texture = GpuTexture::new(
                 state,
                 texture.kind().into(),
@@ -74,7 +75,7 @@ impl TextureCache {
 
         let texture_data_guard = texture_resource.state();
 
-        if let TextureState::Ok(texture) = texture_data_guard.deref() {
+        if let ResourceStateRef::Ok(texture) = texture_data_guard.get() {
             let entry = match self.map.entry(key) {
                 Entry::Occupied(e) => {
                     let entry = e.into_mut();

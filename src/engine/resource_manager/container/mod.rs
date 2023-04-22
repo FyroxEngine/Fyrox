@@ -2,7 +2,7 @@
 //! resources.
 
 use crate::{
-    asset::{Resource, ResourceData, ResourceLoadError, ResourceState},
+    asset::{Resource, ResourceData, ResourceLoadError},
     core::{futures::future::JoinAll, variable::InheritableVariable, VecExtensions},
     engine::resource_manager::{
         container::{

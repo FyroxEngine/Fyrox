@@ -86,7 +86,7 @@ define_new_resource!(
     /// See module docs.
     #[derive(Reflect)]
     #[reflect(hide_all)]
-    CurveResource<CurveResourceState, CurveResourceError>
+    CurveResource<CurveResourceState>
 );
 
 /// Import options for curve resource.

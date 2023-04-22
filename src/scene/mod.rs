@@ -64,7 +64,7 @@ use crate::{
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_resource::ResourceState;
+use fyrox_resource::ResourceStateRef;
 use fyrox_sound::buffer::SoundBufferResource;
 use std::{
     fmt::{Display, Formatter},
@@ -328,9 +328,9 @@ fn restore_resources(
         entity.downcast_mut::<Texture>(&mut |result| {
             if let Some(texture) = result {
                 let data_guard = texture.state();
-                match &*data_guard {
+                match data_guard.get() {
                     // Try to restore the texture even if it failed to load or loading.
-                    ResourceState::LoadError { .. } | ResourceState::Pending { .. } => {
+                    ResourceStateRef::LoadError { .. } | ResourceStateRef::Pending { .. } => {
                         drop(data_guard);
                         resource_manager
                             .state()
@@ -338,7 +338,7 @@ fn restore_resources(
                             .textures
                             .try_restore_resource(texture);
                     }
-                    ResourceState::Ok(texture_state) => {
+                    ResourceStateRef::Ok(texture_state) => {
                         // Do not resolve procedural textures.
                         if !texture_state.is_procedural() {
                             drop(data_guard);

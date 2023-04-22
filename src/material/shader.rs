@@ -3,7 +3,7 @@
 //! For more info see [`Shader`] struct docs.
 
 use crate::{
-    asset::{define_new_resource, Resource, ResourceData, ResourceState},
+    asset::{define_new_resource, Resource, ResourceData},
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         io::{self, FileLoadError},
@@ -548,16 +548,17 @@ define_new_resource!(
     /// is enough.
     #[derive(Reflect)]
     #[reflect(hide_all)]
-    Shader<ShaderState, ShaderError>
+    Shader<ShaderState>
 );
 
 impl Shader {
     /// Creates new shader from given string. Input string must have the format defined in
     /// examples for [`Shader`].
     pub fn from_str<P: AsRef<Path>>(str: &str, path: P) -> Result<Self, ShaderError> {
-        Ok(Self(Resource::new(ResourceState::Ok(
-            ShaderState::from_str(str, path.as_ref())?,
-        ))))
+        Ok(Self(Resource::new_ok(ShaderState::from_str(
+            str,
+            path.as_ref(),
+        )?)))
     }
 
     /// Returns an instance of standard shader.
@@ -592,21 +593,21 @@ pub struct ShaderImportOptions {}
 impl ImportOptions for ShaderImportOptions {}
 
 lazy_static! {
-    static ref STANDARD: Shader = Shader(Resource::new(ResourceState::Ok(
+    static ref STANDARD: Shader = Shader(Resource::new_ok(
         ShaderState::from_str(STANDARD_SHADER_SRC, STANDARD_SHADER_NAME).unwrap(),
-    )));
+    ));
 }
 
 lazy_static! {
-    static ref STANDARD_TERRAIN: Shader = Shader(Resource::new(ResourceState::Ok(
+    static ref STANDARD_TERRAIN: Shader = Shader(Resource::new_ok(
         ShaderState::from_str(STANDARD_TERRAIN_SHADER_SRC, STANDARD_TERRAIN_SHADER_NAME).unwrap(),
-    )));
+    ));
 }
 
 lazy_static! {
-    static ref STANDARD_TWOSIDES: Shader = Shader(Resource::new(ResourceState::Ok(
+    static ref STANDARD_TWOSIDES: Shader = Shader(Resource::new_ok(
         ShaderState::from_str(STANDARD_TWOSIDES_SHADER_SRC, STANDARD_TWOSIDES_SHADER_NAME).unwrap(),
-    )));
+    ));
 }
 
 #[cfg(test)]

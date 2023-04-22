@@ -33,7 +33,7 @@ use crate::{
         },
         RenderPassStatistics, TextureCache,
     },
-    resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind, TextureState},
+    resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind},
 };
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 

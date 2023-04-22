@@ -21,7 +21,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::resource_manager::{ResourceManager, TextureRegistrationError},
-    resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind, TextureState},
+    resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind},
     scene::{
         light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
         mesh::{
@@ -457,7 +457,7 @@ impl Lightmap {
 
             let lightmap = generate_lightmap(instance, &instances, &lights, texels_per_unit);
             map.entry(instance.owner).or_default().push(LightmapEntry {
-                texture: Some(Texture(Resource::new(TextureState::Ok(lightmap)))),
+                texture: Some(Texture(Resource::new_ok(lightmap))),
                 lights: lights.iter().map(|light| light.handle()).collect(),
             });
 

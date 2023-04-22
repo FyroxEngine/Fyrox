@@ -21,7 +21,7 @@
 //! access to pixels of render target.
 
 use crate::{
-    asset::{define_new_resource, Resource, ResourceData, ResourceState},
+    asset::{define_new_resource, Resource, ResourceData},
     core::{
         futures::io::Error,
         io::{self, FileLoadError},
@@ -408,18 +408,15 @@ define_new_resource!(
     /// See module docs.
     #[derive(Reflect)]
     #[reflect(hide_all)]
-    Texture<TextureData, TextureError>
+    Texture<TextureData>
 );
-
-/// Texture state alias.
-pub type TextureState = ResourceState<TextureData, TextureError>;
 
 impl Texture {
     /// Creates new render target for a scene. This method automatically configures GPU texture
     /// to correct settings, after render target was created, it must not be modified, otherwise
     /// result is undefined.
     pub fn new_render_target(width: u32, height: u32) -> Self {
-        Self(Resource::new(TextureState::Ok(TextureData {
+        Self(Resource::new_ok(TextureData {
             path: Default::default(),
             // Render target will automatically set width and height before rendering.
             kind: TextureKind::Rectangle { width, height },
@@ -434,7 +431,7 @@ impl Texture {
             serialize_content: false,
             data_hash: 0,
             is_render_target: true,
-        })))
+        }))
     }
 
     /// Tries to load a texture from given data. Use this method if you want to
@@ -459,9 +456,11 @@ impl Texture {
         compression: CompressionOptions,
         gen_mip_maps: bool,
     ) -> Result<Self, TextureError> {
-        Ok(Self(Resource::new(TextureState::Ok(
-            TextureData::load_from_memory(data, compression, gen_mip_maps)?,
-        ))))
+        Ok(Self(Resource::new_ok(TextureData::load_from_memory(
+            data,
+            compression,
+            gen_mip_maps,
+        )?)))
     }
 
     /// Tries to create new texture from given parameters, it may fail only if size of data passed
@@ -472,15 +471,18 @@ impl Texture {
         bytes: Vec<u8>,
         serialize_content: bool,
     ) -> Option<Self> {
-        Some(Self(Resource::new(TextureState::Ok(
-            TextureData::from_bytes(kind, pixel_kind, bytes, serialize_content)?,
-        ))))
+        Some(Self(Resource::new_ok(TextureData::from_bytes(
+            kind,
+            pixel_kind,
+            bytes,
+            serialize_content,
+        )?)))
     }
 
     /// Creates a deep clone of the texture. Unlike [`Texture::clone`], this method clones the actual texture data,
     /// which could be slow.
     pub fn deep_clone(&self) -> Self {
-        Self(Resource::new(ResourceState::Ok(self.data_ref().clone())))
+        Self(Resource::new_ok(self.data_ref().clone()))
     }
 }
 

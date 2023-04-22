@@ -1,7 +1,7 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
 use crate::{
-    asset::{Resource, ResourceData, ResourceLoadError, ResourceState},
+    asset::{Resource, ResourceData, ResourceLoadError},
     core::{
         futures::future::join_all,
         make_relative_path,

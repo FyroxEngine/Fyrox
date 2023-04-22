@@ -1,7 +1,7 @@
 //! Everything related to terrains.
 
 use crate::{
-    asset::{Resource, ResourceState},
+    asset::Resource,
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         arrayvec::ArrayVec,
@@ -101,7 +101,7 @@ fn make_height_map_texture(height_map: Vec<f32>, size: Vector2<u32>) -> Texture 
     data.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
     data.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
 
-    Texture(Resource::new(ResourceState::Ok(data)))
+    Texture(Resource::new_ok(data))
 }
 
 /// Chunk is smaller block of a terrain. Terrain can have as many chunks as you need.

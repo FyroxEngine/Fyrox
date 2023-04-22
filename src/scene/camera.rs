@@ -15,7 +15,6 @@
 //! almost double load of your GPU.
 
 use crate::{
-    asset::ResourceState,
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         color::Color,
@@ -36,6 +35,7 @@ use crate::{
     },
     utils::log::Log,
 };
+use fyrox_resource::ResourceStateRef;
 use std::{
     fmt::{Display, Formatter},
     ops::{Deref, DerefMut},
@@ -1125,7 +1125,7 @@ impl SkyBox {
 
         for (index, texture) in self.textures().iter().enumerate() {
             if let Some(texture) = texture {
-                if let ResourceState::Ok(texture) = &*texture.state() {
+                if let ResourceStateRef::Ok(texture) = texture.state().get() {
                     if let TextureKind::Rectangle { width, height } = texture.kind() {
                         if width != height {
                             return Err(SkyBoxError::NonSquareTexture {

@@ -33,7 +33,7 @@ pub use fyrox_sound::{
 };
 
 use crate::scene::Scene;
-use fyrox_resource::ResourceState;
+use fyrox_resource::ResourceStateRef;
 use fyrox_sound::source::SoundSource;
 use std::{
     cell::Cell,
@@ -401,9 +401,9 @@ impl NodeTrait for Sound {
         match self.buffer.as_ref() {
             Some(buffer) => {
                 let state = buffer.state();
-                match &*state {
-                    ResourceState::Pending { .. } | ResourceState::Ok(_) => Ok(()),
-                    ResourceState::LoadError { error, .. } => {
+                match state.get() {
+                    ResourceStateRef::Pending { .. } | ResourceStateRef::Ok(_) => Ok(()),
+                    ResourceStateRef::LoadError { error, .. } => {
                         match error {
                             None => Err("Sound buffer is failed to load, the reason is unknown!"
                                 .to_string()),

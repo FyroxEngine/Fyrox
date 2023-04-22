@@ -8,7 +8,6 @@ pub mod executor;
 pub mod resource_manager;
 
 use crate::{
-    asset::ResourceState,
     core::{algebra::Vector2, futures::executor::block_on, instant, pool::Handle},
     engine::{
         error::EngineError,
@@ -36,6 +35,7 @@ use crate::{
     window::{Window, WindowBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_resource::ResourceStateRef;
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{
     config::ConfigTemplateBuilder,
@@ -617,7 +617,7 @@ impl ResourceGraphVertex {
         let mut dependent_resources = HashSet::new();
         for other_model in resource_manager.state().containers().models.iter() {
             let state = other_model.state();
-            if let ResourceState::Ok(ref model_data) = *state {
+            if let ResourceStateRef::Ok(model_data) = state.get() {
                 if model_data
                     .get_scene()
                     .graph

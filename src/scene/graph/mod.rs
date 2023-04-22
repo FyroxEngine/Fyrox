@@ -23,7 +23,6 @@
 //! is used in skinning (animating 3d model by set of bones).
 
 use crate::{
-    asset::ResourceState,
     core::{
         algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
         instant,
@@ -55,6 +54,7 @@ use crate::{
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashSet;
+use fyrox_resource::ResourceStateRef;
 use rapier3d::geometry::ColliderHandle;
 use std::{
     fmt::Debug,
@@ -772,8 +772,8 @@ impl Graph {
         for node in self.pool.iter_mut() {
             if let Some(model) = node.resource() {
                 let model = model.state();
-                match *model {
-                    ResourceState::Ok(ref data) => {
+                match model.get() {
+                    ResourceStateRef::Ok(data) => {
                         let resource_graph = &data.get_scene().graph;
 
                         let resource_node = match data.mapping {
@@ -824,7 +824,7 @@ impl Graph {
                             ))
                         }
                     }
-                    ResourceState::Pending { .. } => {
+                    ResourceStateRef::Pending { .. } => {
                         panic!("resources must be awaited before doing resolve!")
                     }
                     _ => {}
@@ -901,7 +901,7 @@ impl Graph {
 
         for (instance_root, resource) in instances.iter().cloned() {
             let model = resource.state();
-            if let ResourceState::Ok(ref data) = *model {
+            if let ResourceStateRef::Ok(data) = model.get() {
                 let resource_graph = &data.get_scene().graph;
 
                 let resource_instance_root = self.pool[instance_root].original_handle_in_resource;

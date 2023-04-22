@@ -8,17 +8,20 @@
 //! is just inefficient memory-wise. Sound samples are very heavy: for example a mono sound that lasts
 //! just 1 second will take ~172 Kb of memory (with 44100 Hz sampling rate and float sample representation).
 
-use crate::buffer::{generic::GenericBuffer, streaming::StreamingBuffer};
-use crate::error::SoundError;
-use fyrox_core::{io::FileLoadError, reflect::prelude::*, visitor::prelude::*};
-use fyrox_resource::{define_new_resource, Resource, ResourceData, ResourceState};
-use std::fmt::Debug;
-use std::time::Duration;
+use crate::{
+    buffer::{generic::GenericBuffer, streaming::StreamingBuffer},
+    error::SoundError,
+};
+use fyrox_core::{io::FileLoadError, reflect::prelude::*, uuid::Uuid, visitor::prelude::*};
+use fyrox_resource::{define_new_resource, Resource, ResourceData, SOUND_BUFFER_RESOURCE_UUID};
 use std::{
+    any::Any,
     borrow::Cow,
+    fmt::Debug,
     io::{Cursor, Read, Seek, SeekFrom},
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
+    time::Duration,
 };
 
 pub mod generic;
@@ -163,23 +166,23 @@ define_new_resource!(
     /// A shared sound buffer resource.
     #[derive(Reflect)]
     #[reflect(hide_all)]
-    SoundBufferResource<SoundBufferState, SoundBufferResourceLoadError>
+    SoundBufferResource<SoundBufferState>
 );
 
 impl SoundBufferResource {
     /// Tries to create new streaming sound buffer from a given data source. Returns sound source
     /// wrapped into Arc<Mutex<>> that can be directly used with sound sources.
     pub fn new_streaming(data_source: DataSource) -> Result<Self, DataSource> {
-        Ok(Self(Resource::new(ResourceState::Ok(
-            SoundBufferState::Streaming(StreamingBuffer::new(data_source)?),
+        Ok(Self(Resource::new_ok(SoundBufferState::Streaming(
+            StreamingBuffer::new(data_source)?,
         ))))
     }
 
     /// Tries to create new generic sound buffer from a given data source. Returns sound source
     /// wrapped into Arc<Mutex<>> that can be directly used with sound sources.
     pub fn new_generic(data_source: DataSource) -> Result<Self, DataSource> {
-        Ok(Self(Resource::new(ResourceState::Ok(
-            SoundBufferState::Generic(GenericBuffer::new(data_source)?),
+        Ok(Self(Resource::new_ok(SoundBufferState::Generic(
+            GenericBuffer::new(data_source)?,
         ))))
     }
 }
@@ -249,5 +252,17 @@ impl ResourceData for SoundBufferState {
 
     fn set_path(&mut self, path: PathBuf) {
         self.external_source_path = path;
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn type_uuid(&self) -> Uuid {
+        SOUND_BUFFER_RESOURCE_UUID
     }
 }
