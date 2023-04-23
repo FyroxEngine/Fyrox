@@ -7,7 +7,15 @@ pub mod error;
 pub mod executor;
 pub mod resource_loaders;
 
+use crate::engine::resource_loaders::curve::CurveLoader;
+use crate::engine::resource_loaders::model::ModelLoader;
+use crate::engine::resource_loaders::shader::ShaderLoader;
+use crate::engine::resource_loaders::sound::SoundBufferLoader;
+use crate::engine::resource_loaders::texture::TextureLoader;
+use crate::material::shader::Shader;
+use crate::resource::curve::CurveResourceState;
 use crate::resource::model::Model;
+use crate::resource::texture::{Texture, TextureResource};
 use crate::{
     asset::{
         container::event::ResourceEvent, manager::ResourceManager, manager::ResourceWaitContext,
@@ -37,6 +45,7 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_resource::ResourceStateRef;
+use fyrox_sound::buffer::SoundBuffer;
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{
     config::ConfigTemplateBuilder,
@@ -826,6 +835,34 @@ impl Engine {
             serialization_context,
             resource_manager,
         } = params;
+
+        // Add loaders.
+        {
+            let model_loader = ModelLoader {
+                resource_manager: resource_manager.clone(),
+                serialization_context: serialization_context.clone(),
+                default_import_options: Default::default(),
+            };
+
+            let mut state = resource_manager.state();
+
+            state.constructors_container.add::<Texture>();
+            state.constructors_container.add::<Shader>();
+            state.constructors_container.add::<Model>();
+            state.constructors_container.add::<CurveResourceState>();
+            state.constructors_container.add::<SoundBuffer>();
+
+            let loaders = &mut state.containers_mut().resources.loaders;
+            loaders.push(Box::new(model_loader));
+            loaders.push(Box::new(TextureLoader {
+                default_import_options: Default::default(),
+            }));
+            loaders.push(Box::new(SoundBufferLoader {
+                default_import_options: Default::default(),
+            }));
+            loaders.push(Box::new(ShaderLoader));
+            loaders.push(Box::new(CurveLoader));
+        }
 
         let (rx, tx) = channel();
         resource_manager

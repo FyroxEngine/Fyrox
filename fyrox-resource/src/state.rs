@@ -1,41 +1,57 @@
 use crate::{
-    constructor::ResourceConstructorContainer,
     core::{
         curve::Curve,
         uuid::Uuid,
         visitor::{prelude::*, RegionGuard},
     },
-    ResourceData, ResourceLoadError, CURVE_RESOURCE_UUID, SHADER_RESOURCE_UUID,
-    SOUND_BUFFER_RESOURCE_UUID, TEXTURE_RESOURCE_UUID,
+    manager::ResourceManager,
+    ResourceData, ResourceLoadError, CURVE_RESOURCE_UUID, MODEL_RESOURCE_UUID,
+    SHADER_RESOURCE_UUID, SOUND_BUFFER_RESOURCE_UUID, TEXTURE_RESOURCE_UUID,
 };
 use std::{
     borrow::Cow,
+    ffi::OsStr,
     path::{Path, PathBuf},
     sync::Arc,
     task::Waker,
 };
 
+// Heuristic function to guess resource uuid based on inner content of a resource.
 fn guess_uuid(region: &mut RegionGuard) -> Uuid {
     assert!(region.is_reading());
 
-    let mut mip_count = 0;
-    if mip_count.visit("MipCount", region).is_ok() {
+    let mut region = region.enter_region("Details").unwrap();
+
+    let mut mip_count = 0u32;
+    if mip_count.visit("MipCount", &mut region).is_ok() {
         return TEXTURE_RESOURCE_UUID;
     }
 
     let mut curve = Curve::default();
-    if curve.visit("Curve", region).is_ok() {
+    if curve.visit("Curve", &mut region).is_ok() {
         return CURVE_RESOURCE_UUID;
     }
 
     let mut id = 0u32;
-    if id.visit("Id", region).is_ok() {
+    if id.visit("Id", &mut region).is_ok() {
         return SOUND_BUFFER_RESOURCE_UUID;
     }
 
-    // This is unreliable, but shader does not contain anything special that could be used
-    // for identification.
-    SHADER_RESOURCE_UUID
+    let mut path = PathBuf::new();
+    if path.visit("Path", &mut region).is_ok() {
+        let ext = path.extension().unwrap_or_default().to_ascii_lowercase();
+        if ext == OsStr::new("rgs") || ext == OsStr::new("fbx") {
+            return MODEL_RESOURCE_UUID;
+        } else if ext == OsStr::new("shader")
+            || path == OsStr::new("Standard")
+            || path == OsStr::new("StandardTwoSides")
+            || path == OsStr::new("StandardTerrain")
+        {
+            return SHADER_RESOURCE_UUID;
+        }
+    }
+
+    Default::default()
 }
 
 /// Resource could be in three possible states:
@@ -132,21 +148,23 @@ impl Visit for ResourceState {
             2 => {
                 if region.is_reading() {
                     let mut type_uuid = Uuid::default();
-                    if let Err(_) = type_uuid.visit("TypeUuid", &mut region) {
+                    if type_uuid.visit("TypeUuid", &mut region).is_err() {
                         // We might be reading the old version, try to guess an actual type uuid by
                         // the inner content of the resource data.
                         type_uuid = guess_uuid(&mut region);
                     }
 
-                    let constructors_container = region
-                        .blackboard
-                        .get::<ResourceConstructorContainer>()
-                        .expect(
-                            "Resource data constructor container must be \
+                    let resource_manager = region.blackboard.get::<ResourceManager>().expect(
+                        "Resource data constructor container must be \
                 provided when serializing resources!",
-                        );
+                    );
+                    let resource_manager_state = resource_manager.state();
 
-                    if let Some(mut instance) = constructors_container.try_create(&type_uuid) {
+                    if let Some(mut instance) = resource_manager_state
+                        .constructors_container
+                        .try_create(&type_uuid)
+                    {
+                        drop(resource_manager_state);
                         instance.visit("Details", &mut region)?;
                         *self = Self::Ok(instance);
                         Ok(())

@@ -267,15 +267,22 @@ impl SceneLoader {
     pub async fn from_file<P: AsRef<Path>>(
         path: P,
         serialization_context: Arc<SerializationContext>,
+        resource_manager: ResourceManager,
     ) -> Result<Self, VisitError> {
         let mut visitor = Visitor::load_binary(path).await?;
-        Self::load("Scene", serialization_context, &mut visitor)
+        Self::load(
+            "Scene",
+            serialization_context,
+            resource_manager,
+            &mut visitor,
+        )
     }
 
     /// Tries to load a scene using specified visitor and region name.
     pub fn load(
         region_name: &str,
         serialization_context: Arc<SerializationContext>,
+        resource_manager: ResourceManager,
         visitor: &mut Visitor,
     ) -> Result<Self, VisitError> {
         if !visitor.is_reading() {
@@ -285,6 +292,7 @@ impl SceneLoader {
         }
 
         visitor.blackboard.register(serialization_context);
+        visitor.blackboard.register(Arc::new(resource_manager));
 
         let mut scene = Scene::default();
         scene.visit(region_name, visitor)?;

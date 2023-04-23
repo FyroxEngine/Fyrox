@@ -496,10 +496,14 @@ impl Model {
             // Scene can be used directly as model resource. Such scenes can be created in
             // Fyroxed.
             "rgs" => (
-                SceneLoader::from_file(path.as_ref(), serialization_context)
-                    .await?
-                    .finish(resource_manager)
-                    .await,
+                SceneLoader::from_file(
+                    path.as_ref(),
+                    serialization_context,
+                    resource_manager.clone(),
+                )
+                .await?
+                .finish(resource_manager)
+                .await,
                 NodeMapping::UseHandles,
             ),
             // TODO: Add more formats.

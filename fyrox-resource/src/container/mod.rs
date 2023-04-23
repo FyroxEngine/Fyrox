@@ -12,9 +12,8 @@ use crate::{
     task::TaskPool,
     UntypedResource,
 };
-use fxhash::FxHashMap;
 use fyrox_core::uuid::Uuid;
-use std::{ffi::OsString, path::Path, sync::Arc};
+use std::{ffi::OsStr, path::Path, sync::Arc};
 
 pub mod entry;
 pub mod event;
@@ -30,7 +29,7 @@ pub(crate) trait Container {
 pub struct ResourceContainer {
     resources: Vec<TimedEntry<UntypedResource>>,
     task_pool: Arc<TaskPool>,
-    loader: FxHashMap<OsString, Box<dyn ResourceLoader>>,
+    pub loaders: Vec<Box<dyn ResourceLoader>>,
 
     /// Event broadcaster can be used to "subscribe" for events happening inside the container.    
     pub event_broadcaster: ResourceEventBroadcaster,
@@ -41,22 +40,9 @@ impl ResourceContainer {
         Self {
             resources: Default::default(),
             task_pool,
-            loader: Default::default(),
+            loaders: Default::default(),
             event_broadcaster: ResourceEventBroadcaster::new(),
         }
-    }
-
-    /// Sets the loader to load resources with.
-    pub fn set_loader<S: AsRef<str>, L>(
-        &mut self,
-        extension: S,
-        loader: L,
-    ) -> Option<Box<dyn ResourceLoader>>
-    where
-        L: 'static + ResourceLoader,
-    {
-        self.loader
-            .insert(OsString::from(extension.as_ref()), Box::new(loader))
     }
 
     /// Adds a new resource in the container.
@@ -187,10 +173,26 @@ impl ResourceContainer {
     }
 
     fn try_spawn_loading_task(&mut self, path: &Path, resource: UntypedResource) {
-        if let Some(loader) = path.extension().and_then(|ext| self.loader.get(ext)) {
-            self.task_pool
-                .spawn_task(loader.load(resource, self.event_broadcaster.clone(), false));
+        if let Some(loader) = path.extension() {
+            let ext_lowercase = loader.to_ascii_lowercase();
+            if let Some(loader) = self.loaders.iter().find(|loader| {
+                loader
+                    .extensions()
+                    .iter()
+                    .any(|ext| OsStr::new(ext) == ext_lowercase.as_os_str())
+            }) {
+                self.task_pool.spawn_task(loader.load(
+                    resource,
+                    self.event_broadcaster.clone(),
+                    false,
+                ));
+
+                return;
+            }
         }
+
+        // TODO: Replace with logger.
+        eprintln!("There's no loader registered for {:?}!", path);
     }
 
     /// Reloads a single resource.

@@ -3,6 +3,7 @@ use crate::{
     ResourceData,
 };
 use fxhash::FxHashMap;
+use fyrox_core::TypeUuidProvider;
 
 /// A simple type alias for boxed node constructor.
 pub type ResourceDataConstructor = Box<dyn FnMut() -> Box<dyn ResourceData> + Send>;
@@ -21,14 +22,14 @@ impl ResourceConstructorContainer {
 
     /// Adds new type constructor for a given type and return previous constructor for the type
     /// (if any).
-    pub fn add<T>(&self, uuid: Uuid)
+    pub fn add<T>(&self)
     where
-        T: ResourceData + Default,
+        T: ResourceData + Default + TypeUuidProvider,
     {
-        let previous = self
-            .map
-            .lock()
-            .insert(uuid, Box::new(|| Box::new(T::default())));
+        let previous = self.map.lock().insert(
+            <T as TypeUuidProvider>::type_uuid(),
+            Box::new(|| Box::new(T::default())),
+        );
 
         assert!(previous.is_none());
     }

@@ -1,5 +1,6 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
+use crate::constructor::ResourceConstructorContainer;
 use crate::{
     container::{Container, ResourceContainer},
     state::ResourceState,
@@ -59,6 +60,7 @@ impl ResourceWaitContext {
 /// See module docs.
 pub struct ResourceManagerState {
     containers_storage: Option<ContainersStorage>,
+    pub constructors_container: ResourceConstructorContainer,
     watcher: Option<FileSystemWatcher>,
 }
 
@@ -190,6 +192,7 @@ impl ResourceManagerState {
     pub(crate) fn new() -> Self {
         Self {
             containers_storage: None,
+            constructors_container: Default::default(),
             watcher: None,
         }
     }
