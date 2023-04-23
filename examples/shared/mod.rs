@@ -5,11 +5,14 @@
 #![allow(dead_code)]
 
 use fyrox::engine::GraphicsContextParams;
+use fyrox::resource::model::{Model, ModelResourceExtension};
+use fyrox::resource::texture::Texture;
 use fyrox::{
     animation::{
         machine::{Machine, MachineLayer, Parameter, PoseNode, State, Transition},
         Animation, AnimationSignal, RootMotionSettings,
     },
+    asset::manager::ResourceManager,
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
@@ -17,7 +20,7 @@ use fyrox::{
         pool::Handle,
         uuid::{uuid, Uuid},
     },
-    engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
+    engine::{Engine, EngineInitParams, SerializationContext},
     event::{DeviceEvent, ElementState, VirtualKeyCode},
     event_loop::EventLoop,
     gui::{
@@ -65,16 +68,17 @@ pub async fn create_camera(
     // Load skybox textures in parallel.
     let (front, back, left, right, top, bottom) = fyrox::core::futures::join!(
         resource_manager
-            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyFront2048.png"),
+            .request::<Texture, _>("examples/data/skyboxes/DarkStormy/DarkStormyFront2048.png"),
         resource_manager
-            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyBack2048.png"),
+            .request::<Texture, _>("examples/data/skyboxes/DarkStormy/DarkStormyBack2048.png"),
         resource_manager
-            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyLeft2048.png"),
+            .request::<Texture, _>("examples/data/skyboxes/DarkStormy/DarkStormyLeft2048.png"),
         resource_manager
-            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyRight2048.png"),
-        resource_manager.request_texture("examples/data/skyboxes/DarkStormy/DarkStormyUp2048.png"),
+            .request::<Texture, _>("examples/data/skyboxes/DarkStormy/DarkStormyRight2048.png"),
         resource_manager
-            .request_texture("examples/data/skyboxes/DarkStormy/DarkStormyDown2048.png")
+            .request::<Texture, _>("examples/data/skyboxes/DarkStormy/DarkStormyUp2048.png"),
+        resource_manager
+            .request::<Texture, _>("examples/data/skyboxes/DarkStormy/DarkStormyDown2048.png")
     );
 
     // Unwrap everything.
@@ -136,7 +140,7 @@ impl Game {
         let serialization_context = Arc::new(SerializationContext::new());
         let engine = Engine::new(EngineInitParams {
             graphics_context_params,
-            resource_manager: ResourceManager::new(serialization_context.clone()),
+            resource_manager: ResourceManager::new(),
             serialization_context,
         })
         .unwrap();
@@ -241,7 +245,7 @@ pub async fn load_animation<P: AsRef<Path>>(
     resource_manager: ResourceManager,
 ) -> Handle<Animation> {
     *resource_manager
-        .request_model(path)
+        .request::<Model, _>(path)
         .await
         .unwrap()
         .retarget_animations(model, &mut scene.graph)
@@ -516,7 +520,7 @@ impl Player {
         // models it is very efficient because single vertex and index buffer can be used
         // for all models instances, so memory footprint on GPU will be lower.
         let model_resource = resource_manager
-            .request_model("examples/data/mutant/mutant.FBX")
+            .request::<Model, _>("examples/data/mutant/mutant.FBX")
             .await
             .unwrap();
 
@@ -811,7 +815,7 @@ pub fn create_scene_async(resource_manager: ResourceManager) -> Arc<Mutex<SceneL
 
             // Load simple map.
             resource_manager
-                .request_model("examples/data/sponza/Sponza.rgs")
+                .request::<Model, _>("examples/data/sponza/Sponza.rgs")
                 .await
                 .unwrap()
                 .instantiate(&mut scene);
