@@ -1076,14 +1076,14 @@ impl Blackboard {
         }
     }
 
-    pub fn register<T: Any>(&mut self, value: T) {
-        self.items.insert(value.type_id(), Arc::new(value));
+    pub fn register<T: Any>(&mut self, value: Arc<T>) {
+        self.items.insert(TypeId::of::<T>(), value);
     }
 
     pub fn get<T: Any>(&self) -> Option<&T> {
         self.items
             .get(&TypeId::of::<T>())
-            .and_then(|v| v.downcast_ref())
+            .and_then(|v| (**v).downcast_ref::<T>())
     }
 
     pub fn inner(&self) -> &FxHashMap<TypeId, Arc<dyn Any>> {
