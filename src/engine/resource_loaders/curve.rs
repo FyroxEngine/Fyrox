@@ -14,6 +14,10 @@ use fyrox_resource::untyped::UntypedResource;
 pub struct CurveLoader;
 
 impl ResourceLoader for CurveLoader {
+    fn extensions(&self) -> &[&str] {
+        &["curve"]
+    }
+
     fn load(
         &self,
         curve: UntypedResource,

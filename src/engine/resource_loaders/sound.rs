@@ -28,6 +28,10 @@ pub struct SoundBufferLoader {
 }
 
 impl ResourceLoader for SoundBufferLoader {
+    fn extensions(&self) -> &[&str] {
+        &["wav", "ogg"]
+    }
+
     fn load(
         &self,
         resource: UntypedResource,

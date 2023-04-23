@@ -14,6 +14,10 @@ use fyrox_resource::untyped::UntypedResource;
 pub struct ShaderLoader;
 
 impl ResourceLoader for ShaderLoader {
+    fn extensions(&self) -> &[&str] {
+        &["shader"]
+    }
+
     fn load(
         &self,
         shader: UntypedResource,

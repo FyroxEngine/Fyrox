@@ -18,6 +18,10 @@ pub struct TextureLoader {
 }
 
 impl ResourceLoader for TextureLoader {
+    fn extensions(&self) -> &[&str] {
+        &["jpg", "jpeg", "tga", "gif", "bmp", "png", "tiff", "dds"]
+    }
+
     fn load(
         &self,
         texture: UntypedResource,

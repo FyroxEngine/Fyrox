@@ -25,6 +25,10 @@ pub struct ModelLoader {
 }
 
 impl ResourceLoader for ModelLoader {
+    fn extensions(&self) -> &[&str] {
+        &["rgs", "fbx"]
+    }
+
     fn load(
         &self,
         model: UntypedResource,
