@@ -95,9 +95,12 @@ where
                 error,
                 type_uuid: *type_uuid,
             },
-            ResourceState::Ok(data) => {
-                ResourceStateRef::Ok(data.as_any().downcast_ref().expect("Type mismatch!"))
-            }
+            ResourceState::Ok(data) => ResourceStateRef::Ok(
+                (&**data as &dyn ResourceData)
+                    .as_any()
+                    .downcast_ref()
+                    .expect("Type mismatch!"),
+            ),
         }
     }
 
@@ -118,9 +121,12 @@ where
                 error,
                 type_uuid: *type_uuid,
             },
-            ResourceState::Ok(data) => {
-                ResourceStateRefMut::Ok(data.as_any_mut().downcast_mut().expect("Type mismatch!"))
-            }
+            ResourceState::Ok(data) => ResourceStateRefMut::Ok(
+                (&mut **data as &mut dyn ResourceData)
+                    .as_any_mut()
+                    .downcast_mut()
+                    .expect("Type mismatch!"),
+            ),
         }
     }
 }
