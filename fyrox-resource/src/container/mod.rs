@@ -2,20 +2,19 @@
 //! resources.
 
 use crate::{
-    asset::{Resource, ResourceData, ResourceLoadError},
-    core::{futures::future::JoinAll, variable::InheritableVariable, VecExtensions},
-    engine::resource_manager::{
-        container::{
-            entry::{TimedEntry, DEFAULT_RESOURCE_LIFETIME},
-            event::{ResourceEvent, ResourceEventBroadcaster},
-        },
-        loader::ResourceLoader,
-        options::ImportOptions,
-        task::TaskPool,
+    container::{
+        entry::{TimedEntry, DEFAULT_RESOURCE_LIFETIME},
+        event::{ResourceEvent, ResourceEventBroadcaster},
     },
-    utils::log::Log,
+    core::{variable::InheritableVariable, VecExtensions},
+    loader::ResourceLoader,
+    state::ResourceState,
+    task::TaskPool,
+    UntypedResource,
 };
-use std::{future::Future, ops::Deref, path::Path, sync::Arc};
+use fxhash::FxHashMap;
+use std::ffi::OsString;
+use std::{path::Path, sync::Arc};
 
 pub mod entry;
 pub mod event;
@@ -28,47 +27,40 @@ pub(crate) trait Container {
 /// track resources life time and remove unused timed-out resources. It also provides useful
 /// methods to search resources, count loaded or pending, wait until all resources are loading,
 /// etc.
-pub struct ResourceContainer<T, O>
-where
-    T: Clone + 'static,
-    O: ImportOptions,
-{
-    resources: Vec<TimedEntry<T>>,
-    default_import_options: O,
+pub struct ResourceContainer {
+    resources: Vec<TimedEntry<UntypedResource>>,
     task_pool: Arc<TaskPool>,
-    loader: Box<dyn ResourceLoader<T, O>>,
+    loader: FxHashMap<OsString, Box<dyn ResourceLoader>>,
 
     /// Event broadcaster can be used to "subscribe" for events happening inside the container.    
-    pub event_broadcaster: ResourceEventBroadcaster<T>,
+    pub event_broadcaster: ResourceEventBroadcaster,
 }
 
-impl<T, R, E, O> ResourceContainer<T, O>
-where
-    T: Deref<Target = Resource<R, E>> + Clone + Send + Future + From<Resource<R, E>> + 'static,
-    R: ResourceData,
-    E: ResourceLoadError,
-    O: ImportOptions,
-{
-    pub(crate) fn new(task_pool: Arc<TaskPool>, loader: Box<dyn ResourceLoader<T, O>>) -> Self {
+impl ResourceContainer {
+    pub(crate) fn new(task_pool: Arc<TaskPool>) -> Self {
         Self {
             resources: Default::default(),
-            default_import_options: Default::default(),
             task_pool,
-            loader,
+            loader: Default::default(),
             event_broadcaster: ResourceEventBroadcaster::new(),
         }
     }
 
     /// Sets the loader to load resources with.
-    pub fn set_loader<L>(&mut self, loader: L)
+    pub fn set_loader<S: AsRef<str>, L>(
+        &mut self,
+        extension: S,
+        loader: L,
+    ) -> Option<Box<dyn ResourceLoader>>
     where
-        L: 'static + ResourceLoader<T, O>,
+        L: 'static + ResourceLoader,
     {
-        self.loader = Box::new(loader);
+        self.loader
+            .insert(OsString::from(extension.as_ref()), Box::new(loader))
     }
 
     /// Adds a new resource in the container.
-    pub fn push(&mut self, resource: T) {
+    pub fn push(&mut self, resource: UntypedResource) {
         self.event_broadcaster
             .broadcast(ResourceEvent::Added(resource.clone()));
 
@@ -83,9 +75,9 @@ where
     /// # Complexity
     ///
     /// O(n)
-    pub fn find<P: AsRef<Path>>(&self, path: P) -> Option<&T> {
+    pub fn find<P: AsRef<Path>>(&self, path: P) -> Option<&UntypedResource> {
         for resource in self.resources.iter() {
-            if resource.state().path() == path.as_ref() {
+            if resource.0.lock().path() == path.as_ref() {
                 return Some(&resource.value);
             }
         }
@@ -98,15 +90,16 @@ where
             // One usage means that the resource has single owner, and that owner
             // is this container. Such resources have limited life time, if the time
             // runs out before it gets shared again, the resource will be deleted.
-            if resource.use_count() <= 1 {
+            if resource.value.use_count() <= 1 {
                 resource.time_to_live -= dt;
                 if resource.time_to_live <= 0.0 {
-                    let path = resource.state().path().to_path_buf();
+                    let path = resource.0.lock().path().to_path_buf();
 
-                    Log::info(format!(
+                    // TODO: Use logger when it will be moved to fyrox_core.
+                    println!(
                         "Resource {} destroyed because it is not used anymore!",
                         path.display()
-                    ));
+                    );
 
                     self.event_broadcaster
                         .broadcast(ResourceEvent::Removed(path));
@@ -137,7 +130,7 @@ where
     }
 
     /// Creates an iterator over resources in the container.
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
+    pub fn iter(&self) -> impl Iterator<Item = &UntypedResource> {
         self.resources.iter().map(|entry| &entry.value)
     }
 
@@ -150,7 +143,7 @@ where
     /// Returns total amount of resources that still loading.
     pub fn count_pending_resources(&self) -> usize {
         self.resources.iter().fold(0, |counter, resource| {
-            if let ResourceState::Pending { .. } = *resource.state() {
+            if let ResourceState::Pending { .. } = *resource.0.lock() {
                 counter + 1
             } else {
                 counter
@@ -161,7 +154,7 @@ where
     /// Returns total amount of completely loaded resources.
     pub fn count_loaded_resources(&self) -> usize {
         self.resources.iter().fold(0, |counter, resource| {
-            if let ResourceState::Ok(_) = *resource.state() {
+            if let ResourceState::Ok(_) = *resource.0.lock() {
                 counter + 1
             } else {
                 counter
@@ -169,90 +162,50 @@ where
         })
     }
 
-    /// Sets default import options. Keep in mind, that actual import options could defined by a
-    /// special file with additional extension `.options`.
-    pub fn set_default_import_options(&mut self, options: O) {
-        self.default_import_options = options;
-    }
-
-    /// Locks current thread until every resource is loaded (or failed to load).
-    ///
-    /// # Platform specific
-    ///
-    /// WASM: WebAssembly uses simple loop to wait for all resources, which means
-    /// full load of single CPU core.
-    pub fn wait(&self) {
-        #[cfg(target_arch = "wasm32")]
-        {
-            // In case of WebAssembly, spin until everything is loaded.
-            loop {
-                let mut loaded_count = 0;
-                for resource in self.resources.iter() {
-                    if !matches!(*resource.value.state(), ResourceState::Pending { .. }) {
-                        loaded_count += 1;
-                    }
-                }
-                if loaded_count == self.resources.len() {
-                    break;
-                }
-            }
-        }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            crate::core::futures::executor::block_on(self.wait_concurrent());
-        }
-    }
-
-    /// Waits until all resources are loaded (or failed to load) in concurrent manner.
-    pub fn wait_concurrent(&self) -> JoinAll<T> {
-        crate::core::futures::future::join_all(self.resources())
-    }
-
     /// Returns a set of resource handled by this container.
-    pub fn resources(&self) -> Vec<T> {
+    pub fn resources(&self) -> Vec<UntypedResource> {
         self.resources.iter().map(|t| t.value.clone()).collect()
     }
 
     /// Tries to load a resources at a given path.
-    pub fn request<P: AsRef<Path>>(&mut self, path: P) -> T {
+    pub fn request<P: AsRef<Path>>(&mut self, path: P) -> UntypedResource {
         match self.find(path.as_ref()) {
             Some(existing) => existing.clone(),
             None => {
-                let resource = T::from(Resource::new(ResourceState::new_pending(
-                    path.as_ref().to_owned(),
-                )));
+                let resource = UntypedResource::new_pending(path.as_ref().to_owned());
+
                 self.push(resource.clone());
 
-                self.task_pool.spawn_task(self.loader.load(
-                    resource.clone(),
-                    self.default_import_options.clone(),
-                    self.event_broadcaster.clone(),
-                    false,
-                ));
+                self.try_spawn_loading_task(path.as_ref(), resource.clone());
 
                 resource
             }
         }
     }
 
-    /// Reloads a single resource.
-    pub fn reload_resource(&mut self, resource: T) {
-        if !resource.is_loading() {
-            resource.state().switch_to_pending_state();
+    fn try_spawn_loading_task(&mut self, path: &Path, resource: UntypedResource) {
+        if let Some(loader) = path.extension().and_then(|ext| self.loader.get(ext)) {
+            self.task_pool
+                .spawn_task(loader.load(resource, self.event_broadcaster.clone(), false));
+        }
+    }
 
-            self.task_pool.spawn_task(self.loader.load(
-                resource,
-                self.default_import_options.clone(),
-                self.event_broadcaster.clone(),
-                true,
-            ));
+    /// Reloads a single resource.
+    pub fn reload_resource(&mut self, resource: UntypedResource) {
+        let state = resource.0.lock();
+
+        if !state.is_loading() {
+            let path = state.path().to_path_buf();
+            state.switch_to_pending_state();
+            drop(state);
+
+            self.try_spawn_loading_task(&path, resource);
         }
     }
 
     /// Reloads all resources in the container. Returns a list of resources that will be reloaded.
     /// You can use the list to wait until all resources are loading.
-    pub fn reload_resources(&mut self) -> Vec<T> {
+    pub fn reload_resources(&mut self) -> Vec<UntypedResource> {
         let resources = self
             .resources
             .iter()
@@ -260,13 +213,7 @@ where
             .collect::<Vec<_>>();
 
         for resource in resources.iter().cloned() {
-            resource.state().switch_to_pending_state();
-            self.task_pool.spawn_task(self.loader.load(
-                resource,
-                self.default_import_options.clone(),
-                self.event_broadcaster.clone(),
-                true,
-            ));
+            self.reload_resource(resource);
         }
 
         resources
@@ -275,8 +222,8 @@ where
     /// Tries to restore resource by making an attempt to request resource with path from existing
     /// resource instance. This method is used to restore "shallow" resources after scene
     /// deserialization.    
-    pub fn try_restore_resource(&mut self, resource: &mut T) {
-        let path = resource.state().path().to_path_buf();
+    pub fn try_restore_resource(&mut self, resource: &mut UntypedResource) {
+        let path = resource.0.lock().path().to_path_buf();
         let new_resource = self.request(path);
         *resource = new_resource;
     }
@@ -284,9 +231,9 @@ where
     /// Tries to restore resource by making an attempt to request resource with path from existing
     /// resource instance. This method is used to restore "shallow" resources after scene
     /// deserialization.
-    pub fn try_restore_optional_resource(&mut self, resource: &mut Option<T>) {
+    pub fn try_restore_optional_resource(&mut self, resource: &mut Option<UntypedResource>) {
         if let Some(shallow_resource) = resource.as_mut() {
-            let path = shallow_resource.state().path().to_path_buf();
+            let path = shallow_resource.0.lock().path().to_path_buf();
             let new_resource = self.request(path);
             *shallow_resource = new_resource;
         }
@@ -297,22 +244,16 @@ where
     /// deserialization.
     pub fn try_restore_inheritable_resource(
         &mut self,
-        inheritable_resource: &mut InheritableVariable<Option<T>>,
+        inheritable_resource: &mut InheritableVariable<Option<UntypedResource>>,
     ) {
         if let Some(shallow_resource) = inheritable_resource.get_value_mut_silent().as_mut() {
-            let new_resource = self.request(shallow_resource.state().path());
+            let new_resource = self.request(shallow_resource.0.lock().path());
             *shallow_resource = new_resource;
         }
     }
 }
 
-impl<T, R, E, O> Container for ResourceContainer<T, O>
-where
-    T: Deref<Target = Resource<R, E>> + Clone + Send + Future + From<Resource<R, E>>,
-    R: ResourceData,
-    E: ResourceLoadError,
-    O: ImportOptions,
-{
+impl Container for ResourceContainer {
     fn try_reload_resource_from_path(&mut self, path: &Path) -> bool {
         if let Some(resource) = self.find(path).cloned() {
             self.reload_resource(resource);

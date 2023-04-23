@@ -74,6 +74,7 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
+use fyrox::core::watcher::FileSystemWatcher;
 use fyrox::{
     core::{
         algebra::{Matrix3, Vector2},
@@ -121,7 +122,6 @@ use fyrox::{
         into_gui_texture,
         log::{Log, MessageKind},
         translate_cursor_icon, translate_event,
-        watcher::FileSystemWatcher,
     },
     window::{Icon, WindowAttributes},
 };

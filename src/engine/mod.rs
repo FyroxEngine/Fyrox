@@ -5,7 +5,7 @@
 
 pub mod error;
 pub mod executor;
-pub mod resource_manager;
+pub mod resource_loaders;
 
 use crate::{
     core::{algebra::Vector2, futures::executor::block_on, instant, pool::Handle},

@@ -1,12 +1,12 @@
 //! Sound buffer loader.
 
 use crate::{
-    core::reflect::prelude::*,
-    engine::resource_manager::{
+    asset::{
         container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
         options::{try_get_import_settings, ImportOptions},
     },
+    core::reflect::prelude::*,
     utils::log::Log,
 };
 use fyrox_sound::buffer::{

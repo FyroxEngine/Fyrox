@@ -58,7 +58,6 @@ ron = "0.8.0"
 fxhash = "0.2.1"
 strum = "0.24.0"
 strum_macros = "0.24.0"
-notify = "5"
 clap = { version = "4", features = ["derive"] }
 spade = "2.1.0"
 winit = { version = "0.28.1", features = ["serde"] }

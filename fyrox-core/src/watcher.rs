@@ -31,7 +31,7 @@ impl FileSystemWatcher {
         })
     }
 
-    pub(crate) fn try_get_event(&self) -> Option<Event> {
+    pub fn try_get_event(&self) -> Option<Event> {
         if let Ok(Ok(evt)) = self.receiver.try_recv() {
             return Some(evt);
         }

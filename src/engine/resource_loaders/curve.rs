@@ -1,7 +1,7 @@
 //! Curve loader.
 
 use crate::{
-    engine::resource_manager::{
+    asset::{
         container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
     },

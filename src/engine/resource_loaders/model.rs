@@ -1,13 +1,13 @@
 //! Model loader.
 
-use crate::engine::SerializationContext;
 use crate::{
-    engine::resource_manager::{
+    asset::{
         container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
+        manager::ResourceManager,
         options::try_get_import_settings,
-        ResourceManager,
     },
+    engine::SerializationContext,
     resource::model::{Model, ModelData, ModelImportOptions},
     utils::log::Log,
 };

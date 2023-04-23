@@ -43,9 +43,12 @@ pub mod sparse;
 pub mod sstorage;
 pub mod variable;
 pub mod visitor;
+pub mod watcher;
 
 pub use futures;
 pub use instant;
+
+pub use notify;
 
 #[cfg(target_arch = "wasm32")]
 pub use js_sys;

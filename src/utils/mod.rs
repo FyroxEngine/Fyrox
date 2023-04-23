@@ -10,7 +10,6 @@ pub mod log;
 pub mod navmesh;
 pub mod raw_mesh;
 pub mod uvgen;
-pub mod watcher;
 
 use crate::{
     core::algebra::Vector2,

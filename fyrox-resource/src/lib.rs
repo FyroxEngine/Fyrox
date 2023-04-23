@@ -4,19 +4,20 @@
 
 use crate::{
     core::{
-        parking_lot::{Mutex, MutexGuard},
+        parking_lot::MutexGuard,
         reflect::FieldValue,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
     state::ResourceState,
 };
+use std::fmt::Display;
 use std::{
     any::Any,
     borrow::Cow,
     fmt::{Debug, Formatter},
     future::Future,
-    hash::{Hash, Hasher},
+    hash::Hash,
     marker::PhantomData,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -25,10 +26,17 @@ use std::{
     task::{Context, Poll},
 };
 
+use crate::untyped::UntypedResource;
 pub use fyrox_core as core;
 
 pub mod constructor;
-mod state;
+pub mod container;
+pub mod loader;
+pub mod manager;
+pub mod options;
+pub mod state;
+pub mod task;
+pub mod untyped;
 
 pub const TEXTURE_RESOURCE_UUID: Uuid = uuid!("02c23a44-55fa-411a-bc39-eb7a5eadf15c");
 pub const SOUND_BUFFER_RESOURCE_UUID: Uuid = uuid!("f6a077b7-c8ff-4473-a95b-0289441ea9d8");
@@ -51,9 +59,9 @@ pub trait ResourceData: 'static + Debug + Visit + Send {
 }
 
 /// A trait for resource load error.
-pub trait ResourceLoadError: 'static + Debug + Send + Sync {}
+pub trait ResourceLoadError: 'static + Debug + Display + Send + Sync {}
 
-impl<T> ResourceLoadError for T where T: 'static + Debug + Send + Sync {}
+impl<T> ResourceLoadError for T where T: 'static + Display + Debug + Send + Sync {}
 
 pub struct ResourceStateGuard<'a, T>
 where
@@ -138,51 +146,14 @@ impl Default for ResourceState {
     }
 }
 
-/// See module docs.
-#[derive(Visit)]
+#[derive(Visit, PartialEq, Eq, Hash, Debug)]
 pub struct Resource<T>
 where
     T: ResourceData,
 {
-    state: Option<Arc<Mutex<ResourceState>>>,
+    state: Option<UntypedResource>,
     #[visit(skip)]
     phantom: PhantomData<T>,
-}
-
-impl<T> Debug for Resource<T>
-where
-    T: ResourceData,
-{
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Resource")
-    }
-}
-
-impl<T> PartialEq for Resource<T>
-where
-    T: ResourceData,
-{
-    fn eq(&self, other: &Self) -> bool {
-        match (self.state.as_ref(), other.state.as_ref()) {
-            (Some(state), Some(other_state)) => std::ptr::eq(&**state, &**other_state),
-            (None, None) => true,
-            _ => false,
-        }
-    }
-}
-
-impl<T> Eq for Resource<T> where T: ResourceData {}
-
-impl<T> Hash for Resource<T>
-where
-    T: ResourceData,
-{
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self.state.as_ref() {
-            None => state.write_u64(0),
-            Some(resource_state) => state.write_u64(&**resource_state as *const _ as u64),
-        }
-    }
 }
 
 impl<T> Resource<T>
@@ -191,30 +162,28 @@ where
 {
     pub fn new_pending(path: PathBuf) -> Self {
         Self {
-            state: Some(Arc::new(Mutex::new(ResourceState::new_pending(path)))),
+            state: Some(UntypedResource::new_pending(path)),
             phantom: PhantomData,
         }
     }
 
     pub fn new_ok(data: T) -> Self {
         Self {
-            state: Some(Arc::new(Mutex::new(ResourceState::new_ok(data)))),
+            state: Some(UntypedResource::new_ok(data)),
             phantom: PhantomData,
         }
     }
 
     pub fn new_load_error(path: PathBuf, error: Option<Arc<dyn ResourceLoadError>>) -> Self {
         Self {
-            state: Some(Arc::new(Mutex::new(ResourceState::new_load_error(
-                path, error,
-            )))),
+            state: Some(UntypedResource::new_load_error(path, error)),
             phantom: PhantomData,
         }
     }
 
     /// Converts self to internal value.
     #[inline]
-    pub fn into_inner(self) -> Arc<Mutex<ResourceState>> {
+    pub fn into_inner(self) -> UntypedResource {
         self.state.unwrap()
     }
 
@@ -230,7 +199,7 @@ where
     /// Tries to lock internal mutex provides access to the state.
     #[inline]
     pub fn try_acquire_state(&self) -> Option<ResourceStateGuard<'_, T>> {
-        if let Some(guard) = self.state.as_ref().unwrap().try_lock() {
+        if let Some(guard) = self.state.as_ref().unwrap().0.try_lock() {
             Some(ResourceStateGuard {
                 guard,
                 phantom: Default::default(),
@@ -241,7 +210,7 @@ where
     }
 
     fn state_inner(&self) -> MutexGuard<'_, ResourceState> {
-        self.state.as_ref().unwrap().lock()
+        self.state.as_ref().unwrap().0.lock()
     }
 
     /// Returns true if the resource is still loading.
@@ -252,13 +221,13 @@ where
     /// Returns exact amount of users of the resource.
     #[inline]
     pub fn use_count(&self) -> usize {
-        Arc::strong_count(self.state.as_ref().unwrap())
+        self.state.as_ref().unwrap().use_count()
     }
 
     /// Returns a pointer as numeric value which can be used as a hash.
     #[inline]
     pub fn key(&self) -> usize {
-        (&**self.state.as_ref().unwrap() as *const _) as usize
+        self.state.as_ref().unwrap().key()
     }
 
     /// Allows you to obtain reference to the resource data.
@@ -305,12 +274,12 @@ where
     }
 }
 
-impl<T> From<Arc<Mutex<ResourceState>>> for Resource<T>
+impl<T> From<UntypedResource> for Resource<T>
 where
     T: ResourceData,
 {
     #[inline]
-    fn from(state: Arc<Mutex<ResourceState>>) -> Self {
+    fn from(state: UntypedResource) -> Self {
         Self {
             state: Some(state),
             phantom: Default::default(),
@@ -319,12 +288,12 @@ where
 }
 
 #[allow(clippy::from_over_into)]
-impl<T> Into<Arc<Mutex<ResourceState>>> for Resource<T>
+impl<T> Into<UntypedResource> for Resource<T>
 where
     T: ResourceData,
 {
     #[inline]
-    fn into(self) -> Arc<Mutex<ResourceState>> {
+    fn into(self) -> UntypedResource {
         self.state.unwrap()
     }
 }
@@ -336,22 +305,10 @@ where
     type Output = Result<Self, Option<Arc<dyn ResourceLoadError>>>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let state = self.as_ref().state.clone();
-        match *state.unwrap().lock() {
-            ResourceState::Pending { ref mut wakers, .. } => {
-                // Collect wakers, so we'll be able to wake task when worker thread finish loading.
-                let cx_waker = cx.waker();
-                if let Some(pos) = wakers.iter().position(|waker| waker.will_wake(cx_waker)) {
-                    wakers[pos] = cx_waker.clone();
-                } else {
-                    wakers.push(cx_waker.clone())
-                }
-
-                Poll::Pending
-            }
-            ResourceState::LoadError { ref error, .. } => Poll::Ready(Err(error.clone())),
-            ResourceState::Ok(_) => Poll::Ready(Ok(self.clone())),
-        }
+        let inner = self.state.as_ref().unwrap().clone();
+        std::pin::Pin::new(&mut inner)
+            .poll(cx)
+            .map(|r| r.map(|_| self.clone()))
     }
 }
 

@@ -17,3 +17,5 @@ rust-version = "1.56"
 [dependencies]
 fyrox-core = { path = "../fyrox-core", version = "0.23.0" }
 fxhash = "0.2.1"
+ron = "0.8.0"
+serde = { version = "1", features = ["derive"] }

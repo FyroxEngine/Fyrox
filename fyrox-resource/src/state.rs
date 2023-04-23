@@ -168,6 +168,10 @@ impl ResourceState {
         Self::Ok(Box::new(data))
     }
 
+    pub fn is_loading(&self) -> bool {
+        matches!(self, ResourceState::Pending { .. })
+    }
+
     /// Switches the internal state of the resource to [`ResourceState::Pending`].
     pub fn switch_to_pending_state(&mut self) {
         match self {

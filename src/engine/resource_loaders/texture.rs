@@ -1,12 +1,12 @@
 //! Texture loader.
 
 use crate::{
-    core::instant,
-    engine::resource_manager::{
+    asset::{
         container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
         options::try_get_import_settings,
     },
+    core::instant,
     resource::texture::{Texture, TextureData, TextureImportOptions},
     utils::log::Log,
 };
