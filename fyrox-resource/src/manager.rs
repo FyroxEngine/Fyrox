@@ -4,17 +4,19 @@ use crate::{
     container::{Container, ResourceContainer},
     state::ResourceState,
     task::TaskPool,
-    Resource, ResourceData, ResourceLoadError, UntypedResource,
+    Resource, ResourceData, UntypedResource,
 };
+use fyrox_core::uuid::Uuid;
 use fyrox_core::{
     futures::future::join_all,
     make_relative_path, notify,
     parking_lot::{Mutex, MutexGuard},
     watcher::FileSystemWatcher,
+    TypeUuidProvider,
 };
 use std::{
     fmt::{Debug, Display, Formatter},
-    ops::Deref,
+    marker::PhantomData,
     path::Path,
     sync::Arc,
 };
@@ -69,31 +71,27 @@ pub struct ResourceManager {
 /// An error that may occur during texture registration.
 #[derive(Debug)]
 pub enum ResourceRegistrationError {
-    /// Texture saving has failed.
-    Texture(Arc<dyn ResourceLoadError>),
-    /// Texture was in invalid state (Pending, LoadErr)
+    /// Resource saving has failed.
+    UnableToRegister,
+    /// Resource was in invalid state (Pending, LoadErr)
     InvalidState,
-    /// Texture is already registered.
+    /// Resource is already registered.
     AlreadyRegistered,
 }
 
 impl Display for ResourceRegistrationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ResourceRegistrationError::Texture(v) => Display::fmt(v, f),
+            ResourceRegistrationError::UnableToRegister => {
+                write!(f, "Unable to register the resource!")
+            }
             ResourceRegistrationError::InvalidState => {
-                write!(f, "A texture was in invalid state!")
+                write!(f, "A resource was in invalid state!")
             }
             ResourceRegistrationError::AlreadyRegistered => {
-                write!(f, "A texture is already registered!")
+                write!(f, "A resource is already registered!")
             }
         }
-    }
-}
-
-impl From<Arc<dyn ResourceLoadError>> for ResourceRegistrationError {
-    fn from(e: Arc<dyn ResourceLoadError>) -> Self {
-        Self::Texture(e)
     }
 }
 
@@ -118,20 +116,46 @@ impl ResourceManager {
         self.state.lock()
     }
 
-    pub fn request<P: AsRef<Path>, T: Deref<Target = Resource<D>>, D: ResourceData>(
-        &self,
-        path: P,
-    ) -> T {
-        self.state().containers_mut().resources.request(path)
+    pub fn request<T, P>(&self, path: P) -> Resource<T>
+    where
+        P: AsRef<Path>,
+        T: ResourceData + TypeUuidProvider,
+    {
+        let untyped = self
+            .state()
+            .containers_mut()
+            .resources
+            .request(path, <T as TypeUuidProvider>::type_uuid());
+        let actual_type_uuid = untyped.type_uuid();
+        assert_eq!(actual_type_uuid, <T as TypeUuidProvider>::type_uuid());
+        Resource {
+            state: Some(untyped),
+            phantom: PhantomData::<T>,
+        }
     }
 
-    /// Saves given texture in the specified path and registers it in resource manager, so
+    pub fn request_untyped<P>(&self, path: P, type_uuid: Uuid) -> UntypedResource
+    where
+        P: AsRef<Path>,
+    {
+        self.state()
+            .containers_mut()
+            .resources
+            .request(path, type_uuid)
+    }
+
+    /// Saves given resources in the specified path and registers it in resource manager, so
     /// it will be accessible through it later.
-    pub fn register<P: AsRef<Path>>(
+    pub fn register<P, F>(
         &self,
         resource: UntypedResource,
         path: P,
-    ) -> Result<(), ResourceRegistrationError> {
+        mut on_register: F,
+    ) -> Result<(), ResourceRegistrationError>
+    where
+        P: AsRef<Path>,
+        F: FnMut(&dyn ResourceData, &Path) -> bool,
+    {
         let mut state = self.state();
         if state.containers().resources.find(path.as_ref()).is_some() {
             Err(ResourceRegistrationError::AlreadyRegistered)
@@ -140,8 +164,8 @@ impl ResourceManager {
             match &mut *texture_state {
                 ResourceState::Ok(data) => {
                     data.set_path(path.as_ref().to_path_buf());
-                    if let Err(e) = data.save() {
-                        Err(ResourceRegistrationError::Texture(e))
+                    if !on_register(&**data, path.as_ref()) {
+                        Err(ResourceRegistrationError::UnableToRegister)
                     } else {
                         std::mem::drop(texture_state);
                         state.containers_mut().resources.push(resource);

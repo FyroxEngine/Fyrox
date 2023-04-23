@@ -2,14 +2,14 @@ use crate::{command::Command, scene::commands::SceneContext};
 use fyrox::{
     core::{pool::Handle, sstorage::ImmutableString},
     material::{shader::SamplerFallback, PropertyValue},
-    resource::texture::Texture,
+    resource::texture::TextureResource,
     scene::{mesh::Mesh, node::Node},
 };
 
 #[derive(Debug)]
 enum TextureSet {
-    Single(Texture),
-    Multiple(Vec<Option<Texture>>),
+    Single(TextureResource),
+    Multiple(Vec<Option<TextureResource>>),
 }
 
 #[derive(Debug)]
@@ -19,7 +19,7 @@ pub struct SetMeshTextureCommand {
 }
 
 impl SetMeshTextureCommand {
-    pub fn new(node: Handle<Node>, texture: Texture) -> Self {
+    pub fn new(node: Handle<Node>, texture: TextureResource) -> Self {
         Self {
             node,
             set: TextureSet::Single(texture),

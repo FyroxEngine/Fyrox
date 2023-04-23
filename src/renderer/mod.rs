@@ -34,10 +34,10 @@ mod skybox_shader;
 mod sprite_renderer;
 mod ssao;
 
-use crate::renderer::batch::ObserverInfo;
-use crate::renderer::framework::geometry_buffer::ElementRange;
-use crate::renderer::framework::state::{PolygonFace, PolygonFillMode};
+use crate::material::shader::Shader;
+use crate::resource::texture::Texture;
 use crate::{
+    asset::{container::event::ResourceEvent, manager::ResourceManager},
     core::{
         algebra::{Matrix4, Vector2, Vector3},
         color::Color,
@@ -47,14 +47,10 @@ use crate::{
         reflect::prelude::*,
         scope_profile,
     },
-    engine::resource_manager::{container::event::ResourceEvent, ResourceManager},
     gui::{draw::DrawingContext, UserInterface},
-    material::{
-        shader::{SamplerFallback, Shader},
-        Material, PropertyValue,
-    },
+    material::{shader::SamplerFallback, Material, PropertyValue},
     renderer::{
-        batch::RenderDataBatchStorage,
+        batch::{ObserverInfo, RenderDataBatchStorage},
         bloom::BloomRenderer,
         cache::{geometry::GeometryCache, shader::ShaderCache, texture::TextureCache, CacheEntry},
         debug_renderer::DebugRenderer,
@@ -63,13 +59,15 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{Attachment, AttachmentKind, DrawParameters, FrameBuffer},
-            geometry_buffer::{DrawCallStatistics, GeometryBuffer, GeometryBufferKind},
+            geometry_buffer::{
+                DrawCallStatistics, ElementRange, GeometryBuffer, GeometryBufferKind,
+            },
             gpu_program::{BuiltInUniform, GpuProgramBinding},
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::{PipelineState, PipelineStatistics},
+            state::{PipelineState, PipelineStatistics, PolygonFace, PolygonFillMode},
         },
         fxaa::FxaaRenderer,
         gbuffer::{GBuffer, GBufferRenderContext},
@@ -81,7 +79,7 @@ use crate::{
         storage::MatrixStorage,
         ui_renderer::{UiRenderContext, UiRenderer},
     },
-    resource::texture::{Texture, TextureKind},
+    resource::texture::{TextureKind, TextureResource},
     scene::{camera::Camera, mesh::surface::SurfaceData, Scene, SceneContainer},
     utils::log::{Log, MessageKind},
 };
@@ -728,8 +726,8 @@ pub struct Renderer {
     forward_renderer: ForwardRenderer,
     fxaa_renderer: FxaaRenderer,
     renderer2d: Renderer2d,
-    texture_event_receiver: Receiver<ResourceEvent<Texture>>,
-    shader_event_receiver: Receiver<ResourceEvent<Shader>>,
+    texture_event_receiver: Receiver<ResourceEvent>,
+    shader_event_receiver: Receiver<ResourceEvent>,
     matrix_storage: MatrixStorage,
     // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
     // like ones used to render UI instances.
@@ -944,7 +942,7 @@ pub(crate) struct MaterialContext<'a, 'b, 'c> {
     pub camera_position: &'a Vector3<f32>,
     pub use_pom: bool,
     pub light_position: &'a Vector3<f32>,
-    pub blend_shapes_storage: Option<&'a Texture>,
+    pub blend_shapes_storage: Option<&'a TextureResource>,
     pub blend_shapes_weights: &'a [f32],
 
     // Fallback samplers.
@@ -1107,7 +1105,7 @@ impl Renderer {
         resource_manager
             .state()
             .containers_mut()
-            .textures
+            .resources
             .event_broadcaster
             .add(texture_event_sender);
 
@@ -1116,7 +1114,7 @@ impl Renderer {
         resource_manager
             .state()
             .containers_mut()
-            .shaders
+            .resources
             .event_broadcaster
             .add(shader_event_sender);
 
@@ -1275,7 +1273,7 @@ impl Renderer {
     }
 
     /// Unloads texture from GPU memory.
-    pub fn unload_texture(&mut self, texture: Texture) {
+    pub fn unload_texture(&mut self, texture: TextureResource) {
         self.texture_cache.unload(texture)
     }
 
@@ -1347,7 +1345,7 @@ impl Renderer {
     /// to have off-screen UIs (like interactive touch-screen in Doom 3, Dead Space, etc).
     pub fn render_ui_to_texture(
         &mut self,
-        render_target: Texture,
+        render_target: TextureResource,
         ui: &mut UserInterface,
     ) -> Result<(), FrameworkError> {
         let new_width = ui.screen_size().x as usize;
@@ -1421,19 +1419,21 @@ impl Renderer {
 
         let mut uploaded = 0;
         while let Ok(event) = self.texture_event_receiver.try_recv() {
-            if let ResourceEvent::Loaded(texture) | ResourceEvent::Reloaded(texture) = event {
-                match self.texture_cache.upload(&mut self.state, &texture) {
-                    Ok(_) => {
-                        uploaded += 1;
-                        if uploaded >= THROUGHPUT {
-                            break;
+            if let ResourceEvent::Loaded(resource) | ResourceEvent::Reloaded(resource) = event {
+                if let Some(texture) = resource.try_cast::<Texture>() {
+                    match self.texture_cache.upload(&mut self.state, &texture) {
+                        Ok(_) => {
+                            uploaded += 1;
+                            if uploaded >= THROUGHPUT {
+                                break;
+                            }
                         }
-                    }
-                    Err(e) => {
-                        Log::writeln(
-                            MessageKind::Error,
-                            format!("Failed to upload texture to GPU. Reason: {:?}", e),
-                        );
+                        Err(e) => {
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!("Failed to upload texture to GPU. Reason: {:?}", e),
+                            );
+                        }
                     }
                 }
             }
@@ -1444,10 +1444,12 @@ impl Renderer {
 
     fn update_shader_cache(&mut self, dt: f32) {
         while let Ok(event) = self.shader_event_receiver.try_recv() {
-            if let ResourceEvent::Loaded(shader) | ResourceEvent::Reloaded(shader) = event {
-                // Remove and immediately "touch" the shader cache to force upload shader.
-                self.shader_cache.remove(&shader);
-                let _ = self.shader_cache.get(&mut self.state, &shader);
+            if let ResourceEvent::Loaded(resource) | ResourceEvent::Reloaded(resource) = event {
+                if let Some(shader) = resource.try_cast::<Shader>() {
+                    // Remove and immediately "touch" the shader cache to force upload shader.
+                    self.shader_cache.remove(&shader);
+                    let _ = self.shader_cache.get(&mut self.state, &shader);
+                }
             }
         }
 

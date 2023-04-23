@@ -4,6 +4,7 @@
 //! Surfaces can use the same data source across many instances, this is a memory optimization for
 //! being able to re-use data when you need to draw the same mesh in many places.
 
+use crate::resource::texture::TextureResourceExtension;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
@@ -17,7 +18,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     material::{Material, SharedMaterial},
-    resource::texture::{Texture, TextureKind, TexturePixelKind},
+    resource::texture::{TextureKind, TexturePixelKind, TextureResource},
     scene::{
         mesh::{
             buffer::{
@@ -63,7 +64,7 @@ pub struct BlendShapesContainer {
     /// A list of blend shapes.
     pub blend_shapes: Vec<BlendShape>,
     /// A volume texture that stores all blend shapes at once.
-    pub blend_shape_storage: Option<Texture>,
+    pub blend_shape_storage: Option<TextureResource>,
 }
 
 /// A set of offsets for particular vertices.
@@ -173,7 +174,7 @@ impl BlendShapesContainer {
                 })
                 .collect(),
             blend_shape_storage: Some(
-                Texture::from_bytes(
+                TextureResource::from_bytes(
                     TextureKind::Volume {
                         width: width * 3,
                         height,

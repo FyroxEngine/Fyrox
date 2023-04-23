@@ -9,11 +9,12 @@ use crate::{
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
+        TypeUuidProvider,
     },
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
+        node::{Node, NodeTrait, SyncContext},
         rigidbody::RigidBody,
         Scene,
     },

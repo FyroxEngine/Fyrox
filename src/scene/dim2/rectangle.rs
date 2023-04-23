@@ -12,12 +12,13 @@ use crate::{
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
+        TypeUuidProvider,
     },
-    resource::texture::Texture,
+    resource::texture::TextureResource,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::{Node, NodeTrait, TypeUuidProvider},
+        node::{Node, NodeTrait},
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -104,7 +105,7 @@ pub struct Rectangle {
 
     #[reflect(setter = "set_texture")]
     #[visit(optional)] // Backward compatibility
-    texture: InheritableVariable<Option<Texture>>,
+    texture: InheritableVariable<Option<TextureResource>>,
 
     #[reflect(setter = "set_color")]
     color: InheritableVariable<Color>,
@@ -147,17 +148,17 @@ impl TypeUuidProvider for Rectangle {
 
 impl Rectangle {
     /// Returns a texture used by the rectangle.
-    pub fn texture(&self) -> Option<&Texture> {
+    pub fn texture(&self) -> Option<&TextureResource> {
         self.texture.as_ref()
     }
 
     /// Returns a texture used by the rectangle.
-    pub fn texture_value(&self) -> Option<Texture> {
+    pub fn texture_value(&self) -> Option<TextureResource> {
         (*self.texture).clone()
     }
 
     /// Sets new texture for the rectangle.
-    pub fn set_texture(&mut self, texture: Option<Texture>) -> Option<Texture> {
+    pub fn set_texture(&mut self, texture: Option<TextureResource>) -> Option<TextureResource> {
         self.texture.set_value_and_mark_modified(texture)
     }
 
@@ -211,7 +212,7 @@ impl NodeTrait for Rectangle {
 /// Allows you to create rectangle in declarative manner.
 pub struct RectangleBuilder {
     base_builder: BaseBuilder,
-    texture: Option<Texture>,
+    texture: Option<TextureResource>,
     color: Color,
     uv_rect: Rect<f32>,
 }
@@ -228,7 +229,7 @@ impl RectangleBuilder {
     }
 
     /// Sets desired texture of the rectangle.
-    pub fn with_texture(mut self, texture: Texture) -> Self {
+    pub fn with_texture(mut self, texture: TextureResource) -> Self {
         self.texture = Some(texture);
         self
     }

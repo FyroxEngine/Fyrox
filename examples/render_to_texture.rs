@@ -11,14 +11,14 @@ use fyrox::{
         UiNode, VerticalAlignment,
     },
     plugin::{Plugin, PluginConstructor, PluginContext},
-    resource::texture::{Texture, TextureKind},
+    resource::texture::{TextureKind, TextureResource},
     scene::{Scene, SceneLoader},
     utils,
     window::WindowAttributes,
 };
 
 struct Game {
-    render_target: Texture,
+    render_target: TextureResource,
     scene_handle: Handle<Scene>,
     scene_image: Handle<UiNode>,
     exit: Handle<UiNode>,
@@ -38,7 +38,7 @@ impl Plugin for Game {
                 // Re-create render target with new size.
                 drop(render_target);
                 self.render_target =
-                    Texture::new_render_target(image_size.x as u32, image_size.y as u32);
+                    TextureResource::new_render_target(image_size.x as u32, image_size.y as u32);
                 context.scenes[self.scene_handle].render_target = Some(self.render_target.clone());
                 context.user_interface.send_message(ImageMessage::texture(
                     self.scene_image,
@@ -100,7 +100,7 @@ impl PluginConstructor for GameConstructor {
 
         // Create render target and force the scene to render into it.
         let rt_size = Vector2::new(100.0, 100.0);
-        let render_target = Texture::new_render_target(rt_size.x as u32, rt_size.y as u32);
+        let render_target = TextureResource::new_render_target(rt_size.x as u32, rt_size.y as u32);
         scene.render_target = Some(render_target.clone());
 
         // Add the loaded scene to the engine.

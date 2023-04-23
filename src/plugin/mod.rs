@@ -3,11 +3,9 @@
 #![warn(missing_docs)]
 
 use crate::{
+    asset::manager::ResourceManager,
     core::pool::Handle,
-    engine::{
-        resource_manager::ResourceManager, GraphicsContext, PerformanceStatistics,
-        SerializationContext,
-    },
+    engine::{GraphicsContext, PerformanceStatistics, SerializationContext},
     event::Event,
     event_loop::ControlFlow,
     gui::{message::UiMessage, UserInterface},

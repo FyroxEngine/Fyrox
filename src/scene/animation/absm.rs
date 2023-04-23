@@ -10,12 +10,13 @@ use crate::{
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
+        TypeUuidProvider,
     },
     scene::{
         animation::AnimationPlayer,
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
+        node::{Node, NodeTrait, UpdateContext},
         Scene,
     },
 };

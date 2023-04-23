@@ -3,13 +3,14 @@
 //! Script is used to add custom logic to scene nodes. See [ScriptTrait] for more info.
 
 use crate::{
+    asset::manager::ResourceManager,
     core::{
         pool::Handle,
         reflect::{FieldInfo, Reflect, ReflectArray, ReflectList},
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
-    engine::{resource_manager::ResourceManager, ScriptMessageDispatcher},
+    engine::ScriptMessageDispatcher,
     event::Event,
     plugin::Plugin,
     scene::{node::Node, Scene},
@@ -391,8 +392,7 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// ```rust
     /// use std::str::FromStr;
     /// use fyrox::{
-    ///     scene::node::TypeUuidProvider,
-    ///     core::visitor::prelude::*,
+    ///     /// core::visitor::prelude::*,
     ///     core::reflect::prelude::*,
     ///     core::uuid::Uuid,
     ///     script::ScriptTrait,

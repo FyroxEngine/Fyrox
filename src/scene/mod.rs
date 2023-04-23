@@ -30,6 +30,7 @@ pub mod visibility;
 
 use crate::renderer::framework::state::PolygonFillMode;
 use crate::{
+    asset::manager::ResourceManager,
     core::{
         algebra::Vector2,
         color::Color,
@@ -39,12 +40,9 @@ use crate::{
         sstorage::ImmutableString,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
-    engine::{resource_manager::ResourceManager, SerializationContext},
-    material::{
-        shader::{SamplerFallback, Shader, STANDARD_SHADER_NAMES},
-        PropertyValue,
-    },
-    resource::{curve::CurveResource, model::Model, texture::Texture},
+    engine::SerializationContext,
+    material::{shader::SamplerFallback, PropertyValue},
+    resource::texture::TextureResource,
     scene::{
         base::BaseBuilder,
         camera::Camera,
@@ -64,8 +62,7 @@ use crate::{
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_resource::ResourceStateRef;
-use fyrox_sound::buffer::SoundBufferResource;
+use fyrox_resource::untyped::UntypedResource;
 use std::{
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},
@@ -166,7 +163,7 @@ pub struct Scene {
     /// monitor. Other usage could be previewer of models, like pictogram of character
     /// in real-time strategies, in other words there are plenty of possible uses.
     #[reflect(hidden)]
-    pub render_target: Option<Texture>,
+    pub render_target: Option<TextureResource>,
 
     /// Drawing context for simple graphics.
     #[reflect(hidden)]
@@ -254,188 +251,14 @@ pub struct SceneLoader {
 
 #[derive(Default)]
 struct UsedResourcesSet {
-    models: FxHashSet<Model>,
-    curves: FxHashSet<CurveResource>,
-    shaders: FxHashSet<Shader>,
-    textures: FxHashSet<Texture>,
-    sound_buffers: FxHashSet<SoundBufferResource>,
+    models: FxHashSet<UntypedResource>,
 }
 
 impl UsedResourcesSet {
     /// Waits asynchronously.
     async fn wait_async(self) {
-        join_all(self.curves).await;
-        join_all(self.shaders).await;
-        join_all(self.textures).await;
-        join_all(self.sound_buffers).await;
         join_all(self.models).await;
     }
-}
-
-fn restore_resources(
-    entity: &mut dyn Reflect,
-    resource_manager: &ResourceManager,
-    used_resources: &mut UsedResourcesSet,
-) {
-    let mut mapped = false;
-
-    entity.as_inheritable_variable_mut(&mut |result| {
-        if let Some(inheritable) = result {
-            restore_resources(
-                inheritable.inner_value_mut(),
-                resource_manager,
-                used_resources,
-            );
-
-            mapped = true;
-        }
-    });
-
-    if !mapped {
-        entity.as_hash_map_mut(&mut |result| {
-            if let Some(hash_map) = result {
-                let len = hash_map.reflect_len();
-                for i in 0..len {
-                    let (_, value) = hash_map
-                        .reflect_get_at_mut(i)
-                        .expect("Hash maps cannot have sparse structure!");
-                    restore_resources(value, resource_manager, used_resources)
-                }
-
-                mapped = true;
-            }
-        });
-    }
-
-    if !mapped {
-        entity.as_array_mut(&mut |result| {
-            if let Some(array) = result {
-                let len = array.reflect_len();
-                for i in 0..len {
-                    // Support sparse arrays (Pool) too.
-                    if let Some(value) = array.reflect_index_mut(i) {
-                        restore_resources(value, resource_manager, used_resources)
-                    }
-                }
-
-                mapped = true;
-            }
-        });
-    }
-
-    if !mapped {
-        // Textures are special - there could be procedural textures which must not be resolved.
-        entity.downcast_mut::<Texture>(&mut |result| {
-            if let Some(texture) = result {
-                let data_guard = texture.state();
-                match data_guard.get() {
-                    // Try to restore the texture even if it failed to load or loading.
-                    ResourceStateRef::LoadError { .. } | ResourceStateRef::Pending { .. } => {
-                        drop(data_guard);
-                        resource_manager
-                            .state()
-                            .containers_mut()
-                            .textures
-                            .try_restore_resource(texture);
-                    }
-                    ResourceStateRef::Ok(texture_state) => {
-                        // Do not resolve procedural textures.
-                        if !texture_state.is_procedural() {
-                            drop(data_guard);
-                            resource_manager
-                                .state()
-                                .containers_mut()
-                                .textures
-                                .try_restore_resource(texture);
-                        }
-                    }
-                }
-
-                used_resources.textures.insert(texture.clone());
-
-                mapped = true;
-            }
-        });
-    }
-
-    if !mapped {
-        entity.downcast_mut::<Model>(&mut |result| {
-            if let Some(model) = result {
-                resource_manager
-                    .state()
-                    .containers_mut()
-                    .models
-                    .try_restore_resource(model);
-
-                used_resources.models.insert(model.clone());
-
-                mapped = true;
-            }
-        });
-    }
-
-    if !mapped {
-        entity.downcast_mut::<SoundBufferResource>(&mut |result| {
-            if let Some(sound_buffer) = result {
-                resource_manager
-                    .state()
-                    .containers_mut()
-                    .sound_buffers
-                    .try_restore_resource(sound_buffer);
-
-                used_resources.sound_buffers.insert(sound_buffer.clone());
-
-                mapped = true;
-            }
-        });
-    }
-
-    if !mapped {
-        entity.downcast_mut::<Shader>(&mut |result| {
-            if let Some(shader) = result {
-                let shader_path = shader.state().path().to_path_buf();
-
-                // Do not try to restore any of the built-in standard shaders.
-                if STANDARD_SHADER_NAMES
-                    .iter()
-                    .all(|name| Path::new(*name) != shader_path)
-                {
-                    resource_manager
-                        .state()
-                        .containers_mut()
-                        .shaders
-                        .try_restore_resource(shader);
-
-                    used_resources.shaders.insert(shader.clone());
-                }
-
-                mapped = true;
-            }
-        });
-    }
-
-    if !mapped {
-        entity.downcast_mut::<CurveResource>(&mut |result| {
-            if let Some(curve) = result {
-                resource_manager
-                    .state()
-                    .containers_mut()
-                    .curves
-                    .try_restore_resource(curve);
-
-                used_resources.curves.insert(curve.clone());
-
-                mapped = true;
-            }
-        });
-    }
-
-    entity.fields_mut(&mut |fields| {
-        for field in fields {
-            // Continue resolving.
-            restore_resources(field, resource_manager, used_resources);
-        }
-    })
 }
 
 impl SceneLoader {
@@ -461,7 +284,7 @@ impl SceneLoader {
             ));
         }
 
-        visitor.environment = Some(serialization_context);
+        visitor.blackboard.register(serialization_context);
 
         let mut scene = Scene::default();
         scene.visit(region_name, visitor)?;
@@ -473,32 +296,15 @@ impl SceneLoader {
     pub async fn finish(self, resource_manager: ResourceManager) -> Scene {
         let mut scene = self.scene;
 
-        // Collect all model resources and wait for them. This step is crucial, because
-        // later on resolve stage we'll extensively access parent resources to inherit
-        // data from them and we can't read data of a resource being loading.
-        let mut used_resources = UsedResourcesSet::default();
-        for node in scene.graph.linear_iter_mut() {
-            restore_resources(
-                node as &mut dyn Reflect,
-                &resource_manager,
-                &mut used_resources,
-            );
-        }
-
         // Wait everything.
-        used_resources.wait_async().await;
-
-        if let Some(lightmap) = scene.lightmap.as_mut() {
-            for entries in lightmap.map.values_mut() {
-                for entry in entries.iter_mut() {
-                    resource_manager
-                        .state()
-                        .containers_mut()
-                        .textures
-                        .try_restore_optional_resource(&mut entry.texture);
-                }
-            }
-        }
+        let resource_handles = resource_manager
+            .state()
+            .containers()
+            .resources
+            .iter()
+            .cloned()
+            .collect::<Vec<_>>();
+        join_all(resource_handles.into_iter()).await;
 
         // TODO: Move into Camera::restore_resources?
         // We have to wait until skybox textures are all loaded, because we need to read their data

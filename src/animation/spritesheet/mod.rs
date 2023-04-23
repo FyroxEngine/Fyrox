@@ -6,7 +6,7 @@
 use crate::{
     animation::spritesheet::signal::Signal,
     core::{algebra::Vector2, math::Rect, reflect::prelude::*, visitor::prelude::*},
-    resource::texture::Texture,
+    resource::texture::TextureResource,
 };
 use std::collections::vec_deque::VecDeque;
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
@@ -55,7 +55,7 @@ pub struct SpriteSheetFramesContainer {
     size: Vector2<u32>,
     frames: Vec<Vector2<u32>>,
     #[visit(optional)]
-    texture: Option<Texture>,
+    texture: Option<TextureResource>,
 }
 
 impl SpriteSheetFramesContainer {
@@ -112,7 +112,7 @@ impl SpriteSheetFramesContainer {
     }
 
     /// Returns current texture of the container. To set a texture use sprite sheet animation methods.
-    pub fn texture(&self) -> Option<Texture> {
+    pub fn texture(&self) -> Option<TextureResource> {
         self.texture.clone()
     }
 }
@@ -140,7 +140,7 @@ pub struct SpriteSheetAnimation {
     signals: Vec<Signal>,
     #[visit(optional)]
     #[reflect(setter = "set_texture")]
-    texture: Option<Texture>,
+    texture: Option<TextureResource>,
     #[reflect(hidden)]
     #[visit(skip)]
     events: VecDeque<Event>,
@@ -305,13 +305,13 @@ impl SpriteSheetAnimation {
     }
 
     /// Sets new texture for the animation.
-    pub fn set_texture(&mut self, texture: Option<Texture>) -> Option<Texture> {
+    pub fn set_texture(&mut self, texture: Option<TextureResource>) -> Option<TextureResource> {
         self.frames_container.texture = texture.clone();
         std::mem::replace(&mut self.texture, texture)
     }
 
     /// Returns current texture of the animation.
-    pub fn texture(&self) -> Option<Texture> {
+    pub fn texture(&self) -> Option<TextureResource> {
         self.texture.clone()
     }
 

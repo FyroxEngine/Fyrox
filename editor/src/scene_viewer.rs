@@ -37,7 +37,7 @@ use fyrox::{
         VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_DARKER, BRUSH_DARKEST, BRUSH_LIGHT,
         BRUSH_LIGHTER, BRUSH_LIGHTEST,
     },
-    resource::texture::{Texture, TextureState},
+    resource::texture::{TextureResource, TextureState},
     scene::{
         camera::{Camera, Projection},
         node::Node,
@@ -764,7 +764,7 @@ impl SceneViewer {
         ));
     }
 
-    pub fn set_render_target(&self, ui: &UserInterface, render_target: Option<Texture>) {
+    pub fn set_render_target(&self, ui: &UserInterface, render_target: Option<TextureResource>) {
         ui.send_message(ImageMessage::texture(
             self.frame,
             MessageDirection::ToWidget,

@@ -21,23 +21,25 @@
 //! access to pixels of render target.
 
 use crate::{
-    asset::{define_new_resource, Resource, ResourceData},
+    asset::{options::ImportOptions, Resource, ResourceData},
     core::{
         futures::io::Error,
         io::{self, FileLoadError},
         reflect::prelude::*,
         visitor::{PodVecView, Visit, VisitError, VisitResult, Visitor},
     },
-    engine::resource_manager::options::ImportOptions,
 };
 use ddsfile::{Caps2, D3DFormat};
 use fxhash::FxHasher;
+use fyrox_core::uuid::Uuid;
+use fyrox_core::TypeUuidProvider;
+use fyrox_resource::TEXTURE_RESOURCE_UUID;
 use image::{imageops::FilterType, ColorType, DynamicImage, ImageError, ImageFormat};
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
+use std::any::Any;
 use std::{
     borrow::Cow,
-    fmt::{Debug, Formatter},
+    fmt::{Debug, Display, Formatter},
     hash::{Hash, Hasher},
     io::Cursor,
     ops::{Deref, DerefMut},
@@ -186,7 +188,7 @@ impl DerefMut for TextureBytes {
 
 /// Actual texture data.
 #[derive(Debug, Clone)]
-pub struct TextureData {
+pub struct Texture {
     path: PathBuf,
     kind: TextureKind,
     bytes: TextureBytes,
@@ -202,7 +204,13 @@ pub struct TextureData {
     is_render_target: bool,
 }
 
-impl ResourceData for TextureData {
+impl TypeUuidProvider for Texture {
+    fn type_uuid() -> Uuid {
+        TEXTURE_RESOURCE_UUID
+    }
+}
+
+impl ResourceData for Texture {
     fn path(&self) -> Cow<Path> {
         Cow::Borrowed(&self.path)
     }
@@ -210,9 +218,21 @@ impl ResourceData for TextureData {
     fn set_path(&mut self, path: PathBuf) {
         self.path = path;
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn type_uuid(&self) -> Uuid {
+        <Self as TypeUuidProvider>::type_uuid()
+    }
 }
 
-impl Visit for TextureData {
+impl Visit for Texture {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
@@ -246,7 +266,7 @@ impl Visit for TextureData {
     }
 }
 
-impl Default for TextureData {
+impl Default for Texture {
     /// It is very important to mention that defaults may be different for texture when you
     /// importing them through resource manager, see
     /// [TextureImportOptions](../engine/resource_manager/struct.TextureImportOptions.html) for more info.
@@ -404,19 +424,33 @@ impl TextureImportOptions {
     }
 }
 
-define_new_resource!(
-    /// See module docs.
-    #[derive(Reflect)]
-    #[reflect(hide_all)]
-    Texture<TextureData>
-);
+pub type TextureResource = Resource<Texture>;
 
-impl Texture {
+pub trait TextureResourceExtension: Sized {
+    fn new_render_target(width: u32, height: u32) -> Self;
+
+    fn load_from_memory(
+        data: &[u8],
+        compression: CompressionOptions,
+        gen_mip_maps: bool,
+    ) -> Result<Self, TextureError>;
+
+    fn from_bytes(
+        kind: TextureKind,
+        pixel_kind: TexturePixelKind,
+        bytes: Vec<u8>,
+        serialize_content: bool,
+    ) -> Option<Self>;
+
+    fn deep_clone(&self) -> Self;
+}
+
+impl TextureResourceExtension for TextureResource {
     /// Creates new render target for a scene. This method automatically configures GPU texture
     /// to correct settings, after render target was created, it must not be modified, otherwise
     /// result is undefined.
-    pub fn new_render_target(width: u32, height: u32) -> Self {
-        Self(Resource::new_ok(TextureData {
+    fn new_render_target(width: u32, height: u32) -> Self {
+        Resource::new_ok(Texture {
             path: Default::default(),
             // Render target will automatically set width and height before rendering.
             kind: TextureKind::Rectangle { width, height },
@@ -431,7 +465,7 @@ impl Texture {
             serialize_content: false,
             data_hash: 0,
             is_render_target: true,
-        }))
+        })
     }
 
     /// Tries to load a texture from given data. Use this method if you want to
@@ -451,38 +485,38 @@ impl Texture {
     /// loading. You should use `ResourceManager::request_texture` in majority of cases!
     ///
     /// Main use cases for this method are: procedural textures, icons for GUI.
-    pub fn load_from_memory(
+    fn load_from_memory(
         data: &[u8],
         compression: CompressionOptions,
         gen_mip_maps: bool,
     ) -> Result<Self, TextureError> {
-        Ok(Self(Resource::new_ok(TextureData::load_from_memory(
+        Ok(Resource::new_ok(Texture::load_from_memory(
             data,
             compression,
             gen_mip_maps,
-        )?)))
+        )?))
     }
 
     /// Tries to create new texture from given parameters, it may fail only if size of data passed
     /// in does not match with required.
-    pub fn from_bytes(
+    fn from_bytes(
         kind: TextureKind,
         pixel_kind: TexturePixelKind,
         bytes: Vec<u8>,
         serialize_content: bool,
     ) -> Option<Self> {
-        Some(Self(Resource::new_ok(TextureData::from_bytes(
+        Some(Resource::new_ok(Texture::from_bytes(
             kind,
             pixel_kind,
             bytes,
             serialize_content,
-        )?)))
+        )?))
     }
 
-    /// Creates a deep clone of the texture. Unlike [`Texture::clone`], this method clones the actual texture data,
+    /// Creates a deep clone of the texture. Unlike [`TextureResource::clone`], this method clones the actual texture data,
     /// which could be slow.
-    pub fn deep_clone(&self) -> Self {
-        Self(Resource::new_ok(self.data_ref().clone()))
+    fn deep_clone(&self) -> Self {
+        Resource::new_ok(self.data_ref().clone())
     }
 }
 
@@ -1051,7 +1085,7 @@ fn bytes_in_first_mip(kind: TextureKind, pixel_kind: TexturePixelKind) -> u32 {
     }
 }
 
-impl TextureData {
+impl Texture {
     /// Tries to load a texture from given data in one of the following formats: PNG, BMP, TGA, JPG, DDS, GIF. Use
     /// this method if you want to load a texture from embedded data.
     ///
@@ -1468,7 +1502,7 @@ impl TextureData {
 /// A special reference holder that provides mutable access to content of the
 /// texture and automatically calculates hash of the data in its destructor.
 pub struct TextureDataRefMut<'a> {
-    texture: &'a mut TextureData,
+    texture: &'a mut Texture,
 }
 
 impl<'a> Drop for TextureDataRefMut<'a> {
@@ -1478,7 +1512,7 @@ impl<'a> Drop for TextureDataRefMut<'a> {
 }
 
 impl<'a> Deref for TextureDataRefMut<'a> {
-    type Target = TextureData;
+    type Target = Texture;
 
     fn deref(&self) -> &Self::Target {
         self.texture
@@ -1515,10 +1549,10 @@ impl<'a> TextureDataRefMut<'a> {
 
 #[cfg(test)]
 pub mod test {
-    use crate::resource::texture::{Texture, TextureKind, TexturePixelKind};
+    use crate::resource::texture::{TextureKind, TexturePixelKind, TextureResource};
 
-    pub fn create_test_texture() -> Texture {
-        Texture::from_bytes(
+    pub fn create_test_texture() -> TextureResource {
+        TextureResource::from_bytes(
             TextureKind::Rectangle {
                 width: 1,
                 height: 1,

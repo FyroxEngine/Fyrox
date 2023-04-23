@@ -9,9 +9,8 @@ use crate::{
     core::reflect::prelude::*,
     utils::log::Log,
 };
-use fyrox_sound::buffer::{
-    DataSource, SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState,
-};
+use fyrox_resource::untyped::UntypedResource;
+use fyrox_sound::buffer::{DataSource, SoundBuffer, SoundBufferResourceLoadError};
 use serde::{Deserialize, Serialize};
 
 /// Defines sound buffer resource import options.
@@ -24,18 +23,21 @@ pub struct SoundBufferImportOptions {
 impl ImportOptions for SoundBufferImportOptions {}
 
 /// Default implementation for sound buffer loading.
-pub struct SoundBufferLoader;
+pub struct SoundBufferLoader {
+    pub default_import_options: SoundBufferImportOptions,
+}
 
-impl ResourceLoader<SoundBufferResource, SoundBufferImportOptions> for SoundBufferLoader {
+impl ResourceLoader for SoundBufferLoader {
     fn load(
         &self,
-        resource: SoundBufferResource,
-        default_import_options: SoundBufferImportOptions,
-        event_broadcaster: ResourceEventBroadcaster<SoundBufferResource>,
+        resource: UntypedResource,
+        event_broadcaster: ResourceEventBroadcaster,
         reload: bool,
     ) -> BoxedLoaderFuture {
+        let default_import_options = self.default_import_options.clone();
+
         Box::pin(async move {
-            let path = resource.state().path().to_path_buf();
+            let path = resource.path().to_path_buf();
 
             let import_options = try_get_import_settings(&path)
                 .await
@@ -44,20 +46,20 @@ impl ResourceLoader<SoundBufferResource, SoundBufferImportOptions> for SoundBuff
             match DataSource::from_file(&path).await {
                 Ok(source) => {
                     let buffer = if import_options.stream {
-                        SoundBufferState::raw_streaming(source)
+                        SoundBuffer::raw_streaming(source)
                     } else {
-                        SoundBufferState::raw_generic(source)
+                        SoundBuffer::raw_generic(source)
                     };
                     match buffer {
                         Ok(sound_buffer) => {
-                            resource.state().commit_ok(sound_buffer);
+                            resource.0.lock().commit_ok(sound_buffer);
 
                             event_broadcaster.broadcast_loaded_or_reloaded(resource, reload);
 
                             Log::info(format!("Sound buffer {:?} is loaded!", path));
                         }
                         Err(_) => {
-                            resource.state().commit_error(
+                            resource.0.lock().commit_error(
                                 path.clone(),
                                 SoundBufferResourceLoadError::UnsupportedFormat,
                             );
@@ -70,7 +72,8 @@ impl ResourceLoader<SoundBufferResource, SoundBufferImportOptions> for SoundBuff
                     Log::err(format!("Invalid data source for sound buffer: {:?}", e));
 
                     resource
-                        .state()
+                        .0
+                        .lock()
                         .commit_error(path.clone(), SoundBufferResourceLoadError::Io(e));
                 }
             }

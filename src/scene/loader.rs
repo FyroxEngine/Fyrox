@@ -1,8 +1,9 @@
 //! Async scene loader helper. See [`AsyncSceneLoader`] docs for more info.
 
 use crate::{
+    asset::manager::ResourceManager,
     core::parking_lot::Mutex,
-    engine::{resource_manager::ResourceManager, SerializationContext},
+    engine::SerializationContext,
     scene::{Scene, SceneLoader},
 };
 use std::{path::PathBuf, sync::Arc};

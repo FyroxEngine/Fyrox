@@ -38,15 +38,15 @@ use fyrox::{
         inspectable::InspectablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
     },
     material::{
-        shader::{Shader, ShaderError, ShaderState},
+        shader::{Shader, ShaderError, ShaderResource},
         SharedMaterial,
     },
     resource::{
         curve::{CurveResource, CurveResourceError, CurveResourceState},
-        model::{MaterialSearchOptions, Model, ModelData, ModelLoadError},
+        model::{MaterialSearchOptions, Model, ModelLoadError, ModelResource},
         texture::{
-            CompressionOptions, Texture, TextureMagnificationFilter, TextureMinificationFilter,
-            TextureWrapMode,
+            CompressionOptions, TextureMagnificationFilter, TextureMinificationFilter,
+            TextureResource, TextureWrapMode,
         },
     },
     scene::{
@@ -89,8 +89,8 @@ use fyrox::{
                 HighShelfFilterEffect, LowPassFilterEffect, LowShelfFilterEffect,
             },
             reverb::Reverb,
-            Attenuate, AudioBus, Biquad, DistanceModel, Effect, EffectWrapper, SoundBufferResource,
-            SoundBufferResourceLoadError, SoundBufferState, Status,
+            Attenuate, AudioBus, Biquad, DistanceModel, Effect, EffectWrapper, SoundBuffer,
+            SoundBufferResource, SoundBufferResourceLoadError, Status,
         },
         terrain::Layer,
         transform::Transform,
@@ -132,7 +132,7 @@ pub fn make_property_editors_container(
     let container = PropertyEditorDefinitionContainer::new();
 
     container.insert(TexturePropertyEditorDefinition);
-    container.insert(InheritablePropertyEditorDefinition::<Option<Texture>>::new());
+    container.insert(InheritablePropertyEditorDefinition::<Option<TextureResource>>::new());
     container.insert(InheritablePropertyEditorDefinition::<Handle<Node>>::new());
 
     container.insert(MaterialPropertyEditorDefinition {
@@ -174,17 +174,17 @@ pub fn make_property_editors_container(
         .register_inheritable_vec_collection::<fyrox::animation::spritesheet::signal::Signal>();
 
     container.insert(ResourceFieldPropertyEditorDefinition::<
+        ModelResource,
         Model,
-        ModelData,
         ModelLoadError,
     >::new(Rc::new(|resource_manager, path| {
         block_on(resource_manager.request_model(path))
     })));
-    container.insert(InheritablePropertyEditorDefinition::<Option<Model>>::new());
+    container.insert(InheritablePropertyEditorDefinition::<Option<ModelResource>>::new());
 
     container.insert(ResourceFieldPropertyEditorDefinition::<
         SoundBufferResource,
-        SoundBufferState,
+        SoundBuffer,
         SoundBufferResourceLoadError,
     >::new(Rc::new(|resource_manager, path| {
         block_on(resource_manager.request_sound_buffer(path))
@@ -203,13 +203,13 @@ pub fn make_property_editors_container(
     container.insert(InheritablePropertyEditorDefinition::<Option<CurveResource>>::new());
 
     container.insert(ResourceFieldPropertyEditorDefinition::<
+        ShaderResource,
         Shader,
-        ShaderState,
         ShaderError,
     >::new(Rc::new(|resource_manager, path| {
         block_on(resource_manager.request_shader(path))
     })));
-    container.insert(InheritablePropertyEditorDefinition::<Option<Shader>>::new());
+    container.insert(InheritablePropertyEditorDefinition::<Option<ShaderResource>>::new());
 
     container.register_inheritable_inspectable::<ColorGradingLut>();
     container.register_inheritable_inspectable::<InteractionGroups>();

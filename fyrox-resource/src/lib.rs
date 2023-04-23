@@ -1,23 +1,23 @@
 //! Resource management
 
-#![warn(missing_docs)]
+// #![warn(missing_docs)] TODO
 
 use crate::{
     core::{
         parking_lot::MutexGuard,
+        reflect::prelude::*,
         reflect::FieldValue,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
     state::ResourceState,
 };
-use std::fmt::Display;
 use std::{
     any::Any,
     borrow::Cow,
     fmt::{Debug, Formatter},
     future::Future,
-    hash::Hash,
+    hash::{Hash, Hasher},
     marker::PhantomData,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -26,8 +26,10 @@ use std::{
     task::{Context, Poll},
 };
 
+use crate::manager::ResourceManager;
 use crate::untyped::UntypedResource;
 pub use fyrox_core as core;
+use fyrox_core::TypeUuidProvider;
 
 pub mod constructor;
 pub mod container;
@@ -39,6 +41,7 @@ pub mod task;
 pub mod untyped;
 
 pub const TEXTURE_RESOURCE_UUID: Uuid = uuid!("02c23a44-55fa-411a-bc39-eb7a5eadf15c");
+pub const MODEL_RESOURCE_UUID: Uuid = uuid!("44cd768f-b4ca-4804-a98c-0adf85577ada");
 pub const SOUND_BUFFER_RESOURCE_UUID: Uuid = uuid!("f6a077b7-c8ff-4473-a95b-0289441ea9d8");
 pub const SHADER_RESOURCE_UUID: Uuid = uuid!("f1346417-b726-492a-b80f-c02096c6c019");
 pub const CURVE_RESOURCE_UUID: Uuid = uuid!("f28b949f-28a2-4b68-9089-59c234f58b6b");
@@ -59,13 +62,13 @@ pub trait ResourceData: 'static + Debug + Visit + Send {
 }
 
 /// A trait for resource load error.
-pub trait ResourceLoadError: 'static + Debug + Display + Send + Sync {}
+pub trait ResourceLoadError: 'static + Debug + Send + Sync {}
 
-impl<T> ResourceLoadError for T where T: 'static + Display + Debug + Send + Sync {}
+impl<T> ResourceLoadError for T where T: 'static + Debug + Send + Sync {}
 
 pub struct ResourceStateGuard<'a, T>
 where
-    T: ResourceData,
+    T: ResourceData + TypeUuidProvider,
 {
     guard: MutexGuard<'a, ResourceState>,
     phantom: PhantomData<T>,
@@ -73,12 +76,25 @@ where
 
 impl<'a, T> ResourceStateGuard<'a, T>
 where
-    T: ResourceData,
+    T: ResourceData + TypeUuidProvider,
 {
     pub fn get(&mut self) -> ResourceStateRef<'_, T> {
         match &*self.guard {
-            ResourceState::Pending { path, .. } => ResourceStateRef::Pending { path },
-            ResourceState::LoadError { path, error } => ResourceStateRef::LoadError { path, error },
+            ResourceState::Pending {
+                path, type_uuid, ..
+            } => ResourceStateRef::Pending {
+                path,
+                type_uuid: *type_uuid,
+            },
+            ResourceState::LoadError {
+                path,
+                error,
+                type_uuid,
+            } => ResourceStateRef::LoadError {
+                path,
+                error,
+                type_uuid: *type_uuid,
+            },
             ResourceState::Ok(data) => {
                 ResourceStateRef::Ok(data.as_any().downcast_ref().expect("Type mismatch!"))
             }
@@ -87,10 +103,21 @@ where
 
     pub fn get_mut(&mut self) -> ResourceStateRefMut<'_, T> {
         match &mut *self.guard {
-            ResourceState::Pending { path, .. } => ResourceStateRefMut::Pending { path },
-            ResourceState::LoadError { path, error } => {
-                ResourceStateRefMut::LoadError { path, error }
-            }
+            ResourceState::Pending {
+                path, type_uuid, ..
+            } => ResourceStateRefMut::Pending {
+                path,
+                type_uuid: *type_uuid,
+            },
+            ResourceState::LoadError {
+                path,
+                error,
+                type_uuid,
+            } => ResourceStateRefMut::LoadError {
+                path,
+                error,
+                type_uuid: *type_uuid,
+            },
             ResourceState::Ok(data) => {
                 ResourceStateRefMut::Ok(data.as_any_mut().downcast_mut().expect("Type mismatch!"))
             }
@@ -107,6 +134,7 @@ where
     Pending {
         /// A path to load resource from.
         path: &'a PathBuf,
+        type_uuid: Uuid,
     },
     /// An error has occurred during the load.
     LoadError {
@@ -114,6 +142,7 @@ where
         path: &'a PathBuf,
         /// An error.
         error: &'a Option<Arc<dyn ResourceLoadError>>,
+        type_uuid: Uuid,
     },
     /// Actual resource data when it is fully loaded.
     Ok(&'a T),
@@ -125,6 +154,7 @@ pub enum ResourceStateRefMut<'a, T> {
     Pending {
         /// A path to load resource from.
         path: &'a mut PathBuf,
+        type_uuid: Uuid,
     },
     /// An error has occurred during the load.
     LoadError {
@@ -132,6 +162,7 @@ pub enum ResourceStateRefMut<'a, T> {
         path: &'a mut PathBuf,
         /// An error.
         error: &'a mut Option<Arc<dyn ResourceLoadError>>,
+        type_uuid: Uuid,
     },
     /// Actual resource data when it is fully loaded.
     Ok(&'a mut T),
@@ -142,27 +173,86 @@ impl Default for ResourceState {
         Self::LoadError {
             error: None,
             path: Default::default(),
+            type_uuid: Default::default(),
         }
     }
 }
 
-#[derive(Visit, PartialEq, Eq, Hash, Debug)]
+#[derive(Debug, Reflect)]
+#[reflect(hide_all)]
 pub struct Resource<T>
 where
-    T: ResourceData,
+    T: ResourceData + TypeUuidProvider,
 {
     state: Option<UntypedResource>,
-    #[visit(skip)]
     phantom: PhantomData<T>,
+}
+
+impl<T> Visit for Resource<T>
+where
+    T: ResourceData + TypeUuidProvider,
+{
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+
+        self.state.visit("State", &mut region)?;
+
+        if region.is_reading() {
+            // Try to restore the shallow handle.
+            let resource_manager = region
+                .blackboard
+                .get::<ResourceManager>()
+                .expect("Resource manager must be available when deserializing resources!");
+
+            let path = self.state.as_ref().unwrap().path();
+
+            // Procedural resources usually have path empty or use it as an id, in this case we need to
+            // check if the file actually exists to not mess up procedural resources.
+            if path.exists() {
+                self.state = Some(
+                    resource_manager.request_untyped(path, <T as TypeUuidProvider>::type_uuid()),
+                );
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl<T> PartialEq for Resource<T>
+where
+    T: ResourceData + TypeUuidProvider,
+{
+    fn eq(&self, other: &Self) -> bool {
+        match (&self.state, &other.state) {
+            (Some(a), Some(b)) => a == b,
+            (None, None) => true,
+            _ => false,
+        }
+    }
+}
+
+impl<T> Eq for Resource<T> where T: ResourceData + TypeUuidProvider {}
+
+impl<T> Hash for Resource<T>
+where
+    T: ResourceData + TypeUuidProvider,
+{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.state.hash(state)
+    }
 }
 
 impl<T> Resource<T>
 where
-    T: ResourceData,
+    T: ResourceData + TypeUuidProvider,
 {
     pub fn new_pending(path: PathBuf) -> Self {
         Self {
-            state: Some(UntypedResource::new_pending(path)),
+            state: Some(UntypedResource::new_pending(
+                path,
+                <T as TypeUuidProvider>::type_uuid(),
+            )),
             phantom: PhantomData,
         }
     }
@@ -176,7 +266,11 @@ where
 
     pub fn new_load_error(path: PathBuf, error: Option<Arc<dyn ResourceLoadError>>) -> Self {
         Self {
-            state: Some(UntypedResource::new_load_error(path, error)),
+            state: Some(UntypedResource::new_load_error(
+                path,
+                error,
+                <T as TypeUuidProvider>::type_uuid(),
+            )),
             phantom: PhantomData,
         }
     }
@@ -230,6 +324,10 @@ where
         self.state.as_ref().unwrap().key()
     }
 
+    pub fn path(&self) -> PathBuf {
+        self.state.as_ref().unwrap().0.lock().path().to_path_buf()
+    }
+
     /// Allows you to obtain reference to the resource data.
     ///
     /// # Panic
@@ -250,7 +348,7 @@ where
 
 impl<T> Default for Resource<T>
 where
-    T: ResourceData,
+    T: ResourceData + TypeUuidProvider,
 {
     #[inline]
     fn default() -> Self {
@@ -263,7 +361,7 @@ where
 
 impl<T> Clone for Resource<T>
 where
-    T: ResourceData,
+    T: ResourceData + TypeUuidProvider,
 {
     #[inline]
     fn clone(&self) -> Self {
@@ -276,7 +374,7 @@ where
 
 impl<T> From<UntypedResource> for Resource<T>
 where
-    T: ResourceData,
+    T: ResourceData + TypeUuidProvider,
 {
     #[inline]
     fn from(state: UntypedResource) -> Self {
@@ -290,7 +388,7 @@ where
 #[allow(clippy::from_over_into)]
 impl<T> Into<UntypedResource> for Resource<T>
 where
-    T: ResourceData,
+    T: ResourceData + TypeUuidProvider,
 {
     #[inline]
     fn into(self) -> UntypedResource {
@@ -300,12 +398,12 @@ where
 
 impl<T> Future for Resource<T>
 where
-    T: ResourceData,
+    T: ResourceData + TypeUuidProvider,
 {
     type Output = Result<Self, Option<Arc<dyn ResourceLoadError>>>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let inner = self.state.as_ref().unwrap().clone();
+        let mut inner = self.state.as_ref().unwrap().clone();
         std::pin::Pin::new(&mut inner)
             .poll(cx)
             .map(|r| r.map(|_| self.clone()))
@@ -315,7 +413,7 @@ where
 #[doc(hidden)]
 pub struct ResourceDataRef<'a, T>
 where
-    T: ResourceData,
+    T: ResourceData + TypeUuidProvider,
 {
     guard: MutexGuard<'a, ResourceState>,
     phantom: PhantomData<T>,
@@ -323,7 +421,7 @@ where
 
 impl<'a, T> Debug for ResourceDataRef<'a, T>
 where
-    T: ResourceData,
+    T: ResourceData + TypeUuidProvider,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match *self.guard {
@@ -348,7 +446,7 @@ where
 
 impl<'a, T> Deref for ResourceDataRef<'a, T>
 where
-    T: ResourceData,
+    T: ResourceData + TypeUuidProvider,
 {
     type Target = T;
 
@@ -373,7 +471,7 @@ where
 
 impl<'a, T> DerefMut for ResourceDataRef<'a, T>
 where
-    T: ResourceData,
+    T: ResourceData + TypeUuidProvider,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match *self.guard {
@@ -394,54 +492,4 @@ where
             }
         }
     }
-}
-
-/// Defines a new resource type via new-type wrapper.
-#[macro_export]
-macro_rules! define_new_resource {
-    ($(#[$meta:meta])* $name:ident<$state:ty>) => {
-        $(#[$meta])*
-        #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
-        #[repr(transparent)]
-        pub struct $name(pub Resource<$state>);
-
-        impl Visit for $name {
-            fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-                self.0.visit(name, visitor)
-            }
-        }
-
-        impl From<Resource<$state>> for $name {
-            fn from(resource: Resource<$state>) -> Self {
-                $name(resource)
-            }
-        }
-
-        impl std::ops::Deref for $name {
-            type Target = Resource<$state>;
-
-            fn deref(&self) -> &Self::Target {
-                &self.0
-            }
-        }
-
-        impl std::ops::DerefMut for $name {
-            fn deref_mut(&mut self) -> &mut Self::Target {
-                &mut self.0
-            }
-        }
-
-        impl std::future::Future for $name {
-            type Output = Result<Self, Option<std::sync::Arc<dyn $crate::ResourceLoadError>>>;
-
-            fn poll(
-                mut self: std::pin::Pin<&mut Self>,
-                cx: &mut std::task::Context<'_>,
-            ) -> std::task::Poll<Self::Output> {
-                std::pin::Pin::new(&mut self.0)
-                    .poll(cx)
-                    .map(|r| r.map(|_| self.clone()))
-            }
-        }
-    };
 }

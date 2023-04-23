@@ -7,23 +7,27 @@ use crate::{
         options::try_get_import_settings,
     },
     core::instant,
-    resource::texture::{Texture, TextureData, TextureImportOptions},
+    resource::texture::{Texture, TextureImportOptions},
     utils::log::Log,
 };
+use fyrox_resource::untyped::UntypedResource;
 
 /// Default implementation for texture loading.
-pub struct TextureLoader;
+pub struct TextureLoader {
+    pub default_import_options: TextureImportOptions,
+}
 
-impl ResourceLoader<Texture, TextureImportOptions> for TextureLoader {
+impl ResourceLoader for TextureLoader {
     fn load(
         &self,
-        texture: Texture,
-        default_import_options: TextureImportOptions,
-        event_broadcaster: ResourceEventBroadcaster<Texture>,
+        texture: UntypedResource,
+        event_broadcaster: ResourceEventBroadcaster,
         reload: bool,
     ) -> BoxedLoaderFuture {
+        let default_import_options = self.default_import_options.clone();
+
         Box::pin(async move {
-            let path = texture.state().path().to_path_buf();
+            let path = texture.path().to_path_buf();
 
             let import_options = try_get_import_settings(&path)
                 .await
@@ -32,8 +36,7 @@ impl ResourceLoader<Texture, TextureImportOptions> for TextureLoader {
             let gen_mip_maps = import_options.minification_filter.is_using_mip_mapping();
 
             let time = instant::Instant::now();
-            match TextureData::load_from_file(&path, import_options.compression, gen_mip_maps).await
-            {
+            match Texture::load_from_file(&path, import_options.compression, gen_mip_maps).await {
                 Ok(mut raw_texture) => {
                     Log::info(format!(
                         "Texture {:?} is loaded in {:?}!",
@@ -47,7 +50,7 @@ impl ResourceLoader<Texture, TextureImportOptions> for TextureLoader {
                     raw_texture.set_s_wrap_mode(import_options.s_wrap_mode);
                     raw_texture.set_t_wrap_mode(import_options.t_wrap_mode);
 
-                    texture.state().commit_ok(raw_texture);
+                    texture.0.lock().commit_ok(raw_texture);
 
                     event_broadcaster.broadcast_loaded_or_reloaded(texture, reload);
                 }
@@ -57,7 +60,7 @@ impl ResourceLoader<Texture, TextureImportOptions> for TextureLoader {
                         &path, &error
                     ));
 
-                    texture.state().commit_error(path, error);
+                    texture.0.lock().commit_error(path, error);
                 }
             }
         })

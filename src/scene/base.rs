@@ -13,7 +13,7 @@ use crate::{
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     engine::SerializationContext,
-    resource::model::Model,
+    resource::model::ModelResource,
     scene::{node::Node, transform::Transform},
     script::{Script, ScriptTrait},
     utils::log::Log,
@@ -382,7 +382,7 @@ pub struct Base {
     // A resource from which this node was instantiated from, can work in pair
     // with `original` handle to get corresponding node from resource.
     #[reflect(read_only)]
-    pub(crate) resource: Option<Model>,
+    pub(crate) resource: Option<ModelResource>,
 
     // Handle to node in scene of model resource from which this node
     // was instantiated from.
@@ -540,7 +540,7 @@ impl Base {
 
     /// Returns resource from which this node was instantiated from.
     #[inline]
-    pub fn resource(&self) -> Option<Model> {
+    pub fn resource(&self) -> Option<ModelResource> {
         self.resource.clone()
     }
 
@@ -866,10 +866,9 @@ fn visit_opt_script(name: &str, script: &mut Option<Script>, visitor: &mut Visit
             None
         } else {
             let serialization_context = region
-                .environment
-                .as_ref()
-                .and_then(|e| e.downcast_ref::<SerializationContext>())
-                .expect("Visitor environment must contain serialization context!");
+                .blackboard
+                .get::<SerializationContext>()
+                .expect("Visitor blackboard must contain serialization context!");
 
             Some(
                 serialization_context

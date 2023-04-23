@@ -20,7 +20,7 @@
 
 use crate::{
     animation::Animation,
-    asset::{define_new_resource, Resource, ResourceData},
+    asset::{manager::ResourceManager, options::ImportOptions, Resource, ResourceData},
     core::{
         algebra::{UnitQuaternion, Vector3},
         pool::Handle,
@@ -28,10 +28,7 @@ use crate::{
         variable::reset_inheritable_properties,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
-    engine::{
-        resource_manager::{options::ImportOptions, ResourceManager},
-        SerializationContext,
-    },
+    engine::SerializationContext,
     resource::fbx::{self, error::FbxError},
     scene::{
         animation::AnimationPlayer,
@@ -41,7 +38,11 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
+use fyrox_core::uuid::Uuid;
+use fyrox_core::TypeUuidProvider;
+use fyrox_resource::MODEL_RESOURCE_UUID;
 use serde::{Deserialize, Serialize};
+use std::any::Any;
 use std::{
     borrow::Cow,
     fmt::{Display, Formatter},
@@ -59,7 +60,7 @@ pub(crate) enum NodeMapping {
 
 /// See module docs.
 #[derive(Debug, Visit)]
-pub struct ModelData {
+pub struct Model {
     pub(crate) path: PathBuf,
     #[visit(skip)]
     pub(crate) mapping: NodeMapping,
@@ -67,17 +68,47 @@ pub struct ModelData {
     scene: Scene,
 }
 
-define_new_resource!(
-    /// See module docs.
-    #[derive(Reflect)]
-    #[reflect(hide_all)]
-    Model<ModelData>
-);
+impl TypeUuidProvider for Model {
+    fn type_uuid() -> Uuid {
+        MODEL_RESOURCE_UUID
+    }
+}
 
-impl Model {
-    pub(crate) fn instantiate_from(
-        model: Self,
-        model_data: &ModelData,
+pub type ModelResource = Resource<Model>;
+
+pub trait ModelResourceExtension: Sized {
+    fn instantiate_from(
+        model: ModelResource,
+        model_data: &Model,
+        handle: Handle<Node>,
+        dest_graph: &mut Graph,
+    ) -> (Handle<Node>, NodeHandleMap);
+
+    fn instantiate(&self, dest_scene: &mut Scene) -> Handle<Node>;
+
+    fn instantiate_at(
+        &self,
+        scene: &mut Scene,
+        position: Vector3<f32>,
+        orientation: UnitQuaternion<f32>,
+    ) -> Handle<Node>;
+
+    fn retarget_animations_directly(&self, root: Handle<Node>, graph: &Graph) -> Vec<Animation>;
+
+    fn retarget_animations_to_player(
+        &self,
+        root: Handle<Node>,
+        dest_animation_player: Handle<Node>,
+        graph: &mut Graph,
+    ) -> Vec<Handle<Animation>>;
+
+    fn retarget_animations(&self, root: Handle<Node>, graph: &mut Graph) -> Vec<Handle<Animation>>;
+}
+
+impl ModelResourceExtension for ModelResource {
+    fn instantiate_from(
+        model: ModelResource,
+        model_data: &Model,
         handle: Handle<Node>,
         dest_graph: &mut Graph,
     ) -> (Handle<Node>, NodeHandleMap) {
@@ -115,7 +146,7 @@ impl Model {
     }
 
     /// Tries to instantiate model from given resource.
-    pub fn instantiate(&self, dest_scene: &mut Scene) -> Handle<Node> {
+    fn instantiate(&self, dest_scene: &mut Scene) -> Handle<Node> {
         let data = self.data_ref();
 
         let instance_root = Self::instantiate_from(
@@ -133,7 +164,7 @@ impl Model {
     }
 
     /// Instantiates a prefab and places it at specified position and orientation in global coordinates.
-    pub fn instantiate_at(
+    fn instantiate_at(
         &self,
         scene: &mut Scene,
         position: Vector3<f32>,
@@ -172,11 +203,7 @@ impl Model {
     ///
     /// Most of the 3d model formats can contain only one animation, so in most cases
     /// this function will return vector with only one animation.
-    pub fn retarget_animations_directly(
-        &self,
-        root: Handle<Node>,
-        graph: &Graph,
-    ) -> Vec<Animation> {
+    fn retarget_animations_directly(&self, root: Handle<Node>, graph: &Graph) -> Vec<Animation> {
         let mut retargetted_animations = Vec::new();
 
         let data = self.data_ref();
@@ -228,7 +255,7 @@ impl Model {
     ///
     /// Panics if `dest_animation_player` is invalid handle, or the node does not have [`AnimationPlayer`]
     /// component.
-    pub fn retarget_animations_to_player(
+    fn retarget_animations_to_player(
         &self,
         root: Handle<Node>,
         dest_animation_player: Handle<Node>,
@@ -256,11 +283,7 @@ impl Model {
     /// # Panic
     ///
     /// Panics if there's no animation player in the given hierarchy (descendant nodes of `root`).
-    pub fn retarget_animations(
-        &self,
-        root: Handle<Node>,
-        graph: &mut Graph,
-    ) -> Vec<Handle<Animation>> {
+    fn retarget_animations(&self, root: Handle<Node>, graph: &mut Graph) -> Vec<Handle<Animation>> {
         if let Some((animation_player, _)) = graph.find(root, &mut |n| {
             n.query_component_ref::<AnimationPlayer>().is_some()
         }) {
@@ -271,7 +294,7 @@ impl Model {
     }
 }
 
-impl ResourceData for ModelData {
+impl ResourceData for Model {
     fn path(&self) -> Cow<Path> {
         Cow::Borrowed(&self.path)
     }
@@ -279,9 +302,21 @@ impl ResourceData for ModelData {
     fn set_path(&mut self, path: PathBuf) {
         self.path = path;
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn type_uuid(&self) -> Uuid {
+        <Self as TypeUuidProvider>::type_uuid()
+    }
 }
 
-impl Default for ModelData {
+impl Default for Model {
     fn default() -> Self {
         Self {
             path: PathBuf::new(),
@@ -426,7 +461,7 @@ impl From<VisitError> for ModelLoadError {
     }
 }
 
-impl ModelData {
+impl Model {
     pub(crate) async fn load<P: AsRef<Path>>(
         path: P,
         serialization_context: Arc<SerializationContext>,

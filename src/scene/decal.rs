@@ -11,12 +11,13 @@ use crate::{
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
+        TypeUuidProvider,
     },
-    resource::texture::Texture,
+    resource::texture::TextureResource,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::{Node, NodeTrait, TypeUuidProvider},
+        node::{Node, NodeTrait},
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -86,10 +87,10 @@ pub struct Decal {
     base: Base,
 
     #[reflect(setter = "set_diffuse_texture")]
-    diffuse_texture: InheritableVariable<Option<Texture>>,
+    diffuse_texture: InheritableVariable<Option<TextureResource>>,
 
     #[reflect(setter = "set_normal_texture")]
-    normal_texture: InheritableVariable<Option<Texture>>,
+    normal_texture: InheritableVariable<Option<TextureResource>>,
 
     #[reflect(setter = "set_color")]
     color: InheritableVariable<Color>,
@@ -121,7 +122,10 @@ impl TypeUuidProvider for Decal {
 
 impl Decal {
     /// Sets new diffuse texture.
-    pub fn set_diffuse_texture(&mut self, diffuse_texture: Option<Texture>) -> Option<Texture> {
+    pub fn set_diffuse_texture(
+        &mut self,
+        diffuse_texture: Option<TextureResource>,
+    ) -> Option<TextureResource> {
         std::mem::replace(
             self.diffuse_texture.get_value_mut_and_mark_modified(),
             diffuse_texture,
@@ -129,17 +133,20 @@ impl Decal {
     }
 
     /// Returns current diffuse texture.
-    pub fn diffuse_texture(&self) -> Option<&Texture> {
+    pub fn diffuse_texture(&self) -> Option<&TextureResource> {
         self.diffuse_texture.as_ref()
     }
 
     /// Returns current diffuse texture.
-    pub fn diffuse_texture_value(&self) -> Option<Texture> {
+    pub fn diffuse_texture_value(&self) -> Option<TextureResource> {
         (*self.diffuse_texture).clone()
     }
 
     /// Sets new normal texture.
-    pub fn set_normal_texture(&mut self, normal_texture: Option<Texture>) -> Option<Texture> {
+    pub fn set_normal_texture(
+        &mut self,
+        normal_texture: Option<TextureResource>,
+    ) -> Option<TextureResource> {
         std::mem::replace(
             self.normal_texture.get_value_mut_and_mark_modified(),
             normal_texture,
@@ -147,12 +154,12 @@ impl Decal {
     }
 
     /// Returns current normal texture.
-    pub fn normal_texture(&self) -> Option<&Texture> {
+    pub fn normal_texture(&self) -> Option<&TextureResource> {
         self.normal_texture.as_ref()
     }
 
     /// Returns current normal texture.
-    pub fn normal_texture_value(&self) -> Option<Texture> {
+    pub fn normal_texture_value(&self) -> Option<TextureResource> {
         (*self.normal_texture).clone()
     }
 
@@ -204,8 +211,8 @@ impl NodeTrait for Decal {
 /// Allows you to create a Decal in a declarative manner.
 pub struct DecalBuilder {
     base_builder: BaseBuilder,
-    diffuse_texture: Option<Texture>,
-    normal_texture: Option<Texture>,
+    diffuse_texture: Option<TextureResource>,
+    normal_texture: Option<TextureResource>,
     color: Color,
     layer: u8,
 }
@@ -223,13 +230,13 @@ impl DecalBuilder {
     }
 
     /// Sets desired diffuse texture.
-    pub fn with_diffuse_texture(mut self, diffuse_texture: Texture) -> Self {
+    pub fn with_diffuse_texture(mut self, diffuse_texture: TextureResource) -> Self {
         self.diffuse_texture = Some(diffuse_texture);
         self
     }
 
     /// Sets desired normal texture.
-    pub fn with_normal_texture(mut self, normal_texture: Texture) -> Self {
+    pub fn with_normal_texture(mut self, normal_texture: TextureResource) -> Self {
         self.normal_texture = Some(normal_texture);
         self
     }

@@ -1,9 +1,10 @@
-use crate::{state::ResourceState, ResourceData, ResourceLoadError};
-use fyrox_core::{parking_lot::Mutex, visitor::prelude::*};
+use crate::{state::ResourceState, Resource, ResourceData, ResourceLoadError};
+use fyrox_core::{parking_lot::Mutex, uuid::Uuid, visitor::prelude::*, TypeUuidProvider};
 use std::{
     fmt::{Debug, Formatter},
     future::Future,
     hash::{Hash, Hasher},
+    marker::PhantomData,
     path::PathBuf,
     pin::Pin,
     sync::Arc,
@@ -23,6 +24,7 @@ impl Visit for UntypedResource {
 impl Default for UntypedResource {
     fn default() -> Self {
         Self(Arc::new(Mutex::new(ResourceState::new_pending(
+            Default::default(),
             Default::default(),
         ))))
     }
@@ -49,18 +51,28 @@ impl Hash for UntypedResource {
 }
 
 impl UntypedResource {
-    pub fn new_pending(path: PathBuf) -> Self {
-        Self(Arc::new(Mutex::new(ResourceState::new_pending(path))))
+    pub fn new_pending(path: PathBuf, type_uuid: Uuid) -> Self {
+        Self(Arc::new(Mutex::new(ResourceState::new_pending(
+            path, type_uuid,
+        ))))
     }
 
     pub fn new_ok<T: ResourceData>(data: T) -> Self {
         Self(Arc::new(Mutex::new(ResourceState::new_ok(data))))
     }
 
-    pub fn new_load_error(path: PathBuf, error: Option<Arc<dyn ResourceLoadError>>) -> Self {
+    pub fn new_load_error(
+        path: PathBuf,
+        error: Option<Arc<dyn ResourceLoadError>>,
+        type_uuid: Uuid,
+    ) -> Self {
         Self(Arc::new(Mutex::new(ResourceState::new_load_error(
-            path, error,
+            path, error, type_uuid,
         ))))
+    }
+
+    pub fn type_uuid(&self) -> Uuid {
+        self.0.lock().type_uuid()
     }
 
     /// Returns true if the resource is still loading.
@@ -79,6 +91,28 @@ impl UntypedResource {
     pub fn key(&self) -> usize {
         (&*self.0 as *const _) as usize
     }
+
+    pub fn path(&self) -> PathBuf {
+        match &*self.0.lock() {
+            ResourceState::Pending { path, .. } => path.clone(),
+            ResourceState::LoadError { path, .. } => path.clone(),
+            ResourceState::Ok(data) => data.path().to_path_buf(),
+        }
+    }
+
+    pub fn try_cast<T>(&self) -> Option<Resource<T>>
+    where
+        T: ResourceData + TypeUuidProvider,
+    {
+        if self.type_uuid() == <T as TypeUuidProvider>::type_uuid() {
+            Some(Resource {
+                state: Some(self.clone()),
+                phantom: PhantomData::<T>,
+            })
+        } else {
+            None
+        }
+    }
 }
 
 impl Future for UntypedResource {
@@ -86,7 +120,8 @@ impl Future for UntypedResource {
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let state = self.0.clone();
-        match *state.lock() {
+        let mut guard = state.lock();
+        match *guard {
             ResourceState::Pending { ref mut wakers, .. } => {
                 // Collect wakers, so we'll be able to wake task when worker thread finish loading.
                 let cx_waker = cx.waker();

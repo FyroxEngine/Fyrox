@@ -15,12 +15,13 @@ use crate::{
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
+        TypeUuidProvider,
     },
     scene::{
         base::Base,
         graph::Graph,
         light::{BaseLight, BaseLightBuilder},
-        node::{Node, NodeTrait, TypeUuidProvider},
+        node::{Node, NodeTrait},
     },
 };
 use std::ops::{Deref, DerefMut};

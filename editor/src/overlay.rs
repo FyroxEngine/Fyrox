@@ -11,7 +11,7 @@ use fyrox::{
         },
         RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
     },
-    resource::texture::{CompressionOptions, Texture},
+    resource::texture::{CompressionOptions, TextureResource},
     scene::mesh::surface::SurfaceData,
 };
 use std::{cell::RefCell, rc::Rc};
@@ -51,8 +51,8 @@ impl OverlayShader {
 pub struct OverlayRenderPass {
     quad: GeometryBuffer,
     shader: OverlayShader,
-    sound_icon: Texture,
-    light_icon: Texture,
+    sound_icon: TextureResource,
+    light_icon: TextureResource,
     pub pictogram_size: f32,
 }
 
@@ -65,13 +65,13 @@ impl OverlayRenderPass {
                 state,
             ),
             shader: OverlayShader::new(state).unwrap(),
-            sound_icon: Texture::load_from_memory(
+            sound_icon: TextureResource::load_from_memory(
                 include_bytes!("../resources/embed/sound_source.png"),
                 CompressionOptions::NoCompression,
                 false,
             )
             .unwrap(),
-            light_icon: Texture::load_from_memory(
+            light_icon: TextureResource::load_from_memory(
                 include_bytes!("../resources/embed/light_source.png"),
                 CompressionOptions::NoCompression,
                 false,

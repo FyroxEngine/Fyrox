@@ -8,9 +8,10 @@ use crate::{
         options::try_get_import_settings,
     },
     engine::SerializationContext,
-    resource::model::{Model, ModelData, ModelImportOptions},
+    resource::model::{Model, ModelImportOptions},
     utils::log::Log,
 };
+use fyrox_resource::untyped::UntypedResource;
 use std::sync::Arc;
 
 /// Default implementation for model loading.
@@ -20,32 +21,32 @@ pub struct ModelLoader {
     /// Node constructors contains a set of constructors that allows to build a node using its
     /// type UUID.
     pub serialization_context: Arc<SerializationContext>,
+    pub default_import_options: ModelImportOptions,
 }
 
-impl ResourceLoader<Model, ModelImportOptions> for ModelLoader {
+impl ResourceLoader for ModelLoader {
     fn load(
         &self,
-        model: Model,
-        default_import_options: ModelImportOptions,
-        event_broadcaster: ResourceEventBroadcaster<Model>,
+        model: UntypedResource,
+        event_broadcaster: ResourceEventBroadcaster,
         reload: bool,
     ) -> BoxedLoaderFuture {
         let resource_manager = self.resource_manager.clone();
         let node_constructors = self.serialization_context.clone();
+        let default_import_options = self.default_import_options.clone();
 
         Box::pin(async move {
-            let path = model.state().path().to_path_buf();
+            let path = model.path().to_path_buf();
 
             let import_options = try_get_import_settings(&path)
                 .await
                 .unwrap_or(default_import_options);
 
-            match ModelData::load(&path, node_constructors, resource_manager, import_options).await
-            {
+            match Model::load(&path, node_constructors, resource_manager, import_options).await {
                 Ok(raw_model) => {
                     Log::info(format!("Model {:?} is loaded!", path));
 
-                    model.state().commit_ok(raw_model);
+                    model.0.lock().commit_ok(raw_model);
 
                     event_broadcaster.broadcast_loaded_or_reloaded(model, reload);
                 }
@@ -55,7 +56,7 @@ impl ResourceLoader<Model, ModelImportOptions> for ModelLoader {
                         path, error
                     ));
 
-                    model.state().commit_error(path, error);
+                    model.0.lock().commit_error(path, error);
                 }
             }
         })

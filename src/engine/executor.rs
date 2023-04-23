@@ -1,10 +1,10 @@
 //! Executor is a small wrapper that manages plugins and scripts for your game.
 
 use crate::{
+    asset::manager::ResourceManager,
     core::instant::Instant,
     engine::{
-        resource_manager::ResourceManager, Engine, EngineInitParams, GraphicsContext,
-        GraphicsContextParams, SerializationContext,
+        Engine, EngineInitParams, GraphicsContext, GraphicsContextParams, SerializationContext,
     },
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -71,7 +71,7 @@ impl Executor {
         let serialization_context = Arc::new(SerializationContext::new());
         let engine = Engine::new(EngineInitParams {
             graphics_context_params,
-            resource_manager: ResourceManager::new(serialization_context.clone()),
+            resource_manager: ResourceManager::new(),
             serialization_context,
         })
         .unwrap();

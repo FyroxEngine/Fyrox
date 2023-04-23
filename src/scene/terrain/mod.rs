@@ -1,5 +1,6 @@
 //! Everything related to terrains.
 
+use crate::resource::texture::TextureResourceExtension;
 use crate::{
     asset::Resource,
     core::{
@@ -12,6 +13,7 @@ use crate::{
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::{prelude::*, PodVecView},
+        TypeUuidProvider,
     },
     material::{Material, PropertyValue, SharedMaterial},
     renderer::{
@@ -19,13 +21,13 @@ use crate::{
         batch::{RenderContext, SurfaceInstanceData},
         framework::geometry_buffer::ElementRange,
     },
-    resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind, TextureWrapMode},
+    resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource, TextureWrapMode},
     scene::{
         base::{Base, BaseBuilder},
         debug::SceneDrawingContext,
         graph::Graph,
         mesh::RenderPath,
-        node::{Node, NodeTrait, TypeUuidProvider},
+        node::{Node, NodeTrait},
         terrain::{geometry::TerrainGeometry, quadtree::QuadTree},
     },
     utils::{self, log::Log},
@@ -77,7 +79,7 @@ impl Default for Layer {
 }
 
 fn make_quad_tree(
-    texture: &Option<Texture>,
+    texture: &Option<TextureResource>,
     height_map_size: Vector2<u32>,
     block_size: Vector2<u32>,
 ) -> QuadTree {
@@ -86,8 +88,8 @@ fn make_quad_tree(
     QuadTree::new(height_map, height_map_size, block_size)
 }
 
-fn make_height_map_texture(height_map: Vec<f32>, size: Vector2<u32>) -> Texture {
-    let mut data = TextureData::from_bytes(
+fn make_height_map_texture(height_map: Vec<f32>, size: Vector2<u32>) -> TextureResource {
+    let mut data = Texture::from_bytes(
         TextureKind::Rectangle {
             width: size.x,
             height: size.y,
@@ -101,7 +103,7 @@ fn make_height_map_texture(height_map: Vec<f32>, size: Vector2<u32>) -> Texture 
     data.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
     data.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
 
-    Texture(Resource::new_ok(data))
+    Resource::new_ok(data)
 }
 
 /// Chunk is smaller block of a terrain. Terrain can have as many chunks as you need.
@@ -116,7 +118,7 @@ pub struct Chunk {
     #[reflect(hidden)]
     version: u8,
     #[reflect(hidden)]
-    heightmap: Option<Texture>,
+    heightmap: Option<TextureResource>,
     #[reflect(hidden)]
     position: Vector3<f32>,
     #[reflect(hidden)]
@@ -129,7 +131,7 @@ pub struct Chunk {
     grid_position: Vector2<i32>,
     /// Layer blending masks of the chunk.
     #[reflect(hidden)]
-    pub layer_masks: Vec<Texture>,
+    pub layer_masks: Vec<TextureResource>,
 }
 
 impl Clone for Chunk {
@@ -237,7 +239,7 @@ impl Chunk {
     }
 
     /// Returns a reference to height map.
-    pub fn heightmap(&self) -> &Texture {
+    pub fn heightmap(&self) -> &TextureResource {
         self.heightmap.as_ref().unwrap()
     }
 
@@ -253,7 +255,7 @@ impl Chunk {
     }
 
     /// Sets new height map. New height map must be equal with size of current.
-    pub fn set_heightmap(&mut self, heightmap: Texture) -> Result<(), Texture> {
+    pub fn set_heightmap(&mut self, heightmap: TextureResource) -> Result<(), TextureResource> {
         let data = heightmap.data_ref();
         if let TextureKind::Rectangle { width, height } = data.kind() {
             if data.pixel_kind() == TexturePixelKind::R32F
@@ -405,7 +407,7 @@ impl Default for Terrain {
 struct OldLayer {
     pub material: SharedMaterial,
     pub mask_property_name: String,
-    pub chunk_masks: Vec<Texture>,
+    pub chunk_masks: Vec<TextureResource>,
 }
 
 impl Default for OldLayer {
@@ -964,12 +966,12 @@ impl Terrain {
     /// Adds new layer to the chunk. It is possible to have different layer count per chunk
     /// in the same terrain, however it seems to not have practical usage, so try to keep
     /// equal layer count per each chunk in your terrains.
-    pub fn add_layer(&mut self, layer: Layer, masks: Vec<Texture>) {
+    pub fn add_layer(&mut self, layer: Layer, masks: Vec<TextureResource>) {
         self.insert_layer(layer, masks, self.layers.len())
     }
 
     /// Removes a layer at the given index together with its respective blending masks from each chunk.
-    pub fn remove_layer(&mut self, layer_index: usize) -> (Layer, Vec<Texture>) {
+    pub fn remove_layer(&mut self, layer_index: usize) -> (Layer, Vec<TextureResource>) {
         let layer = self
             .layers
             .get_value_mut_and_mark_modified()
@@ -982,7 +984,7 @@ impl Terrain {
     }
 
     /// Removes last terrain layer together with its respective blending masks from each chunk.
-    pub fn pop_layer(&mut self) -> Option<(Layer, Vec<Texture>)> {
+    pub fn pop_layer(&mut self) -> Option<(Layer, Vec<TextureResource>)> {
         if self.layers.is_empty() {
             None
         } else {
@@ -991,7 +993,7 @@ impl Terrain {
     }
 
     /// Inserts the layer at the given index together with its blending masks for each chunk.
-    pub fn insert_layer(&mut self, layer: Layer, mut masks: Vec<Texture>, index: usize) {
+    pub fn insert_layer(&mut self, layer: Layer, mut masks: Vec<TextureResource>, index: usize) {
         self.layers
             .get_value_mut_and_mark_modified()
             .insert(index, layer);
@@ -1034,7 +1036,7 @@ impl Terrain {
                 );
 
                 let new_mask = resampled_mask_image.into_raw();
-                let new_mask_texture = Texture::from_bytes(
+                let new_mask_texture = TextureResource::from_bytes(
                     TextureKind::Rectangle {
                         width: new_size.x,
                         height: new_size.y,
@@ -1374,8 +1376,8 @@ pub struct TerrainBuilder {
     decal_layer_index: u8,
 }
 
-fn create_layer_mask(width: u32, height: u32, value: u8) -> Texture {
-    let mask = Texture::from_bytes(
+fn create_layer_mask(width: u32, height: u32, value: u8) -> TextureResource {
+    let mask = TextureResource::from_bytes(
         TextureKind::Rectangle { width, height },
         TexturePixelKind::R8,
         vec![value; (width * height) as usize],

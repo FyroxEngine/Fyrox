@@ -4,7 +4,10 @@
 
 #![warn(missing_docs)]
 
+use crate::material::shader::ShaderResourceExtension;
+use crate::resource::texture::Texture;
 use crate::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,
@@ -13,9 +16,8 @@ use crate::{
         sstorage::ImmutableString,
         visitor::prelude::*,
     },
-    engine::resource_manager::ResourceManager,
-    material::shader::{PropertyKind, SamplerFallback, Shader},
-    resource::texture::Texture,
+    material::shader::{PropertyKind, SamplerFallback, ShaderResource},
+    resource::texture::TextureResource,
 };
 use fxhash::FxHashMap;
 use std::{
@@ -118,7 +120,7 @@ pub enum PropertyValue {
     /// missing by very specific value in the fallback texture.
     Sampler {
         /// Actual value of the sampler. Could be [`None`], in this case `fallback` will be used.
-        value: Option<Texture>,
+        value: Option<TextureResource>,
 
         /// Sampler fallback value.
         fallback: SamplerFallback,
@@ -234,7 +236,7 @@ impl PropertyValue {
     );
 
     /// Tries to unwrap property value as texture.
-    pub fn as_sampler(&self) -> Option<Texture> {
+    pub fn as_sampler(&self) -> Option<TextureResource> {
         if let PropertyValue::Sampler { value, .. } = self {
             value.clone()
         } else {
@@ -286,7 +288,7 @@ impl Default for PropertyValue {
 ///
 /// ```no_run
 /// use fyrox::{
-///     material::shader::{Shader, SamplerFallback},
+///     material::shader::{ShaderResource, SamplerFallback},
 ///     engine::resource_manager::ResourceManager,
 ///     material::{Material, PropertyValue},
 ///     core::sstorage::ImmutableString,
@@ -345,7 +347,7 @@ impl Default for PropertyValue {
 /// material instance. Then we populate properties as usual.
 #[derive(Default, Debug, Visit, Clone, Reflect)]
 pub struct Material {
-    shader: Shader,
+    shader: ShaderResource,
     properties: FxHashMap<ImmutableString, PropertyValue>,
 }
 
@@ -398,7 +400,7 @@ impl Material {
     ///
     /// ```no_run
     /// use fyrox::{
-    ///     material::shader::{Shader, SamplerFallback},
+    ///     material::shader::{ShaderResource, SamplerFallback},
     ///     engine::resource_manager::ResourceManager,
     ///     material::{Material, PropertyValue},
     ///     core::sstorage::ImmutableString
@@ -419,12 +421,12 @@ impl Material {
     /// }
     /// ```
     pub fn standard() -> Self {
-        Self::from_shader(Shader::standard(), None)
+        Self::from_shader(ShaderResource::standard(), None)
     }
 
     /// Creates new instance of standard terrain material.
     pub fn standard_terrain() -> Self {
-        Self::from_shader(Shader::standard_terrain(), None)
+        Self::from_shader(ShaderResource::standard_terrain(), None)
     }
 
     /// Creates a new material instance with given shader. Each property will have default values
@@ -459,7 +461,7 @@ impl Material {
     ///     material
     /// }
     /// ```
-    pub fn from_shader(shader: Shader, resource_manager: Option<ResourceManager>) -> Self {
+    pub fn from_shader(shader: ShaderResource, resource_manager: Option<ResourceManager>) -> Self {
         let data = shader.data_ref();
 
         let mut property_values = FxHashMap::default();
@@ -483,7 +485,9 @@ impl Material {
                     fallback: usage,
                 } => PropertyValue::Sampler {
                     value: default.as_ref().and_then(|path| {
-                        resource_manager.clone().map(|rm| rm.request_texture(path))
+                        resource_manager
+                            .clone()
+                            .map(|rm| rm.request::<Texture, _>(path))
                     }),
                     fallback: *usage,
                 },
@@ -644,7 +648,7 @@ impl Material {
     }
 
     /// Returns a reference to current shader.
-    pub fn shader(&self) -> &Shader {
+    pub fn shader(&self) -> &ShaderResource {
         &self.shader
     }
 

@@ -1,7 +1,7 @@
 use crate::{
+    asset::container::entry::DEFAULT_RESOURCE_LIFETIME,
     core::{scope_profile, sparse::SparseBuffer, sstorage::ImmutableString},
-    engine::resource_manager::container::entry::DEFAULT_RESOURCE_LIFETIME,
-    material::shader::{Shader, ShaderState},
+    material::shader::{Shader, ShaderResource},
     renderer::{
         cache::CacheEntry,
         framework::{framebuffer::DrawParameters, gpu_program::GpuProgram, state::PipelineState},
@@ -21,7 +21,7 @@ pub struct ShaderSet {
 }
 
 impl ShaderSet {
-    pub fn new(state: &mut PipelineState, shader: &ShaderState) -> Option<Self> {
+    pub fn new(state: &mut PipelineState, shader: &Shader) -> Option<Self> {
         let mut map = FxHashMap::default();
         for render_pass in shader.definition.passes.iter() {
             let program_name = format!("{}_{}", shader.definition.name, render_pass.name);
@@ -63,8 +63,8 @@ pub struct ShaderCache {
 }
 
 impl ShaderCache {
-    pub fn remove(&mut self, shader: &Shader) {
-        let state = shader.state();
+    pub fn remove(&mut self, shader: &ShaderResource) {
+        let mut state = shader.state();
         if let ResourceStateRef::Ok(shader_state) = state.get() {
             self.buffer.free(&shader_state.cache_index);
         }
@@ -73,12 +73,12 @@ impl ShaderCache {
     pub fn get(
         &mut self,
         pipeline_state: &mut PipelineState,
-        shader: &Shader,
+        shader: &ShaderResource,
     ) -> Option<&ShaderSet> {
         scope_profile!();
 
         let key = shader.key();
-        let shader_state = shader.state();
+        let mut shader_state = shader.state();
 
         if let ResourceStateRef::Ok(shader_state) = shader_state.get() {
             if self.buffer.is_index_valid(&shader_state.cache_index) {

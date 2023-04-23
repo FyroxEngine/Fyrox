@@ -7,18 +7,19 @@ pub mod error;
 pub mod executor;
 pub mod resource_loaders;
 
+use crate::resource::model::Model;
 use crate::{
-    core::{algebra::Vector2, futures::executor::block_on, instant, pool::Handle},
-    engine::{
-        error::EngineError,
-        resource_manager::{container::event::ResourceEvent, ResourceManager, ResourceWaitContext},
+    asset::{
+        container::event::ResourceEvent, manager::ResourceManager, manager::ResourceWaitContext,
     },
+    core::{algebra::Vector2, futures::executor::block_on, instant, pool::Handle},
+    engine::error::EngineError,
     event::Event,
     event_loop::ControlFlow,
     gui::UserInterface,
     plugin::{Plugin, PluginConstructor, PluginContext, PluginRegistrationContext},
     renderer::{framework::error::FrameworkError, Renderer},
-    resource::{model::Model, texture::TextureKind},
+    resource::{model::ModelResource, texture::TextureKind},
     scene::{
         base::NodeScriptMessage,
         graph::GraphUpdateSwitches,
@@ -198,7 +199,7 @@ pub struct Engine {
 
     performance_statistics: PerformanceStatistics,
 
-    model_events_receiver: Receiver<ResourceEvent<Model>>,
+    model_events_receiver: Receiver<ResourceEvent>,
 
     #[allow(dead_code)] // Keep engine instance alive.
     sound_engine: SoundEngine,
@@ -605,26 +606,28 @@ impl ScriptProcessor {
 }
 
 struct ResourceGraphVertex {
-    resource: Model,
+    resource: ModelResource,
     children: Vec<ResourceGraphVertex>,
 }
 
 impl ResourceGraphVertex {
-    pub fn new(model: Model, resource_manager: ResourceManager) -> Self {
+    pub fn new(model: ModelResource, resource_manager: ResourceManager) -> Self {
         let mut children = Vec::new();
 
         // Look for dependent resources.
         let mut dependent_resources = HashSet::new();
-        for other_model in resource_manager.state().containers().models.iter() {
-            let state = other_model.state();
-            if let ResourceStateRef::Ok(model_data) = state.get() {
-                if model_data
-                    .get_scene()
-                    .graph
-                    .linear_iter()
-                    .any(|n| n.resource.as_ref().map_or(false, |r| r == &model))
-                {
-                    dependent_resources.insert(other_model.clone());
+        for resource in resource_manager.state().containers().resources.iter() {
+            if let Some(other_model) = resource.try_cast::<Model>() {
+                let mut state = other_model.state();
+                if let ResourceStateRef::Ok(model_data) = state.get() {
+                    if model_data
+                        .get_scene()
+                        .graph
+                        .linear_iter()
+                        .any(|n| n.resource.as_ref().map_or(false, |r| r == &model))
+                    {
+                        dependent_resources.insert(other_model.clone());
+                    }
                 }
             }
         }
@@ -644,7 +647,7 @@ impl ResourceGraphVertex {
     pub fn resolve(&self) {
         Log::info(format!(
             "Resolving {} resource from dependency graph...",
-            self.resource.state().path().display()
+            self.resource.path().display()
         ));
 
         // Wait until resource is fully loaded, then resolve.
@@ -663,7 +666,7 @@ struct ResourceDependencyGraph {
 }
 
 impl ResourceDependencyGraph {
-    pub fn new(model: Model, resource_manager: ResourceManager) -> Self {
+    pub fn new(model: ModelResource, resource_manager: ResourceManager) -> Self {
         Self {
             root: ResourceGraphVertex::new(model, resource_manager),
         }
@@ -828,7 +831,7 @@ impl Engine {
         resource_manager
             .state()
             .containers_mut()
-            .models
+            .resources
             .event_broadcaster
             .add(rx);
 
@@ -1362,22 +1365,24 @@ impl Engine {
     /// You should only call this manually if you don't use that method.
     pub fn handle_model_events(&mut self) {
         while let Ok(event) = self.model_events_receiver.try_recv() {
-            if let ResourceEvent::Reloaded(model) = event {
-                Log::info(format!(
-                    "A model resource {} was reloaded, propagating changes...",
-                    model.state().path().display()
-                ));
+            if let ResourceEvent::Reloaded(resource) = event {
+                if let Some(model) = resource.try_cast::<Model>() {
+                    Log::info(format!(
+                        "A model resource {} was reloaded, propagating changes...",
+                        model.path().display()
+                    ));
 
-                // Build resource dependency graph and resolve it first.
-                ResourceDependencyGraph::new(model, self.resource_manager.clone()).resolve();
+                    // Build resource dependency graph and resolve it first.
+                    ResourceDependencyGraph::new(model, self.resource_manager.clone()).resolve();
 
-                Log::info("Propagating changes to active scenes...");
+                    Log::info("Propagating changes to active scenes...");
 
-                // Resolve all scenes.
-                // TODO: This might be inefficient if there is bunch of scenes loaded,
-                // however this seems to be very rare case so it should be ok.
-                for scene in self.scenes.iter_mut() {
-                    scene.resolve();
+                    // Resolve all scenes.
+                    // TODO: This might be inefficient if there is bunch of scenes loaded,
+                    // however this seems to be very rare case so it should be ok.
+                    for scene in self.scenes.iter_mut() {
+                        scene.resolve();
+                    }
                 }
             }
         }

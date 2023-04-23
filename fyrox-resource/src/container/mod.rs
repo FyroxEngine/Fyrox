@@ -6,15 +6,15 @@ use crate::{
         entry::{TimedEntry, DEFAULT_RESOURCE_LIFETIME},
         event::{ResourceEvent, ResourceEventBroadcaster},
     },
-    core::{variable::InheritableVariable, VecExtensions},
+    core::VecExtensions,
     loader::ResourceLoader,
     state::ResourceState,
     task::TaskPool,
     UntypedResource,
 };
 use fxhash::FxHashMap;
-use std::ffi::OsString;
-use std::{path::Path, sync::Arc};
+use fyrox_core::uuid::Uuid;
+use std::{ffi::OsString, path::Path, sync::Arc};
 
 pub mod entry;
 pub mod event;
@@ -168,11 +168,14 @@ impl ResourceContainer {
     }
 
     /// Tries to load a resources at a given path.
-    pub fn request<P: AsRef<Path>>(&mut self, path: P) -> UntypedResource {
+    pub fn request<P>(&mut self, path: P, type_uuid: Uuid) -> UntypedResource
+    where
+        P: AsRef<Path>,
+    {
         match self.find(path.as_ref()) {
             Some(existing) => existing.clone(),
             None => {
-                let resource = UntypedResource::new_pending(path.as_ref().to_owned());
+                let resource = UntypedResource::new_pending(path.as_ref().to_owned(), type_uuid);
 
                 self.push(resource.clone());
 
@@ -192,7 +195,7 @@ impl ResourceContainer {
 
     /// Reloads a single resource.
     pub fn reload_resource(&mut self, resource: UntypedResource) {
-        let state = resource.0.lock();
+        let mut state = resource.0.lock();
 
         if !state.is_loading() {
             let path = state.path().to_path_buf();
@@ -217,39 +220,6 @@ impl ResourceContainer {
         }
 
         resources
-    }
-
-    /// Tries to restore resource by making an attempt to request resource with path from existing
-    /// resource instance. This method is used to restore "shallow" resources after scene
-    /// deserialization.    
-    pub fn try_restore_resource(&mut self, resource: &mut UntypedResource) {
-        let path = resource.0.lock().path().to_path_buf();
-        let new_resource = self.request(path);
-        *resource = new_resource;
-    }
-
-    /// Tries to restore resource by making an attempt to request resource with path from existing
-    /// resource instance. This method is used to restore "shallow" resources after scene
-    /// deserialization.
-    pub fn try_restore_optional_resource(&mut self, resource: &mut Option<UntypedResource>) {
-        if let Some(shallow_resource) = resource.as_mut() {
-            let path = shallow_resource.0.lock().path().to_path_buf();
-            let new_resource = self.request(path);
-            *shallow_resource = new_resource;
-        }
-    }
-
-    /// Tries to restore resource by making an attempt to request resource with path from existing
-    /// resource instance. This method is used to restore "shallow" resources after scene
-    /// deserialization.
-    pub fn try_restore_inheritable_resource(
-        &mut self,
-        inheritable_resource: &mut InheritableVariable<Option<UntypedResource>>,
-    ) {
-        if let Some(shallow_resource) = inheritable_resource.get_value_mut_silent().as_mut() {
-            let new_resource = self.request(shallow_resource.0.lock().path());
-            *shallow_resource = new_resource;
-        }
     }
 }
 

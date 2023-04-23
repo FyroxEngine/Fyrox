@@ -16,7 +16,7 @@ use fyrox::{
         widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, Thickness, UiNode, UserInterface,
     },
-    resource::texture::Texture,
+    resource::texture::TextureResource,
     utils::into_gui_texture,
 };
 use std::{
@@ -30,7 +30,7 @@ pub struct TextureEditor {
     widget: Widget,
     image: Handle<UiNode>,
     resource_manager: ResourceManager,
-    texture: Option<Texture>,
+    texture: Option<TextureResource>,
 }
 
 impl Debug for TextureEditor {
@@ -55,11 +55,11 @@ impl DerefMut for TextureEditor {
 
 #[derive(Debug, PartialEq, Clone, Eq)]
 pub enum TextureEditorMessage {
-    Texture(Option<Texture>),
+    Texture(Option<TextureResource>),
 }
 
 impl TextureEditorMessage {
-    define_constructor!(TextureEditorMessage:Texture => fn texture(Option<Texture>), layout: false);
+    define_constructor!(TextureEditorMessage:Texture => fn texture(Option<TextureResource>), layout: false);
 }
 
 impl Control for TextureEditor {
@@ -106,7 +106,7 @@ impl Control for TextureEditor {
 
 pub struct TextureEditorBuilder {
     widget_builder: WidgetBuilder,
-    texture: Option<Texture>,
+    texture: Option<TextureResource>,
 }
 
 impl TextureEditorBuilder {
@@ -117,7 +117,7 @@ impl TextureEditorBuilder {
         }
     }
 
-    pub fn with_texture(mut self, texture: Option<Texture>) -> Self {
+    pub fn with_texture(mut self, texture: Option<TextureResource>) -> Self {
         self.texture = texture;
         self
     }
@@ -158,14 +158,14 @@ pub struct TexturePropertyEditorDefinition;
 
 impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
     fn value_type_id(&self) -> TypeId {
-        TypeId::of::<Option<Texture>>()
+        TypeId::of::<Option<TextureResource>>()
     }
 
     fn create_instance(
         &self,
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
-        let value = ctx.property_info.cast_value::<Option<Texture>>()?;
+        let value = ctx.property_info.cast_value::<Option<TextureResource>>()?;
 
         Ok(PropertyEditorInstance::Simple {
             editor: TextureEditorBuilder::new(
@@ -189,7 +189,7 @@ impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
         &self,
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
-        let value = ctx.property_info.cast_value::<Option<Texture>>()?;
+        let value = ctx.property_info.cast_value::<Option<TextureResource>>()?;
 
         Ok(Some(TextureEditorMessage::texture(
             ctx.instance,

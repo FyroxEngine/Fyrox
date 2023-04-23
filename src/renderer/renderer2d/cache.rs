@@ -1,11 +1,11 @@
 use crate::{
+    asset::container::entry::TimedEntry,
     core::{
         algebra::{Matrix4, Vector2},
         color::Color,
         math::TriangleDefinition,
         scope_profile,
     },
-    engine::resource_manager::container::entry::TimedEntry,
     renderer::framework::{
         geometry_buffer::{
             AttributeDefinition, AttributeKind, BufferBuilder, ElementKind, GeometryBuffer,

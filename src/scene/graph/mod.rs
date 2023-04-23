@@ -22,6 +22,7 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
+use crate::resource::model::ModelResourceExtension;
 use crate::{
     core::{
         algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
@@ -33,7 +34,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     material::SharedMaterial,
-    resource::model::{Model, NodeMapping},
+    resource::model::{ModelResource, NodeMapping},
     scene::{
         self,
         base::NodeScriptMessage,
@@ -771,7 +772,7 @@ impl Graph {
         // if needed and copy surfaces from originals.
         for node in self.pool.iter_mut() {
             if let Some(model) = node.resource() {
-                let model = model.state();
+                let mut model = model.state();
                 match model.get() {
                     ResourceStateRef::Ok(data) => {
                         let resource_graph = &data.get_scene().graph;
@@ -841,7 +842,7 @@ impl Graph {
     //
     // To do so, we at first, build node handle mapping (original handle -> instance handle) starting from
     // instance root. Then we must find all inheritable properties and try to remap them to instance handles.
-    fn remap_handles(&mut self, instances: &[(Handle<Node>, Model)]) {
+    fn remap_handles(&mut self, instances: &[(Handle<Node>, ModelResource)]) {
         for (instance_root, resource) in instances {
             // Prepare old -> new handle mapping first by walking over the graph
             // starting from instance root.
@@ -877,7 +878,7 @@ impl Graph {
         }
     }
 
-    fn restore_integrity(&mut self) -> Vec<(Handle<Node>, Model)> {
+    fn restore_integrity(&mut self) -> Vec<(Handle<Node>, ModelResource)> {
         Log::writeln(MessageKind::Information, "Checking integrity...");
 
         // Check integrity - if a node was added in resource, it must be also added in the graph.
@@ -900,7 +901,7 @@ impl Graph {
         let mut restored_count = 0;
 
         for (instance_root, resource) in instances.iter().cloned() {
-            let model = resource.state();
+            let mut model = resource.state();
             if let ResourceStateRef::Ok(data) = model.get() {
                 let resource_graph = &data.get_scene().graph;
 
@@ -942,7 +943,7 @@ impl Graph {
                         );
 
                         // Instantiate missing node.
-                        let (copy, old_to_new_mapping) = Model::instantiate_from(
+                        let (copy, old_to_new_mapping) = ModelResource::instantiate_from(
                             resource.clone(),
                             data,
                             resource_node_handle,

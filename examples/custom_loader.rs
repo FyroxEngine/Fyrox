@@ -32,8 +32,8 @@ use fyrox::{
     event_loop::{ControlFlow, EventLoop},
     material::{shader::SamplerFallback, Material, PropertyValue, SharedMaterial},
     resource::{
-        model::{Model, ModelImportOptions},
-        texture::{Texture, TextureImportOptions},
+        model::{ModelImportOptions, ModelResource},
+        texture::{TextureImportOptions, TextureResource},
     },
     scene::{
         base::BaseBuilder,
@@ -55,12 +55,12 @@ use std::sync::Arc;
 
 struct CustomModelLoader(Arc<ModelLoader>);
 
-impl ResourceLoader<Model, ModelImportOptions> for CustomModelLoader {
+impl ResourceLoader<ModelResource, ModelImportOptions> for CustomModelLoader {
     fn load(
         &self,
-        resource: Model,
+        resource: ModelResource,
         default_import_options: ModelImportOptions,
-        event_broadcaster: ResourceEventBroadcaster<Model>,
+        event_broadcaster: ResourceEventBroadcaster<ModelResource>,
         reload: bool,
     ) -> BoxedLoaderFuture {
         // Arc is required as BoxedLoaderFuture has a static lifetime and hence self cannot be
@@ -79,12 +79,12 @@ impl ResourceLoader<Model, ModelImportOptions> for CustomModelLoader {
 /// For simplicity we just simply wrap the default loader and log the invocation to the console.
 struct CustomTextureLoader(Arc<TextureLoader>);
 
-impl ResourceLoader<Texture, TextureImportOptions> for CustomTextureLoader {
+impl ResourceLoader<TextureResource, TextureImportOptions> for CustomTextureLoader {
     fn load(
         &self,
-        resource: Texture,
+        resource: TextureResource,
         default_import_options: TextureImportOptions,
-        event_broadcaster: ResourceEventBroadcaster<Texture>,
+        event_broadcaster: ResourceEventBroadcaster<TextureResource>,
         reload: bool,
     ) -> BoxedLoaderFuture {
         // Arc is required as BoxedLoaderFuture has a static lifetime and hence self cannot be

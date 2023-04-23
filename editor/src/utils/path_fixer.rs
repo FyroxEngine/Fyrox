@@ -26,7 +26,7 @@ use fyrox::{
         VerticalAlignment,
     },
     material::PropertyValue,
-    resource::{model::Model, texture::Texture},
+    resource::{model::ModelResource, texture::TextureResource},
     scene::{
         camera::Camera, decal::Decal, dim2::rectangle::Rectangle, light::spot::SpotLight,
         mesh::Mesh, particle_system::ParticleSystem, sprite::Sprite, terrain::Terrain, Scene,
@@ -60,8 +60,8 @@ pub struct PathFixer {
 
 #[derive(Clone)]
 enum SceneResource {
-    Model(Model),
-    Texture(Texture),
+    Model(ModelResource),
+    Texture(TextureResource),
     // TODO: Add sound buffers.
 }
 

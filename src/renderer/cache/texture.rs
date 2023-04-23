@@ -1,7 +1,7 @@
 use crate::renderer::framework::error::FrameworkError;
 use crate::{
+    asset::container::entry::DEFAULT_RESOURCE_LIFETIME,
     core::scope_profile,
-    engine::resource_manager::container::entry::DEFAULT_RESOURCE_LIFETIME,
     renderer::{
         cache::CacheEntry,
         framework::{
@@ -9,7 +9,7 @@ use crate::{
             state::PipelineState,
         },
     },
-    resource::texture::Texture,
+    resource::texture::TextureResource,
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
@@ -27,10 +27,10 @@ impl TextureCache {
     pub fn upload(
         &mut self,
         state: &mut PipelineState,
-        texture: &Texture,
+        texture: &TextureResource,
     ) -> Result<(), FrameworkError> {
         let key = texture.key();
-        let texture = texture.state();
+        let mut texture = texture.state();
 
         if let ResourceStateRef::Ok(texture) = texture.get() {
             let gpu_texture = GpuTexture::new(
@@ -67,13 +67,13 @@ impl TextureCache {
     pub fn get(
         &mut self,
         state: &mut PipelineState,
-        texture_resource: &Texture,
+        texture_resource: &TextureResource,
     ) -> Option<Rc<RefCell<GpuTexture>>> {
         scope_profile!();
 
         let key = texture_resource.key();
 
-        let texture_data_guard = texture_resource.state();
+        let mut texture_data_guard = texture_resource.state();
 
         if let ResourceStateRef::Ok(texture) = texture_data_guard.get() {
             let entry = match self.map.entry(key) {
@@ -160,7 +160,7 @@ impl TextureCache {
 
                             Log::writeln(
                                 MessageKind::Error,
-                                format!("Failed to create GPU texture from {:?} engine texture. Reason: {:?}", texture_resource.state().path(), e),
+                                format!("Failed to create GPU texture from {:?} engine texture. Reason: {:?}", texture_resource.path(), e),
                             );
                             return None;
                         }
@@ -194,7 +194,7 @@ impl TextureCache {
         self.map.clear();
     }
 
-    pub fn unload(&mut self, texture: Texture) {
+    pub fn unload(&mut self, texture: TextureResource) {
         self.map.remove(&texture.key());
     }
 }

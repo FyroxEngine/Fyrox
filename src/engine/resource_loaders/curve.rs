@@ -5,29 +5,29 @@ use crate::{
         container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
     },
-    resource::curve::{CurveImportOptions, CurveResource, CurveResourceState},
+    resource::curve::CurveResourceState,
     utils::log::Log,
 };
+use fyrox_resource::untyped::UntypedResource;
 
 /// Default implementation for curve loading.
 pub struct CurveLoader;
 
-impl ResourceLoader<CurveResource, CurveImportOptions> for CurveLoader {
+impl ResourceLoader for CurveLoader {
     fn load(
         &self,
-        curve: CurveResource,
-        _default_import_options: CurveImportOptions,
-        event_broadcaster: ResourceEventBroadcaster<CurveResource>,
+        curve: UntypedResource,
+        event_broadcaster: ResourceEventBroadcaster,
         reload: bool,
     ) -> BoxedLoaderFuture {
         Box::pin(async move {
-            let path = curve.state().path().to_path_buf();
+            let path = curve.0.lock().path().to_path_buf();
 
             match CurveResourceState::from_file(&path).await {
                 Ok(curve_state) => {
                     Log::info(format!("Curve {:?} is loaded!", path));
 
-                    curve.state().commit_ok(curve_state);
+                    curve.0.lock().commit_ok(curve_state);
 
                     event_broadcaster.broadcast_loaded_or_reloaded(curve, reload);
                 }
@@ -37,7 +37,7 @@ impl ResourceLoader<CurveResource, CurveImportOptions> for CurveLoader {
                         path, error
                     ));
 
-                    curve.state().commit_error(path, error);
+                    curve.0.lock().commit_error(path, error);
                 }
             }
         })

@@ -29,7 +29,7 @@
 #![allow(clippy::float_cmp)]
 
 use crate::{
-    buffer::{streaming::StreamingBuffer, SoundBufferResource, SoundBufferState},
+    buffer::{streaming::StreamingBuffer, SoundBuffer, SoundBufferResource},
     bus::AudioBusGraph,
     context::DistanceModel,
     error::SoundError,
@@ -210,7 +210,7 @@ impl SoundSource {
         // If we already have streaming buffer assigned make sure to decrease use count
         // so it can be reused later on if needed.
         if let Some(buffer) = self.buffer.clone() {
-            if let SoundBufferState::Streaming(ref mut streaming) = *buffer.data_ref() {
+            if let SoundBuffer::Streaming(ref mut streaming) = *buffer.data_ref() {
                 streaming.use_count = streaming.use_count.saturating_sub(1);
             }
         }
@@ -222,7 +222,7 @@ impl SoundSource {
                 }
                 ResourceStateRefMut::Ok(locked_buffer) => {
                     // Check new buffer if streaming - it must not be used by anyone else.
-                    if let SoundBufferState::Streaming(ref mut streaming) = *locked_buffer {
+                    if let SoundBuffer::Streaming(ref mut streaming) = *locked_buffer {
                         if streaming.use_count != 0 {
                             return Err(SoundError::StreamingBufferAlreadyInUse);
                         }
@@ -340,7 +340,7 @@ impl SoundSource {
 
         if let Some(buffer) = self.buffer.as_ref() {
             let mut buffer = buffer.data_ref();
-            if let SoundBufferState::Streaming(ref mut streaming) = *buffer {
+            if let SoundBuffer::Streaming(ref mut streaming) = *buffer {
                 streaming.rewind()?;
             }
         }
@@ -464,7 +464,7 @@ impl SoundSource {
     pub fn set_playback_time(&mut self, time: Duration) {
         if let Some(buffer) = self.buffer.as_ref() {
             let mut buffer = buffer.data_ref();
-            if let SoundBufferState::Streaming(ref mut streaming) = *buffer {
+            if let SoundBuffer::Streaming(ref mut streaming) = *buffer {
                 // Make sure decoder is at right position.
                 streaming.time_seek(time);
             }
@@ -472,14 +472,14 @@ impl SoundSource {
             self.playback_pos = time.as_secs_f64() * buffer.sample_rate as f64;
             // Then adjust buffer read position.
             self.buf_read_pos = match *buffer {
-                SoundBufferState::Streaming(ref mut streaming) => {
+                SoundBuffer::Streaming(ref mut streaming) => {
                     // Make sure to load correct data into buffer from decoder.
                     streaming.read_next_block();
                     // Streaming sources has different buffer read position because
                     // buffer contains only small portion of data.
                     self.playback_pos % (StreamingBuffer::STREAM_SAMPLE_COUNT as f64)
                 }
-                SoundBufferState::Generic(_) => self.playback_pos,
+                SoundBuffer::Generic(_) => self.playback_pos,
             };
             assert!(
                 self.buf_read_pos * (buffer.channel_count() as f64) < buffer.samples().len() as f64
@@ -506,7 +506,7 @@ impl SoundSource {
         self.frame_samples.resize(amount, (0.0, 0.0));
     }
 
-    fn render_playing(&mut self, buffer: &mut SoundBufferState, amount: usize) {
+    fn render_playing(&mut self, buffer: &mut SoundBuffer, amount: usize) {
         let mut count = 0;
         loop {
             count += self.render_until_block_end(buffer, amount - count);
@@ -517,7 +517,7 @@ impl SoundSource {
             let channel_count = buffer.channel_count();
             let len = buffer.samples().len();
             let mut end_reached = true;
-            if let SoundBufferState::Streaming(streaming) = buffer {
+            if let SoundBuffer::Streaming(streaming) = buffer {
                 // Means that this is the last available block.
                 if len != channel_count * StreamingBuffer::STREAM_SAMPLE_COUNT {
                     let _ = streaming.rewind();
@@ -542,11 +542,7 @@ impl SoundSource {
 
     // Renders until the end of the block or until amount samples is written and returns
     // the number of written samples.
-    fn render_until_block_end(
-        &mut self,
-        buffer: &mut SoundBufferState,
-        mut amount: usize,
-    ) -> usize {
+    fn render_until_block_end(&mut self, buffer: &mut SoundBuffer, mut amount: usize) -> usize {
         let step = self.pitch * self.resampling_multiplier;
         if step == 1.0 {
             if self.buf_read_pos < 0.0 {
@@ -581,7 +577,7 @@ impl SoundSource {
     // Does linear resampling while rendering until the end of the block.
     fn render_until_block_end_resample(
         &mut self,
-        buffer: &mut SoundBufferState,
+        buffer: &mut SoundBuffer,
         amount: usize,
         step: f64,
     ) -> usize {
@@ -675,7 +671,7 @@ impl Drop for SoundSource {
     fn drop(&mut self) {
         if let Some(buffer) = self.buffer.as_ref() {
             let mut buffer = buffer.data_ref();
-            if let SoundBufferState::Streaming(ref mut streaming) = *buffer {
+            if let SoundBuffer::Streaming(ref mut streaming) = *buffer {
                 streaming.use_count = streaming.use_count.saturating_sub(1);
             }
         }

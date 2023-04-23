@@ -109,9 +109,9 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, UiNode, UserInterface, VerticalAlignment,
     },
-    material::{shader::Shader, Material, PropertyValue, SharedMaterial},
+    material::{shader::ShaderResource, Material, PropertyValue, SharedMaterial},
     plugin::PluginConstructor,
-    resource::texture::{CompressionOptions, Texture, TextureKind},
+    resource::texture::{CompressionOptions, TextureKind, TextureResource},
     scene::{
         camera::{Camera, Projection},
         mesh::Mesh,
@@ -152,13 +152,13 @@ type GameEngine = fyrox::engine::Engine;
 
 pub fn load_image(data: &[u8]) -> Option<draw::SharedTexture> {
     Some(into_gui_texture(
-        Texture::load_from_memory(data, CompressionOptions::NoCompression, false).ok()?,
+        TextureResource::load_from_memory(data, CompressionOptions::NoCompression, false).ok()?,
     ))
 }
 
 lazy_static! {
-    static ref GIZMO_SHADER: Shader = {
-        Shader::from_str(
+    static ref GIZMO_SHADER: ShaderResource = {
+        ShaderResource::from_str(
             include_str!("../resources/embed/shaders/gizmo.shader",),
             PathBuf::default(),
         )
@@ -536,7 +536,7 @@ impl Editor {
 
         let graphics_context = engine.graphics_context.as_initialized_mut();
 
-        if let Ok(icon_img) = Texture::load_from_memory(
+        if let Ok(icon_img) = TextureResource::load_from_memory(
             include_bytes!("../resources/embed/icon.png"),
             CompressionOptions::NoCompression,
             false,
@@ -891,7 +891,7 @@ impl Editor {
         }
 
         // Setup new one.
-        scene.render_target = Some(Texture::new_render_target(0, 0));
+        scene.render_target = Some(TextureResource::new_render_target(0, 0));
         self.scene_viewer
             .set_render_target(&self.engine.user_interface, scene.render_target.clone());
 
@@ -1408,7 +1408,7 @@ impl Editor {
             {
                 let frame_size = self.scene_viewer.frame_bounds(&engine.user_interface).size;
                 if width != frame_size.x as u32 || height != frame_size.y as u32 {
-                    scene.render_target = Some(Texture::new_render_target(
+                    scene.render_target = Some(TextureResource::new_render_target(
                         frame_size.x as u32,
                         frame_size.y as u32,
                     ));

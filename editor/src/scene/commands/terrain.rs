@@ -2,7 +2,7 @@ use crate::{command::Command, create_terrain_layer_material, scene::commands::Sc
 use fyrox::resource::texture::{TextureKind, TexturePixelKind};
 use fyrox::{
     core::pool::Handle,
-    resource::texture::Texture,
+    resource::texture::TextureResource,
     scene::{node::Node, terrain::Layer},
     utils,
 };
@@ -11,7 +11,7 @@ use fyrox::{
 pub struct AddTerrainLayerCommand {
     terrain: Handle<Node>,
     layer: Option<Layer>,
-    masks: Vec<Texture>,
+    masks: Vec<TextureResource>,
 }
 
 impl AddTerrainLayerCommand {
@@ -50,7 +50,7 @@ pub struct DeleteTerrainLayerCommand {
     terrain: Handle<Node>,
     layer: Option<Layer>,
     index: usize,
-    masks: Vec<Texture>,
+    masks: Vec<TextureResource>,
 }
 
 impl DeleteTerrainLayerCommand {
@@ -121,7 +121,7 @@ impl ModifyTerrainHeightCommand {
         ) {
             chunk
                 .set_heightmap(
-                    Texture::from_bytes(
+                    TextureResource::from_bytes(
                         TextureKind::Rectangle {
                             width: heigth_map_size.x,
                             height: heigth_map_size.y,

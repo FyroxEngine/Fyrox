@@ -4,8 +4,8 @@ use crate::{
     core::{
         parking_lot::{Mutex, MutexGuard},
         uuid::Uuid,
+        TypeUuidProvider,
     },
-    scene::node::TypeUuidProvider,
     script::{Script, ScriptTrait},
 };
 use std::collections::BTreeMap;

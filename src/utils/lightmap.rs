@@ -9,9 +9,8 @@
 
 #![forbid(unsafe_code)]
 
-use crate::material::PropertyValue;
 use crate::{
-    asset::Resource,
+    asset::manager::{ResourceManager, ResourceRegistrationError},
     core::{
         algebra::{Matrix3, Matrix4, Point3, Vector2, Vector3, Vector4},
         arrayvec::ArrayVec,
@@ -20,8 +19,8 @@ use crate::{
         pool::Handle,
         visitor::{Visit, VisitResult, Visitor},
     },
-    engine::resource_manager::{ResourceManager, TextureRegistrationError},
-    resource::texture::{Texture, TextureData, TextureKind, TexturePixelKind},
+    material::PropertyValue,
+    resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
     scene::{
         light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
         mesh::{
@@ -55,7 +54,7 @@ pub struct LightmapEntry {
     /// TODO: Is single texture enough? There may be surfaces with huge amount of faces
     ///  which may not fit into texture, because there is hardware limit on most GPUs
     ///  up to 8192x8192 pixels.
-    pub texture: Option<Texture>,
+    pub texture: Option<TextureResource>,
     /// List of lights that were used to generate this lightmap. This list is used for
     /// masking when applying dynamic lights for surfaces with light, it prevents double
     /// lighting.
@@ -457,7 +456,7 @@ impl Lightmap {
 
             let lightmap = generate_lightmap(instance, &instances, &lights, texels_per_unit);
             map.entry(instance.owner).or_default().push(LightmapEntry {
-                texture: Some(Texture(Resource::new_ok(lightmap))),
+                texture: Some(TextureResource::new_ok(lightmap)),
                 lights: lights.iter().map(|light| light.handle()).collect(),
             });
 
@@ -472,7 +471,7 @@ impl Lightmap {
         &self,
         base_path: P,
         resource_manager: ResourceManager,
-    ) -> Result<(), TextureRegistrationError> {
+    ) -> Result<(), ResourceRegistrationError> {
         if !base_path.as_ref().exists() {
             std::fs::create_dir(base_path.as_ref()).unwrap();
         }
@@ -482,7 +481,18 @@ impl Lightmap {
             for (i, entry) in entries.iter().enumerate() {
                 let file_path = handle_path.clone() + "_" + i.to_string().as_str() + ".png";
                 let texture = entry.texture.clone().unwrap();
-                resource_manager.register_texture(texture, base_path.as_ref().join(file_path))?;
+                resource_manager.register(
+                    texture.into_inner(),
+                    base_path.as_ref().join(file_path),
+                    |texture, _| {
+                        texture
+                            .as_any()
+                            .downcast_ref::<Texture>()
+                            .unwrap()
+                            .save()
+                            .is_ok()
+                    },
+                )?;
             }
         }
         Ok(())
@@ -707,7 +717,7 @@ fn generate_lightmap(
     other_instances: &[Instance],
     lights: &[LightDefinition],
     texels_per_unit: u32,
-) -> TextureData {
+) -> Texture {
     // We have to re-generate new set of world-space vertices because UV generator
     // may add new vertices on seams.
     let atlas_size = estimate_size(instance.data(), texels_per_unit);
@@ -895,7 +905,7 @@ fn generate_lightmap(
         }
     }
 
-    TextureData::from_bytes(
+    Texture::from_bytes(
         TextureKind::Rectangle {
             width: atlas_size,
             height: atlas_size,

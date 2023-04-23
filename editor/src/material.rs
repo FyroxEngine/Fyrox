@@ -39,7 +39,7 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
-    material::{shader::Shader, Material, PropertyValue, SharedMaterial},
+    material::{shader::ShaderResource, Material, PropertyValue, SharedMaterial},
     resource::texture::TextureState,
     scene::{
         base::BaseBuilder,
@@ -89,7 +89,7 @@ pub struct MaterialEditor {
     preview: PreviewPanel,
     material: Option<SharedMaterial>,
     available_shaders: Handle<UiNode>,
-    shaders_list: Vec<Shader>,
+    shaders_list: Vec<ShaderResource>,
     texture_context_menu: TextureContextMenu,
 }
 
@@ -328,7 +328,7 @@ impl MaterialEditor {
         self.shaders_list.clear();
 
         self.shaders_list
-            .extend_from_slice(&Shader::standard_shaders());
+            .extend_from_slice(&ShaderResource::standard_shaders());
 
         for dir in fyrox::walkdir::WalkDir::new(".").into_iter().flatten() {
             let path = dir.path();

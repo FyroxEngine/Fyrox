@@ -18,7 +18,7 @@ use crate::{
         draw,
         message::{ButtonState, KeyCode, KeyboardModifiers, OsEvent},
     },
-    resource::texture::Texture,
+    resource::texture::TextureResource,
 };
 use fyrox_core::algebra::Vector3;
 use half::f16;
@@ -474,8 +474,8 @@ pub fn into_any_arc<T: Any + Send + Sync>(
 }
 
 /// Converts engine's optional texture "pointer" to fyrox-ui's.
-pub fn into_gui_texture(this: Texture) -> draw::SharedTexture {
-    draw::SharedTexture(this.0.into_inner())
+pub fn into_gui_texture(this: TextureResource) -> draw::SharedTexture {
+    draw::SharedTexture(this.into_inner().0)
 }
 
 /// "Transmutes" array of any sized type to a slice of bytes.

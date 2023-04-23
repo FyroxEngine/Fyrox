@@ -57,6 +57,7 @@ pub enum ResourceState {
         path: PathBuf,
         /// List of wakers to wake future when resource is fully loaded.
         wakers: Vec<Waker>,
+        type_uuid: Uuid,
     },
     /// An error has occurred during the load.
     LoadError {
@@ -64,6 +65,7 @@ pub enum ResourceState {
         path: PathBuf,
         /// An error. This wrapped in Option only to be Default_ed.
         error: Option<Arc<dyn ResourceLoadError>>,
+        type_uuid: Uuid,
     },
     /// Actual resource data when it is fully loaded.
     Ok(Box<dyn ResourceData>),
@@ -82,13 +84,21 @@ impl Visit for ResourceState {
                     let mut path = PathBuf::new();
                     path.visit("Path", &mut region)?;
 
+                    let mut type_uuid = Uuid::default();
+                    let _ = type_uuid.visit("TypeUuid", &mut region);
+
                     *self = Self::Pending {
                         path,
                         wakers: Default::default(),
+                        type_uuid,
                     };
 
                     Ok(())
-                } else if let Self::Pending { path, .. } = self {
+                } else if let Self::Pending {
+                    path, type_uuid, ..
+                } = self
+                {
+                    let _ = type_uuid.visit("TypeUuid", &mut region);
                     path.visit("Path", &mut region)
                 } else {
                     Err(VisitError::User("Enum variant mismatch!".to_string()))
@@ -99,10 +109,21 @@ impl Visit for ResourceState {
                     let mut path = PathBuf::new();
                     path.visit("Path", &mut region)?;
 
-                    *self = Self::LoadError { path, error: None };
+                    let mut type_uuid = Uuid::default();
+                    let _ = type_uuid.visit("TypeUuid", &mut region);
+
+                    *self = Self::LoadError {
+                        path,
+                        error: None,
+                        type_uuid,
+                    };
 
                     Ok(())
-                } else if let Self::LoadError { path, .. } = self {
+                } else if let Self::LoadError {
+                    path, type_uuid, ..
+                } = self
+                {
+                    let _ = type_uuid.visit("TypeUuid", &mut region);
                     path.visit("Path", &mut region)
                 } else {
                     Err(VisitError::User("Enum variant mismatch!".to_string()))
@@ -151,16 +172,25 @@ impl Visit for ResourceState {
 impl ResourceState {
     /// Creates new resource in pending state.
     #[inline]
-    pub fn new_pending(path: PathBuf) -> Self {
+    pub fn new_pending(path: PathBuf, type_uuid: Uuid) -> Self {
         Self::Pending {
             path,
             wakers: Default::default(),
+            type_uuid,
         }
     }
 
     #[inline]
-    pub fn new_load_error(path: PathBuf, error: Option<Arc<dyn ResourceLoadError>>) -> Self {
-        Self::LoadError { path, error }
+    pub fn new_load_error(
+        path: PathBuf,
+        error: Option<Arc<dyn ResourceLoadError>>,
+        type_uuid: Uuid,
+    ) -> Self {
+        Self::LoadError {
+            path,
+            error,
+            type_uuid,
+        }
     }
 
     #[inline]
@@ -175,19 +205,31 @@ impl ResourceState {
     /// Switches the internal state of the resource to [`ResourceState::Pending`].
     pub fn switch_to_pending_state(&mut self) {
         match self {
-            ResourceState::LoadError { path, .. } => {
+            ResourceState::LoadError {
+                path, type_uuid, ..
+            } => {
                 *self = ResourceState::Pending {
                     path: std::mem::take(path),
                     wakers: Default::default(),
+                    type_uuid: *type_uuid,
                 }
             }
             ResourceState::Ok(data) => {
                 *self = ResourceState::Pending {
                     path: data.path().to_path_buf(),
                     wakers: Default::default(),
+                    type_uuid: data.type_uuid(),
                 }
             }
             _ => (),
+        }
+    }
+
+    pub fn type_uuid(&self) -> Uuid {
+        match self {
+            ResourceState::Pending { type_uuid, .. } => *type_uuid,
+            ResourceState::LoadError { type_uuid, .. } => *type_uuid,
+            ResourceState::Ok(data) => data.type_uuid(),
         }
     }
 
@@ -234,9 +276,11 @@ impl ResourceState {
 
     /// Changes internal state to [`ResourceState::LoadError`].
     pub fn commit_error<E: ResourceLoadError>(&mut self, path: PathBuf, error: E) {
+        let type_uuid = self.type_uuid();
         self.commit(ResourceState::LoadError {
             path,
             error: Some(Arc::new(error)),
+            type_uuid,
         })
     }
 }

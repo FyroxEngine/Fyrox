@@ -14,6 +14,7 @@
 //! Each camera forces engine to re-render same scene one more time, which may cause
 //! almost double load of your GPU.
 
+use crate::resource::texture::TextureResourceExtension;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
@@ -24,18 +25,19 @@ use crate::{
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
+        TypeUuidProvider,
     },
-    resource::texture::{Texture, TextureError, TextureKind, TexturePixelKind, TextureWrapMode},
+    resource::texture::{TextureKind, TexturePixelKind, TextureResource, TextureWrapMode},
     scene::{
         base::{Base, BaseBuilder},
         debug::SceneDrawingContext,
         graph::Graph,
-        node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
+        node::{Node, NodeTrait, UpdateContext},
         visibility::VisibilityCache,
     },
     utils::log::Log,
 };
-use fyrox_resource::ResourceStateRef;
+use fyrox_resource::{ResourceLoadError, ResourceStateRef};
 use std::{
     fmt::{Display, Formatter},
     ops::{Deref, DerefMut},
@@ -306,7 +308,7 @@ pub struct Camera {
     sky_box: InheritableVariable<Option<SkyBox>>,
 
     #[reflect(setter = "set_environment")]
-    environment: InheritableVariable<Option<Texture>>,
+    environment: InheritableVariable<Option<TextureResource>>,
 
     #[reflect(setter = "set_exposure")]
     exposure: InheritableVariable<Exposure>,
@@ -492,22 +494,25 @@ impl Camera {
     }
 
     /// Sets new environment.
-    pub fn set_environment(&mut self, environment: Option<Texture>) -> Option<Texture> {
+    pub fn set_environment(
+        &mut self,
+        environment: Option<TextureResource>,
+    ) -> Option<TextureResource> {
         self.environment.set_value_and_mark_modified(environment)
     }
 
     /// Return optional mutable reference to current environment.
-    pub fn environment_mut(&mut self) -> Option<&mut Texture> {
+    pub fn environment_mut(&mut self) -> Option<&mut TextureResource> {
         self.environment.get_value_mut_and_mark_modified().as_mut()
     }
 
     /// Return optional shared reference to current environment.
-    pub fn environment_ref(&self) -> Option<&Texture> {
+    pub fn environment_ref(&self) -> Option<&TextureResource> {
         self.environment.as_ref()
     }
 
     /// Return current environment map.
-    pub fn environment_map(&self) -> Option<Texture> {
+    pub fn environment_map(&self) -> Option<TextureResource> {
         (*self.environment).clone()
     }
 
@@ -649,7 +654,7 @@ pub enum ColorGradingLutCreationError {
     InvalidPixelFormat(TexturePixelKind),
 
     /// Texture error.
-    Texture(Option<Arc<TextureError>>),
+    Texture(Option<Arc<dyn ResourceLoadError>>),
 }
 
 impl Display for ColorGradingLutCreationError {
@@ -684,11 +689,11 @@ impl Display for ColorGradingLutCreationError {
 /// See [more info in Unreal engine docs](https://docs.unrealengine.com/4.26/en-US/RenderingAndGraphics/PostProcessEffects/UsingLUTs/)
 #[derive(Visit, Clone, Default, PartialEq, Debug, Reflect, Eq)]
 pub struct ColorGradingLut {
-    unwrapped_lut: Option<Texture>,
+    unwrapped_lut: Option<TextureResource>,
 
     #[visit(skip)]
     #[reflect(hidden)]
-    lut: Option<Texture>,
+    lut: Option<TextureResource>,
 }
 
 impl ColorGradingLut {
@@ -719,7 +724,7 @@ impl ColorGradingLut {
     ///
     /// Then pass LUT to either CameraBuilder or to camera instance, and don't forget to enable
     /// color grading.
-    pub async fn new(unwrapped_lut: Texture) -> Result<Self, ColorGradingLutCreationError> {
+    pub async fn new(unwrapped_lut: TextureResource) -> Result<Self, ColorGradingLutCreationError> {
         match unwrapped_lut.await {
             Ok(unwrapped_lut) => {
                 let data = unwrapped_lut.data_ref();
@@ -772,7 +777,7 @@ impl ColorGradingLut {
                     }
                 }
 
-                let lut = Texture::from_bytes(
+                let lut = TextureResource::from_bytes(
                     TextureKind::Volume {
                         width: 16,
                         height: 16,
@@ -803,17 +808,17 @@ impl ColorGradingLut {
 
     /// Returns color grading unwrapped look-up table. This is initial texture that was
     /// used to create the look-up table.
-    pub fn unwrapped_lut(&self) -> Texture {
+    pub fn unwrapped_lut(&self) -> TextureResource {
         self.unwrapped_lut.clone().unwrap()
     }
 
     /// Returns 3D color grading look-up table ready for use on GPU.
-    pub fn lut(&self) -> Texture {
+    pub fn lut(&self) -> TextureResource {
         self.lut.clone().unwrap()
     }
 
     /// Returns 3D color grading look-up table by ref ready for use on GPU.
-    pub fn lut_ref(&self) -> &Texture {
+    pub fn lut_ref(&self) -> &TextureResource {
         self.lut.as_ref().unwrap()
     }
 }
@@ -828,7 +833,7 @@ pub struct CameraBuilder {
     viewport: Rect<f32>,
     enabled: bool,
     skybox: Option<SkyBox>,
-    environment: Option<Texture>,
+    environment: Option<TextureResource>,
     exposure: Exposure,
     color_grading_lut: Option<ColorGradingLut>,
     color_grading_enabled: bool,
@@ -891,7 +896,7 @@ impl CameraBuilder {
     }
 
     /// Sets desired environment map.
-    pub fn with_environment(mut self, environment: Texture) -> Self {
+    pub fn with_environment(mut self, environment: TextureResource) -> Self {
         self.environment = Some(environment);
         self
     }
@@ -954,52 +959,52 @@ impl CameraBuilder {
 /// SkyBox builder is used to create new skybox in declarative manner.
 pub struct SkyBoxBuilder {
     /// Texture for front face.
-    pub front: Option<Texture>,
+    pub front: Option<TextureResource>,
     /// Texture for back face.
-    pub back: Option<Texture>,
+    pub back: Option<TextureResource>,
     /// Texture for left face.
-    pub left: Option<Texture>,
+    pub left: Option<TextureResource>,
     /// Texture for right face.
-    pub right: Option<Texture>,
+    pub right: Option<TextureResource>,
     /// Texture for top face.
-    pub top: Option<Texture>,
+    pub top: Option<TextureResource>,
     /// Texture for bottom face.
-    pub bottom: Option<Texture>,
+    pub bottom: Option<TextureResource>,
 }
 
 impl SkyBoxBuilder {
     /// Sets desired front face of cubemap.
-    pub fn with_front(mut self, texture: Texture) -> Self {
+    pub fn with_front(mut self, texture: TextureResource) -> Self {
         self.front = Some(texture);
         self
     }
 
     /// Sets desired back face of cubemap.
-    pub fn with_back(mut self, texture: Texture) -> Self {
+    pub fn with_back(mut self, texture: TextureResource) -> Self {
         self.back = Some(texture);
         self
     }
 
     /// Sets desired left face of cubemap.
-    pub fn with_left(mut self, texture: Texture) -> Self {
+    pub fn with_left(mut self, texture: TextureResource) -> Self {
         self.left = Some(texture);
         self
     }
 
     /// Sets desired right face of cubemap.
-    pub fn with_right(mut self, texture: Texture) -> Self {
+    pub fn with_right(mut self, texture: TextureResource) -> Self {
         self.right = Some(texture);
         self
     }
 
     /// Sets desired top face of cubemap.
-    pub fn with_top(mut self, texture: Texture) -> Self {
+    pub fn with_top(mut self, texture: TextureResource) -> Self {
         self.top = Some(texture);
         self
     }
 
     /// Sets desired front face of cubemap.
-    pub fn with_bottom(mut self, texture: Texture) -> Self {
+    pub fn with_bottom(mut self, texture: TextureResource) -> Self {
         self.bottom = Some(texture);
         self
     }
@@ -1031,32 +1036,32 @@ impl SkyBoxBuilder {
 pub struct SkyBox {
     /// Texture for front face.
     #[reflect(setter = "set_front")]
-    pub(crate) front: Option<Texture>,
+    pub(crate) front: Option<TextureResource>,
 
     /// Texture for back face.
     #[reflect(setter = "set_back")]
-    pub(crate) back: Option<Texture>,
+    pub(crate) back: Option<TextureResource>,
 
     /// Texture for left face.
     #[reflect(setter = "set_left")]
-    pub(crate) left: Option<Texture>,
+    pub(crate) left: Option<TextureResource>,
 
     /// Texture for right face.
     #[reflect(setter = "set_right")]
-    pub(crate) right: Option<Texture>,
+    pub(crate) right: Option<TextureResource>,
 
     /// Texture for top face.
     #[reflect(setter = "set_top")]
-    pub(crate) top: Option<Texture>,
+    pub(crate) top: Option<TextureResource>,
 
     /// Texture for bottom face.
     #[reflect(setter = "set_bottom")]
-    pub(crate) bottom: Option<Texture>,
+    pub(crate) bottom: Option<TextureResource>,
 
     /// Cubemap texture
     #[reflect(hidden)]
     #[visit(skip)]
-    pub(crate) cubemap: Option<Texture>,
+    pub(crate) cubemap: Option<TextureResource>,
 }
 
 /// An error that may occur during skybox creation.
@@ -1101,12 +1106,12 @@ pub enum SkyBoxError {
 
 impl SkyBox {
     /// Returns cubemap texture
-    pub fn cubemap(&self) -> Option<Texture> {
+    pub fn cubemap(&self) -> Option<TextureResource> {
         self.cubemap.clone()
     }
 
     /// Returns cubemap texture
-    pub fn cubemap_ref(&self) -> Option<&Texture> {
+    pub fn cubemap_ref(&self) -> Option<&TextureResource> {
         self.cubemap.as_ref()
     }
 
@@ -1213,8 +1218,13 @@ impl SkyBox {
         }
 
         self.cubemap = Some(
-            Texture::from_bytes(TextureKind::Cube { width, height }, pixel_kind, data, false)
-                .ok_or(SkyBoxError::UnableToBuildCubeMap)?,
+            TextureResource::from_bytes(
+                TextureKind::Cube { width, height },
+                pixel_kind,
+                data,
+                false,
+            )
+            .ok_or(SkyBoxError::UnableToBuildCubeMap)?,
         );
 
         Ok(())
@@ -1228,7 +1238,7 @@ impl SkyBox {
     /// These textures are **not** used for rendering! The renderer uses cube map made of these
     /// textures. Public access for these textures is needed in case you need to read internals
     /// of the textures.
-    pub fn textures(&self) -> [Option<Texture>; 6] {
+    pub fn textures(&self) -> [Option<TextureResource>; 6] {
         [
             self.left.clone(),
             self.right.clone(),
@@ -1240,7 +1250,7 @@ impl SkyBox {
     }
 
     /// Set new texture for the left side of the skybox.
-    pub fn set_left(&mut self, texture: Option<Texture>) -> Option<Texture> {
+    pub fn set_left(&mut self, texture: Option<TextureResource>) -> Option<TextureResource> {
         let prev = std::mem::replace(&mut self.left, texture);
         Log::verify(self.create_cubemap());
         prev
@@ -1251,12 +1261,12 @@ impl SkyBox {
     /// # Important notes.
     ///
     /// This textures is not used for rendering! The renderer uses cube map made of face textures.
-    pub fn left(&self) -> Option<Texture> {
+    pub fn left(&self) -> Option<TextureResource> {
         self.left.clone()
     }
 
     /// Set new texture for the right side of the skybox.
-    pub fn set_right(&mut self, texture: Option<Texture>) -> Option<Texture> {
+    pub fn set_right(&mut self, texture: Option<TextureResource>) -> Option<TextureResource> {
         let prev = std::mem::replace(&mut self.right, texture);
         Log::verify(self.create_cubemap());
         prev
@@ -1267,12 +1277,12 @@ impl SkyBox {
     /// # Important notes.
     ///
     /// This textures is not used for rendering! The renderer uses cube map made of face textures.
-    pub fn right(&self) -> Option<Texture> {
+    pub fn right(&self) -> Option<TextureResource> {
         self.right.clone()
     }
 
     /// Set new texture for the top side of the skybox.
-    pub fn set_top(&mut self, texture: Option<Texture>) -> Option<Texture> {
+    pub fn set_top(&mut self, texture: Option<TextureResource>) -> Option<TextureResource> {
         let prev = std::mem::replace(&mut self.top, texture);
         Log::verify(self.create_cubemap());
         prev
@@ -1283,12 +1293,12 @@ impl SkyBox {
     /// # Important notes.
     ///
     /// This textures is not used for rendering! The renderer uses cube map made of face textures.
-    pub fn top(&self) -> Option<Texture> {
+    pub fn top(&self) -> Option<TextureResource> {
         self.top.clone()
     }
 
     /// Set new texture for the bottom side of the skybox.
-    pub fn set_bottom(&mut self, texture: Option<Texture>) -> Option<Texture> {
+    pub fn set_bottom(&mut self, texture: Option<TextureResource>) -> Option<TextureResource> {
         let prev = std::mem::replace(&mut self.bottom, texture);
         Log::verify(self.create_cubemap());
         prev
@@ -1299,12 +1309,12 @@ impl SkyBox {
     /// # Important notes.
     ///
     /// This textures is not used for rendering! The renderer uses cube map made of face textures.
-    pub fn bottom(&self) -> Option<Texture> {
+    pub fn bottom(&self) -> Option<TextureResource> {
         self.bottom.clone()
     }
 
     /// Set new texture for the front side of the skybox.
-    pub fn set_front(&mut self, texture: Option<Texture>) -> Option<Texture> {
+    pub fn set_front(&mut self, texture: Option<TextureResource>) -> Option<TextureResource> {
         let prev = std::mem::replace(&mut self.front, texture);
         Log::verify(self.create_cubemap());
         prev
@@ -1315,12 +1325,12 @@ impl SkyBox {
     /// # Important notes.
     ///
     /// This textures is not used for rendering! The renderer uses cube map made of face textures.
-    pub fn front(&self) -> Option<Texture> {
+    pub fn front(&self) -> Option<TextureResource> {
         self.front.clone()
     }
 
     /// Set new texture for the back side of the skybox.
-    pub fn set_back(&mut self, texture: Option<Texture>) -> Option<Texture> {
+    pub fn set_back(&mut self, texture: Option<TextureResource>) -> Option<TextureResource> {
         let prev = std::mem::replace(&mut self.back, texture);
         Log::verify(self.create_cubemap());
         prev
@@ -1331,7 +1341,7 @@ impl SkyBox {
     /// # Important notes.
     ///
     /// This textures is not used for rendering! The renderer uses cube map made of face textures.
-    pub fn back(&self) -> Option<Texture> {
+    pub fn back(&self) -> Option<TextureResource> {
         self.back.clone()
     }
 }

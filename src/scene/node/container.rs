@@ -92,9 +92,8 @@ fn read_node(name: &str, visitor: &mut Visitor) -> Result<Node, VisitError> {
             id.visit("TypeUuid", &mut region)?;
 
             let serialization_context = region
-                .environment
-                .as_ref()
-                .and_then(|e| e.downcast_ref::<SerializationContext>())
+                .blackboard
+                .get::<SerializationContext>()
                 .expect("Visitor environment must contain serialization context!");
 
             let mut node = serialization_context
