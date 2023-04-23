@@ -470,7 +470,9 @@ where
                     path.display()
                 )
             }
-            ResourceState::Ok(ref data) => data.as_any().downcast_ref().expect("Type mismatch!"),
+            ResourceState::Ok(ref data) => {
+                (**data).as_any().downcast_ref().expect("Type mismatch!")
+            }
         }
     }
 }
@@ -493,9 +495,10 @@ where
                     path.display()
                 )
             }
-            ResourceState::Ok(ref mut data) => {
-                data.as_any_mut().downcast_mut().expect("Type mismatch!")
-            }
+            ResourceState::Ok(ref mut data) => (**data)
+                .as_any_mut()
+                .downcast_mut()
+                .expect("Type mismatch!"),
         }
     }
 }
