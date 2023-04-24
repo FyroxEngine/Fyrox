@@ -1,6 +1,7 @@
 //! Resource loader. It manages resource loading.
 
 use crate::{container::event::ResourceEventBroadcaster, UntypedResource};
+use std::any::Any;
 use std::{future::Future, pin::Pin};
 
 /// Future type for resource loading. See 'ResourceLoader'.
@@ -11,6 +12,10 @@ pub type BoxedLoaderFuture = Pin<Box<dyn Future<Output = ()>>>;
 #[cfg(target_arch = "wasm32")]
 pub trait ResourceLoader {
     fn extensions(&self) -> &[&str];
+
+    fn as_any(&self) -> &dyn Any;
+
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 
     /// Loads or reloads a resource.
     fn load(
@@ -29,6 +34,10 @@ pub type BoxedLoaderFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
 #[cfg(not(target_arch = "wasm32"))]
 pub trait ResourceLoader: Send {
     fn extensions(&self) -> &[&str];
+
+    fn as_any(&self) -> &dyn Any;
+
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 
     /// Loads or reloads a resource.
     fn load(

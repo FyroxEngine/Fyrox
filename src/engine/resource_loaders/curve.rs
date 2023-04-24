@@ -9,6 +9,7 @@ use crate::{
     utils::log::Log,
 };
 use fyrox_resource::untyped::UntypedResource;
+use std::any::Any;
 
 /// Default implementation for curve loading.
 pub struct CurveLoader;
@@ -16,6 +17,14 @@ pub struct CurveLoader;
 impl ResourceLoader for CurveLoader {
     fn extensions(&self) -> &[&str] {
         &["curve"]
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 
     fn load(

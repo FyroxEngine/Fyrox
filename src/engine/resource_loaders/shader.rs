@@ -9,6 +9,7 @@ use crate::{
     utils::log::Log,
 };
 use fyrox_resource::untyped::UntypedResource;
+use std::any::Any;
 
 /// Default implementation for shader loading.
 pub struct ShaderLoader;
@@ -16,6 +17,14 @@ pub struct ShaderLoader;
 impl ResourceLoader for ShaderLoader {
     fn extensions(&self) -> &[&str] {
         &["shader"]
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 
     fn load(

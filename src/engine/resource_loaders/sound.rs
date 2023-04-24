@@ -12,6 +12,7 @@ use crate::{
 use fyrox_resource::untyped::UntypedResource;
 use fyrox_sound::buffer::{DataSource, SoundBuffer, SoundBufferResourceLoadError};
 use serde::{Deserialize, Serialize};
+use std::any::Any;
 
 /// Defines sound buffer resource import options.
 #[derive(Clone, Deserialize, Serialize, Default, Debug, Reflect)]
@@ -30,6 +31,14 @@ pub struct SoundBufferLoader {
 impl ResourceLoader for SoundBufferLoader {
     fn extensions(&self) -> &[&str] {
         &["wav", "ogg"]
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 
     fn load(

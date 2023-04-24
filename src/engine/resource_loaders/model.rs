@@ -12,6 +12,7 @@ use crate::{
     utils::log::Log,
 };
 use fyrox_resource::untyped::UntypedResource;
+use std::any::Any;
 use std::sync::Arc;
 
 /// Default implementation for model loading.
@@ -27,6 +28,14 @@ pub struct ModelLoader {
 impl ResourceLoader for ModelLoader {
     fn extensions(&self) -> &[&str] {
         &["rgs", "fbx"]
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 
     fn load(

@@ -11,6 +11,7 @@ use crate::{
     utils::log::Log,
 };
 use fyrox_resource::untyped::UntypedResource;
+use std::any::Any;
 
 /// Default implementation for texture loading.
 pub struct TextureLoader {
@@ -20,6 +21,14 @@ pub struct TextureLoader {
 impl ResourceLoader for TextureLoader {
     fn extensions(&self) -> &[&str] {
         &["jpg", "jpeg", "tga", "gif", "bmp", "png", "tiff", "dds"]
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 
     fn load(
