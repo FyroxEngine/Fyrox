@@ -1,6 +1,5 @@
 use fyrox::{
-    core::reflect::prelude::*, engine::resource_manager::ResourceManager,
-    gui::inspector::PropertyChanged,
+    asset::manager::ResourceManager, core::reflect::prelude::*, gui::inspector::PropertyChanged,
 };
 
 pub mod model;

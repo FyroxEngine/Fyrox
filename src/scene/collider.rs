@@ -11,6 +11,7 @@ use crate::{
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
+        TypeUuidProvider,
     },
     scene::{
         base::{Base, BaseBuilder},
@@ -18,7 +19,7 @@ use crate::{
             physics::{CoefficientCombineRule, ContactPair, IntersectionPair, PhysicsWorld},
             Graph,
         },
-        node::{Node, NodeTrait, SyncContext, TypeUuidProvider},
+        node::{Node, NodeTrait, SyncContext},
         rigidbody::RigidBody,
         Scene,
     },

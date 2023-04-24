@@ -1,3 +1,4 @@
+use fyrox::resource::texture::TextureResourceExtension;
 use fyrox::{
     core::{algebra::Vector2, pool::ErasedHandle, pool::Handle},
     gui::{
@@ -7,7 +8,7 @@ use fyrox::{
         window::{Window, WindowBuilder},
         BuildContext, UiNode, UserInterface,
     },
-    resource::texture::{CompressionOptions, Texture},
+    resource::texture::{CompressionOptions, TextureResource},
     scene::camera::{SkyBox, SkyBoxBuilder},
 };
 
@@ -86,8 +87,8 @@ pub fn fetch_node_screen_center_ui(handle: Handle<UiNode>, ui: &UserInterface) -
         .unwrap_or_default()
 }
 
-fn load_texture(data: &[u8]) -> Texture {
-    Texture::load_from_memory(data, CompressionOptions::NoCompression, false)
+fn load_texture(data: &[u8]) -> TextureResource {
+    TextureResource::load_from_memory(data, CompressionOptions::NoCompression, false)
         .ok()
         .unwrap()
 }

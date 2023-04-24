@@ -6,6 +6,8 @@ use crate::{
     GameEngine, GraphSelection, InteractionMode, InteractionModeKind, Message, Mode, SceneCommand,
     Selection, SetMeshTextureCommand, Settings,
 };
+use fyrox::asset::ResourceStateRef;
+use fyrox::resource::model::{Model, ModelResourceExtension};
 use fyrox::{
     core::{
         algebra::{Vector2, Vector3},
@@ -37,7 +39,7 @@ use fyrox::{
         VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_DARKER, BRUSH_DARKEST, BRUSH_LIGHT,
         BRUSH_LIGHTER, BRUSH_LIGHTEST,
     },
-    resource::texture::{Texture, TextureState},
+    resource::texture::{Texture, TextureResource},
     scene::{
         camera::{Camera, Projection},
         node::Node,
@@ -638,7 +640,7 @@ impl SceneViewer {
                                                 fyrox::core::futures::executor::block_on(
                                                     engine
                                                         .resource_manager
-                                                        .request_model(relative_path),
+                                                        .request::<Model, _>(relative_path),
                                                 )
                                             {
                                                 let scene = &mut engine.scenes[editor_scene.scene];
@@ -764,7 +766,7 @@ impl SceneViewer {
         ));
     }
 
-    pub fn set_render_target(&self, ui: &UserInterface, render_target: Option<Texture>) {
+    pub fn set_render_target(&self, ui: &UserInterface, render_target: Option<TextureResource>) {
         ui.send_message(ImageMessage::texture(
             self.frame,
             MessageDirection::ToWidget,
@@ -992,10 +994,10 @@ impl SceneViewer {
                             use_picking_loop: true,
                             only_meshes: false,
                         }) {
-                            let tex = engine.resource_manager.request_texture(relative_path);
+                            let tex = engine.resource_manager.request::<Texture, _>(relative_path);
                             let texture = tex.clone();
                             let texture = texture.state();
-                            if let TextureState::Ok(_) = *texture {
+                            if let ResourceStateRef::Ok(_) = texture.get() {
                                 let node =
                                     &mut engine.scenes[editor_scene.scene].graph[result.node];
 

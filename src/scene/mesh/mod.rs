@@ -18,6 +18,7 @@ use crate::{
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
+        TypeUuidProvider,
     },
     renderer::{
         self,
@@ -32,7 +33,7 @@ use crate::{
             buffer::{VertexAttributeUsage, VertexReadTrait},
             surface::{BlendShape, Surface},
         },
-        node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
+        node::{Node, NodeTrait, UpdateContext},
     },
 };
 use std::{

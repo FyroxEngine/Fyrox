@@ -1,9 +1,232 @@
 //! Shader is a script for graphics card. This module contains everything related to shaders.
 //!
-//! For more info see [`Shader`] struct docs.
+//! Shader is a script for graphics adapter, it defines how to draw an object.
+//!
+//! # Structure
+//!
+//! Shader has rigid structure that could be described in this code snipped:
+//!
+//! ```ron
+//! (
+//!     // A set of properties, there could be any amount of properties.
+//!     properties: [
+//!         (
+//!             // Each property must have a name. This name must match with respective
+//!             // uniforms! That's is the whole point of having properties.
+//!             name: "diffuseTexture",
+//!
+//!             // Value has limited set of possible variants.
+//!             value: Sampler(default: None, fallback: White)
+//!         )
+//!     ],
+//!
+//!     // A set of render passes (see a section `Render pass` for more info)
+//!     passes: [
+//!         (
+//!             // Name must match with the name of either standard render pass (see below) or
+//!             // one of your passes.
+//!             name: "Forward",
+//!
+//!             // A set of parameters that regulate renderer pipeline state.
+//!             // This is mandatory field of each render pass.
+//!             draw_parameters: DrawParameters(
+//!                 // A face to cull. Either Front or Back.
+//!                 cull_face: Some(Back),
+//!
+//!                 // Color mask. Defines which colors should be written to render target.
+//!                 color_write: ColorMask(
+//!                     red: true,
+//!                     green: true,
+//!                     blue: true,
+//!                     alpha: true,
+//!                 ),
+//!
+//!                 // Whether to modify depth buffer or not.
+//!                 depth_write: true,
+//!
+//!                 // Whether to use stencil test or not.
+//!                 stencil_test: None,
+//!
+//!                 // Whether to perform depth test when drawing.
+//!                 depth_test: true,
+//!
+//!                 // Blending options.
+//!                 blend: Some(BlendParameters(
+//!                     func: BlendFunc(
+//!                         sfactor: SrcAlpha,
+//!                         dfactor: OneMinusSrcAlpha,
+//!                         alpha_sfactor: SrcAlpha,
+//!                         alpha_dfactor: OneMinusSrcAlpha,
+//!                     ),
+//!                     equation: BlendEquation(
+//!                         rgb: Add,
+//!                         alpha: Add
+//!                     )
+//!                 )),
+//!
+//!                 // Stencil options.
+//!                 stencil_op: StencilOp(
+//!                     fail: Keep,
+//!                     zfail: Keep,
+//!                     zpass: Keep,
+//!                     write_mask: 0xFFFF_FFFF,
+//!                 ),
+//!             ),
+//!
+//!             // Vertex shader code.
+//!             vertex_shader:
+//!                 r#"
+//!                 #version 330 core
+//!
+//!                 layout(location = 0) in vec3 vertexPosition;
+//!                 layout(location = 1) in vec2 vertexTexCoord;
+//!
+//!                 uniform mat4 fyrox_worldViewProjection;
+//!
+//!                 out vec2 texCoord;
+//!
+//!                 void main()
+//!                 {
+//!                     texCoord = vertexTexCoord;
+//!                     gl_Position = fyrox_worldViewProjection * vertexPosition;
+//!                 }
+//!                 "#;
+//!
+//!             // Pixel shader code.
+//!             pixel_shader:
+//!                 r#"
+//!                 #version 330 core
+//!
+//!                 // Note that the name of this uniform match the name of the property up above.
+//!                 uniform sampler2D diffuseTexture;
+//!
+//!                 out vec4 FragColor;
+//!
+//!                 in vec2 texCoord;
+//!
+//!                 void main()
+//!                 {
+//!                     FragColor = diffuseColor * texture(diffuseTexture, texCoord);
+//!                 }
+//!                 "#;
+//!         )
+//!     ],
+//! )
+//! ```
+//!
+//! Shader should contain at least one render pass to actually do some job. A shader could not
+//! have properties at all. Currently only vertex and fragment programs are supported. Each
+//! program mush be written in GLSL. Comprehensive GLSL documentation can be found
+//! [here](https://www.khronos.org/opengl/wiki/Core_Language_(GLSL))
+//!
+//! # Render pass
+//!
+//! Modern rendering is a very complex thing that requires drawing an object multiple times
+//! with different "scripts". For example to draw an object with shadows you need to draw an
+//! object twice: one directly in a render target, and one in a shadow map. Such stages called
+//! render passes.
+//!
+//! Binding of shaders to render passes is done via names, each render pass has unique name.
+//!
+//! ## Predefined passes
+//!
+//! There are number of predefined render passes:
+//!
+//! - GBuffer - A pass that fills a set of render target sized textures with various data
+//! about each rendered object. These textures then are used for physically-based lighting.
+//! Use this pass when you want the standard lighting to work with your objects.
+//!
+//! - Forward - A pass that draws an object directly in render target. This pass is very
+//! limiting, it does not support lighting, shadows, etc. It should be only used to render
+//! translucent objects.
+//!
+//! - SpotShadow - A pass that emits depth values for an object, later this depth map will be
+//! used to render shadows.
+//!
+//! - PointShadow - A pass that emits distance from a fragment to a point light, later this depth
+//! map will be used to render shadows.
+//!
+//! # Built-in variables
+//!
+//! There are number of build-in variables that Fyrox pass to each shader automatically:
+//!
+//! | Name                      | Type            | Description
+//! |---------------------------|-----------------|--------------------------------------------
+//! | fyrox_worldMatrix          | `Matrix4`       | Local-to-world transformation.
+//! | fyrox_worldViewProjection  | `Matrix4`       | Local-to-clip-space transform.
+//! | fyrox_boneMatrices         | `[Matrix4; 60]` | Array of bone matrices.
+//! | fyrox_useSkeletalAnimation | `Vector3`       | Whether skinned meshes is rendering or not.
+//! | fyrox_cameraPosition       | `Vector3`       | Position of the camera.
+//! | fyrox_usePOM               | `bool`          | Whether to use parallax mapping or not.
+//! | fyrox_lightPosition        | `Vector3`       | Light position.
+//!
+//! To use any of the variables, just define a uniform with appropriate name:
+//!
+//! ```glsl
+//! uniform mat4 fyrox_worldMatrix;
+//! uniform vec3 fyrox_cameraPosition;
+//! ```
+//!
+//! This list will be extended in future releases.
+//!
+//! # Drawing parameters
+//!
+//! Drawing parameters defines which GPU functions to use and at which state. For example, to render
+//! transparent objects you need to enable blending with specific blending rules. Or you need to disable
+//! culling to draw objects from both sides. This is when draw parameters comes in handy.
+//!
+//! There are relatively large list of drawing parameters and it could confuse a person who didn't get
+//! used to work with graphics. The following list should help you to use drawing parameters correctly.
+//!
+//! - cull_face
+//!     - Defines which side of polygon should be culled.
+//!     - **Possible values:** `None`, [Some(CullFace::XXX)](crate::renderer::framework::framebuffer::CullFace)
+//!
+//! - color_write:
+//!     - Defines which components of color should be written to a render target
+//!     - **Possible values:** [ColorMask](crate::renderer::framework::state::ColorMask)(...)
+//!
+//!  - depth_write:
+//!     - Whether to modify depth buffer or not.
+//!     - **Possible values:** `true/false`
+//!
+//!  - stencil_test:
+//!     - Whether to use stencil test or not.
+//!     - **Possible values:**
+//!         - `None`
+//!         - Some([StencilFunc](crate::renderer::framework::state::StencilFunc))
+//!
+//!  - depth_test:
+//!      - Whether to perform depth test when drawing.
+//!      - **Possible values:** `true/false`
+//!
+//!   - blend:
+//!      - Blending options.
+//!      - **Possible values:**
+//!         - `None`
+//!         - Some([BlendFunc](crate::renderer::framework::state::BlendFunc))
+//!
+//!   - stencil_op:
+//!      - Stencil options.
+//!      - **Possible values:** [StencilOp](crate::renderer::framework::state::StencilOp)
+//!
+//! # Standard shader
+//!
+//! By default Fyrox uses standard material for rendering, it covers 95% of uses cases and it is very
+//! flexible. To get standard shader instance, use [`ShaderResource::standard`]
+//!
+//! ```no_run
+//! # use fyrox::material::shader::{ShaderResource, ShaderResourceExtension};
+//!
+//! let standard_shader = ShaderResource::standard();
+//! ```
+//!
+//! Usually you don't need to get this shader manually, using of [Material::standard](super::Material::standard)
+//! is enough.
 
 use crate::{
-    asset::{define_new_resource, Resource, ResourceData, ResourceState},
+    asset::options::ImportOptions,
+    asset::{Resource, ResourceData},
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         io::{self, FileLoadError},
@@ -11,11 +234,14 @@ use crate::{
         sparse::AtomicIndex,
         visitor::prelude::*,
     },
-    engine::resource_manager::options::ImportOptions,
     lazy_static::lazy_static,
     renderer::framework::framebuffer::DrawParameters,
 };
+use fyrox_core::uuid::Uuid;
+use fyrox_core::TypeUuidProvider;
+use fyrox_resource::SHADER_RESOURCE_UUID;
 use serde::{Deserialize, Serialize};
+use std::any::Any;
 use std::fmt::{Display, Formatter};
 use std::{
     borrow::Cow,
@@ -55,7 +281,7 @@ pub const STANDARD_SHADER_NAMES: [&str; 3] = [
 /// Usually you don't need to access internals of the shader, but there sometimes could be a need to
 /// read shader definition, to get supported passes and properties.
 #[derive(Default, Debug)]
-pub struct ShaderState {
+pub struct Shader {
     path: PathBuf,
 
     /// Shader definition contains description of properties and render passes.
@@ -64,7 +290,13 @@ pub struct ShaderState {
     pub(crate) cache_index: AtomicIndex,
 }
 
-impl Visit for ShaderState {
+impl TypeUuidProvider for Shader {
+    fn type_uuid() -> Uuid {
+        SHADER_RESOURCE_UUID
+    }
+}
+
+impl Visit for Shader {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
@@ -224,7 +456,7 @@ pub struct PropertyDefinition {
     pub kind: PropertyKind,
 }
 
-/// A render pass definition. See [`Shader`] docs for more info about render passes.
+/// A render pass definition. See [`ShaderResource`] docs for more info about render passes.
 #[derive(Default, Deserialize, Debug, PartialEq, Eq)]
 pub struct RenderPassDefinition {
     /// A name of render pass.
@@ -258,7 +490,7 @@ impl ShaderDefinition {
     }
 }
 
-impl ShaderState {
+impl Shader {
     pub(crate) async fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, ShaderError> {
         let content = io::load_file(path.as_ref()).await?;
         Ok(Self {
@@ -277,13 +509,25 @@ impl ShaderState {
     }
 }
 
-impl ResourceData for ShaderState {
+impl ResourceData for Shader {
     fn path(&self) -> Cow<Path> {
         Cow::from(&self.path)
     }
 
     fn set_path(&mut self, path: PathBuf) {
         self.path = path;
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn type_uuid(&self) -> Uuid {
+        <Self as TypeUuidProvider>::type_uuid()
     }
 }
 
@@ -322,261 +566,52 @@ impl From<FileLoadError> for ShaderError {
     }
 }
 
-define_new_resource!(
-    /// Shader is a script for graphics adapter, it defines how to draw an object.
-    ///
-    /// # Structure
-    ///
-    /// Shader has rigid structure that could be described in this code snipped:
-    ///
-    /// ```ron
-    /// (
-    ///     // A set of properties, there could be any amount of properties.
-    ///     properties: [
-    ///         (
-    ///             // Each property must have a name. This name must match with respective
-    ///             // uniforms! That's is the whole point of having properties.
-    ///             name: "diffuseTexture",
-    ///
-    ///             // Value has limited set of possible variants.
-    ///             value: Sampler(default: None, fallback: White)
-    ///         )
-    ///     ],
-    ///
-    ///     // A set of render passes (see a section `Render pass` for more info)
-    ///     passes: [
-    ///         (
-    ///             // Name must match with the name of either standard render pass (see below) or
-    ///             // one of your passes.
-    ///             name: "Forward",
-    ///
-    ///             // A set of parameters that regulate renderer pipeline state.
-    ///             // This is mandatory field of each render pass.
-    ///             draw_parameters: DrawParameters(
-    ///                 // A face to cull. Either Front or Back.
-    ///                 cull_face: Some(Back),
-    ///
-    ///                 // Color mask. Defines which colors should be written to render target.
-    ///                 color_write: ColorMask(
-    ///                     red: true,
-    ///                     green: true,
-    ///                     blue: true,
-    ///                     alpha: true,
-    ///                 ),
-    ///
-    ///                 // Whether to modify depth buffer or not.
-    ///                 depth_write: true,
-    ///
-    ///                 // Whether to use stencil test or not.
-    ///                 stencil_test: None,
-    ///
-    ///                 // Whether to perform depth test when drawing.
-    ///                 depth_test: true,
-    ///
-    ///                 // Blending options.
-    ///                 blend: Some(BlendParameters(
-    ///                     func: BlendFunc(
-    ///                         sfactor: SrcAlpha,
-    ///                         dfactor: OneMinusSrcAlpha,
-    ///                         alpha_sfactor: SrcAlpha,
-    ///                         alpha_dfactor: OneMinusSrcAlpha,
-    ///                     ),
-    ///                     equation: BlendEquation(
-    ///                         rgb: Add,
-    ///                         alpha: Add
-    ///                     )
-    ///                 )),
-    ///
-    ///                 // Stencil options.
-    ///                 stencil_op: StencilOp(
-    ///                     fail: Keep,
-    ///                     zfail: Keep,
-    ///                     zpass: Keep,
-    ///                     write_mask: 0xFFFF_FFFF,
-    ///                 ),
-    ///             ),
-    ///
-    ///             // Vertex shader code.
-    ///             vertex_shader:
-    ///                 r#"
-    ///                 #version 330 core
-    ///
-    ///                 layout(location = 0) in vec3 vertexPosition;
-    ///                 layout(location = 1) in vec2 vertexTexCoord;
-    ///
-    ///                 uniform mat4 fyrox_worldViewProjection;
-    ///
-    ///                 out vec2 texCoord;
-    ///
-    ///                 void main()
-    ///                 {
-    ///                     texCoord = vertexTexCoord;
-    ///                     gl_Position = fyrox_worldViewProjection * vertexPosition;
-    ///                 }
-    ///                 "#;
-    ///
-    ///             // Pixel shader code.
-    ///             pixel_shader:
-    ///                 r#"
-    ///                 #version 330 core
-    ///
-    ///                 // Note that the name of this uniform match the name of the property up above.
-    ///                 uniform sampler2D diffuseTexture;
-    ///
-    ///                 out vec4 FragColor;
-    ///
-    ///                 in vec2 texCoord;
-    ///
-    ///                 void main()
-    ///                 {
-    ///                     FragColor = diffuseColor * texture(diffuseTexture, texCoord);
-    ///                 }
-    ///                 "#;
-    ///         )
-    ///     ],
-    /// )
-    /// ```
-    ///
-    /// Shader should contain at least one render pass to actually do some job. A shader could not
-    /// have properties at all. Currently only vertex and fragment programs are supported. Each
-    /// program mush be written in GLSL. Comprehensive GLSL documentation can be found
-    /// [here](https://www.khronos.org/opengl/wiki/Core_Language_(GLSL))
-    ///
-    /// # Render pass
-    ///
-    /// Modern rendering is a very complex thing that requires drawing an object multiple times
-    /// with different "scripts". For example to draw an object with shadows you need to draw an
-    /// object twice: one directly in a render target, and one in a shadow map. Such stages called
-    /// render passes.
-    ///
-    /// Binding of shaders to render passes is done via names, each render pass has unique name.
-    ///
-    /// ## Predefined passes
-    ///
-    /// There are number of predefined render passes:
-    ///
-    /// - GBuffer - A pass that fills a set of render target sized textures with various data
-    /// about each rendered object. These textures then are used for physically-based lighting.
-    /// Use this pass when you want the standard lighting to work with your objects.
-    ///
-    /// - Forward - A pass that draws an object directly in render target. This pass is very
-    /// limiting, it does not support lighting, shadows, etc. It should be only used to render
-    /// translucent objects.
-    ///
-    /// - SpotShadow - A pass that emits depth values for an object, later this depth map will be
-    /// used to render shadows.
-    ///
-    /// - PointShadow - A pass that emits distance from a fragment to a point light, later this depth
-    /// map will be used to render shadows.
-    ///
-    /// # Built-in variables
-    ///
-    /// There are number of build-in variables that Fyrox pass to each shader automatically:
-    ///
-    /// | Name                      | Type            | Description
-    /// |---------------------------|-----------------|--------------------------------------------
-    /// | fyrox_worldMatrix          | `Matrix4`       | Local-to-world transformation.
-    /// | fyrox_worldViewProjection  | `Matrix4`       | Local-to-clip-space transform.
-    /// | fyrox_boneMatrices         | `[Matrix4; 60]` | Array of bone matrices.
-    /// | fyrox_useSkeletalAnimation | `Vector3`       | Whether skinned meshes is rendering or not.
-    /// | fyrox_cameraPosition       | `Vector3`       | Position of the camera.
-    /// | fyrox_usePOM               | `bool`          | Whether to use parallax mapping or not.
-    /// | fyrox_lightPosition        | `Vector3`       | Light position.
-    ///
-    /// To use any of the variables, just define a uniform with appropriate name:
-    ///
-    /// ```glsl
-    /// uniform mat4 fyrox_worldMatrix;
-    /// uniform vec3 fyrox_cameraPosition;
-    /// ```
-    ///
-    /// This list will be extended in future releases.
-    ///
-    /// # Drawing parameters
-    ///
-    /// Drawing parameters defines which GPU functions to use and at which state. For example, to render
-    /// transparent objects you need to enable blending with specific blending rules. Or you need to disable
-    /// culling to draw objects from both sides. This is when draw parameters comes in handy.
-    ///
-    /// There are relatively large list of drawing parameters and it could confuse a person who didn't get
-    /// used to work with graphics. The following list should help you to use drawing parameters correctly.
-    ///
-    /// - cull_face
-    ///     - Defines which side of polygon should be culled.
-    ///     - **Possible values:** `None`, [Some(CullFace::XXX)](crate::renderer::framework::state::CullFace)
-    ///
-    /// - color_write:
-    ///     - Defines which components of color should be written to a render target
-    ///     - **Possible values:** [ColorMask](crate::renderer::framework::state::ColorMask)(...)
-    ///
-    ///  - depth_write:
-    ///     - Whether to modify depth buffer or not.
-    ///     - **Possible values:** `true/false`
-    ///
-    ///  - stencil_test:
-    ///     - Whether to use stencil test or not.
-    ///     - **Possible values:**
-    ///         - `None`
-    ///         - Some([StencilFunc](crate::renderer::framework::state::StencilFunc))
-    ///
-    ///  - depth_test:
-    ///      - Whether to perform depth test when drawing.
-    ///      - **Possible values:** `true/false`
-    ///
-    ///   - blend:
-    ///      - Blending options.
-    ///      - **Possible values:**
-    ///         - `None`
-    ///         - Some([BlendFunc](crate::renderer::framework::state::BlendFunc))
-    ///
-    ///   - stencil_op:
-    ///      - Stencil options.
-    ///      - **Possible values:** [StencilOp](crate::renderer::framework::state::StencilOp)
-    ///
-    /// # Standard shader
-    ///
-    /// By default Fyrox uses standard material for rendering, it covers 95% of uses cases and it is very
-    /// flexible. To get standard shader instance, use [`Shader::standard`]
-    ///
-    /// ```no_run
-    /// # use fyrox::material::shader::Shader;
-    ///
-    /// let standard_shader = Shader::standard();
-    /// ```
-    ///
-    /// Usually you don't need to get this shader manually, using of [Material::standard](super::Material::standard)
-    /// is enough.
-    #[derive(Reflect)]
-    #[reflect(hide_all)]
-    Shader<ShaderState, ShaderError>
-);
+/// Type alias for shader resources.
+pub type ShaderResource = Resource<Shader>;
 
-impl Shader {
+/// Extension trait for shader resources.
+pub trait ShaderResourceExtension: Sized {
     /// Creates new shader from given string. Input string must have the format defined in
-    /// examples for [`Shader`].
-    pub fn from_str<P: AsRef<Path>>(str: &str, path: P) -> Result<Self, ShaderError> {
-        Ok(Self(Resource::new(ResourceState::Ok(
-            ShaderState::from_str(str, path.as_ref())?,
-        ))))
+    /// examples for [`ShaderResource`].
+    fn from_str<P: AsRef<Path>>(str: &str, path: P) -> Result<Self, ShaderError>;
+
+    /// Returns an instance of standard shader.
+    fn standard() -> Self;
+
+    /// Returns an instance of standard terrain shader.
+    fn standard_terrain() -> Self;
+
+    /// Returns an instance of standard two-sides terrain shader.
+    fn standard_twosides() -> Self;
+
+    /// Returns a list of standard shader.
+    fn standard_shaders() -> Vec<ShaderResource>;
+}
+
+impl ShaderResourceExtension for ShaderResource {
+    /// Creates new shader from given string. Input string must have the format defined in
+    /// examples for [`ShaderResource`].
+    fn from_str<P: AsRef<Path>>(str: &str, path: P) -> Result<Self, ShaderError> {
+        Ok(Resource::new_ok(Shader::from_str(str, path.as_ref())?))
     }
 
     /// Returns an instance of standard shader.
-    pub fn standard() -> Self {
+    fn standard() -> Self {
         STANDARD.clone()
     }
 
     /// Returns an instance of standard terrain shader.
-    pub fn standard_terrain() -> Self {
+    fn standard_terrain() -> Self {
         STANDARD_TERRAIN.clone()
     }
 
     /// Returns an instance of standard two-sides terrain shader.
-    pub fn standard_twosides() -> Self {
+    fn standard_twosides() -> Self {
         STANDARD_TWOSIDES.clone()
     }
 
     /// Returns a list of standard shader.
-    pub fn standard_shaders() -> Vec<Shader> {
+    fn standard_shaders() -> Vec<ShaderResource> {
         vec![
             Self::standard(),
             Self::standard_terrain(),
@@ -592,28 +627,28 @@ pub struct ShaderImportOptions {}
 impl ImportOptions for ShaderImportOptions {}
 
 lazy_static! {
-    static ref STANDARD: Shader = Shader(Resource::new(ResourceState::Ok(
-        ShaderState::from_str(STANDARD_SHADER_SRC, STANDARD_SHADER_NAME).unwrap(),
-    )));
+    static ref STANDARD: ShaderResource = ShaderResource::new_ok(
+        Shader::from_str(STANDARD_SHADER_SRC, STANDARD_SHADER_NAME).unwrap(),
+    );
 }
 
 lazy_static! {
-    static ref STANDARD_TERRAIN: Shader = Shader(Resource::new(ResourceState::Ok(
-        ShaderState::from_str(STANDARD_TERRAIN_SHADER_SRC, STANDARD_TERRAIN_SHADER_NAME).unwrap(),
-    )));
+    static ref STANDARD_TERRAIN: ShaderResource = ShaderResource::new_ok(
+        Shader::from_str(STANDARD_TERRAIN_SHADER_SRC, STANDARD_TERRAIN_SHADER_NAME).unwrap(),
+    );
 }
 
 lazy_static! {
-    static ref STANDARD_TWOSIDES: Shader = Shader(Resource::new(ResourceState::Ok(
-        ShaderState::from_str(STANDARD_TWOSIDES_SHADER_SRC, STANDARD_TWOSIDES_SHADER_NAME).unwrap(),
-    )));
+    static ref STANDARD_TWOSIDES: ShaderResource = ShaderResource::new_ok(
+        Shader::from_str(STANDARD_TWOSIDES_SHADER_SRC, STANDARD_TWOSIDES_SHADER_NAME).unwrap(),
+    );
 }
 
 #[cfg(test)]
 mod test {
     use crate::material::shader::{
-        PropertyDefinition, PropertyKind, RenderPassDefinition, SamplerFallback, Shader,
-        ShaderDefinition,
+        PropertyDefinition, PropertyKind, RenderPassDefinition, SamplerFallback, ShaderDefinition,
+        ShaderResource, ShaderResourceExtension,
     };
 
     #[test]
@@ -658,7 +693,7 @@ mod test {
             )
             "##;
 
-        let shader = Shader::from_str(code, "test").unwrap();
+        let shader = ShaderResource::from_str(code, "test").unwrap();
         let data = shader.data_ref();
 
         let reference_definition = ShaderDefinition {

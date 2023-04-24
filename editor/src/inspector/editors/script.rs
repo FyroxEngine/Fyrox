@@ -2,6 +2,7 @@ use crate::{
     gui::make_dropdown_list_option, inspector::EditorEnvironment, send_sync_message,
     DropdownListBuilder, MSG_SYNC_FLAG,
 };
+use fyrox::gui::inspector::PropertyFilter;
 use fyrox::{
     core::{pool::Handle, uuid::Uuid},
     engine::SerializationContext,
@@ -144,6 +145,7 @@ impl ScriptPropertyEditorBuilder {
         sync_flag: u64,
         layer_index: usize,
         generate_property_string_values: bool,
+        filter: PropertyFilter,
         script: &Option<Script>,
         definition_container: Rc<PropertyEditorDefinitionContainer>,
         ctx: &mut BuildContext,
@@ -157,6 +159,7 @@ impl ScriptPropertyEditorBuilder {
                 sync_flag,
                 layer_index,
                 generate_property_string_values,
+                filter,
             )
         });
 
@@ -280,6 +283,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                     ctx.sync_flag,
                     ctx.layer_index,
                     ctx.generate_property_string_values,
+                    ctx.filter,
                     value,
                     ctx.definition_container.clone(),
                     ctx.build_context,
@@ -371,6 +375,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                         ctx.sync_flag,
                         ctx.layer_index + 1,
                         ctx.generate_property_string_values,
+                        ctx.filter,
                     )
                 })
                 .unwrap_or_default();
@@ -394,6 +399,7 @@ impl PropertyEditorDefinition for ScriptPropertyEditorDefinition {
                     ctx.ui,
                     layer_index + 1,
                     ctx.generate_property_string_values,
+                    ctx.filter,
                 ) {
                     Err(InspectorError::Group(e))
                 } else {

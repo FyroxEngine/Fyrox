@@ -5,7 +5,11 @@ use crate::{
     scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
     send_sync_message, GameEngine, Message,
 };
+use fyrox::asset::untyped::UntypedResource;
+use fyrox::material::shader::{Shader, ShaderResourceExtension};
+use fyrox::resource::texture::Texture;
 use fyrox::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
         futures::executor::block_on,
@@ -15,7 +19,6 @@ use fyrox::{
         sstorage::ImmutableString,
         BiDirHashMap,
     },
-    engine::resource_manager::ResourceManager,
     gui::{
         border::BorderBuilder,
         check_box::{CheckBoxBuilder, CheckBoxMessage},
@@ -39,8 +42,7 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
-    material::{shader::Shader, Material, PropertyValue, SharedMaterial},
-    resource::texture::TextureState,
+    material::{shader::ShaderResource, Material, PropertyValue, SharedMaterial},
     scene::{
         base::BaseBuilder,
         mesh::{
@@ -89,7 +91,7 @@ pub struct MaterialEditor {
     preview: PreviewPanel,
     material: Option<SharedMaterial>,
     available_shaders: Handle<UiNode>,
-    shaders_list: Vec<Shader>,
+    shaders_list: Vec<ShaderResource>,
     texture_context_menu: TextureContextMenu,
 }
 
@@ -328,7 +330,7 @@ impl MaterialEditor {
         self.shaders_list.clear();
 
         self.shaders_list
-            .extend_from_slice(&Shader::standard_shaders());
+            .extend_from_slice(&ShaderResource::standard_shaders());
 
         for dir in fyrox::walkdir::WalkDir::new(".").into_iter().flatten() {
             let path = dir.path();
@@ -336,7 +338,7 @@ impl MaterialEditor {
                 if extension == "shader" {
                     if let Ok(relative_path) = make_relative_path(path) {
                         self.shaders_list
-                            .push(resource_manager.request_shader(relative_path));
+                            .push(resource_manager.request::<Shader, _>(relative_path));
                     }
                 }
             }
@@ -678,8 +680,8 @@ impl MaterialEditor {
                         .texture
                         .clone()
                         .and_then(|t| {
-                            t.0.downcast::<Mutex<TextureState>>()
-                                .map(|t| t.lock().path().to_path_buf())
+                            t.0.downcast::<Mutex<UntypedResource>>()
+                                .map(|t| t.lock().path())
                                 .ok()
                         });
 
@@ -743,7 +745,7 @@ impl MaterialEditor {
                     {
                         if let Ok(relative_path) = make_relative_path(&asset_item.path) {
                             let texture =
-                                Some(engine.resource_manager.request_texture(relative_path));
+                                Some(engine.resource_manager.request::<Texture, _>(relative_path));
 
                             engine.user_interface.send_message(ImageMessage::texture(
                                 message.destination(),

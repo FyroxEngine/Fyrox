@@ -104,7 +104,11 @@ where
     free_stack: Vec<u32>,
 }
 
-impl<T: Reflect> Reflect for Pool<T> {
+impl<T, P> Reflect for Pool<T, P>
+where
+    T: Reflect,
+    P: PayloadContainer<Element = T> + Reflect,
+{
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
@@ -147,7 +151,11 @@ impl<T: Reflect> Reflect for Pool<T> {
     }
 }
 
-impl<T: Reflect> ReflectArray for Pool<T> {
+impl<T, P> ReflectArray for Pool<T, P>
+where
+    T: Reflect,
+    P: PayloadContainer<Element = T> + Reflect,
+{
     fn reflect_index(&self, index: usize) -> Option<&dyn Reflect> {
         self.at(index as u32).map(|p| p as &dyn Reflect)
     }
@@ -161,7 +169,11 @@ impl<T: Reflect> ReflectArray for Pool<T> {
     }
 }
 
-impl<T: PartialEq> PartialEq for Pool<T> {
+impl<T, P> PartialEq for Pool<T, P>
+where
+    T: PartialEq,
+    P: PayloadContainer<Element = T> + PartialEq,
+{
     fn eq(&self, other: &Self) -> bool {
         self.records == other.records
     }
@@ -300,7 +312,11 @@ where
     payload: P,
 }
 
-impl<T: PartialEq> PartialEq for PoolRecord<T> {
+impl<T, P> PartialEq for PoolRecord<T, P>
+where
+    T: PartialEq,
+    P: PayloadContainer<Element = T> + PartialEq,
+{
     fn eq(&self, other: &Self) -> bool {
         self.generation == other.generation && self.payload == other.payload
     }

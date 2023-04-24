@@ -3,6 +3,10 @@ use crate::{
     scene::settings::command::make_set_scene_property_command, EditorScene, Message,
     MessageDirection, MSG_SYNC_FLAG,
 };
+use fyrox::gui::inspector::PropertyFilter;
+use fyrox::resource::texture::TextureResource;
+use fyrox::scene::graph::NodePool;
+use fyrox::utils::lightmap::Lightmap;
 use fyrox::{
     core::pool::Handle,
     engine::Engine,
@@ -90,6 +94,29 @@ impl SceneSettingsWindow {
             MSG_SYNC_FLAG,
             0,
             false,
+            PropertyFilter::new(|property| {
+                let mut pass = true;
+
+                property.downcast_ref::<NodePool>(&mut |v| {
+                    if v.is_some() {
+                        pass = false;
+                    }
+                });
+
+                property.downcast_ref::<Option<TextureResource>>(&mut |v| {
+                    if v.is_some() {
+                        pass = false;
+                    }
+                });
+
+                property.downcast_ref::<Option<Lightmap>>(&mut |v| {
+                    if v.is_some() {
+                        pass = false;
+                    }
+                });
+
+                pass
+            }),
         );
 
         ui.send_message(InspectorMessage::context(

@@ -1,8 +1,7 @@
 use crate::{
-    asset::ResourceState,
+    asset::container::entry::DEFAULT_RESOURCE_LIFETIME,
     core::{scope_profile, sparse::SparseBuffer, sstorage::ImmutableString},
-    engine::resource_manager::container::entry::DEFAULT_RESOURCE_LIFETIME,
-    material::shader::{Shader, ShaderState},
+    material::shader::{Shader, ShaderResource},
     renderer::{
         cache::CacheEntry,
         framework::{framebuffer::DrawParameters, gpu_program::GpuProgram, state::PipelineState},
@@ -10,7 +9,7 @@ use crate::{
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
-use std::ops::Deref;
+use fyrox_resource::ResourceStateRef;
 
 pub struct RenderPassData {
     pub program: GpuProgram,
@@ -22,7 +21,7 @@ pub struct ShaderSet {
 }
 
 impl ShaderSet {
-    pub fn new(state: &mut PipelineState, shader: &ShaderState) -> Option<Self> {
+    pub fn new(state: &mut PipelineState, shader: &Shader) -> Option<Self> {
         let mut map = FxHashMap::default();
         for render_pass in shader.definition.passes.iter() {
             let program_name = format!("{}_{}", shader.definition.name, render_pass.name);
@@ -64,20 +63,24 @@ pub struct ShaderCache {
 }
 
 impl ShaderCache {
-    pub fn remove(&mut self, shader: &Shader) {
-        let shader = shader.state();
-        if let ResourceState::Ok(shader_state) = shader.deref() {
+    pub fn remove(&mut self, shader: &ShaderResource) {
+        let state = shader.state();
+        if let ResourceStateRef::Ok(shader_state) = state.get() {
             self.buffer.free(&shader_state.cache_index);
         }
     }
 
-    pub fn get(&mut self, state: &mut PipelineState, shader: &Shader) -> Option<&ShaderSet> {
+    pub fn get(
+        &mut self,
+        pipeline_state: &mut PipelineState,
+        shader: &ShaderResource,
+    ) -> Option<&ShaderSet> {
         scope_profile!();
 
         let key = shader.key();
-        let shader = shader.state();
+        let shader_state = shader.state();
 
-        if let ResourceState::Ok(shader_state) = shader.deref() {
+        if let ResourceStateRef::Ok(shader_state) = shader_state.get() {
             if self.buffer.is_index_valid(&shader_state.cache_index) {
                 let entry = self.buffer.get_mut(&shader_state.cache_index).unwrap();
 
@@ -87,7 +90,7 @@ impl ShaderCache {
                 Some(&entry.value)
             } else {
                 let index = self.buffer.spawn(CacheEntry {
-                    value: ShaderSet::new(state, shader_state)?,
+                    value: ShaderSet::new(pipeline_state, shader_state)?,
                     time_to_live: DEFAULT_RESOURCE_LIFETIME,
                     value_hash: key as u64,
                 });

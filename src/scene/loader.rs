@@ -1,8 +1,9 @@
 //! Async scene loader helper. See [`AsyncSceneLoader`] docs for more info.
 
 use crate::{
+    asset::manager::ResourceManager,
     core::parking_lot::Mutex,
-    engine::{resource_manager::ResourceManager, SerializationContext},
+    engine::SerializationContext,
     scene::{Scene, SceneLoader},
 };
 use std::{path::PathBuf, sync::Arc};
@@ -80,9 +81,11 @@ impl AsyncSceneLoader {
 
         let inner_state = state.clone();
         let future = async move {
-            match SceneLoader::from_file(&path, serialization_context).await {
+            match SceneLoader::from_file(&path, serialization_context, resource_manager.clone())
+                .await
+            {
                 Ok(loader) => {
-                    inner_state.lock().scene = Some(Ok(loader.finish(resource_manager).await));
+                    inner_state.lock().scene = Some(Ok(loader.finish().await));
                 }
                 Err(e) => {
                     inner_state.lock().scene = Some(Err(format!(

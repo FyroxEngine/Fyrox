@@ -4,10 +4,11 @@
 //!
 //! Warning - Work in progress!
 
-use fyrox::dpi::Size;
-use fyrox::engine::{GraphicsContext, GraphicsContextParams};
-use fyrox::window::WindowAttributes;
+use fyrox::resource::model::{Model, ModelResourceExtension};
+use fyrox::resource::texture::Texture;
+use fyrox::scene::sound::SoundBuffer;
 use fyrox::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
         color::Color,
@@ -16,8 +17,10 @@ use fyrox::{
         sstorage::ImmutableString,
         wasm_bindgen::{self, prelude::*},
     },
-    dpi::LogicalSize,
-    engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
+    dpi::{LogicalSize, Size},
+    engine::{
+        Engine, EngineInitParams, GraphicsContext, GraphicsContextParams, SerializationContext,
+    },
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -28,14 +31,13 @@ use fyrox::{
     gui::{BuildContext, UiNode},
     material::{shader::SamplerFallback, Material, PropertyValue, SharedMaterial},
     resource::texture::TextureWrapMode,
-    scene::mesh::surface::SurfaceSharedData,
     scene::{
         base::BaseBuilder,
         camera::{CameraBuilder, SkyBoxBuilder},
         graph::Graph,
         light::{point::PointLightBuilder, BaseLightBuilder},
         mesh::{
-            surface::{SurfaceBuilder, SurfaceData},
+            surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
             MeshBuilder,
         },
         node::Node,
@@ -44,6 +46,7 @@ use fyrox::{
         Scene,
     },
     utils::translate_event,
+    window::WindowAttributes,
 };
 use std::{panic, sync::Arc};
 
@@ -131,12 +134,12 @@ pub async fn create_camera(
 ) -> Handle<Node> {
     // Load skybox textures in parallel.
     let (front, back, left, right, top, bottom) = fyrox::core::futures::join!(
-        resource_manager.request_texture("data/textures/DarkStormyFront.jpg"),
-        resource_manager.request_texture("data/textures/DarkStormyBack.jpg"),
-        resource_manager.request_texture("data/textures/DarkStormyLeft.jpg"),
-        resource_manager.request_texture("data/textures/DarkStormyRight.jpg"),
-        resource_manager.request_texture("data/textures/DarkStormyUp.jpg"),
-        resource_manager.request_texture("data/textures/DarkStormyDown.jpg")
+        resource_manager.request::<Texture, _>("data/textures/DarkStormyFront.jpg"),
+        resource_manager.request::<Texture, _>("data/textures/DarkStormyBack.jpg"),
+        resource_manager.request::<Texture, _>("data/textures/DarkStormyLeft.jpg"),
+        resource_manager.request::<Texture, _>("data/textures/DarkStormyRight.jpg"),
+        resource_manager.request::<Texture, _>("data/textures/DarkStormyUp.jpg"),
+        resource_manager.request::<Texture, _>("data/textures/DarkStormyDown.jpg")
     );
 
     // Unwrap everything.
@@ -178,7 +181,7 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
     SoundBuilder::new(BaseBuilder::new())
         .with_buffer(
             resource_manager
-                .request_sound_buffer("data/music.ogg")
+                .request::<SoundBuffer, _>("data/music.ogg")
                 .await
                 .ok(),
         )
@@ -205,8 +208,8 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
     .build(&mut scene.graph);
 
     let (model_resource, walk_animation_resource) = fyrox::core::futures::join!(
-        resource_manager.request_model("data/mutant/mutant.FBX"),
-        resource_manager.request_model("data/mutant/walk.fbx")
+        resource_manager.request::<Model, _>("data/mutant/mutant.FBX"),
+        resource_manager.request::<Model, _>("data/mutant/walk.fbx")
     );
 
     // Instantiate model on scene - but only geometry, without any animations.
@@ -234,7 +237,7 @@ async fn create_scene(resource_manager: ResourceManager, context: Arc<Mutex<Scen
         .set_property(
             &ImmutableString::new("diffuseTexture"),
             PropertyValue::Sampler {
-                value: Some(resource_manager.request_texture("data/textures/concrete.jpg")),
+                value: Some(resource_manager.request::<Texture, _>("data/textures/concrete.jpg")),
                 fallback: SamplerFallback::White,
             },
         )
@@ -283,11 +286,10 @@ pub fn main_js() {
         vsync: true,
     };
 
-    let serialization_context = Arc::new(SerializationContext::new());
     let mut engine = Engine::new(EngineInitParams {
         graphics_context_params,
-        resource_manager: ResourceManager::new(serialization_context.clone()),
-        serialization_context,
+        resource_manager: ResourceManager::new(),
+        serialization_context: Arc::new(SerializationContext::new()),
     })
     .unwrap();
 

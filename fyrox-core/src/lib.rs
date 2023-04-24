@@ -43,13 +43,17 @@ pub mod sparse;
 pub mod sstorage;
 pub mod variable;
 pub mod visitor;
+pub mod watcher;
 
 pub use futures;
 pub use instant;
 
+pub use notify;
+
 #[cfg(target_arch = "wasm32")]
 pub use js_sys;
 use std::iter::FromIterator;
+use uuid::Uuid;
 #[cfg(target_arch = "wasm32")]
 pub use wasm_bindgen;
 #[cfg(target_arch = "wasm32")]
@@ -344,4 +348,10 @@ pub fn make_relative_path<P: AsRef<Path>>(path: P) -> Result<PathBuf, std::io::E
             "unable to strip prefix!",
         )),
     }
+}
+
+/// A trait for an entity that has unique type identifier.
+pub trait TypeUuidProvider: Sized {
+    /// Return type UUID.
+    fn type_uuid() -> Uuid;
 }

@@ -1,22 +1,17 @@
 #![allow(missing_docs)] // TODO
 
-use crate::scene::base::BaseBuilder;
-use crate::scene::graph::Graph;
-use crate::scene::node::Node;
 use crate::{
     core::{
         math::aabb::AxisAlignedBoundingBox,
+        pool::Handle,
         reflect::prelude::*,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
+        TypeUuidProvider,
     },
-    scene::{
-        base::Base,
-        node::{NodeTrait, TypeUuidProvider},
-    },
+    scene::{base::Base, base::BaseBuilder, graph::Graph, node::Node, node::NodeTrait},
     utils::navmesh::Navmesh,
 };
-use fyrox_core::pool::Handle;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone, Visit, Reflect, Default)]

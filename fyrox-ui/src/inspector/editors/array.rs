@@ -1,3 +1,4 @@
+use crate::inspector::PropertyFilter;
 use crate::{
     core::{pool::Handle, reflect::prelude::*},
     inspector::{
@@ -75,6 +76,7 @@ where
     definition_container: Option<Rc<PropertyEditorDefinitionContainer>>,
     layer_index: usize,
     generate_property_string_values: bool,
+    filter: PropertyFilter,
 }
 
 fn create_item_views(
@@ -106,6 +108,7 @@ fn create_items<'a, T, I>(
     sync_flag: u64,
     layer_index: usize,
     generate_property_string_values: bool,
+    filter: PropertyFilter,
 ) -> Vec<Item>
 where
     T: Reflect + 'static,
@@ -121,6 +124,7 @@ where
                 sync_flag,
                 layer_index,
                 generate_property_string_values,
+                filter.clone(),
             );
 
             let inspector = InspectorBuilder::new(WidgetBuilder::new())
@@ -145,6 +149,7 @@ where
             definition_container: None,
             layer_index: 0,
             generate_property_string_values: false,
+            filter: Default::default(),
         }
     }
 
@@ -179,6 +184,11 @@ where
         self
     }
 
+    pub fn with_filter(mut self, filter: PropertyFilter) -> Self {
+        self.filter = filter;
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext, sync_flag: u64) -> Handle<UiNode> {
         let definition_container = self
             .definition_container
@@ -196,6 +206,7 @@ where
                     sync_flag,
                     self.layer_index + 1,
                     self.generate_property_string_values,
+                    self.filter,
                 )
             })
             .unwrap_or_default();
@@ -272,6 +283,8 @@ where
                 .with_environment(ctx.environment.clone())
                 .with_layer_index(ctx.layer_index + 1)
                 .with_definition_container(ctx.definition_container.clone())
+                .with_generate_property_string_values(ctx.generate_property_string_values)
+                .with_filter(ctx.filter)
                 .build(ctx.build_context, ctx.sync_flag);
                 editor
             },
@@ -290,6 +303,7 @@ where
             ui,
             generate_property_string_values,
             property_info,
+            filter,
             ..
         } = ctx;
 
@@ -314,7 +328,13 @@ where
                 .expect("Must be Inspector!")
                 .context()
                 .clone();
-            if let Err(e) = ctx.sync(obj, ui, layer_index + 1, generate_property_string_values) {
+            if let Err(e) = ctx.sync(
+                obj,
+                ui,
+                layer_index + 1,
+                generate_property_string_values,
+                filter.clone(),
+            ) {
                 error_group.extend(e.into_iter())
             }
         }

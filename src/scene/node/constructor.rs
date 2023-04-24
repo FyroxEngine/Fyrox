@@ -1,7 +1,7 @@
 //! A special container that is able to create nodes by their type UUID.
 
 use crate::{
-    core::{parking_lot::Mutex, uuid::Uuid},
+    core::{parking_lot::Mutex, uuid::Uuid, TypeUuidProvider},
     scene::{
         self,
         animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
@@ -11,7 +11,7 @@ use crate::{
         light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
         mesh::Mesh,
         navmesh::NavigationalMesh,
-        node::{Node, NodeTrait, TypeUuidProvider},
+        node::{Node, NodeTrait},
         particle_system::ParticleSystem,
         pivot::Pivot,
         sound::{listener::Listener, Sound},

@@ -235,6 +235,7 @@ where
                 sync_flag: ctx.sync_flag,
                 layer_index: ctx.layer_index,
                 generate_property_string_values: ctx.generate_property_string_values,
+                filter: ctx.filter,
             })?;
 
             let wrapper = InheritablePropertyEditorBuilder::new(WidgetBuilder::new())
@@ -300,6 +301,7 @@ where
                 layer_index: ctx.layer_index,
                 ui: ctx.ui,
                 generate_property_string_values: ctx.generate_property_string_values,
+                filter: ctx.filter,
             });
         }
 

@@ -8,8 +8,9 @@ use crate::{
     GameEngine, Message,
 };
 use fyrox::{
+    asset::manager::ResourceManager,
     core::{pool::Handle, reflect::prelude::*},
-    engine::{resource_manager::ResourceManager, SerializationContext},
+    engine::SerializationContext,
     scene::{graph::SubGraph, node::Node, Scene},
     utils::log::Log,
 };

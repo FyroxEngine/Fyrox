@@ -1,7 +1,8 @@
 use crate::{gui::AssetItemMessage, load_image};
+use fyrox::resource::texture::Texture;
 use fyrox::{
+    asset::manager::ResourceManager,
     core::{color::Color, pool::Handle},
-    engine::resource_manager::ResourceManager,
     gui::{
         brush::Brush,
         draw::{CommandTexture, Draw, DrawingContext},
@@ -149,7 +150,9 @@ impl AssetItemBuilder {
                 .and_then(|ext| match ext.to_string_lossy().to_lowercase().as_ref() {
                     "jpg" | "tga" | "png" | "bmp" => {
                         kind = AssetKind::Texture;
-                        Some(into_gui_texture(resource_manager.request_texture(&path)))
+                        Some(into_gui_texture(
+                            resource_manager.request::<Texture, _>(&path),
+                        ))
                     }
                     "fbx" | "rgs" => {
                         kind = AssetKind::Model;

@@ -20,7 +20,7 @@
 
 use crate::{
     animation::Animation,
-    asset::{define_new_resource, Resource, ResourceData},
+    asset::{manager::ResourceManager, options::ImportOptions, Resource, ResourceData},
     core::{
         algebra::{UnitQuaternion, Vector3},
         pool::Handle,
@@ -28,10 +28,7 @@ use crate::{
         variable::reset_inheritable_properties,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
-    engine::{
-        resource_manager::{options::ImportOptions, ResourceManager},
-        SerializationContext,
-    },
+    engine::SerializationContext,
     resource::fbx::{self, error::FbxError},
     scene::{
         animation::AnimationPlayer,
@@ -41,7 +38,11 @@ use crate::{
     },
     utils::log::{Log, MessageKind},
 };
+use fyrox_core::uuid::Uuid;
+use fyrox_core::TypeUuidProvider;
+use fyrox_resource::MODEL_RESOURCE_UUID;
 use serde::{Deserialize, Serialize};
+use std::any::Any;
 use std::{
     borrow::Cow,
     fmt::{Display, Formatter},
@@ -59,7 +60,7 @@ pub(crate) enum NodeMapping {
 
 /// See module docs.
 #[derive(Debug, Visit)]
-pub struct ModelData {
+pub struct Model {
     pub(crate) path: PathBuf,
     #[visit(skip)]
     pub(crate) mapping: NodeMapping,
@@ -67,17 +68,88 @@ pub struct ModelData {
     scene: Scene,
 }
 
-define_new_resource!(
-    /// See module docs.
-    #[derive(Reflect)]
-    #[reflect(hide_all)]
-    Model<ModelData, ModelLoadError>
-);
+impl TypeUuidProvider for Model {
+    fn type_uuid() -> Uuid {
+        MODEL_RESOURCE_UUID
+    }
+}
 
-impl Model {
-    pub(crate) fn instantiate_from(
-        model: Self,
-        model_data: &ModelData,
+/// Type alias for model resources.
+pub type ModelResource = Resource<Model>;
+
+/// Extension trait for model resources.
+pub trait ModelResourceExtension: Sized {
+    /// Tries to instantiate model from given resource.
+    fn instantiate_from(
+        model: ModelResource,
+        model_data: &Model,
+        handle: Handle<Node>,
+        dest_graph: &mut Graph,
+    ) -> (Handle<Node>, NodeHandleMap);
+
+    /// Tries to instantiate model from given resource.
+    fn instantiate(&self, dest_scene: &mut Scene) -> Handle<Node>;
+
+    /// Instantiates a prefab and places it at specified position and orientation in global coordinates.
+    fn instantiate_at(
+        &self,
+        scene: &mut Scene,
+        position: Vector3<f32>,
+        orientation: UnitQuaternion<f32>,
+    ) -> Handle<Node>;
+
+    /// Tries to retarget animations from given model resource to a node hierarchy starting
+    /// from `root` on a given scene.
+    ///
+    /// Animation retargeting allows you to "transfer" animation from a model to a model
+    /// instance on a scene. Imagine you have a character that should have multiple animations
+    /// like idle, run, shoot, walk, etc. and you want to store each animation in a separate
+    /// file. Then when you creating a character on a level you want to have all possible
+    /// animations assigned to a character, this is where this function comes into play:
+    /// you just load a model of your character with skeleton, but without any animations,
+    /// then you load several "models" which have only skeleton with some animation (such
+    /// "models" can be considered as "animation" resources). After this you need to
+    /// instantiate model on your level and retarget all animations you need to that instance
+    /// from other "models". All you have after this is a handle to a model and bunch of
+    /// handles to specific animations. After this animations can be blended in any combinations
+    /// you need to. For example idle animation can be blended with walk animation when your
+    /// character starts walking.
+    ///
+    /// # Notes
+    ///
+    /// Most of the 3d model formats can contain only one animation, so in most cases
+    /// this function will return vector with only one animation.
+    fn retarget_animations_directly(&self, root: Handle<Node>, graph: &Graph) -> Vec<Animation>;
+
+    /// Tries to retarget animations from given model resource to a node hierarchy starting
+    /// from `root` on a given scene. Unlike [`Self::retarget_animations_directly`], it automatically
+    /// adds retargetted animations to the specified animation player in the hierarchy of given `root`.
+    ///
+    /// # Panic
+    ///
+    /// Panics if `dest_animation_player` is invalid handle, or the node does not have [`AnimationPlayer`]
+    /// component.
+    fn retarget_animations_to_player(
+        &self,
+        root: Handle<Node>,
+        dest_animation_player: Handle<Node>,
+        graph: &mut Graph,
+    ) -> Vec<Handle<Animation>>;
+
+    /// Tries to retarget animations from given model resource to a node hierarchy starting
+    /// from `root` on a given scene. Unlike [`Self::retarget_animations_directly`], it automatically
+    /// adds retargetted animations to a first animation player in the hierarchy of given `root`.
+    ///
+    /// # Panic
+    ///
+    /// Panics if there's no animation player in the given hierarchy (descendant nodes of `root`).
+    fn retarget_animations(&self, root: Handle<Node>, graph: &mut Graph) -> Vec<Handle<Animation>>;
+}
+
+impl ModelResourceExtension for ModelResource {
+    fn instantiate_from(
+        model: ModelResource,
+        model_data: &Model,
         handle: Handle<Node>,
         dest_graph: &mut Graph,
     ) -> (Handle<Node>, NodeHandleMap) {
@@ -114,8 +186,7 @@ impl Model {
         (root, old_to_new)
     }
 
-    /// Tries to instantiate model from given resource.
-    pub fn instantiate(&self, dest_scene: &mut Scene) -> Handle<Node> {
+    fn instantiate(&self, dest_scene: &mut Scene) -> Handle<Node> {
         let data = self.data_ref();
 
         let instance_root = Self::instantiate_from(
@@ -132,8 +203,7 @@ impl Model {
         instance_root
     }
 
-    /// Instantiates a prefab and places it at specified position and orientation in global coordinates.
-    pub fn instantiate_at(
+    fn instantiate_at(
         &self,
         scene: &mut Scene,
         position: Vector3<f32>,
@@ -151,32 +221,7 @@ impl Model {
         root
     }
 
-    /// Tries to retarget animations from given model resource to a node hierarchy starting
-    /// from `root` on a given scene.
-    ///
-    /// Animation retargeting allows you to "transfer" animation from a model to a model
-    /// instance on a scene. Imagine you have a character that should have multiple animations
-    /// like idle, run, shoot, walk, etc. and you want to store each animation in a separate
-    /// file. Then when you creating a character on a level you want to have all possible
-    /// animations assigned to a character, this is where this function comes into play:
-    /// you just load a model of your character with skeleton, but without any animations,
-    /// then you load several "models" which have only skeleton with some animation (such
-    /// "models" can be considered as "animation" resources). After this you need to
-    /// instantiate model on your level and retarget all animations you need to that instance
-    /// from other "models". All you have after this is a handle to a model and bunch of
-    /// handles to specific animations. After this animations can be blended in any combinations
-    /// you need to. For example idle animation can be blended with walk animation when your
-    /// character starts walking.
-    ///
-    /// # Notes
-    ///
-    /// Most of the 3d model formats can contain only one animation, so in most cases
-    /// this function will return vector with only one animation.
-    pub fn retarget_animations_directly(
-        &self,
-        root: Handle<Node>,
-        graph: &Graph,
-    ) -> Vec<Animation> {
+    fn retarget_animations_directly(&self, root: Handle<Node>, graph: &Graph) -> Vec<Animation> {
         let mut retargetted_animations = Vec::new();
 
         let data = self.data_ref();
@@ -220,15 +265,7 @@ impl Model {
         retargetted_animations
     }
 
-    /// Tries to retarget animations from given model resource to a node hierarchy starting
-    /// from `root` on a given scene. Unlike [`Self::retarget_animations_directly`], it automatically
-    /// adds retargetted animations to the specified animation player in the hierarchy of given `root`.
-    ///
-    /// # Panic
-    ///
-    /// Panics if `dest_animation_player` is invalid handle, or the node does not have [`AnimationPlayer`]
-    /// component.
-    pub fn retarget_animations_to_player(
+    fn retarget_animations_to_player(
         &self,
         root: Handle<Node>,
         dest_animation_player: Handle<Node>,
@@ -249,18 +286,7 @@ impl Model {
         animation_handles
     }
 
-    /// Tries to retarget animations from given model resource to a node hierarchy starting
-    /// from `root` on a given scene. Unlike [`Self::retarget_animations_directly`], it automatically
-    /// adds retargetted animations to a first animation player in the hierarchy of given `root`.
-    ///
-    /// # Panic
-    ///
-    /// Panics if there's no animation player in the given hierarchy (descendant nodes of `root`).
-    pub fn retarget_animations(
-        &self,
-        root: Handle<Node>,
-        graph: &mut Graph,
-    ) -> Vec<Handle<Animation>> {
+    fn retarget_animations(&self, root: Handle<Node>, graph: &mut Graph) -> Vec<Handle<Animation>> {
         if let Some((animation_player, _)) = graph.find(root, &mut |n| {
             n.query_component_ref::<AnimationPlayer>().is_some()
         }) {
@@ -271,7 +297,7 @@ impl Model {
     }
 }
 
-impl ResourceData for ModelData {
+impl ResourceData for Model {
     fn path(&self) -> Cow<Path> {
         Cow::Borrowed(&self.path)
     }
@@ -279,9 +305,21 @@ impl ResourceData for ModelData {
     fn set_path(&mut self, path: PathBuf) {
         self.path = path;
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn type_uuid(&self) -> Uuid {
+        <Self as TypeUuidProvider>::type_uuid()
+    }
 }
 
-impl Default for ModelData {
+impl Default for Model {
     fn default() -> Self {
         Self {
             path: PathBuf::new(),
@@ -426,7 +464,7 @@ impl From<VisitError> for ModelLoadError {
     }
 }
 
-impl ModelData {
+impl Model {
     pub(crate) async fn load<P: AsRef<Path>>(
         path: P,
         serialization_context: Arc<SerializationContext>,
@@ -461,10 +499,14 @@ impl ModelData {
             // Scene can be used directly as model resource. Such scenes can be created in
             // Fyroxed.
             "rgs" => (
-                SceneLoader::from_file(path.as_ref(), serialization_context)
-                    .await?
-                    .finish(resource_manager)
-                    .await,
+                SceneLoader::from_file(
+                    path.as_ref(),
+                    serialization_context,
+                    resource_manager.clone(),
+                )
+                .await?
+                .finish()
+                .await,
                 NodeMapping::UseHandles,
             ),
             // TODO: Add more formats.

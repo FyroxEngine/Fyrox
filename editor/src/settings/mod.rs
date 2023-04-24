@@ -237,6 +237,7 @@ impl SettingsWindow {
             MSG_SYNC_FLAG,
             0,
             true,
+            Default::default(),
         );
         ui.send_message(InspectorMessage::context(
             self.inspector,

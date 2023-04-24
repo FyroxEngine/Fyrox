@@ -11,12 +11,13 @@ use crate::{
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
+        TypeUuidProvider,
     },
-    resource::texture::Texture,
+    resource::texture::TextureResource,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::{Node, NodeTrait, TypeUuidProvider},
+        node::{Node, NodeTrait},
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -50,13 +51,14 @@ use std::ops::{Deref, DerefMut};
 ///         base::BaseBuilder,
 ///         graph::Graph
 ///     },
-///     engine::resource_manager::ResourceManager,
+///     asset::manager::ResourceManager,
 ///     core::pool::{Handle},
 /// };
+/// use fyrox::resource::texture::Texture;
 ///
 /// fn create_smoke(resource_manager: ResourceManager, graph: &mut Graph) -> Handle<Node> {
 ///     SpriteBuilder::new(BaseBuilder::new())
-///         .with_texture(resource_manager.request_texture("smoke.png"))
+///         .with_texture(resource_manager.request::<Texture, _>("smoke.png"))
 ///         .build(graph)
 /// }
 /// ```
@@ -65,7 +67,7 @@ pub struct Sprite {
     base: Base,
 
     #[reflect(setter = "set_texture")]
-    texture: InheritableVariable<Option<Texture>>,
+    texture: InheritableVariable<Option<TextureResource>>,
 
     #[reflect(setter = "set_color")]
     color: InheritableVariable<Color>,
@@ -139,17 +141,17 @@ impl Sprite {
     }
 
     /// Sets new texture for sprite. Default is None.
-    pub fn set_texture(&mut self, texture: Option<Texture>) -> Option<Texture> {
+    pub fn set_texture(&mut self, texture: Option<TextureResource>) -> Option<TextureResource> {
         self.texture.set_value_and_mark_modified(texture)
     }
 
     /// Returns current texture of sprite. Can be None if sprite has no texture.
-    pub fn texture(&self) -> Option<Texture> {
+    pub fn texture(&self) -> Option<TextureResource> {
         (*self.texture).clone()
     }
 
     /// Returns current texture of sprite by ref. Can be None if sprite has no texture.
-    pub fn texture_ref(&self) -> Option<&Texture> {
+    pub fn texture_ref(&self) -> Option<&TextureResource> {
         self.texture.as_ref()
     }
 }
@@ -174,7 +176,7 @@ impl NodeTrait for Sprite {
 /// This is typical implementation of Builder pattern.
 pub struct SpriteBuilder {
     base_builder: BaseBuilder,
-    texture: Option<Texture>,
+    texture: Option<TextureResource>,
     color: Color,
     size: f32,
     rotation: f32,
@@ -193,13 +195,13 @@ impl SpriteBuilder {
     }
 
     /// Sets desired texture.
-    pub fn with_texture(mut self, texture: Texture) -> Self {
+    pub fn with_texture(mut self, texture: TextureResource) -> Self {
         self.texture = Some(texture);
         self
     }
 
     /// Sets desired texture.
-    pub fn with_opt_texture(mut self, texture: Option<Texture>) -> Self {
+    pub fn with_opt_texture(mut self, texture: Option<TextureResource>) -> Self {
         self.texture = texture;
         self
     }

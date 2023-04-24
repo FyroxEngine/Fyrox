@@ -9,18 +9,19 @@ use crate::{
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
+        TypeUuidProvider,
     },
     define_with,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::{Node, NodeTrait, SyncContext, TypeUuidProvider, UpdateContext},
+        node::{Node, NodeTrait, SyncContext, UpdateContext},
     },
 };
 
 // Re-export some the fyrox_sound entities.
 pub use fyrox_sound::{
-    buffer::{DataSource, SoundBufferResource, SoundBufferResourceLoadError, SoundBufferState},
+    buffer::{DataSource, SoundBuffer, SoundBufferResource, SoundBufferResourceLoadError},
     bus::*,
     context::{DistanceModel, SAMPLE_RATE},
     dsp::{filters::*, DelayLine},
@@ -33,7 +34,7 @@ pub use fyrox_sound::{
 };
 
 use crate::scene::Scene;
-use fyrox_resource::ResourceState;
+use fyrox_resource::ResourceStateRef;
 use fyrox_sound::source::SoundSource;
 use std::{
     cell::Cell,
@@ -401,15 +402,15 @@ impl NodeTrait for Sound {
         match self.buffer.as_ref() {
             Some(buffer) => {
                 let state = buffer.state();
-                match &*state {
-                    ResourceState::Pending { .. } | ResourceState::Ok(_) => Ok(()),
-                    ResourceState::LoadError { error, .. } => {
+                match state.get() {
+                    ResourceStateRef::Pending { .. } | ResourceStateRef::Ok(_) => Ok(()),
+                    ResourceStateRef::LoadError { error, .. } => {
                         match error {
                             None => Err("Sound buffer is failed to load, the reason is unknown!"
                                 .to_string()),
                             Some(err) => Err(format!(
                                 "Sound buffer is failed to load. Reason: {:?}",
-                                **err
+                                *err
                             )),
                         }
                     }

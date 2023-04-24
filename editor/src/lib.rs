@@ -75,6 +75,7 @@ use crate::{
     world::{graph::selection::GraphSelection, WorldViewer},
 };
 use fyrox::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix3, Vector2},
         color::Color,
@@ -83,12 +84,10 @@ use fyrox::{
         scope_profile,
         sstorage::ImmutableString,
         visitor::Visitor,
+        watcher::FileSystemWatcher,
     },
     dpi::LogicalSize,
-    engine::{
-        resource_manager::ResourceManager, Engine, EngineInitParams, GraphicsContextParams,
-        SerializationContext,
-    },
+    engine::{Engine, EngineInitParams, GraphicsContextParams, SerializationContext},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     fxhash::FxHashMap,
@@ -108,9 +107,14 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, UiNode, UserInterface, VerticalAlignment,
     },
-    material::{shader::Shader, Material, PropertyValue, SharedMaterial},
+    material::{
+        shader::{ShaderResource, ShaderResourceExtension},
+        Material, PropertyValue, SharedMaterial,
+    },
     plugin::PluginConstructor,
-    resource::texture::{CompressionOptions, Texture, TextureKind},
+    resource::texture::{
+        CompressionOptions, TextureKind, TextureResource, TextureResourceExtension,
+    },
     scene::{
         camera::{Camera, Projection},
         mesh::Mesh,
@@ -121,7 +125,6 @@ use fyrox::{
         into_gui_texture,
         log::{Log, MessageKind},
         translate_cursor_icon, translate_event,
-        watcher::FileSystemWatcher,
     },
     window::{Icon, WindowAttributes},
 };
@@ -152,13 +155,13 @@ type GameEngine = fyrox::engine::Engine;
 
 pub fn load_image(data: &[u8]) -> Option<draw::SharedTexture> {
     Some(into_gui_texture(
-        Texture::load_from_memory(data, CompressionOptions::NoCompression, false).ok()?,
+        TextureResource::load_from_memory(data, CompressionOptions::NoCompression, false).ok()?,
     ))
 }
 
 lazy_static! {
-    static ref GIZMO_SHADER: Shader = {
-        Shader::from_str(
+    static ref GIZMO_SHADER: ShaderResource = {
+        ShaderResource::from_str(
             include_str!("../resources/embed/shaders/gizmo.shader",),
             PathBuf::default(),
         )
@@ -526,7 +529,7 @@ impl Editor {
         let serialization_context = Arc::new(SerializationContext::new());
         let mut engine = Engine::new(EngineInitParams {
             graphics_context_params,
-            resource_manager: ResourceManager::new(serialization_context.clone()),
+            resource_manager: ResourceManager::new(),
             serialization_context,
         })
         .unwrap();
@@ -536,7 +539,7 @@ impl Editor {
 
         let graphics_context = engine.graphics_context.as_initialized_mut();
 
-        if let Ok(icon_img) = Texture::load_from_memory(
+        if let Ok(icon_img) = TextureResource::load_from_memory(
             include_bytes!("../resources/embed/icon.png"),
             CompressionOptions::NoCompression,
             false,
@@ -891,7 +894,7 @@ impl Editor {
         }
 
         // Setup new one.
-        scene.render_target = Some(Texture::new_render_target(0, 0));
+        scene.render_target = Some(TextureResource::new_render_target(0, 0));
         self.scene_viewer
             .set_render_target(&self.engine.user_interface, scene.render_target.clone());
 
@@ -1408,7 +1411,7 @@ impl Editor {
             {
                 let frame_size = self.scene_viewer.frame_bounds(&engine.user_interface).size;
                 if width != frame_size.x as u32 || height != frame_size.y as u32 {
-                    scene.render_target = Some(Texture::new_render_target(
+                    scene.render_target = Some(TextureResource::new_render_target(
                         frame_size.x as u32,
                         frame_size.y as u32,
                     ));
@@ -1543,11 +1546,12 @@ impl Editor {
             block_on(SceneLoader::from_file(
                 &scene_path,
                 engine.serialization_context.clone(),
+                engine.resource_manager.clone(),
             ))
         };
         match result {
             Ok(loader) => {
-                let scene = block_on(loader.finish(engine.resource_manager.clone()));
+                let scene = block_on(loader.finish());
 
                 self.set_scene(scene, Some(scene_path));
             }

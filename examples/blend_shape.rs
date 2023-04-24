@@ -1,17 +1,16 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::resource::model::{Model, ModelResourceExtension};
 use fyrox::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
         futures::executor::block_on,
         pool::Handle,
     },
-    engine::{
-        executor::Executor, resource_manager::ResourceManager, GraphicsContext,
-        GraphicsContextParams,
-    },
+    engine::{executor::Executor, GraphicsContext, GraphicsContextParams},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
@@ -66,7 +65,7 @@ impl GameSceneLoader {
         .build(&mut scene.graph);
 
         let model_resource = block_on(
-            resource_manager.request_model("examples/data/blend_shape/Gunan_animated2.fbx"),
+            resource_manager.request::<Model, _>("examples/data/blend_shape/Gunan_animated2.fbx"),
         )
         .unwrap();
 

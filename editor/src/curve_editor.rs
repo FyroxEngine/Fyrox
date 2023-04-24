@@ -2,8 +2,9 @@ use crate::{
     define_command_stack, send_sync_message, utils::create_file_selector, MessageBoxButtons,
     MessageBoxMessage, MSG_SYNC_FLAG,
 };
+use fyrox::asset::ResourceStateRefMut;
 use fyrox::{
-    asset::{Resource, ResourceData, ResourceState},
+    asset::{Resource, ResourceData},
     core::{
         color::Color, curve::Curve, futures::executor::block_on, pool::Handle, visitor::prelude::*,
         visitor::Visitor,
@@ -311,7 +312,7 @@ impl CurveEditorWindow {
 
     fn save(&self) {
         if let Some(curve_resource) = self.curve_resource.as_ref() {
-            if let ResourceState::Ok(ref mut state) = *curve_resource.state() {
+            if let ResourceStateRefMut::Ok(state) = curve_resource.state().get_mut() {
                 let mut visitor = Visitor::new();
                 state.curve.visit("Curve", &mut visitor).unwrap();
                 visitor.save_binary(&self.path).unwrap();
@@ -471,12 +472,7 @@ impl CurveEditorWindow {
             } else if message.destination() == self.menu.file.new {
                 self.path = Default::default();
 
-                self.set_curve(
-                    CurveResource(Resource::new(ResourceState::Ok(
-                        CurveResourceState::default(),
-                    ))),
-                    ui,
-                );
+                self.set_curve(Resource::new_ok(CurveResourceState::default()), ui);
             } else if message.destination() == self.menu.file.save {
                 if self.path == PathBuf::default() {
                     self.open_save_file_dialog(ui);
@@ -486,7 +482,11 @@ impl CurveEditorWindow {
             }
         } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
             if message.destination() == self.load_file_selector {
-                if let Ok(curve) = block_on(engine.resource_manager.request_curve(path)) {
+                if let Ok(curve) = block_on(
+                    engine
+                        .resource_manager
+                        .request::<CurveResourceState, _>(path),
+                ) {
                     self.path = path.clone();
                     self.set_curve(curve, ui);
                 }

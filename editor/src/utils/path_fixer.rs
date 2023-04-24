@@ -3,11 +3,12 @@
 
 use crate::{make_scene_file_filter, Message};
 use fyrox::{
+    asset::manager::ResourceManager,
     asset::ResourceData,
     core::{
         color::Color, futures::executor::block_on, pool::Handle, replace_slashes, visitor::Visitor,
     },
-    engine::{resource_manager::ResourceManager, SerializationContext},
+    engine::SerializationContext,
     gui::{
         border::BorderBuilder,
         brush::Brush,
@@ -26,7 +27,7 @@ use fyrox::{
         VerticalAlignment,
     },
     material::PropertyValue,
-    resource::{model::Model, texture::Texture},
+    resource::{model::ModelResource, texture::TextureResource},
     scene::{
         camera::Camera, decal::Decal, dim2::rectangle::Rectangle, light::spot::SpotLight,
         mesh::Mesh, particle_system::ParticleSystem, sprite::Sprite, terrain::Terrain, Scene,
@@ -60,16 +61,16 @@ pub struct PathFixer {
 
 #[derive(Clone)]
 enum SceneResource {
-    Model(Model),
-    Texture(Texture),
+    Model(ModelResource),
+    Texture(TextureResource),
     // TODO: Add sound buffers.
 }
 
 impl SceneResource {
     fn path(&self) -> PathBuf {
         match self {
-            SceneResource::Model(model) => model.state().path().to_path_buf(),
-            SceneResource::Texture(texture) => texture.state().path().to_path_buf(),
+            SceneResource::Model(model) => model.path(),
+            SceneResource::Texture(texture) => texture.path(),
         }
     }
 
@@ -313,7 +314,12 @@ impl PathFixer {
                 let message;
                 match block_on(Visitor::load_binary(path)) {
                     Ok(mut visitor) => {
-                        match SceneLoader::load("Scene", serialization_context, &mut visitor) {
+                        match SceneLoader::load(
+                            "Scene",
+                            serialization_context,
+                            resource_manager,
+                            &mut visitor,
+                        ) {
                             Err(e) => {
                                 message = format!(
                                     "Failed to load a scene {}\nReason: {}",
@@ -322,7 +328,7 @@ impl PathFixer {
                                 );
                             }
                             Ok(loader) => {
-                                let scene = block_on(loader.finish(resource_manager));
+                                let scene = block_on(loader.finish());
 
                                 // Gather resources.
 

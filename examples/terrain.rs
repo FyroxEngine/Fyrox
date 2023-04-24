@@ -3,7 +3,9 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::resource::texture::Texture;
 use fyrox::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
@@ -11,11 +13,9 @@ use fyrox::{
         rand::Rng,
         sstorage::ImmutableString,
         uuid::{uuid, Uuid},
+        TypeUuidProvider,
     },
-    engine::{
-        executor::Executor, resource_manager::ResourceManager, GraphicsContext,
-        GraphicsContextParams,
-    },
+    engine::{executor::Executor, GraphicsContext, GraphicsContextParams},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
@@ -30,7 +30,7 @@ use fyrox::{
     scene::{
         base::BaseBuilder,
         light::{point::PointLightBuilder, BaseLightBuilder},
-        node::{Node, TypeUuidProvider},
+        node::Node,
         terrain::{Brush, BrushMode, BrushShape, Layer, TerrainBuilder},
         transform::TransformBuilder,
         Scene,
@@ -53,7 +53,7 @@ fn setup_layer_material(
         .set_property(
             &ImmutableString::new("diffuseTexture"),
             PropertyValue::Sampler {
-                value: Some(resource_manager.request_texture(diffuse_texture)),
+                value: Some(resource_manager.request::<Texture, _>(diffuse_texture)),
                 fallback: SamplerFallback::White,
             },
         )
@@ -62,7 +62,7 @@ fn setup_layer_material(
         .set_property(
             &ImmutableString::new("normalTexture"),
             PropertyValue::Sampler {
-                value: Some(resource_manager.request_texture(normal_texture)),
+                value: Some(resource_manager.request::<Texture, _>(normal_texture)),
                 fallback: SamplerFallback::Normal,
             },
         )

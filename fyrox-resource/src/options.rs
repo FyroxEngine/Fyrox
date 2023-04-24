@@ -1,12 +1,9 @@
 //! Resource import options common traits.
 
-use crate::utils::log::{Log, MessageKind};
-use fyrox_core::{append_extension, io};
+use crate::core::{append_extension, io};
 use ron::ser::PrettyConfig;
-use serde::de::DeserializeOwned;
-use serde::Serialize;
-use std::fs::File;
-use std::path::Path;
+use serde::{de::DeserializeOwned, Serialize};
+use std::{fs::File, path::Path};
 
 /// A trait for resource import options. It provides generic functionality shared over all types of import options.
 pub trait ImportOptions: Serialize + DeserializeOwned + Default + Clone {
@@ -33,28 +30,24 @@ where
         Ok(bytes) => match ron::de::from_bytes::<T>(&bytes) {
             Ok(options) => Some(options),
             Err(e) => {
-                Log::writeln(
-                    MessageKind::Error,
-                    format!(
-                        "Malformed options file {} for {} resource! Reason: {:?}",
-                        settings_path.display(),
-                        resource_path.display(),
-                        e
-                    ),
+                // TODO: Use logger when it will be moved to fyrox_core.
+                eprintln!(
+                    "Malformed options file {} for {} resource! Reason: {:?}",
+                    settings_path.display(),
+                    resource_path.display(),
+                    e
                 );
 
                 None
             }
         },
         Err(e) => {
-            Log::writeln(
-                MessageKind::Information,
-                format!(
-                    "Unable to load options file {} for {} resource, fallback to defaults! Reason: {:?}",
-                    settings_path.display(),
-                    resource_path.display(),
-                    e
-                ),
+            // TODO: Use logger when it will be moved to fyrox_core.
+            eprintln!(
+                "Unable to load options file {} for {} resource, fallback to defaults! Reason: {:?}",
+                settings_path.display(),
+                resource_path.display(),
+                e
             );
 
             None

@@ -1,20 +1,24 @@
 //! UV Map generator. Used to generate second texture coordinates for lightmaps.
 //!
 //! Current implementation uses simple planar mapping.
-use crate::core::instant;
-use crate::scene::mesh::buffer::{
-    TriangleBufferRefMut, VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
-    VertexBufferRefMut, VertexFetchError, VertexReadTrait, VertexWriteTrait,
-};
 use crate::{
     core::{
         algebra::Vector2,
+        instant,
         math::{self, PlaneClass, TriangleDefinition, Vector2Ext},
         rectpack::RectPacker,
-        visitor::{Visit, VisitResult, Visitor},
+        reflect::prelude::*,
+        visitor::prelude::*,
     },
-    scene::mesh::surface::SurfaceData,
-    scene::mesh::Mesh,
+    scene::mesh::{
+        buffer::{
+            TriangleBufferRefMut, VertexAttributeDataType, VertexAttributeDescriptor,
+            VertexAttributeUsage, VertexBufferRefMut, VertexFetchError, VertexReadTrait,
+            VertexWriteTrait,
+        },
+        surface::SurfaceData,
+        Mesh,
+    },
 };
 use rayon::prelude::*;
 
@@ -116,7 +120,7 @@ fn make_seam(
 /// it just does not have secondary texture coordinates. So we have to patch data after
 /// loading somehow with required data, this is where `SurfaceDataPatch` comes into
 /// play.
-#[derive(Clone, Debug, Default, Visit)]
+#[derive(Clone, Debug, Default, Visit, Reflect)]
 pub struct SurfaceDataPatch {
     /// A surface data id. Usually it is just a hash of surface data.
     pub data_id: u64,

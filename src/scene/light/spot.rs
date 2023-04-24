@@ -32,14 +32,15 @@ use crate::{
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
+        TypeUuidProvider,
     },
-    resource::texture::Texture,
+    resource::texture::TextureResource,
     scene::{
         base::Base,
         debug::SceneDrawingContext,
         graph::Graph,
         light::{BaseLight, BaseLightBuilder},
-        node::{Node, NodeTrait, TypeUuidProvider},
+        node::{Node, NodeTrait},
     },
 };
 use std::ops::{Deref, DerefMut};
@@ -66,7 +67,7 @@ pub struct SpotLight {
     distance: InheritableVariable<f32>,
 
     #[reflect(setter = "set_cookie_texture")]
-    cookie_texture: InheritableVariable<Option<Texture>>,
+    cookie_texture: InheritableVariable<Option<TextureResource>>,
 }
 
 impl Deref for SpotLight {
@@ -171,21 +172,24 @@ impl SpotLight {
     /// Set cookie texture. Also called gobo this texture gets projected
     /// by the spot light.
     #[inline]
-    pub fn set_cookie_texture(&mut self, texture: Option<Texture>) -> Option<Texture> {
+    pub fn set_cookie_texture(
+        &mut self,
+        texture: Option<TextureResource>,
+    ) -> Option<TextureResource> {
         self.cookie_texture.set_value_and_mark_modified(texture)
     }
 
     /// Get cookie texture. Also called gobo this texture gets projected
     /// by the spot light.
     #[inline]
-    pub fn cookie_texture(&self) -> Option<Texture> {
+    pub fn cookie_texture(&self) -> Option<TextureResource> {
         (*self.cookie_texture).clone()
     }
 
     /// Get cookie texture by ref. Also called gobo this texture gets projected
     /// by the spot light.
     #[inline]
-    pub fn cookie_texture_ref(&self) -> Option<&Texture> {
+    pub fn cookie_texture_ref(&self) -> Option<&TextureResource> {
         self.cookie_texture.as_ref()
     }
 }
@@ -233,7 +237,7 @@ pub struct SpotLightBuilder {
     falloff_angle_delta: f32,
     shadow_bias: f32,
     distance: f32,
-    cookie_texture: Option<Texture>,
+    cookie_texture: Option<TextureResource>,
 }
 
 impl SpotLightBuilder {
@@ -274,7 +278,7 @@ impl SpotLightBuilder {
     }
 
     /// Sets the desired cookie/gobo texture.
-    pub fn with_cookie_texture(mut self, texture: Texture) -> Self {
+    pub fn with_cookie_texture(mut self, texture: TextureResource) -> Self {
         self.cookie_texture = Some(texture);
         self
     }

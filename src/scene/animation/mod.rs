@@ -10,11 +10,12 @@ use crate::{
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
+        TypeUuidProvider,
     },
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
+        node::{Node, NodeTrait, UpdateContext},
     },
 };
 use std::ops::{Deref, DerefMut};

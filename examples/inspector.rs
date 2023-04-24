@@ -4,12 +4,13 @@ pub mod shared;
 
 use crate::shared::create_camera;
 use fyrox::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
         pool::Handle,
     },
-    engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
+    engine::{Engine, EngineInitParams, SerializationContext},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -31,6 +32,7 @@ use fyrox::{
 };
 
 use fyrox::engine::{GraphicsContext, GraphicsContextParams};
+use fyrox::resource::model::{Model, ModelResourceExtension};
 use std::sync::Arc;
 use std::{rc::Rc, time::Instant};
 use winit::window::WindowAttributes;
@@ -87,14 +89,14 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     .await;
 
     let model_resource = resource_manager
-        .request_model("examples/data/mutant/mutant.FBX")
+        .request::<Model, _>("examples/data/mutant/mutant.FBX")
         .await
         .unwrap();
 
     let model_handle = model_resource.instantiate(&mut scene);
 
     let walk_animation_resource = resource_manager
-        .request_model("examples/data/mutant/walk.fbx")
+        .request::<Model, _>("examples/data/mutant/walk.fbx")
         .await
         .unwrap();
 
@@ -119,7 +121,7 @@ fn main() {
     let serialization_context = Arc::new(SerializationContext::new());
     let mut engine = Engine::new(EngineInitParams {
         graphics_context_params,
-        resource_manager: ResourceManager::new(serialization_context.clone()),
+        resource_manager: ResourceManager::new(),
         serialization_context,
     })
     .unwrap();
@@ -143,6 +145,7 @@ fn main() {
             1,
             0,
             true,
+            Default::default(),
         );
         user_interface.send_message(InspectorMessage::context(
             interface.inspector,

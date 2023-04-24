@@ -17,10 +17,11 @@ use crate::{
     },
     send_sync_message, Message,
 };
+use fyrox::resource::model::{Model, ModelResourceExtension};
 use fyrox::{
     animation::{Animation, RootMotionSettings},
+    asset::manager::ResourceManager,
     core::{algebra::Vector2, futures::executor::block_on, math::Rect, pool::Handle},
-    engine::resource_manager::ResourceManager,
     gui::{
         border::BorderBuilder,
         button::{Button, ButtonBuilder, ButtonMessage},
@@ -1080,7 +1081,7 @@ impl Toolbar {
             }
         } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
             if message.destination() == self.import_file_selector {
-                match block_on(resource_manager.request_model(path)) {
+                match block_on(resource_manager.request::<Model, _>(path)) {
                     Ok(model) => {
                         let mut animations = model
                             .retarget_animations_directly(self.selected_import_root, &scene.graph);

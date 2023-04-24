@@ -1,3 +1,4 @@
+use fyrox_sound::buffer::SoundBufferResourceExtension;
 use fyrox_sound::{
     algebra::{Point3, UnitQuaternion, Vector3},
     buffer::{DataSource, SoundBufferResource},

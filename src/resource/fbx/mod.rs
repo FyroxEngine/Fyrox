@@ -10,9 +10,11 @@ mod document;
 pub mod error;
 mod scene;
 
+use crate::resource::texture::Texture;
 use crate::scene::mesh::surface::{BlendShape, InputBlendShapeData};
 use crate::{
     animation::{track::Track, Animation, AnimationContainer},
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3, Vector4},
         curve::{CurveKey, CurveKeyKind},
@@ -23,7 +25,6 @@ use crate::{
         sstorage::ImmutableString,
         uuid::Uuid,
     },
-    engine::resource_manager::ResourceManager,
     material::{shader::SamplerFallback, PropertyValue},
     resource::{
         fbx::{
@@ -351,7 +352,8 @@ async fn create_surfaces(
                     };
 
                     if let Some(texture_path) = texture_path {
-                        let texture = resource_manager.request_texture(texture_path.as_path());
+                        let texture =
+                            resource_manager.request::<Texture, _>(texture_path.as_path());
 
                         // Make up your mind, Autodesk and Blender.
                         // Handle all possible combinations of links to auto-import materials.

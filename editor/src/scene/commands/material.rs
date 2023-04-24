@@ -1,7 +1,7 @@
 use crate::{command::Command, scene::commands::SceneContext};
 use fyrox::{
     core::sstorage::ImmutableString,
-    material::{shader::Shader, Material, PropertyValue, SharedMaterial},
+    material::{shader::ShaderResource, Material, PropertyValue, SharedMaterial},
 };
 
 #[derive(Debug)]
@@ -48,7 +48,7 @@ impl Command for SetMaterialPropertyValueCommand {
 #[derive(Debug)]
 enum SetMaterialShaderCommandState {
     Undefined,
-    NonExecuted { new_shader: Shader },
+    NonExecuted { new_shader: ShaderResource },
     Executed { old_material: Material },
     Reverted { new_material: Material },
 }
@@ -60,7 +60,7 @@ pub struct SetMaterialShaderCommand {
 }
 
 impl SetMaterialShaderCommand {
-    pub fn new(material: SharedMaterial, shader: Shader) -> Self {
+    pub fn new(material: SharedMaterial, shader: ShaderResource) -> Self {
         Self {
             material,
             state: SetMaterialShaderCommandState::NonExecuted { new_shader: shader },

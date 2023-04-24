@@ -1,4 +1,6 @@
 use crate::{load_image, utils::built_in_skybox, GameEngine};
+use fyrox::resource::model::{Model, ModelResourceExtension};
+use fyrox::resource::texture::TextureResourceExtension;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -16,7 +18,7 @@ use fyrox::{
         widget::{WidgetBuilder, WidgetMessage},
         HorizontalAlignment, Orientation, Thickness, UiNode, VerticalAlignment,
     },
-    resource::texture::{Texture, TextureKind},
+    resource::texture::{TextureKind, TextureResource},
     scene::{
         base::BaseBuilder,
         camera::{CameraBuilder, Projection},
@@ -157,7 +159,7 @@ impl PreviewPanel {
 
         scene.ambient_lighting_color = Color::opaque(80, 80, 80);
 
-        let render_target = Texture::new_render_target(width, height);
+        let render_target = TextureResource::new_render_target(width, height);
         scene.render_target = Some(render_target.clone());
 
         let scene = engine.scenes.add(scene);
@@ -346,7 +348,7 @@ impl PreviewPanel {
 
     pub async fn load_model(&mut self, model: &Path, engine: &mut GameEngine) -> bool {
         self.clear(engine);
-        if let Ok(model) = engine.resource_manager.request_model(model).await {
+        if let Ok(model) = engine.resource_manager.request::<Model, _>(model).await {
             let scene = &mut engine.scenes[self.scene];
             self.model = model.instantiate(scene);
 
@@ -371,7 +373,8 @@ impl PreviewPanel {
         if let Some(frame) = engine.user_interface.node(self.frame).cast::<Image>() {
             let frame_size = frame.actual_local_size();
             if rt_width != frame_size.x as u32 || rt_height != frame_size.y as u32 {
-                let rt = Texture::new_render_target(frame_size.x as u32, frame_size.y as u32);
+                let rt =
+                    TextureResource::new_render_target(frame_size.x as u32, frame_size.y as u32);
                 scene.render_target = Some(rt.clone());
                 engine.user_interface.send_message(ImageMessage::texture(
                     self.frame,

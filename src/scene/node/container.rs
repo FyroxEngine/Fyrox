@@ -4,6 +4,7 @@
 use crate::{
     core::{
         pool::PayloadContainer,
+        reflect::prelude::*,
         uuid::Uuid,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
@@ -26,7 +27,7 @@ use crate::{
 
 /// A wrapper for node pool record that allows to define custom visit method to have full
 /// control over instantiation process at deserialization.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Reflect)]
 pub struct NodeContainer(Option<Node>);
 
 fn read_node(name: &str, visitor: &mut Visitor) -> Result<Node, VisitError> {
@@ -92,9 +93,8 @@ fn read_node(name: &str, visitor: &mut Visitor) -> Result<Node, VisitError> {
             id.visit("TypeUuid", &mut region)?;
 
             let serialization_context = region
-                .environment
-                .as_ref()
-                .and_then(|e| e.downcast_ref::<SerializationContext>())
+                .blackboard
+                .get::<SerializationContext>()
                 .expect("Visitor environment must contain serialization context!");
 
             let mut node = serialization_context

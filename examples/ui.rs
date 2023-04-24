@@ -9,16 +9,16 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use fyrox::engine::GraphicsContext;
+use fyrox::resource::model::{Model, ModelResourceExtension};
 use fyrox::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
         pool::Handle,
     },
     engine::{
-        resource_manager::ResourceManager, Engine, EngineInitParams, GraphicsContextParams,
-        SerializationContext,
+        Engine, EngineInitParams, GraphicsContext, GraphicsContextParams, SerializationContext,
     },
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -298,7 +298,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     // models it is very efficient because single vertex and index buffer can be used
     // for all models instances, so memory footprint on GPU will be lower.
     let model_resource = resource_manager
-        .request_model("examples/data/mutant/mutant.FBX")
+        .request::<Model, _>("examples/data/mutant/mutant.FBX")
         .await
         .unwrap();
 
@@ -307,7 +307,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     // Add simple animation for our model. Animations are loaded from model resources -
     // this is because animation is a set of skeleton bones with their own transforms.
     let walk_animation_resource = resource_manager
-        .request_model("examples/data/mutant/walk.fbx")
+        .request::<Model, _>("examples/data/mutant/walk.fbx")
         .await
         .unwrap();
 
@@ -336,7 +336,7 @@ fn main() {
     let serialization_context = Arc::new(SerializationContext::new());
     let mut engine = Engine::new(EngineInitParams {
         graphics_context_params,
-        resource_manager: ResourceManager::new(serialization_context.clone()),
+        resource_manager: ResourceManager::new(),
         serialization_context,
     })
     .unwrap();

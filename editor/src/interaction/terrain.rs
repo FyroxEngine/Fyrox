@@ -385,6 +385,7 @@ impl BrushPanel {
             MSG_SYNC_FLAG,
             0,
             true,
+            Default::default(),
         );
 
         let inspector;
@@ -411,7 +412,7 @@ impl BrushPanel {
             .context()
             .clone();
 
-        if let Err(e) = ctx.sync(brush, ui, 0, true) {
+        if let Err(e) = ctx.sync(brush, ui, 0, true, Default::default()) {
             Log::writeln(
                 MessageKind::Error,
                 format!("Failed to sync BrushPanel's inspector. Reason: {:?}", e),

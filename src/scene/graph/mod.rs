@@ -22,8 +22,8 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
+use crate::resource::model::ModelResourceExtension;
 use crate::{
-    asset::ResourceState,
     core::{
         algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
         instant,
@@ -34,7 +34,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     material::SharedMaterial,
-    resource::model::{Model, NodeMapping},
+    resource::model::{ModelResource, NodeMapping},
     scene::{
         self,
         base::NodeScriptMessage,
@@ -55,6 +55,7 @@ use crate::{
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashSet;
+use fyrox_resource::ResourceStateRef;
 use rapier3d::geometry::ColliderHandle;
 use std::{
     fmt::Debug,
@@ -109,7 +110,6 @@ pub struct Graph {
     #[reflect(hidden)]
     root: Handle<Node>,
 
-    #[reflect(hidden)]
     pool: NodePool,
 
     #[reflect(hidden)]
@@ -772,8 +772,8 @@ impl Graph {
         for node in self.pool.iter_mut() {
             if let Some(model) = node.resource() {
                 let model = model.state();
-                match *model {
-                    ResourceState::Ok(ref data) => {
+                match model.get() {
+                    ResourceStateRef::Ok(data) => {
                         let resource_graph = &data.get_scene().graph;
 
                         let resource_node = match data.mapping {
@@ -824,7 +824,7 @@ impl Graph {
                             ))
                         }
                     }
-                    ResourceState::Pending { .. } => {
+                    ResourceStateRef::Pending { .. } => {
                         panic!("resources must be awaited before doing resolve!")
                     }
                     _ => {}
@@ -841,7 +841,7 @@ impl Graph {
     //
     // To do so, we at first, build node handle mapping (original handle -> instance handle) starting from
     // instance root. Then we must find all inheritable properties and try to remap them to instance handles.
-    fn remap_handles(&mut self, instances: &[(Handle<Node>, Model)]) {
+    fn remap_handles(&mut self, instances: &[(Handle<Node>, ModelResource)]) {
         for (instance_root, resource) in instances {
             // Prepare old -> new handle mapping first by walking over the graph
             // starting from instance root.
@@ -877,7 +877,7 @@ impl Graph {
         }
     }
 
-    fn restore_integrity(&mut self) -> Vec<(Handle<Node>, Model)> {
+    fn restore_integrity(&mut self) -> Vec<(Handle<Node>, ModelResource)> {
         Log::writeln(MessageKind::Information, "Checking integrity...");
 
         // Check integrity - if a node was added in resource, it must be also added in the graph.
@@ -901,7 +901,7 @@ impl Graph {
 
         for (instance_root, resource) in instances.iter().cloned() {
             let model = resource.state();
-            if let ResourceState::Ok(ref data) = *model {
+            if let ResourceStateRef::Ok(data) = model.get() {
                 let resource_graph = &data.get_scene().graph;
 
                 let resource_instance_root = self.pool[instance_root].original_handle_in_resource;
@@ -942,7 +942,7 @@ impl Graph {
                         );
 
                         // Instantiate missing node.
-                        let (copy, old_to_new_mapping) = Model::instantiate_from(
+                        let (copy, old_to_new_mapping) = ModelResource::instantiate_from(
                             resource.clone(),
                             data,
                             resource_node_handle,

@@ -9,8 +9,14 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use fyrox::engine::GraphicsContext;
+use fyrox::resource::model::{Model, ModelResourceExtension};
+use fyrox::resource::texture::Texture;
 use fyrox::{
+    asset::{
+        container::event::ResourceEventBroadcaster,
+        loader::{BoxedLoaderFuture, ResourceLoader},
+        manager::ResourceManager,
+    },
     core::{
         algebra::{Matrix4, Vector3},
         color::Color,
@@ -18,23 +24,13 @@ use fyrox::{
         instant::Instant,
         sstorage::ImmutableString,
     },
+    engine::resource_loaders::{model::ModelLoader, texture::TextureLoader},
     engine::{
-        resource_manager::{
-            container::event::ResourceEventBroadcaster,
-            loader::{
-                model::ModelLoader, texture::TextureLoader, BoxedLoaderFuture, ResourceLoader,
-            },
-            ResourceManager,
-        },
-        Engine, EngineInitParams, GraphicsContextParams, SerializationContext,
+        Engine, EngineInitParams, GraphicsContext, GraphicsContextParams, SerializationContext,
     },
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     material::{shader::SamplerFallback, Material, PropertyValue, SharedMaterial},
-    resource::{
-        model::{Model, ModelImportOptions},
-        texture::{Texture, TextureImportOptions},
-    },
     scene::{
         base::BaseBuilder,
         light::{point::PointLightBuilder, BaseLightBuilder},
@@ -51,16 +47,29 @@ use fyrox::{
     },
     window::WindowAttributes,
 };
+use fyrox_resource::untyped::UntypedResource;
+use std::any::Any;
 use std::sync::Arc;
 
 struct CustomModelLoader(Arc<ModelLoader>);
 
-impl ResourceLoader<Model, ModelImportOptions> for CustomModelLoader {
+impl ResourceLoader for CustomModelLoader {
+    fn extensions(&self) -> &[&str] {
+        &["rgs", "fbx"]
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
     fn load(
         &self,
-        resource: Model,
-        default_import_options: ModelImportOptions,
-        event_broadcaster: ResourceEventBroadcaster<Model>,
+        resource: UntypedResource,
+        event_broadcaster: ResourceEventBroadcaster,
         reload: bool,
     ) -> BoxedLoaderFuture {
         // Arc is required as BoxedLoaderFuture has a static lifetime and hence self cannot be
@@ -68,10 +77,8 @@ impl ResourceLoader<Model, ModelImportOptions> for CustomModelLoader {
         let loader = self.0.clone();
 
         Box::pin(async move {
-            println!("CUSTOM LOADER: loading model {:?}", resource.state().path());
-            loader
-                .load(resource, default_import_options, event_broadcaster, reload)
-                .await
+            println!("CUSTOM LOADER: loading model {:?}", resource.path());
+            loader.load(resource, event_broadcaster, reload).await
         })
     }
 }
@@ -79,12 +86,23 @@ impl ResourceLoader<Model, ModelImportOptions> for CustomModelLoader {
 /// For simplicity we just simply wrap the default loader and log the invocation to the console.
 struct CustomTextureLoader(Arc<TextureLoader>);
 
-impl ResourceLoader<Texture, TextureImportOptions> for CustomTextureLoader {
+impl ResourceLoader for CustomTextureLoader {
+    fn extensions(&self) -> &[&str] {
+        &["jpg", "jpeg", "tga", "gif", "bmp", "png", "tiff", "dds"]
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
     fn load(
         &self,
-        resource: Texture,
-        default_import_options: TextureImportOptions,
-        event_broadcaster: ResourceEventBroadcaster<Texture>,
+        resource: UntypedResource,
+        event_broadcaster: ResourceEventBroadcaster,
         reload: bool,
     ) -> BoxedLoaderFuture {
         // Arc is required as BoxedLoaderFuture has a static lifetime and hence self cannot be
@@ -92,13 +110,8 @@ impl ResourceLoader<Texture, TextureImportOptions> for CustomTextureLoader {
         let loader = self.0.clone();
 
         Box::pin(async move {
-            println!(
-                "CUSTOM LOADER: loading texture {:?}",
-                resource.state().path()
-            );
-            loader
-                .load(resource, default_import_options, event_broadcaster, reload)
-                .await
+            println!("CUSTOM LOADER: loading texture {:?}", resource.path());
+            loader.load(resource, event_broadcaster, reload).await
         })
     }
 }
@@ -135,7 +148,7 @@ impl GameSceneLoader {
 
         // Add some model with animation.
         let model_resource = resource_manager
-            .request_model("examples/data/mutant/mutant.FBX")
+            .request::<Model, _>("examples/data/mutant/mutant.FBX")
             .await;
 
         let model_handle = model_resource.unwrap().instantiate(&mut scene);
@@ -148,7 +161,9 @@ impl GameSceneLoader {
             .set_property(
                 &ImmutableString::new("diffuseTexture"),
                 PropertyValue::Sampler {
-                    value: Some(resource_manager.request_texture("examples/data/concrete2.dds")),
+                    value: Some(
+                        resource_manager.request::<Texture, _>("examples/data/concrete2.dds"),
+                    ),
                     fallback: SamplerFallback::White,
                 },
             )
@@ -185,26 +200,44 @@ fn main() {
         },
         vsync: true,
     };
-    let serialization_context = Arc::new(SerializationContext::new());
-    let resource_manager = ResourceManager::new(serialization_context.clone());
-
-    // Set up our custom loaders
-    {
-        let mut state = resource_manager.state();
-        let containers = state.containers_mut();
-        containers.set_model_loader(CustomModelLoader(Arc::new(ModelLoader {
-            resource_manager: resource_manager.clone(),
-            serialization_context: serialization_context.clone(),
-        })));
-        containers.set_texture_loader(CustomTextureLoader(Arc::new(TextureLoader)));
-    }
 
     let mut engine = Engine::new(EngineInitParams {
         graphics_context_params,
-        resource_manager: ResourceManager::new(serialization_context.clone()),
-        serialization_context,
+        resource_manager: ResourceManager::new(),
+        serialization_context: Arc::new(SerializationContext::new()),
     })
     .unwrap();
+
+    // Set up our custom loaders
+    {
+        let mut state = engine.resource_manager.state();
+        let containers = state.containers_mut();
+        if let Some(pos) = containers
+            .resources
+            .loaders
+            .iter()
+            .position(|l| (**l).as_any().downcast_ref::<ModelLoader>().is_some())
+        {
+            containers.resources.loaders[pos] =
+                Box::new(CustomModelLoader(Arc::new(ModelLoader {
+                    resource_manager: engine.resource_manager.clone(),
+                    serialization_context: engine.serialization_context.clone(),
+                    default_import_options: Default::default(),
+                })));
+        }
+
+        if let Some(pos) = containers
+            .resources
+            .loaders
+            .iter()
+            .position(|l| (**l).as_any().downcast_ref::<TextureLoader>().is_some())
+        {
+            containers.resources.loaders[pos] =
+                Box::new(CustomTextureLoader(Arc::new(TextureLoader {
+                    default_import_options: Default::default(),
+                })));
+        }
+    }
 
     let scene = block_on(GameSceneLoader::load_with(engine.resource_manager.clone())).scene;
     engine.scenes.add(scene);

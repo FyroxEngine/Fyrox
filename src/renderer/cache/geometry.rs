@@ -1,12 +1,11 @@
-use crate::scene::mesh::surface::SurfaceData;
 use crate::{
+    asset::container::entry::DEFAULT_RESOURCE_LIFETIME,
     core::{scope_profile, sparse::SparseBuffer},
-    engine::resource_manager::container::entry::DEFAULT_RESOURCE_LIFETIME,
     renderer::framework::{
         geometry_buffer::{GeometryBuffer, GeometryBufferKind},
         state::PipelineState,
     },
-    scene::mesh::surface::SurfaceSharedData,
+    scene::mesh::surface::{SurfaceData, SurfaceSharedData},
 };
 use fyrox_core::sparse::AtomicIndex;
 

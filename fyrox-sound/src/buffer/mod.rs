@@ -8,17 +8,20 @@
 //! is just inefficient memory-wise. Sound samples are very heavy: for example a mono sound that lasts
 //! just 1 second will take ~172 Kb of memory (with 44100 Hz sampling rate and float sample representation).
 
-use crate::buffer::{generic::GenericBuffer, streaming::StreamingBuffer};
-use crate::error::SoundError;
-use fyrox_core::{io::FileLoadError, reflect::prelude::*, visitor::prelude::*};
-use fyrox_resource::{define_new_resource, Resource, ResourceData, ResourceState};
-use std::fmt::Debug;
-use std::time::Duration;
+use crate::{
+    buffer::{generic::GenericBuffer, streaming::StreamingBuffer},
+    error::SoundError,
+};
+use fyrox_core::{io::FileLoadError, uuid::Uuid, visitor::prelude::*, TypeUuidProvider};
+use fyrox_resource::{Resource, ResourceData, SOUND_BUFFER_RESOURCE_UUID};
 use std::{
+    any::Any,
     borrow::Cow,
+    fmt::Debug,
     io::{Cursor, Read, Seek, SeekFrom},
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
+    time::Duration,
 };
 
 pub mod generic;
@@ -159,34 +162,9 @@ pub enum SoundBufferResourceLoadError {
     Io(FileLoadError),
 }
 
-define_new_resource!(
-    /// A shared sound buffer resource.
-    #[derive(Reflect)]
-    #[reflect(hide_all)]
-    SoundBufferResource<SoundBufferState, SoundBufferResourceLoadError>
-);
-
-impl SoundBufferResource {
-    /// Tries to create new streaming sound buffer from a given data source. Returns sound source
-    /// wrapped into Arc<Mutex<>> that can be directly used with sound sources.
-    pub fn new_streaming(data_source: DataSource) -> Result<Self, DataSource> {
-        Ok(Self(Resource::new(ResourceState::Ok(
-            SoundBufferState::Streaming(StreamingBuffer::new(data_source)?),
-        ))))
-    }
-
-    /// Tries to create new generic sound buffer from a given data source. Returns sound source
-    /// wrapped into Arc<Mutex<>> that can be directly used with sound sources.
-    pub fn new_generic(data_source: DataSource) -> Result<Self, DataSource> {
-        Ok(Self(Resource::new(ResourceState::Ok(
-            SoundBufferState::Generic(GenericBuffer::new(data_source)?),
-        ))))
-    }
-}
-
 /// Sound buffer is a data source for sound sources. See module documentation for more info.
 #[derive(Debug, Visit)]
-pub enum SoundBufferState {
+pub enum SoundBuffer {
     /// General-purpose buffer, usually contains all the data and allows random
     /// access to samples. It is also used to make streaming buffer via composition.
     Generic(GenericBuffer),
@@ -198,7 +176,39 @@ pub enum SoundBufferState {
     Streaming(StreamingBuffer),
 }
 
-impl SoundBufferState {
+/// Type alias for sound buffer resource.
+pub type SoundBufferResource = Resource<SoundBuffer>;
+
+/// Extension trait for sound buffer resource.
+pub trait SoundBufferResourceExtension {
+    /// Tries to create new streaming sound buffer from a given data source.
+    fn new_streaming(data_source: DataSource) -> Result<Resource<SoundBuffer>, DataSource>;
+
+    /// Tries to create new generic sound buffer from a given data source.
+    fn new_generic(data_source: DataSource) -> Result<Resource<SoundBuffer>, DataSource>;
+}
+
+impl SoundBufferResourceExtension for SoundBufferResource {
+    fn new_streaming(data_source: DataSource) -> Result<Resource<SoundBuffer>, DataSource> {
+        Ok(Resource::new_ok(SoundBuffer::Streaming(
+            StreamingBuffer::new(data_source)?,
+        )))
+    }
+
+    fn new_generic(data_source: DataSource) -> Result<Resource<SoundBuffer>, DataSource> {
+        Ok(Resource::new_ok(SoundBuffer::Generic(GenericBuffer::new(
+            data_source,
+        )?)))
+    }
+}
+
+impl TypeUuidProvider for SoundBuffer {
+    fn type_uuid() -> Uuid {
+        SOUND_BUFFER_RESOURCE_UUID
+    }
+}
+
+impl SoundBuffer {
     /// Tries to create new streaming sound buffer from a given data source. It returns raw sound
     /// buffer that has to be wrapped into Arc<Mutex<>> for use with sound sources.
     pub fn raw_streaming(data_source: DataSource) -> Result<Self, DataSource> {
@@ -212,42 +222,54 @@ impl SoundBufferState {
     }
 }
 
-impl Default for SoundBufferState {
+impl Default for SoundBuffer {
     fn default() -> Self {
-        SoundBufferState::Generic(Default::default())
+        SoundBuffer::Generic(Default::default())
     }
 }
 
-impl Deref for SoundBufferState {
+impl Deref for SoundBuffer {
     type Target = GenericBuffer;
 
     /// Returns shared reference to generic buffer for any enum variant. It is possible because
     /// streaming sound buffers are built on top of generic buffers.
     fn deref(&self) -> &Self::Target {
         match self {
-            SoundBufferState::Generic(v) => v,
-            SoundBufferState::Streaming(v) => v,
+            SoundBuffer::Generic(v) => v,
+            SoundBuffer::Streaming(v) => v,
         }
     }
 }
 
-impl DerefMut for SoundBufferState {
+impl DerefMut for SoundBuffer {
     /// Returns mutable reference to generic buffer for any enum variant. It is possible because
     /// streaming sound buffers are built on top of generic buffers.
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
-            SoundBufferState::Generic(v) => v,
-            SoundBufferState::Streaming(v) => v,
+            SoundBuffer::Generic(v) => v,
+            SoundBuffer::Streaming(v) => v,
         }
     }
 }
 
-impl ResourceData for SoundBufferState {
+impl ResourceData for SoundBuffer {
     fn path(&self) -> Cow<Path> {
         Cow::from(&self.external_source_path)
     }
 
     fn set_path(&mut self, path: PathBuf) {
         self.external_source_path = path;
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn type_uuid(&self) -> Uuid {
+        SOUND_BUFFER_RESOURCE_UUID
     }
 }

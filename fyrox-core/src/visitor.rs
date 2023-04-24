@@ -28,6 +28,7 @@ use crate::{
 use base64::Engine;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fxhash::FxHashMap;
+use std::any::TypeId;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -1064,6 +1065,37 @@ impl<'a> Drop for RegionGuard<'a> {
     }
 }
 
+#[derive(Default)]
+pub struct Blackboard {
+    items: FxHashMap<TypeId, Arc<dyn Any>>,
+}
+
+impl Blackboard {
+    pub fn new() -> Self {
+        Self {
+            items: Default::default(),
+        }
+    }
+
+    pub fn register<T: Any>(&mut self, value: Arc<T>) {
+        self.items.insert(TypeId::of::<T>(), value);
+    }
+
+    pub fn get<T: Any>(&self) -> Option<&T> {
+        self.items
+            .get(&TypeId::of::<T>())
+            .and_then(|v| (**v).downcast_ref::<T>())
+    }
+
+    pub fn inner(&self) -> &FxHashMap<TypeId, Arc<dyn Any>> {
+        &self.items
+    }
+
+    pub fn inner_mut(&mut self) -> &mut FxHashMap<TypeId, Arc<dyn Any>> {
+        &mut self.items
+    }
+}
+
 pub struct Visitor {
     nodes: Pool<VisitorNode>,
     rc_map: FxHashMap<u64, Rc<dyn Any>>,
@@ -1071,7 +1103,7 @@ pub struct Visitor {
     reading: bool,
     current_node: Handle<VisitorNode>,
     root: Handle<VisitorNode>,
-    pub environment: Option<Arc<dyn Any>>,
+    pub blackboard: Blackboard,
 }
 
 pub trait Visit {
@@ -1097,7 +1129,7 @@ impl Visitor {
             reading: false,
             current_node: root,
             root,
-            environment: None,
+            blackboard: Blackboard::new(),
         }
     }
 
@@ -1284,7 +1316,7 @@ impl Visitor {
             reading: true,
             current_node: Handle::NONE,
             root: Handle::NONE,
-            environment: None,
+            blackboard: Blackboard::new(),
         };
         visitor.root = visitor.load_node_binary(&mut reader)?;
         visitor.current_node = visitor.root;

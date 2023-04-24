@@ -8,17 +8,17 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::resource::model::{Model, ModelResourceExtension};
+use fyrox::resource::texture::Texture;
 use fyrox::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
         color::Color,
         pool::Handle,
         sstorage::ImmutableString,
     },
-    engine::{
-        executor::Executor, resource_manager::ResourceManager, GraphicsContext,
-        GraphicsContextParams,
-    },
+    engine::{executor::Executor, GraphicsContext, GraphicsContextParams},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
@@ -74,8 +74,8 @@ impl SceneLoader {
         // of it. In case of models it is very efficient because single vertex and index buffer
         // can be used for all models instances, so memory footprint on GPU will be lower.
         let (model_resource, walk_animation_resource) = fyrox::core::futures::join!(
-            resource_manager.request_model("examples/data/mutant/mutant.FBX"),
-            resource_manager.request_model("examples/data/mutant/walk.fbx")
+            resource_manager.request::<Model, _>("examples/data/mutant/mutant.FBX"),
+            resource_manager.request::<Model, _>("examples/data/mutant/walk.fbx")
         );
 
         for z in -10..10 {
@@ -142,7 +142,9 @@ impl SceneLoader {
             .set_property(
                 &ImmutableString::new("diffuseTexture"),
                 PropertyValue::Sampler {
-                    value: Some(resource_manager.request_texture("examples/data/concrete2.dds")),
+                    value: Some(
+                        resource_manager.request::<Texture, _>("examples/data/concrete2.dds"),
+                    ),
                     fallback: SamplerFallback::White,
                 },
             )

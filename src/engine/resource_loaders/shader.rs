@@ -1,33 +1,46 @@
 //! Shader loader.
 
 use crate::{
-    engine::resource_manager::{
+    asset::{
         container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
     },
-    material::shader::{Shader, ShaderImportOptions, ShaderState},
+    material::shader::Shader,
     utils::log::Log,
 };
+use fyrox_resource::untyped::UntypedResource;
+use std::any::Any;
 
 /// Default implementation for shader loading.
 pub struct ShaderLoader;
 
-impl ResourceLoader<Shader, ShaderImportOptions> for ShaderLoader {
+impl ResourceLoader for ShaderLoader {
+    fn extensions(&self) -> &[&str] {
+        &["shader"]
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
     fn load(
         &self,
-        shader: Shader,
-        _default_import_options: ShaderImportOptions,
-        event_broadcaster: ResourceEventBroadcaster<Shader>,
+        shader: UntypedResource,
+        event_broadcaster: ResourceEventBroadcaster,
         reload: bool,
     ) -> BoxedLoaderFuture {
         Box::pin(async move {
-            let path = shader.state().path().to_path_buf();
+            let path = shader.path().to_path_buf();
 
-            match ShaderState::from_file(&path).await {
+            match Shader::from_file(&path).await {
                 Ok(shader_state) => {
                     Log::info(format!("Shader {:?} is loaded!", path));
 
-                    shader.state().commit_ok(shader_state);
+                    shader.0.lock().commit_ok(shader_state);
 
                     event_broadcaster.broadcast_loaded_or_reloaded(shader, reload);
                 }
@@ -37,7 +50,7 @@ impl ResourceLoader<Shader, ShaderImportOptions> for ShaderLoader {
                         path, error
                     ));
 
-                    shader.state().commit_error(path, error);
+                    shader.0.lock().commit_error(path, error);
                 }
             }
         })

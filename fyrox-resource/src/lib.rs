@@ -1,33 +1,63 @@
 //! Resource management
 
-#![warn(missing_docs)]
+// #![warn(missing_docs)] TODO
 
-use crate::core::{
-    parking_lot::{Mutex, MutexGuard},
-    visitor::prelude::*,
+use crate::{
+    core::{
+        parking_lot::MutexGuard,
+        reflect::prelude::*,
+        uuid::{uuid, Uuid},
+        visitor::prelude::*,
+    },
+    state::ResourceState,
 };
-use std::fmt::Formatter;
 use std::{
+    any::Any,
     borrow::Cow,
-    fmt::Debug,
+    fmt::{Debug, Formatter},
     future::Future,
     hash::{Hash, Hasher},
+    marker::PhantomData,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     pin::Pin,
     sync::Arc,
-    task::{Context, Poll, Waker},
+    task::{Context, Poll},
 };
 
+use crate::manager::ResourceManager;
+use crate::untyped::UntypedResource;
 pub use fyrox_core as core;
+use fyrox_core::TypeUuidProvider;
+
+pub mod constructor;
+pub mod container;
+pub mod loader;
+pub mod manager;
+pub mod options;
+pub mod state;
+pub mod task;
+pub mod untyped;
+
+pub const TEXTURE_RESOURCE_UUID: Uuid = uuid!("02c23a44-55fa-411a-bc39-eb7a5eadf15c");
+pub const MODEL_RESOURCE_UUID: Uuid = uuid!("44cd768f-b4ca-4804-a98c-0adf85577ada");
+pub const SOUND_BUFFER_RESOURCE_UUID: Uuid = uuid!("f6a077b7-c8ff-4473-a95b-0289441ea9d8");
+pub const SHADER_RESOURCE_UUID: Uuid = uuid!("f1346417-b726-492a-b80f-c02096c6c019");
+pub const CURVE_RESOURCE_UUID: Uuid = uuid!("f28b949f-28a2-4b68-9089-59c234f58b6b");
 
 /// A trait for resource data.
-pub trait ResourceData: 'static + Default + Debug + Visit + Send {
+pub trait ResourceData: 'static + Debug + Visit + Send {
     /// Returns path of resource data.
     fn path(&self) -> Cow<Path>;
 
     /// Sets new path to resource data.
     fn set_path(&mut self, path: PathBuf);
+
+    fn as_any(&self) -> &dyn Any;
+
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+
+    fn type_uuid(&self) -> Uuid;
 }
 
 /// A trait for resource load error.
@@ -35,137 +65,369 @@ pub trait ResourceLoadError: 'static + Debug + Send + Sync {}
 
 impl<T> ResourceLoadError for T where T: 'static + Debug + Send + Sync {}
 
-/// Resource could be in three possible states:
-/// 1. Pending - it is loading.
-/// 2. LoadError - an error has occurred during the load.
-/// 3. Ok - resource is fully loaded and ready to use.
-///
-/// Why it is so complex?
-/// Short answer: asynchronous loading.
-/// Long answer: when you loading a scene you expect it to be loaded as fast as
-/// possible, use all available power of the CPU. To achieve that each resource
-/// ideally should be loaded on separate core of the CPU, but since this is
-/// asynchronous, we must have the ability to track the state of the resource.
+pub struct ResourceStateGuard<'a, T>
+where
+    T: ResourceData + TypeUuidProvider,
+{
+    guard: MutexGuard<'a, ResourceState>,
+    phantom: PhantomData<T>,
+}
+
+impl<'a, T> ResourceStateGuard<'a, T>
+where
+    T: ResourceData + TypeUuidProvider,
+{
+    pub fn get(&self) -> ResourceStateRef<'_, T> {
+        match &*self.guard {
+            ResourceState::Pending {
+                path, type_uuid, ..
+            } => ResourceStateRef::Pending {
+                path,
+                type_uuid: *type_uuid,
+            },
+            ResourceState::LoadError {
+                path,
+                error,
+                type_uuid,
+            } => ResourceStateRef::LoadError {
+                path,
+                error,
+                type_uuid: *type_uuid,
+            },
+            ResourceState::Ok(data) => ResourceStateRef::Ok(
+                (&**data as &dyn ResourceData)
+                    .as_any()
+                    .downcast_ref()
+                    .expect("Type mismatch!"),
+            ),
+        }
+    }
+
+    pub fn get_mut(&mut self) -> ResourceStateRefMut<'_, T> {
+        match &mut *self.guard {
+            ResourceState::Pending {
+                path, type_uuid, ..
+            } => ResourceStateRefMut::Pending {
+                path,
+                type_uuid: *type_uuid,
+            },
+            ResourceState::LoadError {
+                path,
+                error,
+                type_uuid,
+            } => ResourceStateRefMut::LoadError {
+                path,
+                error,
+                type_uuid: *type_uuid,
+            },
+            ResourceState::Ok(data) => ResourceStateRefMut::Ok(
+                (&mut **data as &mut dyn ResourceData)
+                    .as_any_mut()
+                    .downcast_mut()
+                    .expect("Type mismatch!"),
+            ),
+        }
+    }
+}
+
 #[derive(Debug)]
-pub enum ResourceState<T, E>
+pub enum ResourceStateRef<'a, T>
 where
     T: ResourceData,
-    E: ResourceLoadError,
 {
     /// Resource is loading from external resource or in the queue to load.
     Pending {
         /// A path to load resource from.
-        path: PathBuf,
-        /// List of wakers to wake future when resource is fully loaded.
-        wakers: Vec<Waker>,
+        path: &'a PathBuf,
+        type_uuid: Uuid,
     },
     /// An error has occurred during the load.
     LoadError {
         /// A path at which it was impossible to load the resource.
-        path: PathBuf,
-        /// An error. This wrapped in Option only to be Default_ed.
-        error: Option<Arc<E>>,
+        path: &'a PathBuf,
+        /// An error.
+        error: &'a Option<Arc<dyn ResourceLoadError>>,
+        type_uuid: Uuid,
     },
     /// Actual resource data when it is fully loaded.
-    Ok(T),
+    Ok(&'a T),
 }
 
-impl<T, E> Visit for ResourceState<T, E>
+#[derive(Debug)]
+pub enum ResourceStateRefMut<'a, T> {
+    /// Resource is loading from external resource or in the queue to load.
+    Pending {
+        /// A path to load resource from.
+        path: &'a mut PathBuf,
+        type_uuid: Uuid,
+    },
+    /// An error has occurred during the load.
+    LoadError {
+        /// A path at which it was impossible to load the resource.
+        path: &'a mut PathBuf,
+        /// An error.
+        error: &'a mut Option<Arc<dyn ResourceLoadError>>,
+        type_uuid: Uuid,
+    },
+    /// Actual resource data when it is fully loaded.
+    Ok(&'a mut T),
+}
+
+impl Default for ResourceState {
+    fn default() -> Self {
+        Self::LoadError {
+            error: None,
+            path: Default::default(),
+            type_uuid: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Reflect)]
+pub struct Resource<T>
 where
-    T: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
+{
+    state: Option<UntypedResource>,
+    #[reflect(hidden)]
+    phantom: PhantomData<T>,
+}
+
+impl<T> Visit for Resource<T>
+where
+    T: ResourceData + TypeUuidProvider,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        let mut id = self.id();
-        id.visit("Id", &mut region)?;
-        if region.is_reading() {
-            *self = Self::from_id(id)?;
-        }
+        self.state.visit("State", &mut region)?;
 
-        match self {
-            Self::Pending { path, .. } => panic!(
-                "Resource {} must be .await_ed before serialization",
-                path.display()
-            ),
-            // This may look strange if we attempting to save an invalid resource, but this may be
-            // actually useful - a resource may become loadable at the deserialization.
-            Self::LoadError { path, .. } => path.visit("Path", &mut region)?,
-            Self::Ok(details) => details.visit("Details", &mut region)?,
+        if region.is_reading() {
+            // Try to restore the shallow handle.
+            let resource_manager = region
+                .blackboard
+                .get::<ResourceManager>()
+                .expect("Resource manager must be available when deserializing resources!");
+
+            let path = self.state.as_ref().unwrap().path();
+
+            // Procedural resources usually have path empty or use it as an id, in this case we need to
+            // check if the file actually exists to not mess up procedural resources.
+            if path.exists() {
+                self.state = Some(
+                    resource_manager.request_untyped(path, <T as TypeUuidProvider>::type_uuid()),
+                );
+            }
         }
 
         Ok(())
     }
 }
 
-/// See module docs.
-#[derive(Visit)]
-pub struct Resource<T, E>
+impl<T> PartialEq for Resource<T>
 where
-    T: ResourceData,
-    E: ResourceLoadError,
-{
-    state: Option<Arc<Mutex<ResourceState<T, E>>>>,
-}
-
-impl<T, E> Debug for Resource<T, E>
-where
-    T: ResourceData,
-    E: ResourceLoadError,
-{
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Resource")
-    }
-}
-
-impl<T, E> PartialEq for Resource<T, E>
-where
-    T: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
 {
     fn eq(&self, other: &Self) -> bool {
-        match (self.state.as_ref(), other.state.as_ref()) {
-            (Some(state), Some(other_state)) => std::ptr::eq(&**state, &**other_state),
+        match (&self.state, &other.state) {
+            (Some(a), Some(b)) => a == b,
             (None, None) => true,
             _ => false,
         }
     }
 }
 
-impl<T, E> Eq for Resource<T, E>
-where
-    T: ResourceData,
-    E: ResourceLoadError,
-{
-}
+impl<T> Eq for Resource<T> where T: ResourceData + TypeUuidProvider {}
 
-impl<T, E> Hash for Resource<T, E>
+impl<T> Hash for Resource<T>
 where
-    T: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
 {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        match self.state.as_ref() {
-            None => state.write_u64(0),
-            Some(resource_state) => state.write_u64(&**resource_state as *const _ as u64),
+        self.state.hash(state)
+    }
+}
+
+impl<T> Resource<T>
+where
+    T: ResourceData + TypeUuidProvider,
+{
+    pub fn new_pending(path: PathBuf) -> Self {
+        Self {
+            state: Some(UntypedResource::new_pending(
+                path,
+                <T as TypeUuidProvider>::type_uuid(),
+            )),
+            phantom: PhantomData,
+        }
+    }
+
+    pub fn new_ok(data: T) -> Self {
+        Self {
+            state: Some(UntypedResource::new_ok(data)),
+            phantom: PhantomData,
+        }
+    }
+
+    pub fn new_load_error(path: PathBuf, error: Option<Arc<dyn ResourceLoadError>>) -> Self {
+        Self {
+            state: Some(UntypedResource::new_load_error(
+                path,
+                error,
+                <T as TypeUuidProvider>::type_uuid(),
+            )),
+            phantom: PhantomData,
+        }
+    }
+
+    /// Converts self to internal value.
+    #[inline]
+    pub fn into_untyped(self) -> UntypedResource {
+        self.state.unwrap()
+    }
+
+    /// Locks internal mutex provides access to the state.
+    #[inline]
+    pub fn state(&self) -> ResourceStateGuard<'_, T> {
+        ResourceStateGuard {
+            guard: self.state_inner(),
+            phantom: Default::default(),
+        }
+    }
+
+    /// Tries to lock internal mutex provides access to the state.
+    #[inline]
+    pub fn try_acquire_state(&self) -> Option<ResourceStateGuard<'_, T>> {
+        self.state
+            .as_ref()
+            .unwrap()
+            .0
+            .try_lock()
+            .map(|guard| ResourceStateGuard {
+                guard,
+                phantom: Default::default(),
+            })
+    }
+
+    fn state_inner(&self) -> MutexGuard<'_, ResourceState> {
+        self.state.as_ref().unwrap().0.lock()
+    }
+
+    /// Returns true if the resource is still loading.
+    pub fn is_loading(&self) -> bool {
+        matches!(*self.state_inner(), ResourceState::Pending { .. })
+    }
+
+    /// Returns exact amount of users of the resource.
+    #[inline]
+    pub fn use_count(&self) -> usize {
+        self.state.as_ref().unwrap().use_count()
+    }
+
+    /// Returns a pointer as numeric value which can be used as a hash.
+    #[inline]
+    pub fn key(&self) -> usize {
+        self.state.as_ref().unwrap().key()
+    }
+
+    pub fn path(&self) -> PathBuf {
+        self.state.as_ref().unwrap().0.lock().path().to_path_buf()
+    }
+
+    /// Allows you to obtain reference to the resource data.
+    ///
+    /// # Panic
+    ///
+    /// An attempt to use method result will panic if resource is not loaded yet, or
+    /// there was load error. Usually this is ok because normally you'd chain this call
+    /// like this `resource.await?.data_ref()`. Every resource implements Future trait
+    /// and it returns Result, so if you'll await future then you'll get Result, so
+    /// call to `data_ref` will be fine.
+    #[inline]
+    pub fn data_ref(&self) -> ResourceDataRef<'_, T> {
+        ResourceDataRef {
+            guard: self.state_inner(),
+            phantom: Default::default(),
         }
     }
 }
 
-#[doc(hidden)]
-pub struct ResourceDataRef<'a, T, E>
+impl<T> Default for Resource<T>
 where
-    T: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
 {
-    guard: MutexGuard<'a, ResourceState<T, E>>,
+    #[inline]
+    fn default() -> Self {
+        Self {
+            state: None,
+            phantom: Default::default(),
+        }
+    }
 }
 
-impl<'a, T, E> Debug for ResourceDataRef<'a, T, E>
+impl<T> Clone for Resource<T>
 where
-    T: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
+{
+    #[inline]
+    fn clone(&self) -> Self {
+        Self {
+            state: self.state.clone(),
+            phantom: Default::default(),
+        }
+    }
+}
+
+impl<T> From<UntypedResource> for Resource<T>
+where
+    T: ResourceData + TypeUuidProvider,
+{
+    #[inline]
+    fn from(state: UntypedResource) -> Self {
+        Self {
+            state: Some(state),
+            phantom: Default::default(),
+        }
+    }
+}
+
+#[allow(clippy::from_over_into)]
+impl<T> Into<UntypedResource> for Resource<T>
+where
+    T: ResourceData + TypeUuidProvider,
+{
+    #[inline]
+    fn into(self) -> UntypedResource {
+        self.state.unwrap()
+    }
+}
+
+impl<T> Future for Resource<T>
+where
+    T: ResourceData + TypeUuidProvider,
+{
+    type Output = Result<Self, Option<Arc<dyn ResourceLoadError>>>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let mut inner = self.state.as_ref().unwrap().clone();
+        Pin::new(&mut inner)
+            .poll(cx)
+            .map(|r| r.map(|_| self.clone()))
+    }
+}
+
+#[doc(hidden)]
+pub struct ResourceDataRef<'a, T>
+where
+    T: ResourceData + TypeUuidProvider,
+{
+    guard: MutexGuard<'a, ResourceState>,
+    phantom: PhantomData<T>,
+}
+
+impl<'a, T> Debug for ResourceDataRef<'a, T>
+where
+    T: ResourceData + TypeUuidProvider,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match *self.guard {
@@ -188,10 +450,9 @@ where
     }
 }
 
-impl<'a, T, E> Deref for ResourceDataRef<'a, T, E>
+impl<'a, T> Deref for ResourceDataRef<'a, T>
 where
-    T: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
 {
     type Target = T;
 
@@ -209,12 +470,17 @@ where
                     path.display()
                 )
             }
-            ResourceState::Ok(ref data) => data,
+            ResourceState::Ok(ref data) => {
+                (**data).as_any().downcast_ref().expect("Type mismatch!")
+            }
         }
     }
 }
 
-impl<'a, T: ResourceData, E: ResourceLoadError> DerefMut for ResourceDataRef<'a, T, E> {
+impl<'a, T> DerefMut for ResourceDataRef<'a, T>
+where
+    T: ResourceData + TypeUuidProvider,
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         match *self.guard {
             ResourceState::Pending { ref path, .. } => {
@@ -229,277 +495,10 @@ impl<'a, T: ResourceData, E: ResourceLoadError> DerefMut for ResourceDataRef<'a,
                     path.display()
                 )
             }
-            ResourceState::Ok(ref mut data) => data,
+            ResourceState::Ok(ref mut data) => (**data)
+                .as_any_mut()
+                .downcast_mut()
+                .expect("Type mismatch!"),
         }
     }
-}
-
-impl<T: ResourceData, E: ResourceLoadError> Resource<T, E> {
-    /// Creates new resource with a given state.
-    #[inline]
-    pub fn new(state: ResourceState<T, E>) -> Self {
-        Self {
-            state: Some(Arc::new(Mutex::new(state))),
-        }
-    }
-
-    /// Converts self to internal value.
-    #[inline]
-    pub fn into_inner(self) -> Arc<Mutex<ResourceState<T, E>>> {
-        self.state.unwrap()
-    }
-
-    /// Locks internal mutex provides access to the state.
-    #[inline]
-    pub fn state(&self) -> MutexGuard<'_, ResourceState<T, E>> {
-        self.state.as_ref().unwrap().lock()
-    }
-
-    /// Returns true if the resource is still loading.
-    pub fn is_loading(&self) -> bool {
-        matches!(*self.state(), ResourceState::Pending { .. })
-    }
-
-    /// Tries to lock internal mutex provides access to the state.
-    #[inline]
-    pub fn try_acquire_state(&self) -> Option<MutexGuard<'_, ResourceState<T, E>>> {
-        self.state.as_ref().unwrap().try_lock()
-    }
-
-    /// Returns exact amount of users of the resource.
-    #[inline]
-    pub fn use_count(&self) -> usize {
-        Arc::strong_count(self.state.as_ref().unwrap())
-    }
-
-    /// Returns a pointer as numeric value which can be used as a hash.
-    #[inline]
-    pub fn key(&self) -> usize {
-        (&**self.state.as_ref().unwrap() as *const _) as usize
-    }
-
-    /// Allows you to obtain reference to the resource data.
-    ///
-    /// # Panic
-    ///
-    /// An attempt to use method result will panic if resource is not loaded yet, or
-    /// there was load error. Usually this is ok because normally you'd chain this call
-    /// like this `resource.await?.data_ref()`. Every resource implements Future trait
-    /// and it returns Result, so if you'll await future then you'll get Result, so
-    /// call to `data_ref` will be fine.
-    #[inline]
-    pub fn data_ref(&self) -> ResourceDataRef<'_, T, E> {
-        ResourceDataRef {
-            guard: self.state(),
-        }
-    }
-}
-
-impl<T: ResourceData, E: ResourceLoadError> Default for Resource<T, E> {
-    #[inline]
-    fn default() -> Self {
-        Self { state: None }
-    }
-}
-
-impl<T: ResourceData, E: ResourceLoadError> Clone for Resource<T, E> {
-    #[inline]
-    fn clone(&self) -> Self {
-        Self {
-            state: self.state.clone(),
-        }
-    }
-}
-
-impl<T: ResourceData, E: ResourceLoadError> From<Arc<Mutex<ResourceState<T, E>>>>
-    for Resource<T, E>
-{
-    #[inline]
-    fn from(state: Arc<Mutex<ResourceState<T, E>>>) -> Self {
-        Self { state: Some(state) }
-    }
-}
-
-#[allow(clippy::from_over_into)]
-impl<T: ResourceData, E: ResourceLoadError> Into<Arc<Mutex<ResourceState<T, E>>>>
-    for Resource<T, E>
-{
-    #[inline]
-    fn into(self) -> Arc<Mutex<ResourceState<T, E>>> {
-        self.state.unwrap()
-    }
-}
-
-impl<T: ResourceData, E: ResourceLoadError> Future for Resource<T, E> {
-    type Output = Result<Self, Option<Arc<E>>>;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let state = self.as_ref().state.clone();
-        match *state.unwrap().lock() {
-            ResourceState::Pending { ref mut wakers, .. } => {
-                // Collect wakers, so we'll be able to wake task when worker thread finish loading.
-                let cx_waker = cx.waker();
-                if let Some(pos) = wakers.iter().position(|waker| waker.will_wake(cx_waker)) {
-                    wakers[pos] = cx_waker.clone();
-                } else {
-                    wakers.push(cx_waker.clone())
-                }
-
-                Poll::Pending
-            }
-            ResourceState::LoadError { ref error, .. } => Poll::Ready(Err(error.clone())),
-            ResourceState::Ok(_) => Poll::Ready(Ok(self.clone())),
-        }
-    }
-}
-
-impl<T: ResourceData, E: ResourceLoadError> ResourceState<T, E> {
-    /// Creates new resource in pending state.
-    #[inline]
-    pub fn new_pending(path: PathBuf) -> Self {
-        Self::Pending {
-            path,
-            wakers: Default::default(),
-        }
-    }
-
-    /// Switches the internal state of the resource to [`ResourceState::Pending`].
-    pub fn switch_to_pending_state(&mut self) {
-        match self {
-            ResourceState::LoadError { path, .. } => {
-                *self = ResourceState::Pending {
-                    path: std::mem::take(path),
-                    wakers: Default::default(),
-                }
-            }
-            ResourceState::Ok(data) => {
-                *self = ResourceState::Pending {
-                    path: data.path().to_path_buf(),
-                    wakers: Default::default(),
-                }
-            }
-            _ => (),
-        }
-    }
-
-    #[inline]
-    fn id(&self) -> u32 {
-        match self {
-            Self::Pending { .. } => 0,
-            Self::LoadError { .. } => 1,
-            Self::Ok(_) => 2,
-        }
-    }
-
-    #[inline]
-    fn from_id(id: u32) -> Result<Self, String> {
-        match id {
-            0 => Ok(Self::Pending {
-                path: Default::default(),
-                wakers: Default::default(),
-            }),
-            1 => Ok(Self::LoadError {
-                path: Default::default(),
-                error: None,
-            }),
-            2 => Ok(Self::Ok(Default::default())),
-            _ => Err(format!("Invalid resource id {}", id)),
-        }
-    }
-
-    /// Returns a path to the resource source.
-    #[inline]
-    pub fn path(&self) -> Cow<Path> {
-        match self {
-            Self::Pending { path, .. } => Cow::Borrowed(path.as_path()),
-            Self::LoadError { path, .. } => Cow::Borrowed(path.as_path()),
-            Self::Ok(details) => details.path(),
-        }
-    }
-
-    /// Changes ResourceState::Pending state to ResourceState::Ok(data) with given `data`.
-    /// Additionally it wakes all futures.
-    #[inline]
-    pub fn commit(&mut self, state: ResourceState<T, E>) {
-        let wakers = if let ResourceState::Pending { ref mut wakers, .. } = self {
-            std::mem::take(wakers)
-        } else {
-            unreachable!()
-        };
-
-        *self = state;
-
-        for waker in wakers {
-            waker.wake();
-        }
-    }
-
-    /// Changes internal state to [`ResourceState::Ok`]
-    pub fn commit_ok(&mut self, data: T) {
-        self.commit(ResourceState::Ok(data))
-    }
-
-    /// Changes internal state to [`ResourceState::LoadError`].
-    pub fn commit_error(&mut self, path: PathBuf, error: E) {
-        self.commit(ResourceState::LoadError {
-            path,
-            error: Some(Arc::new(error)),
-        })
-    }
-}
-
-impl<T: ResourceData, E: ResourceLoadError> Default for ResourceState<T, E> {
-    fn default() -> Self {
-        Self::Ok(Default::default())
-    }
-}
-
-/// Defines a new resource type via new-type wrapper.
-#[macro_export]
-macro_rules! define_new_resource {
-    ($(#[$meta:meta])* $name:ident<$state:ty, $error:ty>) => {
-        $(#[$meta])*
-        #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
-        #[repr(transparent)]
-        pub struct $name(pub Resource<$state, $error>);
-
-        impl Visit for $name {
-            fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-                self.0.visit(name, visitor)
-            }
-        }
-
-        impl From<Resource<$state, $error>> for $name {
-            fn from(resource: Resource<$state, $error>) -> Self {
-                $name(resource)
-            }
-        }
-
-        impl std::ops::Deref for $name {
-            type Target = Resource<$state, $error>;
-
-            fn deref(&self) -> &Self::Target {
-                &self.0
-            }
-        }
-
-        impl std::ops::DerefMut for $name {
-            fn deref_mut(&mut self) -> &mut Self::Target {
-                &mut self.0
-            }
-        }
-
-        impl std::future::Future for $name {
-            type Output = Result<Self, Option<std::sync::Arc<$error>>>;
-
-            fn poll(
-                mut self: std::pin::Pin<&mut Self>,
-                cx: &mut std::task::Context<'_>,
-            ) -> std::task::Poll<Self::Output> {
-                std::pin::Pin::new(&mut self.0)
-                    .poll(cx)
-                    .map(|r| r.map(|_| self.clone()))
-            }
-        }
-    };
 }

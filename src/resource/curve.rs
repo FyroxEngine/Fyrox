@@ -1,12 +1,15 @@
 //! Curve resource holds a [`Curve`]
 
 use crate::{
-    asset::{define_new_resource, Resource, ResourceData},
-    core::reflect::prelude::*,
+    asset::options::ImportOptions,
+    asset::{Resource, ResourceData},
     core::{curve::Curve, io::FileLoadError, visitor::prelude::*},
-    engine::resource_manager::options::ImportOptions,
 };
+use fyrox_core::uuid::Uuid;
+use fyrox_core::TypeUuidProvider;
+use fyrox_resource::CURVE_RESOURCE_UUID;
 use serde::{Deserialize, Serialize};
+use std::any::Any;
 use std::fmt::{Display, Formatter};
 use std::{
     borrow::Cow,
@@ -67,6 +70,24 @@ impl ResourceData for CurveResourceState {
     fn set_path(&mut self, path: PathBuf) {
         self.path = path;
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn type_uuid(&self) -> Uuid {
+        <Self as TypeUuidProvider>::type_uuid()
+    }
+}
+
+impl TypeUuidProvider for CurveResourceState {
+    fn type_uuid() -> Uuid {
+        CURVE_RESOURCE_UUID
+    }
 }
 
 impl CurveResourceState {
@@ -82,12 +103,8 @@ impl CurveResourceState {
     }
 }
 
-define_new_resource!(
-    /// See module docs.
-    #[derive(Reflect)]
-    #[reflect(hide_all)]
-    CurveResource<CurveResourceState, CurveResourceError>
-);
+/// Type alias for curve resources.
+pub type CurveResource = Resource<CurveResourceState>;
 
 /// Import options for curve resource.
 #[derive(Serialize, Deserialize, Default, Clone)]

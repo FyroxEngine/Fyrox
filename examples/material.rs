@@ -7,7 +7,10 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::material::shader::Shader;
+use fyrox::resource::texture::Texture;
 use fyrox::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, Vector3},
         color::Color,
@@ -15,10 +18,7 @@ use fyrox::{
         pool::Handle,
         sstorage::ImmutableString,
     },
-    engine::{
-        executor::Executor, resource_manager::ResourceManager, GraphicsContext,
-        GraphicsContextParams,
-    },
+    engine::{executor::Executor, GraphicsContext, GraphicsContextParams},
     event_loop::ControlFlow,
     gui::{
         message::MessageDirection,
@@ -74,7 +74,8 @@ impl Plugin for Game {
 
 fn create_custom_material(resource_manager: ResourceManager) -> SharedMaterial {
     let shader =
-        block_on(resource_manager.request_shader("examples/data/shaders/custom.shader")).unwrap();
+        block_on(resource_manager.request::<Shader, _>("examples/data/shaders/custom.shader"))
+            .unwrap();
 
     let mut material = Material::from_shader(shader, Some(resource_manager.clone()));
 
@@ -82,7 +83,7 @@ fn create_custom_material(resource_manager: ResourceManager) -> SharedMaterial {
         .set_property(
             &ImmutableString::new("diffuseTexture"),
             PropertyValue::Sampler {
-                value: Some(resource_manager.request_texture("examples/data/concrete2.dds")),
+                value: Some(resource_manager.request::<Texture, _>("examples/data/concrete2.dds")),
                 fallback: SamplerFallback::White,
             },
         )

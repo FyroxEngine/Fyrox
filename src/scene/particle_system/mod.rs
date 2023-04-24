@@ -29,7 +29,7 @@
 //!     emitter::sphere::SphereEmitter, ParticleSystemBuilder, emitter::Emitter,
 //!     emitter::base::BaseEmitterBuilder, emitter::sphere::SphereEmitterBuilder
 //! };
-//! use fyrox::engine::resource_manager::ResourceManager;
+//! use fyrox::asset::manager::ResourceManager;
 //! use fyrox::core::algebra::Vector3;
 //! use fyrox::scene::graph::Graph;
 //! use fyrox::scene::node::Node;
@@ -38,7 +38,7 @@
 //! use fyrox::scene::base::BaseBuilder;
 //! use fyrox::core::color::Color;
 //! use std::path::Path;
-//! use fyrox::resource::texture::TexturePixelKind;
+//! use fyrox::resource::texture::{Texture, TexturePixelKind};
 //!
 //! fn create_smoke(graph: &mut Graph, resource_manager: &mut ResourceManager, pos: Vector3<f32>) {
 //!      ParticleSystemBuilder::new(BaseBuilder::new()
@@ -65,7 +65,7 @@
 //!                 .with_radius(0.01)
 //!                 .build()
 //!         ])
-//!         .with_texture(resource_manager.request_texture(Path::new("data/particles/smoke_04.tga")))
+//!         .with_texture(resource_manager.request::<Texture, _>(Path::new("data/particles/smoke_04.tga")))
 //!         .build(graph);
 //! }
 //! ```
@@ -81,13 +81,14 @@ use crate::{
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
+        TypeUuidProvider,
     },
     rand::{prelude::StdRng, SeedableRng},
-    resource::texture::Texture,
+    resource::texture::TextureResource,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        node::{Node, NodeTrait, TypeUuidProvider, UpdateContext},
+        node::{Node, NodeTrait, UpdateContext},
         particle_system::{
             draw::{DrawData, Vertex},
             emitter::{Emit, Emitter},
@@ -207,7 +208,7 @@ pub struct ParticleSystem {
     pub emitters: InheritableVariable<Vec<EmitterWrapper>>,
 
     #[reflect(setter = "set_texture")]
-    texture: InheritableVariable<Option<Texture>>,
+    texture: InheritableVariable<Option<TextureResource>>,
 
     #[reflect(setter = "set_acceleration")]
     acceleration: InheritableVariable<Vector3<f32>>,
@@ -408,17 +409,17 @@ impl ParticleSystem {
     }
 
     /// Sets new texture for particle system.
-    pub fn set_texture(&mut self, texture: Option<Texture>) -> Option<Texture> {
+    pub fn set_texture(&mut self, texture: Option<TextureResource>) -> Option<TextureResource> {
         self.texture.set_value_and_mark_modified(texture)
     }
 
     /// Returns current texture used by particle system.
-    pub fn texture(&self) -> Option<Texture> {
+    pub fn texture(&self) -> Option<TextureResource> {
         (*self.texture).clone()
     }
 
     /// Returns current texture used by particle system by ref.
-    pub fn texture_ref(&self) -> Option<&Texture> {
+    pub fn texture_ref(&self) -> Option<&TextureResource> {
         self.texture.as_ref()
     }
 
@@ -526,7 +527,7 @@ impl NodeTrait for ParticleSystem {
 pub struct ParticleSystemBuilder {
     base_builder: BaseBuilder,
     emitters: Vec<EmitterWrapper>,
-    texture: Option<Texture>,
+    texture: Option<TextureResource>,
     acceleration: Vector3<f32>,
     particles: Vec<Particle>,
     color_over_lifetime: ColorGradient,
@@ -558,13 +559,13 @@ impl ParticleSystemBuilder {
     }
 
     /// Sets desired texture for particle system.
-    pub fn with_texture(mut self, texture: Texture) -> Self {
+    pub fn with_texture(mut self, texture: TextureResource) -> Self {
         self.texture = Some(texture);
         self
     }
 
     /// Sets desired texture for particle system.
-    pub fn with_opt_texture(mut self, texture: Option<Texture>) -> Self {
+    pub fn with_opt_texture(mut self, texture: Option<TextureResource>) -> Self {
         self.texture = texture;
         self
     }

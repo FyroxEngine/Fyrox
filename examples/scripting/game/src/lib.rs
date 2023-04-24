@@ -63,7 +63,7 @@ impl GamePlugin {
                     context.serialization_context.clone(),
                 ))
                 .expect("Invalid scene!")
-                .finish(context.resource_manager.clone()),
+                .finish(),
             );
             context.scenes.add(scene)
         };
