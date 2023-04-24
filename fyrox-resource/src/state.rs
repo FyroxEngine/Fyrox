@@ -87,6 +87,17 @@ pub enum ResourceState {
     Ok(Box<dyn ResourceData>),
 }
 
+impl Drop for ResourceState {
+    fn drop(&mut self) {
+        match self {
+            ResourceState::Pending { wakers, .. } => {
+                assert_eq!(wakers.len(), 0);
+            }
+            _ => (),
+        }
+    }
+}
+
 impl Visit for ResourceState {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
