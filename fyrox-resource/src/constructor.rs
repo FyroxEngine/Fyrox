@@ -28,7 +28,7 @@ impl ResourceConstructorContainer {
     {
         let previous = self.map.lock().insert(
             <T as TypeUuidProvider>::type_uuid(),
-            Box::new(|| Box::new(T::default())),
+            Box::new(|| Box::<T>::default()),
         );
 
         assert!(previous.is_none());

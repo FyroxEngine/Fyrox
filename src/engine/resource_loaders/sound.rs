@@ -25,6 +25,7 @@ impl ImportOptions for SoundBufferImportOptions {}
 
 /// Default implementation for sound buffer loading.
 pub struct SoundBufferLoader {
+    /// Default import options for sound buffer resources.
     pub default_import_options: SoundBufferImportOptions,
 }
 

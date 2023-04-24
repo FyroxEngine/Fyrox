@@ -216,7 +216,7 @@ impl AudioPreviewPanel {
                     if !set {
                         if let Some(buffer) = sound.buffer() {
                             let mut state = buffer.state();
-                            if let ResourceStateRef::Ok(ref buffer) = state.get() {
+                            if let ResourceStateRef::Ok(buffer) = state.get() {
                                 send_sync_message(
                                     &engine.user_interface,
                                     ScrollBarMessage::max_value(

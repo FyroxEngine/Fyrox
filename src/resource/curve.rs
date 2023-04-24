@@ -103,6 +103,7 @@ impl CurveResourceState {
     }
 }
 
+/// Type alias for curve resources.
 pub type CurveResource = Resource<CurveResourceState>;
 
 /// Import options for curve resource.

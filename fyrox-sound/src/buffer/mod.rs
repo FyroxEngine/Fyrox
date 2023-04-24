@@ -176,8 +176,10 @@ pub enum SoundBuffer {
     Streaming(StreamingBuffer),
 }
 
+/// Type alias for sound buffer resource.
 pub type SoundBufferResource = Resource<SoundBuffer>;
 
+/// Extension trait for sound buffer resource.
 pub trait SoundBufferResourceExtension {
     /// Tries to create new streaming sound buffer from a given data source.
     fn new_streaming(data_source: DataSource) -> Result<Resource<SoundBuffer>, DataSource>;

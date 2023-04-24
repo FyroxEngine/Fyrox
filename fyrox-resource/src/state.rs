@@ -89,11 +89,8 @@ pub enum ResourceState {
 
 impl Drop for ResourceState {
     fn drop(&mut self) {
-        match self {
-            ResourceState::Pending { wakers, .. } => {
-                assert_eq!(wakers.len(), 0);
-            }
-            _ => (),
+        if let ResourceState::Pending { wakers, .. } = self {
+            assert_eq!(wakers.len(), 0);
         }
     }
 }

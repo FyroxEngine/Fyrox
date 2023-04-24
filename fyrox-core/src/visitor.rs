@@ -1065,6 +1065,7 @@ impl<'a> Drop for RegionGuard<'a> {
     }
 }
 
+#[derive(Default)]
 pub struct Blackboard {
     items: FxHashMap<TypeId, Arc<dyn Any>>,
 }

@@ -69,8 +69,8 @@ enum SceneResource {
 impl SceneResource {
     fn path(&self) -> PathBuf {
         match self {
-            SceneResource::Model(model) => model.path().to_path_buf(),
-            SceneResource::Texture(texture) => texture.path().to_path_buf(),
+            SceneResource::Model(model) => model.path(),
+            SceneResource::Texture(texture) => texture.path(),
         }
     }
 

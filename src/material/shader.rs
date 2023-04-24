@@ -566,8 +566,10 @@ impl From<FileLoadError> for ShaderError {
     }
 }
 
+/// Type alias for shader resources.
 pub type ShaderResource = Resource<Shader>;
 
+/// Extension trait for shader resources.
 pub trait ShaderResourceExtension: Sized {
     /// Creates new shader from given string. Input string must have the format defined in
     /// examples for [`ShaderResource`].

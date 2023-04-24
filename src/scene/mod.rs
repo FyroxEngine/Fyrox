@@ -61,8 +61,7 @@ use crate::{
     },
     utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
 };
-use fxhash::{FxHashMap, FxHashSet};
-use fyrox_resource::untyped::UntypedResource;
+use fxhash::FxHashMap;
 use std::{
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},

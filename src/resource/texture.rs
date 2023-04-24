@@ -424,8 +424,10 @@ impl TextureImportOptions {
     }
 }
 
+/// Type alias for texture resources.
 pub type TextureResource = Resource<Texture>;
 
+/// Extension trait for texture resources.
 pub trait TextureResourceExtension: Sized {
     /// Creates new render target for a scene. This method automatically configures GPU texture
     /// to correct settings, after render target was created, it must not be modified, otherwise

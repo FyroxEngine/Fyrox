@@ -15,6 +15,7 @@ use std::any::Any;
 
 /// Default implementation for texture loading.
 pub struct TextureLoader {
+    /// Default import options for textures.
     pub default_import_options: TextureImportOptions,
 }
 

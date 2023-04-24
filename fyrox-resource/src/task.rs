@@ -7,6 +7,12 @@ pub struct TaskPool {
     thread_pool: ThreadPool,
 }
 
+impl Default for TaskPool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TaskPool {
     pub fn new() -> Self {
         Self {

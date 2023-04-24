@@ -681,7 +681,7 @@ impl MaterialEditor {
                         .clone()
                         .and_then(|t| {
                             t.0.downcast::<Mutex<UntypedResource>>()
-                                .map(|t| t.lock().path().to_path_buf())
+                                .map(|t| t.lock().path())
                                 .ok()
                         });
 

@@ -70,6 +70,12 @@ pub struct ResourceManager {
     state: Arc<Mutex<ResourceManagerState>>,
 }
 
+impl Default for ResourceManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// An error that may occur during texture registration.
 #[derive(Debug)]
 pub enum ResourceRegistrationError {
@@ -107,7 +113,7 @@ impl ResourceManager {
         let task_pool = Arc::new(TaskPool::new());
 
         resource_manager.state().containers_storage = Some(ContainersStorage {
-            resources: ResourceContainer::new(task_pool.clone()),
+            resources: ResourceContainer::new(task_pool),
         });
 
         resource_manager

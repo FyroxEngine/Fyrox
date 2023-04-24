@@ -74,9 +74,12 @@ impl TypeUuidProvider for Model {
     }
 }
 
+/// Type alias for model resources.
 pub type ModelResource = Resource<Model>;
 
+/// Extension trait for model resources.
 pub trait ModelResourceExtension: Sized {
+    /// Tries to instantiate model from given resource.
     fn instantiate_from(
         model: ModelResource,
         model_data: &Model,

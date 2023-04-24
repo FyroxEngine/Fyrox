@@ -298,14 +298,15 @@ where
     /// Tries to lock internal mutex provides access to the state.
     #[inline]
     pub fn try_acquire_state(&self) -> Option<ResourceStateGuard<'_, T>> {
-        if let Some(guard) = self.state.as_ref().unwrap().0.try_lock() {
-            Some(ResourceStateGuard {
+        self.state
+            .as_ref()
+            .unwrap()
+            .0
+            .try_lock()
+            .map(|guard| ResourceStateGuard {
                 guard,
                 phantom: Default::default(),
             })
-        } else {
-            None
-        }
     }
 
     fn state_inner(&self) -> MutexGuard<'_, ResourceState> {

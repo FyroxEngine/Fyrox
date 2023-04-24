@@ -22,6 +22,7 @@ pub struct ModelLoader {
     /// Node constructors contains a set of constructors that allows to build a node using its
     /// type UUID.
     pub serialization_context: Arc<SerializationContext>,
+    /// Default import options for model resources.
     pub default_import_options: ModelImportOptions,
 }
 
