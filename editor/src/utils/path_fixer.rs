@@ -3,11 +3,12 @@
 
 use crate::{make_scene_file_filter, Message};
 use fyrox::{
+    asset::manager::ResourceManager,
     asset::ResourceData,
     core::{
         color::Color, futures::executor::block_on, pool::Handle, replace_slashes, visitor::Visitor,
     },
-    engine::{resource_manager::ResourceManager, SerializationContext},
+    engine::SerializationContext,
     gui::{
         border::BorderBuilder,
         brush::Brush,
@@ -68,8 +69,8 @@ enum SceneResource {
 impl SceneResource {
     fn path(&self) -> PathBuf {
         match self {
-            SceneResource::Model(model) => model.state().path().to_path_buf(),
-            SceneResource::Texture(texture) => texture.state().path().to_path_buf(),
+            SceneResource::Model(model) => model.path().to_path_buf(),
+            SceneResource::Texture(texture) => texture.path().to_path_buf(),
         }
     }
 
@@ -313,7 +314,12 @@ impl PathFixer {
                 let message;
                 match block_on(Visitor::load_binary(path)) {
                     Ok(mut visitor) => {
-                        match SceneLoader::load("Scene", serialization_context, &mut visitor) {
+                        match SceneLoader::load(
+                            "Scene",
+                            serialization_context,
+                            resource_manager.clone(),
+                            &mut visitor,
+                        ) {
                             Err(e) => {
                                 message = format!(
                                     "Failed to load a scene {}\nReason: {}",

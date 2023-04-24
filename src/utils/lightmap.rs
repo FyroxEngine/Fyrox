@@ -482,7 +482,7 @@ impl Lightmap {
                 let file_path = handle_path.clone() + "_" + i.to_string().as_str() + ".png";
                 let texture = entry.texture.clone().unwrap();
                 resource_manager.register(
-                    texture.into_inner(),
+                    texture.into_untyped(),
                     base_path.as_ref().join(file_path),
                     |texture, _| {
                         texture

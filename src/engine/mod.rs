@@ -7,27 +7,29 @@ pub mod error;
 pub mod executor;
 pub mod resource_loaders;
 
-use crate::engine::resource_loaders::curve::CurveLoader;
-use crate::engine::resource_loaders::model::ModelLoader;
-use crate::engine::resource_loaders::shader::ShaderLoader;
-use crate::engine::resource_loaders::sound::SoundBufferLoader;
-use crate::engine::resource_loaders::texture::TextureLoader;
-use crate::material::shader::Shader;
-use crate::resource::curve::CurveResourceState;
-use crate::resource::model::Model;
-use crate::resource::texture::{Texture, TextureResource};
 use crate::{
     asset::{
         container::event::ResourceEvent, manager::ResourceManager, manager::ResourceWaitContext,
     },
     core::{algebra::Vector2, futures::executor::block_on, instant, pool::Handle},
-    engine::error::EngineError,
+    engine::{
+        error::EngineError,
+        resource_loaders::{
+            curve::CurveLoader, model::ModelLoader, shader::ShaderLoader, sound::SoundBufferLoader,
+            texture::TextureLoader,
+        },
+    },
     event::Event,
     event_loop::ControlFlow,
     gui::UserInterface,
+    material::shader::Shader,
     plugin::{Plugin, PluginConstructor, PluginContext, PluginRegistrationContext},
     renderer::{framework::error::FrameworkError, Renderer},
-    resource::{model::ModelResource, texture::TextureKind},
+    resource::{
+        curve::CurveResourceState,
+        model::{Model, ModelResource},
+        texture::{Texture, TextureKind, TextureResource},
+    },
     scene::{
         base::NodeScriptMessage,
         graph::GraphUpdateSwitches,

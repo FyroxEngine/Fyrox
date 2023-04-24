@@ -6,7 +6,6 @@ use crate::{
     core::{
         parking_lot::MutexGuard,
         reflect::prelude::*,
-        reflect::FieldValue,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
     },
@@ -283,7 +282,7 @@ where
 
     /// Converts self to internal value.
     #[inline]
-    pub fn into_inner(self) -> UntypedResource {
+    pub fn into_untyped(self) -> UntypedResource {
         self.state.unwrap()
     }
 
@@ -410,7 +409,7 @@ where
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut inner = self.state.as_ref().unwrap().clone();
-        std::pin::Pin::new(&mut inner)
+        Pin::new(&mut inner)
             .poll(cx)
             .map(|r| r.map(|_| self.clone()))
     }

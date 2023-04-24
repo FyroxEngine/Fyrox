@@ -1,10 +1,11 @@
 use crate::asset::inspector::handlers::ImportOptionsHandler;
+use fyrox::resource::texture::Texture;
 use fyrox::{
-    core::{append_extension, futures::executor::block_on, reflect::prelude::*},
-    engine::resource_manager::{
+    asset::{
+        manager::ResourceManager,
         options::{try_get_import_settings, ImportOptions},
-        ResourceManager,
     },
+    core::{append_extension, futures::executor::block_on, reflect::prelude::*},
     gui::inspector::{PropertyAction, PropertyChanged},
     resource::texture::TextureImportOptions,
     utils::log::Log,
@@ -30,12 +31,12 @@ impl ImportOptionsHandler for TextureImportOptionsHandler {
         self.options
             .save(&append_extension(&self.resource_path, "options"));
 
-        let texture = resource_manager.request_texture(&self.resource_path);
+        let texture = resource_manager.request::<Texture, _>(&self.resource_path);
         resource_manager
             .state()
             .containers_mut()
-            .textures
-            .reload_resource(texture);
+            .resources
+            .reload_resource(texture.into_untyped());
     }
 
     fn revert(&mut self) {

@@ -2,8 +2,8 @@ use crate::{
     scene::{EditorScene, Selection},
     send_sync_message, Message,
 };
+use fyrox::asset::ResourceStateRef;
 use fyrox::{
-    asset::ResourceState,
     core::pool::Handle,
     engine::Engine,
     gui::{
@@ -215,8 +215,8 @@ impl AudioPreviewPanel {
                 if let Some(sound) = scene.graph.try_get_of_type::<Sound>(node_handle) {
                     if !set {
                         if let Some(buffer) = sound.buffer() {
-                            let state = buffer.state();
-                            if let ResourceState::Ok(ref buffer) = *state {
+                            let mut state = buffer.state();
+                            if let ResourceStateRef::Ok(ref buffer) = state.get() {
                                 send_sync_message(
                                     &engine.user_interface,
                                     ScrollBarMessage::max_value(

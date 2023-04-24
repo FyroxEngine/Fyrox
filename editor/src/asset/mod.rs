@@ -16,10 +16,11 @@ use crate::{
 };
 use fyrox::gui::RcUiNodeHandle;
 use fyrox::{
+    asset::manager::ResourceManager,
     core::{
         color::Color, futures::executor::block_on, make_relative_path, pool::Handle, scope_profile,
     },
-    engine::{resource_manager::ResourceManager, Engine},
+    engine::Engine,
     gui::{
         border::BorderBuilder,
         brush::Brush,

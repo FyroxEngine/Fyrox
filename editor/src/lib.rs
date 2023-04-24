@@ -74,8 +74,8 @@ use crate::{
     utils::path_fixer::PathFixer,
     world::{graph::selection::GraphSelection, WorldViewer},
 };
-use fyrox::core::watcher::FileSystemWatcher;
 use fyrox::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix3, Vector2},
         color::Color,
@@ -84,12 +84,10 @@ use fyrox::{
         scope_profile,
         sstorage::ImmutableString,
         visitor::Visitor,
+        watcher::FileSystemWatcher,
     },
     dpi::LogicalSize,
-    engine::{
-        resource_manager::ResourceManager, Engine, EngineInitParams, GraphicsContextParams,
-        SerializationContext,
-    },
+    engine::{Engine, EngineInitParams, GraphicsContextParams, SerializationContext},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     fxhash::FxHashMap,
@@ -109,9 +107,14 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, UiNode, UserInterface, VerticalAlignment,
     },
-    material::{shader::ShaderResource, Material, PropertyValue, SharedMaterial},
+    material::{
+        shader::{ShaderResource, ShaderResourceExtension},
+        Material, PropertyValue, SharedMaterial,
+    },
     plugin::PluginConstructor,
-    resource::texture::{CompressionOptions, TextureKind, TextureResource},
+    resource::texture::{
+        CompressionOptions, TextureKind, TextureResource, TextureResourceExtension,
+    },
     scene::{
         camera::{Camera, Projection},
         mesh::Mesh,
@@ -526,7 +529,7 @@ impl Editor {
         let serialization_context = Arc::new(SerializationContext::new());
         let mut engine = Engine::new(EngineInitParams {
             graphics_context_params,
-            resource_manager: ResourceManager::new(serialization_context.clone()),
+            resource_manager: ResourceManager::new(),
             serialization_context,
         })
         .unwrap();
@@ -1543,6 +1546,7 @@ impl Editor {
             block_on(SceneLoader::from_file(
                 &scene_path,
                 engine.serialization_context.clone(),
+                engine.resource_manager.clone(),
             ))
         };
         match result {

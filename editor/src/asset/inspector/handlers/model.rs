@@ -1,10 +1,10 @@
 use crate::asset::inspector::handlers::ImportOptionsHandler;
 use fyrox::{
-    core::{append_extension, futures::executor::block_on, reflect::prelude::*},
-    engine::resource_manager::{
+    asset::{
+        manager::ResourceManager,
         options::{try_get_import_settings, ImportOptions},
-        ResourceManager,
     },
+    core::{append_extension, futures::executor::block_on, reflect::prelude::*},
     gui::inspector::{PropertyAction, PropertyChanged},
     resource::model::ModelImportOptions,
     utils::log::Log,

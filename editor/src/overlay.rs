@@ -1,4 +1,5 @@
 use fyrox::renderer::framework::geometry_buffer::ElementRange;
+use fyrox::resource::texture::TextureResourceExtension;
 use fyrox::{
     core::{algebra::Matrix4, math::Matrix4Ext, sstorage::ImmutableString},
     renderer::{

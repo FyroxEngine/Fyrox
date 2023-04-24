@@ -5,7 +5,11 @@ use crate::{
     scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
     send_sync_message, GameEngine, Message,
 };
+use fyrox::asset::untyped::UntypedResource;
+use fyrox::material::shader::{Shader, ShaderResourceExtension};
+use fyrox::resource::texture::Texture;
 use fyrox::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
         futures::executor::block_on,
@@ -15,7 +19,6 @@ use fyrox::{
         sstorage::ImmutableString,
         BiDirHashMap,
     },
-    engine::resource_manager::ResourceManager,
     gui::{
         border::BorderBuilder,
         check_box::{CheckBoxBuilder, CheckBoxMessage},
@@ -40,7 +43,6 @@ use fyrox::{
         BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
     material::{shader::ShaderResource, Material, PropertyValue, SharedMaterial},
-    resource::texture::TextureState,
     scene::{
         base::BaseBuilder,
         mesh::{
@@ -336,7 +338,7 @@ impl MaterialEditor {
                 if extension == "shader" {
                     if let Ok(relative_path) = make_relative_path(path) {
                         self.shaders_list
-                            .push(resource_manager.request_shader(relative_path));
+                            .push(resource_manager.request::<Shader, _>(relative_path));
                     }
                 }
             }
@@ -678,7 +680,7 @@ impl MaterialEditor {
                         .texture
                         .clone()
                         .and_then(|t| {
-                            t.0.downcast::<Mutex<TextureState>>()
+                            t.0.downcast::<Mutex<UntypedResource>>()
                                 .map(|t| t.lock().path().to_path_buf())
                                 .ok()
                         });
@@ -743,7 +745,7 @@ impl MaterialEditor {
                     {
                         if let Ok(relative_path) = make_relative_path(&asset_item.path) {
                             let texture =
-                                Some(engine.resource_manager.request_texture(relative_path));
+                                Some(engine.resource_manager.request::<Texture, _>(relative_path));
 
                             engine.user_interface.send_message(ImageMessage::texture(
                                 message.destination(),

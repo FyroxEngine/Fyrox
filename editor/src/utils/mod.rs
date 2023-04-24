@@ -1,3 +1,4 @@
+use fyrox::resource::texture::TextureResourceExtension;
 use fyrox::{
     core::{algebra::Vector2, pool::ErasedHandle, pool::Handle},
     gui::{

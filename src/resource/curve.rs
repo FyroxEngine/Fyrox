@@ -103,7 +103,7 @@ impl CurveResourceState {
     }
 }
 
-pub type CurveResource = Resource<Curve>;
+pub type CurveResource = Resource<CurveResourceState>;
 
 /// Import options for curve resource.
 #[derive(Serialize, Deserialize, Default, Clone)]

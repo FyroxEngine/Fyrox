@@ -475,7 +475,7 @@ pub fn into_any_arc<T: Any + Send + Sync>(
 
 /// Converts engine's optional texture "pointer" to fyrox-ui's.
 pub fn into_gui_texture(this: TextureResource) -> draw::SharedTexture {
-    draw::SharedTexture(this.into_inner().0)
+    draw::SharedTexture(this.into_untyped().0)
 }
 
 /// "Transmutes" array of any sized type to a slice of bytes.

@@ -1,5 +1,5 @@
 use crate::{command::Command, create_terrain_layer_material, scene::commands::SceneContext};
-use fyrox::resource::texture::{TextureKind, TexturePixelKind};
+use fyrox::resource::texture::{TextureKind, TexturePixelKind, TextureResourceExtension};
 use fyrox::{
     core::pool::Handle,
     resource::texture::TextureResource,

@@ -1,4 +1,6 @@
 use crate::{load_image, utils::built_in_skybox, GameEngine};
+use fyrox::resource::model::{Model, ModelResourceExtension};
+use fyrox::resource::texture::TextureResourceExtension;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -346,7 +348,7 @@ impl PreviewPanel {
 
     pub async fn load_model(&mut self, model: &Path, engine: &mut GameEngine) -> bool {
         self.clear(engine);
-        if let Ok(model) = engine.resource_manager.request_model(model).await {
+        if let Ok(model) = engine.resource_manager.request::<Model, _>(model).await {
             let scene = &mut engine.scenes[self.scene];
             self.model = model.instantiate(scene);
 

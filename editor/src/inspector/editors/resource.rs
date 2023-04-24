@@ -1,18 +1,15 @@
 use crate::{asset::item::AssetItem, inspector::EditorEnvironment, load_image};
-use fyrox::core::reflect::Reflect;
 use fyrox::{
-    asset::{Resource, ResourceData, ResourceLoadError},
-    core::{make_relative_path, pool::Handle},
-    engine::resource_manager::ResourceManager,
+    asset::{manager::ResourceManager, Resource, ResourceData, ResourceLoadError},
+    core::{make_relative_path, pool::Handle, TypeUuidProvider},
     gui::{
         define_constructor,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
-        inspector::editors::PropertyEditorTranslationContext,
         inspector::{
             editors::{
                 PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
-                PropertyEditorMessageContext,
+                PropertyEditorMessageContext, PropertyEditorTranslationContext,
             },
             FieldKind, InspectorError, PropertyChanged,
         },
@@ -22,42 +19,36 @@ use fyrox::{
         BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
     },
 };
-use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     path::Path,
     rc::Rc,
+    sync::Arc,
 };
 
-fn resource_path<T, S, E>(resource: &Option<T>) -> String
+fn resource_path<T>(resource: &Option<Resource<T>>) -> String
 where
-    T: Deref<Target = Resource<S, E>>,
-    S: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
 {
     resource
         .as_ref()
-        .map(|m| m.state().path().to_string_lossy().to_string())
+        .map(|m| m.path().to_string_lossy().to_string())
         .unwrap_or_else(|| "None".to_string())
 }
 
 #[derive(Debug)]
-pub enum ResourceFieldMessage<T, S, E>
+pub enum ResourceFieldMessage<T>
 where
-    T: Deref<Target = Resource<S, E>>,
-    S: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
 {
-    Value(Option<T>),
+    Value(Option<Resource<T>>),
 }
 
-impl<T, S, E> PartialEq for ResourceFieldMessage<T, S, E>
+impl<T> PartialEq for ResourceFieldMessage<T>
 where
-    T: Deref<Target = Resource<S, E>> + PartialEq,
-    S: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
 {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -68,47 +59,39 @@ where
     }
 }
 
-impl<T, S, E> ResourceFieldMessage<T, S, E>
+impl<T> ResourceFieldMessage<T>
 where
-    T: Deref<Target = Resource<S, E>> + Debug + PartialEq + 'static,
-    S: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
 {
-    define_constructor!(ResourceFieldMessage:Value => fn value(Option<T>), layout: false);
+    define_constructor!(ResourceFieldMessage:Value => fn value(Option<Resource<T>>), layout: false);
 }
 
-pub type ResourceLoaderCallback<T, E> =
-    Rc<dyn Fn(&ResourceManager, &Path) -> Result<T, Option<Arc<E>>>>;
+pub type ResourceLoaderCallback<T> =
+    Rc<dyn Fn(&ResourceManager, &Path) -> Result<Resource<T>, Option<Arc<dyn ResourceLoadError>>>>;
 
-pub struct ResourceField<T, S, E>
+pub struct ResourceField<T>
 where
-    T: Deref<Target = Resource<S, E>>,
-    S: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
 {
     widget: Widget,
     name: Handle<UiNode>,
     resource_manager: ResourceManager,
-    resource: Option<T>,
-    loader: ResourceLoaderCallback<T, E>,
+    resource: Option<Resource<T>>,
+    loader: ResourceLoaderCallback<T>,
 }
 
-impl<T, S, E> Debug for ResourceField<T, S, E>
+impl<T> Debug for ResourceField<T>
 where
-    T: Deref<Target = Resource<S, E>>,
-    S: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "ResourceField")
     }
 }
 
-impl<T, S, E> Clone for ResourceField<T, S, E>
+impl<T> Clone for ResourceField<T>
 where
-    T: Deref<Target = Resource<S, E>> + Clone,
-    S: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
 {
     fn clone(&self) -> Self {
         Self {
@@ -121,11 +104,9 @@ where
     }
 }
 
-impl<T, S, E> Deref for ResourceField<T, S, E>
+impl<T> Deref for ResourceField<T>
 where
-    T: Deref<Target = Resource<S, E>>,
-    S: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
 {
     type Target = Widget;
 
@@ -134,22 +115,18 @@ where
     }
 }
 
-impl<T, S, E> DerefMut for ResourceField<T, S, E>
+impl<T> DerefMut for ResourceField<T>
 where
-    T: Deref<Target = Resource<S, E>>,
-    S: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
     }
 }
 
-impl<T, S, E> Control for ResourceField<T, S, E>
+impl<T> Control for ResourceField<T>
 where
-    T: Deref<Target = Resource<S, E>> + Clone + PartialEq + Debug + 'static,
-    S: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
 {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
         if type_id == TypeId::of::<Self>() {
@@ -197,24 +174,20 @@ where
     }
 }
 
-pub struct ResourceFieldBuilder<T, S, E>
+pub struct ResourceFieldBuilder<T>
 where
-    T: Deref<Target = Resource<S, E>> + PartialEq,
-    S: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
 {
     widget_builder: WidgetBuilder,
-    resource: Option<T>,
-    loader: ResourceLoaderCallback<T, E>,
+    resource: Option<Resource<T>>,
+    loader: ResourceLoaderCallback<T>,
 }
 
-impl<T, S, E> ResourceFieldBuilder<T, S, E>
+impl<T> ResourceFieldBuilder<T>
 where
-    T: Deref<Target = Resource<S, E>> + PartialEq + Debug + Clone + 'static,
-    S: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
 {
-    pub fn new(widget_builder: WidgetBuilder, loader: ResourceLoaderCallback<T, E>) -> Self {
+    pub fn new(widget_builder: WidgetBuilder, loader: ResourceLoaderCallback<T>) -> Self {
         Self {
             widget_builder,
             resource: None,
@@ -222,7 +195,7 @@ where
         }
     }
 
-    pub fn with_resource(mut self, resource: Option<T>) -> Self {
+    pub fn with_resource(mut self, resource: Option<Resource<T>>) -> Self {
         self.resource = resource;
         self
     }
@@ -276,52 +249,44 @@ where
     }
 }
 
-pub struct ResourceFieldPropertyEditorDefinition<T, S, E>
+pub struct ResourceFieldPropertyEditorDefinition<T>
 where
-    T: Deref<Target = Resource<S, E>>,
-    S: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
 {
-    loader: ResourceLoaderCallback<T, E>,
+    loader: ResourceLoaderCallback<T>,
 }
 
-impl<T, S, E> ResourceFieldPropertyEditorDefinition<T, S, E>
+impl<T> ResourceFieldPropertyEditorDefinition<T>
 where
-    T: Deref<Target = Resource<S, E>>,
-    S: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
 {
-    pub fn new(loader: ResourceLoaderCallback<T, E>) -> Self {
+    pub fn new(loader: ResourceLoaderCallback<T>) -> Self {
         Self { loader }
     }
 }
 
-impl<T, S, E> Debug for ResourceFieldPropertyEditorDefinition<T, S, E>
+impl<T> Debug for ResourceFieldPropertyEditorDefinition<T>
 where
-    T: Deref<Target = Resource<S, E>>,
-    S: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "ResourceFieldPropertyEditorDefinition")
     }
 }
 
-impl<T, S, E> PropertyEditorDefinition for ResourceFieldPropertyEditorDefinition<T, S, E>
+impl<T> PropertyEditorDefinition for ResourceFieldPropertyEditorDefinition<T>
 where
-    T: Deref<Target = Resource<S, E>> + Clone + PartialEq + Debug + Reflect + 'static,
-    S: ResourceData,
-    E: ResourceLoadError,
+    T: ResourceData + TypeUuidProvider,
 {
     fn value_type_id(&self) -> TypeId {
-        TypeId::of::<Option<T>>()
+        TypeId::of::<Option<Resource<T>>>()
     }
 
     fn create_instance(
         &self,
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
-        let value = ctx.property_info.cast_value::<Option<T>>()?;
+        let value = ctx.property_info.cast_value::<Option<Resource<T>>>()?;
 
         Ok(PropertyEditorInstance::Simple {
             editor: ResourceFieldBuilder::new(WidgetBuilder::new(), self.loader.clone())
@@ -343,7 +308,7 @@ where
         &self,
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
-        let value = ctx.property_info.cast_value::<Option<T>>()?;
+        let value = ctx.property_info.cast_value::<Option<Resource<T>>>()?;
 
         Ok(Some(ResourceFieldMessage::value(
             ctx.instance,
@@ -355,7 +320,7 @@ where
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
         if ctx.message.direction() == MessageDirection::FromWidget {
             if let Some(ResourceFieldMessage::Value(value)) =
-                ctx.message.data::<ResourceFieldMessage<T, S, E>>()
+                ctx.message.data::<ResourceFieldMessage<T>>()
             {
                 return Some(PropertyChanged {
                     owner_type_id: ctx.owner_type_id,

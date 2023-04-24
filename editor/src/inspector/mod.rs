@@ -17,8 +17,9 @@ use crate::{
 };
 use fyrox::{
     animation::Animation,
+    asset::manager::ResourceManager,
     core::{color::Color, pool::Handle, reflect::prelude::*},
-    engine::{resource_manager::ResourceManager, SerializationContext},
+    engine::SerializationContext,
     gui::{
         grid::{Column, GridBuilder, Row},
         inspector::{

@@ -1,11 +1,12 @@
 use crate::asset::inspector::handlers::ImportOptionsHandler;
+use fyrox::scene::sound::SoundBuffer;
 use fyrox::{
-    core::{append_extension, futures::executor::block_on, reflect::prelude::*},
-    engine::resource_manager::{
-        loader::sound::SoundBufferImportOptions,
+    asset::{
+        manager::ResourceManager,
         options::{try_get_import_settings, ImportOptions},
-        ResourceManager,
     },
+    core::{append_extension, futures::executor::block_on, reflect::prelude::*},
+    engine::resource_loaders::sound::SoundBufferImportOptions,
     gui::inspector::{PropertyAction, PropertyChanged},
     utils::log::Log,
 };
@@ -30,12 +31,12 @@ impl ImportOptionsHandler for SoundBufferImportOptionsHandler {
         self.options
             .save(&append_extension(&self.resource_path, "options"));
 
-        let texture = resource_manager.request_sound_buffer(&self.resource_path);
+        let texture = resource_manager.request::<SoundBuffer, _>(&self.resource_path);
         resource_manager
             .state()
             .containers_mut()
-            .sound_buffers
-            .reload_resource(texture);
+            .resources
+            .reload_resource(texture.into_untyped());
     }
 
     fn revert(&mut self) {

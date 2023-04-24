@@ -1,7 +1,8 @@
 use crate::{asset::item::AssetItem, inspector::EditorEnvironment};
+use fyrox::resource::texture::Texture;
 use fyrox::{
+    asset::manager::ResourceManager,
     core::{algebra::Vector2, make_relative_path, pool::Handle},
-    engine::resource_manager::ResourceManager,
     gui::{
         define_constructor,
         image::{ImageBuilder, ImageMessage},
@@ -81,7 +82,7 @@ impl Control for TextureEditor {
                         ui.send_message(TextureEditorMessage::texture(
                             self.handle(),
                             MessageDirection::ToWidget,
-                            Some(self.resource_manager.request_texture(relative_path)),
+                            Some(self.resource_manager.request::<Texture, _>(relative_path)),
                         ));
                     }
                 }
