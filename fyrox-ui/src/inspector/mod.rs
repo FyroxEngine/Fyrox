@@ -24,6 +24,7 @@ use crate::{
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use copypasta::ClipboardProvider;
+use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
     cell::Cell,
@@ -530,6 +531,25 @@ fn make_simple_property_container(
         .build(ctx)
 }
 
+#[derive(Default, Clone)]
+pub struct PropertyFilter(pub Option<Arc<dyn Fn(&dyn Reflect) -> bool>>);
+
+impl PropertyFilter {
+    pub fn new<T>(func: T) -> Self
+    where
+        T: Fn(&dyn Reflect) -> bool + 'static,
+    {
+        Self(Some(Arc::new(func)))
+    }
+
+    pub fn pass(&self, value: &dyn Reflect) -> bool {
+        match self.0.as_ref() {
+            None => true,
+            Some(filter) => (filter)(value),
+        }
+    }
+}
+
 impl InspectorContext {
     pub fn from_object(
         object: &dyn Reflect,
@@ -539,6 +559,7 @@ impl InspectorContext {
         sync_flag: u64,
         layer_index: usize,
         generate_property_string_values: bool,
+        filter: PropertyFilter,
     ) -> Self {
         let mut entries = Vec::new();
 
@@ -558,6 +579,10 @@ impl InspectorContext {
             for (i, (field_text, info)) in
                 fields_text.iter().zip(fields_info.into_iter()).enumerate()
             {
+                if !filter.pass(info.reflect_value) {
+                    continue;
+                }
+
                 let description = if info.description.is_empty() {
                     info.display_name.to_string()
                 } else {
@@ -576,6 +601,7 @@ impl InspectorContext {
                         sync_flag,
                         layer_index,
                         generate_property_string_values,
+                        filter: filter.clone(),
                     }) {
                         Ok(instance) => {
                             let (container, editor) = match instance {
@@ -684,11 +710,16 @@ impl InspectorContext {
         ui: &mut UserInterface,
         layer_index: usize,
         generate_property_string_values: bool,
+        filter: PropertyFilter,
     ) -> Result<(), Vec<InspectorError>> {
         let mut sync_errors = Vec::new();
 
         object.fields_info(&mut |fields_info| {
             for info in fields_info {
+                if !filter.pass(info.reflect_value) {
+                    continue;
+                }
+
                 if let Some(constructor) = self
                     .property_definitions
                     .definitions()
@@ -704,6 +735,7 @@ impl InspectorContext {
                             layer_index,
                             environment: self.environment.clone(),
                             generate_property_string_values,
+                            filter: filter.clone(),
                         };
 
                         match constructor.create_message(ctx) {

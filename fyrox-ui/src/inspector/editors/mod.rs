@@ -1,3 +1,4 @@
+use crate::inspector::PropertyFilter;
 use crate::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
@@ -69,6 +70,7 @@ pub struct PropertyEditorBuildContext<'a, 'b, 'c> {
     pub sync_flag: u64,
     pub layer_index: usize,
     pub generate_property_string_values: bool,
+    pub filter: PropertyFilter,
 }
 
 pub struct PropertyEditorMessageContext<'a, 'b> {
@@ -80,6 +82,7 @@ pub struct PropertyEditorMessageContext<'a, 'b> {
     pub layer_index: usize,
     pub environment: Option<Rc<dyn InspectorEnvironment>>,
     pub generate_property_string_values: bool,
+    pub filter: PropertyFilter,
 }
 
 pub struct PropertyEditorTranslationContext<'b, 'c> {

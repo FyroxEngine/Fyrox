@@ -67,6 +67,7 @@ where
             ctx.sync_flag,
             ctx.layer_index + 1,
             ctx.generate_property_string_values,
+            ctx.filter,
         );
 
         let editor;
@@ -107,6 +108,7 @@ where
             ctx.ui,
             ctx.layer_index + 1,
             ctx.generate_property_string_values,
+            ctx.filter,
         ) {
             error_group.extend(e.into_iter())
         }
