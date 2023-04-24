@@ -178,6 +178,28 @@ pub enum SoundBuffer {
 
 pub type SoundBufferResource = Resource<SoundBuffer>;
 
+pub trait SoundBufferResourceExtension {
+    /// Tries to create new streaming sound buffer from a given data source.
+    fn new_streaming(data_source: DataSource) -> Result<Resource<SoundBuffer>, DataSource>;
+
+    /// Tries to create new generic sound buffer from a given data source.
+    fn new_generic(data_source: DataSource) -> Result<Resource<SoundBuffer>, DataSource>;
+}
+
+impl SoundBufferResourceExtension for SoundBufferResource {
+    fn new_streaming(data_source: DataSource) -> Result<Resource<SoundBuffer>, DataSource> {
+        Ok(Resource::new_ok(SoundBuffer::Streaming(
+            StreamingBuffer::new(data_source)?,
+        )))
+    }
+
+    fn new_generic(data_source: DataSource) -> Result<Resource<SoundBuffer>, DataSource> {
+        Ok(Resource::new_ok(SoundBuffer::Generic(GenericBuffer::new(
+            data_source,
+        )?)))
+    }
+}
+
 impl TypeUuidProvider for SoundBuffer {
     fn type_uuid() -> Uuid {
         SOUND_BUFFER_RESOURCE_UUID
@@ -195,26 +217,6 @@ impl SoundBuffer {
     /// buffer that has to be wrapped into Arc<Mutex<>> for use with sound sources.
     pub fn raw_generic(data_source: DataSource) -> Result<Self, DataSource> {
         Ok(Self::Generic(GenericBuffer::new(data_source)?))
-    }
-
-    /// Tries to create new streaming sound buffer from a given data source. Returns sound source
-    /// wrapped into Arc<Mutex<>> that can be directly used with sound sources.
-    pub fn new_streaming_resource(
-        data_source: DataSource,
-    ) -> Result<Resource<SoundBuffer>, DataSource> {
-        Ok(Resource::new_ok(SoundBuffer::Streaming(
-            StreamingBuffer::new(data_source)?,
-        )))
-    }
-
-    /// Tries to create new generic sound buffer from a given data source. Returns sound source
-    /// wrapped into Arc<Mutex<>> that can be directly used with sound sources.
-    pub fn new_generic_resource(
-        data_source: DataSource,
-    ) -> Result<Resource<SoundBuffer>, DataSource> {
-        Ok(Resource::new_ok(SoundBuffer::Generic(GenericBuffer::new(
-            data_source,
-        )?)))
     }
 }
 

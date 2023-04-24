@@ -427,46 +427,10 @@ impl TextureImportOptions {
 pub type TextureResource = Resource<Texture>;
 
 pub trait TextureResourceExtension: Sized {
-    fn new_render_target(width: u32, height: u32) -> Self;
-
-    fn load_from_memory(
-        data: &[u8],
-        compression: CompressionOptions,
-        gen_mip_maps: bool,
-    ) -> Result<Self, TextureError>;
-
-    fn from_bytes(
-        kind: TextureKind,
-        pixel_kind: TexturePixelKind,
-        bytes: Vec<u8>,
-        serialize_content: bool,
-    ) -> Option<Self>;
-
-    fn deep_clone(&self) -> Self;
-}
-
-impl TextureResourceExtension for TextureResource {
     /// Creates new render target for a scene. This method automatically configures GPU texture
     /// to correct settings, after render target was created, it must not be modified, otherwise
     /// result is undefined.
-    fn new_render_target(width: u32, height: u32) -> Self {
-        Resource::new_ok(Texture {
-            path: Default::default(),
-            // Render target will automatically set width and height before rendering.
-            kind: TextureKind::Rectangle { width, height },
-            bytes: Default::default(),
-            pixel_kind: TexturePixelKind::RGBA8,
-            minification_filter: TextureMinificationFilter::Linear,
-            magnification_filter: TextureMagnificationFilter::Linear,
-            s_wrap_mode: TextureWrapMode::Repeat,
-            t_wrap_mode: TextureWrapMode::Repeat,
-            mip_count: 1,
-            anisotropy: 1.0,
-            serialize_content: false,
-            data_hash: 0,
-            is_render_target: true,
-        })
-    }
+    fn new_render_target(width: u32, height: u32) -> Self;
 
     /// Tries to load a texture from given data. Use this method if you want to
     /// load a texture from embedded data.
@@ -489,6 +453,46 @@ impl TextureResourceExtension for TextureResource {
         data: &[u8],
         compression: CompressionOptions,
         gen_mip_maps: bool,
+    ) -> Result<Self, TextureError>;
+
+    /// Tries to create new texture from given parameters, it may fail only if size of data passed
+    /// in does not match with required.
+    fn from_bytes(
+        kind: TextureKind,
+        pixel_kind: TexturePixelKind,
+        bytes: Vec<u8>,
+        serialize_content: bool,
+    ) -> Option<Self>;
+
+    /// Creates a deep clone of the texture. Unlike [`TextureResource::clone`], this method clones the actual texture data,
+    /// which could be slow.
+    fn deep_clone(&self) -> Self;
+}
+
+impl TextureResourceExtension for TextureResource {
+    fn new_render_target(width: u32, height: u32) -> Self {
+        Resource::new_ok(Texture {
+            path: Default::default(),
+            // Render target will automatically set width and height before rendering.
+            kind: TextureKind::Rectangle { width, height },
+            bytes: Default::default(),
+            pixel_kind: TexturePixelKind::RGBA8,
+            minification_filter: TextureMinificationFilter::Linear,
+            magnification_filter: TextureMagnificationFilter::Linear,
+            s_wrap_mode: TextureWrapMode::Repeat,
+            t_wrap_mode: TextureWrapMode::Repeat,
+            mip_count: 1,
+            anisotropy: 1.0,
+            serialize_content: false,
+            data_hash: 0,
+            is_render_target: true,
+        })
+    }
+
+    fn load_from_memory(
+        data: &[u8],
+        compression: CompressionOptions,
+        gen_mip_maps: bool,
     ) -> Result<Self, TextureError> {
         Ok(Resource::new_ok(Texture::load_from_memory(
             data,
@@ -497,8 +501,6 @@ impl TextureResourceExtension for TextureResource {
         )?))
     }
 
-    /// Tries to create new texture from given parameters, it may fail only if size of data passed
-    /// in does not match with required.
     fn from_bytes(
         kind: TextureKind,
         pixel_kind: TexturePixelKind,
@@ -513,8 +515,6 @@ impl TextureResourceExtension for TextureResource {
         )?))
     }
 
-    /// Creates a deep clone of the texture. Unlike [`TextureResource::clone`], this method clones the actual texture data,
-    /// which could be slow.
     fn deep_clone(&self) -> Self {
         Resource::new_ok(self.data_ref().clone())
     }
@@ -1549,7 +1549,9 @@ impl<'a> TextureDataRefMut<'a> {
 
 #[cfg(test)]
 pub mod test {
-    use crate::resource::texture::{TextureKind, TexturePixelKind, TextureResource};
+    use crate::resource::texture::{
+        TextureKind, TexturePixelKind, TextureResource, TextureResourceExtension,
+    };
 
     pub fn create_test_texture() -> TextureResource {
         TextureResource::from_bytes(

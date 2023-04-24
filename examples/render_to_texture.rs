@@ -1,3 +1,4 @@
+use fyrox::resource::texture::TextureResourceExtension;
 use fyrox::{
     core::{algebra::Vector2, futures::executor::block_on, pool::Handle},
     engine::{executor::Executor, GraphicsContext, GraphicsContextParams},
@@ -84,6 +85,7 @@ fn load_scene(context: &PluginContext) -> Scene {
     let loader = block_on(SceneLoader::from_file(
         "examples/data/rt_scene.rgs",
         context.serialization_context.clone(),
+        context.resource_manager.clone(),
     ))
     .unwrap();
     block_on(loader.finish(context.resource_manager.clone()))

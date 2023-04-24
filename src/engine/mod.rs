@@ -28,7 +28,7 @@ use crate::{
     resource::{
         curve::CurveResourceState,
         model::{Model, ModelResource},
-        texture::{Texture, TextureKind, TextureResource},
+        texture::{Texture, TextureKind},
     },
     scene::{
         base::NodeScriptMessage,
@@ -1532,14 +1532,18 @@ impl Drop for Engine {
 
 #[cfg(test)]
 mod test {
-    use crate::script::{ScriptMessageContext, ScriptMessagePayload};
     use crate::{
+        asset::manager::ResourceManager,
         core::{pool::Handle, reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
-        engine::{resource_manager::ResourceManager, ScriptProcessor},
+        engine::ScriptProcessor,
         impl_component_provider,
         scene::{base::BaseBuilder, node::Node, pivot::PivotBuilder, Scene, SceneContainer},
-        script::{Script, ScriptContext, ScriptDeinitContext, ScriptTrait},
+        script::{
+            Script, ScriptContext, ScriptDeinitContext, ScriptMessageContext, ScriptMessagePayload,
+            ScriptTrait,
+        },
     };
+
     use std::sync::mpsc::{self, Sender, TryRecvError};
 
     #[derive(PartialEq, Eq, Clone, Debug)]
@@ -1642,7 +1646,7 @@ mod test {
 
     #[test]
     fn test_order() {
-        let resource_manager = ResourceManager::new(Default::default());
+        let resource_manager = ResourceManager::new();
         let mut scene = Scene::new();
 
         let (tx, rx) = mpsc::channel();
@@ -1808,7 +1812,7 @@ mod test {
 
     #[test]
     fn test_messages() {
-        let resource_manager = ResourceManager::new(Default::default());
+        let resource_manager = ResourceManager::new();
         let mut scene = Scene::new();
 
         let (tx, rx) = mpsc::channel();

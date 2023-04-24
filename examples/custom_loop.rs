@@ -6,8 +6,9 @@
 
 use fyrox::engine::{GraphicsContext, GraphicsContextParams};
 use fyrox::{
+    asset::manager::ResourceManager,
     core::instant::Instant,
-    engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
+    engine::{Engine, EngineInitParams, SerializationContext},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     utils::{
@@ -33,7 +34,7 @@ fn main() {
     let serialization_context = Arc::new(SerializationContext::new());
     let mut engine = Engine::new(EngineInitParams {
         graphics_context_params,
-        resource_manager: ResourceManager::new(serialization_context.clone()),
+        resource_manager: ResourceManager::new(),
         serialization_context,
     })
     .unwrap();

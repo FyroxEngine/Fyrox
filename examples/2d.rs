@@ -4,16 +4,15 @@
 //!
 //! This example shows simple 2D scene with light sources.
 
+use fyrox::resource::texture::Texture;
 use fyrox::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{UnitQuaternion, Vector3},
         color::Color,
         pool::Handle,
     },
-    engine::{
-        executor::Executor, resource_manager::ResourceManager, GraphicsContext,
-        GraphicsContextParams,
-    },
+    engine::{executor::Executor, GraphicsContext, GraphicsContextParams},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
@@ -73,7 +72,7 @@ impl SceneLoader {
                             .build(),
                     ),
                 )
-                .with_texture(resource_manager.request_texture("examples/data/starship.png"))
+                .with_texture(resource_manager.request::<Texture, _>("examples/data/starship.png"))
                 .build(&mut scene.graph);
             }
         }

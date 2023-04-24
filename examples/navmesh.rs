@@ -7,7 +7,9 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::resource::model::{Model, ModelResourceExtension};
 use fyrox::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
         arrayvec::ArrayVec,
@@ -17,10 +19,7 @@ use fyrox::{
         sstorage::ImmutableString,
     },
     dpi::LogicalPosition,
-    engine::{
-        executor::Executor, resource_manager::ResourceManager, GraphicsContext,
-        GraphicsContextParams,
-    },
+    engine::{executor::Executor, GraphicsContext, GraphicsContextParams},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
@@ -82,7 +81,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         ));
 
     resource_manager
-        .request_model("examples/data/navmesh_scene.rgs")
+        .request::<Model, _>("examples/data/navmesh_scene.rgs")
         .await
         .unwrap()
         .instantiate(&mut scene);

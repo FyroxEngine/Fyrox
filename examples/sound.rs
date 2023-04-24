@@ -35,6 +35,7 @@ use fyrox::{
         translate_event,
     },
 };
+use fyrox_sound::buffer::SoundBuffer;
 use fyrox_sound::bus::AudioBusGraph;
 use std::time::Instant;
 
@@ -66,7 +67,7 @@ fn main() {
         fyrox::core::futures::executor::block_on(fyrox::core::futures::future::join_all(
             footstep_paths
                 .iter()
-                .map(|&path| game.engine.resource_manager.request_sound_buffer(path)),
+                .map(|&path| game.engine.resource_manager.request::<SoundBuffer, _>(path)),
         ))
         .into_iter()
         .map(|r| r.unwrap())

@@ -1,3 +1,4 @@
+use fyrox_sound::buffer::SoundBufferResourceExtension;
 use fyrox_sound::engine::SoundEngine;
 use fyrox_sound::{
     buffer::{DataSource, SoundBufferResource},

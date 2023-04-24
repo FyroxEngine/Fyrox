@@ -8,8 +8,9 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use fyrox::engine::GraphicsContext;
+use fyrox::resource::model::{Model, ModelResourceExtension};
 use fyrox::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
@@ -18,8 +19,7 @@ use fyrox::{
         visitor::Visitor,
     },
     engine::{
-        resource_manager::ResourceManager, Engine, EngineInitParams, GraphicsContextParams,
-        SerializationContext,
+        Engine, EngineInitParams, GraphicsContext, GraphicsContextParams, SerializationContext,
     },
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -239,7 +239,7 @@ fn create_scene_async(
                 // There is no difference between scene created in Fyroxed and any other
                 // model file, so any scene can be used directly as resource.
                 let root = resource_manager
-                    .request_model("examples/data/sponza/Sponza.rgs")
+                    .request::<Model, _>("examples/data/sponza/Sponza.rgs")
                     .await
                     .unwrap()
                     .instantiate(&mut scene);
@@ -269,11 +269,15 @@ fn create_scene_async(
                     context.lock().unwrap().data = Some(GameScene { scene, root });
                 }
             } else {
-                let scene = SceneLoader::from_file(LIGHTMAP_SCENE_PATH, serialization_context)
-                    .await
-                    .unwrap()
-                    .finish(resource_manager)
-                    .await;
+                let scene = SceneLoader::from_file(
+                    LIGHTMAP_SCENE_PATH,
+                    serialization_context,
+                    resource_manager.clone(),
+                )
+                .await
+                .unwrap()
+                .finish(resource_manager)
+                .await;
                 let root = scene.graph[scene.graph.get_root()].children()[0];
 
                 context.lock().unwrap().data = Some(GameScene { scene, root });
@@ -303,7 +307,7 @@ fn main() {
     let serialization_context = Arc::new(SerializationContext::new());
     let mut engine = Engine::new(EngineInitParams {
         graphics_context_params,
-        resource_manager: ResourceManager::new(serialization_context.clone()),
+        resource_manager: ResourceManager::new(),
         serialization_context,
     })
     .unwrap();

@@ -3,6 +3,8 @@
 //! Just shows two textures with compression. Engine compresses textures automatically,
 //! based on compression options.
 
+use fyrox::engine::resource_loaders::texture::TextureLoader;
+use fyrox::resource::texture::Texture;
 use fyrox::{
     core::{algebra::Vector2, color::Color, pool::Handle},
     engine::{executor::Executor, GraphicsContextParams},
@@ -31,10 +33,13 @@ impl PluginConstructor for GameConstructor {
             .resource_manager
             .state()
             .containers_mut()
-            .textures
-            .set_default_import_options(
-                TextureImportOptions::default().with_compression(CompressionOptions::Quality),
-            );
+            .resources
+            .loaders
+            .iter_mut()
+            .find_map(|l| (**l).as_any_mut().downcast_mut::<TextureLoader>())
+            .unwrap()
+            .default_import_options =
+            TextureImportOptions::default().with_compression(CompressionOptions::Quality);
 
         ImageBuilder::new(
             WidgetBuilder::new()
@@ -45,7 +50,7 @@ impl PluginConstructor for GameConstructor {
         .with_texture(into_gui_texture(
             context
                 .resource_manager
-                .request_texture("examples/data/MetalMesh_Base_Color.png"),
+                .request::<Texture, _>("examples/data/MetalMesh_Base_Color.png"),
         ))
         .build(&mut context.user_interface.build_ctx());
 
@@ -58,7 +63,7 @@ impl PluginConstructor for GameConstructor {
         .with_texture(into_gui_texture(
             context
                 .resource_manager
-                .request_texture("examples/data/R8Texture.png"),
+                .request::<Texture, _>("examples/data/R8Texture.png"),
         ))
         .build(&mut context.user_interface.build_ctx());
 

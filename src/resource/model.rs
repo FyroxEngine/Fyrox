@@ -84,8 +84,10 @@ pub trait ModelResourceExtension: Sized {
         dest_graph: &mut Graph,
     ) -> (Handle<Node>, NodeHandleMap);
 
+    /// Tries to instantiate model from given resource.
     fn instantiate(&self, dest_scene: &mut Scene) -> Handle<Node>;
 
+    /// Instantiates a prefab and places it at specified position and orientation in global coordinates.
     fn instantiate_at(
         &self,
         scene: &mut Scene,
@@ -93,8 +95,37 @@ pub trait ModelResourceExtension: Sized {
         orientation: UnitQuaternion<f32>,
     ) -> Handle<Node>;
 
+    /// Tries to retarget animations from given model resource to a node hierarchy starting
+    /// from `root` on a given scene.
+    ///
+    /// Animation retargeting allows you to "transfer" animation from a model to a model
+    /// instance on a scene. Imagine you have a character that should have multiple animations
+    /// like idle, run, shoot, walk, etc. and you want to store each animation in a separate
+    /// file. Then when you creating a character on a level you want to have all possible
+    /// animations assigned to a character, this is where this function comes into play:
+    /// you just load a model of your character with skeleton, but without any animations,
+    /// then you load several "models" which have only skeleton with some animation (such
+    /// "models" can be considered as "animation" resources). After this you need to
+    /// instantiate model on your level and retarget all animations you need to that instance
+    /// from other "models". All you have after this is a handle to a model and bunch of
+    /// handles to specific animations. After this animations can be blended in any combinations
+    /// you need to. For example idle animation can be blended with walk animation when your
+    /// character starts walking.
+    ///
+    /// # Notes
+    ///
+    /// Most of the 3d model formats can contain only one animation, so in most cases
+    /// this function will return vector with only one animation.
     fn retarget_animations_directly(&self, root: Handle<Node>, graph: &Graph) -> Vec<Animation>;
 
+    /// Tries to retarget animations from given model resource to a node hierarchy starting
+    /// from `root` on a given scene. Unlike [`Self::retarget_animations_directly`], it automatically
+    /// adds retargetted animations to the specified animation player in the hierarchy of given `root`.
+    ///
+    /// # Panic
+    ///
+    /// Panics if `dest_animation_player` is invalid handle, or the node does not have [`AnimationPlayer`]
+    /// component.
     fn retarget_animations_to_player(
         &self,
         root: Handle<Node>,
@@ -102,6 +133,13 @@ pub trait ModelResourceExtension: Sized {
         graph: &mut Graph,
     ) -> Vec<Handle<Animation>>;
 
+    /// Tries to retarget animations from given model resource to a node hierarchy starting
+    /// from `root` on a given scene. Unlike [`Self::retarget_animations_directly`], it automatically
+    /// adds retargetted animations to a first animation player in the hierarchy of given `root`.
+    ///
+    /// # Panic
+    ///
+    /// Panics if there's no animation player in the given hierarchy (descendant nodes of `root`).
     fn retarget_animations(&self, root: Handle<Node>, graph: &mut Graph) -> Vec<Handle<Animation>>;
 }
 
@@ -145,7 +183,6 @@ impl ModelResourceExtension for ModelResource {
         (root, old_to_new)
     }
 
-    /// Tries to instantiate model from given resource.
     fn instantiate(&self, dest_scene: &mut Scene) -> Handle<Node> {
         let data = self.data_ref();
 
@@ -163,7 +200,6 @@ impl ModelResourceExtension for ModelResource {
         instance_root
     }
 
-    /// Instantiates a prefab and places it at specified position and orientation in global coordinates.
     fn instantiate_at(
         &self,
         scene: &mut Scene,
@@ -182,27 +218,6 @@ impl ModelResourceExtension for ModelResource {
         root
     }
 
-    /// Tries to retarget animations from given model resource to a node hierarchy starting
-    /// from `root` on a given scene.
-    ///
-    /// Animation retargeting allows you to "transfer" animation from a model to a model
-    /// instance on a scene. Imagine you have a character that should have multiple animations
-    /// like idle, run, shoot, walk, etc. and you want to store each animation in a separate
-    /// file. Then when you creating a character on a level you want to have all possible
-    /// animations assigned to a character, this is where this function comes into play:
-    /// you just load a model of your character with skeleton, but without any animations,
-    /// then you load several "models" which have only skeleton with some animation (such
-    /// "models" can be considered as "animation" resources). After this you need to
-    /// instantiate model on your level and retarget all animations you need to that instance
-    /// from other "models". All you have after this is a handle to a model and bunch of
-    /// handles to specific animations. After this animations can be blended in any combinations
-    /// you need to. For example idle animation can be blended with walk animation when your
-    /// character starts walking.
-    ///
-    /// # Notes
-    ///
-    /// Most of the 3d model formats can contain only one animation, so in most cases
-    /// this function will return vector with only one animation.
     fn retarget_animations_directly(&self, root: Handle<Node>, graph: &Graph) -> Vec<Animation> {
         let mut retargetted_animations = Vec::new();
 
@@ -247,14 +262,6 @@ impl ModelResourceExtension for ModelResource {
         retargetted_animations
     }
 
-    /// Tries to retarget animations from given model resource to a node hierarchy starting
-    /// from `root` on a given scene. Unlike [`Self::retarget_animations_directly`], it automatically
-    /// adds retargetted animations to the specified animation player in the hierarchy of given `root`.
-    ///
-    /// # Panic
-    ///
-    /// Panics if `dest_animation_player` is invalid handle, or the node does not have [`AnimationPlayer`]
-    /// component.
     fn retarget_animations_to_player(
         &self,
         root: Handle<Node>,
@@ -276,13 +283,6 @@ impl ModelResourceExtension for ModelResource {
         animation_handles
     }
 
-    /// Tries to retarget animations from given model resource to a node hierarchy starting
-    /// from `root` on a given scene. Unlike [`Self::retarget_animations_directly`], it automatically
-    /// adds retargetted animations to a first animation player in the hierarchy of given `root`.
-    ///
-    /// # Panic
-    ///
-    /// Panics if there's no animation player in the given hierarchy (descendant nodes of `root`).
     fn retarget_animations(&self, root: Handle<Node>, graph: &mut Graph) -> Vec<Handle<Animation>> {
         if let Some((animation_player, _)) = graph.find(root, &mut |n| {
             n.query_component_ref::<AnimationPlayer>().is_some()

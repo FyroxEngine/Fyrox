@@ -249,18 +249,6 @@ pub struct SceneLoader {
     scene: Scene,
 }
 
-#[derive(Default)]
-struct UsedResourcesSet {
-    models: FxHashSet<UntypedResource>,
-}
-
-impl UsedResourcesSet {
-    /// Waits asynchronously.
-    async fn wait_async(self) {
-        join_all(self.models).await;
-    }
-}
-
 impl SceneLoader {
     /// Tries to load scene from given file. File can contain any scene in native engine format.
     /// Such scenes can be made in rusty editor.

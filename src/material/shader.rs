@@ -646,7 +646,7 @@ lazy_static! {
 mod test {
     use crate::material::shader::{
         PropertyDefinition, PropertyKind, RenderPassDefinition, SamplerFallback, ShaderDefinition,
-        ShaderResource,
+        ShaderResource, ShaderResourceExtension,
     };
 
     #[test]

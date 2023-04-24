@@ -4,12 +4,11 @@
 //!
 //! This example shows simple 2D scene with light sources.
 
+use fyrox::resource::model::{Model, ModelResourceExtension};
 use fyrox::{
+    asset::manager::ResourceManager,
     core::{algebra::Vector3, color::Color, futures::executor::block_on, pool::Handle},
-    engine::{
-        executor::Executor, resource_manager::ResourceManager, GraphicsContext,
-        GraphicsContextParams,
-    },
+    engine::{executor::Executor, GraphicsContext, GraphicsContextParams},
     event::Event,
     event::{ElementState, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
@@ -50,7 +49,7 @@ impl SceneLoader {
             .build(&mut scene.graph);
 
         // Load scene.
-        block_on(resource_manager.request_model("examples/data/2d/scene.rgs"))
+        block_on(resource_manager.request::<Model, _>("examples/data/2d/scene.rgs"))
             .unwrap()
             .instantiate(&mut scene);
 

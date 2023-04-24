@@ -9,14 +9,17 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use fyrox::engine::{GraphicsContext, GraphicsContextParams};
+use fyrox::resource::model::{Model, ModelResourceExtension};
 use fyrox::{
+    asset::manager::ResourceManager,
     core::{
         algebra::{UnitQuaternion, Vector3},
         color::Color,
         pool::Handle,
     },
-    engine::{resource_manager::ResourceManager, Engine, EngineInitParams, SerializationContext},
+    engine::{
+        Engine, EngineInitParams, GraphicsContext, GraphicsContextParams, SerializationContext,
+    },
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -63,7 +66,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     // There is no difference between scene created in Fyroxed and any other
     // model file, so any scene can be used directly as resource.
     resource_manager
-        .request_model("examples/data/test_scene.rgs")
+        .request::<Model, _>("examples/data/test_scene.rgs")
         .await
         .unwrap()
         .instantiate(&mut scene);
@@ -91,7 +94,7 @@ fn main() {
     let serialization_context = Arc::new(SerializationContext::new());
     let mut engine = Engine::new(EngineInitParams {
         graphics_context_params,
-        resource_manager: ResourceManager::new(serialization_context.clone()),
+        resource_manager: ResourceManager::new(),
         serialization_context,
     })
     .unwrap();
