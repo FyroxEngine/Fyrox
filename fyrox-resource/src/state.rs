@@ -285,6 +285,8 @@ impl ResourceState {
     /// Additionally it wakes all futures.
     #[inline]
     pub fn commit(&mut self, state: ResourceState) {
+        assert!(!matches!(state, ResourceState::Pending { .. }));
+
         let wakers = if let ResourceState::Pending { ref mut wakers, .. } = self {
             std::mem::take(wakers)
         } else {
