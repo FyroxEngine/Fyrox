@@ -165,14 +165,14 @@ impl ResourceContainer {
 
                 self.push(resource.clone());
 
-                self.try_spawn_loading_task(path.as_ref(), resource.clone());
+                self.try_spawn_loading_task(path.as_ref(), resource.clone(), false);
 
                 resource
             }
         }
     }
 
-    fn try_spawn_loading_task(&mut self, path: &Path, resource: UntypedResource) {
+    fn try_spawn_loading_task(&mut self, path: &Path, resource: UntypedResource, reload: bool) {
         if let Some(loader) = path.extension() {
             let ext_lowercase = loader.to_ascii_lowercase();
             if let Some(loader) = self.loaders.iter().find(|loader| {
@@ -184,7 +184,7 @@ impl ResourceContainer {
                 self.task_pool.spawn_task(loader.load(
                     resource,
                     self.event_broadcaster.clone(),
-                    false,
+                    reload,
                 ));
 
                 return;
@@ -204,7 +204,7 @@ impl ResourceContainer {
             state.switch_to_pending_state();
             drop(state);
 
-            self.try_spawn_loading_task(&path, resource);
+            self.try_spawn_loading_task(&path, resource, true);
         }
     }
 
