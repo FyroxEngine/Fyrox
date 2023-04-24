@@ -145,6 +145,7 @@ fn main() {
             1,
             0,
             true,
+            Default::default(),
         );
         user_interface.send_message(InspectorMessage::context(
             interface.inspector,

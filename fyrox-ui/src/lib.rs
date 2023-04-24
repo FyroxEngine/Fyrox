@@ -8,6 +8,8 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::from_over_into)]
 #![allow(clippy::new_without_default)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::type_complexity)]
 
 pub use copypasta;
 pub use fyrox_core as core;
