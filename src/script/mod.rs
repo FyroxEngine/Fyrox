@@ -331,7 +331,7 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// use fyrox::{
     ///     core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
     ///     impl_component_provider,
-    ///     scene::node::TypeUuidProvider,
+    ///     core::TypeUuidProvider,
     ///     script::ScriptTrait,
     ///     script::{ScriptContext, ScriptMessageContext, ScriptMessagePayload},
     /// };
@@ -392,10 +392,11 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// ```rust
     /// use std::str::FromStr;
     /// use fyrox::{
-    ///     /// core::visitor::prelude::*,
+    ///     core::visitor::prelude::*,
     ///     core::reflect::prelude::*,
     ///     core::uuid::Uuid,
     ///     script::ScriptTrait,
+    ///     core::TypeUuidProvider,
     ///     core::uuid::uuid, impl_component_provider
     /// };
     ///

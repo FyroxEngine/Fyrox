@@ -29,7 +29,7 @@
 //!     emitter::sphere::SphereEmitter, ParticleSystemBuilder, emitter::Emitter,
 //!     emitter::base::BaseEmitterBuilder, emitter::sphere::SphereEmitterBuilder
 //! };
-//! use fyrox::engine::resource_manager::ResourceManager;
+//! use fyrox::asset::manager::ResourceManager;
 //! use fyrox::core::algebra::Vector3;
 //! use fyrox::scene::graph::Graph;
 //! use fyrox::scene::node::Node;
@@ -38,7 +38,7 @@
 //! use fyrox::scene::base::BaseBuilder;
 //! use fyrox::core::color::Color;
 //! use std::path::Path;
-//! use fyrox::resource::texture::TexturePixelKind;
+//! use fyrox::resource::texture::{Texture, TexturePixelKind};
 //!
 //! fn create_smoke(graph: &mut Graph, resource_manager: &mut ResourceManager, pos: Vector3<f32>) {
 //!      ParticleSystemBuilder::new(BaseBuilder::new()
@@ -65,7 +65,7 @@
 //!                 .with_radius(0.01)
 //!                 .build()
 //!         ])
-//!         .with_texture(resource_manager.request_texture(Path::new("data/particles/smoke_04.tga")))
+//!         .with_texture(resource_manager.request::<Texture, _>(Path::new("data/particles/smoke_04.tga")))
 //!         .build(graph);
 //! }
 //! ```

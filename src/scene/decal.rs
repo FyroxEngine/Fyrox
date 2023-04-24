@@ -58,7 +58,7 @@ use std::ops::{Deref, DerefMut};
 ///
 /// ```
 /// use fyrox::{
-///         engine::resource_manager::ResourceManager,
+///         asset::manager::ResourceManager,
 ///         core::pool::Handle,
 ///         scene::{
 ///         node::Node,
@@ -69,6 +69,7 @@ use std::ops::{Deref, DerefMut};
 ///     },
 ///     core::algebra::Vector3
 /// };
+/// use fyrox::resource::texture::Texture;
 ///
 /// fn create_bullet_hole(resource_manager: ResourceManager, graph: &mut Graph) -> Handle<Node> {
 ///     DecalBuilder::new(
@@ -78,7 +79,7 @@ use std::ops::{Deref, DerefMut};
 ///                         .with_local_scale(Vector3::new(2.0, 2.0, 2.0))
 ///                         .build()
 ///         ))
-///         .with_diffuse_texture(resource_manager.request_texture("bullet_hole.png"))
+///         .with_diffuse_texture(resource_manager.request::<Texture, _>("bullet_hole.png"))
 ///         .build(graph)
 /// }
 /// ```

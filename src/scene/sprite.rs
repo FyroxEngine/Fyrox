@@ -51,13 +51,14 @@ use std::ops::{Deref, DerefMut};
 ///         base::BaseBuilder,
 ///         graph::Graph
 ///     },
-///     engine::resource_manager::ResourceManager,
+///     asset::manager::ResourceManager,
 ///     core::pool::{Handle},
 /// };
+/// use fyrox::resource::texture::Texture;
 ///
 /// fn create_smoke(resource_manager: ResourceManager, graph: &mut Graph) -> Handle<Node> {
 ///     SpriteBuilder::new(BaseBuilder::new())
-///         .with_texture(resource_manager.request_texture("smoke.png"))
+///         .with_texture(resource_manager.request::<Texture, _>("smoke.png"))
 ///         .build(graph)
 /// }
 /// ```

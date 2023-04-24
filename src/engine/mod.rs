@@ -805,8 +805,9 @@ impl Engine {
     ///
     /// ```no_run
     /// use fyrox::{
+    ///     asset::manager::ResourceManager,
     ///     engine::{
-    ///         resource_manager::ResourceManager, Engine, EngineInitParams, GraphicsContextParams,
+    ///         Engine, EngineInitParams, GraphicsContextParams,
     ///         SerializationContext,
     ///     },
     ///     event_loop::EventLoop,
@@ -821,11 +822,11 @@ impl Engine {
     ///     },
     ///     vsync: true,
     /// };
-    /// let serialization_context = Arc::new(SerializationContext::new());
+    ///
     /// Engine::new(EngineInitParams {
     ///     graphics_context_params,
-    ///     resource_manager: ResourceManager::new(serialization_context.clone()),
-    ///     serialization_context,
+    ///     resource_manager: ResourceManager::new(),
+    ///     serialization_context: Arc::new(SerializationContext::new()),
     /// })
     /// .unwrap();
     /// ```

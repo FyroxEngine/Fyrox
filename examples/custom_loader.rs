@@ -31,10 +31,6 @@ use fyrox::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     material::{shader::SamplerFallback, Material, PropertyValue, SharedMaterial},
-    resource::{
-        model::{ModelImportOptions, ModelResource},
-        texture::{TextureImportOptions, TextureResource},
-    },
     scene::{
         base::BaseBuilder,
         light::{point::PointLightBuilder, BaseLightBuilder},
@@ -204,26 +200,44 @@ fn main() {
         },
         vsync: true,
     };
-    let serialization_context = Arc::new(SerializationContext::new());
-    let resource_manager = ResourceManager::new();
-
-    // Set up our custom loaders
-    {
-        let mut state = resource_manager.state();
-        let containers = state.containers_mut();
-        containers.set_model_loader(CustomModelLoader(Arc::new(ModelLoader {
-            resource_manager: resource_manager.clone(),
-            serialization_context: serialization_context.clone(),
-        })));
-        containers.set_texture_loader(CustomTextureLoader(Arc::new(TextureLoader)));
-    }
 
     let mut engine = Engine::new(EngineInitParams {
         graphics_context_params,
-        resource_manager: ResourceManager::new(serialization_context.clone()),
-        serialization_context,
+        resource_manager: ResourceManager::new(),
+        serialization_context: Arc::new(SerializationContext::new()),
     })
     .unwrap();
+
+    // Set up our custom loaders
+    {
+        let mut state = engine.resource_manager.state();
+        let containers = state.containers_mut();
+        if let Some(pos) = containers
+            .resources
+            .loaders
+            .iter()
+            .position(|l| (**l).as_any().downcast_ref::<ModelLoader>().is_some())
+        {
+            containers.resources.loaders[pos] =
+                Box::new(CustomModelLoader(Arc::new(ModelLoader {
+                    resource_manager: engine.resource_manager.clone(),
+                    serialization_context: engine.serialization_context.clone(),
+                    default_import_options: Default::default(),
+                })));
+        }
+
+        if let Some(pos) = containers
+            .resources
+            .loaders
+            .iter()
+            .position(|l| (**l).as_any().downcast_ref::<TextureLoader>().is_some())
+        {
+            containers.resources.loaders[pos] =
+                Box::new(CustomTextureLoader(Arc::new(TextureLoader {
+                    default_import_options: Default::default(),
+                })));
+        }
+    }
 
     let scene = block_on(GameSceneLoader::load_with(engine.resource_manager.clone())).scene;
     engine.scenes.add(scene);

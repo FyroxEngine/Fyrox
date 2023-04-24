@@ -216,7 +216,7 @@
 //! flexible. To get standard shader instance, use [`ShaderResource::standard`]
 //!
 //! ```no_run
-//! # use fyrox::material::shader::ShaderResource;
+//! # use fyrox::material::shader::{ShaderResource, ShaderResourceExtension};
 //!
 //! let standard_shader = ShaderResource::standard();
 //! ```

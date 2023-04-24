@@ -289,10 +289,11 @@ impl Default for PropertyValue {
 /// ```no_run
 /// use fyrox::{
 ///     material::shader::{ShaderResource, SamplerFallback},
-///     engine::resource_manager::ResourceManager,
+///     asset::manager::ResourceManager,
 ///     material::{Material, PropertyValue},
 ///     core::sstorage::ImmutableString,
 /// };
+/// use fyrox::resource::texture::Texture;
 ///
 /// fn create_brick_material(resource_manager: ResourceManager) -> Material {
 ///     let mut material = Material::standard();
@@ -300,7 +301,7 @@ impl Default for PropertyValue {
 ///     material.set_property(
 ///         &ImmutableString::new("diffuseTexture"),
 ///         PropertyValue::Sampler {
-///             value: Some(resource_manager.request_texture("Brick_DiffuseTexture.jpg")),
+///             value: Some(resource_manager.request::<Texture, _>("Brick_DiffuseTexture.jpg")),
 ///             fallback: SamplerFallback::White
 ///         })
 ///         .unwrap();
@@ -321,13 +322,14 @@ impl Default for PropertyValue {
 ///
 /// ```no_run
 /// use fyrox::{
-///     engine::resource_manager::ResourceManager,
+///     asset::manager::ResourceManager,
 ///     material::{Material, PropertyValue},
 ///     core::{sstorage::ImmutableString, algebra::Vector3}
 /// };
+/// use fyrox::material::shader::Shader;
 ///
 /// async fn create_grass_material(resource_manager: ResourceManager) -> Material {
-///     let shader = resource_manager.request_shader("my_grass_shader.ron").await.unwrap();
+///     let shader = resource_manager.request::<Shader, _>("my_grass_shader.ron").await.unwrap();
 ///
 ///     // Here we assume that the material really has the properties defined below.
 ///     let mut material = Material::from_shader(shader, Some(resource_manager));
@@ -401,10 +403,11 @@ impl Material {
     /// ```no_run
     /// use fyrox::{
     ///     material::shader::{ShaderResource, SamplerFallback},
-    ///     engine::resource_manager::ResourceManager,
+    ///     asset::manager::ResourceManager,
     ///     material::{Material, PropertyValue},
     ///     core::sstorage::ImmutableString
     /// };
+    /// use fyrox::resource::texture::Texture;
     ///
     /// fn create_brick_material(resource_manager: ResourceManager) -> Material {
     ///     let mut material = Material::standard();
@@ -412,7 +415,7 @@ impl Material {
     ///     material.set_property(
     ///         &ImmutableString::new("diffuseTexture"),
     ///         PropertyValue::Sampler {
-    ///             value: Some(resource_manager.request_texture("Brick_DiffuseTexture.jpg")),
+    ///             value: Some(resource_manager.request::<Texture, _>("Brick_DiffuseTexture.jpg")),
     ///             fallback: SamplerFallback::White
     ///         })
     ///         .unwrap();
@@ -441,13 +444,14 @@ impl Material {
     ///
     /// ```no_run
     /// use fyrox::{
-    ///     engine::resource_manager::ResourceManager,
+    ///     asset::manager::ResourceManager,
     ///     material::{Material, PropertyValue},
     ///     core::{sstorage::ImmutableString, algebra::Vector3}
     /// };
+    /// use fyrox::material::shader::Shader;
     ///
     /// async fn create_grass_material(resource_manager: ResourceManager) -> Material {
-    ///     let shader = resource_manager.request_shader("my_grass_shader.ron").await.unwrap();
+    ///     let shader = resource_manager.request::<Shader, _>("my_grass_shader.ron").await.unwrap();
     ///
     ///     // Here we assume that the material really has the properties defined below.
     ///     let mut material = Material::from_shader(shader, Some(resource_manager));

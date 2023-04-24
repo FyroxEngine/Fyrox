@@ -711,10 +711,11 @@ impl ColorGradingLut {
     ///
     /// ```no_run
     /// use fyrox::scene::camera::ColorGradingLut;
-    /// use fyrox::engine::resource_manager::{ResourceManager};
+    /// use fyrox::asset::manager::{ResourceManager};
+    /// use fyrox::resource::texture::Texture;
     ///
     /// async fn create_lut(resource_manager: ResourceManager) -> ColorGradingLut {
-    ///     ColorGradingLut::new(resource_manager.request_texture(
+    ///     ColorGradingLut::new(resource_manager.request::<Texture, _>(
     ///         "your_lut.jpg",
     ///     ))
     ///     .await

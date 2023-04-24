@@ -29,6 +29,7 @@
 //!         SoundBufferResource
 //!     },
 //! };
+//! use fyrox_sound::buffer::SoundBufferResourceExtension;
 //!
 //!  let context = SoundContext::new();
 //!
