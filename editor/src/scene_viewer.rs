@@ -996,7 +996,7 @@ impl SceneViewer {
                         }) {
                             let tex = engine.resource_manager.request::<Texture, _>(relative_path);
                             let texture = tex.clone();
-                            let mut texture = texture.state();
+                            let texture = texture.state();
                             if let ResourceStateRef::Ok(_) = texture.get() {
                                 let node =
                                     &mut engine.scenes[editor_scene.scene].graph[result.node];

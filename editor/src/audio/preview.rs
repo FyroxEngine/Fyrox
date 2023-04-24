@@ -215,7 +215,7 @@ impl AudioPreviewPanel {
                 if let Some(sound) = scene.graph.try_get_of_type::<Sound>(node_handle) {
                     if !set {
                         if let Some(buffer) = sound.buffer() {
-                            let mut state = buffer.state();
+                            let state = buffer.state();
                             if let ResourceStateRef::Ok(buffer) = state.get() {
                                 send_sync_message(
                                     &engine.user_interface,
