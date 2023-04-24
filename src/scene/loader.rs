@@ -85,7 +85,7 @@ impl AsyncSceneLoader {
                 .await
             {
                 Ok(loader) => {
-                    inner_state.lock().scene = Some(Ok(loader.finish(resource_manager).await));
+                    inner_state.lock().scene = Some(Ok(loader.finish().await));
                 }
                 Err(e) => {
                     inner_state.lock().scene = Some(Err(format!(

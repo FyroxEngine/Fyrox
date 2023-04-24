@@ -184,12 +184,12 @@ impl Default for ResourceState {
 }
 
 #[derive(Debug, Reflect)]
-#[reflect(hide_all)]
 pub struct Resource<T>
 where
     T: ResourceData + TypeUuidProvider,
 {
     state: Option<UntypedResource>,
+    #[reflect(hidden)]
     phantom: PhantomData<T>,
 }
 

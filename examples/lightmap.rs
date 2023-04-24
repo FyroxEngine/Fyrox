@@ -276,7 +276,7 @@ fn create_scene_async(
                 )
                 .await
                 .unwrap()
-                .finish(resource_manager)
+                .finish()
                 .await;
                 let root = scene.graph[scene.graph.get_root()].children()[0];
 

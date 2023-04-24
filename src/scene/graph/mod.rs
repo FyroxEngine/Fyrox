@@ -110,7 +110,6 @@ pub struct Graph {
     #[reflect(hidden)]
     root: Handle<Node>,
 
-    #[reflect(hidden)]
     pool: NodePool,
 
     #[reflect(hidden)]

@@ -136,7 +136,7 @@ async fn load(game: &mut Game) {
             &mut visitor,
         )
         .unwrap()
-        .finish(game.engine.resource_manager.clone())
+        .finish()
         .await;
 
         let mut game_scene = GameScene::default();

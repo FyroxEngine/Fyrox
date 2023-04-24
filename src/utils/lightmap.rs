@@ -17,7 +17,8 @@ use crate::{
         math::{self, ray::Ray, Matrix4Ext, Rect, TriangleDefinition, Vector2Ext},
         octree::{Octree, OctreeNode},
         pool::Handle,
-        visitor::{Visit, VisitResult, Visitor},
+        reflect::prelude::*,
+        visitor::prelude::*,
     },
     material::PropertyValue,
     resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource},
@@ -47,7 +48,7 @@ use std::{
 };
 
 ///
-#[derive(Default, Clone, Debug, Visit)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct LightmapEntry {
     /// Lightmap texture.
     ///
@@ -62,7 +63,7 @@ pub struct LightmapEntry {
 }
 
 /// Lightmap is a texture with precomputed lighting.
-#[derive(Default, Clone, Debug, Visit)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct Lightmap {
     /// Node handle to lightmap mapping. It is used to quickly get information about
     /// lightmaps for any node in scene.

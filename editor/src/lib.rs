@@ -1551,7 +1551,7 @@ impl Editor {
         };
         match result {
             Ok(loader) => {
-                let scene = block_on(loader.finish(engine.resource_manager.clone()));
+                let scene = block_on(loader.finish());
 
                 self.set_scene(scene, Some(scene_path));
             }

@@ -1,5 +1,7 @@
 use crate::{state::ResourceState, Resource, ResourceData, ResourceLoadError};
-use fyrox_core::{parking_lot::Mutex, uuid::Uuid, visitor::prelude::*, TypeUuidProvider};
+use fyrox_core::{
+    parking_lot::Mutex, reflect::prelude::*, uuid::Uuid, visitor::prelude::*, TypeUuidProvider,
+};
 use std::{
     fmt::{Debug, Formatter},
     future::Future,
@@ -11,7 +13,8 @@ use std::{
     task::{Context, Poll},
 };
 
-#[derive(Clone)]
+#[derive(Clone, Reflect)]
+#[reflect(hide_all)]
 pub struct UntypedResource(pub Arc<Mutex<ResourceState>>);
 
 impl Visit for UntypedResource {

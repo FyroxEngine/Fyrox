@@ -88,7 +88,7 @@ fn load_scene(context: &PluginContext) -> Scene {
         context.resource_manager.clone(),
     ))
     .unwrap();
-    block_on(loader.finish(context.resource_manager.clone()))
+    block_on(loader.finish())
 }
 
 impl PluginConstructor for GameConstructor {
