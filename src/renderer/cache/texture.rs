@@ -30,7 +30,7 @@ impl TextureCache {
         texture: &TextureResource,
     ) -> Result<(), FrameworkError> {
         let key = texture.key();
-        let mut texture = texture.state();
+        let texture = texture.state();
 
         if let ResourceStateRef::Ok(texture) = texture.get() {
             let gpu_texture = GpuTexture::new(
@@ -73,7 +73,7 @@ impl TextureCache {
 
         let key = texture_resource.key();
 
-        let mut texture_data_guard = texture_resource.state();
+        let texture_data_guard = texture_resource.state();
 
         if let ResourceStateRef::Ok(texture) = texture_data_guard.get() {
             let entry = match self.map.entry(key) {

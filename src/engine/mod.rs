@@ -629,7 +629,7 @@ impl ResourceGraphVertex {
         let mut dependent_resources = HashSet::new();
         for resource in resource_manager.state().containers().resources.iter() {
             if let Some(other_model) = resource.try_cast::<Model>() {
-                let mut state = other_model.state();
+                let state = other_model.state();
                 if let ResourceStateRef::Ok(model_data) = state.get() {
                     if model_data
                         .get_scene()

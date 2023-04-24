@@ -771,7 +771,7 @@ impl Graph {
         // if needed and copy surfaces from originals.
         for node in self.pool.iter_mut() {
             if let Some(model) = node.resource() {
-                let mut model = model.state();
+                let model = model.state();
                 match model.get() {
                     ResourceStateRef::Ok(data) => {
                         let resource_graph = &data.get_scene().graph;
@@ -900,7 +900,7 @@ impl Graph {
         let mut restored_count = 0;
 
         for (instance_root, resource) in instances.iter().cloned() {
-            let mut model = resource.state();
+            let model = resource.state();
             if let ResourceStateRef::Ok(data) = model.get() {
                 let resource_graph = &data.get_scene().graph;
 

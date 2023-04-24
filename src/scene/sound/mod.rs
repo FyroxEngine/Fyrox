@@ -401,7 +401,7 @@ impl NodeTrait for Sound {
     fn validate(&self, _scene: &Scene) -> Result<(), String> {
         match self.buffer.as_ref() {
             Some(buffer) => {
-                let mut state = buffer.state();
+                let state = buffer.state();
                 match state.get() {
                     ResourceStateRef::Pending { .. } | ResourceStateRef::Ok(_) => Ok(()),
                     ResourceStateRef::LoadError { error, .. } => {

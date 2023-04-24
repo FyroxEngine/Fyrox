@@ -64,7 +64,7 @@ pub struct ShaderCache {
 
 impl ShaderCache {
     pub fn remove(&mut self, shader: &ShaderResource) {
-        let mut state = shader.state();
+        let state = shader.state();
         if let ResourceStateRef::Ok(shader_state) = state.get() {
             self.buffer.free(&shader_state.cache_index);
         }
@@ -78,7 +78,7 @@ impl ShaderCache {
         scope_profile!();
 
         let key = shader.key();
-        let mut shader_state = shader.state();
+        let shader_state = shader.state();
 
         if let ResourceStateRef::Ok(shader_state) = shader_state.get() {
             if self.buffer.is_index_valid(&shader_state.cache_index) {

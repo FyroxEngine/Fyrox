@@ -77,7 +77,7 @@ impl<'a, T> ResourceStateGuard<'a, T>
 where
     T: ResourceData + TypeUuidProvider,
 {
-    pub fn get(&mut self) -> ResourceStateRef<'_, T> {
+    pub fn get(&self) -> ResourceStateRef<'_, T> {
         match &*self.guard {
             ResourceState::Pending {
                 path, type_uuid, ..
