@@ -180,7 +180,7 @@
 //!
 //! - cull_face
 //!     - Defines which side of polygon should be culled.
-//!     - **Possible values:** `None`, [Some(CullFace::XXX)](crate::renderer::framework::state::CullFace)
+//!     - **Possible values:** `None`, [Some(CullFace::XXX)](crate::renderer::framework::framebuffer::CullFace)
 //!
 //! - color_write:
 //!     - Defines which components of color should be written to a render target
