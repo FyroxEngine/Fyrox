@@ -4,10 +4,9 @@ use fyrox::{
         manager::ResourceManager,
         options::{try_get_import_settings, ImportOptions},
     },
-    core::{append_extension, futures::executor::block_on, reflect::prelude::*},
+    core::{append_extension, futures::executor::block_on, log::Log, reflect::prelude::*},
     gui::inspector::{PropertyAction, PropertyChanged},
     scene::sound::{SoundBuffer, SoundBufferImportOptions},
-    utils::log::Log,
 };
 use std::path::{Path, PathBuf};
 

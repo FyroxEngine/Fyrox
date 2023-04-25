@@ -1,11 +1,15 @@
 use crate::{
-    core::{scope_profile, sparse::SparseBuffer, sstorage::ImmutableString},
+    core::{
+        log::{Log, MessageKind},
+        scope_profile,
+        sparse::SparseBuffer,
+        sstorage::ImmutableString,
+    },
     material::shader::{Shader, ShaderResource},
     renderer::{
         cache::CacheEntry,
         framework::{framebuffer::DrawParameters, gpu_program::GpuProgram, state::PipelineState},
     },
-    utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
 use fyrox_resource::entry::DEFAULT_RESOURCE_LIFETIME;

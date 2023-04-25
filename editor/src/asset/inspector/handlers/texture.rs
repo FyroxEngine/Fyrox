@@ -1,14 +1,12 @@
 use crate::asset::inspector::handlers::ImportOptionsHandler;
-use fyrox::resource::texture::Texture;
 use fyrox::{
     asset::{
         manager::ResourceManager,
         options::{try_get_import_settings, ImportOptions},
     },
-    core::{append_extension, futures::executor::block_on, reflect::prelude::*},
+    core::{append_extension, futures::executor::block_on, log::Log, reflect::prelude::*},
     gui::inspector::{PropertyAction, PropertyChanged},
-    resource::texture::TextureImportOptions,
-    utils::log::Log,
+    resource::texture::{Texture, TextureImportOptions},
 };
 use std::path::{Path, PathBuf};
 

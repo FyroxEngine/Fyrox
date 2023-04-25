@@ -18,13 +18,14 @@
 pub mod shared;
 
 use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene, LocomotionMachine, Player};
-use fyrox::engine::GraphicsContext;
-use fyrox::scene::SceneLoader;
 use fyrox::{
     core::{
         algebra::Vector2,
+        futures::executor::block_on,
+        log::{Log, MessageKind},
         visitor::{Visit, VisitResult, Visitor},
     },
+    engine::GraphicsContext,
     event::{Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
@@ -32,12 +33,9 @@ use fyrox::{
         widget::WidgetMessage,
     },
     renderer::QualitySettings,
-    utils::{
-        log::{Log, MessageKind},
-        translate_event,
-    },
+    scene::SceneLoader,
+    utils::translate_event,
 };
-use fyrox_core::futures::executor::block_on;
 use std::path::Path;
 use std::time::Instant;
 

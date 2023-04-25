@@ -3,9 +3,8 @@
 //! See [NodeHandleMap] docs for more info.
 
 use crate::{
-    core::{pool::Handle, reflect::prelude::*, variable::InheritableVariable},
+    core::{log::Log, pool::Handle, reflect::prelude::*, variable::InheritableVariable},
     scene::node::Node,
-    utils::log::Log,
 };
 use fxhash::FxHashMap;
 use std::ops::{Deref, DerefMut};

@@ -1,17 +1,17 @@
 //! Simple logger, it writes in file and in console at the same time.
 
-use crate::core::parking_lot::Mutex;
 use crate::lazy_static::lazy_static;
+use crate::parking_lot::Mutex;
 use std::fmt::{Debug, Display};
 
-use fyrox_core::instant::Instant;
+use crate::instant::Instant;
 #[cfg(not(target_arch = "wasm32"))]
 use std::io::{self, Write};
 use std::sync::mpsc::Sender;
 use std::time::Duration;
 
 #[cfg(target_arch = "wasm32")]
-use crate::core::wasm_bindgen::{self, prelude::*};
+use crate::wasm_bindgen::{self, prelude::*};
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]

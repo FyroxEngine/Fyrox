@@ -8,7 +8,7 @@ pub mod executor;
 
 use crate::{
     asset::{manager::ResourceManager, manager::ResourceWaitContext},
-    core::{algebra::Vector2, futures::executor::block_on, instant, pool::Handle},
+    core::{algebra::Vector2, futures::executor::block_on, instant, log::Log, pool::Handle},
     engine::error::EngineError,
     event::Event,
     event_loop::ControlFlow,
@@ -33,7 +33,6 @@ use crate::{
         ScriptDeinitContext, ScriptMessage, ScriptMessageContext, ScriptMessageKind,
         ScriptMessageSender,
     },
-    utils::log::Log,
     window::{Window, WindowBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};

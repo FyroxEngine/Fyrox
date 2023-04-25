@@ -8,6 +8,7 @@ use crate::{
         },
         arrayvec::ArrayVec,
         instant,
+        log::{Log, MessageKind},
         math::Matrix4Ext,
         parking_lot::Mutex,
         pool::Handle,
@@ -27,7 +28,6 @@ use crate::{
         },
         node::{Node, NodeTrait},
     },
-    utils::log::{Log, MessageKind},
 };
 use rapier2d::{
     dynamics::{

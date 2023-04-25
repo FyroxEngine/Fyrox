@@ -1,5 +1,9 @@
 use crate::{
-    core::{color::Color, pool::Handle},
+    core::{
+        color::Color,
+        log::{Log, MessageKind},
+        pool::Handle,
+    },
     resource::fbx::document::{FbxNode, FbxNodeContainer},
     scene::{
         base::BaseBuilder,
@@ -10,7 +14,6 @@ use crate::{
         },
         node::Node,
     },
-    utils::log::{Log, MessageKind},
 };
 
 pub enum FbxLightType {

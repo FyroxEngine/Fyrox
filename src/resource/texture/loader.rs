@@ -2,15 +2,14 @@
 
 use crate::{
     asset::{
+        event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
         options::try_get_import_settings,
+        untyped::UntypedResource,
     },
-    core::instant,
+    core::{instant, log::Log},
     resource::texture::{Texture, TextureImportOptions},
-    utils::log::Log,
 };
-use fyrox_resource::event::ResourceEventBroadcaster;
-use fyrox_resource::untyped::UntypedResource;
 use std::any::Any;
 
 /// Default implementation for texture loading.

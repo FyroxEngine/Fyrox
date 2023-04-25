@@ -34,21 +34,21 @@ mod skybox_shader;
 mod sprite_renderer;
 mod ssao;
 
-use crate::material::shader::Shader;
-use crate::resource::texture::Texture;
 use crate::{
-    asset::manager::ResourceManager,
+    asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
         algebra::{Matrix4, Vector2, Vector3},
         color::Color,
         instant,
+        log::{Log, MessageKind},
         math::Rect,
         pool::Handle,
         reflect::prelude::*,
         scope_profile,
+        sstorage::ImmutableString,
     },
     gui::{draw::DrawingContext, UserInterface},
-    material::{shader::SamplerFallback, Material, PropertyValue},
+    material::{shader::SamplerFallback, shader::Shader, Material, PropertyValue},
     renderer::{
         batch::{ObserverInfo, RenderDataBatchStorage},
         bloom::BloomRenderer,
@@ -79,13 +79,10 @@ use crate::{
         storage::MatrixStorage,
         ui_renderer::{UiRenderContext, UiRenderer},
     },
-    resource::texture::{TextureKind, TextureResource},
+    resource::texture::{Texture, TextureKind, TextureResource},
     scene::{camera::Camera, mesh::surface::SurfaceData, Scene, SceneContainer},
-    utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
-use fyrox_core::sstorage::ImmutableString;
-use fyrox_resource::event::ResourceEvent;
 use glow::HasContext;
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{

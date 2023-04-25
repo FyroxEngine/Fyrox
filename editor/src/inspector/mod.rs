@@ -18,7 +18,12 @@ use crate::{
 use fyrox::{
     animation::Animation,
     asset::manager::ResourceManager,
-    core::{color::Color, pool::Handle, reflect::prelude::*},
+    core::{
+        color::Color,
+        log::{Log, MessageKind},
+        pool::Handle,
+        reflect::prelude::*,
+    },
     engine::SerializationContext,
     gui::{
         grid::{Column, GridBuilder, Row},
@@ -37,7 +42,6 @@ use fyrox::{
         animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
         graph::Graph,
     },
-    utils::log::{Log, MessageKind},
 };
 use std::{
     any::Any,

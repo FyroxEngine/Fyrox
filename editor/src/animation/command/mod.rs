@@ -7,11 +7,11 @@ use fyrox::{
     animation::{track::Track, Animation, AnimationSignal, RootMotionSettings},
     core::{
         curve::Curve,
+        log::Log,
         pool::{Handle, Ticket},
         uuid::Uuid,
     },
     scene::{animation::AnimationPlayer, node::Node},
-    utils::log::Log,
 };
 use std::{
     fmt::Debug,

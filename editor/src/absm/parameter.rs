@@ -4,7 +4,7 @@ use crate::{
 };
 use fyrox::{
     animation::machine::parameter::{Parameter, ParameterDefinition},
-    core::pool::Handle,
+    core::{log::Log, pool::Handle},
     gui::{
         inspector::{
             editors::{
@@ -22,7 +22,6 @@ use fyrox::{
         BuildContext, UiNode, UserInterface,
     },
     scene::{animation::absm::AnimationBlendingStateMachine, node::Node},
-    utils::log::Log,
 };
 use std::{rc::Rc, sync::mpsc::Sender};
 

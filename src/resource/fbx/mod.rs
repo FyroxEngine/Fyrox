@@ -10,8 +10,6 @@ mod document;
 pub mod error;
 mod scene;
 
-use crate::resource::texture::Texture;
-use crate::scene::mesh::surface::{BlendShape, InputBlendShapeData};
 use crate::{
     animation::{track::Track, Animation, AnimationContainer},
     asset::manager::ResourceManager,
@@ -20,6 +18,7 @@ use crate::{
         curve::{CurveKey, CurveKeyKind},
         instant::Instant,
         io,
+        log::{Log, MessageKind},
         math::{self, triangulator::triangulate, RotationOrder},
         pool::Handle,
         sstorage::ImmutableString,
@@ -38,6 +37,7 @@ use crate::{
             },
         },
         model::{MaterialSearchOptions, ModelImportOptions},
+        texture::Texture,
     },
     scene::{
         animation::AnimationPlayerBuilder,
@@ -46,7 +46,8 @@ use crate::{
         mesh::{
             buffer::{VertexAttributeUsage, VertexBuffer, VertexWriteTrait},
             surface::{
-                BlendShapesContainer, Surface, SurfaceData, SurfaceSharedData, VertexWeightSet,
+                BlendShape, BlendShapesContainer, InputBlendShapeData, Surface, SurfaceData,
+                SurfaceSharedData, VertexWeightSet,
             },
             vertex::{AnimatedVertex, StaticVertex},
             Mesh, MeshBuilder,
@@ -56,11 +57,7 @@ use crate::{
         transform::TransformBuilder,
         Scene,
     },
-    utils,
-    utils::{
-        log::{Log, MessageKind},
-        raw_mesh::RawMeshBuilder,
-    },
+    utils::{self, raw_mesh::RawMeshBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
 use std::{

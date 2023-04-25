@@ -17,11 +17,10 @@ use crate::{
     },
     send_sync_message, Message,
 };
-use fyrox::resource::model::{Model, ModelResourceExtension};
 use fyrox::{
     animation::{Animation, RootMotionSettings},
     asset::manager::ResourceManager,
-    core::{algebra::Vector2, futures::executor::block_on, math::Rect, pool::Handle},
+    core::{algebra::Vector2, futures::executor::block_on, log::Log, math::Rect, pool::Handle},
     gui::{
         border::BorderBuilder,
         button::{Button, ButtonBuilder, ButtonMessage},
@@ -43,8 +42,8 @@ use fyrox::{
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
         VerticalAlignment, BRUSH_BRIGHT, BRUSH_LIGHT,
     },
+    resource::model::{Model, ModelResourceExtension},
     scene::{animation::AnimationPlayer, node::Node, Scene},
-    utils::log::Log,
 };
 use std::{path::Path, sync::mpsc::Sender};
 

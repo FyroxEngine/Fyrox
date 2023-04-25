@@ -8,9 +8,12 @@ use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
+        log::{Log, MessageKind},
         pool::Handle,
     },
-    engine::{Engine, EngineInitParams, SerializationContext},
+    engine::{
+        Engine, EngineInitParams, GraphicsContext, GraphicsContextParams, SerializationContext,
+    },
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
@@ -24,17 +27,11 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         UiNode,
     },
+    resource::model::{Model, ModelResourceExtension},
     scene::{node::Node, Scene},
-    utils::{
-        log::{Log, MessageKind},
-        translate_event,
-    },
+    utils::translate_event,
 };
-
-use fyrox::engine::{GraphicsContext, GraphicsContextParams};
-use fyrox::resource::model::{Model, ModelResourceExtension};
-use std::sync::Arc;
-use std::{rc::Rc, time::Instant};
+use std::{rc::Rc, sync::Arc, time::Instant};
 use winit::window::WindowAttributes;
 
 struct Interface {

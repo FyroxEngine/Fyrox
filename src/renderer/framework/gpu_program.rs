@@ -2,10 +2,10 @@ use crate::{
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,
+        log::{Log, MessageKind},
         sstorage::ImmutableString,
     },
     renderer::framework::{error::FrameworkError, gpu_texture::GpuTexture, state::PipelineState},
-    utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
 use glow::HasContext;

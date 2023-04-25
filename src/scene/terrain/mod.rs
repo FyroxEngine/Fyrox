@@ -1,11 +1,11 @@
 //! Everything related to terrains.
 
-use crate::resource::texture::TextureResourceExtension;
 use crate::{
     asset::Resource,
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         arrayvec::ArrayVec,
+        log::Log,
         math::{aabb::AxisAlignedBoundingBox, ray::Ray, ray_rect_intersection, Rect},
         pool::Handle,
         reflect::prelude::*,
@@ -21,7 +21,10 @@ use crate::{
         batch::{RenderContext, SurfaceInstanceData},
         framework::geometry_buffer::ElementRange,
     },
-    resource::texture::{Texture, TextureKind, TexturePixelKind, TextureResource, TextureWrapMode},
+    resource::texture::{
+        Texture, TextureKind, TexturePixelKind, TextureResource, TextureResourceExtension,
+        TextureWrapMode,
+    },
     scene::{
         base::{Base, BaseBuilder},
         debug::SceneDrawingContext,
@@ -30,7 +33,7 @@ use crate::{
         node::{Node, NodeTrait},
         terrain::{geometry::TerrainGeometry, quadtree::QuadTree},
     },
-    utils::{self, log::Log},
+    utils::{self},
 };
 use image::{imageops::FilterType, ImageBuffer, Luma};
 use std::{

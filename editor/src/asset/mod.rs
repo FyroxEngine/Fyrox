@@ -14,11 +14,11 @@ use crate::{
     utils::window_content,
     AssetItem, AssetKind, GameEngine, Message, Mode,
 };
-use fyrox::gui::RcUiNodeHandle;
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
-        color::Color, futures::executor::block_on, make_relative_path, pool::Handle, scope_profile,
+        color::Color, futures::executor::block_on, log::Log, make_relative_path, pool::Handle,
+        scope_profile,
     },
     engine::Engine,
     gui::{
@@ -36,10 +36,9 @@ use fyrox::{
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowTitle},
         wrap_panel::WrapPanelBuilder,
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-        VerticalAlignment, BRUSH_DARK,
+        BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
+        UserInterface, VerticalAlignment, BRUSH_DARK,
     },
-    utils::log::Log,
 };
 use std::{
     ffi::OsStr,

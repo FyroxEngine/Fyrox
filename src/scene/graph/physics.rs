@@ -1,6 +1,5 @@
 //! Scene physics module.
 
-use crate::scene::node::NodeTrait;
 use crate::{
     core::{
         algebra::{
@@ -9,7 +8,9 @@ use crate::{
         },
         arrayvec::ArrayVec,
         instant,
+        log::{Log, MessageKind},
         math::Matrix4Ext,
+        parking_lot::Mutex,
         pool::Handle,
         reflect::prelude::*,
         variable::VariableFlags,
@@ -26,17 +27,12 @@ use crate::{
             buffer::{VertexAttributeUsage, VertexReadTrait},
             Mesh,
         },
-        node::Node,
+        node::{Node, NodeTrait},
         rigidbody::ApplyAction,
         terrain::Terrain,
     },
-    utils::{
-        log::{Log, MessageKind},
-        raw_mesh::{RawMeshBuilder, RawVertex},
-    },
+    utils::raw_mesh::{RawMeshBuilder, RawVertex},
 };
-use fyrox_core::parking_lot::Mutex;
-use rapier3d::pipeline::{DebugRenderPipeline, QueryFilter};
 use rapier3d::{
     dynamics::{
         CCDSolver, GenericJoint, GenericJointBuilder, ImpulseJointHandle, ImpulseJointSet,
@@ -47,7 +43,7 @@ use rapier3d::{
         BroadPhase, Collider, ColliderBuilder, ColliderHandle, ColliderSet, Cuboid,
         InteractionGroups, NarrowPhase, Ray, SharedShape,
     },
-    pipeline::{EventHandler, PhysicsPipeline, QueryPipeline},
+    pipeline::{DebugRenderPipeline, EventHandler, PhysicsPipeline, QueryFilter, QueryPipeline},
     prelude::JointAxis,
 };
 use std::{

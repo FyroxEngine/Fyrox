@@ -1,19 +1,20 @@
-use crate::renderer::framework::error::FrameworkError;
 use crate::{
-    core::scope_profile,
+    asset::{entry::DEFAULT_RESOURCE_LIFETIME, ResourceStateRef},
+    core::{
+        log::{Log, MessageKind},
+        scope_profile,
+    },
     renderer::{
         cache::CacheEntry,
         framework::{
+            error::FrameworkError,
             gpu_texture::{Coordinate, GpuTexture, PixelKind},
             state::PipelineState,
         },
     },
     resource::texture::TextureResource,
-    utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
-use fyrox_resource::entry::DEFAULT_RESOURCE_LIFETIME;
-use fyrox_resource::ResourceStateRef;
 use std::{cell::RefCell, collections::hash_map::Entry, rc::Rc};
 
 #[derive(Default)]

@@ -5,6 +5,7 @@
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
+        log::Log,
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::{ErasedHandle, Handle},
         reflect::prelude::*,
@@ -16,7 +17,6 @@ use crate::{
     resource::model::ModelResource,
     scene::{node::Node, transform::Transform},
     script::{Script, ScriptTrait},
-    utils::log::Log,
 };
 use std::{
     cell::Cell,

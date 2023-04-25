@@ -4,10 +4,9 @@ use fyrox::{
         manager::ResourceManager,
         options::{try_get_import_settings, ImportOptions},
     },
-    core::{append_extension, futures::executor::block_on, reflect::prelude::*},
+    core::{append_extension, futures::executor::block_on, log::Log, reflect::prelude::*},
     gui::inspector::{PropertyAction, PropertyChanged},
     resource::model::ModelImportOptions,
-    utils::log::Log,
 };
 use std::path::{Path, PathBuf};
 

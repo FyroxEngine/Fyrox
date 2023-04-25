@@ -9,13 +9,14 @@
 pub mod shared;
 
 use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene};
-use fyrox::engine::GraphicsContext;
 use fyrox::{
     animation::AnimationSignal,
     core::{
         algebra::Vector2,
+        log::{Log, MessageKind},
         uuid::{uuid, Uuid},
     },
+    engine::GraphicsContext,
     event::{Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
@@ -30,10 +31,7 @@ use fyrox::{
         sound::{SoundBuilder, Status},
         transform::TransformBuilder,
     },
-    utils::{
-        log::{Log, MessageKind},
-        translate_event,
-    },
+    utils::translate_event,
 };
 use fyrox_sound::buffer::SoundBuffer;
 use fyrox_sound::bus::AudioBusGraph;

@@ -1,12 +1,14 @@
 //! Curve loader.
 
 use crate::{
-    asset::loader::{BoxedLoaderFuture, ResourceLoader},
+    asset::{
+        event::ResourceEventBroadcaster,
+        loader::{BoxedLoaderFuture, ResourceLoader},
+        untyped::UntypedResource,
+    },
+    core::log::Log,
     resource::curve::CurveResourceState,
-    utils::log::Log,
 };
-use fyrox_resource::event::ResourceEventBroadcaster;
-use fyrox_resource::untyped::UntypedResource;
 use std::any::Any;
 
 /// Default implementation for curve loading.

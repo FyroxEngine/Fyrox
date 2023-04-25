@@ -13,6 +13,7 @@ use fyrox::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
         arrayvec::ArrayVec,
         color::Color,
+        log::{Log, MessageKind},
         math::vector_to_quat,
         pool::Handle,
     },
@@ -40,7 +41,6 @@ use fyrox::{
         node::Node,
         terrain::{Brush, BrushMode, BrushShape, Terrain, TerrainRayCastResult},
     },
-    utils::log::{Log, MessageKind},
 };
 use std::{rc::Rc, sync::mpsc::Sender};
 

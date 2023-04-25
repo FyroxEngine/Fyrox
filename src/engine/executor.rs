@@ -2,7 +2,10 @@
 
 use crate::{
     asset::manager::ResourceManager,
-    core::instant::Instant,
+    core::{
+        instant::Instant,
+        log::{Log, MessageKind},
+    },
     engine::{
         Engine, EngineInitParams, GraphicsContext, GraphicsContextParams, SerializationContext,
     },
@@ -10,10 +13,7 @@ use crate::{
     event_loop::{ControlFlow, EventLoop},
     plugin::PluginConstructor,
     scene::loader::AsyncSceneLoader,
-    utils::{
-        log::{Log, MessageKind},
-        translate_event,
-    },
+    utils::translate_event,
 };
 use clap::Parser;
 use std::{

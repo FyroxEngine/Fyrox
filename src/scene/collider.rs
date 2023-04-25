@@ -4,6 +4,7 @@
 use crate::{
     core::{
         algebra::Vector3,
+        log::Log,
         math::aabb::AxisAlignedBoundingBox,
         num_traits::{NumCast, One, ToPrimitive, Zero},
         pool::Handle,
@@ -23,7 +24,6 @@ use crate::{
         rigidbody::RigidBody,
         Scene,
     },
-    utils::log::Log,
 };
 use rapier3d::geometry::{self, ColliderHandle};
 use std::{

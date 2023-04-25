@@ -5,6 +5,7 @@
 use crate::{
     asset::manager::ResourceManager,
     core::{
+        log::Log,
         pool::Handle,
         reflect::{FieldInfo, Reflect, ReflectArray, ReflectList},
         uuid::Uuid,
@@ -14,7 +15,7 @@ use crate::{
     event::Event,
     plugin::Plugin,
     scene::{node::Node, Scene},
-    utils::{component::ComponentProvider, log::Log},
+    utils::component::ComponentProvider,
 };
 use std::{
     any::{Any, TypeId},

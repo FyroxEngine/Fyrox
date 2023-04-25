@@ -10,15 +10,12 @@ use crate::{
         AnimationContainer, AnimationPose,
     },
     core::{
+        log::{Log, MessageKind},
         pool::{Handle, Pool},
         reflect::prelude::*,
         visitor::prelude::*,
     },
-    utils::{
-        self,
-        log::{Log, MessageKind},
-        NameProvider,
-    },
+    utils::{self, NameProvider},
 };
 
 /// Layer is a separate state graph. Layers mainly used to animate different parts of humanoid (but not only) characters. For

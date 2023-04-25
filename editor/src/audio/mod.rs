@@ -12,7 +12,7 @@ use crate::{
     SceneCommand, Selection, UserInterface,
 };
 use fyrox::{
-    core::pool::Handle,
+    core::{log::Log, pool::Handle},
     engine::Engine,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
@@ -31,7 +31,6 @@ use fyrox::{
     scene::sound::{
         AudioBus, AudioBusGraph, DistanceModel, HrirSphere, HrtfRenderer, Renderer, SAMPLE_RATE,
     },
-    utils::log::Log,
 };
 use std::{cmp::Ordering, sync::mpsc::Sender};
 use strum::VariantNames;

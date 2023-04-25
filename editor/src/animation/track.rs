@@ -18,7 +18,6 @@ use crate::{
     },
     send_sync_message, utils, Message,
 };
-use fyrox::gui::RcUiNodeHandle;
 use fyrox::{
     animation::{
         container::{TrackDataContainer, TrackValueKind},
@@ -28,6 +27,7 @@ use fyrox::{
     },
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
+        log::Log,
         pool::Handle,
         reflect::ResolvePath,
         uuid::Uuid,
@@ -52,11 +52,10 @@ use fyrox::{
         utils::{make_cross, make_simple_tooltip},
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Control, NodeHandleMapping, Orientation, Thickness, UiNode, UserInterface,
-        VerticalAlignment, BRUSH_BRIGHT,
+        BuildContext, Control, NodeHandleMapping, Orientation, RcUiNodeHandle, Thickness, UiNode,
+        UserInterface, VerticalAlignment, BRUSH_BRIGHT,
     },
     scene::{animation::AnimationPlayer, graph::Graph, node::Node, Scene},
-    utils::log::Log,
 };
 use std::{
     any::{Any, TypeId},

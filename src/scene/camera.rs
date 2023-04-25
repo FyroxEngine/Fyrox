@@ -14,11 +14,12 @@
 //! Each camera forces engine to re-render same scene one more time, which may cause
 //! almost double load of your GPU.
 
-use crate::resource::texture::TextureResourceExtension;
 use crate::{
+    asset::{ResourceLoadError, ResourceStateRef},
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         color::Color,
+        log::Log,
         math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, ray::Ray, Rect},
         pool::Handle,
         reflect::prelude::*,
@@ -27,7 +28,9 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
         TypeUuidProvider,
     },
-    resource::texture::{TextureKind, TexturePixelKind, TextureResource, TextureWrapMode},
+    resource::texture::{
+        TextureKind, TexturePixelKind, TextureResource, TextureResourceExtension, TextureWrapMode,
+    },
     scene::{
         base::{Base, BaseBuilder},
         debug::SceneDrawingContext,
@@ -35,9 +38,7 @@ use crate::{
         node::{Node, NodeTrait, UpdateContext},
         visibility::VisibilityCache,
     },
-    utils::log::Log,
 };
-use fyrox_resource::{ResourceLoadError, ResourceStateRef};
 use std::{
     fmt::{Display, Formatter},
     ops::{Deref, DerefMut},

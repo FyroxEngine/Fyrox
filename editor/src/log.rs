@@ -2,9 +2,12 @@ use crate::{
     gui::{make_dropdown_list_option, make_image_button_with_tooltip},
     load_image, Brush, Color, DropdownListBuilder, GameEngine,
 };
-use fyrox::gui::RcUiNodeHandle;
 use fyrox::{
-    core::{pool::Handle, scope_profile},
+    core::{
+        log::{LogMessage, MessageKind},
+        pool::Handle,
+        scope_profile,
+    },
     gui::{
         border::BorderBuilder,
         button::ButtonMessage,
@@ -21,9 +24,8 @@ use fyrox::{
         text::{Text, TextBuilder},
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode,
+        BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
     },
-    utils::log::{LogMessage, MessageKind},
 };
 use std::sync::mpsc::Receiver;
 

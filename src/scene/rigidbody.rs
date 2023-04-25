@@ -11,6 +11,7 @@
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
+        log::Log,
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         parking_lot::Mutex,
         pool::Handle,
@@ -27,7 +28,6 @@ use crate::{
         node::{Node, NodeTrait, SyncContext, UpdateContext},
         Scene,
     },
-    utils::log::Log,
 };
 use rapier3d::{dynamics, prelude::RigidBodyHandle};
 use std::{

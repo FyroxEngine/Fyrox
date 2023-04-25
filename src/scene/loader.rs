@@ -20,7 +20,7 @@ struct LoaderState {
 /// use fyrox::event_loop::ControlFlow;
 /// use fyrox::plugin::{Plugin, PluginContext};
 /// use fyrox::scene::loader::AsyncSceneLoader;
-/// use fyrox::utils::log::Log;
+/// use fyrox::core::log::Log;
 ///
 /// struct Game {
 ///     loader: Option<AsyncSceneLoader>,

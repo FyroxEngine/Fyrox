@@ -2,9 +2,11 @@
 
 use crate::{
     animation::{value::BoundValue, value::BoundValueCollection, RootMotion},
-    core::pool::Handle,
+    core::{
+        log::{Log, MessageKind},
+        pool::Handle,
+    },
     scene::{graph::Graph, graph::NodePool, node::Node},
-    utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
 use std::collections::hash_map::Entry;

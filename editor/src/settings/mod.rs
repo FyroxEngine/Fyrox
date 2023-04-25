@@ -9,7 +9,7 @@ use crate::{
     GameEngine, Message, MSG_SYNC_FLAG,
 };
 use fyrox::{
-    core::{pool::Handle, reflect::prelude::*, scope_profile},
+    core::{log::Log, pool::Handle, reflect::prelude::*, scope_profile},
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
@@ -30,7 +30,6 @@ use fyrox::{
         HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
     renderer::{CsmSettings, QualitySettings, ShadowMapPrecision},
-    utils::log::Log,
 };
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};

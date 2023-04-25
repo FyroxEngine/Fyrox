@@ -27,9 +27,12 @@ pub mod shared;
 use crate::shared::{create_ui, fix_shadows_distance, Game, GameScene};
 use std::time::Instant;
 
-use fyrox::engine::GraphicsContext;
 use fyrox::{
-    core::algebra::Vector2,
+    core::{
+        algebra::Vector2,
+        log::{Log, MessageKind},
+    },
+    engine::GraphicsContext,
     event::{Event, VirtualKeyCode, WindowEvent},
     event_loop::ControlFlow,
     gui::{
@@ -37,10 +40,7 @@ use fyrox::{
         widget::WidgetMessage,
     },
     renderer::QualitySettings,
-    utils::{
-        log::{Log, MessageKind},
-        translate_event,
-    },
+    utils::translate_event,
 };
 
 fn main() {

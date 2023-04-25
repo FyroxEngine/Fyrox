@@ -8,13 +8,13 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use fyrox::resource::model::{Model, ModelResourceExtension};
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
         color::Color,
         futures,
+        log::{Log, MessageKind},
         pool::Handle,
         visitor::Visitor,
     },
@@ -34,10 +34,10 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Thickness, UiNode, VerticalAlignment,
     },
+    resource::model::{Model, ModelResourceExtension},
     scene::{light::BaseLight, node::Node, Scene, SceneLoader},
     utils::{
         lightmap::{CancellationToken, Lightmap, ProgressIndicator, ProgressStage},
-        log::{Log, MessageKind},
         translate_event,
     },
     window::WindowAttributes,

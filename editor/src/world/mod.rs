@@ -14,11 +14,10 @@ use crate::{
     },
     GameEngine, Message, Mode, Settings,
 };
-use fyrox::gui::searchbar::SearchBarMessage;
-use fyrox::gui::RcUiNodeHandle;
 use fyrox::{
     core::{
         color::Color,
+        log::Log,
         pool::{ErasedHandle, Handle},
         scope_profile,
     },
@@ -32,7 +31,7 @@ use fyrox::{
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, UiMessage},
         scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
-        searchbar::SearchBarBuilder,
+        searchbar::{SearchBarBuilder, SearchBarMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
         tree::{
@@ -43,11 +42,10 @@ use fyrox::{
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowTitle},
         wrap_panel::WrapPanelBuilder,
-        BuildContext, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
-        BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
+        BuildContext, Orientation, RcUiNodeHandle, Thickness, UiNode, UserInterface,
+        VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
     },
     scene::{graph::Graph, node::Node, Scene},
-    utils::log::Log,
 };
 use std::{any::TypeId, cmp::Ordering, collections::HashMap, sync::mpsc::Sender};
 

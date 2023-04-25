@@ -4,17 +4,18 @@
 //!
 //! This example shows how to create custom game loop.
 
-use fyrox::engine::{GraphicsContext, GraphicsContextParams};
 use fyrox::{
     asset::manager::ResourceManager,
-    core::instant::Instant,
-    engine::{Engine, EngineInitParams, SerializationContext},
+    core::{
+        instant::Instant,
+        log::{Log, MessageKind},
+    },
+    engine::{
+        Engine, EngineInitParams, GraphicsContext, GraphicsContextParams, SerializationContext,
+    },
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
-    utils::{
-        log::{Log, MessageKind},
-        translate_event,
-    },
+    utils::translate_event,
 };
 use std::sync::Arc;
 use winit::window::WindowAttributes;

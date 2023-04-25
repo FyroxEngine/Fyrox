@@ -2,18 +2,17 @@
 
 use crate::{
     asset::{
+        event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
         manager::ResourceManager,
         options::try_get_import_settings,
+        untyped::UntypedResource,
     },
+    core::log::Log,
     engine::SerializationContext,
     resource::model::{Model, ModelImportOptions},
-    utils::log::Log,
 };
-use fyrox_resource::event::ResourceEventBroadcaster;
-use fyrox_resource::untyped::UntypedResource;
-use std::any::Any;
-use std::sync::Arc;
+use std::{any::Any, sync::Arc};
 
 /// Default implementation for model loading.
 pub struct ModelLoader {

@@ -9,10 +9,9 @@ use crate::{
 };
 use fyrox::{
     asset::manager::ResourceManager,
-    core::{pool::Handle, reflect::prelude::*},
+    core::{log::Log, pool::Handle, reflect::prelude::*},
     engine::SerializationContext,
     scene::{graph::SubGraph, node::Node, Scene},
-    utils::log::Log,
 };
 use std::{
     ops::{Deref, DerefMut},

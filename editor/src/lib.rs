@@ -80,6 +80,7 @@ use fyrox::{
         algebra::{Matrix3, Vector2},
         color::Color,
         futures::executor::block_on,
+        log::{Log, MessageKind},
         pool::{ErasedHandle, Handle},
         scope_profile,
         sstorage::ImmutableString,
@@ -121,11 +122,7 @@ use fyrox::{
         node::Node,
         Scene, SceneLoader,
     },
-    utils::{
-        into_gui_texture,
-        log::{Log, MessageKind},
-        translate_cursor_icon, translate_event,
-    },
+    utils::{into_gui_texture, translate_cursor_icon, translate_event},
     window::{Icon, WindowAttributes},
 };
 use std::{
@@ -2076,7 +2073,7 @@ impl Editor {
                     }
                     WindowEvent::Resized(size) => {
                         if let Err(e) = self.engine.set_frame_size((*size).into()) {
-                            fyrox::utils::log::Log::writeln(
+                            fyrox::core::log::Log::writeln(
                                 MessageKind::Error,
                                 format!("Failed to set renderer size! Reason: {:?}", e),
                             );

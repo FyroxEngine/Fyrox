@@ -9,12 +9,12 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use fyrox::resource::model::{Model, ModelResourceExtension};
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
         algebra::{UnitQuaternion, Vector3},
         color::Color,
+        log::{Log, MessageKind},
         pool::Handle,
     },
     engine::{
@@ -28,11 +28,9 @@ use fyrox::{
         widget::WidgetBuilder,
         BuildContext, UiNode,
     },
+    resource::model::{Model, ModelResourceExtension},
     scene::{base::BaseBuilder, node::Node, pivot::PivotBuilder, Scene},
-    utils::{
-        log::{Log, MessageKind},
-        translate_event,
-    },
+    utils::translate_event,
 };
 use std::{sync::Arc, time::Instant};
 use winit::window::WindowAttributes;

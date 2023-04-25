@@ -22,11 +22,12 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::resource::model::ModelResourceExtension;
 use crate::{
+    asset::ResourceStateRef,
     core::{
         algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
         instant,
+        log::{Log, MessageKind},
         math::Matrix4Ext,
         pool::{Handle, MultiBorrowContext, Pool, Ticket},
         reflect::prelude::*,
@@ -34,7 +35,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     material::SharedMaterial,
-    resource::model::{ModelResource, NodeMapping},
+    resource::model::{ModelResource, ModelResourceExtension, NodeMapping},
     scene::{
         self,
         base::NodeScriptMessage,
@@ -52,10 +53,8 @@ use crate::{
         transform::TransformBuilder,
     },
     script::ScriptTrait,
-    utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashSet;
-use fyrox_resource::ResourceStateRef;
 use rapier3d::geometry::ColliderHandle;
 use std::{
     fmt::Debug,

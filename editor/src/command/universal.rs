@@ -29,7 +29,7 @@ macro_rules! define_universal_commands {
             let mut func = Some(func);
              entity.resolve_path_mut(path, &mut |result| match  result {
                 Ok(field) => func.take().unwrap()(field),
-                Err(e) => fyrox::utils::log::Log::err(format!(
+                Err(e) => fyrox::core::log::Log::err(format!(
                     "There is no such property {}! Reason: {:?}",
                     path, e
                 )),
@@ -64,7 +64,7 @@ macro_rules! define_universal_commands {
                     Err(result) => {
                         let value = match result {
                             SetFieldByPathError::InvalidPath { value, reason } => {
-                                fyrox::utils::log::Log::err(format!(
+                                fyrox::core::log::Log::err(format!(
                                     "Failed to set property {}! Invalid path {:?}!",
                                     $self.path, reason
                                 ));
@@ -72,7 +72,7 @@ macro_rules! define_universal_commands {
                                 value
                             },
                             SetFieldByPathError::InvalidValue(value) => {
-                                fyrox::utils::log::Log::err(format!(
+                                fyrox::core::log::Log::err(format!(
                                     "Failed to set property {}! Incompatible types!",
                                     $self.path
                                 ));
@@ -132,13 +132,13 @@ macro_rules! define_universal_commands {
                         if let Some(list) = result {
                             if let Err(item) = list.reflect_push($self.item.take().unwrap()) {
                                 $self.item = Some(item);
-                                fyrox::utils::log::Log::err(format!(
+                                fyrox::core::log::Log::err(format!(
                                     "Failed to push item to {} collection. Type mismatch!",
                                     $self.path
                                 ))
                             }
                         } else {
-                            fyrox::utils::log::Log::err(format!("Property {} is not a collection!", $self.path))
+                            fyrox::core::log::Log::err(format!("Property {} is not a collection!", $self.path))
                         }
                     });
                 })
@@ -151,10 +151,10 @@ macro_rules! define_universal_commands {
                             if let Some(item) = list.reflect_pop() {
                                 $self.item = Some(item);
                             } else {
-                                fyrox::utils::log::Log::err(format!("Failed to pop item from {} collection!", $self.path))
+                                fyrox::core::log::Log::err(format!("Failed to pop item from {} collection!", $self.path))
                             }
                         } else {
-                            fyrox::utils::log::Log::err(format!("Property {} is not a collection!", $self.path))
+                            fyrox::core::log::Log::err(format!("Property {} is not a collection!", $self.path))
                         }
                     });
                 })
@@ -194,7 +194,7 @@ macro_rules! define_universal_commands {
                         if let Some(list) = result {
                             $self.value = list.reflect_remove($self.index);
                         } else {
-                            fyrox::utils::log::Log::err(format!("Property {} is not a collection!", $self.path))
+                            fyrox::core::log::Log::err(format!("Property {} is not a collection!", $self.path))
                         }
                     })
                 })
@@ -209,13 +209,13 @@ macro_rules! define_universal_commands {
                             {
                                 $self.value = Some(item);
                             } else {
-                                fyrox::utils::log::Log::err(format!(
+                                fyrox::core::log::Log::err(format!(
                                     "Failed to insert item to {} collection. Type mismatch!",
                                     $self.path
                                 ))
                             }
                         } else {
-                            fyrox::utils::log::Log::err(format!("Property {} is not a collection!", $self.path))
+                            fyrox::core::log::Log::err(format!("Property {} is not a collection!", $self.path))
                         }
                     });
                 })

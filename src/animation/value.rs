@@ -4,13 +4,13 @@
 use crate::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
+        log::Log,
         math::lerpf,
         num_traits::AsPrimitive,
         reflect::{prelude::*, SetFieldByPathError},
         visitor::prelude::*,
     },
     scene::node::Node,
-    utils::log::Log,
 };
 use std::fmt::{Debug, Display, Formatter};
 

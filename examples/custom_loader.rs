@@ -19,6 +19,7 @@ use fyrox::{
         color::Color,
         futures::executor::block_on,
         instant::Instant,
+        log::{Log, MessageKind},
         sstorage::ImmutableString,
     },
     engine::{
@@ -41,10 +42,7 @@ use fyrox::{
         transform::TransformBuilder,
         Scene,
     },
-    utils::{
-        log::{Log, MessageKind},
-        translate_event,
-    },
+    utils::translate_event,
     window::WindowAttributes,
 };
 use fyrox_resource::event::ResourceEventBroadcaster;

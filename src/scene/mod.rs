@@ -28,13 +28,13 @@ pub mod terrain;
 pub mod transform;
 pub mod visibility;
 
-use crate::renderer::framework::state::PolygonFillMode;
 use crate::{
-    asset::manager::ResourceManager,
+    asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
         algebra::Vector2,
         color::Color,
         futures::future::join_all,
+        log::{Log, MessageKind},
         pool::{Handle, Pool, Ticket},
         reflect::prelude::*,
         sstorage::ImmutableString,
@@ -42,6 +42,7 @@ use crate::{
     },
     engine::SerializationContext,
     material::{shader::SamplerFallback, PropertyValue},
+    renderer::framework::state::PolygonFillMode,
     resource::texture::TextureResource,
     scene::{
         base::BaseBuilder,
@@ -59,10 +60,9 @@ use crate::{
         node::Node,
         sound::SoundEngine,
     },
-    utils::{lightmap::Lightmap, log::Log, log::MessageKind, navmesh::Navmesh},
+    utils::{lightmap::Lightmap, navmesh::Navmesh},
 };
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_resource::untyped::UntypedResource;
 use std::{
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},

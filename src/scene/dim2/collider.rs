@@ -4,6 +4,7 @@
 use crate::{
     core::{
         algebra::Vector2,
+        log::Log,
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
@@ -23,7 +24,6 @@ use crate::{
         node::{Node, NodeTrait, SyncContext},
         Scene,
     },
-    utils::log::Log,
 };
 use rapier2d::geometry::ColliderHandle;
 use std::{

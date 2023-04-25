@@ -1,9 +1,12 @@
 //! Sound context.
 
 use crate::{
-    core::{pool::Handle, visitor::prelude::*},
+    core::{
+        log::{Log, MessageKind},
+        pool::Handle,
+        visitor::prelude::*,
+    },
     scene::{node::Node, sound::Sound},
-    utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashSet;
 use fyrox_sound::{
@@ -12,8 +15,7 @@ use fyrox_sound::{
     renderer::Renderer,
     source::{SoundSource, SoundSourceBuilder, Status},
 };
-use std::sync::MutexGuard;
-use std::time::Duration;
+use std::{sync::MutexGuard, time::Duration};
 
 /// Sound context.
 #[derive(Debug, Visit)]

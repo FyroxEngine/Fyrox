@@ -2,8 +2,8 @@
 
 use crate::{
     asset::loader::{BoxedLoaderFuture, ResourceLoader},
+    core::log::Log,
     material::shader::Shader,
-    utils::log::Log,
 };
 use fyrox_resource::event::ResourceEventBroadcaster;
 use fyrox_resource::untyped::UntypedResource;

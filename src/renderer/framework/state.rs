@@ -1,7 +1,12 @@
 use crate::{
-    core::{color::Color, math::Rect, reflect::prelude::*, visitor::prelude::*},
+    core::{
+        color::Color,
+        log::{Log, MessageKind},
+        math::Rect,
+        reflect::prelude::*,
+        visitor::prelude::*,
+    },
     renderer::framework::framebuffer::{CullFace, DrawParameters},
-    utils::log::{Log, MessageKind},
 };
 use glow::{Framebuffer, HasContext};
 use serde::Deserialize;

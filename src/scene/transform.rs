@@ -44,14 +44,12 @@
 //! its initial components, thats why the engine does not provide any methods to get those
 //! properties back.
 
-use crate::{
-    core::{
-        algebra::{Matrix3, Matrix4, UnitQuaternion, Vector3},
-        reflect::prelude::*,
-        variable::InheritableVariable,
-        visitor::{Visit, VisitResult, Visitor},
-    },
-    utils::log::{Log, MessageKind},
+use crate::core::{
+    algebra::{Matrix3, Matrix4, UnitQuaternion, Vector3},
+    log::{Log, MessageKind},
+    reflect::prelude::*,
+    variable::InheritableVariable,
+    visitor::{Visit, VisitResult, Visitor},
 };
 use std::cell::Cell;
 

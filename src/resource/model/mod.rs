@@ -20,13 +20,19 @@
 
 use crate::{
     animation::Animation,
-    asset::{manager::ResourceManager, options::ImportOptions, Resource, ResourceData},
+    asset::{
+        manager::ResourceManager, options::ImportOptions, Resource, ResourceData,
+        MODEL_RESOURCE_UUID,
+    },
     core::{
         algebra::{UnitQuaternion, Vector3},
+        log::{Log, MessageKind},
         pool::Handle,
         reflect::prelude::*,
+        uuid::Uuid,
         variable::reset_inheritable_properties,
         visitor::{Visit, VisitError, VisitResult, Visitor},
+        TypeUuidProvider,
     },
     engine::SerializationContext,
     resource::fbx::{self, error::FbxError},
@@ -36,14 +42,10 @@ use crate::{
         node::Node,
         Scene, SceneLoader,
     },
-    utils::log::{Log, MessageKind},
 };
-use fyrox_core::uuid::Uuid;
-use fyrox_core::TypeUuidProvider;
-use fyrox_resource::MODEL_RESOURCE_UUID;
 use serde::{Deserialize, Serialize};
-use std::any::Any;
 use std::{
+    any::Any,
     borrow::Cow,
     fmt::{Display, Formatter},
     path::{Path, PathBuf},

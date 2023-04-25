@@ -3,6 +3,7 @@
 use crate::{
     core::{
         algebra::Matrix4,
+        log::Log,
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         pool::Handle,
         reflect::prelude::*,
@@ -18,7 +19,6 @@ use crate::{
         rigidbody::RigidBody,
         Scene,
     },
-    utils::log::Log,
 };
 use rapier3d::dynamics::ImpulseJointHandle;
 use std::{
