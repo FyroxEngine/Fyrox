@@ -13,7 +13,6 @@ use fyrox::resource::model::{Model, ModelResourceExtension};
 use fyrox::resource::texture::Texture;
 use fyrox::{
     asset::{
-        container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
         manager::ResourceManager,
     },
@@ -47,6 +46,7 @@ use fyrox::{
     },
     window::WindowAttributes,
 };
+use fyrox_resource::event::ResourceEventBroadcaster;
 use fyrox_resource::untyped::UntypedResource;
 use std::any::Any;
 use std::sync::Arc;
@@ -211,31 +211,26 @@ fn main() {
     // Set up our custom loaders
     {
         let mut state = engine.resource_manager.state();
-        let containers = state.containers_mut();
-        if let Some(pos) = containers
-            .resources
+        if let Some(pos) = state
             .loaders
             .iter()
             .position(|l| (**l).as_any().downcast_ref::<ModelLoader>().is_some())
         {
-            containers.resources.loaders[pos] =
-                Box::new(CustomModelLoader(Arc::new(ModelLoader {
-                    resource_manager: engine.resource_manager.clone(),
-                    serialization_context: engine.serialization_context.clone(),
-                    default_import_options: Default::default(),
-                })));
+            state.loaders[pos] = Box::new(CustomModelLoader(Arc::new(ModelLoader {
+                resource_manager: engine.resource_manager.clone(),
+                serialization_context: engine.serialization_context.clone(),
+                default_import_options: Default::default(),
+            })));
         }
 
-        if let Some(pos) = containers
-            .resources
+        if let Some(pos) = state
             .loaders
             .iter()
             .position(|l| (**l).as_any().downcast_ref::<TextureLoader>().is_some())
         {
-            containers.resources.loaders[pos] =
-                Box::new(CustomTextureLoader(Arc::new(TextureLoader {
-                    default_import_options: Default::default(),
-                })));
+            state.loaders[pos] = Box::new(CustomTextureLoader(Arc::new(TextureLoader {
+                default_import_options: Default::default(),
+            })));
         }
     }
 

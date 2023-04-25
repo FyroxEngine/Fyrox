@@ -8,9 +8,7 @@ pub mod executor;
 pub mod resource_loaders;
 
 use crate::{
-    asset::{
-        container::event::ResourceEvent, manager::ResourceManager, manager::ResourceWaitContext,
-    },
+    asset::{manager::ResourceManager, manager::ResourceWaitContext},
     core::{algebra::Vector2, futures::executor::block_on, instant, pool::Handle},
     engine::{
         error::EngineError,
@@ -46,6 +44,7 @@ use crate::{
     window::{Window, WindowBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_resource::event::ResourceEvent;
 use fyrox_resource::ResourceStateRef;
 use fyrox_sound::buffer::SoundBuffer;
 #[cfg(not(target_arch = "wasm32"))]
@@ -415,7 +414,7 @@ impl ScriptProcessor {
         }
 
         self.wait_list
-            .push(resource_manager.state().containers_mut().get_wait_context());
+            .push(resource_manager.state().get_wait_context());
     }
 
     fn handle_scripts(
@@ -627,7 +626,7 @@ impl ResourceGraphVertex {
 
         // Look for dependent resources.
         let mut dependent_resources = HashSet::new();
-        for resource in resource_manager.state().containers().resources.iter() {
+        for resource in resource_manager.state().iter() {
             if let Some(other_model) = resource.try_cast::<Model>() {
                 let state = other_model.state();
                 if let ResourceStateRef::Ok(model_data) = state.get() {
@@ -855,7 +854,7 @@ impl Engine {
             state.constructors_container.add::<CurveResourceState>();
             state.constructors_container.add::<SoundBuffer>();
 
-            let loaders = &mut state.containers_mut().resources.loaders;
+            let loaders = &mut state.loaders;
             loaders.push(Box::new(model_loader));
             loaders.push(Box::new(TextureLoader {
                 default_import_options: Default::default(),
@@ -868,12 +867,7 @@ impl Engine {
         }
 
         let (rx, tx) = channel();
-        resource_manager
-            .state()
-            .containers_mut()
-            .resources
-            .event_broadcaster
-            .add(rx);
+        resource_manager.state().event_broadcaster.add(rx);
 
         let sound_engine = SoundEngine::without_device();
 

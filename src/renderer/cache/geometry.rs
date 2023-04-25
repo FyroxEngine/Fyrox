@@ -1,5 +1,4 @@
 use crate::{
-    asset::container::entry::DEFAULT_RESOURCE_LIFETIME,
     core::{scope_profile, sparse::SparseBuffer},
     renderer::framework::{
         geometry_buffer::{GeometryBuffer, GeometryBufferKind},
@@ -8,6 +7,7 @@ use crate::{
     scene::mesh::surface::{SurfaceData, SurfaceSharedData},
 };
 use fyrox_core::sparse::AtomicIndex;
+use fyrox_resource::entry::DEFAULT_RESOURCE_LIFETIME;
 
 struct CacheEntry {
     buffer: GeometryBuffer,

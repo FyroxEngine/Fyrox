@@ -2,7 +2,6 @@
 
 use crate::{
     asset::{
-        container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
         manager::ResourceManager,
         options::try_get_import_settings,
@@ -11,6 +10,7 @@ use crate::{
     resource::model::{Model, ModelImportOptions},
     utils::log::Log,
 };
+use fyrox_resource::event::ResourceEventBroadcaster;
 use fyrox_resource::untyped::UntypedResource;
 use std::any::Any;
 use std::sync::Arc;

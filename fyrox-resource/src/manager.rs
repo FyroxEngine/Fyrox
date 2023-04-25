@@ -1,40 +1,26 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
-use crate::constructor::ResourceConstructorContainer;
+use crate::entry::{TimedEntry, DEFAULT_RESOURCE_LIFETIME};
+use crate::event::{ResourceEvent, ResourceEventBroadcaster};
 use crate::{
-    container::{Container, ResourceContainer},
-    state::ResourceState,
-    task::TaskPool,
-    Resource, ResourceData, UntypedResource,
+    constructor::ResourceConstructorContainer, loader::ResourceLoader, state::ResourceState,
+    task::TaskPool, Resource, ResourceData, UntypedResource,
 };
-use fyrox_core::uuid::Uuid;
 use fyrox_core::{
     futures::future::join_all,
     make_relative_path, notify,
     parking_lot::{Mutex, MutexGuard},
+    uuid::Uuid,
     watcher::FileSystemWatcher,
-    TypeUuidProvider,
+    TypeUuidProvider, VecExtensions,
 };
 use std::{
+    ffi::OsStr,
     fmt::{Debug, Display, Formatter},
     marker::PhantomData,
     path::Path,
     sync::Arc,
 };
-
-/// Storage of resource containers.
-pub struct ContainersStorage {
-    pub resources: ResourceContainer,
-}
-
-impl ContainersStorage {
-    /// Wait until all resources are loaded (or failed to load).
-    pub fn get_wait_context(&self) -> ResourceWaitContext {
-        ResourceWaitContext {
-            resources: self.resources.resources(),
-        }
-    }
-}
 
 /// A set of resources that can be waited for.
 #[must_use]
@@ -59,7 +45,11 @@ impl ResourceWaitContext {
 
 /// See module docs.
 pub struct ResourceManagerState {
-    containers_storage: Option<ContainersStorage>,
+    resources: Vec<TimedEntry<UntypedResource>>,
+    task_pool: Arc<TaskPool>,
+    pub loaders: Vec<Box<dyn ResourceLoader>>,
+    /// Event broadcaster can be used to "subscribe" for events happening inside the container.    
+    pub event_broadcaster: ResourceEventBroadcaster,
     pub constructors_container: ResourceConstructorContainer,
     watcher: Option<FileSystemWatcher>,
 }
@@ -106,17 +96,9 @@ impl Display for ResourceRegistrationError {
 impl ResourceManager {
     /// Creates a resource manager with default settings and loaders.
     pub fn new() -> Self {
-        let resource_manager = Self {
+        Self {
             state: Arc::new(Mutex::new(ResourceManagerState::new())),
-        };
-
-        let task_pool = Arc::new(TaskPool::new());
-
-        resource_manager.state().containers_storage = Some(ContainersStorage {
-            resources: ResourceContainer::new(task_pool),
-        });
-
-        resource_manager
+        }
     }
 
     /// Returns a guarded reference to internal state of resource manager.
@@ -131,8 +113,6 @@ impl ResourceManager {
     {
         let untyped = self
             .state()
-            .containers_mut()
-            .resources
             .request(path, <T as TypeUuidProvider>::type_uuid());
         let actual_type_uuid = untyped.type_uuid();
         assert_eq!(actual_type_uuid, <T as TypeUuidProvider>::type_uuid());
@@ -146,10 +126,7 @@ impl ResourceManager {
     where
         P: AsRef<Path>,
     {
-        self.state()
-            .containers_mut()
-            .resources
-            .request(path, type_uuid)
+        self.state().request(path, type_uuid)
     }
 
     /// Saves given resources in the specified path and registers it in resource manager, so
@@ -165,7 +142,7 @@ impl ResourceManager {
         F: FnMut(&dyn ResourceData, &Path) -> bool,
     {
         let mut state = self.state();
-        if state.containers().resources.find(path.as_ref()).is_some() {
+        if state.find(path.as_ref()).is_some() {
             Err(ResourceRegistrationError::AlreadyRegistered)
         } else {
             let mut texture_state = resource.0.lock();
@@ -176,7 +153,7 @@ impl ResourceManager {
                         Err(ResourceRegistrationError::UnableToRegister)
                     } else {
                         std::mem::drop(texture_state);
-                        state.containers_mut().resources.push(resource);
+                        state.push(resource);
                         Ok(())
                     }
                 }
@@ -189,7 +166,7 @@ impl ResourceManager {
     /// method! This method is asynchronous, it uses all available CPU power to reload resources as
     /// fast as possible.
     pub async fn reload_resources(&self) {
-        let resources = self.state().containers_mut().resources.reload_resources();
+        let resources = self.state().reload_resources();
         join_all(resources).await;
     }
 }
@@ -197,7 +174,10 @@ impl ResourceManager {
 impl ResourceManagerState {
     pub(crate) fn new() -> Self {
         Self {
-            containers_storage: None,
+            resources: Default::default(),
+            task_pool: Arc::new(Default::default()),
+            loaders: Default::default(),
+            event_broadcaster: Default::default(),
             constructors_container: Default::default(),
             watcher: None,
         }
@@ -211,36 +191,9 @@ impl ResourceManagerState {
         self.watcher = watcher;
     }
 
-    /// Returns a reference to resource containers storage.
-    pub fn containers(&self) -> &ContainersStorage {
-        self.containers_storage
-            .as_ref()
-            .expect("Corrupted resource manager!")
-    }
-
-    /// Returns a reference to resource containers storage.
-    pub fn containers_mut(&mut self) -> &mut ContainersStorage {
-        self.containers_storage
-            .as_mut()
-            .expect("Corrupted resource manager!")
-    }
-
-    /// Returns total amount of resources in pending state.
-    pub fn count_pending_resources(&self) -> usize {
-        let containers = self.containers();
-        containers.resources.count_pending_resources()
-    }
-
-    /// Returns total amount of loaded resources.
-    pub fn count_loaded_resources(&self) -> usize {
-        let containers = self.containers();
-        containers.resources.count_loaded_resources()
-    }
-
     /// Returns total amount of registered resources.
     pub fn count_registered_resources(&self) -> usize {
-        let containers = self.containers();
-        containers.resources.len()
+        self.resources.len()
     }
 
     /// Returns percentage of loading progress. This method is useful to show progress on
@@ -256,12 +209,6 @@ impl ResourceManagerState {
         }
     }
 
-    /// Immediately destroys all unused resources.
-    pub fn destroy_unused_resources(&mut self) {
-        let containers = self.containers_mut();
-        containers.resources.destroy_unused();
-    }
-
     /// Update resource containers and do hot-reloading.
     ///
     /// Resources are removed if they're not used
@@ -270,30 +217,220 @@ impl ResourceManagerState {
     /// Normally, this is called from `Engine::update()`.
     /// You should only call this manually if you don't use that method.
     pub fn update(&mut self, dt: f32) {
-        let containers = self.containers_mut();
-        containers.resources.update(dt);
+        self.resources.retain_mut_ext(|resource| {
+            // One usage means that the resource has single owner, and that owner
+            // is this container. Such resources have limited life time, if the time
+            // runs out before it gets shared again, the resource will be deleted.
+            if resource.value.use_count() <= 1 {
+                resource.time_to_live -= dt;
+                if resource.time_to_live <= 0.0 {
+                    let path = resource.0.lock().path().to_path_buf();
+
+                    // TODO: Use logger when it will be moved to fyrox_core.
+                    println!(
+                        "Resource {} destroyed because it is not used anymore!",
+                        path.display()
+                    );
+
+                    self.event_broadcaster
+                        .broadcast(ResourceEvent::Removed(path));
+
+                    false
+                } else {
+                    // Keep resource alive for short period of time.
+                    true
+                }
+            } else {
+                // Make sure to reset timer if a resource is used by more than one owner.
+                resource.time_to_live = DEFAULT_RESOURCE_LIFETIME;
+
+                // Keep resource alive while it has more than one owner.
+                true
+            }
+        });
 
         if let Some(watcher) = self.watcher.as_ref() {
             if let Some(evt) = watcher.try_get_event() {
                 if let notify::EventKind::Modify(_) = evt.kind {
                     for path in evt.paths {
                         if let Ok(relative_path) = make_relative_path(path) {
-                            let containers = self.containers_mut();
-                            for container in [&mut containers.resources as &mut dyn Container] {
-                                if container.try_reload_resource_from_path(&relative_path) {
-                                    // TODO: Use logger when it will be moved to fyrox_core.
-                                    println!(
+                            if self.try_reload_resource_from_path(&relative_path) {
+                                // TODO: Use logger when it will be moved to fyrox_core.
+                                println!(
                                         "File {} was changed, trying to reload a respective resource...",
                                         relative_path.display()
                                     );
 
-                                    break;
-                                }
+                                break;
                             }
                         }
                     }
                 }
             }
+        }
+    }
+
+    /// Adds a new resource in the container.
+    pub fn push(&mut self, resource: UntypedResource) {
+        self.event_broadcaster
+            .broadcast(ResourceEvent::Added(resource.clone()));
+
+        self.resources.push(TimedEntry {
+            value: resource,
+            time_to_live: DEFAULT_RESOURCE_LIFETIME,
+        });
+    }
+
+    /// Tries to find a resources by its path. Returns None if no resource was found.
+    ///
+    /// # Complexity
+    ///
+    /// O(n)
+    pub fn find<P: AsRef<Path>>(&self, path: P) -> Option<&UntypedResource> {
+        for resource in self.resources.iter() {
+            if resource.0.lock().path() == path.as_ref() {
+                return Some(&resource.value);
+            }
+        }
+        None
+    }
+
+    /// Returns total amount of resources in the container.
+    pub fn len(&self) -> usize {
+        self.resources.len()
+    }
+
+    /// Returns true if container has no resources.
+    pub fn is_empty(&self) -> bool {
+        self.resources.is_empty()
+    }
+
+    /// Creates an iterator over resources in the container.
+    pub fn iter(&self) -> impl Iterator<Item = &UntypedResource> {
+        self.resources.iter().map(|entry| &entry.value)
+    }
+
+    /// Immediately destroys all resources in the container that are not used anywhere else.
+    pub fn destroy_unused_resources(&mut self) {
+        self.resources
+            .retain(|resource| resource.value.use_count() > 1);
+    }
+
+    /// Returns total amount of resources that still loading.
+    pub fn count_pending_resources(&self) -> usize {
+        self.resources.iter().fold(0, |counter, resource| {
+            if let ResourceState::Pending { .. } = *resource.0.lock() {
+                counter + 1
+            } else {
+                counter
+            }
+        })
+    }
+
+    /// Returns total amount of completely loaded resources.
+    pub fn count_loaded_resources(&self) -> usize {
+        self.resources.iter().fold(0, |counter, resource| {
+            if let ResourceState::Ok(_) = *resource.0.lock() {
+                counter + 1
+            } else {
+                counter
+            }
+        })
+    }
+
+    /// Returns a set of resource handled by this container.
+    pub fn resources(&self) -> Vec<UntypedResource> {
+        self.resources.iter().map(|t| t.value.clone()).collect()
+    }
+
+    /// Tries to load a resources at a given path.
+    pub fn request<P>(&mut self, path: P, type_uuid: Uuid) -> UntypedResource
+    where
+        P: AsRef<Path>,
+    {
+        match self.find(path.as_ref()) {
+            Some(existing) => existing.clone(),
+            None => {
+                let resource = UntypedResource::new_pending(path.as_ref().to_owned(), type_uuid);
+
+                self.push(resource.clone());
+
+                self.try_spawn_loading_task(path.as_ref(), resource.clone(), false);
+
+                resource
+            }
+        }
+    }
+
+    fn try_spawn_loading_task(&mut self, path: &Path, resource: UntypedResource, reload: bool) {
+        if let Some(loader) = path.extension() {
+            let ext_lowercase = loader.to_ascii_lowercase();
+            if let Some(loader) = self.loaders.iter().find(|loader| {
+                loader
+                    .extensions()
+                    .iter()
+                    .any(|ext| OsStr::new(ext) == ext_lowercase.as_os_str())
+            }) {
+                self.task_pool.spawn_task(loader.load(
+                    resource,
+                    self.event_broadcaster.clone(),
+                    reload,
+                ));
+
+                return;
+            }
+        }
+
+        // TODO: Replace with logger.
+        eprintln!("There's no loader registered for {:?}!", path);
+    }
+
+    /// Reloads a single resource.
+    pub fn reload_resource(&mut self, resource: UntypedResource) {
+        let mut state = resource.0.lock();
+
+        if !state.is_loading() {
+            let path = state.path().to_path_buf();
+            state.switch_to_pending_state();
+            drop(state);
+
+            self.try_spawn_loading_task(&path, resource, true);
+        }
+    }
+
+    /// Reloads all resources in the container. Returns a list of resources that will be reloaded.
+    /// You can use the list to wait until all resources are loading.
+    pub fn reload_resources(&mut self) -> Vec<UntypedResource> {
+        let resources = self
+            .resources
+            .iter()
+            .map(|r| r.value.clone())
+            .collect::<Vec<_>>();
+
+        for resource in resources.iter().cloned() {
+            self.reload_resource(resource);
+        }
+
+        resources
+    }
+
+    /// Wait until all resources are loaded (or failed to load).
+    pub fn get_wait_context(&self) -> ResourceWaitContext {
+        ResourceWaitContext {
+            resources: self
+                .resources
+                .iter()
+                .map(|e| e.value.clone())
+                .collect::<Vec<_>>(),
+        }
+    }
+
+    pub fn try_reload_resource_from_path(&mut self, path: &Path) -> bool {
+        if let Some(resource) = self.find(path).cloned() {
+            self.reload_resource(resource);
+            true
+        } else {
+            false
         }
     }
 }

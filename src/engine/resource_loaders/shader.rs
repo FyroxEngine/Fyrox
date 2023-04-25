@@ -1,13 +1,11 @@
 //! Shader loader.
 
 use crate::{
-    asset::{
-        container::event::ResourceEventBroadcaster,
-        loader::{BoxedLoaderFuture, ResourceLoader},
-    },
+    asset::loader::{BoxedLoaderFuture, ResourceLoader},
     material::shader::Shader,
     utils::log::Log,
 };
+use fyrox_resource::event::ResourceEventBroadcaster;
 use fyrox_resource::untyped::UntypedResource;
 use std::any::Any;
 

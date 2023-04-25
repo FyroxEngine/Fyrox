@@ -2,7 +2,6 @@
 
 use crate::{
     asset::{
-        container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
         options::try_get_import_settings,
     },
@@ -10,6 +9,7 @@ use crate::{
     resource::texture::{Texture, TextureImportOptions},
     utils::log::Log,
 };
+use fyrox_resource::event::ResourceEventBroadcaster;
 use fyrox_resource::untyped::UntypedResource;
 use std::any::Any;
 

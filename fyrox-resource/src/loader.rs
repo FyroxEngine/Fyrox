@@ -1,6 +1,7 @@
 //! Resource loader. It manages resource loading.
 
-use crate::{container::event::ResourceEventBroadcaster, UntypedResource};
+use crate::event::ResourceEventBroadcaster;
+use crate::UntypedResource;
 use std::any::Any;
 use std::{future::Future, pin::Pin};
 

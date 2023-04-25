@@ -1,5 +1,4 @@
 use crate::{
-    asset::container::entry::DEFAULT_RESOURCE_LIFETIME,
     core::{scope_profile, sparse::SparseBuffer, sstorage::ImmutableString},
     material::shader::{Shader, ShaderResource},
     renderer::{
@@ -9,6 +8,7 @@ use crate::{
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
+use fyrox_resource::entry::DEFAULT_RESOURCE_LIFETIME;
 use fyrox_resource::ResourceStateRef;
 
 pub struct RenderPassData {

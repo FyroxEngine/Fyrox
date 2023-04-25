@@ -1,6 +1,5 @@
 use crate::renderer::framework::error::FrameworkError;
 use crate::{
-    asset::container::entry::DEFAULT_RESOURCE_LIFETIME,
     core::scope_profile,
     renderer::{
         cache::CacheEntry,
@@ -13,6 +12,7 @@ use crate::{
     utils::log::{Log, MessageKind},
 };
 use fxhash::FxHashMap;
+use fyrox_resource::entry::DEFAULT_RESOURCE_LIFETIME;
 use fyrox_resource::ResourceStateRef;
 use std::{cell::RefCell, collections::hash_map::Entry, rc::Rc};
 

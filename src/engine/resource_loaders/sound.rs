@@ -2,13 +2,13 @@
 
 use crate::{
     asset::{
-        container::event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
         options::{try_get_import_settings, ImportOptions},
     },
     core::reflect::prelude::*,
     utils::log::Log,
 };
+use fyrox_resource::event::ResourceEventBroadcaster;
 use fyrox_resource::untyped::UntypedResource;
 use fyrox_sound::buffer::{DataSource, SoundBuffer, SoundBufferResourceLoadError};
 use serde::{Deserialize, Serialize};

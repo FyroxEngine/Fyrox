@@ -1,5 +1,4 @@
 use crate::{
-    asset::container::entry::TimedEntry,
     core::{
         algebra::{Matrix4, Vector2},
         color::Color,
@@ -16,6 +15,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_core::algebra::{Vector3, Vector4};
+use fyrox_resource::entry::TimedEntry;
 
 #[repr(C)]
 pub struct Vertex {

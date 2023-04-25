@@ -32,8 +32,6 @@ impl PluginConstructor for GameConstructor {
         context
             .resource_manager
             .state()
-            .containers_mut()
-            .resources
             .loaders
             .iter_mut()
             .find_map(|l| (**l).as_any_mut().downcast_mut::<TextureLoader>())

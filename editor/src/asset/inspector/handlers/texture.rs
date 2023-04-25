@@ -34,8 +34,6 @@ impl ImportOptionsHandler for TextureImportOptionsHandler {
         let texture = resource_manager.request::<Texture, _>(&self.resource_path);
         resource_manager
             .state()
-            .containers_mut()
-            .resources
             .reload_resource(texture.into_untyped());
     }
 

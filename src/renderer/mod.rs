@@ -37,7 +37,7 @@ mod ssao;
 use crate::material::shader::Shader;
 use crate::resource::texture::Texture;
 use crate::{
-    asset::{container::event::ResourceEvent, manager::ResourceManager},
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, Vector2, Vector3},
         color::Color,
@@ -85,6 +85,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_core::sstorage::ImmutableString;
+use fyrox_resource::event::ResourceEvent;
 use glow::HasContext;
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{
@@ -1104,8 +1105,6 @@ impl Renderer {
 
         resource_manager
             .state()
-            .containers_mut()
-            .resources
             .event_broadcaster
             .add(texture_event_sender);
 
@@ -1113,8 +1112,6 @@ impl Renderer {
 
         resource_manager
             .state()
-            .containers_mut()
-            .resources
             .event_broadcaster
             .add(shader_event_sender);
 

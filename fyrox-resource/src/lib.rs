@@ -31,7 +31,8 @@ pub use fyrox_core as core;
 use fyrox_core::TypeUuidProvider;
 
 pub mod constructor;
-pub mod container;
+pub mod entry;
+pub mod event;
 pub mod loader;
 pub mod manager;
 pub mod options;
