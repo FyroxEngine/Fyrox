@@ -16,6 +16,7 @@ use crate::{
 };
 use fyrox::animation::machine::node::blendspace::{BlendSpace, BlendSpacePoint};
 use fyrox::renderer::framework::state::PolygonFillMode;
+use fyrox::scene::mesh::surface::BlendShape;
 use fyrox::scene::terrain::Chunk;
 use fyrox::{
     animation::{
@@ -246,6 +247,8 @@ pub fn make_property_editors_container(
 
     container.register_inheritable_inspectable::<Chunk>();
     container.register_inheritable_vec_collection::<Chunk>();
+
+    container.register_inheritable_vec_collection::<BlendShape>();
 
     container.register_inheritable_option::<ColorGradingLut>();
     container.register_inheritable_option::<Biquad>();
