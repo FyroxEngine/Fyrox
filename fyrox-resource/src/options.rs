@@ -1,6 +1,7 @@
 //! Resource import options common traits.
 
 use crate::core::{append_extension, io};
+use fyrox_core::log::Log;
 use ron::ser::PrettyConfig;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{fs::File, path::Path};
@@ -30,25 +31,23 @@ where
         Ok(bytes) => match ron::de::from_bytes::<T>(&bytes) {
             Ok(options) => Some(options),
             Err(e) => {
-                // TODO: Use logger when it will be moved to fyrox_core.
-                eprintln!(
+                Log::err(format!(
                     "Malformed options file {} for {} resource! Reason: {:?}",
                     settings_path.display(),
                     resource_path.display(),
                     e
-                );
+                ));
 
                 None
             }
         },
         Err(e) => {
-            // TODO: Use logger when it will be moved to fyrox_core.
-            eprintln!(
+            Log::err(format!(
                 "Unable to load options file {} for {} resource, fallback to defaults! Reason: {:?}",
                 settings_path.display(),
                 resource_path.display(),
                 e
-            );
+            ));
 
             None
         }

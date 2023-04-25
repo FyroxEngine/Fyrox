@@ -1,6 +1,7 @@
 //! Sound buffer loader.
 
 use crate::buffer::{DataSource, SoundBuffer, SoundBufferResourceLoadError};
+use fyrox_core::log::Log;
 use fyrox_core::reflect::prelude::*;
 use fyrox_resource::{
     event::ResourceEventBroadcaster,
@@ -67,8 +68,7 @@ impl ResourceLoader for SoundBufferLoader {
 
                             event_broadcaster.broadcast_loaded_or_reloaded(resource, reload);
 
-                            // TODO: Replace with log.
-                            println!("Sound buffer {:?} is loaded!", path);
+                            Log::info(format!("Sound buffer {:?} is loaded!", path));
                         }
                         Err(_) => {
                             resource.0.lock().commit_error(
@@ -76,14 +76,12 @@ impl ResourceLoader for SoundBufferLoader {
                                 SoundBufferResourceLoadError::UnsupportedFormat,
                             );
 
-                            // TODO: Replace with log.
-                            eprintln!("Unable to load sound buffer from {:?}!", path);
+                            Log::info(format!("Unable to load sound buffer from {:?}!", path));
                         }
                     }
                 }
                 Err(e) => {
-                    // TODO: Replace with log.
-                    eprintln!("Invalid data source for sound buffer: {:?}", e);
+                    Log::err(format!("Invalid data source for sound buffer: {:?}", e));
 
                     resource
                         .0

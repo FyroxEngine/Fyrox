@@ -9,6 +9,7 @@ use crate::{
     task::TaskPool,
     Resource, ResourceData, UntypedResource,
 };
+use fyrox_core::log::Log;
 use fyrox_core::{
     futures::future::join_all,
     make_relative_path, notify,
@@ -259,11 +260,10 @@ impl ResourceManagerState {
                 if resource.time_to_live <= 0.0 {
                     let path = resource.0.lock().path().to_path_buf();
 
-                    // TODO: Use logger when it will be moved to fyrox_core.
-                    println!(
+                    Log::info(format!(
                         "Resource {} destroyed because it is not used anymore!",
                         path.display()
-                    );
+                    ));
 
                     self.event_broadcaster
                         .broadcast(ResourceEvent::Removed(path));
@@ -288,11 +288,10 @@ impl ResourceManagerState {
                     for path in evt.paths {
                         if let Ok(relative_path) = make_relative_path(path) {
                             if self.try_reload_resource_from_path(&relative_path) {
-                                // TODO: Use logger when it will be moved to fyrox_core.
-                                println!(
+                                Log::info(format!(
                                         "File {} was changed, trying to reload a respective resource...",
                                         relative_path.display()
-                                    );
+                                    ));
 
                                 break;
                             }
@@ -414,8 +413,7 @@ impl ResourceManagerState {
             }
         }
 
-        // TODO: Replace with logger.
-        eprintln!("There's no loader registered for {:?}!", path);
+        Log::err(format!("There's no loader registered for {:?}!", path));
     }
 
     /// Reloads a single resource.
