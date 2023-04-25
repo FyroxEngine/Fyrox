@@ -1,14 +1,17 @@
+//! A module for creating resources by their UUIDs. It is used to make resource system type-agnostic
+//! yet serializable/deserializable. Type UUID is saved together with resource state and used later
+//! on deserialization to create a default instance of corresponding resource.
+
 use crate::{
-    core::{parking_lot::Mutex, uuid::Uuid},
+    core::{parking_lot::Mutex, uuid::Uuid, TypeUuidProvider},
     ResourceData,
 };
 use fxhash::FxHashMap;
-use fyrox_core::TypeUuidProvider;
 
-/// A simple type alias for boxed node constructor.
+/// A simple type alias for boxed resource constructor.
 pub type ResourceDataConstructor = Box<dyn FnMut() -> Box<dyn ResourceData> + Send>;
 
-/// A special container that is able to create nodes by their type UUID.
+/// A special container that is able to create resources by their type UUID.
 #[derive(Default)]
 pub struct ResourceConstructorContainer {
     map: Mutex<FxHashMap<Uuid, ResourceDataConstructor>>,

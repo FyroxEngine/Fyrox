@@ -1,10 +1,13 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
-use crate::entry::{TimedEntry, DEFAULT_RESOURCE_LIFETIME};
-use crate::event::{ResourceEvent, ResourceEventBroadcaster};
 use crate::{
-    constructor::ResourceConstructorContainer, loader::ResourceLoader, state::ResourceState,
-    task::TaskPool, Resource, ResourceData, UntypedResource,
+    constructor::ResourceConstructorContainer,
+    entry::{TimedEntry, DEFAULT_RESOURCE_LIFETIME},
+    event::{ResourceEvent, ResourceEventBroadcaster},
+    loader::ResourceLoader,
+    state::ResourceState,
+    task::TaskPool,
+    Resource, ResourceData, UntypedResource,
 };
 use fyrox_core::{
     futures::future::join_all,
@@ -45,12 +48,15 @@ impl ResourceWaitContext {
 
 /// See module docs.
 pub struct ResourceManagerState {
-    resources: Vec<TimedEntry<UntypedResource>>,
-    task_pool: Arc<TaskPool>,
+    /// A set of resource loaders. Use this field to register your own resource loader.
     pub loaders: Vec<Box<dyn ResourceLoader>>,
     /// Event broadcaster can be used to "subscribe" for events happening inside the container.    
     pub event_broadcaster: ResourceEventBroadcaster,
+    /// A container for resource constructors.
     pub constructors_container: ResourceConstructorContainer,
+
+    resources: Vec<TimedEntry<UntypedResource>>,
+    task_pool: Arc<TaskPool>,
     watcher: Option<FileSystemWatcher>,
 }
 
@@ -106,6 +112,32 @@ impl ResourceManager {
         self.state.lock()
     }
 
+    /// Requests a resource of the given type located at the given path. This method is non-blocking, instead
+    /// it immediately returns the typed resource wrapper. Loading of the resource is managed automatically in
+    /// a separate thread (or thread pool) on PC, and JS micro-task (the same thread) on WebAssembly.
+    ///
+    /// ## Sharing
+    ///
+    /// If the resource at the given path is already was requested (no matter in which state the actual resource
+    /// is), this method will return the existing instance. This way the resource manager guarantees that the actual
+    /// resource data will be loaded once, and it can be shared.
+    ///
+    /// ## Waiting
+    ///
+    /// If you need to wait until the resource is loaded, use `.await` on the result of the method. Every resource
+    /// implements `Future` trait and can be used in `async` contexts.
+    ///
+    /// ## Resource state
+    ///
+    /// Keep in mind, that the resource itself is a small state machine. It could be in three main states:
+    ///
+    /// - [`ResourceState::Pending`] - a resource is in the queue to load or still loading.
+    /// - [`ResourceState::LoadError`] - a resource is failed to load.
+    /// - [`ResourceState::Ok`] - a resource is successfully loaded.
+    ///
+    /// Actual resource state can be fetched by [`Resource::state`] method. If you know for sure that the resource
+    /// is already loaded, then you can use [`Resource::data_ref`] to obtain a reference to the actual resource data.
+    /// Keep in mind, that this method will panic if the resource non in `Ok` state.
     pub fn request<T, P>(&self, path: P) -> Resource<T>
     where
         P: AsRef<Path>,
@@ -122,6 +154,7 @@ impl ResourceManager {
         }
     }
 
+    /// Same as [`Self::request`], but returns untyped resource.
     pub fn request_untyped<P>(&self, path: P, type_uuid: Uuid) -> UntypedResource
     where
         P: AsRef<Path>,
@@ -300,17 +333,17 @@ impl ResourceManagerState {
         self.resources.len()
     }
 
-    /// Returns true if container has no resources.
+    /// Returns true if the resource manager has no resources.
     pub fn is_empty(&self) -> bool {
         self.resources.is_empty()
     }
 
-    /// Creates an iterator over resources in the container.
+    /// Creates an iterator over resources in the manager.
     pub fn iter(&self) -> impl Iterator<Item = &UntypedResource> {
         self.resources.iter().map(|entry| &entry.value)
     }
 
-    /// Immediately destroys all resources in the container that are not used anywhere else.
+    /// Immediately destroys all resources in the manager that are not used anywhere else.
     pub fn destroy_unused_resources(&mut self) {
         self.resources
             .retain(|resource| resource.value.use_count() > 1);
@@ -425,6 +458,7 @@ impl ResourceManagerState {
         }
     }
 
+    /// Tries to reload a resource at the given path.
     pub fn try_reload_resource_from_path(&mut self, path: &Path) -> bool {
         if let Some(resource) = self.find(path).cloned() {
             self.reload_resource(resource);

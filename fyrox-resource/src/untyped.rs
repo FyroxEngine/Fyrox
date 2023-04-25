@@ -1,6 +1,11 @@
-use crate::{state::ResourceState, Resource, ResourceData, ResourceLoadError};
-use fyrox_core::{
-    parking_lot::Mutex, reflect::prelude::*, uuid::Uuid, visitor::prelude::*, TypeUuidProvider,
+//! A module for untyped resources. See [`UntypedResource`] docs for more info.
+
+use crate::{
+    core::{
+        parking_lot::Mutex, reflect::prelude::*, uuid::Uuid, visitor::prelude::*, TypeUuidProvider,
+    },
+    state::ResourceState,
+    Resource, ResourceData, ResourceLoadError,
 };
 use std::{
     fmt::{Debug, Formatter},
@@ -13,6 +18,10 @@ use std::{
     task::{Context, Poll},
 };
 
+/// Untyped resource is a universal way of storing arbitrary resource types. Internally it wraps [`ResourceState`]
+/// in a `Arc<Mutex<>` so the untyped resource becomes shareable. In most of the cases you don't need to deal with
+/// untyped resources, use typed [`Resource`] wrapper instead. Untyped resource could be useful in cases when you
+/// need to collect a set resources of different types in a single collection and do something with them.
 #[derive(Clone, Reflect)]
 #[reflect(hide_all)]
 pub struct UntypedResource(pub Arc<Mutex<ResourceState>>);
@@ -54,16 +63,20 @@ impl Hash for UntypedResource {
 }
 
 impl UntypedResource {
+    /// Creates new untyped resource in pending state using the given path and type uuid.
     pub fn new_pending(path: PathBuf, type_uuid: Uuid) -> Self {
         Self(Arc::new(Mutex::new(ResourceState::new_pending(
             path, type_uuid,
         ))))
     }
 
+    /// Creates new untyped resource in ok (fully loaded) state using the given data of any type, that
+    /// implements [`ResourceData`] trait.
     pub fn new_ok<T: ResourceData>(data: T) -> Self {
         Self(Arc::new(Mutex::new(ResourceState::new_ok(data))))
     }
 
+    /// Creates new untyped resource in error state.
     pub fn new_load_error(
         path: PathBuf,
         error: Option<Arc<dyn ResourceLoadError>>,
@@ -74,6 +87,7 @@ impl UntypedResource {
         ))))
     }
 
+    /// Returns actual unique type id of underlying resource data.
     pub fn type_uuid(&self) -> Uuid {
         self.0.lock().type_uuid()
     }
@@ -95,6 +109,7 @@ impl UntypedResource {
         (&*self.0 as *const _) as usize
     }
 
+    /// Returns path of the untyped resource.
     pub fn path(&self) -> PathBuf {
         match &*self.0.lock() {
             ResourceState::Pending { path, .. } => path.clone(),
@@ -103,6 +118,7 @@ impl UntypedResource {
         }
     }
 
+    /// Tries to cast untyped resource to a particular type.
     pub fn try_cast<T>(&self) -> Option<Resource<T>>
     where
         T: ResourceData + TypeUuidProvider,

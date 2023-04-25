@@ -1,6 +1,7 @@
 //! Resource management
 
-// #![warn(missing_docs)] TODO
+#![forbid(unsafe_code)]
+#![warn(missing_docs)]
 
 use crate::{
     core::{
@@ -8,8 +9,11 @@ use crate::{
         reflect::prelude::*,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
+        TypeUuidProvider,
     },
+    manager::ResourceManager,
     state::ResourceState,
+    untyped::UntypedResource,
 };
 use std::{
     any::Any,
@@ -25,10 +29,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use crate::manager::ResourceManager;
-use crate::untyped::UntypedResource;
 pub use fyrox_core as core;
-use fyrox_core::TypeUuidProvider;
 
 pub mod constructor;
 pub mod entry;
@@ -37,13 +38,18 @@ pub mod loader;
 pub mod manager;
 pub mod options;
 pub mod state;
-pub mod task;
+mod task;
 pub mod untyped;
 
+/// Type UUID of texture resource. It is defined here to load old versions of resources.
 pub const TEXTURE_RESOURCE_UUID: Uuid = uuid!("02c23a44-55fa-411a-bc39-eb7a5eadf15c");
+/// Type UUID of model resource. It is defined here to load old versions of resources.
 pub const MODEL_RESOURCE_UUID: Uuid = uuid!("44cd768f-b4ca-4804-a98c-0adf85577ada");
+/// Type UUID of sound buffer resource. It is defined here to load old versions of resources.
 pub const SOUND_BUFFER_RESOURCE_UUID: Uuid = uuid!("f6a077b7-c8ff-4473-a95b-0289441ea9d8");
+/// Type UUID of shader resource. It is defined here to load old versions of resources.
 pub const SHADER_RESOURCE_UUID: Uuid = uuid!("f1346417-b726-492a-b80f-c02096c6c019");
+/// Type UUID of curve resource. It is defined here to load old versions of resources.
 pub const CURVE_RESOURCE_UUID: Uuid = uuid!("f28b949f-28a2-4b68-9089-59c234f58b6b");
 
 /// A trait for resource data.
@@ -54,10 +60,13 @@ pub trait ResourceData: 'static + Debug + Visit + Send {
     /// Sets new path to resource data.
     fn set_path(&mut self, path: PathBuf);
 
+    /// Returns `self` as `&dyn Any`. It is useful to implement downcasting to a particular type.
     fn as_any(&self) -> &dyn Any;
 
+    /// Returns `self` as `&mut dyn Any`. It is useful to implement downcasting to a particular type.
     fn as_any_mut(&mut self) -> &mut dyn Any;
 
+    /// Returns unique data type id.
     fn type_uuid(&self) -> Uuid;
 }
 
@@ -66,6 +75,7 @@ pub trait ResourceLoadError: 'static + Debug + Send + Sync {}
 
 impl<T> ResourceLoadError for T where T: 'static + Debug + Send + Sync {}
 
+/// Provides typed access to a resource state.
 pub struct ResourceStateGuard<'a, T>
 where
     T: ResourceData + TypeUuidProvider,
@@ -78,6 +88,7 @@ impl<'a, T> ResourceStateGuard<'a, T>
 where
     T: ResourceData + TypeUuidProvider,
 {
+    /// Fetches the actual state of the resource.
     pub fn get(&self) -> ResourceStateRef<'_, T> {
         match &*self.guard {
             ResourceState::Pending {
@@ -104,6 +115,7 @@ where
         }
     }
 
+    /// Fetches the actual state of the resource.
     pub fn get_mut(&mut self) -> ResourceStateRefMut<'_, T> {
         match &mut *self.guard {
             ResourceState::Pending {
@@ -131,6 +143,7 @@ where
     }
 }
 
+/// Provides typed access to a resource state.
 #[derive(Debug)]
 pub enum ResourceStateRef<'a, T>
 where
@@ -140,6 +153,7 @@ where
     Pending {
         /// A path to load resource from.
         path: &'a PathBuf,
+        /// Actual resource type id.
         type_uuid: Uuid,
     },
     /// An error has occurred during the load.
@@ -148,18 +162,21 @@ where
         path: &'a PathBuf,
         /// An error.
         error: &'a Option<Arc<dyn ResourceLoadError>>,
+        /// Actual resource type id.
         type_uuid: Uuid,
     },
     /// Actual resource data when it is fully loaded.
     Ok(&'a T),
 }
 
+/// Provides typed access to a resource state.
 #[derive(Debug)]
 pub enum ResourceStateRefMut<'a, T> {
     /// Resource is loading from external resource or in the queue to load.
     Pending {
         /// A path to load resource from.
         path: &'a mut PathBuf,
+        /// Actual resource type id.
         type_uuid: Uuid,
     },
     /// An error has occurred during the load.
@@ -168,6 +185,7 @@ pub enum ResourceStateRefMut<'a, T> {
         path: &'a mut PathBuf,
         /// An error.
         error: &'a mut Option<Arc<dyn ResourceLoadError>>,
+        /// Actual resource type id.
         type_uuid: Uuid,
     },
     /// Actual resource data when it is fully loaded.
@@ -184,6 +202,7 @@ impl Default for ResourceState {
     }
 }
 
+/// A resource of particular data type.
 #[derive(Debug, Reflect)]
 pub struct Resource<T>
 where
@@ -253,6 +272,7 @@ impl<T> Resource<T>
 where
     T: ResourceData + TypeUuidProvider,
 {
+    /// Creates new resource in pending state.
     pub fn new_pending(path: PathBuf) -> Self {
         Self {
             state: Some(UntypedResource::new_pending(
@@ -263,6 +283,7 @@ where
         }
     }
 
+    /// Creates new resource in ok state (fully loaded).
     pub fn new_ok(data: T) -> Self {
         Self {
             state: Some(UntypedResource::new_ok(data)),
@@ -270,6 +291,7 @@ where
         }
     }
 
+    /// Creates new resource in error state.
     pub fn new_load_error(path: PathBuf, error: Option<Arc<dyn ResourceLoadError>>) -> Self {
         Self {
             state: Some(UntypedResource::new_load_error(
@@ -331,6 +353,7 @@ where
         self.state.as_ref().unwrap().key()
     }
 
+    /// Returns path of the resource.
     pub fn path(&self) -> PathBuf {
         self.state.as_ref().unwrap().0.lock().path().to_path_buf()
     }

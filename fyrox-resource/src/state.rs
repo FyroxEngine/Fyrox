@@ -1,3 +1,5 @@
+//! A module that handles resource states.
+
 use crate::{
     core::{
         curve::Curve,
@@ -73,6 +75,7 @@ pub enum ResourceState {
         path: PathBuf,
         /// List of wakers to wake future when resource is fully loaded.
         wakers: Vec<Waker>,
+        /// Unique type id of the resource.
         type_uuid: Uuid,
     },
     /// An error has occurred during the load.
@@ -81,6 +84,7 @@ pub enum ResourceState {
         path: PathBuf,
         /// An error. This wrapped in Option only to be Default_ed.
         error: Option<Arc<dyn ResourceLoadError>>,
+        /// Unique type id of the resource.
         type_uuid: Uuid,
     },
     /// Actual resource data when it is fully loaded.
@@ -206,6 +210,7 @@ impl ResourceState {
         }
     }
 
+    /// Creates new resource in error state.
     #[inline]
     pub fn new_load_error(
         path: PathBuf,
@@ -219,11 +224,13 @@ impl ResourceState {
         }
     }
 
+    /// Creates new resource in ok (resource with data) state.
     #[inline]
     pub fn new_ok<T: ResourceData>(data: T) -> Self {
         Self::Ok(Box::new(data))
     }
 
+    /// Checks whether the resource is still loading or not.
     pub fn is_loading(&self) -> bool {
         matches!(self, ResourceState::Pending { .. })
     }
@@ -251,6 +258,7 @@ impl ResourceState {
         }
     }
 
+    /// Returns unique type id of the resource.
     pub fn type_uuid(&self) -> Uuid {
         match self {
             ResourceState::Pending { type_uuid, .. } => *type_uuid,
