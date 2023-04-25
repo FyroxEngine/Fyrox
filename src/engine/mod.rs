@@ -5,28 +5,21 @@
 
 pub mod error;
 pub mod executor;
-pub mod resource_loaders;
 
 use crate::{
     asset::{manager::ResourceManager, manager::ResourceWaitContext},
     core::{algebra::Vector2, futures::executor::block_on, instant, pool::Handle},
-    engine::{
-        error::EngineError,
-        resource_loaders::{
-            curve::CurveLoader, model::ModelLoader, shader::ShaderLoader, sound::SoundBufferLoader,
-            texture::TextureLoader,
-        },
-    },
+    engine::error::EngineError,
     event::Event,
     event_loop::ControlFlow,
     gui::UserInterface,
-    material::shader::Shader,
+    material::shader::{loader::ShaderLoader, Shader},
     plugin::{Plugin, PluginConstructor, PluginContext, PluginRegistrationContext},
     renderer::{framework::error::FrameworkError, Renderer},
     resource::{
-        curve::CurveResourceState,
-        model::{Model, ModelResource},
-        texture::{Texture, TextureKind},
+        curve::{loader::CurveLoader, CurveResourceState},
+        model::{loader::ModelLoader, Model, ModelResource},
+        texture::{loader::TextureLoader, Texture, TextureKind},
     },
     scene::{
         base::NodeScriptMessage,
@@ -46,7 +39,7 @@ use crate::{
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_resource::event::ResourceEvent;
 use fyrox_resource::ResourceStateRef;
-use fyrox_sound::buffer::SoundBuffer;
+use fyrox_sound::buffer::{loader::SoundBufferLoader, SoundBuffer};
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{
     config::ConfigTemplateBuilder,

@@ -51,6 +51,8 @@ use std::{
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
+pub mod loader;
+
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 #[repr(u32)]
 pub(crate) enum NodeMapping {

@@ -9,8 +9,6 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use fyrox::resource::model::{Model, ModelResourceExtension};
-use fyrox::resource::texture::Texture;
 use fyrox::{
     asset::{
         loader::{BoxedLoaderFuture, ResourceLoader},
@@ -23,13 +21,16 @@ use fyrox::{
         instant::Instant,
         sstorage::ImmutableString,
     },
-    engine::resource_loaders::{model::ModelLoader, texture::TextureLoader},
     engine::{
         Engine, EngineInitParams, GraphicsContext, GraphicsContextParams, SerializationContext,
     },
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     material::{shader::SamplerFallback, Material, PropertyValue, SharedMaterial},
+    resource::{
+        model::{loader::ModelLoader, Model, ModelResourceExtension},
+        texture::{loader::TextureLoader, Texture},
+    },
     scene::{
         base::BaseBuilder,
         light::{point::PointLightBuilder, BaseLightBuilder},

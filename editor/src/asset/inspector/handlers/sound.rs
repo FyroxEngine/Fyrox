@@ -1,13 +1,12 @@
 use crate::asset::inspector::handlers::ImportOptionsHandler;
-use fyrox::scene::sound::SoundBuffer;
 use fyrox::{
     asset::{
         manager::ResourceManager,
         options::{try_get_import_settings, ImportOptions},
     },
     core::{append_extension, futures::executor::block_on, reflect::prelude::*},
-    engine::resource_loaders::sound::SoundBufferImportOptions,
     gui::inspector::{PropertyAction, PropertyChanged},
+    scene::sound::{SoundBuffer, SoundBufferImportOptions},
     utils::log::Log,
 };
 use std::path::{Path, PathBuf};

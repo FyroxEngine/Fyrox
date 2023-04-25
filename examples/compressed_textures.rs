@@ -3,15 +3,13 @@
 //! Just shows two textures with compression. Engine compresses textures automatically,
 //! based on compression options.
 
-use fyrox::engine::resource_loaders::texture::TextureLoader;
-use fyrox::resource::texture::Texture;
 use fyrox::{
     core::{algebra::Vector2, color::Color, pool::Handle},
     engine::{executor::Executor, GraphicsContextParams},
     event_loop::ControlFlow,
     gui::{image::ImageBuilder, widget::WidgetBuilder},
     plugin::{Plugin, PluginConstructor, PluginContext},
-    resource::texture::{CompressionOptions, TextureImportOptions},
+    resource::texture::{loader::TextureLoader, CompressionOptions, Texture, TextureImportOptions},
     scene::Scene,
     utils::into_gui_texture,
     window::WindowAttributes,

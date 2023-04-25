@@ -1,16 +1,13 @@
 //! Sound buffer loader.
 
-use crate::{
-    asset::{
-        loader::{BoxedLoaderFuture, ResourceLoader},
-        options::{try_get_import_settings, ImportOptions},
-    },
-    core::reflect::prelude::*,
-    utils::log::Log,
+use crate::buffer::{DataSource, SoundBuffer, SoundBufferResourceLoadError};
+use fyrox_core::reflect::prelude::*;
+use fyrox_resource::{
+    event::ResourceEventBroadcaster,
+    loader::{BoxedLoaderFuture, ResourceLoader},
+    options::{try_get_import_settings, ImportOptions},
+    untyped::UntypedResource,
 };
-use fyrox_resource::event::ResourceEventBroadcaster;
-use fyrox_resource::untyped::UntypedResource;
-use fyrox_sound::buffer::{DataSource, SoundBuffer, SoundBufferResourceLoadError};
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 
@@ -70,7 +67,8 @@ impl ResourceLoader for SoundBufferLoader {
 
                             event_broadcaster.broadcast_loaded_or_reloaded(resource, reload);
 
-                            Log::info(format!("Sound buffer {:?} is loaded!", path));
+                            // TODO: Replace with log.
+                            println!("Sound buffer {:?} is loaded!", path);
                         }
                         Err(_) => {
                             resource.0.lock().commit_error(
@@ -78,12 +76,14 @@ impl ResourceLoader for SoundBufferLoader {
                                 SoundBufferResourceLoadError::UnsupportedFormat,
                             );
 
-                            Log::err(format!("Unable to load sound buffer from {:?}!", path));
+                            // TODO: Replace with log.
+                            eprintln!("Unable to load sound buffer from {:?}!", path);
                         }
                     }
                 }
                 Err(e) => {
-                    Log::err(format!("Invalid data source for sound buffer: {:?}", e));
+                    // TODO: Replace with log.
+                    eprintln!("Invalid data source for sound buffer: {:?}", e);
 
                     resource
                         .0

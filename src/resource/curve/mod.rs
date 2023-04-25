@@ -16,6 +16,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+pub mod loader;
+
 /// An error that may occur during curve resource loading.
 #[derive(Debug)]
 pub enum CurveResourceError {

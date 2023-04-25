@@ -249,6 +249,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+pub mod loader;
+
 /// A name of the standard shader.
 pub const STANDARD_SHADER_NAME: &str = "Standard";
 

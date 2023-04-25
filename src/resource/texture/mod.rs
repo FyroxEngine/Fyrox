@@ -47,6 +47,8 @@ use std::{
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
+pub mod loader;
+
 /// Texture kind.
 #[derive(Copy, Clone, Debug)]
 pub enum TextureKind {

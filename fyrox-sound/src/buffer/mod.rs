@@ -25,6 +25,7 @@ use std::{
 };
 
 pub mod generic;
+pub mod loader;
 pub mod streaming;
 
 /// Data source enumeration. Provides unified way of selecting data source for sound buffers. It can be either
