@@ -40,7 +40,7 @@ impl ResourceLoader for CurveLoader {
                 Ok(curve_state) => {
                     Log::info(format!("Curve {:?} is loaded!", path));
 
-                    curve.0.lock().commit_ok(curve_state);
+                    curve.commit_ok(curve_state);
 
                     event_broadcaster.broadcast_loaded_or_reloaded(curve, reload);
                 }
@@ -50,7 +50,7 @@ impl ResourceLoader for CurveLoader {
                         path, error
                     ));
 
-                    curve.0.lock().commit_error(path, error);
+                    curve.commit_error(path, error);
                 }
             }
         })

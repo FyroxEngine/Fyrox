@@ -132,6 +132,23 @@ impl UntypedResource {
             None
         }
     }
+
+    /// Changes ResourceState::Pending state to ResourceState::Ok(data) with given `data`.
+    /// Additionally it wakes all futures.
+    #[inline]
+    pub fn commit(&self, state: ResourceState) {
+        self.0.lock().commit(state);
+    }
+
+    /// Changes internal state to [`ResourceState::Ok`]
+    pub fn commit_ok<T: ResourceData>(&self, data: T) {
+        self.0.lock().commit_ok(data);
+    }
+
+    /// Changes internal state to [`ResourceState::LoadError`].
+    pub fn commit_error<E: ResourceLoadError>(&self, path: PathBuf, error: E) {
+        self.0.lock().commit_error(path, error);
+    }
 }
 
 impl Future for UntypedResource {

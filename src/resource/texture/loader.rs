@@ -63,7 +63,7 @@ impl ResourceLoader for TextureLoader {
                     raw_texture.set_s_wrap_mode(import_options.s_wrap_mode);
                     raw_texture.set_t_wrap_mode(import_options.t_wrap_mode);
 
-                    texture.0.lock().commit_ok(raw_texture);
+                    texture.commit_ok(raw_texture);
 
                     event_broadcaster.broadcast_loaded_or_reloaded(texture, reload);
                 }
@@ -73,7 +73,7 @@ impl ResourceLoader for TextureLoader {
                         &path, &error
                     ));
 
-                    texture.0.lock().commit_error(path, error);
+                    texture.commit_error(path, error);
                 }
             }
         })

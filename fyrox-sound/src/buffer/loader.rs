@@ -64,14 +64,14 @@ impl ResourceLoader for SoundBufferLoader {
                     };
                     match buffer {
                         Ok(sound_buffer) => {
-                            resource.0.lock().commit_ok(sound_buffer);
+                            resource.commit_ok(sound_buffer);
 
                             event_broadcaster.broadcast_loaded_or_reloaded(resource, reload);
 
                             Log::info(format!("Sound buffer {:?} is loaded!", path));
                         }
                         Err(_) => {
-                            resource.0.lock().commit_error(
+                            resource.commit_error(
                                 path.clone(),
                                 SoundBufferResourceLoadError::UnsupportedFormat,
                             );
@@ -83,10 +83,7 @@ impl ResourceLoader for SoundBufferLoader {
                 Err(e) => {
                     Log::err(format!("Invalid data source for sound buffer: {:?}", e));
 
-                    resource
-                        .0
-                        .lock()
-                        .commit_error(path.clone(), SoundBufferResourceLoadError::Io(e));
+                    resource.commit_error(path.clone(), SoundBufferResourceLoadError::Io(e));
                 }
             }
         })

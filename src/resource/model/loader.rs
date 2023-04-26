@@ -59,7 +59,7 @@ impl ResourceLoader for ModelLoader {
                 Ok(raw_model) => {
                     Log::info(format!("Model {:?} is loaded!", path));
 
-                    model.0.lock().commit_ok(raw_model);
+                    model.commit_ok(raw_model);
 
                     event_broadcaster.broadcast_loaded_or_reloaded(model, reload);
                 }
@@ -69,7 +69,7 @@ impl ResourceLoader for ModelLoader {
                         path, error
                     ));
 
-                    model.0.lock().commit_error(path, error);
+                    model.commit_error(path, error);
                 }
             }
         })

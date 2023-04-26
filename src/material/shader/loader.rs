@@ -38,7 +38,7 @@ impl ResourceLoader for ShaderLoader {
                 Ok(shader_state) => {
                     Log::info(format!("Shader {:?} is loaded!", path));
 
-                    shader.0.lock().commit_ok(shader_state);
+                    shader.commit_ok(shader_state);
 
                     event_broadcaster.broadcast_loaded_or_reloaded(shader, reload);
                 }
@@ -48,7 +48,7 @@ impl ResourceLoader for ShaderLoader {
                         path, error
                     ));
 
-                    shader.0.lock().commit_error(path, error);
+                    shader.commit_error(path, error);
                 }
             }
         })
