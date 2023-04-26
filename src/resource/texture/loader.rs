@@ -23,6 +23,10 @@ impl ResourceLoader for TextureLoader {
         &["jpg", "jpeg", "tga", "gif", "bmp", "png", "tiff", "dds"]
     }
 
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }

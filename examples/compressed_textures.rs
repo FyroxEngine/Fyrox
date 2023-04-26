@@ -31,8 +31,7 @@ impl PluginConstructor for GameConstructor {
             .resource_manager
             .state()
             .loaders
-            .iter_mut()
-            .find_map(|l| (**l).as_any_mut().downcast_mut::<TextureLoader>())
+            .find_mut::<TextureLoader>()
             .unwrap()
             .default_import_options =
             TextureImportOptions::default().with_compression(CompressionOptions::Quality);

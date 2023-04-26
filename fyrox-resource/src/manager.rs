@@ -4,14 +4,14 @@ use crate::{
     constructor::ResourceConstructorContainer,
     entry::{TimedEntry, DEFAULT_RESOURCE_LIFETIME},
     event::{ResourceEvent, ResourceEventBroadcaster},
-    loader::ResourceLoader,
+    loader::ResourceLoadersContainer,
     state::ResourceState,
     task::TaskPool,
     Resource, ResourceData, UntypedResource,
 };
-use fyrox_core::log::Log;
 use fyrox_core::{
     futures::future::join_all,
+    log::Log,
     make_relative_path, notify,
     parking_lot::{Mutex, MutexGuard},
     uuid::Uuid,
@@ -50,7 +50,7 @@ impl ResourceWaitContext {
 /// See module docs.
 pub struct ResourceManagerState {
     /// A set of resource loaders. Use this field to register your own resource loader.
-    pub loaders: Vec<Box<dyn ResourceLoader>>,
+    pub loaders: ResourceLoadersContainer,
     /// Event broadcaster can be used to "subscribe" for events happening inside the container.    
     pub event_broadcaster: ResourceEventBroadcaster,
     /// A container for resource constructors.

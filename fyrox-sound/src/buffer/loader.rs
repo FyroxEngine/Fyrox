@@ -32,6 +32,10 @@ impl ResourceLoader for SoundBufferLoader {
         &["wav", "ogg"]
     }
 
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }

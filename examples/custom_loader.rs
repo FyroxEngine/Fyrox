@@ -11,8 +11,10 @@ pub mod shared;
 use crate::shared::create_camera;
 use fyrox::{
     asset::{
+        event::ResourceEventBroadcaster,
         loader::{BoxedLoaderFuture, ResourceLoader},
         manager::ResourceManager,
+        untyped::UntypedResource,
     },
     core::{
         algebra::{Matrix4, Vector3},
@@ -45,16 +47,17 @@ use fyrox::{
     utils::translate_event,
     window::WindowAttributes,
 };
-use fyrox_resource::event::ResourceEventBroadcaster;
-use fyrox_resource::untyped::UntypedResource;
-use std::any::Any;
-use std::sync::Arc;
+use std::{any::Any, sync::Arc};
 
 struct CustomModelLoader(Arc<ModelLoader>);
 
 impl ResourceLoader for CustomModelLoader {
     fn extensions(&self) -> &[&str] {
         &["rgs", "fbx"]
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -88,6 +91,10 @@ struct CustomTextureLoader(Arc<TextureLoader>);
 impl ResourceLoader for CustomTextureLoader {
     fn extensions(&self) -> &[&str] {
         &["jpg", "jpeg", "tga", "gif", "bmp", "png", "tiff", "dds"]
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -210,27 +217,21 @@ fn main() {
     // Set up our custom loaders
     {
         let mut state = engine.resource_manager.state();
-        if let Some(pos) = state
+        assert!(state
             .loaders
-            .iter()
-            .position(|l| (**l).as_any().downcast_ref::<ModelLoader>().is_some())
-        {
-            state.loaders[pos] = Box::new(CustomModelLoader(Arc::new(ModelLoader {
+            .try_replace::<ModelLoader, _>(CustomModelLoader(Arc::new(ModelLoader {
                 resource_manager: engine.resource_manager.clone(),
                 serialization_context: engine.serialization_context.clone(),
                 default_import_options: Default::default(),
-            })));
-        }
+            })))
+            .is_some());
 
-        if let Some(pos) = state
+        assert!(state
             .loaders
-            .iter()
-            .position(|l| (**l).as_any().downcast_ref::<TextureLoader>().is_some())
-        {
-            state.loaders[pos] = Box::new(CustomTextureLoader(Arc::new(TextureLoader {
+            .try_replace::<TextureLoader, _>(CustomTextureLoader(Arc::new(TextureLoader {
                 default_import_options: Default::default(),
-            })));
-        }
+            })))
+            .is_some());
     }
 
     let scene = block_on(GameSceneLoader::load_with(engine.resource_manager.clone())).scene;

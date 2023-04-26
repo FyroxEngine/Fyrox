@@ -30,6 +30,10 @@ impl ResourceLoader for ModelLoader {
         &["rgs", "fbx"]
     }
 
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }

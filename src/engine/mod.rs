@@ -847,15 +847,15 @@ impl Engine {
             state.constructors_container.add::<SoundBuffer>();
 
             let loaders = &mut state.loaders;
-            loaders.push(Box::new(model_loader));
-            loaders.push(Box::new(TextureLoader {
+            loaders.set(model_loader);
+            loaders.set(TextureLoader {
                 default_import_options: Default::default(),
-            }));
-            loaders.push(Box::new(SoundBufferLoader {
+            });
+            loaders.set(SoundBufferLoader {
                 default_import_options: Default::default(),
-            }));
-            loaders.push(Box::new(ShaderLoader));
-            loaders.push(Box::new(CurveLoader));
+            });
+            loaders.set(ShaderLoader);
+            loaders.set(CurveLoader);
         }
 
         let (rx, tx) = channel();
