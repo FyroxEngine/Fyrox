@@ -161,7 +161,7 @@ use fyrox::{
     gui::message::UiMessage,
     plugin::{Plugin, PluginConstructor, PluginContext, PluginRegistrationContext},
     scene::{Scene, loader::AsyncSceneLoader},
-    utils::log::Log
+    core::log::Log
 };
 
 pub struct GameConstructor;
