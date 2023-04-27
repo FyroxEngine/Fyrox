@@ -1,4 +1,4 @@
-//! Everything related to terrains.
+//! Everything related to terrains. See [`Terrain`] docs for more info.
 
 use crate::{
     asset::Resource,
@@ -109,11 +109,10 @@ fn make_height_map_texture(height_map: Vec<f32>, size: Vector2<u32>) -> TextureR
     Resource::new_ok(data)
 }
 
-/// Chunk is smaller block of a terrain. Terrain can have as many chunks as you need.
-/// Can't we just use one big chunk? Well, potentially yes. However in practice, it
-/// is very limiting because you need to have very huge mask texture and most of wide-spread
-/// GPUs have 16k texture size limit. Multiple chunks provide different LODs to renderer
-/// so distant chunks can be rendered with low details reducing GPU load.
+/// Chunk is smaller block of a terrain. Terrain can have as many chunks as you need, which always arranged in a
+/// grid. You can add chunks from any side of a terrain. Chunks could be considered as a "sub-terrain", which could
+/// use its own set of materials for layers. This could be useful for different biomes, to prevent high amount of
+/// layers which could harm the performance.
 #[derive(Debug, Reflect, PartialEq)]
 pub struct Chunk {
     #[reflect(hidden)]
@@ -316,9 +315,63 @@ pub struct TerrainRayCastResult {
     pub toi: f32,
 }
 
-/// Terrain is a height field where each point has fixed coordinates in XZ plane, but variable
-/// Y coordinate. It can be used to create landscapes. It supports multiple layers, where each
-/// layer has its own material and mask.
+/// Terrain is a height field where each point has fixed coordinates in XZ plane, but variable Y coordinate.
+/// It can be used to create landscapes. It supports multiple layers, where each layer has its own material
+/// and mask.
+///
+/// ## Chunking
+///
+/// Terrain itself does not define any geometry or rendering data, instead it uses one or more chunks for that
+/// purpose. Each chunk could be considered as a "sub-terrain". You can "stack" any amount of chunks from any
+/// side of the terrain. To do that, you define a range of chunks along each axes. This is very useful if you
+/// need to extend your terrain in a particular direction. Imagine that you've created a terrain with just one
+/// chunk (`0..1` range on both axes), but suddenly you found that you need to extend the terrain to add some
+/// new game locations. In this case you can change the range of chunks at the desired axis. For instance, if
+/// you want to add a new location to the right from your single chunk, then you should change `width_chunks`
+/// range to `0..2` and leave `length_chunks` as is (`0..1`). This way terrain will be extended and you can
+/// start shaping the new location.
+///
+/// ## Layers
+///
+/// Layer is a material with a blending mask. Layers helps you to build a terrain with wide variety of details.
+/// For example, you can have a terrain with 3 layers: grass, rock, snow. This combination can be used to
+/// create a terrain with grassy plateaus, rocky mountains with snowy tops. Each chunk (see above) can have its
+/// own set of materials for each layer, however the overall layer count is defined by the terrain itself.
+/// An ability to have different set of materials for different chunks is very useful to support various biomes.
+///
+/// ## Level of detail (LOD)
+///
+/// Terrain has automatic LOD system, which means that the closest portions of it will be rendered with highest
+/// possible quality (defined by the resolution of height map and masks), while the furthest portions will be
+/// rendered with lowest quality. This effectively balances GPU load and allows you to render huge terrains with
+/// low overhead.
+///
+/// The main parameter that affects LOD system is `block_size` (`Terrain::set_block_size`), which defines size
+/// of the patch that will be used for rendering. It is used to divide the size of the height map into a fixed
+/// set of blocks using quad-tree algorithm.
+///
+/// Current implementation uses modified version of CDLOD algorithm without patch morphing. Apparently it is not
+/// needed, since bilinear filtration in vertex shader prevents seams to occur.
+///
+/// ## Painting
+///
+/// Terrain has a single method for "painting" - [`Terrain::draw`], it accepts a brush with specific parameters,
+/// which can either alternate height map or a layer mask. See method's documentation for more info.
+///
+/// ## Ray casting
+///
+/// You have two options to perform a ray casting:
+///
+/// 1) By using ray casting feature of the physics engine. In this case you need to create a `Heighfield` collider
+/// and use standard [`crate::scene::graph::physics::PhysicsWorld::cast_ray`] method.
+/// 2) By using [`Terrain::raycast`] - this method could provide you more information about intersection point, than
+/// physics-based.
+///
+/// ## Physics
+///
+/// As usual, to have collisions working you need to create a rigid body and add an appropriate collider to it.
+/// In case of terrains you need to create a collider with `Heightfield` shape and specify your terrain as a
+/// geometry source.
 #[derive(Debug, Reflect, Clone)]
 pub struct Terrain {
     base: Base,
@@ -566,8 +619,8 @@ impl Terrain {
         *self.chunk_size
     }
 
-    /// Sets new chunk size of the terrain (in meters). All chunks in the terrain will be repositioned and their
-    /// geometry will be rebuilt.
+    /// Sets new chunk size of the terrain (in meters). All chunks in the terrain will be repositioned according
+    /// to their positions on the grid.
     pub fn set_chunk_size(&mut self, chunk_size: Vector2<f32>) -> Vector2<f32> {
         let old = *self.chunk_size;
         self.chunk_size.set_value_and_mark_modified(chunk_size);
@@ -601,7 +654,8 @@ impl Terrain {
     }
 
     /// Sets new size of the height map for every chunk. Heightmaps in every chunk will be resampled which may
-    /// cause precision loss if the size was decreased.
+    /// cause precision loss if the size was decreased. **Warning:** This method is very heavy and should not be
+    /// used at every frame!
     pub fn set_height_map_size(&mut self, height_map_size: Vector2<u32>) -> Vector2<u32> {
         let old = *self.height_map_size;
         self.resize_height_maps(height_map_size);
@@ -609,7 +663,8 @@ impl Terrain {
     }
 
     /// Sets the new block size. Block size defines "granularity" of the terrain; the minimal terrain patch that
-    /// will be used for rendering. It directly affects level-of-detail system of the terrain.
+    /// will be used for rendering. It directly affects level-of-detail system of the terrain. **Warning:** This
+    /// method is very heavy and should not be used at every frame!
     pub fn set_block_size(&mut self, block_size: Vector2<u32>) -> Vector2<u32> {
         let old = *self.block_size;
         self.block_size.set_value_and_mark_modified(block_size);
@@ -620,12 +675,12 @@ impl Terrain {
         old
     }
 
-    /// Returns current block size.
+    /// Returns current block size of the terrain.
     pub fn block_size(&self) -> Vector2<u32> {
         *self.block_size
     }
 
-    /// Returns amount of pixels along each axis of the layer blending mask.
+    /// Returns the total amount of pixels along each axis of the layer blending mask.
     pub fn mask_size(&self) -> Vector2<u32> {
         *self.mask_size
     }
@@ -750,7 +805,7 @@ impl Terrain {
         project(self.global_transform(), p)
     }
 
-    /// Multi-functional drawing method. It uses given brush to modify terrain, see Brush docs for
+    /// Multi-functional drawing method. It uses given brush to modify terrain, see [`Brush`] docs for
     /// more info.
     pub fn draw(&mut self, brush: &Brush) {
         let center = project(self.global_transform(), brush.center).unwrap();
@@ -843,7 +898,7 @@ impl Terrain {
     }
 
     /// Casts a ray and looks for intersections with the terrain. This method collects all results in
-    /// given array with optional sorting by time-of-impact.
+    /// given array with optional sorting by the time-of-impact.
     ///
     /// # Performance
     ///
