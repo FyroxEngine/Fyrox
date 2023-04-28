@@ -71,7 +71,7 @@ use crate::{
     },
     scene_viewer::SceneViewer,
     settings::{camera::SceneCameraSettings, Settings},
-    utils::path_fixer::PathFixer,
+    utils::{doc::DocWindow, path_fixer::PathFixer},
     world::{graph::selection::GraphSelection, WorldViewer},
 };
 use fyrox::{
@@ -255,6 +255,7 @@ pub enum Message {
         handle: Handle<Node>,
     },
     ForceSync,
+    ShowDocumentation(String),
 }
 
 impl Message {
@@ -496,6 +497,7 @@ pub struct Editor {
     particle_system_control_panel: ParticleSystemPreviewControlPanel,
     overlay_pass: Rc<RefCell<OverlayRenderPass>>,
     audio_preview_panel: AudioPreviewPanel,
+    doc_window: DocWindow,
 }
 
 impl Editor {
@@ -624,6 +626,7 @@ impl Editor {
         let absm_editor = AbsmEditor::new(ctx, message_sender.clone());
         let particle_system_control_panel = ParticleSystemPreviewControlPanel::new(ctx);
         let audio_preview_panel = AudioPreviewPanel::new(ctx);
+        let doc_window = DocWindow::new(ctx);
 
         let root_grid = GridBuilder::new(
             WidgetBuilder::new()
@@ -716,6 +719,7 @@ impl Editor {
                         particle_system_control_panel.window,
                         audio_preview_panel.window,
                         navmesh_panel.window,
+                        doc_window.window,
                     ])
                     .build(ctx),
                 ),
@@ -802,6 +806,7 @@ impl Editor {
             particle_system_control_panel,
             overlay_pass,
             audio_preview_panel,
+            doc_window,
         };
 
         editor.set_interaction_mode(Some(InteractionModeKind::Move));
@@ -1910,6 +1915,9 @@ impl Editor {
                         self.animation_editor.open(&self.engine.user_interface);
                     }
                     Message::OpenAbsmEditor => self.absm_editor.open(&self.engine.user_interface),
+                    Message::ShowDocumentation(doc) => {
+                        self.doc_window.open(doc, &self.engine.user_interface);
+                    }
                 }
             }
 

@@ -1,4 +1,3 @@
-use fyrox::resource::texture::TextureResourceExtension;
 use fyrox::{
     core::{algebra::Vector2, pool::ErasedHandle, pool::Handle},
     gui::{
@@ -8,10 +7,11 @@ use fyrox::{
         window::{Window, WindowBuilder},
         BuildContext, UiNode, UserInterface,
     },
-    resource::texture::{CompressionOptions, TextureResource},
+    resource::texture::{CompressionOptions, TextureResource, TextureResourceExtension},
     scene::camera::{SkyBox, SkyBoxBuilder},
 };
 
+pub mod doc;
 pub mod path_fixer;
 
 pub fn is_slice_equal_permutation<T: PartialEq>(a: &[T], b: &[T]) -> bool {

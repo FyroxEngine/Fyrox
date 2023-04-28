@@ -7,9 +7,11 @@ use crate::{
         selection::SelectedEntity,
     },
     animation::{self, command::signal::make_animation_signal_property_command},
+    gui::make_image_button_with_tooltip,
     inspector::{
         editors::make_property_editors_container, handlers::node::SceneNodePropertyChangedHandler,
     },
+    load_image,
     scene::{commands::effect::make_set_audio_bus_property_command, EditorScene, Selection},
     send_sync_message,
     utils::window_content,
@@ -26,6 +28,7 @@ use fyrox::{
     },
     engine::SerializationContext,
     gui::{
+        button::ButtonMessage,
         grid::{Column, GridBuilder, Row},
         inspector::{
             editors::PropertyEditorDefinitionContainer, InspectorBuilder, InspectorContext,
@@ -93,6 +96,7 @@ pub struct Inspector {
     node_property_changed_handler: SceneNodePropertyChangedHandler,
     warning_text: Handle<UiNode>,
     type_name_text: Handle<UiNode>,
+    docs_button: Handle<UiNode>,
 }
 
 #[macro_export]
@@ -145,6 +149,7 @@ impl Inspector {
         let warning_text;
         let type_name_text;
         let inspector;
+        let docs_button;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .with_title(WindowTitle::text("Inspector"))
             .with_content(
@@ -163,16 +168,40 @@ impl Inspector {
                             .build(ctx);
                             warning_text
                         })
-                        .with_child({
-                            type_name_text = TextBuilder::new(
+                        .with_child(
+                            GridBuilder::new(
                                 WidgetBuilder::new()
-                                    .with_margin(Thickness::uniform(4.0))
-                                    .on_row(1),
+                                    .on_row(1)
+                                    .with_child({
+                                        type_name_text = TextBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(4.0))
+                                                .on_row(0)
+                                                .on_column(0),
+                                        )
+                                        .with_wrap(WrapMode::Word)
+                                        .build(ctx);
+                                        type_name_text
+                                    })
+                                    .with_child({
+                                        docs_button = make_image_button_with_tooltip(
+                                            ctx,
+                                            18.0,
+                                            18.0,
+                                            load_image(include_bytes!(
+                                                "../../resources/embed/doc.png"
+                                            )),
+                                            "Open Documentation",
+                                        );
+                                        ctx[docs_button].set_column(1);
+                                        docs_button
+                                    }),
                             )
-                            .with_wrap(WrapMode::Word)
-                            .build(ctx);
-                            type_name_text
-                        })
+                            .add_row(Row::strict(22.0))
+                            .add_column(Column::stretch())
+                            .add_column(Column::auto())
+                            .build(ctx),
+                        )
                         .with_child(
                             ScrollViewerBuilder::new(WidgetBuilder::new().on_row(2))
                                 .with_content({
@@ -199,6 +228,7 @@ impl Inspector {
             node_property_changed_handler: SceneNodePropertyChangedHandler,
             warning_text,
             type_name_text,
+            docs_button,
         }
     }
 
@@ -640,6 +670,46 @@ impl Inspector {
                     sender
                         .send(Message::do_scene_command(CommandGroup::from(group)))
                         .unwrap();
+                }
+            }
+        } else if let Some(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.docs_button {
+                let entity = match &editor_scene.selection {
+                    Selection::None => None,
+                    Selection::Graph(graph_selection) => graph_selection
+                        .nodes
+                        .first()
+                        .map(|h| scene.graph[*h].doc().to_string()),
+                    Selection::Navmesh(navmesh_selection) => Some(
+                        scene.graph[navmesh_selection.navmesh_node()]
+                            .doc()
+                            .to_string(),
+                    ),
+                    Selection::AudioBus(audio_bus_selection) => {
+                        audio_bus_selection.buses.first().and_then(|h| {
+                            scene
+                                .graph
+                                .sound_context
+                                .state()
+                                .bus_graph_ref()
+                                .try_get_bus_ref(*h)
+                                .map(|bus| bus.doc().to_string())
+                        })
+                    }
+                    Selection::Absm(absm_selection) => Some(
+                        scene.graph[absm_selection.absm_node_handle]
+                            .doc()
+                            .to_string(),
+                    ),
+                    Selection::Animation(animation_selection) => Some(
+                        scene.graph[animation_selection.animation_player]
+                            .doc()
+                            .to_string(),
+                    ),
+                };
+
+                if let Some(doc) = entity {
+                    sender.send(Message::ShowDocumentation(doc)).unwrap();
                 }
             }
         }
