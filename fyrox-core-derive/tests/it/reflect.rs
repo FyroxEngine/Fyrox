@@ -10,6 +10,7 @@ use std::{
 
 use fyrox_core::{parking_lot::Mutex, reflect::*};
 
+/// Struct doc comment.
 #[allow(dead_code)]
 #[derive(Reflect, Debug, Clone)]
 pub struct Struct {
@@ -57,6 +58,7 @@ fn doc_comments() {
  multiline doc comment."
         );
     });
+    assert_eq!(s.doc(), " Struct doc comment.");
 }
 
 #[test]
