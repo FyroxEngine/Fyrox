@@ -61,6 +61,9 @@ pub struct FieldInfo<'a> {
     /// Type name of the property.
     pub type_name: &'static str,
 
+    /// Doc comment content.
+    pub doc: &'static str,
+
     /// An reference to the actual value of the property. This is "non-mangled" reference, which
     /// means that while `field/fields/field_mut/fields_mut` might return a reference to other value,
     /// than the actual field, the `value` is guaranteed to be a reference to the real value.
@@ -155,6 +158,8 @@ impl<'a> PartialEq<Self> for FieldInfo<'a> {
 /// and the quality of the string output.
 pub trait Reflect: Any + Debug {
     fn type_name(&self) -> &'static str;
+
+    fn doc(&self) -> &'static str;
 
     fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>));
 
@@ -789,6 +794,10 @@ macro_rules! blank_reflect {
             std::any::type_name::<Self>()
         }
 
+        fn doc(&self) -> &'static str {
+            ""
+        }
+
         fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
             func(vec![])
         }
@@ -833,6 +842,10 @@ macro_rules! delegate_reflect {
     () => {
         fn type_name(&self) -> &'static str {
             self.deref().type_name()
+        }
+
+        fn doc(&self) -> &'static str {
+            self.deref().doc()
         }
 
         fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {

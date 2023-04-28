@@ -113,6 +113,10 @@ where
         std::any::type_name::<Self>()
     }
 
+    fn doc(&self) -> &'static str {
+        ""
+    }
+
     fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
         func(vec![])
     }

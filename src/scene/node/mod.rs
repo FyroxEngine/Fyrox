@@ -455,6 +455,10 @@ impl Reflect for Node {
         self.0.deref().type_name()
     }
 
+    fn doc(&self) -> &'static str {
+        self.0.deref().doc()
+    }
+
     fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
         self.0.deref().fields_info(func)
     }

@@ -207,6 +207,7 @@ where
         precision: property_info.precision,
         description: property_info.description,
         type_name: property_info.type_name,
+        doc: property_info.doc,
     })
 }
 

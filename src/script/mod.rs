@@ -438,6 +438,10 @@ impl Reflect for Script {
         self.instance.type_name()
     }
 
+    fn doc(&self) -> &'static str {
+        self.instance.doc()
+    }
+
     fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
         self.instance.fields_info(func)
     }

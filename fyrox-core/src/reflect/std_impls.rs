@@ -285,6 +285,10 @@ macro_rules! impl_reflect_inner_mutability {
             std::any::type_name::<T>()
         }
 
+        fn doc(&$self) -> &'static str {
+            ""
+        }
+
         fn fields_info(&$self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
             let guard = $acquire_lock_guard;
             guard.fields_info(func)

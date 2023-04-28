@@ -8,7 +8,11 @@ use syn::*;
 pub type Fields = ast::Fields<FieldArgs>;
 
 #[derive(FromDeriveInput)]
-#[darling(attributes(reflect), supports(struct_any, enum_any))]
+#[darling(
+    attributes(reflect),
+    supports(struct_any, enum_any),
+    forward_attrs(doc)
+)]
 pub struct TypeArgs {
     pub ident: Ident,
     pub generics: Generics,
@@ -17,6 +21,9 @@ pub struct TypeArgs {
     /// Hides all fields and creates an empty impl
     #[darling(default)]
     pub hide_all: bool,
+
+    /// A list of forwarded attributes (only doc comments).
+    pub attrs: Vec<Attribute>,
 
     /// Custom `Reflect` impl type boundary. It's useful if you mark some field as `deref` or
     /// `hidden` but the type needs to be `Reflect` to implement `Reflect`.
@@ -108,7 +115,7 @@ impl TypeArgs {
 }
 
 #[derive(FromField, Clone, PartialEq)]
-#[darling(attributes(reflect))]
+#[darling(attributes(reflect), forward_attrs(doc))]
 pub struct FieldArgs {
     pub ident: Option<Ident>,
     pub ty: Type,
@@ -118,6 +125,9 @@ pub struct FieldArgs {
     /// Property name override for a field (default: snake_case)
     #[darling(default)]
     pub name: Option<String>,
+
+    /// A list of forwarded attributes (only doc comments).
+    pub attrs: Vec<Attribute>,
 
     /// `#[reflect(hidden)]`
     ///
@@ -221,4 +231,18 @@ impl FieldArgs {
 pub struct VariantArgs {
     pub ident: Ident,
     pub fields: ast::Fields<FieldArgs>,
+}
+
+pub fn fetch_doc_comment(attrs: &[Attribute]) -> String {
+    let mut doc = String::new();
+    for attr in attrs.iter() {
+        if let Ok(meta) = attr.parse_meta() {
+            if let Meta::NameValue(name_value) = meta {
+                if let Lit::Str(doc_comment) = name_value.lit {
+                    doc += doc_comment.value().as_str();
+                }
+            }
+        }
+    }
+    doc
 }

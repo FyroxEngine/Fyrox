@@ -2,16 +2,19 @@
 
 #![allow(clippy::disallowed_names)] // Useless in tests
 
-use std::any::TypeId;
-use std::collections::HashMap;
-use std::ops::{Deref, DerefMut};
+use std::{
+    any::TypeId,
+    collections::HashMap,
+    ops::{Deref, DerefMut},
+};
 
-use fyrox_core::parking_lot::Mutex;
-use fyrox_core::reflect::*;
+use fyrox_core::{parking_lot::Mutex, reflect::*};
 
 #[allow(dead_code)]
 #[derive(Reflect, Debug, Clone)]
 pub struct Struct {
+    /// This is a
+    /// multiline doc comment.
     field: usize,
     #[reflect(hidden)]
     hidden: usize,
@@ -39,6 +42,21 @@ fn property_constants() {
 
     assert_eq!(Enum::NAMED_FIELD, "Named@field");
     assert_eq!(Enum::TUPLE_F_0, "Tuple@0");
+}
+
+#[test]
+fn doc_comments() {
+    let s = Struct {
+        field: 0,
+        hidden: 0,
+    };
+    s.fields_info(&mut |infos| {
+        assert_eq!(
+            infos[0].doc,
+            " This is a \
+ multiline doc comment."
+        );
+    });
 }
 
 #[test]
@@ -304,6 +322,7 @@ fn default_prop() -> FieldInfo<'static> {
         precision: None,
         description: "",
         type_name: "",
+        doc: "",
     }
 }
 
@@ -387,6 +406,7 @@ fn inspect_attributes() {
             precision: Some(3),
             description: "This is a property description.",
             type_name: std::any::type_name::<f32>(),
+            doc: "",
         },
     ];
 

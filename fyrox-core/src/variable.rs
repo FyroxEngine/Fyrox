@@ -253,6 +253,10 @@ where
         self.value.type_name()
     }
 
+    fn doc(&self) -> &'static str {
+        self.value.doc()
+    }
+
     fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
         self.value.fields_info(func)
     }

@@ -81,6 +81,8 @@ fn quote_field_prop(
         }
     };
 
+    let doc = args::fetch_doc_comment(&field.attrs);
+
     let display_name = field
         .display_name
         .clone()
@@ -118,6 +120,7 @@ fn quote_field_prop(
             owner_type_id: std::any::TypeId::of::<Self>(),
             name: #prop_key_name,
             display_name: #display_name,
+            doc: #doc,
             read_only: #read_only,
             min_value: #min_value,
             max_value: #max_value,
@@ -409,6 +412,8 @@ fn gen_impl(
     let as_list_impl = ty_args.as_list_impl();
     let as_array_impl = ty_args.as_array_impl();
 
+    let doc = args::fetch_doc_comment(&ty_args.attrs);
+
     let set_field = set_field.map(|set_field| {
         quote! {
             fn set_field(&mut self, name: &str, value: Box<dyn Reflect>, func: &mut dyn FnMut(Result<Box<dyn Reflect>, Box<dyn Reflect>>),) {
@@ -422,6 +427,10 @@ fn gen_impl(
         impl #impl_generics Reflect for #ty_ident #ty_generics #where_clause {
             fn type_name(&self) -> &'static str {
                 std::any::type_name::<Self>()
+            }
+
+            fn doc(&self) -> &'static str {
+                #doc
             }
 
             fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {

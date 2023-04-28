@@ -44,6 +44,10 @@ macro_rules! define_two_args_node {
                 type_name::<Self>()
             }
 
+            fn doc(&self) -> &'static str {
+                ""
+            }
+
             fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
                 func(vec![
                     FieldInfo {
@@ -59,6 +63,7 @@ macro_rules! define_two_args_node {
                         max_value: None,
                         step: None,
                         precision: None,
+                        doc: "",
                     },
                     FieldInfo {
                         owner_type_id: TypeId::of::<Self>(),
@@ -72,7 +77,7 @@ macro_rules! define_two_args_node {
                         min_value: None,
                         max_value: None,
                         step: None,
-                        precision: None,
+                        precision: None,doc: "",
                     },
                 ])
             }
@@ -179,6 +184,10 @@ impl Reflect for NotNode {
         type_name::<Self>()
     }
 
+    fn doc(&self) -> &'static str {
+        ""
+    }
+
     fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
         func(vec![FieldInfo {
             owner_type_id: TypeId::of::<Self>(),
@@ -193,6 +202,7 @@ impl Reflect for NotNode {
             max_value: None,
             step: None,
             precision: None,
+            doc: "",
         }])
     }
 
