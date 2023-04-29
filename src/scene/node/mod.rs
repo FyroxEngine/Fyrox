@@ -311,12 +311,14 @@ impl DerefMut for Node {
 macro_rules! define_is_as {
     ($typ:ty => fn $is:ident, fn $as_ref:ident, fn $as_mut:ident) => {
         /// Returns true if node is instance of given type.
+        #[inline]
         pub fn $is(&self) -> bool {
             self.cast::<$typ>().is_some()
         }
 
         /// Tries to cast shared reference to a node to given type, panics if
         /// cast is not possible.
+        #[inline]
         pub fn $as_ref(&self) -> &$typ {
             self.cast::<$typ>()
                 .unwrap_or_else(|| panic!("Cast to {} failed!", stringify!($kind)))
@@ -324,6 +326,7 @@ macro_rules! define_is_as {
 
         /// Tries to cast mutable reference to a node to given type, panics if
         /// cast is not possible.
+        #[inline]
         pub fn $as_mut(&mut self) -> &mut $typ {
             self.cast_mut::<$typ>()
                 .unwrap_or_else(|| panic!("Cast to {} failed!", stringify!($kind)))
@@ -333,6 +336,7 @@ macro_rules! define_is_as {
 
 impl Node {
     /// Creates a new node instance from any type that implements [`NodeTrait`].
+    #[inline]
     pub fn new<T: NodeTrait>(node: T) -> Self {
         Self(Box::new(node))
     }
@@ -349,6 +353,7 @@ impl Node {
     ///     node.cast::<Mesh>().expect("Expected to be an instance of Mesh")
     /// }
     /// ```
+    #[inline]
     pub fn cast<T: NodeTrait>(&self) -> Option<&T> {
         self.0.as_any_ref().downcast_ref::<T>()
     }
@@ -365,6 +370,7 @@ impl Node {
     ///     node.cast_mut::<Mesh>().expect("Expected to be an instance of Mesh")
     /// }
     /// ```
+    #[inline]
     pub fn cast_mut<T: NodeTrait>(&mut self) -> Option<&mut T> {
         self.0.as_any_ref_mut().downcast_mut::<T>()
     }
@@ -387,6 +393,7 @@ impl Node {
     /// ```
     ///
     /// Some nodes could also provide access to inner components, check documentation of a node.
+    #[inline]
     pub fn query_component_ref<T>(&self) -> Option<&T>
     where
         T: 'static,
@@ -414,6 +421,7 @@ impl Node {
     /// ```
     ///
     /// Some nodes could also provide access to inner components, check documentation of a node.
+    #[inline]
     pub fn query_component_mut<T>(&mut self) -> Option<&mut T>
     where
         T: 'static,
