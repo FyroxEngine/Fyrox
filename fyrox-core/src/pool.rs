@@ -428,6 +428,15 @@ impl<T> Handle<T> {
             type_marker: PhantomData,
         }
     }
+
+    #[inline(always)]
+    pub fn transmute<U>(&self) -> Handle<U> {
+        Handle {
+            index: self.index,
+            generation: self.generation,
+            type_marker: Default::default(),
+        }
+    }
 }
 
 impl<T> Default for Pool<T>
