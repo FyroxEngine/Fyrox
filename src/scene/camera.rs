@@ -1,18 +1,4 @@
-//! Contains all methods and structures to create and manage cameras.
-//!
-//! Camera allows you to see world from specific point in world. Currently only
-//! perspective projection is supported.
-//!
-//! # Multiple cameras
-//!
-//! Fyrox supports multiple cameras per scene, it means that you can create split
-//! screen games, make picture-in-picture insertions in your main camera view and
-//! any other combinations you need.
-//!
-//! ## Performance
-//!
-//! Each camera forces engine to re-render same scene one more time, which may cause
-//! almost double load of your GPU.
+//! Contains all methods and structures to create and manage cameras. See [`Camera`] docs for more info.
 
 use crate::{
     asset::{ResourceLoadError, ResourceStateRef},
@@ -291,7 +277,29 @@ impl Default for Exposure {
     }
 }
 
-/// See module docs.
+/// Camera allows you to see world from specific point in world. You must have at least one camera in
+/// your scene to see anything.
+///
+/// ## Projection
+///
+/// There are two main projection modes supported by Camera node: perspective and orthogonal projections.
+/// Perspective projection is used primarily to display 3D scenes, while orthogonal projection could be
+/// used for both 3D and 2D. Orthogonal projection could also be used in CAD software.
+///
+/// ## Skybox
+///
+/// Skybox is a cube around the camera with six textures forming seamless "sky". It could be anything,
+/// starting from simple blue sky and ending with outer space.
+///
+/// ## Multiple cameras
+///
+/// Fyrox supports multiple cameras per scene, it means that you can create split screen games, make
+/// picture-in-picture insertions in your main camera view and any other combinations you need.
+///
+/// ## Performance
+///
+/// Each camera forces engine to re-render same scene one more time, which may cause almost double load
+/// of your GPU.
 #[derive(Debug, Visit, Reflect, Clone)]
 pub struct Camera {
     base: Base,
