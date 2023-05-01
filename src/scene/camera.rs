@@ -22,7 +22,6 @@ use crate::{
         debug::SceneDrawingContext,
         graph::Graph,
         node::{Node, NodeTrait, UpdateContext},
-        visibility::VisibilityCache,
     },
 };
 use std::{
@@ -335,11 +334,6 @@ pub struct Camera {
     #[visit(skip)]
     #[reflect(hidden)]
     projection_matrix: Matrix4<f32>,
-
-    /// Visibility cache allows you to quickly check if object is visible from the camera or not.
-    #[visit(skip)]
-    #[reflect(hidden)]
-    pub visibility_cache: VisibilityCache,
 }
 
 impl Deref for Camera {
@@ -625,18 +619,6 @@ impl NodeTrait for Camera {
 
     fn update(&mut self, context: &mut UpdateContext) {
         self.calculate_matrices(context.frame_size);
-
-        self.visibility_cache.clear();
-        self.visibility_cache.update(
-            context.nodes,
-            self.global_position(),
-            self.projection().z_near(),
-            self.projection().z_far(),
-            Some(&[
-                &Frustum::from_view_projection_matrix(self.view_projection_matrix())
-                    .unwrap_or_default(),
-            ]),
-        );
     }
 
     fn debug_draw(&self, ctx: &mut SceneDrawingContext) {
@@ -946,7 +928,6 @@ impl CameraBuilder {
             // recalculated before rendering.
             view_matrix: Matrix4::identity(),
             projection_matrix: Matrix4::identity(),
-            visibility_cache: Default::default(),
             sky_box: self.skybox.into(),
             environment: self.environment.into(),
             exposure: self.exposure.into(),

@@ -26,7 +26,6 @@ pub mod sound;
 pub mod sprite;
 pub mod terrain;
 pub mod transform;
-pub mod visibility;
 
 use crate::{
     asset::{manager::ResourceManager, untyped::UntypedResource},
