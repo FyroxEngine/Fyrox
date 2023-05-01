@@ -128,6 +128,26 @@ impl RenderDataBatchStorage {
             batches: Vec::with_capacity(capacity),
         };
 
+        let mut lod_filter = vec![true; graph.capacity() as usize];
+        for node in graph.linear_iter() {
+            if let Some(lod_group) = node.lod_group() {
+                for level in lod_group.levels.iter() {
+                    for &object in level.objects.iter() {
+                        if let Some(object_ref) = graph.try_get(*object) {
+                            let distance = observer_info
+                                .observer_position
+                                .metric_distance(&object_ref.global_position());
+                            let z_range = observer_info.z_far - observer_info.z_near;
+                            let normalized_distance = (distance - observer_info.z_near) / z_range;
+                            let visible = normalized_distance >= level.begin()
+                                && normalized_distance <= level.end();
+                            lod_filter[object.index() as usize] = visible;
+                        }
+                    }
+                }
+            }
+        }
+
         let frustum = Frustum::from_view_projection_matrix(
             observer_info.projection_matrix * observer_info.view_matrix,
         )
@@ -145,8 +165,10 @@ impl RenderDataBatchStorage {
             render_pass_name: &render_pass_name,
         };
 
-        for node in graph.linear_iter() {
-            node.collect_render_data(&mut ctx);
+        for (handle, node) in graph.pair_iter() {
+            if lod_filter[handle.index() as usize] {
+                node.collect_render_data(&mut ctx);
+            }
         }
 
         storage.sort();
