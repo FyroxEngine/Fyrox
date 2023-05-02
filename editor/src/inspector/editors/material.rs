@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::{Message, MessageDirection};
 use fyrox::{
     asset::core::pool::Handle,
@@ -25,7 +26,6 @@ use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -40,7 +40,7 @@ impl MaterialFieldMessage {
 #[derive(Clone)]
 pub struct MaterialFieldEditor {
     widget: Widget,
-    sender: Sender<Message>,
+    sender: MessageSender,
     text: Handle<UiNode>,
     edit: Handle<UiNode>,
     make_unique: Handle<UiNode>,
@@ -82,8 +82,7 @@ impl Control for MaterialFieldEditor {
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.edit {
                 self.sender
-                    .send(Message::OpenMaterialEditor(self.material.clone()))
-                    .unwrap();
+                    .send(Message::OpenMaterialEditor(self.material.clone()));
             } else if message.destination() == self.make_unique {
                 ui.send_message(MaterialFieldMessage::material(
                     self.handle,
@@ -127,7 +126,7 @@ impl MaterialFieldEditorBuilder {
     pub fn build(
         self,
         ctx: &mut BuildContext,
-        sender: Sender<Message>,
+        sender: MessageSender,
         material: SharedMaterial,
     ) -> Handle<UiNode> {
         let edit;
@@ -205,7 +204,7 @@ impl MaterialFieldEditorBuilder {
 
 #[derive(Debug)]
 pub struct MaterialPropertyEditorDefinition {
-    pub sender: Mutex<Sender<Message>>,
+    pub sender: Mutex<MessageSender>,
 }
 
 impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {

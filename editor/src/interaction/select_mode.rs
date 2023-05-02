@@ -1,21 +1,21 @@
 use crate::{
     interaction::InteractionMode,
+    message::MessageSender,
     scene::{commands::ChangeSelectionCommand, EditorScene, Selection},
     settings::Settings,
     world::graph::selection::GraphSelection,
-    Engine, Message,
+    Engine,
 };
 use fyrox::{
     core::{algebra::Vector2, pool::Handle},
     gui::{message::MessageDirection, widget::WidgetMessage, UiNode},
     scene::node::Node,
 };
-use std::sync::mpsc::Sender;
 
 pub struct SelectInteractionMode {
     preview: Handle<UiNode>,
     selection_frame: Handle<UiNode>,
-    message_sender: Sender<Message>,
+    message_sender: MessageSender,
     stack: Vec<Handle<Node>>,
     click_pos: Vector2<f32>,
 }
@@ -24,7 +24,7 @@ impl SelectInteractionMode {
     pub fn new(
         preview: Handle<UiNode>,
         selection_frame: Handle<UiNode>,
-        message_sender: Sender<Message>,
+        message_sender: MessageSender,
     ) -> Self {
         Self {
             preview,
@@ -117,11 +117,10 @@ impl InteractionMode for SelectInteractionMode {
 
         if new_selection != editor_scene.selection {
             self.message_sender
-                .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                .do_scene_command(ChangeSelectionCommand::new(
                     new_selection,
                     editor_scene.selection.clone(),
-                )))
-                .unwrap();
+                ));
         }
         engine
             .user_interface

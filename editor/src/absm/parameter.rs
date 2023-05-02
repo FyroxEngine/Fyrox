@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::{
     absm::command::parameter::make_set_parameters_property_command,
     inspector::editors::make_property_editors_container, Message, MessageDirection, MSG_SYNC_FLAG,
@@ -23,7 +24,7 @@ use fyrox::{
     },
     scene::{animation::absm::AnimationBlendingStateMachine, node::Node},
 };
-use std::{rc::Rc, sync::mpsc::Sender};
+use std::rc::Rc;
 
 pub struct ParameterPanel {
     pub window: Handle<UiNode>,
@@ -32,7 +33,7 @@ pub struct ParameterPanel {
 }
 
 impl ParameterPanel {
-    pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
+    pub fn new(ctx: &mut BuildContext, sender: MessageSender) -> Self {
         let property_editors = make_property_editors_container(sender);
         property_editors
             .insert(VecCollectionPropertyEditorDefinition::<ParameterDefinition>::new());
@@ -124,7 +125,7 @@ impl ParameterPanel {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
         absm_node_handle: Handle<Node>,
         absm_node: &mut AnimationBlendingStateMachine,
         is_in_preview_mode: bool,
@@ -147,12 +148,9 @@ impl ParameterPanel {
                         },
                     );
                 } else {
-                    sender
-                        .send(Message::DoSceneCommand(
-                            make_set_parameters_property_command((), args, absm_node_handle)
-                                .unwrap(),
-                        ))
-                        .unwrap();
+                    sender.send(Message::DoSceneCommand(
+                        make_set_parameters_property_command((), args, absm_node_handle).unwrap(),
+                    ));
                 }
             }
         }

@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::{
     absm::{
         command::{AddLayerCommand, RemoveLayerCommand, SetLayerMaskCommand, SetLayerNameCommand},
@@ -11,7 +12,7 @@ use crate::{
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
         EditorScene, Selection,
     },
-    send_sync_message, Message,
+    send_sync_message,
 };
 use fyrox::{
     animation::machine::{LayerMask, MachineLayer},
@@ -37,7 +38,6 @@ use fyrox::{
         graph::Graph,
     },
 };
-use std::sync::mpsc::Sender;
 
 pub struct Toolbar {
     pub panel: Handle<UiNode>,
@@ -167,7 +167,7 @@ impl Toolbar {
         &mut self,
         message: &UiMessage,
         editor_scene: &EditorScene,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
         graph: &Graph,
         ui: &mut UserInterface,
     ) -> ToolbarAction {
@@ -190,25 +190,21 @@ impl Toolbar {
                 let mut new_selection = selection;
                 new_selection.layer = Some(*index);
                 new_selection.entities.clear();
-                sender
-                    .send(Message::do_scene_command(ChangeSelectionCommand::new(
-                        Selection::Absm(new_selection),
-                        editor_scene.selection.clone(),
-                    )))
-                    .unwrap();
+                sender.do_scene_command(ChangeSelectionCommand::new(
+                    Selection::Absm(new_selection),
+                    editor_scene.selection.clone(),
+                ));
             }
         } else if let Some(TextMessage::Text(text)) = message.data() {
             if message.destination() == self.layer_name
                 && message.direction() == MessageDirection::FromWidget
             {
                 if let Some(layer_index) = selection.layer {
-                    sender
-                        .send(Message::do_scene_command(SetLayerNameCommand {
-                            absm_node_handle: selection.absm_node_handle,
-                            layer_index,
-                            name: text.clone(),
-                        }))
-                        .unwrap();
+                    sender.do_scene_command(SetLayerNameCommand {
+                        absm_node_handle: selection.absm_node_handle,
+                        layer_index,
+                        name: text.clone(),
+                    });
                 }
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
@@ -222,12 +218,10 @@ impl Toolbar {
                         .text(),
                 );
 
-                sender
-                    .send(Message::do_scene_command(AddLayerCommand {
-                        absm_node_handle: selection.absm_node_handle,
-                        layer: Some(layer),
-                    }))
-                    .unwrap();
+                sender.do_scene_command(AddLayerCommand {
+                    absm_node_handle: selection.absm_node_handle,
+                    layer: Some(layer),
+                });
             } else if message.destination() == self.edit_mask {
                 let mut root = HierarchyNode {
                     name: "root".to_string(),
@@ -323,9 +317,7 @@ impl Toolbar {
                             layer_index,
                         )));
 
-                        sender
-                            .send(Message::do_scene_command(CommandGroup::from(commands)))
-                            .unwrap();
+                        sender.do_scene_command(CommandGroup::from(commands));
                     }
                 }
             }
@@ -335,13 +327,11 @@ impl Toolbar {
             {
                 if let Some(layer_index) = selection.layer {
                     let new_mask = LayerMask::from(mask_selection.to_vec());
-                    sender
-                        .send(Message::do_scene_command(SetLayerMaskCommand {
-                            absm_node_handle: selection.absm_node_handle,
-                            layer_index,
-                            mask: new_mask,
-                        }))
-                        .unwrap();
+                    sender.do_scene_command(SetLayerMaskCommand {
+                        absm_node_handle: selection.absm_node_handle,
+                        layer_index,
+                        mask: new_mask,
+                    });
 
                     ui.send_message(WidgetMessage::remove(
                         self.node_selector,

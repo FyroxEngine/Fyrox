@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::{
     absm::{
         canvas::{AbsmCanvasBuilder, AbsmCanvasMessage},
@@ -20,7 +21,7 @@ use crate::{
         commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
         EditorScene, Selection,
     },
-    send_sync_message, Message,
+    send_sync_message,
 };
 use fyrox::{
     animation::{
@@ -41,7 +42,7 @@ use fyrox::{
         node::Node,
     },
 };
-use std::{cmp::Ordering, sync::mpsc::Sender};
+use std::cmp::Ordering;
 
 mod context;
 
@@ -238,7 +239,7 @@ impl StateViewer {
         &mut self,
         message: &UiMessage,
         ui: &mut UserInterface,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
         absm_node_handle: Handle<Node>,
         absm_node: &AnimationBlendingStateMachine,
         layer_index: usize,
@@ -267,9 +268,7 @@ impl StateViewer {
                                 })
                                 .collect::<Vec<_>>();
 
-                            sender
-                                .send(Message::do_scene_command(CommandGroup::from(commands)))
-                                .unwrap();
+                            sender.do_scene_command(CommandGroup::from(commands));
                         }
                         AbsmCanvasMessage::SelectionChanged(selection) => {
                             if message.direction() == MessageDirection::FromWidget {
@@ -293,14 +292,10 @@ impl StateViewer {
                                 });
 
                                 if !selection.is_empty() && selection != editor_scene.selection {
-                                    sender
-                                        .send(Message::do_scene_command(
-                                            ChangeSelectionCommand::new(
-                                                selection,
-                                                editor_scene.selection.clone(),
-                                            ),
-                                        ))
-                                        .unwrap();
+                                    sender.do_scene_command(ChangeSelectionCommand::new(
+                                        selection,
+                                        editor_scene.selection.clone(),
+                                    ));
                                 }
                             }
                         }
@@ -319,43 +314,33 @@ impl StateViewer {
                             match dest_node_ref {
                                 PoseNode::PlayAnimation(_) => {}
                                 PoseNode::BlendAnimations(_) => {
-                                    sender
-                                        .send(Message::do_scene_command(
-                                            SetBlendAnimationsPoseSourceCommand {
-                                                node_handle: absm_node_handle,
-                                                layer_index,
-                                                handle: dest_node,
-                                                index: dest_socket_ref.index,
-                                                value: source_node,
-                                            },
-                                        ))
-                                        .unwrap();
+                                    sender.do_scene_command(SetBlendAnimationsPoseSourceCommand {
+                                        node_handle: absm_node_handle,
+                                        layer_index,
+                                        handle: dest_node,
+                                        index: dest_socket_ref.index,
+                                        value: source_node,
+                                    });
                                 }
                                 PoseNode::BlendAnimationsByIndex(_) => {
-                                    sender
-                                        .send(Message::do_scene_command(
-                                            SetBlendAnimationByIndexInputPoseSourceCommand {
-                                                node_handle: absm_node_handle,
-                                                layer_index,
-                                                handle: dest_node,
-                                                index: dest_socket_ref.index,
-                                                value: source_node,
-                                            },
-                                        ))
-                                        .unwrap();
+                                    sender.do_scene_command(
+                                        SetBlendAnimationByIndexInputPoseSourceCommand {
+                                            node_handle: absm_node_handle,
+                                            layer_index,
+                                            handle: dest_node,
+                                            index: dest_socket_ref.index,
+                                            value: source_node,
+                                        },
+                                    );
                                 }
                                 PoseNode::BlendSpace(_) => {
-                                    sender
-                                        .send(Message::do_scene_command(
-                                            SetBlendSpacePoseSourceCommand {
-                                                node_handle: absm_node_handle,
-                                                layer_index,
-                                                handle: dest_node,
-                                                index: dest_socket_ref.index,
-                                                value: source_node,
-                                            },
-                                        ))
-                                        .unwrap();
+                                    sender.do_scene_command(SetBlendSpacePoseSourceCommand {
+                                        node_handle: absm_node_handle,
+                                        layer_index,
+                                        handle: dest_node,
+                                        index: dest_socket_ref.index,
+                                        value: source_node,
+                                    });
                                 }
                             }
                         }

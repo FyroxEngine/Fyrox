@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::{Engine, Message};
 use fyrox::gui::text::TextMessage;
 use fyrox::{
@@ -27,7 +28,6 @@ use fyrox::{
 use std::{
     env,
     path::{Path, PathBuf},
-    sync::mpsc::Sender,
 };
 
 #[derive(Default, Eq, PartialEq, Visit)]
@@ -42,7 +42,7 @@ pub struct Configurator {
     work_dir_browser: Handle<UiNode>,
     select_work_dir: Handle<UiNode>,
     ok: Handle<UiNode>,
-    sender: Sender<Message>,
+    sender: MessageSender,
     work_dir: PathBuf,
     tb_work_dir: Handle<UiNode>,
     lv_history: Handle<UiNode>,
@@ -70,7 +70,7 @@ fn make_history_entry_widget(ctx: &mut BuildContext, entry: &HistoryEntry) -> Ha
 }
 
 impl Configurator {
-    pub fn new(sender: Sender<Message>, ctx: &mut BuildContext) -> Self {
+    pub fn new(sender: MessageSender, ctx: &mut BuildContext) -> Self {
         let select_work_dir;
         let ok;
         let tb_work_dir;
@@ -296,11 +296,9 @@ impl Configurator {
             }
         } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.ok {
-                self.sender
-                    .send(Message::Configure {
-                        working_directory: self.work_dir.clone(),
-                    })
-                    .unwrap();
+                self.sender.send(Message::Configure {
+                    working_directory: self.work_dir.clone(),
+                });
 
                 let new_entry = HistoryEntry {
                     work_dir: self.work_dir.clone(),

@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::{
     command::Command,
     define_universal_commands,
@@ -15,7 +16,7 @@ use fyrox::{
 };
 use std::{
     ops::{Deref, DerefMut},
-    sync::{mpsc::Sender, Arc},
+    sync::Arc,
 };
 
 pub mod effect;
@@ -42,7 +43,7 @@ macro_rules! get_set_swap {
 pub struct SceneContext<'a> {
     pub editor_scene: &'a mut EditorScene,
     pub scene: &'a mut Scene,
-    pub message_sender: Sender<Message>,
+    pub message_sender: MessageSender,
     pub resource_manager: ResourceManager,
     pub serialization_context: Arc<SerializationContext>,
 }
@@ -205,8 +206,7 @@ impl Command for ChangeSelectionCommand {
             context.editor_scene.selection = new_selection;
             context
                 .message_sender
-                .send(Message::SelectionChanged { old_selection })
-                .unwrap();
+                .send(Message::SelectionChanged { old_selection });
         }
     }
 
@@ -217,8 +217,7 @@ impl Command for ChangeSelectionCommand {
             context.editor_scene.selection = new_selection;
             context
                 .message_sender
-                .send(Message::SelectionChanged { old_selection })
-                .unwrap();
+                .send(Message::SelectionChanged { old_selection });
         }
     }
 }

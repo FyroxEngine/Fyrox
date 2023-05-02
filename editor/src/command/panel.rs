@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::{
     command::CommandStack, gui::make_image_button_with_tooltip, load_image,
     scene::commands::SceneContext, send_sync_message, utils::window_content, Message, Mode,
@@ -18,19 +19,18 @@ use fyrox::{
         BuildContext, Orientation, Thickness, UiNode, UserInterface,
     },
 };
-use std::sync::mpsc::Sender;
 
 pub struct CommandStackViewer {
     pub window: Handle<UiNode>,
     list: Handle<UiNode>,
-    sender: Sender<Message>,
+    sender: MessageSender,
     undo: Handle<UiNode>,
     redo: Handle<UiNode>,
     clear: Handle<UiNode>,
 }
 
 impl CommandStackViewer {
-    pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
+    pub fn new(ctx: &mut BuildContext, sender: MessageSender) -> Self {
         let list;
         let undo;
         let redo;
@@ -118,11 +118,11 @@ impl CommandStackViewer {
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.undo {
-                self.sender.send(Message::UndoSceneCommand).unwrap();
+                self.sender.send(Message::UndoSceneCommand);
             } else if message.destination() == self.redo {
-                self.sender.send(Message::RedoSceneCommand).unwrap();
+                self.sender.send(Message::RedoSceneCommand);
             } else if message.destination() == self.clear {
-                self.sender.send(Message::ClearSceneCommandStack).unwrap();
+                self.sender.send(Message::ClearSceneCommandStack);
             }
         }
     }

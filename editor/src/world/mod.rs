@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::{
     gui::make_image_button_with_tooltip,
     load_image,
@@ -47,14 +48,14 @@ use fyrox::{
     },
     scene::{graph::Graph, node::Node, Scene},
 };
-use std::{any::TypeId, cmp::Ordering, collections::HashMap, sync::mpsc::Sender};
+use std::{any::TypeId, cmp::Ordering, collections::HashMap};
 
 pub mod graph;
 
 pub struct WorldViewer {
     pub window: Handle<UiNode>,
     tree_root: Handle<UiNode>,
-    sender: Sender<Message>,
+    sender: MessageSender,
     track_selection: Handle<UiNode>,
     search_bar: Handle<UiNode>,
     filter: String,
@@ -151,7 +152,7 @@ fn colorize(handle: Handle<UiNode>, ui: &UserInterface, index: &mut usize) {
 }
 
 impl WorldViewer {
-    pub fn new(ctx: &mut BuildContext, sender: Sender<Message>, settings: &Settings) -> Self {
+    pub fn new(ctx: &mut BuildContext, sender: MessageSender, settings: &Settings) -> Self {
         let small_font = SharedFont::new(
             FontBuilder::new()
                 .with_height(11.0)
@@ -599,14 +600,10 @@ impl WorldViewer {
                     .try_get_node(view)
                     .and_then(|n| n.cast::<SceneItem<Node>>())
                 {
-                    self.sender
-                        .send(Message::do_scene_command(ChangeSelectionCommand::new(
-                            Selection::Graph(GraphSelection::single_or_empty(
-                                graph_node.entity_handle,
-                            )),
-                            editor_scene.selection.clone(),
-                        )))
-                        .unwrap();
+                    self.sender.do_scene_command(ChangeSelectionCommand::new(
+                        Selection::Graph(GraphSelection::single_or_empty(graph_node.entity_handle)),
+                        editor_scene.selection.clone(),
+                    ));
                 } else {
                     // Rest are not handled intentionally because other entities cannot have
                     // hierarchy and thus there is no need to change selection when we already
@@ -643,8 +640,7 @@ impl WorldViewer {
                 && message.direction == MessageDirection::FromWidget
             {
                 self.sender
-                    .send(Message::SetWorldViewerFilter(text.clone()))
-                    .unwrap();
+                    .send(Message::SetWorldViewerFilter(text.clone()));
             }
         }
     }
@@ -707,12 +703,10 @@ impl WorldViewer {
         }
 
         if new_selection != editor_scene.selection {
-            self.sender
-                .send(Message::do_scene_command(ChangeSelectionCommand::new(
-                    new_selection,
-                    editor_scene.selection.clone(),
-                )))
-                .unwrap();
+            self.sender.do_scene_command(ChangeSelectionCommand::new(
+                new_selection,
+                editor_scene.selection.clone(),
+            ));
         }
     }
 
@@ -762,9 +756,7 @@ impl WorldViewer {
                         }
 
                         if !commands.is_empty() {
-                            self.sender
-                                .send(Message::do_scene_command(CommandGroup::from(commands)))
-                                .unwrap();
+                            self.sender.do_scene_command(CommandGroup::from(commands));
                         }
                     }
                 }

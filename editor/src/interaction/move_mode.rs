@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::{
     camera::{CameraController, PickingOptions},
     interaction::{
@@ -26,7 +27,6 @@ use fyrox::{
         Scene,
     },
 };
-use std::sync::mpsc::Sender;
 
 struct Entry {
     node: Handle<Node>,
@@ -257,14 +257,14 @@ impl MoveContext {
 pub struct MoveInteractionMode {
     move_context: Option<MoveContext>,
     move_gizmo: MoveGizmo,
-    message_sender: Sender<Message>,
+    message_sender: MessageSender,
 }
 
 impl MoveInteractionMode {
     pub fn new(
         editor_scene: &EditorScene,
         engine: &mut Engine,
-        message_sender: Sender<Message>,
+        message_sender: MessageSender,
     ) -> Self {
         Self {
             move_context: None,
@@ -358,8 +358,7 @@ impl InteractionMode for MoveInteractionMode {
 
                 // Commit changes.
                 self.message_sender
-                    .send(Message::DoSceneCommand(SceneCommand::new(commands)))
-                    .unwrap();
+                    .send(Message::DoSceneCommand(SceneCommand::new(commands)));
             }
         } else {
             let new_selection = editor_scene
@@ -391,11 +390,10 @@ impl InteractionMode for MoveInteractionMode {
 
             if new_selection != editor_scene.selection {
                 self.message_sender
-                    .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                    .do_scene_command(ChangeSelectionCommand::new(
                         new_selection,
                         editor_scene.selection.clone(),
-                    )))
-                    .unwrap();
+                    ));
             }
         }
     }

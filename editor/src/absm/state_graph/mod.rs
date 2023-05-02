@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::{
     absm::{
         canvas::{AbsmCanvas, AbsmCanvasBuilder, AbsmCanvasMessage},
@@ -13,7 +14,7 @@ use crate::{
         commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
         EditorScene, Selection,
     },
-    send_sync_message, Message,
+    send_sync_message,
 };
 use fyrox::{
     animation::machine::{MachineLayer, State, Transition},
@@ -27,7 +28,7 @@ use fyrox::{
     },
     scene::{animation::absm::AnimationBlendingStateMachine, node::Node},
 };
-use std::{cmp::Ordering, sync::mpsc::Sender};
+use std::cmp::Ordering;
 
 mod context;
 
@@ -131,7 +132,7 @@ impl StateGraphViewer {
         &mut self,
         message: &UiMessage,
         ui: &mut UserInterface,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
         absm_node_handle: Handle<Node>,
         absm_node: &AnimationBlendingStateMachine,
         layer_index: usize,
@@ -148,13 +149,11 @@ impl StateGraphViewer {
                             let source = fetch_state_node_model_handle(*source, ui);
                             let dest = fetch_state_node_model_handle(*dest, ui);
 
-                            sender
-                                .send(Message::do_scene_command(AddTransitionCommand::new(
-                                    absm_node_handle,
-                                    layer_index,
-                                    Transition::new("Transition", source, dest, 1.0, ""),
-                                )))
-                                .unwrap();
+                            sender.do_scene_command(AddTransitionCommand::new(
+                                absm_node_handle,
+                                layer_index,
+                                Transition::new("Transition", source, dest, 1.0, ""),
+                            ));
                         }
                     }
                     AbsmCanvasMessage::CommitDrag { entries } => {
@@ -174,9 +173,7 @@ impl StateGraphViewer {
                             })
                             .collect::<Vec<_>>();
 
-                        sender
-                            .send(Message::do_scene_command(CommandGroup::from(commands)))
-                            .unwrap();
+                        sender.do_scene_command(CommandGroup::from(commands));
                     }
                     AbsmCanvasMessage::SelectionChanged(selection) => {
                         if message.direction() == MessageDirection::FromWidget {
@@ -206,12 +203,10 @@ impl StateGraphViewer {
                             });
 
                             if !selection.is_empty() && selection != editor_scene.selection {
-                                sender
-                                    .send(Message::do_scene_command(ChangeSelectionCommand::new(
-                                        selection,
-                                        editor_scene.selection.clone(),
-                                    )))
-                                    .unwrap();
+                                sender.do_scene_command(ChangeSelectionCommand::new(
+                                    selection,
+                                    editor_scene.selection.clone(),
+                                ));
                             }
                         }
                     }

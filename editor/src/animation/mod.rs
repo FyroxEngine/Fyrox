@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::{
     animation::{
         command::{
@@ -30,7 +31,6 @@ use fyrox::{
     },
     scene::{animation::AnimationPlayer, node::Node, Scene},
 };
-use std::sync::mpsc::Sender;
 
 pub mod command;
 mod ruler;
@@ -178,7 +178,7 @@ impl AnimationEditor {
         message: &UiMessage,
         editor_scene: Option<&mut EditorScene>,
         engine: &mut Engine,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
     ) {
         if let Some(editor_scene) = editor_scene {
             let selection = fetch_selection(&editor_scene.selection);
@@ -212,13 +212,11 @@ impl AnimationEditor {
                         let ui = &engine.user_interface;
                         match msg {
                             CurveEditorMessage::Sync(curve) => {
-                                sender
-                                    .send(Message::do_scene_command(ReplaceTrackCurveCommand {
-                                        animation_player: selection.animation_player,
-                                        animation: selection.animation,
-                                        curve: curve.clone(),
-                                    }))
-                                    .unwrap();
+                                sender.do_scene_command(ReplaceTrackCurveCommand {
+                                    animation_player: selection.animation_player,
+                                    animation: selection.animation,
+                                    curve: curve.clone(),
+                                });
                             }
                             CurveEditorMessage::ViewPosition(position) => {
                                 ui.send_message(RulerMessage::view_position(
@@ -265,58 +263,50 @@ impl AnimationEditor {
                                 }
                             }
                             RulerMessage::AddSignal(time) => {
-                                sender
-                                    .send(Message::do_scene_command(AddAnimationSignal {
-                                        animation_player_handle: selection.animation_player,
-                                        animation_handle: selection.animation,
-                                        signal: Some(AnimationSignal {
-                                            id: Uuid::new_v4(),
-                                            name: "Unnamed".to_string(),
-                                            time: *time,
-                                            enabled: true,
-                                        }),
-                                    }))
-                                    .unwrap();
+                                sender.do_scene_command(AddAnimationSignal {
+                                    animation_player_handle: selection.animation_player,
+                                    animation_handle: selection.animation,
+                                    signal: Some(AnimationSignal {
+                                        id: Uuid::new_v4(),
+                                        name: "Unnamed".to_string(),
+                                        time: *time,
+                                        enabled: true,
+                                    }),
+                                });
                             }
                             RulerMessage::RemoveSignal(id) => {
                                 if let Some(animation) =
                                     animation_player.animations().try_get(selection.animation)
                                 {
-                                    sender
-                                        .send(Message::do_scene_command(RemoveAnimationSignal {
-                                            animation_player_handle: selection.animation_player,
-                                            animation_handle: selection.animation,
-                                            signal_index: animation
-                                                .signals()
-                                                .iter()
-                                                .position(|s| s.id == *id)
-                                                .unwrap(),
-                                            signal: None,
-                                        }))
-                                        .unwrap()
+                                    sender.do_scene_command(RemoveAnimationSignal {
+                                        animation_player_handle: selection.animation_player,
+                                        animation_handle: selection.animation,
+                                        signal_index: animation
+                                            .signals()
+                                            .iter()
+                                            .position(|s| s.id == *id)
+                                            .unwrap(),
+                                        signal: None,
+                                    })
                                 }
                             }
                             RulerMessage::MoveSignal { id, new_position } => {
-                                sender
-                                    .send(Message::do_scene_command(MoveAnimationSignal {
-                                        animation_player_handle: selection.animation_player,
-                                        animation_handle: selection.animation,
-                                        signal: *id,
-                                        time: *new_position,
-                                    }))
-                                    .unwrap();
+                                sender.do_scene_command(MoveAnimationSignal {
+                                    animation_player_handle: selection.animation_player,
+                                    animation_handle: selection.animation,
+                                    signal: *id,
+                                    time: *new_position,
+                                });
                             }
                             RulerMessage::SelectSignal(id) => {
-                                sender
-                                    .send(Message::do_scene_command(ChangeSelectionCommand::new(
-                                        Selection::Animation(AnimationSelection {
-                                            animation_player: selection.animation_player,
-                                            animation: selection.animation,
-                                            entities: vec![SelectedEntity::Signal(*id)],
-                                        }),
-                                        editor_scene.selection.clone(),
-                                    )))
-                                    .unwrap();
+                                sender.do_scene_command(ChangeSelectionCommand::new(
+                                    Selection::Animation(AnimationSelection {
+                                        animation_player: selection.animation_player,
+                                        animation: selection.animation,
+                                        entities: vec![SelectedEntity::Signal(*id)],
+                                    }),
+                                    editor_scene.selection.clone(),
+                                ));
                             }
                             _ => (),
                         }

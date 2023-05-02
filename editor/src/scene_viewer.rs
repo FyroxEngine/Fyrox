@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::{
     camera::PickingOptions, gui::make_dropdown_list_option,
     gui::make_dropdown_list_option_with_height, load_image, send_sync_message,
@@ -48,7 +49,6 @@ use fyrox::{
     },
     utils::into_gui_texture,
 };
-use std::sync::mpsc::Sender;
 
 struct PreviewInstance {
     instance: Handle<Node>,
@@ -72,7 +72,7 @@ pub struct SceneViewer {
     play: Handle<UiNode>,
     stop: Handle<UiNode>,
     build_profile: Handle<UiNode>,
-    sender: Sender<Message>,
+    sender: MessageSender,
     interaction_mode_panel: Handle<UiNode>,
     contextual_actions: Handle<UiNode>,
     global_position_display: Handle<UiNode>,
@@ -123,7 +123,7 @@ fn make_interaction_mode_button(
 }
 
 impl SceneViewer {
-    pub fn new(engine: &mut Engine, sender: Sender<Message>) -> Self {
+    pub fn new(engine: &mut Engine, sender: MessageSender) -> Self {
         let ctx = &mut engine.user_interface.build_ctx();
 
         let select_mode_tooltip = "Select Object(s) - Shortcut: [1]\n\nSelection interaction mode \
@@ -504,32 +504,26 @@ impl SceneViewer {
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.scale_mode {
                 self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Scale))
-                    .unwrap();
+                    .send(Message::SetInteractionMode(InteractionModeKind::Scale));
             } else if message.destination() == self.rotate_mode {
                 self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Rotate))
-                    .unwrap();
+                    .send(Message::SetInteractionMode(InteractionModeKind::Rotate));
             } else if message.destination() == self.move_mode {
                 self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Move))
-                    .unwrap();
+                    .send(Message::SetInteractionMode(InteractionModeKind::Move));
             } else if message.destination() == self.select_mode {
                 self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Select))
-                    .unwrap();
+                    .send(Message::SetInteractionMode(InteractionModeKind::Select));
             } else if message.destination() == self.navmesh_mode {
                 self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Navmesh))
-                    .unwrap();
+                    .send(Message::SetInteractionMode(InteractionModeKind::Navmesh));
             } else if message.destination() == self.terrain_mode {
                 self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Terrain))
-                    .unwrap();
+                    .send(Message::SetInteractionMode(InteractionModeKind::Terrain));
             } else if message.destination() == self.play {
-                self.sender.send(Message::SwitchToBuildMode).unwrap();
+                self.sender.send(Message::SwitchToBuildMode);
             } else if message.destination() == self.stop {
-                self.sender.send(Message::SwitchToEditMode).unwrap();
+                self.sender.send(Message::SwitchToEditMode);
             }
         } else if let Some(WidgetMessage::MouseDown { button, .. }) =
             message.data::<WidgetMessage>()
@@ -537,33 +531,27 @@ impl SceneViewer {
             if ui.is_node_child_of(message.destination(), self.move_mode)
                 && *button == MouseButton::Right
             {
-                self.sender.send(Message::OpenSettings).unwrap();
+                self.sender.send(Message::OpenSettings);
             }
         } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
             if message.direction == MessageDirection::FromWidget {
                 if message.destination() == self.camera_projection {
                     if *index == 0 {
-                        self.sender
-                            .send(Message::SetEditorCameraProjection(Projection::Perspective(
-                                Default::default(),
-                            )))
-                            .unwrap()
+                        self.sender.send(Message::SetEditorCameraProjection(
+                            Projection::Perspective(Default::default()),
+                        ))
                     } else {
-                        self.sender
-                            .send(Message::SetEditorCameraProjection(
-                                Projection::Orthographic(Default::default()),
-                            ))
-                            .unwrap()
+                        self.sender.send(Message::SetEditorCameraProjection(
+                            Projection::Orthographic(Default::default()),
+                        ))
                     }
                 } else if message.destination() == self.build_profile {
                     if *index == 0 {
                         self.sender
-                            .send(Message::SetBuildProfile(BuildProfile::Debug))
-                            .unwrap();
+                            .send(Message::SetBuildProfile(BuildProfile::Debug));
                     } else {
                         self.sender
-                            .send(Message::SetBuildProfile(BuildProfile::Release))
-                            .unwrap();
+                            .send(Message::SetBuildProfile(BuildProfile::Release));
                     }
                 }
             }
@@ -976,9 +964,7 @@ impl SceneViewer {
                                 )),
                             ];
 
-                            self.sender
-                                .send(Message::do_scene_command(CommandGroup::from(group)))
-                                .unwrap();
+                            self.sender.do_scene_command(CommandGroup::from(group));
                         }
                     }
                     AssetKind::Texture => {
@@ -1004,11 +990,10 @@ impl SceneViewer {
                                     &mut engine.scenes[editor_scene.scene].graph[result.node];
 
                                 if node.is_mesh() {
-                                    self.sender
-                                        .send(Message::do_scene_command(
-                                            SetMeshTextureCommand::new(result.node, tex),
-                                        ))
-                                        .unwrap();
+                                    self.sender.do_scene_command(SetMeshTextureCommand::new(
+                                        result.node,
+                                        tex,
+                                    ));
                                 }
                             }
                         }

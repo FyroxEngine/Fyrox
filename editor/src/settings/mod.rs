@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::{
     inspector::editors::make_property_editors_container,
     settings::{
@@ -6,7 +7,7 @@ use crate::{
         navmesh::NavmeshSettings, recent::RecentFiles, rotate_mode::RotateInteractionModeSettings,
         selection::SelectionSettings,
     },
-    Engine, Message, MSG_SYNC_FLAG,
+    Engine, MSG_SYNC_FLAG,
 };
 use fyrox::{
     core::{log::Log, pool::Handle, reflect::prelude::*, scope_profile},
@@ -33,7 +34,7 @@ use fyrox::{
 };
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
-use std::{fs::File, path::PathBuf, rc::Rc, sync::mpsc::Sender};
+use std::{fs::File, path::PathBuf, rc::Rc};
 
 pub mod camera;
 pub mod debugging;
@@ -113,7 +114,7 @@ impl Settings {
     }
 
     fn make_property_editors_container(
-        sender: Sender<Message>,
+        sender: MessageSender,
     ) -> Rc<PropertyEditorDefinitionContainer> {
         let container = make_property_editors_container(sender);
 
@@ -217,7 +218,7 @@ impl SettingsWindow {
         }
     }
 
-    pub fn open(&self, ui: &mut UserInterface, settings: &Settings, sender: &Sender<Message>) {
+    pub fn open(&self, ui: &mut UserInterface, settings: &Settings, sender: &MessageSender) {
         ui.send_message(WindowMessage::open(
             self.window,
             MessageDirection::ToWidget,
@@ -227,7 +228,7 @@ impl SettingsWindow {
         self.sync_to_model(ui, settings, sender);
     }
 
-    fn sync_to_model(&self, ui: &mut UserInterface, settings: &Settings, sender: &Sender<Message>) {
+    fn sync_to_model(&self, ui: &mut UserInterface, settings: &Settings, sender: &MessageSender) {
         let context = InspectorContext::from_object(
             settings,
             &mut ui.build_ctx(),
@@ -250,7 +251,7 @@ impl SettingsWindow {
         message: &UiMessage,
         engine: &mut Engine,
         settings: &mut Settings,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
     ) {
         scope_profile!();
 

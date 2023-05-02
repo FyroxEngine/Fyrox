@@ -1,16 +1,16 @@
-use crate::camera::PickingOptions;
-use crate::scene::commands::SceneCommand;
-use crate::world::graph::selection::GraphSelection;
 use crate::{
+    camera::PickingOptions,
     interaction::{
         calculate_gizmo_distance_scaling, gizmo::scale_gizmo::ScaleGizmo, InteractionMode,
     },
+    message::MessageSender,
     scene::{
-        commands::{graph::ScaleNodeCommand, ChangeSelectionCommand, CommandGroup},
+        commands::{graph::ScaleNodeCommand, ChangeSelectionCommand, CommandGroup, SceneCommand},
         EditorScene, Selection,
     },
     settings::Settings,
-    Engine, Message,
+    world::graph::selection::GraphSelection,
+    Engine,
 };
 use fyrox::{
     core::{
@@ -19,20 +19,19 @@ use fyrox::{
     },
     scene::node::Node,
 };
-use std::sync::mpsc::Sender;
 
 pub struct ScaleInteractionMode {
     initial_scales: Vec<Vector3<f32>>,
     scale_gizmo: ScaleGizmo,
     interacting: bool,
-    message_sender: Sender<Message>,
+    message_sender: MessageSender,
 }
 
 impl ScaleInteractionMode {
     pub fn new(
         editor_scene: &EditorScene,
         engine: &mut Engine,
-        message_sender: Sender<Message>,
+        message_sender: MessageSender,
     ) -> Self {
         Self {
             initial_scales: Default::default(),
@@ -112,9 +111,7 @@ impl InteractionMode for ScaleInteractionMode {
                                 })
                                 .collect::<Vec<_>>(),
                         );
-                        self.message_sender
-                            .send(Message::do_scene_command(commands))
-                            .unwrap();
+                        self.message_sender.do_scene_command(commands);
                     }
                 }
             }
@@ -148,11 +145,10 @@ impl InteractionMode for ScaleInteractionMode {
 
             if new_selection != editor_scene.selection {
                 self.message_sender
-                    .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                    .do_scene_command(ChangeSelectionCommand::new(
                         new_selection,
                         editor_scene.selection.clone(),
-                    )))
-                    .unwrap();
+                    ));
             }
         }
     }

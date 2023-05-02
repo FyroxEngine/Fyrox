@@ -4,10 +4,11 @@ use crate::{
         create::CreateEntityRootMenu, edit::EditMenu, file::FileMenu, help::HelpMenu,
         utils::UtilsMenu, view::ViewMenu,
     },
+    message::MessageSender,
     scene::EditorScene,
     send_sync_message,
     settings::Settings,
-    AbsmEditor, CurveEditorWindow, Engine, Message, Mode, SceneSettingsWindow,
+    AbsmEditor, CurveEditorWindow, Engine, Mode, SceneSettingsWindow,
 };
 use fyrox::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
@@ -18,7 +19,6 @@ use fyrox::{
         BuildContext, Thickness, UiNode, UserInterface,
     },
 };
-use std::sync::mpsc::Sender;
 
 pub mod animation;
 pub mod create;
@@ -37,7 +37,7 @@ pub struct Menu {
     edit_menu: EditMenu,
     pub file_menu: FileMenu,
     view_menu: ViewMenu,
-    message_sender: Sender<Message>,
+    message_sender: MessageSender,
     utils_menu: UtilsMenu,
     help_menu: HelpMenu,
 }
@@ -101,7 +101,7 @@ pub fn create_menu_item_shortcut(
 }
 
 impl Menu {
-    pub fn new(engine: &mut Engine, message_sender: Sender<Message>, settings: &Settings) -> Self {
+    pub fn new(engine: &mut Engine, message_sender: MessageSender, settings: &Settings) -> Self {
         let file_menu = FileMenu::new(engine, settings);
         let ctx = &mut engine.user_interface.build_ctx();
         let create_entity_menu = CreateEntityRootMenu::new(ctx);

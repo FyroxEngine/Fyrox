@@ -1,6 +1,7 @@
+use crate::message::MessageSender;
 use crate::{
     asset::inspector::handlers::ImportOptionsHandler,
-    inspector::editors::make_property_editors_container, Message, MSG_SYNC_FLAG,
+    inspector::editors::make_property_editors_container, MSG_SYNC_FLAG,
 };
 use fyrox::{
     core::pool::Handle,
@@ -17,7 +18,6 @@ use fyrox::{
     },
 };
 use std::rc::Rc;
-use std::sync::mpsc::Sender;
 
 pub mod handlers;
 
@@ -95,7 +95,7 @@ impl AssetInspector {
         &mut self,
         handler: H,
         ui: &mut UserInterface,
-        sender: Sender<Message>,
+        sender: MessageSender,
     ) where
         H: ImportOptionsHandler + 'static,
     {

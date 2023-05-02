@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::{
     make_save_file_selector,
     menu::{create::CreateEntityMenu, create_menu_item, create_menu_item_shortcut},
@@ -26,7 +27,6 @@ use fyrox::{
     },
     scene::node::Node,
 };
-use std::sync::mpsc::Sender;
 
 pub struct ItemContextMenu {
     pub menu: RcUiNodeHandle,
@@ -129,36 +129,30 @@ impl ItemContextMenu {
         message: &UiMessage,
         editor_scene: &mut EditorScene,
         engine: &Engine,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
     ) {
         scope_profile!();
 
         if let Selection::Graph(graph_selection) = &editor_scene.selection {
             if let Some(first) = graph_selection.nodes().first() {
                 if let Some(node) = self.create_entity_menu.handle_ui_message(message) {
-                    sender
-                        .send(Message::do_scene_command(AddNodeCommand::new(node, *first)))
-                        .unwrap();
+                    sender.do_scene_command(AddNodeCommand::new(node, *first));
                 } else if let Some(replacement) = self.replace_with_menu.handle_ui_message(message)
                 {
-                    sender
-                        .send(Message::do_scene_command(ReplaceNodeCommand {
-                            handle: *first,
-                            node: replacement,
-                        }))
-                        .unwrap();
+                    sender.do_scene_command(ReplaceNodeCommand {
+                        handle: *first,
+                        node: replacement,
+                    });
                 }
             }
         }
 
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.delete_selection {
-                sender
-                    .send(Message::DoSceneCommand(make_delete_selection_command(
-                        editor_scene,
-                        engine,
-                    )))
-                    .unwrap();
+                sender.send(Message::DoSceneCommand(make_delete_selection_command(
+                    editor_scene,
+                    engine,
+                )));
             } else if message.destination() == self.copy_selection {
                 if let Selection::Graph(graph_selection) = &editor_scene.selection {
                     editor_scene.clipboard.fill_from_selection(
@@ -171,9 +165,7 @@ impl ItemContextMenu {
                 if let Selection::Graph(graph_selection) = &editor_scene.selection {
                     if let Some(first) = graph_selection.nodes.first() {
                         if !editor_scene.clipboard.is_empty() {
-                            sender
-                                .send(Message::do_scene_command(PasteCommand::new(*first)))
-                                .unwrap();
+                            sender.do_scene_command(PasteCommand::new(*first));
                         }
                     }
                 }
@@ -239,9 +231,7 @@ impl ItemContextMenu {
             }
         } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
             if message.destination() == self.save_as_prefab_dialog {
-                sender
-                    .send(Message::SaveSelectionAsPrefab(path.clone()))
-                    .unwrap();
+                sender.send(Message::SaveSelectionAsPrefab(path.clone()));
             }
         }
     }

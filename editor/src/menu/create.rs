@@ -4,8 +4,9 @@ use crate::{
         animation::AnimationMenu, create_menu_item, create_root_menu_item, dim2::Dim2Menu,
         physics::PhysicsMenu, physics2d::Physics2dMenu,
     },
+    message::MessageSender,
     scene::commands::graph::AddNodeCommand,
-    Message, Mode,
+    Mode,
 };
 use fyrox::{
     core::{
@@ -42,7 +43,6 @@ use fyrox::{
     },
     utils::navmesh::Navmesh,
 };
-use std::sync::mpsc::Sender;
 
 pub struct CreateEntityRootMenu {
     pub menu: Handle<UiNode>,
@@ -61,13 +61,11 @@ impl CreateEntityRootMenu {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
         parent: Handle<Node>,
     ) {
         if let Some(node) = self.sub_menus.handle_ui_message(message) {
-            sender
-                .send(Message::do_scene_command(AddNodeCommand::new(node, parent)))
-                .unwrap();
+            sender.do_scene_command(AddNodeCommand::new(node, parent));
         }
     }
 

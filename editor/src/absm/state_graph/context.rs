@@ -10,13 +10,12 @@ use crate::{
         transition::TransitionView,
     },
     menu::create_menu_item,
+    message::MessageSender,
     scene::{
         commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
         EditorScene, Selection,
     },
-    Message,
 };
-use fyrox::gui::RcUiNodeHandle;
 use fyrox::{
     animation::machine::State,
     core::pool::Handle,
@@ -26,11 +25,10 @@ use fyrox::{
         popup::{Placement, PopupBuilder, PopupMessage},
         stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
-        BuildContext, UiNode, UserInterface,
+        BuildContext, RcUiNodeHandle, UiNode, UserInterface,
     },
     scene::{animation::absm::AnimationBlendingStateMachine, node::Node},
 };
-use std::sync::mpsc::Sender;
 
 pub struct CanvasContextMenu {
     create_state: Handle<UiNode>,
@@ -63,7 +61,7 @@ impl CanvasContextMenu {
 
     pub fn handle_ui_message(
         &mut self,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
         message: &UiMessage,
         ui: &mut UserInterface,
         absm_node_handle: Handle<Node>,
@@ -73,17 +71,15 @@ impl CanvasContextMenu {
             if message.destination() == self.create_state {
                 let screen_position = ui.node(*self.menu).screen_position();
 
-                sender
-                    .send(Message::do_scene_command(AddStateCommand::new(
-                        absm_node_handle,
-                        layer_index,
-                        State {
-                            position: ui.node(self.canvas).screen_to_local(screen_position),
-                            name: "New State".to_string(),
-                            root: Default::default(),
-                        },
-                    )))
-                    .unwrap();
+                sender.do_scene_command(AddStateCommand::new(
+                    absm_node_handle,
+                    layer_index,
+                    State {
+                        position: ui.node(self.canvas).screen_to_local(screen_position),
+                        name: "New State".to_string(),
+                        root: Default::default(),
+                    },
+                ));
             }
         }
     }
@@ -140,7 +136,7 @@ impl NodeContextMenu {
         &mut self,
         message: &UiMessage,
         ui: &mut UserInterface,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
         absm_node_handle: Handle<Node>,
         absm_node: &AnimationBlendingStateMachine,
         layer_index: usize,
@@ -212,22 +208,18 @@ impl NodeContextMenu {
                         ))
                     }));
 
-                    sender
-                        .send(Message::do_scene_command(CommandGroup::from(group)))
-                        .unwrap();
+                    sender.do_scene_command(CommandGroup::from(group));
                 }
             } else if message.destination() == self.set_as_entry_state {
-                sender
-                    .send(Message::do_scene_command(SetMachineEntryStateCommand {
-                        node_handle: absm_node_handle,
-                        layer: layer_index,
-                        entry: ui
-                            .node(self.placement_target)
-                            .query_component::<AbsmNode<State>>()
-                            .unwrap()
-                            .model_handle,
-                    }))
-                    .unwrap();
+                sender.do_scene_command(SetMachineEntryStateCommand {
+                    node_handle: absm_node_handle,
+                    layer: layer_index,
+                    entry: ui
+                        .node(self.placement_target)
+                        .query_component::<AbsmNode<State>>()
+                        .unwrap()
+                        .model_handle,
+                });
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == *self.menu {
@@ -268,7 +260,7 @@ impl TransitionContextMenu {
         &mut self,
         message: &UiMessage,
         ui: &mut UserInterface,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
         absm_node_handle: Handle<Node>,
         layer_index: usize,
         editor_scene: &EditorScene,
@@ -296,9 +288,7 @@ impl TransitionContextMenu {
                         )),
                     ];
 
-                    sender
-                        .send(Message::do_scene_command(CommandGroup::from(group)))
-                        .unwrap();
+                    sender.do_scene_command(CommandGroup::from(group));
                 }
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {

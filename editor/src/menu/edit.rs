@@ -1,16 +1,18 @@
 use crate::{
     menu::{create_menu_item_shortcut, create_root_menu_item},
+    message::MessageSender,
     scene::{commands::PasteCommand, EditorScene, Selection},
     Engine, Message, Mode,
 };
-use fyrox::gui::message::MessageDirection;
-use fyrox::gui::widget::WidgetMessage;
-use fyrox::gui::UserInterface;
 use fyrox::{
     core::pool::Handle,
-    gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
+    gui::{
+        menu::MenuItemMessage,
+        message::{MessageDirection, UiMessage},
+        widget::WidgetMessage,
+        BuildContext, UiNode, UserInterface,
+    },
 };
-use std::sync::mpsc::Sender;
 
 pub struct EditMenu {
     pub menu: Handle<UiNode>,
@@ -61,7 +63,7 @@ impl EditMenu {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
     ) {
@@ -76,16 +78,14 @@ impl EditMenu {
                 }
             } else if message.destination() == self.paste {
                 if !editor_scene.clipboard.is_empty() {
-                    sender
-                        .send(Message::do_scene_command(PasteCommand::new(
-                            engine.scenes[editor_scene.scene].graph.get_root(),
-                        )))
-                        .unwrap();
+                    sender.do_scene_command(PasteCommand::new(
+                        engine.scenes[editor_scene.scene].graph.get_root(),
+                    ));
                 }
             } else if message.destination() == self.undo {
-                sender.send(Message::UndoSceneCommand).unwrap();
+                sender.send(Message::UndoSceneCommand);
             } else if message.destination() == self.redo {
-                sender.send(Message::RedoSceneCommand).unwrap();
+                sender.send(Message::RedoSceneCommand);
             }
         }
     }

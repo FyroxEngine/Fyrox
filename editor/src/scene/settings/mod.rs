@@ -1,12 +1,9 @@
+use crate::message::MessageSender;
 use crate::{
     inspector::editors::make_property_editors_container,
     scene::settings::command::make_set_scene_property_command, EditorScene, Message,
     MessageDirection, MSG_SYNC_FLAG,
 };
-use fyrox::gui::inspector::PropertyFilter;
-use fyrox::resource::texture::TextureResource;
-use fyrox::scene::graph::NodePool;
-use fyrox::utils::lightmap::Lightmap;
 use fyrox::{
     core::pool::Handle,
     engine::Engine,
@@ -15,7 +12,7 @@ use fyrox::{
             editors::{
                 inspectable::InspectablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
             },
-            InspectorBuilder, InspectorContext, InspectorMessage,
+            InspectorBuilder, InspectorContext, InspectorMessage, PropertyFilter,
         },
         message::UiMessage,
         scroll_viewer::ScrollViewerBuilder,
@@ -23,15 +20,17 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, UiNode, UserInterface,
     },
+    resource::texture::TextureResource,
     scene::{
         dim2,
         graph::{
             physics::{IntegrationParameters, PhysicsWorld},
-            Graph,
+            Graph, NodePool,
         },
     },
+    utils::lightmap::Lightmap,
 };
-use std::{rc::Rc, sync::mpsc::Sender};
+use std::rc::Rc;
 
 mod command;
 
@@ -42,7 +41,7 @@ pub struct SceneSettingsWindow {
 }
 
 impl SceneSettingsWindow {
-    pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
+    pub fn new(ctx: &mut BuildContext, sender: MessageSender) -> Self {
         let inspector;
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(500.0))
             .with_content(
@@ -126,11 +125,11 @@ impl SceneSettingsWindow {
         ));
     }
 
-    pub fn handle_ui_message(&self, message: &UiMessage, sender: &Sender<Message>) {
+    pub fn handle_ui_message(&self, message: &UiMessage, sender: &MessageSender) {
         if let Some(InspectorMessage::PropertyChanged(property_changed)) = message.data() {
             if message.destination() == self.inspector {
                 if let Some(command) = make_set_scene_property_command((), property_changed) {
-                    sender.send(Message::DoSceneCommand(command)).unwrap();
+                    sender.send(Message::DoSceneCommand(command));
                 }
             }
         }

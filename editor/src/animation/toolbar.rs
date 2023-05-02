@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::{
     animation::{
         command::{
@@ -15,7 +16,7 @@ use crate::{
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
         EditorScene, Selection,
     },
-    send_sync_message, Message,
+    send_sync_message,
 };
 use fyrox::{
     animation::{Animation, RootMotionSettings},
@@ -45,7 +46,7 @@ use fyrox::{
     resource::model::{Model, ModelResourceExtension},
     scene::{animation::AnimationPlayer, node::Node, Scene},
 };
-use std::{path::Path, sync::mpsc::Sender};
+use std::path::Path;
 
 enum ImportMode {
     Import,
@@ -187,22 +188,18 @@ impl RootMotionDropdownArea {
         &mut self,
         message: &UiMessage,
         scene: &Scene,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
         ui: &mut UserInterface,
         animation_player: &AnimationPlayer,
         editor_scene: &EditorScene,
         selection: &AnimationSelection,
     ) {
         let send_command = |settings: Option<RootMotionSettings>| {
-            sender
-                .send(Message::do_scene_command(
-                    SetAnimationRootMotionSettingsCommand {
-                        node_handle: selection.animation_player,
-                        animation_handle: selection.animation,
-                        value: settings,
-                    },
-                ))
-                .unwrap();
+            sender.do_scene_command(SetAnimationRootMotionSettingsCommand {
+                node_handle: selection.animation_player,
+                animation_handle: selection.animation,
+                value: settings,
+            });
         };
 
         if let Some(animation) = animation_player.animations().try_get(selection.animation) {
@@ -284,18 +281,14 @@ impl RootMotionDropdownArea {
                     && message.direction() == MessageDirection::FromWidget
                 {
                     if let Some(settings) = animation.root_motion_settings_ref() {
-                        sender
-                            .send(Message::do_scene_command(
-                                SetAnimationRootMotionSettingsCommand {
-                                    node_handle: selection.animation_player,
-                                    animation_handle: selection.animation,
-                                    value: Some(RootMotionSettings {
-                                        node: node_selection.first().cloned().unwrap_or_default(),
-                                        ..*settings
-                                    }),
-                                },
-                            ))
-                            .unwrap();
+                        sender.do_scene_command(SetAnimationRootMotionSettingsCommand {
+                            node_handle: selection.animation_player,
+                            animation_handle: selection.animation,
+                            value: Some(RootMotionSettings {
+                                node: node_selection.first().cloned().unwrap_or_default(),
+                                ..*settings
+                            }),
+                        });
                     }
                 }
             } else if let Some(WindowMessage::Close) = message.data() {
@@ -840,7 +833,7 @@ impl Toolbar {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
         scene: &Scene,
         ui: &mut UserInterface,
         animation_player_handle: Handle<Node>,
@@ -868,16 +861,14 @@ impl Toolbar {
                     .unwrap()
                     .items()[*index];
                 let animation = ui.node(item).user_data_ref::<Handle<Animation>>().unwrap();
-                sender
-                    .send(Message::do_scene_command(ChangeSelectionCommand::new(
-                        Selection::Animation(AnimationSelection {
-                            animation_player: animation_player_handle,
-                            animation: *animation,
-                            entities: vec![],
-                        }),
-                        editor_scene.selection.clone(),
-                    )))
-                    .unwrap();
+                sender.do_scene_command(ChangeSelectionCommand::new(
+                    Selection::Animation(AnimationSelection {
+                        animation_player: animation_player_handle,
+                        animation: *animation,
+                        entities: vec![],
+                    }),
+                    editor_scene.selection.clone(),
+                ));
                 return ToolbarAction::SelectAnimation(*animation);
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
@@ -916,22 +907,18 @@ impl Toolbar {
                         )),
                     ];
 
-                    sender
-                        .send(Message::do_scene_command(CommandGroup::from(group)))
-                        .unwrap();
+                    sender.do_scene_command(CommandGroup::from(group));
                 }
             } else if message.destination() == self.rename_current_animation {
-                sender
-                    .send(Message::do_scene_command(SetAnimationNameCommand {
-                        node_handle: animation_player_handle,
-                        animation_handle: selection.animation,
-                        value: ui
-                            .node(self.animation_name)
-                            .query_component::<TextBox>()
-                            .unwrap()
-                            .text(),
-                    }))
-                    .unwrap();
+                sender.do_scene_command(SetAnimationNameCommand {
+                    node_handle: animation_player_handle,
+                    animation_handle: selection.animation,
+                    value: ui
+                        .node(self.animation_name)
+                        .query_component::<TextBox>()
+                        .unwrap()
+                        .text(),
+                });
             } else if message.destination() == self.add_animation {
                 let mut animation = Animation::default();
                 animation.set_name(
@@ -941,23 +928,17 @@ impl Toolbar {
                         .text(),
                 );
                 sender
-                    .send(Message::do_scene_command(AddAnimationCommand::new(
-                        animation_player_handle,
-                        animation,
-                    )))
-                    .unwrap();
+                    .do_scene_command(AddAnimationCommand::new(animation_player_handle, animation));
             } else if message.destination() == self.clone_current_animation {
                 if let Some(animation) = animation_player.animations().try_get(selection.animation)
                 {
                     let mut animation_clone = animation.clone();
                     animation_clone.set_name(format!("{} Copy", animation.name()));
 
-                    sender
-                        .send(Message::do_scene_command(AddAnimationCommand::new(
-                            animation_player_handle,
-                            animation_clone,
-                        )))
-                        .unwrap();
+                    sender.do_scene_command(AddAnimationCommand::new(
+                        animation_player_handle,
+                        animation_clone,
+                    ));
                 }
             }
         } else if let Some(CheckBoxMessage::Check(Some(checked))) = message.data() {
@@ -969,21 +950,17 @@ impl Toolbar {
                         ToolbarAction::LeavePreviewMode
                     };
                 } else if message.destination() == self.looping {
-                    sender
-                        .send(Message::do_scene_command(SetAnimationLoopingCommand {
-                            node_handle: animation_player_handle,
-                            animation_handle: selection.animation,
-                            value: *checked,
-                        }))
-                        .unwrap();
+                    sender.do_scene_command(SetAnimationLoopingCommand {
+                        node_handle: animation_player_handle,
+                        animation_handle: selection.animation,
+                        value: *checked,
+                    });
                 } else if message.destination() == self.enabled {
-                    sender
-                        .send(Message::do_scene_command(SetAnimationEnabledCommand {
-                            node_handle: animation_player_handle,
-                            animation_handle: selection.animation,
-                            value: *checked,
-                        }))
-                        .unwrap();
+                    sender.do_scene_command(SetAnimationEnabledCommand {
+                        node_handle: animation_player_handle,
+                        animation_handle: selection.animation,
+                        value: *checked,
+                    });
                 }
             }
         } else if let Some(NumericUpDownMessage::<f32>::Value(value)) = message.data() {
@@ -992,32 +969,26 @@ impl Toolbar {
                     let mut time_slice =
                         animation_player.animations()[selection.animation].time_slice();
                     time_slice.start = value.min(time_slice.end);
-                    sender
-                        .send(Message::do_scene_command(SetAnimationTimeSliceCommand {
-                            node_handle: animation_player_handle,
-                            animation_handle: selection.animation,
-                            value: time_slice,
-                        }))
-                        .unwrap();
+                    sender.do_scene_command(SetAnimationTimeSliceCommand {
+                        node_handle: animation_player_handle,
+                        animation_handle: selection.animation,
+                        value: time_slice,
+                    });
                 } else if message.destination() == self.time_slice_end {
                     let mut time_slice =
                         animation_player.animations()[selection.animation].time_slice();
                     time_slice.end = value.max(time_slice.start);
-                    sender
-                        .send(Message::do_scene_command(SetAnimationTimeSliceCommand {
-                            node_handle: animation_player_handle,
-                            animation_handle: selection.animation,
-                            value: time_slice,
-                        }))
-                        .unwrap();
+                    sender.do_scene_command(SetAnimationTimeSliceCommand {
+                        node_handle: animation_player_handle,
+                        animation_handle: selection.animation,
+                        value: time_slice,
+                    });
                 } else if message.destination() == self.speed {
-                    sender
-                        .send(Message::do_scene_command(SetAnimationSpeedCommand {
-                            node_handle: animation_player_handle,
-                            animation_handle: selection.animation,
-                            value: *value,
-                        }))
-                        .unwrap();
+                    sender.do_scene_command(SetAnimationSpeedCommand {
+                        node_handle: animation_player_handle,
+                        animation_handle: selection.animation,
+                        value: *value,
+                    });
                 }
             }
         }
@@ -1028,7 +999,7 @@ impl Toolbar {
     pub fn post_handle_ui_message(
         &mut self,
         message: &UiMessage,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
         ui: &UserInterface,
         animation_player_handle: Handle<Node>,
         scene: &Scene,
@@ -1112,7 +1083,7 @@ impl Toolbar {
                                         .collect::<Vec<_>>(),
                                 );
 
-                                sender.send(Message::do_scene_command(group)).unwrap();
+                                sender.do_scene_command(group);
                             }
                             ImportMode::Reimport => {
                                 if let Selection::Animation(ref selection) = editor_scene.selection
@@ -1122,18 +1093,11 @@ impl Toolbar {
                                     }
 
                                     if !animations.is_empty() {
-                                        sender
-                                            .send(Message::do_scene_command(
-                                                ReplaceAnimationCommand {
-                                                    animation_player: selection.animation_player,
-                                                    animation_handle: selection.animation,
-                                                    animation: animations
-                                                        .into_iter()
-                                                        .next()
-                                                        .unwrap(),
-                                                },
-                                            ))
-                                            .unwrap();
+                                        sender.do_scene_command(ReplaceAnimationCommand {
+                                            animation_player: selection.animation_player,
+                                            animation_handle: selection.animation,
+                                            animation: animations.into_iter().next().unwrap(),
+                                        });
                                     }
                                 }
                             }

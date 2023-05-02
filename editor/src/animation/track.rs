@@ -1,5 +1,6 @@
 #![allow(clippy::manual_map)]
 
+use crate::message::MessageSender;
 use crate::{
     animation::{
         command::{AddTrackCommand, RemoveTrackCommand, SetTrackEnabledCommand},
@@ -16,7 +17,7 @@ use crate::{
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
         EditorScene, Selection,
     },
-    send_sync_message, utils, Message,
+    send_sync_message, utils,
 };
 use fyrox::{
     animation::{
@@ -534,7 +535,7 @@ impl TrackList {
         &mut self,
         message: &UiMessage,
         editor_scene: &EditorScene,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
         animation_player: Handle<Node>,
         animation: Handle<Animation>,
         ui: &mut UserInterface,
@@ -661,31 +662,25 @@ impl TrackList {
                             ));
                         }
                         PropertyBindingMode::Position => {
-                            sender
-                                .send(Message::do_scene_command(AddTrackCommand::new(
-                                    animation_player,
-                                    animation,
-                                    Track::new_position().with_target(self.selected_node),
-                                )))
-                                .unwrap();
+                            sender.do_scene_command(AddTrackCommand::new(
+                                animation_player,
+                                animation,
+                                Track::new_position().with_target(self.selected_node),
+                            ));
                         }
                         PropertyBindingMode::Rotation => {
-                            sender
-                                .send(Message::do_scene_command(AddTrackCommand::new(
-                                    animation_player,
-                                    animation,
-                                    Track::new_rotation().with_target(self.selected_node),
-                                )))
-                                .unwrap();
+                            sender.do_scene_command(AddTrackCommand::new(
+                                animation_player,
+                                animation,
+                                Track::new_rotation().with_target(self.selected_node),
+                            ));
                         }
                         PropertyBindingMode::Scale => {
-                            sender
-                                .send(Message::do_scene_command(AddTrackCommand::new(
-                                    animation_player,
-                                    animation,
-                                    Track::new_scale().with_target(self.selected_node),
-                                )))
-                                .unwrap();
+                            sender.do_scene_command(AddTrackCommand::new(
+                                animation_player,
+                                animation,
+                                Track::new_scale().with_target(self.selected_node),
+                            ));
                         }
                     }
                 }
@@ -815,13 +810,11 @@ impl TrackList {
 
                                     track.set_target(self.selected_node);
 
-                                    sender
-                                        .send(Message::do_scene_command(AddTrackCommand::new(
-                                            animation_player,
-                                            animation,
-                                            track,
-                                        )))
-                                        .unwrap();
+                                    sender.do_scene_command(AddTrackCommand::new(
+                                        animation_player,
+                                        animation,
+                                        track,
+                                    ));
                                 }
                             }
                             Err(e) => {
@@ -861,12 +854,10 @@ impl TrackList {
                         .collect(),
                 });
 
-                sender
-                    .send(Message::do_scene_command(ChangeSelectionCommand::new(
-                        selection,
-                        editor_scene.selection.clone(),
-                    )))
-                    .unwrap();
+                sender.do_scene_command(ChangeSelectionCommand::new(
+                    selection,
+                    editor_scene.selection.clone(),
+                ));
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.context_menu.remove_track {
@@ -906,9 +897,7 @@ impl TrackList {
                                 }
                             }
 
-                            sender
-                                .send(Message::do_scene_command(CommandGroup::from(commands)))
-                                .unwrap();
+                            sender.do_scene_command(CommandGroup::from(commands));
                         }
                     }
                 }
@@ -933,14 +922,12 @@ impl TrackList {
                                     .iter()
                                     .any(|t| t.id() == track_view_ref.id)
                                 {
-                                    sender
-                                        .send(Message::do_scene_command(SetTrackEnabledCommand {
-                                            animation_player_handle: selection.animation_player,
-                                            animation_handle: selection.animation,
-                                            track: track_view_ref.id,
-                                            enabled: *enabled,
-                                        }))
-                                        .unwrap()
+                                    sender.do_scene_command(SetTrackEnabledCommand {
+                                        animation_player_handle: selection.animation_player,
+                                        animation_handle: selection.animation,
+                                        track: track_view_ref.id,
+                                        enabled: *enabled,
+                                    })
                                 }
                             }
                         }

@@ -1,27 +1,24 @@
-use crate::{
-    inspector::editors::{
-        animation::{
-            AnimationContainerPropertyEditorDefinition, AnimationPropertyEditorDefinition,
-            MachinePropertyEditorDefinition,
-        },
-        handle::NodeHandlePropertyEditorDefinition,
-        material::MaterialPropertyEditorDefinition,
-        resource::ResourceFieldPropertyEditorDefinition,
-        script::ScriptPropertyEditorDefinition,
-        spritesheet::SpriteSheetFramesContainerEditorDefinition,
-        surface::SurfaceDataPropertyEditorDefinition,
-        texture::TexturePropertyEditorDefinition,
+use crate::inspector::editors::{
+    animation::{
+        AnimationContainerPropertyEditorDefinition, AnimationPropertyEditorDefinition,
+        MachinePropertyEditorDefinition,
     },
-    Message,
+    handle::NodeHandlePropertyEditorDefinition,
+    material::MaterialPropertyEditorDefinition,
+    resource::ResourceFieldPropertyEditorDefinition,
+    script::ScriptPropertyEditorDefinition,
+    spritesheet::SpriteSheetFramesContainerEditorDefinition,
+    surface::SurfaceDataPropertyEditorDefinition,
+    texture::TexturePropertyEditorDefinition,
 };
-use fyrox::animation::machine::node::blendspace::{BlendSpace, BlendSpacePoint};
-use fyrox::renderer::framework::state::PolygonFillMode;
-use fyrox::scene::mesh::surface::BlendShape;
-use fyrox::scene::terrain::Chunk;
+use crate::message::MessageSender;
 use fyrox::{
     animation::{
         machine::{
-            node::BasePoseNode,
+            node::{
+                blendspace::{BlendSpace, BlendSpacePoint},
+                BasePoseNode,
+            },
             transition::{AndNode, LogicNode, NotNode, OrNode, XorNode},
             BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput, Machine,
             PlayAnimation, PoseNode, PoseWeight, State,
@@ -42,6 +39,7 @@ use fyrox::{
         shader::{Shader, ShaderResource},
         SharedMaterial,
     },
+    renderer::framework::state::PolygonFillMode,
     resource::{
         curve::{CurveResource, CurveResourceState},
         model::{MaterialSearchOptions, Model, ModelResource},
@@ -71,7 +69,7 @@ use fyrox::{
             BaseLight,
         },
         mesh::{
-            surface::{Surface, SurfaceSharedData},
+            surface::{BlendShape, Surface, SurfaceSharedData},
             RenderPath,
         },
         node::{Node, NodeHandle},
@@ -93,11 +91,11 @@ use fyrox::{
             Attenuate, AudioBus, Biquad, DistanceModel, Effect, EffectWrapper, SoundBuffer,
             SoundBufferResource, Status,
         },
-        terrain::Layer,
+        terrain::{Chunk, Layer},
         transform::Transform,
     },
 };
-use std::{rc::Rc, sync::mpsc::Sender};
+use std::rc::Rc;
 
 pub mod animation;
 pub mod handle;
@@ -127,9 +125,7 @@ pub fn make_status_enum_editor_definition() -> EnumPropertyEditorDefinition<Stat
     }
 }
 
-pub fn make_property_editors_container(
-    sender: Sender<Message>,
-) -> PropertyEditorDefinitionContainer {
+pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorDefinitionContainer {
     let container = PropertyEditorDefinitionContainer::new();
 
     container.insert(TexturePropertyEditorDefinition);

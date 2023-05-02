@@ -1,15 +1,13 @@
 use crate::{
     asset::item::AssetItem,
     gui::make_dropdown_list_option,
+    message::MessageSender,
     preview::PreviewPanel,
     scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
     send_sync_message, Engine, Message,
 };
-use fyrox::asset::untyped::UntypedResource;
-use fyrox::material::shader::{Shader, ShaderResourceExtension};
-use fyrox::resource::texture::Texture;
 use fyrox::{
-    asset::manager::ResourceManager,
+    asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
         futures::executor::block_on,
@@ -42,7 +40,11 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
-    material::{shader::ShaderResource, Material, PropertyValue, SharedMaterial},
+    material::{
+        shader::{Shader, ShaderResource, ShaderResourceExtension},
+        Material, PropertyValue, SharedMaterial,
+    },
+    resource::texture::Texture,
     scene::{
         base::BaseBuilder,
         mesh::{
@@ -52,7 +54,6 @@ use fyrox::{
     },
     utils::into_gui_texture,
 };
-use std::sync::mpsc::Sender;
 
 struct TextureContextMenu {
     popup: RcUiNodeHandle,
@@ -637,7 +638,7 @@ impl MaterialEditor {
         &mut self,
         message: &UiMessage,
         engine: &mut Engine,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
     ) {
         self.preview.handle_message(message, engine);
 
@@ -648,12 +649,10 @@ impl MaterialEditor {
                 {
                     match msg {
                         DropdownListMessage::SelectionChanged(Some(value)) => {
-                            sender
-                                .send(Message::do_scene_command(SetMaterialShaderCommand::new(
-                                    material.clone(),
-                                    self.shaders_list[*value].clone(),
-                                )))
-                                .unwrap();
+                            sender.do_scene_command(SetMaterialShaderCommand::new(
+                                material.clone(),
+                                self.shaders_list[*value].clone(),
+                            ));
                         }
                         DropdownListMessage::Open => {
                             self.sync_available_shaders_list(engine.resource_manager.clone());
@@ -686,7 +685,7 @@ impl MaterialEditor {
                         });
 
                     if let Some(path) = path {
-                        sender.send(Message::ShowInAssetBrowser(path)).unwrap();
+                        sender.send(Message::ShowInAssetBrowser(path));
                     }
                 }
             }
@@ -768,15 +767,11 @@ impl MaterialEditor {
                 };
 
                 if let Some(property_value) = property_value {
-                    sender
-                        .send(Message::do_scene_command(
-                            SetMaterialPropertyValueCommand::new(
-                                material,
-                                property_name.clone(),
-                                property_value,
-                            ),
-                        ))
-                        .unwrap();
+                    sender.do_scene_command(SetMaterialPropertyValueCommand::new(
+                        material,
+                        property_name.clone(),
+                        property_value,
+                    ));
                 }
             }
         }

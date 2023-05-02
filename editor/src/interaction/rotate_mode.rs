@@ -1,38 +1,38 @@
-use crate::camera::PickingOptions;
 use crate::{
+    camera::PickingOptions,
     interaction::{
         calculate_gizmo_distance_scaling, gizmo::rotate_gizmo::RotationGizmo, InteractionMode,
     },
+    message::MessageSender,
     scene::{
         commands::{graph::RotateNodeCommand, ChangeSelectionCommand, CommandGroup, SceneCommand},
         EditorScene, Selection,
     },
     settings::Settings,
     world::graph::selection::GraphSelection,
-    Engine, Message,
+    Engine,
 };
-use fyrox::core::math::round_to_step;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2},
+        math::round_to_step,
         pool::Handle,
     },
     scene::node::Node,
 };
-use std::sync::mpsc::Sender;
 
 pub struct RotateInteractionMode {
     initial_rotations: Vec<UnitQuaternion<f32>>,
     rotation_gizmo: RotationGizmo,
     interacting: bool,
-    message_sender: Sender<Message>,
+    message_sender: MessageSender,
 }
 
 impl RotateInteractionMode {
     pub fn new(
         editor_scene: &EditorScene,
         engine: &mut Engine,
-        message_sender: Sender<Message>,
+        message_sender: MessageSender,
     ) -> Self {
         Self {
             initial_rotations: Default::default(),
@@ -116,9 +116,7 @@ impl InteractionMode for RotateInteractionMode {
                                 .collect::<Vec<SceneCommand>>(),
                         );
                         // Commit changes.
-                        self.message_sender
-                            .send(Message::do_scene_command(commands))
-                            .unwrap();
+                        self.message_sender.do_scene_command(commands);
                     }
                 }
             }
@@ -152,11 +150,10 @@ impl InteractionMode for RotateInteractionMode {
 
             if new_selection != editor_scene.selection {
                 self.message_sender
-                    .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                    .do_scene_command(ChangeSelectionCommand::new(
                         new_selection,
                         editor_scene.selection.clone(),
-                    )))
-                    .unwrap();
+                    ));
             }
         }
     }

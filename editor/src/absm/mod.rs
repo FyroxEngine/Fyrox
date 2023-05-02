@@ -9,6 +9,7 @@ use crate::{
         state_viewer::StateViewer,
         toolbar::{Toolbar, ToolbarAction},
     },
+    message::MessageSender,
     scene::{EditorScene, Selection},
     Message,
 };
@@ -35,7 +36,6 @@ use fyrox::{
         Scene,
     },
 };
-use std::sync::mpsc::Sender;
 
 mod blendspace;
 mod canvas;
@@ -100,7 +100,7 @@ pub struct AbsmEditor {
 }
 
 impl AbsmEditor {
-    pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
+    pub fn new(ctx: &mut BuildContext, sender: MessageSender) -> Self {
         let state_graph_viewer = StateGraphViewer::new(ctx);
         let state_viewer = StateViewer::new(ctx);
         let parameter_panel = ParameterPanel::new(ctx, sender);
@@ -366,7 +366,7 @@ impl AbsmEditor {
         &mut self,
         message: &UiMessage,
         engine: &mut Engine,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
         editor_scene: &mut EditorScene,
     ) {
         let scene = &mut engine.scenes[editor_scene.scene];
@@ -494,7 +494,7 @@ impl AbsmEditor {
                                     layer_index,
                                     ui,
                                 );
-                                sender.send(Message::ForceSync).unwrap();
+                                sender.send(Message::ForceSync);
                             }
                         }
                     }
@@ -527,38 +527,28 @@ impl AbsmEditor {
                                         // No input sockets
                                     }
                                     PoseNode::BlendAnimations(_) => {
-                                        sender
-                                            .send(Message::do_scene_command(
-                                                AddPoseSourceCommand::new(
-                                                    selection.absm_node_handle,
-                                                    node.model_handle,
-                                                    layer_index,
-                                                    BlendPose::default(),
-                                                ),
-                                            ))
-                                            .unwrap();
+                                        sender.do_scene_command(AddPoseSourceCommand::new(
+                                            selection.absm_node_handle,
+                                            node.model_handle,
+                                            layer_index,
+                                            BlendPose::default(),
+                                        ));
                                     }
                                     PoseNode::BlendAnimationsByIndex(_) => {
-                                        sender
-                                            .send(Message::do_scene_command(AddInputCommand::new(
-                                                selection.absm_node_handle,
-                                                node.model_handle,
-                                                layer_index,
-                                                IndexedBlendInput::default(),
-                                            )))
-                                            .unwrap();
+                                        sender.do_scene_command(AddInputCommand::new(
+                                            selection.absm_node_handle,
+                                            node.model_handle,
+                                            layer_index,
+                                            IndexedBlendInput::default(),
+                                        ));
                                     }
                                     PoseNode::BlendSpace(_) => {
-                                        sender
-                                            .send(Message::do_scene_command(
-                                                AddBlendSpacePointCommand::new(
-                                                    selection.absm_node_handle,
-                                                    node.model_handle,
-                                                    layer_index,
-                                                    BlendSpacePoint::default(),
-                                                ),
-                                            ))
-                                            .unwrap();
+                                        sender.do_scene_command(AddBlendSpacePointCommand::new(
+                                            selection.absm_node_handle,
+                                            node.model_handle,
+                                            layer_index,
+                                            BlendSpacePoint::default(),
+                                        ));
                                     }
                                 }
                             }

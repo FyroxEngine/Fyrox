@@ -138,10 +138,7 @@ impl PropertyEditorDefinition for AnimationContainerPropertyEditorDefinition {
         if ctx.message.direction() == MessageDirection::FromWidget {
             if let Some(ButtonMessage::Click) = ctx.message.data() {
                 if let Some(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
-                    environment
-                        .sender
-                        .send(Message::OpenAnimationEditor)
-                        .unwrap();
+                    environment.sender.send(Message::OpenAnimationEditor);
                 }
             }
         }
@@ -179,7 +176,7 @@ impl PropertyEditorDefinition for MachinePropertyEditorDefinition {
         if ctx.message.direction() == MessageDirection::FromWidget {
             if let Some(ButtonMessage::Click) = ctx.message.data() {
                 if let Some(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
-                    environment.sender.send(Message::OpenAbsmEditor).unwrap();
+                    environment.sender.send(Message::OpenAbsmEditor);
                 }
             }
         }

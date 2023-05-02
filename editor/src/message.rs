@@ -3,12 +3,15 @@ use crate::{
     scene::Selection, BuildProfile, SaveSceneConfirmationDialogAction,
 };
 use fyrox::{
-    core::pool::{ErasedHandle, Handle},
+    core::{
+        log::Log,
+        pool::{ErasedHandle, Handle},
+    },
     gui::UiNode,
     material::SharedMaterial,
     scene::{camera::Projection, node::Node},
 };
-use std::{any::TypeId, path::PathBuf};
+use std::{any::TypeId, path::PathBuf, sync::mpsc::Sender};
 
 #[derive(Debug)]
 pub enum Message {
@@ -61,11 +64,18 @@ pub enum Message {
     ShowDocumentation(String),
 }
 
-impl Message {
-    pub fn do_scene_command<C>(cmd: C) -> Self
+#[derive(Clone, Debug)]
+pub struct MessageSender(pub Sender<Message>);
+
+impl MessageSender {
+    pub fn do_scene_command<C>(&self, cmd: C)
     where
         C: Command,
     {
-        Self::DoSceneCommand(SceneCommand::new(cmd))
+        self.send(Message::DoSceneCommand(SceneCommand::new(cmd)))
+    }
+
+    pub fn send(&self, message: Message) {
+        Log::verify(self.0.send(message));
     }
 }

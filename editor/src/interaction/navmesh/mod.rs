@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::{
     camera::PickingOptions,
     interaction::{
@@ -19,7 +20,7 @@ use crate::{
     },
     settings::Settings,
     utils::window_content,
-    Message, Mode,
+    Mode,
 };
 use fyrox::{
     core::{
@@ -42,14 +43,14 @@ use fyrox::{
     scene::{camera::Camera, navmesh::NavigationalMesh, node::Node},
     utils::astar::PathVertex,
 };
-use std::{collections::HashMap, sync::mpsc::Sender};
+use std::collections::HashMap;
 
 pub mod selection;
 
 pub struct NavmeshPanel {
     pub window: Handle<UiNode>,
     connect_edges: Handle<UiNode>,
-    sender: Sender<Message>,
+    sender: MessageSender,
 }
 
 fn fetch_selection(editor_selection: &Selection) -> Option<NavmeshSelection> {
@@ -66,7 +67,7 @@ fn fetch_selection(editor_selection: &Selection) -> Option<NavmeshSelection> {
 }
 
 impl NavmeshPanel {
-    pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
+    pub fn new(ctx: &mut BuildContext, sender: MessageSender) -> Self {
         let connect_edges;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .open(false)
@@ -118,11 +119,10 @@ impl NavmeshPanel {
                         .collect::<Vec<_>>();
 
                     self.sender
-                        .send(Message::do_scene_command(ConnectNavmeshEdgesCommand::new(
+                        .do_scene_command(ConnectNavmeshEdgesCommand::new(
                             selection.navmesh_node(),
                             [vertices[0], vertices[1]],
-                        )))
-                        .unwrap();
+                        ));
                 }
             }
         }
@@ -179,7 +179,7 @@ impl DragContext {
 
 pub struct EditNavmeshMode {
     move_gizmo: MoveGizmo,
-    message_sender: Sender<Message>,
+    message_sender: MessageSender,
     drag_context: Option<DragContext>,
     plane_kind: PlaneKind,
 }
@@ -188,7 +188,7 @@ impl EditNavmeshMode {
     pub fn new(
         editor_scene: &EditorScene,
         engine: &mut Engine,
-        message_sender: Sender<Message>,
+        message_sender: MessageSender,
     ) -> Self {
         Self {
             move_gizmo: MoveGizmo::new(editor_scene, engine),
@@ -295,11 +295,10 @@ impl InteractionMode for EditNavmeshMode {
 
                 if new_selection != editor_scene.selection {
                     self.message_sender
-                        .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                        .do_scene_command(ChangeSelectionCommand::new(
                             new_selection,
                             editor_scene.selection.clone(),
-                        )))
-                        .unwrap();
+                        ));
                 }
             }
         }
@@ -353,8 +352,7 @@ impl InteractionMode for EditNavmeshMode {
                     }
 
                     self.message_sender
-                        .send(Message::do_scene_command(CommandGroup::from(commands)))
-                        .unwrap();
+                        .do_scene_command(CommandGroup::from(commands));
                 }
             }
         }
@@ -408,13 +406,12 @@ impl InteractionMode for EditNavmeshMode {
 
                             // Discard selection.
                             self.message_sender
-                                .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                                .do_scene_command(ChangeSelectionCommand::new(
                                     Selection::Navmesh(NavmeshSelection::empty(
                                         selection.navmesh_node(),
                                     )),
                                     editor_scene.selection.clone(),
-                                )))
-                                .unwrap();
+                                ));
                         }
                     }
                 }
@@ -555,8 +552,7 @@ impl InteractionMode for EditNavmeshMode {
                         )));
 
                         self.message_sender
-                            .send(Message::do_scene_command(CommandGroup::from(commands)))
-                            .unwrap();
+                            .do_scene_command(CommandGroup::from(commands));
                     }
 
                     true
@@ -578,11 +574,10 @@ impl InteractionMode for EditNavmeshMode {
                         );
 
                         self.message_sender
-                            .send(Message::do_scene_command(ChangeSelectionCommand::new(
+                            .do_scene_command(ChangeSelectionCommand::new(
                                 Selection::Navmesh(selection),
                                 editor_scene.selection.clone(),
-                            )))
-                            .unwrap();
+                            ));
                     }
 
                     true

@@ -7,9 +7,9 @@ use crate::{
         selection::{AbsmSelection, SelectedEntity},
     },
     menu::create_menu_item,
-    send_sync_message, Message,
+    message::MessageSender,
+    send_sync_message,
 };
-use fyrox::gui::RcUiNodeHandle;
 use fyrox::{
     animation::machine::{
         node::blendspace::BlendSpacePoint, Machine, MachineLayer, Parameter, ParameterContainer,
@@ -33,15 +33,14 @@ use fyrox::{
         text::{TextBuilder, TextMessage},
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
-        VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT, BRUSH_LIGHTEST,
+        BuildContext, Control, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode,
+        UserInterface, VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT, BRUSH_LIGHTEST,
     },
 };
 use std::{
     any::{Any, TypeId},
     cell::Cell,
     ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -875,7 +874,7 @@ impl BlendSpaceEditor {
         &mut self,
         selection: &AbsmSelection,
         message: &UiMessage,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
         machine: &mut Machine,
         is_preview_mode_active: bool,
     ) {
@@ -900,29 +899,24 @@ impl BlendSpaceEditor {
                                     }
                                 }
                                 BlendSpaceFieldMessage::MovePoint { index, position } => {
-                                    sender
-                                        .send(Message::do_scene_command(
-                                            SetBlendSpacePointPositionCommand {
-                                                node_handle: selection.absm_node_handle,
-                                                handle: *first,
-                                                layer_index,
-                                                index,
-                                                value: position,
-                                            },
-                                        ))
-                                        .unwrap();
+                                    sender.do_scene_command(SetBlendSpacePointPositionCommand {
+                                        node_handle: selection.absm_node_handle,
+                                        handle: *first,
+                                        layer_index,
+                                        index,
+                                        value: position,
+                                    });
                                 }
                                 BlendSpaceFieldMessage::RemovePoint(index) => sender
-                                    .send(Message::do_scene_command(RemoveBlendSpacePointCommand {
+                                    .do_scene_command(RemoveBlendSpacePointCommand {
                                         scene_node_handle: selection.absm_node_handle,
                                         node_handle: *first,
                                         layer_index,
                                         point_index: index,
                                         point: None,
-                                    }))
-                                    .unwrap(),
-                                BlendSpaceFieldMessage::AddPoint(pos) => sender
-                                    .send(Message::do_scene_command(AddBlendSpacePointCommand {
+                                    }),
+                                BlendSpaceFieldMessage::AddPoint(pos) => {
+                                    sender.do_scene_command(AddBlendSpacePointCommand {
                                         node_handle: selection.absm_node_handle,
                                         handle: *first,
                                         layer_index,
@@ -930,8 +924,8 @@ impl BlendSpaceEditor {
                                             position: pos,
                                             pose_source: Default::default(),
                                         }),
-                                    }))
-                                    .unwrap(),
+                                    })
+                                }
                                 _ => (),
                             }
                         }

@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::{
     audio::bus::{AudioBusView, AudioBusViewBuilder, AudioBusViewMessage},
     gui::make_dropdown_list_option,
@@ -8,8 +9,8 @@ use crate::{
     },
     send_sync_message,
     utils::window_content,
-    ChangeSelectionCommand, EditorScene, GridBuilder, Message, MessageDirection, Mode,
-    SceneCommand, Selection, UserInterface,
+    ChangeSelectionCommand, EditorScene, GridBuilder, MessageDirection, Mode, SceneCommand,
+    Selection, UserInterface,
 };
 use fyrox::{
     core::{log::Log, pool::Handle},
@@ -32,7 +33,7 @@ use fyrox::{
         AudioBus, AudioBusGraph, DistanceModel, HrirSphere, HrtfRenderer, Renderer, SAMPLE_RATE,
     },
 };
-use std::{cmp::Ordering, sync::mpsc::Sender};
+use std::cmp::Ordering;
 use strum::VariantNames;
 
 mod bus;
@@ -245,16 +246,14 @@ impl AudioPanel {
         &mut self,
         message: &UiMessage,
         editor_scene: &EditorScene,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
         engine: &Engine,
     ) {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.add_bus {
-                sender
-                    .send(Message::DoSceneCommand(SceneCommand::new(
-                        AddAudioBusCommand::new(AudioBus::new("AudioBus".to_string())),
-                    )))
-                    .unwrap()
+                sender.do_scene_command(AddAudioBusCommand::new(AudioBus::new(
+                    "AudioBus".to_string(),
+                )))
             } else if message.destination() == self.remove_bus {
                 if let Selection::AudioBus(ref selection) = editor_scene.selection {
                     let mut commands = vec![SceneCommand::new(ChangeSelectionCommand::new(
@@ -266,9 +265,7 @@ impl AudioPanel {
                         commands.push(SceneCommand::new(RemoveAudioBusCommand::new(bus)));
                     }
 
-                    sender
-                        .send(Message::do_scene_command(CommandGroup::from(commands)))
-                        .unwrap();
+                    sender.do_scene_command(CommandGroup::from(commands));
                 }
             }
         } else if let Some(ListViewMessage::SelectionChanged(Some(effect_index))) = message.data() {
@@ -285,16 +282,12 @@ impl AudioPanel {
                     ui,
                 );
 
-                sender
-                    .send(Message::DoSceneCommand(SceneCommand::new(
-                        ChangeSelectionCommand::new(
-                            Selection::AudioBus(AudioBusSelection {
-                                buses: vec![effect],
-                            }),
-                            editor_scene.selection.clone(),
-                        ),
-                    )))
-                    .unwrap()
+                sender.do_scene_command(ChangeSelectionCommand::new(
+                    Selection::AudioBus(AudioBusSelection {
+                        buses: vec![effect],
+                    }),
+                    editor_scene.selection.clone(),
+                ))
             }
         } else if let Some(AudioBusViewMessage::ChangeParent(new_parent)) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
@@ -306,12 +299,10 @@ impl AudioPanel {
 
                 let child = audio_bus_view_ref.bus;
 
-                sender
-                    .send(Message::do_scene_command(LinkAudioBuses {
-                        child,
-                        parent: *new_parent,
-                    }))
-                    .unwrap();
+                sender.do_scene_command(LinkAudioBuses {
+                    child,
+                    parent: *new_parent,
+                });
             }
         } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
@@ -322,9 +313,7 @@ impl AudioPanel {
                         _ => unreachable!(),
                     };
 
-                    sender
-                        .send(Message::do_scene_command(SetRendererCommand::new(renderer)))
-                        .unwrap();
+                    sender.do_scene_command(SetRendererCommand::new(renderer));
                 } else if message.destination() == self.distance_model {
                     let distance_model = match index {
                         0 => DistanceModel::None,
@@ -334,11 +323,7 @@ impl AudioPanel {
                         _ => unreachable!(),
                     };
 
-                    sender
-                        .send(Message::do_scene_command(SetDistanceModelCommand::new(
-                            distance_model,
-                        )))
-                        .unwrap();
+                    sender.do_scene_command(SetDistanceModelCommand::new(distance_model));
                 }
             }
         } else if let Some(FileSelectorFieldMessage::Path(path)) = message.data() {
@@ -347,11 +332,9 @@ impl AudioPanel {
             {
                 match HrirSphere::from_file(path, SAMPLE_RATE) {
                     Ok(hrir_sphere) => {
-                        sender
-                            .send(Message::do_scene_command(SetRendererCommand::new(
-                                Renderer::HrtfRenderer(HrtfRenderer::new(hrir_sphere)),
-                            )))
-                            .unwrap();
+                        sender.do_scene_command(SetRendererCommand::new(Renderer::HrtfRenderer(
+                            HrtfRenderer::new(hrir_sphere),
+                        )));
                     }
                     Err(e) => {
                         Log::err(format!(

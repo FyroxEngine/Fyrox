@@ -130,12 +130,13 @@ use std::{
     rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
-        mpsc::{self, channel, Receiver, Sender},
+        mpsc::{self, channel, Receiver},
         Arc,
     },
     time::{Duration, Instant},
 };
 
+use crate::message::MessageSender;
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -310,7 +311,7 @@ impl SaveSceneConfirmationDialog {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
         editor_scene: Option<&EditorScene>,
     ) {
         if let Some(MessageBoxMessage::Close(result)) = message.data() {
@@ -319,16 +320,16 @@ impl SaveSceneConfirmationDialog {
                     MessageBoxResult::No => match self.action {
                         SaveSceneConfirmationDialogAction::None => {}
                         SaveSceneConfirmationDialogAction::OpenLoadSceneDialog => {
-                            sender.send(Message::OpenLoadSceneDialog).unwrap()
+                            sender.send(Message::OpenLoadSceneDialog)
                         }
                         SaveSceneConfirmationDialogAction::MakeNewScene => {
-                            sender.send(Message::NewScene).unwrap()
+                            sender.send(Message::NewScene)
                         }
                         SaveSceneConfirmationDialogAction::CloseScene => {
-                            sender.send(Message::CloseScene).unwrap()
+                            sender.send(Message::CloseScene)
                         }
                         SaveSceneConfirmationDialogAction::LoadScene(ref path) => {
-                            sender.send(Message::LoadScene(path.clone())).unwrap()
+                            sender.send(Message::LoadScene(path.clone()))
                         }
                     },
                     MessageBoxResult::Yes => {
@@ -336,21 +337,21 @@ impl SaveSceneConfirmationDialog {
                             if let Some(path) = editor_scene.path.clone() {
                                 // If the scene was already saved into some file - save it
                                 // immediately and perform the requested action.
-                                sender.send(Message::SaveScene(path)).unwrap();
+                                sender.send(Message::SaveScene(path));
 
                                 match self.action {
                                     SaveSceneConfirmationDialogAction::None => {}
                                     SaveSceneConfirmationDialogAction::OpenLoadSceneDialog => {
-                                        sender.send(Message::OpenLoadSceneDialog).unwrap()
+                                        sender.send(Message::OpenLoadSceneDialog)
                                     }
                                     SaveSceneConfirmationDialogAction::MakeNewScene => {
-                                        sender.send(Message::NewScene).unwrap()
+                                        sender.send(Message::NewScene)
                                     }
                                     SaveSceneConfirmationDialogAction::CloseScene => {
-                                        sender.send(Message::CloseScene).unwrap()
+                                        sender.send(Message::CloseScene)
                                     }
                                     SaveSceneConfirmationDialogAction::LoadScene(ref path) => {
-                                        sender.send(Message::LoadScene(path.clone())).unwrap()
+                                        sender.send(Message::LoadScene(path.clone()))
                                     }
                                 }
 
@@ -364,7 +365,7 @@ impl SaveSceneConfirmationDialog {
                                     | SaveSceneConfirmationDialogAction::LoadScene(_)
                                     | SaveSceneConfirmationDialogAction::MakeNewScene
                                     | SaveSceneConfirmationDialogAction::CloseScene => {
-                                        sender.send(Message::OpenSaveSceneDialog).unwrap()
+                                        sender.send(Message::OpenSaveSceneDialog)
                                     }
                                 }
                             }
@@ -376,21 +377,19 @@ impl SaveSceneConfirmationDialog {
         }
     }
 
-    fn handle_message(&mut self, message: &Message, sender: &Sender<Message>) {
+    fn handle_message(&mut self, message: &Message, sender: &MessageSender) {
         if let Message::SaveScene(_) = message {
             match std::mem::replace(&mut self.action, SaveSceneConfirmationDialogAction::None) {
                 SaveSceneConfirmationDialogAction::None => {}
                 SaveSceneConfirmationDialogAction::OpenLoadSceneDialog => {
-                    sender.send(Message::OpenLoadSceneDialog).unwrap();
+                    sender.send(Message::OpenLoadSceneDialog);
                 }
-                SaveSceneConfirmationDialogAction::MakeNewScene => {
-                    sender.send(Message::NewScene).unwrap()
-                }
+                SaveSceneConfirmationDialogAction::MakeNewScene => sender.send(Message::NewScene),
                 SaveSceneConfirmationDialogAction::CloseScene => {
-                    sender.send(Message::CloseScene).unwrap();
+                    sender.send(Message::CloseScene);
                 }
                 SaveSceneConfirmationDialogAction::LoadScene(path) => {
-                    sender.send(Message::LoadScene(path)).unwrap()
+                    sender.send(Message::LoadScene(path))
                 }
             }
         }
@@ -402,7 +401,7 @@ pub struct Editor {
     engine: Engine,
     scene: Option<EditorScene>,
     command_stack: CommandStack,
-    message_sender: Sender<Message>,
+    message_sender: MessageSender,
     message_receiver: Receiver<Message>,
     interaction_modes: Vec<Box<dyn InteractionMode>>,
     current_interaction_mode: Option<InteractionModeKind>,
@@ -506,6 +505,7 @@ impl Editor {
             .add_render_pass(overlay_pass.clone());
 
         let (message_sender, message_receiver) = mpsc::channel();
+        let message_sender = MessageSender(message_sender);
 
         engine.user_interface.default_font.set(
             Font::from_memory(
@@ -751,22 +751,16 @@ impl Editor {
         editor.set_interaction_mode(Some(InteractionModeKind::Move));
 
         if let Some(data) = startup_data {
-            editor
-                .message_sender
-                .send(Message::Configure {
-                    working_directory: if data.working_directory == PathBuf::default() {
-                        std::env::current_dir().unwrap()
-                    } else {
-                        data.working_directory
-                    },
-                })
-                .unwrap();
+            editor.message_sender.send(Message::Configure {
+                working_directory: if data.working_directory == PathBuf::default() {
+                    std::env::current_dir().unwrap()
+                } else {
+                    data.working_directory
+                },
+            });
 
             if data.scene != PathBuf::default() {
-                editor
-                    .message_sender
-                    .send(Message::LoadScene(data.scene))
-                    .unwrap();
+                editor.message_sender.send(Message::LoadScene(data.scene));
             }
         } else {
             // Open configurator as usual.
@@ -946,41 +940,27 @@ impl Editor {
             let key_bindings = &self.settings.key_bindings;
 
             if hot_key == key_bindings.redo {
-                sender.send(Message::RedoSceneCommand).unwrap();
+                sender.send(Message::RedoSceneCommand);
             } else if hot_key == key_bindings.undo {
-                sender.send(Message::UndoSceneCommand).unwrap();
+                sender.send(Message::UndoSceneCommand);
             } else if hot_key == key_bindings.enable_select_mode {
-                sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Select))
-                    .unwrap();
+                sender.send(Message::SetInteractionMode(InteractionModeKind::Select));
             } else if hot_key == key_bindings.enable_move_mode {
-                sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Move))
-                    .unwrap();
+                sender.send(Message::SetInteractionMode(InteractionModeKind::Move));
             } else if hot_key == key_bindings.enable_rotate_mode {
-                sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Rotate))
-                    .unwrap();
+                sender.send(Message::SetInteractionMode(InteractionModeKind::Rotate));
             } else if hot_key == key_bindings.enable_scale_mode {
-                sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Scale))
-                    .unwrap();
+                sender.send(Message::SetInteractionMode(InteractionModeKind::Scale));
             } else if hot_key == key_bindings.enable_navmesh_mode {
-                sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Navmesh))
-                    .unwrap();
+                sender.send(Message::SetInteractionMode(InteractionModeKind::Navmesh));
             } else if hot_key == key_bindings.enable_terrain_mode {
-                sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Terrain))
-                    .unwrap();
+                sender.send(Message::SetInteractionMode(InteractionModeKind::Terrain));
             } else if hot_key == key_bindings.load_scene {
-                sender.send(Message::OpenLoadSceneDialog).unwrap();
+                sender.send(Message::OpenLoadSceneDialog);
             } else if hot_key == key_bindings.save_scene {
                 if let Some(scene) = self.scene.as_ref() {
                     if let Some(path) = scene.path.as_ref() {
-                        self.message_sender
-                            .send(Message::SaveScene(path.clone()))
-                            .unwrap();
+                        self.message_sender.send(Message::SaveScene(path.clone()));
                     } else {
                         // Scene wasn't saved yet, open Save As dialog.
                         engine
@@ -1005,27 +985,23 @@ impl Editor {
             } else if hot_key == key_bindings.paste {
                 if let Some(editor_scene) = self.scene.as_mut() {
                     if !editor_scene.clipboard.is_empty() {
-                        sender
-                            .send(Message::do_scene_command(PasteCommand::new(
-                                engine.scenes[editor_scene.scene].graph.get_root(),
-                            )))
-                            .unwrap();
+                        sender.do_scene_command(PasteCommand::new(
+                            engine.scenes[editor_scene.scene].graph.get_root(),
+                        ));
                     }
                 }
             } else if hot_key == key_bindings.new_scene {
-                sender.send(Message::NewScene).unwrap();
+                sender.send(Message::NewScene);
             } else if hot_key == key_bindings.close_scene {
-                sender.send(Message::CloseScene).unwrap();
+                sender.send(Message::CloseScene);
             } else if hot_key == key_bindings.remove_selection {
                 if let Some(editor_scene) = self.scene.as_mut() {
                     if !editor_scene.selection.is_empty() {
                         if let Selection::Graph(_) = editor_scene.selection {
-                            sender
-                                .send(Message::DoSceneCommand(make_delete_selection_command(
-                                    editor_scene,
-                                    engine,
-                                )))
-                                .unwrap();
+                            sender.send(Message::DoSceneCommand(make_delete_selection_command(
+                                editor_scene,
+                                engine,
+                            )));
                         }
                     }
                 }
@@ -1142,19 +1118,13 @@ impl Editor {
                 if message.destination() == self.exit_message_box {
                     match result {
                         MessageBoxResult::No => {
-                            self.message_sender
-                                .send(Message::Exit { force: true })
-                                .unwrap();
+                            self.message_sender.send(Message::Exit { force: true });
                         }
                         MessageBoxResult::Yes => {
                             if let Some(scene) = self.scene.as_ref() {
                                 if let Some(path) = scene.path.as_ref() {
-                                    self.message_sender
-                                        .send(Message::SaveScene(path.clone()))
-                                        .unwrap();
-                                    self.message_sender
-                                        .send(Message::Exit { force: true })
-                                        .unwrap();
+                                    self.message_sender.send(Message::SaveScene(path.clone()));
+                                    self.message_sender.send(Message::Exit { force: true });
                                 } else {
                                     // Scene wasn't saved yet, open Save As dialog.
                                     engine
@@ -1174,12 +1144,8 @@ impl Editor {
                 message.data::<FileSelectorMessage>()
             {
                 if message.destination() == self.save_file_selector {
-                    self.message_sender
-                        .send(Message::SaveScene(path.clone()))
-                        .unwrap();
-                    self.message_sender
-                        .send(Message::Exit { force: true })
-                        .unwrap();
+                    self.message_sender.send(Message::SaveScene(path.clone()));
+                    self.message_sender.send(Message::Exit { force: true });
                 }
             }
         }
@@ -1607,10 +1573,10 @@ impl Editor {
 
             if let Some(new_selection) = new_selection {
                 self.message_sender
-                    .send(Message::DoSceneCommand(SceneCommand::new(
-                        ChangeSelectionCommand::new(new_selection, scene.selection.clone()),
-                    )))
-                    .unwrap()
+                    .do_scene_command(ChangeSelectionCommand::new(
+                        new_selection,
+                        scene.selection.clone(),
+                    ))
             }
         }
     }
@@ -2014,9 +1980,7 @@ impl Editor {
             Event::WindowEvent { ref event, .. } => {
                 match event {
                     WindowEvent::CloseRequested => {
-                        self.message_sender
-                            .send(Message::Exit { force: false })
-                            .unwrap();
+                        self.message_sender.send(Message::Exit { force: false });
                     }
                     WindowEvent::Resized(size) => {
                         if let Err(e) = self.engine.set_frame_size((*size).into()) {

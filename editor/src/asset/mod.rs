@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::{
     asset::{
         inspector::{
@@ -12,7 +13,7 @@ use crate::{
     gui::AssetItemMessage,
     preview::PreviewPanel,
     utils::window_content,
-    AssetItem, AssetKind, Message, Mode,
+    AssetItem, AssetKind, Mode,
 };
 use fyrox::{
     asset::manager::ResourceManager,
@@ -44,7 +45,6 @@ use std::{
     ffi::OsStr,
     path::{Path, PathBuf},
     process::Command,
-    sync::mpsc::Sender,
 };
 
 mod inspector;
@@ -410,7 +410,7 @@ impl AssetBrowser {
         &mut self,
         message: &UiMessage,
         engine: &mut Engine,
-        sender: Sender<Message>,
+        sender: MessageSender,
     ) {
         scope_profile!();
 

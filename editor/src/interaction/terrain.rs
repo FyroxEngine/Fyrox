@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::{
     interaction::InteractionMode,
     make_color_material,
@@ -6,7 +7,7 @@ use crate::{
         EditorScene, Selection,
     },
     settings::Settings,
-    Message, MSG_SYNC_FLAG,
+    MSG_SYNC_FLAG,
 };
 use fyrox::{
     core::{
@@ -42,12 +43,12 @@ use fyrox::{
         terrain::{Brush, BrushMode, BrushShape, Terrain, TerrainRayCastResult},
     },
 };
-use std::{rc::Rc, sync::mpsc::Sender};
+use std::rc::Rc;
 
 pub struct TerrainInteractionMode {
     heightmaps: Vec<Vec<f32>>,
     masks: Vec<Vec<u8>>,
-    message_sender: Sender<Message>,
+    message_sender: MessageSender,
     interacting: bool,
     brush_gizmo: BrushGizmo,
     brush: Brush,
@@ -58,7 +59,7 @@ impl TerrainInteractionMode {
     pub fn new(
         editor_scene: &EditorScene,
         engine: &mut Engine,
-        message_sender: Sender<Message>,
+        message_sender: MessageSender,
     ) -> Self {
         let brush = Brush {
             center: Default::default(),
@@ -181,27 +182,23 @@ impl InteractionMode for TerrainInteractionMode {
 
                         match self.brush.mode {
                             BrushMode::ModifyHeightMap { .. } => {
-                                self.message_sender
-                                    .send(Message::do_scene_command(
-                                        ModifyTerrainHeightCommand::new(
-                                            handle,
-                                            std::mem::take(&mut self.heightmaps),
-                                            new_heightmaps,
-                                        ),
-                                    ))
-                                    .unwrap();
+                                self.message_sender.do_scene_command(
+                                    ModifyTerrainHeightCommand::new(
+                                        handle,
+                                        std::mem::take(&mut self.heightmaps),
+                                        new_heightmaps,
+                                    ),
+                                );
                             }
                             BrushMode::DrawOnMask { layer, .. } => {
-                                self.message_sender
-                                    .send(Message::do_scene_command(
-                                        ModifyTerrainLayerMaskCommand::new(
-                                            handle,
-                                            std::mem::take(&mut self.masks),
-                                            copy_layer_masks(terrain, layer),
-                                            layer,
-                                        ),
-                                    ))
-                                    .unwrap();
+                                self.message_sender.do_scene_command(
+                                    ModifyTerrainLayerMaskCommand::new(
+                                        handle,
+                                        std::mem::take(&mut self.masks),
+                                        copy_layer_masks(terrain, layer),
+                                        layer,
+                                    ),
+                                );
                             }
                         }
 

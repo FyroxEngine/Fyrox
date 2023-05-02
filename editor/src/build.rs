@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::Message;
 use fyrox::{
     core::{parking_lot::Mutex, pool::Handle},
@@ -20,7 +21,6 @@ use std::{
     process::ChildStdout,
     sync::{
         atomic::{AtomicBool, Ordering},
-        mpsc::Sender,
         Arc,
     },
 };
@@ -156,12 +156,12 @@ impl BuildWindow {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
         ui: &UserInterface,
     ) {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.stop {
-                sender.send(Message::SwitchToEditMode).unwrap();
+                sender.send(Message::SwitchToEditMode);
                 self.reset(ui);
             }
         }

@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::{
     world::graph::item::SceneItem, Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
 };
@@ -27,7 +28,7 @@ use std::{
     any::{Any, TypeId},
     fmt::Debug,
     ops::{Deref, DerefMut},
-    sync::{mpsc::Sender, Mutex},
+    sync::Mutex,
 };
 
 #[derive(Debug, PartialEq, Eq)]
@@ -48,7 +49,7 @@ pub struct HandlePropertyEditor {
     locate: Handle<UiNode>,
     select: Handle<UiNode>,
     value: Handle<Node>,
-    sender: Sender<Message>,
+    sender: MessageSender,
 }
 
 impl Clone for HandlePropertyEditor {
@@ -155,19 +156,15 @@ impl Control for HandlePropertyEditor {
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination == self.locate {
-                self.sender
-                    .send(Message::LocateObject {
-                        type_id: TypeId::of::<Node>(),
-                        handle: self.value.into(),
-                    })
-                    .unwrap();
+                self.sender.send(Message::LocateObject {
+                    type_id: TypeId::of::<Node>(),
+                    handle: self.value.into(),
+                });
             } else if message.destination == self.select {
-                self.sender
-                    .send(Message::SelectObject {
-                        type_id: TypeId::of::<Node>(),
-                        handle: self.value.into(),
-                    })
-                    .unwrap();
+                self.sender.send(Message::SelectObject {
+                    type_id: TypeId::of::<Node>(),
+                    handle: self.value.into(),
+                });
             }
         }
     }
@@ -176,11 +173,11 @@ impl Control for HandlePropertyEditor {
 struct HandlePropertyEditorBuilder {
     widget_builder: WidgetBuilder,
     value: Handle<Node>,
-    sender: Sender<Message>,
+    sender: MessageSender,
 }
 
 impl HandlePropertyEditorBuilder {
-    pub fn new(widget_builder: WidgetBuilder, sender: Sender<Message>) -> Self {
+    pub fn new(widget_builder: WidgetBuilder, sender: MessageSender) -> Self {
         Self {
             widget_builder,
             sender,
@@ -264,11 +261,11 @@ impl HandlePropertyEditorBuilder {
 
 #[derive(Debug)]
 pub struct NodeHandlePropertyEditorDefinition {
-    sender: Mutex<Sender<Message>>,
+    sender: Mutex<MessageSender>,
 }
 
 impl NodeHandlePropertyEditorDefinition {
-    pub fn new(sender: Sender<Message>) -> Self {
+    pub fn new(sender: MessageSender) -> Self {
         Self {
             sender: Mutex::new(sender),
         }
@@ -326,14 +323,12 @@ impl PropertyEditorDefinition for NodeHandlePropertyEditorDefinition {
     }
 }
 
-fn request_name_sync(sender: &Sender<Message>, editor: Handle<UiNode>, handle: Handle<Node>) {
+fn request_name_sync(sender: &MessageSender, editor: Handle<UiNode>, handle: Handle<Node>) {
     // It is not possible to **effectively** provide information about node names here,
     // instead we ask the editor to provide such information in a deferred manner - by
     // sending a message.
-    sender
-        .send(Message::SyncNodeHandleName {
-            view: editor,
-            handle,
-        })
-        .unwrap();
+    sender.send(Message::SyncNodeHandleName {
+        view: editor,
+        handle,
+    });
 }

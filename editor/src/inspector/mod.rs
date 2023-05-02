@@ -1,3 +1,4 @@
+use crate::message::MessageSender;
 use crate::{
     absm::{
         command::{
@@ -46,11 +47,7 @@ use fyrox::{
         graph::Graph,
     },
 };
-use std::{
-    any::Any,
-    rc::Rc,
-    sync::{mpsc::Sender, Arc},
-};
+use std::{any::Any, rc::Rc, sync::Arc};
 
 pub mod editors;
 pub mod handlers;
@@ -66,7 +63,7 @@ pub struct EditorEnvironment {
     /// List of animations definitions (name + handle). It is filled only if current selection
     /// is `AnimationBlendingStateMachine`. The list is filled using ABSM's animation player.
     pub available_animations: Vec<AnimationDefinition>,
-    pub sender: Sender<Message>,
+    pub sender: MessageSender,
 }
 
 impl EditorEnvironment {
@@ -139,7 +136,7 @@ macro_rules! handle_property_changed {
 }
 
 impl Inspector {
-    pub fn new(ctx: &mut BuildContext, sender: Sender<Message>) -> Self {
+    pub fn new(ctx: &mut BuildContext, sender: MessageSender) -> Self {
         let property_editors = Rc::new(make_property_editors_container(sender));
 
         let warning_text_str =
@@ -345,7 +342,7 @@ impl Inspector {
         serialization_context: Arc<SerializationContext>,
         graph: &Graph,
         selection: &Selection,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
     ) {
         let environment = Rc::new(EditorEnvironment {
             resource_manager,
@@ -408,7 +405,7 @@ impl Inspector {
         message: &Message,
         editor_scene: &EditorScene,
         engine: &mut Engine,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
     ) {
         if let Message::SelectionChanged { .. } = message {
             let scene = &engine.scenes[editor_scene.scene];
@@ -554,7 +551,7 @@ impl Inspector {
         message: &UiMessage,
         editor_scene: &EditorScene,
         engine: &mut Engine,
-        sender: &Sender<Message>,
+        sender: &MessageSender,
     ) {
         let scene = &mut engine.scenes[editor_scene.scene];
 
@@ -663,13 +660,9 @@ impl Inspector {
                 if group.is_empty() {
                     Log::err(format!("Failed to handle a property {}", args.path()))
                 } else if group.len() == 1 {
-                    sender
-                        .send(Message::DoSceneCommand(group.into_iter().next().unwrap()))
-                        .unwrap()
+                    sender.send(Message::DoSceneCommand(group.into_iter().next().unwrap()))
                 } else {
-                    sender
-                        .send(Message::do_scene_command(CommandGroup::from(group)))
-                        .unwrap();
+                    sender.do_scene_command(CommandGroup::from(group));
                 }
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
@@ -709,7 +702,7 @@ impl Inspector {
                 };
 
                 if let Some(doc) = entity {
-                    sender.send(Message::ShowDocumentation(doc)).unwrap();
+                    sender.send(Message::ShowDocumentation(doc));
                 }
             }
         }
