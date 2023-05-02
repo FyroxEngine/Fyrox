@@ -26,6 +26,7 @@ mod light;
 mod log;
 mod material;
 mod menu;
+mod message;
 mod overlay;
 mod particle;
 mod preview;
@@ -116,12 +117,7 @@ use fyrox::{
     resource::texture::{
         CompressionOptions, TextureKind, TextureResource, TextureResourceExtension,
     },
-    scene::{
-        camera::{Camera, Projection},
-        mesh::Mesh,
-        node::Node,
-        Scene, SceneLoader,
-    },
+    scene::{camera::Camera, mesh::Mesh, node::Node, Scene, SceneLoader},
     utils::{into_gui_texture, translate_cursor_icon, translate_event},
     window::{Icon, WindowAttributes},
 };
@@ -139,6 +135,8 @@ use std::{
     },
     time::{Duration, Instant},
 };
+
+pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
 pub const MSG_SYNC_FLAG: u64 = 1;
@@ -205,63 +203,6 @@ pub fn create_terrain_layer_material() -> SharedMaterial {
 pub enum BuildProfile {
     Debug,
     Release,
-}
-
-#[derive(Debug)]
-pub enum Message {
-    DoSceneCommand(SceneCommand),
-    UndoSceneCommand,
-    RedoSceneCommand,
-    ClearSceneCommandStack,
-    SelectionChanged {
-        old_selection: Selection,
-    },
-    SaveScene(PathBuf),
-    LoadScene(PathBuf),
-    CloseScene,
-    SetInteractionMode(InteractionModeKind),
-    Configure {
-        working_directory: PathBuf,
-    },
-    NewScene,
-    Exit {
-        force: bool,
-    },
-    OpenSettings,
-    OpenAnimationEditor,
-    OpenAbsmEditor,
-    OpenMaterialEditor(SharedMaterial),
-    ShowInAssetBrowser(PathBuf),
-    SetWorldViewerFilter(String),
-    LocateObject {
-        type_id: TypeId,
-        handle: ErasedHandle,
-    },
-    SelectObject {
-        type_id: TypeId,
-        handle: ErasedHandle,
-    },
-    SetEditorCameraProjection(Projection),
-    SwitchToBuildMode,
-    SwitchToEditMode,
-    SwitchMode,
-    OpenLoadSceneDialog,
-    OpenSaveSceneDialog,
-    OpenSaveSceneConfirmationDialog(SaveSceneConfirmationDialogAction),
-    SetBuildProfile(BuildProfile),
-    SaveSelectionAsPrefab(PathBuf),
-    SyncNodeHandleName {
-        view: Handle<UiNode>,
-        handle: Handle<Node>,
-    },
-    ForceSync,
-    ShowDocumentation(String),
-}
-
-impl Message {
-    pub fn do_scene_command<C: Command>(cmd: C) -> Self {
-        Self::DoSceneCommand(SceneCommand::new(cmd))
-    }
 }
 
 pub fn make_scene_file_filter() -> Filter {
