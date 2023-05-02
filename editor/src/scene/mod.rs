@@ -2,7 +2,7 @@ use crate::{
     absm::selection::AbsmSelection, animation::selection::AnimationSelection,
     audio::AudioBusSelection, camera::CameraController,
     interaction::navmesh::selection::NavmeshSelection, scene::clipboard::Clipboard,
-    world::graph::selection::GraphSelection, GameEngine, Settings,
+    world::graph::selection::GraphSelection, Settings,
 };
 use fyrox::{
     core::{color::Color, math::aabb::AxisAlignedBoundingBox, pool::Handle, visitor::Visitor},
@@ -90,7 +90,7 @@ impl EditorScene {
         }
     }
 
-    pub fn make_purified_scene(&self, engine: &mut GameEngine) -> Scene {
+    pub fn make_purified_scene(&self, engine: &mut Engine) -> Scene {
         let scene = &mut engine.scenes[self.scene];
 
         let editor_root = self.editor_objects_root;
@@ -99,7 +99,7 @@ impl EditorScene {
         pure_scene
     }
 
-    pub fn save(&mut self, path: PathBuf, engine: &mut GameEngine) -> Result<String, String> {
+    pub fn save(&mut self, path: PathBuf, engine: &mut Engine) -> Result<String, String> {
         // Validate first.
         let valid = true;
         let mut reason = "Scene is not saved, because validation failed:\n".to_owned();

@@ -15,7 +15,7 @@ use crate::{
     scene::{commands::effect::make_set_audio_bus_property_command, EditorScene, Selection},
     send_sync_message,
     utils::window_content,
-    Brush, CommandGroup, GameEngine, Message, Mode, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
+    Brush, CommandGroup, Engine, Message, Mode, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
 use fyrox::{
     animation::Animation,
@@ -250,7 +250,7 @@ impl Inspector {
         }
     }
 
-    pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
+    pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
         let scene = &engine.scenes[editor_scene.scene];
 
         if self.needs_sync {
@@ -407,7 +407,7 @@ impl Inspector {
         &mut self,
         message: &Message,
         editor_scene: &EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         sender: &Sender<Message>,
     ) {
         if let Message::SelectionChanged { .. } = message {
@@ -553,7 +553,7 @@ impl Inspector {
         &mut self,
         message: &UiMessage,
         editor_scene: &EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         sender: &Sender<Message>,
     ) {
         let scene = &mut engine.scenes[editor_scene.scene];

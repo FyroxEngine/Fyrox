@@ -19,7 +19,7 @@ use crate::{
     },
     settings::Settings,
     utils::window_content,
-    GameEngine, Message, Mode,
+    Message, Mode,
 };
 use fyrox::{
     core::{
@@ -187,7 +187,7 @@ pub struct EditNavmeshMode {
 impl EditNavmeshMode {
     pub fn new(
         editor_scene: &EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         message_sender: Sender<Message>,
     ) -> Self {
         Self {
@@ -203,7 +203,7 @@ impl InteractionMode for EditNavmeshMode {
     fn on_left_mouse_button_down(
         &mut self,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         settings: &Settings,
@@ -308,7 +308,7 @@ impl InteractionMode for EditNavmeshMode {
     fn on_left_mouse_button_up(
         &mut self,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         _mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
         _settings: &Settings,
@@ -366,7 +366,7 @@ impl InteractionMode for EditNavmeshMode {
         mouse_position: Vector2<f32>,
         camera: Handle<Node>,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
@@ -441,7 +441,7 @@ impl InteractionMode for EditNavmeshMode {
         &mut self,
         editor_scene: &mut EditorScene,
         camera: Handle<Node>,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         settings: &Settings,
     ) {
         let scene = &mut engine.scenes[editor_scene.scene];
@@ -517,7 +517,7 @@ impl InteractionMode for EditNavmeshMode {
         }
     }
 
-    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
+    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
         let scene = &mut engine.scenes[editor_scene.scene];
         self.move_gizmo.set_visible(&mut scene.graph, false);
     }
@@ -526,7 +526,7 @@ impl InteractionMode for EditNavmeshMode {
         &mut self,
         key: KeyCode,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
     ) -> bool {
         let scene = &mut engine.scenes[editor_scene.scene];
 

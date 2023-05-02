@@ -1,4 +1,4 @@
-use crate::{load_image, utils::built_in_skybox, GameEngine};
+use crate::{load_image, utils::built_in_skybox, Engine};
 use fyrox::resource::model::{Model, ModelResourceExtension};
 use fyrox::resource::texture::TextureResourceExtension;
 use fyrox::{
@@ -60,7 +60,7 @@ pub struct PreviewPanel {
 }
 
 impl PreviewPanel {
-    pub fn new(engine: &mut GameEngine, width: u32, height: u32) -> Self {
+    pub fn new(engine: &mut Engine, width: u32, height: u32) -> Self {
         let mut scene = Scene::new();
 
         let size = 10;
@@ -258,7 +258,7 @@ impl PreviewPanel {
         }
     }
 
-    pub fn handle_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
+    pub fn handle_message(&mut self, message: &UiMessage, engine: &mut Engine) {
         scope_profile!();
 
         let scene = &mut engine.scenes[self.scene];
@@ -338,7 +338,7 @@ impl PreviewPanel {
             .set_position(Vector3::new(0.0, 0.0, self.distance));
     }
 
-    pub fn clear(&mut self, engine: &mut GameEngine) {
+    pub fn clear(&mut self, engine: &mut Engine) {
         let graph = &mut engine.scenes[self.scene].graph;
         if graph.is_valid_handle(self.model) {
             graph.remove_node(self.model);
@@ -346,7 +346,7 @@ impl PreviewPanel {
         }
     }
 
-    pub async fn load_model(&mut self, model: &Path, engine: &mut GameEngine) -> bool {
+    pub async fn load_model(&mut self, model: &Path, engine: &mut Engine) -> bool {
         self.clear(engine);
         if let Ok(model) = engine.resource_manager.request::<Model, _>(model).await {
             let scene = &mut engine.scenes[self.scene];
@@ -359,7 +359,7 @@ impl PreviewPanel {
         }
     }
 
-    pub fn update(&mut self, engine: &mut GameEngine) {
+    pub fn update(&mut self, engine: &mut Engine) {
         let scene = &mut engine.scenes[self.scene];
 
         // Create new render target if preview frame has changed its size.
@@ -385,7 +385,7 @@ impl PreviewPanel {
         }
     }
 
-    pub fn set_model(&mut self, model: Handle<Node>, engine: &mut GameEngine) {
+    pub fn set_model(&mut self, model: Handle<Node>, engine: &mut Engine) {
         self.clear(engine);
         self.model = model;
         self.fit_to_model(&mut engine.scenes[self.scene])

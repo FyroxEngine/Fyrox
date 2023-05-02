@@ -3,7 +3,7 @@ use crate::{
     gui::make_dropdown_list_option,
     preview::PreviewPanel,
     scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
-    send_sync_message, GameEngine, Message,
+    send_sync_message, Engine, Message,
 };
 use fyrox::asset::untyped::UntypedResource;
 use fyrox::material::shader::{Shader, ShaderResourceExtension};
@@ -236,7 +236,7 @@ fn sync_array_of_arrays<'a, T, I, B>(
 }
 
 impl MaterialEditor {
-    pub fn new(engine: &mut GameEngine) -> Self {
+    pub fn new(engine: &mut Engine) -> Self {
         let mut preview = PreviewPanel::new(engine, 300, 400);
 
         let graph = &mut engine.scenes[preview.scene()].graph;
@@ -374,7 +374,7 @@ impl MaterialEditor {
         )
     }
 
-    pub fn set_material(&mut self, material: Option<SharedMaterial>, engine: &mut GameEngine) {
+    pub fn set_material(&mut self, material: Option<SharedMaterial>, engine: &mut Engine) {
         self.material = material;
 
         if let Some(material) = self.material.clone() {
@@ -636,7 +636,7 @@ impl MaterialEditor {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         sender: &Sender<Message>,
     ) {
         self.preview.handle_message(message, engine);
@@ -782,7 +782,7 @@ impl MaterialEditor {
         }
     }
 
-    pub fn update(&mut self, engine: &mut GameEngine) {
+    pub fn update(&mut self, engine: &mut Engine) {
         self.preview.update(engine)
     }
 }

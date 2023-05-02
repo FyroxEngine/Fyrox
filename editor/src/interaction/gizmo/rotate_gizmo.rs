@@ -1,6 +1,6 @@
 use crate::{
     make_color_material, scene::EditorScene, set_mesh_diffuse_color,
-    world::graph::selection::GraphSelection, GameEngine,
+    world::graph::selection::GraphSelection, Engine,
 };
 use fyrox::{
     core::{
@@ -67,7 +67,7 @@ fn make_rotation_ribbon(
 }
 
 impl RotationGizmo {
-    pub fn new(editor_scene: &EditorScene, engine: &mut GameEngine) -> Self {
+    pub fn new(editor_scene: &EditorScene, engine: &mut Engine) -> Self {
         let scene = &mut engine.scenes[editor_scene.scene];
         let graph = &mut scene.graph;
 
@@ -149,7 +149,7 @@ impl RotationGizmo {
         &mut self,
         picked: Handle<Node>,
         editor_scene: &EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
     ) -> bool {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
@@ -173,7 +173,7 @@ impl RotationGizmo {
         camera: Handle<Node>,
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
-        engine: &GameEngine,
+        engine: &Engine,
         frame_size: Vector2<f32>,
     ) -> UnitQuaternion<f32> {
         let graph = &engine.scenes[editor_scene.scene].graph;

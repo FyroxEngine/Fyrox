@@ -2,7 +2,7 @@ use crate::{
     interaction::plane::PlaneKind,
     make_color_material,
     scene::{EditorScene, Selection},
-    set_mesh_diffuse_color, GameEngine,
+    set_mesh_diffuse_color, Engine,
 };
 use fyrox::{
     core::{
@@ -139,7 +139,7 @@ fn create_quad_plane(
 }
 
 impl MoveGizmo {
-    pub fn new(editor_scene: &EditorScene, engine: &mut GameEngine) -> Self {
+    pub fn new(editor_scene: &EditorScene, engine: &mut Engine) -> Self {
         let scene = &mut engine.scenes[editor_scene.scene];
         let graph = &mut scene.graph;
 
@@ -293,7 +293,7 @@ impl MoveGizmo {
         camera: Handle<Node>,
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
-        engine: &GameEngine,
+        engine: &Engine,
         frame_size: Vector2<f32>,
         plane_kind: PlaneKind,
     ) -> Vector3<f32> {

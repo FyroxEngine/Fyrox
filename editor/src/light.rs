@@ -1,4 +1,4 @@
-use crate::{scene::EditorScene, GameEngine};
+use crate::{scene::EditorScene, Engine};
 use fyrox::{
     core::{pool::Handle, scope_profile},
     gui::{
@@ -24,7 +24,7 @@ pub struct LightPanel {
 }
 
 impl LightPanel {
-    pub fn new(engine: &mut GameEngine) -> Self {
+    pub fn new(engine: &mut Engine) -> Self {
         let generate;
         let nud_texels_per_unit;
         let nud_spacing;
@@ -121,7 +121,7 @@ impl LightPanel {
         &mut self,
         message: &UiMessage,
         editor_scene: &EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
     ) {
         scope_profile!();
 

@@ -1,4 +1,4 @@
-use crate::{scene::EditorScene, settings::Settings, GameEngine};
+use crate::{scene::EditorScene, settings::Settings, Engine};
 use fyrox::scene::camera::Projection;
 use fyrox::{
     core::{
@@ -39,7 +39,7 @@ pub trait InteractionMode: BaseInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         settings: &Settings,
@@ -48,7 +48,7 @@ pub trait InteractionMode: BaseInteractionMode {
     fn on_left_mouse_button_up(
         &mut self,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         settings: &Settings,
@@ -60,7 +60,7 @@ pub trait InteractionMode: BaseInteractionMode {
         mouse_position: Vector2<f32>,
         camera: Handle<Node>,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         frame_size: Vector2<f32>,
         settings: &Settings,
     );
@@ -69,14 +69,14 @@ pub trait InteractionMode: BaseInteractionMode {
         &mut self,
         _editor_scene: &mut EditorScene,
         _camera: Handle<Node>,
-        _engine: &mut GameEngine,
+        _engine: &mut Engine,
         _settings: &Settings,
     ) {
     }
 
-    fn activate(&mut self, _editor_scene: &EditorScene, _engine: &mut GameEngine) {}
+    fn activate(&mut self, _editor_scene: &EditorScene, _engine: &mut Engine) {}
 
-    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine);
+    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut Engine);
 
     /// Should return `true` if the `key` was handled in any way, otherwise you may mess up
     /// keyboard message routing. Return `false` if the `key` is unhandled.
@@ -84,7 +84,7 @@ pub trait InteractionMode: BaseInteractionMode {
         &mut self,
         _key: KeyCode,
         _editor_scene: &mut EditorScene,
-        _engine: &mut GameEngine,
+        _engine: &mut Engine,
     ) -> bool {
         false
     }
@@ -95,7 +95,7 @@ pub trait InteractionMode: BaseInteractionMode {
         &mut self,
         _key: KeyCode,
         _editor_scene: &mut EditorScene,
-        _engine: &mut GameEngine,
+        _engine: &mut Engine,
     ) -> bool {
         false
     }
@@ -104,11 +104,11 @@ pub trait InteractionMode: BaseInteractionMode {
         &mut self,
         _message: &UiMessage,
         _editor_scene: &mut EditorScene,
-        _engine: &mut GameEngine,
+        _engine: &mut Engine,
     ) {
     }
 
-    fn on_drop(&mut self, _engine: &mut GameEngine) {}
+    fn on_drop(&mut self, _engine: &mut Engine) {}
 }
 
 pub fn calculate_gizmo_distance_scaling(

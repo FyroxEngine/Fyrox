@@ -9,7 +9,7 @@ use crate::{
     },
     settings::Settings,
     world::graph::selection::GraphSelection,
-    GameEngine, Message,
+    Engine, Message,
 };
 use fyrox::core::math::round_to_step;
 use fyrox::{
@@ -31,7 +31,7 @@ pub struct RotateInteractionMode {
 impl RotateInteractionMode {
     pub fn new(
         editor_scene: &EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         message_sender: Sender<Message>,
     ) -> Self {
         Self {
@@ -47,7 +47,7 @@ impl InteractionMode for RotateInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         settings: &Settings,
@@ -86,7 +86,7 @@ impl InteractionMode for RotateInteractionMode {
     fn on_left_mouse_button_up(
         &mut self,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         settings: &Settings,
@@ -167,7 +167,7 @@ impl InteractionMode for RotateInteractionMode {
         mouse_position: Vector2<f32>,
         camera: Handle<Node>,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
@@ -211,7 +211,7 @@ impl InteractionMode for RotateInteractionMode {
         &mut self,
         editor_scene: &mut EditorScene,
         camera: Handle<Node>,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         _settings: &Settings,
     ) {
         if let Selection::Graph(selection) = &editor_scene.selection {
@@ -227,7 +227,7 @@ impl InteractionMode for RotateInteractionMode {
         }
     }
 
-    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
+    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
         self.rotation_gizmo.set_visible(graph, false);
     }

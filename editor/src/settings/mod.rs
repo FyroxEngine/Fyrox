@@ -6,7 +6,7 @@ use crate::{
         navmesh::NavmeshSettings, recent::RecentFiles, rotate_mode::RotateInteractionModeSettings,
         selection::SelectionSettings,
     },
-    GameEngine, Message, MSG_SYNC_FLAG,
+    Engine, Message, MSG_SYNC_FLAG,
 };
 use fyrox::{
     core::{log::Log, pool::Handle, reflect::prelude::*, scope_profile},
@@ -149,7 +149,7 @@ impl Settings {
 }
 
 impl SettingsWindow {
-    pub fn new(engine: &mut GameEngine) -> Self {
+    pub fn new(engine: &mut Engine) -> Self {
         let ok;
         let default;
 
@@ -248,7 +248,7 @@ impl SettingsWindow {
     pub fn handle_message(
         &mut self,
         message: &UiMessage,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         settings: &mut Settings,
         sender: &Sender<Message>,
     ) {

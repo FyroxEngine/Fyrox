@@ -1,6 +1,6 @@
 use crate::{
     gui::{make_dropdown_list_option, make_image_button_with_tooltip},
-    load_image, Brush, Color, DropdownListBuilder, GameEngine,
+    load_image, Brush, Color, DropdownListBuilder, Engine,
 };
 use fyrox::{
     core::{
@@ -58,7 +58,7 @@ impl ContextMenu {
         }
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
+    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) {
         if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == *self.menu {
                 self.placement_target = *target;
@@ -178,7 +178,7 @@ impl LogPanel {
         }
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
+    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) {
         scope_profile!();
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
@@ -207,7 +207,7 @@ impl LogPanel {
         self.context_menu.handle_ui_message(message, engine);
     }
 
-    pub fn update(&mut self, engine: &mut GameEngine) {
+    pub fn update(&mut self, engine: &mut Engine) {
         let mut count = engine
             .user_interface
             .node(self.messages)

@@ -6,7 +6,7 @@ use crate::{
         EditorScene, Selection,
     },
     settings::Settings,
-    GameEngine, Message, MSG_SYNC_FLAG,
+    Message, MSG_SYNC_FLAG,
 };
 use fyrox::{
     core::{
@@ -57,7 +57,7 @@ pub struct TerrainInteractionMode {
 impl TerrainInteractionMode {
     pub fn new(
         editor_scene: &EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         message_sender: Sender<Message>,
     ) -> Self {
         let brush = Brush {
@@ -85,7 +85,7 @@ pub struct BrushGizmo {
 }
 
 impl BrushGizmo {
-    pub fn new(editor_scene: &EditorScene, engine: &mut GameEngine) -> Self {
+    pub fn new(editor_scene: &EditorScene, engine: &mut Engine) -> Self {
         let scene = &mut engine.scenes[editor_scene.scene];
         let graph = &mut scene.graph;
 
@@ -128,7 +128,7 @@ impl InteractionMode for TerrainInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         _mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
         _settings: &Settings,
@@ -161,7 +161,7 @@ impl InteractionMode for TerrainInteractionMode {
     fn on_left_mouse_button_up(
         &mut self,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         _mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
         _settings: &Settings,
@@ -218,7 +218,7 @@ impl InteractionMode for TerrainInteractionMode {
         mouse_position: Vector2<f32>,
         camera: Handle<Node>,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
@@ -279,7 +279,7 @@ impl InteractionMode for TerrainInteractionMode {
         }
     }
 
-    fn activate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
+    fn activate(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
         self.brush_gizmo
             .set_visible(&mut engine.scenes[editor_scene.scene].graph, true);
 
@@ -293,7 +293,7 @@ impl InteractionMode for TerrainInteractionMode {
         ));
     }
 
-    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
+    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
         self.brush_gizmo
             .set_visible(&mut engine.scenes[editor_scene.scene].graph, false);
 
@@ -307,7 +307,7 @@ impl InteractionMode for TerrainInteractionMode {
         &mut self,
         message: &UiMessage,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
     ) {
         if let Selection::Graph(selection) = &editor_scene.selection {
             if selection.is_single_selection() {
@@ -322,7 +322,7 @@ impl InteractionMode for TerrainInteractionMode {
         }
     }
 
-    fn on_drop(&mut self, engine: &mut GameEngine) {
+    fn on_drop(&mut self, engine: &mut Engine) {
         engine.user_interface.send_message(WidgetMessage::remove(
             self.brush_panel.window,
             MessageDirection::ToWidget,

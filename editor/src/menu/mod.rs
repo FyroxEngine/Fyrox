@@ -7,7 +7,7 @@ use crate::{
     scene::EditorScene,
     send_sync_message,
     settings::Settings,
-    AbsmEditor, CurveEditorWindow, GameEngine, Message, Mode, SceneSettingsWindow,
+    AbsmEditor, CurveEditorWindow, Engine, Message, Mode, SceneSettingsWindow,
 };
 use fyrox::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
@@ -60,7 +60,7 @@ pub struct Panels<'b> {
 }
 
 pub struct MenuContext<'a, 'b> {
-    pub engine: &'a mut GameEngine,
+    pub engine: &'a mut Engine,
     pub editor_scene: Option<&'b mut EditorScene>,
     pub panels: Panels<'b>,
     pub settings: &'b mut Settings,
@@ -101,11 +101,7 @@ pub fn create_menu_item_shortcut(
 }
 
 impl Menu {
-    pub fn new(
-        engine: &mut GameEngine,
-        message_sender: Sender<Message>,
-        settings: &Settings,
-    ) -> Self {
+    pub fn new(engine: &mut Engine, message_sender: Sender<Message>, settings: &Settings) -> Self {
         let file_menu = FileMenu::new(engine, settings);
         let ctx = &mut engine.user_interface.build_ctx();
         let create_entity_menu = CreateEntityRootMenu::new(ctx);

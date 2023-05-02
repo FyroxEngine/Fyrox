@@ -12,7 +12,7 @@ use crate::{
     gui::AssetItemMessage,
     preview::PreviewPanel,
     utils::window_content,
-    AssetItem, AssetKind, GameEngine, Message, Mode,
+    AssetItem, AssetKind, Message, Mode,
 };
 use fyrox::{
     asset::manager::ResourceManager,
@@ -142,7 +142,7 @@ impl ContextMenu {
         }
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
+    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) {
         if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == *self.menu {
                 self.placement_target = *target;
@@ -198,7 +198,7 @@ fn is_engine_resource(ext: &OsStr) -> bool {
 }
 
 impl AssetBrowser {
-    pub fn new(engine: &mut GameEngine) -> Self {
+    pub fn new(engine: &mut Engine) -> Self {
         let preview = PreviewPanel::new(engine, 250, 250);
         let ctx = &mut engine.user_interface.build_ctx();
 
@@ -315,11 +315,11 @@ impl AssetBrowser {
         }
     }
 
-    pub fn clear_preview(&mut self, engine: &mut GameEngine) {
+    pub fn clear_preview(&mut self, engine: &mut Engine) {
         self.preview.clear(engine);
     }
 
-    pub fn set_working_directory(&mut self, engine: &mut GameEngine, dir: &Path) {
+    pub fn set_working_directory(&mut self, engine: &mut Engine, dir: &Path) {
         assert!(dir.is_dir());
 
         engine.user_interface.send_message(FileBrowserMessage::root(
@@ -409,7 +409,7 @@ impl AssetBrowser {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         sender: Sender<Message>,
     ) {
         scope_profile!();
@@ -515,7 +515,7 @@ impl AssetBrowser {
         self.item_to_select = Some(path);
     }
 
-    pub fn update(&mut self, engine: &mut GameEngine) {
+    pub fn update(&mut self, engine: &mut Engine) {
         self.preview.update(engine)
     }
 

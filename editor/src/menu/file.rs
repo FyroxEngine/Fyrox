@@ -3,7 +3,7 @@ use crate::{
     menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
     scene::{is_scene_needs_to_be_saved, EditorScene},
     settings::{recent::RecentFiles, Settings, SettingsWindow},
-    GameEngine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
+    Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
 };
 use fyrox::{
     core::pool::Handle,
@@ -50,7 +50,7 @@ fn make_recent_files_items(
 }
 
 impl FileMenu {
-    pub fn new(engine: &mut GameEngine, settings: &Settings) -> Self {
+    pub fn new(engine: &mut Engine, settings: &Settings) -> Self {
         let new_scene;
         let save;
         let save_as;
@@ -194,7 +194,7 @@ impl FileMenu {
         message: &UiMessage,
         sender: &Sender<Message>,
         editor_scene: &Option<&mut EditorScene>,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         settings: &mut Settings,
         panels: &Panels,
     ) {

@@ -9,7 +9,7 @@ use crate::{
         EditorScene, Selection,
     },
     world::graph::item::SceneItem,
-    GameEngine, Message, MessageDirection, PasteCommand,
+    Engine, Message, MessageDirection, PasteCommand,
 };
 use fyrox::gui::RcUiNodeHandle;
 use fyrox::{
@@ -128,7 +128,7 @@ impl ItemContextMenu {
         &mut self,
         message: &UiMessage,
         editor_scene: &mut EditorScene,
-        engine: &GameEngine,
+        engine: &Engine,
         sender: &Sender<Message>,
     ) {
         scope_profile!();

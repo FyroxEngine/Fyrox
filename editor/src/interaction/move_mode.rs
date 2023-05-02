@@ -10,7 +10,7 @@ use crate::{
     },
     settings::Settings,
     world::graph::selection::GraphSelection,
-    GameEngine, Message,
+    Engine, Message,
 };
 use fyrox::{
     core::{
@@ -263,7 +263,7 @@ pub struct MoveInteractionMode {
 impl MoveInteractionMode {
     pub fn new(
         editor_scene: &EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         message_sender: Sender<Message>,
     ) -> Self {
         Self {
@@ -278,7 +278,7 @@ impl InteractionMode for MoveInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         settings: &Settings,
@@ -320,7 +320,7 @@ impl InteractionMode for MoveInteractionMode {
     fn on_left_mouse_button_up(
         &mut self,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         settings: &Settings,
@@ -406,7 +406,7 @@ impl InteractionMode for MoveInteractionMode {
         mouse_position: Vector2<f32>,
         _camera: Handle<Node>,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
@@ -428,7 +428,7 @@ impl InteractionMode for MoveInteractionMode {
         &mut self,
         editor_scene: &mut EditorScene,
         camera: Handle<Node>,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         _settings: &Settings,
     ) {
         let scene = &mut engine.scenes[editor_scene.scene];
@@ -443,7 +443,7 @@ impl InteractionMode for MoveInteractionMode {
         }
     }
 
-    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
+    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
         self.move_gizmo.set_visible(graph, false);
     }

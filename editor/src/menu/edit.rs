@@ -1,7 +1,7 @@
 use crate::{
     menu::{create_menu_item_shortcut, create_root_menu_item},
     scene::{commands::PasteCommand, EditorScene, Selection},
-    GameEngine, Message, Mode,
+    Engine, Message, Mode,
 };
 use fyrox::gui::message::MessageDirection;
 use fyrox::gui::widget::WidgetMessage;
@@ -63,7 +63,7 @@ impl EditMenu {
         message: &UiMessage,
         sender: &Sender<Message>,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
     ) {
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.copy {

@@ -146,8 +146,6 @@ pub fn send_sync_message(ui: &UserInterface, mut msg: UiMessage) {
     ui.send_message(msg);
 }
 
-type GameEngine = fyrox::engine::Engine;
-
 pub fn load_image(data: &[u8]) -> Option<draw::SharedTexture> {
     Some(into_gui_texture(
         TextureResource::load_from_memory(data, CompressionOptions::NoCompression, false).ok()?,

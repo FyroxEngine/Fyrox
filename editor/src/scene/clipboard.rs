@@ -1,4 +1,4 @@
-use crate::{scene::GraphSelection, GameEngine};
+use crate::{scene::GraphSelection, Engine};
 use fyrox::{
     core::pool::Handle,
     scene::{graph::Graph, node::Node, Scene},
@@ -54,7 +54,7 @@ impl Clipboard {
         &mut self,
         selection: &GraphSelection,
         scene_handle: Handle<Scene>,
-        engine: &GameEngine,
+        engine: &Engine,
     ) {
         self.clear();
 

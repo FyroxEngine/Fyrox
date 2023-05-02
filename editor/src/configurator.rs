@@ -1,4 +1,4 @@
-use crate::{GameEngine, Message};
+use crate::{Engine, Message};
 use fyrox::gui::text::TextMessage;
 use fyrox::{
     core::{
@@ -243,7 +243,7 @@ impl Configurator {
         }
     }
 
-    fn validate(&mut self, engine: &mut GameEngine) {
+    fn validate(&mut self, engine: &mut Engine) {
         let is_valid_scene_path = self.work_dir.exists();
         engine.user_interface.send_message(WidgetMessage::enabled(
             self.ok,
@@ -252,7 +252,7 @@ impl Configurator {
         ));
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut GameEngine) {
+    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) {
         scope_profile!();
 
         if let Some(WindowMessage::Close) = message.data::<WindowMessage>() {

@@ -3,7 +3,7 @@ use crate::{
     scene::{commands::ChangeSelectionCommand, EditorScene, Selection},
     settings::Settings,
     world::graph::selection::GraphSelection,
-    GameEngine, Message,
+    Engine, Message,
 };
 use fyrox::{
     core::{algebra::Vector2, pool::Handle},
@@ -40,7 +40,7 @@ impl InteractionMode for SelectInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         _editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
         _settings: &Settings,
@@ -72,7 +72,7 @@ impl InteractionMode for SelectInteractionMode {
     fn on_left_mouse_button_up(
         &mut self,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         _mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         _settings: &Settings,
@@ -138,7 +138,7 @@ impl InteractionMode for SelectInteractionMode {
         mouse_position: Vector2<f32>,
         _camera: Handle<Node>,
         _editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         _frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
@@ -179,10 +179,10 @@ impl InteractionMode for SelectInteractionMode {
         &mut self,
         _editor_scene: &mut EditorScene,
         _camera: Handle<Node>,
-        _engine: &mut GameEngine,
+        _engine: &mut Engine,
         _settings: &Settings,
     ) {
     }
 
-    fn deactivate(&mut self, _editor_scene: &EditorScene, _engine: &mut GameEngine) {}
+    fn deactivate(&mut self, _editor_scene: &EditorScene, _engine: &mut Engine) {}
 }

@@ -12,7 +12,7 @@ use crate::{
         menu::ItemContextMenu,
         selection::GraphSelection,
     },
-    GameEngine, Message, Mode, Settings,
+    Message, Mode, Settings,
 };
 use fyrox::{
     core::{
@@ -296,7 +296,7 @@ impl WorldViewer {
         }
     }
 
-    pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
+    pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
         scope_profile!();
 
         let scene = &mut engine.scenes[editor_scene.scene];
@@ -576,7 +576,7 @@ impl WorldViewer {
         &mut self,
         message: &UiMessage,
         editor_scene: &mut EditorScene,
-        engine: &GameEngine,
+        engine: &Engine,
         settings: &mut Settings,
     ) {
         scope_profile!();
@@ -772,7 +772,7 @@ impl WorldViewer {
         }
     }
 
-    fn map_selection(&self, selection: &Selection, engine: &GameEngine) -> Vec<Handle<UiNode>> {
+    fn map_selection(&self, selection: &Selection, engine: &Engine) -> Vec<Handle<UiNode>> {
         match selection {
             Selection::Graph(selection) => {
                 map_selection(selection.nodes(), self.tree_root, &engine.user_interface)
@@ -784,7 +784,7 @@ impl WorldViewer {
     pub fn post_update(
         &mut self,
         editor_scene: &EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         settings: &Settings,
     ) {
         // Hack. See `self.sync_selection` for details.

@@ -3,12 +3,11 @@ use crate::{
     gui::make_dropdown_list_option_with_height, load_image, send_sync_message,
     settings::keys::KeyBindings, utils::enable_widget, AddModelCommand, AssetItem, AssetKind,
     BuildProfile, ChangeSelectionCommand, CommandGroup, DropdownListBuilder, EditorScene,
-    GameEngine, GraphSelection, InteractionMode, InteractionModeKind, Message, Mode, SceneCommand,
-    Selection, SetMeshTextureCommand, Settings,
+    GraphSelection, InteractionMode, InteractionModeKind, Message, Mode, SceneCommand, Selection,
+    SetMeshTextureCommand, Settings,
 };
-use fyrox::asset::ResourceStateRef;
-use fyrox::resource::model::{Model, ModelResourceExtension};
 use fyrox::{
+    asset::ResourceStateRef,
     core::{
         algebra::{Vector2, Vector3},
         color::Color,
@@ -39,7 +38,10 @@ use fyrox::{
         VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_DARKER, BRUSH_DARKEST, BRUSH_LIGHT,
         BRUSH_LIGHTER, BRUSH_LIGHTEST,
     },
-    resource::texture::{Texture, TextureResource},
+    resource::{
+        model::{Model, ModelResourceExtension},
+        texture::{Texture, TextureResource},
+    },
     scene::{
         camera::{Camera, Projection},
         node::Node,
@@ -121,7 +123,7 @@ fn make_interaction_mode_button(
 }
 
 impl SceneViewer {
-    pub fn new(engine: &mut GameEngine, sender: Sender<Message>) -> Self {
+    pub fn new(engine: &mut Engine, sender: Sender<Message>) -> Self {
         let ctx = &mut engine.user_interface.build_ctx();
 
         let select_mode_tooltip = "Select Object(s) - Shortcut: [1]\n\nSelection interaction mode \

@@ -10,7 +10,7 @@ use crate::{
         EditorScene, Selection,
     },
     settings::Settings,
-    GameEngine, Message,
+    Engine, Message,
 };
 use fyrox::{
     core::{
@@ -31,7 +31,7 @@ pub struct ScaleInteractionMode {
 impl ScaleInteractionMode {
     pub fn new(
         editor_scene: &EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         message_sender: Sender<Message>,
     ) -> Self {
         Self {
@@ -47,7 +47,7 @@ impl InteractionMode for ScaleInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         settings: &Settings,
@@ -84,7 +84,7 @@ impl InteractionMode for ScaleInteractionMode {
     fn on_left_mouse_button_up(
         &mut self,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         settings: &Settings,
@@ -163,7 +163,7 @@ impl InteractionMode for ScaleInteractionMode {
         mouse_position: Vector2<f32>,
         camera: Handle<Node>,
         editor_scene: &mut EditorScene,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
@@ -194,7 +194,7 @@ impl InteractionMode for ScaleInteractionMode {
         &mut self,
         editor_scene: &mut EditorScene,
         camera: Handle<Node>,
-        engine: &mut GameEngine,
+        engine: &mut Engine,
         _settings: &Settings,
     ) {
         if let Selection::Graph(selection) = &editor_scene.selection {
@@ -210,7 +210,7 @@ impl InteractionMode for ScaleInteractionMode {
         }
     }
 
-    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut GameEngine) {
+    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
         self.scale_gizmo.set_visible(graph, false);
     }

@@ -5,7 +5,7 @@ use crate::{
         clipboard::DeepCloneResult, commands::graph::DeleteSubGraphCommand, EditorScene,
         GraphSelection, Selection,
     },
-    GameEngine, Message,
+    Engine, Message,
 };
 use fyrox::{
     asset::manager::ResourceManager,
@@ -124,10 +124,7 @@ impl Command for CommandGroup {
 /// Creates scene command (command group) which removes current selection in editor's scene.
 /// This is **not** trivial because each node has multiple connections inside engine and
 /// in editor's data model, so we have to thoroughly build command using simple commands.
-pub fn make_delete_selection_command(
-    editor_scene: &EditorScene,
-    engine: &GameEngine,
-) -> SceneCommand {
+pub fn make_delete_selection_command(editor_scene: &EditorScene, engine: &Engine) -> SceneCommand {
     let graph = &engine.scenes[editor_scene.scene].graph;
 
     // Graph's root is non-deletable.
