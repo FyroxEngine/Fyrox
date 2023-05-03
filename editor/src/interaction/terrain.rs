@@ -232,12 +232,7 @@ impl InteractionMode for TerrainInteractionMode {
                         terrain.raycast(ray, &mut intersections, true);
 
                         if let Some(closest) = intersections.first() {
-                            let global_position = terrain
-                                .global_transform()
-                                .transform_point(&Point3::from(closest.position))
-                                .coords;
-
-                            self.brush.center = global_position;
+                            self.brush.center = closest.position;
 
                             let mut brush_copy = self.brush.clone();
                             match &mut brush_copy.mode {
@@ -266,7 +261,7 @@ impl InteractionMode for TerrainInteractionMode {
 
                             graph[self.brush_gizmo.brush]
                                 .local_transform_mut()
-                                .set_position(global_position)
+                                .set_position(closest.position)
                                 .set_scale(scale)
                                 .set_rotation(vector_to_quat(closest.normal));
                         }

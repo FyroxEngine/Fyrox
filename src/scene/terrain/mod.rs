@@ -307,6 +307,9 @@ fn map_to_local(v: Vector3<f32>) -> Vector2<f32> {
 pub struct TerrainRayCastResult {
     /// World-space position of impact point.
     pub position: Vector3<f32>,
+    /// Height value at the intersection point (this value could be interpolated between four neighbour pixels
+    /// of a height map).
+    pub height: f32,
     /// World-space normal of triangle at impact point.
     pub normal: Vector3<f32>,
     /// Index of a chunk that was hit.
@@ -973,7 +976,11 @@ impl Terrain {
                                             .unwrap_or_else(Vector3::y);
 
                                         let result = TerrainRayCastResult {
-                                            position: intersection,
+                                            position: self
+                                                .global_transform()
+                                                .transform_point(&Point3::from(intersection))
+                                                .coords,
+                                            height: intersection.y,
                                             normal,
                                             chunk_index,
                                             toi,
