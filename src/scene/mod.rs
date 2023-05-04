@@ -28,7 +28,7 @@ pub mod terrain;
 pub mod transform;
 
 use crate::{
-    asset::{manager::ResourceManager, untyped::UntypedResource},
+    asset::{self, manager::ResourceManager, untyped::UntypedResource},
     core::{
         algebra::Vector2,
         color::Color,
@@ -328,75 +328,6 @@ impl SceneLoader {
     }
 }
 
-fn collect_used_resources(
-    entity: &dyn Reflect,
-    resources_collection: &mut FxHashSet<UntypedResource>,
-) {
-    let mut finished = false;
-
-    entity.downcast_ref::<UntypedResource>(&mut |v| {
-        if let Some(resource) = v {
-            resources_collection.insert(resource.clone());
-            finished = true;
-        }
-    });
-
-    if finished {
-        return;
-    }
-
-    entity.as_array(&mut |array| {
-        if let Some(array) = array {
-            for i in 0..array.reflect_len() {
-                if let Some(item) = array.reflect_index(i) {
-                    collect_used_resources(item, resources_collection)
-                }
-            }
-
-            finished = true;
-        }
-    });
-
-    if finished {
-        return;
-    }
-
-    entity.as_inheritable_variable(&mut |inheritable| {
-        if let Some(inheritable) = inheritable {
-            collect_used_resources(inheritable.inner_value_ref(), resources_collection);
-
-            finished = true;
-        }
-    });
-
-    if finished {
-        return;
-    }
-
-    entity.as_hash_map(&mut |hash_map| {
-        if let Some(hash_map) = hash_map {
-            for i in 0..hash_map.reflect_len() {
-                if let Some((key, value)) = hash_map.reflect_get_at(i) {
-                    collect_used_resources(key, resources_collection);
-                    collect_used_resources(value, resources_collection);
-                }
-            }
-
-            finished = true;
-        }
-    });
-
-    if finished {
-        return;
-    }
-
-    entity.fields(&mut |fields| {
-        for field in fields {
-            collect_used_resources(field, resources_collection);
-        }
-    })
-}
-
 impl Scene {
     /// Creates new scene with single root node.
     ///
@@ -523,7 +454,7 @@ impl Scene {
     /// if some fields marked with `#[reflect(hidden)]` attribute, then such field will be ignored!
     pub fn collect_used_resources(&self) -> FxHashSet<UntypedResource> {
         let mut collection = FxHashSet::default();
-        collect_used_resources(self, &mut collection);
+        asset::collect_used_resources(self, &mut collection);
         collection
     }
 
