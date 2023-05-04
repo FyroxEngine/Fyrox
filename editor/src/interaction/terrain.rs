@@ -1,7 +1,7 @@
-use crate::message::MessageSender;
 use crate::{
     interaction::InteractionMode,
     make_color_material,
+    message::MessageSender,
     scene::{
         commands::terrain::{ModifyTerrainHeightCommand, ModifyTerrainLayerMaskCommand},
         EditorScene, Selection,
@@ -9,9 +9,10 @@ use crate::{
     settings::Settings,
     MSG_SYNC_FLAG,
 };
+use fyrox::gui::inspector::PropertyAction;
 use fyrox::{
     core::{
-        algebra::{Matrix4, Point3, Vector2, Vector3},
+        algebra::{Matrix4, Vector2, Vector3},
         arrayvec::ArrayVec,
         color::Color,
         log::{Log, MessageKind},
@@ -24,7 +25,7 @@ use fyrox::{
             editors::{
                 enumeration::EnumPropertyEditorDefinition, PropertyEditorDefinitionContainer,
             },
-            FieldKind, Inspector, InspectorBuilder, InspectorContext, InspectorMessage,
+            Inspector, InspectorBuilder, InspectorContext, InspectorMessage,
         },
         message::{MessageDirection, UiMessage},
         widget::{WidgetBuilder, WidgetMessage},
@@ -130,18 +131,32 @@ impl InteractionMode for TerrainInteractionMode {
         &mut self,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
-        _mouse_pos: Vector2<f32>,
-        _frame_size: Vector2<f32>,
+        mouse_pos: Vector2<f32>,
+        frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
         if let Selection::Graph(selection) = &editor_scene.selection {
             if selection.is_single_selection() {
                 let graph = &mut engine.scenes[editor_scene.scene].graph;
                 let handle = selection.nodes()[0];
-
                 if let Some(terrain) = &graph[handle].cast::<Terrain>() {
+                    // Pick height value at the point of interaction.
+                    if let BrushMode::FlattenHeightMap { height } = &mut self.brush.mode {
+                        let camera = &graph[editor_scene.camera_controller.camera];
+                        if let Some(camera) = camera.cast::<Camera>() {
+                            let ray = camera.make_ray(mouse_pos, frame_size);
+
+                            let mut intersections = ArrayVec::<TerrainRayCastResult, 128>::new();
+                            terrain.raycast(ray, &mut intersections, true);
+
+                            if let Some(closest) = intersections.first() {
+                                *height = closest.height;
+                            }
+                        }
+                    }
+
                     match self.brush.mode {
-                        BrushMode::ModifyHeightMap { .. } => {
+                        BrushMode::ModifyHeightMap { .. } | BrushMode::FlattenHeightMap { .. } => {
                             self.heightmaps = terrain
                                 .chunks_ref()
                                 .iter()
@@ -181,7 +196,8 @@ impl InteractionMode for TerrainInteractionMode {
                             .collect();
 
                         match self.brush.mode {
-                            BrushMode::ModifyHeightMap { .. } => {
+                            BrushMode::ModifyHeightMap { .. }
+                            | BrushMode::FlattenHeightMap { .. } => {
                                 self.message_sender.do_scene_command(
                                     ModifyTerrainHeightCommand::new(
                                         handle,
@@ -246,6 +262,11 @@ impl InteractionMode for TerrainInteractionMode {
                                         *alpha = -1.0;
                                     }
                                 }
+                                BrushMode::FlattenHeightMap { height } => {
+                                    if engine.user_interface.keyboard_modifiers().shift {
+                                        *height *= -1.0;
+                                    }
+                                }
                             }
 
                             if self.interacting {
@@ -299,17 +320,11 @@ impl InteractionMode for TerrainInteractionMode {
         &mut self,
         message: &UiMessage,
         editor_scene: &mut EditorScene,
-        engine: &mut Engine,
+        _engine: &mut Engine,
     ) {
         if let Selection::Graph(selection) = &editor_scene.selection {
             if selection.is_single_selection() {
-                self.brush_panel.handle_ui_message(
-                    message,
-                    &mut self.brush,
-                    selection.nodes()[0],
-                    editor_scene,
-                    engine,
-                );
+                self.brush_panel.handle_ui_message(message, &mut self.brush);
             }
         }
     }
@@ -335,13 +350,21 @@ fn make_brush_mode_enum_property_editor_definition() -> EnumPropertyEditorDefini
                 layer: 0,
                 alpha: 1.0,
             },
+            2 => BrushMode::FlattenHeightMap { height: 0.0 },
             _ => unreachable!(),
         },
         index_generator: |v| match v {
             BrushMode::ModifyHeightMap { .. } => 0,
             BrushMode::DrawOnMask { .. } => 1,
+            BrushMode::FlattenHeightMap { .. } => 2,
         },
-        names_generator: || vec!["Modify Height Map".to_string(), "Draw On Mask".to_string()],
+        names_generator: || {
+            vec![
+                "Modify Height Map".to_string(),
+                "Draw On Mask".to_string(),
+                "Flatten Height Map".to_string(),
+            ]
+        },
     }
 }
 
@@ -412,107 +435,19 @@ impl BrushPanel {
         }
     }
 
-    fn handle_ui_message(
-        &self,
-        message: &UiMessage,
-        brush: &mut Brush,
-        terrain: Handle<Node>,
-        editor_scene: &EditorScene,
-        engine: &Engine,
-    ) -> Option<()> {
+    fn handle_ui_message(&self, message: &UiMessage, brush: &mut Brush) -> Option<()> {
         if message.destination() == self.inspector
             && message.direction() == MessageDirection::FromWidget
         {
             if let Some(InspectorMessage::PropertyChanged(msg)) = message.data::<InspectorMessage>()
             {
-                match msg.value {
-                    FieldKind::Object(ref args) => match msg.name.as_ref() {
-                        Brush::SHAPE => {
-                            args.cast_clone(&mut |result| {
-                                brush.shape = result.unwrap();
-                            });
-                        }
-                        Brush::MODE => {
-                            args.cast_clone(&mut |result| {
-                                brush.mode = result.unwrap();
-                            });
-                        }
-                        _ => (),
+                PropertyAction::from_field_kind(&msg.value).apply(
+                    &msg.path(),
+                    brush,
+                    &mut |result| {
+                        Log::verify(result);
                     },
-                    FieldKind::Inspectable(ref inner) => {
-                        if let FieldKind::Object(ref args) = inner.value {
-                            match msg.name.as_ref() {
-                                Brush::SHAPE => match inner.name.as_ref() {
-                                    BrushShape::CIRCLE_RADIUS => {
-                                        if let BrushShape::Circle { ref mut radius } = brush.shape {
-                                            args.cast_clone(&mut |result| {
-                                                *radius = result.unwrap();
-                                            });
-                                        }
-                                    }
-                                    BrushShape::RECTANGLE_WIDTH => {
-                                        if let BrushShape::Rectangle { ref mut width, .. } =
-                                            brush.shape
-                                        {
-                                            args.cast_clone(&mut |result| {
-                                                *width = result.unwrap();
-                                            });
-                                        }
-                                    }
-                                    BrushShape::RECTANGLE_LENGTH => {
-                                        if let BrushShape::Rectangle { ref mut length, .. } =
-                                            brush.shape
-                                        {
-                                            args.cast_clone(&mut |result| {
-                                                *length = result.unwrap();
-                                            });
-                                        }
-                                    }
-                                    _ => (),
-                                },
-                                Brush::MODE => match inner.name.as_ref() {
-                                    BrushMode::MODIFY_HEIGHT_MAP_AMOUNT => {
-                                        if let BrushMode::ModifyHeightMap { ref mut amount } =
-                                            brush.mode
-                                        {
-                                            args.cast_clone(&mut |result| {
-                                                *amount = result.unwrap();
-                                            });
-                                        }
-                                    }
-                                    BrushMode::DRAW_ON_MASK_LAYER => {
-                                        if let BrushMode::DrawOnMask { ref mut layer, .. } =
-                                            brush.mode
-                                        {
-                                            let node =
-                                                &engine.scenes[editor_scene.scene].graph[terrain];
-                                            if node.is_terrain() {
-                                                let terrain = node.as_terrain();
-
-                                                args.cast_clone::<usize>(&mut |result| {
-                                                    *layer =
-                                                        result.unwrap().min(terrain.layers().len());
-                                                });
-                                            }
-                                        }
-                                    }
-                                    BrushMode::DRAW_ON_MASK_ALPHA => {
-                                        if let BrushMode::DrawOnMask { ref mut alpha, .. } =
-                                            brush.mode
-                                        {
-                                            args.cast_clone(&mut |result| {
-                                                *alpha = result.unwrap();
-                                            });
-                                        }
-                                    }
-                                    _ => (),
-                                },
-                                _ => (),
-                            }
-                        }
-                    }
-                    _ => {}
-                }
+                );
             }
         }
         Some(())

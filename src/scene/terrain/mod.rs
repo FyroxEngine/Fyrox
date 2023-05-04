@@ -808,6 +808,40 @@ impl Terrain {
         project(self.global_transform(), p)
     }
 
+    /// Applies the given function to each pixel of the height map.
+    pub fn for_each_height_map_pixel<F>(&mut self, mut func: F)
+    where
+        F: FnMut(&mut f32, Vector2<f32>),
+    {
+        for chunk in self.chunks.iter_mut() {
+            let mut texture_data = chunk.heightmap.as_ref().unwrap().data_ref();
+            let mut texture_modifier = texture_data.modify();
+            let height_map = texture_modifier.data_mut_of_type::<f32>().unwrap();
+
+            for iy in 0..chunk.height_map_size.y {
+                let kz = iy as f32 / (chunk.height_map_size.y - 1) as f32;
+                for ix in 0..chunk.height_map_size.y {
+                    let kx = ix as f32 / (chunk.height_map_size.x - 1) as f32;
+
+                    let pixel_position = chunk.local_position()
+                        + Vector2::new(kx * chunk.physical_size.x, kz * chunk.physical_size.y);
+
+                    let index = (iy * chunk.height_map_size.x + ix) as usize;
+
+                    func(&mut height_map[index], pixel_position)
+                }
+            }
+
+            drop(texture_modifier);
+            drop(texture_data);
+
+            chunk.quad_tree =
+                make_quad_tree(&chunk.heightmap, chunk.height_map_size, chunk.block_size);
+        }
+
+        self.bounding_box_dirty.set(true);
+    }
+
     /// Multi-functional drawing method. It uses given brush to modify terrain, see [`Brush`] docs for
     /// more info.
     pub fn draw(&mut self, brush: &Brush) {
@@ -815,46 +849,24 @@ impl Terrain {
 
         match brush.mode {
             BrushMode::ModifyHeightMap { amount } => {
-                for chunk in self.chunks.iter_mut() {
-                    let mut texture_data = chunk.heightmap.as_ref().unwrap().data_ref();
-                    let mut texture_modifier = texture_data.modify();
-                    let height_map = texture_modifier.data_mut_of_type::<f32>().unwrap();
-
-                    for iy in 0..chunk.height_map_size.y {
-                        let kz = iy as f32 / (chunk.height_map_size.y - 1) as f32;
-                        for ix in 0..chunk.height_map_size.y {
-                            let kx = ix as f32 / (chunk.height_map_size.x - 1) as f32;
-
-                            let pixel_position = chunk.local_position()
-                                + Vector2::new(
-                                    kx * chunk.physical_size.x,
-                                    kz * chunk.physical_size.y,
-                                );
-
-                            let k = match brush.shape {
-                                BrushShape::Circle { radius } => {
-                                    1.0 - ((center - pixel_position).norm() / radius).powf(2.0)
-                                }
-                                BrushShape::Rectangle { .. } => 1.0,
-                            };
-
-                            if brush.shape.contains(center, pixel_position) {
-                                height_map[(iy * chunk.height_map_size.x + ix) as usize] +=
-                                    k * amount;
-                            }
+                self.for_each_height_map_pixel(|pixel, pixel_position| {
+                    let k = match brush.shape {
+                        BrushShape::Circle { radius } => {
+                            1.0 - ((center - pixel_position).norm() / radius).powf(2.0)
                         }
+                        BrushShape::Rectangle { .. } => 1.0,
+                    };
+
+                    if brush.shape.contains(center, pixel_position) {
+                        *pixel += k * amount;
                     }
-
-                    drop(texture_modifier);
-                    drop(texture_data);
-
-                    chunk.quad_tree =
-                        make_quad_tree(&chunk.heightmap, chunk.height_map_size, chunk.block_size);
-                }
-
-                self.bounding_box_dirty.set(true);
+                });
             }
             BrushMode::DrawOnMask { layer, alpha } => {
+                if layer >= self.layers.len() {
+                    return;
+                }
+
                 let alpha = alpha.clamp(-1.0, 1.0);
 
                 for chunk in self.chunks.iter_mut() {
@@ -896,6 +908,13 @@ impl Terrain {
                         }
                     }
                 }
+            }
+            BrushMode::FlattenHeightMap { height } => {
+                self.for_each_height_map_pixel(|pixel, pixel_position| {
+                    if brush.shape.contains(center, pixel_position) {
+                        *pixel = height;
+                    }
+                });
             }
         }
     }
@@ -1405,6 +1424,11 @@ pub enum BrushMode {
     ModifyHeightMap {
         /// An offset for height map.
         amount: f32,
+    },
+    ///
+    FlattenHeightMap {
+        /// Fixed height value for flattening.
+        height: f32,
     },
     /// Draws on a given layer.
     DrawOnMask {
