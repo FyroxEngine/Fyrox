@@ -1,18 +1,17 @@
 //! Curve resource holds a [`Curve`]
 
 use crate::{
-    asset::options::ImportOptions,
-    asset::{Resource, ResourceData},
-    core::{curve::Curve, io::FileLoadError, visitor::prelude::*},
+    asset::{options::ImportOptions, Resource, ResourceData, CURVE_RESOURCE_UUID},
+    core::{
+        curve::Curve, io::FileLoadError, reflect::prelude::*, uuid::Uuid, visitor::prelude::*,
+        TypeUuidProvider,
+    },
 };
-use fyrox_core::uuid::Uuid;
-use fyrox_core::TypeUuidProvider;
-use fyrox_resource::CURVE_RESOURCE_UUID;
 use serde::{Deserialize, Serialize};
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use std::{
+    any::Any,
     borrow::Cow,
+    fmt::{Display, Formatter},
     path::{Path, PathBuf},
 };
 
@@ -57,7 +56,7 @@ impl From<VisitError> for CurveResourceError {
 }
 
 /// State of the [`CurveResource`]
-#[derive(Debug, Visit, Default)]
+#[derive(Debug, Visit, Default, Reflect)]
 pub struct CurveResourceState {
     pub(crate) path: PathBuf,
     /// Actual curve.

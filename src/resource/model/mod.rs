@@ -55,7 +55,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 pub mod loader;
 
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Reflect)]
 #[repr(u32)]
 pub(crate) enum NodeMapping {
     UseNames = 0,
@@ -63,7 +63,7 @@ pub(crate) enum NodeMapping {
 }
 
 /// See module docs.
-#[derive(Debug, Visit)]
+#[derive(Debug, Visit, Reflect)]
 pub struct Model {
     pub(crate) path: PathBuf,
     #[visit(skip)]

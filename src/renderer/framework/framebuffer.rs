@@ -1,13 +1,11 @@
-use crate::renderer::framework::geometry_buffer::ElementRange;
-use crate::renderer::framework::state::BlendEquation;
 use crate::{
-    core::{color::Color, math::Rect, scope_profile, visitor::prelude::*},
+    core::{color::Color, math::Rect, reflect::prelude::*, scope_profile, visitor::prelude::*},
     renderer::framework::{
         error::FrameworkError,
-        geometry_buffer::{DrawCallStatistics, GeometryBuffer},
+        geometry_buffer::{DrawCallStatistics, ElementRange, GeometryBuffer},
         gpu_program::{GpuProgram, GpuProgramBinding},
         gpu_texture::{CubeMapFace, GpuTexture, GpuTextureKind, PixelElementKind},
-        state::{BlendFunc, ColorMask, PipelineState, StencilFunc, StencilOp},
+        state::{BlendEquation, BlendFunc, ColorMask, PipelineState, StencilFunc, StencilOp},
     },
 };
 use glow::HasContext;
@@ -33,7 +31,7 @@ pub struct FrameBuffer {
     color_attachments: Vec<Attachment>,
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit, Eq)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit, Eq, Reflect)]
 #[repr(u32)]
 pub enum CullFace {
     Back = glow::BACK,
@@ -46,13 +44,13 @@ impl Default for CullFace {
     }
 }
 
-#[derive(Deserialize, Default, Visit, Debug, PartialEq, Clone, Eq)]
+#[derive(Deserialize, Default, Visit, Debug, PartialEq, Clone, Eq, Reflect)]
 pub struct BlendParameters {
     pub func: BlendFunc,
     pub equation: BlendEquation,
 }
 
-#[derive(Deserialize, Visit, Debug, PartialEq, Clone, Eq)]
+#[derive(Deserialize, Visit, Debug, PartialEq, Clone, Eq, Reflect)]
 pub struct DrawParameters {
     pub cull_face: Option<CullFace>,
     pub color_write: ColorMask,

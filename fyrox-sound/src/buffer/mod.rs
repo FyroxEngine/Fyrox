@@ -12,7 +12,9 @@ use crate::{
     buffer::{generic::GenericBuffer, streaming::StreamingBuffer},
     error::SoundError,
 };
-use fyrox_core::{io::FileLoadError, uuid::Uuid, visitor::prelude::*, TypeUuidProvider};
+use fyrox_core::{
+    io::FileLoadError, reflect::prelude::*, uuid::Uuid, visitor::prelude::*, TypeUuidProvider,
+};
 use fyrox_resource::{Resource, ResourceData, SOUND_BUFFER_RESOURCE_UUID};
 use std::{
     any::Any,
@@ -164,7 +166,7 @@ pub enum SoundBufferResourceLoadError {
 }
 
 /// Sound buffer is a data source for sound sources. See module documentation for more info.
-#[derive(Debug, Visit)]
+#[derive(Debug, Visit, Reflect)]
 pub enum SoundBuffer {
     /// General-purpose buffer, usually contains all the data and allows random
     /// access to samples. It is also used to make streaming buffer via composition.

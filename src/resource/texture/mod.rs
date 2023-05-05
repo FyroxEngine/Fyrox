@@ -50,7 +50,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 pub mod loader;
 
 /// Texture kind.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Reflect)]
 pub enum TextureKind {
     /// 1D texture.
     Line {
@@ -153,7 +153,7 @@ impl Visit for TextureKind {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Reflect)]
 struct TextureBytes(Vec<u8>);
 
 impl Visit for TextureBytes {
@@ -189,7 +189,7 @@ impl DerefMut for TextureBytes {
 }
 
 /// Actual texture data.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Reflect)]
 pub struct Texture {
     path: PathBuf,
     kind: TextureKind,
@@ -678,7 +678,7 @@ impl Default for TextureWrapMode {
 }
 
 /// Texture kind defines pixel format of texture.
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Reflect)]
 #[repr(u32)]
 pub enum TexturePixelKind {
     /// 1 byte red.

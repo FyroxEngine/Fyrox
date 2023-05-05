@@ -54,7 +54,7 @@ pub const SHADER_RESOURCE_UUID: Uuid = uuid!("f1346417-b726-492a-b80f-c02096c6c0
 pub const CURVE_RESOURCE_UUID: Uuid = uuid!("f28b949f-28a2-4b68-9089-59c234f58b6b");
 
 /// A trait for resource data.
-pub trait ResourceData: 'static + Debug + Visit + Send {
+pub trait ResourceData: 'static + Debug + Visit + Send + Reflect {
     /// Returns path of resource data.
     fn path(&self) -> Cow<Path>;
 
@@ -108,8 +108,7 @@ where
                 type_uuid: *type_uuid,
             },
             ResourceState::Ok(data) => ResourceStateRef::Ok(
-                (&**data as &dyn ResourceData)
-                    .as_any()
+                ResourceData::as_any(&**data)
                     .downcast_ref()
                     .expect("Type mismatch!"),
             ),
@@ -135,8 +134,7 @@ where
                 type_uuid: *type_uuid,
             },
             ResourceState::Ok(data) => ResourceStateRefMut::Ok(
-                (&mut **data as &mut dyn ResourceData)
-                    .as_any_mut()
+                ResourceData::as_any_mut(&mut **data)
                     .downcast_mut()
                     .expect("Type mismatch!"),
             ),
@@ -495,9 +493,9 @@ where
                     path.display()
                 )
             }
-            ResourceState::Ok(ref data) => {
-                (**data).as_any().downcast_ref().expect("Type mismatch!")
-            }
+            ResourceState::Ok(ref data) => ResourceData::as_any(&**data)
+                .downcast_ref()
+                .expect("Type mismatch!"),
         }
     }
 }
@@ -520,8 +518,7 @@ where
                     path.display()
                 )
             }
-            ResourceState::Ok(ref mut data) => (**data)
-                .as_any_mut()
+            ResourceState::Ok(ref mut data) => ResourceData::as_any_mut(&mut **data)
                 .downcast_mut()
                 .expect("Type mismatch!"),
         }

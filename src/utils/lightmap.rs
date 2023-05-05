@@ -10,7 +10,10 @@
 #![forbid(unsafe_code)]
 
 use crate::{
-    asset::manager::{ResourceManager, ResourceRegistrationError},
+    asset::{
+        manager::{ResourceManager, ResourceRegistrationError},
+        ResourceData,
+    },
     core::{
         algebra::{Matrix3, Matrix4, Point3, Vector2, Vector3, Vector4},
         arrayvec::ArrayVec,
@@ -18,6 +21,7 @@ use crate::{
         octree::{Octree, OctreeNode},
         pool::Handle,
         reflect::prelude::*,
+        sstorage::ImmutableString,
         visitor::prelude::*,
     },
     material::PropertyValue,
@@ -35,10 +39,9 @@ use crate::{
     utils::{uvgen, uvgen::SurfaceDataPatch},
 };
 use fxhash::FxHashMap;
-use fyrox_core::sstorage::ImmutableString;
 use rayon::prelude::*;
-use std::fmt::{Display, Formatter};
 use std::{
+    fmt::{Display, Formatter},
     ops::Deref,
     path::Path,
     sync::{
@@ -486,8 +489,7 @@ impl Lightmap {
                     texture.into_untyped(),
                     base_path.as_ref().join(file_path),
                     |texture, _| {
-                        texture
-                            .as_any()
+                        ResourceData::as_any(texture)
                             .downcast_ref::<Texture>()
                             .unwrap()
                             .save()

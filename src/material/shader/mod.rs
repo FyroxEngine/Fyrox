@@ -282,13 +282,14 @@ pub const STANDARD_SHADER_NAMES: [&str; 3] = [
 ///
 /// Usually you don't need to access internals of the shader, but there sometimes could be a need to
 /// read shader definition, to get supported passes and properties.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Reflect)]
 pub struct Shader {
     path: PathBuf,
 
     /// Shader definition contains description of properties and render passes.
     pub definition: ShaderDefinition,
 
+    #[reflect(hidden)]
     pub(crate) cache_index: AtomicIndex,
 }
 
@@ -352,7 +353,7 @@ impl Default for SamplerFallback {
 }
 
 /// Shader property with default value.
-#[derive(Deserialize, Debug, PartialEq)]
+#[derive(Deserialize, Debug, PartialEq, Reflect)]
 pub enum PropertyKind {
     /// Real number.
     Float(f32),
@@ -450,7 +451,7 @@ impl Default for PropertyKind {
 }
 
 /// Shader property definition.
-#[derive(Default, Deserialize, Debug, PartialEq)]
+#[derive(Default, Deserialize, Debug, PartialEq, Reflect)]
 pub struct PropertyDefinition {
     /// A name of the property.
     pub name: String,
@@ -459,7 +460,7 @@ pub struct PropertyDefinition {
 }
 
 /// A render pass definition. See [`ShaderResource`] docs for more info about render passes.
-#[derive(Default, Deserialize, Debug, PartialEq, Eq)]
+#[derive(Default, Deserialize, Debug, PartialEq, Eq, Reflect)]
 pub struct RenderPassDefinition {
     /// A name of render pass.
     pub name: String,
@@ -472,7 +473,7 @@ pub struct RenderPassDefinition {
 }
 
 /// A definition of the shader.
-#[derive(Default, Deserialize, Debug, PartialEq)]
+#[derive(Default, Deserialize, Debug, PartialEq, Reflect)]
 pub struct ShaderDefinition {
     /// A name of the shader.
     pub name: String,

@@ -26,18 +26,19 @@
 //! Streaming buffer cannot be shared across multiple source. On attempt to create a source with a streaming
 //! buffer that already in use you'll get error.
 
-use crate::buffer::RawStreamingDataSource;
 use crate::{
-    buffer::{generic::GenericBuffer, DataSource},
+    buffer::{generic::GenericBuffer, DataSource, RawStreamingDataSource},
     decoder::Decoder,
     error::SoundError,
 };
-use fyrox_core::visitor::{Visit, VisitResult, Visitor};
-use std::ops::{Deref, DerefMut};
-use std::time::Duration;
+use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
+use std::{
+    ops::{Deref, DerefMut},
+    time::Duration,
+};
 
 /// Streaming buffer for long sounds. Does not support random access.
-#[derive(Debug, Default, Visit)]
+#[derive(Debug, Default, Visit, Reflect)]
 pub struct StreamingBuffer {
     pub(crate) generic: GenericBuffer,
     /// Count of sources that share this buffer, it is important to keep only one
@@ -46,6 +47,7 @@ pub struct StreamingBuffer {
     #[visit(skip)]
     pub(crate) use_count: usize,
     #[visit(skip)]
+    #[reflect(hidden)]
     streaming_source: StreamingSource,
 }
 
