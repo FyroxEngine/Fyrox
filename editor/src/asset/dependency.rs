@@ -69,11 +69,14 @@ impl DependencyViewer {
                         .with_child(
                             StackPanelBuilder::new(
                                 WidgetBuilder::new()
+                                    .with_margin(Thickness::uniform(2.0))
                                     .with_horizontal_alignment(HorizontalAlignment::Right)
                                     .on_row(1)
                                     .with_child({
                                         copy_to_clipboard = ButtonBuilder::new(
-                                            WidgetBuilder::new().with_width(130.0),
+                                            WidgetBuilder::new()
+                                                .with_width(130.0)
+                                                .with_margin(Thickness::uniform(1.0)),
                                         )
                                         .with_text("Copy To Clipboard")
                                         .build(ctx);
@@ -81,7 +84,9 @@ impl DependencyViewer {
                                     })
                                     .with_child({
                                         close = ButtonBuilder::new(
-                                            WidgetBuilder::new().with_width(130.0),
+                                            WidgetBuilder::new()
+                                                .with_width(130.0)
+                                                .with_margin(Thickness::uniform(1.0)),
                                         )
                                         .with_text("Close")
                                         .build(ctx);
@@ -93,7 +98,7 @@ impl DependencyViewer {
                         ),
                 )
                 .add_row(Row::stretch())
-                .add_row(Row::strict(22.0))
+                .add_row(Row::strict(24.0))
                 .add_column(Column::stretch())
                 .build(ctx),
             )
