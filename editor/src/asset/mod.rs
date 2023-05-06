@@ -1,6 +1,6 @@
-use crate::message::MessageSender;
 use crate::{
     asset::{
+        dependency::DependencyViewer,
         inspector::{
             handlers::{
                 model::ModelImportOptionsHandler, sound::SoundBufferImportOptionsHandler,
@@ -11,6 +11,7 @@ use crate::{
         item::AssetItemBuilder,
     },
     gui::AssetItemMessage,
+    message::MessageSender,
     preview::PreviewPanel,
     utils::window_content,
     AssetItem, AssetKind, Mode,
@@ -47,6 +48,7 @@ use std::{
     process::Command,
 };
 
+mod dependency;
 mod inspector;
 pub mod item;
 
@@ -58,6 +60,7 @@ struct ContextMenu {
     show_in_explorer: Handle<UiNode>,
     delete: Handle<UiNode>,
     placement_target: Handle<UiNode>,
+    dependencies: Handle<UiNode>,
 }
 
 fn execute_command(command: &mut Command) {
@@ -91,6 +94,7 @@ impl ContextMenu {
         let open;
         let copy_path;
         let copy_file_name;
+        let dependencies;
         let menu = PopupBuilder::new(WidgetBuilder::new())
             .with_content(
                 StackPanelBuilder::new(
@@ -124,6 +128,12 @@ impl ContextMenu {
                                 .with_content(MenuItemContent::text("Show In Explorer"))
                                 .build(ctx);
                             show_in_explorer
+                        })
+                        .with_child({
+                            dependencies = MenuItemBuilder::new(WidgetBuilder::new())
+                                .with_content(MenuItemContent::text("Dependencies"))
+                                .build(ctx);
+                            dependencies
                         }),
                 )
                 .build(ctx),
@@ -139,6 +149,7 @@ impl ContextMenu {
             show_in_explorer,
             placement_target: Default::default(),
             copy_file_name,
+            dependencies,
         }
     }
 
@@ -187,6 +198,7 @@ pub struct AssetBrowser {
     inspector: AssetInspector,
     context_menu: ContextMenu,
     selected_path: PathBuf,
+    dependency_viewer: DependencyViewer,
 }
 
 fn is_engine_resource(ext: &OsStr) -> bool {
@@ -300,7 +312,10 @@ impl AssetBrowser {
 
         let context_menu = ContextMenu::new(ctx);
 
+        let dependency_viewer = DependencyViewer::new(ctx);
+
         Self {
+            dependency_viewer,
             window,
             content_panel,
             folder_browser,
@@ -417,6 +432,8 @@ impl AssetBrowser {
         self.inspector.handle_ui_message(message, engine);
         self.preview.handle_message(message, engine);
         self.context_menu.handle_ui_message(message, engine);
+        self.dependency_viewer
+            .handle_ui_message(message, &mut engine.user_interface);
 
         let ui = &mut engine.user_interface;
 
@@ -499,6 +516,23 @@ impl AssetBrowser {
                                 }
                             }
                         }
+                    }
+                }
+            }
+        } else if let Some(MenuItemMessage::Click) = message.data() {
+            if message.destination() == self.context_menu.dependencies {
+                if let Some(item) = engine
+                    .user_interface
+                    .try_get_node(self.context_menu.placement_target)
+                    .and_then(|n| n.cast::<AssetItem>())
+                {
+                    if let Ok(resource) = block_on(
+                        engine
+                            .resource_manager
+                            .request_untyped(&item.path, Default::default()),
+                    ) {
+                        self.dependency_viewer
+                            .open(&resource, &mut engine.user_interface);
                     }
                 }
             }
