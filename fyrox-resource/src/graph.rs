@@ -22,7 +22,9 @@ impl ResourceGraphNode {
 
         let resource_state = resource.0.lock();
         if let ResourceState::Ok(resource_data) = &*resource_state {
-            collect_used_resources(resource_data, &mut dependent_resources);
+            (**resource_data).as_reflect(&mut |entity| {
+                collect_used_resources(entity, &mut dependent_resources);
+            });
         }
 
         children.extend(
