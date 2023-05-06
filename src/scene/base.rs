@@ -588,8 +588,7 @@ impl Base {
     /// Returns combined visibility of an node. This is the final visibility of a node. Global visibility calculated
     /// using visibility of all parent nodes until root one, so if some parent node upper on tree is invisible then
     /// all its children will be invisible. It defines if object will be rendered. It is *not* the same as real
-    /// visibility from point of view of a camera. To check if object is visible from some camera, use
-    /// [VisibilityCache](super::visibility::VisibilityCache). However this still can't tell you if object is behind obstacle or not.
+    /// visibility from point of view of a camera. Use frustum-box intersection test instead.
     #[inline]
     pub fn global_visibility(&self) -> bool {
         self.global_visibility.get()

@@ -282,8 +282,7 @@ impl Visit for NodeHandle {
 /// the combined visibility of entire chain of parent nodes.
 ///
 /// Please keep in mind that "visibility" here means some sort of a "switch" that tells the renderer whether to draw
-/// the node or not. To fetch actual visibility of the node from a camera's perspective, use
-/// [visibility cache](super::visibility::VisibilityCache) of the camera.
+/// the node or not.
 ///
 /// # Level of details
 ///
