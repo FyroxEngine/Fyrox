@@ -38,6 +38,20 @@ impl ResourceGraphNode {
             children,
         }
     }
+
+    /// Recursively prints the dependency graph node and its descendant nodes to the specified string, applying
+    /// specified level offset.
+    pub fn pretty_print(&self, level: usize, out: &mut String) {
+        *out += &format!(
+            "{}{}\n",
+            String::from('\t').repeat(level),
+            self.resource.path().to_string_lossy()
+        );
+
+        for child in self.children.iter() {
+            child.pretty_print(level + 1, out);
+        }
+    }
 }
 
 /// Resource dependency graph allows you to collect all dependencies of a resource in structured form.
@@ -56,5 +70,12 @@ impl ResourceDependencyGraph {
         Self {
             root: ResourceGraphNode::new(resource),
         }
+    }
+
+    /// Prints the entire dependency graph into a string.
+    pub fn pretty_print(&self) -> String {
+        let mut out = String::new();
+        self.root.pretty_print(0, &mut out);
+        out
     }
 }
