@@ -35,6 +35,7 @@ pub use fyrox_core as core;
 pub mod constructor;
 pub mod entry;
 pub mod event;
+pub mod graph;
 pub mod loader;
 pub mod manager;
 pub mod options;
