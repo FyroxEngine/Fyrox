@@ -120,7 +120,7 @@ impl ModifyTerrainHeightCommand {
                 .zip(self.new_heightmaps.iter_mut()),
         ) {
             chunk
-                .set_heightmap(
+                .replace_height_map(
                     TextureResource::from_bytes(
                         TextureKind::Rectangle {
                             width: heigth_map_size.x,

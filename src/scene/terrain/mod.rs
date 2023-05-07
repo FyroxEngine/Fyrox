@@ -1,7 +1,7 @@
 //! Everything related to terrains. See [`Terrain`] docs for more info.
 
 use crate::{
-    asset::Resource,
+    asset::{Resource, ResourceStateRef},
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         arrayvec::ArrayVec,
@@ -35,6 +35,7 @@ use crate::{
     },
     utils::{self},
 };
+use half::f16;
 use image::{imageops::FilterType, ImageBuffer, Luma};
 use std::{
     cell::Cell,
@@ -91,7 +92,10 @@ fn make_quad_tree(
     QuadTree::new(height_map, height_map_size, block_size)
 }
 
-fn make_height_map_texture(height_map: Vec<f32>, size: Vector2<u32>) -> TextureResource {
+fn make_height_map_texture_internal(
+    height_map: Vec<f32>,
+    size: Vector2<u32>,
+) -> Option<TextureResource> {
     let mut data = Texture::from_bytes(
         TextureKind::Rectangle {
             width: size.x,
@@ -100,13 +104,16 @@ fn make_height_map_texture(height_map: Vec<f32>, size: Vector2<u32>) -> TextureR
         TexturePixelKind::R32F,
         utils::transmute_vec_as_bytes(height_map),
         true,
-    )
-    .unwrap();
+    )?;
 
     data.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
     data.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
 
-    Resource::new_ok(data)
+    Some(Resource::new_ok(data))
+}
+
+fn make_height_map_texture(height_map: Vec<f32>, size: Vector2<u32>) -> TextureResource {
+    make_height_map_texture_internal(height_map, size).unwrap()
 }
 
 /// Chunk is smaller block of a terrain. Terrain can have as many chunks as you need, which always arranged in a
@@ -119,7 +126,12 @@ pub struct Chunk {
     quad_tree: QuadTree,
     #[reflect(hidden)]
     version: u8,
-    #[reflect(hidden)]
+    #[reflect(
+        setter = "set_height_map",
+        description = "Height map of the chunk. You can assign a custom height map image here. Keep in mind, that \
+        only Red channel will be used! The assigned texture will be automatically converted to internal format suitable \
+        for terrain needs."
+    )]
     heightmap: Option<TextureResource>,
     #[reflect(hidden)]
     position: Vector3<f32>,
@@ -245,6 +257,181 @@ impl Chunk {
         self.heightmap.as_ref().unwrap()
     }
 
+    /// Sets new height map to the chunk.
+    pub fn set_height_map(
+        &mut self,
+        height_map: Option<TextureResource>,
+    ) -> Option<TextureResource> {
+        if let Some(new_height_map) = height_map {
+            let state = new_height_map.state();
+
+            if let ResourceStateRef::Ok(new_height_map_texture) = state.get() {
+                if let TextureKind::Rectangle { width, height } = new_height_map_texture.kind() {
+                    if width == self.height_map_size.x && height == self.height_map_size.y {
+                        fn convert<T, C>(texture: &Texture, mut mapper: C) -> Option<Vec<f32>>
+                        where
+                            T: Sized,
+                            C: Fn(&T) -> f32,
+                        {
+                            texture
+                                .data_of_type::<T>()
+                                .map(|v| v.iter().map(&mut mapper).collect::<Vec<_>>())
+                        }
+
+                        // Try to convert Red component of pixels to R32F format.
+                        let pixels = match new_height_map_texture.pixel_kind() {
+                            TexturePixelKind::R8 | TexturePixelKind::Luminance8 => {
+                                convert::<u8, _>(new_height_map_texture, |v| {
+                                    *v as f32 / u8::MAX as f32
+                                })
+                            }
+                            TexturePixelKind::RGB8 => {
+                                #[repr(C)]
+                                struct Rgb8 {
+                                    r: u8,
+                                    g: u8,
+                                    b: u8,
+                                }
+                                convert::<Rgb8, _>(new_height_map_texture, |v| {
+                                    v.r as f32 / u8::MAX as f32
+                                })
+                            }
+                            TexturePixelKind::RGBA8 => {
+                                #[repr(C)]
+                                struct Rgba8 {
+                                    r: u8,
+                                    g: u8,
+                                    b: u8,
+                                    a: u8,
+                                }
+                                convert::<Rgba8, _>(new_height_map_texture, |v| {
+                                    v.r as f32 / u8::MAX as f32
+                                })
+                            }
+                            TexturePixelKind::RG8 | TexturePixelKind::LuminanceAlpha8 => {
+                                #[repr(C)]
+                                struct Rg8 {
+                                    r: u8,
+                                    g: u8,
+                                }
+                                convert::<Rg8, _>(new_height_map_texture, |v| {
+                                    v.r as f32 / u8::MAX as f32
+                                })
+                            }
+                            TexturePixelKind::R16 | TexturePixelKind::Luminance16 => {
+                                convert::<u16, _>(new_height_map_texture, |v| {
+                                    *v as f32 / u16::MAX as f32
+                                })
+                            }
+                            TexturePixelKind::RG16 | TexturePixelKind::LuminanceAlpha16 => {
+                                #[repr(C)]
+                                struct Rg16 {
+                                    r: u16,
+                                    g: u16,
+                                }
+                                convert::<Rg16, _>(new_height_map_texture, |v| {
+                                    v.r as f32 / u16::MAX as f32
+                                })
+                            }
+                            TexturePixelKind::BGR8 => {
+                                #[repr(C)]
+                                struct Bgr8 {
+                                    b: u8,
+                                    g: u8,
+                                    r: u8,
+                                }
+                                convert::<Bgr8, _>(new_height_map_texture, |v| {
+                                    v.r as f32 / u8::MAX as f32
+                                })
+                            }
+                            TexturePixelKind::BGRA8 => {
+                                #[repr(C)]
+                                struct Bgra8 {
+                                    r: u8,
+                                    g: u8,
+                                    b: u8,
+                                    a: u8,
+                                }
+                                convert::<Bgra8, _>(new_height_map_texture, |v| {
+                                    v.r as f32 / u8::MAX as f32
+                                })
+                            }
+                            TexturePixelKind::RGB16 => {
+                                #[repr(C)]
+                                struct Rgb16 {
+                                    r: u16,
+                                    g: u16,
+                                    b: u16,
+                                }
+                                convert::<Rgb16, _>(new_height_map_texture, |v| {
+                                    v.r as f32 / u16::MAX as f32
+                                })
+                            }
+                            TexturePixelKind::RGBA16 => {
+                                #[repr(C)]
+                                struct Rgba16 {
+                                    r: u16,
+                                    g: u16,
+                                    b: u16,
+                                    a: u16,
+                                }
+                                convert::<Rgba16, _>(new_height_map_texture, |v| {
+                                    v.r as f32 / u16::MAX as f32
+                                })
+                            }
+                            TexturePixelKind::RGB32F => {
+                                #[repr(C)]
+                                struct Rgb32F {
+                                    r: f32,
+                                    g: f32,
+                                    b: f32,
+                                }
+                                convert::<Rgb32F, _>(new_height_map_texture, |v| v.r)
+                            }
+                            TexturePixelKind::RGBA32F => {
+                                #[repr(C)]
+                                struct Rgba32F {
+                                    r: f32,
+                                    g: f32,
+                                    b: f32,
+                                    a: f32,
+                                }
+                                convert::<Rgba32F, _>(new_height_map_texture, |v| v.r)
+                            }
+                            TexturePixelKind::RGB16F => {
+                                #[repr(C)]
+                                struct Rgb16F {
+                                    r: f16,
+                                    g: f16,
+                                    b: f16,
+                                }
+                                convert::<Rgb16F, _>(new_height_map_texture, |v| v.r.to_f32())
+                            }
+                            TexturePixelKind::R32F => {
+                                convert::<f32, _>(new_height_map_texture, |v| *v)
+                            }
+                            TexturePixelKind::R16F => {
+                                convert::<f16, _>(new_height_map_texture, |v| v.to_f32())
+                            }
+                            _ => None,
+                        };
+
+                        if let Some(pixels) = pixels {
+                            if let Some(texture) =
+                                make_height_map_texture_internal(pixels, self.height_map_size)
+                            {
+                                return std::mem::replace(&mut self.heightmap, Some(texture));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // In case of any error, ignore the new value and return current height map.
+        self.heightmap.clone()
+    }
+
     /// Returns the height map of the terrain as an array of `f32`s.
     pub fn heightmap_owned(&self) -> Vec<f32> {
         self.heightmap
@@ -256,8 +443,11 @@ impl Chunk {
             .to_vec()
     }
 
-    /// Sets new height map. New height map must be equal with size of current.
-    pub fn set_heightmap(&mut self, heightmap: TextureResource) -> Result<(), TextureResource> {
+    /// Replaces the current height map with a new one. New height map must be equal with size of current.
+    pub fn replace_height_map(
+        &mut self,
+        heightmap: TextureResource,
+    ) -> Result<(), TextureResource> {
         let data = heightmap.data_ref();
         if let TextureKind::Rectangle { width, height } = data.kind() {
             if data.pixel_kind() == TexturePixelKind::R32F
@@ -425,7 +615,6 @@ pub struct Terrain {
     )]
     mask_size: InheritableVariable<Vector2<u32>>,
 
-    #[reflect(read_only)]
     chunks: InheritableVariable<Vec<Chunk>>,
 
     #[reflect(hidden)]
