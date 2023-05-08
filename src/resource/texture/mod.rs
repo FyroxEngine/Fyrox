@@ -1408,11 +1408,18 @@ impl Texture {
     }
 
     /// Tries to cast the internal data buffer to the given type. Type casting will succeed only if the the
-    /// size of the type `T` is equal with the size of the pixel. **WARNING:** While this function is safe, there's
-    /// no guarantee that the actual type-casted data will match the layout of your data structure. For example,
-    /// you could have a pixel of type `RG16`, where each pixel consumes 2 bytes (4 in total) and cast it to the
-    /// structure `struct Rgba8 { r: u8, g: u8, b: u8, a: u8 }` which is safe in terms of memory access (both are 4
-    /// bytes total), but not ok in terms of actual data. Be careful when using the method.
+    /// size of the type `T` is equal with the size of the pixel.
+    ///
+    /// ## Important notes
+    ///
+    /// While this function is safe, there's no guarantee that the actual type-casted data will match the layout
+    /// of your data structure. For example, you could have a pixel of type `RG16`, where each pixel consumes 2
+    /// bytes (4 in total) and cast it to the structure `struct Rgba8 { r: u8, g: u8, b: u8, a: u8 }` which is
+    /// safe in terms of memory access (both are 4 bytes total), but not ok in terms of actual data. Be careful
+    /// when using this method.
+    ///
+    /// Keep in mind, that this method will return a reference to **all** data in the texture, including all mip
+    /// levels. If you need to get typed data from specific mip level use [`Self::mip_level_data_of_type`].
     pub fn data_of_type<T: Sized>(&self) -> Option<&[T]> {
         if let Some(pixel_size) = self.pixel_kind.size_in_bytes() {
             if pixel_size == std::mem::size_of::<T>() {
@@ -1430,6 +1437,25 @@ impl Texture {
             .unwrap_or_default();
         let mip_end = mip_byte_offset(self.kind, self.pixel_kind, mip);
         &self.bytes[mip_begin..mip_end]
+    }
+
+    /// Tries to cast the specific mip level data of the internal data buffer to the given type. Type casting
+    /// will succeed only if the the size of the type `T` is equal with the size of the pixel.
+    ///
+    /// ## Important notes
+    ///
+    /// While this function is safe, there's no guarantee that the actual type-casted data will match the layout
+    /// of your data structure. For example, you could have a pixel of type `RG16`, where each pixel consumes 2
+    /// bytes (4 in total) and cast it to the structure `struct Rgba8 { r: u8, g: u8, b: u8, a: u8 }` which is
+    /// safe in terms of memory access (both are 4 bytes total), but not ok in terms of actual data. Be careful
+    /// when using this method.
+    pub fn mip_level_data_of_type<T: Sized>(&self, mip: usize) -> Option<&[T]> {
+        if let Some(pixel_size) = self.pixel_kind.size_in_bytes() {
+            if pixel_size == std::mem::size_of::<T>() {
+                return Some(transmute_slice(self.mip_level_data(mip)));
+            }
+        }
+        None
     }
 
     /// Returns true if the texture is procedural, false - otherwise.
