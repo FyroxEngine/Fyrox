@@ -274,7 +274,7 @@ impl Chunk {
                             C: Fn(&T) -> f32,
                         {
                             texture
-                                .data_of_type::<T>()
+                                .mip_level_data_of_type::<T>(0)
                                 .map(|v| v.iter().map(&mut mapper).collect::<Vec<_>>())
                         }
 
