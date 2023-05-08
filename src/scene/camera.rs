@@ -1185,11 +1185,7 @@ impl SkyBox {
                     let face = face.clone().unwrap();
                     let data = face.data_ref();
 
-                    (
-                        data.kind(),
-                        data.pixel_kind(),
-                        data.first_mip_level_data().len(),
-                    )
+                    (data.kind(), data.pixel_kind(), data.mip_level_data(0).len())
                 },
             );
 
@@ -1201,7 +1197,7 @@ impl SkyBox {
         let mut data = Vec::<u8>::with_capacity(bytes_per_face * 6);
         for face in self.textures().iter() {
             if let Some(f) = face.clone() {
-                data.extend(f.data_ref().first_mip_level_data());
+                data.extend(f.data_ref().mip_level_data(0));
             } else {
                 let black_face_data = vec![0; bytes_per_face];
                 data.extend(black_face_data);

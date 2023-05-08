@@ -21,28 +21,27 @@
 //! access to pixels of render target.
 
 use crate::{
-    asset::{options::ImportOptions, Resource, ResourceData},
+    asset::{options::ImportOptions, Resource, ResourceData, TEXTURE_RESOURCE_UUID},
     core::{
         futures::io::Error,
         io::{self, FileLoadError},
         reflect::prelude::*,
+        uuid::Uuid,
         visitor::{PodVecView, Visit, VisitError, VisitResult, Visitor},
+        TypeUuidProvider,
     },
 };
 use ddsfile::{Caps2, D3DFormat};
 use fxhash::FxHasher;
-use fyrox_core::uuid::Uuid;
-use fyrox_core::TypeUuidProvider;
-use fyrox_resource::TEXTURE_RESOURCE_UUID;
 use image::{imageops::FilterType, ColorType, DynamicImage, ImageError, ImageFormat};
 use serde::{Deserialize, Serialize};
-use std::any::Any;
 use std::{
+    any::Any,
     borrow::Cow,
     fmt::{Debug, Display, Formatter},
     hash::{Hash, Hasher},
     io::Cursor,
-    ops::{Deref, DerefMut},
+    ops::{Deref, DerefMut, Shr},
     path::{Path, PathBuf},
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
@@ -1025,16 +1024,16 @@ fn try_compress(
     }
 }
 
-fn bytes_in_first_mip(kind: TextureKind, pixel_kind: TexturePixelKind) -> u32 {
+fn bytes_in_mip_level(kind: TextureKind, pixel_kind: TexturePixelKind, mip: usize) -> u32 {
     let pixel_count = match kind {
-        TextureKind::Line { length } => length,
-        TextureKind::Rectangle { width, height } => width * height,
-        TextureKind::Cube { width, height } => 6 * width * height,
+        TextureKind::Line { length } => length.shr(mip),
+        TextureKind::Rectangle { width, height } => width.shr(mip) * height.shr(mip),
+        TextureKind::Cube { width, height } => 6 * width.shr(mip) * height.shr(mip),
         TextureKind::Volume {
             width,
             height,
             depth,
-        } => width * height * depth,
+        } => width.shr(mip) * height.shr(mip) * depth.shr(mip),
     };
     match pixel_kind {
         // Uncompressed formats.
@@ -1087,6 +1086,19 @@ fn bytes_in_first_mip(kind: TextureKind, pixel_kind: TexturePixelKind) -> u32 {
             }
         }
     }
+}
+
+fn mip_byte_offset(kind: TextureKind, pixel_kind: TexturePixelKind, mut mip: usize) -> usize {
+    // TODO: This could be done without loop.
+    let mut offset = 0;
+    loop {
+        offset += bytes_in_mip_level(kind, pixel_kind, mip) as usize;
+        mip = mip.saturating_sub(1);
+        if mip == 0 {
+            break;
+        }
+    }
+    offset
 }
 
 impl Texture {
@@ -1315,7 +1327,7 @@ impl Texture {
         bytes: Vec<u8>,
         serialize_content: bool,
     ) -> Option<Self> {
-        if bytes_in_first_mip(kind, pixel_kind) != bytes.len() as u32 {
+        if bytes_in_mip_level(kind, pixel_kind, 0) != bytes.len() as u32 {
             None
         } else {
             Some(Self {
@@ -1410,9 +1422,14 @@ impl Texture {
         None
     }
 
-    /// Returns data of the first mip level.
-    pub fn first_mip_level_data(&self) -> &[u8] {
-        &self.bytes[0..bytes_in_first_mip(self.kind, self.pixel_kind) as usize]
+    /// Returns data of the given mip level.
+    pub fn mip_level_data(&self, mip: usize) -> &[u8] {
+        let mip_begin = mip
+            .checked_sub(1)
+            .map(|prev| mip_byte_offset(self.kind, self.pixel_kind, prev))
+            .unwrap_or_default();
+        let mip_end = mip_byte_offset(self.kind, self.pixel_kind, mip);
+        &self.bytes[mip_begin..mip_end]
     }
 
     /// Returns true if the texture is procedural, false - otherwise.
