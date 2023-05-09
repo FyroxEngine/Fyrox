@@ -615,6 +615,7 @@ pub struct Terrain {
     )]
     mask_size: InheritableVariable<Vector2<u32>>,
 
+    #[reflect(immutable_collection)]
     chunks: InheritableVariable<Vec<Chunk>>,
 
     #[reflect(hidden)]
