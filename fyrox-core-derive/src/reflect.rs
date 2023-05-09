@@ -113,6 +113,8 @@ fn quote_field_prop(
 
     let read_only = field.read_only;
 
+    let immutable_collection = field.immutable_collection;
+
     let description = field.description.clone().unwrap_or_default();
 
     quote! {
@@ -122,6 +124,7 @@ fn quote_field_prop(
             display_name: #display_name,
             doc: #doc,
             read_only: #read_only,
+            immutable_collection: #immutable_collection,
             min_value: #min_value,
             max_value: #max_value,
             value: #field_getter,

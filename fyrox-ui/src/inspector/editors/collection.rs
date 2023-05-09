@@ -177,6 +177,7 @@ where
     layer_index: usize,
     generate_property_string_values: bool,
     filter: PropertyFilter,
+    immutable_collection: bool,
 }
 
 fn create_item_views(
@@ -209,6 +210,7 @@ fn create_items<'a, T, I>(
     layer_index: usize,
     generate_property_string_values: bool,
     filter: PropertyFilter,
+    immutable_collection: bool,
 ) -> Vec<Item>
 where
     T: CollectionItem,
@@ -233,6 +235,7 @@ where
 
             let remove = ButtonBuilder::new(
                 WidgetBuilder::new()
+                    .with_visibility(!immutable_collection)
                     .with_margin(Thickness::uniform(1.0))
                     .with_vertical_alignment(VerticalAlignment::Center)
                     .with_horizontal_alignment(HorizontalAlignment::Right)
@@ -263,6 +266,7 @@ where
             layer_index: 0,
             generate_property_string_values: false,
             filter: Default::default(),
+            immutable_collection: false,
         }
     }
 
@@ -307,6 +311,11 @@ where
         self
     }
 
+    pub fn with_immutable_collection(mut self, immutable_collection: bool) -> Self {
+        self.immutable_collection = immutable_collection;
+        self
+    }
+
     pub fn build(self, ctx: &mut BuildContext, sync_flag: u64) -> Handle<UiNode> {
         let definition_container = self
             .definition_container
@@ -325,6 +334,7 @@ where
                     self.layer_index + 1,
                     self.generate_property_string_values,
                     self.filter,
+                    self.immutable_collection,
                 )
             })
             .unwrap_or_default();
@@ -397,6 +407,7 @@ where
 
         let add = ButtonBuilder::new(
             WidgetBuilder::new()
+                .with_visibility(!ctx.property_info.immutable_collection)
                 .with_horizontal_alignment(HorizontalAlignment::Right)
                 .with_width(16.0)
                 .with_height(16.0)
@@ -423,6 +434,7 @@ where
                 .with_definition_container(ctx.definition_container.clone())
                 .with_generate_property_string_values(ctx.generate_property_string_values)
                 .with_filter(ctx.filter)
+                .with_immutable_collection(ctx.property_info.immutable_collection)
                 .build(ctx.build_context, ctx.sync_flag);
                 editor
             },
@@ -469,6 +481,7 @@ where
                 layer_index + 1,
                 generate_property_string_values,
                 filter,
+                property_info.immutable_collection,
             );
 
             Ok(Some(CollectionEditorMessage::items(

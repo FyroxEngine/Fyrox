@@ -75,6 +75,10 @@ pub struct FieldInfo<'a> {
     /// A property is not meant to be edited.
     pub read_only: bool,
 
+    /// Only for dynamic collections (Vec, etc) - means that its size cannot be changed, however the
+    /// _items_ of the collection can still be changed.
+    pub immutable_collection: bool,
+
     /// A minimal value of the property. Works only with numeric properties!
     pub min_value: Option<f64>,
 

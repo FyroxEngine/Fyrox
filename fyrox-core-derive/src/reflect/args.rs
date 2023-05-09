@@ -174,6 +174,13 @@ pub struct FieldArgs {
     #[darling(default)]
     pub read_only: bool,
 
+    /// `#[reflect(immutable_collection)]`
+    ///
+    /// Only for dynamic collections (Vec, etc) - means that its size cannot be changed, however the
+    /// _items_ of the collection can still be changed.
+    #[darling(default)]
+    pub immutable_collection: bool,
+
     /// `#[reflect(min_value = "0.0")]`
     ///
     /// Minimal value of the field. Works only for numeric fields!

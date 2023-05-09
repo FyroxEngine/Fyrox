@@ -201,6 +201,7 @@ where
         value: &**value,
         reflect_value: &**value,
         read_only: property_info.read_only,
+        immutable_collection: property_info.immutable_collection,
         min_value: property_info.min_value,
         max_value: property_info.max_value,
         step: property_info.step,
