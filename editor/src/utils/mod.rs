@@ -88,9 +88,14 @@ pub fn fetch_node_screen_center_ui(handle: Handle<UiNode>, ui: &UserInterface) -
 }
 
 fn load_texture(data: &[u8]) -> TextureResource {
-    TextureResource::load_from_memory(data, CompressionOptions::NoCompression, false)
-        .ok()
-        .unwrap()
+    TextureResource::load_from_memory(
+        data,
+        CompressionOptions::NoCompression,
+        false,
+        Default::default(),
+    )
+    .ok()
+    .unwrap()
 }
 
 pub fn built_in_skybox() -> SkyBox {

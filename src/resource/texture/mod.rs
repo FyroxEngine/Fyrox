@@ -293,6 +293,39 @@ impl Default for Texture {
     }
 }
 
+/// A filter for mip-map generation.
+#[derive(Default, Copy, Clone, Deserialize, Serialize, Debug, Reflect)]
+pub enum MipFilter {
+    /// Simple nearest filter, it is the fastest filter available, but it produces noisy mip levels and
+    /// in most cases it is not advised to use it. Consider its performance as 1x.
+    Nearest,
+    /// Bilinear filtration. It has good balance between image quality and speed. It is ~13x times slower
+    /// than [`Self::Nearest`]. It is default filtering method.
+    #[default]
+    Bilinear,
+    /// Catmull-Rom spline filtration. It has very good filtration quality, but it is ~23x times slower
+    /// than [`Self::Nearest`].
+    CatmullRom,
+    /// Gaussian filtration. It has excellent filtration quality, but it is ~38x times slower than
+    /// [`Self::Nearest`].
+    Gaussian,
+    /// Gaussian filtration. It has perfect filtration quality, but it is ~37x times slower than
+    /// [`Self::Nearest`].
+    Lanczos,
+}
+
+impl MipFilter {
+    fn into_filter_type(self) -> FilterType {
+        match self {
+            MipFilter::Nearest => FilterType::Nearest,
+            MipFilter::Bilinear => FilterType::Triangle,
+            MipFilter::CatmullRom => FilterType::CatmullRom,
+            MipFilter::Gaussian => FilterType::Gaussian,
+            MipFilter::Lanczos => FilterType::Lanczos3,
+        }
+    }
+}
+
 /// Allows you to define a set of parameters for a texture resource.
 ///
 /// # Details
@@ -324,6 +357,8 @@ pub struct TextureImportOptions {
     pub(crate) anisotropy: f32,
     #[serde(default)]
     pub(crate) compression: CompressionOptions,
+    #[serde(default)]
+    pub(crate) mip_filter: MipFilter,
 }
 
 impl Default for TextureImportOptions {
@@ -335,6 +370,7 @@ impl Default for TextureImportOptions {
             t_wrap_mode: TextureWrapMode::Repeat,
             anisotropy: 16.0,
             compression: CompressionOptions::default(),
+            mip_filter: Default::default(),
         }
     }
 }
@@ -456,6 +492,7 @@ pub trait TextureResourceExtension: Sized {
         data: &[u8],
         compression: CompressionOptions,
         gen_mip_maps: bool,
+        mip_filter: MipFilter,
     ) -> Result<Self, TextureError>;
 
     /// Tries to create new texture from given parameters, it may fail only if size of data passed
@@ -496,11 +533,13 @@ impl TextureResourceExtension for TextureResource {
         data: &[u8],
         compression: CompressionOptions,
         gen_mip_maps: bool,
+        mip_filter: MipFilter,
     ) -> Result<Self, TextureError> {
         Ok(Resource::new_ok(Texture::load_from_memory(
             data,
             compression,
             gen_mip_maps,
+            mip_filter,
         )?))
     }
 
@@ -1127,6 +1166,7 @@ impl Texture {
         data: &[u8],
         compression: CompressionOptions,
         gen_mip_maps: bool,
+        mip_filter: MipFilter,
     ) -> Result<Self, TextureError> {
         // DDS is special. It can contain various kinds of textures as well as textures with
         // various pixel formats.
@@ -1250,7 +1290,7 @@ impl Texture {
                         current_level = current_level.resize_exact(
                             level_width,
                             level_height,
-                            FilterType::Lanczos3,
+                            mip_filter.into_filter_type(),
                         );
                     }
 
@@ -1309,9 +1349,10 @@ impl Texture {
         path: P,
         compression: CompressionOptions,
         gen_mip_maps: bool,
+        mip_filter: MipFilter,
     ) -> Result<Self, TextureError> {
         let data = io::load_file(path.as_ref()).await?;
-        let mut texture = Self::load_from_memory(&data, compression, gen_mip_maps)?;
+        let mut texture = Self::load_from_memory(&data, compression, gen_mip_maps, mip_filter)?;
         texture.path = path.as_ref().to_path_buf();
         Ok(texture)
     }

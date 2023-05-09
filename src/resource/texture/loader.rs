@@ -53,7 +53,14 @@ impl ResourceLoader for TextureLoader {
             let gen_mip_maps = import_options.minification_filter.is_using_mip_mapping();
 
             let time = instant::Instant::now();
-            match Texture::load_from_file(&path, import_options.compression, gen_mip_maps).await {
+            match Texture::load_from_file(
+                &path,
+                import_options.compression,
+                gen_mip_maps,
+                import_options.mip_filter,
+            )
+            .await
+            {
                 Ok(mut raw_texture) => {
                     Log::info(format!(
                         "Texture {:?} is loaded in {:?}!",

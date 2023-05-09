@@ -70,12 +70,14 @@ impl OverlayRenderPass {
                 include_bytes!("../resources/embed/sound_source.png"),
                 CompressionOptions::NoCompression,
                 false,
+                Default::default(),
             )
             .unwrap(),
             light_icon: TextureResource::load_from_memory(
                 include_bytes!("../resources/embed/light_source.png"),
                 CompressionOptions::NoCompression,
                 false,
+                Default::default(),
             )
             .unwrap(),
             pictogram_size: 0.33,
