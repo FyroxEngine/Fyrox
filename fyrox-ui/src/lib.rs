@@ -1748,6 +1748,38 @@ impl UserInterface {
                                 ));
                             }
                         }
+                        WidgetMessage::AdjustPositionToFit => {
+                            if message.destination().is_some() {
+                                let node = self.node(message.destination());
+                                let mut position = node.actual_local_position();
+                                let size = node.actual_initial_size();
+                                let parent = node.parent();
+                                let parent_size = if parent.is_some() {
+                                    self.node(parent).actual_initial_size()
+                                } else {
+                                    self.screen_size
+                                };
+
+                                if position.x < 0.0 {
+                                    position.x = 0.0;
+                                }
+                                if position.x + size.x > parent_size.x {
+                                    position.x -= (position.x + size.x) - parent_size.x;
+                                }
+                                if position.y < 0.0 {
+                                    position.y = 0.0;
+                                }
+                                if position.y + size.y > parent_size.y {
+                                    position.y -= (position.y + size.y) - parent_size.y;
+                                }
+
+                                self.send_message(WidgetMessage::desired_position(
+                                    message.destination(),
+                                    MessageDirection::ToWidget,
+                                    position,
+                                ));
+                            }
+                        }
                         WidgetMessage::MouseDown { button, .. } => {
                             if *button == MouseButton::Right {
                                 if let Some(picked) = self.nodes.try_borrow(self.picked_node) {
@@ -1810,6 +1842,10 @@ impl UserInterface {
             *tooltip,
             MessageDirection::ToWidget,
             self.screen_to_root_canvas_space(self.cursor_position() + Vector2::new(0.0, 16.0)),
+        ));
+        self.send_message(WidgetMessage::adjust_position_to_fit(
+            *tooltip,
+            MessageDirection::ToWidget,
         ));
     }
 

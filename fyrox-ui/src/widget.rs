@@ -259,6 +259,9 @@ pub enum WidgetMessage {
     /// Direction: **From/To UI**
     Center,
 
+    /// A request to adjust widget's position to fit in parent's bounds.
+    AdjustPositionToFit,
+
     /// A request to set new cursor icon for widget.
     ///
     /// Direction: **From/To UI**
@@ -294,6 +297,7 @@ impl WidgetMessage {
     define_constructor!(WidgetMessage:Height => fn height(f32), layout: false);
     define_constructor!(WidgetMessage:DesiredPosition => fn desired_position(Vector2<f32>), layout: false);
     define_constructor!(WidgetMessage:Center => fn center(), layout: true);
+    define_constructor!(WidgetMessage:AdjustPositionToFit => fn adjust_position_to_fit(), layout: true);
     define_constructor!(WidgetMessage:Topmost => fn topmost(), layout: false);
     define_constructor!(WidgetMessage:Lowermost => fn lowermost(), layout: false);
     define_constructor!(WidgetMessage:Enabled => fn enabled(bool), layout: false);
