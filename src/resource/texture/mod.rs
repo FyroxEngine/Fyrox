@@ -32,8 +32,9 @@ use crate::{
     },
 };
 use ddsfile::{Caps2, D3DFormat};
+use fast_image_resize as fr;
 use fxhash::FxHasher;
-use image::{imageops::FilterType, ColorType, DynamicImage, ImageError, ImageFormat};
+use image::{ColorType, DynamicImage, ImageError, ImageFormat};
 use serde::{Deserialize, Serialize};
 use std::{
     any::Any,
@@ -41,6 +42,7 @@ use std::{
     fmt::{Debug, Display, Formatter},
     hash::{Hash, Hasher},
     io::Cursor,
+    num::NonZeroU32,
     ops::{Deref, DerefMut, Shr},
     path::{Path, PathBuf},
 };
@@ -303,25 +305,24 @@ pub enum MipFilter {
     /// than [`Self::Nearest`]. It is default filtering method.
     #[default]
     Bilinear,
+    /// Hamming filtration. It has much nicer filtration quality than Bilinear, but the same performance.
+    Hamming,
     /// Catmull-Rom spline filtration. It has very good filtration quality, but it is ~23x times slower
     /// than [`Self::Nearest`].
     CatmullRom,
-    /// Gaussian filtration. It has excellent filtration quality, but it is ~38x times slower than
-    /// [`Self::Nearest`].
-    Gaussian,
     /// Gaussian filtration. It has perfect filtration quality, but it is ~37x times slower than
     /// [`Self::Nearest`].
     Lanczos,
 }
 
 impl MipFilter {
-    fn into_filter_type(self) -> FilterType {
+    fn into_filter_type(self) -> fr::FilterType {
         match self {
-            MipFilter::Nearest => FilterType::Nearest,
-            MipFilter::Bilinear => FilterType::Triangle,
-            MipFilter::CatmullRom => FilterType::CatmullRom,
-            MipFilter::Gaussian => FilterType::Gaussian,
-            MipFilter::Lanczos => FilterType::Lanczos3,
+            MipFilter::Nearest => fr::FilterType::Box,
+            MipFilter::Bilinear => fr::FilterType::Bilinear,
+            MipFilter::CatmullRom => fr::FilterType::CatmullRom,
+            MipFilter::Hamming => fr::FilterType::Hamming,
+            MipFilter::Lanczos => fr::FilterType::Lanczos3,
         }
     }
 }
@@ -1026,36 +1027,40 @@ fn data_hash(data: &[u8]) -> u64 {
 }
 
 fn try_compress(
-    image: &DynamicImage,
+    pixel_kind: TexturePixelKind,
+    bytes: &[u8],
     w: usize,
     h: usize,
     compression: CompressionOptions,
 ) -> Option<(Vec<u8>, TexturePixelKind)> {
-    let bytes = image.as_bytes();
-    match (image, compression) {
-        (DynamicImage::ImageRgb8(_), CompressionOptions::Speed) => Some((
+    match (pixel_kind, compression) {
+        (TexturePixelKind::RGB8, CompressionOptions::Speed) => Some((
             compress_bc1::<tbc::color::Rgb8>(bytes, w, h),
             TexturePixelKind::DXT1RGB,
         )),
-        (DynamicImage::ImageRgb8(_), CompressionOptions::Quality) => Some((
+        (TexturePixelKind::RGB8, CompressionOptions::Quality) => Some((
             compress_bc3::<tbc::color::Rgb8>(bytes, w, h),
             TexturePixelKind::DXT5RGBA,
         )),
-        (DynamicImage::ImageRgba8(_), CompressionOptions::Speed) => Some((
+        (TexturePixelKind::RGBA8, CompressionOptions::Speed) => Some((
             compress_bc1::<tbc::color::Rgba8>(bytes, w, h),
             TexturePixelKind::DXT1RGBA,
         )),
-        (DynamicImage::ImageRgba8(_), CompressionOptions::Quality) => Some((
+        (TexturePixelKind::RGBA8, CompressionOptions::Quality) => Some((
             compress_bc3::<tbc::color::Rgba8>(bytes, w, h),
             TexturePixelKind::DXT5RGBA,
         )),
-        (DynamicImage::ImageLuma8(_), CompressionOptions::Speed)
-        | (DynamicImage::ImageLuma8(_), CompressionOptions::Quality) => Some((
+        (TexturePixelKind::R8, CompressionOptions::Speed)
+        | (TexturePixelKind::R8, CompressionOptions::Quality)
+        | (TexturePixelKind::Luminance8, CompressionOptions::Speed)
+        | (TexturePixelKind::Luminance8, CompressionOptions::Quality) => Some((
             compress_r8_bc4::<tbc::color::Red8>(bytes, w, h),
             TexturePixelKind::R8RGTC,
         )),
-        (DynamicImage::ImageLumaA8(_), CompressionOptions::Speed)
-        | (DynamicImage::ImageLumaA8(_), CompressionOptions::Quality) => Some((
+        (TexturePixelKind::RG8, CompressionOptions::Speed)
+        | (TexturePixelKind::RG8, CompressionOptions::Quality)
+        | (TexturePixelKind::LuminanceAlpha8, CompressionOptions::Speed)
+        | (TexturePixelKind::LuminanceAlpha8, CompressionOptions::Quality) => Some((
             compress_rg8_bc4::<tbc::color::RedGreen8>(bytes, w, h),
             TexturePixelKind::RG8RGTC,
         )),
@@ -1138,6 +1143,21 @@ fn mip_byte_offset(kind: TextureKind, pixel_kind: TexturePixelKind, mut mip: usi
         }
     }
     offset
+}
+
+fn convert_pixel_type_enum(pixel_kind: TexturePixelKind) -> fr::PixelType {
+    match pixel_kind {
+        TexturePixelKind::R8 | TexturePixelKind::Luminance8 => fr::PixelType::U8,
+        TexturePixelKind::RGB8 | TexturePixelKind::BGR8 => fr::PixelType::U8x3,
+        TexturePixelKind::RGBA8 | TexturePixelKind::BGRA8 => fr::PixelType::U8x4,
+        TexturePixelKind::RG8 | TexturePixelKind::LuminanceAlpha8 => fr::PixelType::U8x2,
+        TexturePixelKind::R16 | TexturePixelKind::Luminance16 => fr::PixelType::U16,
+        TexturePixelKind::RG16 | TexturePixelKind::LuminanceAlpha16 => fr::PixelType::U16x2,
+        TexturePixelKind::RGB16 => fr::PixelType::U16x3,
+        TexturePixelKind::RGBA16 => fr::PixelType::U16x4,
+        TexturePixelKind::R32F => fr::PixelType::F32,
+        _ => unreachable!(),
+    }
 }
 
 impl Texture {
@@ -1274,32 +1294,52 @@ impl Texture {
                 DynamicImage::ImageRgba16(_) => TexturePixelKind::RGBA16,
                 DynamicImage::ImageRgb32F(_) => TexturePixelKind::RGB32F,
                 DynamicImage::ImageRgba32F(_) => TexturePixelKind::RGBA32F,
-                _ => unreachable!(),
+                _ => return Err(TextureError::UnsupportedFormat),
             };
 
             let mut mip_count = 0;
-            let mut bytes = Vec::new();
+            let mut bytes = Vec::with_capacity(
+                width as usize * height as usize * pixel_kind.size_in_bytes().unwrap_or(4),
+            );
 
             if gen_mip_maps {
+                let pixel_type = convert_pixel_type_enum(pixel_kind);
                 let mut level_width = width;
                 let mut level_height = height;
-                let mut current_level = dyn_img;
+                let mut current_level = fr::Image::from_vec_u8(
+                    NonZeroU32::new(level_width).unwrap(),
+                    NonZeroU32::new(level_height).unwrap(),
+                    dyn_img.as_bytes().to_vec(),
+                    pixel_type,
+                )
+                .map_err(|_| TextureError::UnsupportedFormat)?;
 
                 while level_width != 0 && level_height != 0 {
                     if mip_count != 0 {
-                        current_level = current_level.resize_exact(
-                            level_width,
-                            level_height,
-                            mip_filter.into_filter_type(),
+                        let mut dst_img = fr::Image::new(
+                            NonZeroU32::new(level_width).unwrap(),
+                            NonZeroU32::new(level_height).unwrap(),
+                            pixel_type,
                         );
+
+                        let mut resizer = fr::Resizer::new(fr::ResizeAlg::Convolution(
+                            mip_filter.into_filter_type(),
+                        ));
+
+                        resizer
+                            .resize(&current_level.view(), &mut dst_img.view_mut())
+                            .expect("Pixel types must match!");
+
+                        current_level = dst_img;
                     }
 
                     mip_count += 1;
 
                     if compression == CompressionOptions::NoCompression {
-                        bytes.extend_from_slice(current_level.as_bytes())
+                        bytes.extend_from_slice(current_level.buffer())
                     } else if let Some((compressed_data, new_pixel_kind)) = try_compress(
-                        &current_level,
+                        pixel_kind,
+                        current_level.buffer(),
                         level_width as usize,
                         level_height as usize,
                         compression,
@@ -1307,7 +1347,7 @@ impl Texture {
                         pixel_kind = new_pixel_kind;
                         bytes.extend_from_slice(&compressed_data);
                     } else {
-                        bytes.extend_from_slice(current_level.as_bytes())
+                        bytes.extend_from_slice(current_level.buffer())
                     }
 
                     level_width = level_width.checked_shr(1).unwrap_or_default();
@@ -1318,9 +1358,13 @@ impl Texture {
 
                 if compression == CompressionOptions::NoCompression {
                     bytes.extend_from_slice(dyn_img.as_bytes());
-                } else if let Some((compressed_data, new_pixel_kind)) =
-                    try_compress(&dyn_img, width as usize, height as usize, compression)
-                {
+                } else if let Some((compressed_data, new_pixel_kind)) = try_compress(
+                    pixel_kind,
+                    dyn_img.as_bytes(),
+                    width as usize,
+                    height as usize,
+                    compression,
+                ) {
                     pixel_kind = new_pixel_kind;
                     bytes.extend_from_slice(&compressed_data);
                 } else {
