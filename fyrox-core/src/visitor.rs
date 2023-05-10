@@ -1281,8 +1281,8 @@ impl Visitor {
             node.fields.push(field);
         }
 
-        let mut children = Vec::new();
         let child_count = file.read_u32::<LittleEndian>()? as usize;
+        let mut children = Vec::with_capacity(child_count);
         for _ in 0..child_count {
             children.push(self.load_node_binary(file)?);
         }
