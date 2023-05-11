@@ -1,5 +1,6 @@
 //! Everything related to terrains. See [`Terrain`] docs for more info.
 
+use crate::renderer::batch::PersistentIdentifier;
 use crate::{
     asset::{Resource, ResourceStateRef},
     core::{
@@ -1541,6 +1542,11 @@ impl NodeTrait for Terrain {
                                 depth_offset: self.depth_offset_factor(),
                                 blend_shapes_weights: Default::default(),
                                 element_range: ElementRange::Full,
+                                persistent_identifier: PersistentIdentifier::new_combined(
+                                    &self.geometry.data,
+                                    ctx.node_handle,
+                                    node.persistent_index,
+                                ),
                             },
                         );
                     } else {
@@ -1558,6 +1564,11 @@ impl NodeTrait for Terrain {
                                         depth_offset: self.depth_offset_factor(),
                                         blend_shapes_weights: Default::default(),
                                         element_range: self.geometry.quadrants[i],
+                                        persistent_identifier: PersistentIdentifier::new_combined(
+                                            &self.geometry.data,
+                                            ctx.node_handle,
+                                            node.persistent_index,
+                                        ),
                                     },
                                 );
                             }

@@ -16,7 +16,7 @@ use crate::{
             error::FrameworkError, framebuffer::FrameBuffer, gpu_texture::GpuTexture,
             state::PipelineState,
         },
-        storage::MatrixStorage,
+        storage::MatrixStorageCache,
         GeometryCache, MaterialContext, QualitySettings, RenderPassStatistics,
     },
     scene::{camera::Camera, mesh::RenderPath},
@@ -41,7 +41,7 @@ pub(crate) struct ForwardRenderContext<'a, 'b> {
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
     pub black_dummy: Rc<RefCell<GpuTexture>>,
     pub volume_dummy: Rc<RefCell<GpuTexture>>,
-    pub matrix_storage: &'a mut MatrixStorage,
+    pub matrix_storage: &'a mut MatrixStorageCache,
 }
 
 impl ForwardRenderer {
@@ -131,6 +131,7 @@ impl ForwardRenderer {
                                 black_dummy: black_dummy.clone(),
                                 volume_dummy: volume_dummy.clone(),
                                 matrix_storage,
+                                persistent_identifier: instance.persistent_identifier,
                             });
                         },
                     )?;

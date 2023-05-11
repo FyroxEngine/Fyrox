@@ -19,7 +19,7 @@ use crate::{
             state::{ColorMask, PipelineState},
         },
         shadow::cascade_size,
-        storage::MatrixStorage,
+        storage::MatrixStorageCache,
         GeometryCache, MaterialContext, RenderPassStatistics, ShadowMapPrecision,
         SPOT_SHADOW_PASS_NAME,
     },
@@ -132,7 +132,7 @@ impl SpotShadowMapRenderer {
         white_dummy: Rc<RefCell<GpuTexture>>,
         black_dummy: Rc<RefCell<GpuTexture>>,
         volume_dummy: Rc<RefCell<GpuTexture>>,
-        matrix_storage: &mut MatrixStorage,
+        matrix_storage: &mut MatrixStorageCache,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         scope_profile!();
 
@@ -207,6 +207,7 @@ impl SpotShadowMapRenderer {
                                 white_dummy: white_dummy.clone(),
                                 black_dummy: black_dummy.clone(),
                                 volume_dummy: volume_dummy.clone(),
+                                persistent_identifier: instance.persistent_identifier,
                             });
                         },
                     )?;

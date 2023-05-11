@@ -23,6 +23,7 @@ pub struct QuadTreeNode {
     pub level: u32,
     pub min_height: f32,
     pub max_height: f32,
+    pub persistent_index: usize,
 }
 
 impl Default for QuadTreeNode {
@@ -34,6 +35,7 @@ impl Default for QuadTreeNode {
             level: 0,
             min_height: 0.0,
             max_height: 0.0,
+            persistent_index: 0,
         }
     }
 }
@@ -43,6 +45,7 @@ pub struct SelectedNode {
     pub position: Vector2<u32>,
     pub size: Vector2<u32>,
     pub active_quadrants: [bool; 4],
+    pub persistent_index: usize,
 }
 
 impl SelectedNode {
@@ -59,6 +62,7 @@ impl QuadTreeNode {
         node_size: Vector2<u32>,
         max_size: Vector2<u32>,
         level: u32,
+        index: &mut usize,
     ) -> Self {
         let mut min_height = f32::MAX;
         let mut max_height = f32::MIN;
@@ -89,6 +93,7 @@ impl QuadTreeNode {
                         new_size,
                         max_size,
                         next_level,
+                        index,
                     )),
                     Box::new(QuadTreeNode::new(
                         height_map,
@@ -97,6 +102,7 @@ impl QuadTreeNode {
                         new_size,
                         max_size,
                         next_level,
+                        index,
                     )),
                     Box::new(QuadTreeNode::new(
                         height_map,
@@ -105,6 +111,7 @@ impl QuadTreeNode {
                         new_size,
                         max_size,
                         next_level,
+                        index,
                     )),
                     Box::new(QuadTreeNode::new(
                         height_map,
@@ -113,10 +120,14 @@ impl QuadTreeNode {
                         new_size,
                         max_size,
                         next_level,
+                        index,
                     )),
                 ],
             }
         };
+
+        let persistent_index = *index;
+        *index += 1;
 
         Self {
             position,
@@ -125,6 +136,7 @@ impl QuadTreeNode {
             level,
             min_height,
             max_height,
+            persistent_index,
         }
     }
 
@@ -215,6 +227,7 @@ impl QuadTreeNode {
                         position: self.position,
                         size: self.size,
                         active_quadrants,
+                        persistent_index: self.persistent_index,
                     });
                 }
                 QuadTreeNodeKind::Leaf => {
@@ -222,6 +235,7 @@ impl QuadTreeNode {
                         position: self.position,
                         size: self.size,
                         active_quadrants: [true; 4],
+                        persistent_index: self.persistent_index,
                     });
                 }
             }
@@ -230,6 +244,7 @@ impl QuadTreeNode {
                 position: self.position,
                 size: self.size,
                 active_quadrants: [true; 4],
+                persistent_index: self.persistent_index,
             });
         }
 
@@ -261,6 +276,7 @@ impl QuadTree {
         height_map_size: Vector2<u32>,
         block_size: Vector2<u32>,
     ) -> Self {
+        let mut index = 0;
         let root = QuadTreeNode::new(
             height_map,
             height_map_size,
@@ -268,6 +284,7 @@ impl QuadTree {
             height_map_size,
             block_size,
             0,
+            &mut index,
         );
         let mut max_level = 0;
         root.max_level(&mut max_level);

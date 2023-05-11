@@ -9,8 +9,6 @@
 //! Every alpha channel is used for layer blending for terrains. This is inefficient, but for
 //! now I don't know better solution.
 
-use crate::renderer::batch::RenderDataBatchStorage;
-use crate::renderer::framework::geometry_buffer::ElementRange;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -21,13 +19,14 @@ use crate::{
     },
     renderer::{
         apply_material,
+        batch::RenderDataBatchStorage,
         cache::shader::ShaderCache,
         framework::{
             error::FrameworkError,
             framebuffer::{
                 Attachment, AttachmentKind, BlendParameters, DrawParameters, FrameBuffer,
             },
-            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
+            geometry_buffer::{ElementRange, GeometryBuffer, GeometryBufferKind},
             gpu_program::GpuProgramBinding,
             gpu_texture::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
@@ -36,7 +35,7 @@ use crate::{
             state::{BlendFactor, BlendFunc, PipelineState},
         },
         gbuffer::decal::DecalShader,
-        storage::MatrixStorage,
+        storage::MatrixStorageCache,
         GeometryCache, MaterialContext, RenderPassStatistics, TextureCache,
     },
     scene::{
@@ -75,7 +74,7 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
     pub volume_dummy: Rc<RefCell<GpuTexture>>,
     pub use_parallax_mapping: bool,
     pub graph: &'b Graph,
-    pub matrix_storage: &'a mut MatrixStorage,
+    pub matrix_storage: &'a mut MatrixStorageCache,
 }
 
 impl GBuffer {
@@ -344,6 +343,7 @@ impl GBuffer {
                             white_dummy: white_dummy.clone(),
                             black_dummy: black_dummy.clone(),
                             volume_dummy: volume_dummy.clone(),
+                            persistent_identifier: instance.persistent_identifier,
                         });
                     };
 

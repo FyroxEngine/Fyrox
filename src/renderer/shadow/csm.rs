@@ -16,7 +16,7 @@ use crate::{
             },
             state::{ColorMask, PipelineState},
         },
-        storage::MatrixStorage,
+        storage::MatrixStorageCache,
         MaterialContext, RenderPassStatistics, ShadowMapPrecision, DIRECTIONAL_SHADOW_PASS_NAME,
     },
     scene::{
@@ -104,7 +104,7 @@ pub(crate) struct CsmRenderContext<'a, 'c> {
     pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub black_dummy: Rc<RefCell<GpuTexture>>,
     pub volume_dummy: Rc<RefCell<GpuTexture>>,
-    pub matrix_storage: &'a mut MatrixStorage,
+    pub matrix_storage: &'a mut MatrixStorageCache,
 }
 
 impl CsmRenderer {
@@ -306,6 +306,7 @@ impl CsmRenderer {
                                     white_dummy: white_dummy.clone(),
                                     black_dummy: black_dummy.clone(),
                                     volume_dummy: volume_dummy.clone(),
+                                    persistent_identifier: instance.persistent_identifier,
                                 });
                             },
                         )?;

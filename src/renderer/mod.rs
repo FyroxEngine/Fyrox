@@ -34,6 +34,8 @@ mod skybox_shader;
 mod sprite_renderer;
 mod ssao;
 
+use crate::renderer::batch::PersistentIdentifier;
+use crate::renderer::storage::MatrixStorageCache;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
@@ -76,7 +78,6 @@ use crate::{
         particle_system_renderer::{ParticleSystemRenderContext, ParticleSystemRenderer},
         renderer2d::Renderer2d,
         sprite_renderer::{SpriteRenderContext, SpriteRenderer},
-        storage::MatrixStorage,
         ui_renderer::{UiRenderContext, UiRenderer},
     },
     resource::texture::{Texture, TextureKind, TextureResource},
@@ -726,7 +727,7 @@ pub struct Renderer {
     renderer2d: Renderer2d,
     texture_event_receiver: Receiver<ResourceEvent>,
     shader_event_receiver: Receiver<ResourceEvent>,
-    matrix_storage: MatrixStorage,
+    matrix_storage: MatrixStorageCache,
     // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
     // like ones used to render UI instances.
     ui_frame_buffers: FxHashMap<usize, FrameBuffer>,
@@ -930,7 +931,8 @@ pub(crate) struct MaterialContext<'a, 'b, 'c> {
     pub material: &'a Material,
     pub program_binding: &'a mut GpuProgramBinding<'b, 'c>,
     pub texture_cache: &'a mut TextureCache,
-    pub matrix_storage: &'a mut MatrixStorage,
+    pub matrix_storage: &'a mut MatrixStorageCache,
+    pub persistent_identifier: PersistentIdentifier,
 
     // Built-in uniforms.
     pub world_matrix: &'a Matrix4<f32>,
@@ -963,12 +965,17 @@ pub(crate) fn apply_material(ctx: MaterialContext) {
     if let Some(location) = &built_in_uniforms[BuiltInUniform::BoneMatrices as usize] {
         let active_sampler = ctx.program_binding.active_sampler();
 
-        ctx.program_binding
-            .set_texture(location, ctx.matrix_storage.texture());
-
-        ctx.matrix_storage
-            .upload(ctx.program_binding.state, ctx.bone_matrices, active_sampler)
+        let storage = ctx
+            .matrix_storage
+            .try_bind_and_upload(
+                ctx.program_binding.state,
+                ctx.persistent_identifier,
+                ctx.bone_matrices,
+                active_sampler,
+            )
             .expect("Failed to upload bone matrices!");
+
+        ctx.program_binding.set_texture(location, storage.texture());
     }
     if let Some(location) = &built_in_uniforms[BuiltInUniform::UseSkeletalAnimation as usize] {
         ctx.program_binding
@@ -1230,7 +1237,7 @@ impl Renderer {
             texture_event_receiver,
             shader_cache: ShaderCache::default(),
             scene_render_passes: Default::default(),
-            matrix_storage: MatrixStorage::new(&mut state)?,
+            matrix_storage: MatrixStorageCache::new(&mut state)?,
             state,
         })
     }
@@ -1467,6 +1474,8 @@ impl Renderer {
         drawing_context: &DrawingContext,
     ) -> Result<(), FrameworkError> {
         scope_profile!();
+
+        self.matrix_storage.begin_frame();
 
         // Make sure to drop associated data for destroyed scenes.
         self.scene_data_map

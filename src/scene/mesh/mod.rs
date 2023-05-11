@@ -8,6 +8,7 @@
 //! modelling software or just download some model you like and load it in engine. But since
 //! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
 
+use crate::renderer::batch::PersistentIdentifier;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -350,7 +351,7 @@ impl NodeTrait for Mesh {
             return;
         }
 
-        for surface in self.surfaces().iter() {
+        for (index, surface) in self.surfaces().iter().enumerate() {
             let is_skinned = !surface.bones.is_empty();
 
             let world = if is_skinned {
@@ -385,6 +386,11 @@ impl NodeTrait for Mesh {
                         .map(|bs| bs.weight / 100.0)
                         .collect(),
                     element_range: ElementRange::Full,
+                    persistent_identifier: PersistentIdentifier::new_combined(
+                        surface.data_ref(),
+                        ctx.node_handle,
+                        index,
+                    ),
                 },
             );
         }

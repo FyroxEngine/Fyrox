@@ -1,4 +1,5 @@
 use crate::renderer::framework::geometry_buffer::ElementRange;
+use crate::renderer::storage::MatrixStorageCache;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -32,7 +33,6 @@ use crate::{
         },
         skybox_shader::SkyboxShader,
         ssao::ScreenSpaceAmbientOcclusionRenderer,
-        storage::MatrixStorage,
         GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
     },
     scene::{
@@ -132,7 +132,7 @@ pub(crate) struct DeferredRendererContext<'a> {
     pub white_dummy: Rc<RefCell<GpuTexture>>,
     pub black_dummy: Rc<RefCell<GpuTexture>>,
     pub volume_dummy: Rc<RefCell<GpuTexture>>,
-    pub matrix_storage: &'a mut MatrixStorage,
+    pub matrix_storage: &'a mut MatrixStorageCache,
 }
 
 impl DeferredLightRenderer {
