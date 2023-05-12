@@ -1020,6 +1020,15 @@ impl Engine {
                 window.inner_size().height as f32,
             ));
 
+            #[cfg(not(target_arch = "wasm32"))]
+            gl_surface.resize(
+                &gl_context,
+                NonZeroU32::new(window.inner_size().width)
+                    .unwrap_or_else(|| NonZeroU32::new(1).unwrap()),
+                NonZeroU32::new(window.inner_size().height)
+                    .unwrap_or_else(|| NonZeroU32::new(1).unwrap()),
+            );
+
             self.graphics_context = GraphicsContext::Initialized(InitializedGraphicsContext {
                 #[cfg(not(target_arch = "wasm32"))]
                 gl_context,
