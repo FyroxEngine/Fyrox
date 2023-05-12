@@ -237,6 +237,14 @@ where
                 self.state = Some(
                     resource_manager.request_untyped(path, <T as TypeUuidProvider>::type_uuid()),
                 );
+            } else {
+                // There might be a built-in resource, in this case we must restore the "reference" to it.
+                let state = resource_manager.state();
+                if let Some(built_in_resource) = state.built_in_resources.get(&path) {
+                    if built_in_resource.type_uuid() == self.state.as_ref().unwrap().type_uuid() {
+                        self.state = Some(built_in_resource.clone());
+                    }
+                }
             }
         }
 

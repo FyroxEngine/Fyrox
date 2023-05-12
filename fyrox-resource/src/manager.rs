@@ -9,6 +9,7 @@ use crate::{
     task::TaskPool,
     Resource, ResourceData, UntypedResource,
 };
+use fxhash::FxHashMap;
 use fyrox_core::{
     futures::future::join_all,
     log::Log,
@@ -18,6 +19,7 @@ use fyrox_core::{
     watcher::FileSystemWatcher,
     TypeUuidProvider, VecExtensions,
 };
+use std::path::PathBuf;
 use std::{
     ffi::OsStr,
     fmt::{Debug, Display, Formatter},
@@ -55,7 +57,8 @@ pub struct ResourceManagerState {
     pub event_broadcaster: ResourceEventBroadcaster,
     /// A container for resource constructors.
     pub constructors_container: ResourceConstructorContainer,
-
+    /// A set of built-in resources, that will be used to resolve references on deserialization.
+    pub built_in_resources: FxHashMap<PathBuf, UntypedResource>,
     resources: Vec<TimedEntry<UntypedResource>>,
     task_pool: Arc<TaskPool>,
     watcher: Option<FileSystemWatcher>,
@@ -214,6 +217,7 @@ impl ResourceManagerState {
             event_broadcaster: Default::default(),
             constructors_container: Default::default(),
             watcher: None,
+            built_in_resources: Default::default(),
         }
     }
 
