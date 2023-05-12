@@ -579,9 +579,10 @@ impl SceneViewer {
                         settings,
                     ),
                     WidgetMessage::MouseWheel { amount, .. } => {
-                        editor_scene
-                            .camera_controller
-                            .on_mouse_wheel(amount, &mut engine.scenes[editor_scene.scene].graph);
+                        editor_scene.camera_controller.on_mouse_wheel(
+                            amount * settings.camera.zoom_speed,
+                            &mut engine.scenes[editor_scene.scene].graph,
+                        );
                     }
                     WidgetMessage::MouseMove { pos, .. } => {
                         self.on_mouse_move(pos, editor_scene, interaction_mode, engine, settings)

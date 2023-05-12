@@ -20,11 +20,20 @@ impl Default for SceneCameraSettings {
     }
 }
 
+fn default_zoom_speed() -> f32 {
+    1.0
+}
+
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
 pub struct CameraSettings {
+    #[serde(default)]
     pub speed: f32,
+    #[serde(default)]
     pub invert_dragging: bool,
+    #[serde(default)]
     pub drag_speed: f32,
+    #[serde(default = "default_zoom_speed")]
+    pub zoom_speed: f32,
     #[reflect(hidden)]
     pub camera_settings: HashMap<PathBuf, SceneCameraSettings>,
 }
@@ -36,6 +45,7 @@ impl Default for CameraSettings {
             invert_dragging: false,
             drag_speed: 0.01,
             camera_settings: Default::default(),
+            zoom_speed: default_zoom_speed(),
         }
     }
 }
