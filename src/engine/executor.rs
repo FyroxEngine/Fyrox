@@ -226,6 +226,12 @@ impl Executor {
                     }
                 }
                 Event::RedrawRequested(_) => {
+                    engine.handle_before_rendering_by_plugins(
+                        fixed_time_step,
+                        control_flow,
+                        &mut lag,
+                    );
+
                     engine.render().unwrap();
                 }
                 Event::WindowEvent { event, .. } => {

@@ -200,6 +200,15 @@ pub trait Plugin: BasePlugin {
     ) {
     }
 
+    /// The method is called before the actual frame rendering. It could be useful to render off-screen
+    /// data (render something to texture, that can be used later in the main frame).
+    fn before_rendering(
+        &mut self,
+        #[allow(unused_variables)] context: PluginContext,
+        #[allow(unused_variables)] control_flow: &mut ControlFlow,
+    ) {
+    }
+
     /// The method is called when the current graphics context was destroyed.
     fn on_graphics_context_destroyed(
         &mut self,

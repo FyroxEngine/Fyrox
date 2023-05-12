@@ -1346,6 +1346,31 @@ impl Engine {
         }
     }
 
+    pub(crate) fn handle_before_rendering_by_plugins(
+        &mut self,
+        dt: f32,
+        control_flow: &mut ControlFlow,
+        lag: &mut f32,
+    ) {
+        if self.plugins_enabled {
+            for plugin in self.plugins.iter_mut() {
+                plugin.before_rendering(
+                    PluginContext {
+                        scenes: &mut self.scenes,
+                        resource_manager: &self.resource_manager,
+                        graphics_context: &mut self.graphics_context,
+                        dt,
+                        lag,
+                        user_interface: &mut self.user_interface,
+                        serialization_context: &self.serialization_context,
+                        performance_statistics: &self.performance_statistics,
+                    },
+                    control_flow,
+                );
+            }
+        }
+    }
+
     /// Passes specified OS event to every script of the specified scene.
     ///
     /// # Important notes
