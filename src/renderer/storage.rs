@@ -31,6 +31,7 @@ pub struct MatrixStorage {
 impl MatrixStorage {
     /// Creates a new matrix storage.
     pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+        let identity = [Matrix4::<f32>::identity()];
         Ok(Self {
             texture: Rc::new(RefCell::new(GpuTexture::new(
                 state,
@@ -42,7 +43,7 @@ impl MatrixStorage {
                 MinificationFilter::Nearest,
                 MagnificationFilter::Nearest,
                 1,
-                None,
+                Some(utils::array_as_u8_slice(&identity)),
             )?)),
             matrices: Default::default(),
         })
