@@ -34,6 +34,7 @@ mod skybox_shader;
 mod sprite_renderer;
 mod ssao;
 
+use crate::material::shader::{ShaderResource, ShaderResourceExtension};
 use crate::renderer::batch::PersistentIdentifier;
 use crate::renderer::storage::MatrixStorageCache;
 use crate::{
@@ -1129,6 +1130,12 @@ impl Renderer {
             state.gl.supported_extensions()
         ));
 
+        let mut shader_cache = ShaderCache::default();
+
+        for shader in ShaderResource::standard_shaders() {
+            shader_cache.get(&mut state, &shader);
+        }
+
         Ok(Self {
             backbuffer: FrameBuffer::backbuffer(&mut state),
             frame_size,
@@ -1235,7 +1242,7 @@ impl Renderer {
             renderer2d: Renderer2d::new(&mut state)?,
             shader_event_receiver,
             texture_event_receiver,
-            shader_cache: ShaderCache::default(),
+            shader_cache,
             scene_render_passes: Default::default(),
             matrix_storage: MatrixStorageCache::new(&mut state)?,
             state,
