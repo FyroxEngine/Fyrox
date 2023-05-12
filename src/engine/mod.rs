@@ -6,6 +6,7 @@
 pub mod error;
 pub mod executor;
 
+use crate::material::shader::{ShaderResource, ShaderResourceExtension};
 use crate::{
     asset::{manager::ResourceManager, manager::ResourceWaitContext},
     core::{algebra::Vector2, futures::executor::block_on, instant, log::Log, pool::Handle},
@@ -839,6 +840,12 @@ impl Engine {
             };
 
             let mut state = resource_manager.state();
+
+            for shader in ShaderResource::standard_shaders() {
+                state
+                    .built_in_resources
+                    .insert(shader.path(), shader.into_untyped());
+            }
 
             state.constructors_container.add::<Texture>();
             state.constructors_container.add::<Shader>();
