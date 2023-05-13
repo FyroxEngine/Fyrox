@@ -75,6 +75,7 @@ use crate::{
     utils::{doc::DocWindow, path_fixer::PathFixer},
     world::{graph::selection::GraphSelection, WorldViewer},
 };
+use fyrox::dpi::PhysicalSize;
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
@@ -88,7 +89,6 @@ use fyrox::{
         visitor::Visitor,
         watcher::FileSystemWatcher,
     },
-    dpi::LogicalSize,
     engine::{Engine, EngineInitParams, GraphicsContextParams, SerializationContext},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -451,12 +451,13 @@ impl Editor {
         Log::add_listener(log_message_sender);
 
         let inner_size = if let Some(primary_monitor) = event_loop.primary_monitor() {
-            let mut monitor_dimensions = primary_monitor.size();
-            monitor_dimensions.height = (monitor_dimensions.height as f32 * 0.7) as u32;
-            monitor_dimensions.width = (monitor_dimensions.width as f32 * 0.7) as u32;
-            monitor_dimensions.to_logical::<f32>(primary_monitor.scale_factor())
+            let monitor_dimensions = primary_monitor.size();
+            PhysicalSize::new(
+                monitor_dimensions.width as f32 * 0.7,
+                monitor_dimensions.height as f32 * 0.7,
+            )
         } else {
-            LogicalSize::new(1024.0, 768.0)
+            PhysicalSize::new(1024.0, 768.0)
         };
 
         let graphics_context_params = GraphicsContextParams {
