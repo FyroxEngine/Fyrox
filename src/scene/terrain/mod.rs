@@ -51,8 +51,7 @@ mod quadtree;
 /// Current implementation version marker.
 pub const VERSION: u8 = 1;
 
-/// Layers is a set of textures for rendering + mask texture to exclude some pixels from
-/// rendering. Terrain can have as many layers as you want, but each layer slightly decreases
+/// Layers is a material Terrain can have as many layers as you want, but each layer slightly decreases
 /// performance, so keep amount of layers on reasonable level (1 - 5 should be enough for most
 /// cases).
 #[derive(Debug, Clone, Visit, Reflect, PartialEq)]
