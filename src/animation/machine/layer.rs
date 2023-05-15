@@ -424,13 +424,11 @@ impl MachineLayer {
                         }
 
                         self.events.push(Event::StateEnter(transition.source()));
+                        self.events.push(Event::StateEnter(transition.dest()));
                         if self.debug {
                             Log::writeln(
                                 MessageKind::Information,
-                                format!(
-                                    "Entering state: {}",
-                                    self.states[transition.source()].name
-                                ),
+                                format!("Entering state: {}", self.states[transition.dest()].name),
                             );
                         }
 
