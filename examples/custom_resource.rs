@@ -6,6 +6,7 @@ use fyrox::{
         ResourceData,
     },
     core::{
+        futures::executor,
         io::{self},
         pool::Handle,
         reflect::prelude::*,
@@ -14,12 +15,10 @@ use fyrox::{
         TypeUuidProvider,
     },
     engine::{executor::Executor, GraphicsContextParams},
-    event_loop::ControlFlow,
     plugin::{Plugin, PluginConstructor, PluginContext},
     scene::Scene,
     window::WindowAttributes,
 };
-use fyrox_core::futures::executor;
 use std::{
     any::Any,
     borrow::Cow,
@@ -28,7 +27,7 @@ use std::{
 
 #[derive(Debug, Visit, Reflect)]
 struct CustomResource {
-    // You resource must store the path.
+    // Your resource must store the path.
     path: PathBuf,
     some_data: String,
 }
@@ -99,7 +98,7 @@ impl ResourceLoader for CustomResourceLoader {
 
                     resource.commit_ok(my_resource);
 
-                    // Notify potential subscribers that the resource was loader.
+                    // Notify potential subscribers that the resource was loaded.
                     event_broadcaster.broadcast_loaded_or_reloaded(resource, reload);
                 }
                 Err(err) => {
@@ -112,9 +111,7 @@ impl ResourceLoader for CustomResourceLoader {
 
 struct Game {}
 
-impl Plugin for Game {
-    fn update(&mut self, context: &mut PluginContext, _control_flow: &mut ControlFlow) {}
-}
+impl Plugin for Game {}
 
 struct GameConstructor;
 
