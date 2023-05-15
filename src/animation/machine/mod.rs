@@ -286,7 +286,11 @@ impl Machine {
 
     /// Computes final animation pose that could be then applied to a scene graph.
     #[inline]
-    pub fn evaluate_pose(&mut self, animations: &AnimationContainer, dt: f32) -> &AnimationPose {
+    pub fn evaluate_pose(
+        &mut self,
+        animations: &mut AnimationContainer,
+        dt: f32,
+    ) -> &AnimationPose {
         self.final_pose.reset();
 
         for layer in self.layers.iter_mut() {

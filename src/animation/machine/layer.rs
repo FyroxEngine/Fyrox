@@ -393,7 +393,7 @@ impl MachineLayer {
     #[inline]
     pub(super) fn evaluate_pose(
         &mut self,
-        animations: &AnimationContainer,
+        animations: &mut AnimationContainer,
         parameters: &ParameterContainer,
         dt: f32,
     ) -> &AnimationPose {
@@ -415,6 +415,12 @@ impl MachineLayer {
                     }
 
                     if transition.condition.calculate_value(parameters) {
+                        if let Some(active_state) = self.states.try_borrow(self.active_state) {
+                            for action in active_state.on_leave_actions.iter() {
+                                action.apply(animations);
+                            }
+                        }
+
                         self.events.push(Event::StateLeave(self.active_state));
                         if self.debug {
                             Log::writeln(
@@ -423,7 +429,12 @@ impl MachineLayer {
                             );
                         }
 
-                        self.events.push(Event::StateEnter(transition.source()));
+                        if let Some(source) = self.states.try_borrow(transition.dest()) {
+                            for action in source.on_enter_actions.iter() {
+                                action.apply(animations);
+                            }
+                        }
+
                         self.events.push(Event::StateEnter(transition.dest()));
                         if self.debug {
                             Log::writeln(

@@ -19,6 +19,7 @@ use fyrox::{
                 blendspace::{BlendSpace, BlendSpacePoint},
                 BasePoseNode,
             },
+            state::{StateAction, StateActionWrapper},
             transition::{AndNode, LogicNode, NotNode, OrNode, XorNode},
             BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput, Machine,
             PlayAnimation, PoseNode, PoseWeight, State,
@@ -304,6 +305,9 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(InspectablePropertyEditorDefinition::<BlendPose>::new());
     container.insert(VecCollectionPropertyEditorDefinition::<BlendPose>::new());
     container.insert(EnumPropertyEditorDefinition::<PoseWeight>::new());
+    container.insert(EnumPropertyEditorDefinition::<StateAction>::new());
+    container.insert(InspectablePropertyEditorDefinition::<StateActionWrapper>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<StateActionWrapper>::new());
     container.insert(InspectablePropertyEditorDefinition::<BlendAnimationsByIndex>::new());
     container.insert(InspectablePropertyEditorDefinition::<BlendAnimations>::new());
     container.insert(InspectablePropertyEditorDefinition::<BlendSpace>::new());

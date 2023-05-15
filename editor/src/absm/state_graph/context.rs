@@ -77,6 +77,8 @@ impl CanvasContextMenu {
                     State {
                         position: ui.node(self.canvas).screen_to_local(screen_position),
                         name: "New State".to_string(),
+                        on_enter_actions: Default::default(),
+                        on_leave_actions: Default::default(),
                         root: Default::default(),
                     },
                 ));

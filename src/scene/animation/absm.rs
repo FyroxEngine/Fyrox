@@ -184,10 +184,10 @@ impl NodeTrait for AnimationBlendingStateMachine {
             // do than instead.
             animation_player.set_auto_apply(false);
 
-            let pose = self
-                .machine
-                .get_value_mut_silent()
-                .evaluate_pose(&animation_player.animations, context.dt);
+            let pose = self.machine.get_value_mut_silent().evaluate_pose(
+                animation_player.animations.get_value_mut_silent(),
+                context.dt,
+            );
 
             pose.apply_internal(context.nodes);
         }
