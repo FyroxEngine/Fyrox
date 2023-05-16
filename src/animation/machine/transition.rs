@@ -265,6 +265,7 @@ impl Reflect for NotNode {
 /// # Examples
 ///
 /// ```rust
+/// use fyrox::animation::AnimationContainer;
 /// use fyrox::animation::machine::{
 ///     transition::{AndNode, LogicNode, NotNode},
 ///     Parameter, ParameterContainer,
@@ -282,7 +283,7 @@ impl Reflect for NotNode {
 ///     rhs: Box::new(LogicNode::Parameter("Jump".to_string())),
 /// });
 ///
-/// assert_eq!(transition_logic.calculate_value(&parameters), true);
+/// assert_eq!(transition_logic.calculate_value(&parameters, &AnimationContainer::default()), true);
 /// ```
 #[derive(Debug, Visit, Clone, Reflect, PartialEq, AsRefStr, EnumString, EnumVariantNames)]
 pub enum LogicNode {
