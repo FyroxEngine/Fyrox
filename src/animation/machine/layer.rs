@@ -7,7 +7,7 @@ use crate::{
             event::FixedEventQueue, Event, LayerMask, ParameterContainer, PoseNode, State,
             Transition,
         },
-        AnimationContainer, AnimationPose,
+        Animation, AnimationContainer, AnimationPose,
     },
     core::{
         log::{Log, MessageKind},
@@ -388,6 +388,26 @@ impl MachineLayer {
     #[inline]
     pub fn pose(&self) -> &AnimationPose {
         &self.final_pose
+    }
+
+    /// Returns an iterator over all animations of a given state. It fetches the animations from [`PoseNode::PlayAnimation`]
+    /// nodes and returns them. This method could be useful to extract all animations used by a particular state. For example,
+    /// to listen for animation events and react to them.
+    pub fn animations_of_state(
+        &self,
+        state: Handle<State>,
+    ) -> impl Iterator<Item = Handle<Animation>> + '_ {
+        self.nodes.iter().filter_map(move |node| {
+            if node.parent_state == state {
+                if let PoseNode::PlayAnimation(play_animation) = node {
+                    Some(play_animation.animation)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
     }
 
     #[inline]
