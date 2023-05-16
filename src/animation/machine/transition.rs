@@ -1,7 +1,10 @@
 //! Transition is a connection between two states with a rule that defines possibility of actual transition with blending.
 
 use crate::{
-    animation::machine::{Parameter, ParameterContainer, State},
+    animation::{
+        machine::{Parameter, ParameterContainer, State},
+        Animation, AnimationContainer,
+    },
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     utils::NameProvider,
 };
@@ -293,6 +296,8 @@ pub enum LogicNode {
     Xor(XorNode),
     /// Calculates logical NOT of an argument. Output value will be `true` if the value of the argument is `false`.
     Not(NotNode),
+    /// Returns `true` if the animation has ended, `false` - otherwise.
+    IsAnimationEnded(Handle<Animation>),
 }
 
 impl Default for LogicNode {
@@ -303,7 +308,11 @@ impl Default for LogicNode {
 
 impl LogicNode {
     /// Calculates final value of the logic node.
-    pub fn calculate_value(&self, parameters: &ParameterContainer) -> bool {
+    pub fn calculate_value(
+        &self,
+        parameters: &ParameterContainer,
+        animations: &AnimationContainer,
+    ) -> bool {
         match self {
             LogicNode::Parameter(rule_name) => parameters.get(rule_name).map_or(false, |p| {
                 if let Parameter::Rule(rule_value) = p {
@@ -313,21 +322,24 @@ impl LogicNode {
                 }
             }),
             LogicNode::And(and) => {
-                let lhs_value = and.lhs.calculate_value(parameters);
-                let rhs_value = and.rhs.calculate_value(parameters);
+                let lhs_value = and.lhs.calculate_value(parameters, animations);
+                let rhs_value = and.rhs.calculate_value(parameters, animations);
                 lhs_value & rhs_value
             }
             LogicNode::Or(or) => {
-                let lhs_value = or.lhs.calculate_value(parameters);
-                let rhs_value = or.rhs.calculate_value(parameters);
+                let lhs_value = or.lhs.calculate_value(parameters, animations);
+                let rhs_value = or.rhs.calculate_value(parameters, animations);
                 lhs_value | rhs_value
             }
             LogicNode::Xor(or) => {
-                let lhs_value = or.lhs.calculate_value(parameters);
-                let rhs_value = or.rhs.calculate_value(parameters);
+                let lhs_value = or.lhs.calculate_value(parameters, animations);
+                let rhs_value = or.rhs.calculate_value(parameters, animations);
                 lhs_value ^ rhs_value
             }
-            LogicNode::Not(node) => !node.lhs.calculate_value(parameters),
+            LogicNode::Not(node) => !node.lhs.calculate_value(parameters, animations),
+            LogicNode::IsAnimationEnded(animation) => animations
+                .try_get(*animation)
+                .map_or(true, |a| a.has_ended()),
         }
     }
 }

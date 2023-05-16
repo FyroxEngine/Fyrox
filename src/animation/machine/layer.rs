@@ -414,7 +414,7 @@ impl MachineLayer {
                         continue;
                     }
 
-                    if transition.condition.calculate_value(parameters) {
+                    if transition.condition.calculate_value(parameters, animations) {
                         if let Some(active_state) = self.states.try_borrow(self.active_state) {
                             for action in active_state.on_leave_actions.iter() {
                                 action.apply(animations);
