@@ -11,10 +11,13 @@ use crate::{
         reflect::prelude::*,
         visitor::prelude::*,
     },
+    rand::{self, seq::IteratorRandom},
     utils::NameProvider,
 };
-use std::cell::Ref;
-use std::ops::{Deref, DerefMut};
+use std::{
+    cell::Ref,
+    ops::{Deref, DerefMut},
+};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 #[doc(hidden)]
@@ -30,6 +33,24 @@ impl Deref for StateActionWrapper {
 }
 
 impl DerefMut for StateActionWrapper {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+#[doc(hidden)]
+#[derive(Default, Debug, Visit, Reflect, Clone, PartialEq)]
+pub struct AnimationHandleWrapper(pub Handle<Animation>);
+
+impl Deref for AnimationHandleWrapper {
+    type Target = Handle<Animation>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for AnimationHandleWrapper {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
@@ -54,6 +75,11 @@ pub enum StateAction {
     EnableAnimation(Handle<Animation>),
     /// Disables the animation.
     DisableAnimation(Handle<Animation>),
+    /// Enables random animation from the list. It could be useful if you want to add randomization
+    /// to your state machine. For example, you may have few melee attack animations and all of them
+    /// are suitable for every situation, in this case you can add randomization to make attacks less
+    /// predictable.
+    EnableRandomAnimation(Vec<AnimationHandleWrapper>),
 }
 
 impl StateAction {
@@ -74,6 +100,13 @@ impl StateAction {
             StateAction::DisableAnimation(animation) => {
                 if let Some(animation) = animations.try_get_mut(*animation) {
                     animation.set_enabled(false);
+                }
+            }
+            StateAction::EnableRandomAnimation(animation_handles) => {
+                if let Some(animation) = animation_handles.iter().choose(&mut rand::thread_rng()) {
+                    if let Some(animation) = animations.try_get_mut(animation.0) {
+                        animation.set_enabled(true);
+                    }
                 }
             }
         }

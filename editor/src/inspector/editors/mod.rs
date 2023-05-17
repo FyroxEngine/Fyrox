@@ -1,17 +1,19 @@
-use crate::inspector::editors::{
-    animation::{
-        AnimationContainerPropertyEditorDefinition, AnimationPropertyEditorDefinition,
-        MachinePropertyEditorDefinition,
+use crate::{
+    inspector::editors::{
+        animation::{
+            AnimationContainerPropertyEditorDefinition, AnimationPropertyEditorDefinition,
+            MachinePropertyEditorDefinition,
+        },
+        handle::NodeHandlePropertyEditorDefinition,
+        material::MaterialPropertyEditorDefinition,
+        resource::ResourceFieldPropertyEditorDefinition,
+        script::ScriptPropertyEditorDefinition,
+        spritesheet::SpriteSheetFramesContainerEditorDefinition,
+        surface::SurfaceDataPropertyEditorDefinition,
+        texture::TexturePropertyEditorDefinition,
     },
-    handle::NodeHandlePropertyEditorDefinition,
-    material::MaterialPropertyEditorDefinition,
-    resource::ResourceFieldPropertyEditorDefinition,
-    script::ScriptPropertyEditorDefinition,
-    spritesheet::SpriteSheetFramesContainerEditorDefinition,
-    surface::SurfaceDataPropertyEditorDefinition,
-    texture::TexturePropertyEditorDefinition,
+    message::MessageSender,
 };
-use crate::message::MessageSender;
 use fyrox::{
     animation::{
         machine::{
@@ -19,7 +21,7 @@ use fyrox::{
                 blendspace::{BlendSpace, BlendSpacePoint},
                 BasePoseNode,
             },
-            state::{StateAction, StateActionWrapper},
+            state::{AnimationHandleWrapper, StateAction, StateActionWrapper},
             transition::{AndNode, LogicNode, NotNode, OrNode, XorNode},
             BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput, Machine,
             PlayAnimation, PoseNode, PoseWeight, State,
@@ -312,6 +314,10 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(InspectablePropertyEditorDefinition::<BlendAnimations>::new());
     container.insert(InspectablePropertyEditorDefinition::<BlendSpace>::new());
     container.insert(InspectablePropertyEditorDefinition::<PlayAnimation>::new());
+    container.insert(InspectablePropertyEditorDefinition::<AnimationHandleWrapper>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<
+        AnimationHandleWrapper,
+    >::new());
 
     container.insert(InspectablePropertyEditorDefinition::<Handle<PoseNode>>::new());
     container.insert(InspectablePropertyEditorDefinition::<Handle<State>>::new());
