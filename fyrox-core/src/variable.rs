@@ -236,10 +236,20 @@ where
     T: Visit,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut region = visitor.enter_region(name)?;
+        let mut visited = false;
 
-        self.value.visit("Value", &mut region)?;
-        self.flags.get_mut().bits.visit("Flags", &mut region)?;
+        if visitor.is_reading() {
+            // Try to visit inner value first, this is very useful if user decides to make their
+            // variable inheritable, but still keep backward compatibility.
+            visited = self.value.visit(name, visitor).is_ok();
+        }
+
+        if !visited {
+            let mut region = visitor.enter_region(name)?;
+
+            self.value.visit("Value", &mut region)?;
+            self.flags.get_mut().bits.visit("Flags", &mut region)?;
+        }
 
         Ok(())
     }
