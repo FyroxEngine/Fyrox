@@ -47,7 +47,7 @@ use fyrox::{
         curve::{CurveResource, CurveResourceState},
         model::{MaterialSearchOptions, Model, ModelResource},
         texture::{
-            CompressionOptions, TextureMagnificationFilter, TextureMinificationFilter,
+            CompressionOptions, MipFilter, TextureMagnificationFilter, TextureMinificationFilter,
             TextureResource, TextureWrapMode,
         },
     },
@@ -338,6 +338,8 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
 
     container.insert(InspectablePropertyEditorDefinition::<ParticleSystemRng>::new());
     container.insert(EnumPropertyEditorDefinition::<PolygonFillMode>::new());
+
+    container.insert(EnumPropertyEditorDefinition::<MipFilter>::new());
 
     container
 }

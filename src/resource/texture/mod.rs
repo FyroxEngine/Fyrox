@@ -296,7 +296,18 @@ impl Default for Texture {
 }
 
 /// A filter for mip-map generation.
-#[derive(Default, Copy, Clone, Deserialize, Serialize, Debug, Reflect)]
+#[derive(
+    Default,
+    Copy,
+    Clone,
+    Deserialize,
+    Serialize,
+    Debug,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
 pub enum MipFilter {
     /// Simple nearest filter, it is the fastest filter available, but it produces noisy mip levels and
     /// in most cases it is not advised to use it. Consider its performance as 1x.
