@@ -410,6 +410,17 @@ impl MachineLayer {
         })
     }
 
+    /// Returns `true` if all animations of the given state has ended, `false` - otherwise.
+    pub fn is_all_animations_of_state_ended(
+        &self,
+        state: Handle<State>,
+        animations: &AnimationContainer,
+    ) -> bool {
+        self.animations_of_state(state)
+            .filter_map(|a| animations.try_get(a))
+            .all(|a| a.has_ended())
+    }
+
     #[inline]
     pub(super) fn evaluate_pose(
         &mut self,
