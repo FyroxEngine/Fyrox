@@ -570,6 +570,9 @@ fn make_polyhedron_shape(owner_inv_transform: Matrix4<f32>, mesh: &Mesh) -> Shar
 fn make_heightfield(terrain: &Terrain) -> SharedShape {
     assert!(!terrain.chunks_ref().is_empty());
 
+    // HACK: Temporary solution for https://github.com/FyroxEngine/Fyrox/issues/365
+    let scale = terrain.local_transform().scale();
+
     // Count rows and columns.
     let height_map_size = terrain.height_map_size();
     let nrows = height_map_size.y * terrain.length_chunks().len() as u32;
@@ -586,7 +589,7 @@ fn make_heightfield(terrain: &Terrain) -> SharedShape {
             let height_map = texture.data_of_type::<f32>().unwrap();
             for iy in 0..height_map_size.y {
                 for ix in 0..height_map_size.x {
-                    let value = height_map[(iy * height_map_size.x + ix) as usize];
+                    let value = height_map[(iy * height_map_size.x + ix) as usize] * scale.y;
                     data[((ox + ix) * nrows + oz + iy) as usize] = value;
                 }
             }
@@ -605,9 +608,9 @@ fn make_heightfield(terrain: &Terrain) -> SharedShape {
             data,
         )),
         Vector3::new(
-            terrain.chunk_size().x * terrain.width_chunks().len() as f32,
+            terrain.chunk_size().x * scale.x * terrain.width_chunks().len() as f32,
             1.0,
-            terrain.chunk_size().y * terrain.length_chunks().len() as f32,
+            terrain.chunk_size().y * scale.z * terrain.length_chunks().len() as f32,
         ),
     )
 }
