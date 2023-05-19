@@ -6,7 +6,10 @@ use crate::{
     HorizontalAlignment, LayoutEvent, MouseButton, MouseState, RcUiNodeHandle, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_FOREGROUND, BRUSH_PRIMARY,
 };
-use fyrox_core::algebra::{Matrix3, Point2};
+use fyrox_core::{
+    algebra::{Matrix3, Point2},
+    uuid::Uuid,
+};
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -388,6 +391,7 @@ pub struct Widget {
     pub preview_messages: bool,
     pub handle_os_events: bool,
     pub layout_events_sender: Option<Sender<LayoutEvent>>,
+    pub id: Uuid,
 
     /// Layout. Interior mutability is a must here because layout performed in
     /// a series of recursive calls.
@@ -1118,6 +1122,7 @@ pub struct WidgetBuilder {
     pub layout_transform: Matrix3<f32>,
     pub render_transform: Matrix3<f32>,
     pub clip_to_bounds: bool,
+    pub id: Uuid,
 }
 
 impl Default for WidgetBuilder {
@@ -1161,6 +1166,7 @@ impl WidgetBuilder {
             layout_transform: Matrix3::identity(),
             render_transform: Matrix3::identity(),
             clip_to_bounds: true,
+            id: Uuid::new_v4(),
         }
     }
 
@@ -1320,6 +1326,11 @@ impl WidgetBuilder {
         self
     }
 
+    pub fn with_id(mut self, id: Uuid) -> Self {
+        self.id = id;
+        self
+    }
+
     /// Sets the desired tooltip for the node.
     ///
     /// ## Important
@@ -1405,6 +1416,7 @@ impl WidgetBuilder {
             render_transform: self.render_transform,
             visual_transform: Matrix3::identity(),
             clip_to_bounds: self.clip_to_bounds,
+            id: self.id,
         }
     }
 }
