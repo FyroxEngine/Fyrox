@@ -1,11 +1,11 @@
-use crate::message::MessageSender;
 use crate::{
     inspector::editors::make_property_editors_container,
+    message::MessageSender,
     settings::{
         camera::CameraSettings, debugging::DebuggingSettings, graphics::GraphicsSettings,
         keys::KeyBindings, model::ModelSettings, move_mode::MoveInteractionModeSettings,
         navmesh::NavmeshSettings, recent::RecentFiles, rotate_mode::RotateInteractionModeSettings,
-        selection::SelectionSettings,
+        selection::SelectionSettings, windows::WindowsSettings,
     },
     Engine, MSG_SYNC_FLAG,
 };
@@ -46,6 +46,7 @@ pub mod navmesh;
 pub mod recent;
 pub mod rotate_mode;
 pub mod selection;
+pub mod windows;
 
 pub struct SettingsWindow {
     window: Handle<UiNode>,
@@ -67,6 +68,8 @@ pub struct Settings {
     pub key_bindings: KeyBindings,
     #[reflect(hidden)]
     pub recent: RecentFiles,
+    #[serde(default)]
+    pub windows: WindowsSettings,
 }
 
 #[derive(Debug)]

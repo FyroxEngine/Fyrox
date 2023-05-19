@@ -75,7 +75,7 @@ use crate::{
     utils::{doc::DocWindow, path_fixer::PathFixer},
     world::{graph::selection::GraphSelection, WorldViewer},
 };
-use fyrox::dpi::PhysicalSize;
+use fyrox::dpi::{PhysicalPosition, PhysicalSize};
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
@@ -450,19 +450,35 @@ impl Editor {
 
         Log::add_listener(log_message_sender);
 
-        let inner_size = if let Some(primary_monitor) = event_loop.primary_monitor() {
-            let monitor_dimensions = primary_monitor.size();
-            PhysicalSize::new(
-                monitor_dimensions.width as f32 * 0.7,
-                monitor_dimensions.height as f32 * 0.7,
-            )
-        } else {
-            PhysicalSize::new(1024.0, 768.0)
-        };
+        let mut settings = Settings::default();
+
+        match Settings::load() {
+            Ok(s) => {
+                settings = s;
+
+                Log::info("Editor settings were loaded successfully!");
+            }
+            Err(e) => Log::err(format!(
+                "Failed to load settings, fallback to default. Reason: {:?}",
+                e
+            )),
+        }
+
+        let inner_size = PhysicalSize::new(
+            settings.windows.window_size.x,
+            settings.windows.window_size.y,
+        );
 
         let graphics_context_params = GraphicsContextParams {
             window_attributes: WindowAttributes {
                 inner_size: Some(inner_size.into()),
+                position: Some(
+                    PhysicalPosition::new(
+                        settings.windows.window_position.x,
+                        settings.windows.window_position.y,
+                    )
+                    .into(),
+                ),
                 resizable: true,
                 title: "FyroxEd".to_string(),
                 ..Default::default()
@@ -529,32 +545,17 @@ impl Editor {
             &mut engine.user_interface.build_ctx(),
         );
 
-        let mut settings = Settings::default();
-
-        match Settings::load() {
-            Ok(s) => {
-                settings = s;
-
-                println!("Editor settings were loaded successfully!");
-
-                match graphics_context
-                    .renderer
-                    .set_quality_settings(&settings.graphics.quality)
-                {
-                    Ok(_) => {
-                        println!("Graphics settings were applied successfully!");
-                    }
-                    Err(e) => {
-                        println!("Failed to apply graphics settings! Reason: {:?}", e)
-                    }
-                }
+        match graphics_context
+            .renderer
+            .set_quality_settings(&settings.graphics.quality)
+        {
+            Ok(_) => {
+                Log::info("Graphics settings were applied successfully!");
             }
-            Err(e) => {
-                println!(
-                    "Failed to load settings, fallback to default. Reason: {:?}",
-                    e
-                )
-            }
+            Err(e) => Log::err(format!(
+                "Failed to apply graphics settings! Reason: {:?}",
+                e
+            )),
         }
 
         let scene_viewer = SceneViewer::new(&mut engine, message_sender.clone());
@@ -2019,6 +2020,15 @@ impl Editor {
                                 MessageDirection::ToWidget,
                                 logical_size.height,
                             ));
+
+                        self.settings.windows.window_size.x = size.width as f32;
+                        self.settings.windows.window_size.y = size.height as f32;
+                        Log::verify(self.settings.save());
+                    }
+                    WindowEvent::Moved(new_position) => {
+                        self.settings.windows.window_position.x = new_position.x as f32;
+                        self.settings.windows.window_position.y = new_position.y as f32;
+                        Log::verify(self.settings.save());
                     }
                     WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                         set_ui_scaling(&self.engine.user_interface, *scale_factor as f32);
