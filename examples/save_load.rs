@@ -132,6 +132,7 @@ async fn load(game: &mut Game) {
             game.engine.serialization_context.clone(),
             game.engine.resource_manager.clone(),
             &mut visitor,
+            Some(Path::new(SAVE_FILE).to_path_buf()),
         )
         .unwrap()
         .finish()

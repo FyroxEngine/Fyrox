@@ -319,6 +319,7 @@ impl PathFixer {
                             serialization_context,
                             resource_manager,
                             &mut visitor,
+                            Some(path.clone()),
                         ) {
                             Err(e) => {
                                 message = format!(

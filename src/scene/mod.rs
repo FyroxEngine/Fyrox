@@ -62,6 +62,7 @@ use crate::{
     utils::{lightmap::Lightmap, navmesh::Navmesh},
 };
 use fxhash::{FxHashMap, FxHashSet};
+use std::path::PathBuf;
 use std::{
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},
@@ -244,6 +245,7 @@ impl Display for PerformanceStatistics {
 /// Scene loader.
 pub struct SceneLoader {
     scene: Scene,
+    path: Option<PathBuf>,
 }
 
 impl SceneLoader {
@@ -254,12 +256,13 @@ impl SceneLoader {
         serialization_context: Arc<SerializationContext>,
         resource_manager: ResourceManager,
     ) -> Result<Self, VisitError> {
-        let mut visitor = Visitor::load_binary(path).await?;
+        let mut visitor = Visitor::load_binary(path.as_ref()).await?;
         Self::load(
             "Scene",
             serialization_context,
             resource_manager,
             &mut visitor,
+            Some(path.as_ref().to_path_buf()),
         )
     }
 
@@ -269,6 +272,7 @@ impl SceneLoader {
         serialization_context: Arc<SerializationContext>,
         resource_manager: ResourceManager,
         visitor: &mut Visitor,
+        path: Option<PathBuf>,
     ) -> Result<Self, VisitError> {
         if !visitor.is_reading() {
             return Err(VisitError::User(
@@ -282,7 +286,7 @@ impl SceneLoader {
         let mut scene = Scene::default();
         scene.visit(region_name, visitor)?;
 
-        Ok(Self { scene })
+        Ok(Self { scene, path })
     }
 
     /// Finishes scene loading.
@@ -291,7 +295,20 @@ impl SceneLoader {
 
         Log::info("SceneLoader::finish() - Collecting resources used by the scene...");
 
-        let used_resources = scene.collect_used_resources();
+        let mut used_resources = scene.collect_used_resources();
+
+        // Do not wait for self resources.
+        if let Some(path) = self.path {
+            let exclusion_list = used_resources
+                .iter()
+                .filter(|res| res.path() == path)
+                .cloned()
+                .collect::<Vec<_>>();
+
+            for excluded_resource in exclusion_list {
+                assert!(used_resources.remove(&excluded_resource));
+            }
+        }
 
         let used_resources_count = used_resources.len();
 
