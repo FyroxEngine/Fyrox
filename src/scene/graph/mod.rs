@@ -235,6 +235,7 @@ impl Default for GraphUpdateSwitches {
 
 impl Graph {
     /// Creates new graph instance with single root node.
+    #[inline]
     pub fn new() -> Self {
         let (tx, rx) = channel();
 
@@ -295,12 +296,14 @@ impl Graph {
 
     /// Tries to borrow mutable references to two nodes at the same time by given handles. Will
     /// panic if handles overlaps (points to same node).
+    #[inline]
     pub fn get_two_mut(&mut self, nodes: (Handle<Node>, Handle<Node>)) -> (&mut Node, &mut Node) {
         self.pool.borrow_two_mut(nodes)
     }
 
     /// Tries to borrow mutable references to three nodes at the same time by given handles. Will
     /// return Err of handles overlaps (points to same node).
+    #[inline]
     pub fn get_three_mut(
         &mut self,
         nodes: (Handle<Node>, Handle<Node>, Handle<Node>),
@@ -310,6 +313,7 @@ impl Graph {
 
     /// Tries to borrow mutable references to four nodes at the same time by given handles. Will
     /// panic if handles overlaps (points to same node).
+    #[inline]
     pub fn get_four_mut(
         &mut self,
         nodes: (Handle<Node>, Handle<Node>, Handle<Node>, Handle<Node>),
@@ -318,16 +322,19 @@ impl Graph {
     }
 
     /// Returns root node of current graph.
+    #[inline]
     pub fn get_root(&self) -> Handle<Node> {
         self.root
     }
 
     /// Tries to borrow a node, returns Some(node) if the handle is valid, None - otherwise.
+    #[inline]
     pub fn try_get(&self, handle: Handle<Node>) -> Option<&Node> {
         self.pool.try_borrow(handle)
     }
 
     /// Tries to borrow a node and fetch its component of specified type.
+    #[inline]
     pub fn try_get_of_type<T>(&self, handle: Handle<Node>) -> Option<&T>
     where
         T: 'static,
@@ -337,11 +344,13 @@ impl Graph {
     }
 
     /// Tries to mutably borrow a node, returns Some(node) if the handle is valid, None - otherwise.
+    #[inline]
     pub fn try_get_mut(&mut self, handle: Handle<Node>) -> Option<&mut Node> {
         self.pool.try_borrow_mut(handle)
     }
 
     /// Tries to mutably borrow a node and fetch its component of specified type.
+    #[inline]
     pub fn try_get_mut_of_type<T>(&mut self, handle: Handle<Node>) -> Option<&mut T>
     where
         T: 'static,
@@ -386,6 +395,7 @@ impl Graph {
     /// // An attempt to borrow the same node twice will fail too.
     /// assert!(ctx.try_get(handle1).is_none());
     /// ```
+    #[inline]
     pub fn begin_multi_borrow<const N: usize>(
         &mut self,
     ) -> MultiBorrowContext<N, Node, NodeContainer> {
@@ -483,6 +493,7 @@ impl Graph {
     }
 
     /// Tries to find a copy of `node_handle` in hierarchy tree starting from `root_handle`.
+    #[inline]
     pub fn find_copy_of(
         &self,
         root_handle: Handle<Node>,
@@ -505,6 +516,7 @@ impl Graph {
 
     /// Searches for a node down the tree starting from the specified node using the specified closure. Returns a tuple
     /// with a handle and a reference to the found node. If nothing is found, it returns [`None`].
+    #[inline]
     pub fn find<C>(&self, root_node: Handle<Node>, cmp: &mut C) -> Option<(Handle<Node>, &Node)>
     where
         C: FnMut(&Node) -> bool,
@@ -520,6 +532,7 @@ impl Graph {
 
     /// Searches for a node down the tree starting from the specified node using the specified closure. Returns a tuple
     /// with a handle and a reference to the mapped value. If nothing is found, it returns [`None`].
+    #[inline]
     pub fn find_map<C, T>(&self, root_node: Handle<Node>, cmp: &mut C) -> Option<(Handle<Node>, &T)>
     where
         C: FnMut(&Node) -> Option<&T>,
@@ -536,6 +549,7 @@ impl Graph {
 
     /// Searches for a node up the tree starting from the specified node using the specified closure. Returns a tuple
     /// with a handle and a reference to the found node. If nothing is found, it returns [`None`].
+    #[inline]
     pub fn find_up<C>(&self, root_node: Handle<Node>, cmp: &mut C) -> Option<(Handle<Node>, &Node)>
     where
         C: FnMut(&Node) -> bool,
@@ -552,6 +566,7 @@ impl Graph {
 
     /// Searches for a node up the tree starting from the specified node using the specified closure. Returns a tuple
     /// with a handle and a reference to the mapped value. If nothing is found, it returns [`None`].
+    #[inline]
     pub fn find_up_map<C, T>(
         &self,
         root_node: Handle<Node>,
@@ -573,6 +588,7 @@ impl Graph {
 
     /// Searches for a node with the specified name down the tree starting from the specified node. Returns a tuple with
     /// a handle and a reference to the found node. If nothing is found, it returns [`None`].
+    #[inline]
     pub fn find_by_name(
         &self,
         root_node: Handle<Node>,
@@ -583,6 +599,7 @@ impl Graph {
 
     /// Searches for a node with the specified name up the tree starting from the specified node. Returns a tuple with a
     /// handle and a reference to the found node. If nothing is found, it returns [`None`].
+    #[inline]
     pub fn find_up_by_name(
         &self,
         root_node: Handle<Node>,
@@ -593,12 +610,14 @@ impl Graph {
 
     /// Searches for a node with the specified name down the tree starting from the graph root. Returns a tuple with a
     /// handle and a reference to the found node. If nothing is found, it returns [`None`].
+    #[inline]
     pub fn find_by_name_from_root(&self, name: &str) -> Option<(Handle<Node>, &Node)> {
         self.find_by_name(self.root, name)
     }
 
     /// Searches for a **first** node with a script of the given type `S` in the hierarchy starting from the
     /// given `root_node`.
+    #[inline]
     pub fn find_first_by_script<S>(&self, root_node: Handle<Node>) -> Option<(Handle<Node>, &Node)>
     where
         S: ScriptTrait,
@@ -610,6 +629,7 @@ impl Graph {
 
     /// Searches node using specified compare closure starting from root. Returns a tuple with a handle and
     /// a reference to the found node. If nothing is found, it returns [`None`].
+    #[inline]
     pub fn find_from_root<C>(&self, cmp: &mut C) -> Option<(Handle<Node>, &Node)>
     where
         C: FnMut(&Node) -> bool,
@@ -639,6 +659,7 @@ impl Graph {
     ///
     /// Filter allows to exclude some nodes from copied hierarchy. It must return false for
     /// odd nodes. Filtering applied only to descendant nodes.
+    #[inline]
     pub fn copy_node<F>(
         &self,
         node_handle: Handle<Node>,
@@ -679,6 +700,7 @@ impl Graph {
     ///
     /// Filter allows to exclude some nodes from copied hierarchy. It must return false for
     /// odd nodes. Filtering applied only to descendant nodes.
+    #[inline]
     pub fn copy_node_inplace<F>(
         &mut self,
         node_handle: Handle<Node>,
@@ -727,6 +749,7 @@ impl Graph {
     /// For example if you'll try to copy a skinned mesh, its copy won't be skinned anymore -
     /// you'll get just a "shallow" mesh. Also unlike [copy_node](struct.Graph.html#method.copy_node)
     /// this method returns copied node directly, it does not inserts it in any graph.
+    #[inline]
     pub fn copy_single_node(&self, node_handle: Handle<Node>) -> Node {
         let node = &self.pool[node_handle];
         let mut clone = clear_links(node.clone_box());
@@ -1065,6 +1088,7 @@ impl Graph {
     /// Calculates local and global transform, global visibility for each node in graph starting from the
     /// specified node and down the tree. The main use case of the method is to update global position (etc.)
     /// of an hierarchy of the nodes of some new prefab instance.
+    #[inline]
     pub fn update_hierarchical_data_for_descendants(&mut self, node_handle: Handle<Node>) {
         Self::update_hierarchical_data_recursively(
             &self.pool,
@@ -1080,6 +1104,7 @@ impl Graph {
     /// on each frame. However there is one use case - when you setup complex hierarchy and
     /// need to know global transform of nodes before entering update loop, then you can call
     /// this method.
+    #[inline]
     pub fn update_hierarchical_data(&mut self) {
         Self::update_hierarchical_data_recursively(
             &self.pool,
@@ -1091,6 +1116,7 @@ impl Graph {
     }
 
     /// Checks whether given node handle is valid or not.
+    #[inline]
     pub fn is_valid_handle(&self, node_handle: Handle<Node>) -> bool {
         self.pool.is_valid_handle(node_handle)
     }
@@ -1214,6 +1240,7 @@ impl Graph {
     ///     }
     /// }
     /// ```
+    #[inline]
     pub fn capacity(&self) -> u32 {
         self.pool.get_capacity()
     }
@@ -1236,28 +1263,33 @@ impl Graph {
     ///     }
     /// }
     /// ```
+    #[inline]
     pub fn handle_from_index(&self, index: u32) -> Handle<Node> {
         self.pool.handle_from_index(index)
     }
 
     /// Creates an iterator that has linear iteration order over internal collection
     /// of nodes. It does *not* perform any tree traversal!
+    #[inline]
     pub fn linear_iter(&self) -> impl Iterator<Item = &Node> {
         self.pool.iter()
     }
 
     /// Creates an iterator that has linear iteration order over internal collection
     /// of nodes. It does *not* perform any tree traversal!
+    #[inline]
     pub fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Node> {
         self.pool.iter_mut()
     }
 
     /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
+    #[inline]
     pub fn pair_iter(&self) -> impl Iterator<Item = (Handle<Node>, &Node)> {
         self.pool.pair_iter()
     }
 
     /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
+    #[inline]
     pub fn pair_iter_mut(&mut self) -> impl Iterator<Item = (Handle<Node>, &mut Node)> {
         self.pool.pair_iter_mut()
     }
@@ -1265,6 +1297,7 @@ impl Graph {
     /// Extracts node from graph and reserves its handle. It is used to temporarily take
     /// ownership over node, and then put node back using given ticket. Extracted node is
     /// detached from its parent!
+    #[inline]
     pub fn take_reserve(&mut self, handle: Handle<Node>) -> (Ticket<Node>, Node) {
         self.unlink_internal(handle);
         self.take_reserve_internal(handle)
@@ -1277,6 +1310,7 @@ impl Graph {
     }
 
     /// Puts node back by given ticket. Attaches back to root node of graph.
+    #[inline]
     pub fn put_back(&mut self, ticket: Ticket<Node>, node: Node) -> Handle<Node> {
         let handle = self.put_back_internal(ticket, node);
         self.link_nodes(handle, self.root);
@@ -1288,6 +1322,7 @@ impl Graph {
     }
 
     /// Makes node handle vacant again.
+    #[inline]
     pub fn forget_ticket(&mut self, ticket: Ticket<Node>, node: Node) -> Node {
         self.pool.forget_ticket(ticket);
         node
@@ -1297,6 +1332,7 @@ impl Graph {
     /// becomes reserved and will be marked as "occupied", an attempt to borrow a node
     /// at such handle will result in panic!. Please note that root node will be
     /// detached from its parent!
+    #[inline]
     pub fn take_reserve_sub_graph(&mut self, root: Handle<Node>) -> SubGraph {
         // Take out descendants first.
         let mut descendants = Vec::new();
@@ -1316,6 +1352,7 @@ impl Graph {
     /// Puts previously extracted sub-graph into graph. Handles to nodes will become valid
     /// again. After that you probably want to re-link returned handle with its previous
     /// parent.
+    #[inline]
     pub fn put_sub_graph_back(&mut self, sub_graph: SubGraph) -> Handle<Node> {
         for (ticket, node) in sub_graph.descendants {
             self.pool.put_back(ticket, node);
@@ -1330,6 +1367,7 @@ impl Graph {
     }
 
     /// Forgets the entire sub-graph making handles to nodes invalid.
+    #[inline]
     pub fn forget_sub_graph(&mut self, sub_graph: SubGraph) {
         for (ticket, _) in sub_graph.descendants {
             self.pool.forget_ticket(ticket);
@@ -1339,6 +1377,7 @@ impl Graph {
     }
 
     /// Returns the number of nodes in the graph.
+    #[inline]
     pub fn node_count(&self) -> u32 {
         self.pool.alive_count()
     }
@@ -1349,6 +1388,7 @@ impl Graph {
     ///
     /// This method allocates temporal array so it is not cheap! Should not be
     /// used on each frame.
+    #[inline]
     pub fn traverse_iter(&self, from: Handle<Node>) -> GraphTraverseIterator {
         GraphTraverseIterator {
             graph: self,
@@ -1362,6 +1402,7 @@ impl Graph {
     ///
     /// This method allocates temporal array so it is not cheap! Should not be
     /// used on each frame.
+    #[inline]
     pub fn traverse_handle_iter(&self, from: Handle<Node>) -> GraphHandleTraverseIterator {
         GraphHandleTraverseIterator {
             graph: self,
@@ -1371,6 +1412,7 @@ impl Graph {
 
     /// Creates deep copy of graph. Allows filtering while copying, returns copy and
     /// old-to-new node mapping.
+    #[inline]
     pub fn clone<F>(&self, filter: &mut F) -> (Self, NodeHandleMap)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
@@ -1386,6 +1428,7 @@ impl Graph {
     }
 
     /// Returns local transformation matrix of a node without scale.
+    #[inline]
     pub fn local_transform_no_scale(&self, node: Handle<Node>) -> Matrix4<f32> {
         let mut transform = self[node].local_transform().clone();
         transform.set_scale(Vector3::new(1.0, 1.0, 1.0));
@@ -1393,6 +1436,7 @@ impl Graph {
     }
 
     /// Returns world transformation matrix of a node without scale.
+    #[inline]
     pub fn global_transform_no_scale(&self, node: Handle<Node>) -> Matrix4<f32> {
         let parent = self[node].parent();
         if parent.is_some() {
@@ -1404,17 +1448,20 @@ impl Graph {
 
     /// Returns isometric local transformation matrix of a node. Such transform has
     /// only translation and rotation.
+    #[inline]
     pub fn isometric_local_transform(&self, node: Handle<Node>) -> Matrix4<f32> {
         isometric_local_transform(&self.pool, node)
     }
 
     /// Returns world transformation matrix of a node only.  Such transform has
     /// only translation and rotation.
+    #[inline]
     pub fn isometric_global_transform(&self, node: Handle<Node>) -> Matrix4<f32> {
         isometric_global_transform(&self.pool, node)
     }
 
     /// Returns global scale matrix of a node.
+    #[inline]
     pub fn global_scale_matrix(&self, node: Handle<Node>) -> Matrix4<f32> {
         let node = &self[node];
         let local_scale_matrix = Matrix4::new_nonuniform_scaling(node.local_transform().scale());
@@ -1426,6 +1473,7 @@ impl Graph {
     }
 
     /// Returns rotation quaternion of a node in world coordinates.
+    #[inline]
     pub fn global_rotation(&self, node: Handle<Node>) -> UnitQuaternion<f32> {
         UnitQuaternion::from(Rotation3::from_matrix_eps(
             &self.global_transform_no_scale(node).basis(),
@@ -1436,6 +1484,7 @@ impl Graph {
     }
 
     /// Returns rotation quaternion of a node in world coordinates without pre- and post-rotations.
+    #[inline]
     pub fn isometric_global_rotation(&self, node: Handle<Node>) -> UnitQuaternion<f32> {
         UnitQuaternion::from(Rotation3::from_matrix_eps(
             &self.isometric_global_transform(node).basis(),
@@ -1446,6 +1495,7 @@ impl Graph {
     }
 
     /// Returns rotation quaternion and position of a node in world coordinates, scale is eliminated.
+    #[inline]
     pub fn global_rotation_position_no_scale(
         &self,
         node: Handle<Node>,
@@ -1454,6 +1504,7 @@ impl Graph {
     }
 
     /// Returns isometric global rotation and position.
+    #[inline]
     pub fn isometric_global_rotation_position(
         &self,
         node: Handle<Node>,
@@ -1465,6 +1516,7 @@ impl Graph {
     }
 
     /// Returns global scale of a node.
+    #[inline]
     pub fn global_scale(&self, node: Handle<Node>) -> Vector3<f32> {
         let m = self.global_scale_matrix(node);
         Vector3::new(m[0], m[5], m[10])
