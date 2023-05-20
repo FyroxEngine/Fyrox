@@ -1469,6 +1469,25 @@ impl Graph {
         let m = self.global_scale_matrix(node);
         Vector3::new(m[0], m[5], m[10])
     }
+
+    /// Tries to borrow a node using the given handle, fetch its script and cast it to the specified type.
+    #[inline]
+    pub fn try_get_script_of<T>(&self, node: Handle<Node>) -> Option<&T>
+    where
+        T: ScriptTrait,
+    {
+        self.try_get(node).and_then(|node| node.try_get_script())
+    }
+
+    /// Tries to borrow a node using the given handle, fetch its script and cast it to the specified type.
+    #[inline]
+    pub fn try_get_script_of_mut<T>(&mut self, node: Handle<Node>) -> Option<&mut T>
+    where
+        T: ScriptTrait,
+    {
+        self.try_get_mut(node)
+            .and_then(|node| node.try_get_script_mut())
+    }
 }
 
 impl Index<Handle<Node>> for Graph {
