@@ -3,6 +3,7 @@
 //! For more info see [`Base`]
 
 use crate::{
+    asset::ResourceStateRef,
     core::{
         algebra::{Matrix4, Vector3},
         log::Log,
@@ -844,6 +845,32 @@ impl Base {
     #[inline]
     pub fn is_globally_enabled(&self) -> bool {
         self.global_enabled.get()
+    }
+
+    /// Returns a root resource of the scene node. This method crawls up on dependency tree until it finds that
+    /// the ancestor node does not have any dependencies and returns this resource as the root resource. For
+    /// example, in case of simple scene node instance, this method will return the resource from which the node
+    /// was instantiated from. In case of 2 or more levels of dependency, it will always return the "top"
+    /// dependency in the dependency graph.
+    #[inline]
+    pub fn root_resource(&self) -> Option<ModelResource> {
+        if let Some(resource) = self.resource.as_ref() {
+            let state = resource.state();
+            if let ResourceStateRef::Ok(model) = state.get() {
+                if let Some(ancestor_node) = model
+                    .get_scene()
+                    .graph
+                    .try_get(self.original_handle_in_resource)
+                {
+                    return if ancestor_node.resource.is_none() {
+                        Some(resource.clone())
+                    } else {
+                        ancestor_node.root_resource()
+                    };
+                }
+            }
+        }
+        None
     }
 }
 
