@@ -1,11 +1,10 @@
-//! Directional light is a light source with parallel rays, it has
-//! excellent example in real life - Sun. It does not have position,
-//! only direction which defined by parent light scene node.
+//! Directional light is a light source with parallel rays, it has excellent example in real life - Sun.
+//! It does not have position, only direction which defined by parent light scene node.
 //!
-//! # Notes
+//! ## Shadows
 //!
-//! Current directional light does *not* support shadows, it is still
-//! on list of features that should be implemented.
+//! Directional light sources uses cascaded shadow maps for shadows. Each cascade has different position
+//! on the viewing frustum and overall split options can be changed by using [`FrustumSplitOptions`].
 
 use crate::{
     core::{
