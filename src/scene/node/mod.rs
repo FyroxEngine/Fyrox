@@ -16,16 +16,18 @@ use crate::{
     renderer::batch::RenderContext,
     scene::{
         self,
+        animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
         base::Base,
         camera::Camera,
         debug::SceneDrawingContext,
         decal::Decal,
         dim2::{self, rectangle::Rectangle},
         graph::{self, Graph, GraphUpdateSwitches, NodePool},
-        light::{point::PointLight, spot::SpotLight},
+        light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
         mesh::Mesh,
         navmesh::NavigationalMesh,
         particle_system::ParticleSystem,
+        pivot::Pivot,
         sound::{context::SoundContext, listener::Listener, Sound},
         sprite::Sprite,
         terrain::Terrain,
@@ -431,10 +433,11 @@ impl Node {
     }
 
     define_is_as!(Mesh => fn is_mesh, fn as_mesh, fn as_mesh_mut);
+    define_is_as!(Pivot => fn is_pivot, fn as_pivot, fn as_pivot_mut);
     define_is_as!(Camera  => fn is_camera, fn as_camera, fn as_camera_mut);
     define_is_as!(SpotLight  => fn is_spot_light, fn as_spot_light, fn as_spot_light_mut);
     define_is_as!(PointLight  => fn is_point_light, fn as_point_light, fn as_point_light_mut);
-    define_is_as!(PointLight  => fn is_directional_light, fn as_directional_light, fn as_directional_light_mut);
+    define_is_as!(DirectionalLight  => fn is_directional_light, fn as_directional_light, fn as_directional_light_mut);
     define_is_as!(ParticleSystem => fn is_particle_system, fn as_particle_system, fn as_particle_system_mut);
     define_is_as!(Sprite  => fn is_sprite, fn as_sprite, fn as_sprite_mut);
     define_is_as!(Terrain  => fn is_terrain, fn as_terrain, fn as_terrain_mut);
@@ -449,6 +452,8 @@ impl Node {
     define_is_as!(Sound => fn is_sound, fn as_sound, fn as_sound_mut);
     define_is_as!(Listener => fn is_listener, fn as_listener, fn as_listener_mut);
     define_is_as!(NavigationalMesh => fn is_navigational_mesh, fn as_navigational_mesh, fn as_navigational_mesh_mut);
+    define_is_as!(AnimationBlendingStateMachine => fn is_absm, fn as_absm, fn as_absm_mut);
+    define_is_as!(AnimationPlayer => fn is_animation_player, fn as_animation_player, fn as_animation_player_mut);
 }
 
 impl Visit for Node {
