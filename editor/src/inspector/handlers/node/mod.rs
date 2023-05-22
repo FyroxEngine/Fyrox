@@ -48,12 +48,20 @@ impl SceneNodePropertyChangedHandler {
         args: &PropertyChanged,
         handle: Handle<Node>,
         node: &mut Node,
-    ) -> SceneCommand {
-        self.try_get_command(args, handle, node).unwrap_or_else(|| {
+    ) -> Option<SceneCommand> {
+        self.try_get_command(args, handle, node).or_else(|| {
             if args.is_inheritable() {
-                SceneCommand::new(RevertSceneNodePropertyCommand::new(args.path(), handle))
+                // Prevent reverting property value if there's ancestor.
+                if node.resource().is_some() {
+                    Some(SceneCommand::new(RevertSceneNodePropertyCommand::new(
+                        args.path(),
+                        handle,
+                    )))
+                } else {
+                    None
+                }
             } else {
-                make_set_node_property_command(handle, args).unwrap()
+                make_set_node_property_command(handle, args)
             }
         })
     }
