@@ -34,6 +34,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_core::variable;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -430,6 +431,10 @@ impl Node {
         self.0
             .query_component_mut(TypeId::of::<T>())
             .and_then(|c| c.downcast_mut::<T>())
+    }
+
+    pub(crate) fn mark_inheritable_variables_as_modified(&mut self) {
+        variable::mark_inheritable_properties_modified(self)
     }
 
     define_is_as!(Mesh => fn is_mesh, fn as_mesh, fn as_mesh_mut);

@@ -1014,12 +1014,21 @@ impl Graph {
         }
     }
 
+    pub(crate) fn mark_ancestor_nodes_as_modified(&mut self) {
+        for node in self.linear_iter_mut() {
+            if node.resource.is_none() {
+                node.mark_inheritable_variables_as_modified();
+            }
+        }
+    }
+
     pub(crate) fn resolve(&mut self) {
         Log::writeln(MessageKind::Information, "Resolving graph...");
 
         self.restore_dynamic_node_data();
-        self.update_hierarchical_data();
+        self.mark_ancestor_nodes_as_modified();
         self.restore_original_handles_and_inherit_properties();
+        self.update_hierarchical_data();
         let instances = self.restore_integrity();
         self.remap_handles(&instances);
 

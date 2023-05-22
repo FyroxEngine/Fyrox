@@ -242,12 +242,21 @@ where
             // Try to visit inner value first, this is very useful if user decides to make their
             // variable inheritable, but still keep backward compatibility.
             visited = self.value.visit(name, visitor).is_ok();
+            self.flags.get_mut().insert(VariableFlags::MODIFIED);
         }
 
         if !visited {
             let mut region = visitor.enter_region(name)?;
 
-            self.value.visit("Value", &mut region)?;
+            if region.is_reading() || self.flags.get().contains(VariableFlags::MODIFIED) {
+                let result = self.value.visit("Value", &mut region);
+
+                // Report failure only on write. The field may be missing if it is not marked as modified.
+                if !region.is_reading() {
+                    result?;
+                }
+            }
+
             self.flags.get_mut().bits.visit("Flags", &mut region)?;
         }
 
@@ -558,6 +567,20 @@ pub fn reset_inheritable_properties(object: &mut dyn Reflect) {
             });
 
             reset_inheritable_properties(field);
+        }
+    })
+}
+
+pub fn mark_inheritable_properties_modified(object: &mut dyn Reflect) {
+    object.fields_mut(&mut |fields| {
+        for field in fields {
+            field.as_inheritable_variable_mut(&mut |inheritable_field| {
+                if let Some(inheritable_field) = inheritable_field {
+                    inheritable_field.mark_modified();
+                }
+            });
+
+            mark_inheritable_properties_modified(field);
         }
     })
 }

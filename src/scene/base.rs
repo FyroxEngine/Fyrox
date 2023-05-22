@@ -317,8 +317,10 @@ pub struct Base {
     #[reflect(hidden)]
     pub(crate) script_message_sender: Option<Sender<NodeScriptMessage>>,
 
+    // Name is not inheritable, because property inheritance works bad with external 3D models.
+    // They use names to search "original" nodes.
     #[reflect(setter = "set_name_internal")]
-    pub(crate) name: InheritableVariable<String>,
+    pub(crate) name: String,
 
     pub(crate) local_transform: Transform,
 
@@ -424,7 +426,7 @@ impl Base {
     }
 
     fn set_name_internal(&mut self, name: String) -> String {
-        self.name.set_value_and_mark_modified(name)
+        std::mem::replace(&mut self.name, name)
     }
 
     /// Returns name of node.
@@ -436,7 +438,7 @@ impl Base {
     /// Returns owned name of node.
     #[inline]
     pub fn name_owned(&self) -> String {
-        (*self.name).clone()
+        self.name.clone()
     }
 
     /// Returns shared reference to local transform of a node, can be used to fetch
@@ -921,7 +923,14 @@ impl Visit for Base {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        self.name.visit("Name", &mut region)?;
+        if self.name.visit("Name", &mut region).is_err() {
+            // Name was wrapped into `InheritableVariable` previously, so we must maintain
+            // backward compatibility here.
+            let mut region = region.enter_region("Name")?;
+            let mut value = String::default();
+            value.visit("Value", &mut region)?;
+            self.name = value;
+        }
         self.local_transform.visit("Transform", &mut region)?;
         self.visibility.visit("Visibility", &mut region)?;
         self.parent.visit("Parent", &mut region)?;
