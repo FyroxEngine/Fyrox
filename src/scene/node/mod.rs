@@ -291,6 +291,36 @@ impl Visit for NodeHandle {
 ///
 /// The node could control which children nodes should be drawn based on the distance to a camera, this is so called
 /// level of detail functionality. There is a separate article about LODs, it can be found [here](super::base::LevelOfDetail).
+///
+/// # Property inheritance
+///
+/// Property inheritance is used to propagate changes of unmodified properties from a prefab to its instances. For example,
+/// you can change scale of a node in a prefab and its instances will have the same scale too, unless the scale is
+/// set explicitly in an instance. Such feature allows you to tweak instances, add some unique details to them, but take
+/// general properties from parent prefabs.
+///
+/// ## Important notes
+///
+/// Property inheritance uses [`variable::InheritableVariable`] to wrap actual property value, such wrapper stores a tiny
+/// bitfield for flags that can tell whether or not the property was modified. Property inheritance system is then uses
+/// reflection to "walk" over each property in the node and respective parent resource (from which the node was instantiated from,
+/// if any) and checks if the property was modified. If it was modified, its value remains the same, otherwise the value
+/// from the respective property in a "parent" node in the parent resource is copied to the property of the node. Such
+/// process is then repeated for all levels of inheritance, starting from the root and going down to children in inheritance
+/// hierarchy.
+///
+/// The most important thing is that [`variable::InheritableVariable`] will save (serialize) its value only if it was marked
+/// as modified (we don't need to save anything if it can be fetched from parent). This saves **a lot** of disk space for
+/// inherited assets (in some extreme cases memory consumption can be reduced by 90%, if there's only few properties modified).
+/// This fact requires "root" (nodes that are **not** instances) nodes to have **all** inheritable properties to be marked as
+/// modified, otherwise their values won't be saved, which is indeed wrong.
+///
+/// When a node is instantiated from some model resource, all its properties become non-modified. Which allows the inheritance
+/// system to correctly handle redundant information.
+///
+/// Such implementation of property inheritance has its drawbacks, major one is: each instance still holds its own copy of
+/// of every field, even those inheritable variables which are non-modified. Which means that there's no benefits of RAM
+/// consumption, only disk space usage is reduced.
 #[derive(Debug)]
 pub struct Node(Box<dyn NodeTrait>);
 
