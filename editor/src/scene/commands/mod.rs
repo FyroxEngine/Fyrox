@@ -341,7 +341,6 @@ pub struct RevertSceneNodePropertyCommand {
     path: String,
     handle: Handle<Node>,
     value: Option<Box<dyn Reflect>>,
-    was_modified: bool,
 }
 
 impl RevertSceneNodePropertyCommand {
@@ -350,7 +349,6 @@ impl RevertSceneNodePropertyCommand {
             path,
             handle,
             value: None,
-            was_modified: false,
         }
     }
 }
@@ -373,6 +371,7 @@ impl Command for RevertSceneNodePropertyCommand {
     fn execute(&mut self, context: &mut SceneContext) {
         let child = &mut context.scene.graph[self.handle];
 
+        // Revert only if there's parent resource (the node is an instance of some resource).
         if let Some(resource) = child.resource().as_ref() {
             let resource_data = resource.data_ref();
             let parent = &resource_data.get_scene().graph[child.original_handle_in_resource()];
@@ -445,20 +444,6 @@ impl Command for RevertSceneNodePropertyCommand {
                     }
                 }
             }
-        } else {
-            // Just remove "modified" flag.
-            child.resolve_path_mut(&self.path, &mut |result| {
-                if let Ok(field) = result {
-                    field.as_inheritable_variable_mut(&mut |result| {
-                        if let Some(inheritable_field) = result {
-                            self.was_modified = inheritable_field.is_modified();
-                            if self.was_modified {
-                                inheritable_field.reset_modified_flag();
-                            }
-                        }
-                    })
-                }
-            })
         }
     }
 
@@ -475,19 +460,6 @@ impl Command for RevertSceneNodePropertyCommand {
                         ))
                     }
                 });
-            })
-        } else if self.was_modified {
-            // Set modified flag back.
-            context.scene.graph[self.handle].as_reflect_mut(&mut |node| {
-                node.resolve_path_mut(&self.path, &mut |result| {
-                    if let Ok(field) = result {
-                        field.as_inheritable_variable_mut(&mut |result| {
-                            if let Some(inheritable_field) = result {
-                                inheritable_field.mark_modified();
-                            }
-                        })
-                    }
-                })
             })
         }
     }

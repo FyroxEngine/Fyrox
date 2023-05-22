@@ -51,7 +51,7 @@ impl SceneNodePropertyChangedHandler {
     ) -> Option<SceneCommand> {
         self.try_get_command(args, handle, node).or_else(|| {
             if args.is_inheritable() {
-                // Prevent reverting property value if there's ancestor.
+                // Prevent reverting property value if there's no parent resource.
                 if node.resource().is_some() {
                     Some(SceneCommand::new(RevertSceneNodePropertyCommand::new(
                         args.path(),
