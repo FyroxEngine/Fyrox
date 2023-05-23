@@ -1014,6 +1014,8 @@ impl Graph {
         }
     }
 
+    // Fix property flags for scenes made before inheritance system was fixed. By default, all inheritable properties
+    // must be marked as modified in nodes without any parent resource.
     pub(crate) fn mark_ancestor_nodes_as_modified(&mut self) {
         for node in self.linear_iter_mut() {
             if node.resource.is_none() {

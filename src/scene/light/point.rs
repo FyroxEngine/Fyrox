@@ -133,8 +133,8 @@ impl Default for PointLight {
     fn default() -> Self {
         Self {
             base_light: Default::default(),
-            shadow_bias: InheritableVariable::new(0.025),
-            radius: InheritableVariable::new(10.0),
+            shadow_bias: InheritableVariable::new_modified(0.025),
+            radius: InheritableVariable::new_modified(10.0),
         }
     }
 }
@@ -185,36 +185,5 @@ impl PointLightBuilder {
     /// Builds new instance of point light and adds it to the graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::scene::base::test::inherit_node_properties;
-    use crate::scene::{
-        base::{test::check_inheritable_properties_equality, BaseBuilder},
-        light::{
-            point::{PointLight, PointLightBuilder},
-            BaseLightBuilder,
-        },
-    };
-
-    #[test]
-    fn test_point_light_inheritance() {
-        let parent = PointLightBuilder::new(BaseLightBuilder::new(BaseBuilder::new()))
-            .with_radius(1.0)
-            .with_shadow_bias(0.1)
-            .build_node();
-
-        let mut child =
-            PointLightBuilder::new(BaseLightBuilder::new(BaseBuilder::new())).build_point_light();
-
-        inherit_node_properties(&mut child, &parent);
-
-        let parent = parent.cast::<PointLight>().unwrap();
-
-        check_inheritable_properties_equality(&child.base_light.base, &parent.base_light.base);
-        check_inheritable_properties_equality(&child.base_light, &parent.base_light);
-        check_inheritable_properties_equality(&child, parent);
     }
 }

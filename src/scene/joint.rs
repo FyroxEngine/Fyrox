@@ -188,7 +188,7 @@ impl Default for Joint {
             params: Default::default(),
             body1: Default::default(),
             body2: Default::default(),
-            contacts_enabled: InheritableVariable::new(true),
+            contacts_enabled: InheritableVariable::new_modified(true),
             native: Cell::new(ImpulseJointHandle::invalid()),
             need_rebind: Cell::new(true),
         }
@@ -415,30 +415,5 @@ impl JointBuilder {
     /// Creates new Joint node and adds it to the graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::scene::base::test::inherit_node_properties;
-    use crate::scene::{
-        base::{test::check_inheritable_properties_equality, BaseBuilder},
-        joint::{BallJoint, Joint, JointBuilder, JointParams},
-    };
-
-    #[test]
-    fn test_joint_inheritance() {
-        let parent = JointBuilder::new(BaseBuilder::new())
-            .with_params(JointParams::BallJoint(BallJoint::default()))
-            .build_node();
-
-        let mut child = JointBuilder::new(BaseBuilder::new()).build_joint();
-
-        inherit_node_properties(&mut child, &parent);
-
-        let parent = parent.cast::<Joint>().unwrap();
-
-        check_inheritable_properties_equality(&child.base, &parent.base);
-        check_inheritable_properties_equality(&child, parent);
     }
 }

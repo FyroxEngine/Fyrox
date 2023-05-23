@@ -687,7 +687,8 @@ impl Visit for Terrain {
                 self.decal_layer_index
                     .visit("DecalLayerIndex", &mut region)?;
 
-                let mut layers = InheritableVariable::<Vec<OldLayer>>::new(Default::default());
+                let mut layers =
+                    InheritableVariable::<Vec<OldLayer>>::new_modified(Default::default());
                 layers.visit("Layers", &mut region)?;
 
                 let mut width = 0.0f32;

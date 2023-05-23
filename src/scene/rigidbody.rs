@@ -200,16 +200,16 @@ impl Default for RigidBody {
             lin_damping: Default::default(),
             ang_damping: Default::default(),
             sleeping: Default::default(),
-            body_type: InheritableVariable::new(RigidBodyType::Dynamic),
-            mass: InheritableVariable::new(1.0),
+            body_type: InheritableVariable::new_modified(RigidBodyType::Dynamic),
+            mass: InheritableVariable::new_modified(1.0),
             x_rotation_locked: Default::default(),
             y_rotation_locked: Default::default(),
             z_rotation_locked: Default::default(),
             translation_locked: Default::default(),
             ccd_enabled: Default::default(),
-            can_sleep: InheritableVariable::new(true),
+            can_sleep: InheritableVariable::new_modified(true),
             dominance: Default::default(),
-            gravity_scale: InheritableVariable::new(1.0),
+            gravity_scale: InheritableVariable::new_modified(1.0),
             native: Cell::new(RigidBodyHandle::invalid()),
             actions: Default::default(),
         }
@@ -731,44 +731,5 @@ impl RigidBodyBuilder {
     /// Creates RigidBody node and adds it to the graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::scene::base::test::inherit_node_properties;
-    use crate::{
-        core::algebra::Vector3,
-        scene::{
-            base::{test::check_inheritable_properties_equality, BaseBuilder},
-            rigidbody::{RigidBody, RigidBodyBuilder, RigidBodyType},
-        },
-    };
-
-    #[test]
-    fn test_rigid_body_inheritance() {
-        let parent = RigidBodyBuilder::new(BaseBuilder::new())
-            .with_can_sleep(false)
-            .with_mass(2.0)
-            .with_sleeping(true)
-            .with_locked_rotations(true)
-            .with_ang_vel(Vector3::new(1.0, 0.0, 0.0))
-            .with_lin_vel(Vector3::new(2.0, 0.0, 0.0))
-            .with_ccd_enabled(true)
-            .with_body_type(RigidBodyType::Static)
-            .with_gravity_scale(0.5)
-            .with_lin_damping(0.1)
-            .with_ang_damping(0.1)
-            .with_dominance(123)
-            .with_translation_locked(true)
-            .build_node();
-
-        let mut child = RigidBodyBuilder::new(BaseBuilder::new()).build_rigid_body();
-
-        inherit_node_properties(&mut child, &parent);
-
-        let parent = parent.cast::<RigidBody>().unwrap();
-
-        check_inheritable_properties_equality(&child, parent);
     }
 }

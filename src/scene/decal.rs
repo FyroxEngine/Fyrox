@@ -275,35 +275,3 @@ impl DecalBuilder {
         graph.add_node(self.build_node())
     }
 }
-
-#[cfg(test)]
-mod test {
-    use crate::scene::base::test::inherit_node_properties;
-    use crate::{
-        core::color::Color,
-        resource::texture::test::create_test_texture,
-        scene::{
-            base::{test::check_inheritable_properties_equality, BaseBuilder},
-            decal::{Decal, DecalBuilder},
-        },
-    };
-
-    #[test]
-    fn test_decal_inheritance() {
-        let parent = DecalBuilder::new(BaseBuilder::new())
-            .with_color(Color::opaque(1, 2, 3))
-            .with_layer(1)
-            .with_diffuse_texture(create_test_texture())
-            .with_normal_texture(create_test_texture())
-            .build_node();
-
-        let mut child = DecalBuilder::new(BaseBuilder::new()).build_decal();
-
-        inherit_node_properties(&mut child, &parent);
-
-        let parent = parent.cast::<Decal>().unwrap();
-
-        check_inheritable_properties_equality(&child.base, &parent.base);
-        check_inheritable_properties_equality(&child, parent);
-    }
-}

@@ -87,15 +87,15 @@ impl Default for BaseLight {
     fn default() -> Self {
         Self {
             base: Default::default(),
-            color: InheritableVariable::new(Color::WHITE),
-            cast_shadows: InheritableVariable::new(true),
-            scatter: InheritableVariable::new(Vector3::new(
+            color: InheritableVariable::new_modified(Color::WHITE),
+            cast_shadows: InheritableVariable::new_modified(true),
+            scatter: InheritableVariable::new_modified(Vector3::new(
                 DEFAULT_SCATTER_R,
                 DEFAULT_SCATTER_G,
                 DEFAULT_SCATTER_B,
             )),
-            scatter_enabled: InheritableVariable::new(true),
-            intensity: InheritableVariable::new(1.0),
+            scatter_enabled: InheritableVariable::new_modified(true),
+            intensity: InheritableVariable::new_modified(1.0),
         }
     }
 }

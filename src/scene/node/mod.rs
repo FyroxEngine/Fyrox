@@ -559,3 +559,113 @@ impl Reflect for Node {
         self.0.deref_mut().field_mut(name, func)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        asset::manager::ResourceManager,
+        core::{algebra::Vector3, futures::executor::block_on, visitor::Visitor},
+        engine::{self, SerializationContext},
+        resource::model::{Model, ModelResourceExtension},
+        scene::{
+            base::BaseBuilder, mesh::MeshBuilder, pivot::PivotBuilder, transform::TransformBuilder,
+            Scene,
+        },
+    };
+    use std::{path::Path, sync::Arc};
+
+    fn create_scene() -> Scene {
+        let mut scene = Scene::new();
+
+        PivotBuilder::new(
+            BaseBuilder::new()
+                .with_name("Pivot")
+                .with_children(&[MeshBuilder::new(
+                    BaseBuilder::new().with_name("Mesh").with_local_transform(
+                        TransformBuilder::new()
+                            .with_local_position(Vector3::new(3.0, 2.0, 1.0))
+                            .build(),
+                    ),
+                )
+                .build(&mut scene.graph)]),
+        )
+        .build(&mut scene.graph);
+
+        scene
+    }
+
+    fn save_scene(scene: &mut Scene, path: &Path) {
+        let mut visitor = Visitor::new();
+        scene.save("Scene", &mut visitor).unwrap();
+        visitor.save_binary(path).unwrap();
+    }
+
+    #[test]
+    fn test_property_inheritance() {
+        let root_asset_path = Path::new("root.rgs");
+        let derived_asset_path = Path::new("derived.rgs");
+
+        // Create root scene and save it.
+        {
+            let mut scene = create_scene();
+            save_scene(&mut scene, root_asset_path);
+        }
+
+        // Initialize resource manager and re-load the scene.
+        let resource_manager = ResourceManager::new();
+
+        engine::initialize_resource_manager_loaders(
+            &resource_manager,
+            Arc::new(SerializationContext::new()),
+        );
+
+        let root_asset = block_on(resource_manager.request::<Model, _>(root_asset_path)).unwrap();
+
+        // Create root resource instance in a derived resource.
+        {
+            let mut derived = Scene::new();
+            root_asset.instantiate(&mut derived);
+            let pivot = derived.graph.find_by_name_from_root("Pivot").unwrap().0;
+            let mesh = derived.graph.find_by_name_from_root("Mesh").unwrap().0;
+            // Modify something in the instance.
+            derived.graph[pivot]
+                .local_transform_mut()
+                .set_position(Vector3::new(1.0, 2.0, 3.0));
+            assert_eq!(
+                **derived.graph[mesh].local_transform().position(),
+                Vector3::new(3.0, 2.0, 1.0)
+            );
+            derived.graph[mesh].as_mesh_mut().set_cast_shadows(false);
+            save_scene(&mut derived, derived_asset_path);
+        }
+
+        // Reload the derived asset and check its content.
+        {
+            let derived_asset =
+                block_on(resource_manager.request::<Model, _>(derived_asset_path)).unwrap();
+
+            let derived_data = derived_asset.data_ref();
+            let derived_scene = derived_data.get_scene();
+            let pivot = derived_scene
+                .graph
+                .find_by_name_from_root("Pivot")
+                .unwrap()
+                .0;
+            let mesh = derived_scene
+                .graph
+                .find_by_name_from_root("Mesh")
+                .unwrap()
+                .0;
+            assert_eq!(
+                **derived_scene.graph[pivot].local_transform().position(),
+                Vector3::new(1.0, 2.0, 3.0)
+            );
+            assert_eq!(derived_scene.graph[mesh].as_mesh().cast_shadows(), false);
+            // Mesh's local position must remain the same as in the root.
+            assert_eq!(
+                **derived_scene.graph[mesh].local_transform().position(),
+                Vector3::new(3.0, 2.0, 1.0)
+            );
+        }
+    }
+}

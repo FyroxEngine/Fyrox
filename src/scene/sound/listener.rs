@@ -119,25 +119,3 @@ impl ListenerBuilder {
         graph.add_node(self.build_node())
     }
 }
-
-#[cfg(test)]
-mod test {
-    use crate::scene::base::test::inherit_node_properties;
-    use crate::scene::{
-        base::{test::check_inheritable_properties_equality, BaseBuilder},
-        sound::listener::{Listener, ListenerBuilder},
-    };
-
-    #[test]
-    fn test_listener_inheritance() {
-        let parent = ListenerBuilder::new(BaseBuilder::new()).build_node();
-
-        let mut child = ListenerBuilder::new(BaseBuilder::new()).build_listener();
-
-        inherit_node_properties(&mut child, &parent);
-
-        let parent = parent.cast::<Listener>().unwrap();
-
-        check_inheritable_properties_equality(&child.base, &parent.base);
-    }
-}
