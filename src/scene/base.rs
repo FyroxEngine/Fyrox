@@ -1135,7 +1135,7 @@ impl BaseBuilder {
         Base {
             self_handle: Default::default(),
             script_message_sender: None,
-            name: self.name.into(),
+            name: self.name,
             children: self.children,
             local_transform: self.local_transform,
             lifetime: self.lifetime.into(),

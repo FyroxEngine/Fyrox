@@ -790,7 +790,7 @@ pub(crate) fn initialize_resource_manager_loaders(
 ) {
     let model_loader = ModelLoader {
         resource_manager: resource_manager.clone(),
-        serialization_context: serialization_context.clone(),
+        serialization_context: serialization_context,
         default_import_options: Default::default(),
     };
 
