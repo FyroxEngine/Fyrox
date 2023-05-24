@@ -1,6 +1,3 @@
-use crate::renderer::framework::framebuffer::BlendParameters;
-use crate::renderer::framework::geometry_buffer::ElementRange;
-use crate::scene::sprite::Sprite;
 use crate::{
     core::{
         math::{Matrix4Ext, Rect},
@@ -10,15 +7,15 @@ use crate::{
     renderer::{
         framework::{
             error::FrameworkError,
-            framebuffer::{CullFace, DrawParameters, FrameBuffer},
-            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
+            framebuffer::{BlendParameters, CullFace, DrawParameters, FrameBuffer},
+            geometry_buffer::{ElementRange, GeometryBuffer, GeometryBufferKind},
             gpu_program::{GpuProgram, UniformLocation},
             gpu_texture::GpuTexture,
             state::{BlendFactor, BlendFunc, PipelineState},
         },
         RenderPassStatistics, TextureCache,
     },
-    scene::{camera::Camera, graph::Graph, mesh::surface::SurfaceData},
+    scene::{camera::Camera, graph::Graph, mesh::surface::SurfaceData, sprite::Sprite},
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -113,7 +110,7 @@ impl SpriteRenderer {
         let camera_side = inv_view.side();
 
         for sprite in graph.linear_iter().filter_map(|node| {
-            if !node.global_visibility() {
+            if !node.global_visibility() || !node.is_globally_enabled() {
                 return None;
             }
 
