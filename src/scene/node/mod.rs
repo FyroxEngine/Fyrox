@@ -562,17 +562,48 @@ impl Reflect for Node {
 
 #[cfg(test)]
 mod test {
+    use crate::script::Script;
     use crate::{
         asset::manager::ResourceManager,
-        core::{algebra::Vector3, futures::executor::block_on, visitor::Visitor},
+        core::{
+            algebra::Vector3,
+            futures::executor::block_on,
+            reflect::prelude::*,
+            uuid::{uuid, Uuid},
+            variable::InheritableVariable,
+            visitor::{prelude::*, Visitor},
+            TypeUuidProvider,
+        },
         engine::{self, SerializationContext},
+        impl_component_provider,
         resource::model::{Model, ModelResourceExtension},
         scene::{
             base::BaseBuilder, mesh::MeshBuilder, pivot::PivotBuilder, transform::TransformBuilder,
             Scene,
         },
+        script::ScriptTrait,
     };
     use std::{path::Path, sync::Arc};
+
+    #[derive(Debug, Clone, Reflect, Visit, Default)]
+    struct MyScript {
+        some_field: InheritableVariable<String>,
+        some_collection: InheritableVariable<Vec<u32>>,
+    }
+
+    impl_component_provider!(MyScript);
+
+    impl TypeUuidProvider for MyScript {
+        fn type_uuid() -> Uuid {
+            uuid!("d3f66902-803f-4ace-8170-0aa485d98b40")
+        }
+    }
+
+    impl ScriptTrait for MyScript {
+        fn id(&self) -> Uuid {
+            Self::type_uuid()
+        }
+    }
 
     fn create_scene() -> Scene {
         let mut scene = Scene::new();
@@ -580,6 +611,10 @@ mod test {
         PivotBuilder::new(
             BaseBuilder::new()
                 .with_name("Pivot")
+                .with_script(Script::new(MyScript {
+                    some_field: "Foobar".to_string().into(),
+                    some_collection: vec![1, 2, 3].into(),
+                }))
                 .with_children(&[MeshBuilder::new(
                     BaseBuilder::new().with_name("Mesh").with_local_transform(
                         TransformBuilder::new()
@@ -602,8 +637,8 @@ mod test {
 
     #[test]
     fn test_property_inheritance() {
-        let root_asset_path = Path::new("root.rgs");
-        let derived_asset_path = Path::new("derived.rgs");
+        let root_asset_path = Path::new("test_output/root.rgs");
+        let derived_asset_path = Path::new("test_output/derived.rgs");
 
         // Create root scene and save it.
         {
@@ -613,10 +648,13 @@ mod test {
 
         // Initialize resource manager and re-load the scene.
         let resource_manager = ResourceManager::new();
-
+        let serialization_context = SerializationContext::new();
+        serialization_context
+            .script_constructors
+            .add::<MyScript>("MyScript");
         engine::initialize_resource_manager_loaders(
             &resource_manager,
-            Arc::new(SerializationContext::new()),
+            Arc::new(serialization_context),
         );
 
         let root_asset = block_on(resource_manager.request::<Model, _>(root_asset_path)).unwrap();
@@ -628,9 +666,12 @@ mod test {
             let pivot = derived.graph.find_by_name_from_root("Pivot").unwrap().0;
             let mesh = derived.graph.find_by_name_from_root("Mesh").unwrap().0;
             // Modify something in the instance.
-            derived.graph[pivot]
+            let pivot = &mut derived.graph[pivot];
+            pivot
                 .local_transform_mut()
                 .set_position(Vector3::new(1.0, 2.0, 3.0));
+            let my_script = pivot.try_get_script_mut::<MyScript>().unwrap();
+            my_script.some_collection.push(4);
             assert_eq!(
                 **derived.graph[mesh].local_transform().position(),
                 Vector3::new(3.0, 2.0, 1.0)
@@ -656,10 +697,14 @@ mod test {
                 .find_by_name_from_root("Mesh")
                 .unwrap()
                 .0;
+            let pivot = &derived_scene.graph[pivot];
+            let my_script = pivot.try_get_script::<MyScript>().unwrap();
             assert_eq!(
-                **derived_scene.graph[pivot].local_transform().position(),
+                **pivot.local_transform().position(),
                 Vector3::new(1.0, 2.0, 3.0)
             );
+            assert_eq!(*my_script.some_field, "Foobar");
+            assert_eq!(*my_script.some_collection, &[1, 2, 3, 4]);
             assert_eq!(derived_scene.graph[mesh].as_mesh().cast_shadows(), false);
             // Mesh's local position must remain the same as in the root.
             assert_eq!(
