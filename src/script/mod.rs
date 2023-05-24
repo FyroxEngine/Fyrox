@@ -630,13 +630,13 @@ mod test {
         let mut child = Base::default();
 
         child.script = Some(Script::new(MyScript {
-            field: InheritableVariable::new(1.23),
+            field: InheritableVariable::new_non_modified(1.23),
         }));
 
         let mut parent = Base::default();
 
         parent.script = Some(Script::new(MyScript {
-            field: InheritableVariable::new(3.21),
+            field: InheritableVariable::new_non_modified(3.21),
         }));
 
         child.as_reflect_mut(&mut |child| {
@@ -654,11 +654,11 @@ mod test {
     #[test]
     fn test_script_property_inheritance() {
         let mut child = Script::new(MyScript {
-            field: InheritableVariable::new(1.23),
+            field: InheritableVariable::new_non_modified(1.23),
         });
 
         let parent = Script::new(MyScript {
-            field: InheritableVariable::new(3.21),
+            field: InheritableVariable::new_non_modified(3.21),
         });
 
         child.as_reflect_mut(&mut |child| {
@@ -673,11 +673,11 @@ mod test {
     #[test]
     fn test_script_property_inheritance_option() {
         let mut child = Some(Script::new(MyScript {
-            field: InheritableVariable::new(1.23),
+            field: InheritableVariable::new_non_modified(1.23),
         }));
 
         let parent = Some(Script::new(MyScript {
-            field: InheritableVariable::new(3.21),
+            field: InheritableVariable::new_non_modified(3.21),
         }));
 
         child.as_reflect_mut(&mut |child| {

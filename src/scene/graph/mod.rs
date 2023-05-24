@@ -1014,12 +1014,23 @@ impl Graph {
         }
     }
 
+    // Fix property flags for scenes made before inheritance system was fixed. By default, all inheritable properties
+    // must be marked as modified in nodes without any parent resource.
+    pub(crate) fn mark_ancestor_nodes_as_modified(&mut self) {
+        for node in self.linear_iter_mut() {
+            if node.resource.is_none() {
+                node.mark_inheritable_variables_as_modified();
+            }
+        }
+    }
+
     pub(crate) fn resolve(&mut self) {
         Log::writeln(MessageKind::Information, "Resolving graph...");
 
         self.restore_dynamic_node_data();
-        self.update_hierarchical_data();
+        self.mark_ancestor_nodes_as_modified();
         self.restore_original_handles_and_inherit_properties();
+        self.update_hierarchical_data();
         let instances = self.restore_integrity();
         self.remap_handles(&instances);
 

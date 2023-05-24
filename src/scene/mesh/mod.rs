@@ -130,8 +130,8 @@ impl Default for Mesh {
             local_bounding_box: Default::default(),
             world_bounding_box: Default::default(),
             local_bounding_box_dirty: Cell::new(true),
-            render_path: InheritableVariable::new(RenderPath::Deferred),
-            decal_layer_index: InheritableVariable::new(0),
+            render_path: InheritableVariable::new_modified(RenderPath::Deferred),
+            decal_layer_index: InheritableVariable::new_modified(0),
             blend_shapes: Default::default(),
         }
     }

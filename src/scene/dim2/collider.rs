@@ -698,42 +698,15 @@ impl ColliderBuilder {
 mod test {
 
     use crate::core::algebra::Vector2;
-    use crate::scene::base::test::inherit_node_properties;
-    use crate::scene::collider::BitMask;
     use crate::scene::{
-        base::{test::check_inheritable_properties_equality, BaseBuilder},
+        base::BaseBuilder,
         dim2::{
-            collider::{Collider, ColliderBuilder, ColliderShape, InteractionGroups},
+            collider::{ColliderBuilder, ColliderShape},
             rigidbody::RigidBodyBuilder,
         },
-        graph::physics::CoefficientCombineRule,
         graph::Graph,
         rigidbody::RigidBodyType,
     };
-
-    #[test]
-    fn test_collider_2d_inheritance() {
-        let parent = ColliderBuilder::new(BaseBuilder::new())
-            .with_shape(ColliderShape::ball(1.0))
-            .with_friction(1.0)
-            .with_restitution(1.0)
-            .with_density(Some(2.0))
-            .with_sensor(true)
-            .with_restitution_combine_rule(CoefficientCombineRule::Max)
-            .with_friction_combine_rule(CoefficientCombineRule::Max)
-            .with_collision_groups(InteractionGroups::new(BitMask(1), BitMask(2)))
-            .with_solver_groups(InteractionGroups::new(BitMask(1), BitMask(2)))
-            .build_node();
-
-        let mut child = ColliderBuilder::new(BaseBuilder::new()).build_collider();
-
-        inherit_node_properties(&mut child, &parent);
-
-        let parent = parent.cast::<Collider>().unwrap();
-
-        check_inheritable_properties_equality(&child.base, &parent.base);
-        check_inheritable_properties_equality(&child, parent);
-    }
 
     #[test]
     fn test_collider_2d_intersect() {

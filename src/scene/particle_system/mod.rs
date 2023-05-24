@@ -632,34 +632,3 @@ impl ParticleSystemBuilder {
         graph.add_node(self.build_node())
     }
 }
-
-#[cfg(test)]
-mod test {
-    use crate::scene::base::test::inherit_node_properties;
-    use crate::{
-        core::algebra::Vector3,
-        resource::texture::test::create_test_texture,
-        scene::{
-            base::{test::check_inheritable_properties_equality, BaseBuilder},
-            particle_system::{ParticleSystem, ParticleSystemBuilder},
-        },
-    };
-
-    #[test]
-    fn test_particle_system_inheritance() {
-        let parent = ParticleSystemBuilder::new(BaseBuilder::new())
-            .with_texture(create_test_texture())
-            .with_acceleration(Vector3::new(1.0, 0.0, 0.0))
-            .with_playing(false)
-            .build_node();
-
-        let mut child = ParticleSystemBuilder::new(BaseBuilder::new()).build_particle_system();
-
-        inherit_node_properties(&mut child, &parent);
-
-        let parent = parent.cast::<ParticleSystem>().unwrap();
-
-        check_inheritable_properties_equality(&child.base, &parent.base);
-        check_inheritable_properties_equality(&child, parent);
-    }
-}

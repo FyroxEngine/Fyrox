@@ -784,7 +784,41 @@ pub(crate) fn process_scripts<T>(
     }
 }
 
-mod kek {}
+pub(crate) fn initialize_resource_manager_loaders(
+    resource_manager: &ResourceManager,
+    serialization_context: Arc<SerializationContext>,
+) {
+    let model_loader = ModelLoader {
+        resource_manager: resource_manager.clone(),
+        serialization_context,
+        default_import_options: Default::default(),
+    };
+
+    let mut state = resource_manager.state();
+
+    for shader in ShaderResource::standard_shaders() {
+        state
+            .built_in_resources
+            .insert(shader.path(), shader.into_untyped());
+    }
+
+    state.constructors_container.add::<Texture>();
+    state.constructors_container.add::<Shader>();
+    state.constructors_container.add::<Model>();
+    state.constructors_container.add::<CurveResourceState>();
+    state.constructors_container.add::<SoundBuffer>();
+
+    let loaders = &mut state.loaders;
+    loaders.set(model_loader);
+    loaders.set(TextureLoader {
+        default_import_options: Default::default(),
+    });
+    loaders.set(SoundBufferLoader {
+        default_import_options: Default::default(),
+    });
+    loaders.set(ShaderLoader);
+    loaders.set(CurveLoader);
+}
 
 impl Engine {
     /// Creates new instance of engine from given initialization parameters. Automatically creates all sub-systems
@@ -831,39 +865,7 @@ impl Engine {
             resource_manager,
         } = params;
 
-        // Add loaders.
-        {
-            let model_loader = ModelLoader {
-                resource_manager: resource_manager.clone(),
-                serialization_context: serialization_context.clone(),
-                default_import_options: Default::default(),
-            };
-
-            let mut state = resource_manager.state();
-
-            for shader in ShaderResource::standard_shaders() {
-                state
-                    .built_in_resources
-                    .insert(shader.path(), shader.into_untyped());
-            }
-
-            state.constructors_container.add::<Texture>();
-            state.constructors_container.add::<Shader>();
-            state.constructors_container.add::<Model>();
-            state.constructors_container.add::<CurveResourceState>();
-            state.constructors_container.add::<SoundBuffer>();
-
-            let loaders = &mut state.loaders;
-            loaders.set(model_loader);
-            loaders.set(TextureLoader {
-                default_import_options: Default::default(),
-            });
-            loaders.set(SoundBufferLoader {
-                default_import_options: Default::default(),
-            });
-            loaders.set(ShaderLoader);
-            loaders.set(CurveLoader);
-        }
+        initialize_resource_manager_loaders(&resource_manager, serialization_context.clone());
 
         let (rx, tx) = channel();
         resource_manager.state().event_broadcaster.add(rx);

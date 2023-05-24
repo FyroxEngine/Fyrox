@@ -317,8 +317,10 @@ pub struct Base {
     #[reflect(hidden)]
     pub(crate) script_message_sender: Option<Sender<NodeScriptMessage>>,
 
+    // Name is not inheritable, because property inheritance works bad with external 3D models.
+    // They use names to search "original" nodes.
     #[reflect(setter = "set_name_internal")]
-    pub(crate) name: InheritableVariable<String>,
+    pub(crate) name: String,
 
     pub(crate) local_transform: Transform,
 
@@ -424,7 +426,7 @@ impl Base {
     }
 
     fn set_name_internal(&mut self, name: String) -> String {
-        self.name.set_value_and_mark_modified(name)
+        std::mem::replace(&mut self.name, name)
     }
 
     /// Returns name of node.
@@ -436,7 +438,7 @@ impl Base {
     /// Returns owned name of node.
     #[inline]
     pub fn name_owned(&self) -> String {
-        (*self.name).clone()
+        self.name.clone()
     }
 
     /// Returns shared reference to local transform of a node, can be used to fetch
@@ -921,7 +923,14 @@ impl Visit for Base {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        self.name.visit("Name", &mut region)?;
+        if self.name.visit("Name", &mut region).is_err() {
+            // Name was wrapped into `InheritableVariable` previously, so we must maintain
+            // backward compatibility here.
+            let mut region = region.enter_region("Name")?;
+            let mut value = String::default();
+            value.visit("Value", &mut region)?;
+            self.name = value;
+        }
         self.local_transform.visit("Transform", &mut region)?;
         self.visibility.visit("Visibility", &mut region)?;
         self.parent.visit("Parent", &mut region)?;
@@ -1126,7 +1135,7 @@ impl BaseBuilder {
         Base {
             self_handle: Default::default(),
             script_message_sender: None,
-            name: self.name.into(),
+            name: self.name,
             children: self.children,
             local_transform: self.local_transform,
             lifetime: self.lifetime.into(),
@@ -1151,81 +1160,5 @@ impl BaseBuilder {
             enabled: self.enabled.into(),
             global_enabled: Cell::new(true),
         }
-    }
-}
-
-#[cfg(test)]
-pub mod test {
-    use crate::material::SharedMaterial;
-    use crate::scene::node::{Node, NodeTrait};
-    use crate::{
-        core::{reflect::prelude::*, variable::try_inherit_properties},
-        scene::base::{BaseBuilder, LevelOfDetail, LodGroup, Mobility},
-    };
-
-    pub fn check_inheritable_properties_equality(entity_a: &dyn Reflect, entity_b: &dyn Reflect) {
-        entity_a.fields(&mut |entity_a_fields| {
-            entity_b.fields(&mut |entity_b_fields| {
-                for (a, b) in entity_a_fields.iter().zip(entity_b_fields) {
-                    (*a).as_inheritable_variable(&mut |result| {
-                        if let Some(ta) = result {
-                            (*b).as_inheritable_variable(&mut |result| {
-                                if let Some(tb) = result {
-                                    if !ta.value_equals(tb) {
-                                        panic!(
-                                            "Value of property {:?} is not equal to {:?}",
-                                            ta, tb
-                                        )
-                                    }
-                                }
-                            });
-                        }
-                    });
-
-                    check_inheritable_properties_equality(*a, b);
-                }
-            });
-        });
-    }
-
-    pub fn inherit_node_properties<T: NodeTrait>(child: &mut T, parent: &Node) {
-        child.as_reflect_mut(&mut |child| {
-            parent.as_reflect(&mut |parent| {
-                try_inherit_properties(child, parent, &[std::any::TypeId::of::<SharedMaterial>()])
-                    .unwrap();
-            })
-        });
-    }
-
-    #[test]
-    fn test_base_inheritance() {
-        let parent = BaseBuilder::new()
-            .with_visibility(false)
-            .with_depth_offset(1.0)
-            .with_tag("Tag".to_string())
-            .with_name("Name")
-            .with_lifetime(1.0)
-            .with_frustum_culling(false)
-            .with_mobility(Mobility::Static)
-            .with_lod_group(LodGroup {
-                levels: vec![LevelOfDetail {
-                    begin: 0.0,
-                    end: 1.0,
-                    objects: vec![],
-                }],
-            })
-            .build_base();
-
-        let mut child = BaseBuilder::new().build_base();
-
-        try_inherit_properties(
-            &mut child,
-            &parent,
-            &[std::any::TypeId::of::<SharedMaterial>()],
-        )
-        .unwrap();
-
-        check_inheritable_properties_equality(&child.local_transform, &parent.local_transform);
-        check_inheritable_properties_equality(&child, &parent)
     }
 }

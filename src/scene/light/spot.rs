@@ -88,11 +88,11 @@ impl Default for SpotLight {
     fn default() -> Self {
         Self {
             base_light: Default::default(),
-            hotspot_cone_angle: InheritableVariable::new(90.0f32.to_radians()),
-            falloff_angle_delta: InheritableVariable::new(5.0f32.to_radians()),
-            shadow_bias: InheritableVariable::new(0.00005),
-            distance: InheritableVariable::new(10.0),
-            cookie_texture: InheritableVariable::new(None),
+            hotspot_cone_angle: InheritableVariable::new_modified(90.0f32.to_radians()),
+            falloff_angle_delta: InheritableVariable::new_modified(5.0f32.to_radians()),
+            shadow_bias: InheritableVariable::new_modified(0.00005),
+            distance: InheritableVariable::new_modified(10.0),
+            cookie_texture: InheritableVariable::new_modified(None),
         }
     }
 }
@@ -303,42 +303,5 @@ impl SpotLightBuilder {
     /// Creates new spot light instance and adds it to the graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::scene::base::test::inherit_node_properties;
-    use crate::{
-        resource::texture::test::create_test_texture,
-        scene::{
-            base::{test::check_inheritable_properties_equality, BaseBuilder},
-            light::{
-                spot::{SpotLight, SpotLightBuilder},
-                BaseLightBuilder,
-            },
-        },
-    };
-
-    #[test]
-    fn test_spot_light_inheritance() {
-        let parent = SpotLightBuilder::new(BaseLightBuilder::new(BaseBuilder::new()))
-            .with_distance(1.0)
-            .with_cookie_texture(create_test_texture())
-            .with_falloff_angle_delta(0.1)
-            .with_shadow_bias(1.0)
-            .with_hotspot_cone_angle(0.1)
-            .build_node();
-
-        let mut child =
-            SpotLightBuilder::new(BaseLightBuilder::new(BaseBuilder::new())).build_spot_light();
-
-        inherit_node_properties(&mut child, &parent);
-
-        let parent = parent.cast::<SpotLight>().unwrap();
-
-        check_inheritable_properties_equality(&child.base_light.base, &parent.base_light.base);
-        check_inheritable_properties_equality(&child.base_light, &parent.base_light);
-        check_inheritable_properties_equality(&child, parent);
     }
 }

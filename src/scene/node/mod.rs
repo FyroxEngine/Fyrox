@@ -34,6 +34,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_core::variable;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -290,6 +291,36 @@ impl Visit for NodeHandle {
 ///
 /// The node could control which children nodes should be drawn based on the distance to a camera, this is so called
 /// level of detail functionality. There is a separate article about LODs, it can be found [here](super::base::LevelOfDetail).
+///
+/// # Property inheritance
+///
+/// Property inheritance is used to propagate changes of unmodified properties from a prefab to its instances. For example,
+/// you can change scale of a node in a prefab and its instances will have the same scale too, unless the scale is
+/// set explicitly in an instance. Such feature allows you to tweak instances, add some unique details to them, but take
+/// general properties from parent prefabs.
+///
+/// ## Important notes
+///
+/// Property inheritance uses [`variable::InheritableVariable`] to wrap actual property value, such wrapper stores a tiny
+/// bitfield for flags that can tell whether or not the property was modified. Property inheritance system is then uses
+/// reflection to "walk" over each property in the node and respective parent resource (from which the node was instantiated from,
+/// if any) and checks if the property was modified. If it was modified, its value remains the same, otherwise the value
+/// from the respective property in a "parent" node in the parent resource is copied to the property of the node. Such
+/// process is then repeated for all levels of inheritance, starting from the root and going down to children in inheritance
+/// hierarchy.
+///
+/// The most important thing is that [`variable::InheritableVariable`] will save (serialize) its value only if it was marked
+/// as modified (we don't need to save anything if it can be fetched from parent). This saves **a lot** of disk space for
+/// inherited assets (in some extreme cases memory consumption can be reduced by 90%, if there's only few properties modified).
+/// This fact requires "root" (nodes that are **not** instances) nodes to have **all** inheritable properties to be marked as
+/// modified, otherwise their values won't be saved, which is indeed wrong.
+///
+/// When a node is instantiated from some model resource, all its properties become non-modified. Which allows the inheritance
+/// system to correctly handle redundant information.
+///
+/// Such implementation of property inheritance has its drawbacks, major one is: each instance still holds its own copy of
+/// of every field, even those inheritable variables which are non-modified. Which means that there's no benefits of RAM
+/// consumption, only disk space usage is reduced.
 #[derive(Debug)]
 pub struct Node(Box<dyn NodeTrait>);
 
@@ -432,6 +463,10 @@ impl Node {
             .and_then(|c| c.downcast_mut::<T>())
     }
 
+    pub(crate) fn mark_inheritable_variables_as_modified(&mut self) {
+        variable::mark_inheritable_properties_modified(self)
+    }
+
     define_is_as!(Mesh => fn is_mesh, fn as_mesh, fn as_mesh_mut);
     define_is_as!(Pivot => fn is_pivot, fn as_pivot, fn as_pivot_mut);
     define_is_as!(Camera  => fn is_camera, fn as_camera, fn as_camera_mut);
@@ -522,5 +557,160 @@ impl Reflect for Node {
 
     fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
         self.0.deref_mut().field_mut(name, func)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::script::Script;
+    use crate::{
+        asset::manager::ResourceManager,
+        core::{
+            algebra::Vector3,
+            futures::executor::block_on,
+            reflect::prelude::*,
+            uuid::{uuid, Uuid},
+            variable::InheritableVariable,
+            visitor::{prelude::*, Visitor},
+            TypeUuidProvider,
+        },
+        engine::{self, SerializationContext},
+        impl_component_provider,
+        resource::model::{Model, ModelResourceExtension},
+        scene::{
+            base::BaseBuilder, mesh::MeshBuilder, pivot::PivotBuilder, transform::TransformBuilder,
+            Scene,
+        },
+        script::ScriptTrait,
+    };
+    use std::{path::Path, sync::Arc};
+
+    #[derive(Debug, Clone, Reflect, Visit, Default)]
+    struct MyScript {
+        some_field: InheritableVariable<String>,
+        some_collection: InheritableVariable<Vec<u32>>,
+    }
+
+    impl_component_provider!(MyScript);
+
+    impl TypeUuidProvider for MyScript {
+        fn type_uuid() -> Uuid {
+            uuid!("d3f66902-803f-4ace-8170-0aa485d98b40")
+        }
+    }
+
+    impl ScriptTrait for MyScript {
+        fn id(&self) -> Uuid {
+            Self::type_uuid()
+        }
+    }
+
+    fn create_scene() -> Scene {
+        let mut scene = Scene::new();
+
+        PivotBuilder::new(
+            BaseBuilder::new()
+                .with_name("Pivot")
+                .with_script(Script::new(MyScript {
+                    some_field: "Foobar".to_string().into(),
+                    some_collection: vec![1, 2, 3].into(),
+                }))
+                .with_children(&[MeshBuilder::new(
+                    BaseBuilder::new().with_name("Mesh").with_local_transform(
+                        TransformBuilder::new()
+                            .with_local_position(Vector3::new(3.0, 2.0, 1.0))
+                            .build(),
+                    ),
+                )
+                .build(&mut scene.graph)]),
+        )
+        .build(&mut scene.graph);
+
+        scene
+    }
+
+    fn save_scene(scene: &mut Scene, path: &Path) {
+        let mut visitor = Visitor::new();
+        scene.save("Scene", &mut visitor).unwrap();
+        visitor.save_binary(path).unwrap();
+    }
+
+    #[test]
+    fn test_property_inheritance() {
+        let root_asset_path = Path::new("test_output/root.rgs");
+        let derived_asset_path = Path::new("test_output/derived.rgs");
+
+        // Create root scene and save it.
+        {
+            let mut scene = create_scene();
+            save_scene(&mut scene, root_asset_path);
+        }
+
+        // Initialize resource manager and re-load the scene.
+        let resource_manager = ResourceManager::new();
+        let serialization_context = SerializationContext::new();
+        serialization_context
+            .script_constructors
+            .add::<MyScript>("MyScript");
+        engine::initialize_resource_manager_loaders(
+            &resource_manager,
+            Arc::new(serialization_context),
+        );
+
+        let root_asset = block_on(resource_manager.request::<Model, _>(root_asset_path)).unwrap();
+
+        // Create root resource instance in a derived resource.
+        {
+            let mut derived = Scene::new();
+            root_asset.instantiate(&mut derived);
+            let pivot = derived.graph.find_by_name_from_root("Pivot").unwrap().0;
+            let mesh = derived.graph.find_by_name_from_root("Mesh").unwrap().0;
+            // Modify something in the instance.
+            let pivot = &mut derived.graph[pivot];
+            pivot
+                .local_transform_mut()
+                .set_position(Vector3::new(1.0, 2.0, 3.0));
+            let my_script = pivot.try_get_script_mut::<MyScript>().unwrap();
+            my_script.some_collection.push(4);
+            assert_eq!(
+                **derived.graph[mesh].local_transform().position(),
+                Vector3::new(3.0, 2.0, 1.0)
+            );
+            derived.graph[mesh].as_mesh_mut().set_cast_shadows(false);
+            save_scene(&mut derived, derived_asset_path);
+        }
+
+        // Reload the derived asset and check its content.
+        {
+            let derived_asset =
+                block_on(resource_manager.request::<Model, _>(derived_asset_path)).unwrap();
+
+            let derived_data = derived_asset.data_ref();
+            let derived_scene = derived_data.get_scene();
+            let pivot = derived_scene
+                .graph
+                .find_by_name_from_root("Pivot")
+                .unwrap()
+                .0;
+            let mesh = derived_scene
+                .graph
+                .find_by_name_from_root("Mesh")
+                .unwrap()
+                .0;
+            let pivot = &derived_scene.graph[pivot];
+            let my_script = pivot.try_get_script::<MyScript>().unwrap();
+            assert_eq!(
+                **pivot.local_transform().position(),
+                Vector3::new(1.0, 2.0, 3.0)
+            );
+            assert_eq!(*my_script.some_field, "Foobar");
+            assert_eq!(*my_script.some_collection, &[1, 2, 3, 4]);
+            assert_eq!(derived_scene.graph[mesh].as_mesh().cast_shadows(), false);
+            // Mesh's local position must remain the same as in the root.
+            assert_eq!(
+                **derived_scene.graph[mesh].local_transform().position(),
+                Vector3::new(3.0, 2.0, 1.0)
+            );
+        }
     }
 }

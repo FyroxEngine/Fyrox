@@ -124,19 +124,19 @@ impl Default for Sound {
     fn default() -> Self {
         Self {
             base: Default::default(),
-            buffer: InheritableVariable::new(None),
-            play_once: InheritableVariable::new(false),
-            gain: InheritableVariable::new(1.0),
-            panning: InheritableVariable::new(0.0),
-            status: InheritableVariable::new(Status::Stopped),
-            looping: InheritableVariable::new(false),
-            pitch: InheritableVariable::new(1.0),
-            radius: InheritableVariable::new(10.0),
-            max_distance: InheritableVariable::new(f32::MAX),
-            rolloff_factor: InheritableVariable::new(1.0),
+            buffer: InheritableVariable::new_modified(None),
+            play_once: InheritableVariable::new_modified(false),
+            gain: InheritableVariable::new_modified(1.0),
+            panning: InheritableVariable::new_modified(0.0),
+            status: InheritableVariable::new_modified(Status::Stopped),
+            looping: InheritableVariable::new_modified(false),
+            pitch: InheritableVariable::new_modified(1.0),
+            radius: InheritableVariable::new_modified(10.0),
+            max_distance: InheritableVariable::new_modified(f32::MAX),
+            rolloff_factor: InheritableVariable::new_modified(1.0),
             playback_time: Default::default(),
-            spatial_blend: InheritableVariable::new(1.0),
-            audio_bus: InheritableVariable::new(AudioBusGraph::PRIMARY_BUS.to_string()),
+            spatial_blend: InheritableVariable::new_modified(1.0),
+            audio_bus: InheritableVariable::new_modified(AudioBusGraph::PRIMARY_BUS.to_string()),
             native: Default::default(),
         }
     }
@@ -559,39 +559,5 @@ impl SoundBuilder {
     /// Create a new [`Sound`] node and adds it to the graph.
     pub fn build(self, graph: &mut Graph) -> Handle<Node> {
         graph.add_node(self.build_node())
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::scene::base::test::inherit_node_properties;
-    use crate::scene::{
-        base::{test::check_inheritable_properties_equality, BaseBuilder},
-        sound::{Sound, SoundBuilder},
-    };
-    use fyrox_sound::source::Status;
-    use std::time::Duration;
-
-    #[test]
-    fn test_sound_inheritance() {
-        let parent = SoundBuilder::new(BaseBuilder::new())
-            .with_radius(1.0)
-            .with_gain(2.0)
-            .with_status(Status::Paused)
-            .with_pitch(2.0)
-            .with_playback_time(Duration::from_secs(2))
-            .with_looping(true)
-            .with_play_once(true)
-            .with_panning(0.1)
-            .build_node();
-
-        let mut child = SoundBuilder::new(BaseBuilder::new()).build_sound();
-
-        inherit_node_properties(&mut child, &parent);
-
-        let parent = parent.cast::<Sound>().unwrap();
-
-        check_inheritable_properties_equality(&child.base, &parent.base);
-        check_inheritable_properties_equality(&child, parent);
     }
 }

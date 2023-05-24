@@ -74,7 +74,7 @@ impl<T: Clone> Clone for InheritableVariable<T> {
 
 impl<T> From<T> for InheritableVariable<T> {
     fn from(v: T) -> Self {
-        InheritableVariable::new(v)
+        InheritableVariable::new_modified(v)
     }
 }
 
@@ -122,19 +122,20 @@ impl<T: Clone> InheritableVariable<T> {
 }
 
 impl<T> InheritableVariable<T> {
-    /// Creates new non-modified variable from given value.
-    pub fn new(value: T) -> Self {
-        Self {
-            value,
-            flags: Cell::new(VariableFlags::NONE),
-        }
-    }
-
-    /// Creates new variable from given value and marks it with [`VariableFlags::MODIFIED`] flag.
+    /// Creates new modified variable from given value. This method should always be used to create inheritable
+    /// variables in the engine.
     pub fn new_modified(value: T) -> Self {
         Self {
             value,
             flags: Cell::new(VariableFlags::MODIFIED),
+        }
+    }
+
+    /// Creates new variable without any flags set.
+    pub fn new_non_modified(value: T) -> Self {
+        Self {
+            value,
+            flags: Cell::new(VariableFlags::NONE),
         }
     }
 
@@ -242,12 +243,21 @@ where
             // Try to visit inner value first, this is very useful if user decides to make their
             // variable inheritable, but still keep backward compatibility.
             visited = self.value.visit(name, visitor).is_ok();
+            self.flags.get_mut().insert(VariableFlags::MODIFIED);
         }
 
         if !visited {
             let mut region = visitor.enter_region(name)?;
 
-            self.value.visit("Value", &mut region)?;
+            if region.is_reading() || self.flags.get().contains(VariableFlags::MODIFIED) {
+                let result = self.value.visit("Value", &mut region);
+
+                // Report failure only on write. The field may be missing if it is not marked as modified.
+                if !region.is_reading() {
+                    result?;
+                }
+            }
+
             self.flags.get_mut().bits.visit("Flags", &mut region)?;
         }
 
@@ -562,6 +572,20 @@ pub fn reset_inheritable_properties(object: &mut dyn Reflect) {
     })
 }
 
+pub fn mark_inheritable_properties_modified(object: &mut dyn Reflect) {
+    object.fields_mut(&mut |fields| {
+        for field in fields {
+            field.as_inheritable_variable_mut(&mut |inheritable_field| {
+                if let Some(inheritable_field) = inheritable_field {
+                    inheritable_field.mark_modified();
+                }
+            });
+
+            mark_inheritable_properties_modified(field);
+        }
+    })
+}
+
 #[cfg(test)]
 mod test {
     use crate::{
@@ -585,9 +609,9 @@ mod test {
     fn test_property_inheritance_via_reflection() {
         let mut parent = Bar {
             foo: Foo {
-                value: InheritableVariable::new(1.23),
+                value: InheritableVariable::new_non_modified(1.23),
             },
-            other_value: InheritableVariable::new("Foobar".to_string()),
+            other_value: InheritableVariable::new_non_modified("Foobar".to_string()),
         };
 
         let mut child = parent.clone();
@@ -615,8 +639,8 @@ mod test {
 
     #[test]
     fn test_inheritable_variable_equality() {
-        let va = InheritableVariable::new(1.23);
-        let vb = InheritableVariable::new(1.23);
+        let va = InheritableVariable::new_non_modified(1.23);
+        let vb = InheritableVariable::new_non_modified(1.23);
 
         assert!(va.value_equals(&vb))
     }
@@ -632,8 +656,8 @@ mod test {
 
     #[test]
     fn test_enum_inheritance_tuple() {
-        let mut child = SomeEnum::Bar(InheritableVariable::new(1.23));
-        let parent = SomeEnum::Bar(InheritableVariable::new(3.21));
+        let mut child = SomeEnum::Bar(InheritableVariable::new_non_modified(1.23));
+        let parent = SomeEnum::Bar(InheritableVariable::new_non_modified(3.21));
 
         try_inherit_properties(&mut child, &parent, &[]).unwrap();
 
@@ -647,12 +671,12 @@ mod test {
     #[test]
     fn test_enum_inheritance_struct() {
         let mut child = SomeEnum::Baz {
-            foo: InheritableVariable::new(1.23),
-            foobar: InheritableVariable::new(123),
+            foo: InheritableVariable::new_non_modified(1.23),
+            foobar: InheritableVariable::new_non_modified(123),
         };
         let parent = SomeEnum::Baz {
-            foo: InheritableVariable::new(3.21),
-            foobar: InheritableVariable::new(321),
+            foo: InheritableVariable::new_non_modified(3.21),
+            foobar: InheritableVariable::new_non_modified(321),
         };
 
         try_inherit_properties(&mut child, &parent, &[]).unwrap();
@@ -687,8 +711,8 @@ mod test {
         }
 
         let mut child = MyEntity {
-            some_field: InheritableVariable::new(1.23),
-            incorrectly_inheritable_data: InheritableVariable::new(SomeComplexData {
+            some_field: InheritableVariable::new_non_modified(1.23),
+            incorrectly_inheritable_data: InheritableVariable::new_non_modified(SomeComplexData {
                 foo: InheritableVariable::new_modified(222),
             }),
             inheritable_data: SomeComplexData {
@@ -697,12 +721,12 @@ mod test {
         };
 
         let parent = MyEntity {
-            some_field: InheritableVariable::new(3.21),
-            incorrectly_inheritable_data: InheritableVariable::new(SomeComplexData {
-                foo: InheritableVariable::new(321),
+            some_field: InheritableVariable::new_non_modified(3.21),
+            incorrectly_inheritable_data: InheritableVariable::new_non_modified(SomeComplexData {
+                foo: InheritableVariable::new_non_modified(321),
             }),
             inheritable_data: SomeComplexData {
-                foo: InheritableVariable::new(321),
+                foo: InheritableVariable::new_modified(321),
             },
         };
 
