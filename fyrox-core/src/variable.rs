@@ -447,6 +447,37 @@ where
 
 /// Simultaneously walks over fields of given child and parent and tries to inherit values of properties
 /// of child with parent's properties. It is done recursively for every fields in entities.
+///
+/// ## How it works
+///
+/// In general, it uses reflection to iterate over child and parent properties and trying to inherit values.
+/// Child's field will take parent's field value only if child's field is **non-modified**. There are one
+/// edge case in inheritance: collections.
+///
+/// Inheritance for collections itself works the same as described above, however the content of collections
+/// can only be inherited if their sizes are equal. Also, since inheritance uses plain copy of inner data of
+/// inheritable variables, it works in a special way.
+///
+/// ```text
+/// Child                                       Parent (root)
+///     InheritableVariableA            <-         InheritableVariableA*
+///     InheritableCollection*          ->         InheritableCollection*
+///         Item0                                       Item0
+///             InheritableVariableB*   ->                  InheritableVariableB*
+///             InheritableVariableC    <-                  InheritableVariableC
+///         Item1                                       Item1
+///             ..                                          ..
+///         ..                                          ..
+///         ItemN                                       ItemN
+///             ..                                          ..
+///
+/// * - means that the variable was modified
+/// ```
+///
+/// At first, `InheritableVariableA` will be copied from the parent as usual. Next, the inheritable collection
+/// won't be copied (because it is modified), however its items will be inherited separately.
+/// `InheritableVariableB` won't be copied either (since it is modified too), but `InheritableVariableC` **will**
+/// be copied from parent.
 pub fn try_inherit_properties(
     child: &mut dyn Reflect,
     parent: &dyn Reflect,
