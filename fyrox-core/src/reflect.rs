@@ -314,6 +314,8 @@ pub trait ReflectInheritableVariable: Reflect + Debug {
     /// Returns current variable flags.
     fn flags(&self) -> VariableFlags;
 
+    fn set_flags(&mut self, flags: VariableFlags);
+
     /// Returns true if value was modified.
     fn is_modified(&self) -> bool;
 

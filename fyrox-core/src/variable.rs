@@ -91,7 +91,7 @@ impl<T: Default> Default for InheritableVariable<T> {
     fn default() -> Self {
         Self {
             value: T::default(),
-            flags: Cell::new(VariableFlags::NONE),
+            flags: Cell::new(VariableFlags::MODIFIED),
         }
     }
 }
@@ -385,9 +385,13 @@ where
             parent.downcast_ref::<T>(&mut |downcasted| match downcasted {
                 Some(parent_value) => {
                     if !self.is_modified() {
+                        let mut parent_value_clone = parent_value.clone();
+
+                        mark_inheritable_properties_non_modified(&mut parent_value_clone);
+
                         result = Ok(Some(Box::new(std::mem::replace(
                             &mut self.value,
-                            parent_value.clone(),
+                            parent_value_clone,
                         ))));
                     }
                 }
@@ -409,6 +413,10 @@ where
 
     fn flags(&self) -> VariableFlags {
         self.flags.get()
+    }
+
+    fn set_flags(&mut self, flags: VariableFlags) {
+        self.flags.set(flags)
     }
 
     fn is_modified(&self) -> bool {
@@ -464,7 +472,7 @@ where
 ///     InheritableCollection*          ->         InheritableCollection*
 ///         Item0                                       Item0
 ///             InheritableVariableB*   ->                  InheritableVariableB*
-///             InheritableVariableC    <-                  InheritableVariableC
+///             InheritableVariableC    <-                  InheritableVariableC*
 ///         Item1                                       Item1
 ///             ..                                          ..
 ///         ..                                          ..
@@ -503,11 +511,17 @@ pub fn try_inherit_properties(
         if let Some(inheritable_child) = inheritable_child {
             parent.as_inheritable_variable(&mut |inheritable_parent| {
                 if let Some(inheritable_parent) = inheritable_parent {
-                    result = Some(try_inherit_properties(
-                        inheritable_child.inner_value_mut(),
-                        inheritable_parent.inner_value_ref(),
-                        ignored_types,
-                    ));
+                    if let Err(e) = inheritable_child.try_inherit(inheritable_parent) {
+                        result = Some(Err(e));
+                    }
+
+                    if !matches!(result, Some(Err(_))) {
+                        result = Some(try_inherit_properties(
+                            inheritable_child.inner_value_mut(),
+                            inheritable_parent.inner_value_ref(),
+                            ignored_types,
+                        ));
+                    }
                 }
             })
         }
@@ -547,36 +561,13 @@ pub fn try_inherit_properties(
         child.fields_mut(&mut |mut child_fields| {
             parent.fields(&mut |parent_fields| {
                 for (child_field, parent_field) in child_fields.iter_mut().zip(parent_fields) {
-                    // If both fields are InheritableVariable<T>, try to inherit.
-                    child_field.as_inheritable_variable_mut(&mut |child_inheritable_field| {
-                        if let Some(child_inheritable_field) = child_inheritable_field {
-                            parent_field.as_inheritable_variable(&mut |parent_inheritable_field| {
-                                if let Some(parent_inheritable_field) = parent_inheritable_field {
-                                    if let Err(e) = child_inheritable_field
-                                        .try_inherit(parent_inheritable_field)
-                                    {
-                                        result = Some(Err(e));
-                                    }
-                                }
-                            })
-                        }
-                    });
-
-                    if matches!(result, Some(Err(_))) {
-                        break;
-                    }
-
                     // Look into inner properties recursively and try to inherit them. This is mandatory step, because inner
                     // fields may also be InheritableVariable<T>.
-                    child_field.as_reflect_mut(&mut |child_field| {
-                        parent_field.as_reflect(&mut |parent_field| {
-                            if let Err(e) =
-                                try_inherit_properties(child_field, parent_field, ignored_types)
-                            {
-                                result = Some(Err(e));
-                            }
-                        })
-                    });
+                    if let Err(e) =
+                        try_inherit_properties(*child_field, parent_field, ignored_types)
+                    {
+                        result = Some(Err(e));
+                    }
 
                     if matches!(result, Some(Err(_))) {
                         break;
@@ -649,7 +640,7 @@ where
     })
 }
 
-pub fn reset_inheritable_properties(object: &mut dyn Reflect) {
+pub fn mark_inheritable_properties_non_modified(object: &mut dyn Reflect) {
     do_with_inheritable_variables(object, &mut |variable| variable.reset_modified_flag());
 }
 
@@ -758,6 +749,49 @@ mod test {
         } else {
             unreachable!()
         }
+    }
+
+    #[test]
+    fn test_collection_inheritance() {
+        #[derive(Reflect, Clone, Debug, PartialEq)]
+        struct Foo {
+            some_data: f32,
+        }
+
+        #[derive(Reflect, Clone, Debug, PartialEq)]
+        struct CollectionItem {
+            foo: InheritableVariable<Foo>,
+            bar: InheritableVariable<u32>,
+        }
+
+        #[derive(Reflect, Clone, Debug, PartialEq)]
+        struct MyEntity {
+            collection: InheritableVariable<Vec<CollectionItem>>,
+        }
+
+        let parent = MyEntity {
+            collection: InheritableVariable::new_modified(vec![CollectionItem {
+                foo: InheritableVariable::new_modified(Foo { some_data: 123.321 }),
+                bar: InheritableVariable::new_modified(321),
+            }]),
+        };
+
+        let mut child = MyEntity {
+            collection: InheritableVariable::new_modified(vec![CollectionItem {
+                foo: InheritableVariable::new_modified(Foo { some_data: 321.123 }),
+                bar: InheritableVariable::new_non_modified(321),
+            }]),
+        };
+
+        try_inherit_properties(&mut child, &parent, &[]).unwrap();
+
+        // Flags must be transferred correctly.
+        let item = &child.collection[0];
+        assert!(!item.bar.is_modified());
+        assert_eq!(item.bar.value, 321);
+
+        assert_eq!(item.foo.value, Foo { some_data: 321.123 });
+        assert!(item.foo.is_modified());
     }
 
     #[test]

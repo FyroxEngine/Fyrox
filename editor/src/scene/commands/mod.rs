@@ -8,6 +8,7 @@ use crate::{
     },
     Engine, Message,
 };
+use fyrox::core::variable::mark_inheritable_properties_non_modified;
 use fyrox::{
     asset::manager::ResourceManager,
     core::{log::Log, pool::Handle, reflect::prelude::*},
@@ -356,9 +357,7 @@ impl RevertSceneNodePropertyCommand {
 fn reset_property_modified_flag(entity: &mut dyn Reflect, path: &str) {
     entity.as_reflect_mut(&mut |entity| {
         entity.resolve_path_mut(path, &mut |result| {
-            result
-                .unwrap()
-                .as_inheritable_variable_mut(&mut |result| result.unwrap().reset_modified_flag())
+            mark_inheritable_properties_non_modified(result.unwrap());
         })
     })
 }

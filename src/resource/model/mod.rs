@@ -30,7 +30,7 @@ use crate::{
         pool::Handle,
         reflect::prelude::*,
         uuid::Uuid,
-        variable::reset_inheritable_properties,
+        variable::mark_inheritable_properties_non_modified,
         visitor::{Visit, VisitError, VisitResult, Visitor},
         TypeUuidProvider,
     },
@@ -176,7 +176,7 @@ impl ModelResourceExtension for ModelResource {
 
             // Reset inheritable properties, so property inheritance system will take properties
             // from parent objects on resolve stage.
-            node.as_reflect_mut(&mut |node| reset_inheritable_properties(node));
+            node.as_reflect_mut(&mut |node| mark_inheritable_properties_non_modified(node));
 
             // Continue on children.
             stack.extend_from_slice(node.children());

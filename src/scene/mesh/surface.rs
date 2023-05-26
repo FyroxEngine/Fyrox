@@ -1160,9 +1160,9 @@ impl SurfaceSharedData {
 /// See module docs.
 #[derive(Debug, Reflect, PartialEq)]
 pub struct Surface {
-    data: InheritableVariable<SurfaceSharedData>,
+    pub(crate) data: InheritableVariable<SurfaceSharedData>,
 
-    material: InheritableVariable<SharedMaterial>,
+    pub(crate) material: InheritableVariable<SharedMaterial>,
 
     /// Array of handles to scene nodes which are used as bones.
     pub bones: InheritableVariable<Vec<Handle<Node>>>,

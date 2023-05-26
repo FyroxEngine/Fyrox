@@ -562,11 +562,10 @@ impl Reflect for Node {
 
 #[cfg(test)]
 mod test {
-    use crate::script::Script;
     use crate::{
         asset::manager::ResourceManager,
         core::{
-            algebra::Vector3,
+            algebra::{Matrix4, Vector3},
             futures::executor::block_on,
             reflect::prelude::*,
             uuid::{uuid, Uuid},
@@ -578,12 +577,18 @@ mod test {
         impl_component_provider,
         resource::model::{Model, ModelResourceExtension},
         scene::{
-            base::BaseBuilder, mesh::MeshBuilder, pivot::PivotBuilder, transform::TransformBuilder,
+            base::BaseBuilder,
+            mesh::{
+                surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
+                MeshBuilder,
+            },
+            pivot::PivotBuilder,
+            transform::TransformBuilder,
             Scene,
         },
-        script::ScriptTrait,
+        script::{Script, ScriptTrait},
     };
-    use std::{path::Path, sync::Arc};
+    use std::{fs, path::Path, sync::Arc};
 
     #[derive(Debug, Clone, Reflect, Visit, Default)]
     struct MyScript {
@@ -608,6 +613,7 @@ mod test {
     fn create_scene() -> Scene {
         let mut scene = Scene::new();
 
+        let mesh;
         PivotBuilder::new(
             BaseBuilder::new()
                 .with_name("Pivot")
@@ -615,16 +621,29 @@ mod test {
                     some_field: "Foobar".to_string().into(),
                     some_collection: vec![1, 2, 3].into(),
                 }))
-                .with_children(&[MeshBuilder::new(
-                    BaseBuilder::new().with_name("Mesh").with_local_transform(
-                        TransformBuilder::new()
-                            .with_local_position(Vector3::new(3.0, 2.0, 1.0))
-                            .build(),
-                    ),
-                )
-                .build(&mut scene.graph)]),
+                .with_children(&[{
+                    mesh = MeshBuilder::new(
+                        BaseBuilder::new().with_name("Mesh").with_local_transform(
+                            TransformBuilder::new()
+                                .with_local_position(Vector3::new(3.0, 2.0, 1.0))
+                                .build(),
+                        ),
+                    )
+                    .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+                        SurfaceData::make_cone(16, 1.0, 1.0, &Matrix4::identity()),
+                    ))
+                    .build()])
+                    .build(&mut scene.graph);
+                    mesh
+                }]),
         )
         .build(&mut scene.graph);
+
+        let mesh = scene.graph[mesh].as_mesh();
+        assert_eq!(mesh.surfaces().len(), 1);
+        assert!(mesh.surfaces()[0].bones.is_modified());
+        assert!(mesh.surfaces()[0].data.is_modified());
+        assert!(mesh.surfaces()[0].material.is_modified());
 
         scene
     }
@@ -637,6 +656,10 @@ mod test {
 
     #[test]
     fn test_property_inheritance() {
+        if !Path::new("test_output").exists() {
+            fs::create_dir_all("test_output").unwrap();
+        }
+
         let root_asset_path = Path::new("test_output/root.rgs");
         let derived_asset_path = Path::new("test_output/derived.rgs");
 
@@ -672,11 +695,16 @@ mod test {
                 .set_position(Vector3::new(1.0, 2.0, 3.0));
             let my_script = pivot.try_get_script_mut::<MyScript>().unwrap();
             my_script.some_collection.push(4);
+            let mesh = derived.graph[mesh].as_mesh_mut();
             assert_eq!(
-                **derived.graph[mesh].local_transform().position(),
+                **mesh.local_transform().position(),
                 Vector3::new(3.0, 2.0, 1.0)
             );
-            derived.graph[mesh].as_mesh_mut().set_cast_shadows(false);
+            assert_eq!(mesh.surfaces().len(), 1);
+            assert!(!mesh.surfaces()[0].bones.is_modified());
+            assert!(!mesh.surfaces()[0].data.is_modified());
+            assert!(!mesh.surfaces()[0].material.is_modified());
+            mesh.set_cast_shadows(false);
             save_scene(&mut derived, derived_asset_path);
         }
 
@@ -705,10 +733,15 @@ mod test {
             );
             assert_eq!(*my_script.some_field, "Foobar");
             assert_eq!(*my_script.some_collection, &[1, 2, 3, 4]);
-            assert_eq!(derived_scene.graph[mesh].as_mesh().cast_shadows(), false);
+            let mesh = derived_scene.graph[mesh].as_mesh();
+            assert!(!mesh.cast_shadows());
+            assert_eq!(mesh.surfaces().len(), 1);
+            assert!(!mesh.surfaces()[0].bones.is_modified());
+            assert!(!mesh.surfaces()[0].data.is_modified());
+            assert!(!mesh.surfaces()[0].material.is_modified());
             // Mesh's local position must remain the same as in the root.
             assert_eq!(
-                **derived_scene.graph[mesh].local_transform().position(),
+                **mesh.local_transform().position(),
                 Vector3::new(3.0, 2.0, 1.0)
             );
         }
