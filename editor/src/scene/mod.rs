@@ -102,6 +102,7 @@ impl EditorScene {
         pure_scene
     }
 
+    #[allow(clippy::redundant_clone)] // false positive
     pub fn save(
         &mut self,
         path: PathBuf,
