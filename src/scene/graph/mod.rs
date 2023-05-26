@@ -644,15 +644,7 @@ impl Graph {
     /// and when you fire from rocket launcher you just need to create a copy of such
     /// "prefab".
     ///
-    /// # Notes
-    ///
-    /// This method does *not* copy any animations! You have to copy them manually. In most
-    /// cases it is fine to retarget animation from a resource you want, it will create
-    /// animation copy from resource that will work with your nodes hierarchy.
-    ///
     /// # Implementation notes
-    ///
-    /// This method automatically remaps bones for copied surfaces.
     ///
     /// Returns tuple where first element is handle to copy of node, and second element -
     /// old-to-new hash map, which can be used to easily find copy of node by its original.
@@ -684,16 +676,7 @@ impl Graph {
     /// and when you fire from rocket launcher you just need to create a copy of such
     /// "prefab".
     ///
-    /// # Notes
-    ///
-    /// This method has exactly the same functionality as `copy_node`, but copies not in-place.
-    /// This method does *not* copy any animations! You have to copy them manually. In most
-    /// cases it is fine to retarget animation from a resource you want, it will create
-    /// animation copy from resource that will work with your nodes hierarchy.
-    ///
     /// # Implementation notes
-    ///
-    /// This method automatically remaps bones for copied surfaces.
     ///
     /// Returns tuple where first element is handle to copy of node, and second element -
     /// old-to-new hash map, which can be used to easily find copy of node by its original.
