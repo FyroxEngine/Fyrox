@@ -15,6 +15,11 @@ pub struct DebuggingSettings {
     #[reflect(description = "Size of pictograms in meters. It is used for objects like lights.")]
     #[serde(default)]
     pub pictogram_size: f32,
+    #[reflect(
+        description = "Forces the editor to save the scene in text form as well as standard binary."
+    )]
+    #[serde(default)]
+    pub save_scene_in_text_form: bool,
 }
 
 impl Default for DebuggingSettings {
@@ -27,6 +32,7 @@ impl Default for DebuggingSettings {
             show_light_bounds: true,
             show_camera_bounds: true,
             pictogram_size: 0.33,
+            save_scene_in_text_form: false,
         }
     }
 }

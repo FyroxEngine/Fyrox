@@ -4,6 +4,7 @@ use crate::{
     interaction::navmesh::selection::NavmeshSelection, scene::clipboard::Clipboard,
     world::graph::selection::GraphSelection, Settings,
 };
+use fyrox::core::log::Log;
 use fyrox::{
     core::{color::Color, math::aabb::AxisAlignedBoundingBox, pool::Handle, visitor::Visitor},
     engine::Engine,
@@ -21,7 +22,9 @@ use fyrox::{
         Scene,
     },
 };
-use std::{fmt::Write, path::PathBuf};
+use std::fs::File;
+use std::io::Write;
+use std::path::PathBuf;
 
 pub mod clipboard;
 pub mod property;
@@ -99,7 +102,12 @@ impl EditorScene {
         pure_scene
     }
 
-    pub fn save(&mut self, path: PathBuf, engine: &mut Engine) -> Result<String, String> {
+    pub fn save(
+        &mut self,
+        path: PathBuf,
+        settings: &Settings,
+        engine: &mut Engine,
+    ) -> Result<String, String> {
         // Validate first.
         let valid = true;
         let mut reason = "Scene is not saved, because validation failed:\n".to_owned();
@@ -114,9 +122,19 @@ impl EditorScene {
             if let Err(e) = visitor.save_binary(&path) {
                 Err(format!("Failed to save scene! Reason: {}", e))
             } else {
+                if settings.debugging.save_scene_in_text_form {
+                    let text = visitor.save_text();
+                    let mut path = path.to_path_buf();
+                    path.set_extension("txt");
+                    if let Ok(mut file) = File::create(path) {
+                        Log::verify(file.write_all(text.as_bytes()));
+                    }
+                }
+
                 Ok(format!("Scene {} was successfully saved!", path.display()))
             }
         } else {
+            use std::fmt::Write;
             writeln!(&mut reason, "\nPlease fix errors and try again.").unwrap();
 
             Err(reason)

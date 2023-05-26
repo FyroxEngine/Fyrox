@@ -1433,7 +1433,7 @@ impl Editor {
                     .update_recent_files_list(&mut engine.user_interface, &self.settings);
             }
 
-            match editor_scene.save(path.clone(), engine) {
+            match editor_scene.save(path.clone(), &self.settings, engine) {
                 Ok(message) => {
                     self.scene_viewer.set_title(
                         &engine.user_interface,
