@@ -69,6 +69,7 @@ pub struct Settings {
     #[reflect(hidden)]
     pub recent: RecentFiles,
     #[serde(default)]
+    #[reflect(hidden)]
     pub windows: WindowsSettings,
 }
 
