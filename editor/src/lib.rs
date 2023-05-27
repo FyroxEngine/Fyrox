@@ -825,6 +825,8 @@ impl Editor {
     }
 
     fn set_scene(&mut self, mut scene: Scene, path: Option<PathBuf>) {
+        self.try_leave_preview_mode();
+
         // Discard previous scene.
         if let Some(previous_editor_scene) = self.scene.as_ref() {
             self.engine.scenes.remove(previous_editor_scene.scene);
@@ -1414,9 +1416,9 @@ impl Editor {
         }
     }
 
-    fn save_current_scene(&mut self, path: PathBuf) {
-        let engine = &mut self.engine;
+    fn try_leave_preview_mode(&mut self) {
         if let Some(editor_scene) = self.scene.as_mut() {
+            let engine = &mut self.engine;
             self.particle_system_control_panel
                 .leave_preview_mode(editor_scene, engine);
             self.audio_preview_panel
@@ -1425,7 +1427,14 @@ impl Editor {
                 .try_leave_preview_mode(editor_scene, engine);
             self.absm_editor
                 .try_leave_preview_mode(editor_scene, engine);
+        }
+    }
 
+    fn save_current_scene(&mut self, path: PathBuf) {
+        self.try_leave_preview_mode();
+
+        let engine = &mut self.engine;
+        if let Some(editor_scene) = self.scene.as_mut() {
             if !self.settings.recent.scenes.contains(&path) {
                 self.settings.recent.scenes.push(path.clone());
                 self.menu
@@ -1494,6 +1503,8 @@ impl Editor {
     }
 
     fn close_current_scene(&mut self) -> bool {
+        self.try_leave_preview_mode();
+
         let engine = &mut self.engine;
         if let Some(editor_scene) = self.scene.take() {
             engine.scenes.remove(editor_scene.scene);
