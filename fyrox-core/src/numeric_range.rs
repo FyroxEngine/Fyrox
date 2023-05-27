@@ -38,7 +38,11 @@ impl<T: Num + PartialOrd + SampleUniform + Copy> RangeExt<T> for Range<T> {
     fn random<R: Rng>(&self, rng: &mut R) -> T {
         let start = min(self.start, self.end);
         let end = max(self.start, self.end);
-        rng.gen_range(Range { start, end })
+        if start == end {
+            start
+        } else {
+            rng.gen_range(Range { start, end })
+        }
     }
 
     #[inline]
