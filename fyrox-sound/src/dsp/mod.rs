@@ -8,14 +8,24 @@
 //!
 //! `fc` - normalized frequency, i.e. `fc = 0.2` with `sample rate = 44100 Hz` will be `f = 8820 Hz`
 
-use fyrox_core::visitor::{Visit, VisitResult, Visitor};
+use fyrox_core::visitor::{PodVecView, Visit, VisitResult, Visitor};
 
 pub mod filters;
+
+#[derive(Debug, PartialEq, Clone)]
+struct SamplesContainer(pub Vec<f32>);
+
+impl Visit for SamplesContainer {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        PodVecView::from_pod_vec(&mut self.0).visit(name, visitor)
+    }
+}
 
 /// See more info here <https://ccrma.stanford.edu/~jos/pasp/Delay_Lines.html>
 #[derive(Debug, PartialEq, Clone, Visit)]
 pub struct DelayLine {
-    samples: Vec<f32>,
+    #[visit(optional)]
+    samples: SamplesContainer,
     last: f32,
     pos: u32,
 }
@@ -24,7 +34,7 @@ impl DelayLine {
     /// Creates new instance of delay line of given length in samples.
     pub fn new(len: usize) -> Self {
         Self {
-            samples: vec![0.0; len],
+            samples: SamplesContainer(vec![0.0; len]),
             last: 0.0,
             pos: 0,
         }
@@ -32,16 +42,16 @@ impl DelayLine {
 
     /// Returns length of delay line in samples.
     pub fn len(&self) -> usize {
-        self.samples.len()
+        self.samples.0.len()
     }
 
     /// Processes single sample.
     pub fn feed(&mut self, sample: f32) -> f32 {
-        self.last = self.samples[self.pos as usize];
-        self.samples[self.pos as usize] = sample;
+        self.last = self.samples.0[self.pos as usize];
+        self.samples.0[self.pos as usize] = sample;
         self.pos += 1;
-        if self.pos >= self.samples.len() as u32 {
-            self.pos -= self.samples.len() as u32
+        if self.pos >= self.samples.0.len() as u32 {
+            self.pos -= self.samples.0.len() as u32
         }
         self.last
     }
@@ -55,7 +65,7 @@ impl DelayLine {
 impl Default for DelayLine {
     fn default() -> Self {
         Self {
-            samples: vec![0.0],
+            samples: SamplesContainer(vec![0.0]),
             last: 0.0,
             pos: 0,
         }
