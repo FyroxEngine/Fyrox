@@ -5,7 +5,7 @@ use crate::{
             AddStateCommand, DeleteStateCommand, DeleteTransitionCommand,
             SetMachineEntryStateCommand,
         },
-        node::AbsmNode,
+        node::{AbsmNode, AbsmNodeMessage},
         selection::SelectedEntity,
         transition::TransitionView,
     },
@@ -91,6 +91,7 @@ pub struct NodeContextMenu {
     create_transition: Handle<UiNode>,
     remove: Handle<UiNode>,
     set_as_entry_state: Handle<UiNode>,
+    enter_state: Handle<UiNode>,
     pub menu: RcUiNodeHandle,
     pub canvas: Handle<UiNode>,
     placement_target: Handle<UiNode>,
@@ -101,6 +102,7 @@ impl NodeContextMenu {
         let create_transition;
         let remove;
         let set_as_entry_state;
+        let enter_state;
         let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
             .with_content(
                 StackPanelBuilder::new(
@@ -117,6 +119,10 @@ impl NodeContextMenu {
                             set_as_entry_state =
                                 create_menu_item("Set As Entry State", vec![], ctx);
                             set_as_entry_state
+                        })
+                        .with_child({
+                            enter_state = create_menu_item("Enter State", vec![], ctx);
+                            enter_state
                         }),
                 )
                 .build(ctx),
@@ -131,6 +137,7 @@ impl NodeContextMenu {
             canvas: Default::default(),
             placement_target: Default::default(),
             set_as_entry_state,
+            enter_state,
         }
     }
 
@@ -222,6 +229,11 @@ impl NodeContextMenu {
                         .unwrap()
                         .model_handle,
                 });
+            } else if message.destination == self.enter_state {
+                ui.send_message(AbsmNodeMessage::enter(
+                    self.placement_target,
+                    MessageDirection::FromWidget,
+                ));
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == *self.menu {
