@@ -281,6 +281,7 @@ where
     T: ResourceData + TypeUuidProvider,
 {
     /// Creates new resource in pending state.
+    #[inline]
     pub fn new_pending(path: PathBuf) -> Self {
         Self {
             state: Some(UntypedResource::new_pending(
@@ -292,6 +293,7 @@ where
     }
 
     /// Creates new resource in ok state (fully loaded).
+    #[inline]
     pub fn new_ok(data: T) -> Self {
         Self {
             state: Some(UntypedResource::new_ok(data)),
@@ -300,6 +302,7 @@ where
     }
 
     /// Creates new resource in error state.
+    #[inline]
     pub fn new_load_error(path: PathBuf, error: Option<Arc<dyn ResourceLoadError>>) -> Self {
         Self {
             state: Some(UntypedResource::new_load_error(
@@ -345,8 +348,21 @@ where
     }
 
     /// Returns true if the resource is still loading.
+    #[inline]
     pub fn is_loading(&self) -> bool {
         matches!(*self.state_inner(), ResourceState::Pending { .. })
+    }
+
+    /// Returns true if the resource is fully loaded and ready for use.
+    #[inline]
+    pub fn is_ok(&self) -> bool {
+        matches!(*self.state_inner(), ResourceState::Ok(_))
+    }
+
+    /// Returns true if the resource is failed to load.
+    #[inline]
+    pub fn is_failed_to_load(&self) -> bool {
+        matches!(*self.state_inner(), ResourceState::LoadError { .. })
     }
 
     /// Returns exact amount of users of the resource.
@@ -362,6 +378,7 @@ where
     }
 
     /// Returns path of the resource.
+    #[inline]
     pub fn path(&self) -> PathBuf {
         self.state.as_ref().unwrap().0.lock().path().to_path_buf()
     }
