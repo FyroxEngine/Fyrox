@@ -57,6 +57,7 @@ use crate::{
 use fxhash::FxHashSet;
 use rapier3d::geometry::ColliderHandle;
 use std::{
+    any::Any,
     fmt::Debug,
     ops::{Index, IndexMut},
     sync::mpsc::{channel, Receiver, Sender},
@@ -1533,6 +1534,28 @@ impl Graph {
     {
         self.try_get_mut(node)
             .and_then(|node| node.try_get_script_mut())
+    }
+
+    /// Tries to borrow a node using the given handle and fetch a reference to a component of the given type
+    /// from the script of the node.
+    #[inline]
+    pub fn try_get_script_component_of<C>(&self, node: Handle<Node>) -> Option<&C>
+    where
+        C: Any,
+    {
+        self.try_get(node)
+            .and_then(|node| node.try_get_script_component())
+    }
+
+    /// Tries to borrow a node using the given handle and fetch a reference to a component of the given type
+    /// from the script of the node.
+    #[inline]
+    pub fn try_get_script_component_of_mut<C>(&mut self, node: Handle<Node>) -> Option<&mut C>
+    where
+        C: Any,
+    {
+        self.try_get_mut(node)
+            .and_then(|node| node.try_get_script_component_mut())
     }
 }
 

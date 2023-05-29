@@ -20,6 +20,7 @@ use crate::{
     script::{Script, ScriptTrait},
 };
 use std::{
+    any::Any,
     cell::Cell,
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
@@ -783,6 +784,28 @@ impl Base {
     #[inline]
     pub fn try_get_script<T: ScriptTrait>(&self) -> Option<&T> {
         self.script.as_ref().and_then(|s| s.cast::<T>())
+    }
+
+    /// Tries to fetch a reference to a component of the given type from the script of the node.
+    #[inline]
+    pub fn try_get_script_component<C>(&self) -> Option<&C>
+    where
+        C: Any,
+    {
+        self.script
+            .as_ref()
+            .and_then(|s| s.query_component_ref::<C>())
+    }
+
+    /// Tries to fetch a reference to a component of the given type from the script of the node.
+    #[inline]
+    pub fn try_get_script_component_mut<C>(&mut self) -> Option<&mut C>
+    where
+        C: Any,
+    {
+        self.script
+            .as_mut()
+            .and_then(|s| s.query_component_mut::<C>())
     }
 
     /// Tries to cast current script instance (if any) to given type and returns a mutable reference
