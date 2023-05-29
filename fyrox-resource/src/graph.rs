@@ -52,6 +52,15 @@ impl ResourceGraphNode {
             child.pretty_print(level + 1, out);
         }
     }
+
+    /// Iterates over each dependency graph node and applying the specific function to them.
+    pub fn for_each<F: FnMut(&UntypedResource)>(&self, func: &mut F) {
+        func(&self.resource);
+
+        for child in self.children.iter() {
+            child.for_each(func)
+        }
+    }
 }
 
 /// Resource dependency graph allows you to collect all dependencies of a resource in structured form.
@@ -70,6 +79,11 @@ impl ResourceDependencyGraph {
         Self {
             root: ResourceGraphNode::new(resource),
         }
+    }
+
+    /// Iterates over each dependency graph node and applying the specific function to them.
+    pub fn for_each<F: FnMut(&UntypedResource)>(&self, mut func: F) {
+        self.root.for_each(&mut func)
     }
 
     /// Prints the entire dependency graph into a string.
