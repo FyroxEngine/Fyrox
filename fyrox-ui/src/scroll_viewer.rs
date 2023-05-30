@@ -13,17 +13,21 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ScrollViewerMessage {
     Content(Handle<UiNode>),
     /// Adjusts vertical and horizontal scroll values so given node will be in "view box"
     /// of scroll viewer.
     BringIntoView(Handle<UiNode>),
+    VScrollSpeed(f32),
+    HScrollSpeed(f32),
 }
 
 impl ScrollViewerMessage {
     define_constructor!(ScrollViewerMessage:Content => fn content(Handle<UiNode>), layout: false);
-    define_constructor!(ScrollViewerMessage:BringIntoView=> fn bring_into_view(Handle<UiNode>), layout: true);
+    define_constructor!(ScrollViewerMessage:BringIntoView => fn bring_into_view(Handle<UiNode>), layout: true);
+    define_constructor!(ScrollViewerMessage:VScrollSpeed => fn v_scroll_speed(f32), layout: true);
+    define_constructor!(ScrollViewerMessage:HScrollSpeed => fn h_scroll_speed(f32), layout: true);
 }
 
 #[derive(Clone)]
@@ -33,27 +37,13 @@ pub struct ScrollViewer {
     pub scroll_panel: Handle<UiNode>,
     pub v_scroll_bar: Handle<UiNode>,
     pub h_scroll_bar: Handle<UiNode>,
+    pub v_scroll_speed: f32,
+    pub h_scroll_speed: f32,
 }
 
 crate::define_widget_deref!(ScrollViewer);
 
 impl ScrollViewer {
-    pub fn new(
-        widget: Widget,
-        content: Handle<UiNode>,
-        content_presenter: Handle<UiNode>,
-        v_scroll_bar: Handle<UiNode>,
-        h_scroll_bar: Handle<UiNode>,
-    ) -> Self {
-        Self {
-            widget,
-            content,
-            scroll_panel: content_presenter,
-            v_scroll_bar,
-            h_scroll_bar,
-        }
-    }
-
     pub fn content_presenter(&self) -> Handle<UiNode> {
         self.scroll_panel
     }
@@ -112,15 +102,21 @@ impl Control for ScrollViewer {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(WidgetMessage::MouseWheel { amount, .. }) = message.data::<WidgetMessage>() {
-            if self.v_scroll_bar.is_some() && !message.handled() {
-                if let Some(v_scroll_bar) = ui.node(self.v_scroll_bar).cast::<ScrollBar>() {
-                    let old_value = v_scroll_bar.value;
-                    let new_value = old_value - amount * 17.0;
+            if !message.handled() {
+                let (scroll_bar, scroll_speed) = if ui.keyboard_modifiers().shift {
+                    (self.h_scroll_bar, self.h_scroll_speed)
+                } else {
+                    (self.v_scroll_bar, self.v_scroll_speed)
+                };
+
+                if let Some(scroll_bar) = ui.node(scroll_bar).cast::<ScrollBar>() {
+                    let old_value = scroll_bar.value;
+                    let new_value = old_value - amount * scroll_speed;
                     if (old_value - new_value).abs() > f32::EPSILON {
                         message.set_handled(true);
                     }
                     ui.send_message(ScrollBarMessage::value(
-                        self.v_scroll_bar,
+                        scroll_bar.handle,
                         MessageDirection::ToWidget,
                         new_value,
                     ));
@@ -224,6 +220,24 @@ impl Control for ScrollViewer {
                             handle,
                         ));
                     }
+                    &ScrollViewerMessage::HScrollSpeed(speed) => {
+                        if self.h_scroll_speed != speed
+                            && message.direction() == MessageDirection::ToWidget
+                        {
+                            self.h_scroll_speed = speed;
+
+                            ui.send_message(message.reverse());
+                        }
+                    }
+                    &ScrollViewerMessage::VScrollSpeed(speed) => {
+                        if self.v_scroll_speed != speed
+                            && message.direction() == MessageDirection::ToWidget
+                        {
+                            self.v_scroll_speed = speed;
+
+                            ui.send_message(message.reverse());
+                        }
+                    }
                 }
             }
         }
@@ -237,6 +251,8 @@ pub struct ScrollViewerBuilder {
     v_scroll_bar: Option<Handle<UiNode>>,
     horizontal_scroll_allowed: bool,
     vertical_scroll_allowed: bool,
+    v_scroll_speed: f32,
+    h_scroll_speed: f32,
 }
 
 impl ScrollViewerBuilder {
@@ -248,6 +264,8 @@ impl ScrollViewerBuilder {
             v_scroll_bar: None,
             horizontal_scroll_allowed: false,
             vertical_scroll_allowed: true,
+            v_scroll_speed: 30.0,
+            h_scroll_speed: 30.0,
         }
     }
 
@@ -273,6 +291,16 @@ impl ScrollViewerBuilder {
 
     pub fn with_horizontal_scroll_allowed(mut self, value: bool) -> Self {
         self.horizontal_scroll_allowed = value;
+        self
+    }
+
+    pub fn with_v_scroll_speed(mut self, speed: f32) -> Self {
+        self.v_scroll_speed = speed;
+        self
+    }
+
+    pub fn with_h_scroll_speed(mut self, speed: f32) -> Self {
+        self.h_scroll_speed = speed;
         self
     }
 
@@ -322,6 +350,8 @@ impl ScrollViewerBuilder {
             v_scroll_bar,
             h_scroll_bar,
             scroll_panel: content_presenter,
+            v_scroll_speed: self.v_scroll_speed,
+            h_scroll_speed: self.h_scroll_speed,
         };
         ctx.add_node(UiNode::new(sv))
     }
