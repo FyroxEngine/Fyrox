@@ -19,8 +19,14 @@ use crate::{
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
-        color::Color, futures::executor::block_on, log::Log, make_relative_path, pool::Handle,
+        algebra::{UnitQuaternion, Vector3},
+        color::Color,
+        futures::executor::block_on,
+        log::Log,
+        make_relative_path,
+        pool::Handle,
         scope_profile,
+        sstorage::ImmutableString,
     },
     engine::Engine,
     gui::{
@@ -40,6 +46,15 @@ use fyrox::{
         wrap_panel::WrapPanelBuilder,
         BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
         UserInterface, VerticalAlignment, BRUSH_DARK,
+    },
+    material::{Material, PropertyValue, SharedMaterial},
+    resource::texture::Texture,
+    scene::{
+        base::BaseBuilder,
+        mesh::{
+            surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
+            MeshBuilder,
+        },
     },
 };
 use std::{
@@ -464,11 +479,40 @@ impl AssetBrowser {
                         sender,
                     )
                 }
-                AssetKind::Texture => self.inspector.inspect_resource_import_options(
-                    TextureImportOptionsHandler::new(&item.path),
-                    &mut engine.user_interface,
-                    sender,
-                ),
+                AssetKind::Texture => {
+                    let path = item.path.clone();
+                    let mut material = Material::standard_two_sides();
+                    Log::verify(material.set_property(
+                        &ImmutableString::new("diffuseTexture"),
+                        PropertyValue::Sampler {
+                            value: Some(engine.resource_manager.request::<Texture, _>(&path)),
+                            fallback: Default::default(),
+                        },
+                    ));
+                    let material = SharedMaterial::new(material);
+
+                    let graph = &mut engine.scenes[self.preview.scene()].graph;
+                    let quad = MeshBuilder::new(BaseBuilder::new())
+                        .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+                            SurfaceData::make_quad(
+                                &UnitQuaternion::from_axis_angle(
+                                    &Vector3::z_axis(),
+                                    180.0f32.to_radians(),
+                                )
+                                .to_homogeneous(),
+                            ),
+                        ))
+                        .with_material(material)
+                        .build()])
+                        .build(graph);
+                    self.preview.set_model(quad, engine);
+
+                    self.inspector.inspect_resource_import_options(
+                        TextureImportOptionsHandler::new(&path),
+                        &mut engine.user_interface,
+                        sender,
+                    )
+                }
                 AssetKind::Sound => self.inspector.inspect_resource_import_options(
                     SoundBufferImportOptionsHandler::new(&item.path),
                     &mut engine.user_interface,

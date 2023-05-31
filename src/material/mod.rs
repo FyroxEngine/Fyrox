@@ -427,6 +427,11 @@ impl Material {
         Self::from_shader(ShaderResource::standard(), None)
     }
 
+    /// Creates new instance of standard material that renders both sides of a face.
+    pub fn standard_two_sides() -> Self {
+        Self::from_shader(ShaderResource::standard_twosides(), None)
+    }
+
     /// Creates new instance of standard terrain material.
     pub fn standard_terrain() -> Self {
         Self::from_shader(ShaderResource::standard_terrain(), None)
