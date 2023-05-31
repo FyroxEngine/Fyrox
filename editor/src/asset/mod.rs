@@ -55,6 +55,7 @@ use fyrox::{
             surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
             MeshBuilder,
         },
+        sound::{SoundBuffer, SoundBuilder, Status},
     },
 };
 use std::{
@@ -513,11 +514,25 @@ impl AssetBrowser {
                         sender,
                     )
                 }
-                AssetKind::Sound => self.inspector.inspect_resource_import_options(
-                    SoundBufferImportOptionsHandler::new(&item.path),
-                    &mut engine.user_interface,
-                    sender,
-                ),
+                AssetKind::Sound => {
+                    let path = item.path.clone();
+                    if let Some(buffer) =
+                        block_on(engine.resource_manager.request::<SoundBuffer, _>(&path)).ok()
+                    {
+                        let graph = &mut engine.scenes[self.preview.scene()].graph;
+                        let sound = SoundBuilder::new(BaseBuilder::new())
+                            .with_buffer(Some(buffer))
+                            .with_status(Status::Playing)
+                            .build(graph);
+                        self.preview.set_model(sound, engine);
+                    }
+
+                    self.inspector.inspect_resource_import_options(
+                        SoundBufferImportOptionsHandler::new(&path),
+                        &mut engine.user_interface,
+                        sender,
+                    )
+                }
                 AssetKind::Shader => {
                     Log::warn("Implement me!");
                 }
