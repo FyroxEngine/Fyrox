@@ -253,7 +253,7 @@ impl RootMotionDropdownArea {
                             self.node_selector,
                             MessageDirection::ToWidget,
                             HierarchyNode::from_scene_node(
-                                scene.graph.get_root(),
+                                editor_scene.scene_content_root,
                                 editor_scene.editor_objects_root,
                                 &scene.graph,
                             ),
@@ -1012,7 +1012,7 @@ impl Toolbar {
                     self.node_selector,
                     MessageDirection::ToWidget,
                     HierarchyNode::from_scene_node(
-                        scene.graph.get_root(),
+                        editor_scene.scene_content_root,
                         editor_scene.editor_objects_root,
                         &scene.graph,
                     ),

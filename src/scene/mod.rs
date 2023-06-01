@@ -519,11 +519,11 @@ impl Scene {
 
     /// Creates deep copy of a scene, filter predicate allows you to filter out nodes
     /// by your criteria.
-    pub fn clone<F>(&self, filter: &mut F) -> (Self, NodeHandleMap)
+    pub fn clone<F>(&self, root: Handle<Node>, filter: &mut F) -> (Self, NodeHandleMap)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
-        let (graph, old_new_map) = self.graph.clone(filter);
+        let (graph, old_new_map) = self.graph.clone(root, filter);
 
         let mut lightmap = self.lightmap.clone();
         if let Some(lightmap) = lightmap.as_mut() {

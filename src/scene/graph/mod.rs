@@ -264,6 +264,23 @@ impl Graph {
         }
     }
 
+    /// Creates a new graph using a hierarchy of nodes specified by the `root`.
+    pub fn from_hierarchy(root: Handle<Node>, other_graph: &Self) -> Self {
+        let mut graph = Self::default();
+        other_graph.copy_node(root, &mut graph, &mut |_, _| true);
+        graph
+    }
+
+    /// Sets new root of the graph and attaches the old root to the new root. Old root becomes a child
+    /// node of the new root.
+    pub fn change_root(&mut self, root: Node) {
+        let prev_root = self.root;
+        self.root = Handle::NONE;
+        let handle = self.add_node(root);
+        assert_eq!(self.root, handle);
+        self.link_nodes(prev_root, handle);
+    }
+
     /// Adds new node to the graph. Node will be transferred into implementation-defined
     /// storage and you'll get a handle to the node. Node will be automatically attached
     /// to root node of graph, it is required because graph can contain only one root.
@@ -273,9 +290,13 @@ impl Graph {
         node.children.clear();
         let has_script = node.script.is_some();
         let handle = self.pool.spawn(node);
-        if self.root.is_some() {
+
+        if self.root.is_none() {
+            self.root = handle;
+        } else {
             self.link_nodes(handle, self.root);
         }
+
         for child in children {
             self.link_nodes(child, handle);
         }
@@ -1408,7 +1429,7 @@ impl Graph {
     /// Creates deep copy of graph. Allows filtering while copying, returns copy and
     /// old-to-new node mapping.
     #[inline]
-    pub fn clone<F>(&self, filter: &mut F) -> (Self, NodeHandleMap)
+    pub fn clone<F>(&self, root: Handle<Node>, filter: &mut F) -> (Self, NodeHandleMap)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
@@ -1417,8 +1438,8 @@ impl Graph {
             ..Default::default()
         };
 
-        let (root, old_new_map) = self.copy_node(self.root, &mut copy, filter);
-        copy.root = root;
+        let (copy_root, old_new_map) = self.copy_node(root, &mut copy, filter);
+        assert_eq!(copy.root, copy_root);
         (copy, old_new_map)
     }
 

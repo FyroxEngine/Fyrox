@@ -61,6 +61,7 @@ impl InteractionMode for RotateInteractionMode {
             cursor_pos: mouse_pos,
             graph,
             editor_objects_root: editor_scene.editor_objects_root,
+            scene_content_root: editor_scene.scene_content_root,
             screen_size: frame_size,
             editor_only: true,
             filter: |handle, _| {
@@ -127,6 +128,7 @@ impl InteractionMode for RotateInteractionMode {
                     cursor_pos: mouse_pos,
                     graph,
                     editor_objects_root: editor_scene.editor_objects_root,
+                    scene_content_root: editor_scene.scene_content_root,
                     screen_size: frame_size,
                     editor_only: false,
                     filter: |_, _| true,

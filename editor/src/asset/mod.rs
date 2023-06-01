@@ -516,8 +516,8 @@ impl AssetBrowser {
                 }
                 AssetKind::Sound => {
                     let path = item.path.clone();
-                    if let Some(buffer) =
-                        block_on(engine.resource_manager.request::<SoundBuffer, _>(&path)).ok()
+                    if let Ok(buffer) =
+                        block_on(engine.resource_manager.request::<SoundBuffer, _>(&path))
                     {
                         let graph = &mut engine.scenes[self.preview.scene()].graph;
                         let sound = SoundBuilder::new(BaseBuilder::new())

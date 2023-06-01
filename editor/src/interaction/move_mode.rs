@@ -184,6 +184,7 @@ impl MoveContext {
                 cursor_pos: mouse_position,
                 graph,
                 editor_objects_root: editor_scene.editor_objects_root,
+                scene_content_root: editor_scene.scene_content_root,
                 screen_size: frame_size,
                 editor_only: false,
                 filter: |handle, _| !preview_nodes.contains(&handle),
@@ -292,6 +293,7 @@ impl InteractionMode for MoveInteractionMode {
             cursor_pos: mouse_pos,
             graph,
             editor_objects_root: editor_scene.editor_objects_root,
+            scene_content_root: editor_scene.scene_content_root,
             screen_size: frame_size,
             editor_only: true,
             filter: |handle, _| {
@@ -367,6 +369,7 @@ impl InteractionMode for MoveInteractionMode {
                     cursor_pos: mouse_pos,
                     graph: &scene.graph,
                     editor_objects_root: editor_scene.editor_objects_root,
+                    scene_content_root: editor_scene.scene_content_root,
                     screen_size: frame_size,
                     editor_only: false,
                     filter: |_, _| true,

@@ -40,6 +40,7 @@ pub struct EditorScene {
     pub scene: Handle<Scene>,
     // Handle to a root for all editor nodes.
     pub editor_objects_root: Handle<Node>,
+    pub scene_content_root: Handle<Node>,
     pub selection: Selection,
     pub clipboard: Clipboard,
     pub camera_controller: CameraController,
@@ -60,10 +61,16 @@ impl EditorScene {
         path: Option<PathBuf>,
         settings: &Settings,
     ) -> Self {
-        let root = PivotBuilder::new(BaseBuilder::new()).build(&mut scene.graph);
+        let scene_content_root = scene.graph.get_root();
+
+        scene
+            .graph
+            .change_root(PivotBuilder::new(BaseBuilder::new()).build_node());
+
+        let editor_objects_root = PivotBuilder::new(BaseBuilder::new()).build(&mut scene.graph);
         let camera_controller = CameraController::new(
             &mut scene.graph,
-            root,
+            editor_objects_root,
             path.as_ref()
                 .and_then(|p| settings.camera.camera_settings.get(p)),
         );
@@ -74,7 +81,8 @@ impl EditorScene {
 
         EditorScene {
             path,
-            editor_objects_root: root,
+            editor_objects_root,
+            scene_content_root,
             camera_controller,
             scene: engine.scenes.add(scene),
             selection: Default::default(),
@@ -97,7 +105,8 @@ impl EditorScene {
         let scene = &mut engine.scenes[self.scene];
 
         let editor_root = self.editor_objects_root;
-        let (pure_scene, _) = scene.clone(&mut |node, _| node != editor_root);
+        let (pure_scene, _) =
+            scene.clone(self.scene_content_root, &mut |node, _| node != editor_root);
 
         pure_scene
     }
@@ -275,7 +284,7 @@ impl EditorScene {
 
         // Draw pivots.
         draw_recursively(
-            scene.graph.get_root(),
+            self.scene_content_root,
             &scene.graph,
             &mut scene.drawing_context,
             self,

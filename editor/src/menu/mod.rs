@@ -171,7 +171,7 @@ impl Menu {
             self.create_entity_menu.handle_ui_message(
                 message,
                 &self.message_sender,
-                ctx.engine.scenes[scene.scene].graph.get_root(),
+                scene.scene_content_root,
             );
         }
 

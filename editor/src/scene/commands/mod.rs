@@ -135,7 +135,11 @@ pub fn make_delete_selection_command(editor_scene: &EditorScene, engine: &Engine
     } else {
         Default::default()
     };
-    if let Some(root_position) = selection.nodes.iter().position(|&n| n == graph.get_root()) {
+    if let Some(root_position) = selection
+        .nodes
+        .iter()
+        .position(|&n| n == editor_scene.scene_content_root)
+    {
         selection.nodes.remove(root_position);
     }
 
