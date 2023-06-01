@@ -552,7 +552,7 @@ impl TrackList {
                         .with_title(WindowTitle::text("Select a Node To Animate")),
                 )
                 .with_hierarchy(HierarchyNode::from_scene_node(
-                    scene.graph.get_root(),
+                    editor_scene.scene_content_root,
                     editor_scene.editor_objects_root,
                     &scene.graph,
                 ))

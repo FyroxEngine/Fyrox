@@ -72,6 +72,7 @@ where
     pub cursor_pos: Vector2<f32>,
     pub graph: &'a Graph,
     pub editor_objects_root: Handle<Node>,
+    pub scene_content_root: Handle<Node>,
     pub screen_size: Vector2<f32>,
     pub editor_only: bool,
     pub filter: F,
@@ -377,6 +378,7 @@ impl CameraController {
             cursor_pos,
             graph,
             editor_objects_root,
+            scene_content_root,
             screen_size,
             editor_only,
             mut filter,
@@ -395,7 +397,7 @@ impl CameraController {
                 self.stack.push(editor_objects_root);
                 &mut self.editor_context
             } else {
-                self.stack.push(graph.get_root());
+                self.stack.push(scene_content_root);
                 &mut self.scene_context
             };
 
@@ -415,7 +417,7 @@ impl CameraController {
                     continue;
                 }
 
-                if handle != graph.get_root() {
+                if handle != scene_content_root {
                     let object_space_ray =
                         ray.transform(node.global_transform().try_inverse().unwrap_or_default());
 

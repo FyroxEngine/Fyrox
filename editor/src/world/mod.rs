@@ -366,7 +366,7 @@ impl WorldViewer {
         if let Selection::Graph(selection) = &editor_scene.selection {
             if let Some(&first_selected) = selection.nodes().first() {
                 let mut node_handle = first_selected;
-                while node_handle.is_some() {
+                while node_handle.is_some() && node_handle != scene.graph.get_root() {
                     let node = &scene.graph[node_handle];
 
                     let view = ui.find_by_criteria_down(self.tree_root, &|n| {
@@ -386,7 +386,8 @@ impl WorldViewer {
     fn sync_graph(&mut self, ui: &mut UserInterface, editor_scene: &EditorScene, graph: &Graph) {
         // Sync tree structure with graph structure.
         self.stack.clear();
-        self.stack.push((self.tree_root, graph.get_root()));
+        self.stack
+            .push((self.tree_root, editor_scene.scene_content_root));
         while let Some((tree_handle, node_handle)) = self.stack.pop() {
             // Hide all editor nodes.
             if node_handle == editor_scene.editor_objects_root {

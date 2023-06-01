@@ -996,9 +996,7 @@ impl Editor {
             } else if hot_key == key_bindings.paste {
                 if let Some(editor_scene) = self.scene.as_mut() {
                     if !editor_scene.clipboard.is_empty() {
-                        sender.do_scene_command(PasteCommand::new(
-                            engine.scenes[editor_scene.scene].graph.get_root(),
-                        ));
+                        sender.do_scene_command(PasteCommand::new(editor_scene.scene_content_root));
                     }
                 }
             } else if hot_key == key_bindings.new_scene {
