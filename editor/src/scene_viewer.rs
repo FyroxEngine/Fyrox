@@ -639,6 +639,11 @@ impl SceneViewer {
                                                 // Instantiate the model.
                                                 let instance = model.instantiate(scene);
 
+                                                scene.graph.link_nodes(
+                                                    instance,
+                                                    editor_scene.scene_content_root,
+                                                );
+
                                                 scene.graph[instance]
                                                     .local_transform_mut()
                                                     .set_scale(settings.model.instantiation_scale);
