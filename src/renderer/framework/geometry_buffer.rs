@@ -316,7 +316,7 @@ impl GeometryBuffer {
 
         state.set_vertex_buffer_object(Some(buffer.id));
 
-        let size = data.len() * size_of::<T>();
+        let size = std::mem::size_of_val(data);
         let usage = buffer.kind as u32;
 
         unsafe {
@@ -382,7 +382,7 @@ pub struct BufferBuilder {
 impl BufferBuilder {
     pub fn new<T: Sized>(kind: GeometryBufferKind, data: Option<&[T]>) -> Self {
         let (data, data_size) = if let Some(data) = data {
-            (data as *const _ as *const u8, data.len() * size_of::<T>())
+            (data as *const _ as *const u8, std::mem::size_of_val(data))
         } else {
             (std::ptr::null(), 0)
         };
