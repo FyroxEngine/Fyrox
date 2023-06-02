@@ -30,6 +30,7 @@ use fyrox::{
     },
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
+        color::Color,
         log::Log,
         pool::Handle,
         reflect::ResolvePath,
@@ -38,6 +39,7 @@ use fyrox::{
     },
     fxhash::{FxHashMap, FxHashSet},
     gui::{
+        brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
         check_box::{CheckBoxBuilder, CheckBoxMessage},
         define_constructor,
@@ -56,7 +58,7 @@ use fyrox::{
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Control, NodeHandleMapping, Orientation, RcUiNodeHandle, Thickness, UiNode,
-        UserInterface, VerticalAlignment, BRUSH_BRIGHT,
+        UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_TEXT,
     },
     scene::{animation::AnimationPlayer, graph::Graph, node::Node, Scene},
 };
@@ -119,11 +121,13 @@ impl TrackContextMenu {
 pub enum TrackViewMessage {
     TrackEnabled(bool),
     TrackName(String),
+    TrackTargetIsValid(Result<(), String>),
 }
 
 impl TrackViewMessage {
     define_constructor!(TrackViewMessage:TrackEnabled => fn track_enabled(bool), layout: false);
     define_constructor!(TrackViewMessage:TrackName => fn track_name(String), layout: false);
+    define_constructor!(TrackViewMessage:TrackTargetIsValid => fn track_target_is_valid(Result<(), String>), layout: false);
 }
 
 #[derive(Clone)]
@@ -223,6 +227,37 @@ impl Control for TrackView {
                             MessageDirection::ToWidget,
                             name.clone(),
                         ));
+                    }
+                    TrackViewMessage::TrackTargetIsValid(result) => {
+                        ui.send_message(WidgetMessage::foreground(
+                            self.name_text,
+                            MessageDirection::ToWidget,
+                            if result.is_ok() {
+                                BRUSH_TEXT
+                            } else {
+                                Brush::Solid(Color::RED)
+                            },
+                        ));
+
+                        match result {
+                            Ok(_) => {
+                                ui.send_message(WidgetMessage::tooltip(
+                                    self.name_text,
+                                    MessageDirection::ToWidget,
+                                    None,
+                                ));
+                            }
+                            Err(reason) => {
+                                let tooltip =
+                                    make_simple_tooltip(&mut ui.build_ctx(), reason.as_str());
+
+                                ui.send_message(WidgetMessage::tooltip(
+                                    self.name_text,
+                                    MessageDirection::ToWidget,
+                                    Some(tooltip),
+                                ));
+                            }
+                        }
                     }
                 }
             }
@@ -1234,6 +1269,7 @@ impl TrackList {
                     );
                 }
 
+                let validation_result;
                 if let Some(target) = graph.try_get(track_model.target()) {
                     if track_view_ref.name != target.name() {
                         send_sync_message(
@@ -1245,7 +1281,22 @@ impl TrackList {
                             ),
                         );
                     }
+
+                    // TODO: Add property type validation here.
+                    validation_result = Ok(());
+                } else {
+                    validation_result =
+                        Err("Invalid handle. The target node does not exist!".to_owned());
                 }
+
+                send_sync_message(
+                    ui,
+                    TrackViewMessage::track_target_is_valid(
+                        *track_view,
+                        MessageDirection::ToWidget,
+                        validation_result,
+                    ),
+                );
             }
         }
     }
