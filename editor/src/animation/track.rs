@@ -118,10 +118,12 @@ impl TrackContextMenu {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TrackViewMessage {
     TrackEnabled(bool),
+    TrackName(String),
 }
 
 impl TrackViewMessage {
     define_constructor!(TrackViewMessage:TrackEnabled => fn track_enabled(bool), layout: false);
+    define_constructor!(TrackViewMessage:TrackName => fn track_name(String), layout: false);
 }
 
 #[derive(Clone)]
@@ -131,6 +133,7 @@ struct TrackView {
     target: Handle<Node>,
     track_enabled_switch: Handle<UiNode>,
     track_enabled: bool,
+    name_text: Handle<UiNode>,
 }
 
 impl Deref for TrackView {
@@ -196,20 +199,32 @@ impl Control for TrackView {
                     *value,
                 ));
             }
-        } else if let Some(TrackViewMessage::TrackEnabled(enabled)) = message.data() {
+        } else if let Some(msg) = message.data::<TrackViewMessage>() {
             if message.destination() == self.handle
                 && message.direction() == MessageDirection::ToWidget
-                && self.track_enabled != *enabled
             {
-                self.track_enabled = *enabled;
+                match msg {
+                    TrackViewMessage::TrackEnabled(enabled) => {
+                        if self.track_enabled != *enabled {
+                            self.track_enabled = *enabled;
 
-                ui.send_message(CheckBoxMessage::checked(
-                    self.track_enabled_switch,
-                    MessageDirection::ToWidget,
-                    Some(*enabled),
-                ));
+                            ui.send_message(CheckBoxMessage::checked(
+                                self.track_enabled_switch,
+                                MessageDirection::ToWidget,
+                                Some(*enabled),
+                            ));
 
-                ui.send_message(message.reverse());
+                            ui.send_message(message.reverse());
+                        }
+                    }
+                    TrackViewMessage::TrackName(name) => {
+                        ui.send_message(TextMessage::text(
+                            self.name_text,
+                            MessageDirection::ToWidget,
+                            name.clone(),
+                        ));
+                    }
+                }
             }
         }
     }
@@ -268,13 +283,16 @@ impl TrackViewBuilder {
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let name_text;
         let track_enabled_switch = CheckBoxBuilder::new(WidgetBuilder::new().with_height(18.0))
-            .with_content(
-                TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
-                    .with_text(self.name)
-                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                    .build(ctx),
-            )
+            .with_content({
+                name_text =
+                    TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
+                        .with_text(self.name)
+                        .with_vertical_text_alignment(VerticalAlignment::Center)
+                        .build(ctx);
+                name_text
+            })
             .checked(Some(self.track_enabled))
             .build(ctx);
 
@@ -287,6 +305,7 @@ impl TrackViewBuilder {
             target: self.target,
             track_enabled: self.track_enabled,
             track_enabled_switch,
+            name_text,
         };
 
         ctx.add_node(UiNode::new(track_view))
@@ -1213,6 +1232,19 @@ impl TrackList {
                             track_model.is_enabled(),
                         ),
                     );
+                }
+
+                if let Some(target) = graph.try_get(track_model.target()) {
+                    if track_view_ref.name != target.name() {
+                        send_sync_message(
+                            ui,
+                            TrackViewMessage::track_name(
+                                *track_view,
+                                MessageDirection::ToWidget,
+                                target.name_owned(),
+                            ),
+                        );
+                    }
                 }
             }
         }
