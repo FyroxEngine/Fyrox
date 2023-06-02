@@ -171,6 +171,10 @@ pub struct SubGraph {
 
     /// A set of descendant nodes with their tickets.
     pub descendants: Vec<(Ticket<Node>, Node)>,
+
+    /// A handle to the parent node from which the sub-graph was extracted (it it parent node of
+    /// the root of this sub-graph).
+    pub parent: Handle<Node>,
 }
 
 fn remap_handles(old_new_mapping: &NodeHandleMap, dest_graph: &mut Graph) {
@@ -1352,7 +1356,9 @@ impl Graph {
     pub fn take_reserve_sub_graph(&mut self, root: Handle<Node>) -> SubGraph {
         // Take out descendants first.
         let mut descendants = Vec::new();
-        let mut stack = self[root].children().to_vec();
+        let root_ref = &mut self[root];
+        let mut stack = root_ref.children().to_vec();
+        let parent = root_ref.parent;
         while let Some(handle) = stack.pop() {
             stack.extend_from_slice(self[handle].children());
             descendants.push(self.take_reserve_internal(handle));
@@ -1362,6 +1368,7 @@ impl Graph {
             // Root must be extracted with detachment from its parent (if any).
             root: self.take_reserve(root),
             descendants,
+            parent,
         }
     }
 
@@ -1377,7 +1384,7 @@ impl Graph {
         let (ticket, node) = sub_graph.root;
         let root_handle = self.put_back(ticket, node);
 
-        self.link_nodes(root_handle, self.root);
+        self.link_nodes(root_handle, sub_graph.parent);
 
         root_handle
     }
