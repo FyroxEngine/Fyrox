@@ -1730,6 +1730,12 @@ impl UserInterface {
                                 node.set_context_menu(context_menu.clone());
                             }
                         }
+                        WidgetMessage::Tooltip(tooltip) => {
+                            if message.destination().is_some() {
+                                let node = self.nodes.borrow_mut(message.destination());
+                                node.set_tooltip(tooltip.clone());
+                            }
+                        }
                         WidgetMessage::Center => {
                             if message.destination().is_some() {
                                 let node = self.node(message.destination());

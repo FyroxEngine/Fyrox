@@ -284,8 +284,13 @@ pub enum WidgetMessage {
     /// A double click of a mouse button has occurred on a widget.
     DoubleClick { button: MouseButton },
 
-    /// A request to set new context menu for a widget. Old context menu will be removed.
+    /// A request to set new context menu for a widget. Old context menu will be removed only if its
+    /// reference counter was 1.
     ContextMenu(Option<RcUiNodeHandle>),
+
+    /// A request to set new tooltip for a widget. Old tooltip will be removed only if its reference
+    /// counter was 1.
+    Tooltip(Option<RcUiNodeHandle>),
 }
 
 impl WidgetMessage {
@@ -319,6 +324,7 @@ impl WidgetMessage {
     define_constructor!(WidgetMessage:LayoutTransform => fn layout_transform(Matrix3<f32>), layout: false);
     define_constructor!(WidgetMessage:RenderTransform => fn render_transform(Matrix3<f32>), layout: false);
     define_constructor!(WidgetMessage:ContextMenu => fn context_menu(Option<RcUiNodeHandle>), layout: false);
+    define_constructor!(WidgetMessage:Tooltip => fn tooltip(Option<RcUiNodeHandle>), layout: false);
     define_constructor!(WidgetMessage:Focus => fn focus(), layout: false);
     define_constructor!(WidgetMessage:Unfocus => fn unfocus(), layout: false);
 
