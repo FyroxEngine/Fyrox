@@ -586,3 +586,39 @@ impl Command for SetTrackEnabledCommand {
         self.swap(context)
     }
 }
+
+#[derive(Debug)]
+pub struct SetTrackTargetCommand {
+    pub animation_player_handle: Handle<Node>,
+    pub animation_handle: Handle<Animation>,
+    pub track: Uuid,
+    pub target: Handle<Node>,
+}
+
+impl SetTrackTargetCommand {
+    fn swap(&mut self, context: &mut SceneContext) {
+        let track = fetch_animation(self.animation_player_handle, self.animation_handle, context)
+            .tracks_mut()
+            .iter_mut()
+            .find(|t| t.id() == self.track)
+            .unwrap();
+
+        let old = track.target();
+        track.set_target(self.target);
+        self.target = old;
+    }
+}
+
+impl Command for SetTrackTargetCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Set Track Target".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+}

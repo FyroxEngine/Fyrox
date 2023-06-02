@@ -1,14 +1,16 @@
 #![allow(clippy::manual_map)]
 
-use crate::message::MessageSender;
 use crate::{
     animation::{
-        command::{AddTrackCommand, RemoveTrackCommand, SetTrackEnabledCommand},
+        command::{
+            AddTrackCommand, RemoveTrackCommand, SetTrackEnabledCommand, SetTrackTargetCommand,
+        },
         selection::{AnimationSelection, SelectedEntity},
     },
     gui::make_image_button_with_tooltip,
     load_image,
     menu::create_menu_item,
+    message::MessageSender,
     scene::{
         commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
         property::{
@@ -78,23 +80,38 @@ enum PropertyBindingMode {
 struct TrackContextMenu {
     menu: RcUiNodeHandle,
     remove_track: Handle<UiNode>,
+    set_target: Handle<UiNode>,
+    target_node_selector: Handle<UiNode>,
 }
 
 impl TrackContextMenu {
     fn new(ctx: &mut BuildContext) -> Self {
         let remove_track;
+        let set_target;
         let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
             .with_content(
-                StackPanelBuilder::new(WidgetBuilder::new().with_child({
-                    remove_track = create_menu_item("Remove Selected Tracks", vec![], ctx);
-                    remove_track
-                }))
+                StackPanelBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child({
+                            remove_track = create_menu_item("Remove Selected Tracks", vec![], ctx);
+                            remove_track
+                        })
+                        .with_child({
+                            set_target = create_menu_item("Set Target...", vec![], ctx);
+                            set_target
+                        }),
+                )
                 .build(ctx),
             )
             .build(ctx);
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
-        Self { menu, remove_track }
+        Self {
+            menu,
+            remove_track,
+            set_target,
+            target_node_selector: Default::default(),
+        }
     }
 }
 
@@ -608,15 +625,16 @@ impl TrackList {
         } else if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.node_selector
                 || message.destination() == self.property_selector
+                || message.destination() == self.context_menu.target_node_selector
             {
                 ui.send_message(WidgetMessage::remove(
                     message.destination(),
                     MessageDirection::ToWidget,
                 ));
             }
-        } else if let Some(NodeSelectorMessage::Selection(selection)) = message.data() {
+        } else if let Some(NodeSelectorMessage::Selection(node_selection)) = message.data() {
             if message.destination() == self.node_selector {
-                if let Some(first) = selection.first() {
+                if let Some(first) = node_selection.first() {
                     self.selected_node = *first;
 
                     match self.property_binding_mode {
@@ -682,6 +700,25 @@ impl TrackList {
                                 Track::new_scale().with_target(self.selected_node),
                             ));
                         }
+                    }
+                }
+            } else if message.destination() == self.context_menu.target_node_selector {
+                if let Selection::Animation(ref scene_selection) = editor_scene.selection {
+                    if let Some(first) = node_selection.first() {
+                        let mut commands = Vec::new();
+
+                        for entity in scene_selection.entities.iter() {
+                            if let SelectedEntity::Track(id) = entity {
+                                commands.push(SceneCommand::new(SetTrackTargetCommand {
+                                    animation_player_handle: scene_selection.animation_player,
+                                    animation_handle: scene_selection.animation,
+                                    track: *id,
+                                    target: *first,
+                                }));
+                            }
+                        }
+
+                        sender.do_scene_command(CommandGroup::from(commands));
                     }
                 }
             }
@@ -901,6 +938,23 @@ impl TrackList {
                         }
                     }
                 }
+            } else if message.destination() == self.context_menu.set_target {
+                self.context_menu.target_node_selector = NodeSelectorWindowBuilder::new(
+                    WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+                        .with_title(WindowTitle::text("Select a New Target Node")),
+                )
+                .with_hierarchy(HierarchyNode::from_scene_node(
+                    editor_scene.scene_content_root,
+                    editor_scene.editor_objects_root,
+                    &scene.graph,
+                ))
+                .build(&mut ui.build_ctx());
+
+                ui.send_message(WindowMessage::open_modal(
+                    self.context_menu.target_node_selector,
+                    MessageDirection::ToWidget,
+                    true,
+                ));
             }
         } else if let Some(TrackViewMessage::TrackEnabled(enabled)) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
