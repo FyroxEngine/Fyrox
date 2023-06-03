@@ -21,6 +21,7 @@ use crate::{
     },
     send_sync_message, utils,
 };
+use fyrox::core::reflect::Reflect;
 use fyrox::{
     animation::{
         container::{TrackDataContainer, TrackValueKind},
@@ -117,6 +118,105 @@ impl TrackContextMenu {
     }
 }
 
+fn type_id_to_supported_type(property_type: TypeId) -> Option<(TrackValueKind, ValueType)> {
+    if property_type == TypeId::of::<f32>() {
+        Some((TrackValueKind::Real, ValueType::F32))
+    } else if property_type == TypeId::of::<f64>() {
+        Some((TrackValueKind::Real, ValueType::F64))
+    } else if property_type == TypeId::of::<u64>() {
+        Some((TrackValueKind::Real, ValueType::U64))
+    } else if property_type == TypeId::of::<i64>() {
+        Some((TrackValueKind::Real, ValueType::I64))
+    } else if property_type == TypeId::of::<u32>() {
+        Some((TrackValueKind::Real, ValueType::U32))
+    } else if property_type == TypeId::of::<i32>() {
+        Some((TrackValueKind::Real, ValueType::I32))
+    } else if property_type == TypeId::of::<u16>() {
+        Some((TrackValueKind::Real, ValueType::U16))
+    } else if property_type == TypeId::of::<i16>() {
+        Some((TrackValueKind::Real, ValueType::I16))
+    } else if property_type == TypeId::of::<u8>() {
+        Some((TrackValueKind::Real, ValueType::U8))
+    } else if property_type == TypeId::of::<i8>() {
+        Some((TrackValueKind::Real, ValueType::I8))
+    } else if property_type == TypeId::of::<bool>() {
+        Some((TrackValueKind::Real, ValueType::Bool))
+    } else if property_type == TypeId::of::<Vector2<f32>>() {
+        Some((TrackValueKind::Vector2, ValueType::Vector2F32))
+    } else if property_type == TypeId::of::<Vector2<f64>>() {
+        Some((TrackValueKind::Vector2, ValueType::Vector2F64))
+    } else if property_type == TypeId::of::<Vector2<u64>>() {
+        Some((TrackValueKind::Vector2, ValueType::Vector2U64))
+    } else if property_type == TypeId::of::<Vector2<i64>>() {
+        Some((TrackValueKind::Vector2, ValueType::Vector2I64))
+    } else if property_type == TypeId::of::<Vector2<u32>>() {
+        Some((TrackValueKind::Vector2, ValueType::Vector2U32))
+    } else if property_type == TypeId::of::<Vector2<i32>>() {
+        Some((TrackValueKind::Vector2, ValueType::Vector2I32))
+    } else if property_type == TypeId::of::<Vector2<u16>>() {
+        Some((TrackValueKind::Vector2, ValueType::Vector2U16))
+    } else if property_type == TypeId::of::<Vector2<i16>>() {
+        Some((TrackValueKind::Vector2, ValueType::Vector2I16))
+    } else if property_type == TypeId::of::<Vector2<u8>>() {
+        Some((TrackValueKind::Vector2, ValueType::Vector2U8))
+    } else if property_type == TypeId::of::<Vector2<i8>>() {
+        Some((TrackValueKind::Vector2, ValueType::Vector2I8))
+    } else if property_type == TypeId::of::<Vector2<bool>>() {
+        Some((TrackValueKind::Vector2, ValueType::Vector2Bool))
+    } else if property_type == TypeId::of::<Vector3<f32>>() {
+        Some((TrackValueKind::Vector3, ValueType::Vector3F32))
+    } else if property_type == TypeId::of::<Vector3<f64>>() {
+        Some((TrackValueKind::Vector3, ValueType::Vector3F64))
+    } else if property_type == TypeId::of::<Vector3<u64>>() {
+        Some((TrackValueKind::Vector3, ValueType::Vector3U64))
+    } else if property_type == TypeId::of::<Vector3<i64>>() {
+        Some((TrackValueKind::Vector3, ValueType::Vector3I64))
+    } else if property_type == TypeId::of::<Vector3<u32>>() {
+        Some((TrackValueKind::Vector3, ValueType::Vector3U32))
+    } else if property_type == TypeId::of::<Vector3<i32>>() {
+        Some((TrackValueKind::Vector3, ValueType::Vector3I32))
+    } else if property_type == TypeId::of::<Vector3<u16>>() {
+        Some((TrackValueKind::Vector3, ValueType::Vector3U16))
+    } else if property_type == TypeId::of::<Vector3<i16>>() {
+        Some((TrackValueKind::Vector3, ValueType::Vector3I16))
+    } else if property_type == TypeId::of::<Vector3<u8>>() {
+        Some((TrackValueKind::Vector3, ValueType::Vector3U8))
+    } else if property_type == TypeId::of::<Vector3<i8>>() {
+        Some((TrackValueKind::Vector3, ValueType::Vector3I8))
+    } else if property_type == TypeId::of::<Vector3<bool>>() {
+        Some((TrackValueKind::Vector3, ValueType::Vector3Bool))
+    } else if property_type == TypeId::of::<Vector4<f32>>() {
+        Some((TrackValueKind::Vector4, ValueType::Vector4F32))
+    } else if property_type == TypeId::of::<Vector4<f64>>() {
+        Some((TrackValueKind::Vector4, ValueType::Vector4F64))
+    } else if property_type == TypeId::of::<Vector4<u64>>() {
+        Some((TrackValueKind::Vector4, ValueType::Vector4U64))
+    } else if property_type == TypeId::of::<Vector4<i64>>() {
+        Some((TrackValueKind::Vector4, ValueType::Vector4I64))
+    } else if property_type == TypeId::of::<Vector4<u32>>() {
+        Some((TrackValueKind::Vector4, ValueType::Vector4U32))
+    } else if property_type == TypeId::of::<Vector4<i32>>() {
+        Some((TrackValueKind::Vector4, ValueType::Vector4I32))
+    } else if property_type == TypeId::of::<Vector4<u16>>() {
+        Some((TrackValueKind::Vector4, ValueType::Vector4U16))
+    } else if property_type == TypeId::of::<Vector4<i16>>() {
+        Some((TrackValueKind::Vector4, ValueType::Vector4I16))
+    } else if property_type == TypeId::of::<Vector4<u8>>() {
+        Some((TrackValueKind::Vector4, ValueType::Vector4U8))
+    } else if property_type == TypeId::of::<Vector4<i8>>() {
+        Some((TrackValueKind::Vector4, ValueType::Vector4I8))
+    } else if property_type == TypeId::of::<Vector4<bool>>() {
+        Some((TrackValueKind::Vector4, ValueType::Vector4Bool))
+    } else if property_type == TypeId::of::<UnitQuaternion<f32>>() {
+        Some((TrackValueKind::UnitQuaternion, ValueType::UnitQuaternionF32))
+    } else if property_type == TypeId::of::<UnitQuaternion<f64>>() {
+        Some((TrackValueKind::UnitQuaternion, ValueType::UnitQuaternionF64))
+    } else {
+        None
+    }
+}
+
+#[allow(clippy::enum_variant_names)] // GTFO
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TrackViewMessage {
     TrackEnabled(bool),
@@ -788,107 +888,7 @@ impl TrackList {
                                 let mut property_type = TypeId::of::<u32>();
                                 property.as_any(&mut |any| property_type = any.type_id());
 
-                                let types = if property_type == TypeId::of::<f32>() {
-                                    Some((TrackValueKind::Real, ValueType::F32))
-                                } else if property_type == TypeId::of::<f64>() {
-                                    Some((TrackValueKind::Real, ValueType::F64))
-                                } else if property_type == TypeId::of::<u64>() {
-                                    Some((TrackValueKind::Real, ValueType::U64))
-                                } else if property_type == TypeId::of::<i64>() {
-                                    Some((TrackValueKind::Real, ValueType::I64))
-                                } else if property_type == TypeId::of::<u32>() {
-                                    Some((TrackValueKind::Real, ValueType::U32))
-                                } else if property_type == TypeId::of::<i32>() {
-                                    Some((TrackValueKind::Real, ValueType::I32))
-                                } else if property_type == TypeId::of::<u16>() {
-                                    Some((TrackValueKind::Real, ValueType::U16))
-                                } else if property_type == TypeId::of::<i16>() {
-                                    Some((TrackValueKind::Real, ValueType::I16))
-                                } else if property_type == TypeId::of::<u8>() {
-                                    Some((TrackValueKind::Real, ValueType::U8))
-                                } else if property_type == TypeId::of::<i8>() {
-                                    Some((TrackValueKind::Real, ValueType::I8))
-                                } else if property_type == TypeId::of::<bool>() {
-                                    Some((TrackValueKind::Real, ValueType::Bool))
-                                } else if property_type == TypeId::of::<Vector2<f32>>() {
-                                    Some((TrackValueKind::Vector2, ValueType::Vector2F32))
-                                } else if property_type == TypeId::of::<Vector2<f64>>() {
-                                    Some((TrackValueKind::Vector2, ValueType::Vector2F64))
-                                } else if property_type == TypeId::of::<Vector2<u64>>() {
-                                    Some((TrackValueKind::Vector2, ValueType::Vector2U64))
-                                } else if property_type == TypeId::of::<Vector2<i64>>() {
-                                    Some((TrackValueKind::Vector2, ValueType::Vector2I64))
-                                } else if property_type == TypeId::of::<Vector2<u32>>() {
-                                    Some((TrackValueKind::Vector2, ValueType::Vector2U32))
-                                } else if property_type == TypeId::of::<Vector2<i32>>() {
-                                    Some((TrackValueKind::Vector2, ValueType::Vector2I32))
-                                } else if property_type == TypeId::of::<Vector2<u16>>() {
-                                    Some((TrackValueKind::Vector2, ValueType::Vector2U16))
-                                } else if property_type == TypeId::of::<Vector2<i16>>() {
-                                    Some((TrackValueKind::Vector2, ValueType::Vector2I16))
-                                } else if property_type == TypeId::of::<Vector2<u8>>() {
-                                    Some((TrackValueKind::Vector2, ValueType::Vector2U8))
-                                } else if property_type == TypeId::of::<Vector2<i8>>() {
-                                    Some((TrackValueKind::Vector2, ValueType::Vector2I8))
-                                } else if property_type == TypeId::of::<Vector2<bool>>() {
-                                    Some((TrackValueKind::Vector2, ValueType::Vector2Bool))
-                                } else if property_type == TypeId::of::<Vector3<f32>>() {
-                                    Some((TrackValueKind::Vector3, ValueType::Vector3F32))
-                                } else if property_type == TypeId::of::<Vector3<f64>>() {
-                                    Some((TrackValueKind::Vector3, ValueType::Vector3F64))
-                                } else if property_type == TypeId::of::<Vector3<u64>>() {
-                                    Some((TrackValueKind::Vector3, ValueType::Vector3U64))
-                                } else if property_type == TypeId::of::<Vector3<i64>>() {
-                                    Some((TrackValueKind::Vector3, ValueType::Vector3I64))
-                                } else if property_type == TypeId::of::<Vector3<u32>>() {
-                                    Some((TrackValueKind::Vector3, ValueType::Vector3U32))
-                                } else if property_type == TypeId::of::<Vector3<i32>>() {
-                                    Some((TrackValueKind::Vector3, ValueType::Vector3I32))
-                                } else if property_type == TypeId::of::<Vector3<u16>>() {
-                                    Some((TrackValueKind::Vector3, ValueType::Vector3U16))
-                                } else if property_type == TypeId::of::<Vector3<i16>>() {
-                                    Some((TrackValueKind::Vector3, ValueType::Vector3I16))
-                                } else if property_type == TypeId::of::<Vector3<u8>>() {
-                                    Some((TrackValueKind::Vector3, ValueType::Vector3U8))
-                                } else if property_type == TypeId::of::<Vector3<i8>>() {
-                                    Some((TrackValueKind::Vector3, ValueType::Vector3I8))
-                                } else if property_type == TypeId::of::<Vector3<bool>>() {
-                                    Some((TrackValueKind::Vector3, ValueType::Vector3Bool))
-                                } else if property_type == TypeId::of::<Vector4<f32>>() {
-                                    Some((TrackValueKind::Vector4, ValueType::Vector4F32))
-                                } else if property_type == TypeId::of::<Vector4<f64>>() {
-                                    Some((TrackValueKind::Vector4, ValueType::Vector4F64))
-                                } else if property_type == TypeId::of::<Vector4<u64>>() {
-                                    Some((TrackValueKind::Vector4, ValueType::Vector4U64))
-                                } else if property_type == TypeId::of::<Vector4<i64>>() {
-                                    Some((TrackValueKind::Vector4, ValueType::Vector4I64))
-                                } else if property_type == TypeId::of::<Vector4<u32>>() {
-                                    Some((TrackValueKind::Vector4, ValueType::Vector4U32))
-                                } else if property_type == TypeId::of::<Vector4<i32>>() {
-                                    Some((TrackValueKind::Vector4, ValueType::Vector4I32))
-                                } else if property_type == TypeId::of::<Vector4<u16>>() {
-                                    Some((TrackValueKind::Vector4, ValueType::Vector4U16))
-                                } else if property_type == TypeId::of::<Vector4<i16>>() {
-                                    Some((TrackValueKind::Vector4, ValueType::Vector4I16))
-                                } else if property_type == TypeId::of::<Vector4<u8>>() {
-                                    Some((TrackValueKind::Vector4, ValueType::Vector4U8))
-                                } else if property_type == TypeId::of::<Vector4<i8>>() {
-                                    Some((TrackValueKind::Vector4, ValueType::Vector4I8))
-                                } else if property_type == TypeId::of::<Vector4<bool>>() {
-                                    Some((TrackValueKind::Vector4, ValueType::Vector4Bool))
-                                } else if property_type == TypeId::of::<UnitQuaternion<f32>>() {
-                                    Some((
-                                        TrackValueKind::UnitQuaternion,
-                                        ValueType::UnitQuaternionF32,
-                                    ))
-                                } else if property_type == TypeId::of::<UnitQuaternion<f64>>() {
-                                    Some((
-                                        TrackValueKind::UnitQuaternion,
-                                        ValueType::UnitQuaternionF64,
-                                    ))
-                                } else {
-                                    None
-                                };
+                                let types = type_id_to_supported_type(property_type);
 
                                 if let Some((track_value_kind, actual_value_type)) = types {
                                     let mut track = Track::new(
@@ -1269,7 +1269,7 @@ impl TrackList {
                     );
                 }
 
-                let validation_result;
+                let mut validation_result = Ok(());
                 if let Some(target) = graph.try_get(track_model.target()) {
                     if track_view_ref.name != target.name() {
                         send_sync_message(
@@ -1282,8 +1282,34 @@ impl TrackList {
                         );
                     }
 
-                    // TODO: Add property type validation here.
-                    validation_result = Ok(());
+                    if let ValueBinding::Property { name, value_type } = track_model.binding() {
+                        target.resolve_path(name, &mut |result| match result {
+                            Ok(value) => {
+                                let mut property_type = TypeId::of::<u32>();
+                                value.as_any(&mut |any| property_type = any.type_id());
+
+                                if let Some((_, type_)) = type_id_to_supported_type(property_type) {
+                                    if *value_type != type_ {
+                                        validation_result = Err(format!(
+                                            "Property type mismatch. Expected {:?}, got {:?}",
+                                            value_type, type_
+                                        ));
+                                    }
+                                } else {
+                                    validation_result = Err(format!(
+                                        "Unsupported property type of {:?} type id.",
+                                        property_type
+                                    ));
+                                }
+                            }
+                            Err(err) => {
+                                validation_result = Err(format!(
+                                    "Unable to resolve property path {}. Reason: {:?}",
+                                    name, err
+                                ));
+                            }
+                        });
+                    }
                 } else {
                     validation_result =
                         Err("Invalid handle. The target node does not exist!".to_owned());
