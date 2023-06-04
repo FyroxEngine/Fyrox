@@ -199,6 +199,11 @@ impl Curve {
     }
 
     #[inline]
+    pub fn keys_values(&mut self) -> impl Iterator<Item = &mut f32> {
+        self.keys.iter_mut().map(|k| &mut k.value)
+    }
+
+    #[inline]
     pub fn add_key(&mut self, new_key: CurveKey) {
         let pos = self.keys.partition_point(|k| k.location < new_key.location);
         self.keys.insert(pos, new_key);
