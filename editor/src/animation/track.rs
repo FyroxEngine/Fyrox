@@ -1253,6 +1253,14 @@ impl TrackList {
                     any_track_selected,
                 ),
             );
+            send_sync_message(
+                ui,
+                WidgetMessage::enabled(
+                    self.context_menu.set_target,
+                    MessageDirection::ToWidget,
+                    any_track_selected,
+                ),
+            );
         }
 
         for track_model in animation.tracks() {
@@ -1271,16 +1279,28 @@ impl TrackList {
 
                 let mut validation_result = Ok(());
                 if let Some(target) = graph.try_get(track_model.target()) {
-                    if track_view_ref.name != target.name() {
+                    if let Some(parent_group) = self.group_views.get(&track_model.target()) {
                         send_sync_message(
                             ui,
-                            TrackViewMessage::track_name(
-                                *track_view,
+                            TextMessage::text(
+                                ui.node(*parent_group)
+                                    .query_component::<Tree>()
+                                    .unwrap()
+                                    .content,
                                 MessageDirection::ToWidget,
                                 target.name_owned(),
                             ),
                         );
                     }
+
+                    send_sync_message(
+                        ui,
+                        TrackViewMessage::track_name(
+                            *track_view,
+                            MessageDirection::ToWidget,
+                            format!("{}", track_model.binding()),
+                        ),
+                    );
 
                     if let ValueBinding::Property { name, value_type } = track_model.binding() {
                         target.resolve_path(name, &mut |result| match result {
