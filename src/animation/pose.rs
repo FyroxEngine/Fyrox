@@ -32,14 +32,6 @@ impl Default for NodePose {
 }
 
 impl NodePose {
-    /// Performs a weighted cloning of the pose. See [`super::value::TrackValue::weighted_clone`] docs for more info.
-    fn weighted_clone(&self, weight: f32) -> Self {
-        Self {
-            node: self.node,
-            values: self.values.weighted_clone(weight),
-        }
-    }
-
     /// Performs a blending of the current with some other pose. See [`super::value::TrackValue::blend_with`] docs for more
     /// info.
     pub fn blend_with(&mut self, other: &NodePose, weight: f32) {
@@ -76,15 +68,13 @@ impl AnimationPose {
     }
 
     /// Blends current animation pose with another using a weight coefficient. Missing node poses (from either animation poses)
-    /// will become a weighted copies of a respective node pose.
+    /// will become a simple copies of a respective node pose.
     pub fn blend_with(&mut self, other: &AnimationPose, weight: f32) {
         for (handle, other_pose) in other.poses.iter() {
             if let Some(current_pose) = self.poses.get_mut(handle) {
                 current_pose.blend_with(other_pose, weight);
             } else {
-                // There are no corresponding local pose, do fake blend between identity
-                // pose and other.
-                self.add_node_pose(other_pose.weighted_clone(weight));
+                self.add_node_pose(other_pose.clone());
             }
         }
 

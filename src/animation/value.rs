@@ -143,42 +143,16 @@ pub enum TrackValue {
 }
 
 impl TrackValue {
-    /// Clones the value and applies the given weight to it.
-    pub fn weighted_clone(&self, weight: f32) -> Self {
-        match self {
-            TrackValue::Real(v) => TrackValue::Real(*v * weight),
-            TrackValue::Vector2(v) => TrackValue::Vector2(v.scale(weight)),
-            TrackValue::Vector3(v) => TrackValue::Vector3(v.scale(weight)),
-            TrackValue::Vector4(v) => TrackValue::Vector4(v.scale(weight)),
-            TrackValue::UnitQuaternion(v) => TrackValue::UnitQuaternion(*v),
-        }
-    }
-
     /// Mixes (blends) the current value with an other value using the given weight. Blending is possible only if the types
     /// are the same.
     pub fn blend_with(&mut self, other: &Self, weight: f32) {
         match (self, other) {
-            (Self::Real(a), Self::Real(b)) => *a += *b * weight,
-            (Self::Vector2(a), Self::Vector2(b)) => *a += b.scale(weight),
-            (Self::Vector3(a), Self::Vector3(b)) => *a += b.scale(weight),
-            (Self::Vector4(a), Self::Vector4(b)) => *a += b.scale(weight),
+            (Self::Real(a), Self::Real(b)) => *a = lerpf(*a, *b, weight),
+            (Self::Vector2(a), Self::Vector2(b)) => *a = a.lerp(b, weight),
+            (Self::Vector3(a), Self::Vector3(b)) => *a = a.lerp(b, weight),
+            (Self::Vector4(a), Self::Vector4(b)) => *a = a.lerp(b, weight),
             (Self::UnitQuaternion(a), Self::UnitQuaternion(b)) => *a = a.nlerp(b, weight),
             _ => (),
-        }
-    }
-
-    /// Tries to calculate intermediate value between the current and an other using interpolation coefficient. Interpolation
-    /// will fail if the types of current and the other values don't match.
-    pub fn interpolate(&self, other: &Self, t: f32) -> Option<Self> {
-        match (self, other) {
-            (Self::Real(a), Self::Real(b)) => Some(Self::Real(lerpf(*a, *b, t))),
-            (Self::Vector2(a), Self::Vector2(b)) => Some(Self::Vector2(a.lerp(b, t))),
-            (Self::Vector3(a), Self::Vector3(b)) => Some(Self::Vector3(a.lerp(b, t))),
-            (Self::Vector4(a), Self::Vector4(b)) => Some(Self::Vector4(a.lerp(b, t))),
-            (Self::UnitQuaternion(a), Self::UnitQuaternion(b)) => {
-                Some(Self::UnitQuaternion(a.nlerp(b, t)))
-            }
-            _ => None,
         }
     }
 
@@ -328,29 +302,11 @@ pub struct BoundValue {
 }
 
 impl BoundValue {
-    /// Performs a weighted clone of the value. See [`TrackValue::weighted_clone`] for more info.
-    pub fn weighted_clone(&self, weight: f32) -> Self {
-        Self {
-            binding: self.binding.clone(),
-            value: self.value.weighted_clone(weight),
-        }
-    }
-
     /// Blends the current value with an other value using the given weight. See [`TrackValue::blend_with`] for
     /// more info.
     pub fn blend_with(&mut self, other: &Self, weight: f32) {
         assert_eq!(self.binding, other.binding);
         self.value.blend_with(&other.value, weight);
-    }
-
-    /// Tries to interpolate the current value with some other using the given interpolation coefficient. See
-    /// [`TrackValue::interpolate`] for more info.
-    pub fn interpolate(&self, other: &Self, t: f32) -> Option<Self> {
-        assert_eq!(self.binding, other.binding);
-        self.value.interpolate(&other.value, t).map(|value| Self {
-            binding: self.binding.clone(),
-            value,
-        })
     }
 }
 
@@ -362,17 +318,6 @@ pub struct BoundValueCollection {
 }
 
 impl BoundValueCollection {
-    /// Performs a weighted clone of the collection. See [`TrackValue::weighted_clone`] docs for more info.
-    pub fn weighted_clone(&self, weight: f32) -> Self {
-        Self {
-            values: self
-                .values
-                .iter()
-                .map(|v| v.weighted_clone(weight))
-                .collect::<Vec<_>>(),
-        }
-    }
-
     /// Tries to blend each value of the current collection with a respective (by binding) value in the other collection.
     /// See [`TrackValue::blend_with`] docs for more info.
     pub fn blend_with(&mut self, other: &Self, weight: f32) {
@@ -381,20 +326,6 @@ impl BoundValueCollection {
                 value.blend_with(other_value, weight);
             }
         }
-    }
-
-    /// Tries to interpolate each value of the current collection with a respective (by binding) value in the other
-    /// collection and returns the new collection of interpolated values. See [`TrackValue::interpolate`] docs for more
-    /// info.
-    pub fn interpolate(&self, other: &Self, t: f32) -> Self {
-        let mut new_values = Vec::new();
-        for value in self.values.iter() {
-            if let Some(other_value) = other.values.iter().find(|v| v.binding == value.binding) {
-                new_values.push(value.interpolate(other_value, t).unwrap());
-            }
-        }
-
-        Self { values: new_values }
     }
 
     /// Tries to set each value from the collection to the respective property (by binding) of the given scene node.
