@@ -1,5 +1,4 @@
 use crate::{asset::item::AssetItem, inspector::EditorEnvironment};
-use fyrox::resource::texture::Texture;
 use fyrox::{
     asset::manager::ResourceManager,
     core::{algebra::Vector2, make_relative_path, pool::Handle},
@@ -17,7 +16,7 @@ use fyrox::{
         widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, Thickness, UiNode, UserInterface,
     },
-    resource::texture::TextureResource,
+    resource::texture::{Texture, TextureResource},
     utils::into_gui_texture,
 };
 use std::{
@@ -137,6 +136,7 @@ impl TextureEditorBuilder {
                         .with_margin(Thickness::uniform(1.0))
                         .with_allow_drop(true),
                 )
+                .with_checkerboard_background(true)
                 .with_opt_texture(self.texture.map(into_gui_texture))
                 .build(ctx);
                 image
