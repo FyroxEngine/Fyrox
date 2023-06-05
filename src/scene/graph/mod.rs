@@ -285,6 +285,24 @@ impl Graph {
         self.link_nodes(prev_root, handle);
     }
 
+    /// Makes a node in the graph the new root of the graph. All children nodes of the previous root will
+    /// become children nodes of the new root. Old root will become a child node of the new root.
+    pub fn change_root_inplace(&mut self, new_root: Handle<Node>) {
+        let prev_root = self.root;
+        self.unlink_internal(new_root);
+        let prev_root_children = self
+            .try_get(prev_root)
+            .map(|r| r.children.clone())
+            .unwrap_or_default();
+        for child in prev_root_children {
+            self.link_nodes(child, new_root);
+        }
+        if prev_root.is_some() {
+            self.link_nodes(prev_root, new_root);
+        }
+        self.root = new_root;
+    }
+
     /// Adds new node to the graph. Node will be transferred into implementation-defined
     /// storage and you'll get a handle to the node. Node will be automatically attached
     /// to root node of graph, it is required because graph can contain only one root.
@@ -1783,5 +1801,65 @@ mod test {
             .unwrap();
         assert_eq!(result.0, a);
         assert_eq!(result.1, "A");
+    }
+
+    #[test]
+    fn test_change_root() {
+        let mut graph = Graph::new();
+
+        // Root_
+        //      |_A_
+        //          |_B
+        //          |_C_
+        //             |_D
+        let root = graph.root;
+        let b;
+        let c;
+        let d;
+        let a = PivotBuilder::new(BaseBuilder::new().with_children(&[
+            {
+                b = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
+                b
+            },
+            {
+                c = PivotBuilder::new(BaseBuilder::new().with_children(&[{
+                    d = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
+                    d
+                }]))
+                .build(&mut graph);
+                c
+            },
+        ]))
+        .build(&mut graph);
+
+        dbg!(root, a, b, c, d);
+
+        graph.change_root_inplace(c);
+
+        // C_
+        //      |_D
+        //      |_A_
+        //          |_B
+        //      |_Root
+        assert_eq!(graph.root, c);
+
+        assert_eq!(graph[graph.root].parent, Handle::NONE);
+        assert_eq!(graph[graph.root].children.len(), 3);
+
+        assert_eq!(graph[graph.root].children[0], d);
+        assert_eq!(graph[d].parent, graph.root);
+        assert!(graph[d].children.is_empty());
+
+        assert_eq!(graph[graph.root].children[1], a);
+        assert_eq!(graph[a].parent, graph.root);
+
+        assert_eq!(graph[graph.root].children[2], root);
+        assert_eq!(graph[root].parent, graph.root);
+
+        assert_eq!(graph[a].children.len(), 1);
+        assert_eq!(graph[a].children[0], b);
+        assert_eq!(graph[b].parent, a);
+
+        assert!(graph[b].children.is_empty());
     }
 }
