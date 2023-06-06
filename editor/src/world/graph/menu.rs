@@ -1,10 +1,10 @@
-use crate::message::MessageSender;
 use crate::{
     make_save_file_selector,
     menu::{create::CreateEntityMenu, create_menu_item, create_menu_item_shortcut},
+    message::MessageSender,
     scene::{
         commands::{
-            graph::{AddNodeCommand, ReplaceNodeCommand},
+            graph::{AddNodeCommand, ReplaceNodeCommand, SetGraphRootCommand},
             make_delete_selection_command,
         },
         EditorScene, Selection,
@@ -12,7 +12,6 @@ use crate::{
     world::graph::item::SceneItem,
     Engine, Message, MessageDirection, PasteCommand,
 };
-use fyrox::gui::RcUiNodeHandle;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
     gui::{
@@ -23,7 +22,7 @@ use fyrox::{
         stack_panel::StackPanelBuilder,
         widget::{WidgetBuilder, WidgetMessage},
         window::WindowMessage,
-        BuildContext, UiNode,
+        BuildContext, RcUiNodeHandle, UiNode,
     },
     scene::node::Node,
 };
@@ -40,6 +39,7 @@ pub struct ItemContextMenu {
     save_as_prefab: Handle<UiNode>,
     save_as_prefab_dialog: Handle<UiNode>,
     paste: Handle<UiNode>,
+    make_root: Handle<UiNode>,
 }
 
 impl ItemContextMenu {
@@ -48,6 +48,7 @@ impl ItemContextMenu {
         let copy_selection;
         let save_as_prefab;
         let paste;
+        let make_root;
 
         let (create_entity_menu, create_entity_menu_root_items) = CreateEntityMenu::new(ctx);
         let (replace_with_menu, replace_with_menu_root_items) = CreateEntityMenu::new(ctx);
@@ -93,6 +94,10 @@ impl ItemContextMenu {
                             .build(ctx);
                             preview_camera
                         })
+                        .with_child({
+                            make_root = create_menu_item("Make Root", vec![], ctx);
+                            make_root
+                        })
                         .with_child(
                             MenuItemBuilder::new(
                                 WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
@@ -121,6 +126,7 @@ impl ItemContextMenu {
             save_as_prefab_dialog,
             replace_with_menu,
             paste,
+            make_root,
         }
     }
 
@@ -196,6 +202,15 @@ impl ItemContextMenu {
                         MessageDirection::ToWidget,
                         Some(std::env::current_dir().unwrap()),
                     ));
+            } else if message.destination() == self.make_root {
+                if let Selection::Graph(graph_selection) = &editor_scene.selection {
+                    if let Some(first) = graph_selection.nodes.first() {
+                        sender.do_scene_command(SetGraphRootCommand {
+                            root: *first,
+                            revert_list: Default::default(),
+                        });
+                    }
+                }
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == *self.menu {
