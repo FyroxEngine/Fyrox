@@ -749,7 +749,7 @@ impl PhysicsWorld {
                             ApplyAction::ImpulseAtPoint { impulse, point } => {
                                 native.apply_impulse_at_point(impulse, Point2::from(point), false)
                             }
-                            ApplyAction::WakeUp => native.wake_up(false),
+                            ApplyAction::WakeUp => native.wake_up(true),
                         }
                     }
                 }
