@@ -117,10 +117,10 @@ fn make_graph_node_item(
 }
 
 fn tree_node(ui: &UserInterface, tree: Handle<UiNode>) -> Handle<Node> {
-    if let Some(item) = ui.node(tree).cast::<SceneItem<Node>>() {
-        return item.entity_handle;
-    }
-    unreachable!()
+    ui.node(tree)
+        .cast::<SceneItem<Node>>()
+        .expect("Malformed scene item!")
+        .entity_handle
 }
 
 fn colorize(handle: Handle<UiNode>, ui: &UserInterface, index: &mut usize) {
@@ -389,32 +389,12 @@ impl WorldViewer {
         self.stack
             .push((self.tree_root, editor_scene.scene_content_root));
         while let Some((tree_handle, node_handle)) = self.stack.pop() {
-            // Hide all editor nodes.
-            if node_handle == editor_scene.editor_objects_root {
-                continue;
-            }
             let node = &graph[node_handle];
             let ui_node = ui.node(tree_handle);
 
             if let Some(item) = ui_node.cast::<SceneItem<Node>>() {
-                // Since we are filtering out editor stuff from world viewer, we must
-                // correctly count children, excluding editor nodes.
-                let mut child_count = 0;
-                for &child in node.children() {
-                    if child != editor_scene.editor_objects_root {
-                        child_count += 1;
-                    }
-                }
-
-                // We're interested only scene graph child items.
-                // Such filtering is needed because we can have links as children in UI.
-                let items = item
-                    .tree
-                    .items
-                    .iter()
-                    .cloned()
-                    .filter(|i| ui.node(*i).cast::<SceneItem<Node>>().is_some())
-                    .collect::<Vec<_>>();
+                let child_count = node.children().len();
+                let items = item.tree.items.clone();
 
                 match child_count.cmp(&items.len()) {
                     Ordering::Less => {
@@ -448,10 +428,6 @@ impl WorldViewer {
                     }
                     Ordering::Greater => {
                         for &child_handle in node.children() {
-                            // Hide all editor nodes.
-                            if child_handle == editor_scene.editor_objects_root {
-                                continue;
-                            }
                             let mut found = false;
                             for &item in items.iter() {
                                 let tree_node_handle = tree_node(ui, item);
@@ -483,8 +459,10 @@ impl WorldViewer {
                     }
                 }
             } else if let Some(tree_root) = ui_node.cast::<TreeRoot>() {
-                if tree_root.items.is_empty() {
-                    let graph_node_item = make_graph_node_item(
+                if tree_root.items.is_empty()
+                    || tree_node(ui, tree_root.items[0]) != editor_scene.scene_content_root
+                {
+                    let new_root_item = make_graph_node_item(
                         node,
                         node_handle,
                         &mut ui.build_ctx(),
@@ -492,14 +470,14 @@ impl WorldViewer {
                     );
                     send_sync_message(
                         ui,
-                        TreeRootMessage::add_item(
+                        TreeRootMessage::items(
                             tree_handle,
                             MessageDirection::ToWidget,
-                            graph_node_item,
+                            vec![new_root_item],
                         ),
                     );
-                    self.node_to_view_map.insert(node_handle, graph_node_item);
-                    self.stack.push((graph_node_item, node_handle));
+                    self.node_to_view_map.insert(node_handle, new_root_item);
+                    self.stack.push((new_root_item, node_handle));
                 } else {
                     self.stack.push((tree_root.items[0], node_handle));
                 }
