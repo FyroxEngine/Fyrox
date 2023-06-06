@@ -179,6 +179,9 @@ pub struct RigidBody {
     pub(crate) sleeping: bool,
     #[visit(skip)]
     #[reflect(hidden)]
+    pub(crate) reset_forces: Cell<bool>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub(crate) native: Cell<RigidBodyHandle>,
     #[visit(skip)]
     #[reflect(hidden)]
@@ -212,6 +215,7 @@ impl Default for RigidBody {
             gravity_scale: InheritableVariable::new_modified(1.0),
             native: Cell::new(RigidBodyHandle::invalid()),
             actions: Default::default(),
+            reset_forces: Default::default(),
         }
     }
 }
@@ -252,6 +256,7 @@ impl Clone for RigidBody {
             // Do not copy. The copy will have its own native representation.
             native: Cell::new(RigidBodyHandle::invalid()),
             actions: Default::default(),
+            reset_forces: self.reset_forces.clone(),
         }
     }
 }
@@ -493,6 +498,7 @@ impl RigidBody {
             || self.can_sleep.need_sync()
             || self.dominance.need_sync()
             || self.gravity_scale.need_sync()
+            || self.reset_forces.get()
     }
 }
 
@@ -720,6 +726,7 @@ impl RigidBodyBuilder {
             gravity_scale: self.gravity_scale.into(),
             native: Cell::new(RigidBodyHandle::invalid()),
             actions: Default::default(),
+            reset_forces: Default::default(),
         }
     }
 

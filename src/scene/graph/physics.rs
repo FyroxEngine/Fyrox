@@ -1300,15 +1300,24 @@ impl PhysicsWorld {
 
                     // We must reset any forces applied at previous update step, otherwise physics engine
                     // will keep pushing the rigid body infinitely.
-                    native.reset_forces(false);
-                    native.reset_torques(false);
+                    if rigid_body_node.reset_forces.replace(false) {
+                        native.reset_forces(false);
+                        native.reset_torques(false);
+                    }
 
                     while let Some(action) = actions.pop_front() {
                         match action {
-                            ApplyAction::Force(force) => native.add_force(force, false),
-                            ApplyAction::Torque(torque) => native.add_torque(torque, false),
+                            ApplyAction::Force(force) => {
+                                native.add_force(force, false);
+                                rigid_body_node.reset_forces.set(true);
+                            }
+                            ApplyAction::Torque(torque) => {
+                                native.add_torque(torque, false);
+                                rigid_body_node.reset_forces.set(true);
+                            }
                             ApplyAction::ForceAtPoint { force, point } => {
-                                native.add_force_at_point(force, Point3::from(point), false)
+                                native.add_force_at_point(force, Point3::from(point), false);
+                                rigid_body_node.reset_forces.set(true);
                             }
                             ApplyAction::Impulse(impulse) => native.apply_impulse(impulse, false),
                             ApplyAction::TorqueImpulse(impulse) => {
