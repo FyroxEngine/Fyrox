@@ -415,6 +415,7 @@ impl Command for SetGraphRootCommand {
         "Set Graph Root".to_string()
     }
 
+    #[allow(clippy::unnecessary_to_owned)] // false positive
     fn execute(&mut self, context: &mut SceneContext) {
         let graph = &mut context.scene.graph;
         let prev_root = context.editor_scene.scene_content_root;
