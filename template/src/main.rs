@@ -681,13 +681,14 @@ fn main() {
                         "Invalid version: {version}. Please specify one of the following:\n\
                     \tnightly - uses latest nightly version of the engine from GitHub directly.\
                     \tlatest - uses latest stable version of the engine.\n\
-                    \tmajor.minor.patch - uses specific stable version from crates.io (0.29.0 for example).",
+                    \tmajor.minor.patch - uses specific stable version from crates.io (0.30.0 for example).",
                     );
                 exit(1);
             }
 
             // Engine -> Editor version mapping.
             let editor_versions = [
+                ("0.30.0".to_string(), "0.17.0".to_string()),
                 ("0.29.0".to_string(), "0.16.0".to_string()),
                 ("0.28.0".to_string(), "0.15.0".to_string()),
                 ("0.27.1".to_string(), "0.14.1".to_string()),
