@@ -1,4 +1,205 @@
-# 0.30 (WIP)
+# 0.31 (WIP)
+
+# 0.30
+
+- Ability to change graph root to arbitrary graph node.
+- Ability to change graph root in the editor.
+- Optional checkerboard background for `Image` widget.
+- Simplified animation blending.
+- Mutable access to curve key's value.
+- Added property validation for the animation editor.
+- Track validation for the animation editor.
+- Ability to set widget's tooltip via message.
+- Correctly sync track names in the animation editor.
+- Ability to change target nodes on animation tracks.
+- Preserve parent when extracting a sub-graph from a graph.
+- Refactored editor scene structure to allow modifying the root node.
+- Play sound buffer resource when inspecting it in the asset browser.
+- Show textured quad in resources previewer when inspecting a texture.
+- Configurable scroll speed for `ScrollViewer` widget + speed up scrolling 2x.
+- Helper methods to quickly check a resource state.
+- Helper methods to access script components faster.
+- Improved range property editor.
+- `Enter State` for state menu in absm editor. Works the same as double click, removes confusion for ppl that does not 
+get used to double-click on things.
+- Leave preview mode when closing or changing scenes in the editor.
+- Prevent panic when trying to generate random number from an empty range.
+- Serialize delay line samples as POD array.
+- Optional ability to save current scene in text form for debugging.
+- Do not render disabled sprite nodes.
+- Fixed property inheritance subtle bugs.
+- Do not allow revering a property value in the editor if there's no parent.
+- Do not save content of non-modified inheritable variables.
+- Fixed directional light docs.
+- Fixed `Node::is_x,as_x,as_x_mut` methods.
+- `Graph::try_get_script_of + try_get_script_of_mut` methods
+- `Base::root_resource` - allows you to find root resource in dependency graph.
+- Prevent deadlock on self-referencing model resources
+- UUID for widgets.
+- Save editor's window position and size into editor's settings.
+- Apply local scaling of terrain to heightfield collider.
+- `MachineLayer::is_all_animations_of_state_ended`
+- Ability to fetch all animations of a state in ABSM layer.
+- Added `IsAnimationEnded` condition for ABSM transitions.
+- ABSM state actions. Allows you to rewind/enable/disable specific animations when entering/leaving a state.
+- Fixed incorrect "state enter" event sent from source instead of dest.
+- Added a collection of built-in resources for resource manager. This collection is used on resource deserialization 
+step to restore references to built-in resources.
+- Pre-compile built-in shaders on engine startup.
+- Ability to change camera zoom speed in the editor.
+- `Plugin::before_rendering`
+- Matrix storage cache to prevent driver synchronization steps.
+- Persistent identifiers for render entities.
+- Improved deserialization performance.
+- Use `fast_image_resize` crate to generate mip maps (which gave 5x performance boost).
+- Configurable filter for mip-map generation for textures.
+- Fixed tooltip position - it now does not go outside of screen bounds.
+- "Immutable collection" reflection attribute for collection fields that prevent changing collection size. 
+- Ability to get typed data of specific mip level of a texture.
+- Ability to fetch specific mip level data of textures.
+- Ability to set height map of terrain chunks directly from an image.
+- Dependency graph visualizer for asset browser.
+- Resource dependency graph.
+- Ability to flatten terrain slopes.
+- Return local height value at intersection point in ray-terrain test.
+- Cleaned editor's command API.
+- Removed visibility cache.
+- Ability to index graph with `Handle<T: NodeTrait>`
+- `Handle::transmute`
+- Doc comments support for reflection.
+- Show doc comments for selected entity in a separate window.
+- Moved logger to `fyrox_core`.
+- Resource system refactoring to support user-defined resources.
+- Blackboard for visitor to pass arbitrary data when serializing/deserializing.
+- Added missing recalculation of terrain bounding box.
+- `Texture::deep_clone`
+- `Log::verify_message`
+- `R32F` + `R16F` texture formats.
+- `data_of_type` methods to reinterpret inner texture data storage to a particular type.
+- Debug drawing for scene nodes.
+- Configurable polygon rasterization mode for scenes (gbuffer only).
+- Ability to set polygon rasterization mode to select between solid and wireframe rendering.
+- Force `Framebuffer::draw_x` methods to accept element range to draw.
+- Proper culling for terrains.
+- Refactored rendering: scene nodes can now supply renderer with data. `NodeTrait::collect_render_data` is now used to 
+supply renderer with data.
+- Batch generation is now done on per-camera (which includes light sources for shadows) basis.
+- Added a method to link nodes while keeping child's global position and rotation.
+- LODs for terrains.
+- Limits for collider shape values.
+- Added doc example for `Graph::begin_multi_borrow`.
+- Fixed samplers type collision when rendering with materials with different sampler types.
+- Unbind texture from other samplers when setting it to a new one.
+- Fixed half-float textures + fixed volume textures mip maps.
+- `RGB16F` texture format.
+- Use texture-based matrix storage for "unlimited" bone matrices. Raises matrix count per surface from 64
+to 255.
+- Fixed texture alignment issues.
+- Use correct sampler index when changing texture data.
+- Set new mip count for texture when changing its data.
+- Fixed texture binding bug.
+- Warning instead of panic when there's not enough space for bone matrices.
+- Rename `visitor::Node` to `visitor::VisitorNode` to prevent confusing import in IDEs.
+- `InheritableVariable::take`
+- Ability to change size of terrain height map and layer masks.
+- Ability to add chunks from any side of the terrain.
+- Fixed crash when deleting a navmesh edge.
+- Improved package description.
+- Make navmesh panel floating by default + open it when a navmesh is selected.
+- Navigational mesh refactoring.
+- Navigational mesh scene node.
+- Pass light intensity into lightmapper.
+- "Headless" mode for `Executor` - suitable for server-side of multiplayer games.
+- Added editor's window icon.
+- Blend shape support.
+- Changed sidebar to be inspector in the view dropdown menu.
+- Tweaked step values for transform properties.
+- Limits for vec editor.
+- Generic `Vector<T,N>` property editor.
+- Added support for min, max, step property attributes for vecN.
+- Ability to create/destroy audio output device on demand.
+- Migrate to `tinyaudio` as audio output backend
+- Use `RcUiNodeHandle` for context menus. This ensures that context menu will be destroyed when it is 
+not used anymore.
+- Fixed multiple lightmapping issues.
+- Fixed incorrect `sRGB` conversion for WASM.
+- Android support.
+- Ability to run the engine without graphics/window/sound by making these parts optional.
+- Update to latest `winit` + `glutin`.
+- Ability to change value in `NumericUpDown` widget by dragging
+- Removed "Scene Graph" item from world viewer + made breadcrumbs much more compact.
+- Put interaction mode panel on top of scene previewer.
+- Added ability to search assets in the asset browser.
+- `SearchBar` widget.
+- Ability to hide path text box in file browser widget.
+- Hide path field in the asset browser.
+- Tooltip for asset items in the asset browser that shows full asset path.
+- Improved simple tooltip style.
+- Optional ability to suppress closing menus by clicking on non-empty menu.
+- Added `No Scene` reminder in the editor and how to create/load a scene.
+- Editor UI style improvements.
+- `DrawingContext::push_arc+push_rounded_rect`
+- Ability to enable/disable debug geometry for camera/light sources.
+- Show indices of input sockets of ABSM nodes.
+- Keep animations enabled on import.
+- Blend space support.
+- Added help menu (with `Open Book` and `Open API Reference` items)
+- Ability to create special (much faster) bindings to position/scale/rotation of nodes in the animation
+editor.
+- Ability to reimport animations in the animation editor.
+- New example: render to texture.
+- Audio bus graph.
+- Root motion support.
+- Audio panel rework to support audio bus graphs.
+- Sound effect API improvements.
+- Keep recent files list sorted and up-to-date.
+- Fixed incorrect sound panning in HRTF mode.
+- Ability to get unique material instances when cloning a surface.
+- Validation for sound node
+- Audio preview panel
+- Do not play sounds in the editor automatically. Sounds can only be played from the audio preview panel
+instead. fixes the issue when you have a scene with multiple sounds, but since they're playing, their playback position
+changes and these changes sneak in the saved scene preventing from defining strict playback position
+- Ability to partially update global properties of a hierachy of nodes.
+- Do not crash if a root node in the previewer died.
+- Fixed deadlock when selecting object's property in animation editor.
+- Ability to set pre-generated particles in particle systems.
+- Provided access to standard shader names.
+- Print texture resource name when failed to create its GPU version.
+- Rebuild terrain's geometry on deserialization.
+- Automatic, reflection-based resource handle mapping.
+- Ability to ignore some type when doing property inheritance.
+- Support for hash maps in the property selector.
+- Expose material fields via reflection.
+- Keep flags of `ScrollBarMessage` when responding to value message.
+- Delegating implementation of `Debug` trait for `ImmutableString`.
+- Added reflection for hash maps.
+- Reflection system refactoring to support types with interior mutability (`Mutex`, `RefCell`, etc.)
+- Ability to rewind particle systems to a particular time.
+- Determinism for particle systems.
+- Fixed preview mode for particle systems.
+- Ability to "rewind" particle systems in particle system control panel.
+- Fixed `ParticleSystem::clear_particles` for emitters that does not resurrect their particles.
+- Fixed potential panic in formatted text on missing glyphs.
+- Supply `PluginContext` with performance statistics for the previous frame.
+- Property editor for `ColorGradient`s.
+- Simplified `color_over_lifetime` field in particle systems.
+- Improved color gradient API.
+- Fixed incorrect activation of transition/states during the preview mode in the ABSM editor.
+- Compound conditions for ABSM transitions
+- Fixed off-screen UI rendering compatibility with HDR pipeline.
+- Refactored scene node lifetime management - this mainly fixes the bug when a node with `Some(lifetime)` would crash 
+the editor. The same is applied to play-once sounds. `Node::update` now does not manage node's lifetime anymore, instead 
+there's `Node::is_alive`.
+- Fixed incorrect handling of user-defined forces of rigid bodies. A body was pushed continuously using
+previously set force.
+- Configurable size for light pictograms in the editor
+- `ActiveStateChanged` event now contains both previous and new states.
+- Message passing for scripts with multiple routing strategies
+- `Graph::find_map/find_up_map/find_up_by_name`
+- Improved `Graph::find_x` methods - returns `Option<(Handle<Node>, &Node)>` now, that removes another 
+borrow if there's a need to borrow it at a call site.
+
 
 # 0.29
 
