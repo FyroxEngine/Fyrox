@@ -460,7 +460,7 @@ strip = "strip"
 crate-type = ["cdylib"]
 
 [dependencies]
-fyrox = {}
+fyrox = "{}"
 {} = {{ path = "../game" }}"#,
             &*CURRENT_ENGINE_VERSION, name,
         ),
