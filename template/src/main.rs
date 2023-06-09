@@ -2,7 +2,6 @@
 
 use clap::{Parser, Subcommand};
 use convert_case::{Case, Casing};
-use lazy_static::lazy_static;
 use regex::Regex;
 use std::{
     collections::HashMap,
@@ -48,24 +47,12 @@ enum Commands {
     },
 }
 
-lazy_static! {
-    static ref CURRENT_ENGINE_VERSION: String = {
-        let engine_manifest = include_str!("../../Cargo.toml");
-        let table = engine_manifest.parse::<toml::Table>().unwrap();
-        table["package"].as_table().unwrap()["version"]
-            .as_str()
-            .unwrap()
-            .to_owned()
-    };
-    static ref CURRENT_EDITOR_VERSION: String = {
-        let editor_manifest = include_str!("../../editor/Cargo.toml");
-        let table = editor_manifest.parse::<toml::Table>().unwrap();
-        table["package"].as_table().unwrap()["version"]
-            .as_str()
-            .unwrap()
-            .to_owned()
-    };
-}
+// Ideally, this should be take from respective Cargo.toml of the engine and the editor.
+// However, it does not seem to work with builds published to crates.io, because when
+// the template generator is published, it does not have these Cargo.toml's available
+// and to solve this we just hard code these values and pray for the best.
+const CURRENT_ENGINE_VERSION: &'static str = "0.30.0";
+const CURRENT_EDITOR_VERSION: &'static str = "0.17.0";
 
 fn write_file<P: AsRef<Path>, S: AsRef<str>>(path: P, content: S) {
     let mut file = File::create(path.as_ref()).unwrap();
