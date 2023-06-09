@@ -460,10 +460,9 @@ strip = "strip"
 crate-type = ["cdylib"]
 
 [dependencies]
-# TODO: This must be changed to 0.30 before releasing v0.30
-fyrox = {{ path = "../../Fyrox" }}
+fyrox = {}
 {} = {{ path = "../game" }}"#,
-            name,
+            &*CURRENT_ENGINE_VERSION, name,
         ),
     );
 
