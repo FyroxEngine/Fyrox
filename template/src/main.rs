@@ -51,8 +51,8 @@ enum Commands {
 // However, it does not seem to work with builds published to crates.io, because when
 // the template generator is published, it does not have these Cargo.toml's available
 // and to solve this we just hard code these values and pray for the best.
-const CURRENT_ENGINE_VERSION: &'static str = "0.30.0";
-const CURRENT_EDITOR_VERSION: &'static str = "0.17.0";
+const CURRENT_ENGINE_VERSION: &str = "0.30.0";
+const CURRENT_EDITOR_VERSION: &str = "0.17.0";
 
 fn write_file<P: AsRef<Path>, S: AsRef<str>>(path: P, content: S) {
     let mut file = File::create(path.as_ref()).unwrap();
@@ -120,7 +120,7 @@ fn init_game(base_path: &Path, name: &str) {
         .output()
         .unwrap();
 
-    let engine_version = &*CURRENT_ENGINE_VERSION;
+    let engine_version = CURRENT_ENGINE_VERSION;
 
     // Write Cargo.toml
     write_file(
@@ -239,7 +239,7 @@ fn init_executor(base_path: &Path, name: &str) {
         .output()
         .unwrap();
 
-    let engine_version = &*CURRENT_ENGINE_VERSION;
+    let engine_version = CURRENT_ENGINE_VERSION;
 
     // Write Cargo.toml
     write_file(
@@ -282,7 +282,7 @@ fn init_wasm_executor(base_path: &Path, name: &str) {
         .output()
         .unwrap();
 
-    let engine_version = &*CURRENT_ENGINE_VERSION;
+    let engine_version = CURRENT_ENGINE_VERSION;
 
     // Write Cargo.toml
     write_file(
@@ -389,8 +389,8 @@ fn init_editor(base_path: &Path, name: &str) {
         .output()
         .unwrap();
 
-    let engine_version = &*CURRENT_ENGINE_VERSION;
-    let editor_version = &*CURRENT_EDITOR_VERSION;
+    let engine_version = CURRENT_ENGINE_VERSION;
+    let editor_version = CURRENT_EDITOR_VERSION;
 
     // Write Cargo.toml
     write_file(
@@ -462,7 +462,7 @@ crate-type = ["cdylib"]
 [dependencies]
 fyrox = "{}"
 {} = {{ path = "../game" }}"#,
-            &*CURRENT_ENGINE_VERSION, name,
+            CURRENT_ENGINE_VERSION, name,
         ),
     );
 
@@ -657,8 +657,8 @@ fn main() {
             init_script(&name);
         }
         Commands::Upgrade { version } => {
-            let engine_version = &*CURRENT_ENGINE_VERSION;
-            let editor_version = &*CURRENT_EDITOR_VERSION;
+            let engine_version = CURRENT_ENGINE_VERSION;
+            let editor_version = CURRENT_EDITOR_VERSION;
 
             let semver_regex = Regex::new(include_str!("regex")).unwrap();
 
