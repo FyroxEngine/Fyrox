@@ -1,4 +1,7 @@
-use crate::{command::Command, scene::commands::SceneContext};
+use crate::{
+    command::Command, scene::commands::SceneContext, scene::Selection,
+    world::graph::selection::GraphSelection, Message,
+};
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -315,16 +318,20 @@ pub struct AddNodeCommand {
     node: Option<Node>,
     cached_name: String,
     parent: Handle<Node>,
+    select_added: bool,
+    prev_selection: Selection,
 }
 
 impl AddNodeCommand {
-    pub fn new(node: Node, parent: Handle<Node>) -> Self {
+    pub fn new(node: Node, parent: Handle<Node>, select_added: bool) -> Self {
         Self {
             ticket: None,
             handle: Default::default(),
             cached_name: format!("Add Node {}", node.name()),
             node: Some(node),
             parent,
+            select_added,
+            prev_selection: Selection::None,
         }
     }
 }
@@ -348,6 +355,16 @@ impl Command for AddNodeCommand {
             }
         }
 
+        if self.select_added {
+            self.prev_selection = std::mem::replace(
+                &mut context.editor_scene.selection,
+                Selection::Graph(GraphSelection::single_or_empty(self.handle)),
+            );
+            context.message_sender.send(Message::SelectionChanged {
+                old_selection: self.prev_selection.clone(),
+            });
+        }
+
         context.scene.graph.link_nodes(self.handle, self.parent)
     }
 
@@ -356,6 +373,16 @@ impl Command for AddNodeCommand {
         let (ticket, node) = context.scene.graph.take_reserve(self.handle);
         self.ticket = Some(ticket);
         self.node = Some(node);
+
+        if self.select_added {
+            std::mem::swap(
+                &mut context.editor_scene.selection,
+                &mut self.prev_selection,
+            );
+            context.message_sender.send(Message::SelectionChanged {
+                old_selection: self.prev_selection.clone(),
+            });
+        }
     }
 
     fn finalize(&mut self, context: &mut SceneContext) {

@@ -142,7 +142,7 @@ impl ItemContextMenu {
         if let Selection::Graph(graph_selection) = &editor_scene.selection {
             if let Some(first) = graph_selection.nodes().first() {
                 if let Some(node) = self.create_entity_menu.handle_ui_message(message) {
-                    sender.do_scene_command(AddNodeCommand::new(node, *first));
+                    sender.do_scene_command(AddNodeCommand::new(node, *first, true));
                 } else if let Some(replacement) = self.replace_with_menu.handle_ui_message(message)
                 {
                     sender.do_scene_command(ReplaceNodeCommand {

@@ -65,7 +65,7 @@ impl CreateEntityRootMenu {
         parent: Handle<Node>,
     ) {
         if let Some(node) = self.sub_menus.handle_ui_message(message) {
-            sender.do_scene_command(AddNodeCommand::new(node, parent));
+            sender.do_scene_command(AddNodeCommand::new(node, parent, true));
         }
     }
 
