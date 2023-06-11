@@ -42,6 +42,7 @@ use crate::{
     asset::{item::AssetItem, item::AssetKind, AssetBrowser},
     audio::{preview::AudioPreviewPanel, AudioPanel},
     build::BuildWindow,
+    camera::panel::CameraPreviewControlPanel,
     command::{panel::CommandStackViewer, Command, CommandStack},
     configurator::Configurator,
     curve_editor::CurveEditorWindow,
@@ -59,6 +60,7 @@ use crate::{
     log::LogPanel,
     material::MaterialEditor,
     menu::{Menu, MenuContext, Panels},
+    message::MessageSender,
     overlay::OverlayRenderPass,
     particle::ParticleSystemPreviewControlPanel,
     scene::{
@@ -75,7 +77,6 @@ use crate::{
     utils::{doc::DocWindow, path_fixer::PathFixer},
     world::{graph::selection::GraphSelection, WorldViewer},
 };
-use fyrox::dpi::{PhysicalPosition, PhysicalSize};
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
@@ -89,6 +90,7 @@ use fyrox::{
         visitor::Visitor,
         watcher::FileSystemWatcher,
     },
+    dpi::{PhysicalPosition, PhysicalSize},
     engine::{Engine, EngineInitParams, GraphicsContextParams, SerializationContext},
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
@@ -136,7 +138,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::message::MessageSender;
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -439,6 +440,7 @@ pub struct Editor {
     scene_settings: SceneSettingsWindow,
     animation_editor: AnimationEditor,
     particle_system_control_panel: ParticleSystemPreviewControlPanel,
+    camera_control_panel: CameraPreviewControlPanel,
     overlay_pass: Rc<RefCell<OverlayRenderPass>>,
     audio_preview_panel: AudioPreviewPanel,
     doc_window: DocWindow,
@@ -573,6 +575,7 @@ impl Editor {
         let animation_editor = AnimationEditor::new(ctx);
         let absm_editor = AbsmEditor::new(ctx, message_sender.clone());
         let particle_system_control_panel = ParticleSystemPreviewControlPanel::new(ctx);
+        let camera_control_panel = CameraPreviewControlPanel::new(ctx);
         let audio_preview_panel = AudioPreviewPanel::new(ctx);
         let doc_window = DocWindow::new(ctx);
 
@@ -665,6 +668,7 @@ impl Editor {
                         animation_editor.window,
                         absm_editor.window,
                         particle_system_control_panel.window,
+                        camera_control_panel.window,
                         audio_preview_panel.window,
                         navmesh_panel.window,
                         doc_window.window,
@@ -752,6 +756,7 @@ impl Editor {
             build_profile: BuildProfile::Debug,
             scene_settings,
             particle_system_control_panel,
+            camera_control_panel,
             overlay_pass,
             audio_preview_panel,
             doc_window,
@@ -1091,6 +1096,8 @@ impl Editor {
         if let Some(editor_scene) = self.scene.as_mut() {
             self.particle_system_control_panel
                 .handle_ui_message(message, editor_scene, engine);
+            self.camera_control_panel
+                .handle_ui_message(message, editor_scene, engine);
             self.audio_preview_panel
                 .handle_ui_message(message, editor_scene, engine);
             self.absm_editor
@@ -1419,6 +1426,8 @@ impl Editor {
             let engine = &mut self.engine;
             self.particle_system_control_panel
                 .leave_preview_mode(editor_scene, engine);
+            self.camera_control_panel
+                .leave_preview_mode(editor_scene, engine);
             self.audio_preview_panel
                 .leave_preview_mode(editor_scene, engine);
             self.animation_editor
@@ -1712,6 +1721,11 @@ impl Editor {
 
                 if let Some(editor_scene) = self.scene.as_mut() {
                     self.particle_system_control_panel.handle_message(
+                        &message,
+                        editor_scene,
+                        &mut self.engine,
+                    );
+                    self.camera_control_panel.handle_message(
                         &message,
                         editor_scene,
                         &mut self.engine,

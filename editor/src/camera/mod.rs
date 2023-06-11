@@ -27,6 +27,8 @@ use std::{
     hash::{Hash, Hasher},
 };
 
+pub mod panel;
+
 pub const DEFAULT_Z_OFFSET: f32 = -3.0;
 
 pub struct CameraController {

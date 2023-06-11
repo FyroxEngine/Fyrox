@@ -215,13 +215,13 @@ impl InteractionMode for RotateInteractionMode {
     ) {
         if let Selection::Graph(selection) = &editor_scene.selection {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
-            if !editor_scene.selection.is_empty() {
+            if editor_scene.selection.is_empty() || editor_scene.preview_camera.is_some() {
+                self.rotation_gizmo.set_visible(graph, false);
+            } else {
                 let scale =
                     calculate_gizmo_distance_scaling(graph, camera, self.rotation_gizmo.origin);
                 self.rotation_gizmo.sync_transform(graph, selection, scale);
                 self.rotation_gizmo.set_visible(graph, true);
-            } else {
-                self.rotation_gizmo.set_visible(graph, false);
             }
         }
     }

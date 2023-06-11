@@ -9,7 +9,6 @@ use crate::{
         },
         EditorScene, Selection,
     },
-    world::graph::item::SceneItem,
     Engine, Message, MessageDirection, PasteCommand,
 };
 use fyrox::{
@@ -24,7 +23,6 @@ use fyrox::{
         window::WindowMessage,
         BuildContext, RcUiNodeHandle, UiNode,
     },
-    scene::node::Node,
 };
 
 pub struct ItemContextMenu {
@@ -34,8 +32,6 @@ pub struct ItemContextMenu {
     create_entity_menu: CreateEntityMenu,
     replace_with_menu: CreateEntityMenu,
     placement_target: Handle<UiNode>,
-    // TODO: Ideally this should belong to node-specific context menu only.
-    preview_camera: Handle<UiNode>,
     save_as_prefab: Handle<UiNode>,
     save_as_prefab_dialog: Handle<UiNode>,
     paste: Handle<UiNode>,
@@ -53,7 +49,6 @@ impl ItemContextMenu {
         let (create_entity_menu, create_entity_menu_root_items) = CreateEntityMenu::new(ctx);
         let (replace_with_menu, replace_with_menu_root_items) = CreateEntityMenu::new(ctx);
 
-        let preview_camera;
         let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
             .with_content(
                 StackPanelBuilder::new(
@@ -85,16 +80,6 @@ impl ItemContextMenu {
                             .build(ctx),
                         )
                         .with_child({
-                            preview_camera = MenuItemBuilder::new(
-                                WidgetBuilder::new()
-                                    .with_enabled(false)
-                                    .with_min_size(Vector2::new(120.0, 22.0)),
-                            )
-                            .with_content(MenuItemContent::text_no_arrow("Preview"))
-                            .build(ctx);
-                            preview_camera
-                        })
-                        .with_child({
                             make_root = create_menu_item("Make Root", vec![], ctx);
                             make_root
                         })
@@ -121,7 +106,6 @@ impl ItemContextMenu {
             delete_selection,
             copy_selection,
             placement_target: Default::default(),
-            preview_camera,
             save_as_prefab,
             save_as_prefab_dialog,
             replace_with_menu,
@@ -175,18 +159,6 @@ impl ItemContextMenu {
                         }
                     }
                 }
-            } else if message.destination() == self.preview_camera {
-                let new_preview_camera = engine
-                    .user_interface
-                    .try_get_node(self.placement_target)
-                    .and_then(|n| n.query_component::<SceneItem<Node>>())
-                    .unwrap()
-                    .entity_handle;
-                if editor_scene.preview_camera == new_preview_camera {
-                    editor_scene.preview_camera = Handle::NONE;
-                } else {
-                    editor_scene.preview_camera = new_preview_camera
-                }
             } else if message.destination() == self.save_as_prefab {
                 engine
                     .user_interface
@@ -215,27 +187,6 @@ impl ItemContextMenu {
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == *self.menu {
                 self.placement_target = *target;
-
-                // Check if placement target is a Camera.
-                let mut is_camera = false;
-                if let Some(placement_target) = engine
-                    .user_interface
-                    .try_get_node(self.placement_target)
-                    .and_then(|n| n.query_component::<SceneItem<Node>>())
-                {
-                    if let Some(node) = engine.scenes[editor_scene.scene]
-                        .graph
-                        .try_get(placement_target.entity_handle)
-                    {
-                        is_camera = node.is_camera();
-                    }
-                }
-
-                engine.user_interface.send_message(WidgetMessage::enabled(
-                    self.preview_camera,
-                    MessageDirection::ToWidget,
-                    is_camera,
-                ));
 
                 // Check if there's something to paste and deactivate "Paste" if nothing.
                 engine.user_interface.send_message(WidgetMessage::enabled(

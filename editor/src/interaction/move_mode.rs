@@ -434,13 +434,13 @@ impl InteractionMode for MoveInteractionMode {
     ) {
         let scene = &mut engine.scenes[editor_scene.scene];
         let graph = &mut scene.graph;
-        if !editor_scene.selection.is_empty() {
+        if editor_scene.selection.is_empty() || editor_scene.preview_camera.is_some() {
+            self.move_gizmo.set_visible(graph, false);
+        } else {
             let scale = calculate_gizmo_distance_scaling(graph, camera, self.move_gizmo.origin);
             self.move_gizmo.set_visible(graph, true);
             self.move_gizmo
                 .sync_transform(scene, &editor_scene.selection, scale);
-        } else {
-            self.move_gizmo.set_visible(graph, false);
         }
     }
 
