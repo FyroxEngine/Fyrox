@@ -40,6 +40,14 @@ impl AxisAlignedBoundingBox {
     }
 
     #[inline]
+    pub fn from_point(point: Vector3<f32>) -> Self {
+        Self {
+            min: point,
+            max: point,
+        }
+    }
+
+    #[inline]
     pub fn from_points(points: &[Vector3<f32>]) -> Self {
         let mut aabb = AxisAlignedBoundingBox::default();
         for pt in points {
@@ -116,6 +124,30 @@ impl AxisAlignedBoundingBox {
     #[inline]
     pub fn invalidate(&mut self) {
         *self = Default::default();
+    }
+
+    #[inline]
+    pub fn is_valid(&self) -> bool {
+        #[inline(always)]
+        fn is_nan_or_inf(x: &Vector3<f32>) -> bool {
+            x.iter().all(|e| e.is_nan() || e.is_infinite())
+        }
+
+        self.max.x > self.min.x
+            && self.max.y > self.min.y
+            && self.max.z > self.min.z
+            && !is_nan_or_inf(&self.min)
+            && !is_nan_or_inf(&self.max)
+    }
+
+    #[inline]
+    pub fn is_degenerate(&self) -> bool {
+        self.max == self.min
+    }
+
+    #[inline]
+    pub fn is_invalid_or_degenerate(&self) -> bool {
+        !self.is_valid() || self.is_degenerate()
     }
 
     #[inline]
