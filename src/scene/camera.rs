@@ -362,6 +362,26 @@ impl TypeUuidProvider for Camera {
     }
 }
 
+/// A set of camera fitting parameters for different projection modes. You should take these parameters
+/// and modify camera position and projection accordingly. In case of perspective projection all you need
+/// to do is to set new world-space position of the camera. In cae of orthographic projection, do previous
+/// step and also modify vertical size of orthographic projection (see [`OrthographicProjection`] for more
+/// info).
+pub enum FitParameters {
+    /// Fitting parameters for perspective projection.
+    Perspective {
+        /// New world-space position of the camera.
+        position: Vector3<f32>,
+    },
+    /// Fitting parameters for orthographic projection.
+    Orthographic {
+        /// New world-space position of the camera.
+        position: Vector3<f32>,
+        /// New vertical size for orthographic projection.
+        vertical_size: f32,
+    },
+}
+
 impl Camera {
     /// Explicitly calculates view and projection matrices. Normally, you should not call
     /// this method, it will be called automatically when new frame starts.
@@ -537,6 +557,61 @@ impl Camera {
         Ray::from_two_points(begin, end)
     }
 
+    /// Calculates new fitting parameters for the given axis-aligned bounding box using current camera's
+    /// global transform and provided aspect ratio. See [`FitParameters`] docs for more info.
+    ///
+    /// This method returns fitting parameters and **do not** modify camera's state. It is needed, because in
+    /// some cases your camera could be attached to some sort of a hinge node and setting its local position
+    /// in order to fit it to the given AABB would break the preset spatial relations between nodes. Instead,
+    /// the method returns a set of parameters that can be used as you want.
+    #[inline]
+    #[must_use]
+    pub fn fit(&self, aabb: &AxisAlignedBoundingBox, aspect_ratio: f32) -> FitParameters {
+        let look_vector = self
+            .look_vector()
+            .try_normalize(f32::EPSILON)
+            .unwrap_or_default();
+
+        match self.projection.deref() {
+            Projection::Perspective(perspective) => {
+                let radius = aabb.half_extents().max();
+                let distance = radius / (perspective.fov * 0.5).sin();
+
+                FitParameters::Perspective {
+                    position: aabb.center() - look_vector.scale(distance),
+                }
+            }
+            Projection::Orthographic(_) => {
+                let mut min_x = f32::MAX;
+                let mut min_y = f32::MAX;
+                let mut max_x = -f32::MAX;
+                let mut max_y = -f32::MAX;
+                let inv = self.global_transform().try_inverse().unwrap_or_default();
+                for point in aabb.corners() {
+                    let local = inv.transform_point(&Point3::from(point));
+                    if local.x < min_x {
+                        min_x = local.x;
+                    }
+                    if local.y < min_y {
+                        min_y = local.y;
+                    }
+                    if local.x > max_x {
+                        max_x = local.x;
+                    }
+                    if local.y > max_y {
+                        max_y = local.y;
+                    }
+                }
+
+                FitParameters::Orthographic {
+                    position: aabb.center() - look_vector.scale((aabb.max - aabb.min).norm()),
+                    vertical_size: (max_y - min_y).max((max_x - min_x) * aspect_ratio),
+                }
+            }
+        }
+    }
+
+    /// Returns current frustum of the camera.
     #[inline]
     pub fn frustum(&self) -> Frustum {
         Frustum::from_view_projection_matrix(self.view_projection_matrix()).unwrap_or_default()
