@@ -154,6 +154,29 @@ impl Frustum {
     }
 
     #[inline]
+    pub fn near_plane_center(&self) -> Vector3<f32> {
+        (self.left_top_front_corner()
+            + self.left_bottom_front_corner()
+            + self.right_bottom_front_corner()
+            + self.right_top_front_corner())
+        .scale(1.0 / 4.0)
+    }
+
+    #[inline]
+    pub fn far_plane_center(&self) -> Vector3<f32> {
+        (self.left_top_back_corner()
+            + self.left_bottom_back_corner()
+            + self.right_bottom_back_corner()
+            + self.right_top_back_corner())
+        .scale(1.0 / 4.0)
+    }
+
+    #[inline]
+    pub fn view_direction(&self) -> Vector3<f32> {
+        self.far_plane_center() - self.near_plane_center()
+    }
+
+    #[inline]
     pub fn center(&self) -> Vector3<f32> {
         self.corners()
             .iter()
