@@ -1801,6 +1801,12 @@ impl Editor {
                     Message::SelectObject { type_id, handle } => {
                         self.select_object(type_id, handle);
                     }
+                    Message::FocusObject(handle) => {
+                        if let Some(editor_scene) = self.scene.as_ref() {
+                            let scene = &mut self.engine.scenes[editor_scene.scene];
+                            editor_scene.camera_controller.fit_object(scene, handle);
+                        }
+                    }
                     Message::SetEditorCameraProjection(projection) => {
                         if let Some(editor_scene) = self.scene.as_ref() {
                             editor_scene.camera_controller.set_projection(

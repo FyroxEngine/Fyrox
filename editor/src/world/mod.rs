@@ -80,6 +80,7 @@ fn make_graph_node_item(
     handle: Handle<Node>,
     ctx: &mut BuildContext,
     context_menu: RcUiNodeHandle,
+    sender: MessageSender,
 ) -> Handle<UiNode> {
     let icon = if node.is_point_light() || node.is_directional_light() || node.is_spot_light() {
         load_image(include_bytes!("../../resources/embed/light.png"))
@@ -113,12 +114,12 @@ fn make_graph_node_item(
     .with_name(node.name().to_owned())
     .with_entity_handle(handle)
     .with_icon(icon)
-    .build(ctx)
+    .build(ctx, sender)
 }
 
 fn tree_node(ui: &UserInterface, tree: Handle<UiNode>) -> Handle<Node> {
     ui.node(tree)
-        .cast::<SceneItem<Node>>()
+        .cast::<SceneItem>()
         .expect("Malformed scene item!")
         .entity_handle
 }
@@ -370,7 +371,7 @@ impl WorldViewer {
                     let node = &scene.graph[node_handle];
 
                     let view = ui.find_by_criteria_down(self.tree_root, &|n| {
-                        n.cast::<SceneItem<Node>>()
+                        n.cast::<SceneItem>()
                             .map(|i| i.entity_handle == node_handle)
                             .unwrap_or_default()
                     });
@@ -392,7 +393,7 @@ impl WorldViewer {
             let node = &graph[node_handle];
             let ui_node = ui.node(tree_handle);
 
-            if let Some(item) = ui_node.cast::<SceneItem<Node>>() {
+            if let Some(item) = ui_node.cast::<SceneItem>() {
                 let child_count = node.children().len();
                 let items = item.tree.items.clone();
 
@@ -443,6 +444,7 @@ impl WorldViewer {
                                     child_handle,
                                     &mut ui.build_ctx(),
                                     self.item_context_menu.menu.clone(),
+                                    self.sender.clone(),
                                 );
                                 send_sync_message(
                                     ui,
@@ -467,6 +469,7 @@ impl WorldViewer {
                         node_handle,
                         &mut ui.build_ctx(),
                         self.item_context_menu.menu.clone(),
+                        self.sender.clone(),
                     );
                     send_sync_message(
                         ui,
@@ -489,7 +492,7 @@ impl WorldViewer {
         while let Some(handle) = stack.pop() {
             let ui_node = ui.node(handle);
 
-            if let Some(item) = ui_node.cast::<SceneItem<Node>>() {
+            if let Some(item) = ui_node.cast::<SceneItem>() {
                 if let Some(node) = graph.try_get(item.entity_handle) {
                     if item.name() != node.name() {
                         send_sync_message(
@@ -529,7 +532,7 @@ impl WorldViewer {
                 is_any_match |= apply_filter_recursive(child, filter, ui)
             }
 
-            let name = node_ref.cast::<SceneItem<Node>>().map(|i| i.name());
+            let name = node_ref.cast::<SceneItem>().map(|i| i.name());
 
             if let Some(name) = name {
                 is_any_match |= name.to_lowercase().contains(filter);
@@ -577,7 +580,7 @@ impl WorldViewer {
                 if let Some(graph_node) = engine
                     .user_interface
                     .try_get_node(view)
-                    .and_then(|n| n.cast::<SceneItem<Node>>())
+                    .and_then(|n| n.cast::<SceneItem>())
                 {
                     self.sender.do_scene_command(ChangeSelectionCommand::new(
                         Selection::Graph(GraphSelection::single_or_empty(graph_node.entity_handle)),
@@ -664,7 +667,7 @@ impl WorldViewer {
         for selected_item in selection {
             let selected_item_ref = engine.user_interface.node(*selected_item);
 
-            if let Some(graph_node) = selected_item_ref.cast::<SceneItem<Node>>() {
+            if let Some(graph_node) = selected_item_ref.cast::<SceneItem>() {
                 match new_selection {
                     Selection::None => {
                         new_selection = Selection::Graph(GraphSelection::single_or_empty(
@@ -705,8 +708,8 @@ impl WorldViewer {
             && dropped != target
         {
             if let (Some(child), Some(parent)) = (
-                ui.node(dropped).cast::<SceneItem<Node>>(),
-                ui.node(target).cast::<SceneItem<Node>>(),
+                ui.node(dropped).cast::<SceneItem>(),
+                ui.node(target).cast::<SceneItem>(),
             ) {
                 if let Selection::Graph(ref selection) = editor_scene.selection {
                     if selection.nodes.contains(&child.entity_handle) {
@@ -813,7 +816,7 @@ impl WorldViewer {
                 let view_ref = engine
                     .user_interface
                     .node(*view)
-                    .query_component::<SceneItem<Node>>()
+                    .query_component::<SceneItem>()
                     .unwrap();
 
                 if view_ref.warning_icon.is_none() && result.is_err()
@@ -829,19 +832,16 @@ impl WorldViewer {
     }
 }
 
-fn map_selection<T>(
-    selection: &[Handle<T>],
+fn map_selection(
+    selection: &[Handle<Node>],
     root_node: Handle<UiNode>,
     ui: &UserInterface,
-) -> Vec<Handle<UiNode>>
-where
-    T: 'static,
-{
+) -> Vec<Handle<UiNode>> {
     selection
         .iter()
         .filter_map(|&handle| {
             let item = ui.find_by_criteria_down(root_node, &|n| {
-                n.cast::<SceneItem<T>>()
+                n.cast::<SceneItem>()
                     .map(|n| n.entity_handle == handle)
                     .unwrap_or_default()
             });

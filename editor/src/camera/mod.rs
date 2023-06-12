@@ -3,13 +3,16 @@ use crate::{settings::camera::CameraSettings, utils::built_in_skybox, SceneCamer
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
-        math::{plane::Plane, ray::Ray, Matrix4Ext, TriangleDefinition, Vector3Ext},
+        math::{
+            aabb::AxisAlignedBoundingBox, plane::Plane, ray::Ray, Matrix4Ext, TriangleDefinition,
+            Vector3Ext,
+        },
         pool::Handle,
     },
     gui::message::{KeyCode, MouseButton},
     scene::{
         base::BaseBuilder,
-        camera::{Camera, CameraBuilder, Exposure, Projection},
+        camera::{Camera, CameraBuilder, Exposure, FitParameters, Projection},
         graph::Graph,
         mesh::{
             buffer::{VertexAttributeUsage, VertexReadTrait},
@@ -20,6 +23,7 @@ use fyrox::{
         pivot::PivotBuilder,
         sound::listener::ListenerBuilder,
         transform::TransformBuilder,
+        Scene,
     },
 };
 use std::{
@@ -136,6 +140,55 @@ impl CameraController {
             stack: Default::default(),
             editor_context: Default::default(),
             scene_context: Default::default(),
+        }
+    }
+
+    pub fn fit_object(&self, scene: &mut Scene, handle: Handle<Node>) {
+        // Combine AABBs from the descendants.
+        let mut aabb = AxisAlignedBoundingBox::default();
+        for descendant in scene.graph.traverse_iter(handle) {
+            let descendant_aabb = dbg!(descendant.local_bounding_box());
+            if !descendant_aabb.is_invalid_or_degenerate() {
+                aabb.add_box(descendant_aabb.transform(&descendant.global_transform()))
+            }
+        }
+
+        if aabb.is_invalid_or_degenerate() {
+            // To prevent the camera from flying away into abyss.
+            aabb = AxisAlignedBoundingBox::from_point(scene.graph[handle].global_position());
+        }
+
+        dbg!(&aabb);
+
+        let fit_parameters = scene.graph[self.camera].as_camera().fit(
+            &aabb,
+            scene
+                .render_target
+                .as_ref()
+                .and_then(|rt| rt.data_ref().kind().rectangle_size())
+                .map(|rs| rs.x as f32 / rs.y as f32)
+                .unwrap_or(1.0),
+        );
+
+        match fit_parameters {
+            FitParameters::Perspective { position } => {
+                scene.graph[self.pivot]
+                    .local_transform_mut()
+                    .set_position(position);
+            }
+            FitParameters::Orthographic {
+                position,
+                vertical_size,
+            } => {
+                if let Projection::Orthographic(ortho) =
+                    scene.graph[self.camera].as_camera_mut().projection_mut()
+                {
+                    ortho.vertical_size = vertical_size;
+                }
+                scene.graph[self.pivot]
+                    .local_transform_mut()
+                    .set_position(position);
+            }
         }
     }
 

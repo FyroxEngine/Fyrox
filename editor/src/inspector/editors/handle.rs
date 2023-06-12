@@ -146,7 +146,7 @@ impl Control for HandlePropertyEditor {
             }
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
             if message.destination() == self.handle() {
-                if let Some(item) = ui.node(*dropped).cast::<SceneItem<Node>>() {
+                if let Some(item) = ui.node(*dropped).cast::<SceneItem>() {
                     ui.send_message(HandlePropertyEditorMessage::value(
                         self.handle(),
                         MessageDirection::ToWidget,

@@ -47,6 +47,7 @@ pub enum Message {
         type_id: TypeId,
         handle: ErasedHandle,
     },
+    FocusObject(Handle<Node>),
     SetEditorCameraProjection(Projection),
     SwitchToBuildMode,
     SwitchToEditMode,

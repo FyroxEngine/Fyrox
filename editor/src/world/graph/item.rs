@@ -1,5 +1,5 @@
-use crate::load_image;
-use crate::utils::make_node_name;
+use crate::{load_image, message::MessageSender, utils::make_node_name, Message};
+use fyrox::scene::node::Node;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle},
     gui::{
@@ -35,23 +35,24 @@ impl SceneItemMessage {
     define_constructor!(SceneItemMessage:Validate => fn validate(Result<(), String>), layout: false);
 }
 
-pub struct SceneItem<T> {
+pub struct SceneItem {
     pub tree: Tree,
     text_name: Handle<UiNode>,
     name_value: String,
     grid: Handle<UiNode>,
-    pub entity_handle: Handle<T>,
+    pub entity_handle: Handle<Node>,
     // Can be unassigned if there's no warning.
     pub warning_icon: Handle<UiNode>,
+    sender: MessageSender,
 }
 
-impl<T> SceneItem<T> {
+impl SceneItem {
     pub fn name(&self) -> &str {
         &self.name_value
     }
 }
 
-impl<T> Clone for SceneItem<T> {
+impl Clone for SceneItem {
     fn clone(&self) -> Self {
         Self {
             tree: self.tree.clone(),
@@ -60,17 +61,18 @@ impl<T> Clone for SceneItem<T> {
             grid: self.grid,
             entity_handle: self.entity_handle,
             warning_icon: self.warning_icon,
+            sender: self.sender.clone(),
         }
     }
 }
 
-impl<T> Debug for SceneItem<T> {
+impl Debug for SceneItem {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "SceneItem")
     }
 }
 
-impl<T> Deref for SceneItem<T> {
+impl Deref for SceneItem {
     type Target = Widget;
 
     fn deref(&self) -> &Self::Target {
@@ -78,13 +80,13 @@ impl<T> Deref for SceneItem<T> {
     }
 }
 
-impl<T> DerefMut for SceneItem<T> {
+impl DerefMut for SceneItem {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.tree
     }
 }
 
-impl<T: 'static> Control for SceneItem<T> {
+impl Control for SceneItem {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
         self.tree.query_component(type_id).or_else(|| {
             if type_id == TypeId::of::<Self>() {
@@ -162,6 +164,13 @@ impl<T: 'static> Control for SceneItem<T> {
                     }
                 }
             }
+        } else if let Some(WidgetMessage::DoubleClick { .. }) = message.data() {
+            let flag = 0b0010;
+            if message.flags & flag != flag {
+                self.sender.send(Message::FocusObject(self.entity_handle));
+                message.set_handled(true);
+                message.flags |= flag;
+            }
         }
     }
 
@@ -179,15 +188,15 @@ impl<T: 'static> Control for SceneItem<T> {
     }
 }
 
-pub struct SceneItemBuilder<T> {
+pub struct SceneItemBuilder {
     tree_builder: TreeBuilder,
-    entity_handle: Handle<T>,
+    entity_handle: Handle<Node>,
     name: String,
     icon: Option<SharedTexture>,
     text_brush: Option<Brush>,
 }
 
-impl<T: 'static> SceneItemBuilder<T> {
+impl SceneItemBuilder {
     pub fn new(tree_builder: TreeBuilder) -> Self {
         Self {
             tree_builder,
@@ -198,7 +207,7 @@ impl<T: 'static> SceneItemBuilder<T> {
         }
     }
 
-    pub fn with_entity_handle(mut self, entity_handle: Handle<T>) -> Self {
+    pub fn with_entity_handle(mut self, entity_handle: Handle<Node>) -> Self {
         self.entity_handle = entity_handle;
         self
     }
@@ -218,7 +227,7 @@ impl<T: 'static> SceneItemBuilder<T> {
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(self, ctx: &mut BuildContext, sender: MessageSender) -> Handle<UiNode> {
         let text_name;
         let content = GridBuilder::new(
             WidgetBuilder::new()
@@ -269,6 +278,7 @@ impl<T: 'static> SceneItemBuilder<T> {
             text_name,
             grid: content,
             warning_icon: Default::default(),
+            sender,
         };
 
         ctx.add_node(UiNode::new(item))
