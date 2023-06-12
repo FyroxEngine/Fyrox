@@ -537,6 +537,11 @@ impl Camera {
         Ray::from_two_points(begin, end)
     }
 
+    #[inline]
+    pub fn frustum(&self) -> Frustum {
+        Frustum::from_view_projection_matrix(self.view_projection_matrix()).unwrap_or_default()
+    }
+
     /// Projects given world space point on screen plane.
     pub fn project(
         &self,
@@ -622,11 +627,7 @@ impl NodeTrait for Camera {
     }
 
     fn debug_draw(&self, ctx: &mut SceneDrawingContext) {
-        ctx.draw_frustum(
-            &Frustum::from_view_projection_matrix(self.view_projection_matrix())
-                .unwrap_or_default(),
-            Color::ORANGE,
-        );
+        ctx.draw_frustum(&self.frustum(), Color::ORANGE);
     }
 }
 
