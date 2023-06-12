@@ -23,6 +23,7 @@
 use crate::{
     asset::{options::ImportOptions, Resource, ResourceData, TEXTURE_RESOURCE_UUID},
     core::{
+        algebra::{Vector2, Vector3},
         futures::io::Error,
         io::{self, FileLoadError},
         reflect::prelude::*,
@@ -81,6 +82,53 @@ pub enum TextureKind {
         /// Depth of the volume.
         depth: u32,
     },
+}
+
+impl TextureKind {
+    /// Tries to fetch [`TextureKind::Line`]'s length.
+    #[inline]
+    pub fn line_length(&self) -> Option<u32> {
+        if let Self::Line { length } = self {
+            Some(*length)
+        } else {
+            None
+        }
+    }
+
+    /// Tries to fetch [`TextureKind::Rectangle`]'s width (x) and height (y).
+    #[inline]
+    pub fn rectangle_size(&self) -> Option<Vector2<u32>> {
+        if let Self::Rectangle { width, height } = self {
+            Some(Vector2::new(*width, *height))
+        } else {
+            None
+        }
+    }
+
+    /// Tries to fetch [`TextureKind::Cube`]'s width (x) and height (y).
+    #[inline]
+    pub fn cube_size(&self) -> Option<Vector2<u32>> {
+        if let Self::Cube { width, height } = self {
+            Some(Vector2::new(*width, *height))
+        } else {
+            None
+        }
+    }
+
+    /// Tries to fetch [`TextureKind::Volume`]'s width (x), height (y), depth (z).
+    #[inline]
+    pub fn volume_size(&self) -> Option<Vector3<u32>> {
+        if let Self::Volume {
+            width,
+            height,
+            depth,
+        } = self
+        {
+            Some(Vector3::new(*width, *height, *depth))
+        } else {
+            None
+        }
+    }
 }
 
 impl Default for TextureKind {
