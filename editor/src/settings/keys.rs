@@ -33,6 +33,12 @@ pub struct KeyBindings {
     pub new_scene: HotKey,
     pub close_scene: HotKey,
     pub remove_selection: HotKey,
+    #[serde(default = "default_focus_hotkey")]
+    pub focus: HotKey,
+}
+
+fn default_focus_hotkey() -> HotKey {
+    HotKey::from_key_code(KeyCode::F)
 }
 
 impl Default for KeyBindings {
@@ -62,6 +68,7 @@ impl Default for KeyBindings {
             new_scene: HotKey::ctrl_key(KeyCode::N),
             close_scene: HotKey::ctrl_key(KeyCode::Q),
             remove_selection: HotKey::from_key_code(KeyCode::Delete),
+            focus: default_focus_hotkey(),
         }
     }
 }

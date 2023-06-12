@@ -1019,6 +1019,14 @@ impl Editor {
                         }
                     }
                 }
+            } else if hot_key == key_bindings.focus {
+                if let Some(editor_scene) = self.scene.as_mut() {
+                    if let Selection::Graph(selection) = &editor_scene.selection {
+                        if let Some(first) = selection.nodes.first() {
+                            sender.send(Message::FocusObject(*first));
+                        }
+                    }
+                }
             }
         }
     }
