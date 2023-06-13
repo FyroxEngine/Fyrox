@@ -442,29 +442,245 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
     /// MyTree widget using engine's Tree widget as a base. The engine needs to know whether the custom
     /// widget is actually extends functionality of some existing widget.
     ///
-    /// # Implementation
+    /// ## Implementation
     ///
-    /// It should at least return `Some(self)` for `type_id == TypeId::of::<Self>`.
+    /// It should return at least `Some(self)` for `type_id == TypeId::of::<Self>`. Here's the simplest
+    /// implementation:
+    ///
+    /// ```rust
+    /// # use fyrox_ui::{define_widget_deref, message::UiMessage, Control, UserInterface, widget::Widget};
+    /// # use std::{
+    /// #     any::{Any, TypeId},
+    /// #     ops::{Deref, DerefMut},
+    /// # };
+    /// #
+    /// # #[derive(Clone)]
+    /// # struct MyWidget {
+    /// #     widget: Widget,
+    /// # }
+    /// #
+    /// # define_widget_deref!(MyWidget);
+    /// #
+    /// # impl Control for MyWidget {
+    /// fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+    ///     if type_id == TypeId::of::<Self>() {
+    ///         Some(self)
+    ///     } else {
+    ///         None
+    ///     }
+    /// }
+    ///     #
+    ///     # fn handle_routed_message(&mut self, _ui: &mut UserInterface, _message: &mut UiMessage) {
+    ///     #     todo!()
+    ///     # }
+    /// # }
+    /// ```
+    ///
+    /// Keep in mind, if you're building custom widget using existing one, you also need to add another
+    /// `if` branch that checks for the type of your existing widget that you're using to build your own.
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any>;
 
+    /// This method will be called right after the widget was cloned. It is used remap handles in the widgets
+    /// to their respective copies from the copied hierarchy.
     fn resolve(&mut self, #[allow(unused_variables)] node_map: &NodeHandleMapping) {}
 
+    /// This method will be called before the widget is destroyed (dropped). At the moment, when this
+    /// method is called, the widget is still in the widget graph and can be accessed via handles. It
+    /// is guaranteed to be called once, and only if the widget is deleted via [`UserInterface::remove_node`].
     fn on_remove(&self, #[allow(unused_variables)] sender: &Sender<UiMessage>) {}
 
+    /// This method is used to override measurement step of the layout system. It should return desired size of
+    /// the widget (how many space it wants to occupy).
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// # use fyrox_ui::{
+    /// #     core::algebra::Vector2, define_widget_deref, message::UiMessage, Control, UserInterface,
+    /// #     widget::Widget,
+    /// # };
+    /// # use std::{
+    /// #     any::{Any, TypeId},
+    /// #     ops::{Deref, DerefMut},
+    /// # };
+    /// #
+    /// #[derive(Clone)]
+    /// struct MyWidget {
+    ///     widget: Widget,
+    /// }
+    /// #
+    /// # define_widget_deref!(MyWidget);
+    ///
+    /// impl Control for MyWidget {
+    ///     # fn query_component(&self, _type_id: TypeId) -> Option<&dyn Any> {
+    ///     #     todo!()
+    ///     # }
+    ///     #
+    ///     fn measure_override(
+    ///         &self,
+    ///         ui: &UserInterface,
+    ///         available_size: Vector2<f32>,
+    ///     ) -> Vector2<f32> {
+    ///         let mut size: Vector2<f32> = Vector2::default();
+    ///
+    ///         // Measure children nodes and find the largest size of them.
+    ///         for &child in self.children.iter() {
+    ///             // Recursively measure children nodes. Measured size will be put in `desired_size`
+    ///             // of the widget.
+    ///             ui.measure_node(child, available_size);
+    ///
+    ///             // Find max size across all the children widgets.
+    ///             size = size.sup(&ui.node(child).desired_size());
+    ///         }
+    ///
+    ///         size
+    ///     }
+    ///     #
+    ///     # fn handle_routed_message(&mut self, _ui: &mut UserInterface, _message: &mut UiMessage) {
+    ///     #     todo!()
+    ///     # }
+    /// }
+    /// ```
+    ///
+    /// The goal of this method is to supply the UI system with the size requirements of all descendants
+    /// of the widget. In this example we measure all descendants recursively and finding the max desired
+    /// size of across all the children widgets. This effectively does the following: size of this widget
+    /// will be the max size of children widgets. Some widgets (like [`Canvas`]), can provide infinite
+    /// constraints to children nodes, to fetch unconstrained desired size.
+    ///
+    /// It is recommended to check implementation of this method of built-in widgets (such as [`Canvas`],
+    /// [`stack_panel::StackPanel`], [`wrap_panel::WrapPanel`], [`grid::Grid`]). It should help you to
+    /// understand measurement step better.
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
         self.deref().measure_override(ui, available_size)
     }
 
+    /// This method is used to override arrangement step of the layout system. Arrangement step is used to
+    /// commit the final location and size of the widget in local coordinates. It is done after the measurement
+    /// step; when all desired sizes of every widget is known. This fact allows you to calculate final location
+    /// and size of every child widget, based in their desired size. Usually this method is used in some panel
+    /// widgets, that takes their children and arranges them in some specific way. For example, it may stack
+    /// widgets on top of each other, or put them in a line with wrapping, etc.
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// # use fyrox_ui::{
+    /// #     core::{algebra::Vector2, math::Rect},
+    /// #     define_widget_deref,
+    /// #     message::UiMessage,
+    /// #     Control, UserInterface, widget::Widget,
+    /// # };
+    /// # use std::{
+    /// #     any::{Any, TypeId},
+    /// #     ops::{Deref, DerefMut},
+    /// # };
+    /// #
+    /// #[derive(Clone)]
+    /// struct MyWidget {
+    ///     widget: Widget,
+    /// }
+    /// #
+    /// # define_widget_deref!(MyWidget);
+    ///
+    /// impl Control for MyWidget {
+    ///     # fn query_component(&self, _type_id: TypeId) -> Option<&dyn Any> {
+    ///     #     todo!()
+    ///     # }
+    ///     #
+    ///     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
+    ///         let final_rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
+    ///
+    ///         // Commit final locations and size for each child node.
+    ///         for &child in self.children.iter() {
+    ///             ui.arrange_node(child, &final_rect);
+    ///         }
+    ///
+    ///         final_size
+    ///     }
+    ///     #
+    ///     # fn handle_routed_message(&mut self, _ui: &mut UserInterface, _message: &mut UiMessage) {
+    ///     #     todo!()
+    ///     # }
+    /// }
+    /// ```
+    ///
+    /// This example arranges all the children widgets using the given `final_size`, that comes from the
+    /// parent widget, so all children will have exactly the same size as the parent and be located at (0;0)
+    /// point in local coordinates.
+    ///
+    /// It is recommended to check implementation of this method of built-in widgets (such as [`Canvas`],
+    /// [`stack_panel::StackPanel`], [`wrap_panel::WrapPanel`], [`grid::Grid`]). It should help you to
+    /// understand arrangement step better.
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
         self.deref().arrange_override(ui, final_size)
     }
 
+    /// This method is used to emit drawing commands that will be used later to draw your widget on screen.
+    /// Keep in mind that any emitted geometry (quads, lines, text, etc), will be used to perform hit test.
+    /// In other words, all the emitted geometry will make your widget "clickable". Widgets with no geometry
+    /// emitted by this method are mouse input transparent.
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// # use fyrox_ui::{
+    /// #     define_widget_deref,
+    /// #     draw::{CommandTexture, Draw, DrawingContext},
+    /// #     message::UiMessage,
+    /// #     Control, UserInterface, widget::Widget,
+    /// # };
+    /// # use std::{
+    /// #     any::{Any, TypeId},
+    /// #     ops::{Deref, DerefMut},
+    /// # };
+    /// #
+    /// #[derive(Clone)]
+    /// struct MyWidget {
+    ///     widget: Widget,
+    /// }
+    /// #
+    /// # define_widget_deref!(MyWidget);
+    ///
+    /// impl Control for MyWidget {
+    ///     # fn query_component(&self, _type_id: TypeId) -> Option<&dyn Any> {
+    ///     #     todo!()
+    ///     # }
+    ///
+    /// fn draw(&self, drawing_context: &mut DrawingContext) {
+    ///     let bounds = self.widget.bounding_rect();
+    ///
+    ///     // Push a rect.
+    ///     drawing_context.push_rect_filled(&bounds, None);
+    ///
+    ///     // Commit the geometry, it is mandatory step, otherwise your widget's geometry
+    ///     // will be "attached" to some other widget that will call `commit`.
+    ///     drawing_context.commit(
+    ///         self.clip_bounds(),
+    ///         self.widget.background(),
+    ///         CommandTexture::None,
+    ///         None,
+    ///     );
+    /// }
+    ///     #
+    ///     # fn handle_routed_message(&mut self, _ui: &mut UserInterface, _message: &mut UiMessage) {
+    ///     #     todo!()
+    ///     # }
+    /// }
+    /// ```
+    ///
+    /// This example shows how to draw a simple quad using the background brush of the widget. See docs
+    /// for [`DrawingContext`] for more info.
     fn draw(&self, #[allow(unused_variables)] drawing_context: &mut DrawingContext) {}
 
+    /// This method is called every frame and can be used to update internal variables of the widget, that
+    /// can be used to animated your widget. Its main difference from other methods, is that it does **not**
+    /// provide access to any other widget in the UI. Instead, you can only send messages to widgets to
+    /// force them to change their state.
     fn update(
         &mut self,
         #[allow(unused_variables)] dt: f32,
