@@ -474,11 +474,6 @@ impl ScriptProcessor {
                             NodeScriptMessage::InitializeScript { handle } => {
                                 context.handle = handle;
 
-                                context
-                                    .scene
-                                    .graph
-                                    .update_hierarchical_data_for_descendants(handle);
-
                                 process_node(&mut context, &mut |script, context| {
                                     if !script.initialized {
                                         script.on_init(context);
