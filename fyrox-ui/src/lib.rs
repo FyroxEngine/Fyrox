@@ -14,6 +14,7 @@
 pub use copypasta;
 pub use fyrox_core as core;
 
+mod alignment;
 pub mod bit;
 pub mod border;
 pub mod brush;
@@ -91,6 +92,8 @@ use std::{
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
 };
 
+pub use alignment::*;
+
 // TODO: Make this part of UserInterface struct.
 pub const COLOR_COAL_BLACK: Color = Color::opaque(10, 10, 10);
 pub const COLOR_DARKEST: Color = Color::opaque(20, 20, 20);
@@ -117,22 +120,6 @@ pub const BRUSH_BRIGHT: Brush = Brush::Solid(COLOR_BRIGHT);
 pub const BRUSH_BRIGHT_BLUE: Brush = Brush::Solid(COLOR_BRIGHT_BLUE);
 pub const BRUSH_TEXT: Brush = Brush::Solid(COLOR_TEXT);
 pub const BRUSH_FOREGROUND: Brush = Brush::Solid(COLOR_FOREGROUND);
-
-#[derive(Copy, Clone, PartialEq, Debug, Eq)]
-pub enum HorizontalAlignment {
-    Stretch,
-    Left,
-    Center,
-    Right,
-}
-
-#[derive(Copy, Clone, PartialEq, Debug, Eq)]
-pub enum VerticalAlignment {
-    Stretch,
-    Top,
-    Center,
-    Bottom,
-}
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Thickness {
