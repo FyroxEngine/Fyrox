@@ -354,13 +354,20 @@ impl NodeHandleMapping {
     }
 }
 
+/// Base trait for all UI widgets. It has auto-impl and you don't need to implement it manually. Your widget
+/// must implement [`Clone`] and [`Control`] traits for impl to be generated for you, also your widget must
+/// not contain any references (due to `'static` lifetime requirement).
 pub trait BaseControl: 'static {
+    /// Returns `self` as `&dyn Any`.
     fn as_any(&self) -> &dyn Any;
 
+    /// Returns `self` as `&mut dyn Any`.
     fn as_any_mut(&mut self) -> &mut dyn Any;
 
+    /// Returns the exact copy of the widget in "type-erased" form.
     fn clone_boxed(&self) -> Box<dyn Control>;
 
+    /// Returns type name of the widget.
     fn type_name(&self) -> &'static str;
 }
 
