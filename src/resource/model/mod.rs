@@ -187,6 +187,8 @@ impl ModelResourceExtension for ModelResource {
             dest_graph[new].original_handle_in_resource = old;
         }
 
+        dest_graph.update_hierarchical_data_for_descendants(root);
+
         (root, old_to_new)
     }
 
