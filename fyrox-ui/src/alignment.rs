@@ -6,7 +6,7 @@
 #[derive(Copy, Clone, PartialEq, Debug, Eq, Default)]
 pub enum HorizontalAlignment {
     /// Tells the widget to take all available space along horizontal axis and stay at left side of the
-    /// parent widget. This is default vertical alignment for all widgets.
+    /// parent widget. This is default horizontal alignment for all widgets.
     #[default]
     Stretch,
     /// Tells the widget to stay at the left side of the parent widget and take as less space as

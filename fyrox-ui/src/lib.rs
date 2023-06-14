@@ -51,6 +51,7 @@ pub mod stack_panel;
 pub mod tab_control;
 pub mod text;
 pub mod text_box;
+mod thickness;
 pub mod tree;
 pub mod ttf;
 pub mod utils;
@@ -93,6 +94,7 @@ use std::{
 };
 
 pub use alignment::*;
+pub use thickness::*;
 
 // TODO: Make this part of UserInterface struct.
 pub const COLOR_COAL_BLACK: Color = Color::opaque(10, 10, 10);
@@ -120,14 +122,6 @@ pub const BRUSH_BRIGHT: Brush = Brush::Solid(COLOR_BRIGHT);
 pub const BRUSH_BRIGHT_BLUE: Brush = Brush::Solid(COLOR_BRIGHT_BLUE);
 pub const BRUSH_TEXT: Brush = Brush::Solid(COLOR_TEXT);
 pub const BRUSH_FOREGROUND: Brush = Brush::Solid(COLOR_FOREGROUND);
-
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub struct Thickness {
-    pub left: f32,
-    pub top: f32,
-    pub right: f32,
-    pub bottom: f32,
-}
 
 impl Default for Thickness {
     fn default() -> Self {
@@ -189,119 +183,6 @@ impl Deref for RcUiNodeHandle {
 pub enum Orientation {
     Vertical,
     Horizontal,
-}
-
-impl Thickness {
-    pub fn zero() -> Self {
-        Self {
-            left: 0.0,
-            top: 0.0,
-            right: 0.0,
-            bottom: 0.0,
-        }
-    }
-
-    pub fn uniform(v: f32) -> Self {
-        Self {
-            left: v,
-            top: v,
-            right: v,
-            bottom: v,
-        }
-    }
-
-    pub fn bottom(v: f32) -> Self {
-        Self {
-            left: 0.0,
-            top: 0.0,
-            right: 0.0,
-            bottom: v,
-        }
-    }
-
-    pub fn top(v: f32) -> Self {
-        Self {
-            left: 0.0,
-            top: v,
-            right: 0.0,
-            bottom: 0.0,
-        }
-    }
-
-    pub fn left(v: f32) -> Self {
-        Self {
-            left: v,
-            top: 0.0,
-            right: 0.0,
-            bottom: 0.0,
-        }
-    }
-
-    pub fn right(v: f32) -> Self {
-        Self {
-            left: 0.0,
-            top: 0.0,
-            right: v,
-            bottom: 0.0,
-        }
-    }
-    pub fn top_right(v: f32) -> Self {
-        Self {
-            left: 0.0,
-            top: v,
-            right: v,
-            bottom: 0.0,
-        }
-    }
-    pub fn top_left(v: f32) -> Self {
-        Self {
-            left: v,
-            top: v,
-            right: 0.0,
-            bottom: 0.0,
-        }
-    }
-    pub fn bottom_right(v: f32) -> Self {
-        Self {
-            left: 0.0,
-            top: 0.0,
-            right: v,
-            bottom: v,
-        }
-    }
-    pub fn bottom_left(v: f32) -> Self {
-        Self {
-            left: v,
-            top: 0.0,
-            right: 0.0,
-            bottom: v,
-        }
-    }
-    pub fn top_bottom(v: f32) -> Self {
-        Self {
-            left: 0.0,
-            top: v,
-            right: 0.0,
-            bottom: v,
-        }
-    }
-    pub fn left_right(v: f32) -> Self {
-        Self {
-            left: v,
-            top: 0.0,
-            right: v,
-            bottom: 0.0,
-        }
-    }
-
-    pub fn offset(&self) -> Vector2<f32> {
-        Vector2::new(self.left, self.top)
-    }
-
-    /// Returns margin for each axis.
-    pub fn axes_margin(&self) -> Vector2<f32> {
-        Vector2::new(self.left + self.right, self.top + self.bottom)
-    }
 }
 
 type NodeHandle = Handle<UiNode>;
