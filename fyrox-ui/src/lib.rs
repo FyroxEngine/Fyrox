@@ -18,6 +18,7 @@ mod alignment;
 pub mod bit;
 pub mod border;
 pub mod brush;
+mod build;
 pub mod button;
 pub mod canvas;
 pub mod check_box;
@@ -89,12 +90,13 @@ use std::{
     cell::{Cell, Ref, RefCell, RefMut},
     collections::{btree_set::BTreeSet, hash_map::Entry, VecDeque},
     fmt::{Debug, Formatter},
-    ops::{Deref, DerefMut, Index, IndexMut},
+    ops::{Deref, DerefMut},
     rc::Rc,
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
 };
 
 pub use alignment::*;
+pub use build::*;
 pub use control::*;
 pub use node::*;
 pub use thickness::*;
@@ -315,54 +317,6 @@ impl Default for MouseState {
     }
 }
 
-pub struct BuildContext<'a> {
-    ui: &'a mut UserInterface,
-}
-
-impl<'a> BuildContext<'a> {
-    pub fn default_font(&self) -> SharedFont {
-        self.ui.default_font.clone()
-    }
-
-    pub fn sender(&self) -> Sender<UiMessage> {
-        self.ui.sender()
-    }
-
-    pub fn add_node(&mut self, node: UiNode) -> Handle<UiNode> {
-        self.ui.add_node(node)
-    }
-
-    pub fn link(&mut self, child: Handle<UiNode>, parent: Handle<UiNode>) {
-        self.ui.link_nodes_internal(child, parent, false)
-    }
-
-    pub fn copy(&mut self, node: Handle<UiNode>) -> Handle<UiNode> {
-        self.ui.copy_node(node)
-    }
-
-    pub fn try_get_node(&self, node: Handle<UiNode>) -> Option<&UiNode> {
-        self.ui.try_get_node(node)
-    }
-
-    pub fn try_get_node_mut(&mut self, node: Handle<UiNode>) -> Option<&mut UiNode> {
-        self.ui.nodes.try_borrow_mut(node)
-    }
-}
-
-impl<'a> Index<Handle<UiNode>> for BuildContext<'a> {
-    type Output = UiNode;
-
-    fn index(&self, index: Handle<UiNode>) -> &Self::Output {
-        &self.ui.nodes[index]
-    }
-}
-
-impl<'a> IndexMut<Handle<UiNode>> for BuildContext<'a> {
-    fn index_mut(&mut self, index: Handle<UiNode>) -> &mut Self::Output {
-        &mut self.ui.nodes[index]
-    }
-}
-
 #[derive(Copy, Clone)]
 pub struct RestrictionEntry {
     /// Handle to UI node to which picking must be restricted to.
@@ -579,7 +533,7 @@ impl UserInterface {
     }
 
     pub fn build_ctx(&mut self) -> BuildContext<'_> {
-        BuildContext { ui: self }
+        self.into()
     }
 
     #[inline]
@@ -1962,7 +1916,7 @@ impl UserInterface {
         self.root_canvas
     }
 
-    pub fn add_node(&mut self, mut node: UiNode) -> Handle<UiNode> {
+    fn add_node(&mut self, mut node: UiNode) -> Handle<UiNode> {
         let children = node.children().to_vec();
         node.clear_children();
         let node_handle = self.nodes.spawn(node);

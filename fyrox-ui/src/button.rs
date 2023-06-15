@@ -130,7 +130,7 @@ impl ButtonContent {
                 .with_text(text)
                 .with_horizontal_text_alignment(HorizontalAlignment::Center)
                 .with_vertical_text_alignment(VerticalAlignment::Center)
-                .with_font(font.clone().unwrap_or_else(|| ctx.ui.default_font.clone()))
+                .with_font(font.clone().unwrap_or_else(|| ctx.default_font()))
                 .build(ctx),
             Self::Node(node) => *node,
         }
