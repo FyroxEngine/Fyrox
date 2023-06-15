@@ -250,52 +250,58 @@ impl Font {
     }
 
     #[inline]
-    fn compute_atlas_size(&self, border: usize) -> usize {
+    fn compute_atlas_size(&self, border: usize, size_factor: f32) -> usize {
         let mut area = 0.0;
         for glyph in self.glyphs.iter() {
             area += (glyph.bitmap_width + border) as f32 * (glyph.bitmap_height + border) as f32;
         }
-        (1.3 * area.sqrt()) as usize
+        (size_factor * area.sqrt()) as usize
     }
 
     fn pack(&mut self) {
         let border = 2;
-        self.atlas_size = self.compute_atlas_size(border);
-        self.atlas = vec![0; self.atlas_size * self.atlas_size];
-        let k = 1.0 / self.atlas_size as f32;
-        let mut rect_packer = RectPacker::new(self.atlas_size, self.atlas_size);
-        for glyph in self.glyphs.iter_mut() {
-            if let Some(bounds) =
-                rect_packer.find_free(glyph.bitmap_width + border, glyph.bitmap_height + border)
-            {
-                let bw = bounds.w() - border;
-                let bh = bounds.h() - border;
-                let bx = bounds.x() + border / 2;
-                let by = bounds.y() + border / 2;
+        let mut atlas_size_factor = 1.3;
+        'outer: loop {
+            self.atlas_size = self.compute_atlas_size(border, atlas_size_factor);
+            self.atlas = vec![0; self.atlas_size * self.atlas_size];
+            let k = 1.0 / self.atlas_size as f32;
+            let mut rect_packer = RectPacker::new(self.atlas_size, self.atlas_size);
+            for glyph in self.glyphs.iter_mut() {
+                if let Some(bounds) =
+                    rect_packer.find_free(glyph.bitmap_width + border, glyph.bitmap_height + border)
+                {
+                    let bw = bounds.w() - border;
+                    let bh = bounds.h() - border;
+                    let bx = bounds.x() + border / 2;
+                    let by = bounds.y() + border / 2;
 
-                let tw = bw as f32 * k;
-                let th = bh as f32 * k;
-                let tx = bx as f32 * k;
-                let ty = by as f32 * k;
+                    let tw = bw as f32 * k;
+                    let th = bh as f32 * k;
+                    let tx = bx as f32 * k;
+                    let ty = by as f32 * k;
 
-                glyph.tex_coords[0] = Vector2::new(tx, ty);
-                glyph.tex_coords[1] = Vector2::new(tx + tw, ty);
-                glyph.tex_coords[2] = Vector2::new(tx + tw, ty + th);
-                glyph.tex_coords[3] = Vector2::new(tx, ty + th);
+                    glyph.tex_coords[0] = Vector2::new(tx, ty);
+                    glyph.tex_coords[1] = Vector2::new(tx + tw, ty);
+                    glyph.tex_coords[2] = Vector2::new(tx + tw, ty + th);
+                    glyph.tex_coords[3] = Vector2::new(tx, ty + th);
 
-                let row_end = by + bh;
-                let col_end = bx + bw;
+                    let row_end = by + bh;
+                    let col_end = bx + bw;
 
-                // Copy glyph pixels to atlas pixels
-                for (src_row, row) in (by..row_end).enumerate() {
-                    for (src_col, col) in (bx..col_end).enumerate() {
-                        self.atlas[row * self.atlas_size + col] =
-                            glyph.pixels[src_row * bw + src_col];
+                    // Copy glyph pixels to atlas pixels
+                    for (src_row, row) in (by..row_end).enumerate() {
+                        for (src_col, col) in (bx..col_end).enumerate() {
+                            self.atlas[row * self.atlas_size + col] =
+                                glyph.pixels[src_row * bw + src_col];
+                        }
                     }
+                } else {
+                    atlas_size_factor *= 1.5 /1.3;
+
+                    continue 'outer;
                 }
-            } else {
-                println!("Insufficient atlas size!");
             }
+            break 'outer;
         }
     }
 }
