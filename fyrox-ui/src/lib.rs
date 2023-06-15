@@ -38,6 +38,7 @@ pub mod list_view;
 pub mod menu;
 pub mod message;
 pub mod messagebox;
+mod node;
 pub mod numeric;
 pub mod popup;
 pub mod progress_bar;
@@ -94,6 +95,7 @@ use std::{
 };
 
 pub use alignment::*;
+pub use node::*;
 pub use thickness::*;
 
 // TODO: Make this part of UserInterface struct.
@@ -649,52 +651,6 @@ impl Default for MouseState {
             right: ButtonState::Released,
             middle: ButtonState::Released,
         }
-    }
-}
-
-pub struct UiNode(pub Box<dyn Control>);
-
-impl Deref for UiNode {
-    type Target = dyn Control;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.deref()
-    }
-}
-
-impl DerefMut for UiNode {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.0.deref_mut()
-    }
-}
-
-impl UiNode {
-    pub fn new<T: Control>(widget: T) -> Self {
-        Self(Box::new(widget))
-    }
-
-    pub fn cast<T: Control>(&self) -> Option<&T> {
-        self.0.as_any().downcast_ref::<T>()
-    }
-
-    pub fn cast_mut<T: Control>(&mut self) -> Option<&mut T> {
-        self.0.as_any_mut().downcast_mut::<T>()
-    }
-
-    pub fn query_component<T>(&self) -> Option<&T>
-    where
-        T: 'static,
-    {
-        self.0
-            .query_component(TypeId::of::<T>())
-            .and_then(|c| c.downcast_ref::<T>())
-    }
-
-    pub fn has_component<T>(&self) -> bool
-    where
-        T: 'static,
-    {
-        self.query_component::<T>().is_some()
     }
 }
 
