@@ -3,6 +3,7 @@ use crate::{
     draw::SharedTexture,
 };
 use fxhash::FxHashMap;
+use fyrox_core::log::Log;
 use std::{
     borrow::Cow,
     fmt::{Debug, Formatter},
@@ -260,9 +261,9 @@ impl Font {
 
     fn pack(&mut self) {
         let border = 2;
-        let mut atlas_size_factor = 1.3;
+        let mut atlas_size_factor = 0.3;
+        self.atlas_size = self.compute_atlas_size(border, atlas_size_factor);
         'outer: loop {
-            self.atlas_size = self.compute_atlas_size(border, atlas_size_factor);
             self.atlas = vec![0; self.atlas_size * self.atlas_size];
             let k = 1.0 / self.atlas_size as f32;
             let mut rect_packer = RectPacker::new(self.atlas_size, self.atlas_size);
@@ -297,6 +298,13 @@ impl Font {
                     }
                 } else {
                     atlas_size_factor *= 1.5 /1.3;
+                    let mut bigger = self.compute_atlas_size(border, atlas_size_factor);
+                    while bigger == self.atlas_size {
+                        atlas_size_factor *= 1.5 /1.3;
+                        bigger = self.compute_atlas_size(border, atlas_size_factor);
+                    }
+                    Log::info(format!("{} was not big enough for font atlas trying agains with {bigger}", self.atlas_size));
+                    self.atlas_size = self.compute_atlas_size(border,atlas_size_factor);
 
                     continue 'outer;
                 }
