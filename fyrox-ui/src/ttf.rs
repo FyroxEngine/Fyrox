@@ -261,7 +261,7 @@ impl Font {
 
     fn pack(&mut self) {
         let border = 2;
-        let mut atlas_size_factor = 0.3;
+        let mut atlas_size_factor = 1.3;
         self.atlas_size = self.compute_atlas_size(border, atlas_size_factor);
         'outer: loop {
             self.atlas = vec![0; self.atlas_size * self.atlas_size];
