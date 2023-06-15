@@ -361,7 +361,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
 
     /// This method will be called before the widget is destroyed (dropped). At the moment, when this
     /// method is called, the widget is still in the widget graph and can be accessed via handles. It
-    /// is guaranteed to be called once, and only if the widget is deleted via [`UserInterface::remove_node`].
+    /// is guaranteed to be called once, and only if the widget is deleted via [`WidgetMessage::remove`].
     fn on_remove(&self, #[allow(unused_variables)] sender: &Sender<UiMessage>) {}
 
     /// This method is used to override measurement step of the layout system. It should return desired size of
