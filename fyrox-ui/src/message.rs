@@ -23,7 +23,8 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 #[macro_export]
 macro_rules! define_constructor {
-    ($inner:ident : $inner_var:tt => fn $name:ident(), layout: $perform_layout:expr) => {
+    ($(#[$meta:meta])* $inner:ident : $inner_var:tt => fn $name:ident(), layout: $perform_layout:expr) => {
+        $(#[$meta])*
         #[must_use = "message does nothing until sent to ui"]
         pub fn $name(destination: Handle<UiNode>, direction: MessageDirection) -> UiMessage {
             UiMessage {
@@ -37,7 +38,8 @@ macro_rules! define_constructor {
         }
     };
 
-    ($inner:ident : $inner_var:tt => fn $name:ident($typ:ty), layout: $perform_layout:expr) => {
+    ($(#[$meta:meta])* $inner:ident : $inner_var:tt => fn $name:ident($typ:ty), layout: $perform_layout:expr) => {
+        $(#[$meta])*
         #[must_use = "message does nothing until sent to ui"]
         pub fn $name(destination: Handle<UiNode>, direction: MessageDirection, value:$typ) -> UiMessage {
             UiMessage {
@@ -51,7 +53,8 @@ macro_rules! define_constructor {
         }
     };
 
-    ($inner:ident : $inner_var:tt => fn $name:ident( $($params:ident : $types:ty),+ ), layout: $perform_layout:expr) => {
+    ($(#[$meta:meta])* $inner:ident : $inner_var:tt => fn $name:ident( $($params:ident : $types:ty),+ ), layout: $perform_layout:expr) => {
+        $(#[$meta])*
         #[must_use = "message does nothing until sent to ui"]
         pub fn $name(destination: Handle<UiNode>, direction: MessageDirection, $($params : $types),+) -> UiMessage {
             UiMessage {
