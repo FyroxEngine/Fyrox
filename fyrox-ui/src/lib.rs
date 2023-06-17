@@ -1,6 +1,137 @@
-//! Extendable, retained mode, graphics API agnostic UI library.
+//! Extendable, retained mode, graphics API agnostic UI library with lots (35+) of built-in widgets, HiDPI support,
+//! rich layout system and many more.
 //!
-//! See examples here - <https://github.com/mrDIMAS/rusty-shooter/blob/master/src/menu.rs>
+//! ## Basic Concepts
+//!
+//! FyroxUI is quite complex UI library and before using it, you should understand basic concepts of it. Especially,
+//! if you're got used to immediate-mode UIs.
+//!
+//! ### Stateful
+//!
+//! **Stateful UI* means that we can create and destroy widgets when we need to, it is the opposite approach of
+//! **immediate-mode** or **stateless UIs** when you don't have long-lasting state for your widgets
+//! (usually stateless UI hold its state only for one or few frames).
+//!
+//! Stateful UI is much more powerful and flexible, it allows you to have complex layout system without having to
+//! create hacks to create complex layout as you'd do in immediate-mode UIs. It is also much faster in terms of
+//! performance. Stateful UI is a must for complex user interfaces that requires rich layout and high performance.
+//!
+//! ### Node-based architecture
+//!
+//! Every user interface could be represented as a set of small blocks that have hierarchical bonding between each
+//! other. For example a button could be represented using two parts: a background and a foreground. Usually the background
+//! is just a simple rectangle (either a vector or bitmap), and a foreground is a text. The text (the foreground widget)
+//! is a child object of the rectangle (the background widget). These two widgets forms another, more complex widget that
+//! we call button.
+//!
+//! Such approach allows us to modify the look of the button as we wish, we can create a button with image background,
+//! or with any vector image, or even other widgets. The foreground can be anything too, it can also contain its own
+//! complex hierarchy, like a pair of an icon with a text and so on.
+//!
+//! ### Composition
+//!
+//! Every widget in the engine uses composition to build more complex widgets. All widgets (and respective builders) contains
+//! `Widget` instance inside, it provides basic functionality the widget such as layout information, hierarchy, default
+//! foreground and background brushes (their usage depends on derived widget), render and layout transform and so on.
+//!
+//! ### Message passing
+//!
+//! The engine uses message passing mechanism for UI logic. What does that mean? Let's see at the button from the
+//! previous section and imagine we want to change its text. To do that we need to explicitly "tell" the button's text
+//! widget to change its content to something new. This is done by sending a message to the widget.
+//!
+//! There is no "classic" callbacks to handle various types of messages, which may come from widgets. Instead, you should write
+//! your own message dispatcher where you'll handle all messages. Why so? At first - decoupling, in this case business logic
+//! is decoupled from the UI. You just receive messages one-by-one and do specific logic. The next reason is that any
+//! callback would require context capturing which could be somewhat restrictive - since you need to share context with the
+//! UI, it would force you to wrap it in `Rc<RefCell<..>>`/`Arc<Mutex<..>>`.
+//!
+//! ### Message routing strategies
+//!
+//! Message passing mechanism works in pair with various routing strategies that allows you to define how the message
+//! will "travel" across the tree of nodes.
+//!
+//! 1. Bubble - a message starts its way from a widget and goes up on hierarchy until it reaches the root node of the hierarchy.
+//! Nodes that lies outside that path won't receive the message. This is the most important message routing strategy, that
+//! is used for **every** node by default.
+//! 2. Direct - a message passed directly to every node that are capable to handle it. There is actual routing in this
+//! case. Direct routing is used in rare cases when you need to catch a message outside its normal "bubble" route. It is **off**
+//! by default for every widget, but can be enabled on per-widget instance basis.
+//!
+//! ## Widgets Overview
+//!
+//! The following subsections explains how to use every widget built into FyroxUI. We will order them by primary function to
+//! help introduce them to new users.
+//!
+//! ### Containers
+//!
+//! The Container widgets primary purpose is to contain other widgets. They are mostly used as a tool to layout the UI in
+//! visually different ways.
+//!
+//! * [`crate::stack_panel::StackPanel`]: The Stack Panel arranges widgets in a linear fashion, either vertically or horizontally
+//! depending on how it's setup.
+//! * [`crate::wrap_panel::WrapPanel`]: The Wrap Panel arranges widgets in a linear fashion but if it overflows the widgets are
+//! continued adjacent to the first line. Can arrange widgets either vertically or horizontally depending on how it's setup.
+//! * [`crate::grid::Grid`]: The Grid arranges widgets into rows and columns with given size constraints.
+//! * [`crate::canvas::Canvas`]: The Canvas arranges widgets at their desired positions; it has infinite size and does not restrict
+//! their children widgets position and size.
+//! * [`crate::window::Window`]: The Window holds other widgets in a panel that can be configured at setup to be move-able,
+//! expanded and contracted via user input, exited, and have a displayed label. The window has a title bar to assist with these
+//! features.
+//! * [`crate::messagebox::MessageBox`]: The Message Box is a Window that has been streamlined to show standard confirmation/information
+//! dialogues, for example, closing a document with unsaved changes. It has a title, some text, and a fixed set of buttons (Yes, No,
+//! Cancel in different combinations).
+//! * [`crate::menu::Menu`]: The Menu is a root container for Menu Items, an example could be a menu strip with File, Edit, View, etc
+//! items.
+//! * [`crate::popup::Popup`]: The Popup is a panel that locks input to its content while it is open. A simple example of it could be a
+//! context menu.
+//! * [`crate::scroll_viewer::ScrollViewer`]: The ScrollViewer is a wrapper for Scroll Panel that adds two scroll bars to it.
+//! * [`crate::scroll_panel::ScrollPanel`]: The Scroll Panel is a panel that allows you apply some offset to children widgets. It
+//! is used to create "scrollable" area in conjunction with the Scroll Viewer.
+//! * [`crate::expander::Expander`]: The Expander handles hiding and showing multiple panels of widgets in an according style UI element.
+//! Multiple panels can be shown or hidden at any time based on user input.
+//! * [`crate::tab_control::TabControl`]: The Tab Control handles hiding several panels of widgets, only showing the one that the user
+//! has selected.
+//! * [`crate::dock::DockingManager`]: The Docking manager allows you to dock windows and hold them in-place.
+//! * [`crate::tree::Tree`]: The Tree allows you to create views for hierarchical data.
+//!
+//! ### Visual
+//!
+//! The Visual widgets primary purpose is to provide the user feedback generally without the user directly interacting with them.
+//!
+//! * [`crate::text::Text`]: The Text widget is used to display a string to the user.
+//! * [`crate::image::Image`]: The Image widget is used to display a pixel image to the user.
+//! * [`crate::vector_image::VectorImage`]: The Vector Image is used to render vector instructions as a graphical element.
+//! * [`crate::rect::RectEditor`]: The Rect allows you to specify numeric values for X, Y, Width, and Height of a rectangle.
+//! * [`crate::progress_bar::ProgressBar`]: The Progress Bar shows a bar whose fill state can be adjusted to indicate visually how full
+//! something is, for example how close to 100% is a loading process.
+//! * [`crate::decorator::Decorator`]: The Decorator is used to style any widget. It has support for different styles depending on various
+//! events like mouse hover or click.
+//! * [`crate::border::Border`]: The Border widget is used in conjunction with the Decorator widget to provide configurable boarders to
+//! any widget for styling purposes.
+//!
+//! ### Controls
+//!
+//! Control widgets primary purpose is to provide users with intractable UI elements to control some aspect of the program.
+//!
+//! * [`crate::border::Border`]: The Button provides a press-able control that can contain other UI elements, for example a Text
+//! or Image Widget.
+//! * [`crate::check_box::CheckBox`]: The Check Box is a toggle-able control that can contain other UI elements, for example a Text
+//! or Image Widget.
+//! * [`crate::text_box::TextBox`]: The Text Box is a control that allows the editing of text.
+//! * [`crate::scroll_bar::ScrollBar`]: The Scroll Bar provides a scroll bar like control that can be used on it's own as a data input or with
+//! certain other widgets to provide content scrolling capabilities.
+//! * [`crate::numeric::NumericUpDown`]: The Numeric Field provides the ability to adjust a number via increment and decrement buttons or direct
+//! input. The number can be constrained to remain inside a specific range or have a specific step.
+//! * [`crate::range::RangeEditor`]: The Range allows the user to edit a numeric range - specify its begin and end values.
+//! * [`crate::list_view::ListView`]: The List View provides a control where users can select from a list of items.
+//! * [`crate::dropdown_list::DropdownList`]: The Drop-down List is a control which shows the currently selected item and provides a drop-down
+//! list to select an item.
+//! * [`crate::file_browser::FileBrowser`]: The File Browser is a tree view of the file system allowing the user to select a file or folder.
+//! * [`crate::curve::CurveEditor`]: The CurveEditor allows editing parametric curves - adding points, and setting up transitions (constant,
+//! linear, cubic) between them.
+//! * [`crate::inspector::Inspector`]: The Inspector automatically creates and handles the input of UI elements based on a populated Inspector
+//! Context given to it allowing the user to adjust values of a variety of models without manually creating UI's for each type.
 
 #![forbid(unsafe_code)]
 #![allow(irrefutable_let_patterns)]
