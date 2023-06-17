@@ -486,11 +486,19 @@ impl Default for TransformStack {
 }
 
 impl TransformStack {
+    #[inline]
     pub fn push(&mut self, matrix: Matrix3<f32>) {
         self.transform = matrix;
         self.stack.push(matrix);
     }
 
+    /// Returns the transformation matrix that will be used to transform vertices of drawing context.
+    #[inline]
+    pub fn transform(&self) -> &Matrix3<f32> {
+        &self.transform
+    }
+
+    #[inline]
     pub fn pop(&mut self) {
         if let Some(top) = self.stack.pop() {
             self.transform = top;
