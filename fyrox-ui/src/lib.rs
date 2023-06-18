@@ -132,6 +132,40 @@
 //! linear, cubic) between them.
 //! * [`crate::inspector::Inspector`]: The Inspector automatically creates and handles the input of UI elements based on a populated Inspector
 //! Context given to it allowing the user to adjust values of a variety of models without manually creating UI's for each type.
+//!
+//! ## Examples
+//!
+//! A simple usage example could be the following code:
+//!
+//! ```rust
+//! use fyrox_ui::{
+//!     button::{ButtonBuilder, ButtonMessage},
+//!     core::algebra::Vector2,
+//!     widget::WidgetBuilder,
+//!     UserInterface,
+//! };
+//!
+//! // Create the UI first.
+//! let mut ui = UserInterface::new(Vector2::new(1024.0, 768.0));
+//!
+//! // Add some widgets.
+//! let button = ButtonBuilder::new(WidgetBuilder::new())
+//!     .with_text("Click Me!")
+//!     .build(&mut ui.build_ctx());
+//!
+//! // Poll the messages coming from the widgets and react to them.
+//! while let Some(message) = ui.poll_message() {
+//!     if let Some(ButtonMessage::Click) = message.data() {
+//!         if message.destination() == button {
+//!             println!("The button was clicked!");
+//!         }
+//!     }
+//! }
+//! ```
+//!
+//! **Important**: This example **does not** include any drawing or OS event processing! It is because this
+//! crate is OS- and GAPI-agnostic and do not create native OS windows and cannot draw anything on screen.
+//! For more specific examples, please see `examples` of the crate.
 
 #![forbid(unsafe_code)]
 #![allow(irrefutable_let_patterns)]
