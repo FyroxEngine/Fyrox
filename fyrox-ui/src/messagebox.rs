@@ -365,8 +365,7 @@ impl<'b> MessageBoxBuilder<'b> {
 
         if is_open {
             // We must restrict picking because message box is modal.
-            ctx.ui
-                .push_picking_restriction(RestrictionEntry { handle, stop: true });
+            ctx.push_picking_restriction(RestrictionEntry { handle, stop: true });
         }
 
         handle

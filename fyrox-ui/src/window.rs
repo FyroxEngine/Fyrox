@@ -1002,8 +1002,7 @@ impl WindowBuilder {
         let handle = ctx.add_node(UiNode::new(node));
 
         if modal && open {
-            ctx.ui
-                .push_picking_restriction(RestrictionEntry { handle, stop: true });
+            ctx.push_picking_restriction(RestrictionEntry { handle, stop: true });
         }
 
         handle

@@ -96,7 +96,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
 
     /// This method will be called before the widget is destroyed (dropped). At the moment, when this
     /// method is called, the widget is still in the widget graph and can be accessed via handles. It
-    /// is guaranteed to be called once, and only if the widget is deleted via [`WidgetMessage::remove`].
+    /// is guaranteed to be called once, and only if the widget is deleted via [`crate::widget::WidgetMessage::remove`].
     fn on_remove(&self, #[allow(unused_variables)] sender: &Sender<UiMessage>) {}
 
     /// This method is used to override measurement step of the layout system. It should return desired size of
@@ -155,11 +155,11 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
     /// The goal of this method is to supply the UI system with the size requirements of all descendants
     /// of the widget. In this example we measure all descendants recursively and finding the max desired
     /// size of across all the children widgets. This effectively does the following: size of this widget
-    /// will be the max size of children widgets. Some widgets (like [`Canvas`]), can provide infinite
+    /// will be the max size of children widgets. Some widgets (like [`crate::canvas::Canvas`]), can provide infinite
     /// constraints to children nodes, to fetch unconstrained desired size.
     ///
-    /// It is recommended to check implementation of this method of built-in widgets (such as [`Canvas`],
-    /// [`stack_panel::StackPanel`], [`wrap_panel::WrapPanel`], [`grid::Grid`]). It should help you to
+    /// It is recommended to check implementation of this method of built-in widgets (such as [`crate::canvas::Canvas`],
+    /// [`crate::stack_panel::StackPanel`], [`crate::wrap_panel::WrapPanel`], [`crate::grid::Grid`]). It should help you to
     /// understand measurement step better.
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
@@ -221,8 +221,8 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
     /// parent widget, so all children will have exactly the same size as the parent and be located at (0;0)
     /// point in local coordinates.
     ///
-    /// It is recommended to check implementation of this method of built-in widgets (such as [`Canvas`],
-    /// [`stack_panel::StackPanel`], [`wrap_panel::WrapPanel`], [`grid::Grid`]). It should help you to
+    /// It is recommended to check implementation of this method of built-in widgets (such as [`crate::canvas::Canvas`],
+    /// [`crate::stack_panel::StackPanel`], [`crate::wrap_panel::WrapPanel`], [`crate::grid::Grid`]). It should help you to
     /// understand arrangement step better.
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
