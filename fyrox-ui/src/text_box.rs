@@ -1,3 +1,8 @@
+//! TextBox is a text widget that allows you to edit text and create specialized input fields. See [`TextBox`] docs for more
+//! info and usage examples.
+
+#![warn(missing_docs)]
+
 use crate::{
     brush::Brush,
     core::{
@@ -27,74 +32,108 @@ use std::{
     sync::mpsc::Sender,
 };
 
-/// A message for text box widget.
+/// A message that could be used to alternate text box widget's state or receive changes from it.
 ///
 /// # Important notes
 ///
 /// Text box widget also supports [`TextMessage`] and [`WidgetMessage`].
 #[derive(Debug, Clone, PartialEq)]
 pub enum TextBoxMessage {
+    /// Used to change selection brush of a text box. Use [TextBoxMessage::selection_brush`] to create the message.
     SelectionBrush(Brush),
+    /// Used to change caret brush of a text box. Use [TextBoxMessage::caret_brush`] to create the message.
     CaretBrush(Brush),
+    /// Used to change text commit mode of a text box. Use [TextBoxMessage::text_commit_mode`] to create the message.
     TextCommitMode(TextCommitMode),
+    /// Used to enable or disable multiline mode of a text box. Use [TextBoxMessage::multiline`] to create the message.
     Multiline(bool),
+    /// Used to enable or disable an ability to edit text box content. Use [TextBoxMessage::editable`] to create the message.
     Editable(bool),
 }
 
 impl TextBoxMessage {
-    define_constructor!(TextBoxMessage:SelectionBrush => fn selection_brush(Brush), layout: false);
-    define_constructor!(TextBoxMessage:CaretBrush => fn caret_brush(Brush), layout: false);
-    define_constructor!(TextBoxMessage:TextCommitMode => fn text_commit_mode(TextCommitMode), layout: false);
-    define_constructor!(TextBoxMessage:Multiline => fn multiline(bool), layout: false);
-    define_constructor!(TextBoxMessage:Editable => fn editable(bool), layout: false);
+    define_constructor!(
+        /// Creates [`TextBoxMessage::SelectionBrush`].
+        TextBoxMessage:SelectionBrush => fn selection_brush(Brush), layout: false
+    );
+    define_constructor!(
+        /// Creates [`TextBoxMessage::CaretBrush`].
+        TextBoxMessage:CaretBrush => fn caret_brush(Brush), layout: false
+    );
+    define_constructor!(
+        /// Creates [`TextBoxMessage::TextCommitMode`].
+        TextBoxMessage:TextCommitMode => fn text_commit_mode(TextCommitMode), layout: false
+    );
+    define_constructor!(
+        /// Creates [`TextBoxMessage::Multiline`].
+        TextBoxMessage:Multiline => fn multiline(bool), layout: false
+    );
+    define_constructor!(
+        /// Creates [`TextBoxMessage::Editable`].
+        TextBoxMessage:Editable => fn editable(bool), layout: false
+    );
 }
 
+/// Specifies a direction on horizontal axis.
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum HorizontalDirection {
+    /// Left direction.
     Left,
+    /// Right direction.
     Right,
 }
 
+/// Specifies a direction on vertical axis.
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum VerticalDirection {
+    /// Down direction.
     Down,
+    /// Up direction.
     Up,
 }
 
+/// Defines a position in the text. It is just a coordinates of a character in text.
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]
 pub struct Position {
-    // Line index.
+    /// Line index.
     pub line: usize,
 
-    // Offset from beginning of a line.
+    /// Offset from the beginning of the line.
     pub offset: usize,
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Debug)]
+/// Defines the way, how the text box widget will commit the text that was typed in
+#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Debug, Default)]
 #[repr(u32)]
 pub enum TextCommitMode {
-    /// Text box will immediately send Text message after any change.
+    /// Text box will immediately send [`TextMessage::Text`] message after any change (after any pressed button).
     Immediate = 0,
 
-    /// Text box will send Text message only when it loses focus.
+    /// Text box will send Text message only when it loses focus (when a user "clicks" outside of it or with any other
+    /// event that forces the text box to lose focus).
     LostFocus = 1,
 
-    /// Text box will send Text message when it loses focus or if Enter
-    /// key was pressed. This is **default** behavior.
+    /// Text box will send Text message when it loses focus or if Enter key was pressed. This is **default** behavior.
     ///
     /// # Notes
     ///
-    /// In case of multiline text box hitting Enter key won't commit text!
+    /// In case of multiline text box hitting Enter key won't commit the text!
+    #[default]
     LostFocusPlusEnter = 2,
 }
 
+/// Defines a set of two positions in the text, that forms a specific range.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct SelectionRange {
+    /// Position of the beginning.
     pub begin: Position,
+    /// Position of the end.
     pub end: Position,
 }
 
 impl SelectionRange {
+    /// Creates a new range, that have its begin always before end. It could be useful in case if user
+    /// selects a range right-to-left.
     #[must_use = "method creates new value which must be used"]
     pub fn normalized(&self) -> SelectionRange {
         match self.begin.line.cmp(&self.end.line) {
@@ -117,26 +156,262 @@ impl SelectionRange {
     }
 }
 
+/// Defines a function, that could be used to filter out desired characters. It must return `true` for characters, that pass
+/// the filter, and `false` - otherwise.
 pub type FilterCallback = dyn FnMut(char) -> bool;
 
+/// TextBox is a text widget that allows you to edit text and create specialized input fields. It has various options like
+/// word wrapping, text alignment, and so on.
+///
+/// ## How to create
+///
+/// An instance of the TextBox widget could be created like so:
+///
+/// ```rust,no_run
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     text_box::TextBoxBuilder, widget::WidgetBuilder, UiNode, UserInterface
+/// # };
+/// fn create_text_box(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
+///     TextBoxBuilder::new(WidgetBuilder::new())
+///         .with_text(text)
+///         .build(&mut ui.build_ctx())
+/// }
+/// ```
+///
+/// ## Text alignment and word wrapping
+///
+/// There are various text alignment options for both vertical and horizontal axes. Typical alignment values are:
+/// [`HorizontalAlignment::Left`], [`HorizontalAlignment::Center`], [`HorizontalAlignment::Right`] for horizontal axis,
+/// and [`VerticalAlignment::Top`], [`VerticalAlignment::Center`], [`VerticalAlignment::Bottom`] for vertical axis.
+/// An instance of centered text could be created like so:
+///
+/// ```rust,no_run
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     text_box::TextBoxBuilder, widget::WidgetBuilder, HorizontalAlignment, UiNode, UserInterface,
+/// #     VerticalAlignment,
+/// # };
+/// fn create_centered_text(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
+///     TextBoxBuilder::new(WidgetBuilder::new())
+///         .with_horizontal_text_alignment(HorizontalAlignment::Center)
+///         .with_vertical_text_alignment(VerticalAlignment::Center)
+///     .with_text(text)
+///     .build(&mut ui.build_ctx())
+/// }
+/// ```
+///
+/// Long text is usually needs to wrap on available bounds, there are three possible options for word wrapping:
+/// [`WrapMode::NoWrap`], [`WrapMode::Letter`], [`WrapMode::Word`]. An instance of text with word-based wrapping could be
+/// created like so:
+///
+/// ```rust,no_run
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     formatted_text::WrapMode, text_box::TextBoxBuilder, widget::WidgetBuilder, UiNode,
+/// #     UserInterface,
+/// # };
+/// fn create_text_with_word_wrap(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
+///     TextBoxBuilder::new(WidgetBuilder::new())
+///         .with_wrap(WrapMode::Word)
+///         .with_text(text)
+///         .build(&mut ui.build_ctx())
+/// }
+/// ```
+///
+/// ## Fonts and colors
+///
+/// To set a color of the text just use [`WidgetBuilder::with_foreground`] while building the text instance:
+///
+/// ```rust,no_run
+/// # use fyrox_ui::{
+/// #     core::{color::Color, pool::Handle},
+/// #     brush::Brush, text_box::TextBoxBuilder, widget::WidgetBuilder, UiNode, UserInterface
+/// # };
+/// fn create_text(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
+///     //                  vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+///     TextBoxBuilder::new(WidgetBuilder::new().with_foreground(Brush::Solid(Color::RED)))
+///         .with_text(text)
+///         .build(&mut ui.build_ctx())
+/// }
+/// ```
+///
+/// By default, text is created with default font, however it is possible to set any custom font:
+///
+/// ```rust,no_run
+/// # use fyrox_ui::{
+/// #     core::{futures::executor::block_on, pool::Handle},
+/// #     text_box::TextBoxBuilder,
+/// #     ttf::{Font, SharedFont},
+/// #     widget::WidgetBuilder,
+/// #     UiNode, UserInterface,
+/// # };
+///
+/// fn load_font() -> SharedFont {
+///     // Choose desired character set, default is Basic Latin + Latin Supplement.
+///     // Character set is a set of ranges with Unicode code points.
+///     let character_set = Font::default_char_set();
+///
+///     // Normally `block_on` should be avoided.
+///     let font = block_on(Font::from_file(
+///         "path/to/your/font.ttf",
+///         24.0,
+///         character_set,
+///     ))
+///     .unwrap();
+///
+///     SharedFont::new(font)
+/// }
+///
+/// fn create_text(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
+///     TextBoxBuilder::new(WidgetBuilder::new())
+///         .with_font(load_font())
+///         .with_text(text)
+///         .build(&mut ui.build_ctx())
+/// }
+/// ```
+///
+/// Please refer to [`SharedFont`] to learn more about fonts.
+///
+/// ### Font size
+///
+/// There is no way to change font size without changing the entire font used by Text, it is known issue and there is
+/// [tracking issue](https://github.com/FyroxEngine/Fyrox/issues/74) for that. Check [Font](font.md) chapter to learn how
+/// to create fonts.
+///
+/// ## Messages
+///
+/// TextBox widget accepts the following list of messages:
+///
+/// - [`TextBoxMessage::SelectionBrush`] - change the brush that is used to highlight selection.
+/// - [`TextBoxMessage::CaretBrush`] - changes the brush of the caret (small blinking vertical line).
+/// - [`TextBoxMessage::TextCommitMode`] - changes the [text commit mode](TextBox#text-commit-mode).
+/// - [`TextBoxMessage::Multiline`] - makes the TextBox either multiline (`true`) or single line (`false`)
+/// - [`TextBoxMessage::Editable`] - enables or disables editing of the text.
+///
+/// **Important:** Please keep in mind, that TextBox widget also accepts [`TextMessage`]s. An example of changing text at
+/// runtime could be something like this:
+///
+/// ```rust,no_run
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     message::{MessageDirection},
+/// #     UiNode, UserInterface,
+/// #     text::TextMessage
+/// # };
+/// fn request_change_text(ui: &UserInterface, text_box_widget_handle: Handle<UiNode>, text: &str) {
+///     ui.send_message(TextMessage::text(
+///         text_box_widget_handle,
+///         MessageDirection::ToWidget,
+///         text.to_owned(),
+///     ))
+/// }
+/// ```
+///
+/// Please keep in mind, that like any other situation when you "changing" something via messages, you should remember
+/// that the change is **not** immediate. The change will be applied on `ui.poll_message(..)` call somewhere in your
+/// code.
+///
+/// ## Shortcuts
+///
+/// There are number of default shortcuts that can be used to speed up text editing:
+///
+/// - `Ctrl+A` - select all
+/// - `Ctrl+C` - copy selected text
+/// - `Ctrl+V` - paste text from clipboard
+/// - `Ctrl+Home` - move caret to the beginning of the text
+/// - `Ctrl+End` - move caret to the beginning of the text
+/// - `Shift+Home` - select everything from current caret position until the beginning of current line
+/// - `Shift+End` - select everything from current caret position until the end of current line
+/// - `Arrows` - move caret accordingly
+/// - `Delete` - deletes next character
+/// - `Backspace` - deletes previous character
+/// - `Enter` - new line (if multiline mode is set) or `commit` message
+///
+/// ## Multiline Text Box
+///
+/// By default, text box will not add new line character to the text if you press `Enter` on keyboard. To enable this
+/// functionality use [`TextBoxBuilder::with_multiline`]
+///
+/// ## Read-only Mode
+///
+/// You can enable or disable content editing by using read-only mode. Use [`TextBoxBuilder::with_readonly`] at build stage.
+///
+/// ## Mask Character
+///
+/// You can specify replacement character for every other characters, this is useful option for password fields. Use
+/// [`TextBoxBuilder::with_mask_char`] at build stage. For example, you can set replacement character to asterisk `*` using
+/// `.with_mask_char(Some('*'))`
+///
+/// ## Text Commit Mode
+///
+/// In many situations you don't need the text box to send `new text` message every new character, you either want this
+/// message if `Enter` key is pressed or TextBox has lost keyboard focus (or both). There is [`TextBoxBuilder::with_text_commit_mode`]
+/// on builder specifically for that purpose. Use one of the following modes:
+///
+/// - [`TextCommitMode::Immediate`] - text box will immediately send [`TextMessage::Text`] message after any change.
+/// - [`TextCommitMode::LostFocus`] - text box will send [`TextMessage::Text`] message only when it loses focus.
+/// - [`TextCommitMode::LostFocusPlusEnter`] - text box will send [`TextMessage::Text`] message when it loses focus or if Enter
+/// key was pressed. This is **default** behavior. In case of multiline text box hitting Enter key won't commit text!
+///
+/// ## Filtering
+///
+/// It is possible specify custom input filter, it can be useful if you're creating special input fields like numerical or
+/// phone number. A filter can be specified at build stage like so:
+///
+/// ```rust,no_run
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     text_box::TextBoxBuilder, widget::WidgetBuilder, UiNode, UserInterface
+/// # };
+/// # use std::{cell::RefCell, rc::Rc};
+/// fn create_text_box(ui: &mut UserInterface) -> Handle<UiNode> {
+///     TextBoxBuilder::new(WidgetBuilder::new())
+///         // Specify a filter that will pass only digits.
+///         .with_filter(Rc::new(RefCell::new(|c: char| c.is_ascii_digit())))
+///         .build(&mut ui.build_ctx())
+/// }
+/// ```
+///
+/// ## Style
+///
+/// You can change brush of caret by using [`TextBoxBuilder::with_caret_brush`] and also selection brush by using
+/// [`TextBoxBuilder::with_selection_brush`], it could be useful if you don't like default colors.
 #[derive(Clone)]
 pub struct TextBox {
+    /// Base widget of the text box.
     pub widget: Widget,
+    /// Current position of the caret in the text box.
     pub caret_position: Position,
+    /// Whether the caret is visible or not.
     pub caret_visible: bool,
+    /// Internal blinking timer.
     pub blink_timer: f32,
+    /// Blinking interval in seconds.
     pub blink_interval: f32,
+    /// Formatted text that stores actual text and performs its layout. See [`FormattedText`] docs for more info.
     pub formatted_text: RefCell<FormattedText>,
+    /// Current selection range.
     pub selection_range: Option<SelectionRange>,
+    /// `true` if the text box is in selection mode.
     pub selecting: bool,
+    /// `true` if the text box is focused.
     pub has_focus: bool,
+    /// Current caret brush of the text box.
     pub caret_brush: Brush,
+    /// Current selection brush of the text box.
     pub selection_brush: Brush,
+    /// Current character filter of the text box.
     pub filter: Option<Rc<RefCell<FilterCallback>>>,
+    /// Current text commit mode of the text box.
     pub commit_mode: TextCommitMode,
+    /// `true` if the the multiline mode is active.
     pub multiline: bool,
+    /// `true` if the text box is editable.
     pub editable: bool,
+    /// Position of the local "camera" (viewing rectangle) of the text box.
     pub view_position: Vector2<f32>,
+    /// A list of custom characters that will be treated as whitespace.
     pub skip_chars: Vec<u32>,
 }
 
@@ -266,11 +541,7 @@ impl TextBox {
         self.ensure_caret_visible();
     }
 
-    pub fn position_to_char_index_internal(
-        &self,
-        position: Position,
-        clamp: bool,
-    ) -> Option<usize> {
+    fn position_to_char_index_internal(&self, position: Position, clamp: bool) -> Option<usize> {
         self.formatted_text
             .borrow()
             .get_lines()
@@ -299,6 +570,7 @@ impl TextBox {
         self.position_to_char_index_internal(position, true)
     }
 
+    /// Maps linear character index (as in string) to its actual location in the text.
     pub fn char_index_to_position(&self, i: usize) -> Option<Position> {
         self.formatted_text
             .borrow()
@@ -317,6 +589,7 @@ impl TextBox {
             })
     }
 
+    /// Returns end position of the text.
     pub fn end_position(&self) -> Position {
         let formatted_text = self.formatted_text.borrow();
         let lines = formatted_text.get_lines();
@@ -329,6 +602,7 @@ impl TextBox {
             .unwrap_or_default()
     }
 
+    /// Returns a position of a next word after the caret in the text.
     pub fn find_next_word(&self, from: Position) -> Position {
         self.position_to_char_index_unclamped(from)
             .and_then(|i| {
@@ -347,6 +621,7 @@ impl TextBox {
             .unwrap_or_else(|| self.end_position())
     }
 
+    /// Returns a position of a next word before the caret in the text.
     pub fn find_prev_word(&self, from: Position) -> Position {
         self.position_to_char_index_unclamped(from)
             .and_then(|i| {
@@ -405,10 +680,12 @@ impl TextBox {
         ));
     }
 
+    /// Returns current text length in characters.
     pub fn get_text_len(&self) -> usize {
         self.formatted_text.borrow_mut().get_raw_text().len()
     }
 
+    /// Returns current position the caret in the local coordinates.
     pub fn caret_local_position(&self) -> Vector2<f32> {
         let text = self.formatted_text.borrow();
 
@@ -523,6 +800,7 @@ impl TextBox {
         }
     }
 
+    /// Checks whether the input position is correct (in bounds) or not.
     pub fn is_valid_position(&self, position: Position) -> bool {
         self.formatted_text
             .borrow()
@@ -537,6 +815,7 @@ impl TextBox {
         self.reset_blink();
     }
 
+    /// Tries to map screen space position to a position in the text.
     pub fn screen_pos_to_text_pos(&self, screen_point: Vector2<f32>) -> Option<Position> {
         // Transform given point into local space of the text box - this way calculations can be done
         // as usual, without a need for special math.
@@ -621,22 +900,27 @@ impl TextBox {
         None
     }
 
+    /// Returns current text of text box.
     pub fn text(&self) -> String {
         self.formatted_text.borrow().text()
     }
 
+    /// Returns current word wrapping mode of text box.
     pub fn wrap_mode(&self) -> WrapMode {
         self.formatted_text.borrow().wrap_mode()
     }
 
+    /// Returns current font of text box.
     pub fn font(&self) -> SharedFont {
         self.formatted_text.borrow().get_font()
     }
 
+    /// Returns current vertical alignment of text box.
     pub fn vertical_alignment(&self) -> VerticalAlignment {
         self.formatted_text.borrow().vertical_alignment()
     }
 
+    /// Returns current horizontal alignment of text box.
     pub fn horizontal_alignment(&self) -> HorizontalAlignment {
         self.formatted_text.borrow().horizontal_alignment()
     }
@@ -1256,6 +1540,7 @@ impl Control for TextBox {
     }
 }
 
+/// Text box builder creates new [`TextBox`] instances and adds them to the user interface.
 pub struct TextBoxBuilder {
     widget_builder: WidgetBuilder,
     font: Option<SharedFont>,
@@ -1278,6 +1563,7 @@ pub struct TextBoxBuilder {
 }
 
 impl TextBoxBuilder {
+    /// Creates new text box widget builder with the base widget builder specified.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -1301,61 +1587,73 @@ impl TextBoxBuilder {
         }
     }
 
+    /// Sets the desired font of the text box.
     pub fn with_font(mut self, font: SharedFont) -> Self {
         self.font = Some(font);
         self
     }
 
+    /// Sets the desired text of the text box.
     pub fn with_text<P: AsRef<str>>(mut self, text: P) -> Self {
         self.text = text.as_ref().to_owned();
         self
     }
 
+    /// Sets the desired caret brush of the text box.
     pub fn with_caret_brush(mut self, brush: Brush) -> Self {
         self.caret_brush = brush;
         self
     }
 
+    /// Sets the desired selection brush of the text box.
     pub fn with_selection_brush(mut self, brush: Brush) -> Self {
         self.selection_brush = brush;
         self
     }
 
+    /// Sets the desired character filter of the text box. See [`FilterCallback`] for more info.
     pub fn with_filter(mut self, filter: Rc<RefCell<FilterCallback>>) -> Self {
         self.filter = Some(filter);
         self
     }
 
+    /// Sets the desired vertical text alignment of the text box.
     pub fn with_vertical_text_alignment(mut self, alignment: VerticalAlignment) -> Self {
         self.vertical_alignment = alignment;
         self
     }
 
+    /// Sets the desired horizontal text alignment of the text box.
     pub fn with_horizontal_text_alignment(mut self, alignment: HorizontalAlignment) -> Self {
         self.horizontal_alignment = alignment;
         self
     }
 
+    /// Sets the desired word wrapping of the text box.
     pub fn with_wrap(mut self, wrap: WrapMode) -> Self {
         self.wrap = wrap;
         self
     }
 
+    /// Sets the desired text commit mode of the text box.
     pub fn with_text_commit_mode(mut self, mode: TextCommitMode) -> Self {
         self.commit_mode = mode;
         self
     }
 
+    /// Enables or disables multiline mode of the text box.
     pub fn with_multiline(mut self, multiline: bool) -> Self {
         self.multiline = multiline;
         self
     }
 
+    /// Enables or disables editing of the text box.
     pub fn with_editable(mut self, editable: bool) -> Self {
         self.editable = editable;
         self
     }
 
+    /// Sets the desired masking character of the text box.
     pub fn with_mask_char(mut self, mask_char: Option<char>) -> Self {
         self.mask_char = mask_char;
         self
@@ -1395,6 +1693,7 @@ impl TextBoxBuilder {
         self
     }
 
+    /// Creates a new [`TextBox`] instance and adds it to the user interface.
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
         if self.widget_builder.foreground.is_none() {
             self.widget_builder.foreground = Some(BRUSH_TEXT);
