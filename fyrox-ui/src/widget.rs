@@ -1,3 +1,6 @@
+//! Base widget for every other widget in the crate. It contains layout-specific info, parent-child relations
+//! visibility, various transforms, drag'n'drop-related data, etc. See [`Widget`] docs for more info.
+
 use crate::{
     brush::Brush,
     core::{algebra::Vector2, math::Rect, pool::Handle},
@@ -294,116 +297,356 @@ pub enum WidgetMessage {
 }
 
 impl WidgetMessage {
-    define_constructor!(WidgetMessage:Remove => fn remove(), layout: false);
-    define_constructor!(WidgetMessage:Unlink => fn unlink(), layout: false);
-    define_constructor!(WidgetMessage:LinkWith => fn link(Handle<UiNode>), layout: false);
-    define_constructor!(WidgetMessage:LinkWithReverse => fn link_reverse(Handle<UiNode>), layout: false);
-    define_constructor!(WidgetMessage:Background => fn background(Brush), layout: false);
-    define_constructor!(WidgetMessage:Foreground => fn foreground(Brush), layout: false);
-    define_constructor!(WidgetMessage:Visibility => fn visibility(bool), layout: false);
-    define_constructor!(WidgetMessage:Width => fn width(f32), layout: false);
-    define_constructor!(WidgetMessage:Height => fn height(f32), layout: false);
-    define_constructor!(WidgetMessage:DesiredPosition => fn desired_position(Vector2<f32>), layout: false);
-    define_constructor!(WidgetMessage:Center => fn center(), layout: true);
-    define_constructor!(WidgetMessage:AdjustPositionToFit => fn adjust_position_to_fit(), layout: true);
-    define_constructor!(WidgetMessage:Topmost => fn topmost(), layout: false);
-    define_constructor!(WidgetMessage:Lowermost => fn lowermost(), layout: false);
-    define_constructor!(WidgetMessage:Enabled => fn enabled(bool), layout: false);
-    define_constructor!(WidgetMessage:Name => fn name(String), layout: false);
-    define_constructor!(WidgetMessage:Row => fn row(usize), layout: false);
-    define_constructor!(WidgetMessage:Column => fn column(usize), layout: false);
-    define_constructor!(WidgetMessage:Cursor => fn cursor(Option<CursorIcon>), layout: false);
-    define_constructor!(WidgetMessage:ZIndex => fn z_index(usize), layout: false);
-    define_constructor!(WidgetMessage:HitTestVisibility => fn hit_test_visibility(bool), layout: false);
-    define_constructor!(WidgetMessage:Margin => fn margin(Thickness), layout: false);
-    define_constructor!(WidgetMessage:MinSize => fn min_size(Vector2<f32>), layout: false);
-    define_constructor!(WidgetMessage:MaxSize => fn max_size(Vector2<f32>), layout: false);
-    define_constructor!(WidgetMessage:HorizontalAlignment => fn horizontal_alignment(HorizontalAlignment), layout: false);
-    define_constructor!(WidgetMessage:VerticalAlignment => fn vertical_alignment(VerticalAlignment), layout: false);
-    define_constructor!(WidgetMessage:Opacity => fn opacity(Option<f32>), layout: false);
-    define_constructor!(WidgetMessage:LayoutTransform => fn layout_transform(Matrix3<f32>), layout: false);
-    define_constructor!(WidgetMessage:RenderTransform => fn render_transform(Matrix3<f32>), layout: false);
-    define_constructor!(WidgetMessage:ContextMenu => fn context_menu(Option<RcUiNodeHandle>), layout: false);
-    define_constructor!(WidgetMessage:Tooltip => fn tooltip(Option<RcUiNodeHandle>), layout: false);
-    define_constructor!(WidgetMessage:Focus => fn focus(), layout: false);
-    define_constructor!(WidgetMessage:Unfocus => fn unfocus(), layout: false);
+    define_constructor!(
+        /// Creates [`WidgetMessage::Remove`] message.
+        WidgetMessage:Remove => fn remove(), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Unlink`] message.
+        WidgetMessage:Unlink => fn unlink(), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::LinkWith`] message.
+        WidgetMessage:LinkWith => fn link(Handle<UiNode>), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::LinkWithReverse`] message.
+        WidgetMessage:LinkWithReverse => fn link_reverse(Handle<UiNode>), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Background`] message.
+        WidgetMessage:Background => fn background(Brush), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Foreground`] message.
+        WidgetMessage:Foreground => fn foreground(Brush), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Visibility`] message.
+        WidgetMessage:Visibility => fn visibility(bool), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Width`] message.
+        WidgetMessage:Width => fn width(f32), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Height`] message.
+        WidgetMessage:Height => fn height(f32), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::DesiredPosition`] message.
+        WidgetMessage:DesiredPosition => fn desired_position(Vector2<f32>), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Center`] message.
+        WidgetMessage:Center => fn center(), layout: true
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::AdjustPositionToFit`] message.
+        WidgetMessage:AdjustPositionToFit => fn adjust_position_to_fit(), layout: true
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Topmost`] message.
+        WidgetMessage:Topmost => fn topmost(), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Lowermost`] message.
+        WidgetMessage:Lowermost => fn lowermost(), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Enabled`] message.
+        WidgetMessage:Enabled => fn enabled(bool), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Name`] message.
+        WidgetMessage:Name => fn name(String), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Row`] message.
+        WidgetMessage:Row => fn row(usize), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Column`] message.
+        WidgetMessage:Column => fn column(usize), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Cursor`] message.
+        WidgetMessage:Cursor => fn cursor(Option<CursorIcon>), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::ZIndex`] message.
+        WidgetMessage:ZIndex => fn z_index(usize), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::HitTestVisibility`] message.
+        WidgetMessage:HitTestVisibility => fn hit_test_visibility(bool), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Margin`] message.
+        WidgetMessage:Margin => fn margin(Thickness), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::MinSize`] message.
+        WidgetMessage:MinSize => fn min_size(Vector2<f32>), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::MaxSize`] message.
+        WidgetMessage:MaxSize => fn max_size(Vector2<f32>), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::HorizontalAlignment`] message.
+        WidgetMessage:HorizontalAlignment => fn horizontal_alignment(HorizontalAlignment), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::VerticalAlignment`] message.
+        WidgetMessage:VerticalAlignment => fn vertical_alignment(VerticalAlignment), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Opacity`] message.
+        WidgetMessage:Opacity => fn opacity(Option<f32>), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::LayoutTransform`] message.
+        WidgetMessage:LayoutTransform => fn layout_transform(Matrix3<f32>), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::RenderTransform`] message.
+        WidgetMessage:RenderTransform => fn render_transform(Matrix3<f32>), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::ContextMenu`] message.
+        WidgetMessage:ContextMenu => fn context_menu(Option<RcUiNodeHandle>), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Tooltip`] message.
+        WidgetMessage:Tooltip => fn tooltip(Option<RcUiNodeHandle>), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Focus`] message.
+        WidgetMessage:Focus => fn focus(), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Unfocus`] message.
+        WidgetMessage:Unfocus => fn unfocus(), layout: false
+    );
 
     // Internal messages. Do not use.
-    define_constructor!(WidgetMessage:MouseDown => fn mouse_down(pos: Vector2<f32>, button: MouseButton), layout: false);
-    define_constructor!(WidgetMessage:MouseUp => fn mouse_up(pos: Vector2<f32>, button: MouseButton), layout: false);
-    define_constructor!(WidgetMessage:MouseMove => fn mouse_move(pos: Vector2<f32>, state: MouseState), layout: false);
-    define_constructor!(WidgetMessage:MouseWheel => fn mouse_wheel(pos: Vector2<f32>, amount: f32), layout: false);
-    define_constructor!(WidgetMessage:MouseLeave => fn mouse_leave(), layout: false);
-    define_constructor!(WidgetMessage:MouseEnter => fn mouse_enter(), layout: false);
-    define_constructor!(WidgetMessage:Text => fn text(char), layout: false);
-    define_constructor!(WidgetMessage:KeyDown => fn key_down(KeyCode), layout: false);
-    define_constructor!(WidgetMessage:KeyUp => fn key_up(KeyCode), layout: false);
-    define_constructor!(WidgetMessage:DragStarted => fn drag_started(Handle<UiNode>), layout: false);
-    define_constructor!(WidgetMessage:DragOver => fn drag_over(Handle<UiNode>), layout: false);
-    define_constructor!(WidgetMessage:Drop => fn drop(Handle<UiNode>), layout: false);
-    define_constructor!(WidgetMessage:DoubleClick => fn double_click(button: MouseButton), layout: false);
+    define_constructor!(
+        /// Creates [`WidgetMessage::MouseDown`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:MouseDown => fn mouse_down(pos: Vector2<f32>, button: MouseButton), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::MouseUp`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:MouseUp => fn mouse_up(pos: Vector2<f32>, button: MouseButton), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::MouseMove`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:MouseMove => fn mouse_move(pos: Vector2<f32>, state: MouseState), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::MouseWheel`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:MouseWheel => fn mouse_wheel(pos: Vector2<f32>, amount: f32), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::MouseLeave`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:MouseLeave => fn mouse_leave(), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::MouseEnter`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:MouseEnter => fn mouse_enter(), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Text`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:Text => fn text(char), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::KeyDown`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:KeyDown => fn key_down(KeyCode), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::KeyUp`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:KeyUp => fn key_up(KeyCode), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::DragStarted`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:DragStarted => fn drag_started(Handle<UiNode>), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::DragOver`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:DragOver => fn drag_over(Handle<UiNode>), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Drop`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:Drop => fn drop(Handle<UiNode>), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::DoubleClick`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:DoubleClick => fn double_click(button: MouseButton), layout: false
+    );
 }
 
+/// Widget is a base UI element, that is always used to build derived, more complex, widgets. In general, it is a container
+/// for layout information, basic visual appearance, visibility options, parent-child information. It does almost nothing
+/// on its own, instead, the user interface modifies its state accordingly.
 #[derive(Debug, Clone)]
 pub struct Widget {
+    /// Self handle of the widget. It is valid **only**, if the widget is added to the user interface, in other
+    /// cases it will most likely be [`Handle::NONE`].
     pub handle: Handle<UiNode>,
+    /// Name of the widget. Could be useful for debugging purposes.
     pub name: String,
-    /// Desired position relative to parent node
+    /// Desired position relative to the parent node. It is just a recommendation for the layout system, actual position
+    /// will be stored in the `actual_local_position` field and can be fetched using [`Widget::actual_local_position`]
+    /// method.
     pub desired_local_position: Vector2<f32>,
-    /// Explicit width for node or automatic if NaN (means value is undefined). Default is NaN
+    /// Explicit width for the widget, or automatic if [`f32::NAN`] (means the value is undefined). Default is [`f32::NAN`].
     pub width: f32,
-    /// Explicit height for node or automatic if NaN (means value is undefined). Default is NaN
+    /// Explicit height for the widget, or automatic if [`f32::NAN`] (means the value is undefined). Default is [`f32::NAN`].
     pub height: f32,
-    /// Minimum width and height
+    /// Minimum width and height. Default is 0.0 for both axes.
     pub min_size: Vector2<f32>,
-    /// Maximum width and height
+    /// Maximum width and height. Default is [`f32::INFINITY`] for both axes.
     pub max_size: Vector2<f32>,
+    /// Background brush of the widget.
     pub background: Brush,
+    /// Foreground brush of the widget.
     pub foreground: Brush,
-    /// Index of row to which this node belongs
+    /// Index of the row to which this widget belongs to. It is valid only in when used in [`crate::grid::Grid`] widget.
     pub row: usize,
-    /// Index of column to which this node belongs
+    /// Index of the column to which this widget belongs to. It is valid only in when used in [`crate::grid::Grid`] widget.
     pub column: usize,
-    /// Vertical alignment
+    /// Vertical alignment of the widget.
     pub vertical_alignment: VerticalAlignment,
-    /// Horizontal alignment
+    /// Horizontal alignment of the widget.
     pub horizontal_alignment: HorizontalAlignment,
-    /// Margin (four sides)
+    /// Margin for every sides of bounding rectangle. See [`Thickness`] docs for more info.
     pub margin: Thickness,
-    /// Current visibility state
+    /// Current, **local**, visibility state of the widget.
     pub visibility: bool,
+    /// Current, **global** (including the chain of parent widgets), visibility state of the widget.
     pub global_visibility: bool,
+    /// A set of handles to children nodes of this widget.
     pub children: Vec<Handle<UiNode>>,
+    /// A handle to the parent node of this widget.
     pub parent: Handle<UiNode>,
-    /// Indices of commands in command buffer emitted by the node.
+    /// Indices of drawing commands in the drawing context emitted by this widget. It is used for picking.
     pub command_indices: RefCell<Vec<usize>>,
+    /// A flag, that indicates that the mouse is directly over the widget. It will be raised only for top-most widget in the
+    /// "stack" of widgets.
     pub is_mouse_directly_over: bool,
+    /// A flag, that defines whether the widget is "visible" for hit testing (picking). Could be useful to prevent some widgets
+    /// from any interactions with mouse.
     pub hit_test_visibility: bool,
+    /// Index of the widget in parent's children list that defines its order in drawing and picking.
     pub z_index: usize,
+    /// A flag, that defines whether the drag from drag'n'drop functionality can be started by the widget or not.
     pub allow_drag: bool,
+    /// A flag, that defines whether the drop from drag'n'drop functionality can be accepted by the widget or not.
     pub allow_drop: bool,
+    /// Optional, user-defined data.
     pub user_data: Option<Rc<dyn Any>>,
+    /// A flag, that defines whether the widget should be drawn in a separate drawind pass after any other widget that draws
+    /// normally.
     pub draw_on_top: bool,
+    /// A flag, that defines whether the widget is enabled or not. Disabled widgets cannot be interacted by used and they're
+    /// greyed out.
     pub enabled: bool,
+    /// Optional cursor icon that will be used for mouse cursor when hovering over the widget.
     pub cursor: Option<CursorIcon>,
+    /// Optional opacity of the widget. It should be in `[0.0..1.0]` range, where 0.0 - fully transparent, 1.0 - fully opaque.
     pub opacity: Option<f32>,
+    /// An optional ref counted handle to a tooltip used by the widget.
     pub tooltip: Option<RcUiNodeHandle>,
+    /// Internal timer for tooltip needs.
     pub tooltip_time: f32,
+    /// An optional ref counted handle to a context menu used by the widget.
     pub context_menu: Option<RcUiNodeHandle>,
+    /// A flag, that defines whether the widget should be clipped by the parent bounds or not.
     pub clip_to_bounds: bool,
+    /// Current render transform of the node. It modifies layout information of the widget, as well as it affects visual transform
+    /// of the widget.
     pub layout_transform: Matrix3<f32>,
+    /// Current render transform of the node. It only modifies the widget at drawing stage, layout information remains unmodified.
     pub render_transform: Matrix3<f32>,
+    /// Current visual transform of the node. It always contains a result of mixing the layout and render transformation matrices.
     pub visual_transform: Matrix3<f32>,
+    /// A flag, that defines whether the widget will preview UI messages or not. Basically, it defines whether [crate::Control::preview_message]
+    /// is called or not.
     pub preview_messages: bool,
+    /// A flag, that defines whether the widget will receive any OS events or not. Basically, it defines whether [crate::Control::handle_os_event]
+    /// is called or not.
     pub handle_os_events: bool,
+    /// Internal sender for layout events.
     pub layout_events_sender: Option<Sender<LayoutEvent>>,
+    /// Unique identifier of the widget.
     pub id: Uuid,
-
-    /// Layout. Interior mutability is a must here because layout performed in
-    /// a series of recursive calls.
+    //
+    // Layout. Interior mutability is a must here because layout performed in a series of recursive calls.
+    //
+    /// A flag, that defines whether the measurement results are still valid or not.
     pub measure_valid: Cell<bool>,
+    /// A flag, that defines whether the arrangement results are still valid or not.
     pub arrange_valid: Cell<bool>,
+    /// Results or previous measurement.
     pub prev_measure: Cell<Vector2<f32>>,
+    /// Results or previous arrangement.
     pub prev_arrange: Cell<Rect<f32>>,
     /// Desired size of the node after Measure pass.
     pub desired_size: Cell<Vector2<f32>>,
@@ -411,7 +654,9 @@ pub struct Widget {
     pub actual_local_position: Cell<Vector2<f32>>,
     /// Actual local size of the widget after Arrange pass.
     pub actual_local_size: Cell<Vector2<f32>>,
+    /// Previous global visibility of the widget.
     pub prev_global_visibility: bool,
+    /// Current clip bounds of the widget.
     pub clip_bounds: Cell<Rect<f32>>,
 }
 
