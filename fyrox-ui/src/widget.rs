@@ -614,7 +614,7 @@ pub struct Widget {
     pub opacity: Option<f32>,
     /// An optional ref counted handle to a tooltip used by the widget.
     pub tooltip: Option<RcUiNodeHandle>,
-    /// Internal timer for tooltip needs.
+    /// Maximum available time to show the tooltip after the cursor was moved away from the widget.
     pub tooltip_time: f32,
     /// An optional ref counted handle to a context menu used by the widget.
     pub context_menu: Option<RcUiNodeHandle>,
@@ -661,22 +661,26 @@ pub struct Widget {
 }
 
 impl Widget {
+    /// Returns self handle of the widget.
     #[inline]
     pub fn handle(&self) -> Handle<UiNode> {
         self.handle
     }
 
+    /// Returns the name of the widget.
     #[inline]
     pub fn name(&self) -> &str {
         self.name.as_str()
     }
 
+    /// Sets the new name of the widget.
     #[inline]
     pub fn set_name<P: AsRef<str>>(&mut self, name: P) -> &mut Self {
         self.name = name.as_ref().to_owned();
         self
     }
 
+    /// Returns the actual size of the widget after the full layout cycle.
     #[inline]
     pub fn actual_local_size(&self) -> Vector2<f32> {
         self.actual_local_size.get()
@@ -695,54 +699,64 @@ impl Widget {
         .size
     }
 
+    /// Returns the actual global size of the widget after the full layout cycle.
     #[inline]
     pub fn actual_global_size(&self) -> Vector2<f32> {
         self.screen_bounds().size
     }
 
+    /// Sets the new minimum size of the widget.
     #[inline]
     pub fn set_min_size(&mut self, value: Vector2<f32>) -> &mut Self {
         self.min_size = value;
         self
     }
 
+    /// Sets the new minimum width of the widget.
     #[inline]
     pub fn set_min_width(&mut self, value: f32) -> &mut Self {
         self.min_size.x = value;
         self
     }
 
+    /// Sets the new minimum height of the widget.
     #[inline]
     pub fn set_min_height(&mut self, value: f32) -> &mut Self {
         self.min_size.y = value;
         self
     }
 
+    /// Sets the new minimum size of the widget.
     #[inline]
     pub fn min_size(&self) -> Vector2<f32> {
         self.min_size
     }
 
+    /// Returns the minimum width of the widget.
     #[inline]
     pub fn min_width(&self) -> f32 {
         self.min_size.x
     }
 
+    /// Returns the minimum height of the widget.
     #[inline]
     pub fn min_height(&self) -> f32 {
         self.min_size.y
     }
 
+    /// Return `true` if the dragging of the widget is allowed, `false` - otherwise.
     #[inline]
     pub fn is_drag_allowed(&self) -> bool {
         self.allow_drag
     }
 
+    /// Return `true` if the dropping of other widgets is allowed on this widget, `false` - otherwise.
     #[inline]
     pub fn is_drop_allowed(&self) -> bool {
         self.allow_drop
     }
 
+    /// Maps the given point from screen to local widget's coordinates.
     #[inline]
     pub fn screen_to_local(&self, point: Vector2<f32>) -> Vector2<f32> {
         self.visual_transform
@@ -752,12 +766,18 @@ impl Widget {
             .coords
     }
 
+    /// Invalidates layout of the widget. **WARNING**: Do not use this method, unless you understand what you're doing,
+    /// it will cause new layout pass for this widget which could be quite heavy and doing so on every frame for multiple
+    /// widgets **will** cause severe performance issues.
     #[inline]
     pub fn invalidate_layout(&self) {
         self.invalidate_measure();
         self.invalidate_arrange();
     }
 
+    /// Invalidates measurement results of the widget. **WARNING**: Do not use this method, unless you understand what you're
+    /// doing, it will cause new measurement pass for this widget which could be quite heavy and doing so on every frame for
+    /// multiple widgets **will** cause severe performance issues.
     #[inline]
     pub fn invalidate_measure(&self) {
         self.measure_valid.set(false);
@@ -767,6 +787,9 @@ impl Widget {
         }
     }
 
+    /// Invalidates arrangement results of the widget. **WARNING**: Do not use this method, unless you understand what you're
+    /// doing, it will cause new arrangement pass for this widget which could be quite heavy and doing so on every frame for
+    /// multiple widgets **will** cause severe performance issues.
     #[inline]
     pub fn invalidate_arrange(&self) {
         self.arrange_valid.set(false);
@@ -776,97 +799,116 @@ impl Widget {
         }
     }
 
+    /// Returns `true` if the widget is able to participate in hit testing, `false` - otherwise.
     #[inline]
     pub fn is_hit_test_visible(&self) -> bool {
         self.hit_test_visibility
     }
 
+    /// Sets the new maximum size of the widget.
     #[inline]
     pub fn set_max_size(&mut self, value: Vector2<f32>) -> &mut Self {
         self.max_size = value;
         self
     }
 
+    /// Returns current maximum size of the widget.
     #[inline]
     pub fn max_size(&self) -> Vector2<f32> {
         self.max_size
     }
 
+    /// Returns maximum width of the widget.
     #[inline]
     pub fn max_width(&self) -> f32 {
         self.max_size.x
     }
 
+    /// Return maximum height of the widget.
     #[inline]
     pub fn max_height(&self) -> f32 {
         self.max_size.y
     }
 
+    /// Sets new Z index for the widget. Z index defines the sorting (stable) index which will be used to "arrange" widgets
+    /// in the correct order.
     #[inline]
     pub fn set_z_index(&mut self, z_index: usize) -> &mut Self {
         self.z_index = z_index;
         self
     }
 
+    /// Returns current Z index of the widget.
     #[inline]
     pub fn z_index(&self) -> usize {
         self.z_index
     }
 
+    /// Sets the new background of the widget.
     #[inline]
     pub fn set_background(&mut self, brush: Brush) -> &mut Self {
         self.background = brush;
         self
     }
 
+    /// Returns current background of the widget.
     #[inline]
     pub fn background(&self) -> Brush {
         self.background.clone()
     }
 
+    /// Sets new foreground of the widget.
     #[inline]
     pub fn set_foreground(&mut self, brush: Brush) -> &mut Self {
         self.foreground = brush;
         self
     }
 
+    /// Returns current foreground of the widget.
     #[inline]
     pub fn foreground(&self) -> Brush {
         self.foreground.clone()
     }
 
+    /// Sets new width of the widget.
     #[inline]
     pub fn set_width(&mut self, width: f32) -> &mut Self {
         self.width = width.clamp(self.min_size.x, self.max_size.x);
         self
     }
 
+    /// Returns current width of the widget.
     #[inline]
     pub fn width(&self) -> f32 {
         self.width
     }
 
+    /// Return `true` if the widget is set to be drawn on top of every other, normally drawn, widgets, `false` - otherwise.
     pub fn is_draw_on_top(&self) -> bool {
         self.draw_on_top
     }
 
+    /// Sets new height of the widget.
     #[inline]
     pub fn set_height(&mut self, height: f32) -> &mut Self {
         self.height = height.clamp(self.min_size.y, self.max_size.y);
         self
     }
 
+    /// Returns current height of the widget.
     #[inline]
     pub fn height(&self) -> f32 {
         self.height
     }
 
+    /// Sets the desired local position of the widget.
     #[inline]
     pub fn set_desired_local_position(&mut self, pos: Vector2<f32>) -> &mut Self {
         self.desired_local_position = pos;
         self
     }
 
+    /// Returns current screen-space position of the widget.
     #[inline]
     pub fn screen_position(&self) -> Vector2<f32> {
         Vector2::new(self.visual_transform[6], self.visual_transform[7])
@@ -882,6 +924,7 @@ impl Widget {
         }
     }
 
+    /// Returns a reference to the slice with the children widgets of this widget.
     #[inline(always)]
     pub fn children(&self) -> &[Handle<UiNode>] {
         &self.children
@@ -901,47 +944,63 @@ impl Widget {
         }
     }
 
+    /// Returns current parent handle of the widget.
     #[inline]
     pub fn parent(&self) -> Handle<UiNode> {
         self.parent
     }
 
+    /// Sets new
     #[inline]
-    pub fn set_parent(&mut self, parent: Handle<UiNode>) {
+    pub(super) fn set_parent(&mut self, parent: Handle<UiNode>) {
         self.parent = parent;
     }
 
+    /// Sets new column of the widget. Columns are used only by [`crate::grid::Grid`] widget.
+    #[inline]
+    pub fn set_column(&mut self, column: usize) -> &mut Self {
+        self.column = column;
+        self
+    }
+
+    /// Returns current column of the widget. Columns are used only by [`crate::grid::Grid`] widget.
     #[inline]
     pub fn column(&self) -> usize {
         self.column
     }
 
+    /// Sets new row of the widget. Rows are used only by [`crate::grid::Grid`] widget.
     #[inline]
     pub fn set_row(&mut self, row: usize) -> &mut Self {
         self.row = row;
         self
     }
 
+    /// Returns current row of the widget. Rows are used only by [`crate::grid::Grid`] widget.
     #[inline]
     pub fn row(&self) -> usize {
         self.row
     }
 
+    /// Returns the desired size of the widget.
     #[inline]
     pub fn desired_size(&self) -> Vector2<f32> {
         self.desired_size.get()
     }
 
+    /// Returns current desired local position of the widget.
     #[inline]
     pub fn desired_local_position(&self) -> Vector2<f32> {
         self.desired_local_position
     }
 
+    /// Returns current screen-space bounds of the widget.
     #[inline]
     pub fn screen_bounds(&self) -> Rect<f32> {
         self.bounding_rect().transform(&self.visual_transform)
     }
 
+    /// Returns local-space bounding rect of the widget.
     #[inline]
     pub fn bounding_rect(&self) -> Rect<f32> {
         Rect::new(
@@ -952,21 +1011,25 @@ impl Widget {
         )
     }
 
+    /// Returns current visual transform of the widget.
     #[inline]
     pub fn visual_transform(&self) -> &Matrix3<f32> {
         &self.visual_transform
     }
 
+    /// Returns current render transform of the widget.
     #[inline]
     pub fn render_transform(&self) -> &Matrix3<f32> {
         &self.render_transform
     }
 
+    /// Returns current layout transform of the widget.
     #[inline]
     pub fn layout_transform(&self) -> &Matrix3<f32> {
         &self.layout_transform
     }
 
+    /// Returns `true`, if the widget has a descendant widget with the specified handle, `false` - otherwise.
     pub fn has_descendant(&self, node_handle: Handle<UiNode>, ui: &UserInterface) -> bool {
         for child_handle in self.children.iter() {
             if *child_handle == node_handle {
@@ -984,8 +1047,7 @@ impl Widget {
         false
     }
 
-    /// Searches a node up on tree starting from given root that matches a criteria
-    /// defined by a given func.
+    /// Searches a node up on tree starting from the given root that matches a criteria defined by the given func.
     pub fn find_by_criteria_up<Func: Fn(&UiNode) -> bool>(
         &self,
         ui: &UserInterface,
@@ -1005,6 +1067,8 @@ impl Widget {
         Handle::NONE
     }
 
+    /// Handles incoming [`WidgetMessage`]s. This method **must** be called in [`crate::control::Control::handle_routed_message`]
+    /// of any derived widgets!
     pub fn handle_routed_message(&mut self, _ui: &mut UserInterface, msg: &mut UiMessage) {
         if msg.destination() == self.handle() && msg.direction() == MessageDirection::ToWidget {
             if let Some(msg) = msg.data::<WidgetMessage>() {
@@ -1100,17 +1164,20 @@ impl Widget {
         }
     }
 
+    /// Sets new vertical alignment of the widget.
     #[inline]
     pub fn set_vertical_alignment(&mut self, vertical_alignment: VerticalAlignment) -> &mut Self {
         self.vertical_alignment = vertical_alignment;
         self
     }
 
+    /// Returns current vertical alignment of the widget.
     #[inline]
     pub fn vertical_alignment(&self) -> VerticalAlignment {
         self.vertical_alignment
     }
 
+    /// Sets new horizontal alignment of the widget.
     #[inline]
     pub fn set_horizontal_alignment(
         &mut self,
@@ -1120,28 +1187,28 @@ impl Widget {
         self
     }
 
+    /// Returns current horizontal alignment of the widget.
     #[inline]
     pub fn horizontal_alignment(&self) -> HorizontalAlignment {
         self.horizontal_alignment
     }
 
-    #[inline]
-    pub fn set_column(&mut self, column: usize) -> &mut Self {
-        self.column = column;
-        self
-    }
-
+    /// Sets new margin of the widget.
     #[inline]
     pub fn set_margin(&mut self, margin: Thickness) -> &mut Self {
         self.margin = margin;
         self
     }
 
+    /// Returns current margin of the widget.
     #[inline]
     pub fn margin(&self) -> Thickness {
         self.margin
     }
 
+    /// Performs standard measurement of children nodes. It provides available size as a constraint and returns
+    /// the maximum desired size across all children. As a result, this widget will have this size as its desired
+    /// size to fit all the children nodes.
     #[inline]
     pub fn measure_override(
         &self,
@@ -1160,6 +1227,9 @@ impl Widget {
         size
     }
 
+    /// Performs standard arrangement of the children nodes of the widget. It uses input final size to make a final
+    /// bounding rectangle to arrange children. As a result, all the children nodes will be located at the top-left
+    /// corner of this widget and stretched to fit its bounds.
     #[inline]
     pub fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let final_rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
@@ -1185,6 +1255,7 @@ impl Widget {
         self.children = children;
     }
 
+    /// Returns `true` if the current results of arrangement of the widget are valid, `false` - otherwise.
     #[inline(always)]
     pub fn is_arrange_valid(&self) -> bool {
         self.arrange_valid.get()
@@ -1196,16 +1267,19 @@ impl Widget {
         self.measure_valid.set(true);
     }
 
+    /// Returns `true` if the current results of measurement of the widget are valid, `false` - otherwise.
     #[inline(always)]
     pub fn is_measure_valid(&self) -> bool {
         self.measure_valid.get()
     }
 
+    /// Returns current actual local position of the widget. It is valid only after layout pass!
     #[inline]
     pub fn actual_local_position(&self) -> Vector2<f32> {
         self.actual_local_position.get()
     }
 
+    /// Returns center point of the widget. It is valid only after layout pass!
     #[inline]
     pub fn center(&self) -> Vector2<f32> {
         self.actual_local_position() + self.actual_local_size().scale(0.5)
@@ -1217,11 +1291,14 @@ impl Widget {
         self.global_visibility = value;
     }
 
+    /// Returns `true` of the widget is globally visible, which means that all its parents are visible as well
+    /// as this widget. It is valid only after the first update of the layout, otherwise if will be always false.
     #[inline]
     pub fn is_globally_visible(&self) -> bool {
         self.global_visibility
     }
 
+    /// Sets new visibility of the widget.
     #[inline]
     pub fn set_visibility(&mut self, visibility: bool) -> &mut Self {
         if self.visibility != visibility {
@@ -1232,6 +1309,7 @@ impl Widget {
         self
     }
 
+    /// Requests (via event queue, so the request is deferred) the update of the visibility of the widget.
     #[inline]
     pub fn request_update_visibility(&self) {
         if let Some(layout_events_sender) = self.layout_events_sender.as_ref() {
@@ -1239,82 +1317,96 @@ impl Widget {
         }
     }
 
+    /// Returns current visibility of the widget.
     #[inline]
     pub fn visibility(&self) -> bool {
         self.visibility
     }
 
+    /// Enables or disables the widget. Disabled widgets does not interact with user and usually greyed out.
     #[inline]
     pub fn set_enabled(&mut self, enabled: bool) -> &mut Self {
         self.enabled = enabled;
         self
     }
 
+    /// Returns `true` if the widget if enabled, `false` - otherwise.
     #[inline]
     pub fn enabled(&self) -> bool {
         self.enabled
     }
 
+    /// Sets new cursor of the widget.
     #[inline]
     pub fn set_cursor(&mut self, cursor: Option<CursorIcon>) {
         self.cursor = cursor;
     }
 
+    /// Returns current cursor of the widget.
     #[inline]
     pub fn cursor(&self) -> Option<CursorIcon> {
         self.cursor
     }
 
+    /// Tries to fetch user-defined data of the specified type `T`.
     #[inline]
     pub fn user_data_ref<T: 'static>(&self) -> Option<&T> {
         self.user_data.as_ref().and_then(|v| v.downcast_ref::<T>())
     }
 
+    /// Returns current clipping bounds of the widget. It is valid only after at least one layout pass.
     #[inline]
     pub fn clip_bounds(&self) -> Rect<f32> {
         self.clip_bounds.get()
     }
 
+    /// Set new opacity of the widget. Opacity should be in `[0.0..1.0]` range.
     #[inline]
     pub fn set_opacity(&mut self, opacity: Option<f32>) -> &mut Self {
         self.opacity = opacity;
         self
     }
 
+    /// Returns current opacity of the widget.
     #[inline]
     pub fn opacity(&self) -> Option<f32> {
         self.opacity
     }
 
+    /// Returns current tooltip handle of the widget.
     #[inline]
     pub fn tooltip(&self) -> Option<RcUiNodeHandle> {
         self.tooltip.clone()
     }
 
+    /// Sets new tooltip handle of the widget (if any).
     #[inline]
     pub fn set_tooltip(&mut self, tooltip: Option<RcUiNodeHandle>) -> &mut Self {
         self.tooltip = tooltip;
         self
     }
 
+    /// Returns maximum available time to show the tooltip after the cursor was moved away from the widget.
     #[inline]
     pub fn tooltip_time(&self) -> f32 {
         self.tooltip_time
     }
 
+    /// Set the maximum available time to show the tooltip after the cursor was moved away from the widget.
     #[inline]
     pub fn set_tooltip_time(&mut self, tooltip_time: f32) -> &mut Self {
         self.tooltip_time = tooltip_time;
         self
     }
 
+    /// Returns current context menu of the widget.
     #[inline]
     pub fn context_menu(&self) -> Option<RcUiNodeHandle> {
         self.context_menu.clone()
     }
 
-    #[inline]
     /// The context menu receives `PopupMessage`s for being displayed, and so should support those.
+    #[inline]
     pub fn set_context_menu(&mut self, context_menu: Option<RcUiNodeHandle>) -> &mut Self {
         self.context_menu = context_menu;
         self
