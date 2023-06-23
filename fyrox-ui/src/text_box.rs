@@ -335,7 +335,7 @@ pub type FilterCallback = dyn FnMut(char) -> bool;
 ///
 /// ## Read-only Mode
 ///
-/// You can enable or disable content editing by using read-only mode. Use [`TextBoxBuilder::with_readonly`] at build stage.
+/// You can enable or disable content editing by using read-only mode. Use [`TextBoxBuilder::with_editable`] at build stage.
 ///
 /// ## Mask Character
 ///
