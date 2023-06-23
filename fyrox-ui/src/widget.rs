@@ -1,6 +1,8 @@
 //! Base widget for every other widget in the crate. It contains layout-specific info, parent-child relations
 //! visibility, various transforms, drag'n'drop-related data, etc. See [`Widget`] docs for more info.
 
+#![warn(missing_docs)]
+
 use crate::{
     brush::Brush,
     core::{algebra::Vector2, math::Rect, pool::Handle},
@@ -285,7 +287,10 @@ pub enum WidgetMessage {
     RenderTransform(Matrix3<f32>),
 
     /// A double click of a mouse button has occurred on a widget.
-    DoubleClick { button: MouseButton },
+    DoubleClick {
+        /// A button, that was double-clicked.
+        button: MouseButton,
+    },
 
     /// A request to set new context menu for a widget. Old context menu will be removed only if its
     /// reference counter was 1.
@@ -1413,6 +1418,8 @@ impl Widget {
     }
 }
 
+/// Implements `Deref<Target = Widget> + DerefMut` for your widget. It is used to reduce boilerplate code and
+/// make it less bug-prone.
 #[macro_export]
 macro_rules! define_widget_deref {
     ($ty: ty) => {
@@ -1432,39 +1439,73 @@ macro_rules! define_widget_deref {
     };
 }
 
+/// Widget builder creates [`Widget`] instances.
 pub struct WidgetBuilder {
+    /// Name of the widget.
     pub name: String,
+    /// Width of the widget.
     pub width: f32,
+    /// Height of the widget.
     pub height: f32,
+    /// Desired position of the widget.
     pub desired_position: Vector2<f32>,
+    /// Vertical alignment of the widget.
     pub vertical_alignment: VerticalAlignment,
+    /// Horizontal alignment of the widget.
     pub horizontal_alignment: HorizontalAlignment,
+    /// Max size of the widget.
     pub max_size: Option<Vector2<f32>>,
+    /// Min size of the widget.
     pub min_size: Option<Vector2<f32>>,
+    /// Background brush of the widget.
     pub background: Option<Brush>,
+    /// Foreground brush of the widget.
     pub foreground: Option<Brush>,
+    /// Row index of the widget.
     pub row: usize,
+    /// Column index of the widget.
     pub column: usize,
+    /// Margin of the widget.
     pub margin: Thickness,
+    /// Children handles of the widget.
     pub children: Vec<Handle<UiNode>>,
+    /// Whether the hit test is enabled or not.
     pub is_hit_test_visible: bool,
+    /// Whether the widget is visible or not.
     pub visibility: bool,
+    /// Z index of the widget.
     pub z_index: usize,
+    /// Whether the dragging of the widget is allowed or not.
     pub allow_drag: bool,
+    /// Whether the drop of the widget is allowed or not.
     pub allow_drop: bool,
+    /// User-defined data.
     pub user_data: Option<Rc<dyn Any>>,
+    /// Whether to draw the widget on top of any other or not.
     pub draw_on_top: bool,
+    /// Whether the widget is enabled or not.
     pub enabled: bool,
+    /// Cursor of the widget.
     pub cursor: Option<CursorIcon>,
+    /// Opacity of the widget.
     pub opacity: Option<f32>,
+    /// Tooltip of the widget.
     pub tooltip: Option<RcUiNodeHandle>,
+    /// Visibility interval (in seconds) of the tooltip of the widget.
     pub tooltip_time: f32,
+    /// Context menu of the widget.
     pub context_menu: Option<RcUiNodeHandle>,
+    /// Whether the preview messages is enabled or not.
     pub preview_messages: bool,
+    /// Whether the widget will handle OS events or not.
     pub handle_os_events: bool,
+    /// Layout transform of the widget.
     pub layout_transform: Matrix3<f32>,
+    /// Render transform of the widget.
     pub render_transform: Matrix3<f32>,
+    /// Whether the widget bounds should be clipped by its parent or not.
     pub clip_to_bounds: bool,
+    /// Unique id of the widget.
     pub id: Uuid,
 }
 
@@ -1475,6 +1516,7 @@ impl Default for WidgetBuilder {
 }
 
 impl WidgetBuilder {
+    /// Creates new widget builder with the default values.
     pub fn new() -> Self {
         Self {
             name: Default::default(),
@@ -1513,101 +1555,123 @@ impl WidgetBuilder {
         }
     }
 
+    /// Enables or disables message previewing of the widget. It basically defines whether the [`crate::Control::preview_message`] will
+    /// be called or not.
     pub fn with_preview_messages(mut self, state: bool) -> Self {
         self.preview_messages = state;
         self
     }
 
+    /// Enables or disables OS event handling of the widget. It basically defines whether the [`crate::Control::handle_os_event`] will
+    /// be called or not.
     pub fn with_handle_os_events(mut self, state: bool) -> Self {
         self.handle_os_events = state;
         self
     }
 
+    /// Sets the desired width of the widget.
     pub fn with_width(mut self, width: f32) -> Self {
         self.width = width;
         self
     }
 
+    /// Sets the desired height of the widget.
     pub fn with_height(mut self, height: f32) -> Self {
         self.height = height;
         self
     }
 
+    /// Enables or disables clipping of widget's bound to its parent's bounds.
     pub fn with_clip_to_bounds(mut self, clip_to_bounds: bool) -> Self {
         self.clip_to_bounds = clip_to_bounds;
         self
     }
 
+    /// Enables or disables the widget.
     pub fn with_enabled(mut self, enabled: bool) -> Self {
         self.enabled = enabled;
         self
     }
 
+    /// Sets the desired vertical alignment of the widget.
     pub fn with_vertical_alignment(mut self, valign: VerticalAlignment) -> Self {
         self.vertical_alignment = valign;
         self
     }
 
+    /// Sets the desired horizontal alignment of the widget.
     pub fn with_horizontal_alignment(mut self, halign: HorizontalAlignment) -> Self {
         self.horizontal_alignment = halign;
         self
     }
 
+    /// Sets the max size of the widget.
     pub fn with_max_size(mut self, max_size: Vector2<f32>) -> Self {
         self.max_size = Some(max_size);
         self
     }
 
+    /// Sets the min size of the widget.
     pub fn with_min_size(mut self, min_size: Vector2<f32>) -> Self {
         self.min_size = Some(min_size);
         self
     }
 
+    /// Sets the desired background brush of the widget.
     pub fn with_background(mut self, brush: Brush) -> Self {
         self.background = Some(brush);
         self
     }
 
+    /// Sets the desired foreground brush of the widget.
     pub fn with_foreground(mut self, brush: Brush) -> Self {
         self.foreground = Some(brush);
         self
     }
 
+    /// Sets the desired row index of the widget.
     pub fn on_row(mut self, row: usize) -> Self {
         self.row = row;
         self
     }
 
+    /// Sets the desired column index of the widget.
     pub fn on_column(mut self, column: usize) -> Self {
         self.column = column;
         self
     }
 
+    /// Sets the desired margin of the widget.
     pub fn with_margin(mut self, margin: Thickness) -> Self {
         self.margin = margin;
         self
     }
 
+    /// Sets the desired position of the widget.
     pub fn with_desired_position(mut self, desired_position: Vector2<f32>) -> Self {
         self.desired_position = desired_position;
         self
     }
 
+    /// Sets the desired layout transform of the widget.
     pub fn with_layout_transform(mut self, layout_transform: Matrix3<f32>) -> Self {
         self.layout_transform = layout_transform;
         self
     }
 
+    /// Sets the desired render transform of the widget.
     pub fn with_render_transform(mut self, render_transform: Matrix3<f32>) -> Self {
         self.render_transform = render_transform;
         self
     }
 
+    /// Sets the desired Z index of the widget.
     pub fn with_z_index(mut self, z_index: usize) -> Self {
         self.z_index = z_index;
         self
     }
 
+    /// Adds a child handle to the widget. [`Handle::NONE`] values are ignored.
     pub fn with_child(mut self, handle: Handle<UiNode>) -> Self {
         if handle.is_some() {
             self.children.push(handle);
@@ -1615,11 +1679,13 @@ impl WidgetBuilder {
         self
     }
 
+    /// Enables or disables top-most widget drawing.
     pub fn with_draw_on_top(mut self, draw_on_top: bool) -> Self {
         self.draw_on_top = draw_on_top;
         self
     }
 
+    /// Sets the desired set of children nodes.
     pub fn with_children<I: IntoIterator<Item = Handle<UiNode>>>(mut self, children: I) -> Self {
         for child in children.into_iter() {
             if child.is_some() {
@@ -1629,46 +1695,55 @@ impl WidgetBuilder {
         self
     }
 
+    /// Sets the desired widget name.
     pub fn with_name(mut self, name: &str) -> Self {
         self.name = String::from(name);
         self
     }
 
+    /// Enables or disables hit test of the widget.
     pub fn with_hit_test_visibility(mut self, state: bool) -> Self {
         self.is_hit_test_visible = state;
         self
     }
 
+    /// Sets the desired widget visibility.
     pub fn with_visibility(mut self, visibility: bool) -> Self {
         self.visibility = visibility;
         self
     }
 
+    /// Enables or disables an ability to drop other widgets on this widget.
     pub fn with_allow_drop(mut self, allow_drop: bool) -> Self {
         self.allow_drop = allow_drop;
         self
     }
 
+    /// Enables or disables dragging of the widget.
     pub fn with_allow_drag(mut self, allow_drag: bool) -> Self {
         self.allow_drag = allow_drag;
         self
     }
 
+    /// Sets the desired widget user data.
     pub fn with_user_data(mut self, user_data: Rc<dyn Any>) -> Self {
         self.user_data = Some(user_data);
         self
     }
 
+    /// Sets the desired widget cursor.
     pub fn with_cursor(mut self, cursor: Option<CursorIcon>) -> Self {
         self.cursor = cursor;
         self
     }
 
+    /// Sets the desired widget opacity.
     pub fn with_opacity(mut self, opacity: Option<f32>) -> Self {
         self.opacity = opacity;
         self
     }
 
+    /// Sets the desired widget id.
     pub fn with_id(mut self, id: Uuid) -> Self {
         self.id = id;
         self
@@ -1696,6 +1771,7 @@ impl WidgetBuilder {
         self
     }
 
+    /// Sets the desired tooltip time.
     pub fn with_tooltip_time(mut self, tooltip_time: f32) -> Self {
         self.tooltip_time = tooltip_time;
         self
@@ -1707,6 +1783,7 @@ impl WidgetBuilder {
         self
     }
 
+    /// Finishes building of the base widget.
     pub fn build(self) -> Widget {
         Widget {
             handle: Default::default(),
