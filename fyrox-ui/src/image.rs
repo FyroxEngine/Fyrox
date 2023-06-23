@@ -64,7 +64,7 @@ impl ImageMessage {
 /// ```rust,no_run
 /// # use fyrox_ui::{
 /// #     core::pool::Handle,
-/// #     image::ImageBuilder, widget::WidgetBuilder, BuildContext, UiNode, draw::SharedTexture;
+/// #     image::ImageBuilder, widget::WidgetBuilder, BuildContext, UiNode, draw::SharedTexture
 /// # };
 ///
 /// fn create_image(ctx: &mut BuildContext, texture: SharedTexture) -> Handle<UiNode> {
