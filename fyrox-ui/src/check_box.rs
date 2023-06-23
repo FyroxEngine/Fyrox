@@ -1,7 +1,13 @@
+//! Checkbox is a UI widget that have three states - `Checked`, `Unchecked` and `Undefined`. In most cases it is used
+//! only with two values which fits in `bool` type. Third, undefined, state is used for specific situations when your
+//! data have such state. See [`CheckBox`] docs for more info and usage examples.
+
+#![warn(missing_docs)]
+
 use crate::{
     border::BorderBuilder,
     brush::Brush,
-    core::{color::Color, pool::Handle},
+    core::{algebra::Vector2, color::Color, pool::Handle},
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
@@ -11,27 +17,128 @@ use crate::{
     UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE, BRUSH_DARKEST, BRUSH_LIGHT,
     BRUSH_TEXT,
 };
-use fyrox_core::algebra::Vector2;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
 };
 
+/// A set of possible check box messages.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CheckBoxMessage {
+    /// Emitted when the check box changed its state. Could also be used to modify check box state.
     Check(Option<bool>),
 }
 
 impl CheckBoxMessage {
-    define_constructor!(CheckBoxMessage:Check => fn checked(Option<bool>), layout: false);
+    define_constructor!(
+        /// Creates [`CheckBoxMessage::checked`] message.
+        CheckBoxMessage:Check => fn checked(Option<bool>), layout: false
+    );
 }
 
+/// Checkbox is a UI widget that have three states - `Checked`, `Unchecked` and `Undefined`. In most cases it is used
+/// only with two values which fits in `bool` type. Third, undefined, state is used for specific situations when your
+/// data have such state.
+///
+/// ## How to create
+///
+/// To create a checkbox you should do something like this:
+///
+/// ```rust,no_run
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     check_box::CheckBoxBuilder, widget::WidgetBuilder, UiNode, UserInterface
+/// # };
+/// fn create_checkbox(ui: &mut UserInterface) -> Handle<UiNode> {
+///     CheckBoxBuilder::new(WidgetBuilder::new())
+///         // A custom value can be set during initialization.
+///         .checked(Some(true))
+///         .build(&mut ui.build_ctx())
+/// }
+/// ```
+///
+/// The above code will create a checkbox without any textual info, but usually checkboxes have some useful info
+/// near them. To create such checkbox, you could use [`CheckBoxBuilder::with_content`] method which accepts any widget handle.
+/// For checkbox with text, you could use [`crate::text::TextBuilder`] to create textual content, for checkbox with image - use
+/// [`crate::image::ImageBuilder`]. As already said, you're free to use any widget handle there.
+///
+/// Here's an example of checkbox with textual content.
+///
+/// ```rust,no_run
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     check_box::CheckBoxBuilder, text::TextBuilder, widget::WidgetBuilder, UiNode,
+/// #     UserInterface,
+/// # };
+/// fn create_checkbox(ui: &mut UserInterface) -> Handle<UiNode> {
+///     let ctx = &mut ui.build_ctx();
+///
+///     CheckBoxBuilder::new(WidgetBuilder::new())
+///         // A custom value can be set during initialization.
+///         .checked(Some(true))
+///         .with_content(
+///             TextBuilder::new(WidgetBuilder::new())
+///                 .with_text("This is a checkbox")
+///                 .build(ctx),
+///         )
+///         .build(ctx)
+/// }
+/// ```
+///
+/// ## Message handling
+///
+/// Checkboxes are not static widget and have multiple states. To handle a message from a checkbox, you need to handle
+/// the [`CheckBoxMessage::Check`] message. To do so, you can do something like this:
+///
+/// ```rust,no_run
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     check_box::CheckBoxMessage, message::UiMessage, UiNode
+/// # };
+/// #
+/// # struct Foo {
+/// #     checkbox: Handle<UiNode>,
+/// # }
+/// #
+/// # impl Foo {
+/// fn on_ui_message(
+///     &mut self,
+///     message: &UiMessage,
+/// ) {
+///     if let Some(CheckBoxMessage::Check(value)) = message.data() {
+///         if message.destination() == self.checkbox {
+///             //
+///             // Insert your clicking handling code here.
+///             //
+///         }
+///     }
+/// }
+/// # }
+/// ```
+///
+/// Keep in mind that checkbox (as any other widget) generates [`WidgetMessage`] instances. You can catch them too and
+/// do a custom handling if you need.
+///
+/// ## Theme
+///
+/// Checkbox can be fully customized to have any look you want, there are few methods that will help you with
+/// customization:
+///
+/// 1) [`CheckBoxBuilder::with_content`] - sets the content that will be shown near the checkbox.
+/// 2) [`CheckBoxBuilder::with_check_mark`] - sets the widget that will be used as checked icon.
+/// 3) [`CheckBoxBuilder::with_uncheck_mark`] - sets the widget that will be used as unchecked icon.
+/// 4) [`CheckBoxBuilder::with_undefined_mark`] - sets the widget that will be used as undefined icon.
 #[derive(Clone)]
 pub struct CheckBox {
+    /// Base widget of the check box.
     pub widget: Widget,
+    /// Current state of the check box.
     pub checked: Option<bool>,
+    /// Check mark that is used when the state is `Some(true)`.
     pub check_mark: Handle<UiNode>,
+    /// Check mark that is used when the state is `Some(false)`.
     pub uncheck_mark: Handle<UiNode>,
+    /// Check mark that is used when the state is `None`.
     pub undefined_mark: Handle<UiNode>,
 }
 
@@ -143,6 +250,7 @@ impl Control for CheckBox {
     }
 }
 
+/// Check box builder creates [`CheckBox`] instances and adds them to the user interface.
 pub struct CheckBoxBuilder {
     widget_builder: WidgetBuilder,
     checked: Option<bool>,
@@ -154,6 +262,7 @@ pub struct CheckBoxBuilder {
 }
 
 impl CheckBoxBuilder {
+    /// Creates new check box builder instance.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -166,36 +275,44 @@ impl CheckBoxBuilder {
         }
     }
 
+    /// Sets the desired state of the check box.
     pub fn checked(mut self, value: Option<bool>) -> Self {
         self.checked = value;
         self
     }
 
+    /// Sets the desired check mark when the state is `Some(true)`.
     pub fn with_check_mark(mut self, check_mark: Handle<UiNode>) -> Self {
         self.check_mark = Some(check_mark);
         self
     }
 
+    /// Sets the desired check mark when the state is `Some(false)`.
     pub fn with_uncheck_mark(mut self, uncheck_mark: Handle<UiNode>) -> Self {
         self.uncheck_mark = Some(uncheck_mark);
         self
     }
 
+    /// Sets the desired check mark when the state is `None`.
     pub fn with_undefined_mark(mut self, undefined_mark: Handle<UiNode>) -> Self {
         self.undefined_mark = Some(undefined_mark);
         self
     }
 
+    /// Sets the new content of the check box.
     pub fn with_content(mut self, content: Handle<UiNode>) -> Self {
         self.content = content;
         self
     }
 
+    /// Sets the desired background widget that will be used a container for check box contents. By
+    /// default, it is a simple border.
     pub fn with_background(mut self, background: Handle<UiNode>) -> Self {
         self.background = Some(background);
         self
     }
 
+    /// Finishes check box building and adds it to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let check_mark = self.check_mark.unwrap_or_else(|| {
             BorderBuilder::new(
