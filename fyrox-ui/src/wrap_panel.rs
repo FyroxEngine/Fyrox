@@ -26,7 +26,7 @@ pub enum WrapPanelMessage {
 
 impl WrapPanelMessage {
     define_constructor!(
-        /// Creates [`Orientation::Orientation`] message.
+        /// Creates [`WrapPanelMessage::Orientation`] message.
         WrapPanelMessage:Orientation => fn orientation(Orientation), layout: false
     );
 }

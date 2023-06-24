@@ -5,7 +5,8 @@
 
 use crate::{
     core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
-    message::UiMessage,
+    define_constructor,
+    message::{MessageDirection, UiMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
@@ -13,6 +14,20 @@ use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
 };
+
+/// A set of possible [`StackPanel`] widget messages.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StackPanelMessage {
+    /// The message is used to change orientation of the stack panel.
+    Orientation(Orientation),
+}
+
+impl StackPanelMessage {
+    define_constructor!(
+        /// Creates [`StackPanelMessage::Orientation`] message.
+        StackPanelMessage:Orientation => fn orientation(Orientation), layout: false
+    );
+}
 
 /// Stack Panels are one of several methods to position multiple widgets in relation to each other. A Stack Panel Widget
 /// orders its children widgets linearly, aka in a stack of widgets, based on the order the widgets were added as children.
@@ -203,6 +218,16 @@ impl Control for StackPanel {
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
+
+        if message.destination() == self.handle && message.direction() == MessageDirection::ToWidget
+        {
+            if let Some(StackPanelMessage::Orientation(orientation)) = message.data() {
+                if *orientation != self.orientation {
+                    self.orientation = *orientation;
+                    self.invalidate_layout();
+                }
+            }
+        }
     }
 }
 
