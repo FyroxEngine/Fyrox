@@ -6,7 +6,8 @@
 
 use crate::{
     core::{algebra::Vector2, math::Rect, pool::Handle},
-    message::UiMessage,
+    define_constructor,
+    message::{MessageDirection, UiMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
@@ -15,6 +16,20 @@ use std::{
     cell::RefCell,
     ops::{Deref, DerefMut, Range},
 };
+
+/// A set of possible [`WrapPanel`] widget messages.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WrapPanelMessage {
+    /// The message is used to change orientation of the wrap panel.
+    Orientation(Orientation),
+}
+
+impl WrapPanelMessage {
+    define_constructor!(
+        /// Creates [`Orientation::Orientation`] message.
+        WrapPanelMessage:Orientation => fn orientation(Orientation), layout: false
+    );
+}
 
 /// Wrap panel is used to stack children widgets either in vertical or horizontal direction with overflow - every widget
 /// that does not have enough space on current line, will automatically be placed on the next line (either vertical or
@@ -220,6 +235,16 @@ impl Control for WrapPanel {
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
+
+        if message.destination() == self.handle && message.direction() == MessageDirection::ToWidget
+        {
+            if let Some(WrapPanelMessage::Orientation(orientation)) = message.data() {
+                if *orientation != self.orientation {
+                    self.orientation = *orientation;
+                    self.invalidate_layout();
+                }
+            }
+        }
     }
 }
 
