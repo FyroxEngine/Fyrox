@@ -188,7 +188,10 @@ pub enum DragContext<T: NumericType> {
 /// }
 /// ```
 ///
-/// The default limits for min and max are [`NumericType::min_value`] and [`NumericType::max_value`] respectively.
+/// The default limits for min and max are [NumericType::min_value] and [NumericType::max_value] respectively.
+///
+/// [NumericType::min_value]: crate::core::num_traits::Bounded::min_value
+/// [NumericType::max_value]: crate::core::num_traits::Bounded::max_value
 ///
 /// ## Step
 ///
@@ -208,7 +211,9 @@ pub enum DragContext<T: NumericType> {
 /// }
 /// ```
 ///
-/// The default value of the step is [`NumericType::one`].
+/// The default value of the step is [NumericType::one].
+///
+/// [NumericType::one]: crate::core::num_traits::One::one
 ///
 /// ## Precision
 ///
