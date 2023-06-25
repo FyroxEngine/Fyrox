@@ -1,5 +1,7 @@
 //! A widget that handles numbers of any machine type. See [`NumericUpDown`] docs for more info and usage examples.
 
+#![warn(missing_docs)]
+
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -70,21 +72,46 @@ impl<T> NumericType for T where
 {
 }
 
+/// A set of messages that can be used to modify [`NumericUpDown`] widget state (with [`MessageDirection::ToWidget`], or to
+/// fetch changes from it (with [`MessageDirection::FromWidget`]).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NumericUpDownMessage<T: NumericType> {
+    /// Used to set new value of the [`NumericUpDown`] widget (with [`MessageDirection::ToWidget`] direction). Also emitted by the widget
+    /// automatically when the new value is set (with [`MessageDirection::FromWidget`]).
     Value(T),
+    /// Used to set min value of the [`NumericUpDown`] widget (with [`MessageDirection::ToWidget`] direction). Also emitted by the widget
+    /// automatically when the new min value is set (with [`MessageDirection::FromWidget`]).
     MinValue(T),
+    /// Used to set max value of the [`NumericUpDown`] widget (with [`MessageDirection::ToWidget`] direction). Also emitted by the widget
+    /// automatically when the new max value is set (with [`MessageDirection::FromWidget`]).
     MaxValue(T),
+    /// Used to set new step of the [`NumericUpDown`] widget (with [`MessageDirection::ToWidget`] direction). Also emitted by the widget
+    /// automatically when the new step is set (with [`MessageDirection::FromWidget`]).
     Step(T),
+    /// Used to set new precision of the [`NumericUpDown`] widget (with [`MessageDirection::ToWidget`] direction). Also emitted by the widget
+    /// automatically when the new precision is set (with [`MessageDirection::FromWidget`]).
     Precision(usize),
 }
 
 impl<T: NumericType> NumericUpDownMessage<T> {
-    define_constructor!(NumericUpDownMessage:Value => fn value(T), layout: false);
-    define_constructor!(NumericUpDownMessage:MinValue => fn min_value(T), layout: false);
-    define_constructor!(NumericUpDownMessage:MaxValue => fn max_value(T), layout: false);
-    define_constructor!(NumericUpDownMessage:Step => fn step(T), layout: false);
+    define_constructor!(
+        /// Creates [`NumericUpDownMessage::Value`] message.
+        NumericUpDownMessage:Value => fn value(T), layout: false
+    );
+    define_constructor!(
+        /// Creates [`NumericUpDownMessage::MinValue`] message.
+        NumericUpDownMessage:MinValue => fn min_value(T), layout: false
+    );
+    define_constructor!(
+        /// Creates [`NumericUpDownMessage::MaxValue`] message.
+        NumericUpDownMessage:MaxValue => fn max_value(T), layout: false
+    );
+    define_constructor!(
+        /// Creates [`NumericUpDownMessage::Step`] message.
+        NumericUpDownMessage:Step => fn step(T), layout: false
+    );
 
+    /// Creates [`NumericUpDownMessage::Precision`] message.
     pub fn precision(
         destination: Handle<UiNode>,
         direction: MessageDirection,
@@ -101,13 +128,19 @@ impl<T: NumericType> NumericUpDownMessage<T> {
     }
 }
 
+/// Used to store drag info when dragging the cursor on the up/down buttons.
 #[derive(Clone)]
 pub enum DragContext<T: NumericType> {
+    /// Dragging is just started.
     PreDrag {
+        /// Initial mouse position in Y axis.
         start_mouse_pos: f32,
     },
+    /// Dragging is active.
     Dragging {
+        /// Start value of the [`NumericUpDown`] widget.
         start_value: T,
+        /// Initial mouse position in Y axis.
         start_mouse_pos: f32,
     },
 }
@@ -197,16 +230,27 @@ pub enum DragContext<T: NumericType> {
 /// ```
 #[derive(Clone)]
 pub struct NumericUpDown<T: NumericType> {
+    /// Base widget of the [`NumericUpDown`] widget.
     pub widget: Widget,
+    /// A handle of the input field (usually a [`TextBox`] instance).
     pub field: Handle<UiNode>,
+    /// A handle of the increase button.
     pub increase: Handle<UiNode>,
+    /// A handle of the decrease button.
     pub decrease: Handle<UiNode>,
+    /// Current value of the widget.
     pub value: T,
+    /// Step value of the widget.
     pub step: T,
+    /// Min value of the widget.
     pub min_value: T,
+    /// Max value of the widget.
     pub max_value: T,
+    /// Current precision of the widget in decimal places.
     pub precision: usize,
+    /// Internal dragging context.
     pub drag_context: Option<DragContext<T>>,
+    /// Defines how movement in Y axis will be translated in the actual value change. It is some sort of a scaling modifier.
     pub drag_value_scaling: f32,
 }
 
@@ -494,6 +538,7 @@ impl<T: NumericType> Control for NumericUpDown<T> {
     }
 }
 
+/// This builder creates new instances of [`NumericUpDown`] widget and adds them to the user interface.
 pub struct NumericUpDownBuilder<T: NumericType> {
     widget_builder: WidgetBuilder,
     value: T,
@@ -505,7 +550,7 @@ pub struct NumericUpDownBuilder<T: NumericType> {
     drag_value_scaling: f32,
 }
 
-pub fn make_button(
+fn make_button(
     ctx: &mut BuildContext,
     arrow: ArrowDirection,
     row: usize,
@@ -531,6 +576,7 @@ pub fn make_button(
 }
 
 impl<T: NumericType> NumericUpDownBuilder<T> {
+    /// Creates new builder instance with the base widget builder specified.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -548,24 +594,28 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
         self.value = clamp(value, self.min_value, self.max_value);
     }
 
+    /// Sets the desired min value.
     pub fn with_min_value(mut self, value: T) -> Self {
         self.min_value = value;
         self.set_value(self.value);
         self
     }
 
+    /// Sets the desired max value.
     pub fn with_max_value(mut self, value: T) -> Self {
         self.max_value = value;
         self.set_value(self.value);
         self
     }
 
+    /// Sets the desired value.
     pub fn with_value(mut self, value: T) -> Self {
         self.value = value;
         self.set_value(value);
         self
     }
 
+    /// Sets the desired step.
     pub fn with_step(mut self, step: T) -> Self {
         assert!(step >= T::zero());
 
@@ -573,21 +623,26 @@ impl<T: NumericType> NumericUpDownBuilder<T> {
         self
     }
 
+    /// Sets the desired precision.
     pub fn with_precision(mut self, precision: usize) -> Self {
         self.precision = precision;
         self
     }
 
+    /// Enables or disables editing of the widget.
     pub fn with_editable(mut self, editable: bool) -> Self {
         self.editable = editable;
         self
     }
 
+    /// Sets the desired value scaling when dragging. It scales cursor movement value (along Y axis) and multiplies it to get
+    /// the new value.
     pub fn with_drag_value_scaling(mut self, drag_value_scaling: f32) -> Self {
         self.drag_value_scaling = drag_value_scaling;
         self
     }
 
+    /// Finishes [`NumericUpDown`] widget creation and adds the new instance to the user interface and returns a handle to it.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let increase;
         let decrease;
