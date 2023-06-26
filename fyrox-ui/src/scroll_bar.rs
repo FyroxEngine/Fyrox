@@ -45,7 +45,7 @@ pub struct ScrollBar {
     pub increase: Handle<UiNode>,
     pub decrease: Handle<UiNode>,
     pub indicator: Handle<UiNode>,
-    pub field: Handle<UiNode>,
+    pub indicator_canvas: Handle<UiNode>,
     pub value_text: Handle<UiNode>,
     pub value_precision: usize,
 }
@@ -68,7 +68,7 @@ impl Control for ScrollBar {
         if self.value_text.is_some() {
             node_map.resolve(&mut self.value_text);
         }
-        node_map.resolve(&mut self.field);
+        node_map.resolve(&mut self.indicator_canvas);
     }
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
@@ -77,7 +77,7 @@ impl Control for ScrollBar {
         // Adjust indicator position according to current value
         let percent = (self.value - self.min) / (self.max - self.min);
 
-        let field_size = ui.node(self.field).actual_local_size();
+        let field_size = ui.node(self.indicator_canvas).actual_local_size();
 
         let indicator = ui.node(self.indicator);
         match self.orientation {
@@ -258,15 +258,16 @@ impl Control for ScrollBar {
                     }
                     WidgetMessage::MouseMove { pos: mouse_pos, .. } => {
                         if self.indicator.is_some() {
-                            let canvas =
-                                ui.borrow_by_name_up(self.indicator, ScrollBar::PART_CANVAS);
+                            let indicator_canvas = ui.node(self.indicator_canvas);
                             let indicator_size =
                                 ui.nodes.borrow(self.indicator).actual_global_size();
                             if self.is_dragging {
                                 let percent = match self.orientation {
                                     Orientation::Horizontal => {
-                                        let span = canvas.actual_global_size().x - indicator_size.x;
-                                        let offset = mouse_pos.x - canvas.screen_position().x
+                                        let span = indicator_canvas.actual_global_size().x
+                                            - indicator_size.x;
+                                        let offset = mouse_pos.x
+                                            - indicator_canvas.screen_position().x
                                             + self.offset.x;
                                         if span > 0.0 {
                                             (offset / span).clamp(0.0, 1.0)
@@ -275,8 +276,10 @@ impl Control for ScrollBar {
                                         }
                                     }
                                     Orientation::Vertical => {
-                                        let span = canvas.actual_global_size().y - indicator_size.y;
-                                        let offset = mouse_pos.y - canvas.screen_position().y
+                                        let span = indicator_canvas.actual_global_size().y
+                                            - indicator_size.y;
+                                        let offset = mouse_pos.y
+                                            - indicator_canvas.screen_position().y
                                             + self.offset.y;
                                         if span > 0.0 {
                                             (offset / span).clamp(0.0, 1.0)
@@ -299,10 +302,6 @@ impl Control for ScrollBar {
             }
         }
     }
-}
-
-impl ScrollBar {
-    pub const PART_CANVAS: &'static str = "PART_Canvas";
 }
 
 pub struct ScrollBarBuilder {
@@ -485,9 +484,8 @@ impl ScrollBarBuilder {
             Handle::NONE
         };
 
-        let field = CanvasBuilder::new(
+        let indicator_canvas = CanvasBuilder::new(
             WidgetBuilder::new()
-                .with_name(ScrollBar::PART_CANVAS)
                 .on_column(match orientation {
                     Orientation::Horizontal => 1,
                     Orientation::Vertical => 0,
@@ -503,7 +501,7 @@ impl ScrollBarBuilder {
         let grid = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(decrease)
-                .with_child(field)
+                .with_child(indicator_canvas)
                 .with_child(increase),
         )
         .add_rows(match orientation {
@@ -535,7 +533,7 @@ impl ScrollBarBuilder {
             increase,
             decrease,
             indicator,
-            field,
+            indicator_canvas,
             value_text,
             value_precision: self.value_precision,
         });
