@@ -1,3 +1,8 @@
+//! Scroll bar is used to represent a value on a finite range. It has a thumb that shows the current value on
+//! on the bar. See [`ScrollBar`] docs for more info and usage examples.
+
+#![warn(missing_docs)]
+
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -19,34 +24,127 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+/// A set of messages that can be accepted by [`ScrollBar`] widget.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ScrollBarMessage {
+    /// Used to indicate that the value of the scroll bar has changed ([`MessageDirection::FromWidget`]) or to set a
+    /// new value (with [`MessageDirection::ToWidget`].
     Value(f32),
+    /// Used to indicate that the min value of the scroll bar has changed ([`MessageDirection::FromWidget`]) or to set a
+    /// new min value (with [`MessageDirection::ToWidget`].
     MinValue(f32),
+    /// Used to indicate that the max value of the scroll bar has changed ([`MessageDirection::FromWidget`]) or to set a
+    /// new max value (with [`MessageDirection::ToWidget`].
     MaxValue(f32),
 }
 
 impl ScrollBarMessage {
-    define_constructor!(ScrollBarMessage:Value => fn value(f32), layout: false);
-    define_constructor!(ScrollBarMessage:MaxValue => fn max_value(f32), layout: false);
-    define_constructor!(ScrollBarMessage:MinValue => fn min_value(f32), layout: false);
+    define_constructor!(
+        /// Creates [`ScrollBarMessage::Value`] message.
+        ScrollBarMessage:Value => fn value(f32), layout: false
+    );
+    define_constructor!(
+        /// Creates [`ScrollBarMessage::MaxValue`] message.
+        ScrollBarMessage:MaxValue => fn max_value(f32), layout: false
+    );
+    define_constructor!(
+        /// Creates [`ScrollBarMessage::MinValue`] message.
+        ScrollBarMessage:MinValue => fn min_value(f32), layout: false
+    );
 }
 
+/// Scroll bar is used to represent a value on a finite range. It has a thumb that shows the current value on
+/// on the bar. Usually it is used in pair with [`crate::scroll_panel::ScrollPanel`] to create something like
+/// [`crate::scroll_viewer::ScrollViewer`] widget. However, it could also be used to create sliders to show some
+/// value that lies within some range.
+///
+/// ## Example
+///
+/// A simple example of how to create a new [`ScrollBar`] could be something like this:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle, scroll_bar::ScrollBarBuilder, widget::WidgetBuilder, BuildContext,
+/// #     UiNode,
+/// # };
+/// fn create_scroll_bar(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     ScrollBarBuilder::new(WidgetBuilder::new())
+///         .with_min(0.0)
+///         .with_max(200.0)
+///         .with_value(123.0)
+///         .build(ctx)
+/// }
+/// ```
+///
+/// It creates a horizontal scroll bar with `123.0` value and a range of `[0.0..200.0]`. To fetch the new value
+/// of the scroll bar, use [`ScrollBarMessage::Value`] message:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     message::{MessageDirection, UiMessage},
+/// #     scroll_bar::ScrollBarMessage,
+/// #     UiNode,
+/// # };
+/// # fn foo(scroll_bar: Handle<UiNode>, message: &mut UiMessage) {
+/// if message.destination() == scroll_bar
+///     && message.direction() == MessageDirection::FromWidget
+/// {
+///     if let Some(ScrollBarMessage::Value(value)) = message.data() {
+///         println!("{}", value);
+///     }
+/// }
+/// # }
+/// ```
+///
+/// Please note, that you need to explicitly filter messages by [`MessageDirection::FromWidget`], because it's the only
+/// direction that is used as an "indicator" that the value was accepted by the scroll bar.
+///
+/// ## Orientation
+///
+/// Scroll bar could be either horizontal (default) or vertical. You can select the orientation when building
+/// a scroll bar using [`ScrollBarBuilder::with_orientation`] method and provide a desired value from [`Orientation`]
+/// enum there.
+///
+/// ## Show values
+///
+/// By default, scroll bar does not show its actual value, you can turn it on using [`ScrollBarBuilder::show_value`]
+/// method with `true` as the first argument. To change rounding of the value, use [`ScrollBarBuilder::with_value_precision`]
+/// and provide the desired amount of decimal places there.
+///
+/// ## Step
+///
+/// Scroll bar provides arrows to change the current value using a fixed step value. You can change it using
+/// [`ScrollBarBuilder::with_step`] method.
 #[derive(Clone)]
 pub struct ScrollBar {
+    /// Base widget of the scroll bar.
     pub widget: Widget,
+    /// Min value of the scroll bar.
     pub min: f32,
+    /// Max value of the scroll bar.
     pub max: f32,
+    /// Current value of the scroll bar.
     pub value: f32,
+    /// Step of the scroll bar.
     pub step: f32,
+    /// Current orientation of the scroll bar.
     pub orientation: Orientation,
+    /// Internal flag, that could be used to check whether the scroll bar's thumb is being dragged or not.
     pub is_dragging: bool,
+    /// Internal mouse offset that is used for dragging purposes.
     pub offset: Vector2<f32>,
+    /// A handle of the increase button.
     pub increase: Handle<UiNode>,
+    /// A handle of the decrease button.
     pub decrease: Handle<UiNode>,
+    /// A handle of the indicator (thumb).
     pub indicator: Handle<UiNode>,
+    /// A handle of the canvas that is used for the thumb.
     pub indicator_canvas: Handle<UiNode>,
+    /// A handle of the [`crate::text::Text`] widget that is used to show the current value of the scroll bar.
     pub value_text: Handle<UiNode>,
+    /// Current value precison in decimal places.
     pub value_precision: usize,
 }
 
@@ -304,6 +402,7 @@ impl Control for ScrollBar {
     }
 }
 
+/// Scroll bar widget is used to create [`ScrollBar`] widget instances and add them to the user interface.
 pub struct ScrollBarBuilder {
     widget_builder: WidgetBuilder,
     min: Option<f32>,
@@ -320,6 +419,7 @@ pub struct ScrollBarBuilder {
 }
 
 impl ScrollBarBuilder {
+    /// Creates new scroll bar builder instance.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -337,61 +437,73 @@ impl ScrollBarBuilder {
         }
     }
 
+    /// Sets the desired min value.
     pub fn with_min(mut self, min: f32) -> Self {
         self.min = Some(min);
         self
     }
 
+    /// Sets the desired max value.
     pub fn with_max(mut self, max: f32) -> Self {
         self.max = Some(max);
         self
     }
 
+    /// Sets the desired value.
     pub fn with_value(mut self, value: f32) -> Self {
         self.value = Some(value);
         self
     }
 
+    /// Sets the desired orientation.
     pub fn with_orientation(mut self, orientation: Orientation) -> Self {
         self.orientation = Some(orientation);
         self
     }
 
+    /// Sets the desired step.
     pub fn with_step(mut self, step: f32) -> Self {
         self.step = Some(step);
         self
     }
 
+    /// Sets the new handle to a button, that is used to increase values of the scroll bar.
     pub fn with_increase(mut self, increase: Handle<UiNode>) -> Self {
         self.increase = Some(increase);
         self
     }
 
+    /// Sets the new handle to a button, that is used to decrease values of the scroll bar.
     pub fn with_decrease(mut self, decrease: Handle<UiNode>) -> Self {
         self.decrease = Some(decrease);
         self
     }
 
+    /// Sets the new handle to a widget, that is used as a thumb of the scroll bar.
     pub fn with_indicator(mut self, indicator: Handle<UiNode>) -> Self {
         self.indicator = Some(indicator);
         self
     }
 
+    /// Sets the new handle to a widget, that is used as a background of the scroll bar.
     pub fn with_body(mut self, body: Handle<UiNode>) -> Self {
         self.body = Some(body);
         self
     }
 
+    /// Show or hide the value of the scroll bar.
     pub fn show_value(mut self, state: bool) -> Self {
         self.show_value = state;
         self
     }
 
+    /// Sets the desired value precision of the scroll bar.
     pub fn with_value_precision(mut self, precision: usize) -> Self {
         self.value_precision = precision;
         self
     }
 
+    /// Creates new scroll bar instance and adds it to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let orientation = self.orientation.unwrap_or(Orientation::Horizontal);
 
