@@ -297,14 +297,17 @@ impl Font {
                         }
                     }
                 } else {
-                    atlas_size_factor *= 1.5 /1.3;
+                    atlas_size_factor *= 1.5 / 1.3;
                     let mut bigger = self.compute_atlas_size(border, atlas_size_factor);
                     while bigger == self.atlas_size {
-                        atlas_size_factor *= 1.5 /1.3;
+                        atlas_size_factor *= 1.5 / 1.3;
                         bigger = self.compute_atlas_size(border, atlas_size_factor);
                     }
-                    Log::info(format!("{} was not big enough for font atlas trying agains with {bigger}", self.atlas_size));
-                    self.atlas_size = self.compute_atlas_size(border,atlas_size_factor);
+                    Log::info(format!(
+                        "{} was not big enough for font atlas trying agains with {bigger}",
+                        self.atlas_size
+                    ));
+                    self.atlas_size = self.compute_atlas_size(border, atlas_size_factor);
 
                     continue 'outer;
                 }
