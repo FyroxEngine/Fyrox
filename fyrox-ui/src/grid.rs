@@ -1,3 +1,8 @@
+//! Grid widget is able to position children widgets into a grid of specifically sized rows and columns. See
+//! [`Grid`] doc for more info and usage examples.
+
+#![warn(missing_docs)]
+
 use crate::{
     core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
     draw::{CommandTexture, Draw, DrawingContext},
@@ -11,22 +16,33 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+/// Size mode defines how grid's dimension (see [`GridDimension`]) will behave on layout step.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SizeMode {
+    /// Strict size of the dimension.
     Strict,
+    /// Size of the dimension will match the size of the inner content.
     Auto,
+    /// Size of the dimension will stretch to fit available bounds.
     Stretch,
 }
 
+/// Grid dimension defines sizing rules and constraints for [`Grid`]'s rows and columns.
 #[derive(Clone, Copy, PartialEq)]
 pub struct GridDimension {
+    /// Current size mode of the dimension.
     pub size_mode: SizeMode,
+    /// Desired size of the dimension. Makes sense only if size mode is [`SizeMode::Strict`].
     pub desired_size: f32,
+    /// Measured size of the dimension. It could be considered as "output" parameter of the dimension
+    /// that will be filled after measurement layout step.
     pub actual_size: f32,
+    /// Local position along the axis of the dimension after arrangement step.
     pub location: f32,
 }
 
 impl GridDimension {
+    /// Generic constructor for [`GridDimension`].
     pub fn generic(size_mode: SizeMode, desired_size: f32) -> Self {
         Self {
             size_mode,
@@ -36,42 +52,127 @@ impl GridDimension {
         }
     }
 
+    /// Creates new [`GridDimension`] with [`SizeMode::Strict`] and the specified size constraint.
     pub fn strict(desired_size: f32) -> Self {
         Self::generic(SizeMode::Strict, desired_size)
     }
 
+    /// Creates new [`GridDimension`] with [`SizeMode::Stretch`].
     pub fn stretch() -> Self {
         Self::generic(SizeMode::Stretch, 0.0)
     }
 
+    /// Creates new [`GridDimension`] with [`SizeMode::Auto`].
     pub fn auto() -> Self {
         Self::generic(SizeMode::Auto, 0.0)
     }
 }
 
+/// Type alias for grid columns.
 pub type Column = GridDimension;
+
+/// Type alias for grid rows.
 pub type Row = GridDimension;
 
-/// Automatically arranges children by rows and columns
+/// Grids are one of several methods to position multiple widgets in relation to each other. A Grid widget, as the name
+/// implies, is able to position children widgets into a grid of specifically sized rows and columns.
+///
+/// Here is a simple example that positions several text widgets into a 2 by 2 grid:
+///
+/// ```rust,no_run
+/// # use fyrox_ui::{
+/// #     UiNode, core::pool::Handle,
+/// #     BuildContext,
+/// #     widget::WidgetBuilder,
+/// #     text::TextBuilder,
+/// #     grid::{GridBuilder, GridDimension},
+/// # };
+/// fn create_text_grid(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     GridBuilder::new(
+///         WidgetBuilder::new()
+///             .with_child(
+///                 TextBuilder::new(WidgetBuilder::new())
+///                     .with_text("top left ")
+///                     .build(ctx),
+///             )
+///             .with_child(
+///                 TextBuilder::new(WidgetBuilder::new().on_column(1))
+///                     .with_text(" top right")
+///                     .build(ctx),
+///             )
+///             .with_child(
+///                 TextBuilder::new(WidgetBuilder::new().on_row(1))
+///                     .with_text("bottom left ")
+///                     .build(ctx),
+///             )
+///             .with_child(
+///                 TextBuilder::new(WidgetBuilder::new().on_row(1).on_column(1))
+///                     .with_text(" bottom right")
+///                     .build(ctx),
+///             ),
+///     )
+///     .add_row(GridDimension::auto())
+///     .add_row(GridDimension::auto())
+///     .add_column(GridDimension::auto())
+///     .add_column(GridDimension::auto())
+///     .build(ctx)
+/// }
+/// ```
+///
+/// As with other UI widgets, Grids are created via the [`GridBuilder`] struct. Each widget whose position should be controlled
+/// by the Grid should be added as a child of the [`GridBuilder`]'s base widget.
+///
+/// You then need to tell each child what row and column it belongs to via the [`WidgetBuilder::on_column`] and [`WidgetBuilder::on_row`]
+/// functions of their base widget. By default, all children will be placed into row 0, column 0.
+///
+/// After that you need to provide sizing constraints for each row and column to the [`GridBuilder`] by using the [`GridBuilder::add_row`]
+/// and [`GridBuilder::add_column`] functions while providing a [`GridDimension`] instance to the call. [`GridDimension`] can be
+/// constructed with the following functions:
+///
+/// * [`GridDimension::auto`] - Sizes the row or column so it's just large enough to fit the largest child's size.
+/// * [`GridDimension::stretch`] - Stretches the row or column to fill the parent's available space, if multiple rows or
+/// columns have this option the size is evenly distributed between them.
+/// * [`GridDimension::strict`] - Sets the row or column to be exactly the given value of pixels long. So a row will only
+/// be the given number of pixels wide, while a column will be that many pixels tall.
+///
+/// You can add any number of rows and columns to a grid widget, and each grid cell does **not** need to have a UI widget
+/// in it to be valid. For example you can add a column and set it to a specific size via strict to provide spacing between
+/// two other columns.
 #[derive(Clone)]
 pub struct Grid {
+    /// Base widget of the grid.
     pub widget: Widget,
+    /// A set of rows of the grid.
     pub rows: RefCell<Vec<Row>>,
+    /// A set of columns of the grid.
     pub columns: RefCell<Vec<Column>>,
+    /// Defines whether to draw grid's border or not. It could be useful for debugging purposes.
     pub draw_border: bool,
+    /// Defines border thickness when `draw_border` is on.
     pub border_thickness: f32,
+    /// Current set of cells of the grid.
     pub cells: RefCell<Vec<Cell>>,
+    /// A set of four groups, where each group contains cell indices. It is used for measurement
+    /// purposes to group the cells in specific way, so it can be measured in the correct order
+    /// later.
     pub groups: RefCell<[Vec<usize>; 4]>,
 }
 
 crate::define_widget_deref!(Grid);
 
+/// Cell of the grid, that contains additional information for layout purposes. It does not have any
+/// particular use outside of grid's internals.
 #[derive(Clone)]
 pub struct Cell {
+    /// A set of nodes of the cell.
     pub nodes: Vec<Handle<UiNode>>,
+    /// Current width constraint of the cell.
     pub width_constraint: Option<f32>,
+    /// Current height constraint of the cell.
     pub height_constraint: Option<f32>,
+    /// Vertical location of the cell (row number).
     pub row_index: usize,
+    /// Horizontal location of the cell (column number).
     pub column_index: usize,
 }
 
@@ -398,6 +499,7 @@ impl Control for Grid {
     }
 }
 
+/// Grid builder creates [`Grid`] instances and adds it to the user interface.
 pub struct GridBuilder {
     widget_builder: WidgetBuilder,
     rows: Vec<Row>,
@@ -407,6 +509,7 @@ pub struct GridBuilder {
 }
 
 impl GridBuilder {
+    /// Creates new grid builder with the base widget builder.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -417,36 +520,43 @@ impl GridBuilder {
         }
     }
 
+    /// Adds a new row to the grid builder. Number of rows is unlimited.
     pub fn add_row(mut self, row: Row) -> Self {
         self.rows.push(row);
         self
     }
 
+    /// Adds a new column to the grid builder. Number of columns is unlimited.
     pub fn add_column(mut self, column: Column) -> Self {
         self.columns.push(column);
         self
     }
 
+    /// Adds a set of rows to the grid builder. Number of rows is unlimited.
     pub fn add_rows(mut self, mut rows: Vec<Row>) -> Self {
         self.rows.append(&mut rows);
         self
     }
 
+    /// Adds a set of columnds to the grid builder. Number of columnds is unlimited.
     pub fn add_columns(mut self, mut columns: Vec<Column>) -> Self {
         self.columns.append(&mut columns);
         self
     }
 
+    /// Specifies whether the grid should draw its border or not.
     pub fn draw_border(mut self, value: bool) -> Self {
         self.draw_border = value;
         self
     }
 
+    /// Specifies grid's border thickness.
     pub fn with_border_thickness(mut self, value: f32) -> Self {
         self.border_thickness = value;
         self
     }
 
+    /// Creates new [`Grid`] widget instance and adds it to the user interface.
     pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
         let grid = Grid {
             widget: self.widget_builder.build(),

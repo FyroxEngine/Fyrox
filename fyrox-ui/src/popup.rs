@@ -1,3 +1,8 @@
+//! Popup is used to display other widgets in floating panel, that could lock input in self bounds. See [`Popup`] docs
+//! for more info and usage examples.
+
+#![warn(missing_docs)]
+
 use crate::{
     border::BorderBuilder,
     core::{algebra::Vector2, math::Rect, pool::Handle},
@@ -12,46 +17,69 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+/// A set of messages for [`Popup`] widget.
 #[derive(Debug, Clone, PartialEq)]
 pub enum PopupMessage {
+    /// Used to open a [`Popup`] widgets. Use [`PopupMessage::open`] to create the message.
     Open,
+    /// Used to close a [`Popup`] widgets. Use [`PopupMessage::close`] to create the message.
     Close,
+    /// Used to change the content of a [`Popup`] widgets. Use [`PopupMessage::content`] to create the message.
     Content(Handle<UiNode>),
+    /// Used to change popup's placement. Use [`PopupMessage::placement`] to create the message.
     Placement(Placement),
+    /// Used to adjust position of a popup widget, so it will be on screen. Use [`PopupMessage::adjust_position`] to create
+    /// the message.
     AdjustPosition,
 }
 
 impl PopupMessage {
-    define_constructor!(PopupMessage:Open => fn open(), layout: false);
-    define_constructor!(PopupMessage:Close => fn close(), layout: false);
-    define_constructor!(PopupMessage:Content => fn content(Handle<UiNode>), layout: false);
-    define_constructor!(PopupMessage:Placement => fn placement(Placement), layout: false);
-    define_constructor!(PopupMessage:AdjustPosition => fn adjust_position(), layout: true);
+    define_constructor!(
+        /// Creates [`PopupMessage::Open`] message.
+        PopupMessage:Open => fn open(), layout: false
+    );
+    define_constructor!(
+        /// Creates [`PopupMessage::Close`] message.
+        PopupMessage:Close => fn close(), layout: false
+    );
+    define_constructor!(
+        /// Creates [`PopupMessage::Content`] message.
+        PopupMessage:Content => fn content(Handle<UiNode>), layout: false
+    );
+    define_constructor!(
+        /// Creates [`PopupMessage::Placement`] message.
+        PopupMessage:Placement => fn placement(Placement), layout: false
+    );
+    define_constructor!(
+        /// Creates [`PopupMessage::AdjustPosition`] message.
+        PopupMessage:AdjustPosition => fn adjust_position(), layout: true
+    );
 }
 
+/// Defines a method of popup placement.
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub enum Placement {
     /// A popup should be placed relative to given widget at the left top corner of the widget screen bounds.
-    /// Widget handle could be `NONE`, in this case the popup will be placed at the left top corner of the screen.
+    /// Widget handle could be [`Handle::NONE`], in this case the popup will be placed at the left top corner of the screen.
     LeftTop(Handle<UiNode>),
 
     /// A popup should be placed relative to given widget at the right top corner of the widget screen bounds.
-    /// Widget handle could be `NONE`, in this case the popup will be placed at the right top corner of the screen.
+    /// Widget handle could be [`Handle::NONE`], in this case the popup will be placed at the right top corner of the screen.
     RightTop(Handle<UiNode>),
 
     /// A popup should be placed relative to given widget at the center of the widget screen bounds.
-    /// Widget handle could be `NONE`, in this case the popup will be placed at the center of the screen.
+    /// Widget handle could be [`Handle::NONE`], in this case the popup will be placed at the center of the screen.
     Center(Handle<UiNode>),
 
     /// A popup should be placed relative to given widget at the left bottom corner of the widget screen bounds.
-    /// Widget handle could be `NONE`, in this case the popup will be placed at the left bottom corner of the screen.
+    /// Widget handle could be [`Handle::NONE`], in this case the popup will be placed at the left bottom corner of the screen.
     LeftBottom(Handle<UiNode>),
 
     /// A popup should be placed relative to given widget at the right bottom corner of the widget screen bounds.
-    /// Widget handle could be `NONE`, in this case the popup will be placed at the right bottom corner of the screen.
+    /// Widget handle could be [`Handle::NONE`], in this case the popup will be placed at the right bottom corner of the screen.
     RightBottom(Handle<UiNode>),
 
-    /// A popup should be placed at the cursor position. The widget handle could be either `NONE` or a handle of a
+    /// A popup should be placed at the cursor position. The widget handle could be either [`Handle::NONE`] or a handle of a
     /// widget that is directly behind the cursor.
     Cursor(Handle<UiNode>),
 
@@ -60,20 +88,180 @@ pub enum Placement {
         /// Screen-space position.
         position: Vector2<f32>,
 
-        /// A handle of the node that is located behind the given position. Could be `NONE` if there is nothing behind
+        /// A handle of the node that is located behind the given position. Could be [`Handle::NONE`] if there is nothing behind
         /// given position.
         target: Handle<UiNode>,
     },
 }
 
+/// Popup is used to display other widgets in floating panel, that could lock input in self bounds.
+///
+/// ## How to create
+///
+/// A simple popup with a button could be created using the following code:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     button::ButtonBuilder, core::pool::Handle, popup::PopupBuilder, widget::WidgetBuilder,
+/// #     BuildContext, UiNode,
+/// # };
+/// fn create_popup_with_button(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     PopupBuilder::new(WidgetBuilder::new())
+///         .with_content(
+///             ButtonBuilder::new(WidgetBuilder::new())
+///                 .with_text("Click Me!")
+///                 .build(ctx),
+///         )
+///         .build(ctx)
+/// }
+/// ```
+///
+/// Keep in mind, that the popup is closed by default. You need to open it explicitly by sending a [`PopupMessage::Open`] to it,
+/// otherwise you won't see it:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     button::ButtonBuilder,
+/// #     core::pool::Handle,
+/// #     message::MessageDirection,
+/// #     popup::{Placement, PopupBuilder, PopupMessage},
+/// #     widget::WidgetBuilder,
+/// #     UiNode, UserInterface,
+/// # };
+/// fn create_popup_with_button_and_open_it(ui: &mut UserInterface) -> Handle<UiNode> {
+///     let popup = PopupBuilder::new(WidgetBuilder::new())
+///         .with_content(
+///             ButtonBuilder::new(WidgetBuilder::new())
+///                 .with_text("Click Me!")
+///                 .build(ctx),
+///         )
+///         .build(&mut ui.build_ctx());
+///
+///     // Open the popup explicitly.
+///     ui.send_message(PopupMessage::open(popup, MessageDirection::ToWidget));
+///
+///     popup
+/// }
+/// ```
+///
+/// ## Placement
+///
+/// Since popups are usually used to show useful context-specific information (like context menus, drop-down lists, etc.), they're usually
+/// open above some other widget with specific alignment (right, left, center, etc.).
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     button::ButtonBuilder,
+/// #     core::pool::Handle,
+/// #     message::MessageDirection,
+/// #     popup::{Placement, PopupBuilder, PopupMessage},
+/// #     widget::WidgetBuilder,
+/// #     UiNode, UserInterface,
+/// # };
+/// fn create_popup_with_button_and_open_it(ui: &mut UserInterface) -> Handle<UiNode> {
+///     let popup = PopupBuilder::new(WidgetBuilder::new())
+///         .with_content(
+///             ButtonBuilder::new(WidgetBuilder::new())
+///                 .with_text("Click Me!")
+///                 .build(ctx),
+///         )
+///         // Set the placement. For simplicity it is just a cursor position with Handle::NONE as placement target.
+///         .with_placement(Placement::Cursor(Handle::NONE))
+///         .build(&mut ui.build_ctx());
+///
+///     // Open the popup explicitly at the current placement.
+///     ui.send_message(PopupMessage::open(popup, MessageDirection::ToWidget));
+///
+///     popup
+/// }
+/// ```
+///
+/// The example uses [`Placement::Cursor`] with [`Handle::NONE`] placement target for simplicity reasons, however in
+/// the real-world usages this handle must be a handle of some widget that is located under the popup. It is very
+/// important to specify it correctly, otherwise you will lost the built-in ability to fetch the actual placement target.
+/// For example, imagine that you're building your own custom [`crate::dropdown_list::DropdownList`] widget and the popup
+/// is used to display content of the list. In this case you could specify the placement target like this:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     button::ButtonBuilder,
+/// #     core::pool::Handle,
+/// #     message::MessageDirection,
+/// #     popup::{Placement, PopupBuilder, PopupMessage},
+/// #     widget::WidgetBuilder,
+/// #     UiNode, UserInterface,
+/// # };
+/// fn create_popup_with_button_and_open_it(
+///     dropdown_list: Handle<UiNode>,
+///     ui: &mut UserInterface,
+/// ) -> Handle<UiNode> {
+///     let popup = PopupBuilder::new(WidgetBuilder::new())
+///         .with_content(
+///             ButtonBuilder::new(WidgetBuilder::new())
+///                 .with_text("Click Me!")
+///                 .build(ctx),
+///         )
+///         // Set the placement to the dropdown list.
+///         .with_placement(Placement::LeftBottom(dropdown_list))
+///         .build(&mut ui.build_ctx());
+///
+///     // Open the popup explicitly at the current placement.
+///     ui.send_message(PopupMessage::open(popup, MessageDirection::ToWidget));
+///
+///     popup
+/// }
+/// ```
+///
+/// In this case, the popup will open at the left bottom corner of the dropdown list automatically. Placement target is also
+/// useful to build context menus, especially for lists with multiple items. Each item in the list usually have the same context
+/// menu, and this is ideal use case for popups, since the single context menu can be shared across multiple list items. To find
+/// which item cause the context menu to open, catch [`PopupMessage::Placement`] and extract the node handle - this will be your
+/// actual item.
+///
+/// ## Opening mode
+///
+/// By default, when you click outside of your popup it will automatically close. It is pretty common behaviour in the UI, you
+/// can see it almost everytime you use context menus in various apps. There are cases when this behaviour is undesired and it
+/// can be turned off:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     button::ButtonBuilder, core::pool::Handle, popup::PopupBuilder, widget::WidgetBuilder,
+/// #     BuildContext, UiNode,
+/// # };
+/// fn create_popup_with_button(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     PopupBuilder::new(WidgetBuilder::new())
+///         .with_content(
+///             ButtonBuilder::new(WidgetBuilder::new())
+///                 .with_text("Click Me!")
+///                 .build(ctx),
+///         )
+///         // This forces the popup to stay open when clicked outside of its bounds
+///         .stays_open(true)
+///         .build(ctx)
+/// }
+/// ```
+///
+/// ## Smart placement
+///
+/// Popup widget can automatically adjust its position to always remain on screen, which is useful for tooltips, dropdown lists,
+/// etc. To enable this option, use [`PopupBuilder::with_smart_placement`] with `true` as the first argument.
 #[derive(Clone)]
 pub struct Popup {
+    /// Base widget of the popup.
     pub widget: Widget,
+    /// Current placement of the popup.
     pub placement: Placement,
+    /// A flag, that defines whether the popup will stay open if a user click outside of its bounds.
     pub stays_open: bool,
+    /// A flag, that defines whether the popup is open or not.
     pub is_open: bool,
+    /// Current content of the popup.
     pub content: Handle<UiNode>,
+    /// Background widget of the popup. It is used as a container for the content.
     pub body: Handle<UiNode>,
+    /// Smart placement prevents the popup from going outside of the screen bounds. It is usually used for tooltips,
+    /// dropdown lists, etc. to prevent the content from being outside of the screen.
     pub smart_placement: bool,
 }
 
@@ -268,6 +456,7 @@ impl Control for Popup {
     }
 }
 
+/// Popup widget builder is used to create [`Popup`] widget instances and add them to the user interface.
 pub struct PopupBuilder {
     widget_builder: WidgetBuilder,
     placement: Placement,
@@ -277,6 +466,7 @@ pub struct PopupBuilder {
 }
 
 impl PopupBuilder {
+    /// Creates new builder instance.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -287,26 +477,31 @@ impl PopupBuilder {
         }
     }
 
+    /// Sets the desired popup placement.
     pub fn with_placement(mut self, placement: Placement) -> Self {
         self.placement = placement;
         self
     }
 
+    /// Enables or disables smart placement.
     pub fn with_smart_placement(mut self, smart_placement: bool) -> Self {
         self.smart_placement = smart_placement;
         self
     }
 
+    /// Defines whether to keep the popup open when user clicks outside of its content or not.
     pub fn stays_open(mut self, value: bool) -> Self {
         self.stays_open = value;
         self
     }
 
+    /// Sets the content of the popup.
     pub fn with_content(mut self, content: Handle<UiNode>) -> Self {
         self.content = content;
         self
     }
 
+    /// Finishes building the [`Popup`] instance and adds to the user interface and returns its handle.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let body = BorderBuilder::new(
             WidgetBuilder::new()

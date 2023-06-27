@@ -1,3 +1,8 @@
+//! Image widget is a rectangle with a texture, it is used draw custom bitmaps. See [`Image`] docs for more info
+//! and usage examples.
+
+#![warn(missing_docs)]
+
 use crate::{
     brush::Brush,
     color::draw_checker_board,
@@ -13,27 +18,150 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+/// A set of messages that could be used to alter [`Image`] widget state at runtime.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ImageMessage {
+    /// Used to set new texture of the [`Image`] widget.
     Texture(Option<SharedTexture>),
+    /// Used to enable or disable texture flip of the [`Image`] widget. See respective [section](Image#vertical-flip)
+    /// of the docs for more info.
     Flip(bool),
+    /// Used to set specific portion of the texture. See respective [section](Image#drawing-only-a-portion-of-the-texture)
+    /// of the docs for more info.
     UvRect(Rect<f32>),
+    /// Used to enable or disable checkerboard background. See respective [section](Image#checkerboard-background) of the
+    /// docs for more info.
     CheckerboardBackground(bool),
 }
 
 impl ImageMessage {
-    define_constructor!(ImageMessage:Texture => fn texture(Option<SharedTexture>), layout: false);
-    define_constructor!(ImageMessage:Flip => fn flip(bool), layout: false);
-    define_constructor!(ImageMessage:UvRect => fn uv_rect(Rect<f32>), layout: false);
-    define_constructor!(ImageMessage:CheckerboardBackground => fn checkerboard_background(bool), layout: false);
+    define_constructor!(
+        /// Creates [`ImageMessage::Texture`] message.
+        ImageMessage:Texture => fn texture(Option<SharedTexture>), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`ImageMessage::Flip`] message.
+        ImageMessage:Flip => fn flip(bool), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`ImageMessage::UvRect`] message.
+        ImageMessage:UvRect => fn uv_rect(Rect<f32>), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`ImageMessage::CheckerboardBackground`] message.
+        ImageMessage:CheckerboardBackground => fn checkerboard_background(bool), layout: false
+    );
 }
 
+/// Image widget is a rectangle with a texture, it is used draw custom bitmaps. The UI in the engine is vector-based, Image
+/// widget is the only way to draw a bitmap. Usage of the Image is very simple:
+///
+/// ## Usage
+///
+/// ```rust,no_run
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     image::ImageBuilder, widget::WidgetBuilder, BuildContext, UiNode, draw::SharedTexture
+/// # };
+///
+/// fn create_image(ctx: &mut BuildContext, texture: SharedTexture) -> Handle<UiNode> {
+///     // You must explicitly set width and height of the image, otherwise it will collapse to a
+///     // point and you won't see anything.
+///     let width = 100.0;
+///     let height = 100.0;
+///     ImageBuilder::new(WidgetBuilder::new().with_width(width).with_height(height))        
+///         .with_texture(texture)
+///         .build(ctx)
+/// }
+/// ```
+///
+/// There are one common pitfall when using Image widget - you must explicitly set width and height of the image if it is
+/// not placed to some panel, that will stretch it automatically. In other words if you created an image with undefined
+/// width and height, then putting it to some container like Grid' cell will stretch the image to fit cell bounds.
+///
+/// ## Vertical Flip
+///
+/// In some rare cases you need to flip your source image before showing it, there is `.with_flip` option for that:
+///
+/// ```rust,no_run
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     image::ImageBuilder, widget::WidgetBuilder, BuildContext, UiNode, draw::SharedTexture
+/// # };
+///
+/// fn create_image(ctx: &mut BuildContext, texture: SharedTexture) -> Handle<UiNode> {
+///     ImageBuilder::new(WidgetBuilder::new().with_width(100.0).with_height(100.0))
+///         .with_flip(true) // Flips an image vertically
+///         .with_texture(texture)
+///         .build(ctx)
+/// }
+/// ```
+///
+/// There are few places where it can be helpful:
+///
+/// - You're using render target as a source texture for your [`Image`] instance, render targets are vertically flipped due
+/// to mismatch of coordinates of UI and graphics API. The UI has origin at left top corner, the graphics API - bottom left.
+/// - Your source image is vertically mirrored.
+///
+/// ## Checkerboard background
+///
+/// Image widget supports checkerboard background that could be useful for images with alpha channel (transparency). It can
+/// be enabled either when building the widget or via [`ImageMessage::CheckerboardBackground`] message:
+///
+/// ```rust,no_run
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     image::ImageBuilder, widget::WidgetBuilder, BuildContext, UiNode, draw::SharedTexture
+/// # };
+///
+/// fn create_image(ctx: &mut BuildContext, texture: SharedTexture) -> Handle<UiNode> {
+///     ImageBuilder::new(WidgetBuilder::new().with_width(100.0).with_height(100.0))
+///         .with_checkerboard_background(true) // Turns on checkerboard background.
+///         .with_texture(texture)
+///         .build(ctx)
+/// }
+/// ```
+///
+/// ## Drawing only a portion of the texture
+///
+/// Specific cases requires to be able to draw a specific rectangular portion of the texture. It could be done by using
+/// custom UV rect (UV stands for XY coordinates, but texture related):
+///
+/// ```rust,no_run
+/// # use fyrox_ui::{
+/// #     core::{pool::Handle, math::Rect},
+/// #     image::ImageBuilder, widget::WidgetBuilder, BuildContext, UiNode, draw::SharedTexture
+/// # };
+///
+/// fn create_image(ctx: &mut BuildContext, texture: SharedTexture) -> Handle<UiNode> {
+///     ImageBuilder::new(WidgetBuilder::new().with_width(100.0).with_height(100.0))
+///         .with_uv_rect(Rect::new(0.0, 0.0, 0.25, 0.25)) // Uses top-left quadrant of the texture.
+///         .with_texture(texture)
+///         .build(ctx)
+/// }
+/// ```
+///
+/// Keep in mind, that the rectangle uses _normalized_ coordinates. This means that the entire image dimensions (for both
+/// X and Y axes) "compressed" to `0.0..1.0` range. In this case 0.0 means left corner for X axis and top for Y axis, while
+/// 1.0 means right corner for X axis and bottom for Y axis.
+///
+/// It is useful if you have many custom UI elements packed in a single texture atlas. Drawing using atlases is much more
+/// efficient and faster. This could also be used for animations, when you have multiple frames packed in a single atlas
+/// and changing texture coordinates over the time.
 #[derive(Clone)]
 pub struct Image {
+    /// Base widget of the image.
     pub widget: Widget,
+    /// Current texture of the image.
     pub texture: Option<SharedTexture>,
+    /// Defines whether to vertically flip the image or not.
     pub flip: bool,
+    /// Specifies arbitrary portion of the texture.
     pub uv_rect: Rect<f32>,
+    /// Defines whether to use checkerboard background or not.
     pub checkerboard_background: bool,
 }
 
@@ -122,6 +250,7 @@ impl Control for Image {
     }
 }
 
+/// Image builder is used to create [`Image`] widget instances and register them in the user interface.
 pub struct ImageBuilder {
     widget_builder: WidgetBuilder,
     texture: Option<SharedTexture>,
@@ -131,6 +260,7 @@ pub struct ImageBuilder {
 }
 
 impl ImageBuilder {
+    /// Creates new image builder with the base widget builder specified.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -141,31 +271,40 @@ impl ImageBuilder {
         }
     }
 
+    /// Sets whether the image should be flipped vertically or not. See respective
+    /// [section](Image#vertical-flip) of the docs for more info.
     pub fn with_flip(mut self, flip: bool) -> Self {
         self.flip = flip;
         self
     }
 
+    /// Sets the texture that will be used for drawing.
     pub fn with_texture(mut self, texture: SharedTexture) -> Self {
         self.texture = Some(texture);
         self
     }
 
+    /// Specifies the texture that will be used for drawing.
     pub fn with_opt_texture(mut self, texture: Option<SharedTexture>) -> Self {
         self.texture = texture;
         self
     }
 
+    /// Specifies a portion of the texture in normalized coordinates. See respective
+    /// [section](Image#drawing-only-a-portion-of-the-texture) of the docs for more info.
     pub fn with_uv_rect(mut self, uv_rect: Rect<f32>) -> Self {
         self.uv_rect = uv_rect;
         self
     }
 
+    /// Sets whether the image should use checkerboard background or not. See respective
+    /// [section](Image#checkerboard-background) of the docs for more info.
     pub fn with_checkerboard_background(mut self, checkerboard_background: bool) -> Self {
         self.checkerboard_background = checkerboard_background;
         self
     }
 
+    /// Builds the [`Image`] widget, but does not add it to the UI.
     pub fn build_node(mut self) -> UiNode {
         if self.widget_builder.background.is_none() {
             self.widget_builder.background = Some(Brush::Solid(Color::WHITE))
@@ -181,6 +320,7 @@ impl ImageBuilder {
         UiNode::new(image)
     }
 
+    /// Builds the [`Image`] widget and adds it to the UI and returns its handle.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         ctx.add_node(self.build_node())
     }
