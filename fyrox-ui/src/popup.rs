@@ -133,7 +133,7 @@ pub enum Placement {
 ///         .with_content(
 ///             ButtonBuilder::new(WidgetBuilder::new())
 ///                 .with_text("Click Me!")
-///                 .build(ctx),
+///                 .build(&mut ui.build_ctx()),
 ///         )
 ///         .build(&mut ui.build_ctx());
 ///
@@ -163,7 +163,7 @@ pub enum Placement {
 ///         .with_content(
 ///             ButtonBuilder::new(WidgetBuilder::new())
 ///                 .with_text("Click Me!")
-///                 .build(ctx),
+///                 .build(&mut ui.build_ctx()),
 ///         )
 ///         // Set the placement. For simplicity it is just a cursor position with Handle::NONE as placement target.
 ///         .with_placement(Placement::Cursor(Handle::NONE))
@@ -199,7 +199,7 @@ pub enum Placement {
 ///         .with_content(
 ///             ButtonBuilder::new(WidgetBuilder::new())
 ///                 .with_text("Click Me!")
-///                 .build(ctx),
+///                 .build(&mut ui.build_ctx()),
 ///         )
 ///         // Set the placement to the dropdown list.
 ///         .with_placement(Placement::LeftBottom(dropdown_list))
