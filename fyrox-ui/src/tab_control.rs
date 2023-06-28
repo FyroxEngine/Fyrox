@@ -80,6 +80,7 @@ pub struct Tab {
 ///                 content: TextBuilder::new(WidgetBuilder::new())
 ///                             .with_text("First tab's contents!")
 ///                             .build(ctx),
+///                 can_be_closed: true
 ///             }
 ///         )
 ///         .with_tab(
@@ -91,6 +92,7 @@ pub struct Tab {
 ///                 content: TextBuilder::new(WidgetBuilder::new())
 ///                             .with_text("Second tab's contents!")
 ///                             .build(ctx),
+///                 can_be_closed: true
 ///             }
 ///         )
 ///         .build(ctx);
@@ -132,7 +134,8 @@ pub struct Tab {
 ///         )
 ///             .with_text("First")
 ///             .build(ctx),
-/// # content: Default::default()
+/// # content: Default::default(),
+/// # can_be_closed: true
 /// # };
 /// # }
 ///
@@ -219,6 +222,8 @@ pub struct TabDefinition {
     pub header: Handle<UiNode>,
     /// Content of the tab.
     pub content: Handle<UiNode>,
+    /// A flag, that defines whether the tab can be closed or not.
+    pub can_be_closed: bool,
 }
 
 impl TabControlBuilder {
@@ -238,11 +243,9 @@ impl TabControlBuilder {
 
     /// Finishes [`TabControl`] building and adds it to the user interface and returns its handle.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let mut headers = Vec::new();
         let mut content = Vec::new();
         let tab_count = self.tabs.len();
-        for (i, tab) in self.tabs.into_iter().enumerate() {
-            headers.push(tab.header);
+        for (i, tab) in self.tabs.iter().enumerate() {
             // Hide everything but first tab content.
             if i > 0 {
                 ctx[tab.content].set_visibility(false);
@@ -256,10 +259,11 @@ impl TabControlBuilder {
             close_button: Handle<UiNode>,
         }
 
-        let tab_headers = headers
-            .into_iter()
+        let tab_headers = self
+            .tabs
+            .iter()
             .enumerate()
-            .map(|(i, header)| {
+            .map(|(i, tab_definition)| {
                 let button;
                 let close_button;
                 let grid = GridBuilder::new(
@@ -268,16 +272,20 @@ impl TabControlBuilder {
                         .with_child({
                             button =
                                 ButtonBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
-                                    .with_content(header)
+                                    .with_content(tab_definition.header)
                                     .build(ctx);
                             button
                         })
                         .with_child({
-                            close_button = ButtonBuilder::new(
-                                WidgetBuilder::new().on_row(0).on_column(1).with_width(16.0),
-                            )
-                            .with_content(make_cross(ctx, 10.0, 2.0))
-                            .build(ctx);
+                            close_button = if tab_definition.can_be_closed {
+                                ButtonBuilder::new(
+                                    WidgetBuilder::new().on_row(0).on_column(1).with_width(16.0),
+                                )
+                                .with_content(make_cross(ctx, 10.0, 2.0))
+                                .build(ctx)
+                            } else {
+                                Handle::NONE
+                            };
                             close_button
                         }),
                 )
