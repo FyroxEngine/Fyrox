@@ -316,6 +316,8 @@ impl TabControlBuilder {
                 .with_children(content.iter().cloned())
                 .on_row(1),
         )
+        .add_row(Row::stretch())
+        .add_column(Column::stretch())
         .build(ctx);
 
         let grid = GridBuilder::new(
