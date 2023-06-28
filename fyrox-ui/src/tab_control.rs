@@ -1,3 +1,8 @@
+//! The Tab Control handles the visibility of several tabs, only showing a single tab that the user has selected via the
+//! tab header buttons. See docs for [`TabControl`] widget for more info and usage examples.
+
+#![warn(missing_docs)]
+
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -29,16 +34,104 @@ impl TabControlMessage {
     );
 }
 
+/// Tab of the [`TabControl`] widget. It stores important tab data, that is widely used at runtime.
 #[derive(Clone, PartialEq, Eq)]
 pub struct Tab {
+    /// A handle of the header button, that is used to switch tabs.
     pub header_button: Handle<UiNode>,
+    /// Tab's content.
     pub content: Handle<UiNode>,
 }
 
+/// The Tab Control handles the visibility of several tabs, only showing a single tab that the user has selected via the
+/// tab header buttons. Each tab is defined via a Tab Definition struct which takes two widgets, one representing the tab
+/// header and the other representing the tab's contents.
+///
+/// The following example makes a 2 tab, Tab Control containing some simple text widgets:
+///
+/// ```rust,no_run
+/// # use fyrox_ui::{
+/// #     BuildContext,
+/// #     widget::WidgetBuilder,
+/// #     text::TextBuilder,
+/// #     tab_control::{TabControlBuilder, TabDefinition},
+/// # };
+/// fn create_tab_control(ctx: &mut BuildContext) {
+///
+///     TabControlBuilder::new(WidgetBuilder::new())
+///         .with_tab(
+///             TabDefinition{
+///                 header: TextBuilder::new(WidgetBuilder::new())
+///                             .with_text("First")
+///                             .build(ctx),
+///                             
+///                 content: TextBuilder::new(WidgetBuilder::new())
+///                             .with_text("First tab's contents!")
+///                             .build(ctx),
+///             }
+///         )
+///         .with_tab(
+///             TabDefinition{
+///                 header: TextBuilder::new(WidgetBuilder::new())
+///                             .with_text("Second")
+///                             .build(ctx),
+///                             
+///                 content: TextBuilder::new(WidgetBuilder::new())
+///                             .with_text("Second tab's contents!")
+///                             .build(ctx),
+///             }
+///         )
+///         .build(ctx);
+/// }
+/// ```
+///
+/// As usual, we create the widget via the builder TabControlBuilder. Tabs are added via the [`TabControlBuilder::with_tab`]
+/// function in the order you want them to appear, passing each call to the function a directly constructed [`TabDefinition`]
+/// struct. Tab headers will appear from left to right at the top with tab contents shown directly below the tabs. As usual, if no
+/// constraints are given to the base [`WidgetBuilder`] of the [`TabControlBuilder`], then the tab content area will resize to fit
+/// whatever is in the current tab.
+///
+/// Each tab's content is made up of one widget, so to be useful you will want to use one of the container widgets to help
+/// arrange additional widgets within the tab.
+///
+/// ## Tab Header Styling
+///
+/// Notice that you can put any widget into the tab header, so if you want images to denote each tab you can add an Image
+/// widget to each header, and if you want an image *and* some text you can insert a stack panel with an image on top and
+/// text below it.
+///
+/// You will also likely want to style whatever widgets you add. As can be seen when running the code example above, the
+/// tab headers are scrunched when there are no margins provided to your text widgets. Simply add something like the below
+/// code example and you will get a decent look:
+///
+/// ```rust,no_run
+/// # use fyrox_ui::{
+/// #     BuildContext,
+/// #     widget::WidgetBuilder,
+/// #     text::TextBuilder,
+/// #     Thickness,
+/// #     tab_control::{TabDefinition},
+/// # };
+/// # fn build(ctx: &mut BuildContext) {
+/// # TabDefinition{
+/// header: TextBuilder::new(
+///             WidgetBuilder::new()
+///                 .with_margin(Thickness::uniform(4.0))
+///         )
+///             .with_text("First")
+///             .build(ctx),
+/// # content: Default::default()
+/// # };
+/// # }
+///
+/// ```
 #[derive(Clone)]
 pub struct TabControl {
+    /// Base widget of the tab control.
     pub widget: Widget,
+    /// A set of tabs used by the tab control.
     pub tabs: Vec<Tab>,
+    /// Active tab of the tab control.
     pub active_tab: Option<usize>,
 }
 
@@ -96,17 +189,22 @@ impl Control for TabControl {
     }
 }
 
+/// Tab control builder is used to create [`TabControl`] widget instances and add them to the user interface.
 pub struct TabControlBuilder {
     widget_builder: WidgetBuilder,
     tabs: Vec<TabDefinition>,
 }
 
+/// Tab definition is used to describe content of each tab for the [`TabControlBuilder`] builder.
 pub struct TabDefinition {
+    /// Content of the tab-switching (header) button.
     pub header: Handle<UiNode>,
+    /// Content of the tab.
     pub content: Handle<UiNode>,
 }
 
 impl TabControlBuilder {
+    /// Creates new tab control builder.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -114,11 +212,13 @@ impl TabControlBuilder {
         }
     }
 
+    /// Adds a new tab to the builder.
     pub fn with_tab(mut self, tab: TabDefinition) -> Self {
         self.tabs.push(tab);
         self
     }
 
+    /// Finishes [`TabControl`] building and adds it to the user interface and returns its handle.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let mut headers = Vec::new();
         let mut content = Vec::new();
