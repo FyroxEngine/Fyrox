@@ -1,12 +1,12 @@
-use crate::message::MessageSender;
 use crate::{
     camera::PickingOptions, gui::make_dropdown_list_option,
-    gui::make_dropdown_list_option_with_height, load_image, send_sync_message,
-    settings::keys::KeyBindings, utils::enable_widget, AddModelCommand, AssetItem, AssetKind,
-    BuildProfile, ChangeSelectionCommand, CommandGroup, DropdownListBuilder, EditorScene,
-    GraphSelection, InteractionMode, InteractionModeKind, Message, Mode, SceneCommand, Selection,
-    SetMeshTextureCommand, Settings,
+    gui::make_dropdown_list_option_with_height, load_image, message::MessageSender,
+    send_sync_message, settings::keys::KeyBindings, utils::enable_widget, AddModelCommand,
+    AssetItem, AssetKind, BuildProfile, ChangeSelectionCommand, CommandGroup, DropdownListBuilder,
+    EditorScene, GraphSelection, InteractionMode, InteractionModeKind, Message, Mode, SceneCommand,
+    Selection, SetMeshTextureCommand, Settings,
 };
+use fyrox::gui::tab_control::{TabControlBuilder, TabDefinition};
 use fyrox::{
     asset::ResourceStateRef,
     core::{
@@ -78,6 +78,7 @@ pub struct SceneViewer {
     global_position_display: Handle<UiNode>,
     preview_instance: Option<PreviewInstance>,
     no_scene_reminder: Handle<UiNode>,
+    tab_control: Handle<UiNode>,
 }
 
 fn make_interaction_mode_button(
@@ -361,6 +362,7 @@ impl SceneViewer {
         .with_wrap(WrapMode::Word)
         .build(ctx);
 
+        let tab_control;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_close(false)
             .can_minimize(false)
@@ -374,15 +376,26 @@ impl SceneViewer {
                                 WidgetBuilder::new()
                                     .on_row(1)
                                     .with_child({
-                                        frame = ImageBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_child(no_scene_reminder)
-                                                .with_child(interaction_mode_panel)
-                                                .with_allow_drop(true),
-                                        )
-                                        .with_flip(true)
-                                        .build(ctx);
-                                        frame
+                                        tab_control = TabControlBuilder::new(WidgetBuilder::new())
+                                            .with_tab(TabDefinition {
+                                                header: TextBuilder::new(WidgetBuilder::new())
+                                                    .with_text("Scene")
+                                                    .build(ctx),
+                                                content: {
+                                                    frame = ImageBuilder::new(
+                                                        WidgetBuilder::new()
+                                                            .with_child(no_scene_reminder)
+                                                            .with_child(interaction_mode_panel)
+                                                            .with_allow_drop(true),
+                                                    )
+                                                    .with_flip(true)
+                                                    .build(ctx);
+                                                    frame
+                                                },
+                                                can_be_closed: true,
+                                            })
+                                            .build(ctx);
+                                        tab_control
                                     })
                                     .with_child(
                                         CanvasBuilder::new(WidgetBuilder::new().with_child({
@@ -438,6 +451,7 @@ impl SceneViewer {
             preview_instance: None,
             stop,
             no_scene_reminder,
+            tab_control,
         }
     }
 }
