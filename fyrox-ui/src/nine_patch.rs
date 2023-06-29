@@ -1,11 +1,10 @@
-
 use fyrox_core::scope_profile;
 
 use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
     draw::{CommandTexture, Draw, DrawingContext, SharedTexture},
-    message::{UiMessage},
+    message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
@@ -13,15 +12,6 @@ use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
 };
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum SizeMode {
-    Strict(u32),
-    Auto,
-}
-
-
-
 
 /// Automatically arranges children by rows and columns
 #[derive(Clone)]
@@ -42,7 +32,6 @@ pub struct NinePatch {
 
 crate::define_widget_deref!(NinePatch);
 
-
 impl Control for NinePatch {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
         if type_id == TypeId::of::<Self>() {
@@ -55,7 +44,7 @@ impl Control for NinePatch {
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
         let mut size: Vector2<f32> = available_size;
-        
+
         let column1_width_pixels = self.left_margin_pixel as f32;
         let column3_width_pixels = self.right_margin_pixel as f32;
 
@@ -64,10 +53,10 @@ impl Control for NinePatch {
 
         let x_overflow = column1_width_pixels + column3_width_pixels;
         let y_overflow = row1_height_pixels + row3_height_pixels;
-    
-        let center_size = Vector2::new(available_size.x - x_overflow, available_size.y - y_overflow);
 
-    
+        let center_size =
+            Vector2::new(available_size.x - x_overflow, available_size.y - y_overflow);
+
         for &child in self.children.iter() {
             ui.measure_node(child, center_size);
             let desired_size = ui.node(child).desired_size();
@@ -75,25 +64,27 @@ impl Control for NinePatch {
             size.y = size.y.max(desired_size.y.ceil());
         }
         size
-
     }
-
 
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
-        
+
         let column1_width_pixels = self.left_margin_pixel as f32;
         let column3_width_pixels = self.right_margin_pixel as f32;
-        
+
         let row1_height_pixels = self.top_margin_pixel as f32;
         let row3_height_pixels = self.bottom_margin_pixel as f32;
 
         let x_overflow = column1_width_pixels + column3_width_pixels;
         let y_overflow = row1_height_pixels + row3_height_pixels;
-            
 
-        let final_rect = Rect::new(column1_width_pixels, row1_height_pixels , final_size.x - x_overflow, final_size.y - y_overflow);
-        
+        let final_rect = Rect::new(
+            column1_width_pixels,
+            row1_height_pixels,
+            final_size.x - x_overflow,
+            final_size.y - y_overflow,
+        );
+
         for &child in self.children.iter() {
             ui.arrange_node(child, &final_rect);
         }
@@ -101,16 +92,14 @@ impl Control for NinePatch {
         final_size
     }
 
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let texture = self.texture.as_ref().unwrap();
-    
-        let patch_bounds = self.widget.bounding_rect();
 
+        let patch_bounds = self.widget.bounding_rect();
 
         let column1_width_pixels = self.left_margin_pixel as f32;
         let column3_width_pixels = self.right_margin_pixel as f32;
-    
+
         let row1_height_pixels = self.top_margin_pixel as f32;
         let row3_height_pixels = self.bottom_margin_pixel as f32;
 
@@ -123,90 +112,80 @@ impl Control for NinePatch {
         let y_overlfow = row1_height_pixels + row3_height_pixels;
 
         //top left
-        let bounds = Rect { 
-            position: patch_bounds.position, 
-            size: Vector2::new(
-                column1_width_pixels, 
-                row1_height_pixels
-            ) 
+        let bounds = Rect {
+            position: patch_bounds.position,
+            size: Vector2::new(column1_width_pixels, row1_height_pixels),
         };
-        let tex_coords= [
+        let tex_coords = [
             Vector2::<f32>::new(0.0, 0.0),
             Vector2::new(x_fence_post1_uv, 0.0),
             Vector2::new(x_fence_post1_uv, y_fence_post1_uv),
             Vector2::new(0.0, y_fence_post1_uv),
         ];
         draw_image(
-            texture, 
-            bounds, 
-            &tex_coords, 
-            self.clip_bounds(), 
-            self.widget.background(), 
-            drawing_context
+            texture,
+            bounds,
+            &tex_coords,
+            self.clip_bounds(),
+            self.widget.background(),
+            drawing_context,
         );
 
         //top center
-        let bounds = Rect { 
+        let bounds = Rect {
             position: Vector2::new(
                 patch_bounds.position.x + column1_width_pixels,
-                patch_bounds.position.y
-            ), 
-            size: Vector2::new(
-                patch_bounds.size.x - x_overflow, 
-                row1_height_pixels
-            )
+                patch_bounds.position.y,
+            ),
+            size: Vector2::new(patch_bounds.size.x - x_overflow, row1_height_pixels),
         };
-        let tex_coords= [
+        let tex_coords = [
             Vector2::<f32>::new(x_fence_post1_uv, 0.0),
             Vector2::new(x_fence_post2_uv, 0.0),
             Vector2::new(x_fence_post2_uv, y_fence_post1_uv),
             Vector2::new(x_fence_post1_uv, y_fence_post1_uv),
         ];
         draw_image(
-            texture, 
-            bounds, 
-            &tex_coords, 
-            self.clip_bounds(), 
-            self.widget.background(), 
-            drawing_context);
+            texture,
+            bounds,
+            &tex_coords,
+            self.clip_bounds(),
+            self.widget.background(),
+            drawing_context,
+        );
 
         //top right
-        let bounds = Rect { 
+        let bounds = Rect {
             position: Vector2::new(
                 (patch_bounds.position.x + patch_bounds.size.x) - column3_width_pixels,
-                patch_bounds.position.y
-            ), 
-            size: Vector2::new(
-                column3_width_pixels, 
-                row1_height_pixels
-            )
+                patch_bounds.position.y,
+            ),
+            size: Vector2::new(column3_width_pixels, row1_height_pixels),
         };
-        let tex_coords= [
+        let tex_coords = [
             Vector2::<f32>::new(x_fence_post2_uv, 0.0),
             Vector2::new(1.0, 0.0),
             Vector2::new(1.0, y_fence_post1_uv),
             Vector2::new(x_fence_post2_uv, y_fence_post1_uv),
         ];
         draw_image(
-            texture, 
-            bounds, 
-            &tex_coords, 
-            self.clip_bounds(), 
-            self.widget.background(), 
-            drawing_context);
+            texture,
+            bounds,
+            &tex_coords,
+            self.clip_bounds(),
+            self.widget.background(),
+            drawing_context,
+        );
         ////////////////////////////////////////////////////////////////////////////////
         //middle left
-        let bounds = Rect { 
+        let bounds = Rect {
             position: Vector2::new(
-                patch_bounds.position.x, 
-                patch_bounds.position.y + row1_height_pixels
+                patch_bounds.position.x,
+                patch_bounds.position.y + row1_height_pixels,
             ),
-            size: Vector2::new(
-                column1_width_pixels, 
-                patch_bounds.size.y - y_overlfow
-            ) 
+            size: Vector2::new(column1_width_pixels, patch_bounds.size.y - y_overlfow),
         };
-        let tex_coords= [
+        let tex_coords = [
             Vector2::<f32>::new(0.0, y_fence_post1_uv),
             Vector2::new(x_fence_post1_uv, y_fence_post1_uv),
             Vector2::new(x_fence_post1_uv, y_fence_post2_uv),
@@ -214,25 +193,25 @@ impl Control for NinePatch {
         ];
         draw_image(
             texture,
-            bounds, 
-            &tex_coords, 
-            self.clip_bounds(), 
-            self.widget.background(), 
-            drawing_context
+            bounds,
+            &tex_coords,
+            self.clip_bounds(),
+            self.widget.background(),
+            drawing_context,
         );
 
         //middle center
-        let bounds = Rect { 
+        let bounds = Rect {
             position: Vector2::new(
                 patch_bounds.position.x + column1_width_pixels,
-                patch_bounds.position.y + row1_height_pixels
-            ), 
+                patch_bounds.position.y + row1_height_pixels,
+            ),
             size: Vector2::new(
-                patch_bounds.size.x - x_overflow, 
-                patch_bounds.size.y - y_overlfow
-            )
+                patch_bounds.size.x - x_overflow,
+                patch_bounds.size.y - y_overlfow,
+            ),
         };
-        let tex_coords= [
+        let tex_coords = [
             Vector2::<f32>::new(x_fence_post1_uv, y_fence_post1_uv),
             Vector2::new(x_fence_post2_uv, y_fence_post1_uv),
             Vector2::new(x_fence_post2_uv, y_fence_post2_uv),
@@ -240,24 +219,22 @@ impl Control for NinePatch {
         ];
         draw_image(
             texture,
-            bounds, 
-            &tex_coords, 
-            self.clip_bounds(), 
-            self.widget.background(), 
-            drawing_context);
+            bounds,
+            &tex_coords,
+            self.clip_bounds(),
+            self.widget.background(),
+            drawing_context,
+        );
 
         //middle right
-        let bounds = Rect { 
+        let bounds = Rect {
             position: Vector2::new(
                 (patch_bounds.position.x + patch_bounds.size.x) - column3_width_pixels,
-                patch_bounds.position.y + row1_height_pixels
-            ), 
-            size: Vector2::new(
-                column3_width_pixels, 
-                patch_bounds.size.y - y_overlfow
-            )
+                patch_bounds.position.y + row1_height_pixels,
+            ),
+            size: Vector2::new(column3_width_pixels, patch_bounds.size.y - y_overlfow),
         };
-        let tex_coords= [
+        let tex_coords = [
             Vector2::<f32>::new(x_fence_post2_uv, y_fence_post1_uv),
             Vector2::new(1.0, y_fence_post1_uv),
             Vector2::new(1.0, y_fence_post2_uv),
@@ -265,25 +242,23 @@ impl Control for NinePatch {
         ];
         draw_image(
             texture,
-            bounds, 
-            &tex_coords, 
-            self.clip_bounds(), 
-            self.widget.background(), 
-            drawing_context);
+            bounds,
+            &tex_coords,
+            self.clip_bounds(),
+            self.widget.background(),
+            drawing_context,
+        );
 
         ////////////////////////////////////////////////////////////////////////////////
         //bottom left
-        let bounds = Rect { 
+        let bounds = Rect {
             position: Vector2::new(
-                patch_bounds.position.x, 
-                (patch_bounds.position.y + patch_bounds.size.y) - row3_height_pixels
+                patch_bounds.position.x,
+                (patch_bounds.position.y + patch_bounds.size.y) - row3_height_pixels,
             ),
-            size: Vector2::new(
-                column1_width_pixels, 
-                row3_height_pixels
-            ) 
+            size: Vector2::new(column1_width_pixels, row3_height_pixels),
         };
-        let tex_coords= [
+        let tex_coords = [
             Vector2::<f32>::new(0.0, y_fence_post2_uv),
             Vector2::new(x_fence_post1_uv, y_fence_post2_uv),
             Vector2::new(x_fence_post1_uv, 1.0),
@@ -291,25 +266,22 @@ impl Control for NinePatch {
         ];
         draw_image(
             texture,
-            bounds, 
-            &tex_coords, 
-            self.clip_bounds(), 
-            self.widget.background(), 
-            drawing_context
+            bounds,
+            &tex_coords,
+            self.clip_bounds(),
+            self.widget.background(),
+            drawing_context,
         );
 
         //bottom center
-        let bounds = Rect { 
+        let bounds = Rect {
             position: Vector2::new(
                 patch_bounds.position.x + column1_width_pixels,
-                (patch_bounds.position.y + patch_bounds.size.y) - row3_height_pixels
-            ), 
-            size: Vector2::new(
-                patch_bounds.size.x - x_overflow, 
-                row3_height_pixels
-            )
+                (patch_bounds.position.y + patch_bounds.size.y) - row3_height_pixels,
+            ),
+            size: Vector2::new(patch_bounds.size.x - x_overflow, row3_height_pixels),
         };
-        let tex_coords= [
+        let tex_coords = [
             Vector2::<f32>::new(x_fence_post1_uv, y_fence_post2_uv),
             Vector2::new(x_fence_post2_uv, y_fence_post2_uv),
             Vector2::new(x_fence_post2_uv, 1.0),
@@ -317,24 +289,22 @@ impl Control for NinePatch {
         ];
         draw_image(
             texture,
-            bounds, 
-            &tex_coords, 
-            self.clip_bounds(), 
-            self.widget.background(), 
-            drawing_context);
+            bounds,
+            &tex_coords,
+            self.clip_bounds(),
+            self.widget.background(),
+            drawing_context,
+        );
 
         //bottom right
-        let bounds = Rect { 
+        let bounds = Rect {
             position: Vector2::new(
                 (patch_bounds.position.x + patch_bounds.size.x) - column3_width_pixels,
-                (patch_bounds.position.y + patch_bounds.size.y) - row3_height_pixels
-            ), 
-            size: Vector2::new(
-                column3_width_pixels, 
-                row3_height_pixels
-            )
+                (patch_bounds.position.y + patch_bounds.size.y) - row3_height_pixels,
+            ),
+            size: Vector2::new(column3_width_pixels, row3_height_pixels),
         };
-        let tex_coords= [
+        let tex_coords = [
             Vector2::<f32>::new(x_fence_post2_uv, y_fence_post2_uv),
             Vector2::new(1.0, y_fence_post2_uv),
             Vector2::new(1.0, 1.0),
@@ -342,15 +312,16 @@ impl Control for NinePatch {
         ];
         draw_image(
             texture,
-            bounds, 
-            &tex_coords, 
-            self.clip_bounds(), 
-            self.widget.background(), 
-            drawing_context);
+            bounds,
+            &tex_coords,
+            self.clip_bounds(),
+            self.widget.background(),
+            drawing_context,
+        );
 
         //end drawing
     }
-    
+
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
     }
@@ -369,7 +340,6 @@ pub struct NinePatchBuilder {
     pub left_margin_uv: Option<f32>,
     pub right_margin_uv: Option<f32>,
     pub top_margin_uv: Option<f32>,
-  
 }
 
 impl NinePatchBuilder {
@@ -431,33 +401,35 @@ impl NinePatchBuilder {
             self.widget_builder.background = Some(Brush::Solid(Color::WHITE))
         }
 
-// if one of the margins hasn't been set just mirror the opposite one.
-        let (left_margin_pixel, right_margin_pixel) = match (self.left_margin_pixel, self.right_margin_pixel) {
-            (Some(x), None) => (x, x),
-            (None, Some(x)) => (x, x),
-            (Some(one), Some(two)) => (one, two),
-            (None, None) => (0,0)
-        };
+        // if one of the margins hasn't been set just mirror the opposite one.
+        let (left_margin_pixel, right_margin_pixel) =
+            match (self.left_margin_pixel, self.right_margin_pixel) {
+                (Some(x), None) => (x, x),
+                (None, Some(x)) => (x, x),
+                (Some(one), Some(two)) => (one, two),
+                (None, None) => (0, 0),
+            };
 
-        let (top_margin_pixel, bottom_margin_pixel) = match (self.top_margin_pixel, self.bottom_margin_pixel) {
-            (Some(y), None) => (y, y),
-            (None, Some(y)) => (y, y),
-            (Some(one), Some(two)) => (one, two),
-            (None, None) => (0, 0)
-        };
+        let (top_margin_pixel, bottom_margin_pixel) =
+            match (self.top_margin_pixel, self.bottom_margin_pixel) {
+                (Some(y), None) => (y, y),
+                (None, Some(y)) => (y, y),
+                (Some(one), Some(two)) => (one, two),
+                (None, None) => (0, 0),
+            };
 
         let (left_margin_uv, right_margin_uv) = match (self.left_margin_uv, self.right_margin_uv) {
             (Some(x), None) => (x, x),
             (None, Some(x)) => (x, x),
             (Some(one), Some(two)) => (one, two),
-            (None, None) => (0.0,0.0)
+            (None, None) => (0.0, 0.0),
         };
 
         let (top_margin_uv, bottom_margin_uv) = match (self.top_margin_uv, self.bottom_margin_uv) {
             (Some(y), None) => (y, y),
             (None, Some(y)) => (y, y),
             (Some(one), Some(two)) => (one, two),
-            (None, None) => (0.0, 0.0)
+            (None, None) => (0.0, 0.0),
         };
 
         let grid = NinePatch {
@@ -470,13 +442,19 @@ impl NinePatchBuilder {
             right_margin_pixel,
             right_margin_uv,
             top_margin_pixel,
-            top_margin_uv
-            
+            top_margin_uv,
         };
         ui.add_node(UiNode::new(grid))
     }
 }
-fn draw_image(image:&SharedTexture, bounds:Rect<f32>, tex_coords: &[Vector2<f32>; 4], clip_bounds: Rect<f32>, background: Brush, drawing_context: &mut DrawingContext) {
+fn draw_image(
+    image: &SharedTexture,
+    bounds: Rect<f32>,
+    tex_coords: &[Vector2<f32>; 4],
+    clip_bounds: Rect<f32>,
+    background: Brush,
+    drawing_context: &mut DrawingContext,
+) {
     drawing_context.push_rect_filled(&bounds, Some(tex_coords));
     let texture = CommandTexture::Texture(image.clone());
     drawing_context.commit(clip_bounds, background, texture, None);
