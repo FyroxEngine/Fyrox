@@ -205,6 +205,7 @@ pub mod list_view;
 pub mod menu;
 pub mod message;
 pub mod messagebox;
+pub mod nine_patch;
 mod node;
 pub mod numeric;
 pub mod popup;
