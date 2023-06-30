@@ -173,10 +173,7 @@ impl Control for TabControl {
 
         if let Some(ButtonMessage::Click) = message.data() {
             for (tab_index, tab) in self.tabs.iter().enumerate() {
-                if message.destination() == tab.header_button
-                    && tab.header_button.is_some()
-                    && tab.content.is_some()
-                {
+                if message.destination() == tab.header_button && tab.header_button.is_some() {
                     ui.send_message(TabControlMessage::active_tab(
                         self.handle,
                         MessageDirection::ToWidget,
@@ -248,7 +245,9 @@ impl TabControlBuilder {
         for (i, tab) in self.tabs.iter().enumerate() {
             // Hide everything but first tab content.
             if i > 0 {
-                ctx[tab.content].set_visibility(false);
+                if let Some(content) = ctx.try_get_node_mut(tab.content) {
+                    content.set_visibility(false);
+                }
             }
             content.push(tab.content);
         }
