@@ -11,9 +11,10 @@ use crate::{
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
+    stack_panel::StackPanelBuilder,
     utils::make_cross,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, NodeHandleMapping, UiNode, UserInterface,
+    BuildContext, Control, NodeHandleMapping, Orientation, UiNode, UserInterface,
 };
 use std::{
     any::{Any, TypeId},
@@ -26,11 +27,10 @@ pub enum TabControlMessage {
     /// Used to change the active tab of a [`TabControl`] widget (with [`MessageDirection::ToWidget`]) or to fetch if the active
     /// tab has changed (with [`MessageDirection::FromWidget`]).
     ActiveTab(Option<usize>),
-    /// Used to close a particular tab. Keep in mind, that this message can be only emitted from a [`TabControl`] and it does not
-    /// accepts such messages to close tabs. This is because of MVC design, when you synchronize the state of UI with the actual
-    /// data, not vice versa. So when you receive such message, you need to delete the tab from your data first, then sync the
-    /// [`TabControl`]'s state with the new set of tabs.
+    /// Used to close a particular tab.
     CloseTab(usize),
+    /// Adds a new tab using its definition.
+    AddTab(TabDefinition),
 }
 
 impl TabControlMessage {
@@ -41,6 +41,10 @@ impl TabControlMessage {
     define_constructor!(
         /// Creates [`TabControlMessage::CloseTab`] message.
         TabControlMessage:CloseTab => fn close_tab(usize), layout: false
+    );
+    define_constructor!(
+        /// Creates [`TabControlMessage::AddTab`] message.
+        TabControlMessage:AddTab => fn add_tab(TabDefinition), layout: false
     );
 }
 
@@ -53,6 +57,8 @@ pub struct Tab {
     pub content: Handle<UiNode>,
     /// A handle of a button, that is used to close the tab.
     pub close_button: Handle<UiNode>,
+    /// A handle to a container widget, that holds the header.
+    pub header_container: Handle<UiNode>,
 }
 
 /// The Tab Control handles the visibility of several tabs, only showing a single tab that the user has selected via the
@@ -148,6 +154,10 @@ pub struct TabControl {
     pub tabs: Vec<Tab>,
     /// Active tab of the tab control.
     pub active_tab: Option<usize>,
+    /// A handle of a widget, that holds content of every tab.
+    pub content_container: Handle<UiNode>,
+    /// A handle of a widget, that holds headers of every tab.
+    pub headers_container: Handle<UiNode>,
 }
 
 crate::define_widget_deref!(TabControl);
@@ -183,25 +193,66 @@ impl Control for TabControl {
                 } else if message.destination() == tab.close_button {
                     ui.send_message(TabControlMessage::close_tab(
                         self.handle,
-                        MessageDirection::FromWidget,
+                        MessageDirection::ToWidget,
                         tab_index,
                     ));
                 }
             }
-        } else if let Some(TabControlMessage::ActiveTab(active_tab)) = message.data() {
-            if self.active_tab != *active_tab {
-                for (existing_tab_index, tab) in self.tabs.iter().enumerate() {
-                    ui.send_message(WidgetMessage::visibility(
-                        tab.content,
-                        MessageDirection::ToWidget,
-                        active_tab.map_or(false, |active_tab_index| {
-                            existing_tab_index == active_tab_index
-                        }),
-                    ));
+        } else if let Some(msg) = message.data::<TabControlMessage>() {
+            if message.destination() == self.handle()
+                && message.direction() == MessageDirection::ToWidget
+            {
+                match msg {
+                    TabControlMessage::ActiveTab(active_tab) => {
+                        if self.active_tab != *active_tab {
+                            for (existing_tab_index, tab) in self.tabs.iter().enumerate() {
+                                ui.send_message(WidgetMessage::visibility(
+                                    tab.content,
+                                    MessageDirection::ToWidget,
+                                    active_tab.map_or(false, |active_tab_index| {
+                                        existing_tab_index == active_tab_index
+                                    }),
+                                ));
+                            }
+                            self.active_tab = *active_tab;
+                            // Notify potential listeners, that the active tab has changed.
+                            ui.send_message(message.reverse());
+                        }
+                    }
+                    TabControlMessage::CloseTab(index) => {
+                        if let Some(tab) = self.tabs.get(*index) {
+                            ui.send_message(WidgetMessage::remove(
+                                tab.header_container,
+                                MessageDirection::ToWidget,
+                            ));
+                            ui.send_message(WidgetMessage::remove(
+                                tab.content,
+                                MessageDirection::ToWidget,
+                            ));
+
+                            self.tabs.remove(*index);
+
+                            ui.send_message(message.reverse());
+                        }
+                    }
+                    TabControlMessage::AddTab(definition) => {
+                        let header = Header::build(definition, &mut ui.build_ctx());
+
+                        ui.send_message(WidgetMessage::link(
+                            header.container,
+                            MessageDirection::ToWidget,
+                            self.headers_container,
+                        ));
+
+                        ui.send_message(WidgetMessage::link(
+                            definition.content,
+                            MessageDirection::ToWidget,
+                            self.content_container,
+                        ));
+
+                        ui.send_message(message.reverse());
+                    }
                 }
-                self.active_tab = *active_tab;
-                // Notify potential listeners, that the active tab has changed.
-                ui.send_message(message.reverse());
             }
         }
     }
@@ -214,6 +265,7 @@ pub struct TabControlBuilder {
 }
 
 /// Tab definition is used to describe content of each tab for the [`TabControlBuilder`] builder.
+#[derive(Debug, Clone, PartialEq)]
 pub struct TabDefinition {
     /// Content of the tab-switching (header) button.
     pub header: Handle<UiNode>,
@@ -221,6 +273,50 @@ pub struct TabDefinition {
     pub content: Handle<UiNode>,
     /// A flag, that defines whether the tab can be closed or not.
     pub can_be_closed: bool,
+}
+
+struct Header {
+    container: Handle<UiNode>,
+    button: Handle<UiNode>,
+    close_button: Handle<UiNode>,
+}
+
+impl Header {
+    fn build(tab_definition: &TabDefinition, ctx: &mut BuildContext) -> Self {
+        let button;
+        let close_button;
+        let grid = GridBuilder::new(
+            WidgetBuilder::new()
+                .with_child({
+                    button = ButtonBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
+                        .with_content(tab_definition.header)
+                        .build(ctx);
+                    button
+                })
+                .with_child({
+                    close_button = if tab_definition.can_be_closed {
+                        ButtonBuilder::new(
+                            WidgetBuilder::new().on_row(0).on_column(1).with_width(16.0),
+                        )
+                        .with_content(make_cross(ctx, 10.0, 2.0))
+                        .build(ctx)
+                    } else {
+                        Handle::NONE
+                    };
+                    close_button
+                }),
+        )
+        .add_row(Row::auto())
+        .add_column(Column::auto())
+        .add_column(Column::auto())
+        .build(ctx);
+
+        Header {
+            container: grid,
+            button,
+            close_button,
+        }
+    }
 }
 
 impl TabControlBuilder {
@@ -252,65 +348,21 @@ impl TabControlBuilder {
             content.push(tab.content);
         }
 
-        struct Header {
-            grid: Handle<UiNode>,
-            button: Handle<UiNode>,
-            close_button: Handle<UiNode>,
-        }
-
         let tab_headers = self
             .tabs
             .iter()
-            .enumerate()
-            .map(|(i, tab_definition)| {
-                let button;
-                let close_button;
-                let grid = GridBuilder::new(
-                    WidgetBuilder::new()
-                        .on_column(i)
-                        .with_child({
-                            button =
-                                ButtonBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
-                                    .with_content(tab_definition.header)
-                                    .build(ctx);
-                            button
-                        })
-                        .with_child({
-                            close_button = if tab_definition.can_be_closed {
-                                ButtonBuilder::new(
-                                    WidgetBuilder::new().on_row(0).on_column(1).with_width(16.0),
-                                )
-                                .with_content(make_cross(ctx, 10.0, 2.0))
-                                .build(ctx)
-                            } else {
-                                Handle::NONE
-                            };
-                            close_button
-                        }),
-                )
-                .add_row(Row::auto())
-                .add_column(Column::auto())
-                .add_column(Column::auto())
-                .build(ctx);
-
-                Header {
-                    grid,
-                    button,
-                    close_button,
-                }
-            })
+            .map(|tab_definition| Header::build(tab_definition, ctx))
             .collect::<Vec<_>>();
 
-        let headers_grid = GridBuilder::new(
+        let headers_container = StackPanelBuilder::new(
             WidgetBuilder::new()
-                .with_children(tab_headers.iter().map(|h| h.grid))
+                .with_children(tab_headers.iter().map(|h| h.container))
                 .on_row(0),
         )
-        .add_row(Row::auto())
-        .add_columns((0..tab_count).map(|_| Column::auto()).collect())
+        .with_orientation(Orientation::Horizontal)
         .build(ctx);
 
-        let content_grid = GridBuilder::new(
+        let content_container = GridBuilder::new(
             WidgetBuilder::new()
                 .with_children(content.iter().cloned())
                 .on_row(1),
@@ -321,8 +373,8 @@ impl TabControlBuilder {
 
         let grid = GridBuilder::new(
             WidgetBuilder::new()
-                .with_child(headers_grid)
-                .with_child(content_grid),
+                .with_child(headers_container)
+                .with_child(content_container),
         )
         .add_column(Column::auto())
         .add_row(Row::auto())
@@ -349,8 +401,11 @@ impl TabControlBuilder {
                     header_button: header.button,
                     content,
                     close_button: header.close_button,
+                    header_container: header.container,
                 })
                 .collect(),
+            content_container,
+            headers_container,
         };
 
         ctx.add_node(UiNode::new(tc))
