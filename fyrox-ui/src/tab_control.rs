@@ -27,8 +27,11 @@ pub enum TabControlMessage {
     /// Used to change the active tab of a [`TabControl`] widget (with [`MessageDirection::ToWidget`]) or to fetch if the active
     /// tab has changed (with [`MessageDirection::FromWidget`]).
     ActiveTab(Option<usize>),
-    /// Used to close a particular tab.
+    /// Emitted by a tab, that needs to be closed (and removed). Does **not** remove the tab, its main usage is to catch the moment
+    /// when the tab wants to be closed. To remove the tab use [`TabControlMessage::RemoveTab`] message.
     CloseTab(usize),
+    /// Used to remove a particular tab.
+    RemoveTab(usize),
     /// Adds a new tab using its definition.
     AddTab(TabDefinition),
 }
@@ -41,6 +44,10 @@ impl TabControlMessage {
     define_constructor!(
         /// Creates [`TabControlMessage::CloseTab`] message.
         TabControlMessage:CloseTab => fn close_tab(usize), layout: false
+    );
+    define_constructor!(
+        /// Creates [`TabControlMessage::RemoveTab`] message.
+        TabControlMessage:RemoveTab => fn remove_tab(usize), layout: false
     );
     define_constructor!(
         /// Creates [`TabControlMessage::AddTab`] message.
@@ -193,7 +200,7 @@ impl Control for TabControl {
                 } else if message.destination() == tab.close_button {
                     ui.send_message(TabControlMessage::close_tab(
                         self.handle,
-                        MessageDirection::ToWidget,
+                        MessageDirection::FromWidget,
                         tab_index,
                     ));
                 }
@@ -219,7 +226,10 @@ impl Control for TabControl {
                             ui.send_message(message.reverse());
                         }
                     }
-                    TabControlMessage::CloseTab(index) => {
+                    TabControlMessage::CloseTab(_) => {
+                        // Nothing to do.
+                    }
+                    TabControlMessage::RemoveTab(index) => {
                         if let Some(tab) = self.tabs.get(*index) {
                             ui.send_message(WidgetMessage::remove(
                                 tab.header_container,
