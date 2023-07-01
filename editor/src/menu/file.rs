@@ -252,23 +252,19 @@ impl FileMenu {
                     self.open_load_file_selector(&mut engine.user_interface);
                 }
             } else if message.destination() == self.close_scene {
-                if is_scene_needs_to_be_saved(editor_scene.as_deref()) {
-                    sender.send(Message::OpenSaveSceneConfirmationDialog(
-                        SaveSceneConfirmationDialogAction::CloseScene,
-                    ));
-                } else {
-                    sender.send(Message::CloseScene);
+                if let Some(editor_scene) = editor_scene.as_ref() {
+                    if is_scene_needs_to_be_saved(Some(editor_scene)) {
+                        sender.send(Message::OpenSaveSceneConfirmationDialog(
+                            SaveSceneConfirmationDialogAction::CloseScene(editor_scene.scene),
+                        ));
+                    } else {
+                        sender.send(Message::CloseScene(editor_scene.scene));
+                    }
                 }
             } else if message.destination() == self.exit {
                 sender.send(Message::Exit { force: false });
             } else if message.destination() == self.new_scene {
-                if is_scene_needs_to_be_saved(editor_scene.as_deref()) {
-                    sender.send(Message::OpenSaveSceneConfirmationDialog(
-                        SaveSceneConfirmationDialogAction::MakeNewScene,
-                    ));
-                } else {
-                    sender.send(Message::NewScene);
-                }
+                sender.send(Message::NewScene);
             } else if message.destination() == self.configure {
                 if editor_scene.is_none() {
                     engine

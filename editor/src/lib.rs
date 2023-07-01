@@ -276,8 +276,8 @@ pub enum SaveSceneConfirmationDialogAction {
     LoadScene(PathBuf),
     /// Immediately creates new scene.
     MakeNewScene,
-    /// Closes current scene.
-    CloseScene,
+    /// Closes the specified scene.
+    CloseScene(Handle<Scene>),
 }
 
 struct SaveSceneConfirmationDialog {
@@ -332,8 +332,8 @@ impl SaveSceneConfirmationDialog {
                         SaveSceneConfirmationDialogAction::MakeNewScene => {
                             sender.send(Message::NewScene)
                         }
-                        SaveSceneConfirmationDialogAction::CloseScene => {
-                            sender.send(Message::CloseScene)
+                        SaveSceneConfirmationDialogAction::CloseScene(scene) => {
+                            sender.send(Message::CloseScene(scene))
                         }
                         SaveSceneConfirmationDialogAction::LoadScene(ref path) => {
                             sender.send(Message::LoadScene(path.clone()))
@@ -354,8 +354,8 @@ impl SaveSceneConfirmationDialog {
                                     SaveSceneConfirmationDialogAction::MakeNewScene => {
                                         sender.send(Message::NewScene)
                                     }
-                                    SaveSceneConfirmationDialogAction::CloseScene => {
-                                        sender.send(Message::CloseScene)
+                                    SaveSceneConfirmationDialogAction::CloseScene(scene) => {
+                                        sender.send(Message::CloseScene(scene))
                                     }
                                     SaveSceneConfirmationDialogAction::LoadScene(ref path) => {
                                         sender.send(Message::LoadScene(path.clone()))
@@ -371,7 +371,7 @@ impl SaveSceneConfirmationDialog {
                                     SaveSceneConfirmationDialogAction::OpenLoadSceneDialog
                                     | SaveSceneConfirmationDialogAction::LoadScene(_)
                                     | SaveSceneConfirmationDialogAction::MakeNewScene
-                                    | SaveSceneConfirmationDialogAction::CloseScene => {
+                                    | SaveSceneConfirmationDialogAction::CloseScene(_) => {
                                         sender.send(Message::OpenSaveSceneDialog)
                                     }
                                 }
@@ -392,8 +392,8 @@ impl SaveSceneConfirmationDialog {
                     sender.send(Message::OpenLoadSceneDialog);
                 }
                 SaveSceneConfirmationDialogAction::MakeNewScene => sender.send(Message::NewScene),
-                SaveSceneConfirmationDialogAction::CloseScene => {
-                    sender.send(Message::CloseScene);
+                SaveSceneConfirmationDialogAction::CloseScene(scene) => {
+                    sender.send(Message::CloseScene(scene));
                 }
                 SaveSceneConfirmationDialogAction::LoadScene(path) => {
                     sender.send(Message::LoadScene(path))
@@ -478,6 +478,28 @@ impl SceneContainer {
         self.scenes.iter_mut()
     }
 
+    pub fn try_get(&self, index: usize) -> Option<&EditorSceneEntry> {
+        self.scenes.get(index)
+    }
+
+    pub fn try_get_mut(&mut self, index: usize) -> Option<&mut EditorSceneEntry> {
+        self.scenes.get_mut(index)
+    }
+
+    pub fn set_current_scene(&mut self, scene: Handle<Scene>) -> bool {
+        if let Some(index) = self
+            .scenes
+            .iter()
+            .position(|e| e.editor_scene.scene == scene)
+        {
+            self.current_scene = Some(index);
+
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn add_scene_and_select(
         &mut self,
         scene: Scene,
@@ -534,8 +556,12 @@ impl SceneContainer {
         self.scenes.push(entry);
     }
 
-    pub fn take_current_scene(&mut self) -> Option<EditorSceneEntry> {
-        let scene = self.current_scene.map(|s| self.scenes.remove(s));
+    pub fn take_scene(&mut self, scene: Handle<Scene>) -> Option<EditorSceneEntry> {
+        let scene = self
+            .scenes
+            .iter()
+            .position(|e| e.editor_scene.scene == scene)
+            .map(|i| self.scenes.remove(i));
         self.current_scene = if self.scenes.is_empty() {
             None
         } else {
@@ -972,8 +998,6 @@ impl Editor {
 
         // Setup new one.
         scene.render_target = Some(TextureResource::new_render_target(0, 0));
-        self.scene_viewer
-            .set_render_target(&self.engine.user_interface, scene.render_target.clone());
 
         self.scenes.add_scene_and_select(
             scene,
@@ -1082,7 +1106,9 @@ impl Editor {
             } else if hot_key == key_bindings.new_scene {
                 sender.send(Message::NewScene);
             } else if hot_key == key_bindings.close_scene {
-                sender.send(Message::CloseScene);
+                if let Some(editor_scene) = self.scenes.current_editor_scene_ref() {
+                    sender.send(Message::CloseScene(editor_scene.scene));
+                }
             } else if hot_key == key_bindings.remove_selection {
                 if let Some(editor_scene) = self.scenes.current_editor_scene_mut() {
                     if !editor_scene.selection.is_empty() {
@@ -1162,25 +1188,15 @@ impl Editor {
             engine.serialization_context.clone(),
             engine.resource_manager.clone(),
         );
-        {
-            let (scene, interaction_mode) =
-                current_scene_entry.as_mut().map_or((None, None), |e| {
-                    (
-                        Some(&mut e.editor_scene),
-                        e.current_interaction_mode
-                            .and_then(|i| e.interaction_modes.get_mut(i as usize)),
-                    )
-                });
-            self.scene_viewer.handle_ui_message(
-                message,
-                engine,
-                scene,
-                interaction_mode,
-                &self.settings,
-                &self.mode,
-            );
-        }
+        self.scene_viewer.handle_ui_message(
+            message,
+            engine,
+            &mut self.scenes,
+            &self.settings,
+            &self.mode,
+        );
 
+        let mut current_scene_entry = self.scenes.current_scene_entry_mut();
         self.animation_editor.handle_ui_message(
             message,
             current_scene_entry.as_mut().map(|e| &mut e.editor_scene),
@@ -1615,11 +1631,11 @@ impl Editor {
         }
     }
 
-    fn close_current_scene(&mut self) -> bool {
+    fn close_scene(&mut self, scene: Handle<Scene>) -> bool {
         self.try_leave_preview_mode();
 
         let engine = &mut self.engine;
-        if let Some(editor_scene_entry) = self.scenes.take_current_scene() {
+        if let Some(editor_scene_entry) = self.scenes.take_scene(scene) {
             engine.scenes.remove(editor_scene_entry.editor_scene.scene);
 
             // Preview frame has scene frame texture assigned, it must be cleared explicitly,
@@ -1877,11 +1893,15 @@ impl Editor {
                         }
                     }
                     Message::Exit { force } => self.exit(force),
-                    Message::CloseScene => {
-                        needs_sync |= self.close_current_scene();
+                    Message::CloseScene(scene) => {
+                        needs_sync |= self.close_scene(scene);
                     }
                     Message::NewScene => {
                         self.create_new_scene();
+                        needs_sync = true;
+                    }
+                    Message::SetCurrentScene(scene) => {
+                        assert!(self.scenes.set_current_scene(scene));
                         needs_sync = true;
                     }
                     Message::Configure { working_directory } => {

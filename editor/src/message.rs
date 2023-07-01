@@ -9,7 +9,7 @@ use fyrox::{
     },
     gui::UiNode,
     material::SharedMaterial,
-    scene::{camera::Projection, node::Node},
+    scene::{camera::Projection, node::Node, Scene},
 };
 use std::{any::TypeId, path::PathBuf, sync::mpsc::Sender};
 
@@ -24,7 +24,7 @@ pub enum Message {
     },
     SaveScene(PathBuf),
     LoadScene(PathBuf),
-    CloseScene,
+    CloseScene(Handle<Scene>),
     SetInteractionMode(InteractionModeKind),
     Configure {
         working_directory: PathBuf,
@@ -47,6 +47,7 @@ pub enum Message {
         type_id: TypeId,
         handle: ErasedHandle,
     },
+    SetCurrentScene(Handle<Scene>),
     FocusObject(Handle<Node>),
     SetEditorCameraProjection(Projection),
     SwitchToBuildMode,
