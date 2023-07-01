@@ -61,6 +61,16 @@ impl TabControlMessage {
 #[derive(Clone)]
 pub struct TabUserData(pub Rc<dyn Any>);
 
+impl TabUserData {
+    /// Creates new instance of the tab data.
+    pub fn new<T>(data: T) -> Self
+    where
+        T: Any,
+    {
+        Self(Rc::new(data))
+    }
+}
+
 impl PartialEq for TabUserData {
     fn eq(&self, other: &Self) -> bool {
         std::ptr::eq((&*self.0) as *const _, (&*other.0) as *const _)
@@ -283,6 +293,14 @@ impl Control for TabControl {
                         ));
 
                         ui.send_message(message.reverse());
+
+                        self.tabs.push(Tab {
+                            header_button: header.button,
+                            content: definition.content,
+                            close_button: header.close_button,
+                            header_container: header.container,
+                            user_data: definition.user_data.clone(),
+                        })
                     }
                 }
             }
