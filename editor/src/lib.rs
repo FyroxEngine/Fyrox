@@ -404,7 +404,7 @@ impl SaveSceneConfirmationDialog {
 }
 
 pub struct EditorSceneEntry {
-    pub scene: EditorScene,
+    pub editor_scene: EditorScene,
     pub command_stack: CommandStack,
     pub interaction_modes: Vec<Box<dyn InteractionMode>>,
     pub current_interaction_mode: Option<InteractionModeKind>,
@@ -415,14 +415,15 @@ impl EditorSceneEntry {
         if self.current_interaction_mode != mode {
             // Deactivate current first.
             if let Some(current_mode) = self.current_interaction_mode {
-                self.interaction_modes[current_mode as usize].deactivate(&self.scene, engine);
+                self.interaction_modes[current_mode as usize]
+                    .deactivate(&self.editor_scene, engine);
             }
 
             self.current_interaction_mode = mode;
 
             // Activate new.
             if let Some(current_mode) = self.current_interaction_mode {
-                self.interaction_modes[current_mode as usize].activate(&self.scene, engine);
+                self.interaction_modes[current_mode as usize].activate(&self.editor_scene, engine);
             }
         }
     }
@@ -454,11 +455,11 @@ impl SceneContainer {
     }
 
     pub fn current_editor_scene_ref(&self) -> Option<&EditorScene> {
-        self.current_scene_entry_ref().map(|e| &e.scene)
+        self.current_scene_entry_ref().map(|e| &e.editor_scene)
     }
 
     pub fn current_editor_scene_mut(&mut self) -> Option<&mut EditorScene> {
-        self.current_scene_entry_mut().map(|e| &mut e.scene)
+        self.current_scene_entry_mut().map(|e| &mut e.editor_scene)
     }
 
     pub fn len(&self) -> usize {
@@ -467,6 +468,14 @@ impl SceneContainer {
 
     pub fn is_empty(&self) -> bool {
         self.scenes.is_empty()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &EditorSceneEntry> {
+        self.scenes.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut EditorSceneEntry> {
+        self.scenes.iter_mut()
     }
 
     pub fn add_scene_and_select(
@@ -515,7 +524,7 @@ impl SceneContainer {
                     message_sender.clone(),
                 )),
             ],
-            scene: editor_scene,
+            editor_scene: editor_scene,
             command_stack: CommandStack::new(false),
             current_interaction_mode: None,
         };
@@ -1041,7 +1050,7 @@ impl Editor {
                 sender.send(Message::OpenLoadSceneDialog);
             } else if hot_key == key_bindings.save_scene {
                 if let Some(entry) = self.scenes.current_scene_entry_ref() {
-                    if let Some(path) = entry.scene.path.as_ref() {
+                    if let Some(path) = entry.editor_scene.path.as_ref() {
                         self.message_sender.send(Message::SaveScene(path.clone()));
                     } else {
                         // Scene wasn't saved yet, open Save As dialog.
@@ -1112,14 +1121,14 @@ impl Editor {
         self.save_scene_dialog.handle_ui_message(
             message,
             &self.message_sender,
-            current_scene_entry.as_ref().map(|e| &e.scene),
+            current_scene_entry.as_ref().map(|e| &e.editor_scene),
         );
         self.configurator.handle_ui_message(message, engine);
         self.menu.handle_ui_message(
             message,
             MenuContext {
                 engine,
-                editor_scene: current_scene_entry.as_mut().map(|e| &mut e.scene),
+                editor_scene: current_scene_entry.as_mut().map(|e| &mut e.editor_scene),
                 panels: Panels {
                     inspector_window: self.inspector.window,
                     world_outliner_window: self.world_viewer.window,
@@ -1157,7 +1166,7 @@ impl Editor {
             let (scene, interaction_mode) =
                 current_scene_entry.as_mut().map_or((None, None), |e| {
                     (
-                        Some(&mut e.scene),
+                        Some(&mut e.editor_scene),
                         e.current_interaction_mode
                             .and_then(|i| e.interaction_modes.get_mut(i as usize)),
                     )
@@ -1174,13 +1183,13 @@ impl Editor {
 
         self.animation_editor.handle_ui_message(
             message,
-            current_scene_entry.as_mut().map(|e| &mut e.scene),
+            current_scene_entry.as_mut().map(|e| &mut e.editor_scene),
             engine,
             &self.message_sender,
         );
 
         if let Some(current_scene_entry) = current_scene_entry {
-            let editor_scene = &mut current_scene_entry.scene;
+            let editor_scene = &mut current_scene_entry.editor_scene;
 
             self.particle_system_control_panel
                 .handle_ui_message(message, editor_scene, engine);
@@ -1375,11 +1384,10 @@ impl Editor {
             &mut engine.user_interface,
         );
 
-        self.scene_viewer
-            .sync_to_model(self.scenes.current_editor_scene_ref(), engine);
+        self.scene_viewer.sync_to_model(&self.scenes, engine);
 
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
-            let editor_scene = &mut current_scene_entry.scene;
+            let editor_scene = &mut current_scene_entry.editor_scene;
             self.animation_editor.sync_to_model(editor_scene, engine);
             self.absm_editor.sync_to_model(editor_scene, engine);
             self.scene_settings.sync_to_model(editor_scene, engine);
@@ -1438,7 +1446,7 @@ impl Editor {
     fn do_scene_command(&mut self, command: SceneCommand) -> bool {
         let engine = &mut self.engine;
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
-            let editor_scene = &mut current_scene_entry.scene;
+            let editor_scene = &mut current_scene_entry.editor_scene;
 
             current_scene_entry.command_stack.do_command(
                 command.into_inner(),
@@ -1462,7 +1470,7 @@ impl Editor {
     fn undo_scene_command(&mut self) -> bool {
         let engine = &mut self.engine;
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
-            let editor_scene = &mut current_scene_entry.scene;
+            let editor_scene = &mut current_scene_entry.editor_scene;
 
             current_scene_entry.command_stack.undo(SceneContext {
                 scene: &mut engine.scenes[editor_scene.scene],
@@ -1483,7 +1491,7 @@ impl Editor {
     fn redo_scene_command(&mut self) -> bool {
         let engine = &mut self.engine;
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
-            let editor_scene = &mut current_scene_entry.scene;
+            let editor_scene = &mut current_scene_entry.editor_scene;
 
             current_scene_entry.command_stack.redo(SceneContext {
                 scene: &mut engine.scenes[editor_scene.scene],
@@ -1504,7 +1512,7 @@ impl Editor {
     fn clear_scene_command_stack(&mut self) -> bool {
         let engine = &mut self.engine;
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
-            let editor_scene = &mut current_scene_entry.scene;
+            let editor_scene = &mut current_scene_entry.editor_scene;
 
             current_scene_entry.command_stack.clear(SceneContext {
                 scene: &mut engine.scenes[editor_scene.scene],
@@ -1612,7 +1620,7 @@ impl Editor {
 
         let engine = &mut self.engine;
         if let Some(editor_scene_entry) = self.scenes.take_current_scene() {
-            engine.scenes.remove(editor_scene_entry.scene.scene);
+            engine.scenes.remove(editor_scene_entry.editor_scene.scene);
 
             // Preview frame has scene frame texture assigned, it must be cleared explicitly,
             // otherwise it will show last rendered frame in preview which is not what we want.
@@ -1979,7 +1987,7 @@ impl Editor {
         self.handle_resize();
 
         if let Some(editor_scene_entry) = self.scenes.current_scene_entry_mut() {
-            let editor_scene = &mut editor_scene_entry.scene;
+            let editor_scene = &mut editor_scene_entry.editor_scene;
 
             editor_scene.update(&mut self.engine, dt, &self.settings);
 

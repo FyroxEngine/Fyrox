@@ -4,9 +4,8 @@ use crate::{
     send_sync_message, settings::keys::KeyBindings, utils::enable_widget, AddModelCommand,
     AssetItem, AssetKind, BuildProfile, ChangeSelectionCommand, CommandGroup, DropdownListBuilder,
     EditorScene, GraphSelection, InteractionMode, InteractionModeKind, Message, Mode, SceneCommand,
-    Selection, SetMeshTextureCommand, Settings,
+    SceneContainer, Selection, SetMeshTextureCommand, Settings,
 };
-use fyrox::gui::tab_control::{TabControlBuilder, TabDefinition};
 use fyrox::{
     asset::ResourceStateRef,
     core::{
@@ -30,6 +29,9 @@ use fyrox::{
         image::{ImageBuilder, ImageMessage},
         message::{KeyCode, MessageDirection, MouseButton, UiMessage},
         stack_panel::StackPanelBuilder,
+        tab_control::{
+            TabControl, TabControlBuilder, TabControlMessage, TabDefinition, TabUserData,
+        },
         text::TextBuilder,
         utils::make_simple_tooltip,
         vec::{Vec3EditorBuilder, Vec3EditorMessage},
@@ -43,12 +45,14 @@ use fyrox::{
         model::{Model, ModelResourceExtension},
         texture::{Texture, TextureResource},
     },
+    scene::Scene,
     scene::{
         camera::{Camera, Projection},
         node::Node,
     },
     utils::into_gui_texture,
 };
+use std::cmp::Ordering;
 
 struct PreviewInstance {
     instance: Handle<Node>,
@@ -371,31 +375,25 @@ impl SceneViewer {
                     WidgetBuilder::new()
                         .on_row(0)
                         .with_child(top_ribbon)
+                        .with_child({
+                            tab_control =
+                                TabControlBuilder::new(WidgetBuilder::new().on_row(1)).build(ctx);
+                            tab_control
+                        })
                         .with_child(
                             GridBuilder::new(
                                 WidgetBuilder::new()
-                                    .on_row(1)
+                                    .on_row(2)
                                     .with_child({
-                                        tab_control = TabControlBuilder::new(WidgetBuilder::new())
-                                            .with_tab(TabDefinition {
-                                                header: TextBuilder::new(WidgetBuilder::new())
-                                                    .with_text("Scene")
-                                                    .build(ctx),
-                                                content: {
-                                                    frame = ImageBuilder::new(
-                                                        WidgetBuilder::new()
-                                                            .with_child(no_scene_reminder)
-                                                            .with_child(interaction_mode_panel)
-                                                            .with_allow_drop(true),
-                                                    )
-                                                    .with_flip(true)
-                                                    .build(ctx);
-                                                    frame
-                                                },
-                                                can_be_closed: true,
-                                            })
-                                            .build(ctx);
-                                        tab_control
+                                        frame = ImageBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_child(no_scene_reminder)
+                                                .with_child(interaction_mode_panel)
+                                                .with_allow_drop(true),
+                                        )
+                                        .with_flip(true)
+                                        .build(ctx);
+                                        frame
                                     })
                                     .with_child(
                                         CanvasBuilder::new(WidgetBuilder::new().with_child({
@@ -421,6 +419,7 @@ impl SceneViewer {
                             .build(ctx),
                         ),
                 )
+                .add_row(Row::strict(25.0))
                 .add_row(Row::strict(25.0))
                 .add_row(Row::stretch())
                 .add_column(Column::stretch())
@@ -735,8 +734,83 @@ impl SceneViewer {
         }
     }
 
-    pub fn sync_to_model(&self, editor_scene: Option<&EditorScene>, engine: &Engine) {
-        if let Some(editor_scene) = editor_scene {
+    pub fn sync_to_model(&self, scenes: &SceneContainer, engine: &mut Engine) {
+        let tabs = engine
+            .user_interface
+            .node(self.tab_control)
+            .query_component::<TabControl>()
+            .expect("Must be TabControl!")
+            .tabs
+            .clone();
+        match tabs.len().cmp(&scenes.len()) {
+            Ordering::Less => {
+                // Some scenes were added.
+                for entry in scenes.iter() {
+                    if tabs.iter().all(|tab| {
+                        tab.user_data
+                            .as_ref()
+                            .unwrap()
+                            .0
+                            .downcast_ref::<Handle<Scene>>()
+                            .cloned()
+                            .unwrap()
+                            != entry.editor_scene.scene
+                    }) {
+                        let header = TextBuilder::new(WidgetBuilder::new())
+                            .with_text(
+                                entry
+                                    .editor_scene
+                                    .path
+                                    .as_ref()
+                                    .map(|p| p.to_string_lossy().to_string())
+                                    .unwrap_or_else(|| String::from("Unnamed Scene")),
+                            )
+                            .build(&mut engine.user_interface.build_ctx());
+
+                        engine
+                            .user_interface
+                            .send_message(TabControlMessage::add_tab(
+                                self.tab_control,
+                                MessageDirection::ToWidget,
+                                TabDefinition {
+                                    header,
+                                    content: Default::default(),
+                                    can_be_closed: true,
+                                    user_data: Some(TabUserData::new(entry.editor_scene.scene)),
+                                },
+                            ));
+                    }
+                }
+            }
+            Ordering::Equal => {
+                // Nothing to do.
+            }
+            Ordering::Greater => {
+                // Some scenes were removed.
+                for (tab_index, tab) in tabs.iter().enumerate() {
+                    let tab_scene = tab
+                        .user_data
+                        .as_ref()
+                        .unwrap()
+                        .0
+                        .downcast_ref::<Handle<Scene>>()
+                        .cloned()
+                        .unwrap();
+
+                    if scenes.iter().all(|s| tab_scene != s.editor_scene.scene) {
+                        engine
+                            .user_interface
+                            .send_message(TabControlMessage::remove_tab(
+                                self.tab_control,
+                                MessageDirection::ToWidget,
+                                tab_index,
+                            ));
+                    }
+                }
+            }
+        }
+
+        if let Some(editor_scene) = scenes.current_editor_scene_ref() {
             if let Selection::Graph(ref selection) = editor_scene.selection {
                 let scene = &engine.scenes[editor_scene.scene];
                 if let Some((_, position)) = selection.global_rotation_position(&scene.graph) {
@@ -754,7 +828,7 @@ impl SceneViewer {
             WidgetMessage::visibility(
                 self.no_scene_reminder,
                 MessageDirection::ToWidget,
-                editor_scene.is_none(),
+                scenes.current_editor_scene_ref().is_none(),
             ),
         );
     }
