@@ -18,7 +18,9 @@ use crate::{
 };
 use std::{
     any::{Any, TypeId},
+    fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
+    rc::Rc,
 };
 
 /// A set of messages for [`TabControl`] widget.
@@ -55,8 +57,24 @@ impl TabControlMessage {
     );
 }
 
+/// User-defined data of a tab.
+#[derive(Clone)]
+pub struct TabUserData(pub Rc<dyn Any>);
+
+impl PartialEq for TabUserData {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq((&*self.0) as *const _, (&*other.0) as *const _)
+    }
+}
+
+impl Debug for TabUserData {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "User-defined data")
+    }
+}
+
 /// Tab of the [`TabControl`] widget. It stores important tab data, that is widely used at runtime.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq)]
 pub struct Tab {
     /// A handle of the header button, that is used to switch tabs.
     pub header_button: Handle<UiNode>,
@@ -66,6 +84,8 @@ pub struct Tab {
     pub close_button: Handle<UiNode>,
     /// A handle to a container widget, that holds the header.
     pub header_container: Handle<UiNode>,
+    /// User-defined data.
+    pub user_data: Option<TabUserData>,
 }
 
 /// The Tab Control handles the visibility of several tabs, only showing a single tab that the user has selected via the
@@ -82,7 +102,6 @@ pub struct Tab {
 /// #     tab_control::{TabControlBuilder, TabDefinition},
 /// # };
 /// fn create_tab_control(ctx: &mut BuildContext) {
-///
 ///     TabControlBuilder::new(WidgetBuilder::new())
 ///         .with_tab(
 ///             TabDefinition{
@@ -93,7 +112,8 @@ pub struct Tab {
 ///                 content: TextBuilder::new(WidgetBuilder::new())
 ///                             .with_text("First tab's contents!")
 ///                             .build(ctx),
-///                 can_be_closed: true
+///                 can_be_closed: true,
+///                 user_data: None
 ///             }
 ///         )
 ///         .with_tab(
@@ -105,7 +125,8 @@ pub struct Tab {
 ///                 content: TextBuilder::new(WidgetBuilder::new())
 ///                             .with_text("Second tab's contents!")
 ///                             .build(ctx),
-///                 can_be_closed: true
+///                 can_be_closed: true,
+///                 user_data: None
 ///             }
 ///         )
 ///         .build(ctx);
@@ -148,7 +169,8 @@ pub struct Tab {
 ///             .with_text("First")
 ///             .build(ctx),
 /// # content: Default::default(),
-/// # can_be_closed: true
+/// # can_be_closed: true,
+/// # user_data: None
 /// # };
 /// # }
 ///
@@ -283,6 +305,8 @@ pub struct TabDefinition {
     pub content: Handle<UiNode>,
     /// A flag, that defines whether the tab can be closed or not.
     pub can_be_closed: bool,
+    /// User-defined data.
+    pub user_data: Option<TabUserData>,
 }
 
 struct Header {
@@ -346,16 +370,12 @@ impl TabControlBuilder {
 
     /// Finishes [`TabControl`] building and adds it to the user interface and returns its handle.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let mut content = Vec::new();
         let tab_count = self.tabs.len();
-        for (i, tab) in self.tabs.iter().enumerate() {
-            // Hide everything but first tab content.
-            if i > 0 {
-                if let Some(content) = ctx.try_get_node_mut(tab.content) {
-                    content.set_visibility(false);
-                }
+        // Hide everything but first tab content.
+        for tab in self.tabs.iter().skip(1) {
+            if let Some(content) = ctx.try_get_node_mut(tab.content) {
+                content.set_visibility(false);
             }
-            content.push(tab.content);
         }
 
         let tab_headers = self
@@ -374,7 +394,7 @@ impl TabControlBuilder {
 
         let content_container = GridBuilder::new(
             WidgetBuilder::new()
-                .with_children(content.iter().cloned())
+                .with_children(self.tabs.iter().map(|t| t.content))
                 .on_row(1),
         )
         .add_row(Row::stretch())
@@ -406,12 +426,13 @@ impl TabControlBuilder {
             active_tab: if tab_count == 0 { None } else { Some(0) },
             tabs: tab_headers
                 .iter()
-                .zip(content)
-                .map(|(header, content)| Tab {
+                .zip(self.tabs)
+                .map(|(header, tab)| Tab {
                     header_button: header.button,
-                    content,
+                    content: tab.content,
                     close_button: header.close_button,
                     header_container: header.container,
+                    user_data: tab.user_data,
                 })
                 .collect(),
             content_container,
