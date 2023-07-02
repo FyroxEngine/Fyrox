@@ -486,6 +486,10 @@ impl SceneContainer {
         self.scenes.get_mut(index)
     }
 
+    pub fn current_scene_index(&self) -> Option<usize> {
+        self.current_scene
+    }
+
     pub fn set_current_scene(&mut self, scene: Handle<Scene>) -> bool {
         if let Some(index) = self
             .scenes
