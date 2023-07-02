@@ -783,7 +783,6 @@ impl SceneViewer {
 
     pub fn sync_to_model(&self, scenes: &SceneContainer, engine: &mut Engine) {
         // Sync tabs first.
-
         let tabs = engine
             .user_interface
             .node(self.tab_control)
@@ -805,20 +804,22 @@ impl SceneViewer {
                             .unwrap()
                             != entry.editor_scene.scene
                     }) {
-                        let header = TextBuilder::new(WidgetBuilder::new())
-                            .with_text(
-                                entry
-                                    .editor_scene
-                                    .path
-                                    .as_ref()
-                                    .map(|p| p.to_string_lossy().to_string())
-                                    .unwrap_or_else(|| String::from("Unnamed Scene")),
-                            )
-                            .build(&mut engine.user_interface.build_ctx());
+                        let header = TextBuilder::new(
+                            WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
+                        )
+                        .with_text(
+                            entry
+                                .editor_scene
+                                .path
+                                .as_ref()
+                                .map(|p| p.to_string_lossy().to_string())
+                                .unwrap_or_else(|| String::from("Unnamed Scene")),
+                        )
+                        .build(&mut engine.user_interface.build_ctx());
 
-                        engine
-                            .user_interface
-                            .send_message(TabControlMessage::add_tab(
+                        send_sync_message(
+                            &engine.user_interface,
+                            TabControlMessage::add_tab(
                                 self.tab_control,
                                 MessageDirection::ToWidget,
                                 TabDefinition {
@@ -827,7 +828,8 @@ impl SceneViewer {
                                     can_be_closed: true,
                                     user_data: Some(TabUserData::new(entry.editor_scene.scene)),
                                 },
-                            ));
+                            ),
+                        );
                     }
                 }
             }
@@ -847,17 +849,27 @@ impl SceneViewer {
                         .unwrap();
 
                     if scenes.iter().all(|s| tab_scene != s.editor_scene.scene) {
-                        engine
-                            .user_interface
-                            .send_message(TabControlMessage::remove_tab(
+                        send_sync_message(
+                            &engine.user_interface,
+                            TabControlMessage::remove_tab(
                                 self.tab_control,
                                 MessageDirection::ToWidget,
                                 tab_index,
-                            ));
+                            ),
+                        );
                     }
                 }
             }
         }
+
+        send_sync_message(
+            &engine.user_interface,
+            TabControlMessage::active_tab(
+                self.tab_control,
+                MessageDirection::ToWidget,
+                scenes.current_scene_index(),
+            ),
+        );
 
         // Then sync to the current scene.
         if let Some(editor_scene) = scenes.current_editor_scene_ref() {
