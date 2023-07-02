@@ -1639,7 +1639,7 @@ impl Editor {
         self.try_leave_preview_mode();
 
         let engine = &mut self.engine;
-        if let Some(editor_scene_entry) = self.scenes.take_scene(scene) {
+        if let Some(mut editor_scene_entry) = self.scenes.take_scene(scene) {
             engine.scenes.remove(editor_scene_entry.editor_scene.scene);
 
             // Preview frame has scene frame texture assigned, it must be cleared explicitly,
@@ -1649,6 +1649,8 @@ impl Editor {
             // Set default title scene
             self.scene_viewer
                 .set_title(&engine.user_interface, "Scene Preview".to_string());
+
+            editor_scene_entry.on_drop(engine);
 
             true
         } else {
