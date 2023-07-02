@@ -547,10 +547,10 @@ impl SceneContainer {
                 Box::new(TerrainInteractionMode::new(
                     &editor_scene,
                     engine,
-                    message_sender.clone(),
+                    message_sender,
                 )),
             ],
-            editor_scene: editor_scene,
+            editor_scene,
             command_stack: CommandStack::new(false),
             current_interaction_mode: None,
         };

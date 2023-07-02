@@ -75,7 +75,10 @@ impl TabUserData {
 
 impl PartialEq for TabUserData {
     fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq((&*self.0) as *const _, (&*other.0) as *const _)
+        std::ptr::eq(
+            (&*self.0) as *const _ as *const (),
+            (&*other.0) as *const _ as *const (),
+        )
     }
 }
 
