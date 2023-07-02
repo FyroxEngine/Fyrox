@@ -22,7 +22,10 @@ pub enum Message {
     SelectionChanged {
         old_selection: Selection,
     },
-    SaveScene(PathBuf),
+    SaveScene {
+        scene: Handle<Scene>,
+        path: PathBuf,
+    },
     LoadScene(PathBuf),
     CloseScene(Handle<Scene>),
     SetInteractionMode(InteractionModeKind),
@@ -55,7 +58,10 @@ pub enum Message {
     SwitchMode,
     OpenLoadSceneDialog,
     OpenSaveSceneDialog,
-    OpenSaveSceneConfirmationDialog(SaveSceneConfirmationDialogAction),
+    OpenSaveSceneConfirmationDialog {
+        scene: Handle<Scene>,
+        action: SaveSceneConfirmationDialogAction,
+    },
     SetBuildProfile(BuildProfile),
     SaveSelectionAsPrefab(PathBuf),
     SyncNodeHandleName {

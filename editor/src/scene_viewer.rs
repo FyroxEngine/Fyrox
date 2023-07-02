@@ -1,4 +1,3 @@
-use crate::scene::is_scene_needs_to_be_saved;
 use crate::{
     camera::PickingOptions, gui::make_dropdown_list_option,
     gui::make_dropdown_list_option_with_height, load_image, message::MessageSender,
@@ -576,12 +575,13 @@ impl SceneViewer {
                 match msg {
                     TabControlMessage::CloseTab(tab_index) => {
                         if let Some(entry) = scenes.try_get(*tab_index) {
-                            if is_scene_needs_to_be_saved(Some(&entry.editor_scene)) {
-                                self.sender.send(Message::OpenSaveSceneConfirmationDialog(
-                                    SaveSceneConfirmationDialogAction::CloseScene(
+                            if entry.editor_scene.need_save() {
+                                self.sender.send(Message::OpenSaveSceneConfirmationDialog {
+                                    scene: entry.editor_scene.scene,
+                                    action: SaveSceneConfirmationDialogAction::CloseScene(
                                         entry.editor_scene.scene,
                                     ),
-                                ));
+                                });
                             } else {
                                 self.sender
                                     .send(Message::CloseScene(entry.editor_scene.scene));
