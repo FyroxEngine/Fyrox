@@ -804,18 +804,22 @@ impl SceneViewer {
                             .unwrap()
                             != entry.editor_scene.scene
                     }) {
-                        let header = TextBuilder::new(
-                            WidgetBuilder::new().with_margin(Thickness::uniform(2.0)),
-                        )
-                        .with_text(
-                            entry
-                                .editor_scene
-                                .path
-                                .as_ref()
-                                .map(|p| p.to_string_lossy().to_string())
-                                .unwrap_or_else(|| String::from("Unnamed Scene")),
-                        )
-                        .build(&mut engine.user_interface.build_ctx());
+                        let header =
+                            TextBuilder::new(WidgetBuilder::new().with_margin(Thickness {
+                                left: 4.0,
+                                top: 2.0,
+                                right: 4.0,
+                                bottom: 2.0,
+                            }))
+                            .with_text(
+                                entry
+                                    .editor_scene
+                                    .path
+                                    .as_ref()
+                                    .map(|p| p.to_string_lossy().to_string())
+                                    .unwrap_or_else(|| String::from("Unnamed Scene")),
+                            )
+                            .build(&mut engine.user_interface.build_ctx());
 
                         send_sync_message(
                             &engine.user_interface,
@@ -874,6 +878,19 @@ impl SceneViewer {
         // Then sync to the current scene.
         if let Some(editor_scene) = scenes.current_editor_scene_ref() {
             let scene = &engine.scenes[editor_scene.scene];
+
+            self.set_title(
+                &engine.user_interface,
+                format!(
+                    "Scene Preview - {}",
+                    editor_scene
+                        .path
+                        .as_ref()
+                        .map_or("Unnamed Scene".to_string(), |p| p
+                            .to_string_lossy()
+                            .to_string())
+                ),
+            );
 
             self.set_render_target(&engine.user_interface, scene.render_target.clone());
 

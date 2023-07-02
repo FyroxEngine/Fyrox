@@ -1022,15 +1022,6 @@ impl Editor {
             }
         }
 
-        self.scene_viewer.set_title(
-            &self.engine.user_interface,
-            format!(
-                "Scene Preview - {}",
-                path.map_or("Unnamed Scene".to_string(), |p| p
-                    .to_string_lossy()
-                    .to_string())
-            ),
-        );
         self.scene_viewer
             .reset_camera_projection(&self.engine.user_interface);
         self.engine
