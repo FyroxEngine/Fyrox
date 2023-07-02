@@ -8,13 +8,15 @@ use crate::{
     brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
     core::{color::Color, pool::Handle},
+    decorator::{DecoratorBuilder, DecoratorMessage},
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
     utils::make_cross,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, NodeHandleMapping, Orientation, UiNode, UserInterface,
+    BuildContext, Control, NodeHandleMapping, Orientation, UiNode, UserInterface, BRUSH_BRIGHT,
+    BRUSH_LIGHT,
 };
 use std::{
     any::{Any, TypeId},
@@ -96,6 +98,8 @@ pub struct Tab {
     pub header_container: Handle<UiNode>,
     /// User-defined data.
     pub user_data: Option<TabUserData>,
+    /// A handle of a node that is used to highlight tab's state.
+    pub decorator: Handle<UiNode>,
 }
 
 /// The Tab Control handles the visibility of several tabs, only showing a single tab that the user has selected via the
@@ -197,6 +201,8 @@ pub struct TabControl {
     pub content_container: Handle<UiNode>,
     /// A handle of a widget, that holds headers of every tab.
     pub headers_container: Handle<UiNode>,
+    /// A brush, that will be used to highlight active tab.
+    pub active_tab_brush: Brush,
 }
 
 crate::define_widget_deref!(TabControl);
@@ -252,7 +258,19 @@ impl Control for TabControl {
                                         existing_tab_index == active_tab_index
                                     }),
                                 ));
+                                ui.send_message(DecoratorMessage::normal_brush(
+                                    tab.decorator,
+                                    MessageDirection::ToWidget,
+                                    active_tab.map_or(BRUSH_LIGHT, |active_tab_index| {
+                                        if existing_tab_index == active_tab_index {
+                                            self.active_tab_brush.clone()
+                                        } else {
+                                            BRUSH_LIGHT
+                                        }
+                                    }),
+                                ))
                             }
+
                             self.active_tab = *active_tab;
                             // Notify potential listeners, that the active tab has changed.
                             ui.send_message(message.reverse());
@@ -278,7 +296,7 @@ impl Control for TabControl {
                         }
                     }
                     TabControlMessage::AddTab(definition) => {
-                        let header = Header::build(definition, &mut ui.build_ctx());
+                        let header = Header::build(definition, None, &mut ui.build_ctx());
 
                         ui.send_message(WidgetMessage::link(
                             header.container,
@@ -300,6 +318,7 @@ impl Control for TabControl {
                             close_button: header.close_button,
                             header_container: header.container,
                             user_data: definition.user_data.clone(),
+                            decorator: header.decorator,
                         })
                     }
                 }
@@ -312,6 +331,7 @@ impl Control for TabControl {
 pub struct TabControlBuilder {
     widget_builder: WidgetBuilder,
     tabs: Vec<TabDefinition>,
+    active_tab_brush: Brush,
 }
 
 /// Tab definition is used to describe content of each tab for the [`TabControlBuilder`] builder.
@@ -331,16 +351,29 @@ struct Header {
     container: Handle<UiNode>,
     button: Handle<UiNode>,
     close_button: Handle<UiNode>,
+    decorator: Handle<UiNode>,
 }
 
 impl Header {
-    fn build(tab_definition: &TabDefinition, ctx: &mut BuildContext) -> Self {
+    fn build(
+        tab_definition: &TabDefinition,
+        normal_brush: Option<&Brush>,
+        ctx: &mut BuildContext,
+    ) -> Self {
         let button;
         let close_button;
+        let decorator;
         let grid = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child({
                     button = ButtonBuilder::new(WidgetBuilder::new().on_row(0).on_column(0))
+                        .with_back({
+                            decorator =
+                                DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new()))
+                                    .with_normal_brush(normal_brush.cloned().unwrap_or(BRUSH_LIGHT))
+                                    .build(ctx);
+                            decorator
+                        })
                         .with_content(tab_definition.header)
                         .build(ctx);
                     button
@@ -367,6 +400,7 @@ impl Header {
             container: grid,
             button,
             close_button,
+            decorator,
         }
     }
 }
@@ -377,6 +411,7 @@ impl TabControlBuilder {
         Self {
             widget_builder,
             tabs: Default::default(),
+            active_tab_brush: BRUSH_BRIGHT,
         }
     }
 
@@ -399,7 +434,18 @@ impl TabControlBuilder {
         let tab_headers = self
             .tabs
             .iter()
-            .map(|tab_definition| Header::build(tab_definition, ctx))
+            .enumerate()
+            .map(|(i, tab_definition)| {
+                Header::build(
+                    tab_definition,
+                    if i == 0 {
+                        Some(&self.active_tab_brush)
+                    } else {
+                        None
+                    },
+                    ctx,
+                )
+            })
             .collect::<Vec<_>>();
 
         let headers_container = StackPanelBuilder::new(
@@ -451,10 +497,12 @@ impl TabControlBuilder {
                     close_button: header.close_button,
                     header_container: header.container,
                     user_data: tab.user_data,
+                    decorator: header.decorator,
                 })
                 .collect(),
             content_container,
             headers_container,
+            active_tab_brush: self.active_tab_brush,
         };
 
         ctx.add_node(UiNode::new(tc))
