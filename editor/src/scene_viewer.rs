@@ -31,9 +31,9 @@ use fyrox::{
         message::{KeyCode, MessageDirection, MouseButton, UiMessage},
         stack_panel::StackPanelBuilder,
         tab_control::{
-            TabControl, TabControlBuilder, TabControlMessage, TabDefinition, TabUserData,
+            Tab, TabControl, TabControlBuilder, TabControlMessage, TabDefinition, TabUserData,
         },
-        text::TextBuilder,
+        text::{TextBuilder, TextMessage},
         utils::make_simple_tooltip,
         vec::{Vec3EditorBuilder, Vec3EditorMessage},
         widget::{WidgetBuilder, WidgetMessage},
@@ -46,10 +46,10 @@ use fyrox::{
         model::{Model, ModelResourceExtension},
         texture::{Texture, TextureResource},
     },
-    scene::Scene,
     scene::{
         camera::{Camera, Projection},
         node::Node,
+        Scene,
     },
     utils::into_gui_texture,
 };
@@ -783,6 +783,16 @@ impl SceneViewer {
 
     pub fn sync_to_model(&self, scenes: &SceneContainer, engine: &mut Engine) {
         // Sync tabs first.
+        fn fetch_tab_scene_handle(tab: &Tab) -> Handle<Scene> {
+            tab.user_data
+                .as_ref()
+                .unwrap()
+                .0
+                .downcast_ref::<Handle<Scene>>()
+                .cloned()
+                .unwrap()
+        }
+
         let tabs = engine
             .user_interface
             .node(self.tab_control)
@@ -794,16 +804,10 @@ impl SceneViewer {
             Ordering::Less => {
                 // Some scenes were added.
                 for entry in scenes.iter() {
-                    if tabs.iter().all(|tab| {
-                        tab.user_data
-                            .as_ref()
-                            .unwrap()
-                            .0
-                            .downcast_ref::<Handle<Scene>>()
-                            .cloned()
-                            .unwrap()
-                            != entry.editor_scene.scene
-                    }) {
+                    if tabs
+                        .iter()
+                        .all(|tab| fetch_tab_scene_handle(tab) != entry.editor_scene.scene)
+                    {
                         let header =
                             TextBuilder::new(WidgetBuilder::new().with_margin(Thickness {
                                 left: 4.0,
@@ -811,14 +815,7 @@ impl SceneViewer {
                                 right: 4.0,
                                 bottom: 2.0,
                             }))
-                            .with_text(
-                                entry
-                                    .editor_scene
-                                    .path
-                                    .as_ref()
-                                    .map(|p| p.to_string_lossy().to_string())
-                                    .unwrap_or_else(|| String::from("Unnamed Scene")),
-                            )
+                            .with_text(entry.editor_scene.name())
                             .build(&mut engine.user_interface.build_ctx());
 
                         send_sync_message(
@@ -843,15 +840,7 @@ impl SceneViewer {
             Ordering::Greater => {
                 // Some scenes were removed.
                 for (tab_index, tab) in tabs.iter().enumerate() {
-                    let tab_scene = tab
-                        .user_data
-                        .as_ref()
-                        .unwrap()
-                        .0
-                        .downcast_ref::<Handle<Scene>>()
-                        .cloned()
-                        .unwrap();
-
+                    let tab_scene = fetch_tab_scene_handle(tab);
                     if scenes.iter().all(|s| tab_scene != s.editor_scene.scene) {
                         send_sync_message(
                             &engine.user_interface,
@@ -863,6 +852,24 @@ impl SceneViewer {
                         );
                     }
                 }
+            }
+        }
+
+        for tab in tabs.iter() {
+            if let Some(scene) = scenes.entry_by_scene_handle(fetch_tab_scene_handle(tab)) {
+                engine.user_interface.send_message(TextMessage::text(
+                    tab.header_content,
+                    MessageDirection::ToWidget,
+                    format!(
+                        "{}{}",
+                        scene.editor_scene.name(),
+                        if scene.editor_scene.need_save() {
+                            "*"
+                        } else {
+                            ""
+                        }
+                    ),
+                ));
             }
         }
 

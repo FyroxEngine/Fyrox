@@ -109,6 +109,13 @@ impl EditorScene {
         self.has_unsaved_changes || self.path.is_none()
     }
 
+    pub fn name(&self) -> String {
+        self.path
+            .as_ref()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| String::from("Unnamed Scene"))
+    }
+
     #[allow(clippy::redundant_clone)] // false positive
     pub fn save(
         &mut self,

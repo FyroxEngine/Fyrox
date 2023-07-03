@@ -1654,6 +1654,8 @@ impl Editor {
                 }
             }
         }
+
+        self.sync_to_model();
     }
 
     fn load_scene(&mut self, scene_path: PathBuf) {
