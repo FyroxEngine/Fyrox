@@ -103,6 +103,8 @@ pub struct Tab {
     pub user_data: Option<TabUserData>,
     /// A handle of a node that is used to highlight tab's state.
     pub decorator: Handle<UiNode>,
+    /// Content of the tab-switching (header) button.
+    pub header_content: Handle<UiNode>,
 }
 
 /// The Tab Control handles the visibility of several tabs, only showing a single tab that the user has selected via the
@@ -322,6 +324,7 @@ impl Control for TabControl {
                             header_container: header.container,
                             user_data: definition.user_data.clone(),
                             decorator: header.decorator,
+                            header_content: header.content,
                         })
                     }
                 }
@@ -355,6 +358,7 @@ struct Header {
     button: Handle<UiNode>,
     close_button: Handle<UiNode>,
     decorator: Handle<UiNode>,
+    content: Handle<UiNode>,
 }
 
 impl Header {
@@ -404,6 +408,7 @@ impl Header {
             button,
             close_button,
             decorator,
+            content: tab_definition.header,
         }
     }
 }
@@ -501,6 +506,7 @@ impl TabControlBuilder {
                     header_container: header.container,
                     user_data: tab.user_data,
                     decorator: header.decorator,
+                    header_content: header.content,
                 })
                 .collect(),
             content_container,
