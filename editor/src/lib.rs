@@ -314,20 +314,18 @@ impl SaveSceneConfirmationDialog {
         self.scene = scene;
         self.action = action;
 
-        ui.send_message(MessageBoxMessage::open(
-            self.save_message_box,
-            MessageDirection::ToWidget,
-            None,
-            Some(format!(
-                "There are unsaved changes in the {} scene. \
+        if let Some(entry) = scenes.entry_by_scene_handle(self.scene) {
+            ui.send_message(MessageBoxMessage::open(
+                self.save_message_box,
+                MessageDirection::ToWidget,
+                None,
+                Some(format!(
+                    "There are unsaved changes in the {} scene. \
                 Do you wish to save them before continue?",
-                scenes
-                    .entry_by_scene_handle(self.scene)
-                    .and_then(|s| s.editor_scene.path.as_ref().map(|p| p.as_path()))
-                    .unwrap_or_else(|| Path::new("Unnamed Scene"))
-                    .display(),
-            )),
-        ));
+                    entry.editor_scene.name(),
+                )),
+            ));
+        }
     }
 
     pub fn handle_ui_message(
@@ -1689,15 +1687,9 @@ impl Editor {
                 MessageDirection::ToWidget,
                 None,
                 Some(format!(
-                    "There are unsaved changes in the {} scene. Do you wish to save them before exit?",
-                    first_unsaved
-                        .editor_scene
-                        .path
-                        .as_ref()
-                        .map(|s| s.as_path())
-                        .unwrap_or_else(|| Path::new("Unnamed Scene"))
-                        .to_string_lossy()
-                        .to_string()
+                    "There are unsaved changes in the {} scene. \
+                    Do you wish to save them before exit?",
+                    first_unsaved.editor_scene.name()
                 )),
             ));
         } else {
