@@ -486,8 +486,15 @@ impl SceneContainer {
         self.current_scene_entry_mut().map(|e| &mut e.editor_scene)
     }
 
-    pub fn is_any_scene_need_save(&self) -> bool {
-        self.scenes.iter().any(|s| s.editor_scene.need_save())
+    pub fn first_unsaved_scene(&self) -> Option<&EditorSceneEntry> {
+        self.scenes.iter().find(|s| s.editor_scene.need_save())
+    }
+
+    pub fn unsaved_scene_count(&self) -> usize {
+        self.scenes
+            .iter()
+            .filter(|s| s.editor_scene.need_save())
+            .count()
     }
 
     pub fn len(&self) -> usize {
@@ -901,7 +908,6 @@ impl Editor {
                 .open(false)
                 .with_title(WindowTitle::Text("Unsaved changes".to_owned())),
         )
-        .with_text("There are unsaved changes. Do you wish to save them before exit?")
         .with_buttons(MessageBoxButtons::YesNoCancel)
         .build(ctx);
 
@@ -1280,43 +1286,53 @@ impl Editor {
             self.material_editor
                 .handle_ui_message(message, engine, &self.message_sender);
 
-            if let Some(MessageBoxMessage::Close(result)) = message.data() {
-                if message.destination() == self.exit_message_box {
-                    match result {
-                        MessageBoxResult::No => {
-                            self.message_sender.send(Message::Exit { force: true });
-                        }
-                        MessageBoxResult::Yes => {
-                            if let Some(path) = editor_scene.path.as_ref() {
-                                // TODO: This must save all scenes! FIXME!
-                                self.message_sender.send(Message::SaveScene {
-                                    scene: editor_scene.scene,
-                                    path: path.clone(),
-                                });
-                                self.message_sender.send(Message::Exit { force: true });
-                            } else {
-                                // Scene wasn't saved yet, open Save As dialog.
-                                engine
-                                    .user_interface
-                                    .send_message(WindowMessage::open_modal(
-                                        self.save_file_selector,
-                                        MessageDirection::ToWidget,
-                                        true,
-                                    ));
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            } else if let Some(FileSelectorMessage::Commit(path)) =
-                message.data::<FileSelectorMessage>()
-            {
+            if let Some(FileSelectorMessage::Commit(path)) = message.data::<FileSelectorMessage>() {
                 if message.destination() == self.save_file_selector {
                     self.message_sender.send(Message::SaveScene {
                         scene: editor_scene.scene,
                         path: path.clone(),
                     });
                     self.message_sender.send(Message::Exit { force: true });
+                }
+            }
+        }
+
+        if let Some(MessageBoxMessage::Close(result)) = message.data() {
+            if message.destination() == self.exit_message_box {
+                match result {
+                    MessageBoxResult::No => {
+                        self.message_sender.send(Message::Exit { force: true });
+                    }
+                    MessageBoxResult::Yes => {
+                        if let Some(first_unsaved) = self.scenes.first_unsaved_scene() {
+                            let editor_scene = &first_unsaved.editor_scene;
+                            if editor_scene.need_save() {
+                                if let Some(path) = editor_scene.path.as_ref() {
+                                    self.message_sender.send(Message::SaveScene {
+                                        scene: editor_scene.scene,
+                                        path: path.clone(),
+                                    });
+
+                                    self.message_sender
+                                        .send(Message::CloseScene(editor_scene.scene));
+
+                                    self.message_sender.send(Message::Exit {
+                                        force: self.scenes.unsaved_scene_count() == 1,
+                                    });
+                                } else {
+                                    // Scene wasn't saved yet, open Save As dialog.
+                                    engine
+                                        .user_interface
+                                        .send_message(WindowMessage::open_modal(
+                                            self.save_file_selector,
+                                            MessageDirection::ToWidget,
+                                            true,
+                                        ));
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
                 }
             }
         }
@@ -1665,12 +1681,22 @@ impl Editor {
         let engine = &mut self.engine;
         if force {
             self.exit = true;
-        } else if self.scenes.is_any_scene_need_save() {
+        } else if let Some(first_unsaved) = self.scenes.first_unsaved_scene() {
             engine.user_interface.send_message(MessageBoxMessage::open(
                 self.exit_message_box,
                 MessageDirection::ToWidget,
                 None,
-                None,
+                Some(format!(
+                    "There are unsaved changes in the {} scene. Do you wish to save them before exit?",
+                    first_unsaved
+                        .editor_scene
+                        .path
+                        .as_ref()
+                        .map(|s| s.as_path())
+                        .unwrap_or_else(|| Path::new("Unnamed Scene"))
+                        .to_string_lossy()
+                        .to_string()
+                )),
             ));
         } else {
             self.exit = true;
