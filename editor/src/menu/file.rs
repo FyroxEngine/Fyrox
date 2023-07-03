@@ -1,8 +1,8 @@
-use crate::message::MessageSender;
 use crate::{
     make_save_file_selector, make_scene_file_filter,
     menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
-    scene::{is_scene_needs_to_be_saved, EditorScene},
+    message::MessageSender,
+    scene::EditorScene,
     settings::{recent::RecentFiles, Settings, SettingsWindow},
     Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
 };
@@ -203,30 +203,40 @@ impl FileMenu {
 
         if let Some(FileSelectorMessage::Commit(path)) = message.data::<FileSelectorMessage>() {
             if message.destination() == self.save_file_selector {
-                sender.send(Message::SaveScene(path.to_owned()));
+                if let Some(editor_scene) = editor_scene {
+                    sender.send(Message::SaveScene {
+                        scene: editor_scene.scene,
+                        path: path.to_owned(),
+                    });
+                }
             } else if message.destination() == self.load_file_selector {
                 sender.send(Message::LoadScene(path.to_owned()));
             }
         } else if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.save {
-                if let Some(scene_path) = editor_scene.as_ref().and_then(|s| s.path.as_ref()) {
-                    sender.send(Message::SaveScene(scene_path.clone()));
-                } else {
-                    // If scene wasn't saved yet - open Save As window.
-                    engine
-                        .user_interface
-                        .send_message(WindowMessage::open_modal(
-                            self.save_file_selector,
-                            MessageDirection::ToWidget,
-                            true,
-                        ));
-                    engine
-                        .user_interface
-                        .send_message(FileSelectorMessage::path(
-                            self.save_file_selector,
-                            MessageDirection::ToWidget,
-                            std::env::current_dir().unwrap(),
-                        ));
+                if let Some(editor_scene) = editor_scene {
+                    if let Some(scene_path) = editor_scene.path.as_ref() {
+                        sender.send(Message::SaveScene {
+                            scene: editor_scene.scene,
+                            path: scene_path.clone(),
+                        });
+                    } else {
+                        // If scene wasn't saved yet - open Save As window.
+                        engine
+                            .user_interface
+                            .send_message(WindowMessage::open_modal(
+                                self.save_file_selector,
+                                MessageDirection::ToWidget,
+                                true,
+                            ));
+                        engine
+                            .user_interface
+                            .send_message(FileSelectorMessage::path(
+                                self.save_file_selector,
+                                MessageDirection::ToWidget,
+                                std::env::current_dir().unwrap(),
+                            ));
+                    }
                 }
             } else if message.destination() == self.save_as {
                 engine
@@ -244,31 +254,24 @@ impl FileMenu {
                         std::env::current_dir().unwrap(),
                     ));
             } else if message.destination() == self.load {
-                if is_scene_needs_to_be_saved(editor_scene.as_deref()) {
-                    sender.send(Message::OpenSaveSceneConfirmationDialog(
-                        SaveSceneConfirmationDialogAction::OpenLoadSceneDialog,
-                    ));
-                } else {
-                    self.open_load_file_selector(&mut engine.user_interface);
-                }
+                self.open_load_file_selector(&mut engine.user_interface);
             } else if message.destination() == self.close_scene {
-                if is_scene_needs_to_be_saved(editor_scene.as_deref()) {
-                    sender.send(Message::OpenSaveSceneConfirmationDialog(
-                        SaveSceneConfirmationDialogAction::CloseScene,
-                    ));
-                } else {
-                    sender.send(Message::CloseScene);
+                if let Some(editor_scene) = editor_scene.as_ref() {
+                    if editor_scene.need_save() {
+                        sender.send(Message::OpenSaveSceneConfirmationDialog {
+                            scene: editor_scene.scene,
+                            action: SaveSceneConfirmationDialogAction::CloseScene(
+                                editor_scene.scene,
+                            ),
+                        });
+                    } else {
+                        sender.send(Message::CloseScene(editor_scene.scene));
+                    }
                 }
             } else if message.destination() == self.exit {
                 sender.send(Message::Exit { force: false });
             } else if message.destination() == self.new_scene {
-                if is_scene_needs_to_be_saved(editor_scene.as_deref()) {
-                    sender.send(Message::OpenSaveSceneConfirmationDialog(
-                        SaveSceneConfirmationDialogAction::MakeNewScene,
-                    ));
-                } else {
-                    sender.send(Message::NewScene);
-                }
+                sender.send(Message::NewScene);
             } else if message.destination() == self.configure {
                 if editor_scene.is_none() {
                     engine
@@ -297,13 +300,7 @@ impl FileMenu {
                 .position(|i| *i == message.destination())
             {
                 if let Some(recent_file_path) = settings.recent.scenes.get(recent_file) {
-                    if is_scene_needs_to_be_saved(editor_scene.as_deref()) {
-                        sender.send(Message::OpenSaveSceneConfirmationDialog(
-                            SaveSceneConfirmationDialogAction::LoadScene(recent_file_path.clone()),
-                        ));
-                    } else {
-                        sender.send(Message::LoadScene(recent_file_path.clone()));
-                    }
+                    sender.send(Message::LoadScene(recent_file_path.clone()));
                 }
             }
         }

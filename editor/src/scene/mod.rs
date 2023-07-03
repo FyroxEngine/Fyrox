@@ -48,12 +48,6 @@ pub struct EditorScene {
     pub graph_switches: GraphUpdateSwitches,
 }
 
-pub fn is_scene_needs_to_be_saved(editor_scene: Option<&EditorScene>) -> bool {
-    editor_scene
-        .as_ref()
-        .map_or(false, |s| s.has_unsaved_changes || s.path.is_none())
-}
-
 impl EditorScene {
     pub fn from_native_scene(
         mut scene: Scene,
@@ -109,6 +103,17 @@ impl EditorScene {
             scene.clone(self.scene_content_root, &mut |node, _| node != editor_root);
 
         pure_scene
+    }
+
+    pub fn need_save(&self) -> bool {
+        self.has_unsaved_changes || self.path.is_none()
+    }
+
+    pub fn name(&self) -> String {
+        self.path
+            .as_ref()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| String::from("Unnamed Scene"))
     }
 
     #[allow(clippy::redundant_clone)] // false positive

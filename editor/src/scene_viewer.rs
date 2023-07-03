@@ -1,10 +1,10 @@
-use crate::message::MessageSender;
 use crate::{
     camera::PickingOptions, gui::make_dropdown_list_option,
-    gui::make_dropdown_list_option_with_height, load_image, send_sync_message,
-    settings::keys::KeyBindings, utils::enable_widget, AddModelCommand, AssetItem, AssetKind,
-    BuildProfile, ChangeSelectionCommand, CommandGroup, DropdownListBuilder, EditorScene,
-    GraphSelection, InteractionMode, InteractionModeKind, Message, Mode, SceneCommand, Selection,
+    gui::make_dropdown_list_option_with_height, load_image, message::MessageSender,
+    send_sync_message, settings::keys::KeyBindings, utils::enable_widget, AddModelCommand,
+    AssetItem, AssetKind, BuildProfile, ChangeSelectionCommand, CommandGroup, DropdownListBuilder,
+    EditorScene, GraphSelection, InteractionMode, InteractionModeKind, Message, Mode,
+    SaveSceneConfirmationDialogAction, SceneCommand, SceneContainer, Selection,
     SetMeshTextureCommand, Settings,
 };
 use fyrox::{
@@ -30,7 +30,10 @@ use fyrox::{
         image::{ImageBuilder, ImageMessage},
         message::{KeyCode, MessageDirection, MouseButton, UiMessage},
         stack_panel::StackPanelBuilder,
-        text::TextBuilder,
+        tab_control::{
+            Tab, TabControl, TabControlBuilder, TabControlMessage, TabDefinition, TabUserData,
+        },
+        text::{TextBuilder, TextMessage},
         utils::make_simple_tooltip,
         vec::{Vec3EditorBuilder, Vec3EditorMessage},
         widget::{WidgetBuilder, WidgetMessage},
@@ -46,9 +49,11 @@ use fyrox::{
     scene::{
         camera::{Camera, Projection},
         node::Node,
+        Scene,
     },
     utils::into_gui_texture,
 };
+use std::cmp::Ordering;
 
 struct PreviewInstance {
     instance: Handle<Node>,
@@ -78,6 +83,7 @@ pub struct SceneViewer {
     global_position_display: Handle<UiNode>,
     preview_instance: Option<PreviewInstance>,
     no_scene_reminder: Handle<UiNode>,
+    tab_control: Handle<UiNode>,
 }
 
 fn make_interaction_mode_button(
@@ -361,6 +367,7 @@ impl SceneViewer {
         .with_wrap(WrapMode::Word)
         .build(ctx);
 
+        let tab_control;
         let window = WindowBuilder::new(WidgetBuilder::new())
             .can_close(false)
             .can_minimize(false)
@@ -369,10 +376,15 @@ impl SceneViewer {
                     WidgetBuilder::new()
                         .on_row(0)
                         .with_child(top_ribbon)
+                        .with_child({
+                            tab_control =
+                                TabControlBuilder::new(WidgetBuilder::new().on_row(1)).build(ctx);
+                            tab_control
+                        })
                         .with_child(
                             GridBuilder::new(
                                 WidgetBuilder::new()
-                                    .on_row(1)
+                                    .on_row(2)
                                     .with_child({
                                         frame = ImageBuilder::new(
                                             WidgetBuilder::new()
@@ -409,6 +421,7 @@ impl SceneViewer {
                         ),
                 )
                 .add_row(Row::strict(25.0))
+                .add_row(Row::strict(25.0))
                 .add_row(Row::stretch())
                 .add_column(Column::stretch())
                 .build(ctx),
@@ -438,6 +451,7 @@ impl SceneViewer {
             preview_instance: None,
             stop,
             no_scene_reminder,
+            tab_control,
         }
     }
 }
@@ -494,8 +508,7 @@ impl SceneViewer {
         &mut self,
         message: &mut UiMessage,
         engine: &mut Engine,
-        editor_scene: Option<&mut EditorScene>,
-        interaction_mode: Option<&mut Box<dyn InteractionMode>>,
+        scenes: &mut SceneContainer,
         settings: &Settings,
         mode: &Mode,
     ) {
@@ -555,176 +568,340 @@ impl SceneViewer {
                     }
                 }
             }
+        } else if let Some(msg) = message.data::<TabControlMessage>() {
+            if message.destination() == self.tab_control
+                && message.direction() == MessageDirection::FromWidget
+            {
+                match msg {
+                    TabControlMessage::CloseTab(tab_index) => {
+                        if let Some(entry) = scenes.try_get(*tab_index) {
+                            if entry.editor_scene.need_save() {
+                                self.sender.send(Message::OpenSaveSceneConfirmationDialog {
+                                    scene: entry.editor_scene.scene,
+                                    action: SaveSceneConfirmationDialogAction::CloseScene(
+                                        entry.editor_scene.scene,
+                                    ),
+                                });
+                            } else {
+                                self.sender
+                                    .send(Message::CloseScene(entry.editor_scene.scene));
+                            }
+                        }
+                    }
+                    TabControlMessage::ActiveTab(Some(active_tab)) => {
+                        if let Some(entry) = scenes.try_get(*active_tab) {
+                            self.sender
+                                .send(Message::SetCurrentScene(entry.editor_scene.scene));
+                        }
+                    }
+                    _ => (),
+                }
+            }
         }
 
-        if let (Some(editor_scene), Some(msg), Mode::Edit) =
-            (editor_scene, message.data::<WidgetMessage>(), mode)
-        {
-            if message.destination() == self.frame() {
-                match *msg {
-                    WidgetMessage::MouseDown { button, pos, .. } => self.on_mouse_down(
-                        button,
-                        pos,
-                        editor_scene,
-                        interaction_mode,
-                        engine,
-                        settings,
-                    ),
-                    WidgetMessage::MouseUp { button, pos, .. } => self.on_mouse_up(
-                        button,
-                        pos,
-                        editor_scene,
-                        interaction_mode,
-                        engine,
-                        settings,
-                    ),
-                    WidgetMessage::MouseWheel { amount, .. } => {
-                        editor_scene.camera_controller.on_mouse_wheel(
-                            amount * settings.camera.zoom_speed,
-                            &mut engine.scenes[editor_scene.scene].graph,
-                        );
-                    }
-                    WidgetMessage::MouseMove { pos, .. } => {
-                        self.on_mouse_move(pos, editor_scene, interaction_mode, engine, settings)
-                    }
-                    WidgetMessage::KeyUp(key) => {
-                        if self.on_key_up(
-                            key,
+        if let Some(entry) = scenes.current_scene_entry_mut() {
+            let editor_scene = &mut entry.editor_scene;
+            let interaction_mode = entry
+                .current_interaction_mode
+                .and_then(|i| entry.interaction_modes.get_mut(i as usize));
+
+            if let (Some(msg), Mode::Edit) = (message.data::<WidgetMessage>(), mode) {
+                if message.destination() == self.frame() {
+                    match *msg {
+                        WidgetMessage::MouseDown { button, pos, .. } => self.on_mouse_down(
+                            button,
+                            pos,
                             editor_scene,
                             interaction_mode,
                             engine,
-                            &settings.key_bindings,
-                        ) {
-                            message.set_handled(true);
-                        }
-                    }
-                    WidgetMessage::KeyDown(key) => {
-                        if self.on_key_down(
-                            key,
+                            settings,
+                        ),
+                        WidgetMessage::MouseUp { button, pos, .. } => self.on_mouse_up(
+                            button,
+                            pos,
                             editor_scene,
                             interaction_mode,
                             engine,
-                            &settings.key_bindings,
-                        ) {
-                            message.set_handled(true);
+                            settings,
+                        ),
+                        WidgetMessage::MouseWheel { amount, .. } => {
+                            editor_scene.camera_controller.on_mouse_wheel(
+                                amount * settings.camera.zoom_speed,
+                                &mut engine.scenes[editor_scene.scene].graph,
+                            );
                         }
-                    }
-                    WidgetMessage::MouseLeave => {
-                        if let Some(preview) = self.preview_instance.take() {
-                            let scene = &mut engine.scenes[editor_scene.scene];
-
-                            scene.graph.remove_node(preview.instance);
+                        WidgetMessage::MouseMove { pos, .. } => self.on_mouse_move(
+                            pos,
+                            editor_scene,
+                            interaction_mode,
+                            engine,
+                            settings,
+                        ),
+                        WidgetMessage::KeyUp(key) => {
+                            if self.on_key_up(
+                                key,
+                                editor_scene,
+                                interaction_mode,
+                                engine,
+                                &settings.key_bindings,
+                            ) {
+                                message.set_handled(true);
+                            }
                         }
-                    }
-                    WidgetMessage::DragOver(handle) => {
-                        match self.preview_instance.as_ref() {
-                            None => {
-                                if let Some(item) =
-                                    engine.user_interface.node(handle).cast::<AssetItem>()
-                                {
-                                    // Make sure all resources loaded with relative paths only.
-                                    // This will make scenes portable.
-                                    if let Ok(relative_path) = make_relative_path(&item.path) {
-                                        if let AssetKind::Model = item.kind {
-                                            // No model was loaded yet, do it.
-                                            if let Ok(model) =
-                                                fyrox::core::futures::executor::block_on(
-                                                    engine
-                                                        .resource_manager
-                                                        .request::<Model, _>(relative_path),
-                                                )
-                                            {
-                                                let scene = &mut engine.scenes[editor_scene.scene];
+                        WidgetMessage::KeyDown(key) => {
+                            if self.on_key_down(
+                                key,
+                                editor_scene,
+                                interaction_mode,
+                                engine,
+                                &settings.key_bindings,
+                            ) {
+                                message.set_handled(true);
+                            }
+                        }
+                        WidgetMessage::MouseLeave => {
+                            if let Some(preview) = self.preview_instance.take() {
+                                let scene = &mut engine.scenes[editor_scene.scene];
 
-                                                // Instantiate the model.
-                                                let instance = model.instantiate(scene);
+                                scene.graph.remove_node(preview.instance);
+                            }
+                        }
+                        WidgetMessage::DragOver(handle) => {
+                            match self.preview_instance.as_ref() {
+                                None => {
+                                    if let Some(item) =
+                                        engine.user_interface.node(handle).cast::<AssetItem>()
+                                    {
+                                        // Make sure all resources loaded with relative paths only.
+                                        // This will make scenes portable.
+                                        if let Ok(relative_path) = make_relative_path(&item.path) {
+                                            if let AssetKind::Model = item.kind {
+                                                // No model was loaded yet, do it.
+                                                if let Ok(model) =
+                                                    fyrox::core::futures::executor::block_on(
+                                                        engine
+                                                            .resource_manager
+                                                            .request::<Model, _>(relative_path),
+                                                    )
+                                                {
+                                                    let scene =
+                                                        &mut engine.scenes[editor_scene.scene];
 
-                                                scene.graph.link_nodes(
-                                                    instance,
-                                                    editor_scene.scene_content_root,
-                                                );
+                                                    // Instantiate the model.
+                                                    let instance = model.instantiate(scene);
 
-                                                scene.graph[instance]
-                                                    .local_transform_mut()
-                                                    .set_scale(settings.model.instantiation_scale);
+                                                    scene.graph.link_nodes(
+                                                        instance,
+                                                        editor_scene.scene_content_root,
+                                                    );
 
-                                                let nodes = scene
-                                                    .graph
-                                                    .traverse_handle_iter(instance)
-                                                    .collect::<FxHashSet<Handle<Node>>>();
+                                                    scene.graph[instance]
+                                                        .local_transform_mut()
+                                                        .set_scale(
+                                                            settings.model.instantiation_scale,
+                                                        );
 
-                                                self.preview_instance =
-                                                    Some(PreviewInstance { instance, nodes });
+                                                    let nodes = scene
+                                                        .graph
+                                                        .traverse_handle_iter(instance)
+                                                        .collect::<FxHashSet<Handle<Node>>>();
+
+                                                    self.preview_instance =
+                                                        Some(PreviewInstance { instance, nodes });
+                                                }
                                             }
                                         }
                                     }
                                 }
-                            }
-                            Some(preview) => {
-                                let screen_bounds = self.frame_bounds(&engine.user_interface);
-                                let frame_size = screen_bounds.size;
-                                let cursor_pos = engine.user_interface.cursor_position();
-                                let rel_pos = cursor_pos - screen_bounds.position;
-                                let graph = &mut engine.scenes[editor_scene.scene].graph;
+                                Some(preview) => {
+                                    let screen_bounds = self.frame_bounds(&engine.user_interface);
+                                    let frame_size = screen_bounds.size;
+                                    let cursor_pos = engine.user_interface.cursor_position();
+                                    let rel_pos = cursor_pos - screen_bounds.position;
+                                    let graph = &mut engine.scenes[editor_scene.scene].graph;
 
-                                let position = if let Some(result) =
-                                    editor_scene.camera_controller.pick(PickingOptions {
-                                        cursor_pos: rel_pos,
-                                        graph,
-                                        editor_objects_root: editor_scene.editor_objects_root,
-                                        scene_content_root: editor_scene.scene_content_root,
-                                        screen_size: frame_size,
-                                        editor_only: false,
-                                        filter: |handle, _| !preview.nodes.contains(&handle),
-                                        ignore_back_faces: settings.selection.ignore_back_faces,
-                                        // We need info only about closest intersection.
-                                        use_picking_loop: false,
-                                        only_meshes: false,
-                                    }) {
-                                    Some(result.position)
-                                } else {
-                                    // In case of empty space, check intersection with oXZ plane (3D) or oXY (2D).
-                                    let camera = graph[editor_scene.camera_controller.camera]
-                                        .query_component_ref::<Camera>()
-                                        .unwrap();
+                                    let position = if let Some(result) =
+                                        editor_scene.camera_controller.pick(PickingOptions {
+                                            cursor_pos: rel_pos,
+                                            graph,
+                                            editor_objects_root: editor_scene.editor_objects_root,
+                                            scene_content_root: editor_scene.scene_content_root,
+                                            screen_size: frame_size,
+                                            editor_only: false,
+                                            filter: |handle, _| !preview.nodes.contains(&handle),
+                                            ignore_back_faces: settings.selection.ignore_back_faces,
+                                            // We need info only about closest intersection.
+                                            use_picking_loop: false,
+                                            only_meshes: false,
+                                        }) {
+                                        Some(result.position)
+                                    } else {
+                                        // In case of empty space, check intersection with oXZ plane (3D) or oXY (2D).
+                                        let camera = graph[editor_scene.camera_controller.camera]
+                                            .query_component_ref::<Camera>()
+                                            .unwrap();
 
-                                    let normal = match camera.projection() {
-                                        Projection::Perspective(_) => Vector3::new(0.0, 1.0, 0.0),
-                                        Projection::Orthographic(_) => Vector3::new(0.0, 0.0, 1.0),
+                                        let normal = match camera.projection() {
+                                            Projection::Perspective(_) => {
+                                                Vector3::new(0.0, 1.0, 0.0)
+                                            }
+                                            Projection::Orthographic(_) => {
+                                                Vector3::new(0.0, 0.0, 1.0)
+                                            }
+                                        };
+
+                                        let plane = Plane::from_normal_and_point(
+                                            &normal,
+                                            &Default::default(),
+                                        )
+                                        .unwrap_or_default();
+
+                                        let ray = camera.make_ray(rel_pos, frame_size);
+
+                                        ray.plane_intersection_point(&plane)
                                     };
 
-                                    let plane =
-                                        Plane::from_normal_and_point(&normal, &Default::default())
-                                            .unwrap_or_default();
-
-                                    let ray = camera.make_ray(rel_pos, frame_size);
-
-                                    ray.plane_intersection_point(&plane)
-                                };
-
-                                if let Some(position) = position {
-                                    graph[preview.instance].local_transform_mut().set_position(
-                                        settings
-                                            .move_mode_settings
-                                            .try_snap_vector_to_grid(position),
-                                    );
+                                    if let Some(position) = position {
+                                        graph[preview.instance].local_transform_mut().set_position(
+                                            settings
+                                                .move_mode_settings
+                                                .try_snap_vector_to_grid(position),
+                                        );
+                                    }
                                 }
                             }
                         }
+                        WidgetMessage::Drop(handle) => {
+                            self.on_drop(handle, engine, editor_scene, settings)
+                        }
+                        _ => {}
                     }
-                    WidgetMessage::Drop(handle) => {
-                        self.on_drop(handle, engine, editor_scene, settings)
-                    }
-                    _ => {}
                 }
             }
         }
     }
 
-    pub fn sync_to_model(&self, editor_scene: Option<&EditorScene>, engine: &Engine) {
-        if let Some(editor_scene) = editor_scene {
+    pub fn sync_to_model(&self, scenes: &SceneContainer, engine: &mut Engine) {
+        // Sync tabs first.
+        fn fetch_tab_scene_handle(tab: &Tab) -> Handle<Scene> {
+            tab.user_data
+                .as_ref()
+                .unwrap()
+                .0
+                .downcast_ref::<Handle<Scene>>()
+                .cloned()
+                .unwrap()
+        }
+
+        let tabs = engine
+            .user_interface
+            .node(self.tab_control)
+            .query_component::<TabControl>()
+            .expect("Must be TabControl!")
+            .tabs
+            .clone();
+        match tabs.len().cmp(&scenes.len()) {
+            Ordering::Less => {
+                // Some scenes were added.
+                for entry in scenes.iter() {
+                    if tabs
+                        .iter()
+                        .all(|tab| fetch_tab_scene_handle(tab) != entry.editor_scene.scene)
+                    {
+                        let header =
+                            TextBuilder::new(WidgetBuilder::new().with_margin(Thickness {
+                                left: 4.0,
+                                top: 2.0,
+                                right: 4.0,
+                                bottom: 2.0,
+                            }))
+                            .with_text(entry.editor_scene.name())
+                            .build(&mut engine.user_interface.build_ctx());
+
+                        send_sync_message(
+                            &engine.user_interface,
+                            TabControlMessage::add_tab(
+                                self.tab_control,
+                                MessageDirection::ToWidget,
+                                TabDefinition {
+                                    header,
+                                    content: Default::default(),
+                                    can_be_closed: true,
+                                    user_data: Some(TabUserData::new(entry.editor_scene.scene)),
+                                },
+                            ),
+                        );
+                    }
+                }
+            }
+            Ordering::Equal => {
+                // Nothing to do.
+            }
+            Ordering::Greater => {
+                // Some scenes were removed.
+                for (tab_index, tab) in tabs.iter().enumerate() {
+                    let tab_scene = fetch_tab_scene_handle(tab);
+                    if scenes.iter().all(|s| tab_scene != s.editor_scene.scene) {
+                        send_sync_message(
+                            &engine.user_interface,
+                            TabControlMessage::remove_tab(
+                                self.tab_control,
+                                MessageDirection::ToWidget,
+                                tab_index,
+                            ),
+                        );
+                    }
+                }
+            }
+        }
+
+        for tab in tabs.iter() {
+            if let Some(scene) = scenes.entry_by_scene_handle(fetch_tab_scene_handle(tab)) {
+                engine.user_interface.send_message(TextMessage::text(
+                    tab.header_content,
+                    MessageDirection::ToWidget,
+                    format!(
+                        "{}{}",
+                        scene.editor_scene.name(),
+                        if scene.editor_scene.need_save() {
+                            "*"
+                        } else {
+                            ""
+                        }
+                    ),
+                ));
+            }
+        }
+
+        send_sync_message(
+            &engine.user_interface,
+            TabControlMessage::active_tab(
+                self.tab_control,
+                MessageDirection::ToWidget,
+                scenes.current_scene_index(),
+            ),
+        );
+
+        // Then sync to the current scene.
+        if let Some(editor_scene) = scenes.current_editor_scene_ref() {
+            let scene = &engine.scenes[editor_scene.scene];
+
+            self.set_title(
+                &engine.user_interface,
+                format!(
+                    "Scene Preview - {}",
+                    editor_scene
+                        .path
+                        .as_ref()
+                        .map_or("Unnamed Scene".to_string(), |p| p
+                            .to_string_lossy()
+                            .to_string())
+                ),
+            );
+
+            self.set_render_target(&engine.user_interface, scene.render_target.clone());
+
             if let Selection::Graph(ref selection) = editor_scene.selection {
-                let scene = &engine.scenes[editor_scene.scene];
                 if let Some((_, position)) = selection.global_rotation_position(&scene.graph) {
                     engine.user_interface.send_message(Vec3EditorMessage::value(
                         self.global_position_display,
@@ -740,7 +917,7 @@ impl SceneViewer {
             WidgetMessage::visibility(
                 self.no_scene_reminder,
                 MessageDirection::ToWidget,
-                editor_scene.is_none(),
+                scenes.current_editor_scene_ref().is_none(),
             ),
         );
     }
