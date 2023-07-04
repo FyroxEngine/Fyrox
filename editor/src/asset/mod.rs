@@ -93,8 +93,12 @@ fn show_in_explorer<P: AsRef<OsStr>>(path: P) {
     execute_command(Command::new("explorer").arg("/select,").arg(path))
 }
 
-fn open_in_explorer<P: AsRef<OsStr>>(path: P) {
-    execute_command(Command::new("explorer").arg(path))
+fn open_in_explorer<P: AsRef<Path>>(path: P) {
+    if let Ok(path) = path.as_ref().canonicalize() {
+        Log::verify(open::that(path))
+    } else {
+        Log::err(format!("Failed to canonicalize path {:?}", path.as_ref()))
+    }
 }
 
 fn put_path_to_clipboard(engine: &mut Engine, path: &OsStr) {
