@@ -624,7 +624,6 @@ impl SceneContainer {
 
 pub struct Editor {
     game_loop_data: GameLoopData,
-    engine: Engine,
     scenes: SceneContainer,
     message_sender: MessageSender,
     message_receiver: Receiver<Message>,
@@ -660,6 +659,7 @@ pub struct Editor {
     overlay_pass: Rc<RefCell<OverlayRenderPass>>,
     audio_preview_panel: AudioPreviewPanel,
     doc_window: DocWindow,
+    engine: Engine,
 }
 
 impl Editor {
