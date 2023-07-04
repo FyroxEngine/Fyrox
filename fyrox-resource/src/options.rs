@@ -31,8 +31,8 @@ where
         Ok(bytes) => match ron::de::from_bytes::<T>(&bytes) {
             Ok(options) => Some(options),
             Err(e) => {
-                Log::err(format!(
-                    "Malformed options file {} for {} resource! Reason: {:?}",
+                Log::warn(format!(
+                    "Malformed options file {} for {} resource, fallback to defaults! Reason: {:?}",
                     settings_path.display(),
                     resource_path.display(),
                     e
@@ -42,7 +42,7 @@ where
             }
         },
         Err(e) => {
-            Log::err(format!(
+            Log::warn(format!(
                 "Unable to load options file {} for {} resource, fallback to defaults! Reason: {:?}",
                 settings_path.display(),
                 resource_path.display(),
