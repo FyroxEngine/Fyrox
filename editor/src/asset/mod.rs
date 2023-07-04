@@ -14,7 +14,7 @@ use crate::{
     message::MessageSender,
     preview::PreviewPanel,
     utils::window_content,
-    AssetItem, AssetKind, Mode,
+    AssetItem, AssetKind, Message, Mode,
 };
 use fyrox::{
     asset::manager::ResourceManager,
@@ -169,7 +169,12 @@ impl ContextMenu {
         }
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) {
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        sender: &MessageSender,
+        engine: &mut Engine,
+    ) {
         if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == *self.menu {
                 self.placement_target = *target;
@@ -187,7 +192,11 @@ impl ContextMenu {
                         show_in_explorer(canonical_path)
                     }
                 } else if message.destination() == self.open {
-                    open_in_explorer(&item.path)
+                    if item.path.extension().map_or(false, |ext| ext == "rgs") {
+                        sender.send(Message::LoadScene(item.path.clone()));
+                    } else {
+                        open_in_explorer(&item.path)
+                    }
                 } else if message.destination() == self.copy_path {
                     if let Ok(canonical_path) = item.path.canonicalize() {
                         put_path_to_clipboard(engine, canonical_path.as_os_str())
@@ -447,7 +456,8 @@ impl AssetBrowser {
 
         self.inspector.handle_ui_message(message, engine);
         self.preview.handle_message(message, engine);
-        self.context_menu.handle_ui_message(message, engine);
+        self.context_menu
+            .handle_ui_message(message, &sender, engine);
         self.dependency_viewer
             .handle_ui_message(message, &mut engine.user_interface);
 
