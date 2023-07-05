@@ -240,6 +240,7 @@ use crate::{
         math::Rect,
         pool::{Handle, Pool},
         scope_profile,
+        visitor::prelude::*,
     },
     draw::{CommandTexture, Draw, DrawingContext},
     message::{
@@ -350,8 +351,9 @@ impl Deref for RcUiNodeHandle {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Visit, Default)]
 pub enum Orientation {
+    #[default]
     Vertical,
     Horizontal,
 }

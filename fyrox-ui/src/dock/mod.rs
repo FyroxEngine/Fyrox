@@ -21,6 +21,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+pub mod config;
 mod tile;
 
 pub use tile::*;
