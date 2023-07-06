@@ -8,7 +8,6 @@
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
-    collections::HashMap,
     ops::{Deref, DerefMut},
 };
 
@@ -67,8 +66,7 @@ impl Control for DockingManager {
         {
             if let Some(DockingManagerMessage::Layout(layout_descriptor)) = message.data() {
                 if let Some(root_tile_handle) = self.children.first().cloned() {
-                    // Detach the content of all tiles first.
-                    let mut content = HashMap::new();
+                    let mut windows = Vec::new();
                     let mut stack = vec![root_tile_handle];
                     while let Some(tile_handle) = stack.pop() {
                         if let Some(tile) = ui
@@ -77,12 +75,8 @@ impl Control for DockingManager {
                         {
                             match tile.content {
                                 TileContent::Window(window) => {
-                                    if let Some(window_ref) = ui.try_get_node(window) {
-                                        ui.send_message(WidgetMessage::unlink(
-                                            window,
-                                            MessageDirection::ToWidget,
-                                        ));
-                                        content.insert(window_ref.id, window);
+                                    if ui.try_get_node(window).is_some() {
+                                        windows.push(window);
                                     }
                                 }
                                 TileContent::VerticalTiles { tiles, .. }
@@ -104,7 +98,7 @@ impl Control for DockingManager {
                     if let Some(root_tile_descriptor) =
                         layout_descriptor.root_tile_descriptor.as_ref()
                     {
-                        let root_tile = root_tile_descriptor.create_tile(ui);
+                        let root_tile = root_tile_descriptor.create_tile(ui, &windows);
                         ui.send_message(WidgetMessage::link(
                             root_tile,
                             MessageDirection::ToWidget,
@@ -115,8 +109,9 @@ impl Control for DockingManager {
                     // Restore floating windows.
                     self.floating_windows.borrow_mut().clear();
                     for floating_window_desc in layout_descriptor.floating_windows.iter() {
-                        let floating_window = ui
-                            .find_by_criteria_down(ui.root(), &|n| n.id == floating_window_desc.id);
+                        let floating_window = ui.find_by_criteria_down(ui.root(), &|n| {
+                            n.name == floating_window_desc.name
+                        });
                         if floating_window.is_some() {
                             self.floating_windows.borrow_mut().push(floating_window);
 
@@ -126,16 +121,21 @@ impl Control for DockingManager {
                                 floating_window_desc.position,
                             ));
 
-                            ui.send_message(WidgetMessage::width(
-                                floating_window,
-                                MessageDirection::ToWidget,
-                                floating_window_desc.size.x,
-                            ));
-                            ui.send_message(WidgetMessage::height(
-                                floating_window,
-                                MessageDirection::ToWidget,
-                                floating_window_desc.size.y,
-                            ));
+                            if floating_window_desc.size.x != 0.0 {
+                                ui.send_message(WidgetMessage::width(
+                                    floating_window,
+                                    MessageDirection::ToWidget,
+                                    floating_window_desc.size.x,
+                                ));
+                            }
+
+                            if floating_window_desc.size.y != 0.0 {
+                                ui.send_message(WidgetMessage::height(
+                                    floating_window,
+                                    MessageDirection::ToWidget,
+                                    floating_window_desc.size.y,
+                                ));
+                            }
                         }
                     }
                 }
@@ -166,7 +166,7 @@ impl DockingManager {
                 .iter()
                 .filter_map(|h| {
                     ui.try_get_node(*h).map(|w| FloatingWindowDescriptor {
-                        id: w.id,
+                        name: w.name.clone(),
                         position: w.actual_local_position(),
                         size: w.actual_local_size(),
                     })

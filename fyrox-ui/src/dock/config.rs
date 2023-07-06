@@ -1,5 +1,5 @@
 use crate::{
-    core::{algebra::Vector2, pool::Handle, uuid::Uuid, visitor::prelude::*},
+    core::{algebra::Vector2, pool::Handle, visitor::prelude::*},
     dock::{Tile, TileBuilder, TileContent},
     widget::WidgetBuilder,
     Orientation, UiNode, UserInterface,
@@ -31,7 +31,7 @@ impl Visit for SplitTilesDescriptor {
 pub enum TileContentDescriptor {
     #[default]
     Empty,
-    Window(Uuid),
+    Window(String),
     SplitTiles(SplitTilesDescriptor),
 }
 
@@ -39,9 +39,11 @@ impl TileContentDescriptor {
     pub fn from_tile(tile_content: &TileContent, ui: &UserInterface) -> Self {
         match tile_content {
             TileContent::Empty => Self::Empty,
-            TileContent::Window(window) => {
-                Self::Window(ui.try_get_node(*window).map(|w| w.id).unwrap_or_default())
-            }
+            TileContent::Window(window) => Self::Window(
+                ui.try_get_node(*window)
+                    .map(|w| w.name.clone())
+                    .unwrap_or_default(),
+            ),
             TileContent::VerticalTiles { splitter, tiles } => {
                 Self::SplitTiles(SplitTilesDescriptor {
                     splitter: *splitter,
@@ -62,7 +64,6 @@ impl TileContentDescriptor {
 
 #[derive(Debug, PartialEq, Clone, Visit, Default, Serialize, Deserialize)]
 pub struct TileDescriptor {
-    pub tile_uuid: Uuid,
     pub content: TileContentDescriptor,
 }
 
@@ -71,7 +72,6 @@ impl TileDescriptor {
         ui.try_get_node(handle)
             .and_then(|t| t.query_component::<Tile>())
             .map(|t| Self {
-                tile_uuid: t.id,
                 content: TileContentDescriptor::from_tile(&t.content, ui),
             })
             .unwrap_or_else(Self::default)
@@ -84,26 +84,47 @@ impl TileDescriptor {
         ]
     }
 
-    pub fn create_tile(&self, ui: &mut UserInterface) -> Handle<UiNode> {
-        TileBuilder::new(WidgetBuilder::new().with_id(self.tile_uuid))
+    pub fn create_tile(
+        &self,
+        ui: &mut UserInterface,
+        windows: &[Handle<UiNode>],
+    ) -> Handle<UiNode> {
+        TileBuilder::new(WidgetBuilder::new())
             .with_content(match &self.content {
                 TileContentDescriptor::Empty => TileContent::Empty,
-                TileContentDescriptor::Window(window_id) => TileContent::Window(
-                    ui.find_by_criteria_down(ui.root(), &|n| n.id == *window_id),
-                ),
+                TileContentDescriptor::Window(window_name) => {
+                    let mut window_handle =
+                        ui.find_by_criteria_down(ui.root(), &|n| n.name() == window_name);
+
+                    if window_handle.is_none() {
+                        for other_window_handle in windows.iter().cloned() {
+                            if let Some(window_node) = ui.try_get_node(other_window_handle) {
+                                if &window_node.name == window_name {
+                                    window_handle = other_window_handle;
+                                }
+                            }
+                        }
+                    }
+
+                    if window_handle.is_some() {
+                        TileContent::Window(window_handle)
+                    } else {
+                        TileContent::Empty
+                    }
+                }
                 TileContentDescriptor::SplitTiles(split_tiles) => match split_tiles.orientation {
                     Orientation::Vertical => TileContent::VerticalTiles {
                         splitter: split_tiles.splitter,
                         tiles: [
-                            split_tiles.children[0].create_tile(ui),
-                            split_tiles.children[1].create_tile(ui),
+                            split_tiles.children[0].create_tile(ui, windows),
+                            split_tiles.children[1].create_tile(ui, windows),
                         ],
                     },
                     Orientation::Horizontal => TileContent::HorizontalTiles {
                         splitter: split_tiles.splitter,
                         tiles: [
-                            split_tiles.children[0].create_tile(ui),
-                            split_tiles.children[1].create_tile(ui),
+                            split_tiles.children[0].create_tile(ui, windows),
+                            split_tiles.children[1].create_tile(ui, windows),
                         ],
                     },
                 },
@@ -114,7 +135,7 @@ impl TileDescriptor {
 
 #[derive(Debug, PartialEq, Clone, Visit, Default, Serialize, Deserialize)]
 pub struct FloatingWindowDescriptor {
-    pub id: Uuid,
+    pub name: String,
     pub position: Vector2<f32>,
     pub size: Vector2<f32>,
 }
