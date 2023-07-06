@@ -1,7 +1,9 @@
 use crate::{
     core::{algebra::Vector2, pool::Handle, visitor::prelude::*},
     dock::{Tile, TileBuilder, TileContent},
+    message::MessageDirection,
     widget::WidgetBuilder,
+    window::WindowMessage,
     Orientation, UiNode, UserInterface,
 };
 use serde::{Deserialize, Serialize};
@@ -107,6 +109,12 @@ impl TileDescriptor {
                     }
 
                     if window_handle.is_some() {
+                        ui.send_message(WindowMessage::open(
+                            window_handle,
+                            MessageDirection::ToWidget,
+                            false,
+                        ));
+
                         TileContent::Window(window_handle)
                     } else {
                         TileContent::Empty
