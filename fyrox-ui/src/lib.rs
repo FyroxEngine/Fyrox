@@ -1240,17 +1240,17 @@ impl UserInterface {
     where
         Func: Fn(&UiNode) -> bool,
     {
-        let node = self.nodes.borrow(node_handle);
+        if let Some(node) = self.nodes.try_borrow(node_handle) {
+            if func(node) {
+                return node_handle;
+            }
 
-        if func(node) {
-            return node_handle;
-        }
+            for child_handle in node.children() {
+                let result = self.find_by_criteria_down(*child_handle, func);
 
-        for child_handle in node.children() {
-            let result = self.find_by_criteria_down(*child_handle, func);
-
-            if result.is_some() {
-                return result;
+                if result.is_some() {
+                    return result;
+                }
             }
         }
 
@@ -1267,17 +1267,17 @@ impl UserInterface {
     where
         Func: Fn(&UiNode) -> bool,
     {
-        let node = self.nodes.borrow(node_handle);
+        if let Some(node) = self.nodes.try_borrow(node_handle) {
+            if func(node) {
+                return node_handle;
+            }
 
-        if func(node) {
-            return node_handle;
+            if node.parent().is_some() {
+                return self.find_by_criteria_up(node.parent(), func);
+            }
         }
 
-        if node.parent().is_some() {
-            self.find_by_criteria_up(node.parent(), func)
-        } else {
-            Handle::NONE
-        }
+        Handle::NONE
     }
 
     /// Checks if specified node is a child of some other node on `root_handle`. This method
@@ -1382,18 +1382,18 @@ impl UserInterface {
     where
         T: Control,
     {
-        let node = self.nodes.borrow(node_handle);
+        if let Some(node) = self.nodes.try_borrow(node_handle) {
+            let casted = node.cast::<T>();
+            if let Some(casted) = casted {
+                return Some((node_handle, casted));
+            }
 
-        let casted = node.cast::<T>();
-        if let Some(casted) = casted {
-            return Some((node_handle, casted));
+            if node.parent().is_some() {
+                return self.try_borrow_by_type_up(node.parent());
+            }
         }
 
-        if node.parent().is_some() {
-            self.try_borrow_by_type_up(node.parent())
-        } else {
-            None
-        }
+        None
     }
 
     /// Returns instance of message sender which can be used to push messages into queue
