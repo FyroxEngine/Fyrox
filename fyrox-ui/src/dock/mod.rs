@@ -5,16 +5,7 @@
 //! Docking manager can hold any types of UI elements, but dragging works only
 //! for windows.
 
-use crate::{
-    border::BorderBuilder,
-    brush::Brush,
-    core::{color::Color, pool::Handle},
-    grid::{Column, GridBuilder, Row},
-    message::{CursorIcon, UiMessage},
-    widget::{Widget, WidgetBuilder, WidgetMessage},
-    window::Window,
-    BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface,
-};
+use std::collections::HashMap;
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
@@ -24,7 +15,35 @@ use std::{
 pub mod config;
 mod tile;
 
+use crate::{
+    border::BorderBuilder,
+    brush::Brush,
+    core::{color::Color, pool::Handle},
+    define_constructor,
+    dock::config::DockingManagerLayoutDescriptor,
+    grid::{Column, GridBuilder, Row},
+    message::MessageDirection,
+    message::{CursorIcon, UiMessage},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
+    window::Window,
+    BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface,
+};
+
+use crate::dock::config::{FloatingWindowDescriptor, TileDescriptor};
 pub use tile::*;
+
+/// Supported docking manager-specific messages.
+#[derive(Debug, Clone, PartialEq)]
+pub enum DockingManagerMessage {
+    Layout(DockingManagerLayoutDescriptor),
+}
+
+impl DockingManagerMessage {
+    define_constructor!(
+        /// Creates a new [Self::Layout] message.
+        DockingManagerMessage:Layout => fn layout(DockingManagerLayoutDescriptor), layout: false
+    );
+}
 
 #[derive(Clone)]
 pub struct DockingManager {
@@ -49,6 +68,85 @@ impl Control for DockingManager {
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
+
+        if message.destination() == self.handle && message.direction() == MessageDirection::ToWidget
+        {
+            if let Some(DockingManagerMessage::Layout(layout_descriptor)) = message.data() {
+                if let Some(root_tile_handle) = self.children.first().cloned() {
+                    // Detach the content of all tiles first.
+                    let mut content = HashMap::new();
+                    let mut stack = vec![root_tile_handle];
+                    while let Some(tile_handle) = stack.pop() {
+                        if let Some(tile) = ui
+                            .try_get_node(tile_handle)
+                            .and_then(|n| n.query_component::<Tile>())
+                        {
+                            match tile.content {
+                                TileContent::Window(window) => {
+                                    if let Some(window_ref) = ui.try_get_node(window) {
+                                        ui.send_message(WidgetMessage::unlink(
+                                            window,
+                                            MessageDirection::ToWidget,
+                                        ));
+                                        content.insert(window_ref.id, window);
+                                    }
+                                }
+                                TileContent::VerticalTiles { tiles, .. }
+                                | TileContent::HorizontalTiles { tiles, .. } => {
+                                    stack.extend_from_slice(&tiles);
+                                }
+                                _ => (),
+                            }
+                        }
+                    }
+
+                    // Destroy the root tile with all descendant tiles.
+                    ui.send_message(WidgetMessage::remove(
+                        root_tile_handle,
+                        MessageDirection::ToWidget,
+                    ));
+
+                    // Re-create the tiles according to the layout and attach it to the docking manager.
+                    if let Some(root_tile_descriptor) =
+                        layout_descriptor.root_tile_descriptor.as_ref()
+                    {
+                        let root_tile = root_tile_descriptor.create_tile(ui);
+                        ui.send_message(WidgetMessage::link(
+                            root_tile,
+                            MessageDirection::ToWidget,
+                            self.handle,
+                        ));
+                    }
+
+                    // Restore floating windows.
+                    self.floating_windows.borrow_mut().clear();
+                    for floating_window_desc in layout_descriptor.floating_windows.iter() {
+                        let floating_window = ui
+                            .find_by_criteria_down(ui.root(), &|n| n.id == floating_window_desc.id);
+                        if floating_window.is_some() {
+                            self.floating_windows.borrow_mut().push(floating_window);
+
+                            ui.send_message(WidgetMessage::desired_position(
+                                floating_window,
+                                MessageDirection::ToWidget,
+                                floating_window_desc.position,
+                            ));
+
+                            ui.send_message(WidgetMessage::width(
+                                floating_window,
+                                MessageDirection::ToWidget,
+                                floating_window_desc.size.x,
+                            ));
+                            ui.send_message(WidgetMessage::height(
+                                floating_window,
+                                MessageDirection::ToWidget,
+                                floating_window_desc.size.y,
+                            ));
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fn preview_message(&self, _ui: &UserInterface, message: &mut UiMessage) {
@@ -61,6 +159,29 @@ impl Control for DockingManager {
             if let Some(pos) = pos {
                 self.floating_windows.borrow_mut().remove(pos);
             }
+        }
+    }
+}
+
+impl DockingManager {
+    pub fn layout(&self, ui: &UserInterface) -> DockingManagerLayoutDescriptor {
+        DockingManagerLayoutDescriptor {
+            floating_windows: self
+                .floating_windows
+                .borrow()
+                .iter()
+                .filter_map(|h| {
+                    ui.try_get_node(*h).map(|w| FloatingWindowDescriptor {
+                        id: w.id,
+                        position: w.actual_local_position(),
+                        size: w.actual_local_size(),
+                    })
+                })
+                .collect::<Vec<_>>(),
+            root_tile_descriptor: self
+                .children()
+                .first()
+                .map(|c| TileDescriptor::from_tile_handle(*c, ui)),
         }
     }
 }
