@@ -1,12 +1,12 @@
-use crate::dock::TileBuilder;
-use crate::widget::WidgetBuilder;
 use crate::{
     core::{algebra::Vector2, pool::Handle, uuid::Uuid, visitor::prelude::*},
-    dock::{Tile, TileContent},
+    dock::{Tile, TileBuilder, TileContent},
+    widget::WidgetBuilder,
     Orientation, UiNode, UserInterface,
 };
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, PartialEq, Clone, Default)]
+#[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
 pub struct SplitTilesDescriptor {
     pub splitter: f32,
     pub orientation: Orientation,
@@ -27,7 +27,7 @@ impl Visit for SplitTilesDescriptor {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Visit, Default)]
+#[derive(Debug, PartialEq, Clone, Visit, Default, Serialize, Deserialize)]
 pub enum TileContentDescriptor {
     #[default]
     Empty,
@@ -60,7 +60,7 @@ impl TileContentDescriptor {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Visit, Default)]
+#[derive(Debug, PartialEq, Clone, Visit, Default, Serialize, Deserialize)]
 pub struct TileDescriptor {
     pub tile_uuid: Uuid,
     pub content: TileContentDescriptor,
@@ -112,14 +112,14 @@ impl TileDescriptor {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Visit, Default)]
+#[derive(Debug, PartialEq, Clone, Visit, Default, Serialize, Deserialize)]
 pub struct FloatingWindowDescriptor {
     pub id: Uuid,
     pub position: Vector2<f32>,
     pub size: Vector2<f32>,
 }
 
-#[derive(Debug, PartialEq, Clone, Visit, Default)]
+#[derive(Debug, PartialEq, Clone, Visit, Default, Serialize, Deserialize)]
 pub struct DockingManagerLayoutDescriptor {
     pub floating_windows: Vec<FloatingWindowDescriptor>,
     pub root_tile_descriptor: Option<TileDescriptor>,

@@ -16,7 +16,7 @@ resolver = "2"
 rust-version = "1.56"
 
 [dependencies]
-fyrox-core = { path = "../fyrox-core", version = "0.24.0" }
+fyrox-core = { path = "../fyrox-core", version = "0.24.0", features = ["serde"] }
 lazy_static = "1.4.0"
 copypasta = "0.8.1"
 fontdue = "0.7.2"

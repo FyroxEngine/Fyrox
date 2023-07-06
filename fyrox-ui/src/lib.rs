@@ -253,6 +253,7 @@ use crate::{
 };
 use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
+use serde::{Deserialize, Serialize};
 use std::{
     cell::{Cell, Ref, RefCell, RefMut},
     collections::{btree_set::BTreeSet, hash_map::Entry, VecDeque},
@@ -351,7 +352,7 @@ impl Deref for RcUiNodeHandle {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Visit, Default)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Visit, Default, Serialize, Deserialize)]
 pub enum Orientation {
     #[default]
     Vertical,

@@ -45,5 +45,5 @@ js-sys = "0.3.53"
 android-activity = "0.4.1"
 
 [features]
-serde = ["nalgebra/serde-serialize"]
+serde = ["nalgebra/serde-serialize", "uuid/serde"]
 enable_profiler = []
