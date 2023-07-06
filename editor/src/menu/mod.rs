@@ -185,8 +185,12 @@ impl Menu {
             ctx.settings,
             &ctx.panels,
         );
-        self.view_menu
-            .handle_ui_message(message, &ctx.engine.user_interface, &ctx.panels);
+        self.view_menu.handle_ui_message(
+            message,
+            &ctx.engine.user_interface,
+            &ctx.panels,
+            &self.message_sender,
+        );
         self.help_menu.handle_ui_message(message);
     }
 

@@ -70,6 +70,8 @@ pub enum Message {
     },
     ForceSync,
     ShowDocumentation(String),
+    SaveLayout,
+    LoadLayout,
 }
 
 #[derive(Clone, Debug)]

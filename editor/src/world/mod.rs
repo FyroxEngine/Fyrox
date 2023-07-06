@@ -175,7 +175,7 @@ impl WorldViewer {
         )
         .build(ctx);
         let size = 15.0;
-        let window = WindowBuilder::new(WidgetBuilder::new())
+        let window = WindowBuilder::new(WidgetBuilder::new().with_name("WorldOutliner"))
             .can_minimize(false)
             .with_title(WindowTitle::text("World Viewer"))
             .with_content(

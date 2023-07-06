@@ -101,7 +101,7 @@ impl AudioPanel {
         let distance_model;
         let renderer;
         let hrir_sphere_path;
-        let window = WindowBuilder::new(WidgetBuilder::new())
+        let window = WindowBuilder::new(WidgetBuilder::new().with_name("AudioPanel"))
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()

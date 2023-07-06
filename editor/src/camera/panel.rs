@@ -27,7 +27,7 @@ pub struct CameraPreviewControlPanel {
 impl CameraPreviewControlPanel {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let preview;
-        let window = WindowBuilder::new(WidgetBuilder::new())
+        let window = WindowBuilder::new(WidgetBuilder::new().with_name("CameraPanel"))
             .with_title(WindowTitle::text("Camera Preview"))
             .with_content(
                 StackPanelBuilder::new(

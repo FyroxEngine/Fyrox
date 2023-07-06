@@ -150,11 +150,16 @@ impl AbsmEditor {
         .add_column(Column::stretch())
         .build(ctx);
 
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(800.0).with_height(500.0))
-            .open(false)
-            .with_content(content)
-            .with_title(WindowTitle::text("ABSM Editor"))
-            .build(ctx);
+        let window = WindowBuilder::new(
+            WidgetBuilder::new()
+                .with_name("AsbmEditor")
+                .with_width(800.0)
+                .with_height(500.0),
+        )
+        .open(false)
+        .with_content(content)
+        .with_title(WindowTitle::text("ABSM Editor"))
+        .build(ctx);
 
         Self {
             window,

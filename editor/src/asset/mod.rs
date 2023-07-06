@@ -249,7 +249,7 @@ impl AssetBrowser {
         let folder_browser;
         let search_bar;
         let scroll_panel;
-        let window = WindowBuilder::new(WidgetBuilder::new())
+        let window = WindowBuilder::new(WidgetBuilder::new().with_name("AssetBrowser"))
             .can_minimize(false)
             .with_title(WindowTitle::text("Asset Browser"))
             .with_content(

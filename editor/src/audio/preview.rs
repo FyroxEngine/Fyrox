@@ -43,118 +43,118 @@ impl AudioPreviewPanel {
         let stop;
         let rewind;
         let time;
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(70.0))
-            .with_title(WindowTitle::text("Audio Preview Panel"))
-            .open(false)
-            .with_content(
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child(
-                            GridBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(0)
-                                    .with_child({
-                                        preview = CheckBoxBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_vertical_alignment(VerticalAlignment::Center)
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_content(
-                                            TextBuilder::new(
-                                                WidgetBuilder::new()
-                                                    .on_column(0)
-                                                    .with_vertical_alignment(
-                                                        VerticalAlignment::Center,
-                                                    ),
-                                            )
-                                            .with_text("Preview")
-                                            .build(ctx),
-                                        )
-                                        .build(ctx);
-                                        preview
-                                    })
-                                    .with_child({
-                                        play = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .on_column(1)
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_text("Play")
-                                        .build(ctx);
-                                        play
-                                    })
-                                    .with_child({
-                                        pause = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .on_column(2)
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_text("Pause")
-                                        .build(ctx);
-                                        pause
-                                    })
-                                    .with_child({
-                                        stop = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .on_column(3)
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_text("Stop")
-                                        .build(ctx);
-                                        stop
-                                    })
-                                    .with_child({
-                                        rewind = ButtonBuilder::new(
-                                            WidgetBuilder::new()
-                                                .on_column(4)
-                                                .with_margin(Thickness::uniform(1.0)),
-                                        )
-                                        .with_text("Rewind")
-                                        .build(ctx);
-                                        rewind
-                                    }),
-                            )
-                            .add_row(Row::stretch())
-                            .add_column(Column::strict(80.0))
-                            .add_column(Column::stretch())
-                            .add_column(Column::stretch())
-                            .add_column(Column::stretch())
-                            .add_column(Column::stretch())
-                            .build(ctx),
-                        )
-                        .with_child(
-                            GridBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(1)
-                                    .with_child(
+        let window = WindowBuilder::new(
+            WidgetBuilder::new()
+                .with_name("AudioPreviewPanel")
+                .with_width(300.0)
+                .with_height(70.0),
+        )
+        .with_title(WindowTitle::text("Audio Preview Panel"))
+        .open(false)
+        .with_content(
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(
+                        GridBuilder::new(
+                            WidgetBuilder::new()
+                                .on_row(0)
+                                .with_child({
+                                    preview = CheckBoxBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_vertical_alignment(VerticalAlignment::Center)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_content(
                                         TextBuilder::new(
                                             WidgetBuilder::new()
-                                                .with_margin(Thickness::uniform(1.0)),
+                                                .on_column(0)
+                                                .with_vertical_alignment(VerticalAlignment::Center),
                                         )
-                                        .with_text("Time, s")
+                                        .with_text("Preview")
                                         .build(ctx),
                                     )
-                                    .with_child({
-                                        time = ScrollBarBuilder::new(
-                                            WidgetBuilder::new().on_column(1),
-                                        )
+                                    .build(ctx);
+                                    preview
+                                })
+                                .with_child({
+                                    play = ButtonBuilder::new(
+                                        WidgetBuilder::new()
+                                            .on_column(1)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_text("Play")
+                                    .build(ctx);
+                                    play
+                                })
+                                .with_child({
+                                    pause = ButtonBuilder::new(
+                                        WidgetBuilder::new()
+                                            .on_column(2)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_text("Pause")
+                                    .build(ctx);
+                                    pause
+                                })
+                                .with_child({
+                                    stop = ButtonBuilder::new(
+                                        WidgetBuilder::new()
+                                            .on_column(3)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_text("Stop")
+                                    .build(ctx);
+                                    stop
+                                })
+                                .with_child({
+                                    rewind = ButtonBuilder::new(
+                                        WidgetBuilder::new()
+                                            .on_column(4)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_text("Rewind")
+                                    .build(ctx);
+                                    rewind
+                                }),
+                        )
+                        .add_row(Row::stretch())
+                        .add_column(Column::strict(80.0))
+                        .add_column(Column::stretch())
+                        .add_column(Column::stretch())
+                        .add_column(Column::stretch())
+                        .add_column(Column::stretch())
+                        .build(ctx),
+                    )
+                    .with_child(
+                        GridBuilder::new(
+                            WidgetBuilder::new()
+                                .on_row(1)
+                                .with_child(
+                                    TextBuilder::new(
+                                        WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_text("Time, s")
+                                    .build(ctx),
+                                )
+                                .with_child({
+                                    time = ScrollBarBuilder::new(WidgetBuilder::new().on_column(1))
                                         .with_min(0.0)
                                         .build(ctx);
-                                        time
-                                    }),
-                            )
-                            .add_column(Column::auto())
-                            .add_column(Column::stretch())
-                            .add_row(Row::strict(20.0))
-                            .build(ctx),
-                        ),
-                )
-                .add_column(Column::stretch())
-                .add_row(Row::stretch())
-                .add_row(Row::strict(20.0))
-                .build(ctx),
+                                    time
+                                }),
+                        )
+                        .add_column(Column::auto())
+                        .add_column(Column::stretch())
+                        .add_row(Row::strict(20.0))
+                        .build(ctx),
+                    ),
             )
-            .build(ctx);
+            .add_column(Column::stretch())
+            .add_row(Row::stretch())
+            .add_row(Row::strict(20.0))
+            .build(ctx),
+        )
+        .build(ctx);
 
         Self {
             window,

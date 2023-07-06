@@ -96,7 +96,9 @@ use fyrox::{
     fxhash::FxHashMap,
     gui::{
         brush::Brush,
-        dock::{DockingManagerBuilder, TileBuilder, TileContent},
+        dock::{
+            DockingManager, DockingManagerBuilder, DockingManagerMessage, TileBuilder, TileContent,
+        },
         draw,
         dropdown_list::DropdownListBuilder,
         file_browser::{FileBrowserMode, FileSelectorBuilder, FileSelectorMessage, Filter},
@@ -659,6 +661,7 @@ pub struct Editor {
     overlay_pass: Rc<RefCell<OverlayRenderPass>>,
     audio_preview_panel: AudioPreviewPanel,
     doc_window: DocWindow,
+    docking_manager: Handle<UiNode>,
     engine: Engine,
 }
 
@@ -795,102 +798,136 @@ impl Editor {
         let audio_preview_panel = AudioPreviewPanel::new(ctx);
         let doc_window = DocWindow::new(ctx);
 
+        let docking_manager;
         let root_grid = GridBuilder::new(
             WidgetBuilder::new()
                 .with_width(logical_size.width)
                 .with_height(logical_size.height)
                 .with_child(menu.menu)
-                .with_child(
-                    DockingManagerBuilder::new(WidgetBuilder::new().on_row(1).with_child({
-                        TileBuilder::new(WidgetBuilder::new())
-                            .with_content(TileContent::VerticalTiles {
-                                splitter: 0.75,
-                                tiles: [
-                                    TileBuilder::new(WidgetBuilder::new())
-                                        .with_content(TileContent::HorizontalTiles {
-                                            splitter: 0.25,
-                                            tiles: [
-                                                TileBuilder::new(WidgetBuilder::new())
-                                                    .with_content(TileContent::Window(
-                                                        world_outliner.window,
-                                                    ))
-                                                    .build(ctx),
-                                                TileBuilder::new(WidgetBuilder::new())
-                                                    .with_content(TileContent::HorizontalTiles {
-                                                        splitter: 0.66,
-                                                        tiles: [
-                                                            TileBuilder::new(WidgetBuilder::new())
-                                                                .with_content(TileContent::Window(
-                                                                    scene_viewer.window(),
-                                                                ))
-                                                                .build(ctx),
-                                                            TileBuilder::new(WidgetBuilder::new())
-                                                                .with_content(TileContent::Window(
-                                                                    inspector.window,
-                                                                ))
-                                                                .build(ctx),
-                                                        ],
-                                                    })
-                                                    .build(ctx),
-                                            ],
-                                        })
-                                        .build(ctx),
-                                    TileBuilder::new(WidgetBuilder::new())
-                                        .with_content(TileContent::HorizontalTiles {
-                                            splitter: 0.66,
-                                            tiles: [
-                                                TileBuilder::new(WidgetBuilder::new())
-                                                    .with_content(TileContent::HorizontalTiles {
-                                                        splitter: 0.80,
-                                                        tiles: [
-                                                            TileBuilder::new(WidgetBuilder::new())
-                                                                .with_content(TileContent::Window(
-                                                                    asset_browser.window,
-                                                                ))
-                                                                .build(ctx),
-                                                            TileBuilder::new(WidgetBuilder::new())
-                                                                .with_content(TileContent::Window(
-                                                                    command_stack_viewer.window,
-                                                                ))
-                                                                .build(ctx),
-                                                        ],
-                                                    })
-                                                    .build(ctx),
-                                                TileBuilder::new(WidgetBuilder::new())
-                                                    .with_content(TileContent::HorizontalTiles {
-                                                        splitter: 0.5,
-                                                        tiles: [
-                                                            TileBuilder::new(WidgetBuilder::new())
-                                                                .with_content(TileContent::Window(
-                                                                    log.window,
-                                                                ))
-                                                                .build(ctx),
-                                                            TileBuilder::new(WidgetBuilder::new())
-                                                                .with_content(TileContent::Window(
-                                                                    audio_panel.window,
-                                                                ))
-                                                                .build(ctx),
-                                                        ],
-                                                    })
-                                                    .build(ctx),
-                                            ],
-                                        })
-                                        .build(ctx),
-                                ],
-                            })
-                            .build(ctx)
-                    }))
-                    .with_floating_windows(vec![
-                        animation_editor.window,
-                        absm_editor.window,
-                        particle_system_control_panel.window,
-                        camera_control_panel.window,
-                        audio_preview_panel.window,
-                        navmesh_panel.window,
-                        doc_window.window,
-                    ])
-                    .build(ctx),
-                ),
+                .with_child({
+                    docking_manager =
+                        DockingManagerBuilder::new(WidgetBuilder::new().on_row(1).with_child({
+                            TileBuilder::new(WidgetBuilder::new())
+                                .with_content(TileContent::VerticalTiles {
+                                    splitter: 0.75,
+                                    tiles: [
+                                        TileBuilder::new(WidgetBuilder::new())
+                                            .with_content(TileContent::HorizontalTiles {
+                                                splitter: 0.25,
+                                                tiles: [
+                                                    TileBuilder::new(WidgetBuilder::new())
+                                                        .with_content(TileContent::Window(
+                                                            world_outliner.window,
+                                                        ))
+                                                        .build(ctx),
+                                                    TileBuilder::new(WidgetBuilder::new())
+                                                        .with_content(
+                                                            TileContent::HorizontalTiles {
+                                                                splitter: 0.66,
+                                                                tiles: [
+                                                                    TileBuilder::new(
+                                                                        WidgetBuilder::new(),
+                                                                    )
+                                                                    .with_content(
+                                                                        TileContent::Window(
+                                                                            scene_viewer.window(),
+                                                                        ),
+                                                                    )
+                                                                    .build(ctx),
+                                                                    TileBuilder::new(
+                                                                        WidgetBuilder::new(),
+                                                                    )
+                                                                    .with_content(
+                                                                        TileContent::Window(
+                                                                            inspector.window,
+                                                                        ),
+                                                                    )
+                                                                    .build(ctx),
+                                                                ],
+                                                            },
+                                                        )
+                                                        .build(ctx),
+                                                ],
+                                            })
+                                            .build(ctx),
+                                        TileBuilder::new(WidgetBuilder::new())
+                                            .with_content(TileContent::HorizontalTiles {
+                                                splitter: 0.66,
+                                                tiles: [
+                                                    TileBuilder::new(WidgetBuilder::new())
+                                                        .with_content(
+                                                            TileContent::HorizontalTiles {
+                                                                splitter: 0.80,
+                                                                tiles: [
+                                                                    TileBuilder::new(
+                                                                        WidgetBuilder::new(),
+                                                                    )
+                                                                    .with_content(
+                                                                        TileContent::Window(
+                                                                            asset_browser.window,
+                                                                        ),
+                                                                    )
+                                                                    .build(ctx),
+                                                                    TileBuilder::new(
+                                                                        WidgetBuilder::new(),
+                                                                    )
+                                                                    .with_content(
+                                                                        TileContent::Window(
+                                                                            command_stack_viewer
+                                                                                .window,
+                                                                        ),
+                                                                    )
+                                                                    .build(ctx),
+                                                                ],
+                                                            },
+                                                        )
+                                                        .build(ctx),
+                                                    TileBuilder::new(WidgetBuilder::new())
+                                                        .with_content(
+                                                            TileContent::HorizontalTiles {
+                                                                splitter: 0.5,
+                                                                tiles: [
+                                                                    TileBuilder::new(
+                                                                        WidgetBuilder::new(),
+                                                                    )
+                                                                    .with_content(
+                                                                        TileContent::Window(
+                                                                            log.window,
+                                                                        ),
+                                                                    )
+                                                                    .build(ctx),
+                                                                    TileBuilder::new(
+                                                                        WidgetBuilder::new(),
+                                                                    )
+                                                                    .with_content(
+                                                                        TileContent::Window(
+                                                                            audio_panel.window,
+                                                                        ),
+                                                                    )
+                                                                    .build(ctx),
+                                                                ],
+                                                            },
+                                                        )
+                                                        .build(ctx),
+                                                ],
+                                            })
+                                            .build(ctx),
+                                    ],
+                                })
+                                .build(ctx)
+                        }))
+                        .with_floating_windows(vec![
+                            animation_editor.window,
+                            absm_editor.window,
+                            particle_system_control_panel.window,
+                            camera_control_panel.window,
+                            audio_preview_panel.window,
+                            navmesh_panel.window,
+                            doc_window.window,
+                        ])
+                        .build(ctx);
+                    docking_manager
+                }),
         )
         .add_row(Row::strict(25.0))
         .add_row(Row::stretch())
@@ -931,7 +968,18 @@ impl Editor {
 
         let material_editor = MaterialEditor::new(&mut engine);
 
+        if let Some(layout) = settings.windows.layout.as_ref() {
+            engine
+                .user_interface
+                .send_message(DockingManagerMessage::layout(
+                    docking_manager,
+                    MessageDirection::ToWidget,
+                    layout.clone(),
+                ));
+        }
+
         let editor = Self {
+            docking_manager,
             animation_editor,
             engine,
             navmesh_panel,
@@ -2061,6 +2109,28 @@ impl Editor {
                     Message::OpenAbsmEditor => self.absm_editor.open(&self.engine.user_interface),
                     Message::ShowDocumentation(doc) => {
                         self.doc_window.open(doc, &self.engine.user_interface);
+                    }
+                    Message::SaveLayout => {
+                        let layout = self
+                            .engine
+                            .user_interface
+                            .node(self.docking_manager)
+                            .query_component::<DockingManager>()
+                            .unwrap()
+                            .layout(&self.engine.user_interface);
+                        self.settings.windows.layout = Some(layout);
+                        Log::verify(self.settings.save());
+                    }
+                    Message::LoadLayout => {
+                        if let Some(layout) = self.settings.windows.layout.as_ref() {
+                            self.engine
+                                .user_interface
+                                .send_message(DockingManagerMessage::layout(
+                                    self.docking_manager,
+                                    MessageDirection::ToWidget,
+                                    layout.clone(),
+                                ));
+                        }
                     }
                 }
             }

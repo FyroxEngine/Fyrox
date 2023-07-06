@@ -1,4 +1,8 @@
-use crate::menu::{create_menu_item, create_root_menu_item, Panels};
+use crate::{
+    menu::{create_menu_item, create_root_menu_item, Panels},
+    message::MessageSender,
+    Message,
+};
 use fyrox::{
     core::pool::Handle,
     gui::{
@@ -19,6 +23,8 @@ pub struct ViewMenu {
     nav_mesh: Handle<UiNode>,
     audio: Handle<UiNode>,
     command_stack: Handle<UiNode>,
+    save_layout: Handle<UiNode>,
+    load_layout: Handle<UiNode>,
 }
 
 fn switch_window_state(window: Handle<UiNode>, ui: &UserInterface, center: bool) {
@@ -40,6 +46,8 @@ impl ViewMenu {
         let nav_mesh;
         let audio;
         let command_stack;
+        let save_layout;
+        let load_layout;
         let menu = create_root_menu_item(
             "View",
             vec![
@@ -75,6 +83,14 @@ impl ViewMenu {
                     command_stack = create_menu_item("Command Stack Panel", vec![], ctx);
                     command_stack
                 },
+                {
+                    save_layout = create_menu_item("Save Layout", vec![], ctx);
+                    save_layout
+                },
+                {
+                    load_layout = create_menu_item("Load Layout", vec![], ctx);
+                    load_layout
+                },
             ],
             ctx,
         );
@@ -89,10 +105,18 @@ impl ViewMenu {
             nav_mesh,
             audio,
             command_stack,
+            save_layout,
+            load_layout,
         }
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage, ui: &UserInterface, panels: &Panels) {
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        ui: &UserInterface,
+        panels: &Panels,
+        sender: &MessageSender,
+    ) {
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.asset_browser {
                 switch_window_state(panels.asset_window, ui, false);
@@ -110,6 +134,10 @@ impl ViewMenu {
                 switch_window_state(panels.audio_panel, ui, false);
             } else if message.destination() == self.command_stack {
                 switch_window_state(panels.command_stack_panel, ui, false);
+            } else if message.destination() == self.save_layout {
+                sender.send(Message::SaveLayout);
+            } else if message.destination() == self.load_layout {
+                sender.send(Message::LoadLayout);
             }
         }
     }

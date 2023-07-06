@@ -147,11 +147,16 @@ impl AnimationEditor {
         .add_column(Column::stretch())
         .build(ctx);
 
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(600.0).with_height(500.0))
-            .with_content(content)
-            .open(false)
-            .with_title(WindowTitle::text("Animation Editor"))
-            .build(ctx);
+        let window = WindowBuilder::new(
+            WidgetBuilder::new()
+                .with_name("AnimationEditor")
+                .with_width(600.0)
+                .with_height(500.0),
+        )
+        .with_content(content)
+        .open(false)
+        .with_title(WindowTitle::text("Animation Editor"))
+        .build(ctx);
 
         Self {
             window,

@@ -20,23 +20,28 @@ pub struct DocWindow {
 impl DocWindow {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let text;
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(300.0))
-            .open(false)
-            .with_content(
-                ScrollViewerBuilder::new(WidgetBuilder::new())
-                    .with_content({
-                        text = TextBoxBuilder::new(
-                            WidgetBuilder::new().with_margin(Thickness::uniform(3.0)),
-                        )
-                        .with_editable(false)
-                        .with_wrap(WrapMode::Word)
-                        .build(ctx);
-                        text
-                    })
-                    .build(ctx),
-            )
-            .with_title(WindowTitle::text("Documentation"))
-            .build(ctx);
+        let window = WindowBuilder::new(
+            WidgetBuilder::new()
+                .with_name("DocPanel")
+                .with_width(400.0)
+                .with_height(300.0),
+        )
+        .open(false)
+        .with_content(
+            ScrollViewerBuilder::new(WidgetBuilder::new())
+                .with_content({
+                    text = TextBoxBuilder::new(
+                        WidgetBuilder::new().with_margin(Thickness::uniform(3.0)),
+                    )
+                    .with_editable(false)
+                    .with_wrap(WrapMode::Word)
+                    .build(ctx);
+                    text
+                })
+                .build(ctx),
+        )
+        .with_title(WindowTitle::text("Documentation"))
+        .build(ctx);
         Self { window, text }
     }
 

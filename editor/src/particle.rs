@@ -117,63 +117,68 @@ impl ParticleSystemPreviewControlPanel {
 
         let time;
         let set_time;
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(70.0))
-            .open(false)
-            .with_title(WindowTitle::text("Particle System"))
-            .with_content(
-                GridBuilder::new(
-                    WidgetBuilder::new().with_child(grid).with_child(
-                        GridBuilder::new(
-                            WidgetBuilder::new()
-                                .on_row(1)
-                                .on_column(0)
-                                .with_child(
-                                    TextBuilder::new(
-                                        WidgetBuilder::new()
-                                            .on_column(0)
-                                            .with_vertical_alignment(VerticalAlignment::Center)
-                                            .with_margin(Thickness::uniform(1.0)),
-                                    )
-                                    .with_text("Playback Time")
-                                    .build(ctx),
+        let window = WindowBuilder::new(
+            WidgetBuilder::new()
+                .with_name("ParticleSystemPanel")
+                .with_width(300.0)
+                .with_height(70.0),
+        )
+        .open(false)
+        .with_title(WindowTitle::text("Particle System"))
+        .with_content(
+            GridBuilder::new(
+                WidgetBuilder::new().with_child(grid).with_child(
+                    GridBuilder::new(
+                        WidgetBuilder::new()
+                            .on_row(1)
+                            .on_column(0)
+                            .with_child(
+                                TextBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_column(0)
+                                        .with_vertical_alignment(VerticalAlignment::Center)
+                                        .with_margin(Thickness::uniform(1.0)),
                                 )
-                                .with_child({
-                                    time = NumericUpDownBuilder::new(
-                                        WidgetBuilder::new()
-                                            .on_column(1)
-                                            .with_margin(Thickness::uniform(1.0)),
-                                    )
-                                    .with_min_value(0.0f32)
-                                    .with_max_value(10.0 * 60.0) // 10 Minutes
-                                    .with_value(0.0f32)
-                                    .build(ctx);
-                                    time
-                                })
-                                .with_child({
-                                    set_time = ButtonBuilder::new(
-                                        WidgetBuilder::new()
-                                            .on_column(2)
-                                            .with_width(33.0)
-                                            .with_margin(Thickness::uniform(1.0)),
-                                    )
-                                    .with_text("Set")
-                                    .build(ctx);
-                                    set_time
-                                }),
-                        )
-                        .add_row(Row::stretch())
-                        .add_column(Column::auto())
-                        .add_column(Column::stretch())
-                        .add_column(Column::auto())
-                        .build(ctx),
-                    ),
-                )
-                .add_row(Row::stretch())
-                .add_row(Row::stretch())
-                .add_column(Column::stretch())
-                .build(ctx),
+                                .with_text("Playback Time")
+                                .build(ctx),
+                            )
+                            .with_child({
+                                time = NumericUpDownBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_column(1)
+                                        .with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_min_value(0.0f32)
+                                .with_max_value(10.0 * 60.0) // 10 Minutes
+                                .with_value(0.0f32)
+                                .build(ctx);
+                                time
+                            })
+                            .with_child({
+                                set_time = ButtonBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_column(2)
+                                        .with_width(33.0)
+                                        .with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_text("Set")
+                                .build(ctx);
+                                set_time
+                            }),
+                    )
+                    .add_row(Row::stretch())
+                    .add_column(Column::auto())
+                    .add_column(Column::stretch())
+                    .add_column(Column::auto())
+                    .build(ctx),
+                ),
             )
-            .build(ctx);
+            .add_row(Row::stretch())
+            .add_row(Row::stretch())
+            .add_column(Column::stretch())
+            .build(ctx),
+        )
+        .build(ctx);
 
         Self {
             window,

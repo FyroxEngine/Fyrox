@@ -29,83 +29,88 @@ impl LightPanel {
         let nud_texels_per_unit;
         let nud_spacing;
         let ctx = &mut engine.user_interface.build_ctx();
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
-            .with_title(WindowTitle::Text("Light Settings".to_owned()))
-            .open(false)
-            .with_content(
-                GridBuilder::new(
-                    WidgetBuilder::new()
-                        .with_child(
-                            TextBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(0)
-                                    .on_column(0)
-                                    .with_vertical_alignment(VerticalAlignment::Center),
-                            )
-                            .with_text("Texels Per Unit")
-                            .build(ctx),
+        let window = WindowBuilder::new(
+            WidgetBuilder::new()
+                .with_name("LightPanel")
+                .with_width(300.0)
+                .with_height(400.0),
+        )
+        .with_title(WindowTitle::Text("Light Settings".to_owned()))
+        .open(false)
+        .with_content(
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(
+                        TextBuilder::new(
+                            WidgetBuilder::new()
+                                .on_row(0)
+                                .on_column(0)
+                                .with_vertical_alignment(VerticalAlignment::Center),
                         )
-                        .with_child({
-                            nud_texels_per_unit = NumericUpDownBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(0)
-                                    .on_column(1)
-                                    .with_margin(Thickness::uniform(1.0)),
-                            )
-                            .with_min_value(16.0)
-                            .with_max_value(256.0)
-                            .with_step(4.0)
-                            .with_precision(0)
-                            .with_value(128.0)
-                            .build(ctx);
-                            nud_texels_per_unit
-                        })
-                        .with_child(
-                            TextBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(1)
-                                    .on_column(0)
-                                    .with_vertical_alignment(VerticalAlignment::Center),
-                            )
-                            .with_text("Spacing")
-                            .build(ctx),
+                        .with_text("Texels Per Unit")
+                        .build(ctx),
+                    )
+                    .with_child({
+                        nud_texels_per_unit = NumericUpDownBuilder::new(
+                            WidgetBuilder::new()
+                                .on_row(0)
+                                .on_column(1)
+                                .with_margin(Thickness::uniform(1.0)),
                         )
-                        .with_child({
-                            nud_spacing = NumericUpDownBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(1)
-                                    .on_column(1)
-                                    .with_margin(Thickness::uniform(1.0)),
-                            )
-                            .with_min_value(0.0)
-                            .with_max_value(0.1)
-                            .with_step(0.001)
-                            .with_precision(3)
-                            .with_value(0.02)
-                            .build(ctx);
-                            nud_spacing
-                        })
-                        .with_child({
-                            generate = ButtonBuilder::new(
-                                WidgetBuilder::new()
-                                    .on_row(2)
-                                    .on_column(1)
-                                    .with_margin(Thickness::uniform(1.0)),
-                            )
-                            .with_text("Generate Lightmap")
-                            .build(ctx);
-                            generate
-                        }),
-                )
-                .add_column(Column::strict(100.0))
-                .add_column(Column::stretch())
-                .add_row(Row::strict(25.0))
-                .add_row(Row::strict(25.0))
-                .add_row(Row::strict(25.0))
-                .add_row(Row::stretch())
-                .build(ctx),
+                        .with_min_value(16.0)
+                        .with_max_value(256.0)
+                        .with_step(4.0)
+                        .with_precision(0)
+                        .with_value(128.0)
+                        .build(ctx);
+                        nud_texels_per_unit
+                    })
+                    .with_child(
+                        TextBuilder::new(
+                            WidgetBuilder::new()
+                                .on_row(1)
+                                .on_column(0)
+                                .with_vertical_alignment(VerticalAlignment::Center),
+                        )
+                        .with_text("Spacing")
+                        .build(ctx),
+                    )
+                    .with_child({
+                        nud_spacing = NumericUpDownBuilder::new(
+                            WidgetBuilder::new()
+                                .on_row(1)
+                                .on_column(1)
+                                .with_margin(Thickness::uniform(1.0)),
+                        )
+                        .with_min_value(0.0)
+                        .with_max_value(0.1)
+                        .with_step(0.001)
+                        .with_precision(3)
+                        .with_value(0.02)
+                        .build(ctx);
+                        nud_spacing
+                    })
+                    .with_child({
+                        generate = ButtonBuilder::new(
+                            WidgetBuilder::new()
+                                .on_row(2)
+                                .on_column(1)
+                                .with_margin(Thickness::uniform(1.0)),
+                        )
+                        .with_text("Generate Lightmap")
+                        .build(ctx);
+                        generate
+                    }),
             )
-            .build(ctx);
+            .add_column(Column::strict(100.0))
+            .add_column(Column::stretch())
+            .add_row(Row::strict(25.0))
+            .add_row(Row::strict(25.0))
+            .add_row(Row::strict(25.0))
+            .add_row(Row::stretch())
+            .build(ctx),
+        )
+        .build(ctx);
 
         Self {
             window,

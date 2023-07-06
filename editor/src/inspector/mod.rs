@@ -147,7 +147,7 @@ impl Inspector {
         let type_name_text;
         let inspector;
         let docs_button;
-        let window = WindowBuilder::new(WidgetBuilder::new())
+        let window = WindowBuilder::new(WidgetBuilder::new().with_name("Inspector"))
             .with_title(WindowTitle::text("Inspector"))
             .with_content(
                 GridBuilder::new(

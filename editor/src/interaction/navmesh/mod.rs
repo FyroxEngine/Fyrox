@@ -69,7 +69,7 @@ fn fetch_selection(editor_selection: &Selection) -> Option<NavmeshSelection> {
 impl NavmeshPanel {
     pub fn new(ctx: &mut BuildContext, sender: MessageSender) -> Self {
         let connect_edges;
-        let window = WindowBuilder::new(WidgetBuilder::new())
+        let window = WindowBuilder::new(WidgetBuilder::new().with_name("NavmeshPanel"))
             .open(false)
             .with_title(WindowTitle::text("Navmesh"))
             .with_content(
