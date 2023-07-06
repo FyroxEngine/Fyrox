@@ -1786,6 +1786,8 @@ impl Editor {
         // We must re-read settings, because each project have its own unique settings.
         self.reload_settings();
 
+        self.load_layout();
+
         let engine = &mut self.engine;
 
         let graphics_context = engine.graphics_context.as_initialized_mut();
@@ -2111,26 +2113,10 @@ impl Editor {
                         self.doc_window.open(doc, &self.engine.user_interface);
                     }
                     Message::SaveLayout => {
-                        let layout = self
-                            .engine
-                            .user_interface
-                            .node(self.docking_manager)
-                            .query_component::<DockingManager>()
-                            .unwrap()
-                            .layout(&self.engine.user_interface);
-                        self.settings.windows.layout = Some(layout);
-                        Log::verify(self.settings.save());
+                        self.save_layout();
                     }
                     Message::LoadLayout => {
-                        if let Some(layout) = self.settings.windows.layout.as_ref() {
-                            self.engine
-                                .user_interface
-                                .send_message(DockingManagerMessage::layout(
-                                    self.docking_manager,
-                                    MessageDirection::ToWidget,
-                                    layout.clone(),
-                                ));
-                        }
+                        self.load_layout();
                     }
                 }
             }
@@ -2184,6 +2170,30 @@ impl Editor {
                     &self.settings,
                 );
             }
+        }
+    }
+
+    fn save_layout(&mut self) {
+        let layout = self
+            .engine
+            .user_interface
+            .node(self.docking_manager)
+            .query_component::<DockingManager>()
+            .unwrap()
+            .layout(&self.engine.user_interface);
+        self.settings.windows.layout = Some(layout);
+        Log::verify(self.settings.save());
+    }
+
+    fn load_layout(&mut self) {
+        if let Some(layout) = self.settings.windows.layout.as_ref() {
+            self.engine
+                .user_interface
+                .send_message(DockingManagerMessage::layout(
+                    self.docking_manager,
+                    MessageDirection::ToWidget,
+                    layout.clone(),
+                ));
         }
     }
 
