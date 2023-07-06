@@ -85,7 +85,7 @@ impl TileDescriptor {
     }
 
     pub fn create_tile(&self, ui: &mut UserInterface) -> Handle<UiNode> {
-        TileBuilder::new(WidgetBuilder::new())
+        TileBuilder::new(WidgetBuilder::new().with_id(self.tile_uuid))
             .with_content(match &self.content {
                 TileContentDescriptor::Empty => TileContent::Empty,
                 TileContentDescriptor::Window(window_id) => TileContent::Window(
