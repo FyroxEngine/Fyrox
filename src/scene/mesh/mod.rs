@@ -1,14 +1,6 @@
-//! Contains all structures and methods to create and manage mesh scene graph nodes.
-//!
-//! Mesh is a 3D model, each mesh split into multiple surfaces, each surface holds single
-//! part of 3D model that have same textures assigned to each face. Such separation allows
-//! us to efficiently render geometry, thus reducing amount of draw calls.
-//!
-//! Usually there is no need to manually create meshes, it is much easier to make one in 3d
-//! modelling software or just download some model you like and load it in engine. But since
-//! 3d model can contain multiple nodes, 3d model loading discussed in model resource section.
+//! Contains all structures and methods to create and manage mesh scene graph nodes. See [`Mesh`] docs for more info
+//! and usage examples.
 
-use crate::renderer::batch::PersistentIdentifier;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector3},
@@ -23,7 +15,7 @@ use crate::{
     },
     renderer::{
         self,
-        batch::{RenderContext, SurfaceInstanceData},
+        batch::{PersistentIdentifier, RenderContext, SurfaceInstanceData},
         framework::geometry_buffer::ElementRange,
     },
     scene::{
@@ -91,7 +83,43 @@ impl RenderPath {
     }
 }
 
-/// See module docs.
+/// Mesh is a 3D model, each mesh split into multiple surfaces, each surface represents a patch of the mesh with a single material
+/// assigned to each face. See [`Surface`] docs for more info.
+///
+/// ## How to create
+///
+/// Usually there is no need to manually create meshes, it is much easier to make one in a 3d modelling software or just download
+/// some model you like and load it in engine. See [`crate::resource::model::Model`] docs for more info about model resources.
+///
+/// However, sometimes there's a need to create meshes manually (for example - in games with procedurally-generated content). You
+/// can do it like so:
+///
+/// ```rust
+/// # use fyrox::{
+/// #     core::{algebra::Matrix4, pool::Handle},
+/// #     scene::{
+/// #         base::BaseBuilder,
+/// #         graph::Graph,
+/// #         mesh::{
+/// #             surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
+/// #             MeshBuilder,
+/// #         },
+/// #         node::Node,
+/// #     },
+/// # };
+/// fn create_cube_mesh(graph: &mut Graph) -> Handle<Node> {
+///     let cube_surface_data = SurfaceData::make_cube(Matrix4::identity());
+///
+///     let cube_surface = SurfaceBuilder::new(SurfaceSharedData::new(cube_surface_data)).build();
+///
+///     MeshBuilder::new(BaseBuilder::new())
+///         .with_surfaces(vec![cube_surface])
+///         .build(graph)
+/// }
+/// ```
+///
+/// This example creates a unit cube surface with default material and then creates a mesh with this surface. If you need to create
+/// custom surface, see [`crate::scene::mesh::surface::SurfaceData`] docs for more info.
 #[derive(Debug, Reflect, Clone, Visit)]
 pub struct Mesh {
     #[visit(rename = "Common")]
