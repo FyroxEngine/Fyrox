@@ -83,6 +83,11 @@ pub struct PluginContext<'a, 'b> {
 
     /// Performance statistics from the last frame.
     pub performance_statistics: &'a PerformanceStatistics,
+
+    /// Amount of time (in seconds) that passed from creation of the engine. Keep in mind, that
+    /// this value is **not** guaranteed to match real time. A user can change delta time with
+    /// which the engine "ticks" and this delta time affects elapsed time.
+    pub elapsed_time: f32,
 }
 
 /// Base plugin automatically implements type casting for plugins.

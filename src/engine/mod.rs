@@ -1260,6 +1260,7 @@ impl Engine {
                 user_interface: &mut self.user_interface,
                 serialization_context: &self.serialization_context,
                 performance_statistics: &self.performance_statistics,
+                elapsed_time: self.elapsed_time,
             };
 
             for plugin in self.plugins.iter_mut() {
@@ -1276,6 +1277,7 @@ impl Engine {
                     user_interface: &mut self.user_interface,
                     serialization_context: &self.serialization_context,
                     performance_statistics: &self.performance_statistics,
+                    elapsed_time: self.elapsed_time,
                 };
 
                 for plugin in self.plugins.iter_mut() {
@@ -1307,6 +1309,7 @@ impl Engine {
                         user_interface: &mut self.user_interface,
                         serialization_context: &self.serialization_context,
                         performance_statistics: &self.performance_statistics,
+                        elapsed_time: self.elapsed_time,
                     },
                     control_flow,
                 );
@@ -1332,6 +1335,7 @@ impl Engine {
                         user_interface: &mut self.user_interface,
                         serialization_context: &self.serialization_context,
                         performance_statistics: &self.performance_statistics,
+                        elapsed_time: self.elapsed_time,
                     },
                     control_flow,
                 );
@@ -1357,6 +1361,7 @@ impl Engine {
                         user_interface: &mut self.user_interface,
                         serialization_context: &self.serialization_context,
                         performance_statistics: &self.performance_statistics,
+                        elapsed_time: self.elapsed_time,
                     },
                     control_flow,
                 );
@@ -1382,6 +1387,7 @@ impl Engine {
                         user_interface: &mut self.user_interface,
                         serialization_context: &self.serialization_context,
                         performance_statistics: &self.performance_statistics,
+                        elapsed_time: self.elapsed_time,
                     },
                     control_flow,
                 );
@@ -1504,6 +1510,7 @@ impl Engine {
                             user_interface: &mut self.user_interface,
                             serialization_context: &self.serialization_context,
                             performance_statistics: &self.performance_statistics,
+                            elapsed_time: self.elapsed_time,
                         },
                     ));
                 }
@@ -1521,6 +1528,7 @@ impl Engine {
                         user_interface: &mut self.user_interface,
                         serialization_context: &self.serialization_context,
                         performance_statistics: &self.performance_statistics,
+                        elapsed_time: self.elapsed_time,
                     });
                 }
             }
