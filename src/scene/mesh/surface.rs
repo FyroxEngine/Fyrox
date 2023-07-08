@@ -1,10 +1,6 @@
-//! For efficient rendering each mesh is split into sets of triangles that use the same texture,
-//! such sets are called surfaces.
-//!
-//! Surfaces can use the same data source across many instances, this is a memory optimization for
-//! being able to re-use data when you need to draw the same mesh in many places.
+//! Surface is a set of triangles with a single material. Such arrangement makes GPU rendering very efficient.
+//! See [`Surface`] docs for more info and usage examples.
 
-use crate::resource::texture::TextureResourceExtension;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
@@ -18,7 +14,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     material::{Material, SharedMaterial},
-    resource::texture::{TextureKind, TexturePixelKind, TextureResource},
+    resource::texture::{TextureKind, TexturePixelKind, TextureResource, TextureResourceExtension},
     scene::{
         mesh::{
             buffer::{
@@ -208,7 +204,9 @@ pub struct SurfaceData {
 }
 
 impl SurfaceData {
-    /// Creates new data source using given vertices and indices.
+    /// Creates new data source using given vertices and indices. `is_procedural` flags affects serialization - when it
+    /// is `true` the content of the vertex and triangle buffers will be serialized. It is useful if you need to save
+    /// surfaces with procedural content.
     pub fn new(
         vertex_buffer: VertexBuffer,
         triangles: TriangleBuffer,
@@ -252,8 +250,8 @@ impl SurfaceData {
         Ok(())
     }
 
-    /// Converts raw mesh into "renderable" mesh. It is useful to build procedural
-    /// meshes.
+    /// Converts raw mesh into "renderable" mesh. It is useful to build procedural meshes. See [`RawMesh`] docs for more
+    /// info.
     pub fn from_raw_mesh<T: Copy>(
         raw: RawMesh<T>,
         layout: &[VertexAttributeDescriptor],
@@ -268,11 +266,11 @@ impl SurfaceData {
         }
     }
 
-    /// Calculates tangents of surface. Tangents are needed for correct lighting, you will
-    /// get incorrect lighting if tangents of your surface are invalid! When engine loads
-    /// a mesh from "untrusted" source, it automatically calculates tangents for you, so
-    /// there is no need to call this manually in this case. However if you making your
-    /// mesh procedurally, you have to use this method!
+    /// Calculates tangents of surface. Tangents are needed for correct lighting, you will get incorrect lighting if
+    /// tangents of your surface are invalid! When engine loads a mesh from "untrusted" source, it automatically calculates
+    /// tangents for you, so there is no need to call this manually in this case. However if you making your mesh
+    /// procedurally, you have to use this method! This method uses "classic" method which is described in:
+    /// "Computing Tangent Space Basis Vectors for an Arbitrary Mesh" article by Eric Lengyel.
     pub fn calculate_tangents(&mut self) -> Result<(), VertexFetchError> {
         let mut tan1 = vec![Vector3::default(); self.vertex_buffer.vertex_count() as usize];
         let mut tan2 = vec![Vector3::default(); self.vertex_buffer.vertex_count() as usize];
@@ -384,9 +382,8 @@ impl SurfaceData {
         )
     }
 
-    /// Creates a degenerated quad which collapsed in a point. This is very special method for
-    /// sprite renderer - shader will automatically "push" corners in correct sides so sprite
-    /// will always face camera.
+    /// Creates a degenerated quad which collapsed in a point. This is very special method for sprite renderer - shader will
+    /// automatically "push" corners in correct sides so sprite will always face camera.
     pub fn make_collapsed_xy_quad() -> Self {
         let vertices = vec![
             StaticVertex {
@@ -466,8 +463,7 @@ impl SurfaceData {
         data
     }
 
-    /// Calculates per-face normals. This method is fast, but have very poor quality, and surface
-    /// will look facet.
+    /// Calculates per-face normals. This method is fast, but have very poor quality, and surface will look facet.
     pub fn calculate_normals(&mut self) -> Result<(), VertexFetchError> {
         let mut vertex_buffer_mut = self.vertex_buffer.modify();
         for triangle in self.geometry_buffer.iter() {
@@ -507,7 +503,9 @@ impl SurfaceData {
         Ok(())
     }
 
-    /// Creates sphere of specified radius with given slices and stacks.
+    /// Creates sphere of specified radius with given slices and stacks. The larger the `slices` and `stacks`, the smoother the sphere will be.
+    /// Typical values are [16..32]. The sphere is then transformed by the given transformation matrix, which could be [`Matrix4::identity`]
+    /// to not modify the sphere at all.
     pub fn make_sphere(slices: usize, stacks: usize, r: f32, transform: &Matrix4<f32>) -> Self {
         let mut builder = RawMeshBuilder::<StaticVertex>::new(stacks * slices, stacks * slices * 3);
 
@@ -569,7 +567,9 @@ impl SurfaceData {
         data
     }
 
-    /// Creates vertical cone - it has its vertex higher than base.
+    /// Creates vertical cone with the given amount of sides, radius, height. The larger the amount of sides, the smoother the cone
+    /// will be, typical values are [16..32]. The cone is then transformed using the given transformation matrix, which could be
+    /// [`Matrix4::identity`] to not modify the cone at all.
     pub fn make_cone(sides: usize, r: f32, h: f32, transform: &Matrix4<f32>) -> Self {
         let mut builder = RawMeshBuilder::<StaticVertex>::new(3 * sides, 3 * sides);
 
@@ -645,10 +645,13 @@ impl SurfaceData {
         data
     }
 
-    /// Creates torus.
+    /// Creates a torus in oXY plane with the given inner and outer radii. `num_rings` defines the amount of "slices" around the Z axis of the
+    /// torus shape, `num_segments` defines the amount of segments in every slice. The larger the `num_rings` and `num_segments` are, the more
+    /// smooth the torus will be, typical values are `16..32`. Torus will be transformed using the given transformation matrix, which could be
+    /// [`Matrix4::identity`] to not modify the torus at all.
     pub fn make_torus(
-        r1: f32,
-        r2: f32,
+        inner_radius: f32,
+        outer_radius: f32,
         num_rings: usize,
         num_segments: usize,
         transform: &Matrix4<f32>,
@@ -659,12 +662,12 @@ impl SurfaceData {
                 let u = i as f32 / num_segments as f32 * std::f32::consts::TAU;
                 let v = j as f32 / num_rings as f32 * std::f32::consts::TAU;
 
-                let center = Vector3::new(r1 * u.cos(), r1 * u.sin(), 0.0);
+                let center = Vector3::new(inner_radius * u.cos(), inner_radius * u.sin(), 0.0);
 
                 let position = Vector3::new(
-                    (r1 + r2 * v.cos()) * u.cos(),
-                    r2 * v.sin(),
-                    (r1 + r2 * v.cos()) * u.sin(),
+                    (inner_radius + outer_radius * v.cos()) * u.cos(),
+                    outer_radius * v.sin(),
+                    (inner_radius + outer_radius * v.cos()) * u.sin(),
                 );
 
                 let uv = Vector2::new(i as f32 / num_segments as f32, j as f32 / num_rings as f32);
@@ -700,7 +703,9 @@ impl SurfaceData {
         data
     }
 
-    /// Creates vertical cylinder.
+    /// Creates vertical cylinder with the given amount of sides, radius, height and optional caps. The larger the `sides`, the smoother the cylinder
+    /// will be, typical values are [16..32]. `caps` defines whether the cylinder will have caps or not. The cylinder is transformed using the given
+    /// transformation matrix, which could be [`Matrix4::identity`] to not modify the cylinder at all.
     pub fn make_cylinder(
         sides: usize,
         r: f32,
@@ -812,7 +817,7 @@ impl SurfaceData {
         data
     }
 
-    /// Creates unit cube with given transform.
+    /// Creates unit cube with the given transform, which could be [`Matrix4::identity`] to not modify the cube at all and leave it unit.
     pub fn make_cube(transform: Matrix4<f32>) -> Self {
         let vertices = vec![
             // Front
@@ -1113,7 +1118,7 @@ impl VertexWeightSet {
 
 /// Surface shared data is a vertex and index buffer that can be shared across multiple objects. This is
 /// very useful memory optimization - you create a single data storage for a surface and then share it
-/// with any instance count you want. Memory usage does not increate with instance count in this case.
+/// with any instance count you want. Memory usage does not increase with instance count in this case.
 #[derive(Default, Debug, Clone, Reflect)]
 pub struct SurfaceSharedData(#[reflect(hidden)] Arc<Mutex<SurfaceData>>);
 
@@ -1157,7 +1162,85 @@ impl SurfaceSharedData {
     }
 }
 
-/// See module docs.
+/// Surface is a set of triangles with a single material. Such arrangement makes GPU rendering very efficient.
+///
+/// Surfaces can use the same data source across many instances, this is a memory optimization for being able to
+/// re-use data when you need to draw the same mesh in many places. It guarantees, that the data will be in single
+/// instance on your GPU.
+///
+/// ## Examples
+///
+/// ```rust
+/// # use fyrox::{
+/// #     core::{
+/// #         algebra::{Vector2, Vector3, Vector4},
+/// #         math::TriangleDefinition,
+/// #     },
+/// #     scene::mesh::{
+/// #         buffer::{TriangleBuffer, VertexBuffer},
+/// #         surface::{Surface, SurfaceBuilder, SurfaceData, SurfaceSharedData},
+/// #         vertex::StaticVertex,
+/// #     },
+/// # };
+/// fn create_triangle_surface() -> Surface {
+///     let vertex_buffer = VertexBuffer::new(
+///         3,
+///         StaticVertex::layout(),
+///         vec![
+///             StaticVertex {
+///                 position: Vector3::new(0.0, 0.0, 0.0),
+///                 tex_coord: Vector2::new(0.0, 0.0),
+///                 normal: Vector3::new(0.0, 0.0, 1.0),
+///                 tangent: Vector4::new(1.0, 0.0, 0.0, 1.0),
+///             },
+///             StaticVertex {
+///                 position: Vector3::new(0.0, 1.0, 0.0),
+///                 tex_coord: Vector2::new(0.0, 1.0),
+///                 normal: Vector3::new(0.0, 0.0, 1.0),
+///                 tangent: Vector4::new(1.0, 0.0, 0.0, 1.0),
+///             },
+///             StaticVertex {
+///                 position: Vector3::new(1.0, 1.0, 0.0),
+///                 tex_coord: Vector2::new(1.0, 1.0),
+///                 normal: Vector3::new(0.0, 0.0, 1.0),
+///                 tangent: Vector4::new(1.0, 0.0, 0.0, 1.0),
+///             },
+///         ],
+///     )
+///     .unwrap();
+///
+///     let triangle_buffer = TriangleBuffer::new(vec![TriangleDefinition([0, 1, 2])]);
+///
+///     let data = SurfaceData::new(vertex_buffer, triangle_buffer, true);
+///
+///     SurfaceBuilder::new(SurfaceSharedData::new(data)).build()
+/// }
+/// ```
+///
+/// This code crates a simple triangle in oXY plane with clockwise winding with normal facing towards the screen.
+/// To learn more about vertex and triangle buffers, see [`VertexBuffer`] and [`TriangleBuffer`] docs respectively.
+///
+/// Usually, there's no need to create surfaces on per-vertex basis, you can use on of the pre-made methods of
+/// [`SurfaceData`] to create complex 3D shapes:
+///
+/// ```rust
+/// # use fyrox::{
+/// #     core::algebra::Matrix4,
+/// #     scene::mesh::surface::{Surface, SurfaceBuilder, SurfaceData, SurfaceSharedData},
+/// # };
+/// fn create_cone_surface() -> Surface {
+///     SurfaceBuilder::new(SurfaceSharedData::new(SurfaceData::make_cone(
+///         16,
+///         1.0,
+///         2.0,
+///         &Matrix4::identity(),
+///     )))
+///     .build()
+/// }
+/// ```
+///
+/// This code snippet creates a cone surface instance, check the docs for [`SurfaceData`] for more info about built-in
+/// methods.
 #[derive(Debug, Reflect, PartialEq)]
 pub struct Surface {
     pub(crate) data: InheritableVariable<SurfaceSharedData>,
