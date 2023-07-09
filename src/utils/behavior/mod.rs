@@ -20,13 +20,17 @@ use crate::{
     },
     utils::behavior::{
         composite::{CompositeNode, CompositeNodeKind},
+        inverter::Inverter,
         leaf::LeafNode,
     },
 };
-use std::fmt::Debug;
-use std::ops::{Index, IndexMut};
+use std::{
+    fmt::Debug,
+    ops::{Index, IndexMut},
+};
 
 pub mod composite;
+pub mod inverter;
 pub mod leaf;
 
 /// Status of execution of behavior tree node.
@@ -84,6 +88,9 @@ where
     Composite(CompositeNode<B>),
     /// A node with custom logic.
     Leaf(LeafNode<B>),
+    /// A node, that inverts its child state ([`Status::Failure`] becomes [`Status::Success`] and vice versa, [`Status::Running`] remains
+    /// unchanged)
+    Inverter(Inverter<B>),
 }
 
 impl<B> Default for BehaviorNode<B>
@@ -190,6 +197,13 @@ where
             },
             BehaviorNode::Leaf(ref leaf) => {
                 leaf.behavior.as_ref().unwrap().borrow_mut().tick(context)
+            }
+            BehaviorNode::Inverter(ref inverter) => {
+                match self.tick_recursive(inverter.child, context) {
+                    Status::Success => Status::Failure,
+                    Status::Failure => Status::Success,
+                    Status::Running => Status::Running,
+                }
             }
             BehaviorNode::Unknown => {
                 unreachable!()
