@@ -20,7 +20,9 @@ use std::{
     ops::{Deref, DerefMut, Index, IndexMut},
 };
 
-/// A common trait for all vertex types.
+/// A common trait for all vertex types. **IMPORTANT:** Implementors **must** use `#[repr(C)]` attribute, otherwise the compiler
+/// is free to reorder fields and you might get weird results, because definition order will be different from memory order! See
+/// examples in [`VertexBuffer`] docs.
 pub trait VertexTrait: Copy {
     /// Returns memory layout of the vertex. It basically tells a GPU how to interpret every byte range
     /// of your vertex type; which kind of information it holds.
