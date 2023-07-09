@@ -1,6 +1,7 @@
 //! Surface is a set of triangles with a single material. Such arrangement makes GPU rendering very efficient.
 //! See [`Surface`] docs for more info and usage examples.
 
+use crate::scene::mesh::buffer::VertexTrait;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
@@ -18,8 +19,8 @@ use crate::{
     scene::{
         mesh::{
             buffer::{
-                TriangleBuffer, VertexAttributeDescriptor, VertexAttributeUsage, VertexBuffer,
-                VertexFetchError, VertexReadTrait, VertexWriteTrait,
+                TriangleBuffer, VertexAttributeUsage, VertexBuffer, VertexFetchError,
+                VertexReadTrait, VertexWriteTrait,
             },
             vertex::StaticVertex,
         },
@@ -252,13 +253,12 @@ impl SurfaceData {
 
     /// Converts raw mesh into "renderable" mesh. It is useful to build procedural meshes. See [`RawMesh`] docs for more
     /// info.
-    pub fn from_raw_mesh<T: Copy>(
-        raw: RawMesh<T>,
-        layout: &[VertexAttributeDescriptor],
-        is_procedural: bool,
-    ) -> Self {
+    pub fn from_raw_mesh<T>(raw: RawMesh<T>, is_procedural: bool) -> Self
+    where
+        T: VertexTrait,
+    {
         Self {
-            vertex_buffer: VertexBuffer::new(raw.vertices.len(), layout, raw.vertices).unwrap(),
+            vertex_buffer: VertexBuffer::new(raw.vertices.len(), raw.vertices).unwrap(),
             geometry_buffer: TriangleBuffer::new(raw.triangles),
             blend_shapes_container: Default::default(),
             is_procedural,
@@ -376,7 +376,7 @@ impl SurfaceData {
         let triangles = vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])];
 
         Self::new(
-            VertexBuffer::new(vertices.len(), StaticVertex::layout(), vertices).unwrap(),
+            VertexBuffer::new(vertices.len(), vertices).unwrap(),
             TriangleBuffer::new(triangles),
             true,
         )
@@ -415,7 +415,7 @@ impl SurfaceData {
         let triangles = vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])];
 
         Self::new(
-            VertexBuffer::new(vertices.len(), StaticVertex::layout(), vertices).unwrap(),
+            VertexBuffer::new(vertices.len(), vertices).unwrap(),
             TriangleBuffer::new(triangles),
             true,
         )
@@ -451,7 +451,7 @@ impl SurfaceData {
         ];
 
         let mut data = Self::new(
-            VertexBuffer::new(vertices.len(), StaticVertex::layout(), vertices).unwrap(),
+            VertexBuffer::new(vertices.len(), vertices).unwrap(),
             TriangleBuffer::new(vec![
                 TriangleDefinition([0, 1, 2]),
                 TriangleDefinition([0, 2, 3]),
@@ -561,7 +561,7 @@ impl SurfaceData {
             }
         }
 
-        let mut data = Self::from_raw_mesh(builder.build(), StaticVertex::layout(), true);
+        let mut data = Self::from_raw_mesh(builder.build(), true);
         data.calculate_tangents().unwrap();
         data.transform_geometry(transform).unwrap();
         data
@@ -639,7 +639,7 @@ impl SurfaceData {
             ));
         }
 
-        let mut data = Self::from_raw_mesh(builder.build(), StaticVertex::layout(), true);
+        let mut data = Self::from_raw_mesh(builder.build(), true);
         data.calculate_tangents().unwrap();
         data.transform_geometry(transform).unwrap();
         data
@@ -694,7 +694,7 @@ impl SurfaceData {
         }
 
         let mut data = Self::new(
-            VertexBuffer::new(vertices.len(), StaticVertex::layout(), vertices).unwrap(),
+            VertexBuffer::new(vertices.len(), vertices).unwrap(),
             TriangleBuffer::new(triangles),
             true,
         );
@@ -811,7 +811,7 @@ impl SurfaceData {
             ));
         }
 
-        let mut data = Self::from_raw_mesh(builder.build(), StaticVertex::layout(), true);
+        let mut data = Self::from_raw_mesh(builder.build(), true);
         data.calculate_tangents().unwrap();
         data.transform_geometry(transform).unwrap();
         data
@@ -988,7 +988,7 @@ impl SurfaceData {
         ];
 
         let mut data = Self::new(
-            VertexBuffer::new(vertices.len(), StaticVertex::layout(), vertices).unwrap(),
+            VertexBuffer::new(vertices.len(), vertices).unwrap(),
             TriangleBuffer::new(triangles),
             true,
         );
@@ -1185,7 +1185,6 @@ impl SurfaceSharedData {
 /// fn create_triangle_surface() -> Surface {
 ///     let vertex_buffer = VertexBuffer::new(
 ///         3,
-///         StaticVertex::layout(),
 ///         vec![
 ///             StaticVertex {
 ///                 position: Vector3::new(0.0, 0.0, 0.0),

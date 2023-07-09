@@ -21,7 +21,7 @@ pub struct TerrainGeometry {
 impl TerrainGeometry {
     pub fn new(mesh_size: Vector2<u32>) -> Self {
         let mut surface_data = SurfaceData::new(
-            VertexBuffer::new::<StaticVertex>(0, StaticVertex::layout(), vec![]).unwrap(),
+            VertexBuffer::new::<StaticVertex>(0, vec![]).unwrap(),
             TriangleBuffer::default(),
             false,
         );

@@ -1,5 +1,3 @@
-use crate::renderer::framework::geometry_buffer::ElementRange;
-use crate::renderer::storage::MatrixStorageCache;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -13,7 +11,7 @@ use crate::{
         framework::{
             error::FrameworkError,
             framebuffer::{BlendParameters, CullFace, DrawParameters, FrameBuffer},
-            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
+            geometry_buffer::{ElementRange, GeometryBuffer, GeometryBufferKind},
             gpu_texture::GpuTexture,
             state::{
                 BlendFactor, BlendFunc, ColorMask, CompareFunc, PipelineState, StencilAction,
@@ -33,6 +31,7 @@ use crate::{
         },
         skybox_shader::SkyboxShader,
         ssao::ScreenSpaceAmbientOcclusionRenderer,
+        storage::MatrixStorageCache,
         GeometryCache, QualitySettings, RenderPassStatistics, TextureCache,
     },
     scene::{
@@ -193,7 +192,7 @@ impl DeferredLightRenderer {
             ),
             skybox: GeometryBuffer::from_surface_data(
                 &SurfaceData::new(
-                    VertexBuffer::new(vertices.len(), SimpleVertex::layout(), vertices).unwrap(),
+                    VertexBuffer::new(vertices.len(), vertices).unwrap(),
                     TriangleBuffer::new(vec![
                         TriangleDefinition([0, 1, 2]),
                         TriangleDefinition([0, 2, 3]),

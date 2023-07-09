@@ -242,12 +242,8 @@ enum FbxMeshBuilder {
 impl FbxMeshBuilder {
     fn build(self) -> SurfaceData {
         match self {
-            FbxMeshBuilder::Static(builder) => {
-                SurfaceData::from_raw_mesh(builder.build(), StaticVertex::layout(), false)
-            }
-            FbxMeshBuilder::Animated(builder) => {
-                SurfaceData::from_raw_mesh(builder.build(), AnimatedVertex::layout(), false)
-            }
+            FbxMeshBuilder::Static(builder) => SurfaceData::from_raw_mesh(builder.build(), false),
+            FbxMeshBuilder::Animated(builder) => SurfaceData::from_raw_mesh(builder.build(), false),
         }
     }
 }

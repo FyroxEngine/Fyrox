@@ -1,10 +1,12 @@
 //! Contains most common vertex formats and their layouts.
 
-use crate::core::visitor::{Visit, VisitResult, Visitor};
 use crate::{
-    core::algebra::{Vector2, Vector3, Vector4},
+    core::{
+        algebra::{Vector2, Vector3, Vector4},
+        visitor::{Visit, VisitResult, Visitor},
+    },
     scene::mesh::buffer::{
-        VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
+        VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage, VertexTrait,
     },
 };
 use std::hash::{Hash, Hasher};
@@ -47,9 +49,10 @@ impl StaticVertex {
             tangent: Vector4::default(),
         }
     }
+}
 
-    /// Returns layout of the vertex.
-    pub fn layout() -> &'static [VertexAttributeDescriptor] {
+impl VertexTrait for StaticVertex {
+    fn layout() -> &'static [VertexAttributeDescriptor] {
         static LAYOUT: [VertexAttributeDescriptor; 4] = [
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::Position,
@@ -129,17 +132,8 @@ pub struct AnimatedVertex {
     pub bone_indices: [u8; 4],
 }
 
-impl AnimatedVertex {
-    /// Returns layout of the vertex.
-    ///
-    /// # Important info
-    ///
-    /// This vertex format defines shader layout for every other built-in format.
-    /// In other words, `shader_location` field on every other format is set to
-    /// match particular attribute location of this format. In example, `BoneWeights`
-    /// is bound to `shader_location = 4` and every other vertex will have same
-    /// location for `BoneWeights`.
-    pub fn layout() -> &'static [VertexAttributeDescriptor] {
+impl VertexTrait for AnimatedVertex {
+    fn layout() -> &'static [VertexAttributeDescriptor] {
         static LAYOUT: [VertexAttributeDescriptor; 6] = [
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::Position,
@@ -230,9 +224,10 @@ impl SimpleVertex {
             position: Vector3::new(x, y, z),
         }
     }
+}
 
-    /// Returns layout of the vertex.
-    pub fn layout() -> &'static [VertexAttributeDescriptor] {
+impl VertexTrait for SimpleVertex {
+    fn layout() -> &'static [VertexAttributeDescriptor] {
         static LAYOUT: [VertexAttributeDescriptor; 1] = [VertexAttributeDescriptor {
             usage: VertexAttributeUsage::Position,
             data_type: VertexAttributeDataType::F32,
@@ -314,9 +309,8 @@ impl Visit for OldVertex {
     }
 }
 
-impl OldVertex {
-    /// Returns layout of the vertex.
-    pub fn layout() -> &'static [VertexAttributeDescriptor] {
+impl VertexTrait for OldVertex {
+    fn layout() -> &'static [VertexAttributeDescriptor] {
         static LAYOUT: [VertexAttributeDescriptor; 7] = [
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::Position,

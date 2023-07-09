@@ -26,6 +26,13 @@ use std::{
     ops::{Deref, DerefMut, Index, IndexMut},
 };
 
+/// A common trait for all vertex types.
+pub trait VertexTrait: Copy {
+    /// Returns memory layout of the vertex. It basically tells a GPU how to interpret every byte range
+    /// of your vertex type; which kind of information it holds.
+    fn layout() -> &'static [VertexAttributeDescriptor];
+}
+
 /// Data type for a vertex attribute component.
 #[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Visit, Debug)]
 #[repr(u8)]
@@ -199,7 +206,10 @@ impl<'a> VertexBufferRefMut<'a> {
     /// This method accepts any type that has appropriate size, the size must be equal
     /// with the size defined by layout. The Copy trait bound is required to ensure that
     /// the type does not have any custom destructors.
-    pub fn push_vertex<T: Copy>(&mut self, vertex: &T) -> Result<(), ValidationError> {
+    pub fn push_vertex<T>(&mut self, vertex: &T) -> Result<(), ValidationError>
+    where
+        T: VertexTrait,
+    {
         if std::mem::size_of::<T>() == self.vertex_buffer.vertex_size as usize {
             self.vertex_buffer
                 .data
@@ -229,7 +239,10 @@ impl<'a> VertexBufferRefMut<'a> {
     /// This method accepts any type that has appropriate size, the size must be equal
     /// with the size defined by layout. The Copy trait bound is required to ensure that
     /// the type does not have any custom destructors.
-    pub fn pop_vertex<T: Copy>(&mut self) -> Result<T, ValidationError> {
+    pub fn pop_vertex<T>(&mut self) -> Result<T, ValidationError>
+    where
+        T: VertexTrait,
+    {
         if std::mem::size_of::<T>() == self.vertex_buffer.vertex_size as usize
             && self.vertex_buffer.data.len() >= self.vertex_buffer.vertex_size as usize
         {
@@ -258,7 +271,10 @@ impl<'a> VertexBufferRefMut<'a> {
 
     /// Tries to cast internal data buffer to a slice of given type. It may fail if
     /// size of type is not equal with claimed size (which is set by the layout).
-    pub fn cast_data_mut<T: Copy>(&mut self) -> Result<&mut [T], ValidationError> {
+    pub fn cast_data_mut<T>(&mut self) -> Result<&mut [T], ValidationError>
+    where
+        T: VertexTrait,
+    {
         if std::mem::size_of::<T>() == self.vertex_buffer.vertex_size as usize {
             Ok(unsafe {
                 std::slice::from_raw_parts_mut(
@@ -325,11 +341,14 @@ impl<'a> VertexBufferRefMut<'a> {
     /// Add secondary texture coordinates:
     ///  Before: P1_N1_TC1_P2_N2_TC2...
     ///  After: P1_N1_TC1_TC2(fill_value)_P2_N2_TC2_TC2(fill_value)...
-    pub fn add_attribute<T: Copy>(
+    pub fn add_attribute<T>(
         &mut self,
         descriptor: VertexAttributeDescriptor,
         fill_value: T,
-    ) -> Result<(), ValidationError> {
+    ) -> Result<(), ValidationError>
+    where
+        T: Copy,
+    {
         if self.vertex_buffer.sparse_layout[descriptor.usage as usize].is_some() {
             Err(ValidationError::DuplicatedAttributeDescriptor)
         } else {
@@ -427,12 +446,11 @@ impl Display for ValidationError {
 }
 
 impl VertexBuffer {
-    /// Creates new vertex buffer from provided data and with given layout.
-    pub fn new<T: Copy>(
-        vertex_count: usize,
-        layout: &[VertexAttributeDescriptor],
-        mut data: Vec<T>,
-    ) -> Result<Self, ValidationError> {
+    /// Creates new vertex buffer from provided data and with the given layout of the vertex type `T`.
+    pub fn new<T>(vertex_count: usize, mut data: Vec<T>) -> Result<Self, ValidationError>
+    where
+        T: VertexTrait,
+    {
         let length = data.len() * std::mem::size_of::<T>();
         let capacity = data.capacity() * std::mem::size_of::<T>();
 
@@ -440,6 +458,8 @@ impl VertexBuffer {
             unsafe { Vec::<u8>::from_raw_parts(data.as_mut_ptr() as *mut u8, length, capacity) };
 
         std::mem::forget(data);
+
+        let layout = T::layout();
 
         // Validate for duplicates and invalid layout.
         for descriptor in layout {
@@ -588,7 +608,10 @@ impl VertexBuffer {
 
     /// Tries to cast internal data buffer to a slice of given type. It may fail if
     /// size of type is not equal with claimed size (which is set by the layout).
-    pub fn cast_data_ref<T: Copy>(&self) -> Result<&[T], ValidationError> {
+    pub fn cast_data_ref<T>(&self) -> Result<&[T], ValidationError>
+    where
+        T: VertexTrait,
+    {
         if std::mem::size_of::<T>() == self.vertex_size as usize {
             Ok(unsafe {
                 std::slice::from_raw_parts(
@@ -1088,6 +1111,7 @@ impl<'a> IndexMut<usize> for TriangleBufferRefMut<'a> {
 
 #[cfg(test)]
 mod test {
+    use crate::scene::mesh::buffer::VertexTrait;
     use crate::{
         core::algebra::{Vector2, Vector3, Vector4},
         scene::mesh::buffer::{
@@ -1108,8 +1132,8 @@ mod test {
         bone_indices: Vector4<u8>,
     }
 
-    impl Vertex {
-        pub fn layout() -> &'static [VertexAttributeDescriptor] {
+    impl VertexTrait for Vertex {
+        fn layout() -> &'static [VertexAttributeDescriptor] {
             static LAYOUT: [VertexAttributeDescriptor; 7] = [
                 VertexAttributeDescriptor {
                     usage: VertexAttributeUsage::Position,
@@ -1228,12 +1252,12 @@ mod test {
     }
 
     fn create_test_buffer() -> VertexBuffer {
-        VertexBuffer::new(VERTICES.len(), Vertex::layout(), VERTICES.to_vec()).unwrap()
+        VertexBuffer::new(VERTICES.len(), VERTICES.to_vec()).unwrap()
     }
 
     #[test]
     fn test_empty() {
-        VertexBuffer::new::<Vertex>(0, Vertex::layout(), vec![]).unwrap();
+        VertexBuffer::new::<Vertex>(0, vec![]).unwrap();
     }
 
     #[test]
