@@ -1,10 +1,4 @@
-//! Vertex buffer with dynamic layout.
-//!
-//! # Limitations
-//!
-//! Vertex size cannot be more than 256 bytes, this limitation shouldn't be a problem because
-//! almost every GPU supports up to 16 vertex attributes with 16 bytes of size each, which
-//! gives exactly 256 bytes.
+//! Vertex buffer with dynamic layout. See [`VertexBuffer`] docs for more info and usage examples.
 
 use crate::{
     core::{
@@ -147,7 +141,72 @@ pub struct VertexAttribute {
     pub shader_location: u8,
 }
 
-/// See module docs.
+/// Vertex buffer with dynamic layout. It is used to store multiple vertices of a single type, that implements [`VertexTrait`].
+/// Different vertex types used to for efficient memory usage. For example, you could have a simple vertex with only position
+/// expressed as Vector3 and it will be enough for simple cases, when only position is required. However, if you want to draw
+/// a mesh with skeletal animation, that also supports texturing, lighting, you need to provide a lot more data (bone indices,
+/// bone weights, normals, tangents, texture coordinates).
+///
+/// ## Examples
+///
+/// ```rust
+/// # use fyrox::{
+/// #     core::algebra::Vector3,
+/// #     scene::mesh::buffer::{
+/// #         VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage, VertexBuffer,
+/// #         VertexTrait,
+/// #     },
+/// # };
+/// #
+/// #[derive(Copy, Clone)]
+/// #[repr(C)]
+/// struct MyVertex {
+///     position: Vector3<f32>,
+/// }
+///
+/// impl VertexTrait for MyVertex {
+///     fn layout() -> &'static [VertexAttributeDescriptor] {
+///         &[VertexAttributeDescriptor {
+///             usage: VertexAttributeUsage::Position,
+///             data_type: VertexAttributeDataType::F32,
+///             size: 3,
+///             divisor: 0,
+///             shader_location: 0,
+///         }]
+///     }
+/// }
+///
+/// fn create_triangle_vertex_buffer() -> VertexBuffer {
+///     VertexBuffer::new(
+///         3,
+///         vec![
+///             MyVertex {
+///                 position: Vector3::new(0.0, 0.0, 0.0),
+///             },
+///             MyVertex {
+///                 position: Vector3::new(0.0, 1.0, 0.0),
+///             },
+///             MyVertex {
+///                 position: Vector3::new(1.0, 1.0, 0.0),
+///             },
+///         ],
+///     )
+///     .unwrap()
+/// }  
+/// ```
+///
+/// This example creates a simple vertex buffer that contains a single triangle with custom vertex format. The most important
+/// part here is [`VertexTrait::layout`] implementation - it describes each "attribute" of your vertex, if your layout does not
+/// match the actual content of the vertex (in terms of size in bytes), then vertex buffer cannot be created and [`VertexBuffer::new`]
+/// will return [`None`].
+///
+/// The second, but not least important is `#[repr(C)]` attribute - it is mandatory for every vertex type, it forbids fields
+/// reordering of you vertex structure and guarantees that they will have the same layout in memory as their declaration order.
+///
+/// ## Limitations
+///
+/// Vertex size cannot be more than 256 bytes, this limitation shouldn't be a problem because almost every GPU supports up to
+/// 16 vertex attributes with 16 bytes of size each, which gives exactly 256 bytes.
 #[derive(Clone, Visit, Default, Debug)]
 pub struct VertexBuffer {
     dense_layout: Vec<VertexAttribute>,
