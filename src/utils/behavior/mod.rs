@@ -244,6 +244,47 @@ impl<B: Clone + 'static> IndexMut<Handle<BehaviorNode<B>>> for BehaviorTree<B> {
     }
 }
 
+/// Creates a new sequence.
+pub fn sequence<B, const N: usize>(
+    children: [Handle<BehaviorNode<B>>; N],
+    tree: &mut BehaviorTree<B>,
+) -> Handle<BehaviorNode<B>>
+where
+    B: Clone + 'static,
+{
+    CompositeNode::new_sequence(children.to_vec()).add_to(tree)
+}
+
+/// Creates a new selector.
+pub fn selector<B, const N: usize>(
+    children: [Handle<BehaviorNode<B>>; N],
+    tree: &mut BehaviorTree<B>,
+) -> Handle<BehaviorNode<B>>
+where
+    B: Clone + 'static,
+{
+    CompositeNode::new_selector(children.to_vec()).add_to(tree)
+}
+
+/// Creates a new leaf.
+pub fn leaf<B>(behavior: B, tree: &mut BehaviorTree<B>) -> Handle<BehaviorNode<B>>
+where
+    B: Clone + 'static,
+{
+    LeafNode::new(behavior).add_to(tree)
+}
+
+/// Creates a new inverter.
+pub fn inverter<B>(
+    child: Handle<BehaviorNode<B>>,
+    tree: &mut BehaviorTree<B>,
+) -> Handle<BehaviorNode<B>>
+where
+    B: Clone + 'static,
+{
+    Inverter::new(child).add_to(tree)
+}
+
 #[cfg(test)]
 mod test {
     use crate::{
