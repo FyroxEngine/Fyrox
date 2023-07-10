@@ -45,11 +45,11 @@
         ),
         (
             name: "nodeUvOffsets",
-            kind: Vector4([0.0, 0.0, 0.0, 0.0]),
+            kind: Vector4((0.0, 0.0, 0.0, 0.0)),
         ),
         (
             name: "texCoordScale",
-            kind: Vector2([1.0, 1.0]),
+            kind: Vector2((1.0, 1.0)),
         ),
         (
             name: "layerIndex",
@@ -57,7 +57,7 @@
         ),
         (
             name: "emissionStrength",
-            kind: Vector3([2.0, 2.0, 2.0]),
+            kind: Vector3((2.0, 2.0, 2.0)),
         ),
         (
             name: "diffuseColor",

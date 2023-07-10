@@ -37,7 +37,7 @@
         ),
         (
             name: "texCoordScale",
-            kind: Vector2([1.0, 1.0]),
+            kind: Vector2((1.0, 1.0)),
         ),
         (
             name: "layerIndex",
@@ -45,7 +45,7 @@
         ),
         (
             name: "emissionStrength",
-            kind: Vector3([2.0, 2.0, 2.0]),
+            kind: Vector3((2.0, 2.0, 2.0)),
         ),
         (
             name: "diffuseColor",
