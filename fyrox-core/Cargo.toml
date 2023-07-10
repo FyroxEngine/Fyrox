@@ -23,7 +23,7 @@ byteorder = "1.4.3"
 rand = "0.8.4"
 memoffset = "0.8.0"
 lazy_static = "1.4.0"
-nalgebra = "0.32.0"
+nalgebra = "=0.32.1"
 arrayvec = "0.7.2"
 futures = {version = "0.3.17", features = ["thread-pool"] }
 uuid = { version = "1", features = ["v4", "js"] }
