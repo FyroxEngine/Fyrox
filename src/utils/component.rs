@@ -36,7 +36,7 @@ macro_rules! impl_component_provider {
         }
     };
 
-    ($dest_type:ty, $($comp_field:ident: $comp_type:ty),*) => {
+    ($dest_type:ty, $($($comp_field:ident).*: $comp_type:ty),*) => {
         impl $crate::utils::component::ComponentProvider for $dest_type {
             fn query_component_ref(&self, type_id: std::any::TypeId) -> Option<&dyn std::any::Any> {
                 if type_id == std::any::TypeId::of::<Self>() {
@@ -45,7 +45,7 @@ macro_rules! impl_component_provider {
 
                 $(
                     if type_id == std::any::TypeId::of::<$comp_type>() {
-                        return Some(&self.$comp_field)
+                        return Some(&self.$($comp_field).*)
                     }
                 )*
 
@@ -62,7 +62,7 @@ macro_rules! impl_component_provider {
 
                 $(
                     if type_id == std::any::TypeId::of::<$comp_type>() {
-                        return Some(&mut self.$comp_field)
+                        return Some(&mut self.$($comp_field).*)
                     }
                 )*
 
