@@ -1,76 +1,6 @@
-//! Contains all structures and methods to create and manage particle systems.
-//!
-//! Particle system used to create visual effects that consists of many small parts,
-//! this can be smoke, fire, dust, sparks, etc. Particle system optimized to operate
-//! on many small parts, so it is much efficient to use particle system instead of
-//! separate scene nodes. Downside of particle system is that there almost no way
-//! to control separate particles, all particles controlled by parameters of particle
-//! emitters.
-//!
-//! # Emitters
-//!
-//! Particle system can contain multiple particle emitters, each emitter has its own
-//! set of properties and it defines law of change of particle parameters over time.
-//!
-//! # Performance
-//!
-//! In general particle system can be considered as heavy visual effect, but total impact
-//! on performance defined by amount of particles and amount of pixels they take to render.
-//! A rule of thumb will be to decrease amount of particles until effect will look good
-//! enough, alternatively amount of particles can be defined by some coefficient based on
-//! graphics quality settings.
-//!
-//! # Example
-//!
-//! Simple smoke effect can be create like so:
-//!
-//! ```
-//! use fyrox::scene::particle_system::{
-//!     emitter::sphere::SphereEmitter, ParticleSystemBuilder, emitter::Emitter,
-//!     emitter::base::BaseEmitterBuilder, emitter::sphere::SphereEmitterBuilder
-//! };
-//! use fyrox::asset::manager::ResourceManager;
-//! use fyrox::core::algebra::Vector3;
-//! use fyrox::scene::graph::Graph;
-//! use fyrox::scene::node::Node;
-//! use fyrox::scene::transform::TransformBuilder;
-//! use fyrox::core::color_gradient::{GradientPoint, ColorGradient};
-//! use fyrox::scene::base::BaseBuilder;
-//! use fyrox::core::color::Color;
-//! use std::path::Path;
-//! use fyrox::resource::texture::{Texture, TexturePixelKind};
-//!
-//! fn create_smoke(graph: &mut Graph, resource_manager: &mut ResourceManager, pos: Vector3<f32>) {
-//!      ParticleSystemBuilder::new(BaseBuilder::new()
-//!         .with_lifetime(5.0)
-//!         .with_local_transform(TransformBuilder::new()
-//!             .with_local_position(pos)
-//!             .build()))
-//!         .with_acceleration(Vector3::new(0.0, 0.0, 0.0))
-//!         .with_color_over_lifetime_gradient({
-//!             let mut gradient = ColorGradient::new();
-//!             gradient.add_point(GradientPoint::new(0.00, Color::from_rgba(150, 150, 150, 0)));
-//!             gradient.add_point(GradientPoint::new(0.05, Color::from_rgba(150, 150, 150, 220)));
-//!             gradient.add_point(GradientPoint::new(0.85, Color::from_rgba(255, 255, 255, 180)));
-//!             gradient.add_point(GradientPoint::new(1.00, Color::from_rgba(255, 255, 255, 0)));
-//!             gradient
-//!         })
-//!         .with_emitters(vec![
-//!             SphereEmitterBuilder::new(BaseEmitterBuilder::new()
-//!                 .with_max_particles(100)
-//!                 .with_spawn_rate(50)
-//!                 .with_x_velocity_range(-0.01..0.01)
-//!                 .with_y_velocity_range(0.02..0.03)
-//!                 .with_z_velocity_range(-0.01..0.01))
-//!                 .with_radius(0.01)
-//!                 .build()
-//!         ])
-//!         .with_texture(resource_manager.request::<Texture, _>(Path::new("data/particles/smoke_04.tga")))
-//!         .build(graph);
-//! }
-//! ```
+//! Contains all structures and methods to create and manage particle systems. See [`ParticleSystem`] docs for more
+//! info and usage examples.
 
-use crate::rand::{Error, RngCore};
 use crate::{
     core::{
         algebra::{Vector2, Vector3},
@@ -83,7 +13,7 @@ use crate::{
         visitor::prelude::*,
         TypeUuidProvider,
     },
-    rand::{prelude::StdRng, SeedableRng},
+    rand::{prelude::StdRng, Error, RngCore, SeedableRng},
     resource::texture::TextureResource,
     scene::{
         base::{Base, BaseBuilder},
@@ -199,7 +129,75 @@ impl Visit for ParticleSystemRng {
     }
 }
 
-/// See module docs.
+/// Particle system used to create visual effects that consists of many small parts,
+/// this can be smoke, fire, dust, sparks, etc. Particle system optimized to operate
+/// on many small parts, so it is much efficient to use particle system instead of
+/// separate scene nodes. Downside of particle system is that there almost no way
+/// to control separate particles, all particles controlled by parameters of particle
+/// emitters.
+///
+/// # Emitters
+///
+/// Particle system can contain multiple particle emitters, each emitter has its own
+/// set of properties and it defines law of change of particle parameters over time.
+///
+/// # Performance
+///
+/// In general particle system can be considered as heavy visual effect, but total impact
+/// on performance defined by amount of particles and amount of pixels they take to render.
+/// A rule of thumb will be to decrease amount of particles until effect will look good
+/// enough, alternatively amount of particles can be defined by some coefficient based on
+/// graphics quality settings.
+///
+/// # Example
+///
+/// Simple smoke effect can be create like so:
+///
+/// ```
+/// use fyrox::scene::particle_system::{
+///     emitter::sphere::SphereEmitter, ParticleSystemBuilder, emitter::Emitter,
+///     emitter::base::BaseEmitterBuilder, emitter::sphere::SphereEmitterBuilder
+/// };
+/// use fyrox::asset::manager::ResourceManager;
+/// use fyrox::core::algebra::Vector3;
+/// use fyrox::scene::graph::Graph;
+/// use fyrox::scene::node::Node;
+/// use fyrox::scene::transform::TransformBuilder;
+/// use fyrox::core::color_gradient::{GradientPoint, ColorGradient};
+/// use fyrox::scene::base::BaseBuilder;
+/// use fyrox::core::color::Color;
+/// use std::path::Path;
+/// use fyrox::resource::texture::{Texture, TexturePixelKind};
+///
+/// fn create_smoke(graph: &mut Graph, resource_manager: &mut ResourceManager, pos: Vector3<f32>) {
+///      ParticleSystemBuilder::new(BaseBuilder::new()
+///         .with_lifetime(5.0)
+///         .with_local_transform(TransformBuilder::new()
+///             .with_local_position(pos)
+///             .build()))
+///         .with_acceleration(Vector3::new(0.0, 0.0, 0.0))
+///         .with_color_over_lifetime_gradient({
+///             let mut gradient = ColorGradient::new();
+///             gradient.add_point(GradientPoint::new(0.00, Color::from_rgba(150, 150, 150, 0)));
+///             gradient.add_point(GradientPoint::new(0.05, Color::from_rgba(150, 150, 150, 220)));
+///             gradient.add_point(GradientPoint::new(0.85, Color::from_rgba(255, 255, 255, 180)));
+///             gradient.add_point(GradientPoint::new(1.00, Color::from_rgba(255, 255, 255, 0)));
+///             gradient
+///         })
+///         .with_emitters(vec![
+///             SphereEmitterBuilder::new(BaseEmitterBuilder::new()
+///                 .with_max_particles(100)
+///                 .with_spawn_rate(50)
+///                 .with_x_velocity_range(-0.01..0.01)
+///                 .with_y_velocity_range(0.02..0.03)
+///                 .with_z_velocity_range(-0.01..0.01))
+///                 .with_radius(0.01)
+///                 .build()
+///         ])
+///         .with_texture(resource_manager.request::<Texture, _>(Path::new("data/particles/smoke_04.tga")))
+///         .build(graph);
+/// }
+/// ```
 #[derive(Debug, Visit, Clone, Reflect)]
 pub struct ParticleSystem {
     base: Base,
