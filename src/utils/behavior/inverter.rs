@@ -1,4 +1,4 @@
-//! A node, that inverts its child state ([`Status::Failure`] becomes [`Status::Success`] and vice versa, [`Status::Running`] remains
+//! A node, that inverts its child state ([`super::Status::Failure`] becomes [`super::Status::Success`] and vice versa, [`super::Status::Running`] remains
 //! unchanged)
 
 use crate::{
