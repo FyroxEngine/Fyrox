@@ -1,5 +1,5 @@
 use fyrox::{
-    core::{algebra::Vector2, pool::ErasedHandle, pool::Handle},
+    core::{algebra::Vector2, pool::ErasedHandle, pool::Handle, visitor::Visitor},
     gui::{
         file_browser::{FileBrowserMode, FileSelectorBuilder, Filter},
         message::MessageDirection,
@@ -10,6 +10,7 @@ use fyrox::{
     resource::texture::{CompressionOptions, TextureResource, TextureResourceExtension},
     scene::camera::{SkyBox, SkyBoxBuilder},
 };
+use std::{fs::File, io::Read, path::Path};
 
 pub mod doc;
 pub mod path_fixer;
@@ -151,4 +152,14 @@ where
     }
 
     apply_filter_recursive(root, ui, &filter);
+}
+
+pub fn is_native_scene(path: &Path) -> bool {
+    if let Ok(mut file) = File::open(path) {
+        let mut magic: [u8; 4] = Default::default();
+        if file.read_exact(&mut magic).is_ok() {
+            return magic.eq(Visitor::MAGIC.as_bytes());
+        }
+    }
+    false
 }

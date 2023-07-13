@@ -1117,7 +1117,7 @@ impl Default for Visitor {
 }
 
 impl Visitor {
-    const MAGIC: &'static str = "RG3D";
+    pub const MAGIC: &'static str = "RG3D";
 
     pub fn new() -> Self {
         let mut nodes = Pool::new();

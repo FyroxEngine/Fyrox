@@ -9,7 +9,7 @@ use crate::{
         },
         EditorScene, Selection,
     },
-    Engine, Message, MessageDirection, PasteCommand,
+    utils, Engine, Message, MessageDirection, PasteCommand,
 };
 use fyrox::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
@@ -24,6 +24,7 @@ use fyrox::{
         BuildContext, RcUiNodeHandle, UiNode,
     },
 };
+use std::path::PathBuf;
 
 pub struct ItemContextMenu {
     pub menu: RcUiNodeHandle,
@@ -36,6 +37,22 @@ pub struct ItemContextMenu {
     save_as_prefab_dialog: Handle<UiNode>,
     paste: Handle<UiNode>,
     make_root: Handle<UiNode>,
+    open_asset: Handle<UiNode>,
+}
+
+fn resource_path_of_first_selected_node(
+    editor_scene: &EditorScene,
+    engine: &Engine,
+) -> Option<PathBuf> {
+    if let Selection::Graph(graph_selection) = &editor_scene.selection {
+        if let Some(first) = graph_selection.nodes.first() {
+            let scene = &engine.scenes[editor_scene.scene];
+            if let Some(resource) = scene.graph.try_get(*first).and_then(|n| n.resource()) {
+                return Some(resource.path());
+            }
+        }
+    }
+    None
 }
 
 impl ItemContextMenu {
@@ -45,6 +62,7 @@ impl ItemContextMenu {
         let save_as_prefab;
         let paste;
         let make_root;
+        let open_asset;
 
         let (create_entity_menu, create_entity_menu_root_items) = CreateEntityMenu::new(ctx);
         let (replace_with_menu, replace_with_menu_root_items) = CreateEntityMenu::new(ctx);
@@ -90,7 +108,11 @@ impl ItemContextMenu {
                             .with_content(MenuItemContent::text("Replace With"))
                             .with_items(replace_with_menu_root_items)
                             .build(ctx),
-                        ),
+                        )
+                        .with_child({
+                            open_asset = create_menu_item("Open Asset", vec![], ctx);
+                            open_asset
+                        }),
                 )
                 .build(ctx),
             )
@@ -111,6 +133,7 @@ impl ItemContextMenu {
             replace_with_menu,
             paste,
             make_root,
+            open_asset,
         }
     }
 
@@ -183,6 +206,12 @@ impl ItemContextMenu {
                         });
                     }
                 }
+            } else if message.destination() == self.open_asset {
+                if let Some(path) = resource_path_of_first_selected_node(editor_scene, engine) {
+                    if utils::is_native_scene(&path) {
+                        sender.send(Message::LoadScene(path));
+                    }
+                }
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
             if message.destination() == *self.menu {
@@ -193,7 +222,14 @@ impl ItemContextMenu {
                     self.paste,
                     MessageDirection::ToWidget,
                     !editor_scene.clipboard.is_empty(),
-                ))
+                ));
+
+                engine.user_interface.send_message(WidgetMessage::enabled(
+                    self.open_asset,
+                    MessageDirection::ToWidget,
+                    resource_path_of_first_selected_node(editor_scene, engine)
+                        .map_or(false, |p| utils::is_native_scene(&p)),
+                ));
             }
         } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
             if message.destination() == self.save_as_prefab_dialog {
