@@ -27,6 +27,14 @@ impl AxisAlignedBoundingBox {
     }
 
     #[inline]
+    pub const fn collapsed() -> Self {
+        Self {
+            min: Vector3::new(0.0, 0.0, 0.0),
+            max: Vector3::new(0.0, 0.0, 0.0),
+        }
+    }
+
+    #[inline]
     pub fn from_radius(radius: f32) -> Self {
         Self {
             min: Vector3::new(-radius, -radius, -radius),
@@ -103,6 +111,12 @@ impl AxisAlignedBoundingBox {
             Vector3::new(self.max.x, self.max.y, self.max.z),
             Vector3::new(self.max.x, self.max.y, self.min.z),
         ]
+    }
+
+    #[inline]
+    pub fn volume(&self) -> f32 {
+        let size = self.max - self.min;
+        size.x * size.y * size.z
     }
 
     #[inline]
