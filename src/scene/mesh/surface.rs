@@ -131,24 +131,21 @@ impl BlendShapesContainer {
 
         for (layer, blend_shape) in input_blend_shapes.iter().enumerate() {
             for (index, position) in blend_shape.positions.iter() {
-                if let Some(mut vertex) =
-                    fetch(&mut vertex_data, *index as usize, width, height, layer)
+                if let Some(vertex) = fetch(&mut vertex_data, *index as usize, width, height, layer)
                 {
                     vertex.position = *position;
                 }
             }
 
             for (index, normal) in blend_shape.normals.iter() {
-                if let Some(mut vertex) =
-                    fetch(&mut vertex_data, *index as usize, width, height, layer)
+                if let Some(vertex) = fetch(&mut vertex_data, *index as usize, width, height, layer)
                 {
                     vertex.normal = *normal;
                 }
             }
 
             for (index, tangent) in blend_shape.tangents.iter() {
-                if let Some(mut vertex) =
-                    fetch(&mut vertex_data, *index as usize, width, height, layer)
+                if let Some(vertex) = fetch(&mut vertex_data, *index as usize, width, height, layer)
                 {
                     vertex.tangent = *tangent;
                 }

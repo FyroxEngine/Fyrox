@@ -705,7 +705,7 @@ impl PhysicsWorld {
                         .ccd_enabled
                         .try_sync_model(|v| native.enable_ccd(v));
                     rigid_body_node.can_sleep.try_sync_model(|v| {
-                        let mut activation = native.activation_mut();
+                        let activation = native.activation_mut();
                         if v {
                             activation.linear_threshold =
                                 RigidBodyActivation::default_linear_threshold();

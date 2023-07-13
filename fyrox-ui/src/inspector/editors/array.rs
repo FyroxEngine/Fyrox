@@ -250,7 +250,7 @@ where
 {
     fn default() -> Self {
         Self {
-            phantom: PhantomData::default(),
+            phantom: PhantomData,
         }
     }
 }

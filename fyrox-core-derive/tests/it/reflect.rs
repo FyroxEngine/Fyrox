@@ -451,7 +451,7 @@ fn inspect_struct() {
     #[derive(Debug, Default, Reflect)]
     struct Unit;
 
-    let x = Unit::default();
+    let x = Unit;
     x.fields_info(&mut |fields_info| assert_eq!(fields_info, vec![]));
 }
 
