@@ -1,3 +1,9 @@
+//! Message box is a window that is used to show standard confirmation/information dialogues, for example, closing a document with
+//! unsaved changes. It has a title, some text, and a fixed set of buttons (Yes, No, Cancel in different combinations). See
+//! [`MessageBox`] docs for more info and usage examples.
+
+#![warn(missing_docs)]
+
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{algebra::Vector2, pool::Handle},
@@ -19,42 +25,144 @@ use std::{
     sync::mpsc::Sender,
 };
 
+/// A set of messages that can be used to communicate with message boxes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MessageBoxMessage {
+    /// A message that can be used to open message box, and optionally change its title and/or text.
     Open {
+        /// If [`Some`], a message box title will be set to the new value.
         title: Option<String>,
+        /// If [`Some`], a message box text will be set to the new value.
         text: Option<String>,
     },
+    /// A message that can be used to close a message box with some result. It can also be read to get the changes
+    /// from the UI. See [`MessageBox`] docs for examples.
     Close(MessageBoxResult),
 }
 
 impl MessageBoxMessage {
-    define_constructor!(MessageBoxMessage:Open => fn open(title: Option<String>, text: Option<String>), layout: false);
-    define_constructor!(MessageBoxMessage:Close => fn close(MessageBoxResult), layout: false);
+    define_constructor!(
+        /// Creates [`MessageBoxMessage::Open`] message.
+        MessageBoxMessage:Open => fn open(title: Option<String>, text: Option<String>), layout: false
+    );
+    define_constructor!(
+        /// Creates [`MessageBoxMessage::Close`] message.
+        MessageBoxMessage:Close => fn close(MessageBoxResult), layout: false
+    );
 }
 
+/// A set of possible reasons why a message box was closed.
 #[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Debug)]
 pub enum MessageBoxResult {
+    /// `Ok` button was pressed. It can be emitted only if your message box was created with [`MessageBoxButtons::Ok`].
     Ok,
+    /// `No` button was pressed. It can be emitted only if your message box was created with [`MessageBoxButtons::YesNo`] or
+    /// [`MessageBoxButtons::YesNoCancel`].
     No,
+    /// `Yes` button was pressed. It can be emitted only if your message box was created with [`MessageBoxButtons::YesNo`] or
+    /// [`MessageBoxButtons::YesNoCancel`].
     Yes,
+    /// `Cancel` button was pressed. It can be emitted only if your message box was created with [`MessageBoxButtons::YesNoCancel`].
     Cancel,
 }
 
+/// A fixed set of possible buttons in a message box.
 #[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Debug)]
 pub enum MessageBoxButtons {
+    /// Only `Ok` button. It is typically used to show a message with results of some finished action.
     Ok,
+    /// `Yes` and `No` buttons. It is typically used to show a message to ask a user if they are want to continue or not.
     YesNo,
+    /// `Yes`, `No`, `Cancel` buttons. It is typically used to show a message to ask a user if they are want to confirm action,
+    /// refuse, cancel the next action completely.
     YesNoCancel,
 }
 
+/// Message box is a window that is used to show standard confirmation/information dialogues, for example, closing a document with
+/// unsaved changes. It has a title, some text, and a fixed set of buttons (Yes, No, Cancel in different combinations).
+///
+/// ## Examples
+///
+/// A simple message box with two buttons (Yes and No) and some text can be created like so:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     messagebox::{MessageBoxBuilder, MessageBoxButtons},
+/// #     widget::WidgetBuilder,
+/// #     window::WindowBuilder,
+/// #     BuildContext, UiNode,
+/// # };
+/// #
+/// fn create_message_box(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     MessageBoxBuilder::new(WindowBuilder::new(WidgetBuilder::new()))
+///         .with_buttons(MessageBoxButtons::YesNo)
+///         .with_text("Do you want to save your changes?")
+///         .build(ctx)
+/// }
+/// ```
+///
+/// To "catch" the moment when any of the buttons will be clicked, you should listen for [`MessageBoxMessage::Close`] message:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     message::UiMessage,
+/// #     messagebox::{MessageBoxMessage, MessageBoxResult},
+/// #     UiNode,
+/// # };
+/// # fn on_ui_message(my_message_box: Handle<UiNode>, message: &UiMessage) {
+/// if message.destination() == my_message_box {
+///     if let Some(MessageBoxMessage::Close(result)) = message.data() {
+///         match result {
+///             MessageBoxResult::No => {
+///                 println!("No");
+///             }
+///             MessageBoxResult::Yes => {
+///                 println!("Yes");
+///             }
+///             _ => (),
+///         }
+///     }
+/// }
+/// # }
+/// ```
+///
+/// To open an existing message box, use [`MessageBoxMessage::Open`]. You can optionally specify a new title and a text for the
+/// message box:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle, message::MessageDirection, messagebox::MessageBoxMessage, UiNode,
+/// #     UserInterface,
+/// # };
+/// # fn open_message_box(my_message_box: Handle<UiNode>, ui: &UserInterface) {
+/// ui.send_message(MessageBoxMessage::open(
+///     my_message_box,
+///     MessageDirection::ToWidget,
+///     Some("This is the new title".to_string()),
+///     Some("This is the new text".to_string()),
+/// ))
+/// # }
+/// ```
+///
+/// ## Styling
+///
+/// There's no way to change the style of the message box, nor add some widgets to it. If you need custom message box, then you
+/// need to create your own widget. This message box is meant to be used as a standard dialog box for standard situations in UI.
 #[derive(Clone)]
 pub struct MessageBox {
+    /// Base window of the message box.
     pub window: Window,
+    /// Current set of buttons of the message box.
     pub buttons: MessageBoxButtons,
+    /// A handle of `Ok`/`Yes` buttons.
     pub ok_yes: Handle<UiNode>,
+    /// A handle of `No` button.
     pub no: Handle<UiNode>,
+    /// A handle of `Cancel` button.
     pub cancel: Handle<UiNode>,
+    /// A handle of text widget.
     pub text: Handle<UiNode>,
 }
 
@@ -187,6 +295,7 @@ impl Control for MessageBox {
     }
 }
 
+/// Creates [`MessageBox`] widgets and adds them to user interface.
 pub struct MessageBoxBuilder<'b> {
     window_builder: WindowBuilder,
     buttons: MessageBoxButtons,
@@ -194,6 +303,7 @@ pub struct MessageBoxBuilder<'b> {
 }
 
 impl<'b> MessageBoxBuilder<'b> {
+    /// Creates new builder instace. `window_builder` could be used to customize the look of you message box.
     pub fn new(window_builder: WindowBuilder) -> Self {
         Self {
             window_builder,
@@ -202,16 +312,19 @@ impl<'b> MessageBoxBuilder<'b> {
         }
     }
 
+    /// Sets a desired text of the message box.
     pub fn with_text(mut self, text: &'b str) -> Self {
         self.text = text;
         self
     }
 
+    /// Sets a desired set of buttons of the message box.
     pub fn with_buttons(mut self, buttons: MessageBoxButtons) -> Self {
         self.buttons = buttons;
         self
     }
 
+    /// Finished message box building and adds it to the user interface.
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let ok_yes;
         let mut no = Default::default();
