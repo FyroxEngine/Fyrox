@@ -193,18 +193,12 @@ pub struct ContactPair {
 impl ContactPair {
     fn from_native(c: &rapier2d::geometry::ContactPair, physics: &PhysicsWorld) -> Self {
         ContactPair {
-            collider1: physics
-                .colliders
-                .map
-                .value_of(&c.collider1)
-                .cloned()
-                .unwrap_or_default(),
-            collider2: physics
-                .colliders
-                .map
-                .value_of(&c.collider2)
-                .cloned()
-                .unwrap_or_default(),
+            collider1: Handle::decode_from_u128(
+                physics.colliders.get(c.collider1).unwrap().user_data,
+            ),
+            collider2: Handle::decode_from_u128(
+                physics.colliders.get(c.collider2).unwrap().user_data,
+            ),
             manifolds: c
                 .manifolds
                 .iter()
@@ -225,12 +219,22 @@ impl ContactPair {
                     rigid_body1: m
                         .data
                         .rigid_body1
-                        .and_then(|h| physics.bodies.map.value_of(&h).cloned())
+                        .and_then(|h| {
+                            physics
+                                .bodies
+                                .get(h)
+                                .map(|b| Handle::decode_from_u128(b.user_data))
+                        })
                         .unwrap_or_default(),
                     rigid_body2: m
                         .data
                         .rigid_body2
-                        .and_then(|h| physics.bodies.map.value_of(&h).cloned())
+                        .and_then(|h| {
+                            physics
+                                .bodies
+                                .get(h)
+                                .map(|b| Handle::decode_from_u128(b.user_data))
+                        })
                         .unwrap_or_default(),
                     normal: m.data.normal,
                 })
@@ -377,11 +381,11 @@ pub struct PhysicsWorld {
     // A container of rigid bodies.
     #[visit(skip)]
     #[reflect(hidden)]
-    bodies: Container<RigidBodySet, RigidBodyHandle>,
+    bodies: RigidBodySet,
     // A container of colliders.
     #[visit(skip)]
     #[reflect(hidden)]
-    colliders: Container<ColliderSet, ColliderHandle>,
+    colliders: ColliderSet,
     // A container of impulse joints.
     #[visit(skip)]
     #[reflect(hidden)]
@@ -442,14 +446,8 @@ impl PhysicsWorld {
             narrow_phase: NarrowPhase::new(),
             ccd_solver: CCDSolver::new(),
             islands: IslandManager::new(),
-            bodies: Container {
-                set: RigidBodySet::new(),
-                map: Default::default(),
-            },
-            colliders: Container {
-                set: ColliderSet::new(),
-                map: Default::default(),
-            },
+            bodies: RigidBodySet::new(),
+            colliders: ColliderSet::new(),
             joints: Container {
                 set: ImpulseJointSet::new(),
                 map: Default::default(),
@@ -502,8 +500,8 @@ impl PhysicsWorld {
                 &mut self.islands,
                 &mut self.broad_phase,
                 &mut self.narrow_phase,
-                &mut self.bodies.set,
-                &mut self.colliders.set,
+                &mut self.bodies,
+                &mut self.colliders,
                 &mut self.joints.set,
                 &mut self.multibody_joints.set,
                 &mut self.ccd_solver,
@@ -518,56 +516,37 @@ impl PhysicsWorld {
         self.performance_statistics.step_time += instant::Instant::now() - time;
     }
 
-    pub(crate) fn add_body(&mut self, owner: Handle<Node>, body: RigidBody) -> RigidBodyHandle {
-        let handle = self.bodies.set.insert(body);
-        self.bodies.map.insert(handle, owner);
-        handle
+    pub(crate) fn add_body(&mut self, owner: Handle<Node>, mut body: RigidBody) -> RigidBodyHandle {
+        body.user_data = owner.encode_to_u128();
+        self.bodies.insert(body)
     }
 
     pub(crate) fn remove_body(&mut self, handle: RigidBodyHandle) {
-        if self
-            .bodies
-            .set
-            .remove(
-                handle,
-                &mut self.islands,
-                &mut self.colliders.set,
-                &mut self.joints.set,
-                &mut self.multibody_joints.set,
-                true,
-            )
-            .is_some()
-        {
-            assert!(self.bodies.map.remove_by_key(&handle).is_some());
-        }
+        self.bodies.remove(
+            handle,
+            &mut self.islands,
+            &mut self.colliders,
+            &mut self.joints.set,
+            &mut self.multibody_joints.set,
+            true,
+        );
     }
 
     pub(crate) fn add_collider(
         &mut self,
         owner: Handle<Node>,
         parent_body: RigidBodyHandle,
-        collider: Collider,
+        mut collider: Collider,
     ) -> ColliderHandle {
-        let handle =
-            self.colliders
-                .set
-                .insert_with_parent(collider, parent_body, &mut self.bodies.set);
-        self.colliders.map.insert(handle, owner);
-        handle
+        collider.user_data = owner.encode_to_u128();
+        self.colliders
+            .insert_with_parent(collider, parent_body, &mut self.bodies)
     }
 
     pub(crate) fn remove_collider(&mut self, handle: ColliderHandle) -> bool {
-        if self
-            .colliders
-            .set
-            .remove(handle, &mut self.islands, &mut self.bodies.set, false)
+        self.colliders
+            .remove(handle, &mut self.islands, &mut self.bodies, false)
             .is_some()
-        {
-            assert!(self.colliders.map.remove_by_key(&handle).is_some());
-            true
-        } else {
-            false
-        }
     }
 
     pub(crate) fn add_joint(
@@ -593,8 +572,8 @@ impl PhysicsWorld {
     pub fn draw(&self, context: &mut SceneDrawingContext) {
         self.debug_render_pipeline.lock().render(
             context,
-            &self.bodies.set,
-            &self.colliders.set,
+            &self.bodies,
+            &self.colliders,
             &self.joints.set,
             &self.multibody_joints.set,
             &self.narrow_phase,
@@ -612,7 +591,7 @@ impl PhysicsWorld {
         // likely end up in panic because of invalid handle stored in internal acceleration
         // structure. This could be fixed by delaying deleting of bodies/collider to the end
         // of the frame.
-        query.update(&self.bodies.set, &self.colliders.set);
+        query.update(&self.bodies, &self.colliders);
 
         query_buffer.clear();
         let ray = Ray::new(
@@ -622,8 +601,8 @@ impl PhysicsWorld {
                 .unwrap_or_default(),
         );
         query.intersections_with_ray(
-            &self.bodies.set,
-            &self.colliders.set,
+            &self.bodies,
+            &self.colliders,
             &ray,
             opts.max_len,
             true,
@@ -633,7 +612,9 @@ impl PhysicsWorld {
             )),
             |handle, intersection| {
                 query_buffer.push(Intersection {
-                    collider: self.colliders.map.value_of(&handle).cloned().unwrap(),
+                    collider: Handle::decode_from_u128(
+                        self.colliders.get(handle).unwrap().user_data,
+                    ),
                     normal: intersection.normal,
                     position: ray.point_at(intersection.toi),
                     feature: intersection.feature.into(),
@@ -664,7 +645,7 @@ impl PhysicsWorld {
         rigid_body: &scene::dim2::rigidbody::RigidBody,
         new_global_transform: &Matrix4<f32>,
     ) {
-        if let Some(native) = self.bodies.set.get_mut(rigid_body.native.get()) {
+        if let Some(native) = self.bodies.get_mut(rigid_body.native.get()) {
             native.set_position(
                 isometry_from_global_transform(new_global_transform),
                 // Do not wake up body, it is too expensive and must be done **only** by explicit
@@ -680,7 +661,7 @@ impl PhysicsWorld {
         parent_transform: Matrix4<f32>,
     ) {
         if self.enabled {
-            if let Some(native) = self.bodies.set.get(rigid_body.native.get()) {
+            if let Some(native) = self.bodies.get(rigid_body.native.get()) {
                 if native.body_type() == RigidBodyType::Dynamic {
                     let local_transform: Matrix4<f32> = parent_transform
                         .try_inverse()
@@ -730,7 +711,7 @@ impl PhysicsWorld {
         if rigid_body_node.native.get() != RigidBodyHandle::invalid() {
             let mut actions = rigid_body_node.actions.lock();
             if rigid_body_node.need_sync_model() || !actions.is_empty() {
-                if let Some(native) = self.bodies.set.get_mut(rigid_body_node.native.get()) {
+                if let Some(native) = self.bodies.get_mut(rigid_body_node.native.get()) {
                     // Sync native rigid body's properties with scene node's in case if they
                     // were changed by user.
                     rigid_body_node
@@ -876,7 +857,7 @@ impl PhysicsWorld {
         //    and a lot of other stuff, this is why we need `anything_changed` flag.
         if collider_node.native.get() != ColliderHandle::invalid() {
             if anything_changed {
-                if let Some(native) = self.colliders.set.get_mut(collider_node.native.get()) {
+                if let Some(native) = self.colliders.get_mut(collider_node.native.get()) {
                     if collider_node.transform_modified.get() {
                         native.set_position_wrt_parent(Isometry2 {
                             rotation: UnitComplex::from_angle(
@@ -1045,8 +1026,8 @@ impl PhysicsWorld {
                 let native_body1 = body1.native.get();
                 let native_body2 = body2.native.get();
 
-                assert!(self.bodies.set.get(native_body1).is_some());
-                assert!(self.bodies.set.get(native_body2).is_some());
+                assert!(self.bodies.get(native_body1).is_some());
+                assert!(self.bodies.get(native_body2).is_some());
 
                 let mut native_joint = convert_joint_params(params, local_frame1, local_frame2);
                 native_joint.contacts_enabled = joint.is_contacts_enabled();
@@ -1071,18 +1052,12 @@ impl PhysicsWorld {
     ) -> impl Iterator<Item = IntersectionPair> + '_ {
         self.narrow_phase.intersections_with(collider).map(
             |(collider1, collider2, intersecting)| IntersectionPair {
-                collider1: self
-                    .colliders
-                    .map
-                    .value_of(&collider1)
-                    .cloned()
-                    .unwrap_or_default(),
-                collider2: self
-                    .colliders
-                    .map
-                    .value_of(&collider2)
-                    .cloned()
-                    .unwrap_or_default(),
+                collider1: Handle::decode_from_u128(
+                    self.colliders.get(collider1).unwrap().user_data,
+                ),
+                collider2: Handle::decode_from_u128(
+                    self.colliders.get(collider2).unwrap().user_data,
+                ),
                 has_any_active_contact: intersecting,
             },
         )
