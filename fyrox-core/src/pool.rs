@@ -437,6 +437,20 @@ impl<T> Handle<T> {
             type_marker: Default::default(),
         }
     }
+
+    #[inline(always)]
+    pub fn decode_from_u128(num: u128) -> Self {
+        Self {
+            index: num as u32,
+            generation: (num >> 32) as u32,
+            type_marker: Default::default(),
+        }
+    }
+
+    #[inline(always)]
+    pub fn encode_to_u128(&self) -> u128 {
+        (self.index as u128) | ((self.generation as u128) << 32)
+    }
 }
 
 impl<T> Default for Pool<T>
@@ -1736,5 +1750,13 @@ mod test {
 
         // Test out-of-space - context has limited capacity.mut
         assert_eq!(ctx.try_get(c), None);
+    }
+
+    #[test]
+    fn test_handle_u128_encode_decode() {
+        let a = Handle::<()>::new(123, 321);
+        let encoded = a.encode_to_u128();
+        let decoded = Handle::<()>::decode_from_u128(encoded);
+        assert_eq!(decoded, a);
     }
 }
