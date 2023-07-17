@@ -1,3 +1,8 @@
+//! UUID editor is used to show an arbitrary UUID and give an ability to generate a new value. See [`UuidEditor`] docs for
+//! more info and usage examples.
+
+#![warn(missing_docs)]
+
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{pool::Handle, uuid::Uuid},
@@ -13,15 +18,38 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+/// A set of messages that is used to fetch or modify values of [`UuidEditor`] widgets.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UuidEditorMessage {
+    /// Fetches or modifies a value of a [`UuidEditor`] widget.
     Value(Uuid),
 }
 
 impl UuidEditorMessage {
-    define_constructor!(UuidEditorMessage:Value => fn value(Uuid), layout: false);
+    define_constructor!(
+        /// Creates [`UuidEditorMessage::Value`] message.
+        UuidEditorMessage:Value => fn value(Uuid), layout: false
+    );
 }
 
+/// UUID editor is used to show an arbitrary UUID and give an ability to generate a new value. It is widely used in
+/// [`crate::inspector::Inspector`] to show and edit UUIDs.
+///
+/// ## Example
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::{pool::Handle, uuid::Uuid},
+/// #     uuid::UuidEditorBuilder,
+/// #     widget::WidgetBuilder,
+/// #     BuildContext, UiNode,
+/// # };
+/// fn create_uuid_editor(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     UuidEditorBuilder::new(WidgetBuilder::new())
+///         .with_value(Uuid::new_v4())
+///         .build(ctx)
+/// }
+/// ```
 #[derive(Clone)]
 pub struct UuidEditor {
     widget: Widget,
@@ -70,12 +98,14 @@ impl Control for UuidEditor {
     }
 }
 
+/// Creates [`UuidEditor`] widgets and add them to the user interface.
 pub struct UuidEditorBuilder {
     widget_builder: WidgetBuilder,
     value: Uuid,
 }
 
 impl UuidEditorBuilder {
+    /// Creates new builder instance.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -83,11 +113,13 @@ impl UuidEditorBuilder {
         }
     }
 
+    /// Sets a desired value of the [`UuidEditor`].
     pub fn with_value(mut self, value: Uuid) -> Self {
         self.value = value;
         self
     }
 
+    /// Finishes widget building.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let text;
         let generate;
