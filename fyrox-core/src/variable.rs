@@ -14,10 +14,12 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+#[derive(Reflect, Debug, Copy, Clone, Ord, PartialOrd, PartialEq, Eq)]
+#[repr(transparent)]
+pub struct VariableFlags(u8);
+
 bitflags! {
-    /// A set of possible variable flags.
-    #[derive(Reflect)]
-    pub struct VariableFlags: u8 {
+    impl VariableFlags: u8 {
         /// Nothing.
         const NONE = 0;
         /// A variable was externally modified.
@@ -258,7 +260,7 @@ where
                 }
             }
 
-            self.flags.get_mut().bits.visit("Flags", &mut region)?;
+            self.flags.get_mut().bits().visit("Flags", &mut region)?;
         }
 
         Ok(())

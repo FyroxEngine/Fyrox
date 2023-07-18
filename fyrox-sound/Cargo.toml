@@ -21,7 +21,7 @@ fyrox-resource = { path = "../fyrox-resource", version = "0.8.0" }
 lewton = "0.10.2"
 hrtf = "0.8.0"
 hound = "3.4.0"
-strum = "0.24.0"
-strum_macros = "0.24.0"
+strum = "0.25.0"
+strum_macros = "0.25.0"
 tinyaudio = "0.1.2"
 serde = { version = "1", features = ["derive"] }

@@ -21,7 +21,7 @@ fyrox-core-derive = { path = "../fyrox-core-derive", version = "0.19.0" }
 base64 = "0.21.0"
 byteorder = "1.4.3"
 rand = "0.8.4"
-memoffset = "0.8.0"
+memoffset = "0.9.0"
 lazy_static = "1.4.0"
 nalgebra = "0.32.3"
 arrayvec = "0.7.2"
@@ -31,9 +31,9 @@ instant = {version = "0.1.12", features = ["wasm-bindgen"] }
 num-traits = "0.2.14"
 parking_lot = "0.12.0"
 fxhash = "0.2.1"
-bitflags = "1.3.2"
+bitflags = "2.2.1"
 once_cell = "1.17.1"
-notify = "5"
+notify = "6"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3.53", features = ["Request", "Window", "Response", "AudioContext", "AudioBuffer", "AudioContextOptions", "AudioNode", "AudioBufferSourceNode", "AudioDestinationNode"] }

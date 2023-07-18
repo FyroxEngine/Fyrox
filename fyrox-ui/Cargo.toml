@@ -20,14 +20,14 @@ fyrox-core = { path = "../fyrox-core", version = "0.24.0", features = ["serde"] 
 lazy_static = "1.4.0"
 copypasta = "0.8.1"
 fontdue = "0.7.2"
-notify = "5.0.0"
+notify = "6"
 fxhash = "0.2.1"
-strum = "0.24.0"
-strum_macros = "0.24.0"
+strum = "0.25.0"
+strum_macros = "0.25.0"
 serde = { version = "1", features = ["derive"] }
 
 [features]
 enable_profiler = ["fyrox-core/enable_profiler"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-sysinfo = "0.26.4"
+sysinfo = "0.29.0"
