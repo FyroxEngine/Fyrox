@@ -29,6 +29,7 @@ mod menu;
 mod message;
 mod overlay;
 mod particle;
+pub mod plugin;
 mod preview;
 mod scene;
 mod scene_viewer;
@@ -63,6 +64,7 @@ use crate::{
     message::MessageSender,
     overlay::OverlayRenderPass,
     particle::ParticleSystemPreviewControlPanel,
+    plugin::EditorPlugin,
     scene::{
         commands::{
             graph::AddModelCommand, make_delete_selection_command, mesh::SetMeshTextureCommand,
@@ -663,6 +665,7 @@ pub struct Editor {
     pub doc_window: DocWindow,
     pub docking_manager: Handle<UiNode>,
     pub engine: Engine,
+    pub plugins: Vec<Option<Box<dyn EditorPlugin>>>,
 }
 
 impl Editor {
@@ -1020,6 +1023,7 @@ impl Editor {
             overlay_pass,
             audio_preview_panel,
             doc_window,
+            plugins: Default::default(),
         };
 
         if let Some(data) = startup_data {
@@ -1230,6 +1234,8 @@ impl Editor {
         if message.has_flags(MSG_SYNC_FLAG) {
             return;
         }
+
+        for_each_plugin!(self.plugins => on_ui_message(message, self));
 
         let engine = &mut self.engine;
 
@@ -1484,6 +1490,8 @@ impl Editor {
     }
 
     fn on_mode_changed(&mut self) {
+        for_each_plugin!(self.plugins => on_mode_changed(self));
+
         let engine = &mut self.engine;
         let ui = &engine.user_interface;
         self.scene_viewer.on_mode_changed(ui, &self.mode);
@@ -1498,6 +1506,8 @@ impl Editor {
 
     fn sync_to_model(&mut self) {
         scope_profile!();
+
+        for_each_plugin!(self.plugins => on_sync_to_model(self));
 
         let engine = &mut self.engine;
 
@@ -1876,6 +1886,8 @@ impl Editor {
     fn update(&mut self, dt: f32) {
         scope_profile!();
 
+        for_each_plugin!(self.plugins => on_update(self));
+
         match self.mode {
             Mode::Play {
                 ref mut process,
@@ -1943,6 +1955,8 @@ impl Editor {
 
             let mut editor_messages_processed_count = 0;
             while let Ok(message) = self.message_receiver.try_recv() {
+                for_each_plugin!(self.plugins => on_message(&message, self));
+
                 editor_messages_processed_count += 1;
                 self.path_fixer
                     .handle_message(&message, &self.engine.user_interface);
@@ -2245,7 +2259,16 @@ impl Editor {
         self.engine.add_plugin_constructor(plugin)
     }
 
+    pub fn add_editor_plugin<P>(&mut self, plugin: P)
+    where
+        P: EditorPlugin + 'static,
+    {
+        self.plugins.push(Some(Box::new(plugin)));
+    }
+
     pub fn run(mut self, event_loop: EventLoop<()>) -> ! {
+        for_each_plugin!(self.plugins => on_start(&mut self));
+
         event_loop.run(move |event, _, control_flow| match event {
             Event::MainEventsCleared => {
                 update(&mut self, control_flow);
@@ -2354,6 +2377,8 @@ impl Editor {
             }
             Event::LoopDestroyed => {
                 Log::verify(self.settings.save());
+
+                for_each_plugin!(self.plugins => on_exit(&mut self));
             }
             _ => *control_flow = ControlFlow::Poll,
         });
