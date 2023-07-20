@@ -260,7 +260,7 @@ where
                 }
             }
 
-            self.flags.get_mut().bits().visit("Flags", &mut region)?;
+            self.flags.get_mut().0.visit("Flags", &mut region)?;
         }
 
         Ok(())
