@@ -16,7 +16,7 @@ pub struct CurveLoader;
 
 impl ResourceLoader for CurveLoader {
     fn extensions(&self) -> &[&str] {
-        &["curve"]
+        &["curve", "crv"]
     }
 
     fn into_any(self: Box<Self>) -> Box<dyn Any> {
