@@ -1,7 +1,12 @@
+//! A visual element that is used to highlight standard states of interactive widgets. It has "pressed", "hover",
+//! "selected", "normal" appearances. See [`Decorator`] docs for more info and usage examples.
+
+#![warn(missing_docs)]
+
 use crate::{
     border::{Border, BorderBuilder},
     brush::Brush,
-    core::{algebra::Vector2, color::Color, pool::Handle},
+    core::{algebra::Vector2, pool::Handle},
     define_constructor,
     draw::DrawingContext,
     message::{MessageDirection, UiMessage},
@@ -15,42 +20,88 @@ use std::{
     sync::mpsc::Sender,
 };
 
+/// A set of messages that is used to modify [`Decorator`] widgets state.
 #[derive(Debug, Clone, PartialEq)]
 pub enum DecoratorMessage {
+    /// This message is used to switch a decorator in a `Selected` state or not.
     Select(bool),
+    /// Sets a new brush for `Hovered` state.
     HoverBrush(Brush),
+    /// Sets a new brush for `Normal` state.
     NormalBrush(Brush),
+    /// Sets a new brush for `Pressed` state.
     PressedBrush(Brush),
+    /// Sets a new brush for `Selected` state.
     SelectedBrush(Brush),
 }
 
 impl DecoratorMessage {
-    define_constructor!(DecoratorMessage:Select => fn select(bool), layout: false);
-    define_constructor!(DecoratorMessage:HoverBrush => fn hover_brush(Brush), layout: false);
-    define_constructor!(DecoratorMessage:NormalBrush => fn normal_brush(Brush), layout: false);
-    define_constructor!(DecoratorMessage:PressedBrush => fn pressed_brush(Brush), layout: false);
-    define_constructor!(DecoratorMessage:SelectedBrush => fn selected_brush(Brush), layout: false);
+    define_constructor!(
+        /// Creates a [`DecoratorMessage::Select`] message.
+        DecoratorMessage:Select => fn select(bool), layout: false
+    );
+    define_constructor!(
+        /// Creates a [`DecoratorMessage::HoverBrush`] message.
+        DecoratorMessage:HoverBrush => fn hover_brush(Brush), layout: false
+    );
+    define_constructor!(
+        /// Creates a [`DecoratorMessage::NormalBrush`] message.
+        DecoratorMessage:NormalBrush => fn normal_brush(Brush), layout: false
+    );
+    define_constructor!(
+        /// Creates a [`DecoratorMessage::PressedBrush`] message.
+        DecoratorMessage:PressedBrush => fn pressed_brush(Brush), layout: false
+    );
+    define_constructor!(
+        /// Creates a [`DecoratorMessage::SelectedBrush`] message.
+        DecoratorMessage:SelectedBrush => fn selected_brush(Brush), layout: false
+    );
 }
 
-/// A visual element that changes its appearance by listening specific events.
-/// It can has "pressed", "hover", "selected" or normal appearance:
+/// A visual element that is used to highlight standard states of interactive widgets. It has "pressed", "hover",
+/// "selected", "normal" appearances (only one can be active at a time):
 ///
-/// `Pressed` - enables on mouse down message.
-/// `Selected` - whether decorator selected or not.
-/// `Hovered` - mouse is over decorator.
-/// `Normal` - not selected, pressed, hovered.
+/// - `Pressed` - enables on mouse down message.
+/// - `Selected` - whether decorator selected or not.
+/// - `Hovered` - mouse is over decorator.
+/// - `Normal` - not selected, pressed, hovered.
 ///
-/// This element is widely used to provide some generic visual behaviour for various
-/// widgets. For example it used to decorate button, items in items control.
+/// This element is widely used to provide some generic visual behaviour for various widgets. For example it used
+/// to decorate buttons - it has use of three of these states. When it is clicked - the decorator will be in `Pressed`
+/// state, when hovered by a cursor - `Hovered`, otherwise it stays in `Normal` state.
+///
+/// ## Example
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     border::BorderBuilder,
+/// #     brush::Brush,
+/// #     core::{color::Color, pool::Handle},
+/// #     decorator::DecoratorBuilder,
+/// #     widget::WidgetBuilder,
+/// #     BuildContext, UiNode,
+/// # };
+/// fn create_decorator(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new()))
+///         .with_hover_brush(Brush::Solid(Color::opaque(0, 255, 0)))
+///         .build(ctx)
+/// }
+/// ```
 #[derive(Clone)]
 pub struct Decorator {
+    /// Base widget of the decorator.
     pub border: Border,
+    /// Current brush used for `Normal` state.
     pub normal_brush: Brush,
+    /// Current brush used for `Hovered` state.
     pub hover_brush: Brush,
+    /// Current brush used for `Pressed` state.
     pub pressed_brush: Brush,
+    /// Current brush used for `Selected` state.
     pub selected_brush: Brush,
-    pub disabled_brush: Brush,
+    /// Whether the decorator is in `Selected` state or not.
     pub is_selected: bool,
+    /// Whether the decorator should react to mouse clicks and switch its state to `Pressed` or not.
     pub is_pressable: bool,
 }
 
@@ -212,69 +263,71 @@ impl Control for Decorator {
     }
 }
 
+/// Creates [`Decorator`] widget instances and adds them to the user interface.
 pub struct DecoratorBuilder {
     border_builder: BorderBuilder,
-    normal_brush: Option<Brush>,
-    hover_brush: Option<Brush>,
-    pressed_brush: Option<Brush>,
-    selected_brush: Option<Brush>,
-    disabled_brush: Option<Brush>,
+    normal_brush: Brush,
+    hover_brush: Brush,
+    pressed_brush: Brush,
+    selected_brush: Brush,
     pressable: bool,
     selected: bool,
 }
 
 impl DecoratorBuilder {
+    /// Creates a new decorator builder.
     pub fn new(border_builder: BorderBuilder) -> Self {
         Self {
             border_builder,
-            normal_brush: None,
-            hover_brush: None,
-            pressed_brush: None,
-            selected_brush: None,
-            disabled_brush: None,
+            normal_brush: BRUSH_LIGHT,
+            hover_brush: BRUSH_LIGHTER,
+            pressed_brush: BRUSH_LIGHTEST,
+            selected_brush: BRUSH_BRIGHT,
             pressable: true,
             selected: false,
         }
     }
 
+    /// Sets a desired brush for `Normal` state.
     pub fn with_normal_brush(mut self, brush: Brush) -> Self {
-        self.normal_brush = Some(brush);
+        self.normal_brush = brush;
         self
     }
 
+    /// Sets a desired brush for `Hovered` state.
     pub fn with_hover_brush(mut self, brush: Brush) -> Self {
-        self.hover_brush = Some(brush);
+        self.hover_brush = brush;
         self
     }
 
+    /// Sets a desired brush for `Pressed` state.
     pub fn with_pressed_brush(mut self, brush: Brush) -> Self {
-        self.pressed_brush = Some(brush);
+        self.pressed_brush = brush;
         self
     }
 
+    /// Sets a desired brush for `Selected` state.
     pub fn with_selected_brush(mut self, brush: Brush) -> Self {
-        self.selected_brush = Some(brush);
+        self.selected_brush = brush;
         self
     }
 
-    pub fn with_disabled_brush(mut self, brush: Brush) -> Self {
-        self.disabled_brush = Some(brush);
-        self
-    }
-
+    /// Sets whether the decorator is pressable or not.
     pub fn with_pressable(mut self, pressable: bool) -> Self {
         self.pressable = pressable;
         self
     }
 
+    /// Sets whether the decorator is selected or not.
     pub fn with_selected(mut self, selected: bool) -> Self {
         self.selected = selected;
         self
     }
 
+    /// Finishes decorator instance building.
     pub fn build(mut self, ui: &mut BuildContext) -> Handle<UiNode> {
-        let normal_brush = self.normal_brush.unwrap_or(BRUSH_LIGHT);
-        let selected_brush = self.selected_brush.unwrap_or(BRUSH_BRIGHT);
+        let normal_brush = self.normal_brush;
+        let selected_brush = self.selected_brush;
 
         if self.border_builder.widget_builder.foreground.is_none() {
             self.border_builder.widget_builder.foreground = Some(BRUSH_DARKER);
@@ -291,12 +344,9 @@ impl DecoratorBuilder {
         let node = UiNode::new(Decorator {
             border,
             normal_brush,
-            hover_brush: self.hover_brush.unwrap_or(BRUSH_LIGHTER),
-            pressed_brush: self.pressed_brush.unwrap_or(BRUSH_LIGHTEST),
+            hover_brush: self.hover_brush,
+            pressed_brush: self.pressed_brush,
             selected_brush,
-            disabled_brush: self
-                .disabled_brush
-                .unwrap_or_else(|| Brush::Solid(Color::opaque(50, 50, 50))),
             is_selected: self.selected,
             is_pressable: self.pressable,
         });
