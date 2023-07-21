@@ -206,6 +206,12 @@ impl Default for BlendFunc {
     }
 }
 
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
+pub enum GlKind {
+    OpenGL,
+    OpenGLES,
+}
+
 pub struct PipelineState {
     pub gl: glow::Context,
 
@@ -244,6 +250,7 @@ pub struct PipelineState {
     vbo: Option<glow::Buffer>,
 
     frame_statistics: PipelineStatistics,
+    gl_kind: GlKind,
 }
 
 #[derive(Copy, Clone)]
@@ -438,7 +445,7 @@ impl Default for PolygonFillMode {
 }
 
 impl PipelineState {
-    pub fn new(context: glow::Context) -> Self {
+    pub fn new(context: glow::Context, gl_kind: GlKind) -> Self {
         unsafe {
             context.depth_func(CompareFunc::default() as u32);
         }
@@ -471,7 +478,12 @@ impl PipelineState {
             vbo: Default::default(),
             frame_statistics: Default::default(),
             blend_equation: Default::default(),
+            gl_kind,
         }
+    }
+
+    pub fn gl_kind(&self) -> GlKind {
+        self.gl_kind
     }
 
     pub fn set_polygon_fill_mode(

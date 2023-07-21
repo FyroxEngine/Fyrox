@@ -1,3 +1,4 @@
+use crate::renderer::framework::state::GlKind;
 use crate::{
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
@@ -49,8 +50,9 @@ unsafe fn create_shader(
     name: String,
     actual_type: u32,
     source: &str,
+    gl_kind: GlKind,
 ) -> Result<glow::Shader, FrameworkError> {
-    let merged_source = prepare_source_code(source);
+    let merged_source = prepare_source_code(source, gl_kind);
 
     let shader = state.gl.create_shader(actual_type)?;
     state.gl.shader_source(shader, &merged_source);
@@ -86,13 +88,10 @@ unsafe fn create_shader(
     }
 }
 
-#[allow(clippy::let_and_return)]
-fn prepare_source_code(code: &str) -> String {
+fn prepare_source_code(code: &str, gl_kind: GlKind) -> String {
     let mut full_source_code = "#version 330 core\n// include 'shared.glsl'\n".to_owned();
 
-    // HACK
-    #[cfg(any(target_arch = "wasm32", target_os = "android"))]
-    {
+    if gl_kind == GlKind::OpenGLES {
         full_source_code += r#"    
             precision highp float;
             precision lowp usampler2D;
@@ -104,14 +103,11 @@ fn prepare_source_code(code: &str) -> String {
     full_source_code += "\n// end of include\n";
     full_source_code += code;
 
-    // HACK
-    #[cfg(any(target_arch = "wasm32", target_os = "android"))]
-    {
+    if gl_kind == GlKind::OpenGLES {
         full_source_code.replace("#version 330 core", "#version 300 es")
+    } else {
+        full_source_code
     }
-
-    #[cfg(not(any(target_arch = "wasm32", target_os = "android")))]
-    full_source_code
 }
 
 pub struct GpuProgramBinding<'a, 'b> {
@@ -459,12 +455,14 @@ impl GpuProgram {
                 format!("{}_VertexShader", name),
                 glow::VERTEX_SHADER,
                 vertex_source,
+                state.gl_kind(),
             )?;
             let fragment_shader = create_shader(
                 state,
                 format!("{}_FragmentShader", name),
                 glow::FRAGMENT_SHADER,
                 fragment_source,
+                state.gl_kind(),
             )?;
             let program = state.gl.create_program()?;
             state.gl.attach_shader(program, vertex_shader);

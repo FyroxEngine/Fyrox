@@ -6,17 +6,20 @@
 pub mod error;
 pub mod executor;
 
-use crate::material::shader::{ShaderResource, ShaderResourceExtension};
 use crate::{
-    asset::{manager::ResourceManager, manager::ResourceWaitContext},
+    asset::{
+        event::ResourceEvent,
+        manager::{ResourceManager, ResourceWaitContext},
+        ResourceStateRef,
+    },
     core::{algebra::Vector2, futures::executor::block_on, instant, log::Log, pool::Handle},
     engine::error::EngineError,
     event::Event,
     event_loop::ControlFlow,
     gui::UserInterface,
-    material::shader::{loader::ShaderLoader, Shader},
+    material::shader::{loader::ShaderLoader, Shader, ShaderResource, ShaderResourceExtension},
     plugin::{Plugin, PluginConstructor, PluginContext, PluginRegistrationContext},
-    renderer::{framework::error::FrameworkError, Renderer},
+    renderer::{framework::error::FrameworkError, framework::state::GlKind, Renderer},
     resource::{
         curve::{loader::CurveLoader, CurveResourceState},
         model::{loader::ModelLoader, Model, ModelResource},
@@ -37,8 +40,6 @@ use crate::{
     window::{Window, WindowBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_resource::event::ResourceEvent;
-use fyrox_resource::ResourceStateRef;
 use fyrox_sound::buffer::{loader::SoundBufferLoader, SoundBuffer};
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{
@@ -937,7 +938,7 @@ impl Engine {
                 .with_active(params.window_attributes.active);
 
             #[cfg(not(target_arch = "wasm32"))]
-            let (window, gl_context, gl_surface, glow_context) = {
+            let (window, gl_context, gl_surface, glow_context, gl_kind) = {
                 let template = ConfigTemplateBuilder::new()
                     .prefer_hardware_accelerated(Some(true))
                     .with_stencil_size(8)
@@ -972,12 +973,15 @@ impl Engine {
                         .display()
                         .create_window_surface(&gl_config, &attrs)?;
 
-                    let non_current_gl_context = if let Ok(gl3_3_core_context) =
+                    let (non_current_gl_context, gl_kind) = if let Ok(gl3_3_core_context) =
                         gl_display.create_context(&gl_config, &gl3_3_core_context_attributes)
                     {
-                        gl3_3_core_context
+                        (gl3_3_core_context, GlKind::OpenGL)
                     } else {
-                        gl_display.create_context(&gl_config, &gles3_context_attributes)?
+                        (
+                            gl_display.create_context(&gl_config, &gles3_context_attributes)?,
+                            GlKind::OpenGLES,
+                        )
                     };
 
                     let gl_context = non_current_gl_context.make_current(&gl_surface)?;
@@ -996,12 +1000,13 @@ impl Engine {
                         glow::Context::from_loader_function(|s| {
                             gl_display.get_proc_address(&CString::new(s).unwrap())
                         }),
+                        gl_kind,
                     )
                 }
             };
 
             #[cfg(target_arch = "wasm32")]
-            let (window, glow_context) = {
+            let (window, glow_context, gl_kind) = {
                 let window = window_builder.build(window_target).unwrap();
 
                 use crate::core::wasm_bindgen::JsCast;
@@ -1021,7 +1026,11 @@ impl Engine {
                     .unwrap()
                     .dyn_into::<crate::core::web_sys::WebGl2RenderingContext>()
                     .unwrap();
-                (window, glow::Context::from_webgl2_context(webgl2_context))
+                (
+                    window,
+                    glow::Context::from_webgl2_context(webgl2_context),
+                    GlKind::OpenGLES,
+                )
             };
 
             self.user_interface.set_screen_size(Vector2::new(
@@ -1047,6 +1056,7 @@ impl Engine {
                     glow_context,
                     (window.inner_size().width, window.inner_size().height),
                     &self.resource_manager,
+                    gl_kind,
                 )?,
                 window,
                 params: params.clone(),

@@ -34,9 +34,6 @@ mod skybox_shader;
 mod sprite_renderer;
 mod ssao;
 
-use crate::material::shader::{ShaderResource, ShaderResourceExtension};
-use crate::renderer::batch::PersistentIdentifier;
-use crate::renderer::storage::MatrixStorageCache;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
@@ -51,9 +48,12 @@ use crate::{
         sstorage::ImmutableString,
     },
     gui::{draw::DrawingContext, UserInterface},
-    material::{shader::SamplerFallback, shader::Shader, Material, PropertyValue},
+    material::{
+        shader::{SamplerFallback, Shader, ShaderResource, ShaderResourceExtension},
+        Material, PropertyValue,
+    },
     renderer::{
-        batch::{ObserverInfo, RenderDataBatchStorage},
+        batch::{ObserverInfo, PersistentIdentifier, RenderDataBatchStorage},
         bloom::BloomRenderer,
         cache::{geometry::GeometryCache, shader::ShaderCache, texture::TextureCache, CacheEntry},
         debug_renderer::DebugRenderer,
@@ -70,7 +70,7 @@ use crate::{
                 Coordinate, GpuTexture, GpuTextureKind, MagnificationFilter, MinificationFilter,
                 PixelKind, WrapMode,
             },
-            state::{PipelineState, PipelineStatistics, PolygonFace, PolygonFillMode},
+            state::{GlKind, PipelineState, PipelineStatistics, PolygonFace, PolygonFillMode},
         },
         fxaa::FxaaRenderer,
         gbuffer::{GBuffer, GBufferRenderContext},
@@ -79,6 +79,7 @@ use crate::{
         particle_system_renderer::{ParticleSystemRenderContext, ParticleSystemRenderer},
         renderer2d::Renderer2d,
         sprite_renderer::{SpriteRenderContext, SpriteRenderer},
+        storage::MatrixStorageCache,
         ui_renderer::{UiRenderContext, UiRenderer},
     },
     resource::texture::{Texture, TextureKind, TextureResource},
@@ -1103,6 +1104,7 @@ impl Renderer {
         context: glow::Context,
         frame_size: (u32, u32),
         resource_manager: &ResourceManager,
+        gl_kind: GlKind,
     ) -> Result<Self, FrameworkError> {
         let settings = QualitySettings::default();
 
@@ -1122,7 +1124,7 @@ impl Renderer {
 
         // Box pipeline state because we'll store pointers to it inside framework's entities and
         // it must have constant address.
-        let mut state = Box::new(PipelineState::new(context));
+        let mut state = Box::new(PipelineState::new(context, gl_kind));
 
         // Dump available GL extensions to the log, this will help debugging graphical issues.
         Log::info(format!(
