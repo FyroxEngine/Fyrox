@@ -1,3 +1,6 @@
+//! The Window widget provides a standard window that can contain another widget. See [`Window`] docs
+//! for more info and usage examples.
+
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -19,15 +22,23 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+/// A set of possible messages that can be used to modify the state of a window or listen to changes
+/// in the window.
 #[derive(Debug, Clone, PartialEq)]
 pub enum WindowMessage {
     /// Opens a window.
-    Open { center: bool },
+    Open {
+        /// A flag that defines whether the window should be centered or not.
+        center: bool,
+    },
 
     /// Opens window in modal mode. Modal mode does **not** blocks current thread, instead
     /// it just restricts mouse and keyboard events only to window so other content is not
     /// clickable/type-able. Closing a window removes that restriction.
-    OpenModal { center: bool },
+    OpenModal {
+        /// A flag that defines whether the window should be centered or not.
+        center: bool,
+    },
 
     /// Closes a window.
     Close,
@@ -67,41 +78,169 @@ pub enum WindowMessage {
 }
 
 impl WindowMessage {
-    define_constructor!(WindowMessage:Open => fn open(center: bool), layout: false);
-    define_constructor!(WindowMessage:OpenModal => fn open_modal(center: bool), layout: false);
-    define_constructor!(WindowMessage:Close => fn close(), layout: false);
-    define_constructor!(WindowMessage:Minimize => fn minimize(bool), layout: false);
-    define_constructor!(WindowMessage:Maximize => fn maximize(), layout: false);
-    define_constructor!(WindowMessage:CanMinimize => fn can_minimize(bool), layout: false);
-    define_constructor!(WindowMessage:CanClose => fn can_close(bool), layout: false);
-    define_constructor!(WindowMessage:CanResize => fn can_resize(bool), layout: false);
-    define_constructor!(WindowMessage:MoveStart => fn move_start(), layout: false);
-    define_constructor!(WindowMessage:Move => fn move_to(Vector2<f32>), layout: false);
-    define_constructor!(WindowMessage:MoveEnd => fn move_end(), layout: false);
-    define_constructor!(WindowMessage:Title => fn title(WindowTitle), layout: false);
-    define_constructor!(WindowMessage:SafeBorderSize => fn safe_border_size(Option<Vector2<f32>>), layout: false);
+    define_constructor!(
+        /// Creates [`WindowMessage::Open`] message.
+        WindowMessage:Open => fn open(center: bool), layout: false
+    );
+    define_constructor!(
+        /// Creates [`WindowMessage::OpenModal`] message.
+        WindowMessage:OpenModal => fn open_modal(center: bool), layout: false
+    );
+    define_constructor!(
+        /// Creates [`WindowMessage::Close`] message.
+        WindowMessage:Close => fn close(), layout: false
+    );
+    define_constructor!(
+        /// Creates [`WindowMessage::Minimize`] message.
+        WindowMessage:Minimize => fn minimize(bool), layout: false
+    );
+    define_constructor!(
+        /// Creates [`WindowMessage::Maximize`] message.
+        WindowMessage:Maximize => fn maximize(), layout: false
+    );
+    define_constructor!(
+        /// Creates [`WindowMessage::CanMinimize`] message.
+        WindowMessage:CanMinimize => fn can_minimize(bool), layout: false
+    );
+    define_constructor!(
+        /// Creates [`WindowMessage::CanClose`] message.
+        WindowMessage:CanClose => fn can_close(bool), layout: false
+    );
+    define_constructor!(
+        /// Creates [`WindowMessage::CanResize`] message.
+        WindowMessage:CanResize => fn can_resize(bool), layout: false
+    );
+    define_constructor!(
+        /// Creates [`WindowMessage::MoveStart`] message.
+        WindowMessage:MoveStart => fn move_start(), layout: false
+    );
+    define_constructor!(
+        /// Creates [`WindowMessage::Move`] message.
+        WindowMessage:Move => fn move_to(Vector2<f32>), layout: false
+    );
+    define_constructor!(
+        /// Creates [`WindowMessage::MoveEnd`] message.
+        WindowMessage:MoveEnd => fn move_end(), layout: false
+    );
+    define_constructor!(
+        /// Creates [`WindowMessage::Title`] message.
+        WindowMessage:Title => fn title(WindowTitle), layout: false
+    );
+    define_constructor!(
+        /// Creates [`WindowMessage::SafeBorderSize`] message.
+        WindowMessage:SafeBorderSize => fn safe_border_size(Option<Vector2<f32>>), layout: false
+    );
 }
 
-/// Represents a widget looking as window in Windows - with title, minimize and close buttons.
-/// It has scrollable region for content, content can be any desired node or even other window.
-/// Window can be dragged by its title.
+/// The Window widget provides a standard window that can contain another widget. Based on setting
+/// windows can be configured so users can do any of the following:
+///
+/// * Movable by the user. Not configurable.
+/// * Have title text on the title bar. Set by the *with_title* function.
+/// * Able to be exited by the user. Set by the *can_close* function.
+/// * Able to be minimized to just the Title bar, and of course maximized again. Set by the
+/// *can_minimize* function.
+/// * Able to resize the window. Set by the *can_resize* function.
+///
+/// As with other UI elements, you create and configure the window using the WindowBuilder.
+///
+/// ```rust,no_run
+/// # use fyrox_ui::{
+/// #     core::{pool::Handle, algebra::Vector2},
+/// #     window::{WindowBuilder, WindowTitle},
+/// #     text::TextBuilder,
+/// #     widget::WidgetBuilder,
+/// #     UiNode,
+/// #     UserInterface
+/// # };
+/// fn create_window(ui: &mut UserInterface) {
+///     WindowBuilder::new(
+///         WidgetBuilder::new()
+///             .with_desired_position(Vector2::new(300.0, 0.0))
+///             .with_width(300.0),
+///     )
+///     .with_content(
+///         TextBuilder::new(WidgetBuilder::new())
+///             .with_text("Example Window content.")
+///             .build(&mut ui.build_ctx())
+///     )
+///     .with_title(WindowTitle::text("Window"))
+///     .can_close(true)
+///     .can_minimize(true)
+///     .open(true)
+///     .can_resize(false)
+///     .build(&mut ui.build_ctx());
+/// }
+/// ```
+///
+/// You will likely want to constrain the initial size of the window to something as shown in the
+/// example by providing a set width and/or height to the base WidgetBuilder. Otherwise it will
+/// expand to fit it's content.
+///
+/// You may also want to set an initial position with the *with_desired_position* function called
+/// on the base WidgetBuilder which sets the position of the window's top-left corner. Otherwise all
+/// your windows will start with it's top-left corner at 0,0 and be stacked on top of each other.
+///
+/// Windows can only contain a single direct child widget, set by using the *with_content* function.
+/// Additional calls to *with_content* replaces the widgets given in previous calls, and the old
+/// widgets exist outside the window, so you should delete old widgets before changing a window's
+/// widget. If you want multiple widgets, you need to use one of the layout container widgets like
+/// the Grid, Stack Panel, etc then add the additional widgets to that widget as needed.
+///
+/// The Window is a user editable object, but can only be affected by UI Messages they trigger if
+/// the message's corresponding variable has been set to true aka what is set by the *can_close*,
+/// *can_minimize*, and *can_resize* functions.
+///
+/// ## Initial Open State
+///
+/// By default, the window will be created in the open, or maximized, state. You can manually set
+/// this state via the *open* function providing a true or false as desired.
+///
+/// ## Styling the Buttons
+///
+/// The window close and minimise buttons can be configured with the *with_close_button* and
+/// *with_minimize_button* functions. You will want to pass them a button widget, but can do anything
+/// else you like past that.
+///
+/// ## Modal (AKA Forced Focus)
+///
+/// A Modal in UI design terms indicates a window or box that has forced focus. The user is not able
+/// to interact with anything else until the modal is dismissed.
+///
+/// Any window can be set and unset as a modal via the *modal* function.
 #[derive(Clone)]
 pub struct Window {
+    /// Base widget of the window.
     pub widget: Widget,
+    /// Mouse click position.
     pub mouse_click_pos: Vector2<f32>,
+    /// Initial mouse position.
     pub initial_position: Vector2<f32>,
+    /// Initial size of the window.
     pub initial_size: Vector2<f32>,
+    /// Whether the window is being dragged or not.
     pub is_dragging: bool,
+    /// Whether the window is minimized or not.
     pub minimized: bool,
+    /// Whether the window can be minimized or not.
     pub can_minimize: bool,
+    /// Whether the window can be maximized or not.
     pub can_maximize: bool,
+    /// Whether the window can be closed or not.
     pub can_close: bool,
+    /// Whether the window can be resized or not.
     pub can_resize: bool,
+    /// Handle of a header widget.
     pub header: Handle<UiNode>,
+    /// Handle of a minimize button.
     pub minimize_button: Handle<UiNode>,
+    /// Handle of a maximize button.
     pub maximize_button: Handle<UiNode>,
+    /// Handle of a close button.
     pub close_button: Handle<UiNode>,
+    /// A distance per each axis when the dragging starts.
     pub drag_delta: Vector2<f32>,
+    /// Handle of a current content.
     pub content: Handle<UiNode>,
     pub grips: RefCell<[Grip; 8]>,
     pub title: Handle<UiNode>,

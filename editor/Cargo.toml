@@ -20,7 +20,7 @@ serde = "^1.0.0"
 toml = "0.7.0"
 strum = "0.25.0"
 strum_macros = "0.25.0"
-open = "4.1.0"
+open = "5"
 
 [features]
 enable_profiler = ["fyrox/enable_profiler"]
