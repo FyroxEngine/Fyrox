@@ -475,7 +475,7 @@ impl Control for Tile {
 
                     if content_moved {
                         if let Some(window) = ui.node(message.destination()).cast::<Window>() {
-                            if window.drag_delta().norm() > 20.0 {
+                            if window.drag_delta.norm() > 20.0 {
                                 ui.send_message(TileMessage::content(
                                     self.handle,
                                     MessageDirection::ToWidget,
@@ -925,7 +925,7 @@ impl TileBuilder {
             if let Some(window) = ctx[window].cast_mut::<Window>() {
                 // Every docked window must be non-resizable (it means that it cannot be resized by user
                 // and it still can be resized by a proper message).
-                window.set_can_resize(false);
+                window.can_resize = false;
             }
         }
 

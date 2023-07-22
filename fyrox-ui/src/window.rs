@@ -242,33 +242,53 @@ pub struct Window {
     pub drag_delta: Vector2<f32>,
     /// Handle of a current content.
     pub content: Handle<UiNode>,
+    /// Eight grips of the window that are used to resize the window.
     pub grips: RefCell<[Grip; 8]>,
+    /// Handle of a title widget of the window.
     pub title: Handle<UiNode>,
+    /// Handle of a container widget of the title.
     pub title_grid: Handle<UiNode>,
+    /// Optional size of the border around the screen in which the window will be forced to stay.
     pub safe_border_size: Option<Vector2<f32>>,
+    /// Bounds of the window before maximization, it is used to return the window to previous
+    /// size when it is either "unmaximized" or dragged.
     pub prev_bounds: Option<Rect<f32>>,
 }
 
 const GRIP_SIZE: f32 = 6.0;
 const CORNER_GRIP_SIZE: f32 = GRIP_SIZE * 2.0;
 
+/// Kind of a resizing grip.
 #[derive(Copy, Clone, Debug)]
 pub enum GripKind {
+    /// Left-top corner grip.
     LeftTopCorner = 0,
+    /// Right-top corner grip.
     RightTopCorner = 1,
+    /// Right-bottom corner grip.
     RightBottomCorner = 2,
+    /// Left-bottom corner grip.
     LeftBottomCorner = 3,
+    /// Left corner grip.
     Left = 4,
+    /// Top corner grip.
     Top = 5,
+    /// Right corner grip.
     Right = 6,
+    /// Bottom corner grip.
     Bottom = 7,
 }
 
+/// Resizing grip.
 #[derive(Clone)]
 pub struct Grip {
+    /// Kind of the grip.
     pub kind: GripKind,
+    /// Bounds of the grip in local-space.
     pub bounds: Rect<f32>,
+    /// A flag, that is raised when the grip is being dragged.
     pub is_dragging: bool,
+    /// Cursor type of the grip.
     pub cursor: CursorIcon,
 }
 
@@ -747,14 +767,7 @@ impl Control for Window {
 }
 
 impl Window {
-    pub fn is_dragging(&self) -> bool {
-        self.is_dragging
-    }
-
-    pub fn drag_delta(&self) -> Vector2<f32> {
-        self.drag_delta
-    }
-
+    /// Checks whether any resizing grip is active or not.
     pub fn has_active_grip(&self) -> bool {
         for grip in self.grips.borrow().iter() {
             if grip.is_dragging {
@@ -763,44 +776,46 @@ impl Window {
         }
         false
     }
-
-    pub fn set_can_resize(&mut self, value: bool) {
-        self.can_resize = value;
-    }
-
-    pub fn can_resize(&self) -> bool {
-        self.can_resize
-    }
-
-    pub fn content(&self) -> Handle<UiNode> {
-        self.content
-    }
 }
 
+/// Window builder creates [`Window`] instances and adds them to the user interface.
 pub struct WindowBuilder {
+    /// Base widget builder.
     pub widget_builder: WidgetBuilder,
+    /// Content of the window.
     pub content: Handle<UiNode>,
+    /// Optional title of the window.
     pub title: Option<WindowTitle>,
+    /// Whether the window can be closed or not.
     pub can_close: bool,
+    /// Whether the window can be minimized or not.
     pub can_minimize: bool,
+    /// Whether the window can be maximized or not.
     pub can_maximize: bool,
+    /// Whether the window should be created open or not.
     pub open: bool,
+    /// Optional custom closing button, if not specified, then a default button will be created.
     pub close_button: Option<Handle<UiNode>>,
+    /// Optional custom minimization button, if not specified, then a default button will be created.
     pub minimize_button: Option<Handle<UiNode>>,
+    /// Optional custom maximization button, if not specified, then a default button will be created.
     pub maximize_button: Option<Handle<UiNode>>,
-    // Warning: Any dependant builders must take this into account!
+    /// Whether the window should be created as modal or not. Warning: Any dependant builders must
+    /// take this into account!
     pub modal: bool,
+    /// Whether the window should be resizable or not.
     pub can_resize: bool,
+    /// Optional size of the border around the screen in which the window will be forced to stay.
     pub safe_border_size: Option<Vector2<f32>>,
 }
 
 /// Window title can be either text or node.
 ///
-/// If `Text` is used, then builder will automatically create Text node with specified text,
+/// If `Text` is used, then builder will automatically create [`Text`] node with specified text,
 /// but with default font.
 ///
-/// If you need more flexibility (i.e. put a picture near text) then `Node` option is for you:
-/// it allows to put any UI node hierarchy you want to.
+/// If you need more flexibility (i.e. put a picture near text) then [`WindowTitle::Node`] option
+/// is for you: it allows to put any UI node hierarchy you want to.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WindowTitle {
     Text(String),
@@ -808,10 +823,12 @@ pub enum WindowTitle {
 }
 
 impl WindowTitle {
+    /// A shortcut to create [`WindowTitle::Text`]
     pub fn text<P: AsRef<str>>(text: P) -> Self {
         WindowTitle::Text(text.as_ref().to_owned())
     }
 
+    /// A shortcut to create [`WindowTitle::Node`]
     pub fn node(node: Handle<UiNode>) -> Self {
         Self::Node(node)
     }
@@ -923,6 +940,7 @@ fn make_header_button(ctx: &mut BuildContext, button: HeaderButton) -> Handle<Ui
 }
 
 impl WindowBuilder {
+    /// Creates new window builder.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -941,66 +959,79 @@ impl WindowBuilder {
         }
     }
 
+    /// Sets a desired window content.
     pub fn with_content(mut self, content: Handle<UiNode>) -> Self {
         self.content = content;
         self
     }
 
+    /// Sets a desired window title.
     pub fn with_title(mut self, title: WindowTitle) -> Self {
         self.title = Some(title);
         self
     }
 
+    /// Sets a desired minimization button.
     pub fn with_minimize_button(mut self, button: Handle<UiNode>) -> Self {
         self.minimize_button = Some(button);
         self
     }
 
+    /// Sets a desired maximization button.
     pub fn with_maximize_button(mut self, button: Handle<UiNode>) -> Self {
         self.minimize_button = Some(button);
         self
     }
 
+    /// Sets a desired closing button.
     pub fn with_close_button(mut self, button: Handle<UiNode>) -> Self {
         self.close_button = Some(button);
         self
     }
 
+    /// Sets whether the window can be closed or not.
     pub fn can_close(mut self, can_close: bool) -> Self {
         self.can_close = can_close;
         self
     }
 
+    /// Sets whether the window can be minimized or not.
     pub fn can_minimize(mut self, can_minimize: bool) -> Self {
         self.can_minimize = can_minimize;
         self
     }
 
+    /// Sets whether the window can be maximized or not.
     pub fn can_maximize(mut self, can_minimize: bool) -> Self {
         self.can_maximize = can_minimize;
         self
     }
 
+    /// Sets whether the window should be open or not.
     pub fn open(mut self, open: bool) -> Self {
         self.open = open;
         self
     }
 
+    /// Sets whether the window should be modal or not.
     pub fn modal(mut self, modal: bool) -> Self {
         self.modal = modal;
         self
     }
 
+    /// Sets whether the window can be resized or not.
     pub fn can_resize(mut self, can_resize: bool) -> Self {
         self.can_resize = can_resize;
         self
     }
 
+    /// Sets a desired safe border size.
     pub fn with_safe_border_size(mut self, size: Option<Vector2<f32>>) -> Self {
         self.safe_border_size = size.map(|s| Vector2::new(s.x.abs(), s.y.abs()));
         self
     }
 
+    /// Finishes window building and returns its instance.
     pub fn build_window(self, ctx: &mut BuildContext) -> Window {
         let minimize_button;
         let maximize_button;
@@ -1133,6 +1164,7 @@ impl WindowBuilder {
         }
     }
 
+    /// Finishes window building and returns its handle.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let modal = self.modal;
         let open = self.open;
