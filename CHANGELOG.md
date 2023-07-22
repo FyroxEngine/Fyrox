@@ -1,4 +1,85 @@
-# 0.31 (WIP)
+# 0.31 
+
+- Multi-scene editing
+- Docs for `Window` widget
+- Fixed opengl es usage when opengl is not supported
+- Docs for `Decorator` widget
+- Added `crv` extension for `CurveLoader`
+- Basic editor plugins support 
+- Updated deps
+- Expose all editor fields so they can be accessible outside
+- Docs for `UuidEditor` widget
+- Use user_data field of physics entities to store handle to engine entity
+- Ability to encode/decode handles to/from u128
+- Ability to fetch all contact pairs from 2d/3d physics worlds
+- Docs for `MessageBox` widget
+- `Graph::aabb_of_descendants`
+- Aabb api improvements
+- Ability to open asset of a node from the world viewer
+- Improved `impl_component_provider` macro to accept `field.foo.ab` chains
+- Docs for navmesh node
+- Useful shortcuts for behaviour trees
+- Fixed standard materials for new serialization format
+- Inverter node for behaviour trees
+- Docs and examples for `VertexBuffer`
+- Added `VertexTrait` to prevent using a vertex type with different layout
+- Improved `surface` mod docs
+- Added `elapsed_time` in `PluginContext`
+- Use all texture channels in sprite fragment shader
+- Load editor's docking manager layout on reconfiguration
+- Open window of a tile when restoring docking manager layout
+- Ability to save/load editor's docking manager layout
+- Prevent panic in ui search methods
+- Ability to apply saved docking manager layout + improved layout saving
+- Ability to save docking manager layout
+- Changed error to warning when unable to load missing options file
+- Fixed crash when exiting the editor
+- Fixed opening arbitrary files from asset browser
+- Ability to open scenes from asset browser
+- User-defined data for tabs
+- Ability to add and remove tabs in the `TabControl` widget via messages
+- Added a nine patch widget
+- Fixed tab control's content alignment
+- `can_be_closed` flag for `TabControl` tabs
+- Ability to close tabs in `TabControl` widget
+- Docs for `TabControl` widget
+- Ability to catch the moment when the active tab of `TabControl` changed
+- Docs for `ScrollBar` widget
+- Docs for `Popup` widget
+- Docs for `NumericUpDown` widget
+- Ability to change `StackPanel`'s orientation via message
+- Ability to change `WrapPanel`'s orientation via message
+- Docs for `WrapPanel` widget
+- Docs for `CheckBox` widget
+- Docs for `Widget`
+- Docs for `TextBox` widget
+- Docs for `StackPanel` widget
+- Docs for `Grid` widget
+- Docs for `Image` widget
+- Docs for `Text` widget
+- Fyrox-ui docs
+- Docs for `Button` widget
+- Access to current transform of `TransformStack`
+- Docs for `Border`
+- Ability to pass doc comments in `define_constructor` macro
+- Docs for `BuildContext`
+- Docs for `UiNode`
+- Iterative font atlas packing.
+- Docs for `Thickness`
+- Docs for widget alignments
+- Docs for `BaseControl`
+- Update hierarchical data when instantiating a prefab
+- Docs for `trait Control`
+- Hotkey to focus editor's camera on a selected object
+- Helper methods for `Frustum`
+- Ability to focus editor's camera on an object
+- Helper methods for `TextureKind`
+- Camera fitting functionality
+- Aabb helper methods
+- Save editor settings only if they were modified by user
+- `Camera::frustum`
+- Fixed camera preview + added camera preview control panel
+- Automatically select newly created scene nodes in the editor
 
 # 0.30
 
