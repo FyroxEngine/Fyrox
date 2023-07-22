@@ -22,33 +22,43 @@ use fyrox::gui::message::UiMessage;
 /// pattern that encapsulates an action. Command pattern is used for undo/redo functionality.
 pub trait EditorPlugin {
     /// This method is called right after the editor was fully initialized. It is guaranteed to be called only once.
-    fn on_start(&mut self, editor: &mut Editor);
+    fn on_start(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}
 
     /// This method is called when the editor is about to close. It is guaranteed to be called only once.
-    fn on_exit(&mut self, editor: &mut Editor);
+    fn on_exit(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}
 
     /// This method is called either when there was some action via command, or a syncing request is performed. It should
     /// be used to synchronize the state of your widgets with the actual data model.  
-    fn on_sync_to_model(&mut self, editor: &mut Editor);
+    fn on_sync_to_model(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}
 
     /// This method is called when the editor switches to another mode. For example, if a user clicks the "Play" button,
     /// the mode will be changed from [`crate::Mode::Edit`] to [`crate::Mode::Build`], and if the build was successful,
     /// it will then be changed to [`crate::Mode::Play`]. When the game was closed, the mode will be changed back to
     /// [`crate::Mode::Edit`].
-    fn on_mode_changed(&mut self, editor: &mut Editor);
+    fn on_mode_changed(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}
 
     /// This method is called when a UI message was extracted from the message queue. It should be used to react to user
     /// changes, for example a user could click a button, then a [`fyrox::gui::button::ButtonMessage::Click`] will be
     /// passed to this method. It then can be used to perform some other action.
-    fn on_ui_message(&mut self, message: &mut UiMessage, editor: &mut Editor);
+    fn on_ui_message(
+        &mut self,
+        #[allow(unused_variables)] message: &mut UiMessage,
+        #[allow(unused_variables)] editor: &mut Editor,
+    ) {
+    }
 
     /// This method is called every frame at stable update rate of 60 FPS. It could be used to perform any contiguous
     /// actions.
-    fn on_update(&mut self, editor: &mut Editor);
+    fn on_update(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}
 
     /// This method is called when the editor receives a control message. It could be used to catch and react to specific
     /// actions in the editor (such as: scene loading, command execution, undo, redo, etc.).
-    fn on_message(&mut self, message: &Message, editor: &mut Editor);
+    fn on_message(
+        &mut self,
+        #[allow(unused_variables)] message: &Message,
+        #[allow(unused_variables)] editor: &mut Editor,
+    ) {
+    }
 }
 
 #[macro_export]
