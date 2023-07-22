@@ -10,32 +10,32 @@
 #[macro_use]
 extern crate lazy_static;
 
-mod absm;
-mod animation;
-mod asset;
-mod audio;
-mod build;
-mod camera;
-mod command;
-mod configurator;
-mod curve_editor;
-mod gui;
-mod inspector;
-mod interaction;
-mod light;
-mod log;
-mod material;
-mod menu;
-mod message;
-mod overlay;
-mod particle;
+pub mod absm;
+pub mod animation;
+pub mod asset;
+pub mod audio;
+pub mod build;
+pub mod camera;
+pub mod command;
+pub mod configurator;
+pub mod curve_editor;
+pub mod gui;
+pub mod inspector;
+pub mod interaction;
+pub mod light;
+pub mod log;
+pub mod material;
+pub mod menu;
+pub mod message;
+pub mod overlay;
+pub mod particle;
 pub mod plugin;
-mod preview;
-mod scene;
-mod scene_viewer;
-mod settings;
-mod utils;
-mod world;
+pub mod preview;
+pub mod scene;
+pub mod scene_viewer;
+pub mod settings;
+pub mod utils;
+pub mod world;
 
 use crate::{
     absm::AbsmEditor,
