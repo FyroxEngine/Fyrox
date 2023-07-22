@@ -36,7 +36,7 @@
 - Fixed crash when exiting the editor
 - Fixed opening arbitrary files from asset browser
 - Ability to open scenes from asset browser
-- User-defined data for tabs
+- User-defined data for tabs 
 - Ability to add and remove tabs in the `TabControl` widget via messages
 - Added a nine patch widget
 - Fixed tab control's content alignment
