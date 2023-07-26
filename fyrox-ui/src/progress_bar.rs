@@ -1,3 +1,8 @@
+//! Progress bar is used to show a bar that fills in from left to right according to the progress value. It is used to
+//! show progress for long actions. See [`ProgressBar`] widget docs for more info and usage examples.
+
+#![warn(missing_docs)]
+
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -13,20 +18,65 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+/// A set of messages that can be used to modify the state of a progress bar.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ProgressBarMessage {
+    /// A message, that is used to set progress of the progress bar.
     Progress(f32),
 }
 
 impl ProgressBarMessage {
-    define_constructor!(ProgressBarMessage:Progress => fn progress(f32), layout: false);
+    define_constructor!(
+        /// Creates [`ProgressBarMessage::Progress`].
+        ProgressBarMessage:Progress => fn progress(f32), layout: false
+    );
 }
 
+/// Progress bar is used to show a bar that fills in from left to right according to the progress value. It is used to
+/// show progress for long actions.
+///
+/// ## Example
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle, progress_bar::ProgressBarBuilder, widget::WidgetBuilder, BuildContext,
+/// #     UiNode,
+/// # };
+/// fn create_progress_bar(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     ProgressBarBuilder::new(WidgetBuilder::new())
+///         // Keep mind, that the progress is "normalized", which means that it is defined on
+///         // [0..1] range, where 0 - no progress at all, 1 - maximum progress.
+///         .with_progress(0.25)
+///         .build(ctx)
+/// }
+/// ```
+///
+/// ## Changing progress
+///
+/// To change progress of a progress bar all you need is to send [`ProgressBarMessage::Progress`] to it:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle, message::MessageDirection, progress_bar::ProgressBarMessage, UiNode,
+/// #     UserInterface,
+/// # };
+/// fn change_progress(progress_bar: Handle<UiNode>, ui: &UserInterface) {
+///     ui.send_message(ProgressBarMessage::progress(
+///         progress_bar,
+///         MessageDirection::ToWidget,
+///         0.33,
+///     ));
+/// }
+/// ```
 #[derive(Clone)]
 pub struct ProgressBar {
+    /// Base widget of the progress bar.
     pub widget: Widget,
+    /// Current progress of the progress bar.
     pub progress: f32,
+    /// Handle of a widget that is used to show the progress.
     pub indicator: Handle<UiNode>,
+    /// Container widget of the bar of the progress bar.
     pub body: Handle<UiNode>,
 }
 
@@ -81,15 +131,12 @@ impl Control for ProgressBar {
 }
 
 impl ProgressBar {
-    pub fn set_progress(&mut self, progress: f32) {
+    fn set_progress(&mut self, progress: f32) {
         self.progress = progress.clamp(0.0, 1.0);
-    }
-
-    pub fn progress(&self) -> f32 {
-        self.progress
     }
 }
 
+/// Progress bar builder creates progress bar instances and adds them to the UI.
 pub struct ProgressBarBuilder {
     widget_builder: WidgetBuilder,
     body: Option<Handle<UiNode>>,
@@ -98,6 +145,7 @@ pub struct ProgressBarBuilder {
 }
 
 impl ProgressBarBuilder {
+    /// Creates new builder instance.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -107,21 +155,25 @@ impl ProgressBarBuilder {
         }
     }
 
+    /// Sets the desired body of the progress bar, which is used to wrap the indicator (bar).
     pub fn with_body(mut self, body: Handle<UiNode>) -> Self {
         self.body = Some(body);
         self
     }
 
+    /// Sets the desired indicator widget, that will be used to show the progress.
     pub fn with_indicator(mut self, indicator: Handle<UiNode>) -> Self {
         self.indicator = Some(indicator);
         self
     }
 
+    /// Sets the desired progress value. Input value will be clamped to `[0..1]` range.
     pub fn with_progress(mut self, progress: f32) -> Self {
         self.progress = progress.clamp(0.0, 1.0);
         self
     }
 
+    /// Finishes progress bar creation and adds the new instance to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let body = self
             .body
