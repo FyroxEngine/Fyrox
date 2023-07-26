@@ -1,3 +1,8 @@
+//! List view is used to display lists with arbitrary items. It supports single-selection and by default, it stacks the items
+//! vertically.  
+
+#![warn(missing_docs)]
+
 use crate::{
     border::BorderBuilder,
     brush::Brush,
@@ -17,61 +22,218 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+/// A set of messages that can be used to modify/fetch the state of a [`ListView`] widget at runtime.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ListViewMessage {
+    /// A message, that is used to either fetch or modify current selection of a [`ListView`] widget. See [ff](ListView#selection)
     SelectionChanged(Option<usize>),
+    /// A message, that is used to set new items of a list view.
     Items(Vec<Handle<UiNode>>),
+    /// A message, that is used to add an item to a list view.
     AddItem(Handle<UiNode>),
+    /// A message, that is used to remove an item from a list view.
     RemoveItem(Handle<UiNode>),
+    /// A message, that is used to bring an item into view.
     BringItemIntoView(Handle<UiNode>),
 }
 
 impl ListViewMessage {
-    define_constructor!(ListViewMessage:SelectionChanged => fn selection(Option<usize>), layout: false);
-    define_constructor!(ListViewMessage:Items => fn items(Vec<Handle<UiNode >>), layout: false);
-    define_constructor!(ListViewMessage:AddItem => fn add_item(Handle<UiNode>), layout: false);
-    define_constructor!(ListViewMessage:RemoveItem => fn remove_item(Handle<UiNode>), layout: false);
-    define_constructor!(ListViewMessage:BringItemIntoView => fn bring_item_into_view(Handle<UiNode>), layout: false);
+    define_constructor!(
+        /// Creates [`ListViewMessage::SelectionChanged`] message.
+        ListViewMessage:SelectionChanged => fn selection(Option<usize>), layout: false
+    );
+    define_constructor!(
+        /// Creates [`ListViewMessage::Items`] message.
+        ListViewMessage:Items => fn items(Vec<Handle<UiNode >>), layout: false
+    );
+    define_constructor!(
+        /// Creates [`ListViewMessage::AddItem`] message.
+        ListViewMessage:AddItem => fn add_item(Handle<UiNode>), layout: false
+    );
+    define_constructor!(
+        /// Creates [`ListViewMessage::RemoveItem`] message.
+        ListViewMessage:RemoveItem => fn remove_item(Handle<UiNode>), layout: false
+    );
+    define_constructor!(
+        /// Creates [`ListViewMessage::BringItemIntoView`] message.
+        ListViewMessage:BringItemIntoView => fn bring_item_into_view(Handle<UiNode>), layout: false
+    );
 }
 
+/// List view is used to display lists with arbitrary items. It supports single-selection and by default, it stacks the items
+/// vertically.  
+///
+/// ## Example
+///
+/// [`ListView`] can be created using [`ListViewBuilder`]:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle, list_view::ListViewBuilder, text::TextBuilder, widget::WidgetBuilder,
+/// #     BuildContext, UiNode,
+/// # };
+/// #
+/// fn create_list(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     ListViewBuilder::new(WidgetBuilder::new())
+///         .with_items(vec![
+///             TextBuilder::new(WidgetBuilder::new())
+///                 .with_text("Item0")
+///                 .build(ctx),
+///             TextBuilder::new(WidgetBuilder::new())
+///                 .with_text("Item1")
+///                 .build(ctx),
+///         ])
+///         .build(ctx)
+/// }
+/// ```
+///
+/// Keep in mind, that the items of the list view can be pretty much any other widget. They also don't have to be the same
+/// type, you can mix any type of widgets.
+///
+/// ## Custom Items Panel
+///
+/// By default, list view creates inner [`crate::stack_panel::StackPanel`] to arrange its items. It is enough for most cases,
+/// however in rare cases you might want to use something else. For example, you could use [`crate::wrap_panel::WrapPanel`]
+/// to create list view with selectable "tiles":
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle, list_view::ListViewBuilder, text::TextBuilder, widget::WidgetBuilder,
+/// #     wrap_panel::WrapPanelBuilder, BuildContext, UiNode,
+/// # };
+/// fn create_list(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     ListViewBuilder::new(WidgetBuilder::new())
+///         // Using WrapPanel instead of StackPanel:
+///         .with_items_panel(WrapPanelBuilder::new(WidgetBuilder::new()).build(ctx))
+///         .with_items(vec![
+///             TextBuilder::new(WidgetBuilder::new())
+///                 .with_text("Item0")
+///                 .build(ctx),
+///             TextBuilder::new(WidgetBuilder::new())
+///                 .with_text("Item1")
+///                 .build(ctx),
+///         ])
+///         .build(ctx)
+/// }
+/// ```
+///
+/// ## Selection
+///
+/// List view support single selection only, you can change it at runtime by sending [`ListViewMessage::SelectionChanged`]
+/// message with [`MessageDirection::ToWidget`] like so:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle, list_view::ListViewMessage, message::MessageDirection, UiNode,
+/// #     UserInterface,
+/// # };
+/// fn change_selection(my_list_view: Handle<UiNode>, ui: &UserInterface) {
+///     ui.send_message(ListViewMessage::selection(
+///         my_list_view,
+///         MessageDirection::ToWidget,
+///         Some(1),
+///     ));
+/// }
+/// ```
+///
+/// It is also possible to not have selected item at all, to do this you need to send [`None`] as a selection.
+///
+/// To catch the moment when selection has changed (either by a user or by the [`ListViewMessage::SelectionChanged`],) you need
+/// to listen to the same message but with opposite direction, like so:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle, list_view::ListViewMessage, message::MessageDirection,
+/// #     message::UiMessage, UiNode,
+/// # };
+/// #
+/// fn do_something(my_list_view: Handle<UiNode>, message: &UiMessage) {
+///     if let Some(ListViewMessage::SelectionChanged(selection)) = message.data() {
+///         if message.destination() == my_list_view
+///             && message.direction() == MessageDirection::FromWidget
+///         {
+///             println!("New selection is: {:?}", selection);
+///         }
+///     }
+/// }
+/// ```
+///
+/// ## Adding/removing items
+///
+/// To change items of the list view you can use the variety of following messages: [`ListViewMessage::AddItem`], [`ListViewMessage::RemoveItem`],
+/// [`ListViewMessage::Items`]. To decide which one to use, is very simple - if you adding/removing a few items, use [`ListViewMessage::AddItem`]
+/// and [`ListViewMessage::RemoveItem`], otherwise use [`ListViewMessage::Items`], which changes the items at once.
+///
+/// ```rust
+/// use fyrox_ui::{
+///     core::pool::Handle, list_view::ListViewMessage, message::MessageDirection,
+///     text::TextBuilder, widget::WidgetBuilder, UiNode, UserInterface,
+/// };
+/// fn change_items(my_list_view: Handle<UiNode>, ui: &mut UserInterface) {
+///     // Build new items first.
+///     let items = vec![
+///         TextBuilder::new(WidgetBuilder::new())
+///             .with_text("Item0")
+///             .build(ctx),
+///         TextBuilder::new(WidgetBuilder::new())
+///             .with_text("Item1")
+///             .build(ctx),
+///     ];
+///
+///     // Then send the message with their handles to the list view.
+///     ui.send_message(ListViewMessage::items(
+///         my_list_view,
+///         MessageDirection::ToWidget,
+///         items,
+///     ));
+/// }
+/// ```
+///
+/// ## Bringing a particular item into view
+///
+/// It is possible to bring a particular item into view, which is useful when you have hundreds or thousands of items and you
+/// want to bring only particular item into view. It could be done by sending a [`ListViewMessage::BringItemIntoView`] message:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle, list_view::ListViewMessage, message::MessageDirection, UiNode,
+/// #     UserInterface,
+/// # };
+/// fn bring_item_into_view(
+///     my_list_view: Handle<UiNode>,
+///     my_item: Handle<UiNode>,
+///     ui: &UserInterface,
+/// ) {
+///     ui.send_message(ListViewMessage::bring_item_into_view(
+///         my_list_view,
+///         MessageDirection::ToWidget,
+///         my_item,
+///     ));
+/// }
+/// ```
 #[derive(Clone)]
 pub struct ListView {
+    /// Base widget of the list view.
     pub widget: Widget,
+    /// Current selection.
     pub selected_index: Option<usize>,
+    /// An array of handle of item containers, which wraps the actual items.
     pub item_containers: Vec<Handle<UiNode>>,
+    /// Current panel widget that is used to arrange the items.
     pub panel: Handle<UiNode>,
+    /// Current items of the list view.
     pub items: Vec<Handle<UiNode>>,
+    /// Current scroll viewer instance that is used to provide scrolling functionality, when items does
+    /// not fit in the view entirely.
     pub scroll_viewer: Handle<UiNode>,
 }
 
 crate::define_widget_deref!(ListView);
 
 impl ListView {
-    pub fn new(widget: Widget, items: Vec<Handle<UiNode>>) -> Self {
-        Self {
-            widget,
-            selected_index: None,
-            item_containers: items,
-            panel: Default::default(),
-            items: Default::default(),
-            scroll_viewer: Default::default(),
-        }
-    }
-
-    pub fn selected(&self) -> Option<usize> {
-        self.selected_index
-    }
-
-    pub fn item_containers(&self) -> &[Handle<UiNode>] {
-        &self.item_containers
-    }
-
+    /// Returns a slice with current items.
     pub fn items(&self) -> &[Handle<UiNode>] {
         &self.items
-    }
-
-    pub fn scroll_viewer(&self) -> Handle<UiNode> {
-        self.scroll_viewer
     }
 
     fn fix_selection(&self, ui: &UserInterface) {
@@ -121,8 +283,10 @@ impl ListView {
     }
 }
 
+/// A wrapper for list view items, that is used to add selection functionality to arbitrary items.
 #[derive(Clone)]
 pub struct ListViewItem {
+    /// Base widget of the list view item.
     pub widget: Widget,
 }
 
@@ -277,6 +441,7 @@ impl Control for ListView {
     }
 }
 
+/// List view builder is used to create [`ListView`] widget instances and add them to a user interface.
 pub struct ListViewBuilder {
     widget_builder: WidgetBuilder,
     items: Vec<Handle<UiNode>>,
@@ -285,6 +450,7 @@ pub struct ListViewBuilder {
 }
 
 impl ListViewBuilder {
+    /// Creates new list view builder.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -294,21 +460,25 @@ impl ListViewBuilder {
         }
     }
 
+    /// Sets an array of handle of desired items for the list view.
     pub fn with_items(mut self, items: Vec<Handle<UiNode>>) -> Self {
         self.items = items;
         self
     }
 
+    /// Sets the desired item panel that will be used to arrange the items.
     pub fn with_items_panel(mut self, panel: Handle<UiNode>) -> Self {
         self.panel = Some(panel);
         self
     }
 
+    /// Sets the desired scroll viewer.
     pub fn with_scroll_viewer(mut self, sv: Handle<UiNode>) -> Self {
         self.scroll_viewer = Some(sv);
         self
     }
 
+    /// Finishes list view building and adds it to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let item_containers = generate_item_containers(ctx, &self.items);
 
