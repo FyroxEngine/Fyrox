@@ -170,6 +170,8 @@ impl ListViewMessage {
 ///     text::TextBuilder, widget::WidgetBuilder, UiNode, UserInterface,
 /// };
 /// fn change_items(my_list_view: Handle<UiNode>, ui: &mut UserInterface) {
+///     let ctx = &mut ui.build_ctx();
+///
 ///     // Build new items first.
 ///     let items = vec![
 ///         TextBuilder::new(WidgetBuilder::new())
