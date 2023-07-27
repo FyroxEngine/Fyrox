@@ -1,3 +1,8 @@
+//! Range editor is used to display and edit closed ranges like `0..1`. See [`Range`] docs for more info and usage
+//! examples.
+
+#![warn(missing_docs)]
+
 use crate::{
     core::pool::Handle,
     define_constructor,
@@ -13,26 +18,97 @@ use std::{
     ops::{Deref, DerefMut, Range},
 };
 
+/// A set of messages, that can be used to modify/fetch the state of a [`RangeEditor`] widget instance.
 #[derive(Debug, PartialEq, Eq)]
 pub enum RangeEditorMessage<T>
 where
     T: NumericType,
 {
+    /// A message, that is used to either modifying or fetching the value of a [`RangeEditor`] widget instance.
     Value(Range<T>),
 }
 
 impl<T: NumericType> RangeEditorMessage<T> {
-    define_constructor!(RangeEditorMessage:Value => fn value(Range<T>), layout: false);
+    define_constructor!(
+        /// Creates [`RangeEditorMessage::Value`] message.
+        RangeEditorMessage:Value => fn value(Range<T>), layout: false
+    );
 }
 
+/// Range editor is used to display and edit closed ranges like `0..1`. The widget is generic over numeric type,
+/// so you can display and editor ranges of any type, such as `u32`, `f32`, `f64`, etc.
+///
+/// ## Example
+///
+/// You can create range editors using [`RangeEditorBuilder`], like so:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle, range::RangeEditorBuilder, widget::WidgetBuilder, BuildContext, UiNode,
+/// # };
+/// fn create_range_editor(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     RangeEditorBuilder::new(WidgetBuilder::new())
+///         .with_value(0u32..100u32)
+///         .build(ctx)
+/// }
+/// ```
+///
+/// This example creates an editor for `Range<u32>` type with `0..100` value.
+///
+/// ## Value
+///
+/// To change current value of a range editor, use [`RangeEditorMessage::Value`] message:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle, message::MessageDirection, range::RangeEditorMessage, UiNode,
+/// #     UserInterface,
+/// # };
+/// fn change_value(range_editor: Handle<UiNode>, ui: &UserInterface) {
+///     ui.send_message(RangeEditorMessage::value(
+///         range_editor,
+///         MessageDirection::ToWidget,
+///         5u32..20u32,
+///     ))
+/// }
+/// ```
+///
+/// To "catch" the moment when the value has changed, use the same message, but check for [`MessageDirection::FromWidget`] direction
+/// on the message:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     message::{MessageDirection, UiMessage},
+/// #     range::RangeEditorMessage,
+/// #     UiNode,
+/// # };
+/// #
+/// fn fetch_value(range_editor: Handle<UiNode>, message: &UiMessage) {
+///     if let Some(RangeEditorMessage::Value(range)) = message.data::<RangeEditorMessage<u32>>() {
+///         if message.destination() == range_editor
+///             && message.direction() == MessageDirection::FromWidget
+///         {
+///             println!("The new value is: {:?}", range)
+///         }
+///     }
+/// }
+/// ```
+///
+/// Be very careful about the type of the range when sending a message, you need to send a range of exact type, that match the type
+/// of your editor, otherwise the message have no effect. The same applied to fetching.
 #[derive(Debug, Clone)]
 pub struct RangeEditor<T>
 where
     T: NumericType,
 {
+    /// Base widget of the range editor.
     pub widget: Widget,
+    /// Current value of the range editor.
     pub value: Range<T>,
+    /// A handle to numeric field that is used to show/modify start value of current range.
     pub start: Handle<UiNode>,
+    /// A handle to numeric field that is used to show/modify end value of current range.
     pub end: Handle<UiNode>,
 }
 
@@ -139,6 +215,7 @@ where
     }
 }
 
+/// Range editor builder creates [`RangeEditor`] instances and adds them to the user interface.
 pub struct RangeEditorBuilder<T>
 where
     T: NumericType,
@@ -151,6 +228,7 @@ impl<T> RangeEditorBuilder<T>
 where
     T: NumericType,
 {
+    /// Creates new builder instance.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -158,11 +236,13 @@ where
         }
     }
 
+    /// Sets a desired value of the editor.
     pub fn with_value(mut self, value: Range<T>) -> Self {
         self.value = value;
         self
     }
 
+    /// Finished widget building and adds the new instance to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let start = NumericUpDownBuilder::new(
             WidgetBuilder::new()
