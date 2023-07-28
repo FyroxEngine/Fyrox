@@ -1,3 +1,9 @@
+//! Scroll panel widget is used to arrange its children widgets, so they can be offset by a certain amount of units
+//! from top-left corner. It is used to provide basic scrolling functionality. See [`ScrollPanel`] docs for more
+//! info and usage examples.
+
+#![allow(missing_docs)]
+
 use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle, scope_profile},
@@ -12,27 +18,134 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+/// A set of messages, that is used to modify the state of a scroll panel.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ScrollPanelMessage {
+    /// Sets the desired scrolling value for the vertical axis.
     VerticalScroll(f32),
+    /// Sets the desired scrolling value for the horizontal axis.
     HorizontalScroll(f32),
-    /// Adjusts vertical and horizontal scroll values so given node will be in "view box"
-    /// of scroll panel.
+    /// Adjusts vertical and horizontal scroll values so given node will be in "view box" of scroll panel.
     BringIntoView(Handle<UiNode>),
 }
 
 impl ScrollPanelMessage {
-    define_constructor!(ScrollPanelMessage:VerticalScroll => fn vertical_scroll(f32), layout: false);
-    define_constructor!(ScrollPanelMessage:HorizontalScroll => fn horizontal_scroll(f32), layout: false);
-    define_constructor!(ScrollPanelMessage:BringIntoView => fn bring_into_view(Handle<UiNode>), layout: true);
+    define_constructor!(
+        /// Creates [`ScrollPanelMessage::VerticalScroll`] message.
+        ScrollPanelMessage:VerticalScroll => fn vertical_scroll(f32), layout: false
+    );
+    define_constructor!(
+        /// Creates [`ScrollPanelMessage::HorizontalScroll`] message.
+        ScrollPanelMessage:HorizontalScroll => fn horizontal_scroll(f32), layout: false
+    );
+    define_constructor!(
+        /// Creates [`ScrollPanelMessage::BringIntoView`] message.
+        ScrollPanelMessage:BringIntoView => fn bring_into_view(Handle<UiNode>), layout: true
+    );
 }
 
-/// Allows user to scroll content
+/// Scroll panel widget is used to arrange its children widgets, so they can be offset by a certain amount of units
+/// from top-left corner. It is used to provide basic scrolling functionality.
+///
+/// ## Examples
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     button::ButtonBuilder,
+/// #     core::{algebra::Vector2, pool::Handle},
+/// #     grid::{Column, GridBuilder, Row},
+/// #     scroll_panel::ScrollPanelBuilder,
+/// #     widget::WidgetBuilder,
+/// #     BuildContext, UiNode,
+/// # };
+/// #
+/// fn create_scroll_panel(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     ScrollPanelBuilder::new(
+///         WidgetBuilder::new().with_child(
+///             GridBuilder::new(
+///                 WidgetBuilder::new()
+///                     .with_child(
+///                         ButtonBuilder::new(WidgetBuilder::new())
+///                             .with_text("Some Button")
+///                             .build(ctx),
+///                     )
+///                     .with_child(
+///                         ButtonBuilder::new(WidgetBuilder::new())
+///                             .with_text("Some Other Button")
+///                             .build(ctx),
+///                     ),
+///             )
+///             .add_row(Row::auto())
+///             .add_row(Row::auto())
+///             .add_column(Column::stretch())
+///             .build(ctx),
+///         ),
+///     )
+///     .with_scroll_value(Vector2::new(100.0, 200.0))
+///     .with_vertical_scroll_allowed(true)
+///     .with_horizontal_scroll_allowed(true)
+///     .build(ctx)
+/// }
+/// ```
+///
+/// ## Scrolling
+///
+/// Scrolling value for both axes can be set via [`ScrollPanelMessage::VerticalScroll`] and [`ScrollPanelMessage::HorizontalScroll`]:
+///
+/// ```rust
+/// use fyrox_ui::{
+///     core::pool::Handle, message::MessageDirection, scroll_panel::ScrollPanelMessage, UiNode,
+///     UserInterface,
+/// };
+/// fn set_scrolling_value(
+///     scroll_panel: Handle<UiNode>,
+///     horizontal: f32,
+///     vertical: f32,
+///     ui: &UserInterface,
+/// ) {
+///     ui.send_message(ScrollPanelMessage::horizontal_scroll(
+///         scroll_panel,
+///         MessageDirection::ToWidget,
+///         horizontal,
+///     ));
+///     ui.send_message(ScrollPanelMessage::vertical_scroll(
+///         scroll_panel,
+///         MessageDirection::ToWidget,
+///         vertical,
+///     ));
+/// }
+/// ```
+///
+/// ## Bringing child into view
+///
+/// Calculates the scroll values to bring a desired child into view, it can be used for automatic navigation:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle, message::MessageDirection, scroll_panel::ScrollPanelMessage, UiNode,
+/// #     UserInterface,
+/// # };
+/// fn bring_child_into_view(
+///     scroll_panel: Handle<UiNode>,
+///     child: Handle<UiNode>,
+///     ui: &UserInterface,
+/// ) {
+///     ui.send_message(ScrollPanelMessage::bring_into_view(
+///         scroll_panel,
+///         MessageDirection::ToWidget,
+///         child,
+///     ))
+/// }
+/// ```
 #[derive(Clone)]
 pub struct ScrollPanel {
+    /// Base widget of the scroll panel.
     pub widget: Widget,
+    /// Current scroll value of the scroll panel.
     pub scroll: Vector2<f32>,
+    /// A flag, that defines whether the vertical scrolling is allowed or not.
     pub vertical_scroll_allowed: bool,
+    /// A flag, that defines whether the horizontal scrolling is allowed or not.
     pub horizontal_scroll_allowed: bool,
 }
 
@@ -185,35 +298,48 @@ impl Control for ScrollPanel {
     }
 }
 
+/// Scroll panel builder creates [`ScrollPanel`] widget instances and adds them to the user interface.
 pub struct ScrollPanelBuilder {
     widget_builder: WidgetBuilder,
     vertical_scroll_allowed: Option<bool>,
     horizontal_scroll_allowed: Option<bool>,
+    scroll_value: Vector2<f32>,
 }
 
 impl ScrollPanelBuilder {
+    /// Creates new scroll panel builder.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
             vertical_scroll_allowed: None,
             horizontal_scroll_allowed: None,
+            scroll_value: Default::default(),
         }
     }
 
+    /// Enables or disables vertical scrolling.
     pub fn with_vertical_scroll_allowed(mut self, value: bool) -> Self {
         self.vertical_scroll_allowed = Some(value);
         self
     }
 
+    /// Enables or disables horizontal scrolling.
     pub fn with_horizontal_scroll_allowed(mut self, value: bool) -> Self {
         self.horizontal_scroll_allowed = Some(value);
         self
     }
 
+    /// Sets the desired scrolling value for both axes at the same time.
+    pub fn with_scroll_value(mut self, scroll_value: Vector2<f32>) -> Self {
+        self.scroll_value = scroll_value;
+        self
+    }
+
+    /// Finishes scroll panel building and adds it to the user interface.
     pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
         ui.add_node(UiNode::new(ScrollPanel {
             widget: self.widget_builder.build(),
-            scroll: Vector2::default(),
+            scroll: self.scroll_value,
             vertical_scroll_allowed: self.vertical_scroll_allowed.unwrap_or(true),
             horizontal_scroll_allowed: self.horizontal_scroll_allowed.unwrap_or(false),
         }))
