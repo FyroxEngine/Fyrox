@@ -1,3 +1,8 @@
+//! Rect editor widget is used to show and edit [`Rect`] values. It shows four numeric fields: two for top left corner
+//! of a rect, two for its size. See [`RectEditor`] docs for more info and usage examples.
+
+#![warn(missing_docs)]
+
 use crate::{
     core::{algebra::Vector2, math::Rect, pool::Handle},
     define_constructor,
@@ -15,26 +20,98 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+/// A set of possible messages, that can be used to either modify or fetch the state of a [`RectEditor`] widget.
 #[derive(Debug, Clone, PartialEq)]
 pub enum RectEditorMessage<T>
 where
     T: NumericType,
 {
+    /// A message, that can be used to either modify or fetch the current value of a [`RectEditor`] widget.
     Value(Rect<T>),
 }
 
 impl<T: NumericType> RectEditorMessage<T> {
-    define_constructor!(RectEditorMessage:Value => fn value(Rect<T>), layout: false);
+    define_constructor!(
+        /// Creates [`RectEditorMessage::Value`] message.
+        RectEditorMessage:Value => fn value(Rect<T>), layout: false
+    );
 }
 
+/// Rect editor widget is used to show and edit [`Rect`] values. It shows four numeric fields: two for top left corner
+/// of a rect, two for its size.
+///
+/// ## Example
+///
+/// Rect editor can be created using [`RectEditorBuilder`], like so:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::{math::Rect, pool::Handle},
+/// #     rect::RectEditorBuilder,
+/// #     widget::WidgetBuilder,
+/// #     BuildContext, UiNode,
+/// # };
+/// #
+/// fn create_rect_editor(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     RectEditorBuilder::new(WidgetBuilder::new())
+///         .with_value(Rect::new(0, 0, 10, 20))
+///         .build(ctx)
+/// }
+/// ```
+///
+/// ## Value
+///
+/// To change the value of a rect editor, use [`RectEditorMessage::Value`] message:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::{math::Rect, pool::Handle},
+/// #     message::MessageDirection,
+/// #     rect::RectEditorMessage,
+/// #     UiNode, UserInterface,
+/// # };
+/// #
+/// fn change_value(rect_editor: Handle<UiNode>, ui: &UserInterface) {
+///     ui.send_message(RectEditorMessage::value(
+///         rect_editor,
+///         MessageDirection::ToWidget,
+///         Rect::new(20, 20, 60, 80),
+///     ));
+/// }
+/// ```
+///
+/// To "catch" the moment when the value of a rect editor has changed, listen to the same message, but check its direction:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     message::{MessageDirection, UiMessage},
+/// #     rect::RectEditorMessage,
+/// #     UiNode,
+/// # };
+/// #
+/// fn fetch_value(rect_editor: Handle<UiNode>, message: &UiMessage) {
+///     if let Some(RectEditorMessage::Value(value)) = message.data::<RectEditorMessage<u32>>() {
+///         if message.destination() == rect_editor
+///             && message.direction() == MessageDirection::FromWidget
+///         {
+///             println!("The new value is: {:?}", value)
+///         }
+///     }
+/// }
+/// ```
 #[derive(Debug, Clone)]
 pub struct RectEditor<T>
 where
     T: NumericType,
 {
+    /// Base widget of the rect editor.
     pub widget: Widget,
+    /// A handle to a widget, that is used to show/edit position part of the rect.
     pub position: Handle<UiNode>,
+    /// A handle to a widget, that is used to show/edit size part of the rect.
     pub size: Handle<UiNode>,
+    /// Current value of the rect editor.
     pub value: Rect<T>,
 }
 
@@ -111,6 +188,7 @@ where
     }
 }
 
+/// Rect editor builder creates [`RectEditor`] widget instances and adds them to the user interface.
 pub struct RectEditorBuilder<T>
 where
     T: NumericType,
@@ -154,6 +232,7 @@ impl<T> RectEditorBuilder<T>
 where
     T: NumericType,
 {
+    /// Creates new rect editor builder instance.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -161,11 +240,13 @@ where
         }
     }
 
+    /// Sets the desired value.
     pub fn with_value(mut self, value: Rect<T>) -> Self {
         self.value = value;
         self
     }
 
+    /// Finished rect editor widget building and adds it to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let (position_grid, position) = create_field(ctx, "Position", self.value.position, 0);
         let (size_grid, size) = create_field(ctx, "Size", self.value.size, 1);
