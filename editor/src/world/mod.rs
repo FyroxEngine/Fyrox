@@ -48,6 +48,7 @@ use fyrox::{
     },
     scene::{graph::Graph, node::Node, Scene},
 };
+use rust_fuzzy_search::fuzzy_compare;
 use std::{any::TypeId, cmp::Ordering, collections::HashMap};
 
 pub mod graph;
@@ -535,7 +536,8 @@ impl WorldViewer {
             let name = node_ref.cast::<SceneItem>().map(|i| i.name());
 
             if let Some(name) = name {
-                is_any_match |= name.to_lowercase().contains(filter);
+                is_any_match |= name.to_lowercase().contains(filter)
+                    || fuzzy_compare(filter, name.to_lowercase().as_str()) >= 0.33;
 
                 ui.send_message(WidgetMessage::visibility(
                     node,
