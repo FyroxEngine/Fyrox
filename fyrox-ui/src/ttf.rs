@@ -304,7 +304,7 @@ impl Font {
                         bigger = self.compute_atlas_size(border, atlas_size_factor);
                     }
                     Log::info(format!(
-                        "{} was not big enough for font atlas trying agains with {bigger}",
+                        "{} was not big enough for font atlas trying again with {bigger}",
                         self.atlas_size
                     ));
                     self.atlas_size = self.compute_atlas_size(border, atlas_size_factor);

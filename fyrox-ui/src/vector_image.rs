@@ -1,3 +1,9 @@
+//! Vector image is used to create images, that consists from a fixed set of basic primitives, such as lines,
+//! triangles, rectangles, etc. It could be used to create simple images that can be infinitely scaled without
+//! aliasing issues. See [`VectorImage`] docs for more info and usage examples.
+
+#![warn(missing_docs)]
+
 use crate::{
     core::{algebra::Vector2, color::Color, math::Rect, math::Vector2Ext, pool::Handle},
     draw::{CommandTexture, Draw, DrawingContext},
@@ -10,26 +16,43 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+/// Primitive is a simplest shape, that consists of one or multiple lines of the same thickness.
 #[derive(Clone, Debug)]
 pub enum Primitive {
+    /// Solid triangle primitive.
     Triangle {
+        /// Points of the triangle in local coordinates.
         points: [Vector2<f32>; 3],
     },
+    /// A line of fixed thickness between two points.  
     Line {
+        /// Beginning of the line in local coordinates.
         begin: Vector2<f32>,
+        /// End of the line in local coordinates.
         end: Vector2<f32>,
+        /// Thickness of the line in absolute units.
         thickness: f32,
     },
+    /// Solid circle primitive.
     Circle {
+        /// Center of the circle in local coordinates.
         center: Vector2<f32>,
+        /// Radius of the circle in absolute units.
         radius: f32,
+        /// Amount of segments that is used to approximate the circle using triangles. The higher the value, the smoother the
+        /// circle and vice versa.
         segments: usize,
     },
+    /// Wireframe rectangle primitive.
     Rectangle {
+        /// Rectangle bounds in local coordinates.
         rect: Rect<f32>,
+        /// Thickness of the lines on the rectangle in absolute units.
         thickness: f32,
     },
+    /// Solid rectangle primitive.
     RectangleFilled {
+        /// Rectangle bounds in local coordinates.
         rect: Rect<f32>,
     },
 }
@@ -43,6 +66,7 @@ fn line_thickness_vector(a: Vector2<f32>, b: Vector2<f32>, thickness: f32) -> Ve
 }
 
 impl Primitive {
+    /// Returns current bounds of the primitive as `min, max` tuple.
     pub fn bounds(&self) -> (Vector2<f32>, Vector2<f32>) {
         match self {
             Primitive::Triangle { points } => {
@@ -79,9 +103,55 @@ impl Primitive {
     }
 }
 
+/// Vector image is used to create images, that consists from a fixed set of basic primitives, such as lines,
+/// triangles, rectangles, etc. It could be used to create simple images that can be infinitely scaled without
+/// aliasing issues.
+///
+/// ## Examples
+///
+/// The following example creates a cross shape with given size and thickness:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::{algebra::Vector2, pool::Handle},
+/// #     vector_image::{Primitive, VectorImageBuilder},
+/// #     widget::WidgetBuilder,
+/// #     BuildContext, UiNode, BRUSH_BRIGHT,
+/// # };
+/// #
+/// fn make_cross_vector_image(
+///     ctx: &mut BuildContext,
+///     size: f32,
+///     thickness: f32,
+/// ) -> Handle<UiNode> {
+///     VectorImageBuilder::new(
+///         WidgetBuilder::new()
+///             // Color of the image is defined by the foreground brush of the base widget.
+///             .with_foreground(BRUSH_BRIGHT),
+///     )
+///     .with_primitives(vec![
+///         Primitive::Line {
+///             begin: Vector2::new(0.0, 0.0),
+///             end: Vector2::new(size, size),
+///             thickness,
+///         },
+///         Primitive::Line {
+///             begin: Vector2::new(size, 0.0),
+///             end: Vector2::new(0.0, size),
+///             thickness,
+///         },
+///     ])
+///     .build(ctx)
+/// }
+/// ```
+///
+/// Keep in mind that all primitives located in local coordinates. The color of the vector image can be changed by
+/// setting a new foreground brush.
 #[derive(Clone)]
 pub struct VectorImage {
+    /// Base widget of the image.
     pub widget: Widget,
+    /// Current set of primitives that will be drawn.
     pub primitives: Vec<Primitive>,
 }
 
@@ -167,12 +237,14 @@ impl Control for VectorImage {
     }
 }
 
+/// Vector image builder creates [`VectorImage`] instances and adds them to the user interface.
 pub struct VectorImageBuilder {
     widget_builder: WidgetBuilder,
     primitives: Vec<Primitive>,
 }
 
 impl VectorImageBuilder {
+    /// Creates new vector image builder.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -180,11 +252,13 @@ impl VectorImageBuilder {
         }
     }
 
+    /// Sets the desired set of primitives.
     pub fn with_primitives(mut self, primitives: Vec<Primitive>) -> Self {
         self.primitives = primitives;
         self
     }
 
+    /// Builds the vector image widget.
     pub fn build_node(self) -> UiNode {
         let image = VectorImage {
             widget: self.widget_builder.build(),
@@ -193,6 +267,7 @@ impl VectorImageBuilder {
         UiNode::new(image)
     }
 
+    /// Finishes vector image building and adds it to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         ctx.add_node(self.build_node())
     }
