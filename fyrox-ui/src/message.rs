@@ -9,48 +9,6 @@ use serde::{Deserialize, Serialize};
 use std::{any::Any, cell::Cell, fmt::Debug, rc::Rc};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
-mod kek {
-    use crate::{
-        core::pool::Handle, define_constructor, message::MessageDirection, UiMessage, UiNode,
-        UserInterface,
-    };
-
-    // Message must be debuggable and comparable.
-    #[derive(Debug, PartialEq)]
-    enum MyWidgetMessage {
-        DoSomething,
-        Foo(u32),
-        Bar { foo: u32, baz: u8 },
-    }
-
-    impl MyWidgetMessage {
-        define_constructor!(MyWidgetMessage:DoSomething => fn do_something(), layout: false);
-        define_constructor!(MyWidgetMessage:Foo => fn foo(u32), layout: false);
-        define_constructor!(MyWidgetMessage:Bar => fn bar(foo: u32, baz: u8), layout: false);
-    }
-
-    fn using_messages(my_widget: Handle<UiNode>, ui: &UserInterface) {
-        // Send MyWidgetMessage::DoSomething
-        ui.send_message(MyWidgetMessage::do_something(
-            my_widget,
-            MessageDirection::ToWidget,
-        ));
-        // Send MyWidgetMessage::Foo
-        ui.send_message(MyWidgetMessage::foo(
-            my_widget,
-            MessageDirection::ToWidget,
-            5,
-        ));
-        // Send MyWidgetMessage::Bar
-        ui.send_message(MyWidgetMessage::bar(
-            my_widget,
-            MessageDirection::ToWidget,
-            1,
-            2,
-        ));
-    }
-}
-
 /// Defines a new message constructor for a enum variant. It is widely used in this crate to create shortcuts to create
 /// messages. Why is it needed anyway? Just to reduce boilerplate code as much as possible.
 ///
