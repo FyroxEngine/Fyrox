@@ -1,6 +1,8 @@
 //! Message and events module contains all possible widget messages and OS events. See [`UiMessage`] docs for more info and
 //! examples.
 
+#![warn(missing_docs)]
+
 use crate::{
     core::{algebra::Vector2, pool::Handle, reflect::prelude::*},
     UiNode,
@@ -150,9 +152,13 @@ impl MessageDirection {
     }
 }
 
+/// A trait, that is used by every messages used in the user interface. It contains utility methods, that are used
+/// for downcasting and equality comparison.
 pub trait MessageData: 'static + Debug + Any {
+    /// Casts `self` as [`Any`] reference.
     fn as_any(&self) -> &dyn Any;
 
+    /// Compares this message data with some other.
     fn compare(&self, other: &dyn MessageData) -> bool;
 }
 
@@ -281,6 +287,7 @@ impl PartialEq for UiMessage {
 }
 
 impl UiMessage {
+    /// Creates new UI message with desired data.
     pub fn with_data<T: MessageData>(data: T) -> Self {
         Self {
             handled: Cell::new(false),
@@ -292,21 +299,25 @@ impl UiMessage {
         }
     }
 
+    /// Sets the desired destination of the message.
     pub fn with_destination(mut self, destination: Handle<UiNode>) -> Self {
         self.destination = destination;
         self
     }
 
+    /// Sets the desired direction of the message.
     pub fn with_direction(mut self, direction: MessageDirection) -> Self {
         self.direction = direction;
         self
     }
 
+    /// Sets the desired handled flag of the message.
     pub fn with_handled(self, handled: bool) -> Self {
         self.handled.set(handled);
         self
     }
 
+    /// Sets the desired perform layout flag of the message.
     pub fn with_perform_layout(self, perform_layout: bool) -> Self {
         self.perform_layout.set(perform_layout);
         self
@@ -329,70 +340,99 @@ impl UiMessage {
         }
     }
 
+    /// Returns destination widget handle of the message.
     pub fn destination(&self) -> Handle<UiNode> {
         self.destination
     }
 
+    /// Tries to downcast current data of the message to a particular type.
     pub fn data<T: MessageData>(&self) -> Option<&T> {
         (*self.data).as_any().downcast_ref::<T>()
     }
 
+    /// Sets handled flag.
     pub fn set_handled(&self, handled: bool) {
         self.handled.set(handled);
     }
 
+    /// Returns handled flag.
     pub fn handled(&self) -> bool {
         self.handled.get()
     }
 
+    /// Returns direction of the message.
     pub fn direction(&self) -> MessageDirection {
         self.direction
     }
 
+    /// Sets perform layout flag.
     pub fn set_perform_layout(&self, value: bool) {
         self.perform_layout.set(value);
     }
 
+    /// Returns perform layout flag.
     pub fn need_perform_layout(&self) -> bool {
         self.perform_layout.get()
     }
 
+    /// Checks if the message has particular flags.
     pub fn has_flags(&self, flags: u64) -> bool {
         self.flags & flags != 0
     }
 }
 
+/// Mouse button state.
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
 pub enum ButtonState {
+    /// Pressed state.
     Pressed,
+    /// Released state.
     Released,
 }
 
+/// A set of possible mouse buttons.
 #[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
 pub enum MouseButton {
+    /// Left mouse button.
     Left,
+    /// Right mouse button.
     Right,
+    /// Middle mouse button.
     Middle,
+    /// Any other mouse button.
     Other(u16),
 }
 
+/// An event that an OS sends to a window, that is then can be used to "feed" the user interface so it can do some actions.
 pub enum OsEvent {
+    /// Mouse input event.
     MouseInput {
+        /// Mouse button.
         button: MouseButton,
+        /// Mouse button state.
         state: ButtonState,
     },
+    /// Cursor event.
     CursorMoved {
+        /// New position of the cursor.
         position: Vector2<f32>,
     },
+    /// Keyboard input event.
     KeyboardInput {
+        /// Code of a key.
         button: KeyCode,
+        /// Key state.
         state: ButtonState,
     },
+    /// Text character event.
     Character(char),
+    /// Keyboard modifier event (used for key combinations such as Ctrl+A, Ctrl+C, etc).
     KeyboardModifiers(KeyboardModifiers),
+    /// Mouse wheel event, with a tuple that stores the (x, y) offsets.
     MouseWheel(f32, f32),
 }
 
+/// A set of possible keyboard modifiers.
 #[derive(
     Debug,
     Hash,
@@ -408,18 +448,24 @@ pub enum OsEvent {
     Reflect,
 )]
 pub struct KeyboardModifiers {
+    /// `Alt` key is pressed.
     pub alt: bool,
+    /// `Shift` key is pressed.
     pub shift: bool,
+    /// `Ctrl` key is pressed.
     pub control: bool,
+    /// `System` key is pressed.
     pub system: bool,
 }
 
 impl KeyboardModifiers {
+    /// Checks if the modifiers is empty (nothing is pressed).
     pub fn is_none(self) -> bool {
         !self.shift && !self.control && !self.alt && !self.system
     }
 }
 
+/// Code of a key on keyboard.
 #[derive(
     Debug,
     Hash,
@@ -438,217 +484,406 @@ impl KeyboardModifiers {
 )]
 #[repr(u32)]
 pub enum KeyCode {
+    /// 1 key.
     Key1,
+    /// 2 key.
     Key2,
+    /// 3 key.
     Key3,
+    /// 4 key.
     Key4,
+    /// 5 key.
     Key5,
+    /// 6 key.
     Key6,
+    /// 7 key.
     Key7,
+    /// 8 key.
     Key8,
+    /// 9 key.
     Key9,
+    /// 0 key.
     Key0,
+    /// A key.
     A,
+    /// B key.
     B,
+    /// C key.
     C,
+    /// D key.
     D,
+    /// E key.
     E,
+    /// F key.
     F,
+    /// G key.
     G,
+    /// H key.
     H,
+    /// I key.
     I,
+    /// J key.
     J,
+    /// K key.
     K,
+    /// L key.
     L,
+    /// M key.
     M,
+    /// N key.
     N,
+    /// O key.
     O,
+    /// P key.
     P,
+    /// Q key.
     Q,
+    /// R key.
     R,
+    /// S key.
     S,
+    /// T key.
     T,
+    /// U key.
     U,
+    /// V key.
     V,
+    /// W key.
     W,
+    /// X key.
     X,
+    /// Y key.
     Y,
+    /// Z key.
     Z,
-
+    /// Escape key.
     Escape,
-
+    /// F1 key.
     F1,
+    /// F2 key.
     F2,
+    /// F3 key.
     F3,
+    /// F4 key.
     F4,
+    /// F5 key.
     F5,
+    /// F6 key.
     F6,
+    /// F7 key.
     F7,
+    /// F8 key.
     F8,
+    /// F9 key.
     F9,
+    /// F10 key.
     F10,
+    /// F11 key.
     F11,
+    /// F12 key.
     F12,
+    /// F13 key.
     F13,
+    /// F14 key.
     F14,
+    /// F15 key.
     F15,
+    /// F16 key.
     F16,
+    /// F17 key.
     F17,
+    /// F18 key.
     F18,
+    /// F19 key.
     F19,
+    /// F20 key.
     F20,
+    /// F21 key.
     F21,
+    /// F22 key.
     F22,
+    /// F23 key.
     F23,
+    /// F24 key.
     F24,
-
+    /// Snapshot key.
     Snapshot,
+    /// Scroll key.
     Scroll,
+    /// Pause key.
     Pause,
-
+    /// Insert key.
     Insert,
+    /// Home key.
     Home,
+    /// Delete key.
     Delete,
+    /// End key.
     End,
+    /// PageDown key.
     PageDown,
+    /// PageUp key.
     PageUp,
-
+    /// Left key.
     Left,
+    /// Up key.
     Up,
+    /// Right key.
     Right,
+    /// Down key.
     Down,
-
+    /// Backspace key.
     Backspace,
+    /// Return key.
     Return,
+    /// Space key.
     Space,
-
+    /// Compose key.
     Compose,
-
+    /// Caret key.
     Caret,
-
+    /// Numlock key.
     Numlock,
+    /// Numpad0 key.
     Numpad0,
+    /// Numpad1 key.
     Numpad1,
+    /// Numpad2 key.
     Numpad2,
+    /// Numpad3 key.
     Numpad3,
+    /// Numpad4 key.
     Numpad4,
+    /// Numpad5 key.
     Numpad5,
+    /// Numpad6 key.
     Numpad6,
+    /// Numpad7 key.
     Numpad7,
+    /// Numpad8 key.
     Numpad8,
+    /// Numpad9 key.
     Numpad9,
-
+    /// AbntC1 key.
     AbntC1,
+    /// AbntC2 key.
     AbntC2,
+    /// NumpadAdd key.
     NumpadAdd,
+    /// Apostrophe key.
     Apostrophe,
+    /// Apps key.
     Apps,
+    /// At key.
     At,
+    /// Ax key.
     Ax,
+    /// Backslash key.
     Backslash,
+    /// Calculator key.
     Calculator,
+    /// Capital key.
     Capital,
+    /// Colon key.
     Colon,
+    /// Comma key.
     Comma,
+    /// Convert key.
     Convert,
+    /// NumpadDecimal key.
     NumpadDecimal,
+    /// NumpadDivide key.
     NumpadDivide,
+    /// Equals key.
     Equals,
+    /// Grave key.
     Grave,
+    /// Kana key.
     Kana,
+    /// Kanji key.
     Kanji,
+    /// LAlt key.
     LAlt,
+    /// LBracket key.
     LBracket,
+    /// LControl key.
     LControl,
+    /// LShift key.
     LShift,
+    /// LWin key.
     LWin,
+    /// Mail key.
     Mail,
+    /// MediaSelect key.
     MediaSelect,
+    /// MediaStop key.
     MediaStop,
+    /// Minus key.
     Minus,
+    /// NumpadMultiply key.
     NumpadMultiply,
+    /// Mute key.
     Mute,
+    /// MyComputer key.
     MyComputer,
+    /// NavigateForward key.
     NavigateForward,
+    /// NavigateBackward key.
     NavigateBackward,
+    /// NextTrack key.
     NextTrack,
+    /// NoConvert key.
     NoConvert,
+    /// NumpadComma key.
     NumpadComma,
+    /// NumpadEnter key.
     NumpadEnter,
+    /// NumpadEquals key.
     NumpadEquals,
+    /// OEM102 key.
     OEM102,
+    /// Period key.
     Period,
+    /// PlayPause key.
     PlayPause,
+    /// Power key.
     Power,
+    /// PrevTrack key.
     PrevTrack,
+    /// RAlt key.
     RAlt,
+    /// RBracket key.
     RBracket,
+    /// RControl key.
     RControl,
+    /// RShift key.
     RShift,
+    /// RWin key.
     RWin,
+    /// Semicolon key.
     Semicolon,
+    /// Slash key.
     Slash,
+    /// Sleep key.
     Sleep,
+    /// Stop key.
     Stop,
+    /// NumpadSubtract key.
     NumpadSubtract,
+    /// Sysrq key.
     Sysrq,
+    /// Tab key.
     Tab,
+    /// Underline key.
     Underline,
+    /// Unlabeled key.
     Unlabeled,
+    /// VolumeDown key.
     VolumeDown,
+    /// VolumeUp key.
     VolumeUp,
+    /// Wake key.
     Wake,
+    /// WebBack key.
     WebBack,
+    /// WebFavorites key.
     WebFavorites,
+    /// WebForward key.
     WebForward,
+    /// WebHome key.
     WebHome,
+    /// WebRefresh key.
     WebRefresh,
+    /// WebSearch key.
     WebSearch,
+    /// WebStop key.
     WebStop,
+    /// Yen key.
     Yen,
+    /// Copy key.
     Copy,
+    /// Paste key.
     Paste,
+    /// Plus key.
     Cut,
+    /// Plus key.
     Asterisk,
+    /// Plus key.
     Plus,
 }
 
+/// A fixed set of cursor icons that available on most OSes.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum CursorIcon {
+    /// Default OS-dependent cursor icon.
     Default,
+    /// Crosshair cursor icon.
     Crosshair,
+    /// Hand cursor icon.
     Hand,
+    /// Arrow cursor icon.
     Arrow,
+    /// Move cursor icon.
     Move,
+    /// Text cursor icon.
     Text,
+    /// Wait cursor icon.
     Wait,
+    /// Help cursor icon.
     Help,
+    /// Progress cursor icon.
     Progress,
+    /// NotAllowed cursor icon.
     NotAllowed,
+    /// ContextMenu cursor icon.
     ContextMenu,
+    /// Cell cursor icon.
     Cell,
+    /// VerticalText cursor icon.
     VerticalText,
+    /// Alias cursor icon.
     Alias,
+    /// Copy cursor icon.
     Copy,
+    /// NoDrop cursor icon.
     NoDrop,
+    /// Grab cursor icon.
     Grab,
+    /// Grabbing cursor icon.
     Grabbing,
+    /// AllScroll cursor icon.
     AllScroll,
+    /// ZoomIn cursor icon.
     ZoomIn,
+    /// ZoomOut cursor icon.
     ZoomOut,
+    /// EResize cursor icon.
     EResize,
+    /// NResize cursor icon.
     NResize,
+    /// NeResize cursor icon.
     NeResize,
+    /// NwResize cursor icon.
     NwResize,
+    /// SResize cursor icon.
     SResize,
+    /// SeResize cursor icon.
     SeResize,
+    /// SwResize cursor icon.
     SwResize,
+    /// WResize cursor icon.
     WResize,
+    /// EwResize cursor icon.
     EwResize,
+    /// NsResize cursor icon.
     NsResize,
+    /// NeswResize cursor icon.
     NeswResize,
+    /// NwseResize cursor icon.
     NwseResize,
+    /// ColResize cursor icon.
     ColResize,
+    /// RowResize cursor icon.
     RowResize,
 }
 
