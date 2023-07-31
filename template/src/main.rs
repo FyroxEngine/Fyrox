@@ -97,12 +97,13 @@ impl Display for NameErrors {
 }
 
 fn check_name(name: &str) -> Result<&str, NameErrors> {
-    const RESERVED_NAMES: [&str; 52] = [
+    const RESERVED_NAMES: [&str; 53] = [
         "abstract", "alignof", "as", "become", "box", "break", "const", "continue", "crate", "do",
         "else", "enum", "extern", "false", "final", "fn", "for", "if", "impl", "in", "let", "loop",
         "macro", "match", "mod", "move", "mut", "offsetof", "override", "priv", "proc", "pub",
         "pure", "ref", "return", "self", "sizeof", "static", "struct", "super", "test", "trait",
-        "true", "type", "typeof", "unsafe", "unsized", "use", "virtual", "where", "while", "yield",
+        "true", "type", "typeof", "try", "unsafe", "unsized", "use", "virtual", "where", "while",
+        "yield",
     ];
     if RESERVED_NAMES.contains(&name) {
         return Err(NameErrors::CargoReserved(name.to_string()));
