@@ -1,5 +1,6 @@
 //! Contains all methods and structures to create and manage cameras. See [`Camera`] docs for more info.
 
+use crate::resource::texture::CompressionOptions;
 use crate::{
     asset::{ResourceLoadError, ResourceStateRef},
     core::{
@@ -24,6 +25,7 @@ use crate::{
         node::{Node, NodeTrait, UpdateContext},
     },
 };
+use lazy_static::lazy_static;
 use std::{
     fmt::{Display, Formatter},
     ops::{Deref, DerefMut},
@@ -891,6 +893,99 @@ impl ColorGradingLut {
     }
 }
 
+/// A fixed set of possible sky boxes, that can be selected when building [`Camera`] scene node.
+#[derive(Default)]
+pub enum SkyBoxKind {
+    /// Uses built-in sky box. This is default sky box.
+    #[default]
+    Builtin,
+    /// No sky box. Surroundings will be filled with back buffer clear color.
+    None,
+    /// Specific skybox. One can be built using [`SkyBoxBuilder`].
+    Specific(SkyBox),
+}
+
+fn load_texture(data: &[u8], id: &str) -> TextureResource {
+    let texture = TextureResource::load_from_memory(
+        data,
+        CompressionOptions::NoCompression,
+        false,
+        Default::default(),
+    )
+    .ok()
+    .unwrap();
+    texture.data_ref().set_path(id);
+    texture
+}
+
+lazy_static! {
+    static ref BUILT_IN_SKYBOX_FRONT: TextureResource = load_texture(
+        include_bytes!("../../data/front.png"),
+        "__BUILT_IN_SKYBOX_FRONT",
+    );
+    static ref BUILT_IN_SKYBOX_BACK: TextureResource = load_texture(
+        include_bytes!("../../data/back.png"),
+        "__BUILT_IN_SKYBOX_BACK",
+    );
+    static ref BUILT_IN_SKYBOX_TOP: TextureResource = load_texture(
+        include_bytes!("../../data/top.png"),
+        "__BUILT_IN_SKYBOX_TOP",
+    );
+    static ref BUILT_IN_SKYBOX_BOTTOM: TextureResource = load_texture(
+        include_bytes!("../../data/bottom.png"),
+        "__BUILT_IN_SKYBOX_BOTTOM",
+    );
+    static ref BUILT_IN_SKYBOX_LEFT: TextureResource = load_texture(
+        include_bytes!("../../data/left.png"),
+        "__BUILT_IN_SKYBOX_LEFT",
+    );
+    static ref BUILT_IN_SKYBOX_RIGHT: TextureResource = load_texture(
+        include_bytes!("../../data/right.png"),
+        "__BUILT_IN_SKYBOX_RIGHT",
+    );
+    static ref BUILT_IN_SKYBOX: SkyBox = SkyBoxKind::make_built_in_skybox();
+}
+
+impl SkyBoxKind {
+    fn make_built_in_skybox() -> SkyBox {
+        let front = BUILT_IN_SKYBOX_FRONT.clone();
+        let back = BUILT_IN_SKYBOX_BACK.clone();
+        let top = BUILT_IN_SKYBOX_TOP.clone();
+        let bottom = BUILT_IN_SKYBOX_BOTTOM.clone();
+        let left = BUILT_IN_SKYBOX_LEFT.clone();
+        let right = BUILT_IN_SKYBOX_RIGHT.clone();
+
+        SkyBoxBuilder {
+            front: Some(front),
+            back: Some(back),
+            left: Some(left),
+            right: Some(right),
+            top: Some(top),
+            bottom: Some(bottom),
+        }
+        .build()
+        .unwrap()
+    }
+
+    /// Returns a references to built-in sky box.
+    pub fn built_in_skybox() -> &'static SkyBox {
+        &BUILT_IN_SKYBOX
+    }
+
+    /// Returns an array with references to the textures being used in built-in sky box. The order is:
+    /// front, back, top, bottom, left, right.
+    pub fn built_in_skybox_textures() -> [&'static TextureResource; 6] {
+        [
+            &BUILT_IN_SKYBOX_FRONT,
+            &BUILT_IN_SKYBOX_BACK,
+            &BUILT_IN_SKYBOX_TOP,
+            &BUILT_IN_SKYBOX_BOTTOM,
+            &BUILT_IN_SKYBOX_LEFT,
+            &BUILT_IN_SKYBOX_RIGHT,
+        ]
+    }
+}
+
 /// Camera builder is used to create new camera in declarative manner.
 /// This is typical implementation of Builder pattern.
 pub struct CameraBuilder {
@@ -900,7 +995,7 @@ pub struct CameraBuilder {
     z_far: f32,
     viewport: Rect<f32>,
     enabled: bool,
-    skybox: Option<SkyBox>,
+    skybox: SkyBoxKind,
     environment: Option<TextureResource>,
     exposure: Exposure,
     color_grading_lut: Option<ColorGradingLut>,
@@ -918,7 +1013,7 @@ impl CameraBuilder {
             z_near: 0.025,
             z_far: 2048.0,
             viewport: Rect::new(0.0, 0.0, 1.0, 1.0),
-            skybox: None,
+            skybox: SkyBoxKind::Builtin,
             environment: None,
             exposure: Exposure::Manual(std::f32::consts::E),
             color_grading_lut: None,
@@ -959,7 +1054,13 @@ impl CameraBuilder {
 
     /// Sets desired skybox.
     pub fn with_skybox(mut self, skybox: SkyBox) -> Self {
-        self.skybox = Some(skybox);
+        self.skybox = SkyBoxKind::Specific(skybox);
+        self
+    }
+
+    /// Sets desired skybox.
+    pub fn with_specific_skybox(mut self, skybox_kind: SkyBoxKind) -> Self {
+        self.skybox = skybox_kind;
         self
     }
 
@@ -1004,7 +1105,11 @@ impl CameraBuilder {
             // recalculated before rendering.
             view_matrix: Matrix4::identity(),
             projection_matrix: Matrix4::identity(),
-            sky_box: self.skybox.into(),
+            sky_box: InheritableVariable::new_modified(match self.skybox {
+                SkyBoxKind::Builtin => Some(SkyBoxKind::built_in_skybox().clone()),
+                SkyBoxKind::None => None,
+                SkyBoxKind::Specific(skybox) => Some(skybox),
+            }),
             environment: self.environment.into(),
             exposure: self.exposure.into(),
             color_grading_lut: self.color_grading_lut.into(),

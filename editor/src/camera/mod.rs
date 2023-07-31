@@ -1,5 +1,7 @@
-use crate::settings::keys::KeyBindings;
-use crate::{settings::camera::CameraSettings, utils::built_in_skybox, SceneCameraSettings};
+use crate::{
+    settings::{camera::CameraSettings, keys::KeyBindings},
+    SceneCameraSettings,
+};
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
@@ -105,7 +107,6 @@ impl CameraController {
                             .with_name("EditorCamera"),
                     )
                     .with_exposure(Exposure::Manual(std::f32::consts::E))
-                    .with_skybox(built_in_skybox())
                     .with_z_far(512.0)
                     .build(graph);
                     camera

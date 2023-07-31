@@ -6,6 +6,7 @@
 pub mod error;
 pub mod executor;
 
+use crate::scene::camera::SkyBoxKind;
 use crate::{
     asset::{
         event::ResourceEvent,
@@ -801,6 +802,12 @@ pub(crate) fn initialize_resource_manager_loaders(
         state
             .built_in_resources
             .insert(shader.path(), shader.into_untyped());
+    }
+
+    for texture in SkyBoxKind::built_in_skybox_textures() {
+        state
+            .built_in_resources
+            .insert(texture.path(), texture.clone().into_untyped());
     }
 
     state.constructors_container.add::<Texture>();

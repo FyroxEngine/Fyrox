@@ -1,6 +1,4 @@
-use crate::{load_image, utils::built_in_skybox, Engine};
-use fyrox::resource::model::{Model, ModelResourceExtension};
-use fyrox::resource::texture::TextureResourceExtension;
+use crate::{load_image, Engine};
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -18,7 +16,10 @@ use fyrox::{
         widget::{WidgetBuilder, WidgetMessage},
         HorizontalAlignment, Orientation, Thickness, UiNode, VerticalAlignment,
     },
-    resource::texture::{TextureKind, TextureResource},
+    resource::{
+        model::{Model, ModelResourceExtension},
+        texture::{TextureKind, TextureResource, TextureResourceExtension},
+    },
     scene::{
         base::BaseBuilder,
         camera::{CameraBuilder, Projection},
@@ -131,7 +132,6 @@ impl PreviewPanel {
                             .build(),
                     ),
                 )
-                .with_skybox(built_in_skybox())
                 .build(&mut scene.graph);
                 camera
             }]))
