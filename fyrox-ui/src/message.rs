@@ -20,7 +20,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 ///
 /// ```rust
 /// # use fyrox_ui::{
-/// #     core::pool::Handle, define_constructor, message::MessageDirection, UiMessage, UiNode,
+/// #     core::pool::Handle, define_constructor, message::MessageDirection, message::UiMessage, UiNode,
 /// #     UserInterface,
 /// # };
 /// #
@@ -202,7 +202,7 @@ where
 ///
 /// ```rust
 /// use fyrox_ui::{
-///     core::pool::Handle, define_constructor, message::MessageDirection, UiMessage, UiNode,
+///     core::pool::Handle, define_constructor, message::MessageDirection, message::UiMessage, UiNode,
 ///     UserInterface,
 /// };
 ///
