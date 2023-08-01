@@ -508,7 +508,7 @@ impl Display for ValidationError {
 
 impl VertexBuffer {
     /// Creates new vertex buffer from provided data and with the given layout of the vertex type `T`.
-    pub fn new<T>(vertex_count: usize, mut data: Vec<T>) -> Result<Self, ValidationError>
+    pub fn new<T>(vertex_count: usize, data: Vec<T>) -> Result<Self, ValidationError>
     where
         T: VertexTrait,
     {
