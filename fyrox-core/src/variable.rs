@@ -582,63 +582,16 @@ pub fn try_inherit_properties(
     result.unwrap_or(Ok(()))
 }
 
-pub fn do_with_inheritable_variables<F>(object: &mut dyn Reflect, func: &mut F)
+pub fn do_with_inheritable_variables<F>(root: &mut dyn Reflect, func: &mut F)
 where
     F: FnMut(&mut dyn ReflectInheritableVariable),
 {
-    let mut done = false;
-
-    object.as_inheritable_variable_mut(&mut |variable| {
-        if let Some(variable) = variable {
-            func(variable);
-
-            // Inner variable might also contain inheritable variables, so continue iterating.
-            do_with_inheritable_variables(variable.inner_value_mut(), func);
-
-            done = true;
-        }
-    });
-
-    if done {
-        return;
-    }
-
-    object.as_array_mut(&mut |array| {
-        if let Some(array) = array {
-            for i in 0..array.reflect_len() {
-                if let Some(item) = array.reflect_index_mut(i) {
-                    do_with_inheritable_variables(item, func);
-                }
+    root.apply_recursively_mut(&mut |object| {
+        object.as_inheritable_variable_mut(&mut |variable| {
+            if let Some(variable) = variable {
+                func(variable);
             }
-
-            done = true;
-        }
-    });
-
-    if done {
-        return;
-    }
-
-    object.as_hash_map_mut(&mut |hash_map| {
-        if let Some(hash_map) = hash_map {
-            for i in 0..hash_map.reflect_len() {
-                if let Some(item) = hash_map.reflect_get_nth_value_mut(i) {
-                    do_with_inheritable_variables(item, func);
-                }
-            }
-
-            done = true;
-        }
-    });
-
-    if done {
-        return;
-    }
-
-    object.fields_mut(&mut |fields| {
-        for field in fields {
-            do_with_inheritable_variables(field, func);
-        }
+        });
     })
 }
 

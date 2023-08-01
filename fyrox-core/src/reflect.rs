@@ -764,6 +764,126 @@ impl dyn Reflect {
             });
         }
     }
+
+    pub fn apply_recursively<F>(&self, func: &mut F)
+    where
+        F: FnMut(&dyn Reflect),
+    {
+        func(self);
+
+        let mut done = false;
+
+        self.as_inheritable_variable(&mut |variable| {
+            if let Some(variable) = variable {
+                // Inner variable might also contain inheritable variables, so continue iterating.
+                variable.inner_value_ref().apply_recursively(func);
+
+                done = true;
+            }
+        });
+
+        if done {
+            return;
+        }
+
+        self.as_array(&mut |array| {
+            if let Some(array) = array {
+                for i in 0..array.reflect_len() {
+                    if let Some(item) = array.reflect_index(i) {
+                        item.apply_recursively(func);
+                    }
+                }
+
+                done = true;
+            }
+        });
+
+        if done {
+            return;
+        }
+
+        self.as_hash_map(&mut |hash_map| {
+            if let Some(hash_map) = hash_map {
+                for i in 0..hash_map.reflect_len() {
+                    if let Some(item) = hash_map.reflect_get_nth_value_ref(i) {
+                        item.apply_recursively(func);
+                    }
+                }
+
+                done = true;
+            }
+        });
+
+        if done {
+            return;
+        }
+
+        self.fields(&mut |fields| {
+            for field in fields {
+                field.apply_recursively(func);
+            }
+        })
+    }
+
+    pub fn apply_recursively_mut<F>(&mut self, func: &mut F)
+    where
+        F: FnMut(&mut dyn Reflect),
+    {
+        func(self);
+
+        let mut done = false;
+
+        self.as_inheritable_variable_mut(&mut |variable| {
+            if let Some(variable) = variable {
+                // Inner variable might also contain inheritable variables, so continue iterating.
+                variable.inner_value_mut().apply_recursively_mut(func);
+
+                done = true;
+            }
+        });
+
+        if done {
+            return;
+        }
+
+        self.as_array_mut(&mut |array| {
+            if let Some(array) = array {
+                for i in 0..array.reflect_len() {
+                    if let Some(item) = array.reflect_index_mut(i) {
+                        item.apply_recursively_mut(func);
+                    }
+                }
+
+                done = true;
+            }
+        });
+
+        if done {
+            return;
+        }
+
+        self.as_hash_map_mut(&mut |hash_map| {
+            if let Some(hash_map) = hash_map {
+                for i in 0..hash_map.reflect_len() {
+                    if let Some(item) = hash_map.reflect_get_nth_value_mut(i) {
+                        item.apply_recursively_mut(func);
+                    }
+                }
+
+                done = true;
+            }
+        });
+
+        if done {
+            return;
+        }
+
+        self.fields_mut(&mut |fields| {
+            for field in fields {
+                field.apply_recursively_mut(func);
+            }
+        })
+    }
 }
 
 // Make it a trait?
