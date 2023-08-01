@@ -512,15 +512,11 @@ impl VertexBuffer {
     where
         T: VertexTrait,
     {
+        let mut data = std::mem::ManuallyDrop::new(data);
         let length = data.len() * std::mem::size_of::<T>();
         let capacity = data.capacity() * std::mem::size_of::<T>();
-        if (length >= std::usize::MAX) || (capacity >= std::usize::MAX) {
-            return Err(ValidationError::);
-        }
-        let bytes =
-            unsafe { Vec::<u8>::from_raw_parts(data.as_mut_ptr() as *mut u8, length, capacity) };
 
-        std::mem::forget(data);
+        let bytes = unsafe { Vec::<u8>::from_raw_parts(data.as_mut_ptr() as *mut u8, length, capacity) };
 
         let layout = T::layout();
 
