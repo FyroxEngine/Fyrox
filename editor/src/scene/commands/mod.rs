@@ -123,12 +123,7 @@ impl Command for CommandGroup {
     }
 }
 
-/// Creates scene command (command group) which removes current selection in editor's scene.
-/// This is **not** trivial because each node has multiple connections inside engine and
-/// in editor's data model, so we have to thoroughly build command using simple commands.
-pub fn make_delete_selection_command(editor_scene: &EditorScene, engine: &Engine) -> SceneCommand {
-    let graph = &engine.scenes[editor_scene.scene].graph;
-
+pub fn selection_to_delete(editor_scene: &EditorScene) -> GraphSelection {
     // Graph's root is non-deletable.
     let mut selection = if let Selection::Graph(selection) = &editor_scene.selection {
         selection.clone()
@@ -142,6 +137,17 @@ pub fn make_delete_selection_command(editor_scene: &EditorScene, engine: &Engine
     {
         selection.nodes.remove(root_position);
     }
+
+    selection
+}
+
+/// Creates scene command (command group) which removes current selection in editor's scene.
+/// This is **not** trivial because each node has multiple connections inside engine and
+/// in editor's data model, so we have to thoroughly build command using simple commands.
+pub fn make_delete_selection_command(editor_scene: &EditorScene, engine: &Engine) -> SceneCommand {
+    let selection = selection_to_delete(editor_scene);
+
+    let graph = &engine.scenes[editor_scene.scene].graph;
 
     // Change selection first.
     let mut command_group = CommandGroup::from(vec![SceneCommand::new(

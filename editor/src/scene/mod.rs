@@ -27,6 +27,7 @@ use std::io::Write;
 use std::path::PathBuf;
 
 pub mod clipboard;
+pub mod dialog;
 pub mod property;
 pub mod selector;
 pub mod settings;
