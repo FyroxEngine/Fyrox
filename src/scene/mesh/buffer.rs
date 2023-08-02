@@ -516,7 +516,8 @@ impl VertexBuffer {
         let length = data.len() * std::mem::size_of::<T>();
         let capacity = data.capacity() * std::mem::size_of::<T>();
 
-        let bytes = unsafe { Vec::<u8>::from_raw_parts(data.as_mut_ptr() as *mut u8, length, capacity) };
+        let bytes =
+            unsafe { Vec::<u8>::from_raw_parts(data.as_mut_ptr() as *mut u8, length, capacity) };
 
         let layout = T::layout();
 

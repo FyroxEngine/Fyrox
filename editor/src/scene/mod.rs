@@ -297,6 +297,22 @@ impl EditorScene {
             settings,
         );
     }
+
+    /// Checks whether the current graph selection has references to the nodes outside of the selection.
+    pub fn is_current_selection_has_external_refs(&self, graph: &Graph) -> bool {
+        if let Selection::Graph(selection) = &self.selection {
+            for node in selection.nodes() {
+                for descendant in graph.traverse_handle_iter(*node) {
+                    for reference in graph.find_references_to(descendant) {
+                        if !selection.contains(reference) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
