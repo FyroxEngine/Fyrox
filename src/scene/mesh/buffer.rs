@@ -508,17 +508,15 @@ impl Display for ValidationError {
 
 impl VertexBuffer {
     /// Creates new vertex buffer from provided data and with the given layout of the vertex type `T`.
-    pub fn new<T>(vertex_count: usize, mut data: Vec<T>) -> Result<Self, ValidationError>
+    pub fn new<T>(vertex_count: usize, data: Vec<T>) -> Result<Self, ValidationError>
     where
         T: VertexTrait,
     {
+        let mut data = std::mem::ManuallyDrop::new(data);
         let length = data.len() * std::mem::size_of::<T>();
         let capacity = data.capacity() * std::mem::size_of::<T>();
 
-        let bytes =
-            unsafe { Vec::<u8>::from_raw_parts(data.as_mut_ptr() as *mut u8, length, capacity) };
-
-        std::mem::forget(data);
+        let bytes = unsafe { Vec::<u8>::from_raw_parts(data.as_mut_ptr() as *mut u8, length, capacity) };
 
         let layout = T::layout();
 
