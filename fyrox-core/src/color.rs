@@ -466,7 +466,8 @@ impl SubAssign for Color {
 
 #[cfg(test)]
 mod test {
-    use crate::color::{Color, Hsl};
+    use crate::algebra::{Vector3, Vector4};
+    use crate::color::{Color, Hsl, Hsv};
 
     #[test]
     fn test_hsl() {
@@ -536,5 +537,234 @@ mod test {
             Hsl::from(Color::opaque(191, 191, 191)),
             Hsl::new(0.0, 0.0, 0.7490196)
         );
+
+        let mut color = Hsl::new(0.0, 0.0, 0.0);
+        assert_eq!(color.hue(), 0.0);
+        assert_eq!(color.saturation(), 0.0);
+        assert_eq!(color.lightness(), 0.0);
+
+        color.set_hue(370.0);
+        color.set_saturation(2.0);
+        color.set_lightness(2.0);
+        assert_eq!(color.hue(), 10.0);
+        assert_eq!(color.saturation(), 1.0);
+        assert_eq!(color.lightness(), 1.0);
+    }
+
+    #[test]
+    fn test_color_default() {
+        assert_eq!(Color::default(), Color::WHITE);
+    }
+
+    #[test]
+    fn test_color_into_u32() {
+        let black: u32 = Color::BLACK.into();
+        assert_eq!(black, 0xFF000000);
+
+        let white: u32 = Color::WHITE.into();
+        assert_eq!(white, 0xFFFFFFFF);
+
+        let red: u32 = Color::RED.into();
+        assert_eq!(red, 0xFF0000FF);
+
+        let green: u32 = Color::GREEN.into();
+        assert_eq!(green, 0xFF00FF00);
+
+        let blue: u32 = Color::BLUE.into();
+        assert_eq!(blue, 0xFFFF0000);
+    }
+
+    #[test]
+    fn test_color_from_vector3() {
+        assert_eq!(Color::from(Vector3::new(0_f32, 0_f32, 0_f32)), Color::BLACK);
+        assert_eq!(
+            Color::from(Vector3::new(255_f32, 255_f32, 255_f32)),
+            Color::WHITE
+        );
+        assert_eq!(Color::from(Vector3::new(255_f32, 0_f32, 0_f32)), Color::RED);
+        assert_eq!(
+            Color::from(Vector3::new(0_f32, 255_f32, 0_f32)),
+            Color::GREEN
+        );
+        assert_eq!(
+            Color::from(Vector3::new(0_f32, 0_f32, 255_f32)),
+            Color::BLUE
+        );
+    }
+
+    #[test]
+    fn test_hsv() {
+        assert_eq!(
+            Hsv::new(0.0, 0.0, 0.0),
+            Hsv {
+                hue: 0.0,
+                saturation: 0.0,
+                brightness: 0.0
+            }
+        );
+
+        assert_eq!(
+            Hsv::new(1000.0, 1000.0, 1000.0),
+            Hsv {
+                hue: 360.0,
+                saturation: 100.0,
+                brightness: 100.0
+            }
+        );
+
+        let mut color = Hsv::new(0.0, 0.0, 0.0);
+        assert_eq!(color.hue(), 0.0);
+        assert_eq!(color.saturation(), 0.0);
+        assert_eq!(color.brightness(), 0.0);
+
+        color.set_hue(1000.0);
+        color.set_saturation(1000.0);
+        color.set_brightness(1000.0);
+        assert_eq!(color.hue(), 360.0);
+        assert_eq!(color.saturation(), 100.0);
+        assert_eq!(color.brightness(), 100.0);
+    }
+
+    #[test]
+    fn test_hsv_from_color() {
+        let black = Hsv::new(0.0, 0.0, 0.0);
+        assert_eq!(Hsv::from(Color::BLACK), black);
+
+        let white = Hsv::new(0.0, 0.0, 100.0);
+        assert_eq!(Hsv::from(Color::WHITE), white);
+
+        let red = Hsv::new(0.0, 100.0, 100.0);
+        assert_eq!(Hsv::from(Color::RED), red);
+
+        let green = Hsv::new(120.0, 100.0, 100.0);
+        assert_eq!(Hsv::from(Color::GREEN), green);
+
+        let blue = Hsv::new(240.0, 100.0, 100.0);
+        assert_eq!(Hsv::from(Color::BLUE), blue);
+
+        let color = Hsv::new(300.0, 100.0, 100.0);
+        assert_eq!(Hsv::from(Color::opaque(255, 0, 255)), color);
+    }
+
+    #[test]
+    fn test_color_from_hsv() {
+        let black = Hsv::new(0.0, 0.0, 0.0);
+        assert_eq!(Color::from(black), Color::BLACK);
+
+        let white = Hsv::new(0.0, 0.0, 100.0);
+        assert_eq!(Color::from(white), Color::WHITE);
+
+        let red = Hsv::new(0.0, 100.0, 100.0);
+        assert_eq!(Color::from(red), Color::RED);
+
+        let green = Hsv::new(120.0, 100.0, 100.0);
+        assert_eq!(Color::from(green), Color::GREEN);
+
+        let blue = Hsv::new(240.0, 100.0, 100.0);
+        assert_eq!(Color::from(blue), Color::BLUE);
+
+        let color = Hsv::new(300.0, 100.0, 100.0);
+        assert_eq!(Color::from(color), Color::opaque(255, 0, 255));
+
+        let color = Hsv::new(60.0, 0.0, 10.0);
+        assert_eq!(Color::from(color), Color::opaque(25, 25, 25));
+
+        let color = Hsv::new(180.0, 100.0, 100.0);
+        assert_eq!(Color::from(color), Color::opaque(0, 255, 255));
+    }
+
+    #[test]
+    fn test_color_from_rgba() {
+        assert_eq!(
+            Color::from_rgba(0, 0, 0, 0),
+            Color {
+                r: 0,
+                g: 0,
+                b: 0,
+                a: 0
+            }
+        );
+        assert_eq!(Color::from_rgba(0, 0, 0, 255), Color::BLACK);
+    }
+
+    #[test]
+    fn test_color_srgb_to_linear() {
+        assert_eq!(Color::BLACK.srgb_to_linear(), Color::BLACK);
+        assert_eq!(Color::WHITE.srgb_to_linear(), Color::WHITE);
+
+        let color = Color::opaque(100, 100, 100);
+        assert_eq!(color.srgb_to_linear(), Color::opaque(32, 32, 32));
+    }
+
+    #[test]
+    fn test_color_srgb_to_linear_f32() {
+        assert_eq!(
+            Color::BLACK.srgb_to_linear_f32(),
+            Vector4::new(0.0, 0.0, 0.0, 1.0)
+        );
+        assert_eq!(
+            Color::WHITE.srgb_to_linear_f32(),
+            Vector4::new(1.0, 1.0, 1.0, 1.0)
+        );
+
+        let color = Color::opaque(200, 200, 200);
+        assert_eq!(
+            color.srgb_to_linear_f32(),
+            Vector4::new(0.585_973, 0.585_973, 0.585_973, 1.0)
+        );
+    }
+
+    #[test]
+    fn test_color_linear_to_srgb() {
+        assert_eq!(Color::BLACK.linear_to_srgb(), Color::BLACK);
+        assert_eq!(Color::WHITE.linear_to_srgb(), Color::WHITE);
+
+        let color = Color::opaque(32, 32, 32);
+        assert_eq!(color.linear_to_srgb(), Color::opaque(99, 99, 99));
+    }
+
+    #[test]
+    fn test_color_as_frgba() {
+        assert_eq!(Color::BLACK.as_frgba(), Vector4::new(0.0, 0.0, 0.0, 1.0));
+        assert_eq!(Color::WHITE.as_frgba(), Vector4::new(1.0, 1.0, 1.0, 1.0));
+
+        let color = Color::opaque(100, 100, 100);
+        assert_eq!(
+            color.as_frgba(),
+            Vector4::new(0.39215687, 0.39215687, 0.39215687, 1.0)
+        );
+    }
+
+    #[test]
+    fn test_color_to_opaque() {
+        assert_eq!(Color::BLACK.to_opaque(), Color::BLACK);
+        assert_eq!(Color::TRANSPARENT.to_opaque(), Color::BLACK);
+    }
+
+    #[test]
+    fn test_color_lerp() {
+        let color = Color::BLACK.lerp(Color::WHITE, 0.5);
+        assert_eq!(color, Color::opaque(127, 127, 127));
+    }
+
+    #[test]
+    fn test_color_with_new_alpha() {
+        let color = Color::BLACK;
+        assert_eq!(color.with_new_alpha(0), Color::TRANSPARENT);
+    }
+
+    #[test]
+    fn test_color_operators() {
+        assert_eq!(Color::RED + Color::GREEN + Color::BLUE, Color::WHITE);
+        assert_eq!(
+            Color::WHITE - Color::RED - Color::GREEN - Color::BLUE,
+            Color::TRANSPARENT
+        );
+
+        let mut color = Color::opaque(100, 100, 100);
+        color += Color::opaque(155, 155, 155);
+        assert_eq!(color, Color::WHITE);
+        color -= Color::opaque(155, 155, 155);
+        assert_eq!(color, Color::from_rgba(100, 100, 100, 0));
     }
 }
