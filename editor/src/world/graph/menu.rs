@@ -1,3 +1,4 @@
+use crate::settings::Settings;
 use crate::{
     make_save_file_selector,
     menu::{create::CreateEntityMenu, create_menu_item, create_menu_item_shortcut},
@@ -143,6 +144,7 @@ impl ItemContextMenu {
         editor_scene: &mut EditorScene,
         engine: &Engine,
         sender: &MessageSender,
+        settings: &Settings,
     ) {
         scope_profile!();
 
@@ -162,9 +164,11 @@ impl ItemContextMenu {
 
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.delete_selection {
-                if editor_scene.is_current_selection_has_external_refs(
-                    &engine.scenes[editor_scene.scene].graph,
-                ) {
+                if settings.general.show_node_removal_dialog
+                    && editor_scene.is_current_selection_has_external_refs(
+                        &engine.scenes[editor_scene.scene].graph,
+                    )
+                {
                     sender.send(Message::OpenNodeRemovalDialog);
                 } else {
                     sender.send(Message::DoSceneCommand(make_delete_selection_command(

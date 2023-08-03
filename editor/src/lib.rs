@@ -1212,9 +1212,11 @@ impl Editor {
                 if let Some(editor_scene) = self.scenes.current_editor_scene_mut() {
                     if !editor_scene.selection.is_empty() {
                         if let Selection::Graph(_) = editor_scene.selection {
-                            if editor_scene.is_current_selection_has_external_refs(
-                                &engine.scenes[editor_scene.scene].graph,
-                            ) {
+                            if self.settings.general.show_node_removal_dialog
+                                && editor_scene.is_current_selection_has_external_refs(
+                                    &engine.scenes[editor_scene.scene].graph,
+                                )
+                            {
                                 sender.send(Message::OpenNodeRemovalDialog);
                             } else {
                                 sender.send(Message::DoSceneCommand(

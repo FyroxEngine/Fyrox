@@ -1,7 +1,7 @@
-use crate::message::MessageSender;
 use crate::{
     gui::make_image_button_with_tooltip,
     load_image,
+    message::MessageSender,
     scene::{
         commands::{graph::LinkNodesCommand, ChangeSelectionCommand, CommandGroup, SceneCommand},
         EditorScene, Selection,
@@ -566,8 +566,13 @@ impl WorldViewer {
     ) {
         scope_profile!();
 
-        self.item_context_menu
-            .handle_ui_message(message, editor_scene, engine, &self.sender);
+        self.item_context_menu.handle_ui_message(
+            message,
+            editor_scene,
+            engine,
+            &self.sender,
+            settings,
+        );
 
         if let Some(TreeRootMessage::Selected(selection)) = message.data::<TreeRootMessage>() {
             if message.destination() == self.tree_root

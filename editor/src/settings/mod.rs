@@ -2,10 +2,11 @@ use crate::{
     inspector::editors::make_property_editors_container,
     message::MessageSender,
     settings::{
-        camera::CameraSettings, debugging::DebuggingSettings, graphics::GraphicsSettings,
-        keys::KeyBindings, model::ModelSettings, move_mode::MoveInteractionModeSettings,
-        navmesh::NavmeshSettings, recent::RecentFiles, rotate_mode::RotateInteractionModeSettings,
-        selection::SelectionSettings, windows::WindowsSettings,
+        camera::CameraSettings, debugging::DebuggingSettings, general::GeneralSettings,
+        graphics::GraphicsSettings, keys::KeyBindings, model::ModelSettings,
+        move_mode::MoveInteractionModeSettings, navmesh::NavmeshSettings, recent::RecentFiles,
+        rotate_mode::RotateInteractionModeSettings, selection::SelectionSettings,
+        windows::WindowsSettings,
     },
     Engine, MSG_SYNC_FLAG,
 };
@@ -38,6 +39,7 @@ use std::{fs::File, path::PathBuf, rc::Rc};
 
 pub mod camera;
 pub mod debugging;
+pub mod general;
 pub mod graphics;
 pub mod keys;
 pub mod model;
@@ -59,6 +61,8 @@ pub struct SettingsWindow {
 pub struct Settings {
     pub selection: SelectionSettings,
     pub graphics: GraphicsSettings,
+    #[serde(default)]
+    pub general: GeneralSettings,
     pub debugging: DebuggingSettings,
     pub move_mode_settings: MoveInteractionModeSettings,
     pub rotate_mode_settings: RotateInteractionModeSettings,
@@ -122,6 +126,7 @@ impl Settings {
     ) -> Rc<PropertyEditorDefinitionContainer> {
         let container = make_property_editors_container(sender);
 
+        container.insert(InspectablePropertyEditorDefinition::<GeneralSettings>::new());
         container.insert(InspectablePropertyEditorDefinition::<GraphicsSettings>::new());
         container.insert(InspectablePropertyEditorDefinition::<SelectionSettings>::new());
         container.insert(EnumPropertyEditorDefinition::<ShadowMapPrecision>::new());

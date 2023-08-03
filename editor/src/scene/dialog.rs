@@ -38,7 +38,8 @@ impl NodeRemovalDialog {
         let cancel;
         let text = "You're trying to delete scene node(s), that are referenced in some \
             other scene nodes, which may cause various issues in the engine or your \
-            game. Are you sure you want to continue? You can always undo your changes.\n\n \
+            game. Are you sure you want to continue? You can always undo your changes. This \
+            validation step could be disabled in editor settings.\n\n
             The full list of reference pairs is listed below:";
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(500.0))
             .open(false)
