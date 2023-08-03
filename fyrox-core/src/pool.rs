@@ -200,8 +200,8 @@ pub struct Handle<T> {
     type_marker: PhantomData<T>,
 }
 
-unsafe impl<T> Send for Handle<T> {}
-unsafe impl<T> Sync for Handle<T> {}
+unsafe impl<T: Send> Send for Handle<T> {}
+unsafe impl<T: Sync> Sync for Handle<T> {}
 
 impl<T> Display for Handle<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
