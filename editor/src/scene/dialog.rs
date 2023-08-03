@@ -11,14 +11,16 @@ use fyrox::{
     engine::Engine,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
+        formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, UiMessage},
+        scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         text::{TextBuilder, TextMessage},
         text_box::TextBoxBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage},
-        BuildContext, Orientation, Thickness, UiNode, UserInterface,
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode,
     },
 };
 
@@ -34,33 +36,53 @@ impl NodeRemovalDialog {
         let info_text;
         let ok;
         let cancel;
-        let window = WindowBuilder::new(WidgetBuilder::new())
+        let text = "You're trying to delete scene node(s), that are referenced in some \
+            other scene nodes, which may cause various issues in the engine or your \
+            game. Are you sure you want to continue? You can always undo your changes.\n\n \
+            The full list of reference pairs is listed below:";
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(500.0))
+            .open(false)
             .with_content(
                 GridBuilder::new(
                     WidgetBuilder::new()
                         .with_child(
-                            TextBuilder::new(WidgetBuilder::new().on_row(0))
-                                .with_text(
-                                    "You're trying to delete scene node(s), that are referenced in some \
-                                    other scene nodes, which may cause various issues in the engine or your \
-                                    game. Are you sure you want to continue? You can always undo your changes.\n\n \
-                                    The full list of reference pairs is listed below:",
-                                )
-                                .build(ctx),
+                            TextBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(0)
+                                    .with_margin(Thickness::uniform(1.0)),
+                            )
+                            .with_wrap(WrapMode::Word)
+                            .with_text(text)
+                            .build(ctx),
                         )
-                        .with_child({
-                            info_text =
-                                TextBoxBuilder::new(WidgetBuilder::new().on_row(1)).build(ctx);
-                            info_text
-                        })
+                        .with_child(
+                            ScrollViewerBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(1)
+                                    .with_margin(Thickness::uniform(1.0)),
+                            )
+                            .with_content({
+                                info_text = TextBoxBuilder::new(
+                                    WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                                )
+                                .with_multiline(true)
+                                .with_wrap(WrapMode::Word)
+                                .build(ctx);
+                                info_text
+                            })
+                            .build(ctx),
+                        )
                         .with_child(
                             StackPanelBuilder::new(
                                 WidgetBuilder::new()
+                                    .with_horizontal_alignment(HorizontalAlignment::Right)
                                     .on_row(2)
                                     .with_margin(Thickness::uniform(1.0))
                                     .with_child({
                                         ok = ButtonBuilder::new(
                                             WidgetBuilder::new()
+                                                .with_width(100.0)
+                                                .with_height(20.0)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
                                         .with_text("OK")
@@ -70,6 +92,8 @@ impl NodeRemovalDialog {
                                     .with_child({
                                         cancel = ButtonBuilder::new(
                                             WidgetBuilder::new()
+                                                .with_width(100.0)
+                                                .with_height(20.0)
                                                 .with_margin(Thickness::uniform(1.0)),
                                         )
                                         .with_text("Cancel")
@@ -97,7 +121,8 @@ impl NodeRemovalDialog {
         }
     }
 
-    pub fn open(&mut self, ui: &UserInterface, editor_scene: &EditorScene, engine: &Engine) {
+    pub fn open(&mut self, editor_scene: &EditorScene, engine: &Engine) {
+        let ui = &engine.user_interface;
         let graph = &engine.scenes[editor_scene.scene].graph;
 
         ui.send_message(WindowMessage::open_modal(

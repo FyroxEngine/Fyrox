@@ -162,10 +162,16 @@ impl ItemContextMenu {
 
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.delete_selection {
-                sender.send(Message::DoSceneCommand(make_delete_selection_command(
-                    editor_scene,
-                    engine,
-                )));
+                if editor_scene.is_current_selection_has_external_refs(
+                    &engine.scenes[editor_scene.scene].graph,
+                ) {
+                    sender.send(Message::OpenNodeRemovalDialog);
+                } else {
+                    sender.send(Message::DoSceneCommand(make_delete_selection_command(
+                        editor_scene,
+                        engine,
+                    )));
+                }
             } else if message.destination() == self.copy_selection {
                 if let Selection::Graph(graph_selection) = &editor_scene.selection {
                     editor_scene.clipboard.fill_from_selection(

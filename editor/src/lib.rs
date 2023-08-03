@@ -70,6 +70,7 @@ use crate::{
             graph::AddModelCommand, make_delete_selection_command, mesh::SetMeshTextureCommand,
             ChangeSelectionCommand, CommandGroup, PasteCommand, SceneCommand, SceneContext,
         },
+        dialog::NodeRemovalDialog,
         settings::SceneSettingsWindow,
         EditorScene, Selection,
     },
@@ -664,6 +665,7 @@ pub struct Editor {
     pub audio_preview_panel: AudioPreviewPanel,
     pub doc_window: DocWindow,
     pub docking_manager: Handle<UiNode>,
+    pub node_removal_dialog: NodeRemovalDialog,
     pub engine: Engine,
     pub plugins: Vec<Option<Box<dyn EditorPlugin>>>,
 }
@@ -800,6 +802,7 @@ impl Editor {
         let camera_control_panel = CameraPreviewControlPanel::new(ctx);
         let audio_preview_panel = AudioPreviewPanel::new(ctx);
         let doc_window = DocWindow::new(ctx);
+        let node_removal_dialog = NodeRemovalDialog::new(ctx);
 
         let docking_manager;
         let root_grid = GridBuilder::new(
@@ -1022,6 +1025,7 @@ impl Editor {
             camera_control_panel,
             overlay_pass,
             audio_preview_panel,
+            node_removal_dialog,
             doc_window,
             plugins: Default::default(),
         };
@@ -1208,10 +1212,15 @@ impl Editor {
                 if let Some(editor_scene) = self.scenes.current_editor_scene_mut() {
                     if !editor_scene.selection.is_empty() {
                         if let Selection::Graph(_) = editor_scene.selection {
-                            sender.send(Message::DoSceneCommand(make_delete_selection_command(
-                                editor_scene,
-                                engine,
-                            )));
+                            if editor_scene.is_current_selection_has_external_refs(
+                                &engine.scenes[editor_scene.scene].graph,
+                            ) {
+                                sender.send(Message::OpenNodeRemovalDialog);
+                            } else {
+                                sender.send(Message::DoSceneCommand(
+                                    make_delete_selection_command(editor_scene, engine),
+                                ));
+                            }
                         }
                     }
                 }
@@ -1312,7 +1321,12 @@ impl Editor {
                 .handle_ui_message(message, engine, &self.message_sender, editor_scene);
             self.audio_panel
                 .handle_ui_message(message, editor_scene, &self.message_sender, engine);
-
+            self.node_removal_dialog.handle_ui_message(
+                editor_scene,
+                message,
+                engine,
+                &self.message_sender,
+            );
             self.scene_settings
                 .handle_ui_message(message, &self.message_sender);
 
@@ -2048,6 +2062,11 @@ impl Editor {
                         );
                     }
                     Message::OpenMaterialEditor(material) => self.open_material_editor(material),
+                    Message::OpenNodeRemovalDialog => {
+                        if let Some(editor_scene) = self.scenes.current_editor_scene_ref() {
+                            self.node_removal_dialog.open(editor_scene, &self.engine)
+                        }
+                    }
                     Message::ShowInAssetBrowser(path) => {
                         self.asset_browser
                             .locate_path(&self.engine.user_interface, path);

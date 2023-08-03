@@ -40,6 +40,7 @@ pub enum Message {
     OpenAnimationEditor,
     OpenAbsmEditor,
     OpenMaterialEditor(SharedMaterial),
+    OpenNodeRemovalDialog,
     ShowInAssetBrowser(PathBuf),
     SetWorldViewerFilter(String),
     LocateObject {
