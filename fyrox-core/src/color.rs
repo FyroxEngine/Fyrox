@@ -710,7 +710,7 @@ mod test {
         let color = Color::opaque(200, 200, 200);
         assert_eq!(
             color.srgb_to_linear_f32(),
-            Vector4::new(0.585973024, 0.585973024, 0.585973024, 1.0)
+            Vector4::new(0.585_973, 0.585_973, 0.585_973, 1.0)
         );
     }
 
