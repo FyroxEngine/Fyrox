@@ -247,6 +247,8 @@ impl Curve {
 
 #[cfg(test)]
 mod test {
+    use uuid::Uuid;
+
     use crate::curve::{Curve, CurveKey, CurveKeyKind};
 
     #[test]
@@ -306,5 +308,117 @@ mod test {
 
         // Check interpolation.
         assert_eq!(curve.value_at(0.5), 0.5);
+
+        // Check id.
+        let id = Uuid::new_v4();
+        curve.set_id(id);
+        assert_eq!(curve.id(), id);
+
+        // Check name.
+        let name = "name";
+        curve.set_name(name);
+        assert_eq!(curve.name(), name);
+
+        // Check keys capacity.
+        assert!(!curve.is_empty());
+        curve.clear();
+        assert!(curve.is_empty());
+
+        // Check keys.
+        let key = CurveKey::new(0.0, 5.0, CurveKeyKind::Constant);
+        let key2 = CurveKey::new(1.0, 10.0, CurveKeyKind::Linear);
+        curve.add_key(key.clone());
+        curve.add_key(key2.clone());
+        assert_eq!(curve.keys(), vec![key.clone(), key2.clone()]);
+
+        // Check keys values.
+        let mut values = vec![5.0, 10.0];
+        assert_eq!(curve.keys_values().eq(values.iter_mut()), true);
+
+        // Check max location.
+        assert_eq!(curve.max_location(), 1.0);
+
+        // Check key moving.
+        let mut curve2 = curve.clone();
+        let key3 = CurveKey::default();
+        curve2.add_key(key3.clone());
+        assert_eq!(curve2.keys(), vec![key3.clone(), key.clone(), key2.clone()]);
+        curve2.move_key(key3.id.get_version_num(), 20.0);
+        assert_eq!(
+            curve2.keys(),
+            vec![
+                key.clone(),
+                key2.clone(),
+                CurveKey {
+                    location: 20.0,
+                    ..Default::default()
+                }
+            ]
+        );
+    }
+
+    #[test]
+    fn test_curve_key_kind() {
+        assert_eq!(CurveKeyKind::default(), CurveKeyKind::Constant);
+        assert_eq!(
+            CurveKeyKind::new_cubic(0.0, 0.0),
+            CurveKeyKind::Cubic {
+                left_tangent: 0.0,
+                right_tangent: 0.0
+            }
+        );
+    }
+
+    #[test]
+    fn test_curve_key() {
+        assert_eq!(
+            CurveKey::default(),
+            CurveKey {
+                id: Uuid::default(),
+                location: 0.0,
+                value: 0.0,
+                kind: CurveKeyKind::Constant,
+            },
+        );
+
+        let key = CurveKey::new(0.0, 5.0, CurveKeyKind::Constant);
+        let key2 = CurveKey::new(1.0, 10.0, CurveKeyKind::Linear);
+        let key3 = CurveKey::new(2.0, 20.0, CurveKeyKind::new_cubic(0.0, 0.0));
+        let key4 = CurveKey::new(3.0, 30.0, CurveKeyKind::new_cubic(0.0, 0.0));
+
+        assert_eq!(key.location(), 0.0);
+
+        // Constant-to-any
+        assert_eq!(key.interpolate(&key2, 1.0), 10.0);
+        assert_eq!(key.interpolate(&key2, 0.0), 5.0);
+        assert_eq!(key.interpolate(&key3, 1.0), 20.0);
+        assert_eq!(key.interpolate(&key3, 0.0), 5.0);
+
+        // Linear-to-any
+        assert_eq!(key2.interpolate(&key, 1.0), 5.0);
+        assert_eq!(key2.interpolate(&key, 0.0), 10.0);
+        assert_eq!(key2.interpolate(&key3, 1.0), 20.0);
+        assert_eq!(key2.interpolate(&key3, 0.0), 10.0);
+
+        // Cubic-to-constant or cubic-to-linear
+        assert_eq!(key3.interpolate(&key, 1.0), 5.0);
+        assert_eq!(key3.interpolate(&key, 0.0), 20.0);
+        assert_eq!(key3.interpolate(&key2, 1.0), 10.0);
+        assert_eq!(key3.interpolate(&key2, 0.0), 20.0);
+
+        // Cubic-to-cubic
+        assert_eq!(key3.interpolate(&key4, 1.0), 30.0);
+        assert_eq!(key3.interpolate(&key4, 0.0), 20.0);
+    }
+
+    #[test]
+    fn test_curve_from_vec() {
+        let key = CurveKey::new(-1.0, -1.0, CurveKeyKind::Constant);
+        let key2 = CurveKey::new(0.0, 0.0, CurveKeyKind::Constant);
+        let key3 = CurveKey::new(1.0, 1.0, CurveKeyKind::Constant);
+        let key4 = key2.clone();
+        let curve = Curve::from(vec![key2.clone(), key3.clone(), key.clone(), key4.clone()]);
+        assert_eq!(curve.name(), "");
+        assert_eq!(curve.keys(), vec![key, key2, key4, key3,]);
     }
 }
