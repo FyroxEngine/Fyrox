@@ -207,7 +207,7 @@ impl Plugin for Game {
                 }
             }
         }
-    
+
         // Add your global update code here.
     }
 
@@ -519,10 +519,19 @@ members = ["editor", "executor", "executor-wasm", "executor-android", "game"]
 
 # Optimize the engine in debug builds, but leave project's code non-optimized.
 # By using this technique, you can still debug you code, but engine will be fully
-# optimized and debug builds won't be terribly slow. With this option, you can 
+# optimized and debug builds won't be terribly slow. With this option, you can
 # compile your game in debug mode, which is much faster (at least x3), than release.
 [profile.dev.package."*"]
 opt-level = 3
+"#,
+    );
+
+    // Write .gitignore
+    write_file(
+        base_path.join(".gitignore"),
+        r#"
+/target
+*.log
 "#,
     );
 }
