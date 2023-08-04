@@ -1,5 +1,19 @@
 {
     "rust-analyzer.diagnostics.disabled": [
         "mismatched-arg-count"
-    ]
+    ],
+    "editor.codeActionsOnSave": {
+        "source.fixAll": true,
+        "source.organizeImports": true,
+    },
+    "files.trimTrailingWhitespace": true,
+    "files.trimFinalNewlines": true,
+    "[markdown]": {
+        "editor.formatOnSave": true,
+        "files.insertFinalNewline": true,
+    },
+    "[rust]": {
+        "editor.formatOnSave": true,
+        "files.insertFinalNewline": true,
+    }
 }
