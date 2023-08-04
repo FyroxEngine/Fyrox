@@ -169,3 +169,109 @@ impl ColorGradientBuilder {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        color::Color,
+        color_gradient::{ColorGradient, ColorGradientBuilder},
+    };
+
+    use super::GradientPoint;
+
+    #[test]
+    fn test_gradient_point() {
+        let location = 0.42;
+        let color = Color::BLACK;
+        let gp = GradientPoint::new(location, color);
+
+        assert_eq!(gp.location(), location);
+        assert_eq!(gp.color(), color);
+
+        assert_eq!(
+            GradientPoint::default(),
+            GradientPoint::new(0.0, Color::default())
+        );
+
+        let gp2 = gp.clone();
+        assert_eq!(gp, gp2);
+    }
+
+    #[test]
+    fn test_color_gradient() {
+        assert_eq!(ColorGradient::new(), ColorGradient { points: Vec::new() });
+        assert_eq!(ColorGradient::default(), ColorGradient::new());
+
+        let color = Color::GREEN;
+        let mut cg = ColorGradient::new();
+        cg.add_point(GradientPoint::new(0.5, color));
+        cg.add_point(GradientPoint::new(1.0, color));
+        cg.add_point(GradientPoint::new(0.0, color));
+
+        assert_eq!(
+            cg,
+            ColorGradient {
+                points: vec![
+                    GradientPoint::new(0.0, color),
+                    GradientPoint::new(0.5, color),
+                    GradientPoint::new(1.0, color)
+                ]
+            }
+        );
+
+        let cg2 = cg.clone();
+        assert_eq!(cg, cg2);
+
+        assert_eq!(
+            cg.points(),
+            vec![
+                GradientPoint::new(0.0, color),
+                GradientPoint::new(0.5, color),
+                GradientPoint::new(1.0, color)
+            ]
+        );
+
+        cg.clear();
+        assert_eq!(cg, ColorGradient::new());
+
+        assert_eq!(cg.get_color(0.0), ColorGradient::STUB_COLOR);
+
+        let black = Color::BLACK;
+        cg.add_point(GradientPoint::new(0.0, black));
+        assert_eq!(cg.get_color(0.0), black);
+
+        let white = Color::WHITE;
+        cg.add_point(GradientPoint::new(1.0, white));
+        assert_eq!(cg.get_color(-0.5), black);
+        assert_eq!(cg.get_color(0.0), black);
+        assert_eq!(cg.get_color(0.5), Color::opaque(127, 127, 127));
+        assert_eq!(cg.get_color(1.0), white);
+        assert_eq!(cg.get_color(1.5), white);
+
+        cg.add_point(GradientPoint::new(0.5, Color::opaque(127, 127, 127)));
+        assert_eq!(cg.get_color(-0.5), black);
+        assert_eq!(cg.get_color(1.5), white);
+        assert_eq!(cg.get_color(0.25), Color::opaque(63, 63, 63));
+    }
+
+    #[test]
+    fn test_color_gradient_builder() {
+        assert_eq!(
+            ColorGradientBuilder::default().build(),
+            ColorGradient::default()
+        );
+
+        let gb = ColorGradientBuilder::new();
+        assert_eq!(
+            gb.with_point(GradientPoint::new(0.0, Color::BLACK))
+                .with_point(GradientPoint::new(1.0, Color::WHITE))
+                .build(),
+            ColorGradient {
+                points: vec![
+                    GradientPoint::new(0.0, Color::BLACK),
+                    GradientPoint::new(1.0, Color::WHITE),
+                ]
+            }
+        );
+    }
+}
