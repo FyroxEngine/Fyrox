@@ -492,7 +492,7 @@ mod test {
     #[test]
     fn test_aabb_intersect_aabb() {
         let _box = AxisAlignedBoundingBox::unit();
-        let mut _box2 = _box.clone();
+        let mut _box2 = _box;
         assert!(_box.intersect_aabb(&_box2));
 
         _box2.offset(Vector3::new(0.5, 0.0, 0.0));
@@ -500,13 +500,13 @@ mod test {
         _box2.offset(Vector3::new(1.0, 0.0, 0.0));
         assert!(!_box.intersect_aabb(&_box2));
 
-        let mut _box2 = _box.clone();
+        let mut _box2 = _box;
         _box2.offset(Vector3::new(0.0, 0.5, 0.0));
         assert!(_box.intersect_aabb(&_box2));
         _box2.offset(Vector3::new(0.0, 1.0, 0.0));
         assert!(!_box.intersect_aabb(&_box2));
 
-        let mut _box2 = _box.clone();
+        let mut _box2 = _box;
         _box2.offset(Vector3::new(0.0, 0.0, 0.5));
         assert!(_box.intersect_aabb(&_box2));
         _box2.offset(Vector3::new(0.0, 0.0, 1.0));
