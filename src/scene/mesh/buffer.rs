@@ -13,6 +13,7 @@ use crate::{
 };
 use fxhash::FxHasher;
 use std::{
+    alloc::Layout,
     fmt::{Display, Formatter},
     hash::{Hash, Hasher},
     marker::PhantomData,
@@ -143,6 +144,77 @@ pub struct VertexAttribute {
     pub shader_location: u8,
 }
 
+#[derive(Clone, Debug)]
+struct BytesStorage {
+    bytes: Vec<u8>,
+    layout: Layout,
+}
+
+impl Visit for BytesStorage {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.bytes.visit(name, visitor)?;
+        if visitor.is_reading() {
+            self.layout = Layout::array::<u8>(self.bytes.len()).unwrap();
+        }
+        Ok(())
+    }
+}
+
+impl Default for BytesStorage {
+    fn default() -> Self {
+        Self {
+            bytes: Default::default(),
+            layout: Layout::array::<u8>(0).unwrap(),
+        }
+    }
+}
+
+impl BytesStorage {
+    pub fn new<T>(data: Vec<T>) -> Self {
+        // Prevent destructor to be called on `data`, this is needed because we're taking its
+        // data storage and treat it as a simple bytes block.
+        let mut data = std::mem::ManuallyDrop::new(data);
+        let bytes_length = data.len() * std::mem::size_of::<T>();
+        let bytes_capacity = data.capacity() * std::mem::size_of::<T>();
+        Self {
+            bytes: unsafe {
+                Vec::<u8>::from_raw_parts(
+                    data.as_mut_ptr() as *mut u8,
+                    bytes_length,
+                    bytes_capacity,
+                )
+            },
+            // Preserve initial memory layout, to ensure that the memory block will be deallocated
+            // with initial memory layout.
+            layout: Layout::array::<T>(data.len()).unwrap(),
+        }
+    }
+}
+
+impl Drop for BytesStorage {
+    fn drop(&mut self) {
+        let mut bytes = std::mem::ManuallyDrop::new(std::mem::take(&mut self.bytes));
+        // Dealloc manually with initial memory layout.
+        if bytes.capacity() != 0 {
+            unsafe { std::alloc::dealloc(bytes.as_mut_ptr(), self.layout) }
+        }
+    }
+}
+
+impl Deref for BytesStorage {
+    type Target = Vec<u8>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.bytes
+    }
+}
+
+impl DerefMut for BytesStorage {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.bytes
+    }
+}
+
 /// Vertex buffer with dynamic layout. It is used to store multiple vertices of a single type, that implements [`VertexTrait`].
 /// Different vertex types used to for efficient memory usage. For example, you could have a simple vertex with only position
 /// expressed as Vector3 and it will be enough for simple cases, when only position is required. However, if you want to draw
@@ -215,7 +287,7 @@ pub struct VertexBuffer {
     sparse_layout: [Option<VertexAttribute>; 13],
     vertex_size: u8,
     vertex_count: u32,
-    data: Vec<u8>,
+    data: BytesStorage,
     data_hash: u64,
     #[visit(optional)]
     layout_hash: u64,
@@ -287,9 +359,8 @@ impl<'a> VertexBufferRefMut<'a> {
 
     /// Removes last vertex from the buffer.
     pub fn remove_last_vertex(&mut self) {
-        self.vertex_buffer
-            .data
-            .drain((self.vertex_buffer.data.len() - self.vertex_buffer.vertex_size as usize)..);
+        let range = (self.vertex_buffer.data.len() - self.vertex_buffer.vertex_size as usize)..;
+        self.vertex_buffer.data.drain(range);
         self.vertex_buffer.vertex_count -= 1;
     }
 
@@ -316,9 +387,9 @@ impl<'a> VertexBufferRefMut<'a> {
                     v.as_mut_ptr() as *mut u8,
                     self.vertex_buffer.vertex_size as usize,
                 );
-                self.vertex_buffer.data.drain(
-                    (self.vertex_buffer.data.len() - self.vertex_buffer.vertex_size as usize)..,
-                );
+                let range =
+                    (self.vertex_buffer.data.len() - self.vertex_buffer.vertex_size as usize)..;
+                self.vertex_buffer.data.drain(range);
                 self.vertex_buffer.vertex_count -= 1;
                 Ok(v.assume_init())
             }
@@ -440,7 +511,7 @@ impl<'a> VertexBufferRefMut<'a> {
                 new_data.extend_from_slice(&temp);
             }
 
-            self.vertex_buffer.data = new_data;
+            self.vertex_buffer.data = BytesStorage::new(new_data);
 
             self.vertex_buffer.vertex_size += std::mem::size_of::<T>() as u8;
 
@@ -512,12 +583,7 @@ impl VertexBuffer {
     where
         T: VertexTrait,
     {
-        let mut data = std::mem::ManuallyDrop::new(data);
-        let length = data.len() * std::mem::size_of::<T>();
-        let capacity = data.capacity() * std::mem::size_of::<T>();
-
-        let bytes =
-            unsafe { Vec::<u8>::from_raw_parts(data.as_mut_ptr() as *mut u8, length, capacity) };
+        let bytes = BytesStorage::new(data);
 
         let layout = T::layout();
 
