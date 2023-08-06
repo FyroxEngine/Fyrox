@@ -18,7 +18,8 @@ use std::{
     hash::{Hash, Hasher},
     marker::PhantomData,
     mem::MaybeUninit,
-    ops::{Deref, DerefMut, Index, IndexMut},
+    ops::{Deref, DerefMut, Index, IndexMut, RangeBounds},
+    vec::Drain,
 };
 
 /// A common trait for all vertex types. **IMPORTANT:** Implementors **must** use `#[repr(C)]` attribute, otherwise the compiler
@@ -170,7 +171,7 @@ impl Default for BytesStorage {
 }
 
 impl BytesStorage {
-    pub fn new<T>(data: Vec<T>) -> Self {
+    fn new<T>(data: Vec<T>) -> Self {
         // Prevent destructor to be called on `data`, this is needed because we're taking its
         // data storage and treat it as a simple bytes block.
         let mut data = std::mem::ManuallyDrop::new(data);
@@ -189,6 +190,36 @@ impl BytesStorage {
             layout: Layout::array::<T>(data.len()).unwrap(),
         }
     }
+
+    fn extend_from_slice(&mut self, slice: &[u8]) {
+        if self.layout.align() != 1 {
+            // Realloc backing storage manually if the alignment is anything else than 1.
+            let new_storage = Vec::with_capacity(self.bytes.len());
+            let old_storage = std::mem::replace(&mut self.bytes, new_storage);
+            self.bytes.extend_from_slice(old_storage.as_slice());
+            self.layout = Layout::array::<u8>(self.bytes.len()).unwrap();
+        }
+        self.bytes.extend_from_slice(slice);
+    }
+
+    fn drain<R>(&mut self, range: R) -> Drain<'_, u8>
+    where
+        R: RangeBounds<usize>,
+    {
+        self.bytes.drain(range)
+    }
+
+    fn as_mut_ptr(&mut self) -> *mut u8 {
+        self.bytes.as_mut_ptr()
+    }
+
+    fn as_slice_mut(&mut self) -> &mut [u8] {
+        self.bytes.as_mut_slice()
+    }
+
+    fn clear(&mut self) {
+        self.bytes.clear()
+    }
 }
 
 impl Drop for BytesStorage {
@@ -206,12 +237,6 @@ impl Deref for BytesStorage {
 
     fn deref(&self) -> &Self::Target {
         &self.bytes
-    }
-}
-
-impl DerefMut for BytesStorage {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.bytes
     }
 }
 
@@ -443,7 +468,7 @@ impl<'a> VertexBufferRefMut<'a> {
         let offset = n * self.vertex_buffer.vertex_size as usize;
         if offset < self.vertex_buffer.data.len() {
             Some(VertexViewMut {
-                vertex_data: &mut self.vertex_buffer.data
+                vertex_data: &mut self.vertex_buffer.data.as_slice_mut()
                     [offset..(offset + self.vertex_buffer.vertex_size as usize)],
                 sparse_layout: &self.vertex_buffer.sparse_layout,
             })
