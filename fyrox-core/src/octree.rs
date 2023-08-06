@@ -91,12 +91,12 @@ impl Octree {
     ) {
         match self.nodes.borrow(node) {
             OctreeNode::Leaf { indices, bounds } => {
-                if bounds.intersect_aabb(aabb) {
+                if bounds.is_intersects_aabb(aabb) {
                     buffer.extend_from_slice(indices)
                 }
             }
             OctreeNode::Branch { bounds, leaves } => {
-                if bounds.intersect_aabb(aabb) {
+                if bounds.is_intersects_aabb(aabb) {
                     for leaf in leaves {
                         self.aabb_recursive_query(*leaf, aabb, buffer)
                     }
@@ -216,7 +216,7 @@ fn build_recursive(
                 let triangle_bounds =
                     AxisAlignedBoundingBox::from_points(&triangles[index as usize]);
 
-                if triangle_bounds.intersect_aabb(&bounds) {
+                if triangle_bounds.is_intersects_aabb(&bounds) {
                     leaf_indices.push(index);
                 }
             }
