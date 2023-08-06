@@ -323,4 +323,223 @@ mod test {
         assert_eq!(transformed_aabb.min, Vector3::new(1.0, 1.0, 1.0));
         assert_eq!(transformed_aabb.max, Vector3::new(3.0, 3.0, 3.0));
     }
+
+    #[test]
+    fn test_aabb_default() {
+        let _box = AxisAlignedBoundingBox::default();
+        assert_eq!(_box.min, Vector3::new(f32::MAX, f32::MAX, f32::MAX));
+        assert_eq!(_box.max, Vector3::new(-f32::MAX, -f32::MAX, -f32::MAX));
+    }
+
+    #[test]
+    fn test_aabb_unit() {
+        let _box = AxisAlignedBoundingBox::unit();
+        assert_eq!(_box.min, Vector3::new(-0.5, -0.5, -0.5));
+        assert_eq!(_box.max, Vector3::new(0.5, 0.5, 0.5));
+    }
+
+    #[test]
+    fn test_aabb_collapsed() {
+        let _box = AxisAlignedBoundingBox::collapsed();
+        assert_eq!(_box.min, Vector3::new(0.0, 0.0, 0.0));
+        assert_eq!(_box.max, Vector3::new(0.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn test_aabb_from_radius() {
+        let _box = AxisAlignedBoundingBox::from_radius(1.0);
+        assert_eq!(_box.min, Vector3::new(-1.0, -1.0, -1.0));
+        assert_eq!(_box.max, Vector3::new(1.0, 1.0, 1.0));
+    }
+
+    #[test]
+    fn test_aabb_from_point() {
+        let _box = AxisAlignedBoundingBox::from_point(Vector3::new(0.0, 0.0, 0.0));
+        assert_eq!(_box.min, Vector3::new(0.0, 0.0, 0.0));
+        assert_eq!(_box.max, Vector3::new(0.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn test_aabb_from_points() {
+        let _box = AxisAlignedBoundingBox::from_points(
+            vec![
+                Vector3::new(-1.0, -1.0, -1.0),
+                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::new(1.0, 1.0, 1.0),
+            ]
+            .as_ref(),
+        );
+        assert_eq!(_box.min, Vector3::new(-1.0, -1.0, -1.0));
+        assert_eq!(_box.max, Vector3::new(1.0, 1.0, 1.0));
+    }
+
+    #[test]
+    fn test_aabb_add_point() {
+        let mut _box = AxisAlignedBoundingBox::default();
+        _box.add_point(Vector3::new(-1.0, -1.0, -1.0));
+        _box.add_point(Vector3::new(1.0, 1.0, 1.0));
+        assert_eq!(_box.min, Vector3::new(-1.0, -1.0, -1.0));
+        assert_eq!(_box.max, Vector3::new(1.0, 1.0, 1.0));
+    }
+
+    #[test]
+    fn test_aabb_inflate() {
+        let mut _box = AxisAlignedBoundingBox::from_radius(1.0);
+        _box.inflate(Vector3::new(5.0, 5.0, 5.0));
+        assert_eq!(_box.min, Vector3::new(-3.5, -3.5, -3.5));
+        assert_eq!(_box.max, Vector3::new(3.5, 3.5, 3.5));
+    }
+
+    #[test]
+    fn test_aabb_add_box() {
+        let mut _box = AxisAlignedBoundingBox::collapsed();
+        let _box2 = AxisAlignedBoundingBox::from_radius(1.0);
+        _box.add_box(_box2);
+        assert_eq!(_box.min, Vector3::new(-1.0, -1.0, -1.0));
+        assert_eq!(_box.max, Vector3::new(1.0, 1.0, 1.0));
+    }
+
+    #[test]
+    fn test_aabb_corners() {
+        let _box = AxisAlignedBoundingBox::from_radius(1.0);
+        assert_eq!(
+            _box.corners(),
+            [
+                Vector3::new(-1.0, -1.0, -1.0),
+                Vector3::new(-1.0, -1.0, 1.0),
+                Vector3::new(1.0, -1.0, 1.0),
+                Vector3::new(1.0, -1.0, -1.0),
+                Vector3::new(-1.0, 1.0, -1.0),
+                Vector3::new(-1.0, 1.0, 1.0),
+                Vector3::new(1.0, 1.0, 1.0),
+                Vector3::new(1.0, 1.0, -1.0),
+            ]
+        );
+        assert_eq!(_box.volume(), 8.0);
+        assert_eq!(_box.center(), Vector3::new(0.0, 0.0, 0.0));
+        assert_eq!(_box.half_extents(), Vector3::new(1.0, 1.0, 1.0));
+    }
+
+    #[test]
+    fn test_aabb_offset() {
+        let mut _box = AxisAlignedBoundingBox::unit();
+        _box.offset(Vector3::new(1.0, 1.0, 1.0));
+        assert_eq!(_box.min, Vector3::new(0.5, 0.5, 0.5));
+        assert_eq!(_box.max, Vector3::new(1.5, 1.5, 1.5));
+    }
+
+    #[test]
+    fn test_aabb_invalidate() {
+        let mut _box = AxisAlignedBoundingBox::collapsed();
+        _box.invalidate();
+        assert_eq!(_box.min, Vector3::new(f32::MAX, f32::MAX, f32::MAX));
+        assert_eq!(_box.max, Vector3::new(-f32::MAX, -f32::MAX, -f32::MAX));
+    }
+
+    #[test]
+    fn test_aabb_is_valid() {
+        let mut _box = AxisAlignedBoundingBox::default();
+        assert!(!_box.is_valid());
+
+        _box.add_point(Vector3::new(1.0, 1.0, 1.0));
+        assert!(!_box.is_valid());
+
+        _box.add_point(Vector3::new(-1.0, -1.0, -1.0));
+        assert!(_box.is_valid());
+    }
+
+    #[test]
+    fn test_aabb_is_degenerate() {
+        let _box = AxisAlignedBoundingBox::unit();
+        assert!(!_box.is_degenerate());
+
+        let _box = AxisAlignedBoundingBox::collapsed();
+        assert!(_box.is_degenerate());
+    }
+
+    #[test]
+    fn test_aabb_is_invalid_or_degenerate() {
+        let mut _box = AxisAlignedBoundingBox::collapsed();
+        assert!(_box.is_invalid_or_degenerate());
+
+        _box.invalidate();
+        assert!(_box.is_invalid_or_degenerate());
+    }
+
+    #[test]
+    fn test_aabb_is_contains_point() {
+        let _box = AxisAlignedBoundingBox::unit();
+        assert!(_box.is_contains_point(Vector3::new(0.0, 0.0, 0.0)));
+
+        for point in _box.corners() {
+            assert!(_box.is_contains_point(point));
+        }
+    }
+
+    #[test]
+    fn test_aabb_is_intersects_sphere() {
+        let _box = AxisAlignedBoundingBox::unit();
+        assert!(_box.is_intersects_sphere(Vector3::new(0.0, 0.0, 0.0), 1.0));
+        assert!(_box.is_intersects_sphere(Vector3::new(0.0, 0.0, 0.0), 0.5));
+        assert!(_box.is_intersects_sphere(Vector3::new(0.0, 0.0, 0.0), 1.5));
+        assert!(_box.is_intersects_sphere(Vector3::new(0.5, 0.5, 0.5), 1.0));
+        assert!(_box.is_intersects_sphere(Vector3::new(0.25, 0.25, 0.25), 1.0));
+
+        assert!(!_box.is_intersects_sphere(Vector3::new(10.0, 10.0, 10.0), 1.0));
+        assert!(!_box.is_intersects_sphere(Vector3::new(-10.0, -10.0, -10.0), 1.0));
+    }
+
+    #[test]
+    fn test_aabb_intersect_aabb() {
+        let _box = AxisAlignedBoundingBox::unit();
+        let mut _box2 = _box;
+        assert!(_box.intersect_aabb(&_box2));
+
+        _box2.offset(Vector3::new(0.5, 0.0, 0.0));
+        assert!(_box.intersect_aabb(&_box2));
+        _box2.offset(Vector3::new(1.0, 0.0, 0.0));
+        assert!(!_box.intersect_aabb(&_box2));
+
+        let mut _box2 = _box;
+        _box2.offset(Vector3::new(0.0, 0.5, 0.0));
+        assert!(_box.intersect_aabb(&_box2));
+        _box2.offset(Vector3::new(0.0, 1.0, 0.0));
+        assert!(!_box.intersect_aabb(&_box2));
+
+        let mut _box2 = _box;
+        _box2.offset(Vector3::new(0.0, 0.0, 0.5));
+        assert!(_box.intersect_aabb(&_box2));
+        _box2.offset(Vector3::new(0.0, 0.0, 1.0));
+        assert!(!_box.intersect_aabb(&_box2));
+    }
+
+    #[test]
+    fn test_aabb_split() {
+        let _box = AxisAlignedBoundingBox::from_radius(1.0);
+        let _boxes = _box.split();
+
+        assert_eq!(_boxes[0].min, Vector3::new(-1.0, -1.0, -1.0));
+        assert_eq!(_boxes[0].max, Vector3::new(0.0, 0.0, 0.0));
+
+        assert_eq!(_boxes[1].min, Vector3::new(0.0, -1.0, -1.0));
+        assert_eq!(_boxes[1].max, Vector3::new(1.0, 0.0, 0.0));
+
+        assert_eq!(_boxes[2].min, Vector3::new(-1.0, -1.0, 0.0));
+        assert_eq!(_boxes[2].max, Vector3::new(0.0, 0.0, 1.0));
+
+        assert_eq!(_boxes[3].min, Vector3::new(0.0, -1.0, 0.0));
+        assert_eq!(_boxes[3].max, Vector3::new(1.0, 0.0, 1.0));
+
+        assert_eq!(_boxes[4].min, Vector3::new(-1.0, 0.0, -1.0));
+        assert_eq!(_boxes[4].max, Vector3::new(0.0, 1.0, 0.0));
+
+        assert_eq!(_boxes[5].min, Vector3::new(0.0, 0.0, -1.0));
+        assert_eq!(_boxes[5].max, Vector3::new(1.0, 1.0, 0.0));
+
+        assert_eq!(_boxes[6].min, Vector3::new(-1.0, 0.0, 0.0));
+        assert_eq!(_boxes[6].max, Vector3::new(0.0, 1.0, 1.0));
+
+        assert_eq!(_boxes[7].min, Vector3::new(0.0, 0.0, 0.0));
+        assert_eq!(_boxes[7].max, Vector3::new(1.0, 1.0, 1.0));
+    }
 }
