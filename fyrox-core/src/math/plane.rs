@@ -69,23 +69,106 @@ impl Plane {
     }
 }
 
-#[test]
-fn plane_sanity_tests() {
-    // Computation test
-    let plane =
-        Plane::from_normal_and_point(&Vector3::new(0.0, 10.0, 0.0), &Vector3::new(0.0, 3.0, 0.0));
-    assert!(plane.is_some());
-    let plane = plane.unwrap();
-    assert_eq!(plane.normal.x, 0.0);
-    assert_eq!(plane.normal.y, 1.0);
-    assert_eq!(plane.normal.z, 0.0);
-    assert_eq!(plane.d, -3.0);
+#[cfg(test)]
+mod test {
+    use nalgebra::Vector3;
 
-    // Degenerated normal case
-    let plane =
-        Plane::from_normal_and_point(&Vector3::new(0.0, 0.0, 0.0), &Vector3::new(0.0, 0.0, 0.0));
-    assert!(plane.is_none());
+    use crate::math::plane::Plane;
 
-    let plane = Plane::from_abcd(0.0, 0.0, 0.0, 0.0);
-    assert!(plane.is_none())
+    #[test]
+    fn plane_sanity_tests() {
+        // Computation test
+        let plane = Plane::from_normal_and_point(
+            &Vector3::new(0.0, 10.0, 0.0),
+            &Vector3::new(0.0, 3.0, 0.0),
+        );
+        assert!(plane.is_some());
+        let plane = plane.unwrap();
+        assert_eq!(plane.normal.x, 0.0);
+        assert_eq!(plane.normal.y, 1.0);
+        assert_eq!(plane.normal.z, 0.0);
+        assert_eq!(plane.d, -3.0);
+
+        // Degenerated normal case
+        let plane = Plane::from_normal_and_point(
+            &Vector3::new(0.0, 0.0, 0.0),
+            &Vector3::new(0.0, 0.0, 0.0),
+        );
+        assert!(plane.is_none());
+
+        let plane = Plane::from_abcd(0.0, 0.0, 0.0, 0.0);
+        assert!(plane.is_none())
+    }
+
+    #[test]
+    fn test_default_for_plane() {
+        assert_eq!(
+            Plane::default(),
+            Plane {
+                normal: Vector3::new(0.0, 1.0, 0.0),
+                d: 0.0,
+            }
+        );
+    }
+
+    #[test]
+    fn test_plane_from_abcd() {
+        assert_eq!(Plane::from_abcd(0.0, 0.0, 0.0, 0.0), None);
+        assert_eq!(
+            Plane::from_abcd(1.0, 1.0, 1.0, 0.0),
+            Some(Plane {
+                normal: Vector3::new(0.57735026, 0.57735026, 0.57735026),
+                d: 0.0
+            })
+        );
+    }
+
+    #[test]
+    fn test_plane_dot() {
+        let plane = Plane::from_normal_and_point(
+            &Vector3::new(0.0, 0.0, 1.0),
+            &Vector3::new(0.0, 0.0, 0.0),
+        );
+        assert!(plane.is_some());
+        assert_eq!(plane.unwrap().dot(&Vector3::new(1.0, 1.0, 1.0)), 1.0);
+    }
+
+    #[test]
+    fn test_plane_distance() {
+        let plane = Plane::from_normal_and_point(
+            &Vector3::new(0.0, 0.0, 1.0),
+            &Vector3::new(0.0, 0.0, 0.0),
+        );
+        assert!(plane.is_some());
+        assert_eq!(plane.unwrap().distance(&Vector3::new(0.0, 0.0, 0.0)), 0.0);
+        assert_eq!(plane.unwrap().distance(&Vector3::new(1.0, 0.0, 0.0)), 0.0);
+        assert_eq!(plane.unwrap().distance(&Vector3::new(0.0, 1.0, 0.0)), 0.0);
+        assert_eq!(plane.unwrap().distance(&Vector3::new(0.0, 0.0, 1.0)), 1.0);
+    }
+
+    #[test]
+    fn test_plane_intersection_point() {
+        let plane = Plane::from_normal_and_point(
+            &Vector3::new(0.0, 0.0, 1.0),
+            &Vector3::new(0.0, 0.0, 0.0),
+        );
+        let plane2 = Plane::from_normal_and_point(
+            &Vector3::new(0.0, 1.0, 0.0),
+            &Vector3::new(0.0, 0.0, 0.0),
+        );
+        let plane3 = Plane::from_normal_and_point(
+            &Vector3::new(1.0, 0.0, 0.0),
+            &Vector3::new(0.0, 0.0, 0.0),
+        );
+        assert!(plane.is_some());
+        assert!(plane2.is_some());
+        assert!(plane3.is_some());
+
+        assert_eq!(
+            plane
+                .unwrap()
+                .intersection_point(&plane2.unwrap(), &plane3.unwrap()),
+            Vector3::new(0.0, 0.0, 0.0)
+        );
+    }
 }
