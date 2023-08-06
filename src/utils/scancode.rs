@@ -39,11 +39,12 @@
 ///
 /// ## Source
 ///
-/// Actual scan codes were taken from USB HID docs - https://www.usb.org/sites/default/files/documents/hut1_12v2.pdf. Some
+/// Actual scan codes were taken from USB HID docs - <https://www.usb.org/sites/default/files/documents/hut1_12v2.pdf>. Some
 /// inspiration was taken from SDL2 source code and docs.
 #[derive(Copy, Clone, Debug, Hash, Eq)]
 #[repr(u32)]
 #[allow(missing_docs)] // TODO: This should be documented some day.
+#[allow(clippy::derived_hash_with_manual_eq)]
 pub enum Scancode {
     A = 4,
     B = 5,
