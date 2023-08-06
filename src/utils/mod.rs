@@ -8,6 +8,7 @@ pub mod component;
 pub mod lightmap;
 pub mod navmesh;
 pub mod raw_mesh;
+pub mod scancode;
 pub mod uvgen;
 
 use crate::{
