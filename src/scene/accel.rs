@@ -102,12 +102,12 @@ impl Octree {
     ) {
         match self.nodes.borrow(node) {
             OctreeNode::Leaf { entries, bounds } => {
-                if bounds.intersect_aabb(aabb) {
+                if bounds.is_intersects_aabb(aabb) {
                     buffer.extend_from_slice(entries)
                 }
             }
             OctreeNode::Branch { bounds, leaves } => {
-                if bounds.intersect_aabb(aabb) {
+                if bounds.is_intersects_aabb(aabb) {
                     for leaf in leaves {
                         self.aabb_recursive_query(*leaf, aabb, buffer)
                     }
@@ -171,7 +171,7 @@ fn build_recursive(
             leaf_entries.extend(
                 entries
                     .iter()
-                    .filter(|entry| entry.world_aabb.intersect_aabb(&bounds))
+                    .filter(|entry| entry.world_aabb.is_intersects_aabb(&bounds))
                     .cloned(),
             );
 

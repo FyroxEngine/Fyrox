@@ -207,7 +207,7 @@ impl AxisAlignedBoundingBox {
     }
 
     #[inline]
-    pub fn intersect_aabb(&self, other: &Self) -> bool {
+    pub fn is_intersects_aabb(&self, other: &Self) -> bool {
         let self_center = self.center();
         let self_half_extents = self.half_extents();
 
@@ -490,27 +490,27 @@ mod test {
     }
 
     #[test]
-    fn test_aabb_intersect_aabb() {
+    fn test_aabb_is_intersects_aabb() {
         let _box = AxisAlignedBoundingBox::unit();
         let mut _box2 = _box;
-        assert!(_box.intersect_aabb(&_box2));
+        assert!(_box.is_intersects_aabb(&_box2));
 
         _box2.offset(Vector3::new(0.5, 0.0, 0.0));
-        assert!(_box.intersect_aabb(&_box2));
+        assert!(_box.is_intersects_aabb(&_box2));
         _box2.offset(Vector3::new(1.0, 0.0, 0.0));
-        assert!(!_box.intersect_aabb(&_box2));
+        assert!(!_box.is_intersects_aabb(&_box2));
 
         let mut _box2 = _box;
         _box2.offset(Vector3::new(0.0, 0.5, 0.0));
-        assert!(_box.intersect_aabb(&_box2));
+        assert!(_box.is_intersects_aabb(&_box2));
         _box2.offset(Vector3::new(0.0, 1.0, 0.0));
-        assert!(!_box.intersect_aabb(&_box2));
+        assert!(!_box.is_intersects_aabb(&_box2));
 
         let mut _box2 = _box;
         _box2.offset(Vector3::new(0.0, 0.0, 0.5));
-        assert!(_box.intersect_aabb(&_box2));
+        assert!(_box.is_intersects_aabb(&_box2));
         _box2.offset(Vector3::new(0.0, 0.0, 1.0));
-        assert!(!_box.intersect_aabb(&_box2));
+        assert!(!_box.is_intersects_aabb(&_box2));
     }
 
     #[test]
