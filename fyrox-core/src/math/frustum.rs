@@ -344,3 +344,224 @@ impl Visit for Frustum {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use nalgebra::{Matrix4, Vector3};
+
+    use crate::math::aabb::AxisAlignedBoundingBox;
+    use crate::math::{frustum::Frustum, plane::Plane};
+    use crate::visitor::{Visit, Visitor};
+
+    #[test]
+    fn test_default_for_frustum() {
+        assert_eq!(
+            Frustum::default(),
+            Frustum::from_view_projection_matrix(Matrix4::new_perspective(
+                1.0,
+                std::f32::consts::FRAC_PI_2,
+                0.01,
+                1024.0
+            ))
+            .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_frustum_from_view_projection_matrix() {
+        assert_eq!(
+            Frustum::from_view_projection_matrix(Matrix4::new(
+                1.0, 0.0, 0.0, 0.0, //
+                0.0, 1.0, 0.0, 0.0, //
+                0.0, 0.0, 1.0, 0.0, //
+                0.0, 0.0, 0.0, 1.0
+            )),
+            Some(Frustum {
+                planes: [
+                    Plane::from_abcd(1.0, 0.0, 0.0, 1.0).unwrap(),
+                    Plane::from_abcd(-1.0, 0.0, 0.0, 1.0).unwrap(),
+                    Plane::from_abcd(0.0, -1.0, 0.0, 1.0).unwrap(),
+                    Plane::from_abcd(0.0, 1.0, 0.0, 1.0).unwrap(),
+                    Plane::from_abcd(0.0, 0.0, -1.0, 1.0).unwrap(),
+                    Plane::from_abcd(0.0, 0.0, 1.0, 1.0).unwrap(),
+                ],
+                corners: [
+                    Vector3::new(-1.0, 1.0, 1.0),
+                    Vector3::new(-1.0, -1.0, 1.0),
+                    Vector3::new(1.0, -1.0, 1.0),
+                    Vector3::new(1.0, 1.0, 1.0),
+                    Vector3::new(-1.0, 1.0, -1.0),
+                    Vector3::new(-1.0, -1.0, -1.0),
+                    Vector3::new(1.0, -1.0, -1.0),
+                    Vector3::new(1.0, 1.0, -1.0),
+                ],
+            })
+        );
+    }
+
+    #[test]
+    fn test_frustum_planes_and_corners() {
+        let f = Frustum::from_view_projection_matrix(Matrix4::new(
+            1.0, 0.0, 0.0, 0.0, //
+            0.0, 1.0, 0.0, 0.0, //
+            0.0, 0.0, 1.0, 0.0, //
+            0.0, 0.0, 0.0, 1.0,
+        ))
+        .unwrap();
+
+        assert_eq!(f.left(), &Plane::from_abcd(1.0, 0.0, 0.0, 1.0).unwrap());
+        assert_eq!(f.right(), &Plane::from_abcd(-1.0, 0.0, 0.0, 1.0).unwrap());
+        assert_eq!(f.top(), &Plane::from_abcd(0.0, -1.0, 0.0, 1.0).unwrap());
+        assert_eq!(f.bottom(), &Plane::from_abcd(0.0, 1.0, 0.0, 1.0).unwrap());
+        assert_eq!(f.far(), &Plane::from_abcd(0.0, 0.0, -1.0, 1.0).unwrap());
+        assert_eq!(f.near(), &Plane::from_abcd(0.0, 0.0, 1.0, 1.0).unwrap());
+
+        assert_eq!(
+            f.planes(),
+            [
+                Plane::from_abcd(1.0, 0.0, 0.0, 1.0).unwrap(),
+                Plane::from_abcd(-1.0, 0.0, 0.0, 1.0).unwrap(),
+                Plane::from_abcd(0.0, -1.0, 0.0, 1.0).unwrap(),
+                Plane::from_abcd(0.0, 1.0, 0.0, 1.0).unwrap(),
+                Plane::from_abcd(0.0, 0.0, -1.0, 1.0).unwrap(),
+                Plane::from_abcd(0.0, 0.0, 1.0, 1.0).unwrap(),
+            ]
+        );
+
+        assert_eq!(f.left_top_front_corner(), Vector3::new(-1.0, 1.0, 1.0));
+        assert_eq!(f.left_bottom_front_corner(), Vector3::new(-1.0, -1.0, 1.0));
+        assert_eq!(f.right_bottom_front_corner(), Vector3::new(1.0, -1.0, 1.0));
+        assert_eq!(f.right_top_front_corner(), Vector3::new(1.0, 1.0, 1.0));
+        assert_eq!(f.left_top_back_corner(), Vector3::new(-1.0, 1.0, -1.0));
+        assert_eq!(f.left_bottom_back_corner(), Vector3::new(-1.0, -1.0, -1.0));
+        assert_eq!(f.right_bottom_back_corner(), Vector3::new(1.0, -1.0, -1.0));
+        assert_eq!(f.right_top_back_corner(), Vector3::new(1.0, 1.0, -1.0));
+
+        assert_eq!(
+            f.corners(),
+            [
+                Vector3::new(-1.0, 1.0, 1.0),
+                Vector3::new(-1.0, -1.0, 1.0),
+                Vector3::new(1.0, -1.0, 1.0),
+                Vector3::new(1.0, 1.0, 1.0),
+                Vector3::new(-1.0, 1.0, -1.0),
+                Vector3::new(-1.0, -1.0, -1.0),
+                Vector3::new(1.0, -1.0, -1.0),
+                Vector3::new(1.0, 1.0, -1.0),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_frustum_plane_centers() {
+        let f = Frustum::from_view_projection_matrix(Matrix4::new(
+            1.0, 0.0, 0.0, 0.0, //
+            0.0, 1.0, 0.0, 0.0, //
+            0.0, 0.0, 1.0, 0.0, //
+            0.0, 0.0, 0.0, 1.0,
+        ))
+        .unwrap();
+
+        assert_eq!(f.near_plane_center(), Vector3::new(0.0, 0.0, 1.0));
+        assert_eq!(f.far_plane_center(), Vector3::new(0.0, 0.0, -1.0));
+        assert_eq!(f.view_direction(), Vector3::new(0.0, 0.0, -2.0));
+        assert_eq!(f.center(), Vector3::new(0.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn test_frustum_is_intersects_point_cloud() {
+        let f = Frustum::from_view_projection_matrix(Matrix4::new(
+            1.0, 0.0, 0.0, 0.0, //
+            0.0, 1.0, 0.0, 0.0, //
+            0.0, 0.0, 1.0, 0.0, //
+            0.0, 0.0, 0.0, 1.0,
+        ))
+        .unwrap();
+
+        assert!(f.is_intersects_point_cloud(&[
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(1.0, 1.0, 1.0),
+        ]));
+        assert!(!f.is_intersects_point_cloud(&[Vector3::new(-1.0, -2.0, 1.0)]));
+    }
+
+    #[test]
+    fn test_frustum_is_intersects_aabb() {
+        let f = Frustum::from_view_projection_matrix(Matrix4::new(
+            1.0, 0.0, 0.0, 0.0, //
+            0.0, 1.0, 0.0, 0.0, //
+            0.0, 0.0, 1.0, 0.0, //
+            0.0, 0.0, 0.0, 1.0,
+        ))
+        .unwrap();
+
+        assert!(f.is_intersects_aabb(&AxisAlignedBoundingBox::unit()));
+        assert!(!f.is_intersects_aabb(&AxisAlignedBoundingBox::from_min_max(
+            Vector3::new(5.0, 5.0, 5.0),
+            Vector3::new(15.0, 15.0, 15.0)
+        )));
+    }
+
+    #[test]
+    fn test_frustum_is_intersects_aabb_offset() {
+        let f = Frustum::from_view_projection_matrix(Matrix4::new(
+            1.0, 0.0, 0.0, 0.0, //
+            0.0, 1.0, 0.0, 0.0, //
+            0.0, 0.0, 1.0, 0.0, //
+            0.0, 0.0, 0.0, 1.0,
+        ))
+        .unwrap();
+
+        assert!(f.is_intersects_aabb_offset(
+            &AxisAlignedBoundingBox::unit(),
+            Vector3::new(1.0, 1.0, 1.0)
+        ));
+        assert!(!f.is_intersects_aabb_offset(
+            &AxisAlignedBoundingBox::unit(),
+            Vector3::new(10.0, 10.0, 10.0)
+        ));
+    }
+
+    #[test]
+    fn test_frustum_is_contains_point() {
+        let f = Frustum::from_view_projection_matrix(Matrix4::new(
+            1.0, 0.0, 0.0, 0.0, //
+            0.0, 1.0, 0.0, 0.0, //
+            0.0, 0.0, 1.0, 0.0, //
+            0.0, 0.0, 0.0, 1.0,
+        ))
+        .unwrap();
+
+        assert!(f.is_contains_point(Vector3::new(0.0, 0.0, 0.0)));
+        assert!(!f.is_contains_point(Vector3::new(10.0, 10.0, 10.0)));
+    }
+
+    #[test]
+    fn test_frustum_is_intersects_sphere() {
+        let f = Frustum::from_view_projection_matrix(Matrix4::new(
+            1.0, 0.0, 0.0, 0.0, //
+            0.0, 1.0, 0.0, 0.0, //
+            0.0, 0.0, 1.0, 0.0, //
+            0.0, 0.0, 0.0, 1.0,
+        ))
+        .unwrap();
+
+        assert!(f.is_intersects_sphere(Vector3::new(0.0, 0.0, 0.0), 1.0));
+        assert!(f.is_intersects_sphere(Vector3::new(0.0, 0.0, 0.0), 2.0));
+        assert!(!f.is_intersects_sphere(Vector3::new(10.0, 10.0, 10.0), 1.0));
+    }
+
+    #[test]
+    fn test_visit_for_frustum() {
+        let mut f = Frustum::from_view_projection_matrix(Matrix4::new(
+            1.0, 0.0, 0.0, 0.0, //
+            0.0, 1.0, 0.0, 0.0, //
+            0.0, 0.0, 1.0, 0.0, //
+            0.0, 0.0, 0.0, 1.0,
+        ))
+        .unwrap();
+        let mut visitor = Visitor::default();
+
+        assert!(f.visit("name", &mut visitor).is_ok());
+    }
+}
