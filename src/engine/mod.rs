@@ -1019,7 +1019,7 @@ impl Engine {
                 use crate::core::wasm_bindgen::JsCast;
                 use crate::platform::web::WindowExtWebSys;
 
-                let canvas = window.canvas();
+                let canvas = window.canvas().unwrap();
 
                 let document = crate::core::web_sys::window().unwrap().document().unwrap();
                 let body = document.body().unwrap();
