@@ -321,7 +321,7 @@ fn main() {
                     }
                     WindowEvent::KeyboardInput { event: input, .. } => {
                         if let Some(game_scene) = game.game_scene.as_mut() {
-                            game_scene.player.handle_key_event(&input, fixed_timestep);
+                            game_scene.player.handle_key_event(input, fixed_timestep);
                         }
 
                         let settings = match input.physical_key {
