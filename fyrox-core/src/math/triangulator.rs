@@ -170,8 +170,25 @@ pub fn triangulate(vertices: &[Vector3<f32>], out_triangles: &mut Vec<[usize; 3]
 
 #[cfg(test)]
 mod test {
+    use nalgebra::Vector2;
+
     use crate::algebra::{Point3, Unit, UnitQuaternion, Vector3};
     use crate::math::triangulator::triangulate;
+
+    use super::{Polygon, Vertex};
+
+    #[test]
+    fn triangle_triangulation() {
+        let polygon = vec![
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(1.0, 0.0, 0.0),
+            Vector3::new(0.0, 1.0, 0.0),
+        ];
+
+        let mut ref_indices = Vec::new();
+        triangulate(polygon.as_slice(), &mut ref_indices);
+        assert_ne!(ref_indices.len(), 0);
+    }
 
     #[test]
     fn quadrilaterals_triangulation_non_concave() {
@@ -238,5 +255,41 @@ mod test {
                 angle += 36.0;
             }
         }
+    }
+
+    #[test]
+    fn test_debug_for_polygon() {
+        let p = Polygon {
+            vertices: vec![
+                Vertex {
+                    prev: 2,
+                    index: 0,
+                    next: 1,
+                    position: Vector2::new(0.0, 0.0),
+                },
+                Vertex {
+                    prev: 0,
+                    index: 1,
+                    next: 2,
+                    position: Vector2::new(1.0, 0.0),
+                },
+                Vertex {
+                    prev: 1,
+                    index: 2,
+                    next: 0,
+                    position: Vector2::new(0.0, 1.0),
+                },
+            ],
+            head: 0,
+            tail: 2,
+        };
+
+        assert_eq!(
+            format!("{p:?}"),
+            r"Vertex [[0.0, 0.0]]; 2 0 1
+Vertex [[1.0, 0.0]]; 0 1 2
+Vertex [[0.0, 1.0]]; 1 2 0
+"
+        );
     }
 }
