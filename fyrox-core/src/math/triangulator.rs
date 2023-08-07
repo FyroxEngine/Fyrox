@@ -262,22 +262,22 @@ mod test {
         let p = Polygon {
             vertices: vec![
                 Vertex {
-                    index: 0,
                     prev: 2,
+                    index: 0,
                     next: 1,
                     position: Vector2::new(0.0, 0.0),
                 },
                 Vertex {
-                    index: 1,
                     prev: 0,
+                    index: 1,
                     next: 2,
                     position: Vector2::new(1.0, 0.0),
                 },
                 Vertex {
-                    index: 2,
                     prev: 1,
+                    index: 2,
                     next: 0,
-                    position: Vector2::new(0.0, 0.0),
+                    position: Vector2::new(0.0, 1.0),
                 },
             ],
             head: 0,
@@ -288,7 +288,7 @@ mod test {
             format!("{p:?}"),
             r"Vertex [[0.0, 0.0]]; 2 0 1
 Vertex [[1.0, 0.0]]; 0 1 2
-Vertex [[0.0, 0.0]]; 1 2 0
+Vertex [[0.0, 1.0]]; 1 2 0
 "
         );
     }
