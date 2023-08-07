@@ -399,6 +399,10 @@ pub enum MouseButton {
     Right,
     /// Middle mouse button.
     Middle,
+    /// Back mouse button.
+    Back,
+    /// Forward mouse button.
+    Forward,
     /// Any other mouse button.
     Other(u16),
 }
@@ -423,9 +427,9 @@ pub enum OsEvent {
         button: KeyCode,
         /// Key state.
         state: ButtonState,
+        /// Text of the key.
+        text: String,
     },
-    /// Text character event.
-    Character(char),
     /// Keyboard modifier event (used for key combinations such as Ctrl+A, Ctrl+C, etc).
     KeyboardModifiers(KeyboardModifiers),
     /// Mouse wheel event, with a tuple that stores the (x, y) offsets.
@@ -465,7 +469,8 @@ impl KeyboardModifiers {
     }
 }
 
-/// Code of a key on keyboard.
+/// Code of a key on keyboard. Shamelessly taken from `winit` source code to match their key codes with
+/// `fyrox-ui`'s.
 #[derive(
     Debug,
     Hash,
@@ -483,412 +488,580 @@ impl KeyboardModifiers {
     Reflect,
 )]
 #[repr(u32)]
+#[allow(missing_docs)]
 pub enum KeyCode {
-    /// 1 key.
-    Key1,
-    /// 2 key.
-    Key2,
-    /// 3 key.
-    Key3,
-    /// 4 key.
-    Key4,
-    /// 5 key.
-    Key5,
-    /// 6 key.
-    Key6,
-    /// 7 key.
-    Key7,
-    /// 8 key.
-    Key8,
-    /// 9 key.
-    Key9,
-    /// 0 key.
-    Key0,
-    /// A key.
-    A,
-    /// B key.
-    B,
-    /// C key.
-    C,
-    /// D key.
-    D,
-    /// E key.
-    E,
-    /// F key.
-    F,
-    /// G key.
-    G,
-    /// H key.
-    H,
-    /// I key.
-    I,
-    /// J key.
-    J,
-    /// K key.
-    K,
-    /// L key.
-    L,
-    /// M key.
-    M,
-    /// N key.
-    N,
-    /// O key.
-    O,
-    /// P key.
-    P,
-    /// Q key.
-    Q,
-    /// R key.
-    R,
-    /// S key.
-    S,
-    /// T key.
-    T,
-    /// U key.
-    U,
-    /// V key.
-    V,
-    /// W key.
-    W,
-    /// X key.
-    X,
-    /// Y key.
-    Y,
-    /// Z key.
-    Z,
-    /// Escape key.
-    Escape,
-    /// F1 key.
-    F1,
-    /// F2 key.
-    F2,
-    /// F3 key.
-    F3,
-    /// F4 key.
-    F4,
-    /// F5 key.
-    F5,
-    /// F6 key.
-    F6,
-    /// F7 key.
-    F7,
-    /// F8 key.
-    F8,
-    /// F9 key.
-    F9,
-    /// F10 key.
-    F10,
-    /// F11 key.
-    F11,
-    /// F12 key.
-    F12,
-    /// F13 key.
-    F13,
-    /// F14 key.
-    F14,
-    /// F15 key.
-    F15,
-    /// F16 key.
-    F16,
-    /// F17 key.
-    F17,
-    /// F18 key.
-    F18,
-    /// F19 key.
-    F19,
-    /// F20 key.
-    F20,
-    /// F21 key.
-    F21,
-    /// F22 key.
-    F22,
-    /// F23 key.
-    F23,
-    /// F24 key.
-    F24,
-    /// Snapshot key.
-    Snapshot,
-    /// Scroll key.
-    Scroll,
-    /// Pause key.
-    Pause,
-    /// Insert key.
-    Insert,
-    /// Home key.
-    Home,
-    /// Delete key.
-    Delete,
-    /// End key.
-    End,
-    /// PageDown key.
-    PageDown,
-    /// PageUp key.
-    PageUp,
-    /// Left key.
-    Left,
-    /// Up key.
-    Up,
-    /// Right key.
-    Right,
-    /// Down key.
-    Down,
-    /// Backspace key.
-    Backspace,
-    /// Return key.
-    Return,
-    /// Space key.
-    Space,
-    /// Compose key.
-    Compose,
-    /// Caret key.
-    Caret,
-    /// Numlock key.
-    Numlock,
-    /// Numpad0 key.
-    Numpad0,
-    /// Numpad1 key.
-    Numpad1,
-    /// Numpad2 key.
-    Numpad2,
-    /// Numpad3 key.
-    Numpad3,
-    /// Numpad4 key.
-    Numpad4,
-    /// Numpad5 key.
-    Numpad5,
-    /// Numpad6 key.
-    Numpad6,
-    /// Numpad7 key.
-    Numpad7,
-    /// Numpad8 key.
-    Numpad8,
-    /// Numpad9 key.
-    Numpad9,
-    /// AbntC1 key.
-    AbntC1,
-    /// AbntC2 key.
-    AbntC2,
-    /// NumpadAdd key.
-    NumpadAdd,
-    /// Apostrophe key.
-    Apostrophe,
-    /// Apps key.
-    Apps,
-    /// At key.
-    At,
-    /// Ax key.
-    Ax,
-    /// Backslash key.
+    /// This variant is used when the key cannot be translated to any other variant.
+    Unknown,
+    /// <kbd>`</kbd> on a US keyboard. This is also called a backtick or grave.
+    /// This is the <kbd>半角</kbd>/<kbd>全角</kbd>/<kbd>漢字</kbd>
+    /// (hankaku/zenkaku/kanji) key on Japanese keyboards
+    Backquote,
+    /// Used for both the US <kbd>\\</kbd> (on the 101-key layout) and also for the key
+    /// located between the <kbd>"</kbd> and <kbd>Enter</kbd> keys on row C of the 102-,
+    /// 104- and 106-key layouts.
+    /// Labeled <kbd>#</kbd> on a UK (102) keyboard.
     Backslash,
-    /// Calculator key.
-    Calculator,
-    /// Capital key.
-    Capital,
-    /// Colon key.
-    Colon,
-    /// Comma key.
+    /// <kbd>[</kbd> on a US keyboard.
+    BracketLeft,
+    /// <kbd>]</kbd> on a US keyboard.
+    BracketRight,
+    /// <kbd>,</kbd> on a US keyboard.
     Comma,
-    /// Convert key.
-    Convert,
-    /// NumpadDecimal key.
-    NumpadDecimal,
-    /// NumpadDivide key.
-    NumpadDivide,
-    /// Equals key.
-    Equals,
-    /// Grave key.
-    Grave,
-    /// Kana key.
-    Kana,
-    /// Kanji key.
-    Kanji,
-    /// LAlt key.
-    LAlt,
-    /// LBracket key.
-    LBracket,
-    /// LControl key.
-    LControl,
-    /// LShift key.
-    LShift,
-    /// LWin key.
-    LWin,
-    /// Mail key.
-    Mail,
-    /// MediaSelect key.
-    MediaSelect,
-    /// MediaStop key.
-    MediaStop,
-    /// Minus key.
+    /// <kbd>0</kbd> on a US keyboard.
+    Digit0,
+    /// <kbd>1</kbd> on a US keyboard.
+    Digit1,
+    /// <kbd>2</kbd> on a US keyboard.
+    Digit2,
+    /// <kbd>3</kbd> on a US keyboard.
+    Digit3,
+    /// <kbd>4</kbd> on a US keyboard.
+    Digit4,
+    /// <kbd>5</kbd> on a US keyboard.
+    Digit5,
+    /// <kbd>6</kbd> on a US keyboard.
+    Digit6,
+    /// <kbd>7</kbd> on a US keyboard.
+    Digit7,
+    /// <kbd>8</kbd> on a US keyboard.
+    Digit8,
+    /// <kbd>9</kbd> on a US keyboard.
+    Digit9,
+    /// <kbd>=</kbd> on a US keyboard.
+    Equal,
+    /// Located between the left <kbd>Shift</kbd> and <kbd>Z</kbd> keys.
+    /// Labeled <kbd>\\</kbd> on a UK keyboard.
+    IntlBackslash,
+    /// Located between the <kbd>/</kbd> and right <kbd>Shift</kbd> keys.
+    /// Labeled <kbd>\\</kbd> (ro) on a Japanese keyboard.
+    IntlRo,
+    /// Located between the <kbd>=</kbd> and <kbd>Backspace</kbd> keys.
+    /// Labeled <kbd>¥</kbd> (yen) on a Japanese keyboard. <kbd>\\</kbd> on a
+    /// Russian keyboard.
+    IntlYen,
+    /// <kbd>a</kbd> on a US keyboard.
+    /// Labeled <kbd>q</kbd> on an AZERTY (e.g., French) keyboard.
+    KeyA,
+    /// <kbd>b</kbd> on a US keyboard.
+    KeyB,
+    /// <kbd>c</kbd> on a US keyboard.
+    KeyC,
+    /// <kbd>d</kbd> on a US keyboard.
+    KeyD,
+    /// <kbd>e</kbd> on a US keyboard.
+    KeyE,
+    /// <kbd>f</kbd> on a US keyboard.
+    KeyF,
+    /// <kbd>g</kbd> on a US keyboard.
+    KeyG,
+    /// <kbd>h</kbd> on a US keyboard.
+    KeyH,
+    /// <kbd>i</kbd> on a US keyboard.
+    KeyI,
+    /// <kbd>j</kbd> on a US keyboard.
+    KeyJ,
+    /// <kbd>k</kbd> on a US keyboard.
+    KeyK,
+    /// <kbd>l</kbd> on a US keyboard.
+    KeyL,
+    /// <kbd>m</kbd> on a US keyboard.
+    KeyM,
+    /// <kbd>n</kbd> on a US keyboard.
+    KeyN,
+    /// <kbd>o</kbd> on a US keyboard.
+    KeyO,
+    /// <kbd>p</kbd> on a US keyboard.
+    KeyP,
+    /// <kbd>q</kbd> on a US keyboard.
+    /// Labeled <kbd>a</kbd> on an AZERTY (e.g., French) keyboard.
+    KeyQ,
+    /// <kbd>r</kbd> on a US keyboard.
+    KeyR,
+    /// <kbd>s</kbd> on a US keyboard.
+    KeyS,
+    /// <kbd>t</kbd> on a US keyboard.
+    KeyT,
+    /// <kbd>u</kbd> on a US keyboard.
+    KeyU,
+    /// <kbd>v</kbd> on a US keyboard.
+    KeyV,
+    /// <kbd>w</kbd> on a US keyboard.
+    /// Labeled <kbd>z</kbd> on an AZERTY (e.g., French) keyboard.
+    KeyW,
+    /// <kbd>x</kbd> on a US keyboard.
+    KeyX,
+    /// <kbd>y</kbd> on a US keyboard.
+    /// Labeled <kbd>z</kbd> on a QWERTZ (e.g., German) keyboard.
+    KeyY,
+    /// <kbd>z</kbd> on a US keyboard.
+    /// Labeled <kbd>w</kbd> on an AZERTY (e.g., French) keyboard, and <kbd>y</kbd> on a
+    /// QWERTZ (e.g., German) keyboard.
+    KeyZ,
+    /// <kbd>-</kbd> on a US keyboard.
     Minus,
-    /// NumpadMultiply key.
-    NumpadMultiply,
-    /// Mute key.
-    Mute,
-    /// MyComputer key.
-    MyComputer,
-    /// NavigateForward key.
-    NavigateForward,
-    /// NavigateBackward key.
-    NavigateBackward,
-    /// NextTrack key.
-    NextTrack,
-    /// NoConvert key.
-    NoConvert,
-    /// NumpadComma key.
-    NumpadComma,
-    /// NumpadEnter key.
-    NumpadEnter,
-    /// NumpadEquals key.
-    NumpadEquals,
-    /// OEM102 key.
-    OEM102,
-    /// Period key.
+    /// <kbd>.</kbd> on a US keyboard.
     Period,
-    /// PlayPause key.
-    PlayPause,
-    /// Power key.
-    Power,
-    /// PrevTrack key.
-    PrevTrack,
-    /// RAlt key.
-    RAlt,
-    /// RBracket key.
-    RBracket,
-    /// RControl key.
-    RControl,
-    /// RShift key.
-    RShift,
-    /// RWin key.
-    RWin,
-    /// Semicolon key.
+    /// <kbd>'</kbd> on a US keyboard.
+    Quote,
+    /// <kbd>;</kbd> on a US keyboard.
     Semicolon,
-    /// Slash key.
+    /// <kbd>/</kbd> on a US keyboard.
     Slash,
-    /// Sleep key.
-    Sleep,
-    /// Stop key.
-    Stop,
-    /// NumpadSubtract key.
-    NumpadSubtract,
-    /// Sysrq key.
-    Sysrq,
-    /// Tab key.
+    /// <kbd>Alt</kbd>, <kbd>Option</kbd>, or <kbd>⌥</kbd>.
+    AltLeft,
+    /// <kbd>Alt</kbd>, <kbd>Option</kbd>, or <kbd>⌥</kbd>.
+    /// This is labeled <kbd>AltGr</kbd> on many keyboard layouts.
+    AltRight,
+    /// <kbd>Backspace</kbd> or <kbd>⌫</kbd>.
+    /// Labeled <kbd>Delete</kbd> on Apple keyboards.
+    Backspace,
+    /// <kbd>CapsLock</kbd> or <kbd>⇪</kbd>
+    CapsLock,
+    /// The application context menu key, which is typically found between the right
+    /// <kbd>Super</kbd> key and the right <kbd>Control</kbd> key.
+    ContextMenu,
+    /// <kbd>Control</kbd> or <kbd>⌃</kbd>
+    ControlLeft,
+    /// <kbd>Control</kbd> or <kbd>⌃</kbd>
+    ControlRight,
+    /// <kbd>Enter</kbd> or <kbd>↵</kbd>. Labeled <kbd>Return</kbd> on Apple keyboards.
+    Enter,
+    /// The Windows, <kbd>⌘</kbd>, <kbd>Command</kbd>, or other OS symbol key.
+    SuperLeft,
+    /// The Windows, <kbd>⌘</kbd>, <kbd>Command</kbd>, or other OS symbol key.
+    SuperRight,
+    /// <kbd>Shift</kbd> or <kbd>⇧</kbd>
+    ShiftLeft,
+    /// <kbd>Shift</kbd> or <kbd>⇧</kbd>
+    ShiftRight,
+    /// <kbd> </kbd> (space)
+    Space,
+    /// <kbd>Tab</kbd> or <kbd>⇥</kbd>
     Tab,
-    /// Underline key.
-    Underline,
-    /// Unlabeled key.
-    Unlabeled,
-    /// VolumeDown key.
-    VolumeDown,
-    /// VolumeUp key.
-    VolumeUp,
-    /// Wake key.
-    Wake,
-    /// WebBack key.
-    WebBack,
-    /// WebFavorites key.
-    WebFavorites,
-    /// WebForward key.
-    WebForward,
-    /// WebHome key.
-    WebHome,
-    /// WebRefresh key.
-    WebRefresh,
-    /// WebSearch key.
-    WebSearch,
-    /// WebStop key.
-    WebStop,
-    /// Yen key.
-    Yen,
-    /// Copy key.
+    /// Japanese: <kbd>変</kbd> (henkan)
+    Convert,
+    /// Japanese: <kbd>カタカナ</kbd>/<kbd>ひらがな</kbd>/<kbd>ローマ字</kbd> (katakana/hiragana/romaji)
+    KanaMode,
+    /// Korean: HangulMode <kbd>한/영</kbd> (han/yeong)
+    ///
+    /// Japanese (Mac keyboard): <kbd>か</kbd> (kana)
+    Lang1,
+    /// Korean: Hanja <kbd>한</kbd> (hanja)
+    ///
+    /// Japanese (Mac keyboard): <kbd>英</kbd> (eisu)
+    Lang2,
+    /// Japanese (word-processing keyboard): Katakana
+    Lang3,
+    /// Japanese (word-processing keyboard): Hiragana
+    Lang4,
+    /// Japanese (word-processing keyboard): Zenkaku/Hankaku
+    Lang5,
+    /// Japanese: <kbd>無変換</kbd> (muhenkan)
+    NonConvert,
+    /// <kbd>⌦</kbd>. The forward delete key.
+    /// Note that on Apple keyboards, the key labelled <kbd>Delete</kbd> on the main part of
+    /// the keyboard is encoded as [`Backspace`].
+    ///
+    /// [`Backspace`]: Self::Backspace
+    Delete,
+    /// <kbd>Page Down</kbd>, <kbd>End</kbd>, or <kbd>↘</kbd>
+    End,
+    /// <kbd>Help</kbd>. Not present on standard PC keyboards.
+    Help,
+    /// <kbd>Home</kbd> or <kbd>↖</kbd>
+    Home,
+    /// <kbd>Insert</kbd> or <kbd>Ins</kbd>. Not present on Apple keyboards.
+    Insert,
+    /// <kbd>Page Down</kbd>, <kbd>PgDn</kbd>, or <kbd>⇟</kbd>
+    PageDown,
+    /// <kbd>Page Up</kbd>, <kbd>PgUp</kbd>, or <kbd>⇞</kbd>
+    PageUp,
+    /// <kbd>↓</kbd>
+    ArrowDown,
+    /// <kbd>←</kbd>
+    ArrowLeft,
+    /// <kbd>→</kbd>
+    ArrowRight,
+    /// <kbd>↑</kbd>
+    ArrowUp,
+    /// On the Mac, this is used for the numpad <kbd>Clear</kbd> key.
+    NumLock,
+    /// <kbd>0 Ins</kbd> on a keyboard. <kbd>0</kbd> on a phone or remote control
+    Numpad0,
+    /// <kbd>1 End</kbd> on a keyboard. <kbd>1</kbd> or <kbd>1 QZ</kbd> on a phone or remote control
+    Numpad1,
+    /// <kbd>2 ↓</kbd> on a keyboard. <kbd>2 ABC</kbd> on a phone or remote control
+    Numpad2,
+    /// <kbd>3 PgDn</kbd> on a keyboard. <kbd>3 DEF</kbd> on a phone or remote control
+    Numpad3,
+    /// <kbd>4 ←</kbd> on a keyboard. <kbd>4 GHI</kbd> on a phone or remote control
+    Numpad4,
+    /// <kbd>5</kbd> on a keyboard. <kbd>5 JKL</kbd> on a phone or remote control
+    Numpad5,
+    /// <kbd>6 →</kbd> on a keyboard. <kbd>6 MNO</kbd> on a phone or remote control
+    Numpad6,
+    /// <kbd>7 Home</kbd> on a keyboard. <kbd>7 PQRS</kbd> or <kbd>7 PRS</kbd> on a phone
+    /// or remote control
+    Numpad7,
+    /// <kbd>8 ↑</kbd> on a keyboard. <kbd>8 TUV</kbd> on a phone or remote control
+    Numpad8,
+    /// <kbd>9 PgUp</kbd> on a keyboard. <kbd>9 WXYZ</kbd> or <kbd>9 WXY</kbd> on a phone
+    /// or remote control
+    Numpad9,
+    /// <kbd>+</kbd>
+    NumpadAdd,
+    /// Found on the Microsoft Natural Keyboard.
+    NumpadBackspace,
+    /// <kbd>C</kbd> or <kbd>A</kbd> (All Clear). Also for use with numpads that have a
+    /// <kbd>Clear</kbd> key that is separate from the <kbd>NumLock</kbd> key. On the Mac, the
+    /// numpad <kbd>Clear</kbd> key is encoded as [`NumLock`].
+    ///
+    /// [`NumLock`]: Self::NumLock
+    NumpadClear,
+    /// <kbd>C</kbd> (Clear Entry)
+    NumpadClearEntry,
+    /// <kbd>,</kbd> (thousands separator). For locales where the thousands separator
+    /// is a "." (e.g., Brazil), this key may generate a <kbd>.</kbd>.
+    NumpadComma,
+    /// <kbd>. Del</kbd>. For locales where the decimal separator is "," (e.g.,
+    /// Brazil), this key may generate a <kbd>,</kbd>.
+    NumpadDecimal,
+    /// <kbd>/</kbd>
+    NumpadDivide,
+    NumpadEnter,
+    /// <kbd>=</kbd>
+    NumpadEqual,
+    /// <kbd>#</kbd> on a phone or remote control device. This key is typically found
+    /// below the <kbd>9</kbd> key and to the right of the <kbd>0</kbd> key.
+    NumpadHash,
+    /// <kbd>M</kbd> Add current entry to the value stored in memory.
+    NumpadMemoryAdd,
+    /// <kbd>M</kbd> Clear the value stored in memory.
+    NumpadMemoryClear,
+    /// <kbd>M</kbd> Replace the current entry with the value stored in memory.
+    NumpadMemoryRecall,
+    /// <kbd>M</kbd> Replace the value stored in memory with the current entry.
+    NumpadMemoryStore,
+    /// <kbd>M</kbd> Subtract current entry from the value stored in memory.
+    NumpadMemorySubtract,
+    /// <kbd>*</kbd> on a keyboard. For use with numpads that provide mathematical
+    /// operations (<kbd>+</kbd>, <kbd>-</kbd> <kbd>*</kbd> and <kbd>/</kbd>).
+    ///
+    /// Use `NumpadStar` for the <kbd>*</kbd> key on phones and remote controls.
+    NumpadMultiply,
+    /// <kbd>(</kbd> Found on the Microsoft Natural Keyboard.
+    NumpadParenLeft,
+    /// <kbd>)</kbd> Found on the Microsoft Natural Keyboard.
+    NumpadParenRight,
+    /// <kbd>*</kbd> on a phone or remote control device.
+    ///
+    /// This key is typically found below the <kbd>7</kbd> key and to the left of
+    /// the <kbd>0</kbd> key.
+    ///
+    /// Use <kbd>"NumpadMultiply"</kbd> for the <kbd>*</kbd> key on
+    /// numeric keypads.
+    NumpadStar,
+    /// <kbd>-</kbd>
+    NumpadSubtract,
+    /// <kbd>Esc</kbd> or <kbd>⎋</kbd>
+    Escape,
+    /// <kbd>Fn</kbd> This is typically a hardware key that does not generate a separate code.
+    Fn,
+    /// <kbd>FLock</kbd> or <kbd>FnLock</kbd>. Function Lock key. Found on the Microsoft
+    /// Natural Keyboard.
+    FnLock,
+    /// <kbd>PrtScr SysRq</kbd> or <kbd>Print Screen</kbd>
+    PrintScreen,
+    /// <kbd>Scroll Lock</kbd>
+    ScrollLock,
+    /// <kbd>Pause Break</kbd>
+    Pause,
+    /// Some laptops place this key to the left of the <kbd>↑</kbd> key.
+    ///
+    /// This also the "back" button (triangle) on Android.
+    BrowserBack,
+    BrowserFavorites,
+    /// Some laptops place this key to the right of the <kbd>↑</kbd> key.
+    BrowserForward,
+    /// The "home" button on Android.
+    BrowserHome,
+    BrowserRefresh,
+    BrowserSearch,
+    BrowserStop,
+    /// <kbd>Eject</kbd> or <kbd>⏏</kbd>. This key is placed in the function section on some Apple
+    /// keyboards.
+    Eject,
+    /// Sometimes labelled <kbd>My Computer</kbd> on the keyboard
+    LaunchApp1,
+    /// Sometimes labelled <kbd>Calculator</kbd> on the keyboard
+    LaunchApp2,
+    LaunchMail,
+    MediaPlayPause,
+    MediaSelect,
+    MediaStop,
+    MediaTrackNext,
+    MediaTrackPrevious,
+    /// This key is placed in the function section on some Apple keyboards, replacing the
+    /// <kbd>Eject</kbd> key.
+    Power,
+    Sleep,
+    AudioVolumeDown,
+    AudioVolumeMute,
+    AudioVolumeUp,
+    WakeUp,
+    // Legacy modifier key. Also called "Super" in certain places.
+    Meta,
+    // Legacy modifier key.
+    Hyper,
+    Turbo,
+    Abort,
+    Resume,
+    Suspend,
+    /// Found on Sun’s USB keyboard.
+    Again,
+    /// Found on Sun’s USB keyboard.
     Copy,
-    /// Paste key.
-    Paste,
-    /// Plus key.
+    /// Found on Sun’s USB keyboard.
     Cut,
-    /// Plus key.
-    Asterisk,
-    /// Plus key.
-    Plus,
+    /// Found on Sun’s USB keyboard.
+    Find,
+    /// Found on Sun’s USB keyboard.
+    Open,
+    /// Found on Sun’s USB keyboard.
+    Paste,
+    /// Found on Sun’s USB keyboard.
+    Props,
+    /// Found on Sun’s USB keyboard.
+    Select,
+    /// Found on Sun’s USB keyboard.
+    Undo,
+    /// Use for dedicated <kbd>ひらがな</kbd> key found on some Japanese word processing keyboards.
+    Hiragana,
+    /// Use for dedicated <kbd>カタカナ</kbd> key found on some Japanese word processing keyboards.
+    Katakana,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F1,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F2,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F3,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F4,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F5,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F6,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F7,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F8,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F9,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F10,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F11,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F12,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F13,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F14,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F15,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F16,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F17,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F18,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F19,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F20,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F21,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F22,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F23,
+    /// General-purpose function key.
+    /// Usually found at the top of the keyboard.
+    F24,
+    /// General-purpose function key.
+    F25,
+    /// General-purpose function key.
+    F26,
+    /// General-purpose function key.
+    F27,
+    /// General-purpose function key.
+    F28,
+    /// General-purpose function key.
+    F29,
+    /// General-purpose function key.
+    F30,
+    /// General-purpose function key.
+    F31,
+    /// General-purpose function key.
+    F32,
+    /// General-purpose function key.
+    F33,
+    /// General-purpose function key.
+    F34,
+    /// General-purpose function key.
+    F35,
 }
 
 /// A fixed set of cursor icons that available on most OSes.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Default)]
 pub enum CursorIcon {
-    /// Default OS-dependent cursor icon.
+    /// The platform-dependent default cursor. Often rendered as arrow.
+    #[default]
     Default,
-    /// Crosshair cursor icon.
-    Crosshair,
-    /// Hand cursor icon.
-    Hand,
-    /// Arrow cursor icon.
-    Arrow,
-    /// Move cursor icon.
-    Move,
-    /// Text cursor icon.
-    Text,
-    /// Wait cursor icon.
-    Wait,
-    /// Help cursor icon.
-    Help,
-    /// Progress cursor icon.
-    Progress,
-    /// NotAllowed cursor icon.
-    NotAllowed,
-    /// ContextMenu cursor icon.
-    ContextMenu,
-    /// Cell cursor icon.
-    Cell,
-    /// VerticalText cursor icon.
-    VerticalText,
-    /// Alias cursor icon.
-    Alias,
-    /// Copy cursor icon.
-    Copy,
-    /// NoDrop cursor icon.
-    NoDrop,
-    /// Grab cursor icon.
-    Grab,
-    /// Grabbing cursor icon.
-    Grabbing,
-    /// AllScroll cursor icon.
-    AllScroll,
-    /// ZoomIn cursor icon.
-    ZoomIn,
-    /// ZoomOut cursor icon.
-    ZoomOut,
-    /// EResize cursor icon.
-    EResize,
-    /// NResize cursor icon.
-    NResize,
-    /// NeResize cursor icon.
-    NeResize,
-    /// NwResize cursor icon.
-    NwResize,
-    /// SResize cursor icon.
-    SResize,
-    /// SeResize cursor icon.
-    SeResize,
-    /// SwResize cursor icon.
-    SwResize,
-    /// WResize cursor icon.
-    WResize,
-    /// EwResize cursor icon.
-    EwResize,
-    /// NsResize cursor icon.
-    NsResize,
-    /// NeswResize cursor icon.
-    NeswResize,
-    /// NwseResize cursor icon.
-    NwseResize,
-    /// ColResize cursor icon.
-    ColResize,
-    /// RowResize cursor icon.
-    RowResize,
-}
 
-impl Default for CursorIcon {
-    fn default() -> Self {
-        CursorIcon::Default
-    }
+    /// A context menu is available for the object under the cursor. Often
+    /// rendered as an arrow with a small menu-like graphic next to it.
+    ContextMenu,
+
+    /// Help is available for the object under the cursor. Often rendered as a
+    /// question mark or a balloon.
+    Help,
+
+    /// The cursor is a pointer that indicates a link. Often rendered as the
+    /// backside of a hand with the index finger extended.
+    Pointer,
+
+    /// A progress indicator. The program is performing some processing, but is
+    /// different from [`CursorIcon::Wait`] in that the user may still interact
+    /// with the program.
+    Progress,
+
+    /// Indicates that the program is busy and the user should wait. Often
+    /// rendered as a watch or hourglass.
+    Wait,
+
+    /// Indicates that a cell or set of cells may be selected. Often rendered as
+    /// a thick plus-sign with a dot in the middle.
+    Cell,
+
+    /// A simple crosshair (e.g., short line segments resembling a "+" sign).
+    /// Often used to indicate a two dimensional bitmap selection mode.
+    Crosshair,
+
+    /// Indicates text that may be selected. Often rendered as an I-beam.
+    Text,
+
+    /// Indicates vertical-text that may be selected. Often rendered as a
+    /// horizontal I-beam.
+    VerticalText,
+
+    /// Indicates an alias of/shortcut to something is to be created. Often
+    /// rendered as an arrow with a small curved arrow next to it.
+    Alias,
+
+    /// Indicates something is to be copied. Often rendered as an arrow with a
+    /// small plus sign next to it.
+    Copy,
+
+    /// Indicates something is to be moved.
+    Move,
+
+    /// Indicates that the dragged item cannot be dropped at the current cursor
+    /// location. Often rendered as a hand or pointer with a small circle with a
+    /// line through it.
+    NoDrop,
+
+    /// Indicates that the requested action will not be carried out. Often
+    /// rendered as a circle with a line through it.
+    NotAllowed,
+
+    /// Indicates that something can be grabbed (dragged to be moved). Often
+    /// rendered as the backside of an open hand.
+    Grab,
+
+    /// Indicates that something is being grabbed (dragged to be moved). Often
+    /// rendered as the backside of a hand with fingers closed mostly out of
+    /// view.
+    Grabbing,
+
+    /// The east border to be moved.
+    EResize,
+
+    /// The north border to be moved.
+    NResize,
+
+    /// The north-east corner to be moved.
+    NeResize,
+
+    /// The north-west corner to be moved.
+    NwResize,
+
+    /// The south border to be moved.
+    SResize,
+
+    /// The south-east corner to be moved.
+    SeResize,
+
+    /// The south-west corner to be moved.
+    SwResize,
+
+    /// The west border to be moved.
+    WResize,
+
+    /// The east and west borders to be moved.
+    EwResize,
+
+    /// The south and north borders to be moved.
+    NsResize,
+
+    /// The north-east and south-west corners to be moved.
+    NeswResize,
+
+    /// The north-west and south-east corners to be moved.
+    NwseResize,
+
+    /// Indicates that the item/column can be resized horizontally. Often
+    /// rendered as arrows pointing left and right with a vertical bar
+    /// separating them.
+    ColResize,
+
+    /// Indicates that the item/row can be resized vertically. Often rendered as
+    /// arrows pointing up and down with a horizontal bar separating them.
+    RowResize,
+
+    /// Indicates that the something can be scrolled in any direction. Often
+    /// rendered as arrows pointing up, down, left, and right with a dot in the
+    /// middle.
+    AllScroll,
+
+    /// Indicates that something can be zoomed in. Often rendered as a
+    /// magnifying glass with a "+" in the center of the glass.
+    ZoomIn,
+
+    /// Indicates that something can be zoomed in. Often rendered as a
+    /// magnifying glass with a "-" in the center of the glass.
+    ZoomOut,
 }

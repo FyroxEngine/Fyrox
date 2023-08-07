@@ -1111,44 +1111,46 @@ impl Control for TextBox {
         if message.destination() == self.handle() {
             if let Some(msg) = message.data::<WidgetMessage>() {
                 match msg {
-                    &WidgetMessage::Text(symbol)
+                    WidgetMessage::Text(text)
                         if !ui.keyboard_modifiers().control
                             && !ui.keyboard_modifiers().alt
                             && self.editable =>
                     {
-                        let insert = if let Some(filter) = self.filter.as_ref() {
-                            let filter = &mut *filter.borrow_mut();
-                            filter(symbol)
-                        } else {
-                            true
-                        };
-                        if insert {
-                            if let Some(range) = self.selection_range {
-                                self.remove_range(ui, range);
-                                self.selection_range = None;
-                            }
-                            if !symbol.is_control() {
-                                self.insert_char(symbol, ui);
+                        for symbol in text.chars() {
+                            let insert = if let Some(filter) = self.filter.as_ref() {
+                                let filter = &mut *filter.borrow_mut();
+                                filter(symbol)
+                            } else {
+                                true
+                            };
+                            if insert {
+                                if let Some(range) = self.selection_range {
+                                    self.remove_range(ui, range);
+                                    self.selection_range = None;
+                                }
+                                if !symbol.is_control() {
+                                    self.insert_char(symbol, ui);
+                                }
                             }
                         }
                     }
                     WidgetMessage::KeyDown(code) => {
                         match code {
-                            KeyCode::Up => {
+                            KeyCode::ArrowUp => {
                                 self.move_caret_y(
                                     1,
                                     VerticalDirection::Up,
                                     ui.keyboard_modifiers().shift,
                                 );
                             }
-                            KeyCode::Down => {
+                            KeyCode::ArrowDown => {
                                 self.move_caret_y(
                                     1,
                                     VerticalDirection::Down,
                                     ui.keyboard_modifiers().shift,
                                 );
                             }
-                            KeyCode::Right => {
+                            KeyCode::ArrowRight => {
                                 if ui.keyboard_modifiers.control {
                                     let prev_position = self.caret_position;
                                     let next_word_position =
@@ -1176,7 +1178,7 @@ impl Control for TextBox {
                                     );
                                 }
                             }
-                            KeyCode::Left => {
+                            KeyCode::ArrowLeft => {
                                 if ui.keyboard_modifiers.control {
                                     let prev_position = self.caret_position;
                                     let prev_word_position =
@@ -1211,7 +1213,7 @@ impl Control for TextBox {
                                     self.remove_char(HorizontalDirection::Right, ui);
                                 }
                             }
-                            KeyCode::NumpadEnter | KeyCode::Return if self.editable => {
+                            KeyCode::NumpadEnter | KeyCode::Enter if self.editable => {
                                 if self.multiline {
                                     self.insert_char('\n', ui);
                                 } else if self.commit_mode == TextCommitMode::LostFocusPlusEnter {
@@ -1292,7 +1294,7 @@ impl Control for TextBox {
                                     self.selection_range = None;
                                 }
                             }
-                            KeyCode::A if ui.keyboard_modifiers().control => {
+                            KeyCode::KeyA if ui.keyboard_modifiers().control => {
                                 let text = self.formatted_text.borrow();
                                 if let Some(last_line) = &text.get_lines().last() {
                                     self.selection_range = Some(SelectionRange {
@@ -1304,7 +1306,7 @@ impl Control for TextBox {
                                     });
                                 }
                             }
-                            KeyCode::C if ui.keyboard_modifiers().control => {
+                            KeyCode::KeyC if ui.keyboard_modifiers().control => {
                                 if let Some(mut clipboard) = ui.clipboard_mut() {
                                     if let Some(selection_range) = self.selection_range.as_ref() {
                                         if let (Some(begin), Some(end)) = (
@@ -1326,7 +1328,7 @@ impl Control for TextBox {
                                     }
                                 }
                             }
-                            KeyCode::V if ui.keyboard_modifiers().control => {
+                            KeyCode::KeyV if ui.keyboard_modifiers().control => {
                                 if let Some(mut clipboard) = ui.clipboard_mut() {
                                     if let Ok(content) = clipboard.get_contents() {
                                         if let Some(selection_range) = self.selection_range {

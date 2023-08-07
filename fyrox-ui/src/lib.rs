@@ -2023,7 +2023,11 @@ impl UserInterface {
                     event_processed = true;
                 }
             }
-            OsEvent::KeyboardInput { button, state } => {
+            OsEvent::KeyboardInput {
+                button,
+                state,
+                text,
+            } => {
                 if self.keyboard_focus_node.is_some() {
                     self.send_message(match state {
                         ButtonState::Pressed => WidgetMessage::key_down(
@@ -2038,16 +2042,13 @@ impl UserInterface {
                         ),
                     });
 
-                    event_processed = true;
-                }
-            }
-            OsEvent::Character(unicode) => {
-                if self.keyboard_focus_node.is_some() {
-                    self.send_message(WidgetMessage::text(
-                        self.keyboard_focus_node,
-                        MessageDirection::FromWidget,
-                        *unicode,
-                    ));
+                    if !text.is_empty() {
+                        self.send_message(WidgetMessage::text(
+                            self.keyboard_focus_node,
+                            MessageDirection::FromWidget,
+                            text.clone(),
+                        ));
+                    }
 
                     event_processed = true;
                 }

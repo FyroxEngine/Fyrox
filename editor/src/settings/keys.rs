@@ -38,35 +38,35 @@ pub struct KeyBindings {
 }
 
 fn default_focus_hotkey() -> HotKey {
-    HotKey::from_key_code(KeyCode::F)
+    HotKey::from_key_code(KeyCode::KeyF)
 }
 
 impl Default for KeyBindings {
     fn default() -> Self {
         Self {
-            move_forward: KeyBinding::from_key_code(KeyCode::W),
-            move_back: KeyBinding::from_key_code(KeyCode::S),
-            move_left: KeyBinding::from_key_code(KeyCode::A),
-            move_right: KeyBinding::from_key_code(KeyCode::D),
-            move_up: KeyBinding::from_key_code(KeyCode::Q),
-            move_down: KeyBinding::from_key_code(KeyCode::E),
-            speed_up: KeyBinding::from_key_code(KeyCode::LControl),
-            slow_down: KeyBinding::from_key_code(KeyCode::LShift),
+            move_forward: KeyBinding::from_key_code(KeyCode::KeyW),
+            move_back: KeyBinding::from_key_code(KeyCode::KeyS),
+            move_left: KeyBinding::from_key_code(KeyCode::KeyA),
+            move_right: KeyBinding::from_key_code(KeyCode::KeyD),
+            move_up: KeyBinding::from_key_code(KeyCode::KeyQ),
+            move_down: KeyBinding::from_key_code(KeyCode::KeyE),
+            speed_up: KeyBinding::from_key_code(KeyCode::ControlLeft),
+            slow_down: KeyBinding::from_key_code(KeyCode::ShiftLeft),
 
-            undo: HotKey::ctrl_key(KeyCode::Z),
-            redo: HotKey::ctrl_key(KeyCode::Y),
-            enable_select_mode: HotKey::from_key_code(KeyCode::Key1),
-            enable_move_mode: HotKey::from_key_code(KeyCode::Key2),
-            enable_rotate_mode: HotKey::from_key_code(KeyCode::Key3),
-            enable_scale_mode: HotKey::from_key_code(KeyCode::Key4),
-            enable_navmesh_mode: HotKey::from_key_code(KeyCode::Key5),
-            enable_terrain_mode: HotKey::from_key_code(KeyCode::Key6),
-            save_scene: HotKey::ctrl_key(KeyCode::S),
-            load_scene: HotKey::ctrl_key(KeyCode::L),
-            copy_selection: HotKey::ctrl_key(KeyCode::C),
-            paste: HotKey::ctrl_key(KeyCode::V),
-            new_scene: HotKey::ctrl_key(KeyCode::N),
-            close_scene: HotKey::ctrl_key(KeyCode::Q),
+            undo: HotKey::ctrl_key(KeyCode::KeyZ),
+            redo: HotKey::ctrl_key(KeyCode::KeyY),
+            enable_select_mode: HotKey::from_key_code(KeyCode::Digit1),
+            enable_move_mode: HotKey::from_key_code(KeyCode::Digit2),
+            enable_rotate_mode: HotKey::from_key_code(KeyCode::Digit3),
+            enable_scale_mode: HotKey::from_key_code(KeyCode::Digit4),
+            enable_navmesh_mode: HotKey::from_key_code(KeyCode::Digit5),
+            enable_terrain_mode: HotKey::from_key_code(KeyCode::Digit6),
+            save_scene: HotKey::ctrl_key(KeyCode::KeyS),
+            load_scene: HotKey::ctrl_key(KeyCode::KeyL),
+            copy_selection: HotKey::ctrl_key(KeyCode::KeyC),
+            paste: HotKey::ctrl_key(KeyCode::KeyV),
+            new_scene: HotKey::ctrl_key(KeyCode::KeyN),
+            close_scene: HotKey::ctrl_key(KeyCode::KeyQ),
             remove_selection: HotKey::from_key_code(KeyCode::Delete),
             focus: default_focus_hotkey(),
         }

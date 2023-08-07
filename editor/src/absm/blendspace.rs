@@ -597,7 +597,7 @@ impl BlendSpaceFieldPointBuilder {
         let point = BlendSpaceFieldPoint {
             widget: self
                 .widget_builder
-                .with_cursor(Some(CursorIcon::Hand))
+                .with_cursor(Some(CursorIcon::Grab))
                 .with_clip_to_bounds(false)
                 .with_child(
                     TextBuilder::new(
