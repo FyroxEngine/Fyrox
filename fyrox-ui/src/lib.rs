@@ -2571,8 +2571,7 @@ mod test {
             text: "A".to_string(),
         });
 
-        let mut msg =
-            WidgetMessage::key_down(text_box, MessageDirection::FromWidget, KeyCode::KeyA);
+        let msg = WidgetMessage::key_down(text_box, MessageDirection::FromWidget, KeyCode::KeyA);
         msg.set_handled(true);
         assert_eq!(ui.poll_message(), Some(msg));
 
