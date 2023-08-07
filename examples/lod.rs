@@ -20,7 +20,7 @@ use fyrox::{
     engine::{
         Engine, EngineInitParams, GraphicsContext, GraphicsContextParams, SerializationContext,
     },
-    event::{ElementState, Event, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
         message::MessageDirection,
@@ -28,6 +28,7 @@ use fyrox::{
         widget::WidgetBuilder,
         BuildContext, UiNode,
     },
+    keyboard::KeyCode,
     resource::model::{Model, ModelResourceExtension},
     scene::{
         base::{LevelOfDetail, LodControlledObject, LodGroup},
@@ -35,9 +36,9 @@ use fyrox::{
         Scene,
     },
     utils::translate_event,
+    window::WindowAttributes,
 };
 use std::time::Instant;
-use winit::window::WindowAttributes;
 
 fn create_ui(ctx: &mut BuildContext) -> Handle<UiNode> {
     TextBuilder::new(WidgetBuilder::new()).build(ctx)
@@ -207,8 +208,6 @@ fn main() {
                 previous = Instant::now();
                 lag += elapsed.as_secs_f32();
                 while lag >= fixed_timestep {
-
-
                     // ************************
                     // Put your game logic here.
                     // ************************
@@ -232,16 +231,22 @@ fn main() {
 
                     scene.graph[model_handle]
                         .local_transform_mut()
-                        .set_rotation(UnitQuaternion::from_axis_angle(&Vector3::y_axis(), model_angle));
+                        .set_rotation(UnitQuaternion::from_axis_angle(
+                            &Vector3::y_axis(),
+                            model_angle,
+                        ));
 
                     scene.graph[camera]
                         .local_transform_mut()
                         .set_position(Vector3::new(0.0, 1.5, -distance));
 
-                    if let GraphicsContext::Initialized(ref ctx) =engine.graphics_context {
+                    if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
                         let fps = ctx.renderer.get_statistics().frames_per_second;
                         let text = format!(
-                            "Example 08 - Level of Detail\nUse [A][D] keys to rotate model, [W][S] to zoom in/out.\nFPS: {}\nTriangles rendered: {}",
+                            "Example 08 - Level of Detail\n\
+                            Use [A][D] keys to rotate model, \
+                            [W][S] to zoom in/out.\nFPS: {}\n\
+                            Triangles rendered: {}",
                             fps,
                             ctx.renderer.get_statistics().geometry.triangles_rendered
                         );
@@ -284,37 +289,34 @@ fn main() {
                 engine.render().unwrap();
             }
             Event::WindowEvent { event, .. } => {
-                match event {
+                match &event {
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                     WindowEvent::Resized(size) => {
                         // It is very important to handle Resized event from window, because
                         // renderer knows nothing about window size - it must be notified
                         // directly when window size has changed.
-                        if let Err(e) = engine.set_frame_size(size.into()) {
-                            Log::writeln(MessageKind::Error, format!("Unable to set frame size: {:?}", e));
+                        if let Err(e) = engine.set_frame_size((*size).into()) {
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!("Unable to set frame size: {:?}", e),
+                            );
                         }
                     }
-                    WindowEvent::KeyboardInput { input, .. } => {
-                        if let Some(key_code) = input.virtual_keycode {
-                            match key_code {
-                                VirtualKeyCode::A => {
-                                    input_controller.rotate_left =
-                                        input.state == ElementState::Pressed
-                                }
-                                VirtualKeyCode::D => {
-                                    input_controller.rotate_right =
-                                        input.state == ElementState::Pressed
-                                }
-                                VirtualKeyCode::W => {
-                                    input_controller.forward = input.state == ElementState::Pressed
-                                }
-                                VirtualKeyCode::S => {
-                                    input_controller.backward = input.state == ElementState::Pressed
-                                }
-                                _ => (),
-                            }
+                    WindowEvent::KeyboardInput { event: input, .. } => match input.physical_key {
+                        KeyCode::KeyA => {
+                            input_controller.rotate_left = input.state == ElementState::Pressed
                         }
-                    }
+                        KeyCode::KeyD => {
+                            input_controller.rotate_right = input.state == ElementState::Pressed
+                        }
+                        KeyCode::KeyW => {
+                            input_controller.forward = input.state == ElementState::Pressed
+                        }
+                        KeyCode::KeyS => {
+                            input_controller.backward = input.state == ElementState::Pressed
+                        }
+                        _ => (),
+                    },
                     _ => (),
                 }
 

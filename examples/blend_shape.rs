@@ -11,7 +11,7 @@ use fyrox::{
         pool::Handle,
     },
     engine::{executor::Executor, GraphicsContext, GraphicsContextParams},
-    event::{ElementState, Event, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, WindowEvent},
     event_loop::ControlFlow,
     gui::{
         grid::{Column, GridBuilder, Row},
@@ -34,6 +34,7 @@ use fyrox::{
     window::WindowAttributes,
 };
 use std::collections::BTreeSet;
+use winit::keyboard::KeyCode;
 
 struct GameSceneLoader {
     scene: Scene,
@@ -224,20 +225,18 @@ impl Plugin for Game {
         _control_flow: &mut ControlFlow,
     ) {
         if let Event::WindowEvent {
-            event: WindowEvent::KeyboardInput { input, .. },
+            event: WindowEvent::KeyboardInput { event: input, .. },
             ..
         } = event
         {
-            if let Some(key_code) = input.virtual_keycode {
-                match key_code {
-                    VirtualKeyCode::A => {
-                        self.input_controller.rotate_left = input.state == ElementState::Pressed
-                    }
-                    VirtualKeyCode::D => {
-                        self.input_controller.rotate_right = input.state == ElementState::Pressed
-                    }
-                    _ => (),
+            match input.physical_key {
+                KeyCode::KeyA => {
+                    self.input_controller.rotate_left = input.state == ElementState::Pressed
                 }
+                KeyCode::KeyD => {
+                    self.input_controller.rotate_right = input.state == ElementState::Pressed
+                }
+                _ => (),
             }
         }
     }

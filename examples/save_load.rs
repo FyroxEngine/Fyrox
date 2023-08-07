@@ -26,18 +26,18 @@ use fyrox::{
         visitor::{Visit, VisitResult, Visitor},
     },
     engine::GraphicsContext,
-    event::{Event, VirtualKeyCode, WindowEvent},
+    event::{Event, WindowEvent},
     event_loop::ControlFlow,
     gui::{
         message::MessageDirection, progress_bar::ProgressBarMessage, text::TextMessage,
         widget::WidgetMessage,
     },
+    keyboard::KeyCode,
     renderer::QualitySettings,
     scene::SceneLoader,
     utils::translate_event,
 };
-use std::path::Path;
-use std::time::Instant;
+use std::{path::Path, time::Instant};
 
 // Start implementing Visit trait for simple types which are used by more complex.
 // At first implement trait for LocomotionMachine.
@@ -171,7 +171,6 @@ fn main() {
                 previous = Instant::now();
                 lag += elapsed.as_secs_f32();
                 while lag >= fixed_timestep {
-
                     // ************************
                     // Put your game logic here.
                     // ************************
@@ -236,7 +235,9 @@ fn main() {
                     if let GraphicsContext::Initialized(ref ctx) = game.engine.graphics_context {
                         let fps = ctx.renderer.get_statistics().frames_per_second;
                         let debug_text = format!(
-                            "Example 06 - Save/load\n[W][S][A][D] - walk, [SPACE] - jump.\nFPS: {}\nUse [1][2][3][4] to select graphics quality.\nUse F5 to save game, F9 to load.",
+                            "Example 06 - Save/load\n[W][S][A][D] - walk, \
+                            [SPACE] - jump.\nFPS: {}\nUse [1][2][3][4] to select \
+                            graphics quality.\nUse F5 to save game, F9 to load.",
                             fps
                         );
                         game.engine.user_interface.send_message(TextMessage::text(
@@ -257,7 +258,8 @@ fn main() {
                         // ************************
                     }
 
-                    game.engine.update(fixed_timestep, control_flow, &mut lag, Default::default());
+                    game.engine
+                        .update(fixed_timestep, control_flow, &mut lag, Default::default());
 
                     lag -= fixed_timestep;
                 }
@@ -268,7 +270,9 @@ fn main() {
                 }
             }
             Event::Resumed => {
-                game.engine.initialize_graphics_context(window_target).unwrap();
+                game.engine
+                    .initialize_graphics_context(window_target)
+                    .unwrap();
             }
             Event::Suspended => {
                 game.engine.destroy_graphics_context().unwrap();
@@ -281,67 +285,71 @@ fn main() {
                 println!("{:?}", fyrox::core::profiler::print());
             }
             Event::WindowEvent { event, .. } => {
-                match event {
+                match &event {
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                     WindowEvent::Resized(size) => {
                         // It is very important to handle Resized event from window, because
                         // renderer knows nothing about window size - it must be notified
                         // directly when window size has changed.
-                        if let Err(e) = game.engine.set_frame_size(size.into()) {
-                            Log::writeln(MessageKind::Error, format!("Unable to set frame size: {:?}", e));
+                        if let Err(e) = game.engine.set_frame_size((*size).into()) {
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!("Unable to set frame size: {:?}", e),
+                            );
                         }
 
                         // Root UI node should be resized too, otherwise progress bar will stay
                         // in wrong position after resize.
-                        if let GraphicsContext::Initialized(ref ctx) = game.engine.graphics_context {
+                        if let GraphicsContext::Initialized(ref ctx) = game.engine.graphics_context
+                        {
                             let size = size.to_logical(ctx.window.scale_factor());
-                            game.engine.user_interface.send_message(WidgetMessage::width(
-                                interface.root,
-                                MessageDirection::ToWidget,
-                                size.width,
-                            ));
-                            game.engine.user_interface.send_message(WidgetMessage::height(
-                                interface.root,
-                                MessageDirection::ToWidget,
-                                size.height,
-                            ));
+                            game.engine
+                                .user_interface
+                                .send_message(WidgetMessage::width(
+                                    interface.root,
+                                    MessageDirection::ToWidget,
+                                    size.width,
+                                ));
+                            game.engine
+                                .user_interface
+                                .send_message(WidgetMessage::height(
+                                    interface.root,
+                                    MessageDirection::ToWidget,
+                                    size.height,
+                                ));
                         }
                     }
-                    WindowEvent::KeyboardInput { input, .. } => {
-                        if let Some(code) = input.virtual_keycode {
-                            // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
-                            if let Some(game_scene) = game.game_scene.as_mut() {
-                                game_scene.player.handle_key_event(&input, fixed_timestep);
-                            }
+                    WindowEvent::KeyboardInput { event: input, .. } => {
+                        if let Some(game_scene) = game.game_scene.as_mut() {
+                            game_scene.player.handle_key_event(&input, fixed_timestep);
+                        }
 
-                            let settings = match code {
-                                VirtualKeyCode::Key1 => Some(QualitySettings::ultra()),
-                                VirtualKeyCode::Key2 => Some(QualitySettings::high()),
-                                VirtualKeyCode::Key3 => Some(QualitySettings::medium()),
-                                VirtualKeyCode::Key4 => Some(QualitySettings::low()),
-                                _ => None
+                        let settings = match input.physical_key {
+                            KeyCode::Digit1 => Some(QualitySettings::ultra()),
+                            KeyCode::Digit2 => Some(QualitySettings::high()),
+                            KeyCode::Digit3 => Some(QualitySettings::medium()),
+                            KeyCode::Digit4 => Some(QualitySettings::low()),
+                            _ => None,
+                        };
+
+                        if let Some(settings) = settings {
+                            if let GraphicsContext::Initialized(ref mut ctx) =
+                                game.engine.graphics_context
+                            {
+                                ctx.renderer
+                                    .set_quality_settings(&fix_shadows_distance(settings))
+                                    .unwrap();
+                            }
+                        }
+
+                        // Prevent saving/loading while example is starting.
+                        if game.game_scene.is_some() {
+                            // Save/load bound to classic F5 and F9 keys.
+                            match input.physical_key {
+                                KeyCode::F5 => save(&mut game),
+                                KeyCode::F9 => block_on(load(&mut game)),
+                                _ => (),
                             };
-
-                            if let Some(settings) = settings {
-                                if let GraphicsContext::Initialized(ref mut ctx) = game.engine.graphics_context {
-                                 ctx
-                                        .renderer
-                                        .set_quality_settings(&fix_shadows_distance(settings))
-                                        .unwrap();
-                                }
-                            }
-
-                            // Prevent saving/loading while example is starting.
-                            if game.game_scene.is_some() {
-                                // Save/load bound to classic F5 and F9 keys.
-                                match code {
-                                    VirtualKeyCode::F5 => save(&mut game),
-                                    VirtualKeyCode::F9 =>
-                                        block_on(load(&mut game))
-                                    ,
-                                    _ => ()
-                                };
-                            }
                         }
                     }
                     _ => (),
@@ -356,7 +364,9 @@ fn main() {
             }
             Event::DeviceEvent { event, .. } => {
                 if let Some(game_scene) = game.game_scene.as_mut() {
-                    game_scene.player.handle_device_event(&event, fixed_timestep);
+                    game_scene
+                        .player
+                        .handle_device_event(&event, fixed_timestep);
                 }
             }
             _ => *control_flow = ControlFlow::Poll,

@@ -19,7 +19,7 @@ use fyrox::{
         sstorage::ImmutableString,
     },
     engine::{executor::Executor, GraphicsContext, GraphicsContextParams},
-    event::{ElementState, Event, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, WindowEvent},
     event_loop::ControlFlow,
     gui::{
         message::MessageDirection,
@@ -45,6 +45,7 @@ use fyrox::{
     },
     window::WindowAttributes,
 };
+use winit::keyboard::KeyCode;
 
 struct SceneLoader {
     scene: Scene,
@@ -237,20 +238,18 @@ impl Plugin for Game {
         _control_flow: &mut ControlFlow,
     ) {
         if let Event::WindowEvent {
-            event: WindowEvent::KeyboardInput { input, .. },
+            event: WindowEvent::KeyboardInput { event: input, .. },
             ..
         } = event
         {
-            if let Some(key_code) = input.virtual_keycode {
-                match key_code {
-                    VirtualKeyCode::A => {
-                        self.input_controller.rotate_left = input.state == ElementState::Pressed
-                    }
-                    VirtualKeyCode::D => {
-                        self.input_controller.rotate_right = input.state == ElementState::Pressed
-                    }
-                    _ => (),
+            match input.physical_key {
+                KeyCode::KeyA => {
+                    self.input_controller.rotate_left = input.state == ElementState::Pressed
                 }
+                KeyCode::KeyD => {
+                    self.input_controller.rotate_right = input.state == ElementState::Pressed
+                }
+                _ => (),
             }
         }
     }

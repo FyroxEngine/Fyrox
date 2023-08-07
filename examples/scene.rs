@@ -20,7 +20,7 @@ use fyrox::{
     engine::{
         Engine, EngineInitParams, GraphicsContext, GraphicsContextParams, SerializationContext,
     },
-    event::{ElementState, Event, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
         message::MessageDirection,
@@ -28,12 +28,13 @@ use fyrox::{
         widget::WidgetBuilder,
         BuildContext, UiNode,
     },
+    keyboard::KeyCode,
     resource::model::{Model, ModelResourceExtension},
     scene::{base::BaseBuilder, node::Node, pivot::PivotBuilder, Scene},
     utils::translate_event,
+    window::WindowAttributes,
 };
 use std::{sync::Arc, time::Instant};
-use winit::window::WindowAttributes;
 
 fn create_ui(ctx: &mut BuildContext) -> Handle<UiNode> {
     TextBuilder::new(WidgetBuilder::new()).build(ctx)
@@ -202,35 +203,28 @@ fn main() {
                 engine.render().unwrap();
             }
             Event::WindowEvent { event, .. } => {
-                match event {
+                match &event {
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                     WindowEvent::Resized(size) => {
                         // It is very important to handle Resized event from window, because
                         // renderer knows nothing about window size - it must be notified
                         // directly when window size has changed.
-                        if let Err(e) = engine.set_frame_size(size.into()) {
+                        if let Err(e) = engine.set_frame_size((*size).into()) {
                             Log::writeln(
                                 MessageKind::Error,
                                 format!("Unable to set frame size: {:?}", e),
                             );
                         }
                     }
-                    WindowEvent::KeyboardInput { input, .. } => {
-                        // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
-                        if let Some(key_code) = input.virtual_keycode {
-                            match key_code {
-                                VirtualKeyCode::A => {
-                                    input_controller.rotate_left =
-                                        input.state == ElementState::Pressed
-                                }
-                                VirtualKeyCode::D => {
-                                    input_controller.rotate_right =
-                                        input.state == ElementState::Pressed
-                                }
-                                _ => (),
-                            }
+                    WindowEvent::KeyboardInput { event: input, .. } => match input.physical_key {
+                        KeyCode::KeyA => {
+                            input_controller.rotate_left = input.state == ElementState::Pressed
                         }
-                    }
+                        KeyCode::KeyD => {
+                            input_controller.rotate_right = input.state == ElementState::Pressed
+                        }
+                        _ => (),
+                    },
                     _ => (),
                 }
 

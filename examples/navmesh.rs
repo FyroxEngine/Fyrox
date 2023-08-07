@@ -7,7 +7,6 @@
 pub mod shared;
 
 use crate::shared::create_camera;
-use fyrox::resource::model::{Model, ModelResourceExtension};
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
@@ -20,7 +19,7 @@ use fyrox::{
     },
     dpi::LogicalPosition,
     engine::{executor::Executor, GraphicsContext, GraphicsContextParams},
-    event::{ElementState, Event, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, WindowEvent},
     event_loop::ControlFlow,
     gui::{
         message::MessageDirection,
@@ -28,16 +27,16 @@ use fyrox::{
         widget::WidgetBuilder,
         BuildContext, UiNode,
     },
-    material::SharedMaterial,
-    material::{Material, PropertyValue},
+    keyboard::KeyCode,
+    material::{Material, PropertyValue, SharedMaterial},
     plugin::{Plugin, PluginConstructor, PluginContext},
-    scene::mesh::surface::SurfaceSharedData,
+    resource::model::{Model, ModelResourceExtension},
     scene::{
         base::BaseBuilder,
         debug::Line,
         graph::physics::{Intersection, RayCastOptions},
         mesh::{
-            surface::{SurfaceBuilder, SurfaceData},
+            surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
             MeshBuilder,
         },
         node::Node,
@@ -239,22 +238,15 @@ impl Plugin for Game {
     ) {
         if let Event::WindowEvent { event, .. } = event {
             match event {
-                WindowEvent::KeyboardInput { input, .. } => {
-                    // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
-                    if let Some(key_code) = input.virtual_keycode {
-                        match key_code {
-                            VirtualKeyCode::A => {
-                                self.input_controller.rotate_left =
-                                    input.state == ElementState::Pressed
-                            }
-                            VirtualKeyCode::D => {
-                                self.input_controller.rotate_right =
-                                    input.state == ElementState::Pressed
-                            }
-                            _ => (),
-                        }
+                WindowEvent::KeyboardInput { event: input, .. } => match input.physical_key {
+                    KeyCode::KeyA => {
+                        self.input_controller.rotate_left = input.state == ElementState::Pressed
                     }
-                }
+                    KeyCode::KeyD => {
+                        self.input_controller.rotate_right = input.state == ElementState::Pressed
+                    }
+                    _ => (),
+                },
                 WindowEvent::CursorMoved { position, .. } => {
                     if let GraphicsContext::Initialized(ref graphics_context) =
                         context.graphics_context
