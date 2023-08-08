@@ -440,6 +440,8 @@ mod test {
     use crate::math::ray::Ray;
     use crate::math::Vector3;
 
+    use super::IntersectionResult;
+
     #[test]
     fn intersection() {
         let triangle = [
@@ -449,5 +451,60 @@ mod test {
         ];
         let ray = Ray::from_two_points(Vector3::new(0.0, 0.0, -2.0), Vector3::new(0.0, 0.0, -1.0));
         assert!(ray.triangle_intersection_point(&triangle).is_none());
+    }
+
+    #[test]
+    fn default_for_ray() {
+        let ray = Ray::default();
+        assert_eq!(ray.origin, Vector3::new(0.0, 0.0, 0.0));
+        assert_eq!(ray.dir, Vector3::new(0.0, 0.0, 1.0));
+    }
+
+    #[test]
+    fn intersection_result_from_slice() {
+        let ir = IntersectionResult::from_slice(&[0.0, -1.0, 1.0]);
+        assert_eq!(ir.min, -1.0);
+        assert_eq!(ir.max, 1.0);
+    }
+
+    #[test]
+    fn intersection_result_from_set() {
+        assert!(IntersectionResult::from_set(&[None, None]).is_none());
+
+        let ir = IntersectionResult::from_set(&[
+            Some(IntersectionResult {
+                min: -1.0,
+                max: 0.0,
+            }),
+            Some(IntersectionResult { min: 0.0, max: 1.0 }),
+        ]);
+        assert!(ir.is_some());
+        assert_eq!(ir.unwrap().min, -1.0);
+        assert_eq!(ir.unwrap().max, 1.0);
+    }
+
+    #[test]
+    fn intersection_result_merge() {
+        let mut ir = IntersectionResult {
+            min: -1.0,
+            max: 1.0,
+        };
+        ir.merge(-10.0);
+        ir.merge(10.0);
+
+        assert_eq!(ir.min, -10.0);
+        assert_eq!(ir.max, 10.0);
+    }
+
+    #[test]
+    fn intersection_result_merge_slice() {
+        let mut ir = IntersectionResult {
+            min: -1.0,
+            max: 1.0,
+        };
+        ir.merge_slice(&[-10.0, 0.0, 10.0]);
+
+        assert_eq!(ir.min, -10.0);
+        assert_eq!(ir.max, 10.0);
     }
 }
