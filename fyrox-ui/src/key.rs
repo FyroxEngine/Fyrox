@@ -155,12 +155,12 @@ impl Control for HotKeyEditor {
                     if self.editing
                         && !matches!(
                             *key,
-                            KeyCode::LControl
-                                | KeyCode::RControl
-                                | KeyCode::LShift
-                                | KeyCode::RShift
-                                | KeyCode::LAlt
-                                | KeyCode::RAlt
+                            KeyCode::ControlLeft
+                                | KeyCode::ControlRight
+                                | KeyCode::ShiftLeft
+                                | KeyCode::ShiftRight
+                                | KeyCode::AltLeft
+                                | KeyCode::AltRight
                         )
                     {
                         ui.send_message(HotKeyEditorMessage::value(

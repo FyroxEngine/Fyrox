@@ -387,7 +387,7 @@ impl<T: NumericType> Control for NumericUpDown<T> {
                     WidgetMessage::Unfocus => {
                         self.try_parse_value(ui);
                     }
-                    WidgetMessage::KeyDown(KeyCode::Return) => {
+                    WidgetMessage::KeyDown(KeyCode::Enter) => {
                         self.try_parse_value(ui);
 
                         message.set_handled(true);

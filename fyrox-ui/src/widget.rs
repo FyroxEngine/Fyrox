@@ -79,7 +79,7 @@ pub enum WidgetMessage {
     /// Initiated when widget is in focus and user types something on a keyboard.
     ///
     /// Direction: **From/To UI**.
-    Text(char),
+    Text(String),
 
     /// Initiated when widget is in focus and user presses a button on a keyboard.
     ///
@@ -507,7 +507,7 @@ impl WidgetMessage {
     define_constructor!(
         /// Creates [`WidgetMessage::Text`] message. This method is for internal use only, and should not
         /// be used anywhere else.
-        WidgetMessage:Text => fn text(char), layout: false
+        WidgetMessage:Text => fn text(String), layout: false
     );
 
     define_constructor!(

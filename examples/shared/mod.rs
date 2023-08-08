@@ -21,7 +21,7 @@ use fyrox::{
         uuid::{uuid, Uuid},
     },
     engine::{Engine, EngineInitParams, SerializationContext},
-    event::{DeviceEvent, ElementState, VirtualKeyCode},
+    event::{DeviceEvent, ElementState},
     event_loop::EventLoop,
     gui::{
         formatted_text::WrapMode,
@@ -32,6 +32,7 @@ use fyrox::{
         HorizontalAlignment, Thickness, VerticalAlignment,
     },
     gui::{BuildContext, UiNode},
+    keyboard::KeyCode,
     renderer::QualitySettings,
     resource::texture::TextureWrapMode,
     scene::{
@@ -758,22 +759,14 @@ impl Player {
         }
     }
 
-    pub fn handle_key_event(&mut self, key: &fyrox::event::KeyboardInput, _dt: f32) {
-        if let Some(key_code) = key.virtual_keycode {
-            match key_code {
-                VirtualKeyCode::W => {
-                    self.controller.walk_forward = key.state == ElementState::Pressed
-                }
-                VirtualKeyCode::S => {
-                    self.controller.walk_backward = key.state == ElementState::Pressed
-                }
-                VirtualKeyCode::A => self.controller.walk_left = key.state == ElementState::Pressed,
-                VirtualKeyCode::D => {
-                    self.controller.walk_right = key.state == ElementState::Pressed
-                }
-                VirtualKeyCode::Space => self.controller.jump = key.state == ElementState::Pressed,
-                _ => (),
-            }
+    pub fn handle_key_event(&mut self, key: &fyrox::event::KeyEvent, _dt: f32) {
+        match key.physical_key {
+            KeyCode::KeyW => self.controller.walk_forward = key.state == ElementState::Pressed,
+            KeyCode::KeyS => self.controller.walk_backward = key.state == ElementState::Pressed,
+            KeyCode::KeyA => self.controller.walk_left = key.state == ElementState::Pressed,
+            KeyCode::KeyD => self.controller.walk_right = key.state == ElementState::Pressed,
+            KeyCode::Space => self.controller.jump = key.state == ElementState::Pressed,
+            _ => (),
         }
     }
 }

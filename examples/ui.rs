@@ -20,7 +20,7 @@ use fyrox::{
     engine::{
         Engine, EngineInitParams, GraphicsContext, GraphicsContextParams, SerializationContext,
     },
-    event::{ElementState, Event, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
         border::BorderBuilder,
@@ -44,6 +44,7 @@ use fyrox::{
     window::{Fullscreen, WindowAttributes},
 };
 use std::{sync::Arc, time::Instant};
+use winit::keyboard::KeyCode;
 
 const DEFAULT_MODEL_ROTATION: f32 = 180.0;
 const DEFAULT_MODEL_SCALE: f32 = 0.05;
@@ -481,26 +482,24 @@ fn main() {
                 engine.render().unwrap();
             }
             Event::WindowEvent { event, .. } => {
-                match event {
+                match &event {
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                     WindowEvent::Resized(size) => {
                         // It is very important to handle Resized event from window, because
                         // renderer knows nothing about window size - it must be notified
                         // directly when window size has changed.
-                        if let Err(e) = engine.set_frame_size(size.into()) {
+                        if let Err(e) = engine.set_frame_size((*size).into()) {
                             Log::writeln(
                                 MessageKind::Error,
                                 format!("Unable to set frame size: {:?}", e),
                             );
                         }
                     }
-                    WindowEvent::KeyboardInput { input, .. } => {
-                        if let Some(key_code) = input.virtual_keycode {
-                            if input.state == ElementState::Pressed
-                                && key_code == VirtualKeyCode::Escape
-                            {
-                                *control_flow = ControlFlow::Exit;
-                            }
+                    WindowEvent::KeyboardInput { event: input, .. } => {
+                        if input.state == ElementState::Pressed
+                            && input.physical_key == KeyCode::Escape
+                        {
+                            *control_flow = ControlFlow::Exit;
                         }
                     }
                     _ => (),
@@ -512,9 +511,6 @@ fn main() {
                 if let Some(os_event) = translate_event(&event) {
                     engine.user_interface.process_os_event(&os_event);
                 }
-            }
-            Event::DeviceEvent { .. } => {
-                // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
             }
             _ => *control_flow = ControlFlow::Poll,
         }

@@ -558,7 +558,7 @@ impl InteractionMode for EditNavmeshMode {
 
                     true
                 }
-                KeyCode::A if engine.user_interface.keyboard_modifiers().control => {
+                KeyCode::KeyA if engine.user_interface.keyboard_modifiers().control => {
                     if let Some(navmesh) = scene
                         .graph
                         .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())

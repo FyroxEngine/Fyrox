@@ -2023,7 +2023,11 @@ impl UserInterface {
                     event_processed = true;
                 }
             }
-            OsEvent::KeyboardInput { button, state } => {
+            OsEvent::KeyboardInput {
+                button,
+                state,
+                text,
+            } => {
                 if self.keyboard_focus_node.is_some() {
                     self.send_message(match state {
                         ButtonState::Pressed => WidgetMessage::key_down(
@@ -2038,16 +2042,13 @@ impl UserInterface {
                         ),
                     });
 
-                    event_processed = true;
-                }
-            }
-            OsEvent::Character(unicode) => {
-                if self.keyboard_focus_node.is_some() {
-                    self.send_message(WidgetMessage::text(
-                        self.keyboard_focus_node,
-                        MessageDirection::FromWidget,
-                        *unicode,
-                    ));
+                    if !text.is_empty() {
+                        self.send_message(WidgetMessage::text(
+                            self.keyboard_focus_node,
+                            MessageDirection::FromWidget,
+                            text.clone(),
+                        ));
+                    }
 
                     event_processed = true;
                 }
@@ -2489,6 +2490,7 @@ fn transform_size(transform_space_bounds: Vector2<f32>, matrix: &Matrix3<f32>) -
 
 #[cfg(test)]
 mod test {
+    use crate::message::{ButtonState, KeyCode};
     use crate::{
         border::BorderBuilder,
         core::algebra::{Rotation2, UnitComplex, Vector2},
@@ -2563,14 +2565,22 @@ mod test {
         );
 
         // Do additional check - emulate key press of "A" and check if the focused text box has accepted it.
-        ui.process_os_event(&OsEvent::Character('A'));
+        ui.process_os_event(&OsEvent::KeyboardInput {
+            button: KeyCode::KeyA,
+            state: ButtonState::Pressed,
+            text: "A".to_string(),
+        });
+
+        let msg = WidgetMessage::key_down(text_box, MessageDirection::FromWidget, KeyCode::KeyA);
+        msg.set_handled(true);
+        assert_eq!(ui.poll_message(), Some(msg));
 
         assert_eq!(
             ui.poll_message(),
             Some(WidgetMessage::text(
                 text_box,
                 MessageDirection::FromWidget,
-                'A'
+                'A'.to_string()
             ))
         );
         assert_eq!(

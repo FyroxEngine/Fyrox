@@ -10,7 +10,7 @@ use fyrox::{
     core::{algebra::Vector3, color::Color, futures::executor::block_on, pool::Handle},
     engine::{executor::Executor, GraphicsContext, GraphicsContextParams},
     event::Event,
-    event::{ElementState, VirtualKeyCode, WindowEvent},
+    event::{ElementState, WindowEvent},
     event_loop::ControlFlow,
     gui::{
         message::MessageDirection,
@@ -27,6 +27,7 @@ use fyrox::{
     },
     window::WindowAttributes,
 };
+use winit::keyboard::KeyCode;
 
 struct SceneLoader {
     scene: Scene,
@@ -114,27 +115,24 @@ impl Plugin for Game {
         _control_flow: &mut ControlFlow,
     ) {
         if let Event::WindowEvent {
-            event: WindowEvent::KeyboardInput { input, .. },
+            event: WindowEvent::KeyboardInput { event: input, .. },
             ..
         } = event
         {
-            // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
-            if let Some(key_code) = input.virtual_keycode {
-                match key_code {
-                    VirtualKeyCode::W => {
-                        self.input_controller.move_forward = input.state == ElementState::Pressed
-                    }
-                    VirtualKeyCode::S => {
-                        self.input_controller.move_backward = input.state == ElementState::Pressed
-                    }
-                    VirtualKeyCode::A => {
-                        self.input_controller.move_left = input.state == ElementState::Pressed
-                    }
-                    VirtualKeyCode::D => {
-                        self.input_controller.move_right = input.state == ElementState::Pressed
-                    }
-                    _ => (),
+            match input.physical_key {
+                KeyCode::KeyW => {
+                    self.input_controller.move_forward = input.state == ElementState::Pressed
                 }
+                KeyCode::KeyS => {
+                    self.input_controller.move_backward = input.state == ElementState::Pressed
+                }
+                KeyCode::KeyA => {
+                    self.input_controller.move_left = input.state == ElementState::Pressed
+                }
+                KeyCode::KeyD => {
+                    self.input_controller.move_right = input.state == ElementState::Pressed
+                }
+                _ => (),
             }
         }
     }

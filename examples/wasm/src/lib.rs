@@ -4,9 +4,6 @@
 //!
 //! Warning - Work in progress!
 
-use fyrox::resource::model::{Model, ModelResourceExtension};
-use fyrox::resource::texture::Texture;
-use fyrox::scene::sound::SoundBuffer;
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
@@ -21,7 +18,7 @@ use fyrox::{
     engine::{
         Engine, EngineInitParams, GraphicsContext, GraphicsContextParams, SerializationContext,
     },
-    event::{ElementState, Event, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     gui::{
         message::MessageDirection,
@@ -29,8 +26,12 @@ use fyrox::{
         widget::WidgetBuilder,
     },
     gui::{BuildContext, UiNode},
+    keyboard::KeyCode,
     material::{shader::SamplerFallback, Material, PropertyValue, SharedMaterial},
-    resource::texture::TextureWrapMode,
+    resource::{
+        model::{Model, ModelResourceExtension},
+        texture::{Texture, TextureWrapMode},
+    },
     scene::{
         base::BaseBuilder,
         camera::{CameraBuilder, SkyBoxBuilder},
@@ -41,7 +42,7 @@ use fyrox::{
             MeshBuilder,
         },
         node::Node,
-        sound::{SoundBuilder, Status},
+        sound::{SoundBuffer, SoundBuilder, Status},
         transform::TransformBuilder,
         Scene,
     },
@@ -405,28 +406,24 @@ pub fn main_js() {
                 engine.render().unwrap();
             }
             Event::WindowEvent { event, .. } => {
-                match event {
+                match &event {
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                     WindowEvent::Resized(size) => {
                         // It is very important to handle Resized event from window, because
                         // renderer knows nothing about window size - it must be notified
                         // directly when window size has changed.
-                        engine.set_frame_size(size.into()).unwrap();
+                        engine.set_frame_size((*size).into()).unwrap();
                     }
-                    WindowEvent::KeyboardInput { input, .. } => {
+                    WindowEvent::KeyboardInput { event: input, .. } => {
                         // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
-                        if let Some(key_code) = input.virtual_keycode {
-                            match key_code {
-                                VirtualKeyCode::A => {
-                                    input_controller.rotate_left =
-                                        input.state == ElementState::Pressed
-                                }
-                                VirtualKeyCode::D => {
-                                    input_controller.rotate_right =
-                                        input.state == ElementState::Pressed
-                                }
-                                _ => (),
+                        match input.physical_key {
+                            KeyCode::KeyA => {
+                                input_controller.rotate_left = input.state == ElementState::Pressed
                             }
+                            KeyCode::KeyD => {
+                                input_controller.rotate_right = input.state == ElementState::Pressed
+                            }
+                            _ => (),
                         }
                     }
                     _ => (),

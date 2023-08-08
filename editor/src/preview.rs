@@ -179,7 +179,7 @@ impl PreviewPanel {
                                     WidgetBuilder::new()
                                         .with_vertical_alignment(VerticalAlignment::Top)
                                         .with_horizontal_alignment(HorizontalAlignment::Right)
-                                        .with_cursor(Some(CursorIcon::Arrow))
+                                        .with_cursor(Some(CursorIcon::Pointer))
                                         .with_opacity(Some(0.7))
                                         .on_row(0)
                                         .with_child({
