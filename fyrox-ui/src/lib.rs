@@ -692,7 +692,9 @@ impl UserInterface {
             double_click_entries: Default::default(),
             double_click_time_slice: 0.5, // 500 ms is standard in most operating systems.
         };
-        ui.root_canvas = ui.add_node(UiNode::new(Canvas::new(WidgetBuilder::new().build())));
+        ui.root_canvas = ui.add_node(UiNode::new(Canvas {
+            widget: WidgetBuilder::new().build(),
+        }));
         ui.keyboard_focus_node = ui.root_canvas;
         ui
     }

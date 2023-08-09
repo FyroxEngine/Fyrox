@@ -1,3 +1,9 @@
+//! Canvas widget allows its children to have an arbitrary position on an imaginable infinite plane, it also
+//! gives the children constraints of infinite size, which forces them to take all the desired size. See
+//! [`Canvas`] docs for more info and usage examples.
+
+#![warn(missing_docs)]
+
 use crate::{
     core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
     message::UiMessage,
@@ -9,9 +15,42 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-/// Allows user to directly set position and size of a node
+/// Canvas widget allows its children to have an arbitrary position on an imaginable infinite plane, it also
+/// gives the children constraints of infinite size, which forces them to take all the desired size. This widget
+/// could be used when you need to have an ability to put widgets at arbitrary positions. Canvas widget is the
+/// root widget of the widget hierarchy used in `fyrox-ui`.
+///
+/// ## Examples
+///
+/// A instance of [`Canvas`] widget can be created using [`CanvasBuilder`] with a set of children widgets provided
+/// to [`WidgetBuilder`]:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     button::ButtonBuilder, canvas::CanvasBuilder, core::pool::Handle, text::TextBuilder,
+/// #     widget::WidgetBuilder, BuildContext, UiNode,
+/// # };
+/// #
+/// fn create_canvas(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     CanvasBuilder::new(
+///         WidgetBuilder::new()
+///             .with_child(
+///                 ButtonBuilder::new(WidgetBuilder::new())
+///                     .with_text("Click me!")
+///                     .build(ctx),
+///             )
+///             .with_child(
+///                 TextBuilder::new(WidgetBuilder::new())
+///                     .with_text("Some text")
+///                     .build(ctx),
+///             ),
+///     )
+///     .build(ctx)
+/// }
+/// ```
 #[derive(Clone)]
 pub struct Canvas {
+    /// Base widget of the canvas.
     pub widget: Widget,
 }
 
@@ -62,21 +101,18 @@ impl Control for Canvas {
     }
 }
 
-impl Canvas {
-    pub fn new(widget: Widget) -> Self {
-        Self { widget }
-    }
-}
-
+/// Canvas builder creates new [`Canvas`] widget instances and adds them to the user interface.
 pub struct CanvasBuilder {
     widget_builder: WidgetBuilder,
 }
 
 impl CanvasBuilder {
+    /// Creates new builder instance.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self { widget_builder }
     }
 
+    /// Finishes canvas widget building and adds the instance to the user interface and returns its handle.
     pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
         let canvas = Canvas {
             widget: self.widget_builder.build(),
