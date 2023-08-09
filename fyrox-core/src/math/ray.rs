@@ -437,7 +437,11 @@ impl Ray {
 
 #[cfg(test)]
 mod test {
-    use crate::math::ray::Ray;
+    use nalgebra::Matrix4;
+
+    use crate::math::aabb::AxisAlignedBoundingBox;
+    use crate::math::plane::Plane;
+    use crate::math::ray::{CylinderKind, Ray};
     use crate::math::Vector3;
 
     use super::IntersectionResult;
@@ -506,5 +510,351 @@ mod test {
 
         assert_eq!(ir.min, -10.0);
         assert_eq!(ir.max, 10.0);
+    }
+
+    #[test]
+    fn ray_new() {
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
+
+        assert_eq!(ray.origin, Vector3::new(0.0, 0.0, 0.0));
+        assert_eq!(ray.dir, Vector3::new(1.0, 1.0, 1.0));
+    }
+
+    #[test]
+    fn ray_try_eval_points() {
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
+
+        assert!(ray.try_eval_points(None).is_none());
+
+        let ir = IntersectionResult { min: 0.0, max: 1.0 };
+        assert_eq!(
+            ray.try_eval_points(Some(ir)),
+            Some([Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0)])
+        );
+
+        let ir = IntersectionResult {
+            min: -1.0,
+            max: 1.0,
+        };
+        assert_eq!(
+            ray.try_eval_points(Some(ir)),
+            Some([Vector3::new(1.0, 1.0, 1.0), Vector3::new(1.0, 1.0, 1.0)])
+        );
+
+        let ir = IntersectionResult {
+            min: 0.0,
+            max: 10.0,
+        };
+        assert_eq!(
+            ray.try_eval_points(Some(ir)),
+            Some([Vector3::new(0.0, 0.0, 0.0), Vector3::new(0.0, 0.0, 0.0)])
+        );
+
+        let ir = IntersectionResult {
+            min: -10.0,
+            max: 10.0,
+        };
+        assert_eq!(ray.try_eval_points(Some(ir)), None);
+    }
+
+    #[test]
+    fn ray_sphere_intersection() {
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
+
+        assert!(ray
+            .sphere_intersection(&Vector3::new(-10.0, -10.0, -10.0), 1.0)
+            .is_none());
+
+        let result = ray.sphere_intersection(&Vector3::new(0.0, 0.0, 0.0), 1.0);
+        assert_eq!(result.unwrap().min, -1.0);
+        assert_eq!(result.unwrap().max, 1.0);
+    }
+
+    #[test]
+    fn ray_sphere_intersection_points() {
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
+
+        assert!(ray
+            .sphere_intersection_points(&Vector3::new(-10.0, -10.0, -10.0), 1.0)
+            .is_none());
+
+        assert_eq!(
+            ray.sphere_intersection_points(&Vector3::new(0.0, 0.0, 0.0), 1.0),
+            Some([Vector3::new(1.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0)])
+        );
+    }
+
+    #[test]
+    fn ray_is_intersect_sphere() {
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0));
+
+        assert!(!ray.is_intersect_sphere(&Vector3::new(-10.0, -10.0, -10.0), 1.0));
+        assert!(ray.is_intersect_sphere(&Vector3::new(0.0, 0.0, 0.0), 1.0));
+    }
+
+    #[test]
+    fn ray_project_point() {
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
+
+        assert_eq!(ray.project_point(&Vector3::new(0.0, 0.0, 0.0)), 0.0);
+        assert_eq!(ray.project_point(&Vector3::new(1.0, 0.0, 0.0)), 0.33333334);
+        assert_eq!(ray.project_point(&Vector3::new(0.0, 1.0, 0.0)), 0.33333334);
+        assert_eq!(ray.project_point(&Vector3::new(0.0, 0.0, 1.0)), 0.33333334);
+        assert_eq!(ray.project_point(&Vector3::new(1.0, 1.0, 1.0)), 1.0);
+    }
+
+    #[test]
+    fn ray_get_point() {
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
+
+        assert_eq!(ray.get_point(0.0), Vector3::new(0.0, 0.0, 0.0));
+        assert_eq!(ray.get_point(10.0), Vector3::new(10.0, 10.0, 10.0));
+    }
+
+    #[test]
+    fn ray_box_intersection() {
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
+        let ir = ray.box_intersection(
+            &Vector3::new(1.0, 1.0, 1.0),
+            &Vector3::new(10.0, 10.0, 10.0),
+        );
+        assert_eq!(ir.unwrap().min, 1.0);
+        assert_eq!(ir.unwrap().max, 10.0);
+
+        assert!(ray
+            .box_intersection(&Vector3::new(1.0, 1.0, 0.0), &Vector3::new(10.0, 10.0, 0.0))
+            .is_none());
+        assert!(ray
+            .box_intersection(&Vector3::new(1.0, 0.0, 1.0), &Vector3::new(10.0, 0.0, 10.0))
+            .is_none());
+
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(-1.0, -1.0, -1.0));
+        let ir = ray.box_intersection(
+            &Vector3::new(-10.0, -10.0, -10.0),
+            &Vector3::new(-1.0, -1.0, -1.0),
+        );
+        assert_eq!(ir.unwrap().min, 1.0);
+        assert_eq!(ir.unwrap().max, 10.0);
+    }
+
+    #[test]
+    fn ray_box_intersection_points() {
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
+
+        assert!(ray
+            .box_intersection_points(&Vector3::new(1.0, 1.0, 0.0), &Vector3::new(10.0, 10.0, 0.0))
+            .is_none());
+        assert_eq!(
+            ray.box_intersection_points(
+                &Vector3::new(1.0, 1.0, 1.0),
+                &Vector3::new(10.0, 10.0, 10.0)
+            ),
+            Some([Vector3::new(1.0, 1.0, 1.0), Vector3::new(1.0, 1.0, 1.0)])
+        );
+    }
+
+    #[test]
+    fn ray_aabb_intersection() {
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
+
+        assert!(ray
+            .aabb_intersection(&AxisAlignedBoundingBox {
+                min: Vector3::new(1.0, 1.0, 0.0),
+                max: Vector3::new(10.0, 10.0, 0.0)
+            })
+            .is_none());
+
+        let ir = ray.aabb_intersection(&AxisAlignedBoundingBox {
+            min: Vector3::new(1.0, 1.0, 1.0),
+            max: Vector3::new(10.0, 10.0, 10.0),
+        });
+        assert_eq!(ir.unwrap().min, 1.0);
+        assert_eq!(ir.unwrap().max, 10.0);
+    }
+
+    #[test]
+    fn ray_aabb_intersection_points() {
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
+
+        assert!(ray
+            .aabb_intersection_points(&AxisAlignedBoundingBox {
+                min: Vector3::new(1.0, 1.0, 0.0),
+                max: Vector3::new(10.0, 10.0, 0.0)
+            })
+            .is_none());
+
+        assert_eq!(
+            ray.aabb_intersection_points(&AxisAlignedBoundingBox {
+                min: Vector3::new(1.0, 1.0, 1.0),
+                max: Vector3::new(10.0, 10.0, 10.0),
+            }),
+            Some([Vector3::new(1.0, 1.0, 1.0), Vector3::new(1.0, 1.0, 1.0)])
+        );
+    }
+
+    #[test]
+    fn ray_plane_intersection() {
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
+
+        assert_eq!(
+            ray.plane_intersection(
+                &Plane::from_normal_and_point(
+                    &Vector3::new(1.0, 1.0, 1.0),
+                    &Vector3::new(0.0, 0.0, 0.0)
+                )
+                .unwrap()
+            ),
+            0.0
+        );
+    }
+
+    #[test]
+    fn ray_plane_intersection_point() {
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
+
+        assert_eq!(
+            ray.plane_intersection_point(
+                &Plane::from_normal_and_point(
+                    &Vector3::new(1.0, 1.0, 1.0),
+                    &Vector3::new(0.0, 0.0, 0.0)
+                )
+                .unwrap()
+            ),
+            Some(Vector3::new(0.0, 0.0, 0.0))
+        );
+
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 0.0));
+
+        assert_eq!(
+            ray.plane_intersection_point(
+                &Plane::from_normal_and_point(
+                    &Vector3::new(0.0, 0.0, 1.0),
+                    &Vector3::new(1.0, 1.0, 1.0),
+                )
+                .unwrap()
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn ray_triangle_intersection() {
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
+
+        assert_eq!(
+            ray.triangle_intersection(&[
+                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::new(1.0, 0.0, 0.0),
+                Vector3::new(1.0, 1.0, 0.0),
+            ]),
+            Some((0.0, Vector3::new(0.0, 0.0, 0.0)))
+        );
+
+        assert_eq!(
+            ray.triangle_intersection(&[
+                Vector3::new(1.0, 0.0, 0.0),
+                Vector3::new(1.0, -1.0, 0.0),
+                Vector3::new(-1.0, -1.0, 0.0),
+            ]),
+            None
+        );
+    }
+
+    #[test]
+    fn ray_triangle_intersection_point() {
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
+
+        assert_eq!(
+            ray.triangle_intersection_point(&[
+                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::new(1.0, 0.0, 0.0),
+                Vector3::new(1.0, 1.0, 0.0),
+            ]),
+            Some(Vector3::new(0.0, 0.0, 0.0))
+        );
+
+        assert_eq!(
+            ray.triangle_intersection_point(&[
+                Vector3::new(1.0, 0.0, 0.0),
+                Vector3::new(1.0, -1.0, 0.0),
+                Vector3::new(-1.0, -1.0, 0.0),
+            ]),
+            None
+        );
+    }
+
+    #[test]
+    fn ray_cylinder_intersection() {
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
+
+        // Infinite
+        let ir = ray.cylinder_intersection(
+            &Vector3::new(0.0, 0.0, 0.0),
+            &Vector3::new(1.0, 0.0, 0.0),
+            1.0,
+            CylinderKind::Infinite,
+        );
+        assert_eq!(ir.unwrap().min, -0.70710677);
+        assert_eq!(ir.unwrap().max, 0.70710677);
+
+        // Finite
+        let ir = ray.cylinder_intersection(
+            &Vector3::new(0.0, 0.0, 0.0),
+            &Vector3::new(1.0, 0.0, 0.0),
+            1.0,
+            CylinderKind::Finite,
+        );
+        assert_eq!(ir.unwrap().min, 0.70710677);
+        assert_eq!(ir.unwrap().max, 0.70710677);
+
+        // Capped
+        let ir = ray.cylinder_intersection(
+            &Vector3::new(0.0, 0.0, 0.0),
+            &Vector3::new(1.0, 0.0, 0.0),
+            1.0,
+            CylinderKind::Capped,
+        );
+        assert_eq!(ir.unwrap().min, -0.70710677);
+        assert_eq!(ir.unwrap().max, 0.70710677);
+    }
+
+    #[test]
+    fn ray_capsule_intersection() {
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
+
+        assert_eq!(
+            ray.capsule_intersection(
+                &Vector3::new(0.0, 0.0, 0.0),
+                &Vector3::new(1.0, 0.0, 0.0),
+                1.0,
+            ),
+            Some([
+                Vector3::new(0.70710677, 0.70710677, 0.70710677),
+                Vector3::new(0.70710677, 0.70710677, 0.70710677)
+            ])
+        );
+        assert_eq!(
+            ray.capsule_intersection(
+                &Vector3::new(10.0, 0.0, 0.0),
+                &Vector3::new(11.0, 0.0, 0.0),
+                1.0,
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn ray_transform() {
+        let ray = Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 1.0));
+
+        let new_ray = ray.transform(Matrix4::new(
+            1.0, 0.0, 0.0, 0.0, //
+            0.0, 1.0, 0.0, 0.0, //
+            0.0, 0.0, 1.0, 0.0, //
+            0.0, 0.0, 0.0, 1.0,
+        ));
+
+        assert_eq!(ray.origin, new_ray.origin);
+        assert_eq!(ray.dir, new_ray.dir);
     }
 }
