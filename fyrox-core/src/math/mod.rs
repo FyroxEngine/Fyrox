@@ -1103,6 +1103,9 @@ pub fn m4x4_approx_eq(a: &Matrix4<f32>, b: &Matrix4<f32>) -> bool {
 
 #[cfg(test)]
 mod test {
+    use nalgebra::Matrix3;
+    use num_traits::Zero;
+
     use crate::algebra::Vector2;
     use crate::math::Rect;
     use crate::math::SmoothAngle;
@@ -1139,5 +1142,167 @@ mod test {
         while !angle.at_target() {
             println!("{}", angle.update(1.0).angle().to_degrees());
         }
+    }
+
+    #[test]
+    fn default_for_rect() {
+        assert_eq!(
+            Rect::<f32>::default(),
+            Rect {
+                position: Vector2::new(Zero::zero(), Zero::zero()),
+                size: Vector2::new(Zero::zero(), Zero::zero()),
+            }
+        );
+    }
+
+    #[test]
+    fn rect_with_position() {
+        let rect = Rect::new(0, 0, 1, 1);
+
+        assert_eq!(
+            rect.with_position(Vector2::new(1, 1)),
+            Rect::new(1, 1, 1, 1)
+        );
+    }
+
+    #[test]
+    fn rect_with_size() {
+        let rect = Rect::new(0, 0, 1, 1);
+
+        assert_eq!(
+            rect.with_size(Vector2::new(10, 10)),
+            Rect::new(0, 0, 10, 10)
+        );
+    }
+
+    #[test]
+    fn rect_inflate() {
+        let rect = Rect::new(0, 0, 1, 1);
+
+        assert_eq!(rect.inflate(5, 5), Rect::new(-5, -5, 11, 11));
+    }
+
+    #[test]
+    fn rect_deflate() {
+        let rect = Rect::new(-5, -5, 11, 11);
+
+        assert_eq!(rect.deflate(5, 5), Rect::new(0, 0, 1, 1));
+    }
+
+    #[test]
+    fn rect_contains() {
+        let rect = Rect::new(0, 0, 10, 10);
+
+        assert!(rect.contains(Vector2::new(0, 0)));
+        assert!(rect.contains(Vector2::new(0, 10)));
+        assert!(rect.contains(Vector2::new(10, 0)));
+        assert!(rect.contains(Vector2::new(10, 10)));
+        assert!(rect.contains(Vector2::new(5, 5)));
+
+        assert!(!rect.contains(Vector2::new(0, 20)));
+    }
+
+    #[test]
+    fn rect_center() {
+        let rect = Rect::new(0, 0, 10, 10);
+
+        assert_eq!(rect.center(), Vector2::new(5, 5));
+    }
+
+    #[test]
+    fn rect_push() {
+        let mut rect = Rect::new(10, 10, 11, 11);
+
+        rect.push(Vector2::new(0, 0));
+        assert_eq!(rect, Rect::new(0, 0, 11, 11));
+
+        rect.push(Vector2::new(0, 20));
+        assert_eq!(rect, Rect::new(0, 0, 11, 20));
+
+        rect.push(Vector2::new(20, 20));
+        assert_eq!(rect, Rect::new(0, 0, 20, 20));
+
+        rect.push(Vector2::new(30, 30));
+        assert_eq!(rect, Rect::new(0, 0, 30, 30));
+    }
+
+    #[test]
+    fn rect_getters() {
+        let rect = Rect::new(0, 0, 1, 1);
+
+        assert_eq!(rect.left_top_corner(), Vector2::new(0, 0));
+        assert_eq!(rect.left_bottom_corner(), Vector2::new(0, 1));
+        assert_eq!(rect.right_top_corner(), Vector2::new(1, 0));
+        assert_eq!(rect.right_bottom_corner(), Vector2::new(1, 1));
+
+        assert_eq!(rect.x(), 0);
+        assert_eq!(rect.y(), 0);
+        assert_eq!(rect.w(), 1);
+        assert_eq!(rect.h(), 1);
+    }
+
+    #[test]
+    fn rect_clip_by() {
+        let rect = Rect::new(0, 0, 10, 10);
+
+        assert_eq!(rect.clip_by(Rect::new(2, 2, 1, 1)), Rect::new(2, 2, 1, 1));
+        assert_eq!(
+            rect.clip_by(Rect::new(-2, -2, 1, 1)),
+            Rect::new(0, 0, -1, -1)
+        );
+        assert_eq!(
+            rect.clip_by(Rect::new(0, 0, 15, 15)),
+            Rect::new(0, 0, 10, 10)
+        );
+    }
+
+    #[test]
+    fn rect_translate() {
+        let rect = Rect::new(0, 0, 10, 10);
+
+        assert_eq!(rect.translate(Vector2::new(5, 5)), Rect::new(5, 5, 10, 10));
+    }
+
+    #[test]
+    fn rect_intersects_circle() {
+        let rect = Rect::new(0.0, 0.0, 1.0, 1.0);
+
+        assert!(!rect.intersects_circle(Vector2::new(5.0, 5.0), 1.0));
+        assert!(rect.intersects_circle(Vector2::new(0.0, 0.0), 1.0));
+        assert!(rect.intersects_circle(Vector2::new(-0.5, -0.5), 1.0));
+    }
+
+    #[test]
+    fn rect_extend_to_contain() {
+        let mut rect = Rect::new(0.0, 0.0, 1.0, 1.0);
+
+        rect.extend_to_contain(Rect::new(1.0, 1.0, 1.0, 1.0));
+        assert_eq!(rect, Rect::new(0.0, 0.0, 2.0, 2.0));
+
+        rect.extend_to_contain(Rect::new(-1.0, -1.0, 1.0, 1.0));
+        assert_eq!(rect, Rect::new(-1.0, -1.0, 2.0, 2.0));
+    }
+
+    #[test]
+    fn rect_transform() {
+        let rect = Rect::new(0.0, 0.0, 1.0, 1.0);
+
+        assert_eq!(
+            rect.transform(&Matrix3::new(
+                1.0, 0.0, 0.0, //
+                0.0, 1.0, 0.0, //
+                0.0, 0.0, 1.0,
+            )),
+            rect,
+        );
+
+        assert_eq!(
+            rect.transform(&Matrix3::new(
+                2.0, 0.0, 0.0, //
+                0.0, 2.0, 0.0, //
+                0.0, 0.0, 2.0,
+            )),
+            Rect::new(0.0, 0.0, 2.0, 2.0),
+        );
     }
 }
