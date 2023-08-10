@@ -220,7 +220,9 @@ fn is_any_menu_item_contains_point(ui: &UserInterface, pt: Vector2<f32>) -> bool
 fn close_menu_chain(from: Handle<UiNode>, ui: &UserInterface) {
     let mut handle = from;
     while handle.is_some() {
-        if let Some((popup_handle, popup)) = ui.try_borrow_by_type_up::<Popup>(handle) {
+        let popup_handle = ui.find_by_criteria_up(handle, |n| n.has_component::<Popup>());
+
+        if let Some(popup) = ui.node(popup_handle).query_component::<Popup>() {
             ui.send_message(PopupMessage::close(
                 popup_handle,
                 MessageDirection::ToWidget,
@@ -231,6 +233,9 @@ fn close_menu_chain(from: Handle<UiNode>, ui: &UserInterface) {
                 .user_data_ref::<Handle<UiNode>>()
                 .cloned()
                 .unwrap_or_default();
+        } else {
+            // Prevent infinite loops.
+            break;
         }
     }
 }
