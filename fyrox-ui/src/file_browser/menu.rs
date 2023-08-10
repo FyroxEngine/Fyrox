@@ -1,13 +1,13 @@
 use crate::{
-    core::pool::Handle,
-    menu::{MenuItemBuilder, MenuItemContent},
+    core::{log::Log, pool::Handle},
+    menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
     message::{MessageDirection, UiMessage},
     popup::{Placement, PopupBuilder, PopupMessage},
     stack_panel::StackPanelBuilder,
     widget::{WidgetBuilder, WidgetMessage},
     BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface,
 };
-use std::{cell::Cell, path::PathBuf};
+use std::{cell::Cell, path::Path, path::PathBuf};
 
 #[derive(Clone)]
 pub struct ItemContextMenu {
@@ -15,6 +15,7 @@ pub struct ItemContextMenu {
     pub delete: Handle<UiNode>,
     pub make_folder: Handle<UiNode>,
     pub placement_target: Cell<Handle<UiNode>>,
+    pub delete_message_box: Handle<UiNode>,
 }
 
 impl ItemContextMenu {
@@ -53,7 +54,14 @@ impl ItemContextMenu {
             delete,
             make_folder,
             placement_target: Default::default(),
+            delete_message_box: Default::default(),
         }
+    }
+
+    fn item_path<'a>(&self, ui: &'a UserInterface) -> Option<&'a Path> {
+        ui.try_get_node(self.placement_target.get())
+            .and_then(|n| n.user_data_ref::<PathBuf>())
+            .map(|p| p.as_path())
     }
 
     pub fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
@@ -61,16 +69,25 @@ impl ItemContextMenu {
             if message.destination() == *self.menu {
                 self.placement_target.set(*target);
 
-                let item_path = ui
-                    .try_get_node(*target)
-                    .and_then(|n| n.user_data_ref::<PathBuf>())
-                    .unwrap();
-
-                ui.send_message(WidgetMessage::enabled(
-                    self.make_folder,
-                    MessageDirection::ToWidget,
-                    item_path.is_dir(),
-                ));
+                if let Some(item_path) = self.item_path(ui) {
+                    ui.send_message(WidgetMessage::enabled(
+                        self.make_folder,
+                        MessageDirection::ToWidget,
+                        item_path.is_dir(),
+                    ));
+                }
+            }
+        } else if let Some(MenuItemMessage::Click) = message.data() {
+            if message.destination() == self.delete {
+                if let Some(item_path) = self.item_path(ui) {
+                    if item_path.is_dir() {
+                        Log::verify(std::fs::remove_dir_all(item_path));
+                    } else {
+                        Log::verify(std::fs::remove_file(item_path));
+                    }
+                }
+            } else if message.destination() == self.make_folder {
+                // TODO
             }
         }
     }
