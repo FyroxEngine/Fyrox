@@ -1,28 +1,124 @@
 use crate::{
-    core::{log::Log, pool::Handle},
+    core::{algebra::Vector2, log::Log, pool::Handle},
+    draw::DrawingContext,
     menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
-    message::{MessageDirection, UiMessage},
-    popup::{Placement, PopupBuilder, PopupMessage},
+    message::{MessageDirection, OsEvent, UiMessage},
+    popup::{Placement, Popup, PopupBuilder, PopupMessage},
     stack_panel::StackPanelBuilder,
-    widget::{WidgetBuilder, WidgetMessage},
-    BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface,
+    widget::{Widget, WidgetBuilder, WidgetMessage},
+    BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface,
 };
-use std::{cell::Cell, path::Path, path::PathBuf};
+use std::{
+    any::{Any, TypeId},
+    ops::{Deref, DerefMut},
+    path::{Path, PathBuf},
+    sync::mpsc::Sender,
+};
 
 #[derive(Clone)]
 pub struct ItemContextMenu {
-    pub menu: RcUiNodeHandle,
+    pub popup: Popup,
     pub delete: Handle<UiNode>,
     pub make_folder: Handle<UiNode>,
-    pub placement_target: Cell<Handle<UiNode>>,
     pub delete_message_box: Handle<UiNode>,
 }
 
+impl Deref for ItemContextMenu {
+    type Target = Widget;
+
+    fn deref(&self) -> &Self::Target {
+        &self.popup.widget
+    }
+}
+
+impl DerefMut for ItemContextMenu {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.popup.widget
+    }
+}
+
+impl Control for ItemContextMenu {
+    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
+        self.popup.query_component(type_id).or_else(|| {
+            if type_id == TypeId::of::<Self>() {
+                Some(self)
+            } else {
+                None
+            }
+        })
+    }
+
+    fn resolve(&mut self, node_map: &NodeHandleMapping) {
+        self.popup.resolve(node_map)
+    }
+
+    fn on_remove(&self, sender: &Sender<UiMessage>) {
+        self.popup.on_remove(sender)
+    }
+
+    fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
+        self.popup.measure_override(ui, available_size)
+    }
+
+    fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
+        self.popup.arrange_override(ui, final_size)
+    }
+
+    fn draw(&self, drawing_context: &mut DrawingContext) {
+        self.popup.draw(drawing_context)
+    }
+
+    fn update(&mut self, dt: f32, sender: &Sender<UiMessage>) {
+        self.popup.update(dt, sender)
+    }
+
+    fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
+        self.popup.handle_routed_message(ui, message);
+
+        if let Some(PopupMessage::Placement(Placement::Cursor(_))) = message.data() {
+            if message.destination() == self.handle {
+                if let Some(item_path) = self.item_path(ui) {
+                    ui.send_message(WidgetMessage::enabled(
+                        self.make_folder,
+                        MessageDirection::ToWidget,
+                        item_path.is_dir(),
+                    ));
+                }
+            }
+        } else if let Some(MenuItemMessage::Click) = message.data() {
+            if message.destination() == self.delete {
+                if let Some(item_path) = self.item_path(ui) {
+                    if item_path.is_dir() {
+                        Log::verify(std::fs::remove_dir_all(item_path));
+                    } else {
+                        Log::verify(std::fs::remove_file(item_path));
+                    }
+                }
+            } else if message.destination() == self.make_folder {
+                // TODO
+            }
+        }
+    }
+
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
+        self.popup.preview_message(ui, message)
+    }
+
+    fn handle_os_event(
+        &mut self,
+        self_handle: Handle<UiNode>,
+        ui: &mut UserInterface,
+        event: &OsEvent,
+    ) {
+        self.popup.handle_os_event(self_handle, ui, event)
+    }
+}
+
 impl ItemContextMenu {
-    pub fn new(ctx: &mut BuildContext) -> Self {
+    pub fn build(ctx: &mut BuildContext) -> Handle<UiNode> {
         let delete;
         let make_folder;
-        let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
+        let popup = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
             .with_content(
                 StackPanelBuilder::new(
                     WidgetBuilder::new()
@@ -46,49 +142,21 @@ impl ItemContextMenu {
                 )
                 .build(ctx),
             )
-            .build(ctx);
-        let menu = RcUiNodeHandle::new(menu, ctx.sender());
+            .build_popup(ctx);
 
-        Self {
-            menu,
+        let menu = Self {
+            popup,
             delete,
             make_folder,
-            placement_target: Default::default(),
             delete_message_box: Default::default(),
-        }
+        };
+
+        ctx.add_node(UiNode::new(menu))
     }
 
     fn item_path<'a>(&self, ui: &'a UserInterface) -> Option<&'a Path> {
-        ui.try_get_node(self.placement_target.get())
+        ui.try_get_node(self.popup.placement.target())
             .and_then(|n| n.user_data_ref::<PathBuf>())
             .map(|p| p.as_path())
-    }
-
-    pub fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == *self.menu {
-                self.placement_target.set(*target);
-
-                if let Some(item_path) = self.item_path(ui) {
-                    ui.send_message(WidgetMessage::enabled(
-                        self.make_folder,
-                        MessageDirection::ToWidget,
-                        item_path.is_dir(),
-                    ));
-                }
-            }
-        } else if let Some(MenuItemMessage::Click) = message.data() {
-            if message.destination() == self.delete {
-                if let Some(item_path) = self.item_path(ui) {
-                    if item_path.is_dir() {
-                        Log::verify(std::fs::remove_dir_all(item_path));
-                    } else {
-                        Log::verify(std::fs::remove_file(item_path));
-                    }
-                }
-            } else if message.destination() == self.make_folder {
-                // TODO
-            }
-        }
     }
 }

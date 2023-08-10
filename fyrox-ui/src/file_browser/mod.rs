@@ -104,7 +104,7 @@ pub struct FileBrowser {
     pub file_name: Handle<UiNode>,
     pub file_name_value: PathBuf,
     pub fs_receiver: Rc<Receiver<notify::Event>>,
-    pub item_context_menu: ItemContextMenu,
+    pub item_context_menu: RcUiNodeHandle,
     #[allow(clippy::type_complexity)]
     pub watcher: Rc<cell::Cell<Option<(notify::RecommendedWatcher, thread::JoinHandle<()>)>>>,
 }
@@ -118,7 +118,7 @@ impl FileBrowser {
             self.root.as_ref(),
             &self.path,
             self.filter.clone(),
-            self.item_context_menu.menu.clone(),
+            self.item_context_menu.clone(),
             &mut ui.build_ctx(),
         );
 
@@ -186,7 +186,7 @@ impl Control for FileBrowser {
                                     self.root.as_ref(),
                                     &existing_path,
                                     self.filter.clone(),
-                                    self.item_context_menu.menu.clone(),
+                                    self.item_context_menu.clone(),
                                     &mut ui.build_ctx(),
                                 );
 
@@ -282,7 +282,7 @@ impl Control for FileBrowser {
                                         existing_parent_node == self.tree_root,
                                         path,
                                         parent_path,
-                                        self.item_context_menu.menu.clone(),
+                                        self.item_context_menu.clone(),
                                         ui,
                                     );
                                 } else if !tree.always_show_expander {
@@ -353,7 +353,7 @@ impl Control for FileBrowser {
                                 false,
                                 &path,
                                 &parent_path,
-                                self.item_context_menu.menu.clone(),
+                                self.item_context_menu.clone(),
                                 ui,
                             );
                         }
@@ -444,10 +444,6 @@ impl Control for FileBrowser {
                 }
             }
         }
-    }
-
-    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        self.item_context_menu.preview_message(ui, message);
     }
 }
 
@@ -795,7 +791,7 @@ impl FileBrowserBuilder {
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let item_context_menu = ItemContextMenu::new(ctx);
+        let item_context_menu = RcUiNodeHandle::new(ItemContextMenu::build(ctx), ctx.sender());
 
         let BuildResult {
             root_items: items, ..
@@ -803,7 +799,7 @@ impl FileBrowserBuilder {
             self.root.as_ref(),
             self.path.as_path(),
             self.filter.clone(),
-            item_context_menu.menu.clone(),
+            item_context_menu.clone(),
             ctx,
         );
 
@@ -922,11 +918,7 @@ impl FileBrowserBuilder {
             FileBrowserMode::Open => Default::default(),
         };
 
-        let widget = self
-            .widget_builder
-            .with_preview_messages(true)
-            .with_child(grid)
-            .build();
+        let widget = self.widget_builder.with_child(grid).build();
 
         let the_path = match &self.root {
             Some(path) => path.clone(),
@@ -1003,7 +995,7 @@ mod test {
         file_browser::{build_tree, find_tree},
         tree::TreeRootBuilder,
         widget::WidgetBuilder,
-        UserInterface,
+        RcUiNodeHandle, UserInterface,
     };
     use fyrox_core::algebra::Vector2;
     use std::{path::PathBuf, rc::Rc};
@@ -1017,7 +1009,14 @@ mod test {
         )
         .build(&mut ui.build_ctx());
 
-        let path = build_tree(root, true, "./test/path1", "./test", &mut ui);
+        let path = build_tree(
+            root,
+            true,
+            "./test/path1",
+            "./test",
+            RcUiNodeHandle::new(Default::default(), ui.sender()),
+            &mut ui,
+        );
 
         while ui.poll_message().is_some() {}
 
