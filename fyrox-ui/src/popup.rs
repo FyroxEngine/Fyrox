@@ -94,6 +94,21 @@ pub enum Placement {
     },
 }
 
+impl Placement {
+    /// Returns a handle of the node to which this placement corresponds to.
+    pub fn target(&self) -> Handle<UiNode> {
+        match self {
+            Placement::LeftTop(target)
+            | Placement::RightTop(target)
+            | Placement::Center(target)
+            | Placement::LeftBottom(target)
+            | Placement::RightBottom(target)
+            | Placement::Cursor(target)
+            | Placement::Position { target, .. } => *target,
+        }
+    }
+}
+
 /// Popup is used to display other widgets in floating panel, that could lock input in self bounds.
 ///
 /// ## How to create
