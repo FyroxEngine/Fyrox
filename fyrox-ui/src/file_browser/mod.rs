@@ -6,14 +6,16 @@
 use crate::{
     core::pool::Handle,
     define_constructor,
+    file_browser::menu::ItemContextMenu,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
     scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
-    text::TextBuilder,
+    text::{TextBuilder, TextMessage},
     text_box::{TextBoxBuilder, TextCommitMode},
     tree::{Tree, TreeBuilder, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
     widget::{Widget, WidgetBuilder},
-    BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface, VerticalAlignment,
+    BuildContext, Control, NodeHandleMapping, RcUiNodeHandle, Thickness, UiNode, UserInterface,
+    VerticalAlignment,
 };
 use core::time;
 use std::{
@@ -33,11 +35,11 @@ use std::{
     thread,
 };
 
+mod menu;
 mod selector;
 
 pub use selector::*;
 
-use crate::text::TextMessage;
 use notify::Watcher;
 #[cfg(not(target_arch = "wasm32"))]
 use sysinfo::{DiskExt, RefreshKind, SystemExt};
@@ -102,6 +104,7 @@ pub struct FileBrowser {
     pub file_name: Handle<UiNode>,
     pub file_name_value: PathBuf,
     pub fs_receiver: Rc<Receiver<notify::Event>>,
+    pub item_context_menu: RcUiNodeHandle,
     #[allow(clippy::type_complexity)]
     pub watcher: Rc<cell::Cell<Option<(notify::RecommendedWatcher, thread::JoinHandle<()>)>>>,
 }
@@ -115,6 +118,7 @@ impl FileBrowser {
             self.root.as_ref(),
             &self.path,
             self.filter.clone(),
+            self.item_context_menu.clone(),
             &mut ui.build_ctx(),
         );
 
@@ -182,6 +186,7 @@ impl Control for FileBrowser {
                                     self.root.as_ref(),
                                     &existing_path,
                                     self.filter.clone(),
+                                    self.item_context_menu.clone(),
                                     &mut ui.build_ctx(),
                                 );
 
@@ -277,6 +282,7 @@ impl Control for FileBrowser {
                                         existing_parent_node == self.tree_root,
                                         path,
                                         parent_path,
+                                        self.item_context_menu.clone(),
                                         ui,
                                     );
                                 } else if !tree.always_show_expander {
@@ -342,7 +348,14 @@ impl Control for FileBrowser {
                             true
                         };
                         if build {
-                            build_tree(message.destination(), false, &path, &parent_path, ui);
+                            build_tree(
+                                message.destination(),
+                                false,
+                                &path,
+                                &parent_path,
+                                self.item_context_menu.clone(),
+                                ui,
+                            );
                         }
                     }
                 }
@@ -523,27 +536,32 @@ fn find_tree<P: AsRef<Path>>(node: Handle<UiNode>, path: &P, ui: &UserInterface)
 fn build_tree_item<P: AsRef<Path>>(
     path: P,
     parent_path: P,
+    menu: RcUiNodeHandle,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
     let is_dir_empty = path
         .as_ref()
         .read_dir()
         .map_or(true, |mut f| f.next().is_none());
-    TreeBuilder::new(WidgetBuilder::new().with_user_data(Rc::new(path.as_ref().to_owned())))
-        .with_expanded(false)
-        .with_always_show_expander(!is_dir_empty)
-        .with_content(
-            TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::left(4.0)))
-                .with_text(
-                    path.as_ref()
-                        .to_string_lossy()
-                        .replace(&parent_path.as_ref().to_string_lossy().to_string(), "")
-                        .replace('\\', ""),
-                )
-                .with_vertical_text_alignment(VerticalAlignment::Center)
-                .build(ctx),
-        )
-        .build(ctx)
+    TreeBuilder::new(
+        WidgetBuilder::new()
+            .with_user_data(Rc::new(path.as_ref().to_owned()))
+            .with_context_menu(menu),
+    )
+    .with_expanded(false)
+    .with_always_show_expander(!is_dir_empty)
+    .with_content(
+        TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::left(4.0)))
+            .with_text(
+                path.as_ref()
+                    .to_string_lossy()
+                    .replace(&parent_path.as_ref().to_string_lossy().to_string(), "")
+                    .replace('\\', ""),
+            )
+            .with_vertical_text_alignment(VerticalAlignment::Center)
+            .build(ctx),
+    )
+    .build(ctx)
 }
 
 fn build_tree<P: AsRef<Path>>(
@@ -551,9 +569,10 @@ fn build_tree<P: AsRef<Path>>(
     is_parent_root: bool,
     path: P,
     parent_path: P,
+    menu: RcUiNodeHandle,
     ui: &mut UserInterface,
 ) -> Handle<UiNode> {
-    let subtree = build_tree_item(path, parent_path, &mut ui.build_ctx());
+    let subtree = build_tree_item(path, parent_path, menu, &mut ui.build_ctx());
     insert_subtree_in_parent(ui, parent, is_parent_root, subtree);
     subtree
 }
@@ -589,6 +608,7 @@ fn build_all(
     root: Option<&PathBuf>,
     final_path: &Path,
     mut filter: Option<Filter>,
+    menu: RcUiNodeHandle,
     ctx: &mut BuildContext,
 ) -> BuildResult {
     let mut dest_path = PathBuf::new();
@@ -623,7 +643,7 @@ fn build_all(
         } else {
             root.as_path()
         };
-        let item = build_tree_item(path, Path::new(""), ctx);
+        let item = build_tree_item(path, Path::new(""), menu.clone(), ctx);
         root_items.push(item);
         item
     } else {
@@ -637,7 +657,7 @@ fn build_all(
                 .iter()
                 .map(|i| i.mount_point().to_string_lossy())
             {
-                let item = build_tree_item(disk.as_ref(), "", ctx);
+                let item = build_tree_item(disk.as_ref(), "", menu.clone(), ctx);
 
                 let disk_letter = disk.chars().next().unwrap() as u8;
 
@@ -678,7 +698,7 @@ fn build_all(
                 if filter.as_mut().map_or(true, |f| {
                     f.0.borrow_mut().deref_mut().lock().unwrap()(&path)
                 }) {
-                    let item = build_tree_item(&path, &full_path, ctx);
+                    let item = build_tree_item(&path, &full_path, menu.clone(), ctx);
                     if parent.is_some() {
                         Tree::add_item(parent, item, ctx);
                     } else {
@@ -771,12 +791,15 @@ impl FileBrowserBuilder {
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let item_context_menu = RcUiNodeHandle::new(ItemContextMenu::build(ctx), ctx.sender());
+
         let BuildResult {
             root_items: items, ..
         } = build_all(
             self.root.as_ref(),
             self.path.as_path(),
             self.filter.clone(),
+            item_context_menu.clone(),
             ctx,
         );
 
@@ -896,6 +919,7 @@ impl FileBrowserBuilder {
         };
 
         let widget = self.widget_builder.with_child(grid).build();
+
         let the_path = match &self.root {
             Some(path) => path.clone(),
             _ => self.path.clone(),
@@ -924,6 +948,7 @@ impl FileBrowserBuilder {
             root: self.root,
             file_name,
             watcher: Rc::new(cell::Cell::new(None)),
+            item_context_menu,
         };
         let watcher = browser.watcher.clone();
         let filebrowser_node = UiNode::new(browser);
@@ -970,7 +995,7 @@ mod test {
         file_browser::{build_tree, find_tree},
         tree::TreeRootBuilder,
         widget::WidgetBuilder,
-        UserInterface,
+        RcUiNodeHandle, UserInterface,
     };
     use fyrox_core::algebra::Vector2;
     use std::{path::PathBuf, rc::Rc};
@@ -984,7 +1009,14 @@ mod test {
         )
         .build(&mut ui.build_ctx());
 
-        let path = build_tree(root, true, "./test/path1", "./test", &mut ui);
+        let path = build_tree(
+            root,
+            true,
+            "./test/path1",
+            "./test",
+            RcUiNodeHandle::new(Handle::new(0, 1), ui.sender()),
+            &mut ui,
+        );
 
         while ui.poll_message().is_some() {}
 

@@ -94,6 +94,21 @@ pub enum Placement {
     },
 }
 
+impl Placement {
+    /// Returns a handle of the node to which this placement corresponds to.
+    pub fn target(&self) -> Handle<UiNode> {
+        match self {
+            Placement::LeftTop(target)
+            | Placement::RightTop(target)
+            | Placement::Center(target)
+            | Placement::LeftBottom(target)
+            | Placement::RightBottom(target)
+            | Placement::Cursor(target)
+            | Placement::Position { target, .. } => *target,
+        }
+    }
+}
+
 /// Popup is used to display other widgets in floating panel, that could lock input in self bounds.
 ///
 /// ## How to create
@@ -501,8 +516,9 @@ impl PopupBuilder {
         self
     }
 
-    /// Finishes building the [`Popup`] instance and adds to the user interface and returns its handle.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    /// Builds the popup widget, but does not add it to the user interface. Could be useful if you're making your
+    /// own derived version of the popup.
+    pub fn build_popup(self, ctx: &mut BuildContext) -> Popup {
         let body = BorderBuilder::new(
             WidgetBuilder::new()
                 .with_background(BRUSH_PRIMARY)
@@ -512,7 +528,7 @@ impl PopupBuilder {
         .with_stroke_thickness(Thickness::uniform(1.0))
         .build(ctx);
 
-        let popup = Popup {
+        Popup {
             widget: self
                 .widget_builder
                 .with_child(body)
@@ -525,8 +541,12 @@ impl PopupBuilder {
             content: self.content,
             smart_placement: self.smart_placement,
             body,
-        };
+        }
+    }
 
+    /// Finishes building the [`Popup`] instance and adds to the user interface and returns its handle.
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let popup = self.build_popup(ctx);
         ctx.add_node(UiNode::new(popup))
     }
 }
