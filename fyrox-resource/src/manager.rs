@@ -17,7 +17,7 @@ use fyrox_core::{
     parking_lot::{Mutex, MutexGuard},
     uuid::Uuid,
     watcher::FileSystemWatcher,
-    TypeUuidProvider, VecExtensions,
+    TypeUuidProvider,
 };
 use std::path::PathBuf;
 use std::{
@@ -255,7 +255,7 @@ impl ResourceManagerState {
     /// Normally, this is called from `Engine::update()`.
     /// You should only call this manually if you don't use that method.
     pub fn update(&mut self, dt: f32) {
-        self.resources.retain_mut_ext(|resource| {
+        self.resources.retain_mut(|resource| {
             // One usage means that the resource has single owner, and that owner
             // is this container. Such resources have limited life time, if the time
             // runs out before it gets shared again, the resource will be deleted.

@@ -287,46 +287,6 @@ where
     }
 }
 
-pub trait VecExtensions<T> {
-    /// Retains only the elements specified by the predicate.
-    ///
-    /// In other words, remove all elements `e` such that `f(&mut e)` returns `false`.
-    /// This method operates in place, visiting each element exactly once in the
-    /// original order, and preserves the order of the retained elements.
-    ///
-    /// # Notes
-    ///
-    /// This method is the copy of `retain` method of Vec, but with ability to
-    /// modify each element.
-    fn retain_mut_ext<F>(&mut self, f: F)
-    where
-        F: FnMut(&mut T) -> bool;
-}
-
-impl<T> VecExtensions<T> for Vec<T> {
-    fn retain_mut_ext<F>(&mut self, mut f: F)
-    where
-        F: FnMut(&mut T) -> bool,
-    {
-        let len = self.len();
-        let mut del = 0;
-        {
-            let v = &mut **self;
-
-            for i in 0..len {
-                if !f(&mut v[i]) {
-                    del += 1;
-                } else if del > 0 {
-                    v.swap(i - del, i);
-                }
-            }
-        }
-        if del > 0 {
-            self.truncate(len - del);
-        }
-    }
-}
-
 #[inline]
 pub fn hash_combine(lhs: u64, rhs: u64) -> u64 {
     lhs ^ (rhs

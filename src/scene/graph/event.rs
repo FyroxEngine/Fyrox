@@ -1,10 +1,7 @@
 //! Graph event broadcaster allows you to receive graph events such as node deletion or addition.
 //! Check [GraphEventBroadcaster::subscribe] for examples.
 
-use crate::{
-    core::{pool::Handle, VecExtensions},
-    scene::node::Node,
-};
+use crate::{core::pool::Handle, scene::node::Node};
 use std::{
     fmt::{Debug, Formatter},
     sync::mpsc::Sender,
@@ -69,6 +66,6 @@ impl GraphEventBroadcaster {
 
     pub(crate) fn broadcast(&mut self, event: GraphEvent) {
         self.senders
-            .retain_mut_ext(|sender| sender.send(event.clone()).is_ok());
+            .retain_mut(|sender| sender.send(event.clone()).is_ok());
     }
 }
