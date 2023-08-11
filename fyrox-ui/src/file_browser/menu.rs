@@ -1,22 +1,36 @@
 use crate::{
+    button::{ButtonBuilder, ButtonMessage},
     core::{algebra::Vector2, log::Log, pool::Handle},
     draw::DrawingContext,
+    grid::{Column, GridBuilder, Row},
     menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
     message::{MessageDirection, OsEvent, UiMessage},
     messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult},
     popup::{Placement, Popup, PopupBuilder, PopupMessage},
     stack_panel::StackPanelBuilder,
+    text::{TextBuilder, TextMessage},
+    text_box::TextBoxBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    window::{WindowBuilder, WindowTitle},
-    BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface,
+    window::{WindowBuilder, WindowMessage, WindowTitle},
+    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness, UiNode,
+    UserInterface,
 };
 use std::{
     any::{Any, TypeId},
-    cell::Cell,
+    cell::{Cell, RefCell},
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::mpsc::Sender,
 };
+
+#[derive(Clone)]
+pub struct FolderNameDialog {
+    pub dialog: Handle<UiNode>,
+    pub folder_name_tb: Handle<UiNode>,
+    pub folder_name: String,
+    pub ok: Handle<UiNode>,
+    pub cancel: Handle<UiNode>,
+}
 
 #[derive(Clone)]
 pub struct ItemContextMenu {
@@ -24,6 +38,7 @@ pub struct ItemContextMenu {
     pub delete: Handle<UiNode>,
     pub make_folder: Handle<UiNode>,
     pub delete_message_box: Cell<Handle<UiNode>>,
+    pub folder_name_dialog: RefCell<Option<FolderNameDialog>>,
 }
 
 impl Deref for ItemContextMenu {
@@ -112,7 +127,92 @@ impl Control for ItemContextMenu {
                     ));
                 }
             } else if message.destination() == self.make_folder {
-                // TODO
+                let ctx = &mut ui.build_ctx();
+                let ok;
+                let cancel;
+                let folder_name_tb;
+                let dialog =
+                    WindowBuilder::new(WidgetBuilder::new().with_width(220.0).with_height(100.0))
+                        .open(false)
+                        .with_title(WindowTitle::text("New Folder Name"))
+                        .with_content(
+                            GridBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_child(
+                                        TextBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .on_row(0),
+                                        )
+                                        .with_text("Enter a new folder name:")
+                                        .build(ctx),
+                                    )
+                                    .with_child({
+                                        folder_name_tb = TextBoxBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_margin(Thickness::uniform(2.0))
+                                                .with_height(25.0)
+                                                .on_row(1),
+                                        )
+                                        .build(ctx);
+                                        folder_name_tb
+                                    })
+                                    .with_child(
+                                        StackPanelBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_horizontal_alignment(
+                                                    HorizontalAlignment::Right,
+                                                )
+                                                .with_margin(Thickness::uniform(1.0))
+                                                .with_height(23.0)
+                                                .on_row(3)
+                                                .with_child({
+                                                    ok = ButtonBuilder::new(
+                                                        WidgetBuilder::new()
+                                                            .with_margin(Thickness::uniform(1.0))
+                                                            .with_width(80.0),
+                                                    )
+                                                    .with_text("OK")
+                                                    .build(ctx);
+                                                    ok
+                                                })
+                                                .with_child({
+                                                    cancel = ButtonBuilder::new(
+                                                        WidgetBuilder::new()
+                                                            .with_margin(Thickness::uniform(1.0))
+                                                            .with_width(80.0),
+                                                    )
+                                                    .with_text("Cancel")
+                                                    .build(ctx);
+                                                    cancel
+                                                }),
+                                        )
+                                        .with_orientation(Orientation::Horizontal)
+                                        .build(ctx),
+                                    ),
+                            )
+                            .add_row(Row::auto())
+                            .add_row(Row::auto())
+                            .add_row(Row::stretch())
+                            .add_row(Row::auto())
+                            .add_column(Column::stretch())
+                            .build(ctx),
+                        )
+                        .build(ctx);
+
+                ui.send_message(WindowMessage::open_modal(
+                    dialog,
+                    MessageDirection::ToWidget,
+                    true,
+                ));
+
+                self.folder_name_dialog = RefCell::new(Some(FolderNameDialog {
+                    dialog,
+                    ok,
+                    cancel,
+                    folder_name_tb,
+                    folder_name: Default::default(),
+                }));
             }
         }
     }
@@ -138,6 +238,52 @@ impl Control for ItemContextMenu {
                 ));
 
                 self.delete_message_box.set(Handle::NONE);
+            }
+        } else if let Some(WindowMessage::Close) = message.data() {
+            let dialog_ref = self.folder_name_dialog.borrow();
+            if let Some(dialog) = dialog_ref.as_ref() {
+                if message.destination() == dialog.dialog {
+                    if !dialog.folder_name.is_empty() {
+                        if let Some(item_path) = self.item_path(ui) {
+                            Log::verify(std::fs::create_dir_all(
+                                item_path.to_path_buf().join(&dialog.folder_name),
+                            ));
+                        }
+                    }
+
+                    ui.send_message(WidgetMessage::remove(
+                        dialog.dialog,
+                        MessageDirection::ToWidget,
+                    ));
+
+                    drop(dialog_ref);
+
+                    *self.folder_name_dialog.borrow_mut() = None;
+                }
+            }
+        } else if let Some(ButtonMessage::Click) = message.data() {
+            let mut dialog = self.folder_name_dialog.borrow_mut();
+            if let Some(dialog) = dialog.as_mut() {
+                if message.destination() == dialog.ok {
+                    ui.send_message(WindowMessage::close(
+                        dialog.dialog,
+                        MessageDirection::ToWidget,
+                    ));
+                } else if message.destination() == dialog.cancel {
+                    dialog.folder_name.clear();
+
+                    ui.send_message(WindowMessage::close(
+                        dialog.dialog,
+                        MessageDirection::ToWidget,
+                    ));
+                }
+            }
+        } else if let Some(TextMessage::Text(text)) = message.data() {
+            let mut dialog = self.folder_name_dialog.borrow_mut();
+            if let Some(dialog) = dialog.as_mut() {
+                if message.destination() == dialog.folder_name_tb {
+                    dialog.folder_name = text.clone();
+                }
             }
         }
     }
@@ -191,6 +337,7 @@ impl ItemContextMenu {
             delete,
             make_folder,
             delete_message_box: Default::default(),
+            folder_name_dialog: Default::default(),
         };
 
         ctx.add_node(UiNode::new(menu))
