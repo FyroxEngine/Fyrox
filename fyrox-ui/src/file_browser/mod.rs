@@ -1014,7 +1014,7 @@ mod test {
             true,
             "./test/path1",
             "./test",
-            RcUiNodeHandle::new(Default::default(), ui.sender()),
+            RcUiNodeHandle::new(Handle::new(0, 1), ui.sender()),
             &mut ui,
         );
 
