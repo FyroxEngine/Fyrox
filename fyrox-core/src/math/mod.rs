@@ -131,6 +131,14 @@ where
     pub fn clip_by(&self, other: Rect<T>) -> Rect<T> {
         let mut clipped = *self;
 
+        if other.x() + other.w() < self.x()
+            || other.x() > self.x() + self.w()
+            || other.y() + other.h() < self.y()
+            || other.y() > self.y() + self.w()
+        {
+            return clipped;
+        }
+
         if clipped.position.x < other.position.x {
             clipped.size.x -= other.position.x - clipped.position.x;
             clipped.position.x = other.position.x;
@@ -1247,11 +1255,25 @@ mod test {
 
         assert_eq!(rect.clip_by(Rect::new(2, 2, 1, 1)), Rect::new(2, 2, 1, 1));
         assert_eq!(
-            rect.clip_by(Rect::new(-2, -2, 1, 1)),
-            Rect::new(0, 0, -1, -1)
+            rect.clip_by(Rect::new(0, 0, 15, 15)),
+            Rect::new(0, 0, 10, 10)
+        );
+
+        // When there is no intersection.
+        assert_eq!(
+            rect.clip_by(Rect::new(-2, 1, 1, 1)),
+            Rect::new(0, 0, 10, 10)
         );
         assert_eq!(
-            rect.clip_by(Rect::new(0, 0, 15, 15)),
+            rect.clip_by(Rect::new(11, 1, 1, 1)),
+            Rect::new(0, 0, 10, 10)
+        );
+        assert_eq!(
+            rect.clip_by(Rect::new(1, -2, 1, 1)),
+            Rect::new(0, 0, 10, 10)
+        );
+        assert_eq!(
+            rect.clip_by(Rect::new(1, 11, 1, 1)),
             Rect::new(0, 0, 10, 10)
         );
     }
