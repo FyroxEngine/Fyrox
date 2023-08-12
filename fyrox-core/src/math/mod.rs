@@ -1104,11 +1104,28 @@ pub fn m4x4_approx_eq(a: &Matrix4<f32>, b: &Matrix4<f32>) -> bool {
 #[cfg(test)]
 mod test {
     use nalgebra::Matrix3;
+    use nalgebra::Vector3;
     use num_traits::Zero;
 
     use crate::algebra::Vector2;
+    use crate::math::barycentric_is_inside;
+    use crate::math::barycentric_to_world;
+    use crate::math::cubicf_derivative;
+    use crate::math::get_barycentric_coords;
+    use crate::math::get_barycentric_coords_2d;
+    use crate::math::get_farthest_point;
+    use crate::math::get_signed_triangle_area;
+    use crate::math::ieee_remainder;
+    use crate::math::inf_sup_cubicf;
+    use crate::math::round_to_step;
+    use crate::math::spherical_to_cartesian;
+    use crate::math::triangle_area;
+    use crate::math::wrap_angle;
+    use crate::math::wrapf;
     use crate::math::Rect;
     use crate::math::SmoothAngle;
+    use crate::visitor::Visit;
+    use crate::visitor::Visitor;
 
     #[test]
     fn ray_rect_intersection() {
@@ -1303,6 +1320,176 @@ mod test {
                 0.0, 0.0, 2.0,
             )),
             Rect::new(0.0, 0.0, 2.0, 2.0),
+        );
+    }
+
+    #[test]
+    fn visit_for_rect() {
+        let mut rect = Rect::new(0.0, 0.0, 1.0, 1.0);
+        let mut visitor = Visitor::default();
+
+        assert!(rect.visit("name", &mut visitor).is_ok());
+    }
+
+    #[test]
+    fn test_get_signed_triangle_area() {
+        assert_eq!(
+            get_signed_triangle_area(
+                Vector2::new(0.0, 0.0),
+                Vector2::new(0.0, 1.0),
+                Vector2::new(1.0, 0.0)
+            ),
+            0.5
+        );
+        assert_eq!(
+            get_signed_triangle_area(
+                Vector2::new(1.0, 1.0),
+                Vector2::new(0.0, 1.0),
+                Vector2::new(1.0, 0.0)
+            ),
+            -0.5
+        );
+    }
+
+    #[test]
+    fn test_wrap_angle() {
+        let angle = 0.5 * std::f32::consts::PI;
+        assert_eq!(wrap_angle(angle), angle);
+        assert_eq!(wrap_angle(-angle), 3.0 * angle);
+    }
+
+    #[test]
+    fn test_ieee_remainder() {
+        assert_eq!(ieee_remainder(1.0, 2.0), -1.0);
+        assert_eq!(ieee_remainder(3.0, 2.0), -1.0);
+
+        assert_eq!(ieee_remainder(1.0, 3.0), 1.0);
+        assert_eq!(ieee_remainder(4.0, 3.0), 1.0);
+
+        assert_eq!(ieee_remainder(-1.0, 2.0), 1.0);
+        assert_eq!(ieee_remainder(-3.0, 2.0), 1.0);
+    }
+
+    #[test]
+    fn test_round_to_step() {
+        assert_eq!(round_to_step(1.0, 2.0), 2.0);
+        assert_eq!(round_to_step(3.0, 2.0), 4.0);
+
+        assert_eq!(round_to_step(-1.0, 2.0), -2.0);
+        assert_eq!(round_to_step(-3.0, 2.0), -4.0);
+    }
+
+    #[test]
+    fn test_wrapf() {
+        assert_eq!(wrapf(5.0, 0.0, 10.0), 5.0);
+        assert_eq!(wrapf(5.0, 0.0, 0.0), 0.0);
+        assert_eq!(wrapf(2.0, 5.0, 10.0), 7.0);
+        assert_eq!(wrapf(12.0, 5.0, 10.0), 7.0);
+    }
+
+    #[test]
+    fn test_cubicf_derivative() {
+        assert_eq!(cubicf_derivative(1.0, 1.0, 1.0, 1.0, 1.0), 0.0);
+        assert_eq!(cubicf_derivative(2.0, 1.0, 1.0, 1.0, 1.0), 1.0);
+    }
+
+    #[test]
+    fn test_inf_sup_cubicf() {
+        assert_eq!(inf_sup_cubicf(1.0, 1.0, 1.0, 1.0), (1.0, 1.0));
+        assert_eq!(inf_sup_cubicf(2.0, 2.0, 1.0, 1.0), (2.0, 2.0));
+    }
+
+    #[test]
+    fn test_get_farthest_point() {
+        let points = [
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(1.0, 0.0, 0.0),
+            Vector3::new(0.0, 1.0, 0.0),
+            Vector3::new(0.0, 0.0, 1.0),
+            Vector3::new(1.0, 1.0, 1.0),
+        ];
+
+        assert_eq!(
+            get_farthest_point(&points, Vector3::new(1.0, 0.0, 0.0)),
+            Vector3::new(1.0, 0.0, 0.0)
+        );
+        assert_eq!(
+            get_farthest_point(&points, Vector3::new(10.0, 0.0, 0.0)),
+            Vector3::new(1.0, 0.0, 0.0)
+        );
+        assert_eq!(
+            get_farthest_point(&points, Vector3::new(1.0, 1.0, 0.0)),
+            Vector3::new(1.0, 1.0, 1.0)
+        );
+    }
+
+    #[test]
+    fn test_get_barycentric_coords() {
+        assert_eq!(
+            get_barycentric_coords(
+                &Vector3::new(0.0, 0.0, 0.0),
+                &Vector3::new(1.0, 0.0, 0.0),
+                &Vector3::new(0.0, 1.0, 0.0),
+                &Vector3::new(0.0, 0.0, 1.0),
+            ),
+            (0.33333328, 0.33333334, 0.33333334)
+        );
+    }
+
+    #[test]
+    fn test_get_barycentric_coords_2d() {
+        assert_eq!(
+            get_barycentric_coords_2d(
+                Vector2::new(0.0, 0.0),
+                Vector2::new(1.0, 0.0),
+                Vector2::new(0.0, 1.0),
+                Vector2::new(0.0, 0.0),
+            ),
+            (0.0, 0.0, 1.0)
+        );
+    }
+
+    #[test]
+    fn test_barycentric_to_world() {
+        assert_eq!(
+            barycentric_to_world(
+                (2.0, 2.0, 2.0),
+                Vector3::new(1.0, 0.0, 0.0),
+                Vector3::new(0.0, 1.0, 0.0),
+                Vector3::new(0.0, 0.0, 1.0),
+            ),
+            Vector3::new(2.0, 2.0, 2.0)
+        );
+    }
+
+    #[test]
+    fn test_barycentric_is_inside() {
+        assert!(barycentric_is_inside((0.0, 0.0, 0.0)));
+        assert!(barycentric_is_inside((0.5, 0.49, 0.0)));
+
+        assert!(!barycentric_is_inside((0.5, 0.5, 0.0)));
+        assert!(!barycentric_is_inside((-0.5, 0.49, 0.0)));
+        assert!(!barycentric_is_inside((0.5, -0.49, 0.0)));
+        assert!(!barycentric_is_inside((-0.5, -0.49, 0.0)));
+    }
+
+    #[test]
+    fn test_triangle_area() {
+        assert_eq!(
+            triangle_area(
+                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::new(0.0, 1.0, 0.0),
+                Vector3::new(0.0, 0.0, 1.0),
+            ),
+            0.5
+        );
+    }
+
+    #[test]
+    fn test_spherical_to_cartesian() {
+        assert_eq!(
+            spherical_to_cartesian(0.0, 0.0, 1.0),
+            Vector3::new(0.0, 1.0, 0.0)
         );
     }
 }
