@@ -3,11 +3,10 @@
 //! For more info see [`SceneDrawingContext`]
 
 use crate::core::{
-    algebra::{Matrix4, Point3, Vector2, Vector3},
+    algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
     color::{Color, Hsl},
     math::{aabb::AxisAlignedBoundingBox, frustum::Frustum, Matrix4Ext},
 };
-use fyrox_core::algebra::UnitQuaternion;
 use std::ops::Range;
 
 /// Colored line between two points.
@@ -1037,6 +1036,31 @@ impl SceneDrawingContext {
 
             u += du;
         }
+    }
+
+    /// Draws an Y+ oriented arrow with the given parameters.
+    pub fn draw_arrow(
+        &mut self,
+        sides: usize,
+        color: Color,
+        length: f32,
+        radius: f32,
+        transform: Matrix4<f32>,
+    ) {
+        self.draw_cylinder(sides, radius, length, true, transform, color);
+
+        let head_radius = radius * 2.0;
+        let head_height = radius * 4.0;
+
+        self.draw_cone(
+            sides,
+            head_radius,
+            head_height,
+            transform
+                * Matrix4::new_translation(&Vector3::new(0.0, (length + head_height) * 0.5, 0.0)),
+            color,
+            true,
+        );
     }
 
     /// Adds single line into internal buffer.
