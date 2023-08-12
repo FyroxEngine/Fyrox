@@ -8,6 +8,8 @@
 
 use crate::{
     core::{
+        algebra::{UnitQuaternion, Vector3},
+        color::Color,
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
@@ -18,6 +20,7 @@ use crate::{
     },
     scene::{
         base::Base,
+        debug::SceneDrawingContext,
         graph::Graph,
         light::{BaseLight, BaseLightBuilder},
         node::{Node, NodeTrait},
@@ -160,6 +163,18 @@ impl NodeTrait for DirectionalLight {
 
     fn id(&self) -> Uuid {
         Self::type_uuid()
+    }
+
+    fn debug_draw(&self, ctx: &mut SceneDrawingContext) {
+        ctx.draw_arrow(
+            16,
+            Color::GREEN,
+            1.0,
+            0.2,
+            self.global_transform()
+                * UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 180.0f32.to_radians())
+                    .to_homogeneous(),
+        );
     }
 }
 
