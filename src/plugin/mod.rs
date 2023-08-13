@@ -2,6 +2,7 @@
 
 #![warn(missing_docs)]
 
+use crate::engine::ScriptProcessor;
 use crate::{
     asset::manager::ResourceManager,
     core::pool::Handle,
@@ -88,6 +89,9 @@ pub struct PluginContext<'a, 'b> {
     /// this value is **not** guaranteed to match real time. A user can change delta time with
     /// which the engine "ticks" and this delta time affects elapsed time.
     pub elapsed_time: f32,
+
+    /// Script processor is used to run script methods in a strict order.
+    pub script_processor: &'a ScriptProcessor,
 }
 
 /// Base plugin automatically implements type casting for plugins.

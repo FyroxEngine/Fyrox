@@ -224,7 +224,8 @@ pub struct Engine {
     /// value whenever you need it as a parameter in other parts of the engine.
     pub serialization_context: Arc<SerializationContext>,
 
-    script_processor: ScriptProcessor,
+    /// Script processor is used to run script methods in a strict order.
+    pub script_processor: ScriptProcessor,
 }
 
 /// Performs dispatch of script messages.
@@ -364,16 +365,21 @@ impl ScriptMessageDispatcher {
     }
 }
 
-pub(crate) struct ScriptedScene {
-    handle: Handle<Scene>,
-    message_sender: ScriptMessageSender,
+/// Scripted scene is a handle to scene with some additional data associated with it.
+pub struct ScriptedScene {
+    /// Handle of a scene.
+    pub handle: Handle<Scene>,
+    /// Script message sender.
+    pub message_sender: ScriptMessageSender,
     message_dispatcher: ScriptMessageDispatcher,
 }
 
+/// Script processor is used to run script methods in a strict order.
 #[derive(Default)]
-struct ScriptProcessor {
+pub struct ScriptProcessor {
     wait_list: Vec<ResourceWaitContext>,
-    scripted_scenes: Vec<ScriptedScene>,
+    /// A list of scenes.
+    pub scripted_scenes: Vec<ScriptedScene>,
 }
 
 impl ScriptProcessor {
@@ -1278,6 +1284,7 @@ impl Engine {
                 serialization_context: &self.serialization_context,
                 performance_statistics: &self.performance_statistics,
                 elapsed_time: self.elapsed_time,
+                script_processor: &self.script_processor,
             };
 
             for plugin in self.plugins.iter_mut() {
@@ -1295,6 +1302,7 @@ impl Engine {
                     serialization_context: &self.serialization_context,
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
+                    script_processor: &self.script_processor,
                 };
 
                 for plugin in self.plugins.iter_mut() {
@@ -1327,6 +1335,7 @@ impl Engine {
                         serialization_context: &self.serialization_context,
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
+                        script_processor: &self.script_processor,
                     },
                     control_flow,
                 );
@@ -1353,6 +1362,7 @@ impl Engine {
                         serialization_context: &self.serialization_context,
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
+                        script_processor: &self.script_processor,
                     },
                     control_flow,
                 );
@@ -1379,6 +1389,7 @@ impl Engine {
                         serialization_context: &self.serialization_context,
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
+                        script_processor: &self.script_processor,
                     },
                     control_flow,
                 );
@@ -1405,6 +1416,7 @@ impl Engine {
                         serialization_context: &self.serialization_context,
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
+                        script_processor: &self.script_processor,
                     },
                     control_flow,
                 );
@@ -1528,6 +1540,7 @@ impl Engine {
                             serialization_context: &self.serialization_context,
                             performance_statistics: &self.performance_statistics,
                             elapsed_time: self.elapsed_time,
+                            script_processor: &self.script_processor,
                         },
                     ));
                 }
@@ -1546,6 +1559,7 @@ impl Engine {
                         serialization_context: &self.serialization_context,
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
+                        script_processor: &self.script_processor,
                     });
                 }
             }
