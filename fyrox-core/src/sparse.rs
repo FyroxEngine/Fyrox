@@ -152,3 +152,234 @@ impl<T> SparseBuffer<T> {
         self.free.clear();
     }
 }
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+
+    #[test]
+    fn atomic_index_get() {
+        let ai = AtomicIndex::new(42);
+        assert_eq!(ai.get(), 42);
+    }
+
+    #[test]
+    fn atomic_index_unassigned() {
+        let ai = AtomicIndex::unassigned();
+        assert_eq!(ai.get(), usize::MAX);
+    }
+
+    #[test]
+    fn atomic_index_new() {
+        let ai = AtomicIndex::new(42);
+        assert_eq!(ai.get(), 42);
+    }
+
+    #[test]
+    fn atomic_index_set() {
+        let ai = AtomicIndex::new(42);
+        assert_eq!(ai.get(), 42);
+
+        ai.set(1);
+        assert_eq!(ai.get(), 1);
+    }
+
+    #[test]
+    fn default_for_atomic_index() {
+        let mut ai = AtomicIndex::default();
+        assert_eq!(ai.index.get_mut(), &usize::MAX);
+    }
+
+    #[test]
+    fn clone_for_atomic_index() {
+        let ai = AtomicIndex::default();
+        let ai2 = ai.clone();
+        assert_eq!(ai2.get(), usize::MAX);
+    }
+
+    #[test]
+    fn default_for_sparse_buffer() {
+        let sb = SparseBuffer::<f32>::default();
+
+        assert_eq!(sb.vec, Vec::<Option<f32>>::default());
+        assert_eq!(sb.free, Vec::<usize>::default());
+    }
+
+    #[test]
+    fn clone_for_sparse_buffer() {
+        let sb = SparseBuffer::<f32>::default();
+        let sb2 = sb.clone();
+
+        assert_eq!(sb.vec, sb2.vec);
+        assert_eq!(sb.free, sb2.free);
+    }
+
+    #[test]
+    fn sparse_buffer_with_capacity() {
+        let sb = SparseBuffer::<f32>::with_capacity(10);
+
+        assert_eq!(sb.vec, Vec::with_capacity(10));
+        assert_eq!(sb.free, vec![]);
+    }
+
+    #[test]
+    fn sparse_buffer_len() {
+        let sb = SparseBuffer::<f32>::default();
+
+        assert_eq!(sb.len(), 0);
+    }
+
+    #[test]
+    fn sparse_buffer_filled() {
+        let sb = SparseBuffer {
+            vec: vec![None, Some(1)],
+            free: vec![],
+        };
+
+        assert_eq!(sb.filled(), 2);
+    }
+
+    #[test]
+    fn sparse_buffer_is_empty() {
+        let sb = SparseBuffer::<f32>::default();
+
+        assert!(sb.is_empty());
+
+        let sb = SparseBuffer {
+            vec: vec![None, Some(1)],
+            free: vec![],
+        };
+        assert!(!sb.is_empty());
+    }
+
+    #[test]
+    fn sparse_buffer_is_index_valid() {
+        let sb = SparseBuffer {
+            vec: vec![None, Some(1)],
+            free: vec![],
+        };
+
+        assert!(!sb.is_index_valid(&AtomicIndex::new(0)));
+        assert!(sb.is_index_valid(&AtomicIndex::new(1)));
+    }
+
+    #[test]
+    fn sparse_buffer_get_raw() {
+        let sb = SparseBuffer {
+            vec: vec![None, Some(1)],
+            free: vec![],
+        };
+
+        assert_eq!(sb.get_raw(0), None);
+        assert_eq!(sb.get_raw(1), Some(&1));
+    }
+
+    #[test]
+    fn sparse_buffer_get_mut_raw() {
+        let mut sb = SparseBuffer {
+            vec: vec![None, Some(1)],
+            free: vec![],
+        };
+
+        assert_eq!(sb.get_mut_raw(0), None);
+        assert_eq!(sb.get_mut_raw(1), Some(&mut 1));
+    }
+
+    #[test]
+    fn sparse_buffer_get() {
+        let sb = SparseBuffer {
+            vec: vec![None, Some(1)],
+            free: vec![],
+        };
+
+        assert_eq!(sb.get(&AtomicIndex::new(0)), None);
+        assert_eq!(sb.get(&AtomicIndex::new(1)), Some(&1));
+    }
+
+    #[test]
+    fn sparse_buffer_get_mut() {
+        let mut sb = SparseBuffer {
+            vec: vec![None, Some(1)],
+            free: vec![],
+        };
+
+        assert_eq!(sb.get_mut(&AtomicIndex::new(0)), None);
+        assert_eq!(sb.get_mut(&AtomicIndex::new(1)), Some(&mut 1));
+    }
+
+    #[test]
+    fn sparse_buffer_iter() {
+        let sb = SparseBuffer {
+            vec: vec![None, Some(1)],
+            free: vec![],
+        };
+
+        assert!(sb.iter().eq(vec![1].iter()));
+    }
+
+    #[test]
+    fn sparse_buffer_iter_mut() {
+        let mut sb = SparseBuffer {
+            vec: vec![None, Some(1)],
+            free: vec![],
+        };
+
+        assert!(sb.iter_mut().eq(vec![1].iter_mut()));
+    }
+
+    #[test]
+    fn sparse_buffer_clear() {
+        let mut sb = SparseBuffer {
+            vec: vec![None, Some(1)],
+            free: vec![1, 2],
+        };
+
+        sb.clear();
+        assert!(sb.vec.is_empty());
+        assert!(sb.free.is_empty());
+    }
+
+    #[test]
+    fn sparse_buffer_free_raw() {
+        let mut sb = SparseBuffer {
+            vec: vec![None, Some(1)],
+            free: vec![],
+        };
+
+        assert_eq!(sb.free_raw(42), None);
+        assert_eq!(sb.free_raw(0), None);
+        assert_eq!(sb.free_raw(1), Some(1));
+        assert_eq!(sb.vec, vec![None, None]);
+        assert_eq!(sb.free, vec![1]);
+    }
+
+    #[test]
+    fn sparse_buffer_free() {
+        let mut sb = SparseBuffer {
+            vec: vec![None, Some(1)],
+            free: vec![],
+        };
+
+        assert_eq!(sb.free(&AtomicIndex::new(0)), None);
+        assert_eq!(sb.free(&AtomicIndex::new(1)), Some(1));
+        assert_eq!(sb.vec, vec![None, None]);
+        assert_eq!(sb.free, vec![1]);
+    }
+
+    #[test]
+    fn sparse_buffer_spawn() {
+        let mut sb = SparseBuffer {
+            vec: vec![None, Some(1)],
+            free: vec![0],
+        };
+
+        assert_eq!(sb.spawn(42).get(), 0);
+        assert_eq!(sb.vec, vec![Some(42), Some(1)]);
+        assert_eq!(sb.free, vec![]);
+
+        assert_eq!(sb.spawn(5).get(), 2);
+        assert_eq!(sb.vec, vec![Some(42), Some(1), Some(5)]);
+        assert_eq!(sb.free, vec![]);
+    }
+}
