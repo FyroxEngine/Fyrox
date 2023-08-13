@@ -1111,15 +1111,16 @@ pub fn m4x4_approx_eq(a: &Matrix4<f32>, b: &Matrix4<f32>) -> bool {
 
 #[cfg(test)]
 mod test {
-    use nalgebra::{Matrix3, Vector3};
+    use nalgebra::{Matrix3, Matrix4, UnitQuaternion, Vector3};
     use num_traits::Zero;
 
     use super::{
         barycentric_is_inside, barycentric_to_world, cubicf_derivative, get_barycentric_coords,
         get_barycentric_coords_2d, get_closest_point, get_closest_point_triangle_set,
         get_closest_point_triangles, get_farthest_point, get_signed_triangle_area, ieee_remainder,
-        inf_sup_cubicf, round_to_step, spherical_to_cartesian, triangle_area, wrap_angle, wrapf,
-        PositionProvider, Rect, SmoothAngle, TriangleDefinition, TriangleEdge,
+        inf_sup_cubicf, m4x4_approx_eq, quat_from_euler, round_to_step, spherical_to_cartesian,
+        triangle_area, wrap_angle, wrapf, Matrix3Ext, Matrix4Ext, PositionProvider, Rect,
+        RotationOrder, SmoothAngle, TriangleDefinition, TriangleEdge, Vector2Ext, Vector3Ext,
     };
     use crate::algebra::Vector2;
 
@@ -1640,5 +1641,183 @@ mod test {
             get_closest_point_triangle_set(&points, &triangles, Vector3::new(1.0, 1.0, 1.0)),
             Some(1)
         );
+    }
+
+    #[test]
+    fn smooth_angle_setters() {
+        let mut sa = SmoothAngle {
+            angle: 0.0,
+            speed: 0.0,
+            target: 0.0,
+        };
+
+        assert_eq!(sa.angle(), 0.0);
+
+        sa.set_angle(std::f32::consts::PI);
+        assert_eq!(sa.angle(), std::f32::consts::PI);
+
+        sa.set_target(std::f32::consts::PI);
+        assert_eq!(sa.target, std::f32::consts::PI);
+
+        sa.set_speed(1.0);
+        assert_eq!(sa.speed, 1.0);
+    }
+
+    #[test]
+    fn smooth_angle_turn_direction() {
+        assert_eq!(
+            SmoothAngle {
+                angle: 0.0,
+                speed: 0.0,
+                target: std::f32::consts::PI * 1.1,
+            }
+            .turn_direction(),
+            -1.0
+        );
+
+        assert_eq!(
+            SmoothAngle {
+                angle: 0.0,
+                speed: 0.0,
+                target: -std::f32::consts::PI * 1.1,
+            }
+            .turn_direction(),
+            1.0
+        );
+
+        assert_eq!(
+            SmoothAngle {
+                angle: 0.0,
+                speed: 0.0,
+                target: -std::f32::consts::PI * 0.9,
+            }
+            .turn_direction(),
+            -1.0
+        );
+
+        assert_eq!(
+            SmoothAngle {
+                angle: 0.0,
+                speed: 0.0,
+                target: std::f32::consts::PI * 0.9,
+            }
+            .turn_direction(),
+            1.0
+        );
+    }
+
+    #[test]
+    fn default_for_smooth_angle() {
+        let sa = SmoothAngle::default();
+
+        assert_eq!(sa.angle, 0.0);
+        assert_eq!(sa.target, 0.0);
+        assert_eq!(sa.speed, 1.0);
+    }
+
+    #[test]
+    fn test_quat_from_euler() {
+        assert_eq!(
+            quat_from_euler(
+                Vector3::new(
+                    std::f32::consts::PI,
+                    std::f32::consts::PI,
+                    std::f32::consts::PI
+                ),
+                RotationOrder::XYZ
+            ),
+            UnitQuaternion::from_euler_angles(
+                std::f32::consts::PI,
+                std::f32::consts::PI,
+                std::f32::consts::PI
+            )
+        );
+    }
+
+    #[test]
+    fn matrix4_ext_for_matrix4() {
+        let m = Matrix4::new(
+            1.0, 0.0, 0.0, 0.0, //
+            0.0, 1.0, 0.0, 0.0, //
+            0.0, 0.0, 1.0, 0.0, //
+            0.0, 0.0, 0.0, 1.0,
+        );
+
+        assert_eq!(m.side(), Vector3::new(1.0, 0.0, 0.0));
+        assert_eq!(m.up(), Vector3::new(0.0, 1.0, 0.0));
+        assert_eq!(m.look(), Vector3::new(0.0, 0.0, 1.0));
+        assert_eq!(m.position(), Vector3::new(0.0, 0.0, 0.0));
+        assert_eq!(
+            m.basis(),
+            Matrix3::new(
+                1.0, 0.0, 0.0, //
+                0.0, 1.0, 0.0, //
+                0.0, 0.0, 1.0,
+            )
+        );
+    }
+
+    #[test]
+    fn matrix3_ext_for_matrix3() {
+        let m = Matrix3::new(
+            1.0, 0.0, 0.0, //
+            0.0, 1.0, 0.0, //
+            0.0, 0.0, 1.0,
+        );
+
+        assert_eq!(m.side(), Vector3::new(1.0, 0.0, 0.0));
+        assert_eq!(m.up(), Vector3::new(0.0, 1.0, 0.0));
+        assert_eq!(m.look(), Vector3::new(0.0, 0.0, 1.0));
+    }
+
+    #[test]
+    fn vector3_ext_for_vector3() {
+        let mut v = Vector3::new(2.0, 2.0, 2.0);
+
+        assert_eq!(v.sqr_distance(&Vector3::new(0.0, 1.0, 1.0)), 6.0);
+
+        assert_eq!(
+            v.non_uniform_scale(&Vector3::new(3.0, 3.0, 3.0)),
+            Vector3::new(6.0, 6.0, 6.0)
+        );
+
+        v.follow(&Vector3::new(0.5, 0.5, 0.5), 2.0);
+        assert_eq!(v, Vector3::new(-1.0, -1.0, -1.0));
+    }
+
+    #[test]
+    fn vector2_ext_for_vector2() {
+        let mut v = Vector2::new(2.0, 2.0);
+
+        assert_eq!(
+            v.per_component_min(&Vector2::new(0.0, 4.0)),
+            Vector2::new(0.0, 2.0)
+        );
+
+        assert_eq!(
+            v.per_component_max(&Vector2::new(0.0, 4.0)),
+            Vector2::new(2.0, 4.0)
+        );
+
+        v.follow(&Vector2::new(0.5, 0.5), 2.0);
+        assert_eq!(v, Vector2::new(-1.0, -1.0));
+    }
+
+    #[test]
+    fn test_m4x4_approx_eq() {
+        assert!(m4x4_approx_eq(
+            &Matrix4::new(
+                1.0, 0.0, 0.0, 0.0, //
+                0.0, 1.0, 0.0, 0.0, //
+                0.0, 0.0, 1.0, 0.0, //
+                0.0, 0.0, 0.0, 1.0,
+            ),
+            &Matrix4::new(
+                1.0001, 0.0001, 0.0001, 0.0001, //
+                0.0001, 1.0001, 0.0001, 0.0001, //
+                0.0001, 0.0001, 1.0001, 0.0001, //
+                0.0001, 0.0001, 0.0001, 1.0001,
+            )
+        ),);
     }
 }
