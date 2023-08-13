@@ -1111,29 +1111,19 @@ pub fn m4x4_approx_eq(a: &Matrix4<f32>, b: &Matrix4<f32>) -> bool {
 
 #[cfg(test)]
 mod test {
-    use nalgebra::Matrix3;
-    use nalgebra::Vector3;
+    use nalgebra::{Matrix3, Vector3};
     use num_traits::Zero;
 
+    use super::{
+        barycentric_is_inside, barycentric_to_world, cubicf_derivative, get_barycentric_coords,
+        get_barycentric_coords_2d, get_closest_point, get_closest_point_triangle_set,
+        get_closest_point_triangles, get_farthest_point, get_signed_triangle_area, ieee_remainder,
+        inf_sup_cubicf, round_to_step, spherical_to_cartesian, triangle_area, wrap_angle, wrapf,
+        PositionProvider, Rect, SmoothAngle, TriangleDefinition, TriangleEdge,
+    };
     use crate::algebra::Vector2;
-    use crate::math::barycentric_is_inside;
-    use crate::math::barycentric_to_world;
-    use crate::math::cubicf_derivative;
-    use crate::math::get_barycentric_coords;
-    use crate::math::get_barycentric_coords_2d;
-    use crate::math::get_farthest_point;
-    use crate::math::get_signed_triangle_area;
-    use crate::math::ieee_remainder;
-    use crate::math::inf_sup_cubicf;
-    use crate::math::round_to_step;
-    use crate::math::spherical_to_cartesian;
-    use crate::math::triangle_area;
-    use crate::math::wrap_angle;
-    use crate::math::wrapf;
-    use crate::math::Rect;
-    use crate::math::SmoothAngle;
-    use crate::visitor::Visit;
-    use crate::visitor::Visitor;
+
+    use crate::visitor::{Visit, Visitor};
 
     #[test]
     fn ray_rect_intersection() {
@@ -1512,6 +1502,143 @@ mod test {
         assert_eq!(
             spherical_to_cartesian(0.0, 0.0, 1.0),
             Vector3::new(0.0, 1.0, 0.0)
+        );
+    }
+
+    #[test]
+    fn partial_eq_for_triangle_edge() {
+        let te = TriangleEdge { a: 2, b: 5 };
+        let te2 = TriangleEdge { a: 2, b: 5 };
+        let te3 = TriangleEdge { a: 5, b: 2 };
+
+        assert_eq!(te, te2);
+        assert_eq!(te, te3);
+    }
+
+    #[test]
+    fn triangle_definition_indices() {
+        assert_eq!(TriangleDefinition([0, 0, 0]).indices(), &[0, 0, 0]);
+    }
+
+    #[test]
+    fn triangle_definition_indices_mut() {
+        assert_eq!(TriangleDefinition([0, 0, 0]).indices_mut(), &mut [0, 0, 0]);
+    }
+
+    #[test]
+    fn triangle_definition_edges() {
+        let t = TriangleDefinition([0, 1, 2]);
+        assert_eq!(
+            t.edges(),
+            [
+                TriangleEdge { a: 0, b: 1 },
+                TriangleEdge { a: 1, b: 2 },
+                TriangleEdge { a: 2, b: 0 }
+            ]
+        );
+    }
+
+    #[test]
+    fn visit_for_triangle_definition() {
+        let mut t = TriangleDefinition([0, 1, 2]);
+        let mut visitor = Visitor::default();
+
+        assert!(t.visit("name", &mut visitor).is_ok());
+    }
+
+    #[test]
+    fn index_for_triangle_definition() {
+        let t = TriangleDefinition([0, 1, 2]);
+
+        assert_eq!(t[0], 0);
+        assert_eq!(t[1], 1);
+        assert_eq!(t[2], 2);
+    }
+
+    #[test]
+    fn index_mut_for_triangle_definition() {
+        let mut t = TriangleDefinition([5, 5, 5]);
+        t[0] = 0;
+        t[1] = 1;
+        t[2] = 2;
+
+        assert_eq!(t[0], 0);
+        assert_eq!(t[1], 1);
+        assert_eq!(t[2], 2);
+    }
+
+    #[test]
+    fn position_provider_for_vector3() {
+        let v = Vector3::new(0.0, 1.0, 2.0);
+
+        assert_eq!(v.position(), v);
+    }
+
+    #[test]
+    fn as_ref_for_triangle_definition() {
+        let t = TriangleDefinition([0, 1, 2]);
+
+        assert_eq!(t.as_ref(), &[0, 1, 2]);
+    }
+
+    #[test]
+    fn as_mut_for_triangle_definition() {
+        let mut t = TriangleDefinition([0, 1, 2]);
+
+        assert_eq!(t.as_mut(), &mut [0, 1, 2]);
+    }
+
+    #[test]
+    fn test_get_closest_point() {
+        let points = [
+            Vector3::new(1.0, 0.0, 0.0),
+            Vector3::new(0.0, 1.0, 0.0),
+            Vector3::new(0.0, 0.0, 1.0),
+        ];
+
+        assert_eq!(
+            get_closest_point(&points, Vector3::new(0.0, 0.0, 0.0)),
+            Some(0),
+        );
+        assert_eq!(
+            get_closest_point(&points, Vector3::new(0.0, 1.0, 1.0)),
+            Some(1),
+        );
+        assert_eq!(
+            get_closest_point(&points, Vector3::new(0.0, 0.0, 10.0)),
+            Some(2),
+        );
+    }
+
+    #[test]
+    fn test_get_closest_point_triangles() {
+        let points = [
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(1.0, 0.0, 0.0),
+            Vector3::new(0.0, 1.0, 0.0),
+            Vector3::new(0.0, 0.0, 1.0),
+        ];
+        let triangles = [TriangleDefinition([0, 1, 2]), TriangleDefinition([1, 2, 3])];
+
+        assert_eq!(
+            get_closest_point_triangles(&points, &triangles, &[0, 1], Vector3::new(1.0, 1.0, 1.0)),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn test_get_closest_point_triangle_set() {
+        let points = [
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(1.0, 0.0, 0.0),
+            Vector3::new(0.0, 1.0, 0.0),
+            Vector3::new(0.0, 0.0, 1.0),
+        ];
+        let triangles = [TriangleDefinition([0, 1, 2]), TriangleDefinition([1, 2, 3])];
+
+        assert_eq!(
+            get_closest_point_triangle_set(&points, &triangles, Vector3::new(1.0, 1.0, 1.0)),
+            Some(1)
         );
     }
 }
