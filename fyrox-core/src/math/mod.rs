@@ -134,7 +134,7 @@ where
         if other.x() + other.w() < self.x()
             || other.x() > self.x() + self.w()
             || other.y() + other.h() < self.y()
-            || other.y() > self.y() + self.w()
+            || other.y() > self.y() + self.h()
         {
             return clipped;
         }
