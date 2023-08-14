@@ -11,7 +11,7 @@ use crate::{
     decorator::{DecoratorBuilder, DecoratorMessage},
     define_constructor,
     grid::{Column, GridBuilder, Row},
-    message::{MessageDirection, UiMessage},
+    message::{MessageDirection, MouseButton, UiMessage},
     stack_panel::StackPanelBuilder,
     utils::make_cross,
     widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -246,6 +246,18 @@ impl Control for TabControl {
                         MessageDirection::FromWidget,
                         tab_index,
                     ));
+                }
+            }
+        } else if let Some(WidgetMessage::MouseDown { button, .. }) = message.data() {
+            if *button == MouseButton::Middle {
+                for (tab_index, tab) in self.tabs.iter().enumerate() {
+                    if ui.is_node_child_of(message.destination(), tab.header_button) {
+                        ui.send_message(TabControlMessage::close_tab(
+                            self.handle,
+                            MessageDirection::FromWidget,
+                            tab_index,
+                        ));
+                    }
                 }
             }
         } else if let Some(msg) = message.data::<TabControlMessage>() {
