@@ -191,56 +191,46 @@ pub struct ContactPair {
 }
 
 impl ContactPair {
-    fn from_native(c: &rapier2d::geometry::ContactPair, physics: &PhysicsWorld) -> Self {
-        ContactPair {
-            collider1: Handle::decode_from_u128(
-                physics.colliders.get(c.collider1).unwrap().user_data,
-            ),
-            collider2: Handle::decode_from_u128(
-                physics.colliders.get(c.collider2).unwrap().user_data,
-            ),
+    fn from_native(c: &rapier2d::geometry::ContactPair, physics: &PhysicsWorld) -> Option<Self> {
+        Some(ContactPair {
+            collider1: Handle::decode_from_u128(physics.colliders.get(c.collider1)?.user_data),
+            collider2: Handle::decode_from_u128(physics.colliders.get(c.collider2)?.user_data),
             manifolds: c
                 .manifolds
                 .iter()
-                .map(|m| ContactManifold {
-                    points: m
-                        .points
-                        .iter()
-                        .map(|p| ContactData {
-                            local_p1: p.local_p1.coords,
-                            local_p2: p.local_p2.coords,
-                            dist: p.dist,
-                            impulse: p.data.impulse,
-                            tangent_impulse: p.data.tangent_impulse,
-                        })
-                        .collect(),
-                    local_n1: m.local_n1,
-                    local_n2: m.local_n2,
-                    rigid_body1: m
-                        .data
-                        .rigid_body1
-                        .and_then(|h| {
+                .filter_map(|m| {
+                    Some(ContactManifold {
+                        points: m
+                            .points
+                            .iter()
+                            .map(|p| ContactData {
+                                local_p1: p.local_p1.coords,
+                                local_p2: p.local_p2.coords,
+                                dist: p.dist,
+                                impulse: p.data.impulse,
+                                tangent_impulse: p.data.tangent_impulse,
+                            })
+                            .collect(),
+                        local_n1: m.local_n1,
+                        local_n2: m.local_n2,
+                        rigid_body1: m.data.rigid_body1.and_then(|h| {
                             physics
                                 .bodies
                                 .get(h)
                                 .map(|b| Handle::decode_from_u128(b.user_data))
-                        })
-                        .unwrap_or_default(),
-                    rigid_body2: m
-                        .data
-                        .rigid_body2
-                        .and_then(|h| {
+                        })?,
+                        rigid_body2: m.data.rigid_body2.and_then(|h| {
                             physics
                                 .bodies
                                 .get(h)
                                 .map(|b| Handle::decode_from_u128(b.user_data))
-                        })
-                        .unwrap_or_default(),
-                    normal: m.data.normal,
+                        })?,
+                        normal: m.data.normal,
+                    })
                 })
                 .collect(),
             has_any_active_contact: c.has_any_active_contact,
-        }
+        })
     }
 }
 
@@ -1070,14 +1060,14 @@ impl PhysicsWorld {
     ) -> impl Iterator<Item = ContactPair> + '_ {
         self.narrow_phase
             .contacts_with(collider)
-            .map(|c| ContactPair::from_native(c, self))
+            .filter_map(|c| ContactPair::from_native(c, self))
     }
 
     /// Returns an iterator over all contact pairs generated in this frame.
     pub fn contacts(&self) -> impl Iterator<Item = ContactPair> + '_ {
         self.narrow_phase
             .contact_pairs()
-            .map(|c| ContactPair::from_native(c, self))
+            .filter_map(|c| ContactPair::from_native(c, self))
     }
 }
 
