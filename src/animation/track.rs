@@ -151,6 +151,11 @@ impl Track {
         self.frames.time_length()
     }
 
+    /// Sets a new id for the track.
+    pub fn set_id(&mut self, id: Uuid) {
+        self.id = id;
+    }
+
     /// Returns the id of the track.
     pub fn id(&self) -> Uuid {
         self.id
