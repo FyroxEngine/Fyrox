@@ -1112,6 +1112,7 @@ impl Editor {
             self.message_sender.clone(),
             &self.scene_viewer,
         );
+        self.world_viewer.sync_selection = true;
 
         if let Some(path) = path.as_ref() {
             if !self.settings.recent.scenes.contains(path) {
@@ -2050,6 +2051,7 @@ impl Editor {
                     }
                     Message::SetCurrentScene(scene) => {
                         assert!(self.scenes.set_current_scene(scene));
+                        self.world_viewer.sync_selection = true;
                         needs_sync = true;
                     }
                     Message::Configure { working_directory } => {
