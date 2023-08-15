@@ -21,7 +21,6 @@ use crate::{
     },
     send_sync_message, utils,
 };
-use fyrox::core::reflect::Reflect;
 use fyrox::{
     animation::{
         container::{TrackDataContainer, TrackValueKind},
@@ -34,7 +33,7 @@ use fyrox::{
         color::Color,
         log::Log,
         pool::Handle,
-        reflect::ResolvePath,
+        reflect::{Reflect, ResolvePath},
         uuid::Uuid,
         variable::InheritableVariable,
     },
@@ -85,12 +84,14 @@ struct TrackContextMenu {
     remove_track: Handle<UiNode>,
     set_target: Handle<UiNode>,
     target_node_selector: Handle<UiNode>,
+    duplicate: Handle<UiNode>,
 }
 
 impl TrackContextMenu {
     fn new(ctx: &mut BuildContext) -> Self {
         let remove_track;
         let set_target;
+        let duplicate;
         let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
             .with_content(
                 StackPanelBuilder::new(
@@ -102,6 +103,10 @@ impl TrackContextMenu {
                         .with_child({
                             set_target = create_menu_item("Set Target...", vec![], ctx);
                             set_target
+                        })
+                        .with_child({
+                            duplicate = create_menu_item("Duplicate", vec![], ctx);
+                            duplicate
                         }),
                 )
                 .build(ctx),
@@ -114,6 +119,7 @@ impl TrackContextMenu {
             remove_track,
             set_target,
             target_node_selector: Default::default(),
+            duplicate,
         }
     }
 }
@@ -1009,6 +1015,45 @@ impl TrackList {
                     MessageDirection::ToWidget,
                     true,
                 ));
+            } else if message.destination() == self.context_menu.duplicate {
+                if let Selection::Animation(ref selection) = editor_scene.selection {
+                    if let Some(animation_player) = scene
+                        .graph
+                        .try_get(selection.animation_player)
+                        .and_then(|n| n.query_component_ref::<AnimationPlayer>())
+                    {
+                        if let Some(animation) =
+                            animation_player.animations().try_get(selection.animation)
+                        {
+                            let commands = selection
+                                .entities
+                                .iter()
+                                .filter_map(|e| match e {
+                                    SelectedEntity::Track(track_id) => {
+                                        let index = animation
+                                            .tracks()
+                                            .iter()
+                                            .position(|t| t.id() == *track_id)
+                                            .unwrap();
+
+                                        let mut track = animation.tracks()[index].clone();
+
+                                        track.set_id(Uuid::new_v4());
+
+                                        Some(SceneCommand::new(AddTrackCommand::new(
+                                            selection.animation_player,
+                                            selection.animation,
+                                            track,
+                                        )))
+                                    }
+                                    _ => None,
+                                })
+                                .collect::<Vec<_>>();
+
+                            sender.do_scene_command(CommandGroup::from(commands));
+                        }
+                    }
+                }
             }
         } else if let Some(TrackViewMessage::TrackEnabled(enabled)) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
