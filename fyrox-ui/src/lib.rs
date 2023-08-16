@@ -2031,25 +2031,27 @@ impl UserInterface {
                 text,
             } => {
                 if self.keyboard_focus_node.is_some() {
-                    self.send_message(match state {
-                        ButtonState::Pressed => WidgetMessage::key_down(
-                            self.keyboard_focus_node,
-                            MessageDirection::FromWidget,
-                            *button,
-                        ),
-                        ButtonState::Released => WidgetMessage::key_up(
-                            self.keyboard_focus_node,
-                            MessageDirection::FromWidget,
-                            *button,
-                        ),
-                    });
+                    match state {
+                        ButtonState::Pressed => {
+                            self.send_message(WidgetMessage::key_down(
+                                self.keyboard_focus_node,
+                                MessageDirection::FromWidget,
+                                *button,
+                            ));
 
-                    if !text.is_empty() {
-                        self.send_message(WidgetMessage::text(
+                            if !text.is_empty() {
+                                self.send_message(WidgetMessage::text(
+                                    self.keyboard_focus_node,
+                                    MessageDirection::FromWidget,
+                                    text.clone(),
+                                ));
+                            }
+                        }
+                        ButtonState::Released => self.send_message(WidgetMessage::key_up(
                             self.keyboard_focus_node,
                             MessageDirection::FromWidget,
-                            text.clone(),
-                        ));
+                            *button,
+                        )),
                     }
 
                     event_processed = true;
