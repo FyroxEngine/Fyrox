@@ -1557,7 +1557,7 @@ where
 }
 
 /// Multi-borrow context allows you to get as many **unique** references to elements in
-/// a pool as you want.  
+/// a pool as you want.
 pub struct MultiBorrowContext<'a, const N: usize, T, P = Option<T>>
 where
     T: Sized,
@@ -1622,7 +1622,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::pool::{Handle, Pool, INVALID_GENERATION};
+    use crate::pool::{ErasedHandle, Handle, Pool, INVALID_GENERATION};
 
     #[test]
     fn pool_sanity_tests() {
@@ -1758,5 +1758,85 @@ mod test {
         let encoded = a.encode_to_u128();
         let decoded = Handle::<()>::decode_from_u128(encoded);
         assert_eq!(decoded, a);
+    }
+
+    #[test]
+    fn erased_handle_none() {
+        assert_eq!(
+            ErasedHandle::none(),
+            ErasedHandle {
+                index: 0,
+                generation: INVALID_GENERATION,
+            }
+        );
+    }
+
+    #[test]
+    fn erased_handle_new() {
+        assert_eq!(
+            ErasedHandle::new(0, 1),
+            ErasedHandle {
+                index: 0,
+                generation: 1,
+            }
+        );
+    }
+
+    #[test]
+    fn erased_handle_is_some() {
+        assert!(ErasedHandle::new(0, 1).is_some());
+        assert!(!ErasedHandle::none().is_some());
+    }
+
+    #[test]
+    fn erased_handle_is_none() {
+        assert!(!ErasedHandle::new(0, 1).is_none());
+        assert!(ErasedHandle::none().is_none());
+    }
+
+    #[test]
+    fn erased_handle_index() {
+        assert_eq!(
+            ErasedHandle {
+                index: 42,
+                generation: 15
+            }
+            .index(),
+            42
+        );
+    }
+
+    #[test]
+    fn erased_handle_generation() {
+        assert_eq!(
+            ErasedHandle {
+                index: 42,
+                generation: 15
+            }
+            .generation(),
+            15
+        );
+    }
+
+    #[test]
+    fn default_for_erased_handle() {
+        assert_eq!(ErasedHandle::default(), ErasedHandle::none());
+    }
+
+    #[test]
+    fn erased_handle_from_handle() {
+        let handle = Handle::<u32> {
+            index: 0,
+            generation: 1,
+            type_marker: std::marker::PhantomData,
+        };
+
+        assert_eq!(
+            ErasedHandle::from(handle),
+            ErasedHandle {
+                index: 0,
+                generation: 1
+            }
+        );
     }
 }
