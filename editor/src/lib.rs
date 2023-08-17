@@ -1733,6 +1733,18 @@ impl Editor {
     }
 
     fn load_scene(&mut self, scene_path: PathBuf) {
+        for scene in self.scenes.scenes.iter() {
+            if scene
+                .editor_scene
+                .path
+                .as_ref()
+                .map_or(false, |p| p == &scene_path)
+            {
+                self.set_current_scene(scene.editor_scene.scene);
+                return;
+            }
+        }
+
         let engine = &mut self.engine;
         let result = {
             block_on(SceneLoader::from_file(
