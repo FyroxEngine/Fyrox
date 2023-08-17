@@ -524,6 +524,11 @@ impl AnimationEditor {
         }
     }
 
+    pub fn clear(&mut self, ui: &UserInterface) {
+        self.toolbar.clear(ui);
+        self.track_list.clear(ui);
+    }
+
     pub fn update(&mut self, editor_scene: &EditorScene, engine: &Engine) {
         let selection = fetch_selection(&editor_scene.selection);
 

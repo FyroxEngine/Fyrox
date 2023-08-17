@@ -1112,7 +1112,6 @@ impl Editor {
             self.message_sender.clone(),
             &self.scene_viewer,
         );
-        self.world_viewer.sync_selection = true;
 
         if let Some(path) = path.as_ref() {
             if !self.settings.recent.scenes.contains(path) {
@@ -1131,6 +1130,8 @@ impl Editor {
             .as_initialized_mut()
             .renderer
             .flush();
+
+        self.on_scene_changed();
     }
 
     pub fn handle_hotkeys(&mut self, message: &UiMessage) {
@@ -1789,10 +1790,31 @@ impl Editor {
 
             editor_scene_entry.on_drop(engine);
 
+            self.on_scene_changed();
+
             true
         } else {
             false
         }
+    }
+
+    fn set_current_scene(&mut self, scene: Handle<Scene>) {
+        assert!(self.scenes.set_current_scene(scene));
+
+        self.on_scene_changed();
+    }
+
+    fn on_scene_changed(&mut self) {
+        let ui = &self.engine.user_interface;
+        self.world_viewer.clear(ui);
+        self.animation_editor.clear(ui);
+        self.absm_editor.clear(ui);
+        self.poll_ui_messages();
+
+        self.world_viewer.sync_selection = true;
+
+        self.sync_to_model();
+        self.poll_ui_messages();
     }
 
     fn create_new_scene(&mut self) {
@@ -2050,8 +2072,7 @@ impl Editor {
                         needs_sync = true;
                     }
                     Message::SetCurrentScene(scene) => {
-                        assert!(self.scenes.set_current_scene(scene));
-                        self.world_viewer.sync_selection = true;
+                        self.set_current_scene(scene);
                         needs_sync = true;
                     }
                     Message::Configure { working_directory } => {

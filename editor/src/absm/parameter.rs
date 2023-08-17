@@ -89,7 +89,7 @@ impl ParameterPanel {
         ));
     }
 
-    pub fn reset(&mut self, ui: &mut UserInterface) {
+    pub fn reset(&self, ui: &UserInterface) {
         ui.send_message(InspectorMessage::context(
             self.inspector,
             MessageDirection::ToWidget,

@@ -318,10 +318,14 @@ impl AbsmEditor {
                 }
             }
         } else {
-            self.parameter_panel.reset(ui);
-            self.state_graph_viewer.clear(ui);
-            self.state_viewer.clear(ui);
+            self.clear(ui);
         }
+    }
+
+    pub fn clear(&mut self, ui: &UserInterface) {
+        self.parameter_panel.reset(ui);
+        self.state_graph_viewer.clear(ui);
+        self.state_viewer.clear(ui);
     }
 
     pub fn open(&self, ui: &UserInterface) {
