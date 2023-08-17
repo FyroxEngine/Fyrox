@@ -1622,7 +1622,10 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::pool::{ErasedHandle, Handle, Pool, INVALID_GENERATION};
+    use crate::{
+        pool::{ErasedHandle, Handle, Pool, PoolRecord, Ticket, INVALID_GENERATION},
+        visitor::{Visit, Visitor},
+    };
 
     #[test]
     fn pool_sanity_tests() {
@@ -1838,5 +1841,343 @@ mod test {
                 generation: 1
             }
         );
+    }
+
+    #[test]
+    fn handle_from_erased_handle() {
+        let er = ErasedHandle {
+            index: 0,
+            generation: 1,
+        };
+
+        assert_eq!(
+            Handle::from(er),
+            Handle::<u32> {
+                index: 0,
+                generation: 1,
+                type_marker: std::marker::PhantomData,
+            }
+        );
+    }
+
+    #[test]
+    fn default_for_handle() {
+        assert_eq!(Handle::default(), Handle::<u32>::NONE);
+    }
+
+    #[test]
+    fn visit_for_handle() {
+        let mut h = Handle::<u32>::default();
+        let mut visitor = Visitor::default();
+
+        assert!(h.visit("name", &mut visitor).is_ok());
+    }
+
+    #[test]
+    fn test_debug_for_handle() {
+        let h = Handle::<u32> {
+            index: 0,
+            generation: 1,
+            type_marker: std::marker::PhantomData,
+        };
+
+        assert_eq!(format!("{h:?}"), "[Idx: 0; Gen: 1]");
+    }
+
+    #[test]
+    fn handle_getters() {
+        let h = Handle::<u32> {
+            index: 0,
+            generation: 1,
+            type_marker: std::marker::PhantomData,
+        };
+
+        assert_eq!(h.index(), 0);
+        assert_eq!(h.generation(), 1);
+    }
+
+    #[test]
+    fn handle_transmute() {
+        assert_eq!(
+            Handle::<u32>::default().transmute::<f32>(),
+            Handle::<f32>::default()
+        );
+    }
+
+    #[test]
+    fn visit_for_pool_record() {
+        let mut p = PoolRecord::<u32>::default();
+        let mut visitor = Visitor::default();
+
+        assert!(p.visit("name", &mut visitor).is_ok());
+    }
+
+    #[test]
+    fn visit_for_pool() {
+        let mut p = Pool::<u32>::default();
+        let mut visitor = Visitor::default();
+
+        assert!(p.visit("name", &mut visitor).is_ok());
+    }
+
+    #[test]
+    fn default_for_pool() {
+        assert_eq!(Pool::default(), Pool::<u32>::new());
+    }
+
+    #[test]
+    fn pool_with_capacity() {
+        let p = Pool::<u32>::with_capacity(1);
+        assert_eq!(p.records, Vec::with_capacity(1));
+        assert_eq!(p.free_stack, Vec::new())
+    }
+
+    #[test]
+    fn pool_try_borrow() {
+        let mut pool = Pool::<Payload>::new();
+        let a = pool.spawn(Payload);
+        let b = Handle::<Payload>::default();
+
+        assert_eq!(pool.try_borrow(a), Some(&Payload));
+        assert_eq!(pool.try_borrow(b), None);
+    }
+
+    #[test]
+    fn pool_borrow_two_mut() {
+        let mut pool = Pool::<u32>::new();
+        let a = pool.spawn(1);
+        let b = pool.spawn(2);
+        let (a, b) = pool.borrow_two_mut((a, b));
+
+        assert_eq!(a, &mut 1);
+        assert_eq!(b, &mut 2);
+    }
+
+    #[test]
+    fn pool_borrow_three_mut() {
+        let mut pool = Pool::<u32>::new();
+        let a = pool.spawn(1);
+        let b = pool.spawn(2);
+        let c = pool.spawn(3);
+        let (a, b, c) = pool.borrow_three_mut((a, b, c));
+
+        assert_eq!(a, &mut 1);
+        assert_eq!(b, &mut 2);
+        assert_eq!(c, &mut 3);
+    }
+
+    #[test]
+    fn pool_borrow_four_mut() {
+        let mut pool = Pool::<u32>::new();
+        let a = pool.spawn(1);
+        let b = pool.spawn(2);
+        let c = pool.spawn(3);
+        let d = pool.spawn(4);
+        let (a, b, c, d) = pool.borrow_four_mut((a, b, c, d));
+
+        assert_eq!(a, &mut 1);
+        assert_eq!(b, &mut 2);
+        assert_eq!(c, &mut 3);
+        assert_eq!(d, &mut 4);
+    }
+
+    #[test]
+    fn pool_try_borrow_dependant_mut() {
+        let mut pool = Pool::<u32>::new();
+        let a = pool.spawn(42);
+        let b = pool.spawn(5);
+
+        assert_eq!(
+            pool.try_borrow_dependant_mut(a, |_| b),
+            (Some(&mut 42), Some(&mut 5))
+        );
+
+        assert_eq!(
+            pool.try_borrow_dependant_mut(a, |_| a),
+            (Some(&mut 42), None)
+        );
+    }
+
+    #[test]
+    fn pool_take_reserve() {
+        let mut pool = Pool::<u32>::new();
+        let a = pool.spawn(42);
+
+        let (t, payload) = pool.take_reserve(a);
+        assert_eq!(t.index, 0);
+        assert_eq!(payload, 42);
+    }
+
+    #[test]
+    fn pool_try_take_reserve() {
+        let mut pool = Pool::<u32>::new();
+
+        let a = Handle::<u32>::default();
+        assert!(pool.try_take_reserve(a).is_none());
+
+        let b = pool.spawn(42);
+
+        let (t, payload) = pool.try_take_reserve(b).unwrap();
+        assert_eq!(t.index, 0);
+        assert_eq!(payload, 42);
+
+        assert!(pool.try_take_reserve(a).is_none());
+        assert!(pool.try_take_reserve(b).is_none());
+    }
+
+    #[test]
+    fn pool_put_back() {
+        let mut pool = Pool::<u32>::new();
+        let a = pool.spawn(42);
+        pool.take_reserve(a);
+
+        let b = pool.put_back(
+            Ticket::<u32> {
+                index: 0,
+                marker: std::marker::PhantomData,
+            },
+            42,
+        );
+
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn pool_forget_ticket() {
+        let mut pool = Pool::<u32>::new();
+        let a = pool.spawn(42);
+        pool.take_reserve(a);
+
+        pool.forget_ticket(Ticket::<u32> {
+            index: 0,
+            marker: std::marker::PhantomData,
+        });
+
+        let b = pool.spawn(42);
+
+        assert_eq!(a.index, b.index);
+        assert_ne!(a.generation, b.generation);
+    }
+
+    #[test]
+    fn pool_get_capacity() {
+        let mut pool = Pool::<u32>::new();
+        let _ = pool.spawn(42);
+        let _ = pool.spawn(5);
+
+        assert_eq!(pool.get_capacity(), 2);
+    }
+
+    #[test]
+    fn pool_clear() {
+        let mut pool = Pool::<u32>::new();
+        let _ = pool.spawn(42);
+
+        assert!(!pool.records.is_empty());
+
+        pool.clear();
+
+        assert!(pool.records.is_empty());
+        assert!(pool.free_stack.is_empty());
+    }
+
+    #[test]
+    fn pool_at_mut() {
+        let mut pool = Pool::<u32>::new();
+        let _ = pool.spawn(42);
+
+        assert_eq!(pool.at_mut(0), Some(&mut 42));
+        assert_eq!(pool.at_mut(1), None);
+    }
+
+    #[test]
+    fn pool_at() {
+        let mut pool = Pool::<u32>::new();
+        let _ = pool.spawn(42);
+
+        assert_eq!(pool.at(0), Some(&42));
+        assert_eq!(pool.at(1), None);
+    }
+
+    #[test]
+    fn pool_handle_from_index() {
+        let mut pool = Pool::<u32>::new();
+        let a = pool.spawn(42);
+
+        assert_eq!(pool.handle_from_index(0), a);
+        assert_eq!(pool.handle_from_index(1), Handle::NONE);
+    }
+
+    #[test]
+    fn pool_alive_count() {
+        let mut pool = Pool::<u32>::new();
+        let a = pool.spawn(42);
+        let _ = pool.spawn(5);
+        pool.take_reserve(a);
+
+        assert_eq!(pool.alive_count(), 1);
+    }
+
+    #[test]
+    fn pool_total_count() {
+        let mut pool = Pool::<u32>::new();
+        let a = pool.spawn(42);
+        let _ = pool.spawn(5);
+        pool.take_reserve(a);
+
+        assert_eq!(pool.total_count(), 2);
+    }
+
+    #[test]
+    fn pool_replace() {
+        let mut pool = Pool::<u32>::new();
+        let a = pool.spawn(42);
+        let b = Handle::<u32>::new(1, 1);
+
+        assert_eq!(pool.replace(a, 5), Some(42));
+        assert_eq!(pool.replace(b, 5), None);
+    }
+
+    #[test]
+    fn pool_pair_iter() {
+        let pool = Pool::<u32>::new();
+
+        let iter = pool.pair_iter();
+
+        assert_eq!(iter.pool, &pool);
+        assert_eq!(iter.current, 0);
+    }
+
+    #[test]
+    fn pool_pair_iter_mut() {
+        let mut pool = Pool::<u32>::new();
+        let _ = pool.spawn(42);
+
+        let iter = pool.pair_iter_mut();
+
+        assert_eq!(iter.current, 0);
+        assert_eq!(iter.ptr, pool.records.as_mut_ptr());
+    }
+
+    #[test]
+    fn index_for_pool() {
+        let mut pool = Pool::<u32>::new();
+        let a = pool.spawn(42);
+        let b = pool.spawn(5);
+
+        assert_eq!(pool[a], 42);
+        assert_eq!(pool[b], 5);
+    }
+
+    #[test]
+    fn index_mut_for_pool() {
+        let mut pool = Pool::<u32>::new();
+        let a = pool.spawn(42);
+        let b = pool.spawn(5);
+
+        pool[a] = 15;
+
+        assert_eq!(pool[a], 15);
+        assert_eq!(pool[b], 5);
     }
 }
