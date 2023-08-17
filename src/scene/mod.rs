@@ -577,7 +577,43 @@ impl Scene {
         Ok(())
     }
 
-    /// Saves scene in a specified file.
+    /// Tries to serialize the scene using the specified serializer. The serializer must be in write mode, otherwise
+    /// serialization will fail. The `region_name` argument must be `Scene` (scene loader expects this value, you can
+    /// use any other if you don't plan to load scenes using the standard mechanism).. Keep in mind, that this method
+    /// does **not** write anything to a file, instead it just fills in the serializer.
+    ///
+    /// ## Example
+    ///
+    /// ```rust,no_run
+    /// # use fyrox::{
+    /// #     core::visitor::Visitor,
+    /// #     scene::{
+    /// #         base::BaseBuilder,
+    /// #         mesh::{
+    /// #             surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
+    /// #             MeshBuilder,
+    /// #         },
+    /// #         Scene,
+    /// #     },
+    /// # };
+    /// #
+    /// // Create a scene.
+    /// let mut scene = Scene::new();
+    ///
+    /// MeshBuilder::new(BaseBuilder::new())
+    ///     .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+    ///         SurfaceData::make_cube(Default::default()),
+    ///     ))
+    ///     .build()])
+    ///     .build(&mut scene.graph);
+    ///
+    /// // Serialize the content.
+    /// let mut visitor = Visitor::new();
+    /// scene.save("Scene", &mut visitor).unwrap();
+    ///
+    /// // Write the data to a file.
+    /// visitor.save_binary("path/to/a/scene.rgs").unwrap();
+    /// ```
     pub fn save(&mut self, region_name: &str, visitor: &mut Visitor) -> VisitResult {
         if visitor.is_reading() {
             return Err(VisitError::User(
