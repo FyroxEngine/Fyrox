@@ -6,6 +6,7 @@ uniform float coneAngleCos;
 uniform mat4 invProj;
 uniform vec3 lightColor;
 uniform vec3 scatterFactor;
+uniform float intensity;
 
 out vec4 FragColor;
 
@@ -57,5 +58,5 @@ void main()
         }
     }
 
-    FragColor = vec4(lightColor * pow(clamp(scatter, 0.0, 1.0), vec3(2.2)), 1.0);
+    FragColor = vec4(lightColor * pow(clamp(intensity * scatter, 0.0, 1.0), vec3(2.2)), 1.0);
 }

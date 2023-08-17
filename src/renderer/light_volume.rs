@@ -1,7 +1,3 @@
-use crate::renderer::framework::framebuffer::BlendParameters;
-use crate::renderer::framework::geometry_buffer::ElementRange;
-use crate::scene::light::point::PointLight;
-use crate::scene::light::spot::SpotLight;
 use crate::{
     core::{
         algebra::{Isometry3, Matrix4, Point3, Translation, Vector3},
@@ -14,8 +10,8 @@ use crate::{
         flat_shader::FlatShader,
         framework::{
             error::FrameworkError,
-            framebuffer::{DrawParameters, FrameBuffer},
-            geometry_buffer::{GeometryBuffer, GeometryBufferKind},
+            framebuffer::{BlendParameters, DrawParameters, FrameBuffer},
+            geometry_buffer::{ElementRange, GeometryBuffer, GeometryBufferKind},
             gpu_program::{GpuProgram, UniformLocation},
             state::{
                 BlendFactor, BlendFunc, ColorMask, CompareFunc, PipelineState, StencilAction,
@@ -25,7 +21,12 @@ use crate::{
         gbuffer::GBuffer,
         RenderPassStatistics,
     },
-    scene::{graph::Graph, mesh::surface::SurfaceData, node::Node},
+    scene::{
+        graph::Graph,
+        light::{point::PointLight, spot::SpotLight},
+        mesh::surface::SurfaceData,
+        node::Node,
+    },
 };
 
 struct SpotLightShader {
@@ -38,6 +39,7 @@ struct SpotLightShader {
     light_color: UniformLocation,
     scatter_factor: UniformLocation,
     inv_proj: UniformLocation,
+    intensity: UniformLocation,
 }
 
 impl SpotLightShader {
@@ -61,6 +63,7 @@ impl SpotLightShader {
             scatter_factor: program
                 .uniform_location(state, &ImmutableString::new("scatterFactor"))?,
             inv_proj: program.uniform_location(state, &ImmutableString::new("invProj"))?,
+            intensity: program.uniform_location(state, &ImmutableString::new("intensity"))?,
             program,
         })
     }
@@ -75,6 +78,7 @@ struct PointLightShader {
     light_color: UniformLocation,
     scatter_factor: UniformLocation,
     inv_proj: UniformLocation,
+    intensity: UniformLocation,
 }
 
 impl PointLightShader {
@@ -99,6 +103,7 @@ impl PointLightShader {
             light_color: program.uniform_location(state, &ImmutableString::new("lightColor"))?,
             scatter_factor: program
                 .uniform_location(state, &ImmutableString::new("scatterFactor"))?,
+            intensity: program.uniform_location(state, &ImmutableString::new("intensity"))?,
             program,
         })
     }
@@ -274,7 +279,8 @@ impl LightVolumeRenderer {
                             &shader.light_color,
                             &spot.base_light_ref().color().srgb_to_linear_f32().xyz(),
                         )
-                        .set_vector3(&shader.scatter_factor, &spot.base_light_ref().scatter());
+                        .set_vector3(&shader.scatter_factor, &spot.base_light_ref().scatter())
+                        .set_f32(&shader.intensity, spot.base_light_ref().intensity());
                 },
             )?
         } else if let Some(point) = light.cast::<PointLight>() {
@@ -363,7 +369,8 @@ impl LightVolumeRenderer {
                             &shader.light_color,
                             &point.base_light_ref().color().srgb_to_linear_f32().xyz(),
                         )
-                        .set_vector3(&shader.scatter_factor, &point.base_light_ref().scatter());
+                        .set_vector3(&shader.scatter_factor, &point.base_light_ref().scatter())
+                        .set_f32(&shader.intensity, point.base_light_ref().intensity());
                 },
             )?
         }
