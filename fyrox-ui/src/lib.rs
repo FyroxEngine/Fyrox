@@ -1484,8 +1484,9 @@ impl UserInterface {
                         WidgetMessage::ZIndex(_) => {
                             // Keep order of children of a parent node of a node that changed z-index
                             // the same as z-index of children.
-                            let parent = self.node(message.destination()).parent();
-                            if parent.is_some() {
+                            if let Some(parent) =
+                                self.try_get_node(message.destination()).map(|n| n.parent())
+                            {
                                 self.stack.clear();
                                 for child in self.nodes.borrow(parent).children() {
                                     self.stack.push(*child);
@@ -1506,31 +1507,31 @@ impl UserInterface {
                             }
                         }
                         WidgetMessage::Focus => {
-                            if message.destination().is_some()
+                            if self.nodes.is_valid_handle(message.destination())
                                 && message.direction() == MessageDirection::ToWidget
                             {
                                 self.request_focus(message.destination());
                             }
                         }
                         WidgetMessage::Unfocus => {
-                            if message.destination().is_some()
+                            if self.nodes.is_valid_handle(message.destination())
                                 && message.direction() == MessageDirection::ToWidget
                             {
                                 self.request_focus(self.root_canvas);
                             }
                         }
                         WidgetMessage::Topmost => {
-                            if message.destination().is_some() {
+                            if self.nodes.is_valid_handle(message.destination()) {
                                 self.make_topmost(message.destination());
                             }
                         }
                         WidgetMessage::Lowermost => {
-                            if message.destination().is_some() {
+                            if self.nodes.is_valid_handle(message.destination()) {
                                 self.make_lowermost(message.destination());
                             }
                         }
                         WidgetMessage::Unlink => {
-                            if message.destination().is_some() {
+                            if self.nodes.is_valid_handle(message.destination()) {
                                 self.unlink_node(message.destination());
 
                                 let node = &self.nodes[message.destination()];
@@ -1543,34 +1544,38 @@ impl UserInterface {
                             }
                         }
                         &WidgetMessage::LinkWith(parent) => {
-                            if message.destination().is_some() {
+                            if self.nodes.is_valid_handle(message.destination())
+                                && self.nodes.is_valid_handle(parent)
+                            {
                                 self.link_nodes_internal(message.destination(), parent, false);
                             }
                         }
                         &WidgetMessage::LinkWithReverse(parent) => {
-                            if message.destination().is_some() {
+                            if self.nodes.is_valid_handle(message.destination())
+                                && self.nodes.is_valid_handle(parent)
+                            {
                                 self.link_nodes_internal(message.destination(), parent, true);
                             }
                         }
                         WidgetMessage::Remove => {
-                            if message.destination().is_some() {
+                            if self.nodes.is_valid_handle(message.destination()) {
                                 self.remove_node(message.destination());
                             }
                         }
                         WidgetMessage::ContextMenu(context_menu) => {
-                            if message.destination().is_some() {
+                            if self.nodes.is_valid_handle(message.destination()) {
                                 let node = self.nodes.borrow_mut(message.destination());
                                 node.set_context_menu(context_menu.clone());
                             }
                         }
                         WidgetMessage::Tooltip(tooltip) => {
-                            if message.destination().is_some() {
+                            if self.nodes.is_valid_handle(message.destination()) {
                                 let node = self.nodes.borrow_mut(message.destination());
                                 node.set_tooltip(tooltip.clone());
                             }
                         }
                         WidgetMessage::Center => {
-                            if message.destination().is_some() {
+                            if self.nodes.is_valid_handle(message.destination()) {
                                 let node = self.node(message.destination());
                                 let size = node.actual_initial_size();
                                 let parent = node.parent();
@@ -1588,7 +1593,7 @@ impl UserInterface {
                             }
                         }
                         WidgetMessage::AdjustPositionToFit => {
-                            if message.destination().is_some() {
+                            if self.nodes.is_valid_handle(message.destination()) {
                                 let node = self.node(message.destination());
                                 let mut position = node.actual_local_position();
                                 let size = node.actual_initial_size();
