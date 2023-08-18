@@ -146,3 +146,52 @@ where
         None
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{math::Rect, pool::Handle};
+
+    use super::{RectPackNode, RectPacker};
+
+    #[test]
+    fn rect_pack_node_new() {
+        let rect = Rect::new(0.0, 0.0, 1.0, 1.0);
+        let node = RectPackNode::new(rect);
+
+        assert!(!node.filled);
+        assert!(!node.split);
+        assert_eq!(node.bounds, rect);
+        assert_eq!(node.left, Handle::NONE);
+        assert_eq!(node.right, Handle::NONE);
+    }
+
+    #[test]
+    fn rect_packer_new() {
+        let rp = RectPacker::new(1.0, 1.0);
+
+        assert_eq!(rp.width, 1.0);
+        assert_eq!(rp.height, 1.0);
+        assert_eq!(rp.unvisited, vec![]);
+    }
+
+    #[test]
+    fn rect_packer_find_free() {
+        let mut rp = RectPacker::new(10.0, 10.0);
+
+        assert_eq!(rp.find_free(20.0, 20.0), None);
+        assert_eq!(rp.find_free(1.0, 1.0), Some(Rect::new(0.0, 0.0, 1.0, 1.0)));
+        assert_eq!(rp.find_free(9.0, 9.0), Some(Rect::new(0.0, 1.0, 9.0, 9.0)));
+    }
+
+    #[test]
+    fn rect_packer_clear() {
+        let mut rp = RectPacker::new(10.0, 10.0);
+
+        rp.find_free(1.0, 1.0);
+        rp.find_free(9.0, 9.0);
+        assert_eq!(rp.nodes.alive_count(), 7);
+
+        rp.clear();
+        assert_eq!(rp.nodes.alive_count(), 1);
+    }
+}
