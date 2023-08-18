@@ -3,6 +3,7 @@
 
 use crate::{
     core::{
+        color::Color,
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
@@ -10,7 +11,12 @@ use crate::{
         visitor::prelude::*,
         TypeUuidProvider,
     },
-    scene::{base::Base, base::BaseBuilder, graph::Graph, node::Node, node::NodeTrait},
+    scene::{
+        base::{Base, BaseBuilder},
+        debug::{Line, SceneDrawingContext},
+        graph::Graph,
+        node::{Node, NodeTrait},
+    },
     utils::navmesh::Navmesh,
 };
 use std::ops::{Deref, DerefMut};
@@ -141,6 +147,22 @@ impl NodeTrait for NavigationalMesh {
 
     fn id(&self) -> Uuid {
         Self::type_uuid()
+    }
+
+    fn debug_draw(&self, ctx: &mut SceneDrawingContext) {
+        for vertex in self.navmesh.vertices().iter() {
+            ctx.draw_sphere(vertex.position, 6, 6, 0.1, Color::GREEN);
+        }
+
+        for triangle in self.navmesh.triangles().iter() {
+            for edge in &triangle.edges() {
+                ctx.add_line(Line {
+                    begin: self.navmesh.vertices()[edge.a as usize].position,
+                    end: self.navmesh.vertices()[edge.b as usize].position,
+                    color: Color::GREEN,
+                });
+            }
+        }
     }
 }
 
