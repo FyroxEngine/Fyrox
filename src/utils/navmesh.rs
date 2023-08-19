@@ -529,7 +529,14 @@ impl NavmeshAgent {
         }
 
         if let (Some(n_from), Some(n_to)) = (n_from, n_to) {
-            let result = navmesh.build_path(n_from, n_to, &mut self.path);
+            let mut path_vertex_indices = Vec::new();
+            let result =
+                navmesh
+                    .pathfinder
+                    .build_and_convert(n_from, n_to, &mut self.path, |idx, v| {
+                        path_vertex_indices.push(idx);
+                        v.position
+                    });
 
             if let Some(end) = end {
                 if self.path.is_empty() {
@@ -544,10 +551,11 @@ impl NavmeshAgent {
             }
 
             self.path.reverse();
+            path_vertex_indices.reverse();
 
             // Perform few smoothing passes to straighten computed path.
             for _ in 0..2 {
-                self.smooth_path(navmesh);
+                self.smooth_path(navmesh, &path_vertex_indices);
             }
 
             result
@@ -556,9 +564,10 @@ impl NavmeshAgent {
         }
     }
 
-    fn smooth_path(&mut self, navmesh: &Navmesh) {
+    fn smooth_path(&mut self, navmesh: &Navmesh, path_vertex_indices: &[usize]) {
         let vertices = navmesh.vertices();
 
+        let dn = (self.path.len() - path_vertex_indices.len()).clamp(0, 1);
         let mut i = 0;
         while i < self.path.len().saturating_sub(2) {
             let begin = self.path[i];
@@ -577,30 +586,49 @@ impl NavmeshAgent {
             // i    C   i+2
             let center = (begin + end).scale(0.5);
 
-            // And check if center is lying on navmesh or not. If so - replace i+1 vertex
-            // with its projection on the triangle it belongs to.
-            for triangle in navmesh.triangles.iter() {
-                let a = vertices[triangle[0] as usize].position;
-                let b = vertices[triangle[1] as usize].position;
-                let c = vertices[triangle[2] as usize].position;
+            // Get the normal vector.
+            let normal = center - self.path[i + 1];
 
-                // Ignore degenerated triangles.
-                if let Some(normal) = (c - a).cross(&(b - a)).try_normalize(f32::EPSILON) {
-                    // Calculate signed distance between triangle and segment's center.
-                    let signed_distance = (center - a).dot(&normal);
+            // Start "nudging" loop - we start from the center and nudging it towards the middle point until it
+            // lies on one of the triangles along the path.
+            //
+            // TODO: This algorithm can cut corners for some cases, which means that the path could lie off the
+            // navmesh. It is a bug which should be fixed.
+            let mut k = 1.0;
+            'nudge_loop: while k >= -0.1 {
+                let probe = self.path[i + 1] + normal.scale(k);
+                // And check if center is lying on navmesh or not. If so - replace i+1 vertex
+                // with its projection on the triangle it belongs to.
+                for triangle in navmesh.triangles.iter() {
+                    // Check if the triangle is one of the triangles along the path starting from the beginning point
+                    // of the current triple of points.
+                    if triangle.0.iter().any(|idx| {
+                        path_vertex_indices[i.saturating_sub(dn)..].contains(&(*idx as usize))
+                    }) {
+                        let a = vertices[triangle[0] as usize].position;
+                        let b = vertices[triangle[1] as usize].position;
+                        let c = vertices[triangle[2] as usize].position;
 
-                    // And check "slope": If center is too far from triangle, check next triangle.
-                    if signed_distance.abs() <= max_delta {
-                        // Project center on the triangle.
-                        let center_projection = center - normal.scale(signed_distance);
+                        // Ignore degenerated triangles.
+                        if let Some(normal) = (c - a).cross(&(b - a)).try_normalize(f32::EPSILON) {
+                            // Calculate signed distance between triangle and segment's center.
+                            let signed_distance = (probe - a).dot(&normal);
 
-                        // And check if the projection lies inside the triangle.
-                        if math::is_point_inside_triangle(&center_projection, &[a, b, c]) {
-                            self.path[i + 1] = center_projection;
-                            break;
+                            // And check "slope": If probe is too far from triangle, check next triangle.
+                            if signed_distance.abs() <= max_delta {
+                                // Project probe on the triangle.
+                                let probe_projection = probe - normal.scale(signed_distance);
+
+                                // And check if the projection lies inside the triangle.
+                                if math::is_point_inside_triangle(&probe_projection, &[a, b, c]) {
+                                    self.path[i + 1] = probe_projection;
+                                    break 'nudge_loop;
+                                }
+                            }
                         }
                     }
                 }
+                k -= 0.1;
             }
 
             i += 1;
