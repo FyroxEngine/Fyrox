@@ -8,6 +8,7 @@ use crate::{
         pool::Handle,
         reflect::prelude::*,
         uuid::{uuid, Uuid},
+        variable::InheritableVariable,
         visitor::prelude::*,
         TypeUuidProvider,
     },
@@ -110,8 +111,8 @@ use std::ops::{Deref, DerefMut};
 #[derive(Debug, Clone, Visit, Reflect, Default)]
 pub struct NavigationalMesh {
     base: Base,
-    #[reflect(hidden)]
-    navmesh: Navmesh,
+    #[reflect(read_only)]
+    navmesh: InheritableVariable<Navmesh>,
 }
 
 impl TypeUuidProvider for NavigationalMesh {
@@ -202,7 +203,7 @@ impl NavigationalMeshBuilder {
     fn build_navigational_mesh(self) -> NavigationalMesh {
         NavigationalMesh {
             base: self.base_builder.build_base(),
-            navmesh: self.navmesh,
+            navmesh: self.navmesh.into(),
         }
     }
 

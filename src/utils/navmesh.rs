@@ -12,6 +12,7 @@ use crate::{
         math::{self, ray::Ray, TriangleDefinition},
         octree::{Octree, OctreeNode},
         pool::Handle,
+        reflect::prelude::*,
         visitor::{Visit, VisitResult, Visitor},
     },
     scene::mesh::{
@@ -26,12 +27,19 @@ use crate::{
 use fxhash::FxHashSet;
 
 /// See module docs.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Reflect)]
+#[reflect(hide_all)]
 pub struct Navmesh {
     octree: Octree,
     triangles: Vec<TriangleDefinition>,
     pathfinder: PathFinder,
     query_buffer: Vec<u32>,
+}
+
+impl PartialEq for Navmesh {
+    fn eq(&self, other: &Self) -> bool {
+        self.triangles == other.triangles && self.pathfinder == other.pathfinder
+    }
 }
 
 impl Visit for Navmesh {

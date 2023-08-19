@@ -89,7 +89,7 @@ impl PathVertex {
 }
 
 /// See module docs.
-#[derive(Clone, Debug, Visit)]
+#[derive(Clone, Debug, Visit, PartialEq)]
 pub struct PathFinder {
     vertices: Vec<PathVertex>,
 }
