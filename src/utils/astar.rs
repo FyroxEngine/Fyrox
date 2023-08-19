@@ -292,6 +292,28 @@ impl PathFinder {
         to: usize,
         path: &mut Vec<Vector3<f32>>,
     ) -> Result<PathKind, PathError> {
+        self.build_and_convert(from, to, path, |_, v| v.position)
+    }
+
+    /// Tries to build path from begin point to end point. Returns path kind:
+    ///
+    /// - Full: there are direct path from begin to end.
+    /// - Partial: there are not direct path from begin to end, but it is closest.
+    /// - Empty: no path available - in most cases indicates some error in input params.
+    ///
+    /// # Notes
+    ///
+    /// This is more or less naive implementation, it most certainly will be slower than specialized solutions.
+    pub fn build_and_convert<F, T>(
+        &mut self,
+        from: usize,
+        to: usize,
+        path: &mut Vec<T>,
+        func: F,
+    ) -> Result<PathKind, PathError>
+    where
+        F: FnMut(usize, &PathVertex) -> T,
+    {
         if self.vertices.is_empty() {
             return Ok(PathKind::Empty);
         }
@@ -329,7 +351,7 @@ impl PathFinder {
             }
 
             if current_index == to {
-                self.reconstruct_path(current_index, path);
+                self.reconstruct_path(current_index, path, func);
                 return Ok(PathKind::Full);
             }
 
@@ -388,7 +410,7 @@ impl PathFinder {
             }
         }
 
-        self.reconstruct_path(closest_index, path);
+        self.reconstruct_path(closest_index, path, func);
 
         if path.is_empty() {
             Ok(PathKind::Empty)
@@ -397,9 +419,12 @@ impl PathFinder {
         }
     }
 
-    fn reconstruct_path(&self, mut current: usize, path: &mut Vec<Vector3<f32>>) {
+    fn reconstruct_path<F, T>(&self, mut current: usize, path: &mut Vec<T>, mut func: F)
+    where
+        F: FnMut(usize, &PathVertex) -> T,
+    {
         while let Some(vertex) = self.vertices.get(current) {
-            path.push(vertex.position);
+            path.push(func(current, vertex));
             if let Some(parent) = vertex.parent {
                 current = parent;
             } else {
