@@ -316,3 +316,169 @@ pub trait TypeUuidProvider: Sized {
     /// Return type UUID.
     fn type_uuid() -> Uuid;
 }
+
+#[cfg(test)]
+mod test {
+    use std::path::Path;
+
+    use fxhash::FxHashMap;
+
+    use crate::{
+        append_extension, hash_combine, make_relative_path,
+        visitor::{Visit, Visitor},
+        BiDirHashMap,
+    };
+
+    #[test]
+    fn test_append_extension() {
+        let path = Path::new("foo.bar");
+        let new_path = append_extension(path, "baz");
+        assert_eq!(new_path, Path::new("foo.bar.baz"));
+    }
+
+    #[test]
+    fn bi_dir_hash_map_insert() {
+        let mut map = BiDirHashMap::<u32, u32>::default();
+
+        assert!(map.forward_map.is_empty());
+        assert!(map.backward_map.is_empty());
+
+        let result = map.insert(1, 42);
+
+        assert_eq!(result, None);
+        assert_eq!(map.forward_map.get_key_value(&1), Some((&1, &42)));
+        assert_eq!(map.backward_map.get_key_value(&42), Some((&42, &1)));
+    }
+
+    #[test]
+    fn bi_dir_hash_map_remove_by_key() {
+        let mut map = BiDirHashMap::<u32, u32>::default();
+        map.insert(1, 42);
+
+        assert_eq!(map.forward_map.get_key_value(&1), Some((&1, &42)));
+        assert_eq!(map.backward_map.get_key_value(&42), Some((&42, &1)));
+
+        let result = map.remove_by_key(&42);
+        assert_eq!(result, None);
+
+        let result = map.remove_by_key(&1);
+        assert_eq!(result, Some(42));
+        assert!(map.forward_map.is_empty());
+        assert!(map.backward_map.is_empty());
+    }
+
+    #[test]
+    fn bi_dir_hash_map_remove_by_value() {
+        let mut map = BiDirHashMap::<u32, u32>::default();
+        map.insert(1, 42);
+
+        assert_eq!(map.forward_map.get_key_value(&1), Some((&1, &42)));
+        assert_eq!(map.backward_map.get_key_value(&42), Some((&42, &1)));
+
+        let result = map.remove_by_value(&1);
+        assert_eq!(result, None);
+
+        let result = map.remove_by_value(&42);
+        assert_eq!(result, Some(1));
+        assert!(map.forward_map.is_empty());
+        assert!(map.backward_map.is_empty());
+    }
+
+    #[test]
+    fn bi_dir_hash_map_contains_key() {
+        let mut map = BiDirHashMap::<u32, u32>::default();
+        map.insert(1, 42);
+
+        assert!(map.contains_key(&1));
+        assert!(!map.contains_key(&42));
+    }
+
+    #[test]
+    fn bi_dir_hash_map_contains_value() {
+        let mut map = BiDirHashMap::<u32, u32>::default();
+        map.insert(1, 42);
+
+        assert!(map.contains_value(&42));
+        assert!(!map.contains_value(&1));
+    }
+
+    #[test]
+    fn bi_dir_hash_map_value_of() {
+        let mut map = BiDirHashMap::<u32, u32>::default();
+        map.insert(1, 42);
+
+        assert_eq!(map.value_of(&1), Some(&42));
+        assert_eq!(map.value_of(&42), None);
+    }
+
+    #[test]
+    fn bi_dir_hash_map_key_of() {
+        let mut map = BiDirHashMap::<u32, u32>::default();
+        map.insert(1, 42);
+
+        assert_eq!(map.key_of(&1), None);
+        assert_eq!(map.key_of(&42), Some(&1));
+    }
+
+    #[test]
+    fn bi_dir_hash_map_getters() {
+        let mut map = BiDirHashMap::<u32, u32>::default();
+        assert!(map.is_empty());
+
+        map.insert(1, 42);
+        assert_eq!(map.len(), 1);
+
+        assert!(map.forward_map().eq(&map.forward_map));
+        assert!(map.backward_map().eq(&map.backward_map));
+
+        map.clear();
+        assert!(map.is_empty());
+    }
+
+    #[test]
+    fn bi_dir_hash_map_into_inner() {
+        let mut map = BiDirHashMap::<u32, u32>::default();
+        map.insert(1, 42);
+
+        let (f, b) = map.clone().into_inner();
+        assert!(map.forward_map().eq(&f));
+        assert!(map.backward_map().eq(&b));
+    }
+
+    #[test]
+    fn from_fx_hash_map_for_bi_dir_hash_map() {
+        let mut h = FxHashMap::default();
+        h.insert(1, 42);
+
+        let map = BiDirHashMap::from(h);
+        assert_eq!(map.forward_map.get_key_value(&1), Some((&1, &42)));
+        assert_eq!(map.backward_map.get_key_value(&42), Some((&42, &1)));
+    }
+
+    #[test]
+    fn test_visit_for_bi_dir_hash_map() {
+        let mut map = BiDirHashMap::<u32, u32>::default();
+        let mut visitor = Visitor::default();
+
+        assert!(map.visit("name", &mut visitor).is_ok());
+    }
+
+    #[test]
+    fn from_iter_for_bi_dir_hash_map() {
+        let map = BiDirHashMap::from_iter(vec![(1, 42)]);
+
+        assert_eq!(map.forward_map.get_key_value(&1), Some((&1, &42)));
+        assert_eq!(map.backward_map.get_key_value(&42), Some((&42, &1)));
+    }
+
+    #[test]
+    fn test_hash_combine() {
+        assert_eq!(hash_combine(1, 1), 0x9E3779FB);
+    }
+
+    #[test]
+    fn test_make_relative_path() {
+        assert!(make_relative_path(Path::new("foo.txt")).is_err());
+        assert!(make_relative_path(Path::new("Cargo.toml")).is_ok());
+    }
+}
