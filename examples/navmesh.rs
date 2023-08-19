@@ -14,7 +14,6 @@ use fyrox::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
         arrayvec::ArrayVec,
         color::Color,
-        math::PositionProvider,
         pool::Handle,
         sstorage::ImmutableString,
     },
