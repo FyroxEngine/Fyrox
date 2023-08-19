@@ -7,6 +7,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::scene::node::NodeTrait;
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
@@ -184,20 +185,9 @@ impl Plugin for Game {
         }
 
         let navmesh_handle = scene.graph.find_by_name_from_root("Navmesh0").unwrap().0;
-        let navmesh = scene.graph[navmesh_handle]
-            .as_navigational_mesh_mut()
-            .navmesh_mut();
-
-        // Debug drawing.
-        for pt in navmesh.vertices() {
-            for neighbour in pt.neighbours() {
-                scene.drawing_context.add_line(Line {
-                    begin: pt.position(),
-                    end: navmesh.vertices()[*neighbour as usize].position(),
-                    color: Color::opaque(0, 0, 200),
-                });
-            }
-        }
+        let navmesh_node = scene.graph[navmesh_handle].as_navigational_mesh_mut();
+        navmesh_node.debug_draw(&mut scene.drawing_context);
+        let navmesh = navmesh_node.navmesh_mut();
 
         let last = std::time::Instant::now();
         self.navmesh_agent.set_target(self.target_position);
