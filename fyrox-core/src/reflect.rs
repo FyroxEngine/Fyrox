@@ -765,6 +765,113 @@ impl dyn Reflect {
         }
     }
 
+    pub fn enumerate_fields_recursively<F>(&self, func: &mut F)
+    where
+        F: FnMut(&str, Option<&FieldInfo>, &dyn Reflect),
+    {
+        self.enumerate_fields_recursively_internal("", None, func)
+    }
+
+    fn enumerate_fields_recursively_internal<F>(
+        &self,
+        path: &str,
+        field_info: Option<&FieldInfo>,
+        func: &mut F,
+    ) where
+        F: FnMut(&str, Option<&FieldInfo>, &dyn Reflect),
+    {
+        func(path, field_info, self);
+
+        let mut done = false;
+
+        self.as_inheritable_variable(&mut |variable| {
+            if let Some(variable) = variable {
+                // Inner variable might also contain inheritable variables, so continue iterating.
+                variable
+                    .inner_value_ref()
+                    .enumerate_fields_recursively_internal(path, field_info, func);
+
+                done = true;
+            }
+        });
+
+        if done {
+            return;
+        }
+
+        self.as_array(&mut |array| {
+            if let Some(array) = array {
+                for i in 0..array.reflect_len() {
+                    if let Some(item) = array.reflect_index(i) {
+                        let item_path = format!("{path}[{i}]");
+
+                        item.enumerate_fields_recursively_internal(&item_path, field_info, func);
+                    }
+                }
+
+                done = true;
+            }
+        });
+
+        if done {
+            return;
+        }
+
+        self.as_hash_map(&mut |hash_map| {
+            if let Some(hash_map) = hash_map {
+                for i in 0..hash_map.reflect_len() {
+                    if let Some((key, value)) = hash_map.reflect_get_at(i) {
+                        // TODO: Here we just using `Debug` impl to obtain string representation for keys. This is
+                        // fine for most cases in the engine.
+                        let mut key_str = format!("{:?}", key);
+
+                        let mut is_key_string = false;
+                        key.downcast_ref::<String>(&mut |string| is_key_string |= string.is_some());
+                        key.downcast_ref::<ImmutableString>(&mut |string| {
+                            is_key_string |= string.is_some()
+                        });
+
+                        if is_key_string {
+                            // Strip quotes at the beginning and the end, because Debug impl for String adds
+                            // quotes at the beginning and the end, but we want raw value.
+                            // TODO: This is unreliable mechanism.
+                            key_str.remove(0);
+                            key_str.pop();
+                        }
+
+                        let item_path = format!("{}[{}]", path, key_str);
+
+                        value.enumerate_fields_recursively_internal(&item_path, field_info, func);
+                    }
+                }
+
+                done = true;
+            }
+        });
+
+        if done {
+            return;
+        }
+
+        self.fields_info(&mut |fields| {
+            for field in fields {
+                let compound_path;
+                let field_path = if path.is_empty() {
+                    field.name
+                } else {
+                    compound_path = format!("{}.{}", path, field.name);
+                    &compound_path
+                };
+
+                field.reflect_value.enumerate_fields_recursively_internal(
+                    field_path,
+                    Some(&field),
+                    func,
+                );
+            }
+        })
+    }
+
     pub fn apply_recursively<F>(&self, func: &mut F)
     where
         F: FnMut(&dyn Reflect),
@@ -1032,3 +1139,53 @@ use crate::sstorage::ImmutableString;
 use crate::variable::{InheritError, VariableFlags};
 pub use blank_reflect;
 pub use delegate_reflect;
+
+#[cfg(test)]
+mod test {
+    use super::prelude::*;
+    use std::collections::HashMap;
+
+    #[derive(Reflect, Default, Debug)]
+    struct Foo {
+        bar: Bar,
+        baz: f32,
+        collection: Vec<Item>,
+        hash_map: HashMap<String, Item>,
+    }
+
+    #[derive(Reflect, Default, Debug)]
+    struct Item {
+        payload: u32,
+    }
+
+    #[derive(Reflect, Default, Debug)]
+    struct Bar {
+        stuff: String,
+    }
+
+    #[test]
+    fn enumerate_fields_recursively() {
+        let foo = Foo {
+            bar: Default::default(),
+            baz: 0.0,
+            collection: vec![Item::default()],
+            hash_map: [("Foobar".to_string(), Item::default())].into(),
+        };
+
+        let mut names = Vec::new();
+        (&foo as &dyn Reflect).enumerate_fields_recursively(&mut |path, _, _| {
+            names.push(path.to_string());
+        });
+
+        assert_eq!(names[0], "");
+        assert_eq!(names[1], "bar");
+        assert_eq!(names[2], "bar.stuff");
+        assert_eq!(names[3], "baz");
+        assert_eq!(names[4], "collection");
+        assert_eq!(names[5], "collection[0]");
+        assert_eq!(names[6], "collection[0].payload");
+        assert_eq!(names[7], "hash_map");
+        assert_eq!(names[8], "hash_map[Foobar]");
+        assert_eq!(names[9], "hash_map[Foobar].payload");
+    }
+}
