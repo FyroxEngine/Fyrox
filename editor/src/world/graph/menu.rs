@@ -1,4 +1,3 @@
-use crate::settings::Settings;
 use crate::{
     make_save_file_selector,
     menu::{create::CreateEntityMenu, create_menu_item, create_menu_item_shortcut},
@@ -6,14 +5,16 @@ use crate::{
     scene::{
         commands::{
             graph::{AddNodeCommand, ReplaceNodeCommand, SetGraphRootCommand},
-            make_delete_selection_command,
+            make_delete_selection_command, CommandGroup, RevertSceneNodePropertyCommand,
+            SceneCommand,
         },
         EditorScene, Selection,
     },
+    settings::Settings,
     utils, Engine, Message, MessageDirection, PasteCommand,
 };
 use fyrox::{
-    core::{algebra::Vector2, pool::Handle, scope_profile},
+    core::{algebra::Vector2, pool::Handle, reflect::Reflect, scope_profile},
     gui::{
         file_browser::FileSelectorMessage,
         menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
@@ -39,6 +40,7 @@ pub struct ItemContextMenu {
     paste: Handle<UiNode>,
     make_root: Handle<UiNode>,
     open_asset: Handle<UiNode>,
+    reset_inheritable_properties: Handle<UiNode>,
 }
 
 fn resource_path_of_first_selected_node(
@@ -64,6 +66,7 @@ impl ItemContextMenu {
         let paste;
         let make_root;
         let open_asset;
+        let reset_inheritable_properties;
 
         let (create_entity_menu, create_entity_menu_root_items) = CreateEntityMenu::new(ctx);
         let (replace_with_menu, replace_with_menu_root_items) = CreateEntityMenu::new(ctx);
@@ -113,6 +116,11 @@ impl ItemContextMenu {
                         .with_child({
                             open_asset = create_menu_item("Open Asset", vec![], ctx);
                             open_asset
+                        })
+                        .with_child({
+                            reset_inheritable_properties =
+                                create_menu_item("Reset Inheritable Properties", vec![], ctx);
+                            reset_inheritable_properties
                         }),
                 )
                 .build(ctx),
@@ -135,6 +143,7 @@ impl ItemContextMenu {
             paste,
             make_root,
             open_asset,
+            reset_inheritable_properties,
         }
     }
 
@@ -221,6 +230,30 @@ impl ItemContextMenu {
                     if utils::is_native_scene(&path) {
                         sender.send(Message::LoadScene(path));
                     }
+                }
+            } else if message.destination() == self.reset_inheritable_properties {
+                if let Selection::Graph(graph_selection) = &editor_scene.selection {
+                    let scene = &engine.scenes[editor_scene.scene];
+                    let mut commands = Vec::new();
+                    for node_handle in graph_selection.nodes.iter() {
+                        if let Some(node) = scene.graph.try_get(*node_handle) {
+                            (node as &dyn Reflect).enumerate_fields_recursively(
+                                &mut |path, _, val| {
+                                    val.as_inheritable_variable(&mut |inheritable| {
+                                        if inheritable.is_some() {
+                                            commands.push(SceneCommand::new(
+                                                RevertSceneNodePropertyCommand::new(
+                                                    path.to_string(),
+                                                    *node_handle,
+                                                ),
+                                            ));
+                                        }
+                                    });
+                                },
+                            )
+                        }
+                    }
+                    sender.do_scene_command(CommandGroup::from(commands));
                 }
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
