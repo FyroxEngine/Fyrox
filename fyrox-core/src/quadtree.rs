@@ -224,8 +224,8 @@ impl<I, const CAP: usize> QueryStorage for ArrayVec<I, CAP> {
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use crate::math::Rect;
-    use crate::quadtree::{BoundsProvider, QuadTree};
 
     struct TestObject {
         bounds: Rect<f32>,
@@ -271,5 +271,94 @@ mod test {
             },
         ];
         assert!(QuadTree::new(root_bounds, objects.iter(), 1).is_ok());
+    }
+
+    #[test]
+    fn default_for_quad_tree() {
+        let tree = QuadTree::<u32>::default();
+
+        assert_eq!(tree.split_threshold, 16);
+        assert_eq!(tree.root, Handle::default());
+    }
+
+    #[test]
+    fn quad_tree_point_query() {
+        // empty
+        let tree = QuadTree::<f32>::default();
+        let mut s = Vec::<f32>::new();
+
+        tree.point_query(Vector2::new(0.0, 0.0), &mut s);
+        assert_eq!(s, vec![]);
+
+        let root_bounds = Rect::new(0.0, 0.0, 200.0, 200.0);
+
+        // leaf
+        let mut s = Vec::<usize>::new();
+        let mut pool = Pool::new();
+        let _ = pool.spawn(QuadTreeNode::Leaf {
+            bounds: root_bounds,
+            ids: vec![0, 1],
+        });
+
+        let tree = QuadTree {
+            root: Handle::new(0, 1),
+            nodes: pool,
+            ..Default::default()
+        };
+
+        tree.point_query(Vector2::new(10.0, 10.0), &mut s);
+        assert_eq!(s, vec![0, 1]);
+
+        // branch
+        let mut s = Vec::<usize>::new();
+        let mut pool = Pool::new();
+        let a = pool.spawn(QuadTreeNode::Leaf {
+            bounds: root_bounds,
+            ids: vec![0, 1],
+        });
+        let b = pool.spawn(QuadTreeNode::Branch {
+            bounds: root_bounds,
+            leaves: [a, a, a, a],
+        });
+
+        let tree = QuadTree {
+            root: b,
+            nodes: pool,
+            ..Default::default()
+        };
+
+        tree.point_query(Vector2::new(10.0, 10.0), &mut s);
+        assert_eq!(s, vec![0, 1, 0, 1, 0, 1, 0, 1]);
+    }
+
+    #[test]
+    fn quad_tree_split_threshold() {
+        let tree = QuadTree::<u32>::default();
+
+        assert_eq!(tree.split_threshold(), tree.split_threshold);
+    }
+
+    #[test]
+    fn query_storage_for_vec() {
+        let mut s = vec![1];
+
+        let res = QueryStorage::try_push(&mut s, 2);
+        assert!(res);
+        assert_eq!(s, vec![1, 2]);
+
+        QueryStorage::clear(&mut s);
+        assert!(s.is_empty());
+    }
+
+    #[test]
+    fn query_storage_for_array_vec() {
+        let mut s = ArrayVec::<i32, 3>::new();
+
+        let res = QueryStorage::try_push(&mut s, 1);
+        assert!(res);
+        assert!(!s.is_empty());
+
+        QueryStorage::clear(&mut s);
+        assert!(s.is_empty());
     }
 }
