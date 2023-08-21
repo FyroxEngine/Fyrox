@@ -123,7 +123,9 @@ use fyrox::{
     resource::texture::{
         CompressionOptions, TextureKind, TextureResource, TextureResourceExtension,
     },
-    scene::{camera::Camera, mesh::Mesh, node::Node, Scene, SceneLoader},
+    scene::{
+        camera::Camera, graph::GraphUpdateSwitches, mesh::Mesh, node::Node, Scene, SceneLoader,
+    },
     utils::{into_gui_texture, translate_cursor_icon, translate_event},
     window::{Icon, WindowAttributes},
 };
@@ -2460,9 +2462,37 @@ fn update(editor: &mut Editor, control_flow: &mut ControlFlow) {
     while editor.game_loop_data.lag >= FIXED_TIMESTEP {
         editor.game_loop_data.lag -= FIXED_TIMESTEP;
 
+        /*
+        // Save scenes state before update and disable every non-current scene.
+        let mut scenes_state = FxHashMap::default();
+        for (handle, scene) in editor.engine.scenes.pair_iter_mut() {
+            scenes_state.insert(handle, scene.enabled);
+
+            scene.enabled = editor
+                .scenes
+                .current_editor_scene_ref()
+                .map_or(false, |s| s.scene == handle);
+        }*/
+
         let mut switches = FxHashMap::default();
-        if let Some(scene) = editor.scenes.current_editor_scene_ref() {
-            switches.insert(scene.scene, scene.graph_switches.clone());
+
+        for (other_scene_handle, _) in editor.engine.scenes.pair_iter() {
+            if let Some(scene) = editor.scenes.current_editor_scene_ref() {
+                switches.insert(scene.scene, scene.graph_switches.clone());
+
+                if scene.scene == other_scene_handle {
+                    continue;
+                }
+            }
+
+            // Other scenes will be paused.
+            switches.insert(
+                other_scene_handle,
+                GraphUpdateSwitches {
+                    paused: true,
+                    ..Default::default()
+                },
+            );
         }
 
         editor.engine.pre_update(
@@ -2477,7 +2507,14 @@ fn update(editor: &mut Editor, control_flow: &mut ControlFlow) {
         editor.engine.post_update(FIXED_TIMESTEP);
 
         editor.post_update();
-
+        /*
+                for (scene, enabled) in scenes_state {
+                    // A scene could be deleted during the update, so do a checked borrow here.
+                    if let Some(scene) = editor.engine.scenes.try_get_mut(scene) {
+                        scene.enabled = enabled;
+                    }
+                }
+        */
         if editor.game_loop_data.lag >= 1.5 * FIXED_TIMESTEP {
             break;
         }

@@ -226,6 +226,9 @@ pub struct GraphUpdateSwitches {
     /// Enables or disables deletion of the nodes with ended lifetime (lifetime <= 0.0). If set to `false` the lifetime
     /// of the nodes won't be changed.
     pub delete_dead_nodes: bool,
+    /// Whether the graph update is paused or not. Paused graphs won't be updated and their sound content will be also paused
+    /// so it won't emit any sounds.
+    pub paused: bool,
 }
 
 impl Default for GraphUpdateSwitches {
@@ -235,6 +238,7 @@ impl Default for GraphUpdateSwitches {
             physics: true,
             node_overrides: Default::default(),
             delete_dead_nodes: true,
+            paused: false,
         }
     }
 }
@@ -1266,6 +1270,12 @@ impl Graph {
     /// Update switches allows you to disable update for parts of the update pipeline, it could be useful for editors
     /// where you need to have preview mode to update only specific set of nodes, etc.
     pub fn update(&mut self, frame_size: Vector2<f32>, dt: f32, switches: GraphUpdateSwitches) {
+        self.sound_context.state().pause(switches.paused);
+
+        if switches.paused {
+            return;
+        }
+
         let last_time = instant::Instant::now();
         self.update_hierarchical_data();
         self.performance_statistics.hierarchical_properties_time =

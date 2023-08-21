@@ -92,6 +92,7 @@ impl EditorScene {
                 delete_dead_nodes: false,
                 // Update only editor's camera.
                 node_overrides: Some(Default::default()),
+                paused: false,
             },
         }
     }
