@@ -1,3 +1,9 @@
+//! Search bar widget is a text box with a "clear text" button. It is used as an input field for search functionality.
+//! Keep in mind, that it does **not** provide any built-in searching functionality by itself! See [`SearchBar`] docs
+//! for more info and usage examples.
+
+#![warn(missing_docs)]
+
 use crate::{
     border::BorderBuilder,
     button::{ButtonBuilder, ButtonMessage},
@@ -18,20 +24,63 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+/// A set of messages that can be used to get the state of a search bar.
 #[derive(Debug, Clone, PartialEq)]
 pub enum SearchBarMessage {
+    /// Emitted when a user types something in the search bar.
     Text(String),
 }
 
 impl SearchBarMessage {
-    define_constructor!(SearchBarMessage:Text => fn text(String), layout: false);
+    define_constructor!(
+        /// Creates [`SearchBarMessage::Text`] message.
+        SearchBarMessage:Text => fn text(String), layout: false
+    );
 }
 
+/// Search bar widget is a text box with a "clear text" button. It is used as an input field for search functionality.
+/// Keep in mind, that it does **not** provide any built-in searching functionality by itself, you need to implement
+/// it manually. This widget provides a "standard" looking search bar with very little functionality.
+///
+/// ## Examples
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     message::UiMessage,
+/// #     searchbar::{SearchBarBuilder, SearchBarMessage},
+/// #     widget::WidgetBuilder,
+/// #     BuildContext, UiNode,
+/// # };
+/// #
+/// fn create_search_bar(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     SearchBarBuilder::new(WidgetBuilder::new()).build(ctx)
+/// }
+///
+/// // Somewhere in a UI message loop:
+/// fn handle_ui_message(my_search_bar: Handle<UiNode>, message: &UiMessage) {
+///     // Catch the moment when the search text has changed and do the actual searching.
+///     if let Some(SearchBarMessage::Text(search_text)) = message.data() {
+///         if message.destination() == my_search_bar {
+///             let items = ["foo", "bar", "baz"];
+///
+///             println!(
+///                 "{} found at {:?} position",
+///                 search_text,
+///                 items.iter().position(|i| *i == search_text)
+///             );
+///         }
+///     }
+/// }
+/// ```
 #[derive(Clone)]
 pub struct SearchBar {
-    widget: Widget,
-    text_box: Handle<UiNode>,
-    clear: Handle<UiNode>,
+    /// Base widget of the search bar.
+    pub widget: Widget,
+    /// A handle of a text box widget used for text input.
+    pub text_box: Handle<UiNode>,
+    /// A handle of a button, that is used to clear the text.
+    pub clear: Handle<UiNode>,
 }
 
 define_widget_deref!(SearchBar);
@@ -83,15 +132,18 @@ impl Control for SearchBar {
     }
 }
 
+/// Search bar builder creates [`SearchBar`] widget instances and adds them to the user interface.
 pub struct SearchBarBuilder {
     widget_builder: WidgetBuilder,
 }
 
 impl SearchBarBuilder {
+    /// Creates a new builder instance.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self { widget_builder }
     }
 
+    /// Finishes search bar building and adds the new instance to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let text_box;
         let clear;
