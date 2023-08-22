@@ -402,15 +402,15 @@ impl Command for RevertSceneNodePropertyCommand {
                 })
             });
 
-            // Check whether the child's field is inheritable.
-            let mut is_inheritable = false;
+            // Check whether the child's field is inheritable and modified.
+            let mut need_revert = false;
 
             child.as_reflect_mut(&mut |child| {
                 child.resolve_path_mut(&self.path, &mut |result| match result {
                     Ok(child_field) => {
                         child_field.as_inheritable_variable_mut(&mut |child_inheritable| {
-                            if child_inheritable.is_some() {
-                                is_inheritable = true;
+                            if let Some(child_inheritable) = child_inheritable {
+                                need_revert = child_inheritable.is_modified();
                             } else {
                                 Log::err(format!("Property {} is not inheritable!", self.path))
                             }
@@ -424,7 +424,7 @@ impl Command for RevertSceneNodePropertyCommand {
             });
 
             // Try to apply it to the child.
-            if is_inheritable {
+            if need_revert {
                 if let Some(parent_value) = parent_value {
                     let mut was_set = false;
 
