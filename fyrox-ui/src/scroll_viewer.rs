@@ -1,3 +1,9 @@
+//! Scroll viewer is a scrollable region with two scroll bars for each axis. It is used to wrap a content of unknown
+//! size to ensure that all of it will be accessible in a parent widget bounds. See [`ScrollViewer`] docs for more
+//! info and usage examples.
+
+#![warn(missing_docs)]
+
 use crate::{
     core::{algebra::Vector2, pool::Handle},
     define_constructor,
@@ -13,49 +19,140 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+/// A set of messages that could be used to alternate the state of a [`ScrollViewer`] widget.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ScrollViewerMessage {
+    /// Sets the new content of the scroll viewer.
     Content(Handle<UiNode>),
-    /// Adjusts vertical and horizontal scroll values so given node will be in "view box"
-    /// of scroll viewer.
+    /// Adjusts vertical and horizontal scroll values so given node will be in "view box" of the scroll viewer.
     BringIntoView(Handle<UiNode>),
+    /// Sets the new vertical scrolling speed.
     VScrollSpeed(f32),
+    /// Sets the new horizontal scrolling speed.
     HScrollSpeed(f32),
 }
 
 impl ScrollViewerMessage {
-    define_constructor!(ScrollViewerMessage:Content => fn content(Handle<UiNode>), layout: false);
-    define_constructor!(ScrollViewerMessage:BringIntoView => fn bring_into_view(Handle<UiNode>), layout: true);
-    define_constructor!(ScrollViewerMessage:VScrollSpeed => fn v_scroll_speed(f32), layout: true);
-    define_constructor!(ScrollViewerMessage:HScrollSpeed => fn h_scroll_speed(f32), layout: true);
+    define_constructor!(
+        /// Creates [`ScrollViewerMessage::Content`] message.
+        ScrollViewerMessage:Content => fn content(Handle<UiNode>), layout: false
+    );
+    define_constructor!(
+        /// Creates [`ScrollViewerMessage::BringIntoView`] message.
+        ScrollViewerMessage:BringIntoView => fn bring_into_view(Handle<UiNode>), layout: true
+    );
+    define_constructor!(
+        /// Creates [`ScrollViewerMessage::VScrollSpeed`] message.
+        ScrollViewerMessage:VScrollSpeed => fn v_scroll_speed(f32), layout: true
+    );
+    define_constructor!(
+        /// Creates [`ScrollViewerMessage::HScrollSpeed`] message.
+        ScrollViewerMessage:HScrollSpeed => fn h_scroll_speed(f32), layout: true
+    );
 }
 
+/// Scroll viewer is a scrollable region with two scroll bars for each axis. It is used to wrap a content of unknown
+/// size to ensure that all of it will be accessible in a parent widget bounds. For example, it could be used in a
+/// Window widget to allow a content of the window to be accessible, even if the window is smaller than the content.
+///
+/// ## Example
+///
+/// A scroll viewer widget could be created using [`ScrollViewerBuilder`]:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     button::ButtonBuilder, core::pool::Handle, scroll_viewer::ScrollViewerBuilder,
+/// #     stack_panel::StackPanelBuilder, text::TextBuilder, widget::WidgetBuilder, BuildContext,
+/// #     UiNode,
+/// # };
+/// #
+/// fn create_scroll_viewer(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     ScrollViewerBuilder::new(WidgetBuilder::new())
+///         .with_content(
+///             StackPanelBuilder::new(
+///                 WidgetBuilder::new()
+///                     .with_child(
+///                         ButtonBuilder::new(WidgetBuilder::new())
+///                             .with_text("Click Me!")
+///                             .build(ctx),
+///                     )
+///                     .with_child(
+///                         TextBuilder::new(WidgetBuilder::new())
+///                             .with_text("Some\nlong\ntext")
+///                             .build(ctx),
+///                     ),
+///             )
+///             .build(ctx),
+///         )
+///         .build(ctx)
+/// }
+/// ```
+///
+/// Keep in mind, that you can change the content of a scroll viewer at runtime using [`ScrollViewerMessage::Content`] message.
+///
+/// ## Scrolling Speed and Controls
+///
+/// Scroll viewer can have an arbitrary scrolling speed for each axis. Scrolling is performed via mouse wheel and by default it
+/// scrolls vertical axis, which can be changed by holding `Shift` key. Scrolling speed can be set during the build phase:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle, scroll_viewer::ScrollViewerBuilder, widget::WidgetBuilder,
+/// #     BuildContext, UiNode,
+/// # };
+/// #
+/// fn create_scroll_viewer(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     ScrollViewerBuilder::new(WidgetBuilder::new())
+///         // Set vertical scrolling speed twice as fast as default scrolling speed.
+///         .with_v_scroll_speed(60.0)
+///         // Set horizontal scrolling speed slightly lower than the default value (30.0).
+///         .with_h_scroll_speed(20.0)
+///         .build(ctx)
+/// }
+/// ```
+///
+/// Also it could be set using [`ScrollViewerMessage::HScrollSpeed`] or [`ScrollViewerMessage::VScrollSpeed`] messages.
+///
+/// ## Bringing a child into view
+///
+/// Calculates the scroll values to bring a desired child into view, it can be used for automatic navigation:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle, message::MessageDirection, scroll_viewer::ScrollViewerMessage, UiNode,
+/// #     UserInterface,
+/// # };
+/// fn bring_child_into_view(
+///     scroll_viewer: Handle<UiNode>,
+///     child: Handle<UiNode>,
+///     ui: &UserInterface,
+/// ) {
+///     ui.send_message(ScrollViewerMessage::bring_into_view(
+///         scroll_viewer,
+///         MessageDirection::ToWidget,
+///         child,
+///     ))
+/// }
+/// ```
 #[derive(Clone)]
 pub struct ScrollViewer {
+    /// Base widget of the scroll viewer.
     pub widget: Widget,
+    /// A handle of a content.
     pub content: Handle<UiNode>,
+    /// A handle of [`crate::scroll_panel::ScrollPanel`] widget instance that does the actual layouting.
     pub scroll_panel: Handle<UiNode>,
+    /// A handle of scroll bar widget for vertical axis.
     pub v_scroll_bar: Handle<UiNode>,
+    /// A handle of scroll bar widget for horizontal axis.
     pub h_scroll_bar: Handle<UiNode>,
+    /// Current vertical scrolling speed.
     pub v_scroll_speed: f32,
+    /// Current horizontal scrolling speed.
     pub h_scroll_speed: f32,
 }
 
 crate::define_widget_deref!(ScrollViewer);
-
-impl ScrollViewer {
-    pub fn content_presenter(&self) -> Handle<UiNode> {
-        self.scroll_panel
-    }
-
-    pub fn content(&self) -> Handle<UiNode> {
-        self.content
-    }
-
-    pub fn set_content(&mut self, content: Handle<UiNode>) {
-        self.content = content;
-    }
-}
 
 impl Control for ScrollViewer {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -244,6 +341,7 @@ impl Control for ScrollViewer {
     }
 }
 
+/// Scroll viewer builder creates [`ScrollViewer`] widget instances and adds them to the user interface.
 pub struct ScrollViewerBuilder {
     widget_builder: WidgetBuilder,
     content: Handle<UiNode>,
@@ -256,6 +354,7 @@ pub struct ScrollViewerBuilder {
 }
 
 impl ScrollViewerBuilder {
+    /// Creates new builder instance.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -269,41 +368,49 @@ impl ScrollViewerBuilder {
         }
     }
 
+    /// Sets the desired content of the scroll viewer.
     pub fn with_content(mut self, content: Handle<UiNode>) -> Self {
         self.content = content;
         self
     }
 
+    /// Sets the desired vertical scroll bar widget.
     pub fn with_vertical_scroll_bar(mut self, v_scroll_bar: Handle<UiNode>) -> Self {
         self.v_scroll_bar = Some(v_scroll_bar);
         self
     }
 
+    /// Sets the desired horizontal scroll bar widget.
     pub fn with_horizontal_scroll_bar(mut self, h_scroll_bar: Handle<UiNode>) -> Self {
         self.h_scroll_bar = Some(h_scroll_bar);
         self
     }
 
+    /// Enables or disables vertical scrolling.
     pub fn with_vertical_scroll_allowed(mut self, value: bool) -> Self {
         self.vertical_scroll_allowed = value;
         self
     }
 
+    /// Enables or disables horizontal scrolling.
     pub fn with_horizontal_scroll_allowed(mut self, value: bool) -> Self {
         self.horizontal_scroll_allowed = value;
         self
     }
 
+    /// Sets the desired vertical scrolling speed.
     pub fn with_v_scroll_speed(mut self, speed: f32) -> Self {
         self.v_scroll_speed = speed;
         self
     }
 
+    /// Sets the desired horizontal scrolling speed.
     pub fn with_h_scroll_speed(mut self, speed: f32) -> Self {
         self.h_scroll_speed = speed;
         self
     }
 
+    /// Finishes widget building and adds it to the user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let content_presenter = ScrollPanelBuilder::new(
             WidgetBuilder::new()

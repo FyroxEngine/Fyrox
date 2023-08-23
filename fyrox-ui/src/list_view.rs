@@ -506,7 +506,7 @@ impl ListViewBuilder {
         let scroll_viewer_ref = ctx[scroll_viewer]
             .cast_mut::<ScrollViewer>()
             .expect("ListView must have ScrollViewer");
-        scroll_viewer_ref.set_content(panel);
+        scroll_viewer_ref.content = panel;
         let content_presenter = scroll_viewer_ref.scroll_panel;
         ctx.link(panel, content_presenter);
 
