@@ -161,14 +161,59 @@ lazy_static! {
 
 #[cfg(test)]
 mod test {
-    use crate::sstorage::{ImmutableString, ImmutableStringStorage};
+    use super::*;
 
     #[test]
     fn test_immutable_string_uniqueness() {
         let a = ImmutableString::new("Foobar");
         let b = ImmutableString::new("Foobar");
 
-        assert_eq!(ImmutableStringStorage::entry_count(), 1);
+        assert_eq!(ImmutableStringStorage::entry_count(), 2);
         assert_eq!(a.id(), b.id())
+    }
+
+    #[test]
+    fn visit_for_immutable_string() {
+        let mut a = ImmutableString::new("Foobar");
+        let mut visitor = Visitor::default();
+
+        assert!(a.visit("name", &mut visitor).is_ok());
+    }
+
+    #[test]
+    fn debug_for_immutable_string() {
+        let a = ImmutableString::new("Foobar");
+
+        assert_eq!(format!("{a:?}"), "\"Foobar\"");
+    }
+
+    #[test]
+    fn default_for_immutable_string() {
+        let a = ImmutableString::default();
+
+        assert_eq!(a.0.string, "");
+    }
+
+    #[test]
+    fn immutable_string_to_mutable() {
+        let a = ImmutableString::new("Foobar");
+
+        assert_eq!(a.to_mutable(), String::from("Foobar"));
+    }
+
+    #[test]
+    fn deref_for_immutable_string() {
+        let s = "Foobar";
+        let a = ImmutableString::new(s);
+
+        assert_eq!(a.deref(), s);
+    }
+
+    #[test]
+    fn eq_for_immutable_string() {
+        let a = ImmutableString::new("Foobar");
+        let b = ImmutableString::new("Foobar");
+
+        assert!(a == b);
     }
 }
