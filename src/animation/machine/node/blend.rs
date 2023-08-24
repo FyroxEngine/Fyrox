@@ -1,9 +1,12 @@
 //! Various animation blending nodes.
 
+use crate::animation::machine::node::AnimationEventCollectionStrategy;
+use crate::animation::{Animation, AnimationEvent};
 use crate::{
     animation::{
         machine::{
-            node::BasePoseNode, EvaluatePose, Parameter, ParameterContainer, PoseNode, PoseWeight,
+            node::BasePoseNode, AnimationPoseSource, Parameter, ParameterContainer, PoseNode,
+            PoseWeight,
         },
         AnimationContainer, AnimationPose,
     },
@@ -13,6 +16,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
 };
+use std::cmp::Ordering;
 use std::{
     cell::{Cell, Ref, RefCell},
     ops::{Deref, DerefMut},
@@ -109,7 +113,7 @@ impl BlendAnimations {
     }
 }
 
-impl EvaluatePose for BlendAnimations {
+impl AnimationPoseSource for BlendAnimations {
     fn eval_pose(
         &self,
         nodes: &Pool<PoseNode>,
@@ -144,6 +148,58 @@ impl EvaluatePose for BlendAnimations {
 
     fn pose(&self) -> Ref<AnimationPose> {
         self.output_pose.borrow()
+    }
+
+    fn collect_animation_events(
+        &self,
+        nodes: &Pool<PoseNode>,
+        params: &ParameterContainer,
+        animations: &AnimationContainer,
+        strategy: AnimationEventCollectionStrategy,
+    ) -> Vec<(Handle<Animation>, AnimationEvent)> {
+        match strategy {
+            AnimationEventCollectionStrategy::All => {
+                let mut events = Vec::new();
+                for pose in self.pose_sources.iter() {
+                    if let Some(source) = nodes.try_borrow(pose.pose_source) {
+                        events.extend(
+                            source.collect_animation_events(nodes, params, animations, strategy),
+                        );
+                    }
+                }
+                events
+            }
+            AnimationEventCollectionStrategy::MaxWeight => {
+                if let Some((pose, _)) = self
+                    .pose_sources
+                    .iter()
+                    .filter_map(|s| s.weight.value(params).map(|w| (s, w)))
+                    .max_by(|(_, w1), (_, w2)| w1.partial_cmp(w2).unwrap_or(Ordering::Equal))
+                {
+                    if let Some(pose_source) = nodes.try_borrow(pose.pose_source) {
+                        return pose_source
+                            .collect_animation_events(nodes, params, animations, strategy);
+                    }
+                }
+
+                Default::default()
+            }
+            AnimationEventCollectionStrategy::MinWeight => {
+                if let Some((pose, _)) = self
+                    .pose_sources
+                    .iter()
+                    .filter_map(|s| s.weight.value(params).map(|w| (s, w)))
+                    .min_by(|(_, w1), (_, w2)| w1.partial_cmp(w2).unwrap_or(Ordering::Equal))
+                {
+                    if let Some(pose_source) = nodes.try_borrow(pose.pose_source) {
+                        return pose_source
+                            .collect_animation_events(nodes, params, animations, strategy);
+                    }
+                }
+
+                Default::default()
+            }
+        }
     }
 }
 
@@ -225,7 +281,7 @@ impl BlendAnimationsByIndex {
     }
 }
 
-impl EvaluatePose for BlendAnimationsByIndex {
+impl AnimationPoseSource for BlendAnimationsByIndex {
     fn eval_pose(
         &self,
         nodes: &Pool<PoseNode>,
@@ -288,5 +344,68 @@ impl EvaluatePose for BlendAnimationsByIndex {
 
     fn pose(&self) -> Ref<AnimationPose> {
         self.output_pose.borrow()
+    }
+
+    fn collect_animation_events(
+        &self,
+        nodes: &Pool<PoseNode>,
+        params: &ParameterContainer,
+        animations: &AnimationContainer,
+        strategy: AnimationEventCollectionStrategy,
+    ) -> Vec<(Handle<Animation>, AnimationEvent)> {
+        if let Some(&Parameter::Index(current_index)) = params.get(&self.index_parameter) {
+            if let Some(prev_index) = self.prev_index.get() {
+                if prev_index != current_index {
+                    if let (Some(prev_input), Some(current_input)) = (
+                        self.inputs.get(prev_index as usize),
+                        self.inputs.get(current_index as usize),
+                    ) {
+                        let interpolator = self.blend_time.get() / current_input.blend_time;
+
+                        match strategy {
+                            AnimationEventCollectionStrategy::All => {
+                                let mut events = Vec::new();
+                                for input in [prev_input, current_input] {
+                                    if let Some(source) = nodes.try_borrow(input.pose_source) {
+                                        events.extend(source.collect_animation_events(
+                                            nodes, params, animations, strategy,
+                                        ));
+                                    }
+                                }
+                                return events;
+                            }
+                            AnimationEventCollectionStrategy::MaxWeight => {
+                                let input = if interpolator < 0.5 {
+                                    prev_input
+                                } else {
+                                    current_input
+                                };
+
+                                if let Some(pose_source) = nodes.try_borrow(input.pose_source) {
+                                    return pose_source.collect_animation_events(
+                                        nodes, params, animations, strategy,
+                                    );
+                                }
+                            }
+                            AnimationEventCollectionStrategy::MinWeight => {
+                                let input = if interpolator < 0.5 {
+                                    current_input
+                                } else {
+                                    prev_input
+                                };
+
+                                if let Some(pose_source) = nodes.try_borrow(input.pose_source) {
+                                    return pose_source.collect_animation_events(
+                                        nodes, params, animations, strategy,
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Default::default()
     }
 }

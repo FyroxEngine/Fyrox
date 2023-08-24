@@ -1,8 +1,12 @@
 #![allow(missing_docs)] // TODO
 
+use crate::animation::machine::node::AnimationEventCollectionStrategy;
+use crate::animation::{Animation, AnimationEvent};
 use crate::{
     animation::{
-        machine::{node::BasePoseNode, EvaluatePose, Parameter, ParameterContainer, PoseNode},
+        machine::{
+            node::BasePoseNode, AnimationPoseSource, Parameter, ParameterContainer, PoseNode,
+        },
         AnimationContainer, AnimationPose,
     },
     core::{
@@ -14,6 +18,7 @@ use crate::{
     },
 };
 use spade::{DelaunayTriangulation, Point2, Triangulation};
+use std::cmp::Ordering;
 use std::{
     cell::{Ref, RefCell},
     ops::{Deref, DerefMut},
@@ -89,7 +94,7 @@ impl DerefMut for BlendSpace {
     }
 }
 
-impl EvaluatePose for BlendSpace {
+impl AnimationPoseSource for BlendSpace {
     fn eval_pose(
         &self,
         nodes: &Pool<PoseNode>,
@@ -127,6 +132,69 @@ impl EvaluatePose for BlendSpace {
 
     fn pose(&self) -> Ref<AnimationPose> {
         self.pose.borrow()
+    }
+
+    fn collect_animation_events(
+        &self,
+        nodes: &Pool<PoseNode>,
+        params: &ParameterContainer,
+        animations: &AnimationContainer,
+        strategy: AnimationEventCollectionStrategy,
+    ) -> Vec<(Handle<Animation>, AnimationEvent)> {
+        if let Some(Parameter::SamplingPoint(sampling_point)) = params.get(&self.sampling_parameter)
+        {
+            if let Some(weights) = self.fetch_weights(*sampling_point) {
+                let (ia, wa) = weights[0];
+                let (ib, wb) = weights[1];
+                let (ic, wc) = weights[2];
+
+                if let (Some(pose_a), Some(pose_b), Some(pose_c)) = (
+                    nodes.try_borrow(self.points[ia].pose_source),
+                    nodes.try_borrow(self.points[ib].pose_source),
+                    nodes.try_borrow(self.points[ic].pose_source),
+                ) {
+                    match strategy {
+                        AnimationEventCollectionStrategy::All => {
+                            let mut events = Vec::new();
+                            for pose in [pose_a, pose_b, pose_c] {
+                                events.extend(
+                                    pose.collect_animation_events(
+                                        nodes, params, animations, strategy,
+                                    ),
+                                );
+                            }
+                            return events;
+                        }
+                        AnimationEventCollectionStrategy::MaxWeight => {
+                            if let Some((max_weight_pose, _)) =
+                                [(pose_a, wa), (pose_b, wb), (pose_c, wc)].iter().max_by(
+                                    |(_, w1), (_, w2)| {
+                                        w1.partial_cmp(w2).unwrap_or(Ordering::Equal)
+                                    },
+                                )
+                            {
+                                return max_weight_pose
+                                    .collect_animation_events(nodes, params, animations, strategy);
+                            }
+                        }
+                        AnimationEventCollectionStrategy::MinWeight => {
+                            if let Some((min_weight_pose, _)) =
+                                [(pose_a, wa), (pose_b, wb), (pose_c, wc)].iter().min_by(
+                                    |(_, w1), (_, w2)| {
+                                        w1.partial_cmp(w2).unwrap_or(Ordering::Equal)
+                                    },
+                                )
+                            {
+                                return min_weight_pose
+                                    .collect_animation_events(nodes, params, animations, strategy);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Default::default()
     }
 }
 

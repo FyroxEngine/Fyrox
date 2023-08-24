@@ -1,6 +1,9 @@
 //! Layer is a separate state graph that usually animates only a part of nodes from animations. See docs of [`MachineLayer`]
 //! for more info.
 
+use crate::animation::machine::node::AnimationEventCollectionStrategy;
+use crate::animation::machine::AnimationPoseSource;
+use crate::animation::AnimationEvent;
 use crate::{
     animation::{
         machine::{
@@ -105,6 +108,18 @@ impl NameProvider for MachineLayer {
     fn name(&self) -> &str {
         &self.name
     }
+}
+
+/// A collection of events gathered from an active state (or a transition between states). See docs of [`MachineLayer::collect_active_animations_events`]
+/// for more info and usage examples.
+#[derive(Default)]
+pub struct LayerAnimationEventsCollection {
+    /// A handle of a state, from which the events were collected. Alternatively, it is a handle of a source state of an active transition.
+    pub state_from: Handle<State>,
+    /// It is a handle of a destination state of an active transition ([`Handle::NONE`] if there's no active transition).
+    pub state_to: Handle<State>,
+    /// Actual animation events, defined as a tuple `(animation handle, event)`.
+    pub events: Vec<(Handle<Animation>, AnimationEvent)>,
 }
 
 impl MachineLayer {
@@ -234,6 +249,91 @@ impl MachineLayer {
         }
 
         self.active_state = self.entry_state;
+    }
+
+    /// Fetches animation events from an active state (or a transition). It could be used to fetch animation events from a layer
+    /// and receive events only from active state (or transition) without a need to manually fetching the events from a dozens
+    /// of animations. Additionally, it provides a way of weight filtering of events - you can pick one of
+    /// [`AnimationEventCollectionStrategy`]. For example, [`AnimationEventCollectionStrategy::MaxWeight`] could be used to fetch
+    /// events from the animations with the largest weight (when blending them together).
+    pub fn collect_active_animations_events(
+        &self,
+        params: &ParameterContainer,
+        animations: &AnimationContainer,
+        strategy: AnimationEventCollectionStrategy,
+    ) -> LayerAnimationEventsCollection {
+        if let Some(state) = self.states.try_borrow(self.active_state) {
+            return LayerAnimationEventsCollection {
+                state_from: self.active_state,
+                state_to: Default::default(),
+                events: self.nodes[state.root].collect_animation_events(
+                    &self.nodes,
+                    params,
+                    animations,
+                    strategy,
+                ),
+            };
+        } else if let Some(transition) = self.transitions.try_borrow(self.active_transition) {
+            if let (Some(source_state), Some(dest_state)) = (
+                self.states.try_borrow(transition.source()),
+                self.states.try_borrow(transition.dest()),
+            ) {
+                let mut events = Vec::new();
+                match strategy {
+                    AnimationEventCollectionStrategy::All => {
+                        for state in [source_state, dest_state] {
+                            if let Some(root) = self.nodes.try_borrow(state.root) {
+                                events.extend(root.collect_animation_events(
+                                    &self.nodes,
+                                    params,
+                                    animations,
+                                    strategy,
+                                ));
+                            }
+                        }
+                    }
+                    AnimationEventCollectionStrategy::MaxWeight => {
+                        let input = if transition.blend_factor() < 0.5 {
+                            source_state
+                        } else {
+                            dest_state
+                        };
+
+                        if let Some(pose_source) = self.nodes.try_borrow(input.root) {
+                            events = pose_source.collect_animation_events(
+                                &self.nodes,
+                                params,
+                                animations,
+                                strategy,
+                            );
+                        }
+                    }
+                    AnimationEventCollectionStrategy::MinWeight => {
+                        let input = if transition.blend_factor() < 0.5 {
+                            dest_state
+                        } else {
+                            source_state
+                        };
+
+                        if let Some(pose_source) = self.nodes.try_borrow(input.root) {
+                            events = pose_source.collect_animation_events(
+                                &self.nodes,
+                                params,
+                                animations,
+                                strategy,
+                            );
+                        }
+                    }
+                }
+
+                return LayerAnimationEventsCollection {
+                    state_from: transition.source,
+                    state_to: transition.dest,
+                    events,
+                };
+            }
+        }
+        Default::default()
     }
 
     /// Tries to borrow a node by its handle, panics if the handle is invalid.

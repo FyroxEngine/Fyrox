@@ -2,7 +2,7 @@
 
 use crate::{
     animation::{
-        machine::{EvaluatePose, ParameterContainer, PoseNode},
+        machine::{AnimationPoseSource, ParameterContainer, PoseNode},
         Animation, AnimationContainer, AnimationPose,
     },
     core::{

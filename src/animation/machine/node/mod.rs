@@ -1,6 +1,7 @@
 //! Node is a part of animation blending tree, that backs a state with animation data. See [`PoseNode`] docs for
 //! more info.
 
+use crate::animation::AnimationEvent;
 use crate::{
     animation::{
         machine::{
@@ -117,8 +118,19 @@ impl DerefMut for PoseNode {
     }
 }
 
+/// A way of animation events collection.
+#[derive(Copy, Clone, Debug)]
+pub enum AnimationEventCollectionStrategy {
+    /// Collect all events.
+    All,
+    /// Blending nodes will only emit events from nodes or states with max weight.
+    MaxWeight,
+    /// Blending nodes will only emit events from nodes or states with min weight.
+    MinWeight,
+}
+
 /// A trait that responsible for animation pose evaluation.
-pub trait EvaluatePose {
+pub trait AnimationPoseSource {
     /// Evaluates animation pose and returns a reference to it.
     fn eval_pose(
         &self,
@@ -130,9 +142,18 @@ pub trait EvaluatePose {
 
     /// Returns a reference to inner pose of a node.
     fn pose(&self) -> Ref<AnimationPose>;
+
+    /// Collects animation events from internals.
+    fn collect_animation_events(
+        &self,
+        nodes: &Pool<PoseNode>,
+        params: &ParameterContainer,
+        animations: &AnimationContainer,
+        strategy: AnimationEventCollectionStrategy,
+    ) -> Vec<(Handle<Animation>, AnimationEvent)>;
 }
 
-impl EvaluatePose for PoseNode {
+impl AnimationPoseSource for PoseNode {
     fn eval_pose(
         &self,
         nodes: &Pool<PoseNode>,
@@ -145,5 +166,22 @@ impl EvaluatePose for PoseNode {
 
     fn pose(&self) -> Ref<AnimationPose> {
         static_dispatch!(self, pose,)
+    }
+
+    fn collect_animation_events(
+        &self,
+        nodes: &Pool<PoseNode>,
+        params: &ParameterContainer,
+        animations: &AnimationContainer,
+        strategy: AnimationEventCollectionStrategy,
+    ) -> Vec<(Handle<Animation>, AnimationEvent)> {
+        static_dispatch!(
+            self,
+            collect_animation_events,
+            nodes,
+            params,
+            animations,
+            strategy
+        )
     }
 }

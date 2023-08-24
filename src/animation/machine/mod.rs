@@ -20,7 +20,7 @@ pub use mask::LayerMask;
 pub use node::{
     blend::{BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput},
     play::PlayAnimation,
-    EvaluatePose, PoseNode,
+    AnimationPoseSource, PoseNode,
 };
 pub use parameter::{Parameter, ParameterContainer, PoseWeight};
 pub use state::State;

@@ -1,9 +1,11 @@
 //! A simplest pose node that extracts pose from a specific animation and prepares it for further use.
 
+use crate::animation::machine::node::AnimationEventCollectionStrategy;
+use crate::animation::AnimationEvent;
 use crate::{
     animation::{
         machine::{
-            node::{BasePoseNode, EvaluatePose},
+            node::{AnimationPoseSource, BasePoseNode},
             ParameterContainer, PoseNode,
         },
         Animation, AnimationContainer, AnimationPose,
@@ -62,7 +64,7 @@ impl PlayAnimation {
     }
 }
 
-impl EvaluatePose for PlayAnimation {
+impl AnimationPoseSource for PlayAnimation {
     fn eval_pose(
         &self,
         _nodes: &Pool<PoseNode>,
@@ -81,5 +83,23 @@ impl EvaluatePose for PlayAnimation {
 
     fn pose(&self) -> Ref<AnimationPose> {
         self.output_pose.borrow()
+    }
+
+    fn collect_animation_events(
+        &self,
+        _nodes: &Pool<PoseNode>,
+        _params: &ParameterContainer,
+        animations: &AnimationContainer,
+        _strategy: AnimationEventCollectionStrategy,
+    ) -> Vec<(Handle<Animation>, AnimationEvent)> {
+        animations
+            .try_get(self.animation)
+            .map(|a| {
+                a.events_ref()
+                    .iter()
+                    .map(|e| (self.animation, e.clone()))
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 }
