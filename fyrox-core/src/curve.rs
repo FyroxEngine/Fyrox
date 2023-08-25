@@ -332,7 +332,7 @@ mod test {
         assert_eq!(curve.keys(), vec![key.clone(), key2.clone()]);
 
         // Check keys values.
-        let mut values = vec![5.0, 10.0];
+        let mut values = [5.0, 10.0];
         assert!(curve.keys_values().eq(values.iter_mut()));
 
         // Check max location.

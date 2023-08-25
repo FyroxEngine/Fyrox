@@ -71,10 +71,10 @@ mod test {
         let mut rng = thread_rng();
 
         let res = (1..10).random(&mut rng);
-        assert!(res >= 1 && res <= 10);
+        assert!((1..=10).contains(&res));
 
-        let res = (10..1).random(&mut rng);
-        assert!(res >= 1 && res <= 10);
+        let res = Range { start: 10, end: 1 }.random(&mut rng);
+        assert!((1..=10).contains(&res));
 
         let res = (1..1).random(&mut rng);
         assert!(res == 1);
