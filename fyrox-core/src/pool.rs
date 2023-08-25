@@ -355,11 +355,7 @@ where
 
 impl<T> Clone for Handle<T> {
     fn clone(&self) -> Handle<T> {
-        Handle {
-            index: self.index,
-            generation: self.generation,
-            type_marker: PhantomData,
-        }
+        *self
     }
 }
 

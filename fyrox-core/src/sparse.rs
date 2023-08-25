@@ -315,7 +315,7 @@ mod test {
             free: vec![],
         };
 
-        assert!(sb.iter().eq(vec![1].iter()));
+        assert!(sb.iter().eq([&1]));
     }
 
     #[test]
@@ -325,7 +325,7 @@ mod test {
             free: vec![],
         };
 
-        assert!(sb.iter_mut().eq(vec![1].iter_mut()));
+        assert!(sb.iter_mut().eq([&mut 1]));
     }
 
     #[test]

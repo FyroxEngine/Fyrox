@@ -59,3 +59,36 @@ impl<T: Num + PartialOrd + SampleUniform + Copy> RangeExt<T> for Range<T> {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use rand::thread_rng;
+
+    use super::*;
+
+    #[test]
+    fn test_random() {
+        let mut rng = thread_rng();
+
+        let res = (1..10).random(&mut rng);
+        assert!((1..=10).contains(&res));
+
+        let res = Range { start: 10, end: 1 }.random(&mut rng);
+        assert!((1..=10).contains(&res));
+
+        let res = (1..1).random(&mut rng);
+        assert!(res == 1);
+    }
+
+    #[test]
+    fn test_clamp_value() {
+        let res = (1..10).clamp_value(&mut 5);
+        assert_eq!(res, 5);
+
+        let res = (1..10).clamp_value(&mut 0);
+        assert_eq!(res, 1);
+
+        let res = (1..10).clamp_value(&mut 11);
+        assert_eq!(res, 10);
+    }
+}
