@@ -402,6 +402,15 @@ impl AnimationPoseSource for BlendAnimationsByIndex {
                             }
                         }
                     }
+                } else {
+                    // In case where the transition is done, all the strategies does the same - just collects events
+                    // from active pose node.
+                    if let Some(current_input) = self.inputs.get(current_index as usize) {
+                        if let Some(pose_source) = nodes.try_borrow(current_input.pose_source) {
+                            return pose_source
+                                .collect_animation_events(nodes, params, animations, strategy);
+                        }
+                    }
                 }
             }
         }
