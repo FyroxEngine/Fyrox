@@ -110,14 +110,40 @@ impl NameProvider for MachineLayer {
     }
 }
 
+/// A source of animation events coming from a layer.
+#[derive(Default)]
+pub enum AnimationEventsSource {
+    /// Layer is malformed and no events were gathered.
+    #[default]
+    Unknown,
+    /// Animation events were gathered from a state.
+    State {
+        /// A handle of a state, from which the events were collected.
+        handle: Handle<State>,
+        /// A name of a state, from which the events were collected.
+        name: String,
+    },
+    /// Animation events were gathered from both states of a transition.
+    Transition {
+        /// A handle of an active transition.
+        handle: Handle<Transition>,
+        /// A handle of a source state of an active transition.
+        source_state_handle: Handle<State>,
+        /// A handle of a destination state of an active transition.
+        dest_state_handle: Handle<State>,
+        /// A name of a source state of an active transition.
+        source_state_name: String,
+        /// A name of a destination state of an active transition.
+        dest_state_name: String,
+    },
+}
+
 /// A collection of events gathered from an active state (or a transition between states). See docs of [`MachineLayer::collect_active_animations_events`]
 /// for more info and usage examples.
 #[derive(Default)]
 pub struct LayerAnimationEventsCollection {
-    /// A handle of a state, from which the events were collected. Alternatively, it is a handle of a source state of an active transition.
-    pub state_from: Handle<State>,
-    /// It is a handle of a destination state of an active transition ([`Handle::NONE`] if there's no active transition).
-    pub state_to: Handle<State>,
+    /// A source of events.
+    pub source: AnimationEventsSource,
     /// Actual animation events, defined as a tuple `(animation handle, event)`.
     pub events: Vec<(Handle<Animation>, AnimationEvent)>,
 }
@@ -256,6 +282,11 @@ impl MachineLayer {
     /// of animations. Additionally, it provides a way of weight filtering of events - you can pick one of
     /// [`AnimationEventCollectionStrategy`]. For example, [`AnimationEventCollectionStrategy::MaxWeight`] could be used to fetch
     /// events from the animations with the largest weight (when blending them together).
+    ///
+    /// ## Important notes
+    ///
+    /// This method does **not** remove the events from events queue of respective animations, so you need to clear the queue
+    /// manually each frame.
     pub fn collect_active_animations_events(
         &self,
         params: &ParameterContainer,
@@ -264,8 +295,10 @@ impl MachineLayer {
     ) -> LayerAnimationEventsCollection {
         if let Some(state) = self.states.try_borrow(self.active_state) {
             return LayerAnimationEventsCollection {
-                state_from: self.active_state,
-                state_to: Default::default(),
+                source: AnimationEventsSource::State {
+                    handle: self.active_state,
+                    name: state.name.clone(),
+                },
                 events: self.nodes[state.root].collect_animation_events(
                     &self.nodes,
                     params,
@@ -327,8 +360,21 @@ impl MachineLayer {
                 }
 
                 return LayerAnimationEventsCollection {
-                    state_from: transition.source,
-                    state_to: transition.dest,
+                    source: AnimationEventsSource::Transition {
+                        handle: self.active_transition,
+                        source_state_handle: transition.source,
+                        dest_state_handle: transition.dest,
+                        source_state_name: self
+                            .states
+                            .try_borrow(transition.source)
+                            .map(|s| s.name.clone())
+                            .unwrap_or_default(),
+                        dest_state_name: self
+                            .states
+                            .try_borrow(transition.dest)
+                            .map(|s| s.name.clone())
+                            .unwrap_or_default(),
+                    },
                     events,
                 };
             }
