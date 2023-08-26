@@ -294,7 +294,7 @@ impl SoundContext {
     ///       HRTF length for faster FFT calculations. Find a better way of selecting this.
     pub const HRTF_BLOCK_LEN: usize = 513;
 
-    pub(crate) const HRTF_INTERPOLATION_STEPS: usize = 8;
+    pub(crate) const HRTF_INTERPOLATION_STEPS: usize = 4;
 
     pub(crate) const SAMPLES_PER_CHANNEL: usize =
         Self::HRTF_BLOCK_LEN * Self::HRTF_INTERPOLATION_STEPS;
