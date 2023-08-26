@@ -605,9 +605,12 @@ pub fn mark_inheritable_properties_modified(object: &mut dyn Reflect) {
 
 #[cfg(test)]
 mod test {
+    use std::{cell::Cell, ops::DerefMut};
+
     use crate::{
         reflect::{prelude::*, ReflectInheritableVariable},
-        variable::{try_inherit_properties, InheritableVariable},
+        variable::{try_inherit_properties, InheritableVariable, VariableFlags},
+        visitor::{Visit, Visitor},
     };
 
     #[derive(Reflect, Clone, Debug, PartialEq)]
@@ -804,5 +807,205 @@ mod test {
             child.inheritable_data.foo.value,
             parent.inheritable_data.foo.value
         );
+    }
+
+    #[test]
+    fn inheritable_variable_from_t() {
+        assert_eq!(
+            InheritableVariable::from(42),
+            InheritableVariable {
+                value: 42,
+                ..Default::default()
+            }
+        );
+    }
+
+    #[test]
+    fn default_for_inheritable_variable() {
+        assert_eq!(
+            InheritableVariable::<i32>::default(),
+            InheritableVariable {
+                value: 0,
+                flags: Cell::new(VariableFlags::MODIFIED),
+            }
+        );
+    }
+
+    #[test]
+    fn inheritable_variable_clone_inner() {
+        let v = InheritableVariable::from(42);
+
+        assert_eq!(v.clone_inner(), 42);
+    }
+
+    #[test]
+    fn inheritable_variable_try_sync_model() {
+        let v = InheritableVariable::from(42);
+        assert!(!v.try_sync_model(|s| println!("{}", s)));
+
+        let v = InheritableVariable::new_with_flags(42, VariableFlags::NEED_SYNC);
+        assert!(v.try_sync_model(|s| println!("{}", s)));
+    }
+
+    #[test]
+    fn inheritable_variable_new_with_flags() {
+        let v = InheritableVariable::new_with_flags(42, VariableFlags::MODIFIED);
+
+        assert_eq!(
+            v,
+            InheritableVariable {
+                value: 42,
+                flags: Cell::new(VariableFlags::MODIFIED),
+            }
+        );
+    }
+
+    #[test]
+    fn inheritable_variable_set_value_with_flags() {
+        let mut v = InheritableVariable::from(42);
+        let res = v.set_value_with_flags(15, VariableFlags::NEED_SYNC);
+
+        assert_eq!(res, 42);
+        assert_eq!(
+            v,
+            InheritableVariable {
+                value: 15,
+                flags: Cell::new(VariableFlags::NEED_SYNC),
+            }
+        );
+    }
+
+    #[test]
+    fn inheritable_variable_set_value_silent() {
+        let mut v = InheritableVariable::from(42);
+        let res = v.set_value_silent(15);
+
+        assert_eq!(res, 42);
+        assert_eq!(
+            v,
+            InheritableVariable {
+                value: 15,
+                flags: Cell::new(VariableFlags::MODIFIED),
+            }
+        );
+    }
+
+    #[test]
+    fn inheritable_variable_need_sync() {
+        let v = InheritableVariable::from(42);
+        assert!(!v.need_sync());
+
+        let v = InheritableVariable::new_with_flags(42, VariableFlags::NEED_SYNC);
+        assert!(v.need_sync());
+    }
+
+    #[test]
+    fn inheritable_variable_get_value_ref() {
+        let v = InheritableVariable::from(42);
+
+        assert_eq!(v.get_value_ref(), &42);
+    }
+
+    #[test]
+    fn inheritable_variable_get_value_mut_and_mark_modified() {
+        let mut v = InheritableVariable::from(42);
+
+        assert_eq!(v.get_value_mut_and_mark_modified(), &mut 42);
+        assert_eq!(
+            v,
+            InheritableVariable {
+                value: 42,
+                flags: Cell::new(VariableFlags::MODIFIED),
+            }
+        );
+    }
+
+    #[test]
+    fn inheritable_variable_get_value_mut_silent() {
+        let mut v = InheritableVariable::from(42);
+
+        assert_eq!(v.get_value_mut_silent(), &mut 42);
+    }
+
+    #[test]
+    fn inheritable_variable_is_modified() {
+        let v = InheritableVariable::new_with_flags(42, VariableFlags::NONE);
+        assert!(!v.is_modified());
+
+        let v = InheritableVariable::new_with_flags(42, VariableFlags::MODIFIED);
+        assert!(v.is_modified());
+    }
+
+    #[test]
+    fn inheritable_variable_mark_modified() {
+        let mut v = InheritableVariable::new_with_flags(42, VariableFlags::NONE);
+        v.mark_modified();
+
+        assert_eq!(
+            v,
+            InheritableVariable {
+                value: 42,
+                flags: Cell::new(VariableFlags::MODIFIED),
+            }
+        );
+    }
+
+    #[test]
+    fn inheritable_variable_take() {
+        let v = InheritableVariable::from(42);
+
+        assert_eq!(v.take(), 42);
+    }
+
+    #[test]
+    fn deref_mut_for_inheritable_variable() {
+        let mut v = InheritableVariable::new_with_flags(42, VariableFlags::NONE);
+        let res = v.deref_mut();
+
+        assert_eq!(res, &mut 42);
+        assert_eq!(
+            v,
+            InheritableVariable {
+                value: 42,
+                flags: Cell::new(VariableFlags::MODIFIED),
+            }
+        );
+    }
+
+    #[test]
+    fn visit_for_inheritable_variable() {
+        let mut v = InheritableVariable::from(42);
+        let mut visitor = Visitor::default();
+
+        assert!(v.visit("name", &mut visitor).is_ok());
+    }
+
+    #[test]
+    fn inheritable_variable_type_name() {
+        let v = InheritableVariable::from(42);
+
+        assert_eq!(v.type_name(), "i32");
+    }
+
+    #[test]
+    fn inheritable_variable_doc() {
+        let v = InheritableVariable::from(42);
+
+        assert_eq!(v.doc(), "");
+    }
+
+    #[test]
+    fn inheritable_variable_flags() {
+        let v = InheritableVariable::new_with_flags(42, VariableFlags::NONE);
+
+        assert_eq!(v.flags(), VariableFlags::NONE);
+    }
+
+    #[test]
+    fn inheritable_variable_set_flags() {
+        let mut v = InheritableVariable::new_with_flags(42, VariableFlags::NONE);
+        v.set_flags(VariableFlags::NEED_SYNC);
+
+        assert_eq!(v.flags(), VariableFlags::NEED_SYNC);
     }
 }
