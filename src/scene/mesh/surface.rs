@@ -33,6 +33,7 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHasher};
 use half::f16;
+use std::ops::{Deref, DerefMut};
 use std::{hash::Hasher, sync::Arc};
 
 /// A target shape for blending.
@@ -1159,6 +1160,35 @@ impl SurfaceSharedData {
     }
 }
 
+#[derive(Reflect, Default, Copy, Clone, Debug, Hash, Eq, PartialEq)]
+pub struct BoneHandle(pub Handle<Node>);
+
+impl From<Handle<Node>> for BoneHandle {
+    fn from(value: Handle<Node>) -> Self {
+        Self(value)
+    }
+}
+
+impl Visit for BoneHandle {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.0.visit(name, visitor)
+    }
+}
+
+impl Deref for BoneHandle {
+    type Target = Handle<Node>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for BoneHandle {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 /// Surface is a set of triangles with a single material. Such arrangement makes GPU rendering very efficient.
 ///
 /// Surfaces can use the same data source across many instances, this is a memory optimization for being able to
@@ -1244,7 +1274,7 @@ pub struct Surface {
     pub(crate) material: InheritableVariable<SharedMaterial>,
 
     /// Array of handles to scene nodes which are used as bones.
-    pub bones: InheritableVariable<Vec<Handle<Node>>>,
+    pub bones: InheritableVariable<Vec<BoneHandle>>,
 
     #[reflect(
         description = "If true, then the current material will become a unique instance when cloning the surface.\
@@ -1285,30 +1315,9 @@ impl Visit for Surface {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        if region.is_reading() {
-            // TODO: Remove in 0.30+.
-            if self.data.visit("Data", &mut region).is_err() {
-                let mut old_data: Option<SurfaceSharedData> = None;
-                old_data.visit("Data", &mut region)?;
-                self.data.set_value_silent(old_data.unwrap());
-            }
-
-            if self.material.visit("Material", &mut region).is_err() {
-                let mut old_material: SharedMaterial = Default::default();
-                old_material.visit("Material", &mut region)?;
-                self.material.set_value_silent(old_material);
-            }
-
-            if self.bones.visit("Bones", &mut region).is_err() {
-                let mut old_bones: Vec<Handle<Node>> = Default::default();
-                old_bones.visit("Bones", &mut region)?;
-                self.bones.set_value_silent(old_bones);
-            }
-        } else {
-            self.data.visit("Data", &mut region)?;
-            self.material.visit("Material", &mut region)?;
-            self.bones.visit("Bones", &mut region)?;
-        }
+        self.data.visit("Data", &mut region)?;
+        self.material.visit("Material", &mut region)?;
+        self.bones.visit("Bones", &mut region)?;
 
         let _ = self.unique_material.visit("UniqueMaterial", &mut region); // Backward compatibility.
 
@@ -1375,7 +1384,7 @@ impl Surface {
 
     /// Returns list of bones that affects the surface.
     #[inline]
-    pub fn bones(&self) -> &[Handle<Node>] {
+    pub fn bones(&self) -> &[BoneHandle] {
         &self.bones
     }
 
@@ -1394,7 +1403,7 @@ impl Surface {
 pub struct SurfaceBuilder {
     data: SurfaceSharedData,
     material: Option<SharedMaterial>,
-    bones: Vec<Handle<Node>>,
+    bones: Vec<BoneHandle>,
     unique_material: bool,
 }
 
@@ -1416,7 +1425,7 @@ impl SurfaceBuilder {
     }
 
     /// Sets desired bones array. Make sure your vertices has valid indices of bones!
-    pub fn with_bones(mut self, bones: Vec<Handle<Node>>) -> Self {
+    pub fn with_bones(mut self, bones: Vec<BoneHandle>) -> Self {
         self.bones = bones;
         self
     }

@@ -14,6 +14,7 @@ use crate::{
     },
     message::MessageSender,
 };
+use fyrox::scene::mesh::surface::BoneHandle;
 use fyrox::{
     animation::{
         machine::{
@@ -153,6 +154,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.register_inheritable_vec_collection::<Property>();
     container.register_inheritable_vec_collection::<LodControlledObject>();
     container.register_inheritable_vec_collection::<GeometrySource>();
+    container.register_inheritable_vec_collection::<BoneHandle>();
 
     container.insert(make_status_enum_editor_definition());
 
