@@ -656,7 +656,7 @@ mod test {
 
     #[test]
     fn test_shader_load() {
-        let code = r##"
+        let code = r#"
             (
                 name: "TestShader",
             
@@ -694,7 +694,7 @@ mod test {
                     ),
                 ],
             )
-            "##;
+            "#;
 
         let shader = ShaderResource::from_str(code, "test").unwrap();
         let data = shader.data_ref();

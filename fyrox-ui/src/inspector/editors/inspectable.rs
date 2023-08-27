@@ -110,7 +110,7 @@ where
             ctx.generate_property_string_values,
             ctx.filter,
         ) {
-            error_group.extend(e.into_iter())
+            error_group.extend(e)
         }
 
         if error_group.is_empty() {

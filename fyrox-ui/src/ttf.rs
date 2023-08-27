@@ -66,6 +66,7 @@ impl Debug for Font {
 }
 
 impl Font {
+    #[allow(clippy::single_range_in_vec_init)]
     pub fn default_char_set() -> &'static [Range<u32>] {
         &[
             // Basic Latin + Latin Supplement

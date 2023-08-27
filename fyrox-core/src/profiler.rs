@@ -373,7 +373,7 @@ mod test {
         profiler.enter_scope(&mut mark);
 
         assert_eq!(profiler.samples.len(), 2);
-        assert_eq!(profiler.scope_stack, [ENTRY_SCOPE_MARK, mark.clone()]);
+        assert_eq!(profiler.scope_stack, [ENTRY_SCOPE_MARK, mark]);
         assert_eq!(mark.parent_scope_hash, calculate_hash(&ENTRY_SCOPE_MARK))
     }
 
