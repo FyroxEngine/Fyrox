@@ -297,6 +297,8 @@ mod test {
     use crate::profiler;
     use std::time::Duration;
 
+    use super::*;
+
     fn nested_func() {
         scope_profile!();
         std::thread::sleep(Duration::from_millis(1000));
@@ -322,5 +324,117 @@ mod test {
         }
 
         println!("{:?}", profiler::print());
+    }
+
+    #[test]
+    fn default_for_sample() {
+        let s = Sample::default();
+
+        assert_eq!(s.time, 0.0);
+        assert_eq!(s.count, 0);
+        assert_eq!(s.children, Default::default());
+    }
+
+    #[test]
+    fn sample_collect() {
+        let mut s = Sample::default();
+        s.collect(5.0);
+        s.collect(2.0);
+
+        assert_eq!(s.time, 7.0);
+        assert_eq!(s.count, 2);
+        assert_eq!(s.children, Default::default());
+    }
+
+    #[test]
+    fn default_for_profiler() {
+        let profiler = Profiler::default();
+        let sample = Sample::default();
+
+        assert_eq!(profiler.samples.len(), 1);
+        assert!(profiler.samples.contains_key(&ENTRY_SCOPE_MARK));
+
+        let v = profiler.samples.get(&ENTRY_SCOPE_MARK).unwrap();
+        assert_eq!(v.time, sample.time);
+        assert_eq!(v.count, sample.count);
+        assert_eq!(v.children, sample.children);
+
+        assert_eq!(profiler.scope_stack, [ENTRY_SCOPE_MARK]);
+    }
+
+    #[test]
+    fn profiler_enter_scope() {
+        let mut mark = ScopeMark {
+            parent_scope_hash: 0,
+            function_name: "foo",
+            line: 0,
+        };
+        let mut profiler = Profiler::default();
+        profiler.enter_scope(&mut mark);
+
+        assert_eq!(profiler.samples.len(), 2);
+        assert_eq!(profiler.scope_stack, [ENTRY_SCOPE_MARK, mark.clone()]);
+        assert_eq!(mark.parent_scope_hash, calculate_hash(&ENTRY_SCOPE_MARK))
+    }
+
+    #[test]
+    fn profiler_leave_scope() {
+        let mut mark = ScopeMark {
+            parent_scope_hash: 0,
+            function_name: "foo",
+            line: 0,
+        };
+        let mut profiler = Profiler::default();
+        profiler.enter_scope(&mut mark);
+        profiler.leave_scope(mark, 42.0);
+
+        assert_eq!(profiler.scope_stack, [ENTRY_SCOPE_MARK]);
+
+        let v = profiler.samples.get(&mark).unwrap();
+        assert_eq!(v.time, 42.0);
+        assert_eq!(v.count, 1);
+    }
+
+    #[test]
+    fn profiler_print() {
+        let mut profiler = Profiler::default();
+        let mut buffer = String::default();
+        let mut mark = ScopeMark {
+            parent_scope_hash: 0,
+            function_name: "foo",
+            line: 0,
+        };
+        profiler.enter_scope(&mut mark);
+
+        scope_profile!();
+        std::thread::sleep(Duration::from_millis(1000));
+
+        let res = profiler.print(&mut buffer);
+        assert!(res.is_ok());
+        assert!(buffer.starts_with("=========================================================================================================\nProfiling took 1.00"));
+        assert!(buffer.contains(
+"seconds. Please note that profiling itself takes time so results are not 100% accurate.\nEntry Point\n\t0.0000% - foo at line 0 was called 0 times and took 0 seconds individually.\n=========================================================================================================\n") );
+    }
+
+    #[test]
+    fn profiler_print_hot_path() {
+        let profiler = Profiler::default();
+        let mut buffer = String::default();
+
+        scope_profile!();
+        std::thread::sleep(Duration::from_millis(1000));
+
+        let res = profiler.print_hot_path(&mut buffer);
+        assert!(res.is_ok());
+        assert!(buffer.starts_with("=========================================================================================================\nShowing hot path only! Profiling took 1.00"));
+        assert!(buffer.contains(
+r#"seconds. Please note that profiling itself takes time so results are not 100% accurate.
+Entry Point
+========================================================================================================="#) );
+    }
+
+    #[test]
+    fn test_type_name_of() {
+        assert_eq!(type_name_of(42), "i32");
     }
 }
