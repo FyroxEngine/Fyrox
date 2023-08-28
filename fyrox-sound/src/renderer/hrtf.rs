@@ -138,8 +138,9 @@ impl HrtfRenderer {
         render_source_2d_only(source, out_buf);
 
         // Then add HRTF part with k = spatial_blend
-        let new_distance_gain =
-            source.spatial_blend() * source.calculate_distance_gain(listener, distance_model);
+        let new_distance_gain = source.gain()
+            * source.spatial_blend()
+            * source.calculate_distance_gain(listener, distance_model);
         let new_sampling_vector = source.calculate_sampling_vector(listener);
 
         if let Some(processor) = self.processor.as_mut() {
