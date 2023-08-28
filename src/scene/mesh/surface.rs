@@ -1160,6 +1160,7 @@ impl SurfaceSharedData {
     }
 }
 
+/// A simple bone node handle wrapper.
 #[derive(Reflect, Default, Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub struct BoneHandle(pub Handle<Node>);
 
