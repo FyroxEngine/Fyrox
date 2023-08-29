@@ -1,8 +1,12 @@
-use crate::{asset::item::AssetItem, inspector::EditorEnvironment, load_image};
+use crate::{
+    asset::item::AssetItem, inspector::EditorEnvironment, load_image, message::MessageSender,
+    Message,
+};
 use fyrox::{
     asset::{manager::ResourceManager, Resource, ResourceData, ResourceLoadError},
     core::{make_relative_path, pool::Handle, TypeUuidProvider},
     gui::{
+        button::{ButtonBuilder, ButtonMessage},
         define_constructor,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
@@ -78,6 +82,8 @@ where
     resource_manager: ResourceManager,
     resource: Option<Resource<T>>,
     loader: ResourceLoaderCallback<T>,
+    locate: Handle<UiNode>,
+    sender: MessageSender,
 }
 
 impl<T> Debug for ResourceField<T>
@@ -100,6 +106,8 @@ where
             resource_manager: self.resource_manager.clone(),
             resource: self.resource.clone(),
             loader: self.loader.clone(),
+            locate: self.locate,
+            sender: self.sender.clone(),
         }
     }
 }
@@ -170,6 +178,13 @@ where
 
                 ui.send_message(message.reverse());
             }
+        } else if let Some(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.locate {
+                if let Some(resource) = self.resource.as_ref() {
+                    self.sender
+                        .send(Message::ShowInAssetBrowser(resource.path()));
+                }
+            }
         }
     }
 }
@@ -181,17 +196,23 @@ where
     widget_builder: WidgetBuilder,
     resource: Option<Resource<T>>,
     loader: ResourceLoaderCallback<T>,
+    sender: MessageSender,
 }
 
 impl<T> ResourceFieldBuilder<T>
 where
     T: ResourceData + TypeUuidProvider,
 {
-    pub fn new(widget_builder: WidgetBuilder, loader: ResourceLoaderCallback<T>) -> Self {
+    pub fn new(
+        widget_builder: WidgetBuilder,
+        loader: ResourceLoaderCallback<T>,
+        sender: MessageSender,
+    ) -> Self {
         Self {
             widget_builder,
             resource: None,
             loader,
+            sender,
         }
     }
 
@@ -206,6 +227,7 @@ where
         resource_manager: ResourceManager,
     ) -> Handle<UiNode> {
         let name;
+        let locate;
         let field = ResourceField {
             widget: self
                 .widget_builder
@@ -230,10 +252,19 @@ where
                                     .with_vertical_text_alignment(VerticalAlignment::Center)
                                     .build(ctx);
                                 name
+                            })
+                            .with_child({
+                                locate = ButtonBuilder::new(
+                                    WidgetBuilder::new().with_width(24.0).on_column(2),
+                                )
+                                .with_text("<<")
+                                .build(ctx);
+                                locate
                             }),
                     )
                     .add_column(Column::auto())
                     .add_column(Column::stretch())
+                    .add_column(Column::auto())
                     .add_row(Row::stretch())
                     .build(ctx),
                 )
@@ -243,6 +274,8 @@ where
             resource_manager,
             resource: self.resource,
             loader: self.loader,
+            locate,
+            sender: self.sender,
         };
 
         ctx.add_node(UiNode::new(field))
@@ -254,14 +287,15 @@ where
     T: ResourceData + TypeUuidProvider,
 {
     loader: ResourceLoaderCallback<T>,
+    sender: MessageSender,
 }
 
 impl<T> ResourceFieldPropertyEditorDefinition<T>
 where
     T: ResourceData + TypeUuidProvider,
 {
-    pub fn new(loader: ResourceLoaderCallback<T>) -> Self {
-        Self { loader }
+    pub fn new(loader: ResourceLoaderCallback<T>, sender: MessageSender) -> Self {
+        Self { loader, sender }
     }
 }
 
@@ -289,18 +323,22 @@ where
         let value = ctx.property_info.cast_value::<Option<Resource<T>>>()?;
 
         Ok(PropertyEditorInstance::Simple {
-            editor: ResourceFieldBuilder::new(WidgetBuilder::new(), self.loader.clone())
-                .with_resource(value.clone())
-                .build(
-                    ctx.build_context,
-                    ctx.environment
-                        .as_ref()
-                        .unwrap()
-                        .as_any()
-                        .downcast_ref::<EditorEnvironment>()
-                        .map(|e| e.resource_manager.clone())
-                        .unwrap(),
-                ),
+            editor: ResourceFieldBuilder::new(
+                WidgetBuilder::new(),
+                self.loader.clone(),
+                self.sender.clone(),
+            )
+            .with_resource(value.clone())
+            .build(
+                ctx.build_context,
+                ctx.environment
+                    .as_ref()
+                    .unwrap()
+                    .as_any()
+                    .downcast_ref::<EditorEnvironment>()
+                    .map(|e| e.resource_manager.clone())
+                    .unwrap(),
+            ),
         })
     }
 

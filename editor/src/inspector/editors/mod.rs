@@ -142,7 +142,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(InheritablePropertyEditorDefinition::<SharedMaterial>::new());
 
     container.register_inheritable_vec_collection::<Handle<Node>>();
-    container.insert(NodeHandlePropertyEditorDefinition::new(sender));
+    container.insert(NodeHandlePropertyEditorDefinition::new(sender.clone()));
     container.register_inheritable_inspectable::<NodeHandle>();
     container.register_inheritable_vec_collection::<NodeHandle>();
 
@@ -177,6 +177,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
 
     container.insert(ResourceFieldPropertyEditorDefinition::<Model>::new(
         Rc::new(|resource_manager, path| block_on(resource_manager.request::<Model, _>(path))),
+        sender.clone(),
     ));
     container.insert(InheritablePropertyEditorDefinition::<Option<ModelResource>>::new());
 
@@ -184,22 +185,25 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
         Rc::new(|resource_manager, path| {
             block_on(resource_manager.request::<SoundBuffer, _>(path))
         }),
+        sender.clone(),
     ));
     container.insert(InheritablePropertyEditorDefinition::<
         Option<SoundBufferResource>,
     >::new());
 
     container.insert(
-        ResourceFieldPropertyEditorDefinition::<CurveResourceState>::new(Rc::new(
-            |resource_manager, path| {
+        ResourceFieldPropertyEditorDefinition::<CurveResourceState>::new(
+            Rc::new(|resource_manager, path| {
                 block_on(resource_manager.request::<CurveResourceState, _>(path))
-            },
-        )),
+            }),
+            sender.clone(),
+        ),
     );
     container.insert(InheritablePropertyEditorDefinition::<Option<CurveResource>>::new());
 
     container.insert(ResourceFieldPropertyEditorDefinition::<Shader>::new(
         Rc::new(|resource_manager, path| block_on(resource_manager.request::<Shader, _>(path))),
+        sender,
     ));
     container.insert(InheritablePropertyEditorDefinition::<Option<ShaderResource>>::new());
 
