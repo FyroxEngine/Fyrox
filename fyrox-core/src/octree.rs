@@ -233,3 +233,150 @@ fn build_recursive(
         nodes.spawn(OctreeNode::Branch { leaves, bounds })
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn get_six_triangles() -> [[Vector3<f32>; 3]; 6] {
+        [
+            [
+                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::new(1.0, 0.0, 0.0),
+                Vector3::new(0.0, 1.0, 0.0),
+            ],
+            [
+                Vector3::new(1.0, 1.0, 0.0),
+                Vector3::new(1.0, 0.0, 0.0),
+                Vector3::new(0.0, 1.0, 0.0),
+            ],
+            [
+                Vector3::new(0.0, 1.0, 0.0),
+                Vector3::new(1.0, 1.0, 0.0),
+                Vector3::new(0.0, 2.0, 0.0),
+            ],
+            [
+                Vector3::new(1.0, 2.0, 0.0),
+                Vector3::new(1.0, 1.0, 0.0),
+                Vector3::new(0.0, 2.0, 0.0),
+            ],
+            [
+                Vector3::new(0.0, 2.0, 0.0),
+                Vector3::new(1.0, 2.0, 0.0),
+                Vector3::new(0.0, 3.0, 0.0),
+            ],
+            [
+                Vector3::new(1.0, 3.0, 0.0),
+                Vector3::new(1.0, 2.0, 0.0),
+                Vector3::new(0.0, 3.0, 0.0),
+            ],
+        ]
+    }
+
+    #[test]
+    fn octree_new() {
+        let tree = Octree::new(&get_six_triangles(), 5);
+
+        assert_eq!(tree.root, Handle::new(72, 1));
+        assert_eq!(tree.nodes().total_count(), 73);
+    }
+
+    #[test]
+    fn default_for_octree() {
+        let tree = Octree::default();
+        assert_eq!(tree.root, Handle::new(0, 0));
+        assert_eq!(tree.nodes.total_count(), 0);
+    }
+
+    #[test]
+    fn octree_point_query() {
+        let tree = Octree::new(&get_six_triangles(), 5);
+        let mut buffer = Vec::new();
+        tree.point_query(Vector3::new(0.0, 0.0, 0.0), &mut buffer);
+
+        assert_eq!(buffer, [0, 1, 2, 3, 0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn octree_sphere_query() {
+        let tree = Octree::new(&get_six_triangles(), 5);
+        let mut buffer = Vec::new();
+        tree.sphere_query(Vector3::new(0.0, 0.0, 0.0), 1.0, &mut buffer);
+
+        assert_eq!(
+            buffer,
+            [
+                0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3,
+                0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3,
+                0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3,
+                0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3
+            ]
+        );
+    }
+
+    #[test]
+    fn octree_aabb_query() {
+        let tree = Octree::new(&get_six_triangles(), 5);
+        let mut buffer = Vec::new();
+        tree.aabb_query(
+            &AxisAlignedBoundingBox {
+                min: Vector3::new(0.0, 0.0, 0.0),
+                max: Vector3::new(0.5, 0.5, 0.5),
+            },
+            &mut buffer,
+        );
+
+        assert_eq!(
+            buffer,
+            [
+                0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3,
+                0, 1, 2, 3, 0, 1, 2, 3
+            ]
+        );
+    }
+
+    #[test]
+    fn octree_ray_query() {
+        let tree = Octree::new(&get_six_triangles(), 5);
+        let mut buffer = Vec::new();
+        tree.ray_query(
+            &Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 0.0)),
+            &mut buffer,
+        );
+
+        assert_eq!(
+            buffer,
+            [
+                0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3,
+                0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3
+            ]
+        );
+    }
+
+    #[test]
+    fn octree_ray_query_static() {
+        const CAP: usize = 10;
+        let tree = Octree::new(&get_six_triangles(), 5);
+        let mut buffer = ArrayVec::<Handle<OctreeNode>, CAP>::new();
+        tree.ray_query_static::<CAP>(
+            &Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 0.0)),
+            &mut buffer,
+        );
+
+        assert_eq!(
+            buffer.as_slice(),
+            [
+                Handle::new(2, 1),
+                Handle::new(3, 1),
+                Handle::new(11, 1),
+                Handle::new(15, 1),
+                Handle::new(16, 1),
+                Handle::new(18, 1),
+                Handle::new(19, 1),
+                Handle::new(27, 1),
+                Handle::new(31, 1),
+                Handle::new(32, 1),
+            ]
+        );
+    }
+}
