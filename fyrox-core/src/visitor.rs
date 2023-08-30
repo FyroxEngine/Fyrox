@@ -1844,6 +1844,8 @@ mod test {
     use crate::visitor::{Data, Visit, VisitResult, Visitor};
     use std::{fs::File, io::Write, path::Path, rc::Rc};
 
+    use super::*;
+
     #[derive(Visit, Default)]
     pub struct Model {
         data: u64,
@@ -1944,5 +1946,243 @@ mod test {
             let mut objects: Vec<Foo> = Vec::new();
             objects.visit("Objects", &mut visitor).unwrap();
         }
+    }
+
+    #[test]
+    fn pod_vec_view_from_pod_vec() {
+        // Pod for u8
+        let mut v = Vec::<u8>::new();
+        let mut v2 = v.clone();
+        let p = PodVecView::from_pod_vec(&mut v);
+        assert_eq!(p.type_id, 0_u8);
+        assert_eq!(p.vec, &mut v2);
+
+        // Pod for i8
+        let mut v = Vec::<i8>::new();
+        let p = PodVecView::from_pod_vec(&mut v);
+        assert_eq!(p.type_id, 1_u8);
+
+        // Pod for u16
+        let mut v = Vec::<u16>::new();
+        let p = PodVecView::from_pod_vec(&mut v);
+        assert_eq!(p.type_id, 2_u8);
+
+        // Pod for i16
+        let mut v = Vec::<i16>::new();
+        let p = PodVecView::from_pod_vec(&mut v);
+        assert_eq!(p.type_id, 3_u8);
+
+        // Pod for u32
+        let mut v = Vec::<u32>::new();
+        let p = PodVecView::from_pod_vec(&mut v);
+        assert_eq!(p.type_id, 4_u8);
+
+        // Pod for i32
+        let mut v = Vec::<i32>::new();
+        let p = PodVecView::from_pod_vec(&mut v);
+        assert_eq!(p.type_id, 5_u8);
+
+        // Pod for u64
+        let mut v = Vec::<u64>::new();
+        let p = PodVecView::from_pod_vec(&mut v);
+        assert_eq!(p.type_id, 6_u8);
+
+        // Pod for i64
+        let mut v = Vec::<i64>::new();
+        let p = PodVecView::from_pod_vec(&mut v);
+        assert_eq!(p.type_id, 7_u8);
+
+        // Pod for f32
+        let mut v = Vec::<f32>::new();
+        let p = PodVecView::from_pod_vec(&mut v);
+        assert_eq!(p.type_id, 8_u8);
+
+        // Pod for f64
+        let mut v = Vec::<f64>::new();
+        let p = PodVecView::from_pod_vec(&mut v);
+        assert_eq!(p.type_id, 9_u8);
+    }
+
+    #[test]
+    fn field_kind_as_string() {
+        assert_eq!(
+            FieldKind::Bool(true).as_string(),
+            "<bool = true>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Data(Vec::<u8>::new()).as_string(),
+            "<data = >, ".to_string()
+        );
+
+        assert_eq!(FieldKind::F32(0.0).as_string(), "<f32 = 0>, ".to_string());
+        assert_eq!(FieldKind::F64(0.0).as_string(), "<f64 = 0>, ".to_string());
+
+        assert_eq!(FieldKind::I8(0).as_string(), "<i8 = 0>, ".to_string());
+        assert_eq!(FieldKind::I16(0).as_string(), "<i16 = 0>, ".to_string());
+        assert_eq!(FieldKind::I32(0).as_string(), "<i32 = 0>, ".to_string());
+        assert_eq!(FieldKind::I64(0).as_string(), "<i64 = 0>, ".to_string());
+
+        assert_eq!(
+            FieldKind::Matrix2(Matrix2::default()).as_string(),
+            "<mat2 = 0; 0; 0; 0; ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Matrix3(Matrix3::default()).as_string(),
+            "<mat3 = 0; 0; 0; 0; 0; 0; 0; 0; 0; ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Matrix4(Matrix4::default()).as_string(),
+            "<mat4 = 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; 0; ".to_string()
+        );
+        assert_eq!(
+            FieldKind::PodArray {
+                type_id: 0,
+                element_size: 0,
+                bytes: Vec::new()
+            }
+            .as_string(),
+            "<podarray = 0; 0; []>".to_string()
+        );
+
+        assert_eq!(FieldKind::U8(0).as_string(), "<u8 = 0>, ".to_string());
+        assert_eq!(FieldKind::U16(0).as_string(), "<u16 = 0>, ".to_string());
+        assert_eq!(FieldKind::U32(0).as_string(), "<u32 = 0>, ".to_string());
+        assert_eq!(FieldKind::U64(0).as_string(), "<u64 = 0>, ".to_string());
+
+        assert_eq!(
+            FieldKind::UnitComplex(UnitComplex::default()).as_string(),
+            "<complex = 1; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::UnitQuaternion(UnitQuaternion::default()).as_string(),
+            "<quat = 0; 0; 0; 1>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Uuid(Uuid::default()).as_string(),
+            "00000000-0000-0000-0000-000000000000".to_string()
+        );
+
+        assert_eq!(
+            FieldKind::Vector2F32(Vector2::new(0.0, 0.0)).as_string(),
+            "<vec2f32 = 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector2F64(Vector2::new(0.0, 0.0)).as_string(),
+            "<vec2f64 = 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector2U8(Vector2::new(0, 0)).as_string(),
+            "<vec2u8 = 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector2U16(Vector2::new(0, 0)).as_string(),
+            "<vec2u16 = 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector2U32(Vector2::new(0, 0)).as_string(),
+            "<vec2u32 = 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector2U64(Vector2::new(0, 0)).as_string(),
+            "<vec2u64 = 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector2I8(Vector2::new(0, 0)).as_string(),
+            "<vec2i8 = 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector2I16(Vector2::new(0, 0)).as_string(),
+            "<vec2i16 = 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector2I32(Vector2::new(0, 0)).as_string(),
+            "<vec2i32 = 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector2I64(Vector2::new(0, 0)).as_string(),
+            "<vec2i64 = 0; 0>, ".to_string()
+        );
+
+        assert_eq!(
+            FieldKind::Vector3F32(Vector3::new(0.0, 0.0, 0.0)).as_string(),
+            "<vec3f32 = 0; 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector3F64(Vector3::new(0.0, 0.0, 0.0)).as_string(),
+            "<vec3f64 = 0; 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector3U8(Vector3::new(0, 0, 0)).as_string(),
+            "<vec3u8 = 0; 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector3U16(Vector3::new(0, 0, 0)).as_string(),
+            "<vec3u16 = 0; 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector3U32(Vector3::new(0, 0, 0)).as_string(),
+            "<vec3u32 = 0; 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector3U64(Vector3::new(0, 0, 0)).as_string(),
+            "<vec3u64 = 0; 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector3I8(Vector3::new(0, 0, 0)).as_string(),
+            "<vec3i8 = 0; 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector3I16(Vector3::new(0, 0, 0)).as_string(),
+            "<vec3i16 = 0; 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector3I32(Vector3::new(0, 0, 0)).as_string(),
+            "<vec3i32 = 0; 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector3I64(Vector3::new(0, 0, 0)).as_string(),
+            "<vec3i64 = 0; 0; 0>, ".to_string()
+        );
+
+        assert_eq!(
+            FieldKind::Vector4F32(Vector4::new(0.0, 0.0, 0.0, 0.0)).as_string(),
+            "<vec4f32 = 0; 0; 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector4F64(Vector4::new(0.0, 0.0, 0.0, 0.0)).as_string(),
+            "<vec4f64 = 0; 0; 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector4U8(Vector4::new(0, 0, 0, 0)).as_string(),
+            "<vec4u8 = 0; 0; 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector4U16(Vector4::new(0, 0, 0, 0)).as_string(),
+            "<vec4u16 = 0; 0; 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector4U32(Vector4::new(0, 0, 0, 0)).as_string(),
+            "<vec4u32 = 0; 0; 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector4U64(Vector4::new(0, 0, 0, 0)).as_string(),
+            "<vec4u64 = 0; 0; 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector4I8(Vector4::new(0, 0, 0, 0)).as_string(),
+            "<vec4i8 = 0; 0; 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector4I16(Vector4::new(0, 0, 0, 0)).as_string(),
+            "<vec4i16 = 0; 0; 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector4I32(Vector4::new(0, 0, 0, 0)).as_string(),
+            "<vec4i32 = 0; 0; 0; 0>, ".to_string()
+        );
+        assert_eq!(
+            FieldKind::Vector4I64(Vector4::new(0, 0, 0, 0)).as_string(),
+            "<vec4i64 = 0; 0; 0; 0>, ".to_string()
+        );
     }
 }
