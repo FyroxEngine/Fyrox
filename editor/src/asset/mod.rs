@@ -563,7 +563,9 @@ impl AssetBrowser {
                 self.set_path(path, ui, &engine.resource_manager);
             }
         } else if let Some(SearchBarMessage::Text(search_text)) = message.data() {
-            if message.destination() == self.search_bar {
+            if message.destination() == self.search_bar
+                && message.direction() == MessageDirection::FromWidget
+            {
                 if search_text.is_empty() {
                     let path = self.selected_path.clone();
                     self.set_path(&path, ui, &engine.resource_manager);
