@@ -1844,6 +1844,8 @@ mod test {
     use crate::visitor::{Data, Visit, VisitResult, Visitor};
     use std::{fs::File, io::Write, path::Path, rc::Rc};
 
+    use super::*;
+
     #[derive(Visit, Default)]
     pub struct Model {
         data: u64,
@@ -1944,5 +1946,60 @@ mod test {
             let mut objects: Vec<Foo> = Vec::new();
             objects.visit("Objects", &mut visitor).unwrap();
         }
+    }
+
+    #[test]
+    fn pod_vec_view_from_pod_vec() {
+        // Pod for u8
+        let mut v = Vec::<u8>::new();
+        let mut v2 = v.clone();
+        let p = PodVecView::from_pod_vec(&mut v);
+        assert_eq!(p.type_id, 0_u8);
+        assert_eq!(p.vec, &mut v2);
+
+        // Pod for i8
+        let mut v = Vec::<i8>::new();
+        let p = PodVecView::from_pod_vec(&mut v);
+        assert_eq!(p.type_id, 1_u8);
+
+        // Pod for u16
+        let mut v = Vec::<u16>::new();
+        let p = PodVecView::from_pod_vec(&mut v);
+        assert_eq!(p.type_id, 2_u8);
+
+        // Pod for i16
+        let mut v = Vec::<i16>::new();
+        let p = PodVecView::from_pod_vec(&mut v);
+        assert_eq!(p.type_id, 3_u8);
+
+        // Pod for u32
+        let mut v = Vec::<u32>::new();
+        let p = PodVecView::from_pod_vec(&mut v);
+        assert_eq!(p.type_id, 4_u8);
+
+        // Pod for i32
+        let mut v = Vec::<i32>::new();
+        let p = PodVecView::from_pod_vec(&mut v);
+        assert_eq!(p.type_id, 5_u8);
+
+        // Pod for u64
+        let mut v = Vec::<u64>::new();
+        let p = PodVecView::from_pod_vec(&mut v);
+        assert_eq!(p.type_id, 6_u8);
+
+        // Pod for i64
+        let mut v = Vec::<i64>::new();
+        let p = PodVecView::from_pod_vec(&mut v);
+        assert_eq!(p.type_id, 7_u8);
+
+        // Pod for f32
+        let mut v = Vec::<f32>::new();
+        let p = PodVecView::from_pod_vec(&mut v);
+        assert_eq!(p.type_id, 8_u8);
+
+        // Pod for f64
+        let mut v = Vec::<f64>::new();
+        let p = PodVecView::from_pod_vec(&mut v);
+        assert_eq!(p.type_id, 9_u8);
     }
 }
