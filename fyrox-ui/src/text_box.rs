@@ -1418,14 +1418,28 @@ impl Control for TextBox {
 
                     match msg {
                         TextMessage::Text(new_text) => {
-                            let mut equals = false;
-                            for (&old, new) in text.get_raw_text().iter().zip(new_text.chars()) {
-                                if old.char_code != new as u32 {
-                                    equals = false;
-                                    break;
+                            fn text_equals(
+                                formatted_text: &FormattedText,
+                                input_string: &str,
+                            ) -> bool {
+                                let raw_text = formatted_text.get_raw_text();
+
+                                if raw_text.len() != input_string.chars().count() {
+                                    false
+                                } else {
+                                    for (raw_char, input_char) in
+                                        raw_text.iter().zip(input_string.chars())
+                                    {
+                                        if raw_char.char_code != input_char as u32 {
+                                            return false;
+                                        }
+                                    }
+
+                                    true
                                 }
                             }
-                            if !equals {
+
+                            if !text_equals(&text, new_text) {
                                 text.set_text(new_text);
                                 drop(text);
                                 self.invalidate_layout();
