@@ -656,7 +656,7 @@ impl TextBox {
         );
         ui.send_message(TextMessage::text(
             self.handle,
-            MessageDirection::ToWidget,
+            MessageDirection::FromWidget,
             self.formatted_text.borrow().text(),
         ));
     }
@@ -675,7 +675,7 @@ impl TextBox {
         );
         ui.send_message(TextMessage::text(
             self.handle,
-            MessageDirection::ToWidget,
+            MessageDirection::FromWidget,
             self.formatted_text.borrow().text(),
         ));
     }
@@ -773,7 +773,7 @@ impl TextBox {
 
                 ui.send_message(TextMessage::text(
                     self.handle(),
-                    MessageDirection::ToWidget,
+                    MessageDirection::FromWidget,
                     self.formatted_text.borrow().text(),
                 ));
 
@@ -791,7 +791,7 @@ impl TextBox {
 
                 ui.send_message(TextMessage::text(
                     self.handle(),
-                    MessageDirection::ToWidget,
+                    MessageDirection::FromWidget,
                     self.formatted_text.borrow().text(),
                 ));
 
@@ -1438,7 +1438,6 @@ impl Control for TextBox {
                                     true
                                 }
                             }
-
                             if !text_equals(&text, new_text) {
                                 text.set_text(new_text);
                                 drop(text);
