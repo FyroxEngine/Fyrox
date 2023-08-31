@@ -131,11 +131,11 @@ macro_rules! define_universal_commands {
                     field.as_list_mut(&mut |result| {
                         if let Some(list) = result {
                             if let Err(item) = list.reflect_push($self.item.take().unwrap()) {
-                                $self.item = Some(item);
                                 fyrox::core::log::Log::err(format!(
-                                    "Failed to push item to {} collection. Type mismatch!",
-                                    $self.path
-                                ))
+                                    "Failed to push item to {} collection. Type mismatch {} and {}!",
+                                    $self.path, item.type_name(), list.type_name()
+                                ));
+                                $self.item = Some(item);
                             }
                         } else {
                             fyrox::core::log::Log::err(format!("Property {} is not a collection!", $self.path))
@@ -208,7 +208,6 @@ macro_rules! define_universal_commands {
                                 list.reflect_insert($self.index, $self.value.take().unwrap())
                             {
                                 $self.value = Some(item);
-                            } else {
                                 fyrox::core::log::Log::err(format!(
                                     "Failed to insert item to {} collection. Type mismatch!",
                                     $self.path
