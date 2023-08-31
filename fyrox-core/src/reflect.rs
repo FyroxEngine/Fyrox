@@ -993,6 +993,10 @@ impl dyn Reflect {
     }
 }
 
+pub fn is_path_to_array_element(path: &str) -> bool {
+    path.chars().last().map_or(false, |c| c == ']')
+}
+
 // Make it a trait?
 impl dyn ReflectList {
     pub fn get_reflect_index<T: Reflect + 'static>(
