@@ -45,14 +45,14 @@ pub enum CollectionChanged {
     ItemChanged {
         /// Index of an item in the collection.
         index: usize,
-        property: PropertyChanged,
+        property: FieldKind,
     },
 }
 
 impl CollectionChanged {
     define_constructor!(CollectionChanged:Add => fn add(ObjectValue), layout: false);
     define_constructor!(CollectionChanged:Remove => fn remove(usize), layout: false);
-    define_constructor!(CollectionChanged:ItemChanged => fn item_changed(index: usize, property: PropertyChanged), layout: false);
+    define_constructor!(CollectionChanged:ItemChanged => fn item_changed(index: usize, property: FieldKind), layout: false);
 }
 
 #[derive(Debug, Clone)]
@@ -105,7 +105,7 @@ impl PropertyAction {
                 },
                 CollectionChanged::Remove(index) => Self::RemoveItem { index },
                 CollectionChanged::ItemChanged { ref property, .. } => {
-                    Self::from_field_kind(&property.value)
+                    Self::from_field_kind(property)
                 }
             },
             FieldKind::Inspectable(ref inspectable) => Self::from_field_kind(&inspectable.value),
@@ -287,7 +287,12 @@ impl PropertyChanged {
                     index,
                 } = **collection_changed
                 {
-                    path += format!("[{}].{}", index, property.path()).as_ref();
+                    match property {
+                        FieldKind::Inspectable(inspectable) => {
+                            path += format!("[{}].{}", index, inspectable.path()).as_ref();
+                        }
+                        _ => path += format!("[{}]", index).as_ref(),
+                    }
                 }
             }
             FieldKind::Inspectable(ref inspectable) => {
@@ -303,7 +308,11 @@ impl PropertyChanged {
             FieldKind::Collection(ref collection_changed) => match **collection_changed {
                 CollectionChanged::Add(_) => false,
                 CollectionChanged::Remove(_) => false,
-                CollectionChanged::ItemChanged { ref property, .. } => property.is_inheritable(),
+                CollectionChanged::ItemChanged { ref property, .. } => match property {
+                    FieldKind::Inspectable(inspectable) => inspectable.is_inheritable(),
+                    FieldKind::Inheritable(_) => true,
+                    _ => false,
+                },
             },
             FieldKind::Inspectable(ref inspectable) => inspectable.is_inheritable(),
             FieldKind::Object(_) => false,

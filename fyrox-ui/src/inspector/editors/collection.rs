@@ -1,7 +1,9 @@
-use crate::inspector::PropertyFilter;
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
-    core::pool::Handle,
+    core::{
+        pool::Handle,
+        reflect::{FieldInfo, FieldValue, Reflect},
+    },
     define_constructor,
     inspector::{
         editors::{
@@ -9,9 +11,8 @@ use crate::{
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        make_expander_container, CollectionChanged, FieldKind, Inspector, InspectorBuilder,
-        InspectorContext, InspectorEnvironment, InspectorError, InspectorMessage, ObjectValue,
-        PropertyChanged,
+        make_expander_container, CollectionChanged, FieldKind, InspectorEnvironment,
+        InspectorError, ObjectValue, PropertyChanged, PropertyFilter,
     },
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
@@ -19,7 +20,6 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
-use fyrox_core::reflect::Reflect;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -28,9 +28,9 @@ use std::{
     rc::Rc,
 };
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Item {
-    inspector: Handle<UiNode>,
+    editor_instance: PropertyEditorInstance,
     remove: Handle<UiNode>,
 }
 
@@ -75,13 +75,15 @@ impl<T: CollectionItem> DerefMut for CollectionEditor<T> {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Eq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum CollectionEditorMessage {
     Items(Vec<Item>),
+    ItemChanged { index: usize, message: UiMessage },
 }
 
 impl CollectionEditorMessage {
     define_constructor!(CollectionEditorMessage:Items => fn items(Vec<Item>), layout: false);
+    define_constructor!(CollectionEditorMessage:ItemChanged => fn item_changed(index: usize, message: UiMessage), layout: false);
 }
 
 impl<T: CollectionItem> Control for CollectionEditor<T> {
@@ -96,20 +98,7 @@ impl<T: CollectionItem> Control for CollectionEditor<T> {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(InspectorMessage::PropertyChanged(p)) = message.data::<InspectorMessage>() {
-            if let Some(index) = self
-                .items
-                .iter()
-                .position(|i| i.inspector == message.destination())
-            {
-                ui.send_message(CollectionChanged::item_changed(
-                    self.handle,
-                    MessageDirection::FromWidget,
-                    index,
-                    p.clone(),
-                ))
-            }
-        } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
+        if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if let Some(index) = self
                 .items
                 .iter()
@@ -123,29 +112,38 @@ impl<T: CollectionItem> Control for CollectionEditor<T> {
             }
         } else if let Some(msg) = message.data::<CollectionEditorMessage>() {
             if message.destination == self.handle {
-                match msg {
-                    CollectionEditorMessage::Items(items) => {
-                        let views = create_item_views(items, &mut ui.build_ctx(), self.layer_index);
+                if let CollectionEditorMessage::Items(items) = msg {
+                    let views = create_item_views(items, &mut ui.build_ctx(), self.layer_index);
 
-                        for old_item in ui.node(self.panel).children() {
-                            ui.send_message(WidgetMessage::remove(
-                                *old_item,
-                                MessageDirection::ToWidget,
-                            ));
-                        }
-
-                        for view in views {
-                            ui.send_message(WidgetMessage::link(
-                                view,
-                                MessageDirection::ToWidget,
-                                self.panel,
-                            ));
-                        }
-
-                        self.items = items.clone();
+                    for old_item in ui.node(self.panel).children() {
+                        ui.send_message(WidgetMessage::remove(
+                            *old_item,
+                            MessageDirection::ToWidget,
+                        ));
                     }
+
+                    for view in views {
+                        ui.send_message(WidgetMessage::link(
+                            view,
+                            MessageDirection::ToWidget,
+                            self.panel,
+                        ));
+                    }
+
+                    self.items = items.clone();
                 }
             }
+        } else if let Some(index) = self
+            .items
+            .iter()
+            .position(|i| i.editor_instance.editor() == message.destination())
+        {
+            ui.send_message(CollectionEditorMessage::item_changed(
+                self.handle,
+                MessageDirection::FromWidget,
+                index,
+                message.clone(),
+            ));
         }
     }
 
@@ -194,44 +192,77 @@ fn create_item_views(
                 &format!("Item {}", n),
                 &format!("Item {} of the collection", n),
                 item.remove,
-                item.inspector,
+                match item.editor_instance {
+                    PropertyEditorInstance::Simple { editor } => editor,
+                    PropertyEditorInstance::Custom { container, .. } => container,
+                },
                 ctx,
             )
         })
         .collect::<Vec<_>>()
 }
 
-fn create_items<'a, T, I>(
+fn make_proxy<'a, 'b, T>(
+    collection_property_info: &'b FieldInfo<'a, 'b>,
+    item: &'a T,
+    name: &'b str,
+    display_name: &'b str,
+) -> Result<FieldInfo<'a, 'b>, InspectorError>
+where
+    T: Reflect + FieldValue,
+    'b: 'a,
+{
+    Ok(FieldInfo {
+        owner_type_id: TypeId::of::<T>(),
+        name,
+        display_name,
+        value: item,
+        reflect_value: item,
+        read_only: collection_property_info.read_only,
+        immutable_collection: collection_property_info.immutable_collection,
+        min_value: collection_property_info.min_value,
+        max_value: collection_property_info.max_value,
+        step: collection_property_info.step,
+        precision: collection_property_info.precision,
+        description: collection_property_info.description,
+        type_name: collection_property_info.type_name,
+        doc: collection_property_info.doc,
+    })
+}
+
+fn create_items<'a, 'b, T, I>(
     iter: I,
     environment: Option<Rc<dyn InspectorEnvironment>>,
     definition_container: Rc<PropertyEditorDefinitionContainer>,
+    property_info: &FieldInfo<'a, 'b>,
     ctx: &mut BuildContext,
     sync_flag: u64,
     layer_index: usize,
     generate_property_string_values: bool,
     filter: PropertyFilter,
     immutable_collection: bool,
-) -> Vec<Item>
+) -> Result<Vec<Item>, InspectorError>
 where
     T: CollectionItem,
     I: IntoIterator<Item = &'a T>,
 {
-    iter.into_iter()
-        .map(|entry| {
-            let inspector_context = InspectorContext::from_object(
-                entry,
-                ctx,
-                definition_container.clone(),
-                environment.clone(),
+    let mut items = Vec::new();
+
+    for (index, item) in iter.into_iter().enumerate() {
+        if let Some(definition) = definition_container.definitions().get(&TypeId::of::<T>()) {
+            let name = format!("{}[{index}]", property_info.name);
+            let display_name = format!("{}[{index}]", property_info.display_name);
+
+            let editor = definition.create_instance(PropertyEditorBuildContext {
+                build_context: ctx,
+                property_info: &make_proxy::<T>(property_info, item, &name, &display_name)?,
+                environment: environment.clone(),
+                definition_container: definition_container.clone(),
                 sync_flag,
                 layer_index,
                 generate_property_string_values,
-                filter.clone(),
-            );
-
-            let inspector = InspectorBuilder::new(WidgetBuilder::new())
-                .with_context(inspector_context)
-                .build(ctx);
+                filter: filter.clone(),
+            })?;
 
             let remove = ButtonBuilder::new(
                 WidgetBuilder::new()
@@ -246,9 +277,19 @@ where
             .with_text("-")
             .build(ctx);
 
-            Item { inspector, remove }
-        })
-        .collect::<Vec<_>>()
+            items.push(Item {
+                editor_instance: editor,
+                remove,
+            });
+        } else {
+            return Err(InspectorError::Custom(format!(
+                "Missing property editor of type {}",
+                std::any::type_name::<T>()
+            )));
+        }
+    }
+
+    Ok(items)
 }
 
 impl<'a, T, I> CollectionEditorBuilder<'a, T, I>
@@ -316,28 +357,33 @@ where
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext, sync_flag: u64) -> Handle<UiNode> {
+    pub fn build(
+        self,
+        ctx: &mut BuildContext,
+        property_info: &FieldInfo<'a, '_>,
+        sync_flag: u64,
+    ) -> Result<Handle<UiNode>, InspectorError> {
         let definition_container = self
             .definition_container
             .unwrap_or_else(|| Rc::new(PropertyEditorDefinitionContainer::new()));
 
         let environment = self.environment;
-        let items = self
-            .collection
-            .map(|collection| {
-                create_items(
-                    collection,
-                    environment,
-                    definition_container,
-                    ctx,
-                    sync_flag,
-                    self.layer_index + 1,
-                    self.generate_property_string_values,
-                    self.filter,
-                    self.immutable_collection,
-                )
-            })
-            .unwrap_or_default();
+        let items = if let Some(collection) = self.collection {
+            create_items(
+                collection,
+                environment,
+                definition_container,
+                property_info,
+                ctx,
+                sync_flag,
+                self.layer_index + 1,
+                self.generate_property_string_values,
+                self.filter,
+                self.immutable_collection,
+            )?
+        } else {
+            Vec::new()
+        };
 
         let panel = StackPanelBuilder::new(WidgetBuilder::new().with_children(create_item_views(
             &items,
@@ -359,7 +405,7 @@ where
             phantom: PhantomData,
         };
 
-        ctx.add_node(UiNode::new(ce))
+        Ok(ctx.add_node(UiNode::new(ce)))
     }
 }
 
@@ -435,7 +481,7 @@ where
                 .with_generate_property_string_values(ctx.generate_property_string_values)
                 .with_filter(ctx.filter)
                 .with_immutable_collection(ctx.property_info.immutable_collection)
-                .build(ctx.build_context, ctx.sync_flag);
+                .build(ctx.build_context, ctx.property_info, ctx.sync_flag)?;
                 editor
             },
             ctx.build_context,
@@ -476,13 +522,14 @@ where
                 value.iter(),
                 environment,
                 definition_container,
+                property_info,
                 &mut ui.build_ctx(),
                 sync_flag,
                 layer_index + 1,
                 generate_property_string_values,
                 filter,
                 property_info.immutable_collection,
-            );
+            )?;
 
             Ok(Some(CollectionEditorMessage::items(
                 instance,
@@ -490,33 +537,41 @@ where
                 items,
             )))
         } else {
-            let mut error_group = Vec::new();
+            if let Some(definition) = definition_container.definitions().get(&TypeId::of::<T>()) {
+                for (index, (item, obj)) in instance_ref
+                    .items
+                    .clone()
+                    .iter()
+                    .zip(value.iter())
+                    .enumerate()
+                {
+                    let name = format!("{}[{index}]", property_info.name);
+                    let display_name = format!("{}[{index}]", property_info.display_name);
 
-            // Just sync inspector of every item.
-            for (item, obj) in instance_ref.items.clone().iter().zip(value.iter()) {
-                let layer_index = ctx.layer_index;
-                let ctx = ui
-                    .node(item.inspector)
-                    .cast::<Inspector>()
-                    .expect("Must be Inspector!")
-                    .context()
-                    .clone();
-                if let Err(e) = ctx.sync(
-                    obj,
-                    ui,
-                    layer_index + 1,
-                    generate_property_string_values,
-                    filter.clone(),
-                ) {
-                    error_group.extend(e.into_iter())
+                    if let Some(message) =
+                        definition.create_message(PropertyEditorMessageContext {
+                            property_info: &make_proxy::<T>(
+                                property_info,
+                                obj,
+                                &name,
+                                &display_name,
+                            )?,
+                            environment: environment.clone(),
+                            definition_container: definition_container.clone(),
+                            sync_flag,
+                            instance: item.editor_instance.editor(),
+                            layer_index,
+                            ui,
+                            generate_property_string_values,
+                            filter: filter.clone(),
+                        })?
+                    {
+                        ui.send_message(message.with_flags(ctx.sync_flag))
+                    }
                 }
             }
 
-            if error_group.is_empty() {
-                Ok(None)
-            } else {
-                Err(InspectorError::Group(error_group))
-            }
+            Ok(None)
         }
     }
 
@@ -528,8 +583,34 @@ where
                     owner_type_id: ctx.owner_type_id,
                     value: FieldKind::Collection(Box::new(collection_changed.clone())),
                 });
+            } else if let Some(CollectionEditorMessage::ItemChanged { index, message }) =
+                ctx.message.data()
+            {
+                if let Some(definition) = ctx
+                    .definition_container
+                    .definitions()
+                    .get(&TypeId::of::<T>())
+                {
+                    return Some(PropertyChanged {
+                        name: ctx.name.to_string(),
+                        owner_type_id: ctx.owner_type_id,
+                        value: FieldKind::Collection(Box::new(CollectionChanged::ItemChanged {
+                            index: *index,
+                            property: definition
+                                .translate_message(PropertyEditorTranslationContext {
+                                    environment: ctx.environment.clone(),
+                                    name: "",
+                                    owner_type_id: ctx.owner_type_id,
+                                    message,
+                                    definition_container: ctx.definition_container.clone(),
+                                })?
+                                .value,
+                        })),
+                    });
+                }
             }
         }
+
         None
     }
 }

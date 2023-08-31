@@ -150,6 +150,8 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.register_inheritable_vec_collection::<Layer>();
     container.register_inheritable_vec_collection::<EmitterWrapper>();
     container.register_inheritable_vec_collection::<LevelOfDetail>();
+    container.register_inheritable_inspectable::<LevelOfDetail>();
+    container.register_inheritable_inspectable::<LodControlledObject>();
     container.register_inheritable_vec_collection::<ErasedHandle>();
     container.register_inheritable_vec_collection::<Property>();
     container.register_inheritable_vec_collection::<LodControlledObject>();

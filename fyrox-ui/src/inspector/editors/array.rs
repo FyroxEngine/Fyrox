@@ -54,12 +54,14 @@ impl Control for ArrayEditor {
                 .iter()
                 .position(|i| i.inspector == message.destination())
             {
+                // FIXME!
+                /*
                 ui.send_message(CollectionChanged::item_changed(
                     self.handle,
                     MessageDirection::FromWidget,
                     index,
                     p.clone(),
-                ))
+                ))*/
             }
         }
     }

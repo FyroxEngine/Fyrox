@@ -45,24 +45,24 @@ pub enum CastError {
     },
 }
 
-pub struct FieldInfo<'a> {
+pub struct FieldInfo<'a, 'b> {
     /// A type id of the owner of the property.
     pub owner_type_id: TypeId,
 
     /// A name of the property.
-    pub name: &'static str,
+    pub name: &'b str,
 
     /// A human-readable name of the property.
-    pub display_name: &'static str,
+    pub display_name: &'b str,
 
     /// Description of the property.
-    pub description: &'static str,
+    pub description: &'b str,
 
     /// Type name of the property.
-    pub type_name: &'static str,
+    pub type_name: &'b str,
 
     /// Doc comment content.
-    pub doc: &'static str,
+    pub doc: &'b str,
 
     /// An reference to the actual value of the property. This is "non-mangled" reference, which
     /// means that while `field/fields/field_mut/fields_mut` might return a reference to other value,
@@ -92,7 +92,7 @@ pub struct FieldInfo<'a> {
     pub precision: Option<usize>,
 }
 
-impl<'a> FieldInfo<'a> {
+impl<'a, 'b> FieldInfo<'a, 'b> {
     /// Tries to cast a value to a given type.
     pub fn cast_value<T: 'static>(&self) -> Result<&T, CastError> {
         match self.value.as_any().downcast_ref::<T>() {
@@ -106,7 +106,7 @@ impl<'a> FieldInfo<'a> {
     }
 }
 
-impl<'a> fmt::Debug for FieldInfo<'a> {
+impl<'a, 'b> fmt::Debug for FieldInfo<'a, 'b> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PropertyInfo")
             .field("owner_type_id", &self.owner_type_id)
@@ -123,7 +123,7 @@ impl<'a> fmt::Debug for FieldInfo<'a> {
     }
 }
 
-impl<'a> PartialEq<Self> for FieldInfo<'a> {
+impl<'a, 'b> PartialEq<Self> for FieldInfo<'a, 'b> {
     fn eq(&self, other: &Self) -> bool {
         let value_ptr_a = self.value as *const _ as *const ();
         let value_ptr_b = other.value as *const _ as *const ();
