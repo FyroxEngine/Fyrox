@@ -323,6 +323,12 @@ impl UiMessage {
         self
     }
 
+    /// Sets the desired flags of the message.
+    pub fn with_flags(mut self, flags: u64) -> Self {
+        self.flags = flags;
+        self
+    }
+
     /// Creates a new copy of the message with reversed direction. Typical use case is to re-send messages to create "response"
     /// in a widget. For example you have a float input field and it has Value message. When the input field receives Value message
     /// with [`MessageDirection::ToWidget`] it checks if value needs to be changed and if it does, it re-sends same message, but with
