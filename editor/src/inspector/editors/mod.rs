@@ -131,6 +131,10 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
 
     container.insert(TexturePropertyEditorDefinition);
     container.insert(InheritablePropertyEditorDefinition::<Option<TextureResource>>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<
+        Option<TextureResource>,
+    >::new());
+
     container.insert(InheritablePropertyEditorDefinition::<Handle<Node>>::new());
 
     container.insert(MaterialPropertyEditorDefinition {
@@ -185,6 +189,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
         sender.clone(),
     ));
     container.insert(InheritablePropertyEditorDefinition::<Option<ModelResource>>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<Option<ModelResource>>::new());
 
     container.insert(ResourceFieldPropertyEditorDefinition::<SoundBuffer>::new(
         Rc::new(|resource_manager, path| {
@@ -193,6 +198,9 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
         sender.clone(),
     ));
     container.insert(InheritablePropertyEditorDefinition::<
+        Option<SoundBufferResource>,
+    >::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<
         Option<SoundBufferResource>,
     >::new());
 
@@ -205,12 +213,16 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
         ),
     );
     container.insert(InheritablePropertyEditorDefinition::<Option<CurveResource>>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<Option<CurveResource>>::new());
 
     container.insert(ResourceFieldPropertyEditorDefinition::<Shader>::new(
         Rc::new(|resource_manager, path| block_on(resource_manager.request::<Shader, _>(path))),
         sender,
     ));
     container.insert(InheritablePropertyEditorDefinition::<Option<ShaderResource>>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<
+        Option<ShaderResource>,
+    >::new());
 
     container.register_inheritable_inspectable::<ColorGradingLut>();
     container.register_inheritable_inspectable::<InteractionGroups>();
