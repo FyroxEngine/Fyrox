@@ -5,6 +5,7 @@ use crate::{
         reflect::{FieldInfo, FieldValue, Reflect},
     },
     define_constructor,
+    grid::{Column, GridBuilder, Row},
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition,
@@ -113,7 +114,7 @@ impl<T: CollectionItem> Control for CollectionEditor<T> {
         } else if let Some(msg) = message.data::<CollectionEditorMessage>() {
             if message.destination == self.handle {
                 if let CollectionEditorMessage::Items(items) = msg {
-                    let views = create_item_views(items, &mut ui.build_ctx(), self.layer_index);
+                    let views = create_item_views(items, &mut ui.build_ctx());
 
                     for old_item in ui.node(self.panel).children() {
                         ui.send_message(WidgetMessage::remove(
@@ -178,26 +179,22 @@ where
     immutable_collection: bool,
 }
 
-fn create_item_views(
-    items: &[Item],
-    ctx: &mut BuildContext,
-    layer_index: usize,
-) -> Vec<Handle<UiNode>> {
+fn create_item_views(items: &[Item], ctx: &mut BuildContext) -> Vec<Handle<UiNode>> {
     items
         .iter()
-        .enumerate()
-        .map(|(n, item)| {
-            make_expander_container(
-                layer_index,
-                &format!("Item {}", n),
-                &format!("Item {} of the collection", n),
-                item.remove,
-                match item.editor_instance {
-                    PropertyEditorInstance::Simple { editor } => editor,
-                    PropertyEditorInstance::Custom { container, .. } => container,
-                },
-                ctx,
+        .map(|item| {
+            GridBuilder::new(
+                WidgetBuilder::new()
+                    .with_child(match item.editor_instance {
+                        PropertyEditorInstance::Simple { editor } => editor,
+                        PropertyEditorInstance::Custom { container, .. } => container,
+                    })
+                    .with_child(item.remove),
             )
+            .add_row(Row::stretch())
+            .add_column(Column::stretch())
+            .add_column(Column::auto())
+            .build(ctx)
         })
         .collect::<Vec<_>>()
 }
@@ -268,7 +265,7 @@ where
                 WidgetBuilder::new()
                     .with_visibility(!immutable_collection)
                     .with_margin(Thickness::uniform(1.0))
-                    .with_vertical_alignment(VerticalAlignment::Center)
+                    .with_vertical_alignment(VerticalAlignment::Top)
                     .with_horizontal_alignment(HorizontalAlignment::Right)
                     .on_column(1)
                     .with_width(16.0)
@@ -385,11 +382,9 @@ where
             Vec::new()
         };
 
-        let panel = StackPanelBuilder::new(WidgetBuilder::new().with_children(create_item_views(
-            &items,
-            ctx,
-            self.layer_index,
-        )))
+        let panel = StackPanelBuilder::new(
+            WidgetBuilder::new().with_children(create_item_views(&items, ctx)),
+        )
         .build(ctx);
 
         let ce = CollectionEditor::<T> {
