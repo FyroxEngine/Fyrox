@@ -12,8 +12,8 @@ use crate::{
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        make_expander_container, CollectionChanged, FieldKind, InspectorEnvironment,
-        InspectorError, ObjectValue, PropertyChanged, PropertyFilter,
+        make_expander_container, make_property_margin, CollectionChanged, FieldKind,
+        InspectorEnvironment, InspectorError, ObjectValue, PropertyChanged, PropertyFilter,
     },
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
@@ -260,6 +260,10 @@ where
                 generate_property_string_values,
                 filter: filter.clone(),
             })?;
+
+            if let PropertyEditorInstance::Simple { editor } = editor {
+                ctx[editor].set_margin(make_property_margin(layer_index + 1));
+            }
 
             let remove = ButtonBuilder::new(
                 WidgetBuilder::new()
