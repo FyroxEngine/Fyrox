@@ -1,15 +1,16 @@
-use crate::inspector::PropertyFilter;
 use crate::{
-    core::{pool::Handle, reflect::prelude::*},
+    core::{pool::Handle, reflect::prelude::*, reflect::FieldValue},
+    define_constructor,
     inspector::{
         editors::{
             PropertyEditorBuildContext, PropertyEditorDefinition,
             PropertyEditorDefinitionContainer, PropertyEditorInstance,
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
-        make_expander_container, CollectionChanged, FieldKind, Inspector, InspectorBuilder,
-        InspectorContext, InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged,
+        make_expander_container, CollectionChanged, FieldKind, InspectorEnvironment,
+        InspectorError, PropertyChanged,
     },
+    inspector::{make_property_margin, PropertyFilter},
     message::{MessageDirection, UiMessage},
     stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder},
@@ -23,9 +24,18 @@ use std::{
     rc::Rc,
 };
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Item {
-    pub inspector: Handle<UiNode>,
+    pub editor_instance: PropertyEditorInstance,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum ArrayEditorMessage {
+    ItemChanged { index: usize, message: UiMessage },
+}
+
+impl ArrayEditorMessage {
+    define_constructor!(ArrayEditorMessage:ItemChanged => fn item_changed(index: usize, message: UiMessage), layout: false);
 }
 
 #[derive(Clone, Debug)]
@@ -48,21 +58,17 @@ impl Control for ArrayEditor {
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
-        if let Some(InspectorMessage::PropertyChanged(p)) = message.data::<InspectorMessage>() {
-            if let Some(index) = self
-                .items
-                .iter()
-                .position(|i| i.inspector == message.destination())
-            {
-                // FIXME!
-                /*
-                ui.send_message(CollectionChanged::item_changed(
-                    self.handle,
-                    MessageDirection::FromWidget,
-                    index,
-                    p.clone(),
-                ))*/
-            }
+        if let Some(index) = self
+            .items
+            .iter()
+            .position(|i| i.editor_instance.editor() == message.destination())
+        {
+            ui.send_message(ArrayEditorMessage::item_changed(
+                self.handle,
+                MessageDirection::FromWidget,
+                index,
+                message.clone(),
+            ));
         }
     }
 }
@@ -81,61 +87,93 @@ where
     filter: PropertyFilter,
 }
 
-fn create_item_views(
-    items: &[Item],
-    ctx: &mut BuildContext,
-    layer_index: usize,
-) -> Vec<Handle<UiNode>> {
+fn create_item_views(items: &[Item]) -> Vec<Handle<UiNode>> {
     items
         .iter()
-        .enumerate()
-        .map(|(n, item)| {
-            make_expander_container(
-                layer_index,
-                &format!("Item {}", n),
-                &format!("Item {} of the collection", n),
-                Default::default(),
-                item.inspector,
-                ctx,
-            )
+        .map(|item| match item.editor_instance {
+            PropertyEditorInstance::Simple { editor } => editor,
+            PropertyEditorInstance::Custom { container, .. } => container,
         })
         .collect::<Vec<_>>()
 }
 
-fn create_items<'a, T, I>(
+fn make_proxy<'a, 'b, T>(
+    array_property_info: &'b FieldInfo<'a, 'b>,
+    item: &'a T,
+    name: &'b str,
+    display_name: &'b str,
+) -> Result<FieldInfo<'a, 'b>, InspectorError>
+where
+    T: Reflect + FieldValue,
+    'b: 'a,
+{
+    Ok(FieldInfo {
+        owner_type_id: TypeId::of::<T>(),
+        name,
+        display_name,
+        value: item,
+        reflect_value: item,
+        read_only: array_property_info.read_only,
+        immutable_collection: array_property_info.immutable_collection,
+        min_value: array_property_info.min_value,
+        max_value: array_property_info.max_value,
+        step: array_property_info.step,
+        precision: array_property_info.precision,
+        description: array_property_info.description,
+        type_name: array_property_info.type_name,
+        doc: array_property_info.doc,
+    })
+}
+
+fn create_items<'a, 'b, T, I>(
     iter: I,
     environment: Option<Rc<dyn InspectorEnvironment>>,
     definition_container: Rc<PropertyEditorDefinitionContainer>,
+    property_info: &FieldInfo<'a, 'b>,
     ctx: &mut BuildContext,
     sync_flag: u64,
     layer_index: usize,
     generate_property_string_values: bool,
     filter: PropertyFilter,
-) -> Vec<Item>
+) -> Result<Vec<Item>, InspectorError>
 where
     T: Reflect + 'static,
     I: IntoIterator<Item = &'a T>,
 {
-    iter.into_iter()
-        .map(|entry| {
-            let inspector_context = InspectorContext::from_object(
-                entry,
-                ctx,
-                definition_container.clone(),
-                environment.clone(),
+    let mut items = Vec::new();
+
+    for (index, item) in iter.into_iter().enumerate() {
+        if let Some(definition) = definition_container.definitions().get(&TypeId::of::<T>()) {
+            let name = format!("{}[{index}]", property_info.name);
+            let display_name = format!("{}[{index}]", property_info.display_name);
+
+            let editor = definition.create_instance(PropertyEditorBuildContext {
+                build_context: ctx,
+                property_info: &make_proxy::<T>(property_info, item, &name, &display_name)?,
+                environment: environment.clone(),
+                definition_container: definition_container.clone(),
                 sync_flag,
-                layer_index,
+                layer_index: layer_index + 1,
                 generate_property_string_values,
-                filter.clone(),
-            );
+                filter: filter.clone(),
+            })?;
 
-            let inspector = InspectorBuilder::new(WidgetBuilder::new())
-                .with_context(inspector_context)
-                .build(ctx);
+            if let PropertyEditorInstance::Simple { editor } = editor {
+                ctx[editor].set_margin(make_property_margin(layer_index + 1));
+            }
 
-            Item { inspector }
-        })
-        .collect::<Vec<_>>()
+            items.push(Item {
+                editor_instance: editor,
+            });
+        } else {
+            return Err(InspectorError::Custom(format!(
+                "Missing property editor of type {}",
+                std::any::type_name::<T>()
+            )));
+        }
+    }
+
+    Ok(items)
 }
 
 impl<'a, T, I> ArrayEditorBuilder<'a, T, I>
@@ -191,41 +229,43 @@ where
         self
     }
 
-    pub fn build(self, ctx: &mut BuildContext, sync_flag: u64) -> Handle<UiNode> {
+    pub fn build(
+        self,
+        ctx: &mut BuildContext,
+        property_info: &FieldInfo<'a, '_>,
+        sync_flag: u64,
+    ) -> Result<Handle<UiNode>, InspectorError> {
         let definition_container = self
             .definition_container
             .unwrap_or_else(|| Rc::new(PropertyEditorDefinitionContainer::new()));
 
         let environment = self.environment;
-        let items = self
-            .collection
-            .map(|collection| {
-                create_items(
-                    collection,
-                    environment,
-                    definition_container,
-                    ctx,
-                    sync_flag,
-                    self.layer_index + 1,
-                    self.generate_property_string_values,
-                    self.filter,
-                )
-            })
-            .unwrap_or_default();
+        let items = if let Some(collection) = self.collection {
+            create_items(
+                collection,
+                environment,
+                definition_container,
+                property_info,
+                ctx,
+                sync_flag,
+                self.layer_index + 1,
+                self.generate_property_string_values,
+                self.filter,
+            )?
+        } else {
+            Vec::new()
+        };
 
-        let panel = StackPanelBuilder::new(WidgetBuilder::new().with_children(create_item_views(
-            &items,
-            ctx,
-            self.layer_index,
-        )))
-        .build(ctx);
+        let panel =
+            StackPanelBuilder::new(WidgetBuilder::new().with_children(create_item_views(&items)))
+                .build(ctx);
 
         let ce = ArrayEditor {
             widget: self.widget_builder.with_child(panel).build(),
             items,
         };
 
-        ctx.add_node(UiNode::new(ce))
+        Ok(ctx.add_node(UiNode::new(ce)))
     }
 }
 
@@ -287,7 +327,7 @@ where
                 .with_definition_container(ctx.definition_container.clone())
                 .with_generate_property_string_values(ctx.generate_property_string_values)
                 .with_filter(ctx.filter)
-                .build(ctx.build_context, ctx.sync_flag);
+                .build(ctx.build_context, ctx.property_info, ctx.sync_flag)?;
                 editor
             },
             ctx.build_context,
@@ -301,12 +341,15 @@ where
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
         let PropertyEditorMessageContext {
+            sync_flag,
             instance,
             ui,
+            layer_index,
             generate_property_string_values,
             property_info,
             filter,
-            ..
+            definition_container,
+            environment,
         } = ctx;
 
         let instance_ref = if let Some(instance) = ui.node(instance).cast::<ArrayEditor>() {
@@ -319,43 +362,61 @@ where
 
         let value = property_info.cast_value::<[T; N]>()?;
 
-        let mut error_group = Vec::new();
+        if let Some(definition) = definition_container.definitions().get(&TypeId::of::<T>()) {
+            for (index, (item, obj)) in instance_ref
+                .items
+                .clone()
+                .iter()
+                .zip(value.iter())
+                .enumerate()
+            {
+                let name = format!("{}[{index}]", property_info.name);
+                let display_name = format!("{}[{index}]", property_info.display_name);
 
-        // Just sync inspector of every item.
-        for (item, obj) in instance_ref.items.clone().iter().zip(value.iter()) {
-            let layer_index = ctx.layer_index;
-            let ctx = ui
-                .node(item.inspector)
-                .cast::<Inspector>()
-                .expect("Must be Inspector!")
-                .context()
-                .clone();
-            if let Err(e) = ctx.sync(
-                obj,
-                ui,
-                layer_index + 1,
-                generate_property_string_values,
-                filter.clone(),
-            ) {
-                error_group.extend(e.into_iter())
+                if let Some(message) = definition.create_message(PropertyEditorMessageContext {
+                    property_info: &make_proxy::<T>(property_info, obj, &name, &display_name)?,
+                    environment: environment.clone(),
+                    definition_container: definition_container.clone(),
+                    sync_flag,
+                    instance: item.editor_instance.editor(),
+                    layer_index: layer_index + 1,
+                    ui,
+                    generate_property_string_values,
+                    filter: filter.clone(),
+                })? {
+                    ui.send_message(message.with_flags(ctx.sync_flag))
+                }
             }
         }
 
-        if error_group.is_empty() {
-            Ok(None)
-        } else {
-            Err(InspectorError::Group(error_group))
-        }
+        Ok(None)
     }
 
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged> {
         if ctx.message.direction() == MessageDirection::FromWidget {
-            if let Some(collection_changed) = ctx.message.data::<CollectionChanged>() {
-                return Some(PropertyChanged {
-                    name: ctx.name.to_string(),
-                    owner_type_id: ctx.owner_type_id,
-                    value: FieldKind::Collection(Box::new(collection_changed.clone())),
-                });
+            if let Some(ArrayEditorMessage::ItemChanged { index, message }) = ctx.message.data() {
+                if let Some(definition) = ctx
+                    .definition_container
+                    .definitions()
+                    .get(&TypeId::of::<T>())
+                {
+                    return Some(PropertyChanged {
+                        name: ctx.name.to_string(),
+                        owner_type_id: ctx.owner_type_id,
+                        value: FieldKind::Collection(Box::new(CollectionChanged::ItemChanged {
+                            index: *index,
+                            property: definition
+                                .translate_message(PropertyEditorTranslationContext {
+                                    environment: ctx.environment.clone(),
+                                    name: "",
+                                    owner_type_id: ctx.owner_type_id,
+                                    message,
+                                    definition_container: ctx.definition_container.clone(),
+                                })?
+                                .value,
+                        })),
+                    });
+                }
             }
         }
         None
