@@ -36,30 +36,6 @@ pub(crate) mod draw;
 pub mod emitter;
 pub mod particle;
 
-#[doc(hidden)]
-#[derive(PartialEq, Debug, Clone, Default, Reflect)]
-pub struct EmitterWrapper(#[reflect(display_name = "Emitter Type")] pub Emitter);
-
-impl Deref for EmitterWrapper {
-    type Target = Emitter;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for EmitterWrapper {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl Visit for EmitterWrapper {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.0.visit(name, visitor)
-    }
-}
-
 /// Pseudo-random numbers generator for particle systems.
 #[derive(Debug, Clone, Reflect)]
 pub struct ParticleSystemRng {
@@ -203,7 +179,7 @@ pub struct ParticleSystem {
     base: Base,
 
     /// List of emitters of the particle system.
-    pub emitters: InheritableVariable<Vec<EmitterWrapper>>,
+    pub emitters: InheritableVariable<Vec<Emitter>>,
 
     #[reflect(setter = "set_texture")]
     texture: InheritableVariable<Option<TextureResource>>,
@@ -524,7 +500,7 @@ impl NodeTrait for ParticleSystem {
 /// This is typical implementation of Builder pattern.
 pub struct ParticleSystemBuilder {
     base_builder: BaseBuilder,
-    emitters: Vec<EmitterWrapper>,
+    emitters: Vec<Emitter>,
     texture: Option<TextureResource>,
     acceleration: Vector3<f32>,
     particles: Vec<Particle>,
@@ -552,7 +528,7 @@ impl ParticleSystemBuilder {
 
     /// Sets desired emitters for particle system.
     pub fn with_emitters(mut self, emitters: Vec<Emitter>) -> Self {
-        self.emitters = emitters.into_iter().map(EmitterWrapper).collect();
+        self.emitters = emitters;
         self
     }
 

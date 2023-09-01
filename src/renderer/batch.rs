@@ -162,7 +162,7 @@ impl RenderDataBatchStorage {
             if let Some(lod_group) = node.lod_group() {
                 for level in lod_group.levels.iter() {
                     for &object in level.objects.iter() {
-                        if let Some(object_ref) = graph.try_get(*object) {
+                        if let Some(object_ref) = graph.try_get(object) {
                             let distance = observer_info
                                 .observer_position
                                 .metric_distance(&object_ref.global_position());

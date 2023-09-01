@@ -259,7 +259,7 @@ where
                 environment: environment.clone(),
                 definition_container: definition_container.clone(),
                 sync_flag,
-                layer_index,
+                layer_index: layer_index + 1,
                 generate_property_string_values,
                 filter: filter.clone(),
             })?;
@@ -560,7 +560,7 @@ where
                             definition_container: definition_container.clone(),
                             sync_flag,
                             instance: item.editor_instance.editor(),
-                            layer_index,
+                            layer_index: layer_index + 1,
                             ui,
                             generate_property_string_values,
                             filter: filter.clone(),

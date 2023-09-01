@@ -1,7 +1,7 @@
 //! Everything related to audio buses and audio bus graphs. See docs of [`AudioBus`] and [`AudioBusGraph`]
 //! for more info and examples
 
-use crate::effects::{Effect, EffectRenderTrait, EffectWrapper};
+use crate::effects::{Effect, EffectRenderTrait};
 use fyrox_core::{
     pool::{Handle, Pool, Ticket},
     reflect::prelude::*,
@@ -83,7 +83,7 @@ impl PingPongBuffer {
 #[derive(Debug, Reflect, Visit, Clone)]
 pub struct AudioBus {
     pub(crate) name: String,
-    effects: Vec<EffectWrapper>,
+    effects: Vec<Effect>,
     gain: f32,
 
     #[reflect(hidden)]
@@ -175,7 +175,7 @@ impl AudioBus {
 
     /// Adds new effect to the effects chain.
     pub fn add_effect(&mut self, effect: Effect) {
-        self.effects.push(EffectWrapper(effect))
+        self.effects.push(effect)
     }
 
     /// Removes an effect by the given handle.
@@ -185,21 +185,21 @@ impl AudioBus {
 
     /// Returns a shared reference to an effect at the given handle.
     pub fn effect(&self, index: usize) -> Option<&Effect> {
-        self.effects.get(index).map(|w| &w.0)
+        self.effects.get(index)
     }
 
     /// Returns mutable reference to effect at given handle.
     pub fn effect_mut(&mut self, index: usize) -> Option<&mut Effect> {
-        self.effects.get_mut(index).map(|w| &mut w.0)
+        self.effects.get_mut(index)
     }
 
     /// Returns an iterator over effects used by this audio bus.
-    pub fn effects(&self) -> impl Iterator<Item = &EffectWrapper> {
+    pub fn effects(&self) -> impl Iterator<Item = &Effect> {
         self.effects.iter()
     }
 
     /// Returns an iterator over effects used by this audio bus.
-    pub fn effects_mut(&mut self) -> impl Iterator<Item = &mut EffectWrapper> {
+    pub fn effects_mut(&mut self) -> impl Iterator<Item = &mut Effect> {
         self.effects.iter_mut()
     }
 }

@@ -72,7 +72,7 @@ macro_rules! define_universal_commands {
                                 Err(current_value) => {
                                     fyrox::core::log::Log::err(format!(
                                         "Failed to set property {}! Incompatible types {}!",
-                                        $self.path, value.type_name()
+                                        $self.path, current_value.type_name()
                                     ));
                                     $self.value = Some(current_value);
                                 }

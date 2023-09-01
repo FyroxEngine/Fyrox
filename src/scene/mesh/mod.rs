@@ -266,7 +266,7 @@ impl Mesh {
                     .bones()
                     .iter()
                     .map(|&b| {
-                        let bone_node = &graph[*b];
+                        let bone_node = &graph[b];
                         bone_node.global_transform() * bone_node.inv_bind_pose_transform()
                     })
                     .collect::<Vec<Matrix4<f32>>>();
@@ -352,7 +352,7 @@ impl NodeTrait for Mesh {
             // Special case for skinned meshes.
             for surface in self.surfaces.iter() {
                 for &bone in surface.bones() {
-                    if let Some(node) = context.nodes.try_borrow(*bone) {
+                    if let Some(node) = context.nodes.try_borrow(bone) {
                         world_aabb.add_point(node.global_position())
                     }
                 }
@@ -400,7 +400,7 @@ impl NodeTrait for Mesh {
                         .bones
                         .iter()
                         .map(|bone_handle| {
-                            if let Some(bone_node) = ctx.graph.try_get(**bone_handle) {
+                            if let Some(bone_node) = ctx.graph.try_get(*bone_handle) {
                                 bone_node.global_transform() * bone_node.inv_bind_pose_transform()
                             } else {
                                 Matrix4::identity()
