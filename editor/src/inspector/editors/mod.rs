@@ -14,7 +14,6 @@ use crate::{
     },
     message::MessageSender,
 };
-use fyrox::scene::mesh::surface::BoneHandle;
 use fyrox::{
     animation::{
         machine::{
@@ -22,12 +21,12 @@ use fyrox::{
                 blendspace::{BlendSpace, BlendSpacePoint},
                 BasePoseNode,
             },
-            state::{AnimationHandleWrapper, StateAction, StateActionWrapper},
+            state::{StateAction, StateActionWrapper},
             transition::{AndNode, LogicNode, NotNode, OrNode, XorNode},
             BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput, Machine,
             PlayAnimation, PoseNode, PoseWeight, State,
         },
-        AnimationContainer,
+        Animation, AnimationContainer,
     },
     core::{
         futures::executor::block_on,
@@ -53,9 +52,7 @@ use fyrox::{
         },
     },
     scene::{
-        base::{
-            Base, LevelOfDetail, LodControlledObject, LodGroup, Mobility, Property, PropertyValue,
-        },
+        base::{Base, LevelOfDetail, LodGroup, Mobility, Property, PropertyValue},
         camera::{
             ColorGradingLut, Exposure, OrthographicProjection, PerspectiveProjection, Projection,
             SkyBox,
@@ -76,13 +73,13 @@ use fyrox::{
             surface::{BlendShape, Surface, SurfaceSharedData},
             RenderPath,
         },
-        node::{Node, NodeHandle},
+        node::Node,
         particle_system::{
             emitter::{
                 base::BaseEmitter, cuboid::CuboidEmitter, cylinder::CylinderEmitter,
                 sphere::SphereEmitter, Emitter,
             },
-            EmitterWrapper, ParticleSystemRng,
+            ParticleSystemRng,
         },
         rigidbody::RigidBodyType,
         sound::{
@@ -92,8 +89,8 @@ use fyrox::{
                 HighShelfFilterEffect, LowPassFilterEffect, LowShelfFilterEffect,
             },
             reverb::Reverb,
-            Attenuate, AudioBus, Biquad, DistanceModel, Effect, EffectWrapper, SoundBuffer,
-            SoundBufferResource, Status,
+            Attenuate, AudioBus, Biquad, DistanceModel, Effect, SoundBuffer, SoundBufferResource,
+            Status,
         },
         terrain::{Chunk, Layer},
         transform::Transform,
@@ -143,18 +140,26 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
 
     container.register_inheritable_vec_collection::<Handle<Node>>();
     container.insert(NodeHandlePropertyEditorDefinition::new(sender.clone()));
-    container.register_inheritable_inspectable::<NodeHandle>();
-    container.register_inheritable_vec_collection::<NodeHandle>();
 
     container.register_inheritable_vec_collection::<Surface>();
+    container.register_inheritable_inspectable::<Surface>();
+
     container.register_inheritable_vec_collection::<Layer>();
-    container.register_inheritable_vec_collection::<EmitterWrapper>();
+    container.register_inheritable_inspectable::<Layer>();
+
+    container.register_inheritable_vec_collection::<Emitter>();
+
     container.register_inheritable_vec_collection::<LevelOfDetail>();
+    container.register_inheritable_inspectable::<LevelOfDetail>();
+
     container.register_inheritable_vec_collection::<ErasedHandle>();
+    container.register_inheritable_inspectable::<ErasedHandle>();
+
     container.register_inheritable_vec_collection::<Property>();
-    container.register_inheritable_vec_collection::<LodControlledObject>();
+    container.register_inheritable_inspectable::<Property>();
+
     container.register_inheritable_vec_collection::<GeometrySource>();
-    container.register_inheritable_vec_collection::<BoneHandle>();
+    container.register_inheritable_inspectable::<GeometrySource>();
 
     container.insert(make_status_enum_editor_definition());
 
@@ -209,7 +214,6 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
 
     container.register_inheritable_inspectable::<ColorGradingLut>();
     container.register_inheritable_inspectable::<InteractionGroups>();
-    container.register_inheritable_inspectable::<GeometrySource>();
 
     container.register_inheritable_enum::<JointParams, _>();
     container.register_inheritable_enum::<dim2::joint::JointParams, _>();
@@ -226,8 +230,8 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.register_inheritable_inspectable::<BaseLight>();
 
     container.insert(EnumPropertyEditorDefinition::<Effect>::new());
-    container.insert(InspectablePropertyEditorDefinition::<EffectWrapper>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<EffectWrapper>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<Effect>::new());
+
     container.insert(InspectablePropertyEditorDefinition::<Attenuate>::new());
     container.insert(InspectablePropertyEditorDefinition::<LowPassFilterEffect>::new());
     container.insert(InspectablePropertyEditorDefinition::<HighPassFilterEffect>::new());
@@ -254,6 +258,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.register_inheritable_vec_collection::<Chunk>();
 
     container.register_inheritable_vec_collection::<BlendShape>();
+    container.register_inheritable_inspectable::<BlendShape>();
 
     container.register_inheritable_option::<ColorGradingLut>();
     container.register_inheritable_option::<Biquad>();
@@ -320,14 +325,11 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(InspectablePropertyEditorDefinition::<BlendAnimations>::new());
     container.insert(InspectablePropertyEditorDefinition::<BlendSpace>::new());
     container.insert(InspectablePropertyEditorDefinition::<PlayAnimation>::new());
-    container.insert(InspectablePropertyEditorDefinition::<AnimationHandleWrapper>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<
-        AnimationHandleWrapper,
-    >::new());
 
     container.insert(InspectablePropertyEditorDefinition::<Handle<PoseNode>>::new());
     container.insert(InspectablePropertyEditorDefinition::<Handle<State>>::new());
 
+    container.insert(VecCollectionPropertyEditorDefinition::<Handle<Animation>>::new());
     container.insert(AnimationPropertyEditorDefinition);
 
     container.insert(AnimationContainerPropertyEditorDefinition);

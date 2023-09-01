@@ -33,7 +33,6 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHasher};
 use half::f16;
-use std::ops::{Deref, DerefMut};
 use std::{hash::Hasher, sync::Arc};
 
 /// A target shape for blending.
@@ -1160,36 +1159,6 @@ impl SurfaceSharedData {
     }
 }
 
-/// A simple bone node handle wrapper.
-#[derive(Reflect, Default, Copy, Clone, Debug, Hash, Eq, PartialEq)]
-pub struct BoneHandle(pub Handle<Node>);
-
-impl From<Handle<Node>> for BoneHandle {
-    fn from(value: Handle<Node>) -> Self {
-        Self(value)
-    }
-}
-
-impl Visit for BoneHandle {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.0.visit(name, visitor)
-    }
-}
-
-impl Deref for BoneHandle {
-    type Target = Handle<Node>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for BoneHandle {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
 /// Surface is a set of triangles with a single material. Such arrangement makes GPU rendering very efficient.
 ///
 /// Surfaces can use the same data source across many instances, this is a memory optimization for being able to
@@ -1275,7 +1244,7 @@ pub struct Surface {
     pub(crate) material: InheritableVariable<SharedMaterial>,
 
     /// Array of handles to scene nodes which are used as bones.
-    pub bones: InheritableVariable<Vec<BoneHandle>>,
+    pub bones: InheritableVariable<Vec<Handle<Node>>>,
 
     #[reflect(
         description = "If true, then the current material will become a unique instance when cloning the surface.\
@@ -1385,7 +1354,7 @@ impl Surface {
 
     /// Returns list of bones that affects the surface.
     #[inline]
-    pub fn bones(&self) -> &[BoneHandle] {
+    pub fn bones(&self) -> &[Handle<Node>] {
         &self.bones
     }
 
@@ -1404,7 +1373,7 @@ impl Surface {
 pub struct SurfaceBuilder {
     data: SurfaceSharedData,
     material: Option<SharedMaterial>,
-    bones: Vec<BoneHandle>,
+    bones: Vec<Handle<Node>>,
     unique_material: bool,
 }
 
@@ -1426,7 +1395,7 @@ impl SurfaceBuilder {
     }
 
     /// Sets desired bones array. Make sure your vertices has valid indices of bones!
-    pub fn with_bones(mut self, bones: Vec<BoneHandle>) -> Self {
+    pub fn with_bones(mut self, bones: Vec<Handle<Node>>) -> Self {
         self.bones = bones;
         self
     }

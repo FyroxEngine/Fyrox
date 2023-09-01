@@ -310,7 +310,7 @@ fn reflect_fields_list_of_enum() {
     });
 }
 
-fn default_prop() -> FieldInfo<'static> {
+fn default_prop() -> FieldInfo<'static, 'static> {
     FieldInfo {
         owner_type_id: TypeId::of::<()>(),
         name: "",

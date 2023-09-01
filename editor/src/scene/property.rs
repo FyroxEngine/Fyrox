@@ -39,7 +39,7 @@ impl PropertySelectorMessage {
 pub struct PropertyDescriptor {
     path: String,
     display_name: String,
-    type_name: &'static str,
+    type_name: String,
     type_id: TypeId,
     read_only: bool,
     children_properties: Vec<PropertyDescriptor>,
@@ -116,7 +116,7 @@ impl PropertyDescriptor {
                     .with_text(format!(
                         "{} ({})",
                         self.display_name,
-                        make_pretty_type_name(self.type_name)
+                        make_pretty_type_name(&self.type_name)
                     ))
                     .build(ctx),
             )
@@ -147,7 +147,7 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
                     let mut descriptor = PropertyDescriptor {
                         path: path.clone(),
                         display_name: field_info.display_name.to_owned(),
-                        type_name: field_info.type_name,
+                        type_name: field_info.type_name.to_owned(),
                         type_id: field_info.value.type_id(),
                         children_properties: Default::default(),
                         read_only: field_info.read_only,
@@ -159,7 +159,7 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
                         descriptor.children_properties.push(PropertyDescriptor {
                             path: item_path.clone(),
                             display_name: format!("[{}]", i),
-                            type_name: item.type_name(),
+                            type_name: item.type_name().to_owned(),
                             type_id: item.type_id(),
                             read_only: field_info.read_only,
                             children_properties: object_to_property_tree(&item_path, item),
@@ -179,7 +179,7 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
                         let mut descriptor = PropertyDescriptor {
                             path: path.clone(),
                             display_name: field_info.display_name.to_owned(),
-                            type_name: field_info.type_name,
+                            type_name: field_info.type_name.to_owned(),
                             type_id: field_info.value.type_id(),
                             children_properties: Default::default(),
                             read_only: field_info.read_only,
@@ -213,7 +213,7 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
                             descriptor.children_properties.push(PropertyDescriptor {
                                 path: item_path.clone(),
                                 display_name: format!("[{}]", key_str),
-                                type_name: value.type_name(),
+                                type_name: value.type_name().to_owned(),
                                 type_id: value.type_id(),
                                 read_only: field_info.read_only,
                                 children_properties: object_to_property_tree(&item_path, value),
@@ -233,7 +233,7 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
             if !processed {
                 descriptors.push(PropertyDescriptor {
                     display_name: field_info.display_name.to_owned(),
-                    type_name: field_info.type_name,
+                    type_name: field_info.type_name.to_owned(),
                     type_id: field_info.value.type_id(),
                     read_only: field_info.read_only,
                     children_properties: object_to_property_tree(&path, field_ref),

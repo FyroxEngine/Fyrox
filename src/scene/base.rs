@@ -19,37 +19,8 @@ use crate::{
     scene::{node::Node, transform::Transform},
     script::{Script, ScriptTrait},
 };
-use std::{
-    any::Any,
-    cell::Cell,
-    ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
-};
+use std::{any::Any, cell::Cell, sync::mpsc::Sender};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
-
-/// A handle to scene node that will be controlled by LOD system.
-#[derive(Reflect, Default, Debug, Clone, Copy, PartialEq, Hash, Eq)]
-pub struct LodControlledObject(pub Handle<Node>);
-
-impl Deref for LodControlledObject {
-    type Target = Handle<Node>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for LodControlledObject {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl Visit for LodControlledObject {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.0.visit(name, visitor)
-    }
-}
 
 /// Level of detail is a collection of objects for given normalized distance range.
 /// Objects will be rendered **only** if they're in specified range.
@@ -62,12 +33,12 @@ pub struct LevelOfDetail {
     end: f32,
     /// List of objects, where each object represents level of detail of parent's
     /// LOD group.
-    pub objects: Vec<LodControlledObject>,
+    pub objects: Vec<Handle<Node>>,
 }
 
 impl LevelOfDetail {
     /// Creates new level of detail.
-    pub fn new(begin: f32, end: f32, objects: Vec<LodControlledObject>) -> Self {
+    pub fn new(begin: f32, end: f32, objects: Vec<Handle<Node>>) -> Self {
         for object in objects.iter() {
             // Invalid handles are not allowed.
             assert!(object.is_some());

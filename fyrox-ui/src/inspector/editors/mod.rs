@@ -62,9 +62,9 @@ pub mod string;
 pub mod uuid;
 pub mod vec;
 
-pub struct PropertyEditorBuildContext<'a, 'b, 'c> {
+pub struct PropertyEditorBuildContext<'a, 'b, 'c, 'd> {
     pub build_context: &'a mut BuildContext<'c>,
-    pub property_info: &'b FieldInfo<'b>,
+    pub property_info: &'b FieldInfo<'b, 'd>,
     pub environment: Option<Rc<dyn InspectorEnvironment>>,
     pub definition_container: Rc<PropertyEditorDefinitionContainer>,
     pub sync_flag: u64,
@@ -73,11 +73,11 @@ pub struct PropertyEditorBuildContext<'a, 'b, 'c> {
     pub filter: PropertyFilter,
 }
 
-pub struct PropertyEditorMessageContext<'a, 'b> {
+pub struct PropertyEditorMessageContext<'a, 'b, 'c> {
     pub sync_flag: u64,
     pub instance: Handle<UiNode>,
     pub ui: &'b mut UserInterface,
-    pub property_info: &'a FieldInfo<'a>,
+    pub property_info: &'a FieldInfo<'a, 'c>,
     pub definition_container: Rc<PropertyEditorDefinitionContainer>,
     pub layer_index: usize,
     pub environment: Option<Rc<dyn InspectorEnvironment>>,
@@ -93,6 +93,7 @@ pub struct PropertyEditorTranslationContext<'b, 'c> {
     pub definition_container: Rc<PropertyEditorDefinitionContainer>,
 }
 
+#[derive(Clone, Debug, PartialEq)]
 pub enum PropertyEditorInstance {
     Simple {
         /// A property editor. Could be any widget that capable of editing a property
@@ -106,6 +107,15 @@ pub enum PropertyEditorInstance {
         /// value.
         editor: Handle<UiNode>,
     },
+}
+
+impl PropertyEditorInstance {
+    pub fn editor(&self) -> Handle<UiNode> {
+        match self {
+            PropertyEditorInstance::Simple { editor }
+            | PropertyEditorInstance::Custom { editor, .. } => *editor,
+        }
+    }
 }
 
 pub trait PropertyEditorDefinition: Debug {

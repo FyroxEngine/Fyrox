@@ -187,7 +187,9 @@ where
     }
 }
 
-fn make_proxy<'a, 'b, T>(property_info: &'b FieldInfo<'a>) -> Result<FieldInfo<'a>, InspectorError>
+fn make_proxy<'a, 'b, 'c, T>(
+    property_info: &'b FieldInfo<'a, 'c>,
+) -> Result<FieldInfo<'a, 'c>, InspectorError>
 where
     T: Reflect + FieldValue,
     'b: 'a,

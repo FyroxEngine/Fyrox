@@ -38,24 +38,6 @@ impl DerefMut for StateActionWrapper {
     }
 }
 
-#[doc(hidden)]
-#[derive(Default, Debug, Visit, Reflect, Clone, PartialEq)]
-pub struct AnimationHandleWrapper(pub Handle<Animation>);
-
-impl Deref for AnimationHandleWrapper {
-    type Target = Handle<Animation>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for AnimationHandleWrapper {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
 /// An action, that will be executed by a state. It usually used to rewind, enable/disable animations
 /// when entering or leaving states. This is useful in situations when you have a one-shot animation
 /// and you need to rewind it before when entering some state. For example, you may have looped idle
@@ -79,7 +61,7 @@ pub enum StateAction {
     /// to your state machine. For example, you may have few melee attack animations and all of them
     /// are suitable for every situation, in this case you can add randomization to make attacks less
     /// predictable.
-    EnableRandomAnimation(Vec<AnimationHandleWrapper>),
+    EnableRandomAnimation(Vec<Handle<Animation>>),
 }
 
 impl StateAction {
@@ -104,7 +86,7 @@ impl StateAction {
             }
             StateAction::EnableRandomAnimation(animation_handles) => {
                 if let Some(animation) = animation_handles.iter().choose(&mut rand::thread_rng()) {
-                    if let Some(animation) = animations.try_get_mut(animation.0) {
+                    if let Some(animation) = animations.try_get_mut(*animation) {
                         animation.set_enabled(true);
                     }
                 }

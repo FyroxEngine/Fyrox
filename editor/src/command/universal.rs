@@ -56,34 +56,58 @@ macro_rules! define_universal_commands {
             }
 
             fn swap(&mut $self, $ctx_ident: &mut $ctx) {
-
-                (($entity_getter) as &mut dyn Reflect).set_field_by_path(&$self.path, $self.value.take().unwrap(), &mut |result| match result {
-                    Ok(old_value) => {
-                        $self.value = Some(old_value);
-                    }
-                    Err(result) => {
-                        let value = match result {
-                            SetFieldByPathError::InvalidPath { value, reason } => {
-                                fyrox::core::log::Log::err(format!(
-                                    "Failed to set property {}! Invalid path {:?}!",
-                                    $self.path, reason
-                                ));
-
-                                value
-                            },
-                            SetFieldByPathError::InvalidValue(value) => {
-                                fyrox::core::log::Log::err(format!(
-                                    "Failed to set property {}! Incompatible types!",
-                                    $self.path
-                                ));
-
-                                value
+                if fyrox::core::reflect::is_path_to_array_element(&$self.path) {
+                    (($entity_getter) as &mut dyn Reflect).resolve_path_mut(&$self.path, &mut |result| match result {
+                        Err(reason) => {
+                            fyrox::core::log::Log::err(format!(
+                                "Failed to set property {}! Invalid path {:?}!",
+                                $self.path, reason
+                            ));
+                        }
+                        Ok(property) => {
+                            match property.set($self.value.take().unwrap()) {
+                                Ok(old_value) => {
+                                    $self.value = Some(old_value);
+                                }
+                                Err(current_value) => {
+                                    fyrox::core::log::Log::err(format!(
+                                        "Failed to set property {}! Incompatible types {}!",
+                                        $self.path, current_value.type_name()
+                                    ));
+                                    $self.value = Some(current_value);
+                                }
                             }
-                        };
-                        $self.value = Some(value);
+                        }
+                    });
+                } else {
+                    (($entity_getter) as &mut dyn Reflect).set_field_by_path(&$self.path, $self.value.take().unwrap(), &mut |result| match result {
+                        Ok(old_value) => {
+                            $self.value = Some(old_value);
+                        }
+                        Err(result) => {
+                            let value = match result {
+                                SetFieldByPathError::InvalidPath { value, reason } => {
+                                    fyrox::core::log::Log::err(format!(
+                                        "Failed to set property {}! Invalid path {:?}!",
+                                        $self.path, reason
+                                    ));
 
+                                    value
+                                },
+                                SetFieldByPathError::InvalidValue(value) => {
+                                    fyrox::core::log::Log::err(format!(
+                                        "Failed to set property {}! Incompatible types {}!",
+                                        $self.path, value.type_name()
+                                    ));
+
+                                    value
+                                }
+                            };
+                            $self.value = Some(value);
+
+                        }
+                    });
                     }
-                });
             }
         }
 
@@ -131,11 +155,11 @@ macro_rules! define_universal_commands {
                     field.as_list_mut(&mut |result| {
                         if let Some(list) = result {
                             if let Err(item) = list.reflect_push($self.item.take().unwrap()) {
-                                $self.item = Some(item);
                                 fyrox::core::log::Log::err(format!(
-                                    "Failed to push item to {} collection. Type mismatch!",
-                                    $self.path
-                                ))
+                                    "Failed to push item to {} collection. Type mismatch {} and {}!",
+                                    $self.path, item.type_name(), list.type_name()
+                                ));
+                                $self.item = Some(item);
                             }
                         } else {
                             fyrox::core::log::Log::err(format!("Property {} is not a collection!", $self.path))
@@ -208,7 +232,6 @@ macro_rules! define_universal_commands {
                                 list.reflect_insert($self.index, $self.value.take().unwrap())
                             {
                                 $self.value = Some(item);
-                            } else {
                                 fyrox::core::log::Log::err(format!(
                                     "Failed to insert item to {} collection. Type mismatch!",
                                     $self.path

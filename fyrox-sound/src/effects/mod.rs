@@ -8,7 +8,6 @@ use crate::{
     effects::reverb::Reverb,
 };
 use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
-use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 pub mod filter;
@@ -43,30 +42,6 @@ impl EffectRenderTrait for Attenuate {
             *output_left = *input_left * self.gain;
             *output_right = *input_right * self.gain;
         }
-    }
-}
-
-#[doc(hidden)]
-#[derive(PartialEq, Debug, Clone, Default, Reflect)]
-pub struct EffectWrapper(#[reflect(display_name = "Effect Type")] pub Effect);
-
-impl Deref for EffectWrapper {
-    type Target = Effect;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for EffectWrapper {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
-    }
-}
-
-impl Visit for EffectWrapper {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.0.visit(name, visitor)
     }
 }
 

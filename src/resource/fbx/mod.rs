@@ -10,7 +10,6 @@ mod document;
 pub mod error;
 mod scene;
 
-use crate::scene::mesh::surface::BoneHandle;
 use crate::{
     animation::{track::Track, Animation, AnimationContainer},
     asset::manager::ResourceManager,
@@ -849,7 +848,7 @@ async fn convert(
                 }
                 surface
                     .bones
-                    .set_value_silent(surface_bones.iter().map(|h| BoneHandle(*h)).collect());
+                    .set_value_silent(surface_bones.iter().copied().collect());
 
                 let data_rc = surface.data();
                 let mut data = data_rc.lock();
@@ -865,7 +864,7 @@ async fn convert(
                             indices[k] = surface
                                 .bones
                                 .iter()
-                                .position(|bone_handle| **bone_handle == weight.effector.into())
+                                .position(|bone_handle| *bone_handle == weight.effector.into())
                                 .ok_or(FbxError::UnableToFindBone)?
                                 as u8;
                             weights[k] = weight.value;
