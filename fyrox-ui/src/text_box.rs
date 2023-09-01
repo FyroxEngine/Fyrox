@@ -654,11 +654,13 @@ impl TextBox {
             self.char_index_to_position(position + 1)
                 .unwrap_or_default(),
         );
-        ui.send_message(TextMessage::text(
-            self.handle,
-            MessageDirection::FromWidget,
-            self.formatted_text.borrow().text(),
-        ));
+        if self.commit_mode == TextCommitMode::Immediate {
+            ui.send_message(TextMessage::text(
+                self.handle,
+                MessageDirection::FromWidget,
+                self.formatted_text.borrow().text(),
+            ));
+        }
     }
 
     fn insert_str(&mut self, str: &str, ui: &UserInterface) {
@@ -673,11 +675,13 @@ impl TextBox {
             self.char_index_to_position(position + str.chars().count())
                 .unwrap_or_default(),
         );
-        ui.send_message(TextMessage::text(
-            self.handle,
-            MessageDirection::FromWidget,
-            self.formatted_text.borrow().text(),
-        ));
+        if self.commit_mode == TextCommitMode::Immediate {
+            ui.send_message(TextMessage::text(
+                self.handle,
+                MessageDirection::FromWidget,
+                self.formatted_text.borrow().text(),
+            ));
+        }
     }
 
     /// Returns current text length in characters.
@@ -771,11 +775,13 @@ impl TextBox {
                 text.build();
                 drop(text);
 
-                ui.send_message(TextMessage::text(
-                    self.handle(),
-                    MessageDirection::FromWidget,
-                    self.formatted_text.borrow().text(),
-                ));
+                if self.commit_mode == TextCommitMode::Immediate {
+                    ui.send_message(TextMessage::text(
+                        self.handle(),
+                        MessageDirection::FromWidget,
+                        self.formatted_text.borrow().text(),
+                    ));
+                }
 
                 self.set_caret_position(self.char_index_to_position(position).unwrap_or_default());
             }
@@ -789,11 +795,13 @@ impl TextBox {
                 self.formatted_text.borrow_mut().remove_range(begin..end);
                 self.formatted_text.borrow_mut().build();
 
-                ui.send_message(TextMessage::text(
-                    self.handle(),
-                    MessageDirection::FromWidget,
-                    self.formatted_text.borrow().text(),
-                ));
+                if self.commit_mode == TextCommitMode::Immediate {
+                    ui.send_message(TextMessage::text(
+                        self.handle(),
+                        MessageDirection::FromWidget,
+                        self.formatted_text.borrow().text(),
+                    ));
+                }
 
                 self.set_caret_position(selection.begin);
             }
