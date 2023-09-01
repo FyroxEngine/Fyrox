@@ -686,7 +686,7 @@ impl Editor {
 
                 Log::info("Editor settings were loaded successfully!");
             }
-            Err(e) => Log::err(format!(
+            Err(e) => Log::warn(format!(
                 "Failed to load settings, fallback to default. Reason: {:?}",
                 e
             )),
@@ -1069,7 +1069,7 @@ impl Editor {
             Err(e) => {
                 self.settings = Default::default();
 
-                Log::info(format!(
+                Log::warn(format!(
                     "Failed to load settings, fallback to default. Reason: {:?}",
                     e
                 ))
