@@ -2596,7 +2596,7 @@ mod test {
             ui.poll_message(),
             Some(TextMessage::text(
                 text_box,
-                MessageDirection::ToWidget,
+                MessageDirection::FromWidget,
                 "A".to_string()
             ))
         );

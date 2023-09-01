@@ -31,7 +31,7 @@ use fyrox::{
     keyboard::KeyCode,
     resource::model::{Model, ModelResourceExtension},
     scene::{
-        base::{LevelOfDetail, LodControlledObject, LodGroup},
+        base::{LevelOfDetail, LodGroup},
         node::Node,
         Scene,
     },
@@ -96,35 +96,35 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
                 // by multiplying normalized distance to z far.
                 0.0,
                 0.33,
-                vec![LodControlledObject(
+                vec![
                     scene
                         .graph
                         .find_by_name(model_handle, "metroLOD0")
                         .unwrap()
                         .0,
-                )],
+                ],
             ),
             LevelOfDetail::new(
                 0.33,
                 0.66,
-                vec![LodControlledObject(
+                vec![
                     scene
                         .graph
                         .find_by_name(model_handle, "metroLOD1")
                         .unwrap()
                         .0,
-                )],
+                ],
             ),
             LevelOfDetail::new(
                 0.66,
                 1.0,
-                vec![LodControlledObject(
+                vec![
                     scene
                         .graph
                         .find_by_name(model_handle, "metroLOD2")
                         .unwrap()
                         .0,
-                )],
+                ],
             ),
         ],
     };
