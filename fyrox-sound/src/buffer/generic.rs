@@ -40,6 +40,8 @@ pub struct GenericBuffer {
     pub(crate) sample_rate: usize,
     #[visit(rename = "Path")]
     pub(crate) external_source_path: PathBuf,
+    #[visit(skip)]
+    pub(crate) channel_duration_in_samples: usize,
 }
 
 impl GenericBuffer {
@@ -68,6 +70,7 @@ impl GenericBuffer {
                     })
                 } else {
                     Ok(Self {
+                        channel_duration_in_samples: samples.len() / channel_count,
                         samples,
                         channel_count,
                         sample_rate,
@@ -109,6 +112,7 @@ impl GenericBuffer {
                 Ok(Self {
                     sample_rate: decoder.get_sample_rate(),
                     channel_count: decoder.get_channel_count(),
+                    channel_duration_in_samples: decoder.channel_duration_in_samples(),
                     samples: decoder.into_samples(),
                     external_source_path,
                 })
@@ -158,11 +162,18 @@ impl GenericBuffer {
         self.sample_rate
     }
 
-    /// Returns exact duration of the buffer.
+    /// Returns exact time length of the buffer.  
     #[inline]
     pub fn duration(&self) -> Duration {
-        Duration::from_secs_f64(
-            (self.samples.len() / (self.channel_count * self.sample_rate)) as f64,
+        Duration::from_nanos(
+            (self.channel_duration_in_samples as u64 * 1_000_000_000u64) / self.sample_rate as u64,
         )
+    }
+
+    /// Returns exact duration of each channel (in samples) of the buffer. The returned value represents the entire length
+    /// of each channel in the buffer, even if it is streaming and its content is not yet fully decoded.
+    #[inline]
+    pub fn channel_duration_in_samples(&self) -> usize {
+        self.channel_duration_in_samples
     }
 }

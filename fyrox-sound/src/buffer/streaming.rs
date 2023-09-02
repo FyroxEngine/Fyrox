@@ -95,11 +95,11 @@ impl StreamingSource {
         }
     }
 
-    fn duration(&self) -> Option<Duration> {
+    fn channel_duration_in_samples(&self) -> usize {
         match self {
-            StreamingSource::Null => None,
-            StreamingSource::Decoder(decoder) => decoder.duration(),
-            StreamingSource::Raw(raw) => raw.duration(),
+            StreamingSource::Null => 0,
+            StreamingSource::Decoder(decoder) => decoder.channel_duration_in_samples(),
+            StreamingSource::Raw(raw) => raw.channel_duration_in_samples(),
         }
     }
 
@@ -180,16 +180,12 @@ impl StreamingBuffer {
                 samples,
                 sample_rate: streaming_source.sample_rate(),
                 channel_count: streaming_source.channel_count(),
+                channel_duration_in_samples: streaming_source.channel_duration_in_samples(),
                 external_source_path,
             },
             use_count: 0,
             streaming_source,
         })
-    }
-
-    /// Returns total duration of data. Can be `None` if internal decoder does not supports seeking.
-    pub fn duration(&self) -> Option<Duration> {
-        self.streaming_source.duration()
     }
 
     #[inline]

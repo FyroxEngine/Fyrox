@@ -97,9 +97,9 @@ pub trait RawStreamingDataSource: Iterator<Item = f32> + Send + Sync + Debug {
     /// Allows you to start playback from given duration.
     fn time_seek(&mut self, _duration: Duration) {}
 
-    /// Returns total duration of data. Can be `None` if internal decoder does not supports seeking.
-    fn duration(&self) -> Option<Duration> {
-        None
+    /// Returns total duration of the data.
+    fn channel_duration_in_samples(&self) -> usize {
+        0
     }
 }
 

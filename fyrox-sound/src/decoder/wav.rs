@@ -80,10 +80,8 @@ impl WavDecoder {
             .seek((location.as_secs_f64() * self.reader.spec().sample_rate as f64) as u32);
     }
 
-    pub fn duration(&self) -> Option<Duration> {
-        Some(Duration::from_secs_f32(
-            self.reader.duration() as f32 / self.reader.spec().sample_rate as f32,
-        ))
+    pub fn channel_duration_in_samples(&self) -> usize {
+        self.reader.duration() as usize
     }
 
     pub fn channel_count(&self) -> usize {

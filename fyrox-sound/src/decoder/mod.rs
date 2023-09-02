@@ -72,10 +72,10 @@ impl Decoder {
         self.collect()
     }
 
-    pub fn duration(&self) -> Option<Duration> {
+    pub fn channel_duration_in_samples(&self) -> usize {
         match self {
-            Decoder::Wav(wav) => wav.duration(),
-            Decoder::Ogg(ogg) => ogg.duration(),
+            Decoder::Wav(wav) => wav.channel_duration_in_samples(),
+            Decoder::Ogg(ogg) => ogg.channel_duration_in_samples(),
         }
     }
 }
