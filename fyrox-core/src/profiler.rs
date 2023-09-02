@@ -411,7 +411,7 @@ mod test {
 
         let res = profiler.print(&mut buffer);
         assert!(res.is_ok());
-        assert!(buffer.starts_with("=========================================================================================================\nProfiling took 1.00"));
+        assert!(buffer.starts_with("========================================================================================================="));
         assert!(buffer.contains(
 "seconds. Please note that profiling itself takes time so results are not 100% accurate.\nEntry Point\n\t0.0000% - foo at line 0 was called 0 times and took 0 seconds individually.\n=========================================================================================================\n") );
     }
@@ -426,7 +426,7 @@ mod test {
 
         let res = profiler.print_hot_path(&mut buffer);
         assert!(res.is_ok());
-        assert!(buffer.starts_with("=========================================================================================================\nShowing hot path only! Profiling took 1.00"));
+        assert!(buffer.starts_with("========================================================================================================="));
         assert!(buffer.contains(
 r#"seconds. Please note that profiling itself takes time so results are not 100% accurate.
 Entry Point

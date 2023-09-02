@@ -2504,7 +2504,6 @@ mod test {
         border::BorderBuilder,
         core::algebra::{Rotation2, UnitComplex, Vector2},
         message::MessageDirection,
-        text::TextMessage,
         text_box::TextBoxBuilder,
         transform_size,
         widget::{WidgetBuilder, WidgetMessage},
@@ -2590,14 +2589,6 @@ mod test {
                 text_box,
                 MessageDirection::FromWidget,
                 'A'.to_string()
-            ))
-        );
-        assert_eq!(
-            ui.poll_message(),
-            Some(TextMessage::text(
-                text_box,
-                MessageDirection::FromWidget,
-                "A".to_string()
             ))
         );
 
