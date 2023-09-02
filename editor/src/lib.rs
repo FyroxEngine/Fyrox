@@ -2462,18 +2462,6 @@ fn update(editor: &mut Editor, control_flow: &mut ControlFlow) {
     while editor.game_loop_data.lag >= FIXED_TIMESTEP {
         editor.game_loop_data.lag -= FIXED_TIMESTEP;
 
-        /*
-        // Save scenes state before update and disable every non-current scene.
-        let mut scenes_state = FxHashMap::default();
-        for (handle, scene) in editor.engine.scenes.pair_iter_mut() {
-            scenes_state.insert(handle, scene.enabled);
-
-            scene.enabled = editor
-                .scenes
-                .current_editor_scene_ref()
-                .map_or(false, |s| s.scene == handle);
-        }*/
-
         let mut switches = FxHashMap::default();
 
         for (other_scene_handle, _) in editor.engine.scenes.pair_iter() {
@@ -2507,14 +2495,7 @@ fn update(editor: &mut Editor, control_flow: &mut ControlFlow) {
         editor.engine.post_update(FIXED_TIMESTEP);
 
         editor.post_update();
-        /*
-                for (scene, enabled) in scenes_state {
-                    // A scene could be deleted during the update, so do a checked borrow here.
-                    if let Some(scene) = editor.engine.scenes.try_get_mut(scene) {
-                        scene.enabled = enabled;
-                    }
-                }
-        */
+
         if editor.game_loop_data.lag >= 1.5 * FIXED_TIMESTEP {
             break;
         }
