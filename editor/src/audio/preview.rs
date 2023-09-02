@@ -216,26 +216,32 @@ impl AudioPreviewPanel {
                     if !set {
                         if let Some(buffer) = sound.buffer() {
                             let state = buffer.state();
+
                             if let ResourceStateRef::Ok(buffer) = state.get() {
+                                let duration_secs = buffer.duration().as_secs_f32();
+
                                 send_sync_message(
                                     &engine.user_interface,
                                     ScrollBarMessage::max_value(
                                         self.time,
                                         MessageDirection::ToWidget,
-                                        buffer.duration().as_secs_f32(),
+                                        duration_secs,
+                                    ),
+                                );
+
+                                send_sync_message(
+                                    &engine.user_interface,
+                                    ScrollBarMessage::value(
+                                        self.time,
+                                        MessageDirection::ToWidget,
+                                        sound
+                                            .playback_time()
+                                            .as_secs_f32()
+                                            .clamp(0.0, duration_secs),
                                     ),
                                 );
                             }
                         }
-
-                        send_sync_message(
-                            &engine.user_interface,
-                            ScrollBarMessage::value(
-                                self.time,
-                                MessageDirection::ToWidget,
-                                sound.playback_time().as_secs_f32(),
-                            ),
-                        );
 
                         set = true;
                     }
