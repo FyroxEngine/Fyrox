@@ -466,10 +466,11 @@ impl SoundSource {
             let mut buffer = buffer.data_ref();
             if let SoundBuffer::Streaming(ref mut streaming) = *buffer {
                 // Make sure decoder is at right position.
-                streaming.time_seek(time);
+                streaming.time_seek(time.clamp(Duration::from_secs(0), streaming.duration()));
             }
             // Set absolute position first.
-            self.playback_pos = time.as_secs_f64() * buffer.sample_rate as f64;
+            self.playback_pos = (time.as_secs_f64() * buffer.sample_rate as f64)
+                .clamp(0.0, buffer.duration().as_secs_f64());
             // Then adjust buffer read position.
             self.buf_read_pos = match *buffer {
                 SoundBuffer::Streaming(ref mut streaming) => {
