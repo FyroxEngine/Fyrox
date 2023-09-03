@@ -670,6 +670,7 @@ pub struct Editor {
     pub node_removal_dialog: NodeRemovalDialog,
     pub engine: Engine,
     pub plugins: Vec<Option<Box<dyn EditorPlugin>>>,
+    pub focused: bool,
 }
 
 impl Editor {
@@ -1030,6 +1031,7 @@ impl Editor {
             node_removal_dialog,
             doc_window,
             plugins: Default::default(),
+            focused: false,
         };
 
         if let Some(data) = startup_data {
@@ -2329,7 +2331,9 @@ impl Editor {
 
         event_loop.run(move |event, _, control_flow| match event {
             Event::MainEventsCleared => {
-                update(&mut self, control_flow);
+                if self.focused || !self.settings.general.suspend_unfocused_editor {
+                    update(&mut self, control_flow);
+                }
 
                 if self.exit {
                     *control_flow = ControlFlow::Exit;
@@ -2347,35 +2351,37 @@ impl Editor {
                 }
             }
             Event::RedrawRequested(_) => {
-                // Temporarily disable cameras in currently edited scene. This is needed to prevent any
-                // scene camera to interfere with the editor camera.
-                let mut camera_state = Vec::new();
-                if let Some(editor_scene) = self.scenes.current_editor_scene_ref() {
-                    let scene = &mut self.engine.scenes[editor_scene.scene];
-                    let has_preview_camera =
-                        scene.graph.is_valid_handle(editor_scene.preview_camera);
-                    for (handle, camera) in scene.graph.pair_iter_mut().filter_map(|(h, n)| {
-                        if has_preview_camera && h != editor_scene.preview_camera
-                            || !has_preview_camera && h != editor_scene.camera_controller.camera
-                        {
-                            n.cast_mut::<Camera>().map(|c| (h, c))
-                        } else {
-                            None
+                if self.focused || !self.settings.general.suspend_unfocused_editor {
+                    // Temporarily disable cameras in currently edited scene. This is needed to prevent any
+                    // scene camera to interfere with the editor camera.
+                    let mut camera_state = Vec::new();
+                    if let Some(editor_scene) = self.scenes.current_editor_scene_ref() {
+                        let scene = &mut self.engine.scenes[editor_scene.scene];
+                        let has_preview_camera =
+                            scene.graph.is_valid_handle(editor_scene.preview_camera);
+                        for (handle, camera) in scene.graph.pair_iter_mut().filter_map(|(h, n)| {
+                            if has_preview_camera && h != editor_scene.preview_camera
+                                || !has_preview_camera && h != editor_scene.camera_controller.camera
+                            {
+                                n.cast_mut::<Camera>().map(|c| (h, c))
+                            } else {
+                                None
+                            }
+                        }) {
+                            camera_state.push((handle, camera.is_enabled()));
+                            camera.set_enabled(false);
                         }
-                    }) {
-                        camera_state.push((handle, camera.is_enabled()));
-                        camera.set_enabled(false);
                     }
-                }
 
-                self.engine.render().unwrap();
+                    self.engine.render().unwrap();
 
-                // Revert state of the cameras.
-                if let Some(scene) = self.scenes.current_editor_scene_ref() {
-                    for (handle, enabled) in camera_state {
-                        self.engine.scenes[scene.scene].graph[handle]
-                            .as_camera_mut()
-                            .set_enabled(enabled);
+                    // Revert state of the cameras.
+                    if let Some(scene) = self.scenes.current_editor_scene_ref() {
+                        for (handle, enabled) in camera_state {
+                            self.engine.scenes[scene.scene].graph[handle]
+                                .as_camera_mut()
+                                .set_enabled(enabled);
+                        }
                     }
                 }
             }
@@ -2418,6 +2424,9 @@ impl Editor {
                         self.settings.windows.window_size.y = size.height as f32;
                         Log::verify(self.settings.save());
                     }
+                    WindowEvent::Focused(focused) => {
+                        self.focused = *focused;
+                    }
                     WindowEvent::Moved(new_position) => {
                         self.settings.windows.window_position.x = new_position.x as f32;
                         self.settings.windows.window_position.y = new_position.y as f32;
@@ -2438,7 +2447,13 @@ impl Editor {
 
                 for_each_plugin!(self.plugins => on_exit(&mut self));
             }
-            _ => *control_flow = ControlFlow::Poll,
+            _ => {
+                if self.focused || !self.settings.general.suspend_unfocused_editor {
+                    *control_flow = ControlFlow::Poll;
+                } else {
+                    *control_flow = ControlFlow::Wait;
+                }
+            }
         });
     }
 }
