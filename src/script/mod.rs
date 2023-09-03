@@ -310,8 +310,8 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     fn on_deinit(&mut self, #[allow(unused_variables)] ctx: &mut ScriptDeinitContext) {}
 
     /// Called when there is an event from the OS. The method allows you to "listen" for events
-    /// coming from the main window of your game (or the editor if the game running inside the
-    /// editor.
+    /// coming from the main window of your game. It could be used to react to pressed keys, mouse movements,
+    /// etc.
     fn on_os_event(
         &mut self,
         #[allow(unused_variables)] event: &Event<()>,
@@ -319,9 +319,9 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     ) {
     }
 
-    /// Performs a single update tick of the script. The method may be called multiple times per
-    /// frame, but it is guaranteed that the rate of call is stable and usually it will be called
-    /// 60 times per second (this may change in future releases).
+    /// Performs a single update tick of the script. The method may be called multiple times per frame, but it is guaranteed
+    /// that the rate of call is stable and by default it will be called 60 times per second, but can be changed by using
+    /// [`crate::engine::executor::Executor::set_desired_update_rate`] method.
     fn on_update(&mut self, #[allow(unused_variables)] ctx: &mut ScriptContext) {}
 
     /// Allows you to react to certain script messages. It could be used for communication between scripts; to
