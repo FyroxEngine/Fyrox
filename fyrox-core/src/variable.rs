@@ -249,18 +249,23 @@ where
         }
 
         if !visited {
-            let mut region = visitor.enter_region(name)?;
-
-            if region.is_reading() || self.flags.get().contains(VariableFlags::MODIFIED) {
-                let result = self.value.visit("Value", &mut region);
-
-                // Report failure only on write. The field may be missing if it is not marked as modified.
-                if !region.is_reading() {
-                    result?;
+            if visitor.is_reading() {
+                // The entire region could be missing if the variable wasn't modified.
+                if let Ok(mut region) = visitor.enter_region(name) {
+                    let _ = self.value.visit("Value", &mut region);
+                    self.flags.get_mut().0.visit("Flags", &mut region)?;
+                } else {
+                    // Default flags contains `modified` flag, we need to remove it if there's no
+                    // region at all.
+                    self.flags.get_mut().remove(VariableFlags::MODIFIED);
                 }
+            } else if self.flags.get().contains(VariableFlags::MODIFIED) {
+                let mut region = visitor.enter_region(name)?;
+                self.value.visit("Value", &mut region)?;
+                self.flags.get_mut().0.visit("Flags", &mut region)?;
+            } else {
+                // Non-modified variables do not write anything.
             }
-
-            self.flags.get_mut().0.visit("Flags", &mut region)?;
         }
 
         Ok(())
