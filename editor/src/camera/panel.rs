@@ -134,6 +134,10 @@ impl CameraPreviewControlPanel {
         );
     }
 
+    pub fn is_in_preview_mode(&self) -> bool {
+        !self.cameras_state.is_empty()
+    }
+
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,

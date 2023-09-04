@@ -268,6 +268,10 @@ impl ParticleSystemPreviewControlPanel {
         );
     }
 
+    pub fn is_in_preview_mode(&self) -> bool {
+        !self.particle_systems_state.is_empty()
+    }
+
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,

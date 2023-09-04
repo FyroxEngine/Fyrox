@@ -262,6 +262,10 @@ impl AbsmEditor {
         }
     }
 
+    pub fn is_in_preview_mode(&self) -> bool {
+        self.preview_mode_data.is_some()
+    }
+
     pub fn handle_message(
         &mut self,
         message: &Message,

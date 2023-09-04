@@ -1699,6 +1699,15 @@ impl Editor {
         }
     }
 
+    pub fn is_in_preview_mode(&self) -> bool {
+        // TODO: Include user plugins.
+        self.particle_system_control_panel.is_in_preview_mode()
+            || self.camera_control_panel.is_in_preview_mode()
+            || self.audio_preview_panel.is_in_preview_mode()
+            || self.animation_editor.is_in_preview_mode()
+            || self.absm_editor.is_in_preview_mode()
+    }
+
     fn save_scene(&mut self, scene: Handle<Scene>, path: PathBuf) {
         self.try_leave_preview_mode();
 
@@ -2528,5 +2537,5 @@ fn update(editor: &mut Editor, control_flow: &mut ControlFlow) {
     window.set_cursor_icon(translate_cursor_icon(editor.engine.user_interface.cursor()));
     window.request_redraw();
 
-    editor.need_update = false;
+    editor.need_update = editor.is_in_preview_mode();
 }

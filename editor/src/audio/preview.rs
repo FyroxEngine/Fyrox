@@ -273,6 +273,10 @@ impl AudioPreviewPanel {
         scene.graph.sound_context.state().destroy_sound_sources();
     }
 
+    pub fn is_in_preview_mode(&self) -> bool {
+        !self.sounds_state.is_empty()
+    }
+
     pub fn update(&self, editor_scene: &EditorScene, engine: &Engine) {
         let scene = &engine.scenes[editor_scene.scene];
         if let Selection::Graph(ref new_graph_selection) = editor_scene.selection {
