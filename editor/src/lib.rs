@@ -1701,13 +1701,27 @@ impl Editor {
         }
     }
 
-    pub fn is_in_preview_mode(&self) -> bool {
-        // TODO: Include user plugins.
+    pub fn is_in_preview_mode(&mut self) -> bool {
+        let mut is_any_plugin_in_preview_mode = false;
+        let mut i = 0;
+        while i < self.plugins.len() {
+            if let Some(plugin) = self.plugins.get_mut(i).and_then(|p| p.take()) {
+                is_any_plugin_in_preview_mode |= plugin.is_in_preview_mode(self);
+
+                if let Some(entry) = self.plugins.get_mut(i) {
+                    *entry = Some(plugin);
+                }
+            }
+
+            i += 1;
+        }
+
         self.particle_system_control_panel.is_in_preview_mode()
             || self.camera_control_panel.is_in_preview_mode()
             || self.audio_preview_panel.is_in_preview_mode()
             || self.animation_editor.is_in_preview_mode()
             || self.absm_editor.is_in_preview_mode()
+            || is_any_plugin_in_preview_mode
     }
 
     fn save_scene(&mut self, scene: Handle<Scene>, path: PathBuf) {

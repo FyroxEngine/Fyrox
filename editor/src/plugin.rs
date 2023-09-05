@@ -62,6 +62,13 @@ pub trait EditorPlugin {
     /// about suspension.
     fn on_resumed(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}
 
+    /// This method is used to tell the editor, whether your plugin is in preview mode or not. Preview mode is a special
+    /// state of the editor, when it modifies a content of some scene every frame and discards these changes when the
+    /// preview mode is disabled.
+    fn is_in_preview_mode(&self, #[allow(unused_variables)] editor: &Editor) -> bool {
+        false
+    }
+
     /// This method is called every frame at stable update rate of 60 FPS. It could be used to perform any contiguous
     /// actions.
     fn on_update(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}
