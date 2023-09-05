@@ -144,11 +144,22 @@ impl CameraController {
         }
     }
 
+    pub fn is_interacting(&self) -> bool {
+        self.move_backward
+            || self.move_forward
+            || self.move_left
+            || self.move_right
+            || self.drag
+            || self.rotate
+            || self.move_down
+            || self.move_up
+    }
+
     pub fn fit_object(&self, scene: &mut Scene, handle: Handle<Node>) {
         // Combine AABBs from the descendants.
         let mut aabb = AxisAlignedBoundingBox::default();
         for descendant in scene.graph.traverse_iter(handle) {
-            let descendant_aabb = dbg!(descendant.local_bounding_box());
+            let descendant_aabb = descendant.local_bounding_box();
             if !descendant_aabb.is_invalid_or_degenerate() {
                 aabb.add_box(descendant_aabb.transform(&descendant.global_transform()))
             }
@@ -158,8 +169,6 @@ impl CameraController {
             // To prevent the camera from flying away into abyss.
             aabb = AxisAlignedBoundingBox::from_point(scene.graph[handle].global_position());
         }
-
-        dbg!(&aabb);
 
         let fit_parameters = scene.graph[self.camera].as_camera().fit(
             &aabb,

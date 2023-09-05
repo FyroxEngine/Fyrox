@@ -1748,6 +1748,10 @@ impl Editor {
             || self.animation_editor.is_in_preview_mode()
             || self.absm_editor.is_in_preview_mode()
             || is_any_plugin_in_preview_mode
+            || self
+                .scenes
+                .current_editor_scene_ref()
+                .map_or(false, |s| s.camera_controller.is_interacting())
     }
 
     fn save_scene(&mut self, scene: Handle<Scene>, path: PathBuf) {
@@ -2599,5 +2603,7 @@ fn update(editor: &mut Editor, control_flow: &mut ControlFlow) {
     window.set_cursor_icon(translate_cursor_icon(editor.engine.user_interface.cursor()));
     window.request_redraw();
 
-    editor.update_loop_state.decrease_counter();
+    if !editor.is_in_preview_mode() {
+        editor.update_loop_state.decrease_counter();
+    }
 }
