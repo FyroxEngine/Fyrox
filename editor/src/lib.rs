@@ -672,6 +672,7 @@ pub struct Editor {
     pub plugins: Vec<Option<Box<dyn EditorPlugin>>>,
     pub focused: bool,
     pub need_update: bool,
+    pub is_suspended: bool,
 }
 
 impl Editor {
@@ -1034,6 +1035,7 @@ impl Editor {
             plugins: Default::default(),
             focused: false,
             need_update: true,
+            is_suspended: false,
         };
 
         if let Some(data) = startup_data {
@@ -2466,8 +2468,18 @@ impl Editor {
             }
             _ => {
                 if self.need_update && self.is_active() {
+                    if self.is_suspended {
+                        for_each_plugin!(self.plugins => on_resumed(&mut self));
+                        self.is_suspended = false;
+                    }
+
                     *control_flow = ControlFlow::Poll;
                 } else {
+                    if !self.is_suspended {
+                        for_each_plugin!(self.plugins => on_suspended(&mut self));
+                        self.is_suspended = true;
+                    }
+
                     *control_flow = ControlFlow::Wait;
                 }
             }
