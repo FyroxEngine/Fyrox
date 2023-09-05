@@ -47,6 +47,28 @@ pub trait EditorPlugin {
     ) {
     }
 
+    /// This method is called when the editor suspends its execution. It could happen in a few reasons, but the most
+    /// common ones are:
+    ///
+    /// 1) When the main editor's window is unfocused.
+    /// 2) When there's no messages coming from the OS to the main editor's window.
+    ///
+    /// All of these reason means, that a user does nothing with the editor and the editor just "sleeps" in this period of
+    /// time, saving precious CPU/GPU resources and keeping power consumption at lowest possible values. Which also means
+    /// that cooling fans won't spin like crazy.
+    fn on_suspended(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}
+
+    /// This method is called when the editor continues its execution. See [`Self::on_suspended`] method for more info
+    /// about suspension.
+    fn on_resumed(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}
+
+    /// This method is used to tell the editor, whether your plugin is in preview mode or not. Preview mode is a special
+    /// state of the editor, when it modifies a content of some scene every frame and discards these changes when the
+    /// preview mode is disabled.
+    fn is_in_preview_mode(&self, #[allow(unused_variables)] editor: &Editor) -> bool {
+        false
+    }
+
     /// This method is called every frame at stable update rate of 60 FPS. It could be used to perform any contiguous
     /// actions.
     fn on_update(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}

@@ -629,6 +629,32 @@ impl SceneContainer {
     }
 }
 
+pub struct UpdateLoopState(u32);
+
+impl Default for UpdateLoopState {
+    fn default() -> Self {
+        Self(1)
+    }
+}
+
+impl UpdateLoopState {
+    fn request_update_in_next_frame(&mut self) {
+        self.0 = 2;
+    }
+
+    fn request_update_in_current_frame(&mut self) {
+        self.0 = 1;
+    }
+
+    fn decrease_counter(&mut self) {
+        self.0 = self.0.saturating_sub(1);
+    }
+
+    fn is_suspended(&self) -> bool {
+        self.0 == 0
+    }
+}
+
 pub struct Editor {
     pub game_loop_data: GameLoopData,
     pub scenes: SceneContainer,
@@ -671,6 +697,8 @@ pub struct Editor {
     pub engine: Engine,
     pub plugins: Vec<Option<Box<dyn EditorPlugin>>>,
     pub focused: bool,
+    pub update_loop_state: UpdateLoopState,
+    pub is_suspended: bool,
 }
 
 impl Editor {
@@ -1032,6 +1060,8 @@ impl Editor {
             doc_window,
             plugins: Default::default(),
             focused: false,
+            update_loop_state: UpdateLoopState::default(),
+            is_suspended: false,
         };
 
         if let Some(data) = startup_data {
@@ -1697,6 +1727,33 @@ impl Editor {
         }
     }
 
+    pub fn is_in_preview_mode(&mut self) -> bool {
+        let mut is_any_plugin_in_preview_mode = false;
+        let mut i = 0;
+        while i < self.plugins.len() {
+            if let Some(plugin) = self.plugins.get_mut(i).and_then(|p| p.take()) {
+                is_any_plugin_in_preview_mode |= plugin.is_in_preview_mode(self);
+
+                if let Some(entry) = self.plugins.get_mut(i) {
+                    *entry = Some(plugin);
+                }
+            }
+
+            i += 1;
+        }
+
+        self.particle_system_control_panel.is_in_preview_mode()
+            || self.camera_control_panel.is_in_preview_mode()
+            || self.audio_preview_panel.is_in_preview_mode()
+            || self.animation_editor.is_in_preview_mode()
+            || self.absm_editor.is_in_preview_mode()
+            || is_any_plugin_in_preview_mode
+            || self
+                .scenes
+                .current_editor_scene_ref()
+                .map_or(false, |s| s.camera_controller.is_interacting())
+    }
+
     fn save_scene(&mut self, scene: Handle<Scene>, path: PathBuf) {
         self.try_leave_preview_mode();
 
@@ -1933,6 +1990,12 @@ impl Editor {
         while let Some(mut ui_message) = self.engine.user_interface.poll_message() {
             self.handle_ui_message(&mut ui_message);
             processed += 1;
+        }
+
+        if processed > 0 {
+            // We need to ensure, that all the changes will be correctly rendered on screen. So
+            // request update and render on next frame.
+            self.update_loop_state.request_update_in_next_frame();
         }
 
         processed
@@ -2199,6 +2262,10 @@ impl Editor {
                 self.sync_to_model();
             }
 
+            if editor_messages_processed_count > 0 {
+                self.update_loop_state.request_update_in_next_frame();
+            }
+
             // Any processed UI message can produce editor messages and vice versa, in this case we
             // must do another pass.
             if ui_messages_processed_count > 0 || editor_messages_processed_count > 0 {
@@ -2326,12 +2393,18 @@ impl Editor {
         self.plugins.push(Some(Box::new(plugin)));
     }
 
+    pub fn is_active(&self) -> bool {
+        self.focused || !self.settings.general.suspend_unfocused_editor
+    }
+
     pub fn run(mut self, event_loop: EventLoop<()>) -> ! {
         for_each_plugin!(self.plugins => on_start(&mut self));
 
         event_loop.run(move |event, _, control_flow| match event {
             Event::MainEventsCleared => {
-                update(&mut self, control_flow);
+                if self.is_active() {
+                    update(&mut self, control_flow);
+                }
 
                 if self.exit {
                     *control_flow = ControlFlow::Exit;
@@ -2349,35 +2422,37 @@ impl Editor {
                 }
             }
             Event::RedrawRequested(_) => {
-                // Temporarily disable cameras in currently edited scene. This is needed to prevent any
-                // scene camera to interfere with the editor camera.
-                let mut camera_state = Vec::new();
-                if let Some(editor_scene) = self.scenes.current_editor_scene_ref() {
-                    let scene = &mut self.engine.scenes[editor_scene.scene];
-                    let has_preview_camera =
-                        scene.graph.is_valid_handle(editor_scene.preview_camera);
-                    for (handle, camera) in scene.graph.pair_iter_mut().filter_map(|(h, n)| {
-                        if has_preview_camera && h != editor_scene.preview_camera
-                            || !has_preview_camera && h != editor_scene.camera_controller.camera
-                        {
-                            n.cast_mut::<Camera>().map(|c| (h, c))
-                        } else {
-                            None
+                if self.is_active() {
+                    // Temporarily disable cameras in currently edited scene. This is needed to prevent any
+                    // scene camera to interfere with the editor camera.
+                    let mut camera_state = Vec::new();
+                    if let Some(editor_scene) = self.scenes.current_editor_scene_ref() {
+                        let scene = &mut self.engine.scenes[editor_scene.scene];
+                        let has_preview_camera =
+                            scene.graph.is_valid_handle(editor_scene.preview_camera);
+                        for (handle, camera) in scene.graph.pair_iter_mut().filter_map(|(h, n)| {
+                            if has_preview_camera && h != editor_scene.preview_camera
+                                || !has_preview_camera && h != editor_scene.camera_controller.camera
+                            {
+                                n.cast_mut::<Camera>().map(|c| (h, c))
+                            } else {
+                                None
+                            }
+                        }) {
+                            camera_state.push((handle, camera.is_enabled()));
+                            camera.set_enabled(false);
                         }
-                    }) {
-                        camera_state.push((handle, camera.is_enabled()));
-                        camera.set_enabled(false);
                     }
-                }
 
-                self.engine.render().unwrap();
+                    self.engine.render().unwrap();
 
-                // Revert state of the cameras.
-                if let Some(scene) = self.scenes.current_editor_scene_ref() {
-                    for (handle, enabled) in camera_state {
-                        self.engine.scenes[scene.scene].graph[handle]
-                            .as_camera_mut()
-                            .set_enabled(enabled);
+                    // Revert state of the cameras.
+                    if let Some(scene) = self.scenes.current_editor_scene_ref() {
+                        for (handle, enabled) in camera_state {
+                            self.engine.scenes[scene.scene].graph[handle]
+                                .as_camera_mut()
+                                .set_enabled(enabled);
+                        }
                     }
                 }
             }
@@ -2434,6 +2509,8 @@ impl Editor {
                     _ => (),
                 }
 
+                self.update_loop_state.request_update_in_current_frame();
+
                 if let Some(os_event) = translate_event(event) {
                     self.engine.user_interface.process_os_event(&os_event);
                 }
@@ -2444,9 +2521,19 @@ impl Editor {
                 for_each_plugin!(self.plugins => on_exit(&mut self));
             }
             _ => {
-                if self.focused || !self.settings.general.suspend_unfocused_editor {
+                if !self.update_loop_state.is_suspended() && self.is_active() {
+                    if self.is_suspended {
+                        for_each_plugin!(self.plugins => on_resumed(&mut self));
+                        self.is_suspended = false;
+                    }
+
                     *control_flow = ControlFlow::Poll;
                 } else {
+                    if !self.is_suspended {
+                        for_each_plugin!(self.plugins => on_suspended(&mut self));
+                        self.is_suspended = true;
+                    }
+
                     *control_flow = ControlFlow::Wait;
                 }
             }
@@ -2515,4 +2602,8 @@ fn update(editor: &mut Editor, control_flow: &mut ControlFlow) {
     let window = &editor.engine.graphics_context.as_initialized_ref().window;
     window.set_cursor_icon(translate_cursor_icon(editor.engine.user_interface.cursor()));
     window.request_redraw();
+
+    if !editor.is_in_preview_mode() {
+        editor.update_loop_state.decrease_counter();
+    }
 }
