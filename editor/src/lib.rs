@@ -629,6 +629,32 @@ impl SceneContainer {
     }
 }
 
+pub struct UpdateLoopState(u32);
+
+impl Default for UpdateLoopState {
+    fn default() -> Self {
+        Self(1)
+    }
+}
+
+impl UpdateLoopState {
+    fn request_update_in_next_frame(&mut self) {
+        self.0 = 2;
+    }
+
+    fn request_update_in_current_frame(&mut self) {
+        self.0 = 1;
+    }
+
+    fn decrease_counter(&mut self) {
+        self.0 = self.0.saturating_sub(1);
+    }
+
+    fn is_suspended(&self) -> bool {
+        self.0 == 0
+    }
+}
+
 pub struct Editor {
     pub game_loop_data: GameLoopData,
     pub scenes: SceneContainer,
@@ -671,7 +697,7 @@ pub struct Editor {
     pub engine: Engine,
     pub plugins: Vec<Option<Box<dyn EditorPlugin>>>,
     pub focused: bool,
-    pub need_update: bool,
+    pub update_loop_state: UpdateLoopState,
     pub is_suspended: bool,
 }
 
@@ -1034,7 +1060,7 @@ impl Editor {
             doc_window,
             plugins: Default::default(),
             focused: false,
-            need_update: true,
+            update_loop_state: UpdateLoopState::default(),
             is_suspended: false,
         };
 
@@ -1962,6 +1988,12 @@ impl Editor {
             processed += 1;
         }
 
+        if processed > 0 {
+            // We need to ensure, that all the changes will be correctly rendered on screen. So
+            // request update and render on next frame.
+            self.update_loop_state.request_update_in_next_frame();
+        }
+
         processed
     }
 
@@ -2226,6 +2258,10 @@ impl Editor {
                 self.sync_to_model();
             }
 
+            if editor_messages_processed_count > 0 {
+                self.update_loop_state.request_update_in_next_frame();
+            }
+
             // Any processed UI message can produce editor messages and vice versa, in this case we
             // must do another pass.
             if ui_messages_processed_count > 0 || editor_messages_processed_count > 0 {
@@ -2469,7 +2505,7 @@ impl Editor {
                     _ => (),
                 }
 
-                self.need_update = true;
+                self.update_loop_state.request_update_in_current_frame();
 
                 if let Some(os_event) = translate_event(event) {
                     self.engine.user_interface.process_os_event(&os_event);
@@ -2481,7 +2517,7 @@ impl Editor {
                 for_each_plugin!(self.plugins => on_exit(&mut self));
             }
             _ => {
-                if self.need_update && self.is_active() {
+                if !self.update_loop_state.is_suspended() && self.is_active() {
                     if self.is_suspended {
                         for_each_plugin!(self.plugins => on_resumed(&mut self));
                         self.is_suspended = false;
@@ -2563,5 +2599,5 @@ fn update(editor: &mut Editor, control_flow: &mut ControlFlow) {
     window.set_cursor_icon(translate_cursor_icon(editor.engine.user_interface.cursor()));
     window.request_redraw();
 
-    editor.need_update = editor.is_in_preview_mode();
+    editor.update_loop_state.decrease_counter();
 }
