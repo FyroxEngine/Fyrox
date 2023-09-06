@@ -8,7 +8,6 @@ use crate::{
     world::graph::selection::GraphSelection,
     MSG_SYNC_FLAG,
 };
-use fyrox::scene::pivot::PivotBuilder;
 use fyrox::{
     core::{algebra::Vector3, log::Log, pool::Handle, reflect::prelude::*},
     gui::{
@@ -25,8 +24,9 @@ use fyrox::{
         base::BaseBuilder,
         collider::{ColliderBuilder, ColliderShape},
         graph::Graph,
-        joint::JointBuilder,
+        joint::{BallJoint, JointBuilder, JointParams},
         node::Node,
+        pivot::PivotBuilder,
         rigidbody::{RigidBodyBuilder, RigidBodyType},
         transform::TransformBuilder,
     },
@@ -187,6 +187,8 @@ fn make_ball_joint(
     ragdoll: Handle<Node>,
     graph: &mut Graph,
 ) -> Handle<Node> {
+    let joint = BallJoint::default();
+
     let ball_joint = JointBuilder::new(
         BaseBuilder::new().with_name(name).with_local_transform(
             TransformBuilder::new()
@@ -194,6 +196,7 @@ fn make_ball_joint(
                 .build(),
         ),
     )
+    .with_params(JointParams::BallJoint(joint))
     .with_body1(body1)
     .with_body2(body2)
     .build(graph);
@@ -204,12 +207,31 @@ fn make_ball_joint(
 }
 
 impl RagdollPreset {
+    /// Calculates base size (size of the head) using common human body proportions. It uses distance between hand and elbow as a
+    /// head size (it matches 1:1).
+    fn measure_base_size(&self, graph: &Graph) -> f32 {
+        let mut base_size = 0.2;
+        for (upper, lower) in [
+            (self.left_arm, self.left_hand),
+            (self.right_arm, self.right_hand),
+        ] {
+            if let (Some(upper_ref), Some(lower_ref)) = (graph.try_get(upper), graph.try_get(lower))
+            {
+                base_size = (upper_ref.global_position() - lower_ref.global_position()).norm();
+                break;
+            }
+        }
+        base_size
+    }
+
     pub fn create_and_send_command(
         &self,
         graph: &mut Graph,
         editor_scene: &EditorScene,
         sender: &MessageSender,
     ) {
+        let base_size = self.measure_base_size(graph);
+
         let ragdoll = PivotBuilder::new(BaseBuilder::new()).build(graph);
 
         graph.link_nodes(ragdoll, editor_scene.scene_content_root);
@@ -218,7 +240,7 @@ impl RagdollPreset {
             make_oriented_capsule(
                 self.left_up_leg,
                 self.left_leg,
-                0.25,
+                0.9 * base_size,
                 "RagdollLeftUpLeg",
                 ragdoll,
                 graph,
@@ -231,7 +253,7 @@ impl RagdollPreset {
             make_oriented_capsule(
                 self.left_leg,
                 self.left_foot,
-                0.25,
+                0.6 * base_size,
                 "RagdollLeftLeg",
                 ragdoll,
                 graph,
@@ -241,7 +263,13 @@ impl RagdollPreset {
         };
 
         let left_foot = if self.left_foot.is_some() {
-            make_sphere(self.left_foot, 0.5, "RagdollLeftFoot", ragdoll, graph)
+            make_sphere(
+                self.left_foot,
+                0.5 * base_size,
+                "RagdollLeftFoot",
+                ragdoll,
+                graph,
+            )
         } else {
             Default::default()
         };
@@ -250,7 +278,7 @@ impl RagdollPreset {
             make_oriented_capsule(
                 self.right_up_leg,
                 self.right_leg,
-                0.25,
+                0.9 * base_size,
                 "RagdollLeftUpLeg",
                 ragdoll,
                 graph,
@@ -263,7 +291,7 @@ impl RagdollPreset {
             make_oriented_capsule(
                 self.right_leg,
                 self.right_foot,
-                0.25,
+                0.6 * base_size,
                 "RagdollLeftLeg",
                 ragdoll,
                 graph,
@@ -273,7 +301,13 @@ impl RagdollPreset {
         };
 
         let right_foot = if self.right_foot.is_some() {
-            make_sphere(self.right_foot, 0.5, "RagdollRightFoot", ragdoll, graph)
+            make_sphere(
+                self.right_foot,
+                0.5 * base_size,
+                "RagdollRightFoot",
+                ragdoll,
+                graph,
+            )
         } else {
             Default::default()
         };
@@ -281,7 +315,7 @@ impl RagdollPreset {
         let hips = if self.hips.is_some() {
             make_cuboid(
                 self.hips,
-                Vector3::new(0.5, 0.5, 0.5),
+                Vector3::new(base_size, base_size, base_size),
                 "RagdollHips",
                 ragdoll,
                 graph,
