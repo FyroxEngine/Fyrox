@@ -1329,8 +1329,6 @@ impl Editor {
             .handle_ui_message(message, engine, self.message_sender.clone());
         self.command_stack_viewer.handle_ui_message(message);
         self.curve_editor.handle_ui_message(message, engine);
-        self.ragdoll_wizard
-            .handle_ui_message(message, &engine.user_interface);
         self.path_fixer.handle_ui_message(
             message,
             &mut engine.user_interface,
@@ -1356,6 +1354,13 @@ impl Editor {
         if let Some(current_scene_entry) = current_scene_entry {
             let editor_scene = &mut current_scene_entry.editor_scene;
 
+            self.ragdoll_wizard.handle_ui_message(
+                message,
+                &engine.user_interface,
+                &mut engine.scenes[editor_scene.scene].graph,
+                editor_scene,
+                &self.message_sender,
+            );
             self.particle_system_control_panel
                 .handle_ui_message(message, editor_scene, engine);
             self.camera_control_panel
