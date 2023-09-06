@@ -2,6 +2,7 @@ use crate::message::MessageSender;
 use crate::{
     world::graph::item::SceneItem, Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox::gui::draw::{CommandTexture, Draw, DrawingContext};
 use fyrox::{
     core::{color::Color, pool::Handle},
     gui::{
@@ -86,6 +87,18 @@ impl Control for HandlePropertyEditor {
         } else {
             None
         }
+    }
+
+    fn draw(&self, drawing_context: &mut DrawingContext) {
+        // Emit transparent geometry for the field to be able to catch mouse events without precise pointing at the
+        // node name letters.
+        drawing_context.push_rect_filled(&self.bounding_rect(), None);
+        drawing_context.commit(
+            self.clip_bounds(),
+            Brush::Solid(Color::TRANSPARENT),
+            CommandTexture::None,
+            None,
+        );
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
