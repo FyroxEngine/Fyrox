@@ -56,3 +56,48 @@ where
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn timed_entry_default() {
+        let t: TimedEntry<_> = TimedEntry::<u32>::default();
+
+        assert_eq!(t.value, 0);
+        assert_eq!(t.time_to_live, DEFAULT_RESOURCE_LIFETIME);
+    }
+
+    #[test]
+    fn timed_entry_deref() {
+        let t = TimedEntry {
+            value: 42,
+            ..Default::default()
+        };
+
+        assert_eq!(t.deref(), &42);
+    }
+
+    #[test]
+    fn timed_entry_deref_mut() {
+        let mut t = TimedEntry {
+            value: 42,
+            ..Default::default()
+        };
+
+        assert_eq!(t.deref_mut(), &mut 42);
+    }
+
+    #[test]
+    fn timed_entry_clone() {
+        let t = TimedEntry {
+            value: 42,
+            time_to_live: 15.0,
+        };
+        let t2 = t.clone();
+
+        assert_eq!(t.value, t2.value);
+        assert_eq!(t.time_to_live, t2.time_to_live);
+    }
+}
