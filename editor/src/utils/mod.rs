@@ -12,6 +12,7 @@ use std::{fs::File, io::Read, path::Path};
 
 pub mod doc;
 pub mod path_fixer;
+pub mod ragdoll;
 
 pub fn is_slice_equal_permutation<T: PartialEq>(a: &[T], b: &[T]) -> bool {
     if a.is_empty() && !b.is_empty() {

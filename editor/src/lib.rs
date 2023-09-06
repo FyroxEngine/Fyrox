@@ -144,6 +144,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::utils::ragdoll::RagdollWizard;
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -699,6 +700,7 @@ pub struct Editor {
     pub focused: bool,
     pub update_loop_state: UpdateLoopState,
     pub is_suspended: bool,
+    pub ragdoll_wizard: RagdollWizard,
 }
 
 impl Editor {
@@ -834,6 +836,7 @@ impl Editor {
         let audio_preview_panel = AudioPreviewPanel::new(ctx);
         let doc_window = DocWindow::new(ctx);
         let node_removal_dialog = NodeRemovalDialog::new(ctx);
+        let ragdoll_wizard = RagdollWizard::new(ctx, message_sender.clone());
 
         let docking_manager;
         let root_grid = GridBuilder::new(
@@ -1062,6 +1065,7 @@ impl Editor {
             focused: false,
             update_loop_state: UpdateLoopState::default(),
             is_suspended: false,
+            ragdoll_wizard,
         };
 
         if let Some(data) = startup_data {
@@ -1312,6 +1316,7 @@ impl Editor {
                     command_stack_panel: self.command_stack_viewer.window,
                     scene_settings: &self.scene_settings,
                     animation_editor: &self.animation_editor,
+                    ragdoll_wizard: &self.ragdoll_wizard,
                 },
                 settings: &mut self.settings,
             },
@@ -1324,6 +1329,8 @@ impl Editor {
             .handle_ui_message(message, engine, self.message_sender.clone());
         self.command_stack_viewer.handle_ui_message(message);
         self.curve_editor.handle_ui_message(message, engine);
+        self.ragdoll_wizard
+            .handle_ui_message(message, &engine.user_interface);
         self.path_fixer.handle_ui_message(
             message,
             &mut engine.user_interface,

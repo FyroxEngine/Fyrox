@@ -8,6 +8,7 @@ use crate::{
     scene::EditorScene,
     send_sync_message,
     settings::Settings,
+    utils::ragdoll::RagdollWizard,
     AbsmEditor, CurveEditorWindow, Engine, Mode, SceneSettingsWindow,
 };
 use fyrox::{
@@ -57,6 +58,7 @@ pub struct Panels<'b> {
     pub absm_editor: &'b AbsmEditor,
     pub scene_settings: &'b SceneSettingsWindow,
     pub animation_editor: &'b AnimationEditor,
+    pub ragdoll_wizard: &'b RagdollWizard,
 }
 
 pub struct MenuContext<'a, 'b> {

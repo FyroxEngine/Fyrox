@@ -15,6 +15,7 @@ pub struct UtilsMenu {
     open_curve_editor: Handle<UiNode>,
     absm_editor: Handle<UiNode>,
     animation_editor: Handle<UiNode>,
+    ragdoll_wizard: Handle<UiNode>,
 }
 
 impl UtilsMenu {
@@ -23,6 +24,7 @@ impl UtilsMenu {
         let open_curve_editor;
         let absm_editor;
         let animation_editor;
+        let ragdoll_wizard;
         let menu = create_root_menu_item(
             "Utils",
             vec![
@@ -42,6 +44,10 @@ impl UtilsMenu {
                     animation_editor = create_menu_item("Animation Editor", vec![], ctx);
                     animation_editor
                 },
+                {
+                    ragdoll_wizard = create_menu_item("Ragdoll Wizard", vec![], ctx);
+                    ragdoll_wizard
+                },
             ],
             ctx,
         );
@@ -52,6 +58,7 @@ impl UtilsMenu {
             open_curve_editor,
             absm_editor,
             animation_editor,
+            ragdoll_wizard,
         }
     }
 
@@ -69,6 +76,8 @@ impl UtilsMenu {
                 panels.absm_editor.open(ui);
             } else if message.destination() == self.animation_editor {
                 panels.animation_editor.open(ui);
+            } else if message.destination() == self.ragdoll_wizard {
+                panels.ragdoll_wizard.open(ui);
             }
         }
     }
