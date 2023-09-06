@@ -8,6 +8,7 @@ use crate::{
     world::graph::selection::GraphSelection,
     MSG_SYNC_FLAG,
 };
+use fyrox::scene::pivot::PivotBuilder;
 use fyrox::{
     core::{algebra::Vector3, log::Log, pool::Handle, reflect::prelude::*},
     gui::{
@@ -86,12 +87,13 @@ fn make_oriented_capsule(
     to: Handle<Node>,
     radius: f32,
     name: &str,
+    ragdoll: Handle<Node>,
     graph: &mut Graph,
 ) -> Handle<Node> {
     let pos_from = graph[from].global_position();
     let pos_to = graph[to].global_position();
 
-    RigidBodyBuilder::new(
+    let capsule = RigidBodyBuilder::new(
         BaseBuilder::new()
             .with_name(name)
             .with_children(&[ColliderBuilder::new(
@@ -111,16 +113,21 @@ fn make_oriented_capsule(
             .build(graph)]),
     )
     .with_body_type(RigidBodyType::KinematicPositionBased)
-    .build(graph)
+    .build(graph);
+
+    graph.link_nodes(capsule, ragdoll);
+
+    capsule
 }
 
 fn make_cuboid(
     from: Handle<Node>,
     half_size: Vector3<f32>,
     name: &str,
+    ragdoll: Handle<Node>,
     graph: &mut Graph,
 ) -> Handle<Node> {
-    RigidBodyBuilder::new(
+    let cuboid = RigidBodyBuilder::new(
         BaseBuilder::new()
             .with_name(name)
             .with_children(&[ColliderBuilder::new(
@@ -136,11 +143,21 @@ fn make_cuboid(
             .build(graph)]),
     )
     .with_body_type(RigidBodyType::KinematicPositionBased)
-    .build(graph)
+    .build(graph);
+
+    graph.link_nodes(cuboid, ragdoll);
+
+    cuboid
 }
 
-fn make_sphere(from: Handle<Node>, radius: f32, name: &str, graph: &mut Graph) -> Handle<Node> {
-    RigidBodyBuilder::new(
+fn make_sphere(
+    from: Handle<Node>,
+    radius: f32,
+    name: &str,
+    ragdoll: Handle<Node>,
+    graph: &mut Graph,
+) -> Handle<Node> {
+    let sphere = RigidBodyBuilder::new(
         BaseBuilder::new()
             .with_name(name)
             .with_children(&[ColliderBuilder::new(
@@ -156,16 +173,21 @@ fn make_sphere(from: Handle<Node>, radius: f32, name: &str, graph: &mut Graph) -
             .build(graph)]),
     )
     .with_body_type(RigidBodyType::KinematicPositionBased)
-    .build(graph)
+    .build(graph);
+
+    graph.link_nodes(sphere, ragdoll);
+
+    sphere
 }
 
 fn make_ball_joint(
     body1: Handle<Node>,
     body2: Handle<Node>,
     name: &str,
+    ragdoll: Handle<Node>,
     graph: &mut Graph,
 ) -> Handle<Node> {
-    JointBuilder::new(
+    let ball_joint = JointBuilder::new(
         BaseBuilder::new().with_name(name).with_local_transform(
             TransformBuilder::new()
                 .with_local_position(graph[body1].global_position())
@@ -174,7 +196,11 @@ fn make_ball_joint(
     )
     .with_body1(body1)
     .with_body2(body2)
-    .build(graph)
+    .build(graph);
+
+    graph.link_nodes(ball_joint, ragdoll);
+
+    ball_joint
 }
 
 impl RagdollPreset {
@@ -184,12 +210,17 @@ impl RagdollPreset {
         editor_scene: &EditorScene,
         sender: &MessageSender,
     ) {
+        let ragdoll = PivotBuilder::new(BaseBuilder::new()).build(graph);
+
+        graph.link_nodes(ragdoll, editor_scene.scene_content_root);
+
         let left_up_leg = if self.left_up_leg.is_some() && self.left_leg.is_some() {
             make_oriented_capsule(
                 self.left_up_leg,
                 self.left_leg,
                 0.25,
                 "RagdollLeftUpLeg",
+                ragdoll,
                 graph,
             )
         } else {
@@ -197,13 +228,20 @@ impl RagdollPreset {
         };
 
         let left_leg = if self.left_leg.is_some() && self.left_foot.is_some() {
-            make_oriented_capsule(self.left_leg, self.left_foot, 0.25, "RagdollLeftLeg", graph)
+            make_oriented_capsule(
+                self.left_leg,
+                self.left_foot,
+                0.25,
+                "RagdollLeftLeg",
+                ragdoll,
+                graph,
+            )
         } else {
             Default::default()
         };
 
         let left_foot = if self.left_foot.is_some() {
-            make_sphere(self.left_foot, 0.5, "RagdollLeftFoot", graph)
+            make_sphere(self.left_foot, 0.5, "RagdollLeftFoot", ragdoll, graph)
         } else {
             Default::default()
         };
@@ -214,6 +252,7 @@ impl RagdollPreset {
                 self.right_leg,
                 0.25,
                 "RagdollLeftUpLeg",
+                ragdoll,
                 graph,
             )
         } else {
@@ -226,6 +265,7 @@ impl RagdollPreset {
                 self.right_foot,
                 0.25,
                 "RagdollLeftLeg",
+                ragdoll,
                 graph,
             )
         } else {
@@ -233,19 +273,31 @@ impl RagdollPreset {
         };
 
         let right_foot = if self.right_foot.is_some() {
-            make_sphere(self.right_foot, 0.5, "RagdollRightFoot", graph)
+            make_sphere(self.right_foot, 0.5, "RagdollRightFoot", ragdoll, graph)
         } else {
             Default::default()
         };
 
         let hips = if self.hips.is_some() {
-            make_cuboid(self.hips, Vector3::new(0.5, 0.5, 0.5), "RagdollHips", graph)
+            make_cuboid(
+                self.hips,
+                Vector3::new(0.5, 0.5, 0.5),
+                "RagdollHips",
+                ragdoll,
+                graph,
+            )
         } else {
             Default::default()
         };
 
         if left_up_leg.is_some() && hips.is_some() {
-            make_ball_joint(left_up_leg, hips, "RagdollLeftUpLegHipsBallJoint", graph);
+            make_ball_joint(
+                left_up_leg,
+                hips,
+                "RagdollLeftUpLegHipsBallJoint",
+                ragdoll,
+                graph,
+            );
         }
 
         if left_leg.is_some() && left_up_leg.is_some() {
@@ -253,6 +305,7 @@ impl RagdollPreset {
                 left_leg,
                 left_up_leg,
                 "RagdollLeftLegLeftUpLegBallJoint",
+                ragdoll,
                 graph,
             );
         }
@@ -262,12 +315,19 @@ impl RagdollPreset {
                 left_foot,
                 left_leg,
                 "RagdollLeftFootLeftLegBallJoint",
+                ragdoll,
                 graph,
             );
         }
 
         if right_up_leg.is_some() && hips.is_some() {
-            make_ball_joint(right_up_leg, hips, "RagdollLeftUpLegHipsBallJoint", graph);
+            make_ball_joint(
+                right_up_leg,
+                hips,
+                "RagdollLeftUpLegHipsBallJoint",
+                ragdoll,
+                graph,
+            );
         }
 
         if right_leg.is_some() && right_up_leg.is_some() {
@@ -275,6 +335,7 @@ impl RagdollPreset {
                 right_leg,
                 right_up_leg,
                 "RagdollRightLegRightUpLegBallJoint",
+                ragdoll,
                 graph,
             );
         }
@@ -284,19 +345,20 @@ impl RagdollPreset {
                 right_foot,
                 right_leg,
                 "RagdollRightFootRightLegBallJoint",
+                ragdoll,
                 graph,
             );
         }
 
         // Immediately after extract if from the scene to subgraph. This is required to not violate
         // the rule of one place of execution, only commands allowed to modify the scene.
-        let sub_graph = graph.take_reserve_sub_graph(hips);
+        let sub_graph = graph.take_reserve_sub_graph(ragdoll);
 
         let group = vec![
             SceneCommand::new(AddModelCommand::new(sub_graph)),
             // We also want to select newly instantiated model.
             SceneCommand::new(ChangeSelectionCommand::new(
-                Selection::Graph(GraphSelection::single_or_empty(hips)),
+                Selection::Graph(GraphSelection::single_or_empty(ragdoll)),
                 editor_scene.selection.clone(),
             )),
         ];
