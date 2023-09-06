@@ -1356,7 +1356,7 @@ impl Editor {
 
             self.ragdoll_wizard.handle_ui_message(
                 message,
-                &engine.user_interface,
+                &mut engine.user_interface,
                 &mut engine.scenes[editor_scene.scene].graph,
                 editor_scene,
                 &self.message_sender,

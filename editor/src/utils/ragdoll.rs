@@ -407,6 +407,7 @@ pub struct RagdollWizard {
     inspector: Handle<UiNode>,
     ok: Handle<UiNode>,
     cancel: Handle<UiNode>,
+    autofill: Handle<UiNode>,
 }
 
 impl RagdollWizard {
@@ -417,6 +418,7 @@ impl RagdollWizard {
         let inspector;
         let ok;
         let cancel;
+        let autofill;
         let window = WindowBuilder::new(
             WidgetBuilder::new()
                 .with_width(350.0)
@@ -451,6 +453,16 @@ impl RagdollWizard {
                                 .with_horizontal_alignment(HorizontalAlignment::Right)
                                 .on_row(1)
                                 .with_margin(Thickness::uniform(1.0))
+                                .with_child({
+                                    autofill = ButtonBuilder::new(
+                                        WidgetBuilder::new()
+                                            .with_width(100.0)
+                                            .with_margin(Thickness::uniform(1.0)),
+                                    )
+                                    .with_text("Autofill")
+                                    .build(ctx);
+                                    autofill
+                                })
                                 .with_child({
                                     ok = ButtonBuilder::new(
                                         WidgetBuilder::new()
@@ -489,6 +501,7 @@ impl RagdollWizard {
             inspector,
             ok,
             cancel,
+            autofill,
         }
     }
 
@@ -503,7 +516,7 @@ impl RagdollWizard {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        ui: &UserInterface,
+        ui: &mut UserInterface,
         graph: &mut Graph,
         editor_scene: &EditorScene,
         sender: &MessageSender,
@@ -534,6 +547,50 @@ impl RagdollWizard {
                     self.window,
                     MessageDirection::ToWidget,
                 ));
+            } else if message.destination() == self.autofill {
+                fn find_by_pattern(graph: &Graph, pattern: &str) -> Handle<Node> {
+                    graph
+                        .find(graph.get_root(), &mut |n| n.name().contains(pattern))
+                        .map(|(h, _)| h)
+                        .unwrap_or_default()
+                }
+
+                self.preset.hips = find_by_pattern(graph, "Hips");
+
+                self.preset.spine = find_by_pattern(graph, "Spine");
+                self.preset.spine1 = find_by_pattern(graph, "Spine1");
+                self.preset.spine2 = find_by_pattern(graph, "Spine2");
+
+                self.preset.right_up_leg = find_by_pattern(graph, "RightUpLeg");
+                self.preset.right_leg = find_by_pattern(graph, "RightLeg");
+                self.preset.right_foot = find_by_pattern(graph, "RightFoot");
+
+                self.preset.left_up_leg = find_by_pattern(graph, "LeftUpLeg");
+                self.preset.left_leg = find_by_pattern(graph, "LeftLeg");
+                self.preset.left_foot = find_by_pattern(graph, "LeftFoot");
+
+                self.preset.right_hand = find_by_pattern(graph, "RightHand");
+                self.preset.right_arm = find_by_pattern(graph, "RightArm");
+                self.preset.right_fore_arm = find_by_pattern(graph, "RightForeArm");
+                self.preset.right_shoulder = find_by_pattern(graph, "RightShoulder");
+
+                self.preset.left_hand = find_by_pattern(graph, "LeftHand");
+                self.preset.left_arm = find_by_pattern(graph, "LeftArm");
+                self.preset.left_fore_arm = find_by_pattern(graph, "LeftForeArm");
+                self.preset.left_shoulder = find_by_pattern(graph, "LeftShoulder");
+
+                let ctx = ui
+                    .node(self.inspector)
+                    .cast::<fyrox::gui::inspector::Inspector>()
+                    .unwrap()
+                    .context()
+                    .clone();
+
+                if let Err(sync_errors) = ctx.sync(&self.preset, ui, 0, true, Default::default()) {
+                    for error in sync_errors {
+                        Log::err(format!("Failed to sync property. Reason: {:?}", error))
+                    }
+                }
             }
         }
     }
