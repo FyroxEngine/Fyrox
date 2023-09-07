@@ -13,9 +13,9 @@ use crate::{
     },
     impl_query_component,
     scene::{
-        base::Base,
-        node::Node,
-        node::{NodeTrait, UpdateContext},
+        base::{Base, BaseBuilder},
+        graph::Graph,
+        node::{Node, NodeTrait, UpdateContext},
         rigidbody::{RigidBody, RigidBodyType},
     },
 };
@@ -23,11 +23,11 @@ use std::ops::{Deref, DerefMut};
 
 #[derive(Clone, Reflect, Visit, Debug, PartialEq, Default)]
 pub struct Limb {
-    bone: Handle<Node>,
-    physical_bone: Handle<Node>,
+    pub bone: Handle<Node>,
+    pub physical_bone: Handle<Node>,
 }
 
-#[derive(Clone, Reflect, Visit, Debug)]
+#[derive(Clone, Reflect, Visit, Debug, Default)]
 pub struct Ragdoll {
     base: Base,
     character_rigid_body: InheritableVariable<Handle<Node>>,
@@ -162,5 +162,74 @@ impl Ragdoll {
 
     pub fn is_active(&self) -> bool {
         *self.is_active
+    }
+
+    pub fn limbs(&self) -> &[Limb] {
+        self.limbs.as_slice()
+    }
+
+    pub fn set_limbs(&mut self, limbs: Vec<Limb>) {
+        self.limbs.set_value_and_mark_modified(limbs);
+    }
+
+    pub fn hips(&self) -> Handle<Node> {
+        *self.hips
+    }
+
+    pub fn set_hips(&mut self, hips: Handle<Node>) {
+        self.hips.set_value_and_mark_modified(hips);
+    }
+}
+
+pub struct RagdollBuilder {
+    base_builder: BaseBuilder,
+    character_rigid_body: Handle<Node>,
+    is_active: bool,
+    limbs: Vec<Limb>,
+    hips: Handle<Node>,
+}
+
+impl RagdollBuilder {
+    pub fn new(base_builder: BaseBuilder) -> Self {
+        Self {
+            base_builder,
+            character_rigid_body: Default::default(),
+            is_active: true,
+            limbs: Default::default(),
+            hips: Default::default(),
+        }
+    }
+
+    pub fn with_character_rigid_body(mut self, handle: Handle<Node>) -> Self {
+        self.character_rigid_body = handle;
+        self
+    }
+
+    pub fn with_active(mut self, active: bool) -> Self {
+        self.is_active = active;
+        self
+    }
+
+    pub fn with_limbs(mut self, limbs: Vec<Limb>) -> Self {
+        self.limbs = limbs;
+        self
+    }
+
+    pub fn with_hips(mut self, hips: Handle<Node>) -> Self {
+        self.hips = hips;
+        self
+    }
+
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        let ragdoll = Ragdoll {
+            base: self.base_builder.build_base(),
+            character_rigid_body: self.character_rigid_body.into(),
+            is_active: self.is_active.into(),
+            limbs: self.limbs.into(),
+            hips: self.hips.into(),
+            prev_enabled: self.is_active,
+        };
+
+        graph.add_node(Node::new(ragdoll))
     }
 }

@@ -14,6 +14,7 @@ use crate::{
         node::{Node, NodeTrait},
         particle_system::ParticleSystem,
         pivot::Pivot,
+        ragdoll::Ragdoll,
         sound::{listener::Listener, Sound},
         sprite::Sprite,
         terrain::Terrain,
@@ -57,6 +58,7 @@ impl NodeConstructorContainer {
         container.add::<AnimationPlayer>();
         container.add::<AnimationBlendingStateMachine>();
         container.add::<NavigationalMesh>();
+        container.add::<Ragdoll>();
 
         container
     }

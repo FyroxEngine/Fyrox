@@ -11,6 +11,7 @@ use crate::{
         pool::Handle,
         reflect::prelude::*,
         uuid::Uuid,
+        variable,
         visitor::{Visit, VisitResult, Visitor},
     },
     renderer::batch::RenderContext,
@@ -28,13 +29,13 @@ use crate::{
         navmesh::NavigationalMesh,
         particle_system::ParticleSystem,
         pivot::Pivot,
+        ragdoll::Ragdoll,
         sound::{context::SoundContext, listener::Listener, Sound},
         sprite::Sprite,
         terrain::Terrain,
         Scene,
     },
 };
-use fyrox_core::variable;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -463,6 +464,7 @@ impl Node {
     define_is_as!(NavigationalMesh => fn is_navigational_mesh, fn as_navigational_mesh, fn as_navigational_mesh_mut);
     define_is_as!(AnimationBlendingStateMachine => fn is_absm, fn as_absm, fn as_absm_mut);
     define_is_as!(AnimationPlayer => fn is_animation_player, fn as_animation_player, fn as_animation_player_mut);
+    define_is_as!(Ragdoll => fn is_ragdoll, fn as_ragdoll, fn as_ragdoll_mut);
 }
 
 impl Visit for Node {
