@@ -79,11 +79,15 @@ impl SceneCommand {
 #[derive(Debug)]
 pub struct CommandGroup {
     commands: Vec<SceneCommand>,
+    custom_name: String,
 }
 
 impl From<Vec<SceneCommand>> for CommandGroup {
     fn from(commands: Vec<SceneCommand>) -> Self {
-        Self { commands }
+        Self {
+            commands,
+            custom_name: Default::default(),
+        }
     }
 }
 
@@ -91,16 +95,25 @@ impl CommandGroup {
     pub fn push(&mut self, command: SceneCommand) {
         self.commands.push(command)
     }
+
+    pub fn with_custom_name<S: AsRef<str>>(mut self, name: S) -> Self {
+        self.custom_name = name.as_ref().to_string();
+        self
+    }
 }
 
 impl Command for CommandGroup {
     fn name(&mut self, context: &SceneContext) -> String {
-        let mut name = String::from("Command group: ");
-        for cmd in self.commands.iter_mut() {
-            name.push_str(&cmd.name(context));
-            name.push_str(", ");
+        if self.custom_name.is_empty() {
+            let mut name = String::from("Command group: ");
+            for cmd in self.commands.iter_mut() {
+                name.push_str(&cmd.name(context));
+                name.push_str(", ");
+            }
+            name
+        } else {
+            self.custom_name.clone()
         }
-        name
     }
 
     fn execute(&mut self, context: &mut SceneContext) {
