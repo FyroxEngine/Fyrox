@@ -8,6 +8,7 @@ use crate::{
     world::graph::selection::GraphSelection,
     MSG_SYNC_FLAG,
 };
+use fyrox::scene::joint::RevoluteJoint;
 use fyrox::{
     core::{algebra::Vector3, log::Log, pool::Handle, reflect::prelude::*},
     gui::{
@@ -96,14 +97,13 @@ fn make_oriented_capsule(
     let capsule = RigidBodyBuilder::new(
         BaseBuilder::new()
             .with_name(name)
+            .with_local_transform(
+                TransformBuilder::new()
+                    .with_local_position(pos_from)
+                    .build(),
+            )
             .with_children(&[ColliderBuilder::new(
-                BaseBuilder::new()
-                    .with_name("CapsuleCollider")
-                    .with_local_transform(
-                        TransformBuilder::new()
-                            .with_local_position(pos_from)
-                            .build(),
-                    ),
+                BaseBuilder::new().with_name("CapsuleCollider"),
             )
             .with_shape(ColliderShape::capsule(
                 Vector3::default(),
@@ -130,17 +130,16 @@ fn make_cuboid(
     let cuboid = RigidBodyBuilder::new(
         BaseBuilder::new()
             .with_name(name)
-            .with_children(&[ColliderBuilder::new(
-                BaseBuilder::new()
-                    .with_name("CuboidCollider")
-                    .with_local_transform(
-                        TransformBuilder::new()
-                            .with_local_position(graph[from].global_position())
-                            .build(),
-                    ),
+            .with_local_transform(
+                TransformBuilder::new()
+                    .with_local_position(graph[from].global_position())
+                    .build(),
             )
-            .with_shape(ColliderShape::cuboid(half_size.x, half_size.y, half_size.z))
-            .build(graph)]),
+            .with_children(&[
+                ColliderBuilder::new(BaseBuilder::new().with_name("CuboidCollider"))
+                    .with_shape(ColliderShape::cuboid(half_size.x, half_size.y, half_size.z))
+                    .build(graph),
+            ]),
     )
     .with_body_type(RigidBodyType::KinematicPositionBased)
     .build(graph);
@@ -160,17 +159,16 @@ fn make_sphere(
     let sphere = RigidBodyBuilder::new(
         BaseBuilder::new()
             .with_name(name)
-            .with_children(&[ColliderBuilder::new(
-                BaseBuilder::new()
-                    .with_name("SphereCollider")
-                    .with_local_transform(
-                        TransformBuilder::new()
-                            .with_local_position(graph[from].global_position())
-                            .build(),
-                    ),
+            .with_local_transform(
+                TransformBuilder::new()
+                    .with_local_position(graph[from].global_position())
+                    .build(),
             )
-            .with_shape(ColliderShape::ball(radius))
-            .build(graph)]),
+            .with_children(&[
+                ColliderBuilder::new(BaseBuilder::new().with_name("SphereCollider"))
+                    .with_shape(ColliderShape::ball(radius))
+                    .build(graph),
+            ]),
     )
     .with_body_type(RigidBodyType::KinematicPositionBased)
     .build(graph);
@@ -206,6 +204,32 @@ fn make_ball_joint(
     ball_joint
 }
 
+fn make_hinge_joint(
+    body1: Handle<Node>,
+    body2: Handle<Node>,
+    name: &str,
+    ragdoll: Handle<Node>,
+    graph: &mut Graph,
+) -> Handle<Node> {
+    let joint = RevoluteJoint::default();
+
+    let hinge_joint = JointBuilder::new(
+        BaseBuilder::new().with_name(name).with_local_transform(
+            TransformBuilder::new()
+                .with_local_position(graph[body1].global_position())
+                .build(),
+        ),
+    )
+    .with_params(JointParams::RevoluteJoint(joint))
+    .with_body1(body1)
+    .with_body2(body2)
+    .build(graph);
+
+    graph.link_nodes(hinge_joint, ragdoll);
+
+    hinge_joint
+}
+
 impl RagdollPreset {
     /// Calculates base size (size of the head) using common human body proportions. It uses distance between hand and elbow as a
     /// head size (it matches 1:1).
@@ -232,7 +256,7 @@ impl RagdollPreset {
     ) {
         let base_size = self.measure_base_size(graph);
 
-        let ragdoll = PivotBuilder::new(BaseBuilder::new()).build(graph);
+        let ragdoll = PivotBuilder::new(BaseBuilder::new().with_name("Ragdoll")).build(graph);
 
         graph.link_nodes(ragdoll, editor_scene.scene_content_root);
 
@@ -240,7 +264,7 @@ impl RagdollPreset {
             make_oriented_capsule(
                 self.left_up_leg,
                 self.left_leg,
-                0.9 * base_size,
+                0.2 * base_size,
                 "RagdollLeftUpLeg",
                 ragdoll,
                 graph,
@@ -253,7 +277,7 @@ impl RagdollPreset {
             make_oriented_capsule(
                 self.left_leg,
                 self.left_foot,
-                0.6 * base_size,
+                0.15 * base_size,
                 "RagdollLeftLeg",
                 ragdoll,
                 graph,
@@ -265,7 +289,7 @@ impl RagdollPreset {
         let left_foot = if self.left_foot.is_some() {
             make_sphere(
                 self.left_foot,
-                0.5 * base_size,
+                0.1 * base_size,
                 "RagdollLeftFoot",
                 ragdoll,
                 graph,
@@ -278,7 +302,7 @@ impl RagdollPreset {
             make_oriented_capsule(
                 self.right_up_leg,
                 self.right_leg,
-                0.9 * base_size,
+                0.2 * base_size,
                 "RagdollLeftUpLeg",
                 ragdoll,
                 graph,
@@ -291,7 +315,7 @@ impl RagdollPreset {
             make_oriented_capsule(
                 self.right_leg,
                 self.right_foot,
-                0.6 * base_size,
+                0.15 * base_size,
                 "RagdollLeftLeg",
                 ragdoll,
                 graph,
@@ -303,7 +327,7 @@ impl RagdollPreset {
         let right_foot = if self.right_foot.is_some() {
             make_sphere(
                 self.right_foot,
-                0.5 * base_size,
+                0.1 * base_size,
                 "RagdollRightFoot",
                 ragdoll,
                 graph,
@@ -324,6 +348,9 @@ impl RagdollPreset {
             Default::default()
         };
 
+        // Link limbs with joints.
+        graph.update_hierarchical_data();
+
         if left_up_leg.is_some() && hips.is_some() {
             make_ball_joint(
                 left_up_leg,
@@ -335,20 +362,20 @@ impl RagdollPreset {
         }
 
         if left_leg.is_some() && left_up_leg.is_some() {
-            make_ball_joint(
+            make_hinge_joint(
                 left_leg,
                 left_up_leg,
-                "RagdollLeftLegLeftUpLegBallJoint",
+                "RagdollLeftLegLeftUpLegHingeJoint",
                 ragdoll,
                 graph,
             );
         }
 
         if left_foot.is_some() && left_leg.is_some() {
-            make_ball_joint(
+            make_hinge_joint(
                 left_foot,
                 left_leg,
-                "RagdollLeftFootLeftLegBallJoint",
+                "RagdollLeftFootLeftLegHingeJoint",
                 ragdoll,
                 graph,
             );
@@ -365,20 +392,20 @@ impl RagdollPreset {
         }
 
         if right_leg.is_some() && right_up_leg.is_some() {
-            make_ball_joint(
+            make_hinge_joint(
                 right_leg,
                 right_up_leg,
-                "RagdollRightLegRightUpLegBallJoint",
+                "RagdollRightLegRightUpLegHingeJoint",
                 ragdoll,
                 graph,
             );
         }
 
         if right_foot.is_some() && right_leg.is_some() {
-            make_ball_joint(
+            make_hinge_joint(
                 right_foot,
                 right_leg,
-                "RagdollRightFootRightLegBallJoint",
+                "RagdollRightFootRightLegHingeJoint",
                 ragdoll,
                 graph,
             );
