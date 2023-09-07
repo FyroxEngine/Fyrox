@@ -118,7 +118,12 @@ impl NodeTrait for Ragdoll {
                     ctx.nodes[limb.bone]
                         .local_transform_mut()
                         .set_position(Vector3::new(transform[12], transform[13], transform[14]))
-                        .set_rotation(UnitQuaternion::from_matrix(&transform.basis()));
+                        .set_rotation(UnitQuaternion::from_matrix_eps(
+                            &transform.basis(),
+                            f32::EPSILON,
+                            16,
+                            Default::default(),
+                        ));
                 } else {
                     limb_body.set_body_type(RigidBodyType::KinematicPositionBased);
                     limb_body.set_lin_vel(Default::default());
@@ -127,8 +132,12 @@ impl NodeTrait for Ragdoll {
                     // Sync transform of the body with respective bone.
                     if let Some(bone) = ctx.nodes.try_borrow(limb.bone) {
                         let position = bone.global_position();
-                        let rotation =
-                            UnitQuaternion::from_matrix(&bone.global_transform().basis());
+                        let rotation = UnitQuaternion::from_matrix_eps(
+                            &bone.global_transform().basis(),
+                            f32::EPSILON,
+                            16,
+                            Default::default(),
+                        );
                         ctx.nodes[limb.bone]
                             .local_transform_mut()
                             .set_position(position)
