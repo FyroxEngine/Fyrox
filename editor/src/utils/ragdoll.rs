@@ -56,6 +56,7 @@ pub struct RagdollPreset {
     neck: Handle<Node>,
     head: Handle<Node>,
     total_mass: f32,
+    friction: f32,
 }
 
 impl Default for RagdollPreset {
@@ -82,6 +83,7 @@ impl Default for RagdollPreset {
             neck: Default::default(),
             head: Default::default(),
             total_mass: 20.0,
+            friction: 0.5,
         }
     }
 }
@@ -92,6 +94,7 @@ fn make_oriented_capsule(
     radius: f32,
     name: &str,
     ragdoll: Handle<Node>,
+    friction: f32,
     graph: &mut Graph,
 ) -> Handle<Node> {
     if let (Some(from_ref), Some(to_ref)) = (graph.try_get(from), graph.try_get(to)) {
@@ -114,6 +117,7 @@ fn make_oriented_capsule(
                     pos_to - pos_from,
                     radius,
                 ))
+                .with_friction(friction)
                 .build(graph)]),
         )
         .with_body_type(RigidBodyType::KinematicPositionBased)
@@ -132,6 +136,7 @@ fn make_cuboid(
     half_size: Vector3<f32>,
     name: &str,
     ragdoll: Handle<Node>,
+    friction: f32,
     graph: &mut Graph,
 ) -> Handle<Node> {
     if let Some(from_ref) = graph.try_get(from) {
@@ -147,6 +152,7 @@ fn make_cuboid(
                     BaseBuilder::new().with_name("CuboidCollider"),
                 )
                 .with_shape(ColliderShape::cuboid(half_size.x, half_size.y, half_size.z))
+                .with_friction(friction)
                 .build(graph)]),
         )
         .with_body_type(RigidBodyType::KinematicPositionBased)
@@ -165,6 +171,7 @@ fn make_sphere(
     radius: f32,
     name: &str,
     ragdoll: Handle<Node>,
+    friction: f32,
     graph: &mut Graph,
 ) -> Handle<Node> {
     if let Some(from_ref) = graph.try_get(from) {
@@ -179,6 +186,7 @@ fn make_sphere(
                 .with_children(&[ColliderBuilder::new(
                     BaseBuilder::new().with_name("SphereCollider"),
                 )
+                .with_friction(friction)
                 .with_shape(ColliderShape::ball(radius))
                 .build(graph)]),
         )
@@ -294,6 +302,7 @@ impl RagdollPreset {
             0.4 * base_size,
             "RagdollLeftUpLeg",
             ragdoll,
+            self.friction,
             graph,
         );
 
@@ -303,6 +312,7 @@ impl RagdollPreset {
             0.3 * base_size,
             "RagdollLeftLeg",
             ragdoll,
+            self.friction,
             graph,
         );
 
@@ -311,6 +321,7 @@ impl RagdollPreset {
             0.2 * base_size,
             "RagdollLeftFoot",
             ragdoll,
+            self.friction,
             graph,
         );
 
@@ -320,6 +331,7 @@ impl RagdollPreset {
             0.4 * base_size,
             "RagdollLeftUpLeg",
             ragdoll,
+            self.friction,
             graph,
         );
 
@@ -329,6 +341,7 @@ impl RagdollPreset {
             0.3 * base_size,
             "RagdollLeftLeg",
             ragdoll,
+            self.friction,
             graph,
         );
 
@@ -337,6 +350,7 @@ impl RagdollPreset {
             0.2 * base_size,
             "RagdollRightFoot",
             ragdoll,
+            self.friction,
             graph,
         );
 
@@ -345,6 +359,7 @@ impl RagdollPreset {
             Vector3::new(base_size * 0.5, base_size * 0.2, base_size * 0.4),
             "RagdollHips",
             ragdoll,
+            self.friction,
             graph,
         );
 
@@ -353,6 +368,7 @@ impl RagdollPreset {
             Vector3::new(base_size * 0.5, base_size * 0.25, base_size * 0.4),
             "RagdollSpine",
             ragdoll,
+            self.friction,
             graph,
         );
 
@@ -361,6 +377,7 @@ impl RagdollPreset {
             Vector3::new(base_size * 0.45, base_size * 0.25, base_size * 0.4),
             "RagdollSpine1",
             ragdoll,
+            self.friction,
             graph,
         );
 
@@ -369,6 +386,7 @@ impl RagdollPreset {
             Vector3::new(base_size * 0.6, base_size * 0.25, base_size * 0.4),
             "RagdollSpine2",
             ragdoll,
+            self.friction,
             graph,
         );
 
@@ -378,6 +396,7 @@ impl RagdollPreset {
             0.2 * base_size,
             "RagdollLeftShoulder",
             ragdoll,
+            self.friction,
             graph,
         );
 
@@ -387,6 +406,7 @@ impl RagdollPreset {
             0.2 * base_size,
             "RagdollLeftArm",
             ragdoll,
+            self.friction,
             graph,
         );
 
@@ -396,10 +416,18 @@ impl RagdollPreset {
             0.2 * base_size,
             "RagdollLeftForeArm",
             ragdoll,
+            self.friction,
             graph,
         );
 
-        let left_hand = make_sphere(self.left_hand, 0.3 * base_size, "LeftHand", ragdoll, graph);
+        let left_hand = make_sphere(
+            self.left_hand,
+            0.3 * base_size,
+            "LeftHand",
+            ragdoll,
+            self.friction,
+            graph,
+        );
 
         // Right arm.
         let right_shoulder = make_oriented_capsule(
@@ -408,6 +436,7 @@ impl RagdollPreset {
             0.2 * base_size,
             "RagdollRightShoulder",
             ragdoll,
+            self.friction,
             graph,
         );
 
@@ -417,6 +446,7 @@ impl RagdollPreset {
             0.2 * base_size,
             "RagdollRightArm",
             ragdoll,
+            self.friction,
             graph,
         );
 
@@ -426,6 +456,7 @@ impl RagdollPreset {
             0.2 * base_size,
             "RagdollRightForeArm",
             ragdoll,
+            self.friction,
             graph,
         );
 
@@ -434,6 +465,7 @@ impl RagdollPreset {
             0.3 * base_size,
             "RightHand",
             ragdoll,
+            self.friction,
             graph,
         );
 
@@ -443,10 +475,18 @@ impl RagdollPreset {
             0.4 * base_size,
             "RagdollNeck",
             ragdoll,
+            self.friction,
             graph,
         );
 
-        let head = make_sphere(self.head, 0.5 * base_size, "RightHand", ragdoll, graph);
+        let head = make_sphere(
+            self.head,
+            0.5 * base_size,
+            "RightHand",
+            ragdoll,
+            self.friction,
+            graph,
+        );
 
         // Link limbs with joints.
         graph.update_hierarchical_data();
