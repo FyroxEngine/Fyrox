@@ -21,6 +21,7 @@ pub mod navmesh;
 pub mod node;
 pub mod particle_system;
 pub mod pivot;
+pub mod ragdoll;
 pub mod rigidbody;
 pub mod sound;
 pub mod sprite;
