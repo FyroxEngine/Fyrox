@@ -26,7 +26,7 @@ use fyrox::{
         graph::Graph,
         joint::{BallJoint, JointBuilder, JointParams, RevoluteJoint},
         node::Node,
-        pivot::PivotBuilder,
+        ragdoll::{Limb, RagdollBuilder},
         rigidbody::{RigidBodyBuilder, RigidBodyType},
         transform::TransformBuilder,
     },
@@ -281,7 +281,10 @@ impl RagdollPreset {
     ) {
         let base_size = self.measure_base_size(graph);
 
-        let ragdoll = PivotBuilder::new(BaseBuilder::new().with_name("Ragdoll")).build(graph);
+        let ragdoll = RagdollBuilder::new(BaseBuilder::new().with_name("Ragdoll"))
+            .with_active(true)
+            .with_hips(self.hips)
+            .build(graph);
 
         graph.link_nodes(ragdoll, editor_scene.scene_content_root);
 
@@ -574,6 +577,89 @@ impl RagdollPreset {
 
         try_make_ball_joint(neck, spine2, "RagdollNeckSpine2BallJoint", ragdoll, graph);
         try_make_ball_joint(head, neck, "RagdollHeadNeckBallJoint", ragdoll, graph);
+
+        graph[ragdoll].as_ragdoll_mut().set_limbs(vec![
+            Limb {
+                bone: self.hips,
+                physical_bone: hips,
+            },
+            Limb {
+                bone: self.left_up_leg,
+                physical_bone: left_up_leg,
+            },
+            Limb {
+                bone: self.left_leg,
+                physical_bone: left_leg,
+            },
+            Limb {
+                bone: self.left_foot,
+                physical_bone: left_foot,
+            },
+            Limb {
+                bone: self.right_up_leg,
+                physical_bone: right_up_leg,
+            },
+            Limb {
+                bone: self.right_leg,
+                physical_bone: right_leg,
+            },
+            Limb {
+                bone: self.right_foot,
+                physical_bone: right_foot,
+            },
+            Limb {
+                bone: self.spine,
+                physical_bone: spine,
+            },
+            Limb {
+                bone: self.spine1,
+                physical_bone: spine1,
+            },
+            Limb {
+                bone: self.spine2,
+                physical_bone: spine2,
+            },
+            Limb {
+                bone: self.left_shoulder,
+                physical_bone: left_shoulder,
+            },
+            Limb {
+                bone: self.left_arm,
+                physical_bone: left_arm,
+            },
+            Limb {
+                bone: self.left_fore_arm,
+                physical_bone: left_fore_arm,
+            },
+            Limb {
+                bone: self.left_hand,
+                physical_bone: left_hand,
+            },
+            Limb {
+                bone: self.right_shoulder,
+                physical_bone: right_shoulder,
+            },
+            Limb {
+                bone: self.right_arm,
+                physical_bone: right_arm,
+            },
+            Limb {
+                bone: self.right_fore_arm,
+                physical_bone: right_fore_arm,
+            },
+            Limb {
+                bone: self.right_hand,
+                physical_bone: right_hand,
+            },
+            Limb {
+                bone: self.neck,
+                physical_bone: neck,
+            },
+            Limb {
+                bone: self.head,
+                physical_bone: head,
+            },
+        ]);
 
         // Immediately after extract if from the scene to subgraph. This is required to not violate
         // the rule of one place of execution, only commands allowed to modify the scene.

@@ -14,6 +14,7 @@ use crate::{
     },
     message::MessageSender,
 };
+use fyrox::scene::ragdoll::Limb;
 use fyrox::{
     animation::{
         machine::{
@@ -354,6 +355,9 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(EnumPropertyEditorDefinition::<PolygonFillMode>::new());
 
     container.insert(EnumPropertyEditorDefinition::<MipFilter>::new());
+
+    container.insert(InspectablePropertyEditorDefinition::<Limb>::new());
+    container.register_inheritable_vec_collection::<Limb>();
 
     container
 }
