@@ -392,6 +392,7 @@ impl RagdollPreset {
             graph,
         );
 
+        // Left arm.
         let left_shoulder = make_oriented_capsule(
             self.left_shoulder,
             self.left_arm,
@@ -403,8 +404,8 @@ impl RagdollPreset {
         );
 
         let left_arm = make_oriented_capsule(
+            self.left_arm,
             self.left_fore_arm,
-            self.left_hand,
             0.2 * base_size,
             "RagdollLeftArm",
             ragdoll,
@@ -413,8 +414,8 @@ impl RagdollPreset {
         );
 
         let left_fore_arm = make_oriented_capsule(
-            self.left_arm,
             self.left_fore_arm,
+            self.left_hand,
             0.2 * base_size,
             "RagdollLeftForeArm",
             ragdoll,
@@ -443,8 +444,8 @@ impl RagdollPreset {
         );
 
         let right_arm = make_oriented_capsule(
+            self.right_arm,
             self.right_fore_arm,
-            self.right_hand,
             0.2 * base_size,
             "RagdollRightArm",
             ragdoll,
@@ -453,8 +454,8 @@ impl RagdollPreset {
         );
 
         let right_fore_arm = make_oriented_capsule(
-            self.right_arm,
             self.right_fore_arm,
+            self.right_hand,
             0.2 * base_size,
             "RagdollRightForeArm",
             ragdoll,
@@ -493,6 +494,7 @@ impl RagdollPreset {
         // Link limbs with joints.
         graph.update_hierarchical_data();
 
+        // Left leg.
         try_make_ball_joint(
             left_up_leg,
             hips,
@@ -500,7 +502,6 @@ impl RagdollPreset {
             ragdoll,
             graph,
         );
-
         try_make_hinge_joint(
             left_leg,
             left_up_leg,
@@ -508,7 +509,6 @@ impl RagdollPreset {
             ragdoll,
             graph,
         );
-
         try_make_hinge_joint(
             left_foot,
             left_leg,
@@ -517,6 +517,7 @@ impl RagdollPreset {
             graph,
         );
 
+        // Right leg.
         try_make_ball_joint(
             right_up_leg,
             hips,
@@ -524,7 +525,6 @@ impl RagdollPreset {
             ragdoll,
             graph,
         );
-
         try_make_hinge_joint(
             right_leg,
             right_up_leg,
@@ -532,7 +532,6 @@ impl RagdollPreset {
             ragdoll,
             graph,
         );
-
         try_make_hinge_joint(
             right_foot,
             right_leg,
@@ -559,7 +558,7 @@ impl RagdollPreset {
             graph,
         );
 
-        try_make_ball_joint(
+        try_make_hinge_joint(
             left_shoulder,
             spine2,
             "RagdollSpine2LeftShoulderBallJoint",
@@ -588,7 +587,7 @@ impl RagdollPreset {
             graph,
         );
 
-        try_make_ball_joint(
+        try_make_hinge_joint(
             right_shoulder,
             spine2,
             "RagdollSpine2RightShoulderBallJoint",
@@ -625,30 +624,33 @@ impl RagdollPreset {
                 bone: self.hips,
                 physical_bone: hips,
             },
+            // Left leg (top-to-bottom).
             Limb {
-                bone: self.left_up_leg,
-                physical_bone: left_up_leg,
+                bone: self.left_foot,
+                physical_bone: left_foot,
             },
             Limb {
                 bone: self.left_leg,
                 physical_bone: left_leg,
             },
             Limb {
-                bone: self.left_foot,
-                physical_bone: left_foot,
+                bone: self.left_up_leg,
+                physical_bone: left_up_leg,
             },
+            // Right leg (top-to-bottom).
             Limb {
-                bone: self.right_up_leg,
-                physical_bone: right_up_leg,
+                bone: self.right_foot,
+                physical_bone: right_foot,
             },
             Limb {
                 bone: self.right_leg,
                 physical_bone: right_leg,
             },
             Limb {
-                bone: self.right_foot,
-                physical_bone: right_foot,
+                bone: self.right_up_leg,
+                physical_bone: right_up_leg,
             },
+            // Spine
             Limb {
                 bone: self.spine,
                 physical_bone: spine,
