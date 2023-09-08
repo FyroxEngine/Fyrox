@@ -104,7 +104,9 @@ impl NodeTrait for Ragdoll {
                         limb_body.set_ang_vel(ang_vel);
                     }
 
-                    limb_body.set_body_type(RigidBodyType::Dynamic);
+                    if limb_body.body_type() != RigidBodyType::Dynamic {
+                        limb_body.set_body_type(RigidBodyType::Dynamic);
+                    }
                     let body_transform = limb_body.global_transform();
 
                     // Sync transform of the bone with respective body.

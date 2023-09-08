@@ -172,6 +172,10 @@ pub struct Joint {
     #[visit(optional)] // Backward compatibility
     pub(crate) contacts_enabled: InheritableVariable<bool>,
 
+    #[reflect(setter = "set_auto_rebinding")]
+    #[visit(optional)] // Backward compatibility
+    pub(crate) auto_rebind: InheritableVariable<bool>,
+
     #[visit(skip)]
     #[reflect(hidden)]
     pub(crate) native: Cell<ImpulseJointHandle>,
@@ -189,6 +193,7 @@ impl Default for Joint {
             body1: Default::default(),
             body2: Default::default(),
             contacts_enabled: InheritableVariable::new_modified(true),
+            auto_rebind: true.into(),
             native: Cell::new(ImpulseJointHandle::invalid()),
             need_rebind: Cell::new(true),
         }
@@ -218,6 +223,7 @@ impl Clone for Joint {
             body2: self.body2.clone(),
             contacts_enabled: self.contacts_enabled.clone(),
             // Do not copy. The copy will have its own native representation.
+            auto_rebind: self.auto_rebind.clone(),
             native: Cell::new(ImpulseJointHandle::invalid()),
             // Rebind will happen automatically.
             need_rebind: Cell::new(true),
@@ -279,6 +285,17 @@ impl Joint {
     pub fn is_contacts_enabled(&self) -> bool {
         *self.contacts_enabled
     }
+
+    /// Sets whether the joint should automatically rebind two rigid bodies if the joint has changed its
+    /// global position.
+    pub fn set_auto_rebinding(&mut self, enabled: bool) -> bool {
+        self.contacts_enabled.set_value_and_mark_modified(enabled)
+    }
+
+    /// Returns true if automatic rebinding of the joint is enabled or not.
+    pub fn is_auto_rebinding_enabled(&self) -> bool {
+        *self.contacts_enabled
+    }
 }
 
 impl NodeTrait for Joint {
@@ -313,7 +330,7 @@ impl NodeTrait for Joint {
     }
 
     fn sync_transform(&self, new_global_transform: &Matrix4<f32>, _context: &mut SyncContext) {
-        if !m4x4_approx_eq(new_global_transform, &self.global_transform()) {
+        if *self.auto_rebind && !m4x4_approx_eq(new_global_transform, &self.global_transform()) {
             self.need_rebind.set(true);
         }
     }
@@ -354,6 +371,7 @@ pub struct JointBuilder {
     body1: Handle<Node>,
     body2: Handle<Node>,
     contacts_enabled: bool,
+    auto_rebind: bool,
 }
 
 impl JointBuilder {
@@ -365,6 +383,7 @@ impl JointBuilder {
             body1: Default::default(),
             body2: Default::default(),
             contacts_enabled: true,
+            auto_rebind: true,
         }
     }
 
@@ -394,6 +413,13 @@ impl JointBuilder {
         self
     }
 
+    /// Sets whether the joint should automatically rebind two rigid bodies if the joint has changed its
+    /// global position.
+    pub fn with_auto_rebinding_enabled(mut self, auto_rebind: bool) -> Self {
+        self.auto_rebind = auto_rebind;
+        self
+    }
+
     /// Creates new Joint node, but does not add it to the graph.
     pub fn build_joint(self) -> Joint {
         Joint {
@@ -402,6 +428,7 @@ impl JointBuilder {
             body1: self.body1.into(),
             body2: self.body2.into(),
             contacts_enabled: self.contacts_enabled.into(),
+            auto_rebind: self.auto_rebind.into(),
             native: Cell::new(ImpulseJointHandle::invalid()),
             need_rebind: Cell::new(true),
         }
