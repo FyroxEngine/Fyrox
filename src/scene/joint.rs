@@ -289,12 +289,12 @@ impl Joint {
     /// Sets whether the joint should automatically rebind two rigid bodies if the joint has changed its
     /// global position.
     pub fn set_auto_rebinding(&mut self, enabled: bool) -> bool {
-        self.contacts_enabled.set_value_and_mark_modified(enabled)
+        self.auto_rebind.set_value_and_mark_modified(enabled)
     }
 
     /// Returns true if automatic rebinding of the joint is enabled or not.
     pub fn is_auto_rebinding_enabled(&self) -> bool {
-        *self.contacts_enabled
+        *self.auto_rebind
     }
 }
 
