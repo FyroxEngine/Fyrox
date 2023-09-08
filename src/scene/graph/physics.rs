@@ -960,8 +960,8 @@ fn calculate_local_frames(
     let joint_isometry = isometry_from_global_transform(&joint.global_transform());
 
     (
-        joint_isometry * isometry_from_global_transform(&body1.global_transform()).inverse(),
-        joint_isometry * isometry_from_global_transform(&body2.global_transform()).inverse(),
+        isometry_from_global_transform(&body1.global_transform()).inverse() * joint_isometry,
+        isometry_from_global_transform(&body2.global_transform()).inverse() * joint_isometry,
     )
 }
 
