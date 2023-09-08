@@ -129,7 +129,7 @@ impl NodeTrait for Ragdoll {
                     limb_body.set_lin_vel(Default::default());
                     limb_body.set_ang_vel(Default::default());
 
-                    // Sync transform of the body with respective bone.
+                    // Sync transform of the physical body with respective bone.
                     if let Some(bone) = ctx.nodes.try_borrow(limb.bone) {
                         let position = bone.global_position();
                         let rotation = UnitQuaternion::from_matrix_eps(
@@ -138,7 +138,7 @@ impl NodeTrait for Ragdoll {
                             16,
                             Default::default(),
                         );
-                        ctx.nodes[limb.bone]
+                        ctx.nodes[limb.physical_bone]
                             .local_transform_mut()
                             .set_position(position)
                             .set_rotation(rotation);
