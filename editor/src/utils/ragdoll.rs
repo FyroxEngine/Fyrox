@@ -221,6 +221,7 @@ fn try_make_ball_joint(
         .with_params(JointParams::BallJoint(joint))
         .with_body1(body1)
         .with_body2(body2)
+        .with_auto_rebinding_enabled(false)
         .with_contacts_enabled(false)
         .build(graph);
 
@@ -252,6 +253,7 @@ fn try_make_hinge_joint(
         .with_params(JointParams::RevoluteJoint(joint))
         .with_body1(body1)
         .with_body2(body2)
+        .with_auto_rebinding_enabled(false)
         .with_contacts_enabled(false)
         .build(graph);
 
@@ -329,7 +331,7 @@ impl RagdollPreset {
             self.right_up_leg,
             self.right_leg,
             0.4 * base_size,
-            "RagdollLeftUpLeg",
+            "RagdollRightUpLeg",
             ragdoll,
             self.friction,
             graph,
@@ -339,7 +341,7 @@ impl RagdollPreset {
             self.right_leg,
             self.right_foot,
             0.3 * base_size,
-            "RagdollLeftLeg",
+            "RagdollRightLeg",
             ragdoll,
             self.friction,
             graph,
