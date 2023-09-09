@@ -63,6 +63,7 @@ pub struct RagdollPreset {
     head: Handle<Node>,
     total_mass: f32,
     friction: f32,
+    use_ccd: bool,
 }
 
 impl Default for RagdollPreset {
@@ -90,126 +91,8 @@ impl Default for RagdollPreset {
             head: Default::default(),
             total_mass: 20.0,
             friction: 0.5,
+            use_ccd: true,
         }
-    }
-}
-
-fn make_oriented_capsule(
-    from: Handle<Node>,
-    to: Handle<Node>,
-    radius: f32,
-    name: &str,
-    ragdoll: Handle<Node>,
-    friction: f32,
-    graph: &mut Graph,
-) -> Handle<Node> {
-    if let (Some(from_ref), Some(to_ref)) = (graph.try_get(from), graph.try_get(to)) {
-        let pos_from = from_ref.global_position();
-        let pos_to = to_ref.global_position();
-
-        let capsule = RigidBodyBuilder::new(
-            BaseBuilder::new()
-                .with_name(name)
-                .with_local_transform(
-                    TransformBuilder::new()
-                        .with_local_position(pos_from)
-                        .with_local_rotation(UnitQuaternion::from_matrix_eps(
-                            &from_ref.global_transform().basis(),
-                            f32::EPSILON,
-                            16,
-                            Default::default(),
-                        ))
-                        .build(),
-                )
-                .with_children(&[ColliderBuilder::new(
-                    BaseBuilder::new().with_name("CapsuleCollider"),
-                )
-                .with_shape(ColliderShape::capsule(
-                    Vector3::default(),
-                    Vector3::new(0.0, (pos_to - pos_from).norm() - 2.0 * radius, 0.0),
-                    radius,
-                ))
-                .with_friction(friction)
-                .build(graph)]),
-        )
-        .with_body_type(RigidBodyType::KinematicPositionBased)
-        .build(graph);
-
-        graph.link_nodes(capsule, ragdoll);
-
-        capsule
-    } else {
-        Default::default()
-    }
-}
-
-fn make_cuboid(
-    from: Handle<Node>,
-    half_size: Vector3<f32>,
-    name: &str,
-    ragdoll: Handle<Node>,
-    friction: f32,
-    graph: &mut Graph,
-) -> Handle<Node> {
-    if let Some(from_ref) = graph.try_get(from) {
-        let cuboid = RigidBodyBuilder::new(
-            BaseBuilder::new()
-                .with_name(name)
-                .with_local_transform(
-                    TransformBuilder::new()
-                        .with_local_position(from_ref.global_position())
-                        .build(),
-                )
-                .with_children(&[ColliderBuilder::new(
-                    BaseBuilder::new().with_name("CuboidCollider"),
-                )
-                .with_shape(ColliderShape::cuboid(half_size.x, half_size.y, half_size.z))
-                .with_friction(friction)
-                .build(graph)]),
-        )
-        .with_body_type(RigidBodyType::KinematicPositionBased)
-        .build(graph);
-
-        graph.link_nodes(cuboid, ragdoll);
-
-        cuboid
-    } else {
-        Default::default()
-    }
-}
-
-fn make_sphere(
-    from: Handle<Node>,
-    radius: f32,
-    name: &str,
-    ragdoll: Handle<Node>,
-    friction: f32,
-    graph: &mut Graph,
-) -> Handle<Node> {
-    if let Some(from_ref) = graph.try_get(from) {
-        let sphere = RigidBodyBuilder::new(
-            BaseBuilder::new()
-                .with_name(name)
-                .with_local_transform(
-                    TransformBuilder::new()
-                        .with_local_position(from_ref.global_position())
-                        .build(),
-                )
-                .with_children(&[ColliderBuilder::new(
-                    BaseBuilder::new().with_name("SphereCollider"),
-                )
-                .with_friction(friction)
-                .with_shape(ColliderShape::ball(radius))
-                .build(graph)]),
-        )
-        .with_body_type(RigidBodyType::KinematicPositionBased)
-        .build(graph);
-
-        graph.link_nodes(sphere, ragdoll);
-
-        sphere
-    } else {
-        Default::default()
     }
 }
 
@@ -259,6 +142,12 @@ fn try_make_hinge_joint(
             BaseBuilder::new().with_name(name).with_local_transform(
                 TransformBuilder::new()
                     .with_local_position(graph[body1].global_position())
+                    .with_local_rotation(UnitQuaternion::from_matrix_eps(
+                        &graph[body1].global_transform().basis(),
+                        f32::EPSILON,
+                        16,
+                        Default::default(),
+                    ))
                     .build(),
             ),
         )
@@ -278,6 +167,139 @@ fn try_make_hinge_joint(
 }
 
 impl RagdollPreset {
+    fn make_sphere(
+        &self,
+        from: Handle<Node>,
+        radius: f32,
+        name: &str,
+        ragdoll: Handle<Node>,
+        apply_offset: bool,
+        graph: &mut Graph,
+    ) -> Handle<Node> {
+        if let Some(from_ref) = graph.try_get(from) {
+            let offset = if apply_offset {
+                from_ref
+                    .up_vector()
+                    .try_normalize(f32::EPSILON)
+                    .unwrap_or_default()
+                    .scale(radius)
+            } else {
+                Default::default()
+            };
+
+            let sphere = RigidBodyBuilder::new(
+                BaseBuilder::new()
+                    .with_name(name)
+                    .with_local_transform(
+                        TransformBuilder::new()
+                            .with_local_position(from_ref.global_position() + offset)
+                            .build(),
+                    )
+                    .with_children(&[ColliderBuilder::new(
+                        BaseBuilder::new().with_name("SphereCollider"),
+                    )
+                    .with_friction(self.friction)
+                    .with_shape(ColliderShape::ball(radius))
+                    .build(graph)]),
+            )
+            .with_ccd_enabled(self.use_ccd)
+            .with_body_type(RigidBodyType::KinematicPositionBased)
+            .build(graph);
+
+            graph.link_nodes(sphere, ragdoll);
+
+            sphere
+        } else {
+            Default::default()
+        }
+    }
+
+    fn make_oriented_capsule(
+        &self,
+        from: Handle<Node>,
+        to: Handle<Node>,
+        radius: f32,
+        name: &str,
+        ragdoll: Handle<Node>,
+        graph: &mut Graph,
+    ) -> Handle<Node> {
+        if let (Some(from_ref), Some(to_ref)) = (graph.try_get(from), graph.try_get(to)) {
+            let pos_from = from_ref.global_position();
+            let pos_to = to_ref.global_position();
+
+            let capsule = RigidBodyBuilder::new(
+                BaseBuilder::new()
+                    .with_name(name)
+                    .with_local_transform(
+                        TransformBuilder::new()
+                            .with_local_position(pos_from)
+                            .with_local_rotation(UnitQuaternion::from_matrix_eps(
+                                &from_ref.global_transform().basis(),
+                                f32::EPSILON,
+                                16,
+                                Default::default(),
+                            ))
+                            .build(),
+                    )
+                    .with_children(&[ColliderBuilder::new(
+                        BaseBuilder::new().with_name("CapsuleCollider"),
+                    )
+                    .with_shape(ColliderShape::capsule(
+                        Vector3::default(),
+                        Vector3::new(0.0, (pos_to - pos_from).norm() - 2.0 * radius, 0.0),
+                        radius,
+                    ))
+                    .with_friction(self.friction)
+                    .build(graph)]),
+            )
+            .with_ccd_enabled(self.use_ccd)
+            .with_body_type(RigidBodyType::KinematicPositionBased)
+            .build(graph);
+
+            graph.link_nodes(capsule, ragdoll);
+
+            capsule
+        } else {
+            Default::default()
+        }
+    }
+
+    fn make_cuboid(
+        &self,
+        from: Handle<Node>,
+        half_size: Vector3<f32>,
+        name: &str,
+        ragdoll: Handle<Node>,
+        graph: &mut Graph,
+    ) -> Handle<Node> {
+        if let Some(from_ref) = graph.try_get(from) {
+            let cuboid = RigidBodyBuilder::new(
+                BaseBuilder::new()
+                    .with_name(name)
+                    .with_local_transform(
+                        TransformBuilder::new()
+                            .with_local_position(from_ref.global_position())
+                            .build(),
+                    )
+                    .with_children(&[ColliderBuilder::new(
+                        BaseBuilder::new().with_name("CuboidCollider"),
+                    )
+                    .with_shape(ColliderShape::cuboid(half_size.x, half_size.y, half_size.z))
+                    .with_friction(self.friction)
+                    .build(graph)]),
+            )
+            .with_ccd_enabled(self.use_ccd)
+            .with_body_type(RigidBodyType::KinematicPositionBased)
+            .build(graph);
+
+            graph.link_nodes(cuboid, ragdoll);
+
+            cuboid
+        } else {
+            Default::default()
+        }
+    }
+
     /// Calculates base size (size of the head) using common human body proportions. It uses distance between hand and elbow as a
     /// head size (it matches 1:1).
     fn measure_base_size(&self, graph: &Graph) -> f32 {
@@ -310,196 +332,181 @@ impl RagdollPreset {
 
         graph.link_nodes(ragdoll, editor_scene.scene_content_root);
 
-        let left_up_leg = make_oriented_capsule(
+        let left_up_leg = self.make_oriented_capsule(
             self.left_up_leg,
             self.left_leg,
-            0.4 * base_size,
+            0.35 * base_size,
             "RagdollLeftUpLeg",
             ragdoll,
-            self.friction,
             graph,
         );
 
-        let left_leg = make_oriented_capsule(
+        let left_leg = self.make_oriented_capsule(
             self.left_leg,
             self.left_foot,
             0.3 * base_size,
             "RagdollLeftLeg",
             ragdoll,
-            self.friction,
             graph,
         );
 
-        let left_foot = make_sphere(
+        let left_foot = self.make_sphere(
             self.left_foot,
             0.2 * base_size,
             "RagdollLeftFoot",
             ragdoll,
-            self.friction,
+            false,
             graph,
         );
 
-        let right_up_leg = make_oriented_capsule(
+        let right_up_leg = self.make_oriented_capsule(
             self.right_up_leg,
             self.right_leg,
-            0.4 * base_size,
+            0.35 * base_size,
             "RagdollRightUpLeg",
             ragdoll,
-            self.friction,
             graph,
         );
 
-        let right_leg = make_oriented_capsule(
+        let right_leg = self.make_oriented_capsule(
             self.right_leg,
             self.right_foot,
             0.3 * base_size,
             "RagdollRightLeg",
             ragdoll,
-            self.friction,
             graph,
         );
 
-        let right_foot = make_sphere(
+        let right_foot = self.make_sphere(
             self.right_foot,
             0.2 * base_size,
             "RagdollRightFoot",
             ragdoll,
-            self.friction,
+            false,
             graph,
         );
 
-        let hips = make_cuboid(
+        let hips = self.make_cuboid(
             self.hips,
             Vector3::new(base_size * 0.5, base_size * 0.2, base_size * 0.4),
             "RagdollHips",
             ragdoll,
-            self.friction,
             graph,
         );
 
-        let spine = make_cuboid(
+        let spine = self.make_cuboid(
             self.spine,
-            Vector3::new(base_size * 0.5, base_size * 0.25, base_size * 0.4),
+            Vector3::new(base_size * 0.45, base_size * 0.2, base_size * 0.4),
             "RagdollSpine",
             ragdoll,
-            self.friction,
             graph,
         );
 
-        let spine1 = make_cuboid(
+        let spine1 = self.make_cuboid(
             self.spine1,
-            Vector3::new(base_size * 0.45, base_size * 0.25, base_size * 0.4),
+            Vector3::new(base_size * 0.45, base_size * 0.2, base_size * 0.4),
             "RagdollSpine1",
             ragdoll,
-            self.friction,
             graph,
         );
 
-        let spine2 = make_cuboid(
+        let spine2 = self.make_cuboid(
             self.spine2,
-            Vector3::new(base_size * 0.6, base_size * 0.25, base_size * 0.4),
+            Vector3::new(base_size * 0.45, base_size * 0.2, base_size * 0.4),
             "RagdollSpine2",
             ragdoll,
-            self.friction,
             graph,
         );
 
         // Left arm.
-        let left_shoulder = make_oriented_capsule(
+        let left_shoulder = self.make_oriented_capsule(
             self.left_shoulder,
             self.left_arm,
             0.2 * base_size,
             "RagdollLeftShoulder",
             ragdoll,
-            self.friction,
             graph,
         );
 
-        let left_arm = make_oriented_capsule(
+        let left_arm = self.make_oriented_capsule(
             self.left_arm,
             self.left_fore_arm,
             0.2 * base_size,
             "RagdollLeftArm",
             ragdoll,
-            self.friction,
             graph,
         );
 
-        let left_fore_arm = make_oriented_capsule(
+        let left_fore_arm = self.make_oriented_capsule(
             self.left_fore_arm,
             self.left_hand,
             0.2 * base_size,
             "RagdollLeftForeArm",
             ragdoll,
-            self.friction,
             graph,
         );
 
-        let left_hand = make_sphere(
+        let left_hand = self.make_sphere(
             self.left_hand,
             0.3 * base_size,
             "LeftHand",
             ragdoll,
-            self.friction,
+            false,
             graph,
         );
 
         // Right arm.
-        let right_shoulder = make_oriented_capsule(
+        let right_shoulder = self.make_oriented_capsule(
             self.right_shoulder,
             self.right_arm,
             0.2 * base_size,
             "RagdollRightShoulder",
             ragdoll,
-            self.friction,
             graph,
         );
 
-        let right_arm = make_oriented_capsule(
+        let right_arm = self.make_oriented_capsule(
             self.right_arm,
             self.right_fore_arm,
             0.2 * base_size,
             "RagdollRightArm",
             ragdoll,
-            self.friction,
             graph,
         );
 
-        let right_fore_arm = make_oriented_capsule(
+        let right_fore_arm = self.make_oriented_capsule(
             self.right_fore_arm,
             self.right_hand,
             0.2 * base_size,
             "RagdollRightForeArm",
             ragdoll,
-            self.friction,
             graph,
         );
 
-        let right_hand = make_sphere(
+        let right_hand = self.make_sphere(
             self.right_hand,
             0.3 * base_size,
             "RightHand",
             ragdoll,
-            self.friction,
+            false,
             graph,
         );
 
-        let neck = make_oriented_capsule(
+        let neck = self.make_oriented_capsule(
             self.neck,
             self.head,
-            0.4 * base_size,
+            0.2 * base_size,
             "RagdollNeck",
             ragdoll,
-            self.friction,
             graph,
         );
 
-        let head = make_sphere(
+        let head = self.make_sphere(
             self.head,
             0.5 * base_size,
             "RightHand",
             ragdoll,
-            self.friction,
+            true,
             graph,
         );
 
@@ -755,7 +762,7 @@ impl RagdollWizard {
         let window = WindowBuilder::new(
             WidgetBuilder::new()
                 .with_width(350.0)
-                .with_height(500.0)
+                .with_height(550.0)
                 .with_name("RagdollWizard"),
         )
         .open(false)
