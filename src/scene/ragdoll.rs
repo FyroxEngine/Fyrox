@@ -120,6 +120,8 @@ impl NodeTrait for Ragdoll {
                     ctx.nodes[limb.bone]
                         .local_transform_mut()
                         .set_position(Vector3::new(transform[12], transform[13], transform[14]))
+                        .set_pre_rotation(UnitQuaternion::identity())
+                        .set_post_rotation(UnitQuaternion::identity())
                         .set_rotation(UnitQuaternion::from_matrix_eps(
                             &transform.basis(),
                             f32::EPSILON,
