@@ -9,7 +9,13 @@ use crate::{
     MSG_SYNC_FLAG,
 };
 use fyrox::{
-    core::{algebra::Vector3, log::Log, pool::Handle, reflect::prelude::*},
+    core::{
+        algebra::{UnitQuaternion, Vector3},
+        log::Log,
+        math::Matrix4Ext,
+        pool::Handle,
+        reflect::prelude::*,
+    },
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
@@ -107,6 +113,12 @@ fn make_oriented_capsule(
                 .with_local_transform(
                     TransformBuilder::new()
                         .with_local_position(pos_from)
+                        .with_local_rotation(UnitQuaternion::from_matrix_eps(
+                            &from_ref.global_transform().basis(),
+                            f32::EPSILON,
+                            16,
+                            Default::default(),
+                        ))
                         .build(),
                 )
                 .with_children(&[ColliderBuilder::new(
@@ -114,7 +126,7 @@ fn make_oriented_capsule(
                 )
                 .with_shape(ColliderShape::capsule(
                     Vector3::default(),
-                    pos_to - pos_from,
+                    Vector3::new(0.0, (pos_to - pos_from).norm() - 2.0 * radius, 0.0),
                     radius,
                 ))
                 .with_friction(friction)
