@@ -82,3 +82,78 @@ impl ResourceEventBroadcaster {
         })
     }
 }
+
+#[cfg(test)]
+mod test {
+    use std::sync::mpsc::channel;
+
+    use super::*;
+
+    #[test]
+    fn resource_event_broadcaster_add_and_remove() {
+        let broadcaster = ResourceEventBroadcaster::new();
+        let (sender, receiver) = channel();
+
+        let h = broadcaster.add(sender);
+        assert!(h.is_some());
+        assert_eq!(h.index(), 0);
+        assert_eq!(h.generation(), 1);
+
+        broadcaster.broadcast(ResourceEvent::Added(UntypedResource::default()));
+        assert!(matches!(
+            receiver.recv(),
+            Ok(ResourceEvent::Added(UntypedResource(_)))
+        ));
+
+        broadcaster.remove(h);
+        broadcaster.broadcast(ResourceEvent::Added(UntypedResource::default()));
+        assert!(receiver.recv().is_err());
+    }
+
+    #[test]
+    fn resource_event_broadcaster_broadcast_loaded() {
+        let broadcaster = ResourceEventBroadcaster::default();
+        let (sender, receiver) = channel();
+        broadcaster.add(sender);
+
+        broadcaster.broadcast_loaded(UntypedResource::default());
+        assert!(matches!(
+            receiver.recv(),
+            Ok(ResourceEvent::Loaded(UntypedResource(_)))
+        ));
+    }
+
+    #[test]
+    fn resource_event_broadcaster_broadcast_loaded_or_reloaded() {
+        let broadcaster = ResourceEventBroadcaster::default();
+        let (sender, receiver) = channel();
+        broadcaster.add(sender);
+
+        broadcaster.broadcast_loaded_or_reloaded(UntypedResource::default(), false);
+        assert!(matches!(
+            receiver.recv(),
+            Ok(ResourceEvent::Loaded(UntypedResource(_)))
+        ));
+
+        broadcaster.broadcast_loaded_or_reloaded(UntypedResource::default(), true);
+        assert!(matches!(
+            receiver.recv(),
+            Ok(ResourceEvent::Reloaded(UntypedResource(_)))
+        ));
+    }
+
+    #[test]
+    fn resource_event_broadcaster_clone() {
+        let broadcaster = ResourceEventBroadcaster::new();
+        let (sender, receiver) = channel();
+
+        broadcaster.add(sender);
+        let broadcaster2 = broadcaster.clone();
+
+        broadcaster2.broadcast(ResourceEvent::Added(UntypedResource::default()));
+        assert!(matches!(
+            receiver.recv(),
+            Ok(ResourceEvent::Added(UntypedResource(_)))
+        ));
+    }
+}
