@@ -67,7 +67,7 @@ impl ResourceGraphNode {
 /// Internally, it uses reflection to look into resources content and find dependent resources. An example
 /// of dependent resource is very simple: if you have a 3D model, then it most likely has a bunch of
 /// textures - these textures are dependent resources. A more complex example - a game level could depend
-/// on lots of prefabs, which in their turn may depend on other prefabs, textures, sounds, etc.  
+/// on lots of prefabs, which in their turn may depend on other prefabs, textures, sounds, etc.
 pub struct ResourceDependencyGraph {
     /// Root node of the graph.
     pub root: ResourceGraphNode,
@@ -91,5 +91,96 @@ impl ResourceDependencyGraph {
         let mut out = String::new();
         self.root.pretty_print(0, &mut out);
         out
+    }
+}
+#[cfg(test)]
+mod test {
+    use std::path::PathBuf;
+
+    use fyrox_core::uuid::Uuid;
+
+    use super::*;
+
+    #[test]
+    fn resource_graph_node_new() {
+        let resource = UntypedResource::default();
+        let node = ResourceGraphNode::new(&resource);
+
+        assert_eq!(node.resource, resource);
+        assert_eq!(node.children.len(), 0);
+    }
+
+    #[test]
+    fn resource_graph_node_pretty_print() {
+        let mut s = String::new();
+        let mut node = ResourceGraphNode::new(&UntypedResource::new_pending(
+            PathBuf::from("/foo"),
+            Uuid::default(),
+        ));
+        let node2 = ResourceGraphNode::new(&UntypedResource::new_pending(
+            PathBuf::from("/bar"),
+            Uuid::default(),
+        ));
+        node.children.push(node2);
+        node.pretty_print(1, &mut s);
+
+        assert_eq!(s, "\t/foo\n\t\t/bar\n".to_string());
+    }
+
+    #[test]
+    fn resource_graph_node_for_each() {
+        let mut node = ResourceGraphNode::new(&UntypedResource::default());
+        node.children
+            .push(ResourceGraphNode::new(&UntypedResource::default()));
+        let mut uuids = Vec::new();
+
+        node.for_each(&mut |r| uuids.push(r.type_uuid()));
+        assert_eq!(uuids, [Uuid::default(), Uuid::default()]);
+    }
+
+    #[test]
+    fn resource_dependency_graph_new() {
+        let resource = UntypedResource::default();
+        let graph = ResourceDependencyGraph::new(&resource);
+
+        assert_eq!(graph.root.resource, resource);
+        assert_eq!(graph.root.children.len(), 0);
+    }
+
+    #[test]
+    fn resource_dependency_pretty_print() {
+        let mut graph = ResourceDependencyGraph::new(&UntypedResource::new_pending(
+            PathBuf::from("/foo"),
+            Uuid::default(),
+        ));
+        graph
+            .root
+            .children
+            .push(ResourceGraphNode::new(&UntypedResource::new_pending(
+                PathBuf::from("/bar"),
+                Uuid::default(),
+            )));
+
+        let s = graph.pretty_print();
+        assert_eq!(s, "/foo\n\t/bar\n".to_string());
+    }
+
+    #[test]
+    fn resource_dependency_for_each() {
+        let mut graph = ResourceDependencyGraph::new(&UntypedResource::new_pending(
+            PathBuf::from("/foo"),
+            Uuid::default(),
+        ));
+        graph
+            .root
+            .children
+            .push(ResourceGraphNode::new(&UntypedResource::new_pending(
+                PathBuf::from("/bar"),
+                Uuid::default(),
+            )));
+
+        let mut uuids = Vec::new();
+        graph.for_each(&mut |r: &UntypedResource| uuids.push(r.type_uuid()));
+        assert_eq!(uuids, [Uuid::default(), Uuid::default()]);
     }
 }
