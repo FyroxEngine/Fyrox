@@ -634,17 +634,26 @@ pub struct UpdateLoopState(u32);
 
 impl Default for UpdateLoopState {
     fn default() -> Self {
-        Self(1)
+        // Run at least a second from the start to ensure that all OS-specific stuff was done.
+        Self(60)
     }
 }
 
 impl UpdateLoopState {
     fn request_update_in_next_frame(&mut self) {
-        self.0 = 2;
+        if !self.is_warming_up() {
+            self.0 = 2;
+        }
     }
 
     fn request_update_in_current_frame(&mut self) {
-        self.0 = 1;
+        if !self.is_warming_up() {
+            self.0 = 1;
+        }
+    }
+
+    fn is_warming_up(&self) -> bool {
+        self.0 > 2
     }
 
     fn decrease_counter(&mut self) {
