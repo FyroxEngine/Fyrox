@@ -2512,17 +2512,21 @@ impl Editor {
                                 logical_size.height,
                             ));
 
-                        self.settings.windows.window_size.x = size.width as f32;
-                        self.settings.windows.window_size.y = size.height as f32;
-                        Log::verify(self.settings.save());
+                        if size.width > 0 && size.height > 0 {
+                            self.settings.windows.window_size.x = size.width as f32;
+                            self.settings.windows.window_size.y = size.height as f32;
+                            Log::verify(self.settings.save());
+                        }
                     }
                     WindowEvent::Focused(focused) => {
                         self.focused = *focused;
                     }
                     WindowEvent::Moved(new_position) => {
-                        self.settings.windows.window_position.x = new_position.x as f32;
-                        self.settings.windows.window_position.y = new_position.y as f32;
-                        Log::verify(self.settings.save());
+                        if new_position.x > 0 && new_position.y > 0 {
+                            self.settings.windows.window_position.x = new_position.x as f32;
+                            self.settings.windows.window_position.y = new_position.y as f32;
+                            Log::verify(self.settings.save());
+                        }
                     }
                     WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                         set_ui_scaling(&self.engine.user_interface, *scale_factor as f32);
