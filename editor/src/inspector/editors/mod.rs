@@ -356,8 +356,8 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
 
     container.insert(EnumPropertyEditorDefinition::<MipFilter>::new());
 
-    container.insert(InspectablePropertyEditorDefinition::<Limb>::new());
-    container.register_inheritable_vec_collection::<Limb>();
+    container.register_inheritable_inspectable::<Limb>();
+    container.insert(VecCollectionPropertyEditorDefinition::<Limb>::new());
 
     container
 }

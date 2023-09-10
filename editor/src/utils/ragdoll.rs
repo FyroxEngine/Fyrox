@@ -37,7 +37,7 @@ use fyrox::{
         transform::TransformBuilder,
     },
 };
-use std::rc::Rc;
+use std::{ops::Range, rc::Rc};
 
 #[derive(Reflect, Debug)]
 pub struct RagdollPreset {
@@ -100,16 +100,34 @@ fn try_make_ball_joint(
     body1: Handle<Node>,
     body2: Handle<Node>,
     name: &str,
+    limits: Option<Range<f32>>,
     ragdoll: Handle<Node>,
     graph: &mut Graph,
 ) -> Handle<Node> {
     if body1.is_some() && body2.is_some() {
-        let joint = BallJoint::default();
+        let mut joint = BallJoint::default();
+
+        if let Some(limits) = limits {
+            // Just form a solid angle.
+            joint.x_limits_enabled = true;
+            joint.y_limits_enabled = true;
+            joint.z_limits_enabled = true;
+
+            joint.x_limits_angles = limits.clone();
+            joint.y_limits_angles = limits.clone();
+            joint.z_limits_angles = limits;
+        }
 
         let ball_joint = JointBuilder::new(
             BaseBuilder::new().with_name(name).with_local_transform(
                 TransformBuilder::new()
                     .with_local_position(graph[body1].global_position())
+                    .with_local_rotation(UnitQuaternion::from_matrix_eps(
+                        &graph[body1].global_transform().basis(),
+                        f32::EPSILON,
+                        16,
+                        Default::default(),
+                    ))
                     .build(),
             ),
         )
@@ -132,11 +150,17 @@ fn try_make_hinge_joint(
     body1: Handle<Node>,
     body2: Handle<Node>,
     name: &str,
+    limits: Option<Range<f32>>,
     ragdoll: Handle<Node>,
     graph: &mut Graph,
 ) -> Handle<Node> {
     if body1.is_some() && body2.is_some() {
-        let joint = RevoluteJoint::default();
+        let mut joint = RevoluteJoint::default();
+
+        if let Some(limits) = limits {
+            joint.limits_enabled = true;
+            joint.limits = limits;
+        }
 
         let hinge_joint = JointBuilder::new(
             BaseBuilder::new().with_name(name).with_local_transform(
@@ -327,7 +351,6 @@ impl RagdollPreset {
 
         let ragdoll = RagdollBuilder::new(BaseBuilder::new().with_name("Ragdoll"))
             .with_active(true)
-            .with_hips(self.hips)
             .build(graph);
 
         graph.link_nodes(ragdoll, editor_scene.scene_content_root);
@@ -518,6 +541,7 @@ impl RagdollPreset {
             left_up_leg,
             hips,
             "RagdollLeftUpLegHipsBallJoint",
+            Some(-80.0f32.to_radians()..80.0f32.to_radians()),
             ragdoll,
             graph,
         );
@@ -525,6 +549,7 @@ impl RagdollPreset {
             left_leg,
             left_up_leg,
             "RagdollLeftLegLeftUpLegHingeJoint",
+            None,
             ragdoll,
             graph,
         );
@@ -532,6 +557,7 @@ impl RagdollPreset {
             left_foot,
             left_leg,
             "RagdollLeftFootLeftLegHingeJoint",
+            Some(-45.0f32.to_radians()..45.0f32.to_radians()),
             ragdoll,
             graph,
         );
@@ -541,6 +567,7 @@ impl RagdollPreset {
             right_up_leg,
             hips,
             "RagdollLeftUpLegHipsBallJoint",
+            Some(-80.0f32.to_radians()..80.0f32.to_radians()),
             ragdoll,
             graph,
         );
@@ -548,6 +575,7 @@ impl RagdollPreset {
             right_leg,
             right_up_leg,
             "RagdollRightLegRightUpLegHingeJoint",
+            None,
             ragdoll,
             graph,
         );
@@ -555,16 +583,25 @@ impl RagdollPreset {
             right_foot,
             right_leg,
             "RagdollRightFootRightLegHingeJoint",
+            Some(-45.0f32.to_radians()..45.0f32.to_radians()),
             ragdoll,
             graph,
         );
 
-        try_make_hinge_joint(spine, hips, "RagdollSpineHipsHingeJoint", ragdoll, graph);
+        try_make_hinge_joint(
+            spine,
+            hips,
+            "RagdollSpineHipsHingeJoint",
+            None,
+            ragdoll,
+            graph,
+        );
 
         try_make_hinge_joint(
             spine1,
             spine,
             "RagdollSpine1SpineHingeJoint",
+            None,
             ragdoll,
             graph,
         );
@@ -573,6 +610,7 @@ impl RagdollPreset {
             spine2,
             spine1,
             "RagdollSpine2Spine1HingeJoint",
+            None,
             ragdoll,
             graph,
         );
@@ -581,6 +619,7 @@ impl RagdollPreset {
             left_shoulder,
             spine2,
             "RagdollSpine2LeftShoulderBallJoint",
+            None,
             ragdoll,
             graph,
         );
@@ -588,6 +627,7 @@ impl RagdollPreset {
             left_arm,
             left_shoulder,
             "RagdollLeftShoulderLeftArmBallJoint",
+            None,
             ragdoll,
             graph,
         );
@@ -595,6 +635,7 @@ impl RagdollPreset {
             left_fore_arm,
             left_arm,
             "RagdollLeftArmLeftForeArmBallJoint",
+            None,
             ragdoll,
             graph,
         );
@@ -602,6 +643,7 @@ impl RagdollPreset {
             left_hand,
             left_fore_arm,
             "RagdollLeftForeArmLeftHandBallJoint",
+            Some(-45.0f32.to_radians()..45.0f32.to_radians()),
             ragdoll,
             graph,
         );
@@ -610,6 +652,7 @@ impl RagdollPreset {
             right_shoulder,
             spine2,
             "RagdollSpine2RightShoulderBallJoint",
+            None,
             ragdoll,
             graph,
         );
@@ -617,6 +660,7 @@ impl RagdollPreset {
             right_arm,
             right_shoulder,
             "RagdollRightShoulderRightArmBallJoint",
+            None,
             ragdoll,
             graph,
         );
@@ -624,6 +668,7 @@ impl RagdollPreset {
             right_fore_arm,
             right_arm,
             "RagdollRightArmRightForeArmHingeJoint",
+            None,
             ragdoll,
             graph,
         );
@@ -631,98 +676,110 @@ impl RagdollPreset {
             right_hand,
             right_fore_arm,
             "RagdollRightForeArmRightHandBallJoint",
+            Some(-45.0f32.to_radians()..45.0f32.to_radians()),
             ragdoll,
             graph,
         );
 
-        try_make_ball_joint(neck, spine2, "RagdollNeckSpine2BallJoint", ragdoll, graph);
-        try_make_ball_joint(head, neck, "RagdollHeadNeckBallJoint", ragdoll, graph);
+        try_make_ball_joint(
+            neck,
+            spine2,
+            "RagdollNeckSpine2BallJoint",
+            None,
+            ragdoll,
+            graph,
+        );
+        try_make_ball_joint(head, neck, "RagdollHeadNeckBallJoint", None, ragdoll, graph);
 
-        graph[ragdoll].as_ragdoll_mut().set_limbs(vec![
-            Limb {
-                bone: self.hips,
-                physical_bone: hips,
-            },
-            // Left leg (top-to-bottom).
-            Limb {
-                bone: self.left_foot,
-                physical_bone: left_foot,
-            },
-            Limb {
-                bone: self.left_leg,
-                physical_bone: left_leg,
-            },
-            Limb {
-                bone: self.left_up_leg,
-                physical_bone: left_up_leg,
-            },
-            // Right leg (top-to-bottom).
-            Limb {
-                bone: self.right_foot,
-                physical_bone: right_foot,
-            },
-            Limb {
-                bone: self.right_leg,
-                physical_bone: right_leg,
-            },
-            Limb {
-                bone: self.right_up_leg,
-                physical_bone: right_up_leg,
-            },
-            // Spine
-            Limb {
-                bone: self.spine,
-                physical_bone: spine,
-            },
-            Limb {
-                bone: self.spine1,
-                physical_bone: spine1,
-            },
-            Limb {
-                bone: self.spine2,
-                physical_bone: spine2,
-            },
-            Limb {
-                bone: self.left_shoulder,
-                physical_bone: left_shoulder,
-            },
-            Limb {
-                bone: self.left_arm,
-                physical_bone: left_arm,
-            },
-            Limb {
-                bone: self.left_fore_arm,
-                physical_bone: left_fore_arm,
-            },
-            Limb {
-                bone: self.left_hand,
-                physical_bone: left_hand,
-            },
-            Limb {
-                bone: self.right_shoulder,
-                physical_bone: right_shoulder,
-            },
-            Limb {
-                bone: self.right_arm,
-                physical_bone: right_arm,
-            },
-            Limb {
-                bone: self.right_fore_arm,
-                physical_bone: right_fore_arm,
-            },
-            Limb {
-                bone: self.right_hand,
-                physical_bone: right_hand,
-            },
-            Limb {
-                bone: self.neck,
-                physical_bone: neck,
-            },
-            Limb {
-                bone: self.head,
-                physical_bone: head,
-            },
-        ]);
+        graph[ragdoll].as_ragdoll_mut().set_hips(Limb {
+            bone: self.hips,
+            physical_bone: hips,
+            children: vec![
+                Limb {
+                    bone: self.spine,
+                    physical_bone: spine,
+                    children: vec![Limb {
+                        bone: self.spine1,
+                        physical_bone: spine1,
+                        children: vec![Limb {
+                            bone: self.spine2,
+                            physical_bone: spine2,
+                            children: vec![
+                                Limb {
+                                    bone: self.left_shoulder,
+                                    physical_bone: left_shoulder,
+                                    children: vec![Limb {
+                                        bone: self.left_arm,
+                                        physical_bone: left_arm,
+                                        children: vec![Limb {
+                                            bone: self.left_fore_arm,
+                                            physical_bone: left_fore_arm,
+                                            children: vec![Limb {
+                                                bone: self.left_hand,
+                                                physical_bone: left_hand,
+                                                children: vec![],
+                                            }],
+                                        }],
+                                    }],
+                                },
+                                Limb {
+                                    bone: self.right_shoulder,
+                                    physical_bone: right_shoulder,
+                                    children: vec![Limb {
+                                        bone: self.right_arm,
+                                        physical_bone: right_arm,
+                                        children: vec![Limb {
+                                            bone: self.right_fore_arm,
+                                            physical_bone: right_fore_arm,
+                                            children: vec![Limb {
+                                                bone: self.right_hand,
+                                                physical_bone: right_hand,
+                                                children: vec![],
+                                            }],
+                                        }],
+                                    }],
+                                },
+                                Limb {
+                                    bone: self.neck,
+                                    physical_bone: neck,
+                                    children: vec![Limb {
+                                        bone: self.head,
+                                        physical_bone: head,
+                                        children: vec![],
+                                    }],
+                                },
+                            ],
+                        }],
+                    }],
+                },
+                Limb {
+                    bone: self.left_up_leg,
+                    physical_bone: left_up_leg,
+                    children: vec![Limb {
+                        bone: self.left_leg,
+                        physical_bone: left_leg,
+                        children: vec![Limb {
+                            bone: self.left_foot,
+                            physical_bone: left_foot,
+                            children: vec![],
+                        }],
+                    }],
+                },
+                Limb {
+                    bone: self.right_up_leg,
+                    physical_bone: right_up_leg,
+                    children: vec![Limb {
+                        bone: self.right_leg,
+                        physical_bone: right_leg,
+                        children: vec![Limb {
+                            bone: self.right_foot,
+                            physical_bone: right_foot,
+                            children: vec![],
+                        }],
+                    }],
+                },
+            ],
+        });
 
         // Immediately after extract if from the scene to subgraph. This is required to not violate
         // the rule of one place of execution, only commands allowed to modify the scene.

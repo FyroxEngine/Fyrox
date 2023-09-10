@@ -19,12 +19,160 @@ use crate::{
         rigidbody::{RigidBody, RigidBodyType},
     },
 };
-use std::ops::{Deref, DerefMut};
+use std::{
+    any::{type_name, Any, TypeId},
+    ops::{Deref, DerefMut},
+};
 
-#[derive(Clone, Reflect, Visit, Debug, PartialEq, Default)]
+#[derive(Clone, Debug, PartialEq, Default)]
 pub struct Limb {
     pub bone: Handle<Node>,
     pub physical_bone: Handle<Node>,
+    pub children: Vec<Limb>,
+}
+
+// Rust has a compiler bug `overflow evaluating the requirement` that prevents deriving this impl.
+impl Reflect for Limb {
+    fn type_name(&self) -> &'static str {
+        type_name::<Self>()
+    }
+
+    fn doc(&self) -> &'static str {
+        ""
+    }
+
+    fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
+        func(vec![
+            FieldInfo {
+                owner_type_id: TypeId::of::<Self>(),
+                name: "Bone",
+                display_name: "Bone",
+                description: "",
+                type_name: type_name::<Handle<Node>>(),
+                value: &self.bone,
+                reflect_value: &self.bone,
+                read_only: false,
+                immutable_collection: false,
+                min_value: None,
+                max_value: None,
+                step: None,
+                precision: None,
+                doc: "",
+            },
+            FieldInfo {
+                owner_type_id: TypeId::of::<Self>(),
+                name: "PhysicalBone",
+                display_name: "Physical Bone",
+                description: "",
+                type_name: type_name::<Handle<Node>>(),
+                value: &self.physical_bone,
+                reflect_value: &self.physical_bone,
+                read_only: false,
+                immutable_collection: false,
+                min_value: None,
+                max_value: None,
+                step: None,
+                precision: None,
+                doc: "",
+            },
+            FieldInfo {
+                owner_type_id: TypeId::of::<Self>(),
+                name: "Children",
+                display_name: "Children",
+                description: "",
+                type_name: type_name::<Vec<Limb>>(),
+                value: &self.children,
+                reflect_value: &self.children,
+                read_only: false,
+                immutable_collection: false,
+                min_value: None,
+                max_value: None,
+                step: None,
+                precision: None,
+                doc: "",
+            },
+        ])
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+
+    fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
+        func(self)
+    }
+
+    fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
+        func(self)
+    }
+
+    fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+        func(self)
+    }
+
+    fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+        func(self)
+    }
+
+    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+        let this = std::mem::replace(self, value.take()?);
+        Ok(Box::new(this))
+    }
+
+    fn fields(&self, func: &mut dyn FnMut(Vec<&dyn Reflect>)) {
+        func(vec![&self.bone, &self.physical_bone, &self.children])
+    }
+
+    fn fields_mut(&mut self, func: &mut dyn FnMut(Vec<&mut dyn Reflect>)) {
+        func(vec![
+            &mut self.bone,
+            &mut self.physical_bone,
+            &mut self.children,
+        ])
+    }
+
+    fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+        func(match name {
+            "Bone" => Some(&self.bone),
+            "PhysicalBone" => Some(&self.physical_bone),
+            "Children" => Some(&self.children),
+            _ => None,
+        })
+    }
+
+    fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+        func(match name {
+            "Bone" => Some(&mut self.bone),
+            "PhysicalBone" => Some(&mut self.physical_bone),
+            "Children" => Some(&mut self.children),
+            _ => None,
+        })
+    }
+}
+
+impl Visit for Limb {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut guard = visitor.enter_region(name)?;
+
+        self.bone.visit("Bone", &mut guard)?;
+        self.physical_bone.visit("PhysicalBone", &mut guard)?;
+        self.children.visit("Children", &mut guard)?;
+
+        Ok(())
+    }
+}
+
+impl Limb {
+    fn iterate_recursive<F>(&self, func: &mut F)
+    where
+        F: FnMut(&Self),
+    {
+        func(self);
+
+        for child in self.children.iter() {
+            child.iterate_recursive(func)
+        }
+    }
 }
 
 #[derive(Clone, Reflect, Visit, Debug, Default)]
@@ -32,8 +180,7 @@ pub struct Ragdoll {
     base: Base,
     character_rigid_body: InheritableVariable<Handle<Node>>,
     is_active: InheritableVariable<bool>,
-    limbs: InheritableVariable<Vec<Limb>>,
-    hips: InheritableVariable<Handle<Node>>,
+    hips: InheritableVariable<Limb>,
     #[reflect(hidden)]
     prev_enabled: bool,
 }
@@ -89,7 +236,7 @@ impl NodeTrait for Ragdoll {
         }
         self.prev_enabled = *self.is_active;
 
-        for limb in self.limbs.iter() {
+        self.hips.iterate_recursive(&mut |limb| {
             if let Some(limb_body) = ctx
                 .nodes
                 .try_borrow_mut(limb.physical_bone)
@@ -128,6 +275,16 @@ impl NodeTrait for Ragdoll {
                             16,
                             Default::default(),
                         ));
+
+                    // Calculate transform of the descendants explicitly, so the next bones in hierarchy will have new transform
+                    // that can be used to calculate relative transform.
+                    Graph::update_hierarchical_data_recursively(
+                        ctx.nodes,
+                        ctx.sound_context,
+                        ctx.physics,
+                        ctx.physics2d,
+                        limb.bone,
+                    );
                 } else {
                     limb_body.set_body_type(RigidBodyType::KinematicPositionBased);
                     limb_body.set_lin_vel(Default::default());
@@ -149,10 +306,10 @@ impl NodeTrait for Ragdoll {
                     }
                 }
             }
-        }
+        });
 
         if *self.is_active {
-            if let Some(hips_body) = ctx.nodes.try_borrow(*self.hips) {
+            if let Some(hips_body) = ctx.nodes.try_borrow(self.hips.bone) {
                 let position = hips_body.global_position();
                 if let Some(capsule) = ctx
                     .nodes
@@ -177,19 +334,11 @@ impl Ragdoll {
         *self.is_active
     }
 
-    pub fn limbs(&self) -> &[Limb] {
-        self.limbs.as_slice()
+    pub fn hips(&self) -> &Limb {
+        &self.hips
     }
 
-    pub fn set_limbs(&mut self, limbs: Vec<Limb>) {
-        self.limbs.set_value_and_mark_modified(limbs);
-    }
-
-    pub fn hips(&self) -> Handle<Node> {
-        *self.hips
-    }
-
-    pub fn set_hips(&mut self, hips: Handle<Node>) {
+    pub fn set_hips(&mut self, hips: Limb) {
         self.hips.set_value_and_mark_modified(hips);
     }
 }
@@ -198,8 +347,7 @@ pub struct RagdollBuilder {
     base_builder: BaseBuilder,
     character_rigid_body: Handle<Node>,
     is_active: bool,
-    limbs: Vec<Limb>,
-    hips: Handle<Node>,
+    hips: Limb,
 }
 
 impl RagdollBuilder {
@@ -208,7 +356,6 @@ impl RagdollBuilder {
             base_builder,
             character_rigid_body: Default::default(),
             is_active: true,
-            limbs: Default::default(),
             hips: Default::default(),
         }
     }
@@ -223,12 +370,7 @@ impl RagdollBuilder {
         self
     }
 
-    pub fn with_limbs(mut self, limbs: Vec<Limb>) -> Self {
-        self.limbs = limbs;
-        self
-    }
-
-    pub fn with_hips(mut self, hips: Handle<Node>) -> Self {
+    pub fn with_hips(mut self, hips: Limb) -> Self {
         self.hips = hips;
         self
     }
@@ -238,7 +380,6 @@ impl RagdollBuilder {
             base: self.base_builder.build_base(),
             character_rigid_body: self.character_rigid_body.into(),
             is_active: self.is_active.into(),
-            limbs: self.limbs.into(),
             hips: self.hips.into(),
             prev_enabled: self.is_active,
         };
