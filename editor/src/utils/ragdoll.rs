@@ -691,7 +691,7 @@ impl RagdollPreset {
         );
         try_make_ball_joint(head, neck, "RagdollHeadNeckBallJoint", None, ragdoll, graph);
 
-        graph[ragdoll].as_ragdoll_mut().set_hips(Limb {
+        graph[ragdoll].as_ragdoll_mut().set_root_limb(Limb {
             bone: self.hips,
             physical_bone: hips,
             children: vec![

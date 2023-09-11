@@ -180,7 +180,7 @@ pub struct Ragdoll {
     base: Base,
     character_rigid_body: InheritableVariable<Handle<Node>>,
     is_active: InheritableVariable<bool>,
-    hips: InheritableVariable<Limb>,
+    root_limb: InheritableVariable<Limb>,
     #[reflect(hidden)]
     prev_enabled: bool,
 }
@@ -236,7 +236,7 @@ impl NodeTrait for Ragdoll {
         }
         self.prev_enabled = *self.is_active;
 
-        self.hips.iterate_recursive(&mut |limb| {
+        self.root_limb.iterate_recursive(&mut |limb| {
             if let Some(limb_body) = ctx
                 .nodes
                 .try_borrow_mut(limb.physical_bone)
@@ -309,8 +309,8 @@ impl NodeTrait for Ragdoll {
         });
 
         if *self.is_active {
-            if let Some(hips_body) = ctx.nodes.try_borrow(self.hips.bone) {
-                let position = hips_body.global_position();
+            if let Some(root_limb_body) = ctx.nodes.try_borrow(self.root_limb.bone) {
+                let position = root_limb_body.global_position();
                 if let Some(capsule) = ctx
                     .nodes
                     .try_borrow_mut(*self.character_rigid_body)
@@ -334,12 +334,12 @@ impl Ragdoll {
         *self.is_active
     }
 
-    pub fn hips(&self) -> &Limb {
-        &self.hips
+    pub fn root_limb(&self) -> &Limb {
+        &self.root_limb
     }
 
-    pub fn set_hips(&mut self, hips: Limb) {
-        self.hips.set_value_and_mark_modified(hips);
+    pub fn set_root_limb(&mut self, root_limb: Limb) {
+        self.root_limb.set_value_and_mark_modified(root_limb);
     }
 }
 
@@ -347,7 +347,7 @@ pub struct RagdollBuilder {
     base_builder: BaseBuilder,
     character_rigid_body: Handle<Node>,
     is_active: bool,
-    hips: Limb,
+    root_limb: Limb,
 }
 
 impl RagdollBuilder {
@@ -356,7 +356,7 @@ impl RagdollBuilder {
             base_builder,
             character_rigid_body: Default::default(),
             is_active: true,
-            hips: Default::default(),
+            root_limb: Default::default(),
         }
     }
 
@@ -370,8 +370,8 @@ impl RagdollBuilder {
         self
     }
 
-    pub fn with_hips(mut self, hips: Limb) -> Self {
-        self.hips = hips;
+    pub fn with_root_limb(mut self, root_limb: Limb) -> Self {
+        self.root_limb = root_limb;
         self
     }
 
@@ -380,7 +380,7 @@ impl RagdollBuilder {
             base: self.base_builder.build_base(),
             character_rigid_body: self.character_rigid_body.into(),
             is_active: self.is_active.into(),
-            hips: self.hips.into(),
+            root_limb: self.root_limb.into(),
             prev_enabled: self.is_active,
         };
 
