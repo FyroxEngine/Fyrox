@@ -49,6 +49,7 @@ pub struct HandlePropertyEditor {
     text: Handle<UiNode>,
     locate: Handle<UiNode>,
     select: Handle<UiNode>,
+    make_unassigned: Handle<UiNode>,
     value: Handle<Node>,
     sender: MessageSender,
 }
@@ -62,6 +63,7 @@ impl Clone for HandlePropertyEditor {
             sender: self.sender.clone(),
             locate: self.locate,
             select: self.select,
+            make_unassigned: self.make_unassigned,
         }
     }
 }
@@ -178,6 +180,12 @@ impl Control for HandlePropertyEditor {
                     type_id: TypeId::of::<Node>(),
                     handle: self.value.into(),
                 });
+            } else if message.destination == self.make_unassigned {
+                ui.send_message(HandlePropertyEditorMessage::value(
+                    self.handle,
+                    MessageDirection::ToWidget,
+                    Handle::NONE,
+                ));
             }
         }
     }
@@ -207,6 +215,7 @@ impl HandlePropertyEditorBuilder {
         let text;
         let locate;
         let select;
+        let make_unassigned;
         let grid = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child({
@@ -243,10 +252,23 @@ impl HandlePropertyEditorBuilder {
                     .with_text("*")
                     .build(ctx);
                     select
+                })
+                .with_child({
+                    make_unassigned = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .with_tooltip(make_simple_tooltip(ctx, "Make Unassigned"))
+                            .with_width(20.0)
+                            .with_height(20.0)
+                            .on_column(3),
+                    )
+                    .with_text("X")
+                    .build(ctx);
+                    make_unassigned
                 }),
         )
         .add_row(Row::stretch())
         .add_column(Column::stretch())
+        .add_column(Column::auto())
         .add_column(Column::auto())
         .add_column(Column::auto())
         .build(ctx);
@@ -266,6 +288,7 @@ impl HandlePropertyEditorBuilder {
             sender: self.sender,
             locate,
             select,
+            make_unassigned,
         };
 
         ctx.add_node(UiNode::new(editor))
