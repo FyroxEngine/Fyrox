@@ -90,7 +90,7 @@ impl Default for RagdollPreset {
             right_hand: Default::default(),
             neck: Default::default(),
             head: Default::default(),
-            total_mass: 20.0,
+            total_mass: 70.0,
             friction: 0.5,
             use_ccd: true,
             can_sleep: true,
@@ -227,6 +227,7 @@ impl RagdollPreset {
         &self,
         from: Handle<Node>,
         radius: f32,
+        mass: f32,
         name: &str,
         ragdoll: Handle<Node>,
         apply_offset: bool,
@@ -258,6 +259,7 @@ impl RagdollPreset {
                     .with_shape(ColliderShape::ball(radius))
                     .build(graph)]),
             )
+            .with_mass(mass)
             .with_can_sleep(self.can_sleep)
             .with_ccd_enabled(self.use_ccd)
             .with_body_type(RigidBodyType::KinematicPositionBased)
@@ -276,6 +278,7 @@ impl RagdollPreset {
         from: Handle<Node>,
         to: Handle<Node>,
         radius: f32,
+        mass: f32,
         name: &str,
         ragdoll: Handle<Node>,
         graph: &mut Graph,
@@ -309,6 +312,7 @@ impl RagdollPreset {
                     .with_friction(self.friction)
                     .build(graph)]),
             )
+            .with_mass(mass)
             .with_can_sleep(self.can_sleep)
             .with_ccd_enabled(self.use_ccd)
             .with_body_type(RigidBodyType::KinematicPositionBased)
@@ -326,6 +330,7 @@ impl RagdollPreset {
         &self,
         from: Handle<Node>,
         half_size: Vector3<f32>,
+        mass: f32,
         name: &str,
         ragdoll: Handle<Node>,
         graph: &mut Graph,
@@ -346,6 +351,7 @@ impl RagdollPreset {
                     .with_friction(self.friction)
                     .build(graph)]),
             )
+            .with_mass(mass)
             .with_can_sleep(self.can_sleep)
             .with_ccd_enabled(self.use_ccd)
             .with_body_type(RigidBodyType::KinematicPositionBased)
@@ -387,6 +393,17 @@ impl RagdollPreset {
         let head_radius = 0.5 * base_size;
         let foot_radius = 0.2 * base_size;
 
+        let head_mass = 0.0823 * self.total_mass;
+        let thorax_mass = 0.1856 * self.total_mass;
+        let abdomen_mass = 0.1265 * self.total_mass;
+        let pelvis_mass = 0.1481 * self.total_mass;
+        let upper_arm_mass = 0.03075 * self.total_mass / 2.0;
+        let fore_arm_mass = 0.0172 * self.total_mass / 2.0;
+        let hand_mass = 0.00575 * self.total_mass / 2.0;
+        let thigh_mass = 0.11125 * self.total_mass / 2.0;
+        let leg_mass = 0.0505 * self.total_mass / 2.0;
+        let foot_mass = 0.0138 * self.total_mass / 2.0;
+
         let ragdoll = RagdollBuilder::new(BaseBuilder::new().with_name("Ragdoll"))
             .with_active(true)
             .build(graph);
@@ -397,6 +414,7 @@ impl RagdollPreset {
             self.left_up_leg,
             self.left_leg,
             0.35 * base_size,
+            thigh_mass,
             "RagdollLeftUpLeg",
             ragdoll,
             graph,
@@ -406,6 +424,7 @@ impl RagdollPreset {
             self.left_leg,
             self.left_foot,
             0.3 * base_size,
+            leg_mass,
             "RagdollLeftLeg",
             ragdoll,
             graph,
@@ -414,6 +433,7 @@ impl RagdollPreset {
         let left_foot = self.make_sphere(
             self.left_foot,
             0.2 * base_size,
+            foot_mass,
             "RagdollLeftFoot",
             ragdoll,
             false,
@@ -424,6 +444,7 @@ impl RagdollPreset {
             self.right_up_leg,
             self.right_leg,
             0.35 * base_size,
+            thigh_mass,
             "RagdollRightUpLeg",
             ragdoll,
             graph,
@@ -433,6 +454,7 @@ impl RagdollPreset {
             self.right_leg,
             self.right_foot,
             0.3 * base_size,
+            leg_mass,
             "RagdollRightLeg",
             ragdoll,
             graph,
@@ -441,6 +463,7 @@ impl RagdollPreset {
         let right_foot = self.make_sphere(
             self.right_foot,
             foot_radius,
+            foot_mass,
             "RagdollRightFoot",
             ragdoll,
             false,
@@ -450,6 +473,7 @@ impl RagdollPreset {
         let hips = self.make_cuboid(
             self.hips,
             Vector3::new(base_size * 0.5, base_size * 0.2, base_size * 0.4),
+            pelvis_mass,
             "RagdollHips",
             ragdoll,
             graph,
@@ -458,6 +482,7 @@ impl RagdollPreset {
         let spine = self.make_cuboid(
             self.spine,
             Vector3::new(base_size * 0.45, base_size * 0.2, base_size * 0.4),
+            abdomen_mass,
             "RagdollSpine",
             ragdoll,
             graph,
@@ -466,6 +491,7 @@ impl RagdollPreset {
         let spine1 = self.make_cuboid(
             self.spine1,
             Vector3::new(base_size * 0.45, base_size * 0.2, base_size * 0.4),
+            thorax_mass / 2.0,
             "RagdollSpine1",
             ragdoll,
             graph,
@@ -474,6 +500,7 @@ impl RagdollPreset {
         let spine2 = self.make_cuboid(
             self.spine2,
             Vector3::new(base_size * 0.45, base_size * 0.2, base_size * 0.4),
+            thorax_mass / 2.0,
             "RagdollSpine2",
             ragdoll,
             graph,
@@ -484,6 +511,7 @@ impl RagdollPreset {
             self.left_shoulder,
             self.left_arm,
             0.2 * base_size,
+            upper_arm_mass / 2.0,
             "RagdollLeftShoulder",
             ragdoll,
             graph,
@@ -493,6 +521,7 @@ impl RagdollPreset {
             self.left_arm,
             self.left_fore_arm,
             0.2 * base_size,
+            upper_arm_mass / 2.0,
             "RagdollLeftArm",
             ragdoll,
             graph,
@@ -502,6 +531,7 @@ impl RagdollPreset {
             self.left_fore_arm,
             self.left_hand,
             0.2 * base_size,
+            fore_arm_mass,
             "RagdollLeftForeArm",
             ragdoll,
             graph,
@@ -510,6 +540,7 @@ impl RagdollPreset {
         let left_hand = self.make_sphere(
             self.left_hand,
             hand_radius,
+            hand_mass,
             "LeftHand",
             ragdoll,
             false,
@@ -521,6 +552,7 @@ impl RagdollPreset {
             self.right_shoulder,
             self.right_arm,
             0.2 * base_size,
+            upper_arm_mass / 2.0,
             "RagdollRightShoulder",
             ragdoll,
             graph,
@@ -530,6 +562,7 @@ impl RagdollPreset {
             self.right_arm,
             self.right_fore_arm,
             0.2 * base_size,
+            upper_arm_mass / 2.0,
             "RagdollRightArm",
             ragdoll,
             graph,
@@ -539,6 +572,7 @@ impl RagdollPreset {
             self.right_fore_arm,
             self.right_hand,
             0.2 * base_size,
+            fore_arm_mass,
             "RagdollRightForeArm",
             ragdoll,
             graph,
@@ -547,6 +581,7 @@ impl RagdollPreset {
         let right_hand = self.make_sphere(
             self.right_hand,
             hand_radius,
+            hand_mass,
             "RightHand",
             ragdoll,
             false,
@@ -557,6 +592,7 @@ impl RagdollPreset {
             self.neck,
             self.head,
             0.2 * base_size,
+            0.3 * head_mass,
             "RagdollNeck",
             ragdoll,
             graph,
@@ -565,6 +601,7 @@ impl RagdollPreset {
         let head = self.make_sphere(
             self.head,
             0.5 * base_size,
+            0.7 * head_mass,
             "RadgollHead",
             ragdoll,
             true,
