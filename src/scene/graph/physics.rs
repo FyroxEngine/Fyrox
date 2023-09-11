@@ -743,12 +743,12 @@ pub struct IntegrationParameters {
     pub min_ccd_dt: f32,
 
     /// The Error Reduction Parameter in `[0, 1]` is the proportion of the positional error to be
-    /// corrected at each time step (default: `0.2`).
+    /// corrected at each time step (default: `0.8`).
     #[reflect(
         min_value = 0.0,
         max_value = 1.0,
         description = "The Error Reduction Parameter in `[0, 1]` is the proportion of the \
-        positional error to be corrected at each time step (default: `0.2`)"
+        positional error to be corrected at each time step (default: `0.8`)"
     )]
     pub erp: f32,
 
@@ -765,28 +765,28 @@ pub struct IntegrationParameters {
     pub damping_ratio: f32,
 
     /// The Error Reduction Parameter for joints in `[0, 1]` is the proportion of the positional
-    /// error to be corrected at each time step (default: `0.2`).
+    /// error to be corrected at each time step (default: `0.8`).
     #[reflect(
         min_value = 0.0,
         max_value = 1.0,
         description = "The Error Reduction Parameter for joints in `[0, 1]` is the proportion \
-        of the positional error to be corrected at each time step (default: `0.2`)."
+        of the positional error to be corrected at each time step (default: `0.8`)."
     )]
     pub joint_erp: f32,
 
     /// The fraction of critical damping applied to the joint for constraints regularization.
-    /// (default `0.25`).
+    /// (default `0.8`).
     #[reflect(
         min_value = 0.0,
         description = "The fraction of critical damping applied to the joint for \
-        constraints regularization (default: `0.25`)."
+        constraints regularization (default: `0.8`)."
     )]
     pub joint_damping_ratio: f32,
 
-    /// Amount of penetration the engine wont attempt to correct (default: `0.005m`).
+    /// Amount of penetration the engine wont attempt to correct (default: `0.002m`).
     #[reflect(
         min_value = 0.0,
-        description = "Amount of penetration the engine wont attempt to correct (default: `0.005m`)."
+        description = "Amount of penetration the engine wont attempt to correct (default: `0.002m`)."
     )]
     pub allowed_linear_error: f32,
 
@@ -805,11 +805,11 @@ pub struct IntegrationParameters {
     )]
     pub prediction_distance: f32,
 
-    /// Maximum number of iterations performed by the velocity constraints solver (default: `4`).
+    /// Maximum number of iterations performed by the velocity constraints solver (default: `8`).
     #[reflect(
         min_value = 0.0,
         description = "Maximum number of iterations performed by the \
-    velocity constraints solver (default: `4`)."
+    velocity constraints solver (default: `8`)."
     )]
     pub max_velocity_iterations: u32,
 
@@ -820,10 +820,10 @@ pub struct IntegrationParameters {
     )]
     pub max_velocity_friction_iterations: u32,
 
-    /// Maximum number of iterations performed to remove the energy introduced by penetration corrections  (default: `1`).
+    /// Maximum number of iterations performed to remove the energy introduced by penetration corrections  (default: `4`).
     #[reflect(
         min_value = 0.0,
-        description = "Maximum number of iterations performed to remove the energy introduced by penetration corrections  (default: `1`)."
+        description = "Maximum number of iterations performed to remove the energy introduced by penetration corrections  (default: `4`)."
     )]
     pub max_stabilization_iterations: u32,
 
@@ -842,10 +842,10 @@ pub struct IntegrationParameters {
     )]
     pub min_island_size: u32,
 
-    /// Maximum number of substeps performed by the  solver (default: `1`).
+    /// Maximum number of substeps performed by the  solver (default: `4`).
     #[reflect(
         min_value = 0.0,
-        description = "Maximum number of substeps performed by the  solver (default: `1`)."
+        description = "Maximum number of substeps performed by the  solver (default: `4`)."
     )]
     pub max_ccd_substeps: u32,
 }
@@ -857,17 +857,17 @@ impl Default for IntegrationParameters {
             min_ccd_dt: 1.0 / 60.0 / 100.0,
             erp: 0.8,
             damping_ratio: 0.25,
-            joint_erp: 1.0,
-            joint_damping_ratio: 1.0,
-            allowed_linear_error: 0.001,
+            joint_erp: 0.8,
+            joint_damping_ratio: 0.8,
+            allowed_linear_error: 0.002,
             max_penetration_correction: f32::MAX,
             prediction_distance: 0.002,
-            max_velocity_iterations: 4,
+            max_velocity_iterations: 8,
             max_velocity_friction_iterations: 8,
-            max_stabilization_iterations: 1,
+            max_stabilization_iterations: 4,
             interleave_restitution_and_friction_resolution: true,
             min_island_size: 128,
-            max_ccd_substeps: 1,
+            max_ccd_substeps: 4,
         }
     }
 }
