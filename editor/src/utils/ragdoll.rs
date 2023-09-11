@@ -98,11 +98,20 @@ impl Default for RagdollPreset {
     }
 }
 
+#[allow(dead_code)]
+enum AxisOffset {
+    None,
+    X(f32),
+    Y(f32),
+    Z(f32),
+}
+
 fn try_make_ball_joint(
     body1: Handle<Node>,
     body2: Handle<Node>,
     name: &str,
     limits: Option<Range<f32>>,
+    offset_radius: AxisOffset,
     ragdoll: Handle<Node>,
     graph: &mut Graph,
 ) -> Handle<Node> {
@@ -120,10 +129,31 @@ fn try_make_ball_joint(
             joint.z_limits_angles = limits;
         }
 
+        let body1_ref = &graph[body1];
+
+        let offset = match offset_radius {
+            AxisOffset::None => Default::default(),
+            AxisOffset::X(offset) => body1_ref
+                .side_vector()
+                .try_normalize(f32::EPSILON)
+                .unwrap_or_default()
+                .scale(offset),
+            AxisOffset::Y(offset) => body1_ref
+                .up_vector()
+                .try_normalize(f32::EPSILON)
+                .unwrap_or_default()
+                .scale(offset),
+            AxisOffset::Z(offset) => body1_ref
+                .look_vector()
+                .try_normalize(f32::EPSILON)
+                .unwrap_or_default()
+                .scale(offset),
+        };
+
         let ball_joint = JointBuilder::new(
             BaseBuilder::new().with_name(name).with_local_transform(
                 TransformBuilder::new()
-                    .with_local_position(graph[body1].global_position())
+                    .with_local_position(body1_ref.global_position() - offset)
                     .with_local_rotation(UnitQuaternion::from_matrix_eps(
                         &graph[body1].global_transform().basis(),
                         f32::EPSILON,
@@ -353,6 +383,9 @@ impl RagdollPreset {
         sender: &MessageSender,
     ) {
         let base_size = self.measure_base_size(graph);
+        let hand_radius = 0.3 * base_size;
+        let head_radius = 0.5 * base_size;
+        let foot_radius = 0.2 * base_size;
 
         let ragdoll = RagdollBuilder::new(BaseBuilder::new().with_name("Ragdoll"))
             .with_active(true)
@@ -407,7 +440,7 @@ impl RagdollPreset {
 
         let right_foot = self.make_sphere(
             self.right_foot,
-            0.2 * base_size,
+            foot_radius,
             "RagdollRightFoot",
             ragdoll,
             false,
@@ -476,7 +509,7 @@ impl RagdollPreset {
 
         let left_hand = self.make_sphere(
             self.left_hand,
-            0.3 * base_size,
+            hand_radius,
             "LeftHand",
             ragdoll,
             false,
@@ -513,7 +546,7 @@ impl RagdollPreset {
 
         let right_hand = self.make_sphere(
             self.right_hand,
-            0.3 * base_size,
+            hand_radius,
             "RightHand",
             ragdoll,
             false,
@@ -532,7 +565,7 @@ impl RagdollPreset {
         let head = self.make_sphere(
             self.head,
             0.5 * base_size,
-            "RightHand",
+            "RadgollHead",
             ragdoll,
             true,
             graph,
@@ -547,6 +580,7 @@ impl RagdollPreset {
             hips,
             "RagdollLeftUpLegHipsBallJoint",
             Some(-80.0f32.to_radians()..80.0f32.to_radians()),
+            AxisOffset::None,
             ragdoll,
             graph,
         );
@@ -558,11 +592,12 @@ impl RagdollPreset {
             ragdoll,
             graph,
         );
-        try_make_hinge_joint(
+        try_make_ball_joint(
             left_foot,
             left_leg,
-            "RagdollLeftFootLeftLegHingeJoint",
+            "RagdollLeftFootLeftLegBallJoint",
             Some(-45.0f32.to_radians()..45.0f32.to_radians()),
+            AxisOffset::Y(-foot_radius),
             ragdoll,
             graph,
         );
@@ -573,6 +608,7 @@ impl RagdollPreset {
             hips,
             "RagdollLeftUpLegHipsBallJoint",
             Some(-80.0f32.to_radians()..80.0f32.to_radians()),
+            AxisOffset::None,
             ragdoll,
             graph,
         );
@@ -584,11 +620,12 @@ impl RagdollPreset {
             ragdoll,
             graph,
         );
-        try_make_hinge_joint(
+        try_make_ball_joint(
             right_foot,
             right_leg,
-            "RagdollRightFootRightLegHingeJoint",
+            "RagdollRightFootRightLegBallJoint",
             Some(-45.0f32.to_radians()..45.0f32.to_radians()),
+            AxisOffset::Y(-foot_radius),
             ragdoll,
             graph,
         );
@@ -633,6 +670,7 @@ impl RagdollPreset {
             left_shoulder,
             "RagdollLeftShoulderLeftArmBallJoint",
             None,
+            AxisOffset::None,
             ragdoll,
             graph,
         );
@@ -649,6 +687,7 @@ impl RagdollPreset {
             left_fore_arm,
             "RagdollLeftForeArmLeftHandBallJoint",
             Some(-45.0f32.to_radians()..45.0f32.to_radians()),
+            AxisOffset::X(hand_radius),
             ragdoll,
             graph,
         );
@@ -666,6 +705,7 @@ impl RagdollPreset {
             right_shoulder,
             "RagdollRightShoulderRightArmBallJoint",
             None,
+            AxisOffset::None,
             ragdoll,
             graph,
         );
@@ -682,6 +722,7 @@ impl RagdollPreset {
             right_fore_arm,
             "RagdollRightForeArmRightHandBallJoint",
             Some(-45.0f32.to_radians()..45.0f32.to_radians()),
+            AxisOffset::X(-hand_radius),
             ragdoll,
             graph,
         );
@@ -691,10 +732,19 @@ impl RagdollPreset {
             spine2,
             "RagdollNeckSpine2BallJoint",
             None,
+            AxisOffset::None,
             ragdoll,
             graph,
         );
-        try_make_ball_joint(head, neck, "RagdollHeadNeckBallJoint", None, ragdoll, graph);
+        try_make_ball_joint(
+            head,
+            neck,
+            "RagdollHeadNeckBallJoint",
+            None,
+            AxisOffset::Y(head_radius),
+            ragdoll,
+            graph,
+        );
 
         graph[ragdoll].as_ragdoll_mut().set_root_limb(Limb {
             bone: self.hips,
