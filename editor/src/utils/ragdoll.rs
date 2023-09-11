@@ -64,6 +64,7 @@ pub struct RagdollPreset {
     total_mass: f32,
     friction: f32,
     use_ccd: bool,
+    can_sleep: bool,
 }
 
 impl Default for RagdollPreset {
@@ -92,6 +93,7 @@ impl Default for RagdollPreset {
             total_mass: 20.0,
             friction: 0.5,
             use_ccd: true,
+            can_sleep: true,
         }
     }
 }
@@ -226,6 +228,7 @@ impl RagdollPreset {
                     .with_shape(ColliderShape::ball(radius))
                     .build(graph)]),
             )
+            .with_can_sleep(self.can_sleep)
             .with_ccd_enabled(self.use_ccd)
             .with_body_type(RigidBodyType::KinematicPositionBased)
             .build(graph);
@@ -276,6 +279,7 @@ impl RagdollPreset {
                     .with_friction(self.friction)
                     .build(graph)]),
             )
+            .with_can_sleep(self.can_sleep)
             .with_ccd_enabled(self.use_ccd)
             .with_body_type(RigidBodyType::KinematicPositionBased)
             .build(graph);
@@ -312,6 +316,7 @@ impl RagdollPreset {
                     .with_friction(self.friction)
                     .build(graph)]),
             )
+            .with_can_sleep(self.can_sleep)
             .with_ccd_enabled(self.use_ccd)
             .with_body_type(RigidBodyType::KinematicPositionBased)
             .build(graph);
