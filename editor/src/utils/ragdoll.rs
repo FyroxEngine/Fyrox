@@ -21,6 +21,7 @@ use fyrox::{
         grid::{Column, GridBuilder, Row},
         inspector::{InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction},
         message::{MessageDirection, UiMessage},
+        scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage, WindowTitle},
@@ -28,7 +29,7 @@ use fyrox::{
     },
     scene::{
         base::BaseBuilder,
-        collider::{ColliderBuilder, ColliderShape},
+        collider::{ColliderBuilder, ColliderShape, InteractionGroups},
         graph::Graph,
         joint::{BallJoint, JointBuilder, JointParams, RevoluteJoint},
         node::Node,
@@ -65,6 +66,8 @@ pub struct RagdollPreset {
     friction: f32,
     use_ccd: bool,
     can_sleep: bool,
+    collision_groups: InteractionGroups,
+    solver_groups: InteractionGroups,
 }
 
 impl Default for RagdollPreset {
@@ -94,6 +97,8 @@ impl Default for RagdollPreset {
             friction: 0.5,
             use_ccd: true,
             can_sleep: true,
+            collision_groups: Default::default(),
+            solver_groups: Default::default(),
         }
     }
 }
@@ -266,6 +271,8 @@ impl RagdollPreset {
                     .with_children(&[ColliderBuilder::new(
                         BaseBuilder::new().with_name("SphereCollider"),
                     )
+                    .with_collision_groups(self.collision_groups)
+                    .with_solver_groups(self.solver_groups)
                     .with_friction(self.friction)
                     .with_shape(ColliderShape::ball(radius))
                     .build(graph)]),
@@ -320,6 +327,8 @@ impl RagdollPreset {
                         Vector3::new(0.0, (pos_to - pos_from).norm() - 2.0 * radius, 0.0),
                         radius,
                     ))
+                    .with_collision_groups(self.collision_groups)
+                    .with_solver_groups(self.solver_groups)
                     .with_friction(self.friction)
                     .build(graph)]),
             )
@@ -358,6 +367,8 @@ impl RagdollPreset {
                     .with_children(&[ColliderBuilder::new(
                         BaseBuilder::new().with_name("CuboidCollider"),
                     )
+                    .with_collision_groups(self.collision_groups)
+                    .with_solver_groups(self.solver_groups)
                     .with_shape(ColliderShape::cuboid(half_size.x, half_size.y, half_size.z))
                     .with_friction(self.friction)
                     .build(graph)]),
@@ -954,23 +965,29 @@ impl RagdollWizard {
         .with_content(
             GridBuilder::new(
                 WidgetBuilder::new()
-                    .with_child({
-                        inspector = InspectorBuilder::new(
+                    .with_child(
+                        ScrollViewerBuilder::new(
                             WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
                         )
-                        .with_context(InspectorContext::from_object(
-                            &preset,
-                            ctx,
-                            container,
-                            None,
-                            MSG_SYNC_FLAG,
-                            0,
-                            true,
-                            Default::default(),
-                        ))
-                        .build(ctx);
-                        inspector
-                    })
+                        .with_content({
+                            inspector = InspectorBuilder::new(
+                                WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                            )
+                            .with_context(InspectorContext::from_object(
+                                &preset,
+                                ctx,
+                                container,
+                                None,
+                                MSG_SYNC_FLAG,
+                                0,
+                                true,
+                                Default::default(),
+                            ))
+                            .build(ctx);
+                            inspector
+                        })
+                        .build(ctx),
+                    )
                     .with_child(
                         StackPanelBuilder::new(
                             WidgetBuilder::new()
