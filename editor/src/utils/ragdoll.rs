@@ -106,11 +106,17 @@ enum AxisOffset {
     Z(f32),
 }
 
+struct BallJointLimits {
+    x: Range<f32>,
+    y: Range<f32>,
+    z: Range<f32>,
+}
+
 fn try_make_ball_joint(
     body1: Handle<Node>,
     body2: Handle<Node>,
     name: &str,
-    limits: Option<Range<f32>>,
+    limits: Option<BallJointLimits>,
     offset_radius: AxisOffset,
     ragdoll: Handle<Node>,
     graph: &mut Graph,
@@ -119,14 +125,13 @@ fn try_make_ball_joint(
         let mut joint = BallJoint::default();
 
         if let Some(limits) = limits {
-            // Just form a solid angle.
             joint.x_limits_enabled = true;
             joint.y_limits_enabled = true;
             joint.z_limits_enabled = true;
 
-            joint.x_limits_angles = limits.clone();
-            joint.y_limits_angles = limits.clone();
-            joint.z_limits_angles = limits;
+            joint.x_limits_angles = limits.x;
+            joint.y_limits_angles = limits.y;
+            joint.z_limits_angles = limits.z;
         }
 
         let body1_ref = &graph[body1];
@@ -622,7 +627,11 @@ impl RagdollPreset {
             left_up_leg,
             hips,
             "RagdollLeftUpLegHipsBallJoint",
-            Some(-80.0f32.to_radians()..80.0f32.to_radians()),
+            Some(BallJointLimits {
+                x: -80.0f32.to_radians()..80.0f32.to_radians(),
+                y: -80.0f32.to_radians()..80.0f32.to_radians(),
+                z: -80.0f32.to_radians()..80.0f32.to_radians(),
+            }),
             AxisOffset::None,
             ragdoll,
             graph,
@@ -639,7 +648,11 @@ impl RagdollPreset {
             left_foot,
             left_leg,
             "RagdollLeftFootLeftLegBallJoint",
-            Some(-45.0f32.to_radians()..45.0f32.to_radians()),
+            Some(BallJointLimits {
+                x: -45.0f32.to_radians()..45.0f32.to_radians(),
+                y: -45.0f32.to_radians()..45.0f32.to_radians(),
+                z: -45.0f32.to_radians()..45.0f32.to_radians(),
+            }),
             AxisOffset::Y(-foot_radius),
             ragdoll,
             graph,
@@ -650,7 +663,11 @@ impl RagdollPreset {
             right_up_leg,
             hips,
             "RagdollLeftUpLegHipsBallJoint",
-            Some(-80.0f32.to_radians()..80.0f32.to_radians()),
+            Some(BallJointLimits {
+                x: -80.0f32.to_radians()..80.0f32.to_radians(),
+                y: -80.0f32.to_radians()..80.0f32.to_radians(),
+                z: -80.0f32.to_radians()..80.0f32.to_radians(),
+            }),
             AxisOffset::None,
             ragdoll,
             graph,
@@ -667,7 +684,11 @@ impl RagdollPreset {
             right_foot,
             right_leg,
             "RagdollRightFootRightLegBallJoint",
-            Some(-45.0f32.to_radians()..45.0f32.to_radians()),
+            Some(BallJointLimits {
+                x: -45.0f32.to_radians()..45.0f32.to_radians(),
+                y: -45.0f32.to_radians()..45.0f32.to_radians(),
+                z: -45.0f32.to_radians()..45.0f32.to_radians(),
+            }),
             AxisOffset::Y(-foot_radius),
             ragdoll,
             graph,
@@ -729,7 +750,11 @@ impl RagdollPreset {
             left_hand,
             left_fore_arm,
             "RagdollLeftForeArmLeftHandBallJoint",
-            Some(-45.0f32.to_radians()..45.0f32.to_radians()),
+            Some(BallJointLimits {
+                x: -45.0f32.to_radians()..45.0f32.to_radians(),
+                y: -45.0f32.to_radians()..45.0f32.to_radians(),
+                z: -45.0f32.to_radians()..45.0f32.to_radians(),
+            }),
             AxisOffset::X(hand_radius),
             ragdoll,
             graph,
@@ -764,7 +789,11 @@ impl RagdollPreset {
             right_hand,
             right_fore_arm,
             "RagdollRightForeArmRightHandBallJoint",
-            Some(-45.0f32.to_radians()..45.0f32.to_radians()),
+            Some(BallJointLimits {
+                x: -45.0f32.to_radians()..45.0f32.to_radians(),
+                y: -45.0f32.to_radians()..45.0f32.to_radians(),
+                z: -45.0f32.to_radians()..45.0f32.to_radians(),
+            }),
             AxisOffset::X(-hand_radius),
             ragdoll,
             graph,
