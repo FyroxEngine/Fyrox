@@ -174,3 +174,234 @@ impl Future for UntypedResource {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+
+    use std::path::Path;
+
+    use super::*;
+
+    #[derive(Debug, Default, Reflect, Visit, Clone, Copy)]
+    struct Stub {}
+
+    impl ResourceData for Stub {
+        fn path(&self) -> std::borrow::Cow<std::path::Path> {
+            std::borrow::Cow::Borrowed(Path::new(""))
+        }
+
+        fn set_path(&mut self, _path: std::path::PathBuf) {
+            unimplemented!()
+        }
+
+        fn as_any(&self) -> &dyn std::any::Any {
+            unimplemented!()
+        }
+
+        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+            unimplemented!()
+        }
+
+        fn type_uuid(&self) -> Uuid {
+            Uuid::default()
+        }
+    }
+
+    impl TypeUuidProvider for Stub {
+        fn type_uuid() -> Uuid {
+            Uuid::default()
+        }
+    }
+
+    impl ResourceLoadError for str {}
+
+    #[test]
+    fn visit_for_untyped_resource() {
+        let mut r = UntypedResource::default();
+        let mut visitor = Visitor::default();
+
+        assert!(r.visit("name", &mut visitor).is_ok());
+    }
+
+    #[test]
+    fn debug_for_untyped_resource() {
+        let r = UntypedResource::default();
+
+        assert_eq!(format!("{r:?}"), "Resource\n");
+    }
+
+    #[test]
+    fn untyped_resource_new_pending() {
+        let r = UntypedResource::new_pending(PathBuf::from("/foo"), Uuid::default());
+
+        assert_eq!(r.0.lock().type_uuid(), Uuid::default());
+        assert_eq!(r.0.lock().path(), PathBuf::from("/foo"));
+    }
+
+    #[test]
+    fn untyped_resource_new_load_error() {
+        let r = UntypedResource::new_load_error(PathBuf::from("/foo"), None, Uuid::default());
+
+        assert_eq!(r.0.lock().type_uuid(), Uuid::default());
+        assert_eq!(r.0.lock().path(), PathBuf::from("/foo"));
+    }
+
+    #[test]
+    fn untyped_resource_new_ok() {
+        let s = Stub {};
+        let r = UntypedResource::new_ok(s);
+
+        assert_eq!(r.0.lock().type_uuid(), s.type_uuid());
+        assert_eq!(r.0.lock().path(), s.path());
+    }
+
+    #[test]
+    fn untyped_resource_is_loading() {
+        assert!(UntypedResource(Arc::new(Mutex::new(ResourceState::Pending {
+            path: PathBuf::from("/foo"),
+            wakers: Vec::new(),
+            type_uuid: Uuid::default()
+        })))
+        .is_loading());
+
+        assert!(
+            !UntypedResource(Arc::new(Mutex::new(ResourceState::LoadError {
+                path: PathBuf::from("/foo"),
+                error: None,
+                type_uuid: Uuid::default()
+            })))
+            .is_loading()
+        );
+
+        assert!(
+            !UntypedResource(Arc::new(Mutex::new(ResourceState::Ok(Box::new(Stub {})))))
+                .is_loading()
+        );
+    }
+
+    #[test]
+    fn untyped_resource_use_count() {
+        let r = UntypedResource::default();
+
+        assert_eq!(r.use_count(), 1);
+    }
+
+    #[test]
+    fn untyped_resource_path() {
+        let path = PathBuf::from("/foo");
+        let stub = Stub {};
+
+        assert_eq!(
+            UntypedResource(Arc::new(Mutex::new(ResourceState::Pending {
+                path: path.clone(),
+                wakers: Vec::new(),
+                type_uuid: Uuid::default()
+            })))
+            .path(),
+            path
+        );
+
+        assert_eq!(
+            UntypedResource(Arc::new(Mutex::new(ResourceState::LoadError {
+                path: path.clone(),
+                error: None,
+                type_uuid: Uuid::default()
+            })))
+            .path(),
+            path
+        );
+
+        assert_eq!(
+            UntypedResource(Arc::new(Mutex::new(ResourceState::Ok(Box::new(stub))))).path(),
+            stub.path(),
+        );
+    }
+
+    #[test]
+    fn untyped_resource_try_cast() {
+        let r = UntypedResource::default();
+        let r2 = UntypedResource::new_pending(
+            PathBuf::from("/foo"),
+            Uuid::from_u128(0xa1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8u128),
+        );
+
+        assert!(matches!(r.try_cast::<Stub>(), Some(_)));
+        assert!(matches!(r2.try_cast::<Stub>(), None));
+    }
+
+    #[test]
+    fn untyped_resource_commit() {
+        let path = PathBuf::from("/foo");
+        let stub = Stub {};
+
+        let r = UntypedResource::new_pending(path.clone(), Default::default());
+        assert_eq!(r.0.lock().path(), path);
+        assert_ne!(r.0.lock().path(), stub.path());
+
+        r.commit(ResourceState::Ok(Box::new(stub)));
+        assert_ne!(r.0.lock().path(), path);
+        assert_eq!(r.0.lock().path(), stub.path());
+    }
+
+    #[test]
+    fn untyped_resource_commit_ok() {
+        let path = PathBuf::from("/foo");
+        let stub = Stub {};
+
+        let r = UntypedResource::new_pending(path.clone(), Default::default());
+        assert_eq!(r.0.lock().path(), path);
+        assert_ne!(r.0.lock().path(), stub.path());
+
+        r.commit_ok(stub);
+        assert_ne!(r.0.lock().path(), path);
+        assert_eq!(r.0.lock().path(), stub.path());
+    }
+
+    #[test]
+    fn untyped_resource_commit_error() {
+        let path = PathBuf::from("/foo");
+        let path2 = PathBuf::from("/bar");
+
+        let r = UntypedResource::new_pending(path.clone(), Default::default());
+        assert_eq!(r.0.lock().path(), path);
+        assert_ne!(r.0.lock().path(), path2);
+
+        r.commit_error(path2.clone(), "error");
+        assert_ne!(r.0.lock().path(), path);
+        assert_eq!(r.0.lock().path(), path2);
+    }
+
+    #[test]
+    fn stub_path() {
+        let s = Stub {};
+        assert_eq!(s.path(), std::borrow::Cow::Borrowed(Path::new("")));
+    }
+
+    #[test]
+    #[should_panic]
+    fn stub_set_path() {
+        let mut s = Stub {};
+        s.set_path(PathBuf::new());
+    }
+
+    #[test]
+    #[should_panic]
+    fn stub_set_as_any() {
+        let s = Stub {};
+        ResourceData::as_any(&s);
+    }
+
+    #[test]
+    #[should_panic]
+    fn stub_set_as_any_mut() {
+        let mut s = Stub {};
+        ResourceData::as_any_mut(&mut s);
+        s.type_uuid();
+    }
+
+    #[test]
+    fn stub_set_type_uuid() {
+        let s = Stub {};
+        assert_eq!(s.type_uuid(), Uuid::default());
+    }
+}
