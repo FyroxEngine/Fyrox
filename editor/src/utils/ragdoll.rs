@@ -23,6 +23,7 @@ use fyrox::{
         message::{MessageDirection, UiMessage},
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
+        utils::make_simple_tooltip,
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
@@ -42,31 +43,77 @@ use std::{ops::Range, rc::Rc};
 
 #[derive(Reflect, Debug)]
 pub struct RagdollPreset {
+    #[reflect(description = "A handle of a hips (pelvis) bone.")]
     hips: Handle<Node>,
+    #[reflect(description = "A handle of a left upper leg (thigh) bone.")]
     left_up_leg: Handle<Node>,
+    #[reflect(description = "A handle of a left leg bone.")]
     left_leg: Handle<Node>,
+    #[reflect(description = "A handle of a left foot bone.")]
     left_foot: Handle<Node>,
+    #[reflect(description = "A handle of a right upper leg (thigh) bone.")]
     right_up_leg: Handle<Node>,
+    #[reflect(description = "A handle of a right leg bone.")]
     right_leg: Handle<Node>,
+    #[reflect(description = "A handle of a right foot bone.")]
     right_foot: Handle<Node>,
+    #[reflect(description = "A handle of a lower spine bone.")]
     spine: Handle<Node>,
+    #[reflect(description = "A handle of a middle spine bone.")]
     spine1: Handle<Node>,
+    #[reflect(description = "A handle of a upper spine bone.")]
     spine2: Handle<Node>,
+    #[reflect(description = "A handle of a left shoulder bone.")]
     left_shoulder: Handle<Node>,
+    #[reflect(description = "A handle of a left arm bone.")]
     left_arm: Handle<Node>,
+    #[reflect(description = "A handle of a left fore arm bone.")]
     left_fore_arm: Handle<Node>,
+    #[reflect(description = "A handle of a left hand bone.")]
     left_hand: Handle<Node>,
+    #[reflect(description = "A handle of a right shoulder bone.")]
     right_shoulder: Handle<Node>,
+    #[reflect(description = "A handle of a right arm bone.")]
     right_arm: Handle<Node>,
+    #[reflect(description = "A handle of a right fore arm bone.")]
     right_fore_arm: Handle<Node>,
+    #[reflect(description = "A handle of a right hand bone.")]
     right_hand: Handle<Node>,
+    #[reflect(description = "A handle of a neck bone.")]
     neck: Handle<Node>,
+    #[reflect(description = "A handle of a head bone.")]
     head: Handle<Node>,
+    #[reflect(
+        description = "Total mass of the rag doll. Masses of each body part will be calculated using average \
+    human body weight proportions."
+    )]
     total_mass: f32,
+    #[reflect(
+        description = "Friction coefficient of every collider of every body part of the rag doll.",
+        min_value = 0.0,
+        max_value = 1.0
+    )]
     friction: f32,
+    #[reflect(
+        description = "A flag, that defines whether the rigid bodies of the ragdoll will use continuous \
+    collision detection or not. This should be turned on, if your rag doll relatively small bones since they'll \
+    most likely fall through floor without CCD."
+    )]
     use_ccd: bool,
+    #[reflect(
+        description = "A flag, that defines whether the rigid bodies of the rag doll can sleep or not. \
+    Sleeping rigid bodies won't consume any CPU resources while remain static."
+    )]
     can_sleep: bool,
+    #[reflect(
+        description = "A pair of bit masks, that defines collision group and filter for every collider in the \
+    rag doll. It could be used to filter out collisions between character capsule and any part of the rag doll."
+    )]
     collision_groups: InteractionGroups,
+    #[reflect(
+        description = "A pair of bit masks, that defines solver group and filter for every collider in the \
+    rag doll. It could be used to filter out interactions between character capsule and any part of the rag doll."
+    )]
     solver_groups: InteractionGroups,
 }
 
@@ -998,7 +1045,13 @@ impl RagdollWizard {
                                     autofill = ButtonBuilder::new(
                                         WidgetBuilder::new()
                                             .with_width(100.0)
-                                            .with_margin(Thickness::uniform(1.0)),
+                                            .with_margin(Thickness::uniform(1.0))
+                                            .with_tooltip(make_simple_tooltip(
+                                                ctx,
+                                                "Tries to fill in bone handles of every body part \
+                                                by using a fixed set of commonly used bone names. \
+                                                Tested only on Mixamo skeletons.",
+                                            )),
                                     )
                                     .with_text("Autofill")
                                     .build(ctx);
