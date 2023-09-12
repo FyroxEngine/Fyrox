@@ -250,6 +250,12 @@ impl RagdollPreset {
                     .with_local_transform(
                         TransformBuilder::new()
                             .with_local_position(from_ref.global_position() + offset)
+                            .with_local_rotation(UnitQuaternion::from_matrix_eps(
+                                &from_ref.global_transform().basis(),
+                                f32::EPSILON,
+                                16,
+                                Default::default(),
+                            ))
                             .build(),
                     )
                     .with_children(&[ColliderBuilder::new(
