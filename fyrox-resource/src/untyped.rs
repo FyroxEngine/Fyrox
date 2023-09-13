@@ -178,7 +178,12 @@ impl Future for UntypedResource {
 #[cfg(test)]
 mod test {
 
-    use std::path::Path;
+    use futures::task::noop_waker;
+    use fyrox_core::futures;
+    use std::{
+        path::Path,
+        task::{self},
+    };
 
     use super::*;
 
@@ -325,8 +330,8 @@ mod test {
             Uuid::from_u128(0xa1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8u128),
         );
 
-        assert!(matches!(r.try_cast::<Stub>(), Some(_)));
-        assert!(matches!(r2.try_cast::<Stub>(), None));
+        assert!(r.try_cast::<Stub>().is_some());
+        assert!(r2.try_cast::<Stub>().is_none());
     }
 
     #[test]
@@ -369,6 +374,27 @@ mod test {
         r.commit_error(path2.clone(), "error");
         assert_ne!(r.0.lock().path(), path);
         assert_eq!(r.0.lock().path(), path2);
+    }
+
+    #[test]
+    fn untyped_resource_poll() {
+        let path = PathBuf::from("/foo");
+        let stub = Stub {};
+
+        let waker = noop_waker();
+        let mut cx = task::Context::from_waker(&waker);
+
+        let mut r = UntypedResource(Arc::new(Mutex::new(ResourceState::Ok(Box::new(
+            stub.clone(),
+        )))));
+        assert!(Pin::new(&mut r).poll(&mut cx).is_ready());
+
+        let mut r = UntypedResource(Arc::new(Mutex::new(ResourceState::LoadError {
+            path: path.clone(),
+            error: None,
+            type_uuid: Uuid::default(),
+        })));
+        assert!(Pin::new(&mut r).poll(&mut cx).is_ready());
     }
 
     #[test]
