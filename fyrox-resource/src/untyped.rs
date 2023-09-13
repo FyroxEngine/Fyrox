@@ -384,9 +384,7 @@ mod test {
         let waker = noop_waker();
         let mut cx = task::Context::from_waker(&waker);
 
-        let mut r = UntypedResource(Arc::new(Mutex::new(ResourceState::Ok(Box::new(
-            stub.clone(),
-        )))));
+        let mut r = UntypedResource(Arc::new(Mutex::new(ResourceState::Ok(Box::new(stub)))));
         assert!(Pin::new(&mut r).poll(&mut cx).is_ready());
 
         let mut r = UntypedResource(Arc::new(Mutex::new(ResourceState::LoadError {
