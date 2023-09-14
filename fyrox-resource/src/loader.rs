@@ -154,3 +154,93 @@ impl ResourceLoadersContainer {
         self.loaders.iter_mut().map(|boxed| &mut **boxed)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    impl ResourceLoader for u32 {
+        fn extensions(&self) -> &[&str] {
+            &[]
+        }
+
+        fn into_any(self: Box<Self>) -> Box<dyn Any> {
+            self
+        }
+
+        fn as_any(&self) -> &dyn Any {
+            self
+        }
+
+        fn as_any_mut(&mut self) -> &mut dyn Any {
+            self
+        }
+
+        fn load(
+            &self,
+            _resource: UntypedResource,
+            _event_broadcaster: ResourceEventBroadcaster,
+            _reload: bool,
+        ) -> BoxedLoaderFuture {
+            todo!()
+        }
+    }
+
+    #[test]
+    fn resource_loader_container_new() {
+        let container = ResourceLoadersContainer::new();
+        assert!(container.loaders.is_empty());
+
+        let container = ResourceLoadersContainer::default();
+        assert!(container.loaders.is_empty());
+    }
+
+    #[test]
+    fn resource_loader_container_set() {
+        let mut container = ResourceLoadersContainer::new();
+        let res = container.set(42);
+        let res2 = container.set(42);
+        assert_eq!(res, None);
+        assert_eq!(res2, Some(42));
+
+        assert_eq!(container.len(), 1);
+    }
+
+    #[test]
+    fn resource_loader_container_find() {
+        let mut container = ResourceLoadersContainer::new();
+
+        let res = container.find::<u32>();
+        assert_eq!(res, None);
+
+        container.set(42);
+        let res = container.find::<u32>();
+
+        assert_eq!(res, Some(&42));
+    }
+
+    #[test]
+    fn resource_loader_container_find_mut() {
+        let mut container = ResourceLoadersContainer::new();
+
+        let res = container.find_mut::<u32>();
+        assert_eq!(res, None);
+
+        container.set(42);
+        let res = container.find_mut::<u32>();
+
+        assert_eq!(res, Some(&mut 42));
+    }
+
+    #[test]
+    fn resource_loader_container_getters() {
+        let mut container = ResourceLoadersContainer::new();
+        assert!(container.is_empty());
+        assert_eq!(container.len(), 0);
+
+        container.set(42);
+        container.set(15);
+        assert!(!container.is_empty());
+        assert_eq!(container.len(), 1);
+    }
+}
