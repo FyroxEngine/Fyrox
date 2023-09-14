@@ -84,6 +84,7 @@ fn write_file_binary<P: AsRef<Path>>(path: P, content: &[u8]) {
 enum NameErrors {
     CargoReserved(String),
     Hyphen,
+    StartsWithNumber,
 }
 
 impl Display for NameErrors {
@@ -95,6 +96,7 @@ impl Display for NameErrors {
                 name
             ),
             Self::Hyphen => write!(f, "The project name cannot contain `-`"),
+            Self::StartsWithNumber => write!(f, "The project name cannot start with a number"),
         }
     }
 }
@@ -113,6 +115,9 @@ fn check_name(name: &str) -> Result<&str, NameErrors> {
     }
     if name.contains('-') {
         return Err(NameErrors::Hyphen);
+    }
+    if name.chars().nth(0).unwrap().is_digit(10) {
+        return Err(NameErrors::StartsWithNumber);
     }
     Ok(name)
 }
