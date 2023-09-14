@@ -32,14 +32,14 @@ pub enum GpuTextureKind {
 impl From<TextureKind> for GpuTextureKind {
     fn from(v: TextureKind) -> Self {
         match v {
-            TextureKind::Line { length } => GpuTextureKind::Line {
+            TextureKind::Line { length } => Self::Line {
                 length: length as usize,
             },
-            TextureKind::Rectangle { width, height } => GpuTextureKind::Rectangle {
+            TextureKind::Rectangle { width, height } => Self::Rectangle {
                 width: width as usize,
                 height: height as usize,
             },
-            TextureKind::Cube { width, height } => GpuTextureKind::Cube {
+            TextureKind::Cube { width, height } => Self::Cube {
                 width: width as usize,
                 height: height as usize,
             },
@@ -47,7 +47,7 @@ impl From<TextureKind> for GpuTextureKind {
                 width,
                 height,
                 depth,
-            } => GpuTextureKind::Volume {
+            } => Self::Volume {
                 width: width as usize,
                 height: height as usize,
                 depth: depth as usize,
@@ -459,11 +459,11 @@ impl WrapMode {
 impl From<TextureWrapMode> for WrapMode {
     fn from(v: TextureWrapMode) -> Self {
         match v {
-            TextureWrapMode::Repeat => WrapMode::Repeat,
-            TextureWrapMode::ClampToEdge => WrapMode::ClampToEdge,
-            TextureWrapMode::ClampToBorder => WrapMode::ClampToBorder,
-            TextureWrapMode::MirroredRepeat => WrapMode::MirroredRepeat,
-            TextureWrapMode::MirrorClampToEdge => WrapMode::MirrorClampToEdge,
+            TextureWrapMode::Repeat => Self::Repeat,
+            TextureWrapMode::ClampToEdge => Self::ClampToEdge,
+            TextureWrapMode::ClampToBorder => Self::ClampToBorder,
+            TextureWrapMode::MirroredRepeat => Self::MirroredRepeat,
+            TextureWrapMode::MirrorClampToEdge => Self::MirrorClampToEdge,
         }
     }
 }

@@ -92,7 +92,7 @@ fn prepare_source_code(code: &str, gl_kind: GlKind) -> String {
     let mut full_source_code = "#version 330 core\n// include 'shared.glsl'\n".to_owned();
 
     if gl_kind == GlKind::OpenGLES {
-        full_source_code += r#"    
+        full_source_code += r#"
             precision highp float;
             precision lowp usampler2D;
             precision lowp sampler3D;
@@ -208,8 +208,8 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
 
     #[inline(always)]
     pub fn set_i32_slice(&mut self, location: &UniformLocation, value: &[i32]) -> &mut Self {
-        unsafe {
-            if !value.is_empty() {
+        if !value.is_empty() {
+            unsafe {
                 self.state.gl.uniform_1_i32_slice(Some(&location.id), value);
             }
         }
@@ -218,18 +218,19 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
 
     #[inline(always)]
     pub fn set_u32_slice(&mut self, location: &UniformLocation, value: &[u32]) -> &mut Self {
-        unsafe {
-            if !value.is_empty() {
+        if !value.is_empty() {
+            unsafe {
                 self.state.gl.uniform_1_u32_slice(Some(&location.id), value);
             }
         }
+
         self
     }
 
     #[inline(always)]
     pub fn set_f32_slice(&mut self, location: &UniformLocation, value: &[f32]) -> &mut Self {
-        unsafe {
-            if !value.is_empty() {
+        if !value.is_empty() {
+            unsafe {
                 self.state.gl.uniform_1_f32_slice(Some(&location.id), value);
             }
         }
@@ -242,8 +243,8 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
         location: &UniformLocation,
         value: &[Vector2<f32>],
     ) -> &mut Self {
-        unsafe {
-            if !value.is_empty() {
+        if !value.is_empty() {
+            unsafe {
                 self.state.gl.uniform_2_f32_slice(
                     Some(&location.id),
                     std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 2),
@@ -259,8 +260,8 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
         location: &UniformLocation,
         value: &[Vector3<f32>],
     ) -> &mut Self {
-        unsafe {
-            if !value.is_empty() {
+        if !value.is_empty() {
+            unsafe {
                 self.state.gl.uniform_3_f32_slice(
                     Some(&location.id),
                     std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 3),
@@ -276,8 +277,8 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
         location: &UniformLocation,
         value: &[Vector4<f32>],
     ) -> &mut Self {
-        unsafe {
-            if !value.is_empty() {
+        if !value.is_empty() {
+            unsafe {
                 self.state.gl.uniform_4_f32_slice(
                     Some(&location.id),
                     std::slice::from_raw_parts(value.as_ptr() as *const f32, value.len() * 4),
@@ -303,8 +304,8 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
         location: &UniformLocation,
         value: &[Matrix2<f32>],
     ) -> &mut Self {
-        unsafe {
-            if !value.is_empty() {
+        if !value.is_empty() {
+            unsafe {
                 self.state.gl.uniform_matrix_2_f32_slice(
                     Some(&location.id),
                     false,
@@ -331,8 +332,8 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
         location: &UniformLocation,
         value: &[Matrix3<f32>],
     ) -> &mut Self {
-        unsafe {
-            if !value.is_empty() {
+        if !value.is_empty() {
+            unsafe {
                 self.state.gl.uniform_matrix_3_f32_slice(
                     Some(&location.id),
                     false,
@@ -359,8 +360,8 @@ impl<'a, 'b> GpuProgramBinding<'a, 'b> {
         location: &UniformLocation,
         value: &[Matrix4<f32>],
     ) -> &mut Self {
-        unsafe {
-            if !value.is_empty() {
+        if !value.is_empty() {
+            unsafe {
                 self.state.gl.uniform_matrix_4_f32_slice(
                     Some(&location.id),
                     false,
