@@ -25,6 +25,7 @@ pub struct LightPanel {
 
 impl LightPanel {
     pub fn new(engine: &mut Engine) -> Self {
+        let texels_per_unit = 64;
         let generate;
         let nud_texels_per_unit;
         let nud_spacing;
@@ -61,7 +62,7 @@ impl LightPanel {
                         .with_max_value(256.0)
                         .with_step(4.0)
                         .with_precision(0)
-                        .with_value(128.0)
+                        .with_value(texels_per_unit as f32)
                         .build(ctx);
                         nud_texels_per_unit
                     })
@@ -116,7 +117,7 @@ impl LightPanel {
             window,
             generate,
             nud_texels_per_unit,
-            texels_per_unit: 128,
+            texels_per_unit,
             nud_spacing,
             spacing: 0.02,
         }
