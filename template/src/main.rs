@@ -116,7 +116,7 @@ fn check_name(name: &str) -> Result<&str, NameErrors> {
     if name.contains('-') {
         return Err(NameErrors::Hyphen);
     }
-    if name.chars().nth(0) >= Some('0') && name.chars().nth(0) <= Some('9') {
+    if name.chars().nth(0).unwrap().is_digit(10) {
         return Err(NameErrors::StartsWithNumber);
     }
     Ok(name)
