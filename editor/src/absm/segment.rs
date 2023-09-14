@@ -14,8 +14,8 @@ pub enum SegmentMessage {
 }
 
 impl SegmentMessage {
-    define_constructor!(SegmentMessage:SourcePosition => fn source_position(Vector2<f32>), layout: false);
-    define_constructor!(SegmentMessage:DestPosition => fn dest_position(Vector2<f32>), layout: false);
+    define_constructor!(Self:SourcePosition => fn source_position(Vector2<f32>), layout: false);
+    define_constructor!(Self:DestPosition => fn dest_position(Vector2<f32>), layout: false);
 }
 
 #[derive(Debug, Clone)]

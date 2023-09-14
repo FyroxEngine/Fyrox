@@ -30,11 +30,11 @@ pub enum DropdownListMessage {
 }
 
 impl DropdownListMessage {
-    define_constructor!(DropdownListMessage:SelectionChanged => fn selection(Option<usize>), layout: false);
-    define_constructor!(DropdownListMessage:Items => fn items(Vec<Handle<UiNode >>), layout: false);
-    define_constructor!(DropdownListMessage:AddItem => fn add_item(Handle<UiNode>), layout: false);
-    define_constructor!(DropdownListMessage:Open => fn open(), layout: false);
-    define_constructor!(DropdownListMessage:Close => fn close(), layout: false);
+    define_constructor!(Self:SelectionChanged => fn selection(Option<usize>), layout: false);
+    define_constructor!(Self:Items => fn items(Vec<Handle<UiNode >>), layout: false);
+    define_constructor!(Self:AddItem => fn add_item(Handle<UiNode>), layout: false);
+    define_constructor!(Self:Open => fn open(), layout: false);
+    define_constructor!(Self:Close => fn close(), layout: false);
 }
 
 #[derive(Clone)]

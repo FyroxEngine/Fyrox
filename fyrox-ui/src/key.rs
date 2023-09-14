@@ -98,7 +98,7 @@ pub enum HotKeyEditorMessage {
 }
 
 impl HotKeyEditorMessage {
-    define_constructor!(HotKeyEditorMessage:Value => fn value(HotKey), layout: false);
+    define_constructor!(Self:Value => fn value(HotKey), layout: false);
 }
 
 #[derive(Clone)]
@@ -288,7 +288,7 @@ pub enum KeyBindingEditorMessage {
 }
 
 impl KeyBindingEditorMessage {
-    define_constructor!(KeyBindingEditorMessage:Value => fn value(KeyBinding), layout: false);
+    define_constructor!(Self:Value => fn value(KeyBinding), layout: false);
 }
 
 #[derive(Clone)]

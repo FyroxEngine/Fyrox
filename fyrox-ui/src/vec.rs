@@ -67,7 +67,7 @@ impl<T, const D: usize> VecEditorMessage<T, D>
 where
     T: NumericType,
 {
-    define_constructor!(VecEditorMessage:Value => fn value(SVector<T, D>), layout: false);
+    define_constructor!(Self:Value => fn value(SVector<T, D>), layout: false);
 }
 
 #[derive(Clone)]

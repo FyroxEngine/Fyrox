@@ -33,11 +33,11 @@ pub enum ButtonMessage {
 impl ButtonMessage {
     define_constructor!(
         /// A shortcut method to create [`ButtonMessage::Click`] message.
-        ButtonMessage:Click => fn click(), layout: false
+        Self:Click => fn click(), layout: false
     );
     define_constructor!(
         /// A shortcut method to create [`ButtonMessage::Content`] message.
-        ButtonMessage:Content => fn content(ButtonContent), layout: false
+        Self:Content => fn content(ButtonContent), layout: false
     );
 }
 

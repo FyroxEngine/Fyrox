@@ -28,9 +28,9 @@ pub enum ThumbMessage {
 }
 
 impl ThumbMessage {
-    define_constructor!(ThumbMessage:Zoom => fn zoom(f32), layout: false);
-    define_constructor!(ThumbMessage:ViewPosition => fn view_position(f32), layout: false);
-    define_constructor!(ThumbMessage:Position => fn position(f32), layout: false);
+    define_constructor!(Self:Zoom => fn zoom(f32), layout: false);
+    define_constructor!(Self:ViewPosition => fn view_position(f32), layout: false);
+    define_constructor!(Self:Position => fn position(f32), layout: false);
 }
 
 #[derive(Clone)]

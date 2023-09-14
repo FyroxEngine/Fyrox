@@ -40,14 +40,14 @@ pub enum RulerMessage {
 }
 
 impl RulerMessage {
-    define_constructor!(RulerMessage:Zoom => fn zoom(f32), layout: false);
-    define_constructor!(RulerMessage:ViewPosition => fn view_position(f32), layout: false);
-    define_constructor!(RulerMessage:Value => fn value(f32), layout: false);
-    define_constructor!(RulerMessage:AddSignal => fn add_signal(f32), layout: false);
-    define_constructor!(RulerMessage:RemoveSignal => fn remove_signal(Uuid), layout: false);
-    define_constructor!(RulerMessage:SyncSignals => fn sync_signals(Vec<SignalView>), layout: false);
-    define_constructor!(RulerMessage:MoveSignal => fn move_signal(id: Uuid, new_position: f32), layout: false);
-    define_constructor!(RulerMessage:SelectSignal => fn select_signal(Uuid), layout: false);
+    define_constructor!(Self:Zoom => fn zoom(f32), layout: false);
+    define_constructor!(Self:ViewPosition => fn view_position(f32), layout: false);
+    define_constructor!(Self:Value => fn value(f32), layout: false);
+    define_constructor!(Self:AddSignal => fn add_signal(f32), layout: false);
+    define_constructor!(Self:RemoveSignal => fn remove_signal(Uuid), layout: false);
+    define_constructor!(Self:SyncSignals => fn sync_signals(Vec<SignalView>), layout: false);
+    define_constructor!(Self:MoveSignal => fn move_signal(id: Uuid, new_position: f32), layout: false);
+    define_constructor!(Self:SelectSignal => fn select_signal(Uuid), layout: false);
 }
 
 #[derive(Clone)]

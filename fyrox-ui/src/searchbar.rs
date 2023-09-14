@@ -34,7 +34,7 @@ pub enum SearchBarMessage {
 impl SearchBarMessage {
     define_constructor!(
         /// Creates [`SearchBarMessage::Text`] message.
-        SearchBarMessage:Text => fn text(String), layout: false
+        Self:Text => fn text(String), layout: false
     );
 }
 

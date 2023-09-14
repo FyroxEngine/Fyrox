@@ -67,7 +67,7 @@ impl<T> ResourceFieldMessage<T>
 where
     T: ResourceData + TypeUuidProvider,
 {
-    define_constructor!(ResourceFieldMessage:Value => fn value(Option<Resource<T>>), layout: false);
+    define_constructor!(Self:Value => fn value(Option<Resource<T>>), layout: false);
 }
 
 pub type ResourceLoaderCallback<T> =

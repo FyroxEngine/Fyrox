@@ -33,7 +33,7 @@ pub enum PropertySelectorMessage {
 }
 
 impl PropertySelectorMessage {
-    define_constructor!(PropertySelectorMessage:Selection => fn selection(Vec<PropertyDescriptorData>), layout: false);
+    define_constructor!(Self:Selection => fn selection(Vec<PropertyDescriptorData>), layout: false);
 }
 
 pub struct PropertyDescriptor {

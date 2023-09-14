@@ -43,19 +43,19 @@ pub enum TabControlMessage {
 impl TabControlMessage {
     define_constructor!(
         /// Creates [`TabControlMessage::ActiveTab`] message.
-        TabControlMessage:ActiveTab => fn active_tab(Option<usize>), layout: false
+        Self:ActiveTab => fn active_tab(Option<usize>), layout: false
     );
     define_constructor!(
         /// Creates [`TabControlMessage::CloseTab`] message.
-        TabControlMessage:CloseTab => fn close_tab(usize), layout: false
+        Self:CloseTab => fn close_tab(usize), layout: false
     );
     define_constructor!(
         /// Creates [`TabControlMessage::RemoveTab`] message.
-        TabControlMessage:RemoveTab => fn remove_tab(usize), layout: false
+        Self:RemoveTab => fn remove_tab(usize), layout: false
     );
     define_constructor!(
         /// Creates [`TabControlMessage::AddTab`] message.
-        TabControlMessage:AddTab => fn add_tab(TabDefinition), layout: false
+        Self:AddTab => fn add_tab(TabDefinition), layout: false
     );
 }
 
@@ -127,7 +127,7 @@ pub struct Tab {
 ///                 header: TextBuilder::new(WidgetBuilder::new())
 ///                             .with_text("First")
 ///                             .build(ctx),
-///                             
+///
 ///                 content: TextBuilder::new(WidgetBuilder::new())
 ///                             .with_text("First tab's contents!")
 ///                             .build(ctx),
@@ -140,7 +140,7 @@ pub struct Tab {
 ///                 header: TextBuilder::new(WidgetBuilder::new())
 ///                             .with_text("Second")
 ///                             .build(ctx),
-///                             
+///
 ///                 content: TextBuilder::new(WidgetBuilder::new())
 ///                             .with_text("Second tab's contents!")
 ///                             .build(ctx),

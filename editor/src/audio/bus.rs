@@ -31,10 +31,10 @@ pub enum AudioBusViewMessage {
 }
 
 impl AudioBusViewMessage {
-    define_constructor!(AudioBusViewMessage:ChangeParent => fn change_parent(Handle<AudioBus>), layout: false);
-    define_constructor!(AudioBusViewMessage:PossibleParentBuses => fn possible_parent_buses(Vec<(Handle<AudioBus>, String)>), layout: false);
-    define_constructor!(AudioBusViewMessage:EffectNames => fn effect_names(Vec<String>), layout: false);
-    define_constructor!(AudioBusViewMessage:Name => fn name(String), layout: false);
+    define_constructor!(Self:ChangeParent => fn change_parent(Handle<AudioBus>), layout: false);
+    define_constructor!(Self:PossibleParentBuses => fn possible_parent_buses(Vec<(Handle<AudioBus>, String)>), layout: false);
+    define_constructor!(Self:EffectNames => fn effect_names(Vec<String>), layout: false);
+    define_constructor!(Self:Name => fn name(String), layout: false);
 }
 
 #[derive(Clone)]

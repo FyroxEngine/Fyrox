@@ -32,15 +32,15 @@ pub enum ScrollPanelMessage {
 impl ScrollPanelMessage {
     define_constructor!(
         /// Creates [`ScrollPanelMessage::VerticalScroll`] message.
-        ScrollPanelMessage:VerticalScroll => fn vertical_scroll(f32), layout: false
+        Self:VerticalScroll => fn vertical_scroll(f32), layout: false
     );
     define_constructor!(
         /// Creates [`ScrollPanelMessage::HorizontalScroll`] message.
-        ScrollPanelMessage:HorizontalScroll => fn horizontal_scroll(f32), layout: false
+        Self:HorizontalScroll => fn horizontal_scroll(f32), layout: false
     );
     define_constructor!(
         /// Creates [`ScrollPanelMessage::BringIntoView`] message.
-        ScrollPanelMessage:BringIntoView => fn bring_into_view(Handle<UiNode>), layout: true
+        Self:BringIntoView => fn bring_into_view(Handle<UiNode>), layout: true
     );
 }
 

@@ -55,12 +55,12 @@ pub enum FileBrowserMessage {
 }
 
 impl FileBrowserMessage {
-    define_constructor!(FileBrowserMessage:Root => fn root(Option<PathBuf>), layout: false);
-    define_constructor!(FileBrowserMessage:Path => fn path(PathBuf), layout: false);
-    define_constructor!(FileBrowserMessage:Filter => fn filter(Option<Filter>), layout: false);
-    define_constructor!(FileBrowserMessage:Add => fn add(PathBuf), layout: false);
-    define_constructor!(FileBrowserMessage:Remove => fn remove(PathBuf), layout: false);
-    define_constructor!(FileBrowserMessage:Rescan => fn rescan(), layout: false);
+    define_constructor!(Self:Root => fn root(Option<PathBuf>), layout: false);
+    define_constructor!(Self:Path => fn path(PathBuf), layout: false);
+    define_constructor!(Self:Filter => fn filter(Option<Filter>), layout: false);
+    define_constructor!(Self:Add => fn add(PathBuf), layout: false);
+    define_constructor!(Self:Remove => fn remove(PathBuf), layout: false);
+    define_constructor!(Self:Rescan => fn rescan(), layout: false);
 }
 
 #[derive(Clone)]

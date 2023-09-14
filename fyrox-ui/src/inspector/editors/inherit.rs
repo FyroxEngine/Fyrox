@@ -35,8 +35,8 @@ pub enum InheritablePropertyEditorMessage {
 }
 
 impl InheritablePropertyEditorMessage {
-    define_constructor!(InheritablePropertyEditorMessage:Revert => fn revert(), layout: false);
-    define_constructor!(InheritablePropertyEditorMessage:Modified => fn modified(bool), layout: false);
+    define_constructor!(Self:Revert => fn revert(), layout: false);
+    define_constructor!(Self:Modified => fn modified(bool), layout: false);
 }
 
 #[derive(Debug, Clone)]

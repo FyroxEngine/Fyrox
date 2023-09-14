@@ -97,8 +97,8 @@ pub enum NodeSelectorMessage {
 }
 
 impl NodeSelectorMessage {
-    define_constructor!(NodeSelectorMessage:Hierarchy => fn hierarchy(HierarchyNode), layout: false);
-    define_constructor!(NodeSelectorMessage:Selection => fn selection(Vec<Handle<Node>>), layout: false);
+    define_constructor!(Self:Hierarchy => fn hierarchy(HierarchyNode), layout: false);
+    define_constructor!(Self:Selection => fn selection(Vec<Handle<Node>>), layout: false);
 }
 
 struct TreeData {

@@ -33,7 +33,7 @@ use std::{
 };
 
 /// Numeric type is a trait, that has all required traits of a number type. It is used as a useful abstraction over
-/// all machine numeric types.  
+/// all machine numeric types.
 pub trait NumericType:
     NumAssign
     + FromStr
@@ -96,19 +96,19 @@ pub enum NumericUpDownMessage<T: NumericType> {
 impl<T: NumericType> NumericUpDownMessage<T> {
     define_constructor!(
         /// Creates [`NumericUpDownMessage::Value`] message.
-        NumericUpDownMessage:Value => fn value(T), layout: false
+        Self:Value => fn value(T), layout: false
     );
     define_constructor!(
         /// Creates [`NumericUpDownMessage::MinValue`] message.
-        NumericUpDownMessage:MinValue => fn min_value(T), layout: false
+        Self:MinValue => fn min_value(T), layout: false
     );
     define_constructor!(
         /// Creates [`NumericUpDownMessage::MaxValue`] message.
-        NumericUpDownMessage:MaxValue => fn max_value(T), layout: false
+        Self:MaxValue => fn max_value(T), layout: false
     );
     define_constructor!(
         /// Creates [`NumericUpDownMessage::Step`] message.
-        NumericUpDownMessage:Step => fn step(T), layout: false
+        Self:Step => fn step(T), layout: false
     );
 
     /// Creates [`NumericUpDownMessage::Precision`] message.

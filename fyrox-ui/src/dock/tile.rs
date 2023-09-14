@@ -28,8 +28,8 @@ pub enum TileMessage {
 }
 
 impl TileMessage {
-    define_constructor!(TileMessage:Content => fn content(TileContent), layout: false);
-    define_constructor!(TileMessage:Split => fn split(window: Handle<UiNode>,
+    define_constructor!(Self:Content => fn content(TileContent), layout: false);
+    define_constructor!(Self:Split => fn split(window: Handle<UiNode>,
         direction: SplitDirection,
         first: bool), layout: false);
 }

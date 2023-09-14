@@ -60,15 +60,15 @@ pub enum BlendSpaceFieldMessage {
 }
 
 impl BlendSpaceFieldMessage {
-    define_constructor!(BlendSpaceFieldMessage:Points => fn points(Vec<Vector2<f32>>), layout: true);
-    define_constructor!(BlendSpaceFieldMessage:Triangles => fn triangles(Vec<TriangleDefinition>), layout: false);
-    define_constructor!(BlendSpaceFieldMessage:MinValues => fn min_values(Vector2<f32>), layout: false);
-    define_constructor!(BlendSpaceFieldMessage:MaxValues => fn max_values(Vector2<f32>), layout: false);
-    define_constructor!(BlendSpaceFieldMessage:SnapStep => fn snap_step(Vector2<f32>), layout: false);
-    define_constructor!(BlendSpaceFieldMessage:SamplingPoint => fn sampling_point(Vector2<f32>), layout: false);
-    define_constructor!(BlendSpaceFieldMessage:MovePoint  => fn move_point(index: usize, position: Vector2<f32>), layout: false);
-    define_constructor!(BlendSpaceFieldMessage:AddPoint  => fn add_point(Vector2<f32>), layout: false);
-    define_constructor!(BlendSpaceFieldMessage:RemovePoint  => fn remove_point(usize), layout: false);
+    define_constructor!(Self:Points => fn points(Vec<Vector2<f32>>), layout: true);
+    define_constructor!(Self:Triangles => fn triangles(Vec<TriangleDefinition>), layout: false);
+    define_constructor!(Self:MinValues => fn min_values(Vector2<f32>), layout: false);
+    define_constructor!(Self:MaxValues => fn max_values(Vector2<f32>), layout: false);
+    define_constructor!(Self:SnapStep => fn snap_step(Vector2<f32>), layout: false);
+    define_constructor!(Self:SamplingPoint => fn sampling_point(Vector2<f32>), layout: false);
+    define_constructor!(Self:MovePoint  => fn move_point(index: usize, position: Vector2<f32>), layout: false);
+    define_constructor!(Self:AddPoint  => fn add_point(Vector2<f32>), layout: false);
+    define_constructor!(Self:RemovePoint  => fn remove_point(usize), layout: false);
 }
 
 #[derive(Clone)]
@@ -530,7 +530,7 @@ pub enum BlendSpaceFieldPointMessage {
 }
 
 impl BlendSpaceFieldPointMessage {
-    define_constructor!(BlendSpaceFieldPointMessage:Select => fn select(), layout: false);
+    define_constructor!(Self:Select => fn select(), layout: false);
 }
 
 #[derive(Clone)]

@@ -41,15 +41,15 @@ pub enum ScrollBarMessage {
 impl ScrollBarMessage {
     define_constructor!(
         /// Creates [`ScrollBarMessage::Value`] message.
-        ScrollBarMessage:Value => fn value(f32), layout: false
+        Self:Value => fn value(f32), layout: false
     );
     define_constructor!(
         /// Creates [`ScrollBarMessage::MaxValue`] message.
-        ScrollBarMessage:MaxValue => fn max_value(f32), layout: false
+        Self:MaxValue => fn max_value(f32), layout: false
     );
     define_constructor!(
         /// Creates [`ScrollBarMessage::MinValue`] message.
-        ScrollBarMessage:MinValue => fn min_value(f32), layout: false
+        Self:MinValue => fn min_value(f32), layout: false
     );
 }
 

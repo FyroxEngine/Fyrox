@@ -119,14 +119,14 @@ pub enum AbsmNodeMessage {
 }
 
 impl AbsmNodeMessage {
-    define_constructor!(AbsmNodeMessage:Name => fn name(String), layout: false);
-    define_constructor!(AbsmNodeMessage:Enter => fn enter(), layout: false);
-    define_constructor!(AbsmNodeMessage:AddInput => fn add_input(), layout: false);
-    define_constructor!(AbsmNodeMessage:InputSockets => fn input_sockets(Vec<Handle<UiNode>>), layout: false);
-    define_constructor!(AbsmNodeMessage:NormalColor => fn normal_color(Color), layout: false);
-    define_constructor!(AbsmNodeMessage:SelectedColor => fn selected_color(Color), layout: false);
-    define_constructor!(AbsmNodeMessage:SetActive => fn set_active(bool), layout: false);
-    define_constructor!(AbsmNodeMessage:Edit => fn edit(), layout: false);
+    define_constructor!(Self:Name => fn name(String), layout: false);
+    define_constructor!(Self:Enter => fn enter(), layout: false);
+    define_constructor!(Self:AddInput => fn add_input(), layout: false);
+    define_constructor!(Self:InputSockets => fn input_sockets(Vec<Handle<UiNode>>), layout: false);
+    define_constructor!(Self:NormalColor => fn normal_color(Color), layout: false);
+    define_constructor!(Self:SelectedColor => fn selected_color(Color), layout: false);
+    define_constructor!(Self:SetActive => fn set_active(bool), layout: false);
+    define_constructor!(Self:Edit => fn edit(), layout: false);
 }
 
 impl<T> Control for AbsmNode<T>

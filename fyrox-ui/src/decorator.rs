@@ -38,23 +38,23 @@ pub enum DecoratorMessage {
 impl DecoratorMessage {
     define_constructor!(
         /// Creates a [`DecoratorMessage::Select`] message.
-        DecoratorMessage:Select => fn select(bool), layout: false
+        Self:Select => fn select(bool), layout: false
     );
     define_constructor!(
         /// Creates a [`DecoratorMessage::HoverBrush`] message.
-        DecoratorMessage:HoverBrush => fn hover_brush(Brush), layout: false
+        Self:HoverBrush => fn hover_brush(Brush), layout: false
     );
     define_constructor!(
         /// Creates a [`DecoratorMessage::NormalBrush`] message.
-        DecoratorMessage:NormalBrush => fn normal_brush(Brush), layout: false
+        Self:NormalBrush => fn normal_brush(Brush), layout: false
     );
     define_constructor!(
         /// Creates a [`DecoratorMessage::PressedBrush`] message.
-        DecoratorMessage:PressedBrush => fn pressed_brush(Brush), layout: false
+        Self:PressedBrush => fn pressed_brush(Brush), layout: false
     );
     define_constructor!(
         /// Creates a [`DecoratorMessage::SelectedBrush`] message.
-        DecoratorMessage:SelectedBrush => fn selected_brush(Brush), layout: false
+        Self:SelectedBrush => fn selected_brush(Brush), layout: false
     );
 }
 

@@ -59,7 +59,7 @@ pub enum TextureEditorMessage {
 }
 
 impl TextureEditorMessage {
-    define_constructor!(TextureEditorMessage:Texture => fn texture(Option<TextureResource>), layout: false);
+    define_constructor!(Self:Texture => fn texture(Option<TextureResource>), layout: false);
 }
 
 impl Control for TextureEditor {

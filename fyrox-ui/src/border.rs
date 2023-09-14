@@ -98,7 +98,7 @@ pub enum BorderMessage {
 impl BorderMessage {
     define_constructor!(
         /// Creates a new [Self::StrokeThickness] message.
-        BorderMessage:StrokeThickness => fn stroke_thickness(Thickness), layout: false
+        Self:StrokeThickness => fn stroke_thickness(Thickness), layout: false
     );
 }
 

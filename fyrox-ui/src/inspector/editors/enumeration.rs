@@ -43,8 +43,8 @@ pub enum EnumPropertyEditorMessage {
 }
 
 impl EnumPropertyEditorMessage {
-    define_constructor!(EnumPropertyEditorMessage:Variant => fn variant(usize), layout: false);
-    define_constructor!(EnumPropertyEditorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
+    define_constructor!(Self:Variant => fn variant(usize), layout: false);
+    define_constructor!(Self:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
 }
 
 pub struct EnumPropertyEditor<T: InspectableEnum> {

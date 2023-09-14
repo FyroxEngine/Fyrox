@@ -54,23 +54,23 @@ pub enum TextBoxMessage {
 impl TextBoxMessage {
     define_constructor!(
         /// Creates [`TextBoxMessage::SelectionBrush`].
-        TextBoxMessage:SelectionBrush => fn selection_brush(Brush), layout: false
+        Self:SelectionBrush => fn selection_brush(Brush), layout: false
     );
     define_constructor!(
         /// Creates [`TextBoxMessage::CaretBrush`].
-        TextBoxMessage:CaretBrush => fn caret_brush(Brush), layout: false
+        Self:CaretBrush => fn caret_brush(Brush), layout: false
     );
     define_constructor!(
         /// Creates [`TextBoxMessage::TextCommitMode`].
-        TextBoxMessage:TextCommitMode => fn text_commit_mode(TextCommitMode), layout: false
+        Self:TextCommitMode => fn text_commit_mode(TextCommitMode), layout: false
     );
     define_constructor!(
         /// Creates [`TextBoxMessage::Multiline`].
-        TextBoxMessage:Multiline => fn multiline(bool), layout: false
+        Self:Multiline => fn multiline(bool), layout: false
     );
     define_constructor!(
         /// Creates [`TextBoxMessage::Editable`].
-        TextBoxMessage:Editable => fn editable(bool), layout: false
+        Self:Editable => fn editable(bool), layout: false
     );
 }
 

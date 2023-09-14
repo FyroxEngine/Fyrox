@@ -19,7 +19,7 @@ pub enum ExpanderMessage {
 }
 
 impl ExpanderMessage {
-    define_constructor!(ExpanderMessage:Expand => fn expand(bool), layout: false);
+    define_constructor!(Self:Expand => fn expand(bool), layout: false);
 }
 
 #[derive(Clone)]

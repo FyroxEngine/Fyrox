@@ -36,7 +36,7 @@ pub enum SpriteSheetFramesPropertyEditorMessage {
 }
 
 impl SpriteSheetFramesPropertyEditorMessage {
-    define_constructor!(SpriteSheetFramesPropertyEditorMessage:Value => fn value(SpriteSheetFramesContainer), layout: false);
+    define_constructor!(Self:Value => fn value(SpriteSheetFramesContainer), layout: false);
 }
 
 #[derive(Clone)]

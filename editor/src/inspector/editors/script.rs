@@ -39,8 +39,8 @@ pub enum ScriptPropertyEditorMessage {
 }
 
 impl ScriptPropertyEditorMessage {
-    define_constructor!(ScriptPropertyEditorMessage:Value => fn value(Option<Uuid>), layout: false);
-    define_constructor!(ScriptPropertyEditorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
+    define_constructor!(Self:Value => fn value(Option<Uuid>), layout: false);
+    define_constructor!(Self:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
 }
 
 #[derive(Clone, Debug)]

@@ -25,7 +25,7 @@ pub enum StackPanelMessage {
 impl StackPanelMessage {
     define_constructor!(
         /// Creates [`StackPanelMessage::Orientation`] message.
-        StackPanelMessage:Orientation => fn orientation(Orientation), layout: false
+        Self:Orientation => fn orientation(Orientation), layout: false
     );
 }
 
@@ -62,7 +62,7 @@ impl StackPanelMessage {
 ///             )
 ///     )
 ///         .build(ctx)
-///     
+///
 /// }
 /// ```
 ///

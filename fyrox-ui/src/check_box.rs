@@ -32,7 +32,7 @@ pub enum CheckBoxMessage {
 impl CheckBoxMessage {
     define_constructor!(
         /// Creates [`CheckBoxMessage::checked`] message.
-        CheckBoxMessage:Check => fn checked(Option<bool>), layout: false
+        Self:Check => fn checked(Option<bool>), layout: false
     );
 }
 

@@ -80,55 +80,55 @@ pub enum WindowMessage {
 impl WindowMessage {
     define_constructor!(
         /// Creates [`WindowMessage::Open`] message.
-        WindowMessage:Open => fn open(center: bool), layout: false
+        Self:Open => fn open(center: bool), layout: false
     );
     define_constructor!(
         /// Creates [`WindowMessage::OpenModal`] message.
-        WindowMessage:OpenModal => fn open_modal(center: bool), layout: false
+        Self:OpenModal => fn open_modal(center: bool), layout: false
     );
     define_constructor!(
         /// Creates [`WindowMessage::Close`] message.
-        WindowMessage:Close => fn close(), layout: false
+        Self:Close => fn close(), layout: false
     );
     define_constructor!(
         /// Creates [`WindowMessage::Minimize`] message.
-        WindowMessage:Minimize => fn minimize(bool), layout: false
+        Self:Minimize => fn minimize(bool), layout: false
     );
     define_constructor!(
         /// Creates [`WindowMessage::Maximize`] message.
-        WindowMessage:Maximize => fn maximize(), layout: false
+        Self:Maximize => fn maximize(), layout: false
     );
     define_constructor!(
         /// Creates [`WindowMessage::CanMinimize`] message.
-        WindowMessage:CanMinimize => fn can_minimize(bool), layout: false
+        Self:CanMinimize => fn can_minimize(bool), layout: false
     );
     define_constructor!(
         /// Creates [`WindowMessage::CanClose`] message.
-        WindowMessage:CanClose => fn can_close(bool), layout: false
+        Self:CanClose => fn can_close(bool), layout: false
     );
     define_constructor!(
         /// Creates [`WindowMessage::CanResize`] message.
-        WindowMessage:CanResize => fn can_resize(bool), layout: false
+        Self:CanResize => fn can_resize(bool), layout: false
     );
     define_constructor!(
         /// Creates [`WindowMessage::MoveStart`] message.
-        WindowMessage:MoveStart => fn move_start(), layout: false
+        Self:MoveStart => fn move_start(), layout: false
     );
     define_constructor!(
         /// Creates [`WindowMessage::Move`] message.
-        WindowMessage:Move => fn move_to(Vector2<f32>), layout: false
+        Self:Move => fn move_to(Vector2<f32>), layout: false
     );
     define_constructor!(
         /// Creates [`WindowMessage::MoveEnd`] message.
-        WindowMessage:MoveEnd => fn move_end(), layout: false
+        Self:MoveEnd => fn move_end(), layout: false
     );
     define_constructor!(
         /// Creates [`WindowMessage::Title`] message.
-        WindowMessage:Title => fn title(WindowTitle), layout: false
+        Self:Title => fn title(WindowTitle), layout: false
     );
     define_constructor!(
         /// Creates [`WindowMessage::SafeBorderSize`] message.
-        WindowMessage:SafeBorderSize => fn safe_border_size(Option<Vector2<f32>>), layout: false
+        Self:SafeBorderSize => fn safe_border_size(Option<Vector2<f32>>), layout: false
     );
 }
 

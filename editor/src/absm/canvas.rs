@@ -80,12 +80,12 @@ pub(super) enum AbsmCanvasMessage {
 }
 
 impl AbsmCanvasMessage {
-    define_constructor!(AbsmCanvasMessage:SwitchMode => fn switch_mode(Mode), layout: false);
-    define_constructor!(AbsmCanvasMessage:CommitTransition => fn commit_transition(source_node: Handle<UiNode>, dest_node: Handle<UiNode>), layout: false);
-    define_constructor!(AbsmCanvasMessage:CommitConnection => fn commit_connection(source_socket: Handle<UiNode>, dest_socket: Handle<UiNode>), layout: false);
-    define_constructor!(AbsmCanvasMessage:CommitDrag => fn commit_drag(entries: Vec<Entry>), layout: false);
-    define_constructor!(AbsmCanvasMessage:SelectionChanged => fn selection_changed(Vec<Handle<UiNode>>), layout: false);
-    define_constructor!(AbsmCanvasMessage:ForceSyncDependentObjects => fn force_sync_dependent_objects(), layout: true);
+    define_constructor!(Self:SwitchMode => fn switch_mode(Mode), layout: false);
+    define_constructor!(Self:CommitTransition => fn commit_transition(source_node: Handle<UiNode>, dest_node: Handle<UiNode>), layout: false);
+    define_constructor!(Self:CommitConnection => fn commit_connection(source_socket: Handle<UiNode>, dest_socket: Handle<UiNode>), layout: false);
+    define_constructor!(Self:CommitDrag => fn commit_drag(entries: Vec<Entry>), layout: false);
+    define_constructor!(Self:SelectionChanged => fn selection_changed(Vec<Handle<UiNode>>), layout: false);
+    define_constructor!(Self:ForceSyncDependentObjects => fn force_sync_dependent_objects(), layout: true);
 }
 
 #[derive(Clone)]
@@ -507,7 +507,7 @@ impl Control for AbsmCanvas {
                             // Do not allow to create connections between sockets of the same node.
                             if dest_socket_ref.parent_node != source_socket_ref.parent_node
                                 // Only allow to create connections either from Input -> Output, or
-                                // Output -> Input. Input -> Input or Output -> Output is now 
+                                // Output -> Input. Input -> Input or Output -> Output is now
                                 // allowed.
                                 && dest_socket_ref.direction != source_socket_ref.direction
                             {

@@ -35,19 +35,19 @@ pub enum ScrollViewerMessage {
 impl ScrollViewerMessage {
     define_constructor!(
         /// Creates [`ScrollViewerMessage::Content`] message.
-        ScrollViewerMessage:Content => fn content(Handle<UiNode>), layout: false
+        Self:Content => fn content(Handle<UiNode>), layout: false
     );
     define_constructor!(
         /// Creates [`ScrollViewerMessage::BringIntoView`] message.
-        ScrollViewerMessage:BringIntoView => fn bring_into_view(Handle<UiNode>), layout: true
+        Self:BringIntoView => fn bring_into_view(Handle<UiNode>), layout: true
     );
     define_constructor!(
         /// Creates [`ScrollViewerMessage::VScrollSpeed`] message.
-        ScrollViewerMessage:VScrollSpeed => fn v_scroll_speed(f32), layout: true
+        Self:VScrollSpeed => fn v_scroll_speed(f32), layout: true
     );
     define_constructor!(
         /// Creates [`ScrollViewerMessage::HScrollSpeed`] message.
-        ScrollViewerMessage:HScrollSpeed => fn h_scroll_speed(f32), layout: true
+        Self:HScrollSpeed => fn h_scroll_speed(f32), layout: true
     );
 }
 

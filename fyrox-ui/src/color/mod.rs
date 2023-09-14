@@ -36,8 +36,8 @@ pub enum HueBarMessage {
 }
 
 impl HueBarMessage {
-    define_constructor!(HueBarMessage:Hue => fn hue(f32), layout: false);
-    define_constructor!(HueBarMessage:Orientation => fn orientation(Orientation), layout: false);
+    define_constructor!(Self:Hue => fn hue(f32), layout: false);
+    define_constructor!(Self:Orientation => fn orientation(Orientation), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -50,8 +50,8 @@ pub enum AlphaBarMessage {
 }
 
 impl AlphaBarMessage {
-    define_constructor!(AlphaBarMessage:Alpha => fn alpha(f32), layout: false);
-    define_constructor!(AlphaBarMessage:Orientation => fn orientation(Orientation), layout: false);
+    define_constructor!(Self:Alpha => fn alpha(f32), layout: false);
+    define_constructor!(Self:Orientation => fn orientation(Orientation), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -67,9 +67,9 @@ pub enum SaturationBrightnessFieldMessage {
 }
 
 impl SaturationBrightnessFieldMessage {
-    define_constructor!(SaturationBrightnessFieldMessage:Hue => fn hue(f32), layout: false);
-    define_constructor!(SaturationBrightnessFieldMessage:Saturation => fn saturation(f32), layout: false);
-    define_constructor!(SaturationBrightnessFieldMessage:Brightness => fn brightness(f32), layout: false);
+    define_constructor!(Self:Hue => fn hue(f32), layout: false);
+    define_constructor!(Self:Saturation => fn saturation(f32), layout: false);
+    define_constructor!(Self:Brightness => fn brightness(f32), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -86,8 +86,8 @@ pub enum ColorPickerMessage {
 }
 
 impl ColorPickerMessage {
-    define_constructor!(ColorPickerMessage:Color => fn color(Color), layout: false);
-    define_constructor!(ColorPickerMessage:Hsv => fn hsv(Hsv), layout: false);
+    define_constructor!(Self:Color => fn color(Color), layout: false);
+    define_constructor!(Self:Hsv => fn hsv(Hsv), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -96,7 +96,7 @@ pub enum ColorFieldMessage {
 }
 
 impl ColorFieldMessage {
-    define_constructor!(ColorFieldMessage:Color => fn color(Color), layout: false);
+    define_constructor!(Self:Color => fn color(Color), layout: false);
 }
 
 #[derive(Clone)]

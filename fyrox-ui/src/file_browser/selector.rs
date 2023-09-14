@@ -31,11 +31,11 @@ pub enum FileSelectorMessage {
 }
 
 impl FileSelectorMessage {
-    define_constructor!(FileSelectorMessage:Commit => fn commit(PathBuf), layout: false);
-    define_constructor!(FileSelectorMessage:Root => fn root(Option<PathBuf>), layout: false);
-    define_constructor!(FileSelectorMessage:Path => fn path(PathBuf), layout: false);
-    define_constructor!(FileSelectorMessage:Cancel => fn cancel(), layout: false);
-    define_constructor!(FileSelectorMessage:Filter => fn filter(Option<Filter>), layout: false);
+    define_constructor!(Self:Commit => fn commit(PathBuf), layout: false);
+    define_constructor!(Self:Root => fn root(Option<PathBuf>), layout: false);
+    define_constructor!(Self:Path => fn path(PathBuf), layout: false);
+    define_constructor!(Self:Cancel => fn cancel(), layout: false);
+    define_constructor!(Self:Filter => fn filter(Option<Filter>), layout: false);
 }
 
 /// File selector is a modal window that allows you to select a file (or directory) and commit or

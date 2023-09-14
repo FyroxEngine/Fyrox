@@ -55,12 +55,12 @@ pub enum TreeMessage {
 }
 
 impl TreeMessage {
-    define_constructor!(TreeMessage:Expand => fn expand(expand: bool, expansion_strategy: TreeExpansionStrategy), layout: false);
-    define_constructor!(TreeMessage:AddItem => fn add_item(Handle<UiNode>), layout: false);
-    define_constructor!(TreeMessage:RemoveItem => fn remove_item(Handle<UiNode>), layout: false);
-    define_constructor!(TreeMessage:SetExpanderShown => fn set_expander_shown(bool), layout: false);
-    define_constructor!(TreeMessage:SetItems => fn set_items(Vec<Handle<UiNode >>), layout: false);
-    define_constructor!(TreeMessage:Select => fn select(SelectionState), layout: false);
+    define_constructor!(Self:Expand => fn expand(expand: bool, expansion_strategy: TreeExpansionStrategy), layout: false);
+    define_constructor!(Self:AddItem => fn add_item(Handle<UiNode>), layout: false);
+    define_constructor!(Self:RemoveItem => fn remove_item(Handle<UiNode>), layout: false);
+    define_constructor!(Self:SetExpanderShown => fn set_expander_shown(bool), layout: false);
+    define_constructor!(Self:SetItems => fn set_items(Vec<Handle<UiNode >>), layout: false);
+    define_constructor!(Self:Select => fn select(SelectionState), layout: false);
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -74,12 +74,12 @@ pub enum TreeRootMessage {
 }
 
 impl TreeRootMessage {
-    define_constructor!(TreeRootMessage:AddItem => fn add_item(Handle<UiNode>), layout: false);
-    define_constructor!(TreeRootMessage:RemoveItem=> fn remove_item(Handle<UiNode>), layout: false);
-    define_constructor!(TreeRootMessage:Items => fn items(Vec<Handle<UiNode >>), layout: false);
-    define_constructor!(TreeRootMessage:Selected => fn select(Vec<Handle<UiNode >>), layout: false);
-    define_constructor!(TreeRootMessage:ExpandAll => fn expand_all(), layout: false);
-    define_constructor!(TreeRootMessage:CollapseAll => fn collapse_all(), layout: false);
+    define_constructor!(Self:AddItem => fn add_item(Handle<UiNode>), layout: false);
+    define_constructor!(Self:RemoveItem=> fn remove_item(Handle<UiNode>), layout: false);
+    define_constructor!(Self:Items => fn items(Vec<Handle<UiNode >>), layout: false);
+    define_constructor!(Self:Selected => fn select(Vec<Handle<UiNode >>), layout: false);
+    define_constructor!(Self:ExpandAll => fn expand_all(), layout: false);
+    define_constructor!(Self:CollapseAll => fn collapse_all(), layout: false);
 }
 
 #[derive(Debug, Clone)]

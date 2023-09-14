@@ -35,7 +35,7 @@ pub enum ArrayEditorMessage {
 }
 
 impl ArrayEditorMessage {
-    define_constructor!(ArrayEditorMessage:ItemChanged => fn item_changed(index: usize, message: UiMessage), layout: false);
+    define_constructor!(Self:ItemChanged => fn item_changed(index: usize, message: UiMessage), layout: false);
 }
 
 #[derive(Clone, Debug)]

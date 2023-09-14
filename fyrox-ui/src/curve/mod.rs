@@ -51,17 +51,17 @@ pub enum CurveEditorMessage {
 }
 
 impl CurveEditorMessage {
-    define_constructor!(CurveEditorMessage:Sync => fn sync(Curve), layout: false);
-    define_constructor!(CurveEditorMessage:ViewPosition => fn view_position(Vector2<f32>), layout: false);
-    define_constructor!(CurveEditorMessage:Zoom => fn zoom(Vector2<f32>), layout: false);
-    define_constructor!(CurveEditorMessage:ZoomToFit => fn zoom_to_fit(), layout: false);
-    define_constructor!(CurveEditorMessage:HighlightZones => fn hightlight_zones(Vec<HighlightZone>), layout: false);
+    define_constructor!(Self:Sync => fn sync(Curve), layout: false);
+    define_constructor!(Self:ViewPosition => fn view_position(Vector2<f32>), layout: false);
+    define_constructor!(Self:Zoom => fn zoom(Vector2<f32>), layout: false);
+    define_constructor!(Self:ZoomToFit => fn zoom_to_fit(), layout: false);
+    define_constructor!(Self:HighlightZones => fn hightlight_zones(Vec<HighlightZone>), layout: false);
     // Internal. Use only when you know what you're doing.
-    define_constructor!(CurveEditorMessage:RemoveSelection => fn remove_selection(), layout: false);
-    define_constructor!(CurveEditorMessage:ChangeSelectedKeysKind => fn change_selected_keys_kind(CurveKeyKind), layout: false);
-    define_constructor!(CurveEditorMessage:ChangeSelectedKeysValue => fn change_selected_keys_value(f32), layout: false);
-    define_constructor!(CurveEditorMessage:ChangeSelectedKeysLocation => fn change_selected_keys_location(f32), layout: false);
-    define_constructor!(CurveEditorMessage:AddKey => fn add_key(Vector2<f32>), layout: false);
+    define_constructor!(Self:RemoveSelection => fn remove_selection(), layout: false);
+    define_constructor!(Self:ChangeSelectedKeysKind => fn change_selected_keys_kind(CurveKeyKind), layout: false);
+    define_constructor!(Self:ChangeSelectedKeysValue => fn change_selected_keys_value(f32), layout: false);
+    define_constructor!(Self:ChangeSelectedKeysLocation => fn change_selected_keys_location(f32), layout: false);
+    define_constructor!(Self:AddKey => fn add_key(Vector2<f32>), layout: false);
 }
 
 /// Highlight zone in values space.

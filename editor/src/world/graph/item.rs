@@ -31,8 +31,8 @@ pub enum SceneItemMessage {
 }
 
 impl SceneItemMessage {
-    define_constructor!(SceneItemMessage:Name => fn name(String), layout: false);
-    define_constructor!(SceneItemMessage:Validate => fn validate(Result<(), String>), layout: false);
+    define_constructor!(Self:Name => fn name(String), layout: false);
+    define_constructor!(Self:Validate => fn validate(Result<(), String>), layout: false);
 }
 
 pub struct SceneItem {

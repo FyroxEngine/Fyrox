@@ -37,22 +37,22 @@ pub enum ImageMessage {
 impl ImageMessage {
     define_constructor!(
         /// Creates [`ImageMessage::Texture`] message.
-        ImageMessage:Texture => fn texture(Option<SharedTexture>), layout: false
+        Self:Texture => fn texture(Option<SharedTexture>), layout: false
     );
 
     define_constructor!(
         /// Creates [`ImageMessage::Flip`] message.
-        ImageMessage:Flip => fn flip(bool), layout: false
+        Self:Flip => fn flip(bool), layout: false
     );
 
     define_constructor!(
         /// Creates [`ImageMessage::UvRect`] message.
-        ImageMessage:UvRect => fn uv_rect(Rect<f32>), layout: false
+        Self:UvRect => fn uv_rect(Rect<f32>), layout: false
     );
 
     define_constructor!(
         /// Creates [`ImageMessage::CheckerboardBackground`] message.
-        ImageMessage:CheckerboardBackground => fn checkerboard_background(bool), layout: false
+        Self:CheckerboardBackground => fn checkerboard_background(bool), layout: false
     );
 }
 
@@ -72,7 +72,7 @@ impl ImageMessage {
 ///     // point and you won't see anything.
 ///     let width = 100.0;
 ///     let height = 100.0;
-///     ImageBuilder::new(WidgetBuilder::new().with_width(width).with_height(height))        
+///     ImageBuilder::new(WidgetBuilder::new().with_width(width).with_height(height))
 ///         .with_texture(texture)
 ///         .build(ctx)
 /// }

@@ -39,8 +39,8 @@ pub enum HandlePropertyEditorMessage {
 }
 
 impl HandlePropertyEditorMessage {
-    define_constructor!(HandlePropertyEditorMessage:Value => fn value(Handle<Node>), layout: false);
-    define_constructor!(HandlePropertyEditorMessage:Name => fn name(Option<String>), layout: false);
+    define_constructor!(Self:Value => fn value(Handle<Node>), layout: false);
+    define_constructor!(Self:Name => fn name(Option<String>), layout: false);
 }
 
 #[derive(Debug)]

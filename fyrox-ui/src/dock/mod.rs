@@ -34,7 +34,7 @@ pub enum DockingManagerMessage {
 impl DockingManagerMessage {
     define_constructor!(
         /// Creates a new [Self::Layout] message.
-        DockingManagerMessage:Layout => fn layout(DockingManagerLayoutDescriptor), layout: false
+        Self:Layout => fn layout(DockingManagerLayoutDescriptor), layout: false
     );
 }
 

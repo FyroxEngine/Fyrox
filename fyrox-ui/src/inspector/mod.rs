@@ -50,9 +50,9 @@ pub enum CollectionChanged {
 }
 
 impl CollectionChanged {
-    define_constructor!(CollectionChanged:Add => fn add(ObjectValue), layout: false);
-    define_constructor!(CollectionChanged:Remove => fn remove(usize), layout: false);
-    define_constructor!(CollectionChanged:ItemChanged => fn item_changed(index: usize, property: FieldKind), layout: false);
+    define_constructor!(Self:Add => fn add(ObjectValue), layout: false);
+    define_constructor!(Self:Remove => fn remove(usize), layout: false);
+    define_constructor!(Self:ItemChanged => fn item_changed(index: usize, property: FieldKind), layout: false);
 }
 
 #[derive(Debug, Clone)]
@@ -328,8 +328,8 @@ pub enum InspectorMessage {
 }
 
 impl InspectorMessage {
-    define_constructor!(InspectorMessage:Context => fn context(InspectorContext), layout: false);
-    define_constructor!(InspectorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
+    define_constructor!(Self:Context => fn context(InspectorContext), layout: false);
+    define_constructor!(Self:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
 }
 
 pub trait InspectorEnvironment: Any {

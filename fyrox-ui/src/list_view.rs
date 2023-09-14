@@ -40,23 +40,23 @@ pub enum ListViewMessage {
 impl ListViewMessage {
     define_constructor!(
         /// Creates [`ListViewMessage::SelectionChanged`] message.
-        ListViewMessage:SelectionChanged => fn selection(Option<usize>), layout: false
+        Self:SelectionChanged => fn selection(Option<usize>), layout: false
     );
     define_constructor!(
         /// Creates [`ListViewMessage::Items`] message.
-        ListViewMessage:Items => fn items(Vec<Handle<UiNode >>), layout: false
+        Self:Items => fn items(Vec<Handle<UiNode >>), layout: false
     );
     define_constructor!(
         /// Creates [`ListViewMessage::AddItem`] message.
-        ListViewMessage:AddItem => fn add_item(Handle<UiNode>), layout: false
+        Self:AddItem => fn add_item(Handle<UiNode>), layout: false
     );
     define_constructor!(
         /// Creates [`ListViewMessage::RemoveItem`] message.
-        ListViewMessage:RemoveItem => fn remove_item(Handle<UiNode>), layout: false
+        Self:RemoveItem => fn remove_item(Handle<UiNode>), layout: false
     );
     define_constructor!(
         /// Creates [`ListViewMessage::BringItemIntoView`] message.
-        ListViewMessage:BringItemIntoView => fn bring_item_into_view(Handle<UiNode>), layout: false
+        Self:BringItemIntoView => fn bring_item_into_view(Handle<UiNode>), layout: false
     );
 }
 

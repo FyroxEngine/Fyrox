@@ -49,47 +49,47 @@ pub enum TextMessage {
 impl TextMessage {
     define_constructor!(
         /// Creates new [`TextMessage::Text`] message.
-        TextMessage:Text => fn text(String), layout: false
+        Self:Text => fn text(String), layout: false
     );
 
     define_constructor!(
         /// Creates new [`TextMessage::Wrap`] message.
-        TextMessage:Wrap => fn wrap(WrapMode), layout: false
+        Self:Wrap => fn wrap(WrapMode), layout: false
     );
 
     define_constructor!(
         /// Creates new [`TextMessage::Font`] message.
-        TextMessage:Font => fn font(SharedFont), layout: false
+        Self:Font => fn font(SharedFont), layout: false
     );
 
     define_constructor!(
         /// Creates new [`TextMessage::VerticalAlignment`] message.
-        TextMessage:VerticalAlignment => fn vertical_alignment(VerticalAlignment), layout: false
+        Self:VerticalAlignment => fn vertical_alignment(VerticalAlignment), layout: false
     );
 
     define_constructor!(
         /// Creates new [`TextMessage::HorizontalAlignment`] message.
-        TextMessage:HorizontalAlignment => fn horizontal_alignment(HorizontalAlignment), layout: false
+        Self:HorizontalAlignment => fn horizontal_alignment(HorizontalAlignment), layout: false
     );
 
     define_constructor!(
         /// Creates new [`TextMessage::Shadow`] message.
-        TextMessage:Shadow => fn shadow(bool), layout: false
+        Self:Shadow => fn shadow(bool), layout: false
     );
 
     define_constructor!(
         /// Creates new [`TextMessage::ShadowDilation`] message.
-        TextMessage:ShadowDilation => fn shadow_dilation(f32), layout: false
+        Self:ShadowDilation => fn shadow_dilation(f32), layout: false
     );
 
     define_constructor!(
         /// Creates new [`TextMessage::ShadowBrush`] message.
-        TextMessage:ShadowBrush => fn shadow_brush(Brush), layout: false
+        Self:ShadowBrush => fn shadow_brush(Brush), layout: false
     );
 
     define_constructor!(
         /// Creates new [`TextMessage::ShadowOffset`] message.
-        TextMessage:ShadowOffset => fn shadow_offset(Vector2<f32>), layout: false
+        Self:ShadowOffset => fn shadow_offset(Vector2<f32>), layout: false
     );
 }
 

@@ -231,9 +231,9 @@ pub enum TrackViewMessage {
 }
 
 impl TrackViewMessage {
-    define_constructor!(TrackViewMessage:TrackEnabled => fn track_enabled(bool), layout: false);
-    define_constructor!(TrackViewMessage:TrackName => fn track_name(String), layout: false);
-    define_constructor!(TrackViewMessage:TrackTargetIsValid => fn track_target_is_valid(Result<(), String>), layout: false);
+    define_constructor!(Self:TrackEnabled => fn track_enabled(bool), layout: false);
+    define_constructor!(Self:TrackName => fn track_name(String), layout: false);
+    define_constructor!(Self:TrackTargetIsValid => fn track_target_is_valid(Result<(), String>), layout: false);
 }
 
 #[derive(Clone)]

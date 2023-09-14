@@ -74,7 +74,7 @@ pub fn make_dropdown_list_option_with_height(
 }
 
 impl AssetItemMessage {
-    define_constructor!(AssetItemMessage:Select => fn select(bool), layout: false);
+    define_constructor!(Self:Select => fn select(bool), layout: false);
 }
 
 pub fn make_image_button_with_tooltip(

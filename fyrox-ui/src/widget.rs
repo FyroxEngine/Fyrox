@@ -304,246 +304,246 @@ pub enum WidgetMessage {
 impl WidgetMessage {
     define_constructor!(
         /// Creates [`WidgetMessage::Remove`] message.
-        WidgetMessage:Remove => fn remove(), layout: false
+        Self:Remove => fn remove(), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Unlink`] message.
-        WidgetMessage:Unlink => fn unlink(), layout: false
+        Self:Unlink => fn unlink(), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::LinkWith`] message.
-        WidgetMessage:LinkWith => fn link(Handle<UiNode>), layout: false
+        Self:LinkWith => fn link(Handle<UiNode>), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::LinkWithReverse`] message.
-        WidgetMessage:LinkWithReverse => fn link_reverse(Handle<UiNode>), layout: false
+        Self:LinkWithReverse => fn link_reverse(Handle<UiNode>), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Background`] message.
-        WidgetMessage:Background => fn background(Brush), layout: false
+        Self:Background => fn background(Brush), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Foreground`] message.
-        WidgetMessage:Foreground => fn foreground(Brush), layout: false
+        Self:Foreground => fn foreground(Brush), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Visibility`] message.
-        WidgetMessage:Visibility => fn visibility(bool), layout: false
+        Self:Visibility => fn visibility(bool), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Width`] message.
-        WidgetMessage:Width => fn width(f32), layout: false
+        Self:Width => fn width(f32), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Height`] message.
-        WidgetMessage:Height => fn height(f32), layout: false
+        Self:Height => fn height(f32), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::DesiredPosition`] message.
-        WidgetMessage:DesiredPosition => fn desired_position(Vector2<f32>), layout: false
+        Self:DesiredPosition => fn desired_position(Vector2<f32>), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Center`] message.
-        WidgetMessage:Center => fn center(), layout: true
+        Self:Center => fn center(), layout: true
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::AdjustPositionToFit`] message.
-        WidgetMessage:AdjustPositionToFit => fn adjust_position_to_fit(), layout: true
+        Self:AdjustPositionToFit => fn adjust_position_to_fit(), layout: true
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Topmost`] message.
-        WidgetMessage:Topmost => fn topmost(), layout: false
+        Self:Topmost => fn topmost(), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Lowermost`] message.
-        WidgetMessage:Lowermost => fn lowermost(), layout: false
+        Self:Lowermost => fn lowermost(), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Enabled`] message.
-        WidgetMessage:Enabled => fn enabled(bool), layout: false
+        Self:Enabled => fn enabled(bool), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Name`] message.
-        WidgetMessage:Name => fn name(String), layout: false
+        Self:Name => fn name(String), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Row`] message.
-        WidgetMessage:Row => fn row(usize), layout: false
+        Self:Row => fn row(usize), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Column`] message.
-        WidgetMessage:Column => fn column(usize), layout: false
+        Self:Column => fn column(usize), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Cursor`] message.
-        WidgetMessage:Cursor => fn cursor(Option<CursorIcon>), layout: false
+        Self:Cursor => fn cursor(Option<CursorIcon>), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::ZIndex`] message.
-        WidgetMessage:ZIndex => fn z_index(usize), layout: false
+        Self:ZIndex => fn z_index(usize), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::HitTestVisibility`] message.
-        WidgetMessage:HitTestVisibility => fn hit_test_visibility(bool), layout: false
+        Self:HitTestVisibility => fn hit_test_visibility(bool), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Margin`] message.
-        WidgetMessage:Margin => fn margin(Thickness), layout: false
+        Self:Margin => fn margin(Thickness), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::MinSize`] message.
-        WidgetMessage:MinSize => fn min_size(Vector2<f32>), layout: false
+        Self:MinSize => fn min_size(Vector2<f32>), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::MaxSize`] message.
-        WidgetMessage:MaxSize => fn max_size(Vector2<f32>), layout: false
+        Self:MaxSize => fn max_size(Vector2<f32>), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::HorizontalAlignment`] message.
-        WidgetMessage:HorizontalAlignment => fn horizontal_alignment(HorizontalAlignment), layout: false
+        Self:HorizontalAlignment => fn horizontal_alignment(HorizontalAlignment), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::VerticalAlignment`] message.
-        WidgetMessage:VerticalAlignment => fn vertical_alignment(VerticalAlignment), layout: false
+        Self:VerticalAlignment => fn vertical_alignment(VerticalAlignment), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Opacity`] message.
-        WidgetMessage:Opacity => fn opacity(Option<f32>), layout: false
+        Self:Opacity => fn opacity(Option<f32>), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::LayoutTransform`] message.
-        WidgetMessage:LayoutTransform => fn layout_transform(Matrix3<f32>), layout: false
+        Self:LayoutTransform => fn layout_transform(Matrix3<f32>), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::RenderTransform`] message.
-        WidgetMessage:RenderTransform => fn render_transform(Matrix3<f32>), layout: false
+        Self:RenderTransform => fn render_transform(Matrix3<f32>), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::ContextMenu`] message.
-        WidgetMessage:ContextMenu => fn context_menu(Option<RcUiNodeHandle>), layout: false
+        Self:ContextMenu => fn context_menu(Option<RcUiNodeHandle>), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Tooltip`] message.
-        WidgetMessage:Tooltip => fn tooltip(Option<RcUiNodeHandle>), layout: false
+        Self:Tooltip => fn tooltip(Option<RcUiNodeHandle>), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Focus`] message.
-        WidgetMessage:Focus => fn focus(), layout: false
+        Self:Focus => fn focus(), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Unfocus`] message.
-        WidgetMessage:Unfocus => fn unfocus(), layout: false
+        Self:Unfocus => fn unfocus(), layout: false
     );
 
     // Internal messages. Do not use.
     define_constructor!(
         /// Creates [`WidgetMessage::MouseDown`] message. This method is for internal use only, and should not
         /// be used anywhere else.
-        WidgetMessage:MouseDown => fn mouse_down(pos: Vector2<f32>, button: MouseButton), layout: false
+        Self:MouseDown => fn mouse_down(pos: Vector2<f32>, button: MouseButton), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::MouseUp`] message. This method is for internal use only, and should not
         /// be used anywhere else.
-        WidgetMessage:MouseUp => fn mouse_up(pos: Vector2<f32>, button: MouseButton), layout: false
+        Self:MouseUp => fn mouse_up(pos: Vector2<f32>, button: MouseButton), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::MouseMove`] message. This method is for internal use only, and should not
         /// be used anywhere else.
-        WidgetMessage:MouseMove => fn mouse_move(pos: Vector2<f32>, state: MouseState), layout: false
+        Self:MouseMove => fn mouse_move(pos: Vector2<f32>, state: MouseState), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::MouseWheel`] message. This method is for internal use only, and should not
         /// be used anywhere else.
-        WidgetMessage:MouseWheel => fn mouse_wheel(pos: Vector2<f32>, amount: f32), layout: false
+        Self:MouseWheel => fn mouse_wheel(pos: Vector2<f32>, amount: f32), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::MouseLeave`] message. This method is for internal use only, and should not
         /// be used anywhere else.
-        WidgetMessage:MouseLeave => fn mouse_leave(), layout: false
+        Self:MouseLeave => fn mouse_leave(), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::MouseEnter`] message. This method is for internal use only, and should not
         /// be used anywhere else.
-        WidgetMessage:MouseEnter => fn mouse_enter(), layout: false
+        Self:MouseEnter => fn mouse_enter(), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Text`] message. This method is for internal use only, and should not
         /// be used anywhere else.
-        WidgetMessage:Text => fn text(String), layout: false
+        Self:Text => fn text(String), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::KeyDown`] message. This method is for internal use only, and should not
         /// be used anywhere else.
-        WidgetMessage:KeyDown => fn key_down(KeyCode), layout: false
+        Self:KeyDown => fn key_down(KeyCode), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::KeyUp`] message. This method is for internal use only, and should not
         /// be used anywhere else.
-        WidgetMessage:KeyUp => fn key_up(KeyCode), layout: false
+        Self:KeyUp => fn key_up(KeyCode), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::DragStarted`] message. This method is for internal use only, and should not
         /// be used anywhere else.
-        WidgetMessage:DragStarted => fn drag_started(Handle<UiNode>), layout: false
+        Self:DragStarted => fn drag_started(Handle<UiNode>), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::DragOver`] message. This method is for internal use only, and should not
         /// be used anywhere else.
-        WidgetMessage:DragOver => fn drag_over(Handle<UiNode>), layout: false
+        Self:DragOver => fn drag_over(Handle<UiNode>), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::Drop`] message. This method is for internal use only, and should not
         /// be used anywhere else.
-        WidgetMessage:Drop => fn drop(Handle<UiNode>), layout: false
+        Self:Drop => fn drop(Handle<UiNode>), layout: false
     );
 
     define_constructor!(
         /// Creates [`WidgetMessage::DoubleClick`] message. This method is for internal use only, and should not
         /// be used anywhere else.
-        WidgetMessage:DoubleClick => fn double_click(button: MouseButton), layout: false
+        Self:DoubleClick => fn double_click(button: MouseButton), layout: false
     );
 }
 
