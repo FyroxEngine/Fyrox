@@ -26,6 +26,12 @@ use std::{
 #[reflect(hide_all)]
 pub struct UntypedResource(pub Arc<Mutex<ResourceState>>);
 
+impl From<ResourceState> for UntypedResource {
+    fn from(a: ResourceState) -> Self {
+        Self(Mutex::new(a).into())
+    }
+}
+
 impl Visit for UntypedResource {
     // Delegating implementation.
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
@@ -35,10 +41,7 @@ impl Visit for UntypedResource {
 
 impl Default for UntypedResource {
     fn default() -> Self {
-        Self(Arc::new(Mutex::new(ResourceState::new_pending(
-            Default::default(),
-            Default::default(),
-        ))))
+        ResourceState::new_pending(Default::default(), Default::default()).into()
     }
 }
 
@@ -65,15 +68,13 @@ impl Hash for UntypedResource {
 impl UntypedResource {
     /// Creates new untyped resource in pending state using the given path and type uuid.
     pub fn new_pending(path: PathBuf, type_uuid: Uuid) -> Self {
-        Self(Arc::new(Mutex::new(ResourceState::new_pending(
-            path, type_uuid,
-        ))))
+        ResourceState::new_pending(path, type_uuid).into()
     }
 
     /// Creates new untyped resource in ok (fully loaded) state using the given data of any type, that
     /// implements [`ResourceData`] trait.
     pub fn new_ok<T: ResourceData>(data: T) -> Self {
-        Self(Arc::new(Mutex::new(ResourceState::new_ok(data))))
+        ResourceState::new_ok(data).into()
     }
 
     /// Creates new untyped resource in error state.
@@ -82,9 +83,7 @@ impl UntypedResource {
         error: Option<Arc<dyn ResourceLoadError>>,
         type_uuid: Uuid,
     ) -> Self {
-        Self(Arc::new(Mutex::new(ResourceState::new_load_error(
-            path, error, type_uuid,
-        ))))
+        ResourceState::new_load_error(path, error, type_uuid).into()
     }
 
     /// Returns actual unique type id of underlying resource data.
