@@ -829,7 +829,7 @@ impl Editor {
         let scene_viewer = SceneViewer::new(&mut engine, message_sender.clone());
         let asset_browser = AssetBrowser::new(&mut engine);
         let menu = Menu::new(&mut engine, message_sender.clone(), &settings);
-        let light_panel = LightPanel::new(&mut engine);
+        let light_panel = LightPanel::new(&mut engine, message_sender.clone());
         let audio_panel = AudioPanel::new(&mut engine);
 
         let ctx = &mut engine.user_interface.build_ctx();
