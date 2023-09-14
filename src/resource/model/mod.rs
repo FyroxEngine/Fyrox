@@ -228,7 +228,7 @@ impl ModelResourceExtension for ModelResource {
     }
 
     fn retarget_animations_directly(&self, root: Handle<Node>, graph: &Graph) -> Vec<Animation> {
-        let mut retargetted_animations = Vec::new();
+        let mut retargetted_animations = vec![];
 
         let data = self.data_ref();
 
@@ -277,7 +277,7 @@ impl ModelResourceExtension for ModelResource {
         dest_animation_player: Handle<Node>,
         graph: &mut Graph,
     ) -> Vec<Handle<Animation>> {
-        let mut animation_handles = Vec::new();
+        let mut animation_handles = vec![];
 
         let animations = self.retarget_animations_directly(root, graph);
 

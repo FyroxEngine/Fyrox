@@ -69,7 +69,7 @@ impl ColorGradient {
     pub const STUB_COLOR: Color = Color::WHITE;
 
     pub fn new() -> Self {
-        Self { points: Vec::new() }
+        Self { points: vec![] }
     }
 
     pub fn add_point(&mut self, pt: GradientPoint) {
@@ -199,7 +199,7 @@ mod test {
 
     #[test]
     fn test_color_gradient() {
-        assert_eq!(ColorGradient::new(), ColorGradient { points: Vec::new() });
+        assert_eq!(ColorGradient::new(), ColorGradient { points: vec![] });
         assert_eq!(ColorGradient::default(), ColorGradient::new());
 
         let color = Color::GREEN;

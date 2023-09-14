@@ -241,7 +241,7 @@ pub struct VariantArgs {
 }
 
 pub fn fetch_doc_comment(attrs: &[Attribute]) -> String {
-    let mut strings = Vec::new();
+    let mut strings = vec![];
 
     for attr in attrs.iter() {
         if let Ok(Meta::NameValue(name_value)) = attr.parse_meta() {

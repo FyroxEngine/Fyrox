@@ -585,7 +585,7 @@ impl ParticleSystemBuilder {
         ParticleSystem {
             base: self.base_builder.build_base(),
             particles: self.particles,
-            free_particles: Vec::new(),
+            free_particles: vec![],
             emitters: self.emitters.into(),
             texture: self.texture.into(),
             acceleration: self.acceleration.into(),

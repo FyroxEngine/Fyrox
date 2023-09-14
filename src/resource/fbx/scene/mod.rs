@@ -376,7 +376,7 @@ pub struct FbxDeformer {
 impl FbxDeformer {
     fn read(_sub_deformer_handle: Handle<FbxNode>, _nodes: &FbxNodeContainer) -> Self {
         Self {
-            sub_deformers: Vec::new(),
+            sub_deformers: vec![],
         }
     }
 }
@@ -447,7 +447,7 @@ impl<T> FbxLayerElement<T> {
         let array_node_handle = nodes.find(container_node, data_name.as_ref())?;
         let array_node = nodes.get_by_name(array_node_handle, "a")?;
 
-        let mut index = Vec::new();
+        let mut index = vec![];
 
         // This check is needed because FBX expects materials to be always IndexToDirect
         // See: https://developer.blender.org/D402

@@ -104,7 +104,7 @@ impl PartialEq for SceneResource {
 impl Eq for SceneResource {}
 
 fn find_file(name: &Path) -> Vec<PathBuf> {
-    let mut files = Vec::new();
+    let mut files = vec![];
     for dir in fyrox::walkdir::WalkDir::new(".").into_iter().flatten() {
         let path = dir.path();
         if let Some(file_name) = path.file_name() {

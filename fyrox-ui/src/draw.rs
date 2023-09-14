@@ -556,9 +556,9 @@ impl Draw for DrawingContext {
 impl DrawingContext {
     pub fn new() -> DrawingContext {
         DrawingContext {
-            vertex_buffer: Vec::new(),
-            triangle_buffer: Vec::new(),
-            command_buffer: Vec::new(),
+            vertex_buffer: vec![],
+            triangle_buffer: vec![],
+            command_buffer: vec![],
             triangles_to_commit: 0,
             opacity_stack: vec![1.0],
             transform_stack: Default::default(),

@@ -155,11 +155,11 @@ impl Font {
 
         let mut font = Font {
             height,
-            glyphs: Vec::new(),
+            glyphs: vec![],
             ascender: font_metrics.ascent,
             descender: font_metrics.descent,
             char_map: FxHashMap::default(),
-            atlas: Vec::new(),
+            atlas: vec![],
             atlas_size: 0,
             texture: None,
         };

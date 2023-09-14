@@ -335,7 +335,7 @@ impl Command for PasteCommand {
             mut last_selection,
         } = std::mem::replace(&mut self.state, PasteCommandState::Undefined)
         {
-            let mut subgraphs = Vec::new();
+            let mut subgraphs = vec![];
             for root_node in paste_result.root_nodes {
                 subgraphs.push(context.scene.graph.take_reserve_sub_graph(root_node));
             }

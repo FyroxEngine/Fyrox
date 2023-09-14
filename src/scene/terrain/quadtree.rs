@@ -364,7 +364,7 @@ mod test {
             let projection = Matrix4::new_perspective(1.0, 90.0f32.to_radians(), 0.025, z_far);
             let frustum = Frustum::from_view_projection_matrix(projection * view_matrix).unwrap();
 
-            let mut selection = Vec::new();
+            let mut selection = vec![];
             quadtree.select(
                 &Matrix4::identity(),
                 height_map_size,

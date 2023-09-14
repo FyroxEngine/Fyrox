@@ -254,8 +254,8 @@ impl StateGraphViewer {
 
         let current_selection = fetch_selection(&editor_scene.selection);
 
-        let mut states = Vec::new();
-        let mut transitions = Vec::new();
+        let mut states = vec![];
+        let mut transitions = vec![];
         if self.last_selection.layer != current_selection.layer
             || self.last_selection.absm_node_handle != current_selection.absm_node_handle
         {

@@ -131,7 +131,7 @@ impl ParticleSystemRenderer {
             shader: ParticleSystemShader::new(state)?,
             draw_data: Default::default(),
             geometry_buffer,
-            sorted_particles: Vec::new(),
+            sorted_particles: vec![],
         })
     }
 

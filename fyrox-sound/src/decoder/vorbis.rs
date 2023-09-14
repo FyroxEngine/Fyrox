@@ -93,7 +93,7 @@ impl OggDecoder {
             {
                 samples.samples.into_iter()
             } else {
-                Vec::new().into_iter()
+                vec![].into_iter()
             };
 
             Ok(Self {

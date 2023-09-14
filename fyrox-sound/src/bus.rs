@@ -79,7 +79,7 @@ impl PingPongBuffer {
 /// Audio bus is a top-level audio processing unit. It takes data from multiple audio sources and passes their
 /// samples through a chain of effects. Output signal is then can be either sent to an audio playback device or
 /// to some other audio bus and be processed again, but with different sound effects (this can be done via
-/// [`AudioBusGraph`].  
+/// [`AudioBusGraph`].
 #[derive(Debug, Reflect, Visit, Clone)]
 pub struct AudioBus {
     pub(crate) name: String,
@@ -254,7 +254,7 @@ impl AudioBus {
 /// filters (lowpass, highpass, bandpass, shelf filters, etc.) and complex effects such as reverberation.
 ///
 /// By default, each audio bus graph has a single audio bus called Primary. It is mandatory to at least one
-/// audio bus. Primary bus is responsible for outputting the data to an audio playback device.  
+/// audio bus. Primary bus is responsible for outputting the data to an audio playback device.
 ///
 /// # Sound source binding
 ///
@@ -290,7 +290,7 @@ pub struct AudioBusGraph {
 }
 
 impl AudioBusGraph {
-    /// The name of the audio bus that output samples directly to an audio playback device.  
+    /// The name of the audio bus that output samples directly to an audio playback device.
     pub const PRIMARY_BUS: &'static str = "Primary";
 
     /// Creates a new audio bus graph. Sound context already has an audio graph instance, so calling
@@ -460,7 +460,7 @@ impl AudioBusGraph {
     }
 
     pub(crate) fn end_render(&mut self, output_device_buffer: &mut [(f32, f32)]) {
-        let mut leafs = Vec::new();
+        let mut leafs = vec![];
         for (handle, bus) in self.buses.pair_iter_mut() {
             bus.apply_effects();
 

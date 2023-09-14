@@ -636,7 +636,7 @@ fn build_all(
         }
     });
 
-    let mut root_items = Vec::new();
+    let mut root_items = vec![];
     let mut parent = if let Some(root) = root {
         let path = if std::env::current_dir().map_or(false, |dir| &dir == root) {
             Path::new(".")

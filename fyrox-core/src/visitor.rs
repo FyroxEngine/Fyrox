@@ -1022,9 +1022,9 @@ impl VisitorNode {
     fn new(name: &str, parent: Handle<VisitorNode>) -> Self {
         Self {
             name: name.to_owned(),
-            fields: Vec::new(),
+            fields: vec![],
             parent,
-            children: Vec::new(),
+            children: vec![],
         }
     }
 }
@@ -1033,9 +1033,9 @@ impl Default for VisitorNode {
     fn default() -> Self {
         Self {
             name: String::new(),
-            fields: Vec::new(),
+            fields: vec![],
             parent: Handle::NONE,
-            children: Vec::new(),
+            children: vec![],
         }
     }
 }
@@ -1255,7 +1255,7 @@ impl Visitor {
     }
 
     pub fn save_binary_to_vec(&self) -> Result<Vec<u8>, VisitError> {
-        let mut writer = Cursor::new(Vec::new());
+        let mut writer = Cursor::new(vec![]);
         self.save_binary_to_memory(&mut writer)?;
         Ok(writer.into_inner())
     }
@@ -1400,7 +1400,7 @@ impl Visit for String {
         len.visit("Length", &mut region)?;
 
         let mut data = if region.reading {
-            Vec::new()
+            vec![]
         } else {
             Vec::from(self.as_bytes())
         };
@@ -1433,7 +1433,7 @@ impl Visit for PathBuf {
         len.visit("Length", &mut region)?;
 
         let mut data = if region.reading {
-            Vec::new()
+            vec![]
         } else {
             Vec::from(bytes)
         };
@@ -1943,7 +1943,7 @@ mod test {
             let mut resource: Rc<Resource> = Rc::new(Default::default());
             resource.visit("SharedResource", &mut visitor).unwrap();
 
-            let mut objects: Vec<Foo> = Vec::new();
+            let mut objects: Vec<Foo> = vec![];
             objects.visit("Objects", &mut visitor).unwrap();
         }
     }
@@ -2038,7 +2038,7 @@ mod test {
             FieldKind::PodArray {
                 type_id: 0,
                 element_size: 0,
-                bytes: Vec::new()
+                bytes: vec![]
             }
             .as_string(),
             "<podarray = 0; 0; []>".to_string()

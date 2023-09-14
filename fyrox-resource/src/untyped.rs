@@ -264,7 +264,7 @@ mod test {
     fn untyped_resource_is_loading() {
         assert!(UntypedResource(Arc::new(Mutex::new(ResourceState::Pending {
             path: PathBuf::from("/foo"),
-            wakers: Vec::new(),
+            wakers: vec![],
             type_uuid: Uuid::default()
         })))
         .is_loading());
@@ -299,7 +299,7 @@ mod test {
         assert_eq!(
             UntypedResource(Arc::new(Mutex::new(ResourceState::Pending {
                 path: path.clone(),
-                wakers: Vec::new(),
+                wakers: vec![],
                 type_uuid: Uuid::default()
             })))
             .path(),

@@ -297,7 +297,7 @@ impl Toolbar {
                     .try_get_of_type::<AnimationBlendingStateMachine>(selection.absm_node_handle)
                 {
                     if let Some(layer_index) = selection.layer {
-                        let mut commands = Vec::new();
+                        let mut commands = vec![];
 
                         commands.push(SceneCommand::new(ChangeSelectionCommand::new(
                             Selection::Absm(AbsmSelection {

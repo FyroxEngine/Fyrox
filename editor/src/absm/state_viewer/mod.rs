@@ -388,7 +388,7 @@ impl StateViewer {
         if let Some(parent_state_ref) = machine_layer.states().try_borrow(self.state) {
             let current_selection = fetch_selection(&editor_scene.selection);
 
-            let mut views = Vec::new();
+            let mut views = vec![];
             if current_selection.layer != self.last_selection.layer
                 || current_selection.absm_node_handle != self.last_selection.absm_node_handle
             {

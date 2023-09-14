@@ -117,7 +117,7 @@ impl BrushGizmo {
 }
 
 fn copy_layer_masks(terrain: &Terrain, layer: usize) -> Vec<Vec<u8>> {
-    let mut masks = Vec::new();
+    let mut masks = vec![];
 
     for chunk in terrain.chunks_ref() {
         masks.push(chunk.layer_masks[layer].data_ref().data().to_vec());

@@ -570,9 +570,9 @@ impl InspectorContext {
         generate_property_string_values: bool,
         filter: PropertyFilter,
     ) -> Self {
-        let mut entries = Vec::new();
+        let mut entries = vec![];
 
-        let mut fields_text = Vec::new();
+        let mut fields_text = vec![];
         object.fields(&mut |fields| {
             for field in fields {
                 fields_text.push(if generate_property_string_values {
@@ -583,7 +583,7 @@ impl InspectorContext {
             }
         });
 
-        let mut editors = Vec::new();
+        let mut editors = vec![];
         object.fields_info(&mut |fields_info| {
             for (i, (field_text, info)) in
                 fields_text.iter().zip(fields_info.into_iter()).enumerate()
@@ -721,7 +721,7 @@ impl InspectorContext {
         generate_property_string_values: bool,
         filter: PropertyFilter,
     ) -> Result<(), Vec<InspectorError>> {
-        let mut sync_errors = Vec::new();
+        let mut sync_errors = vec![];
 
         object.fields_info(&mut |fields_info| {
             for info in fields_info {

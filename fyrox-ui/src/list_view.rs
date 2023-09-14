@@ -1,5 +1,5 @@
 //! List view is used to display lists with arbitrary items. It supports single-selection and by default, it stacks the items
-//! vertically.  
+//! vertically.
 
 #![warn(missing_docs)]
 
@@ -61,7 +61,7 @@ impl ListViewMessage {
 }
 
 /// List view is used to display lists with arbitrary items. It supports single-selection and by default, it stacks the items
-/// vertically.  
+/// vertically.
 ///
 /// ## Example
 ///
@@ -456,7 +456,7 @@ impl ListViewBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
-            items: Vec::new(),
+            items: vec![],
             panel: None,
             scroll_viewer: None,
         }

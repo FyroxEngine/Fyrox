@@ -612,8 +612,8 @@ impl FormattedTextBuilder {
                 .chars()
                 .map(|c| Character::from_char_with_font(c as u32, &font))
                 .collect(),
-            lines: Vec::new(),
-            glyphs: Vec::new(),
+            lines: vec![],
+            glyphs: vec![],
             vertical_alignment: self.vertical_alignment,
             horizontal_alignment: self.horizontal_alignment,
             brush: self.brush,

@@ -274,7 +274,7 @@ async fn create_surfaces(
     model_path: &Path,
     model_import_options: &ModelImportOptions,
 ) -> Result<Vec<Surface>, FbxError> {
-    let mut surfaces = Vec::new();
+    let mut surfaces = vec![];
 
     // Create surfaces per material
     if model.materials.is_empty() {
@@ -433,15 +433,15 @@ async fn convert_mesh(
         * quat_from_euler(model.geometric_rotation).to_homogeneous()
         * Matrix4::new_nonuniform_scaling(&model.geometric_scale);
 
-    let mut temp_vertices = Vec::new();
-    let mut triangles = Vec::new();
+    let mut temp_vertices = vec![];
+    let mut triangles = vec![];
 
     // Array for triangulation needs, it will contain triangle definitions for
     // triangulated polygon.
-    let mut face_triangles = Vec::new();
+    let mut face_triangles = vec![];
 
-    let mut mesh_surfaces = Vec::new();
-    let mut mesh_blend_shapes = Vec::new();
+    let mut mesh_surfaces = vec![];
+    let mut mesh_blend_shapes = vec![];
 
     for &geom_handle in &model.geoms {
         let geom = fbx_scene.get(geom_handle).as_mesh_geometry()?;

@@ -42,7 +42,7 @@ pub fn gen_fields_metadata_body(
     field_args: &ast::Fields<args::FieldArgs>,
 ) -> TokenStream2 {
     // `inspect` function body, consisting of a sequence of quotes
-    let mut quotes = Vec::new();
+    let mut quotes = vec![];
 
     let props = field_args
         .fields
@@ -55,7 +55,7 @@ pub fn gen_fields_metadata_body(
         });
 
     quotes.push(quote! {
-        let mut props = Vec::new();
+        let mut props = vec![];
         #(props.push(#props);)*
     });
 
@@ -248,9 +248,9 @@ fn struct_set_field_body(ty_args: &args::TypeArgs) -> Option<TokenStream2> {
 }
 
 fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs]) -> TokenStream2 {
-    let mut fields_list = Vec::new();
-    let mut fields_list_mut = Vec::new();
-    let mut fields_info = Vec::new();
+    let mut fields_list = vec![];
+    let mut fields_list_mut = vec![];
+    let mut fields_info = vec![];
     let (fields, field_muts): (Vec<_>, Vec<_>) = variant_args
         .iter()
         .map(|v| {

@@ -94,7 +94,7 @@ where
     ) -> Result<Option<UiMessage>, InspectorError> {
         let value = ctx.property_info.cast_value::<T>()?;
 
-        let mut error_group = Vec::new();
+        let mut error_group = vec![];
 
         let inspector_context = ctx
             .ui

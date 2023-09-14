@@ -34,7 +34,7 @@ pub async fn load_file<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, FileLoadError
         use std::io::Read;
 
         let mut file = File::open(path)?;
-        let mut buffer = Vec::new();
+        let mut buffer = vec![];
         file.read_to_end(&mut buffer)?;
         Ok(buffer)
     }

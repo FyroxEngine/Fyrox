@@ -453,7 +453,7 @@ impl<T: Reflect> ResolvePath for T {
 
 /// Splits property path into individual components.
 pub fn path_to_components(path: &str) -> Vec<Component> {
-    let mut components = Vec::new();
+    let mut components = vec![];
     let mut current_path = path;
     while let Ok((component, sub_path)) = Component::next(current_path) {
         if let Component::Field(field) = component {
@@ -1176,7 +1176,7 @@ mod test {
             hash_map: [("Foobar".to_string(), Item::default())].into(),
         };
 
-        let mut names = Vec::new();
+        let mut names = vec![];
         (&foo as &dyn Reflect).enumerate_fields_recursively(&mut |path, _, _| {
             names.push(path.to_string());
         });

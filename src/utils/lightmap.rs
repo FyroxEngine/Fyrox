@@ -327,7 +327,7 @@ impl Lightmap {
             progress_indicator.advance_progress()
         }
 
-        let mut instances = Vec::new();
+        let mut instances = vec![];
         let mut data_set = FxHashMap::default();
 
         'node_loop: for (handle, node) in scene.graph.pair_iter() {
@@ -664,7 +664,7 @@ impl Grid {
                 let bounds =
                     Rect::new(x as f32 / fsize, y as f32 / fsize, 1.0 / fsize, 1.0 / fsize);
 
-                let mut triangles = Vec::new();
+                let mut triangles = vec![];
 
                 for (triangle_index, triangle) in data.triangles.iter().enumerate() {
                     let uv_a = data.vertices[triangle[0] as usize].second_tex_coord;

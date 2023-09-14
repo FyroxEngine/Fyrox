@@ -142,7 +142,7 @@ impl FrameBuffer {
                 );
             }
 
-            let mut color_buffers = Vec::new();
+            let mut color_buffers = vec![];
             for (i, color_attachment) in color_attachments.iter().enumerate() {
                 assert_eq!(color_attachment.kind, AttachmentKind::Color);
                 let color_attachment_kind = glow::COLOR_ATTACHMENT0 + i as u32;

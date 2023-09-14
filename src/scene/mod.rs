@@ -329,7 +329,7 @@ impl SceneLoader {
         // TODO: Move into Camera::restore_resources?
         // We have to wait until skybox textures are all loaded, because we need to read their data
         // to re-create cube map.
-        let mut skybox_textures = Vec::new();
+        let mut skybox_textures = vec![];
         for node in scene.graph.linear_iter() {
             if let Some(camera) = node.cast::<Camera>() {
                 if let Some(skybox) = camera.skybox_ref() {

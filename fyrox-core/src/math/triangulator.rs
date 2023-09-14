@@ -181,7 +181,7 @@ mod test {
     fn triangle_triangulation() {
         let polygon = vec![Vector3::zeros(), Vector3::x(), Vector3::y()];
 
-        let mut ref_indices = Vec::new();
+        let mut ref_indices = vec![];
         triangulate(polygon.as_slice(), &mut ref_indices);
         assert_ne!(ref_indices.len(), 0);
     }
@@ -195,7 +195,7 @@ mod test {
             Vector3::new(3.0, 2.0, 1.0),
         ];
 
-        let mut ref_indices = Vec::new();
+        let mut ref_indices = vec![];
         triangulate(polygon.as_slice(), &mut ref_indices);
         assert_ne!(ref_indices.len(), 0);
     }
@@ -209,7 +209,7 @@ mod test {
             Vector3::new(3.0, 1.0, 1.0),
         ];
 
-        let mut ref_indices = Vec::new();
+        let mut ref_indices = vec![];
         triangulate(polygon.as_slice(), &mut ref_indices);
         assert_ne!(ref_indices.len(), 0);
     }
@@ -225,7 +225,7 @@ mod test {
         ];
 
         // First test flat case
-        let mut ref_indices = Vec::new();
+        let mut ref_indices = vec![];
         triangulate(polygon.as_slice(), &mut ref_indices);
         assert_ne!(ref_indices.len(), 0);
 
@@ -244,7 +244,7 @@ mod test {
                     .iter()
                     .map(|v: &Vector3<f32>| mrot.transform_point(&Point3::from(*v)).coords)
                     .collect();
-                let mut new_indices = Vec::new();
+                let mut new_indices = vec![];
                 triangulate(rotated.as_slice(), &mut new_indices);
                 // We just need to ensure that we have the same amount of triangles as reference triangulation.
                 assert_eq!(new_indices.len(), ref_indices.len());

@@ -15,7 +15,7 @@ impl ResourceGraphNode {
     /// Creates a new resource graph node for a given untyped resource. This method is recursive -
     /// it will initialize the entire sub-graph of dependencies automatically.
     pub fn new(resource: &UntypedResource) -> Self {
-        let mut children = Vec::new();
+        let mut children = vec![];
 
         // Look for dependent resources.
         let mut dependent_resources = FxHashSet::default();
@@ -132,7 +132,7 @@ mod test {
         let mut node = ResourceGraphNode::new(&UntypedResource::default());
         node.children
             .push(ResourceGraphNode::new(&UntypedResource::default()));
-        let mut uuids = Vec::new();
+        let mut uuids = vec![];
 
         node.for_each(&mut |r| uuids.push(r.type_uuid()));
         assert_eq!(uuids, [Uuid::default(), Uuid::default()]);
@@ -179,7 +179,7 @@ mod test {
                 Uuid::default(),
             )));
 
-        let mut uuids = Vec::new();
+        let mut uuids = vec![];
         graph.for_each(&mut |r: &UntypedResource| uuids.push(r.type_uuid()));
         assert_eq!(uuids, [Uuid::default(), Uuid::default()]);
     }

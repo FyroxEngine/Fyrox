@@ -39,7 +39,7 @@ impl Octree {
         // Calculate bounds.
         let mut bounds = AxisAlignedBoundingBox::default();
 
-        let mut entries = Vec::new();
+        let mut entries = vec![];
         for (handle, node) in graph.pair_iter() {
             let aabb = node.world_bounding_box();
             entries.push(Entry {
@@ -166,7 +166,7 @@ fn build_recursive(
         let leaf_bounds = bounds.split();
 
         for (leaf, leaf_bounds) in leaves.iter_mut().zip(leaf_bounds) {
-            let mut leaf_entries = Vec::new();
+            let mut leaf_entries = vec![];
 
             leaf_entries.extend(
                 entries

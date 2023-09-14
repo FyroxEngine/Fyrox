@@ -446,14 +446,14 @@ mod test {
     fn astar_random_points() {
         let mut pathfinder = PathFinder::new();
 
-        let mut path = Vec::new();
+        let mut path = vec![];
         assert!(pathfinder.build(0, 0, &mut path).is_ok());
         assert!(path.is_empty());
 
         let size = 40;
 
         // Create vertices.
-        let mut vertices = Vec::new();
+        let mut vertices = vec![];
         for y in 0..size {
             for x in 0..size {
                 vertices.push(PathVertex::new(Vector3::new(x as f32, y as f32, 0.0)));

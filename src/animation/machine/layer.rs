@@ -311,7 +311,7 @@ impl MachineLayer {
                 self.states.try_borrow(transition.source()),
                 self.states.try_borrow(transition.dest()),
             ) {
-                let mut events = Vec::new();
+                let mut events = vec![];
                 match strategy {
                     AnimationEventCollectionStrategy::All => {
                         for state in [source_state, dest_state] {

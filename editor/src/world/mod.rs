@@ -720,7 +720,7 @@ impl WorldViewer {
             ) {
                 if let Selection::Graph(ref selection) = editor_scene.selection {
                     if selection.nodes.contains(&child.entity_handle) {
-                        let mut commands = Vec::new();
+                        let mut commands = vec![];
 
                         for &node_handle in selection.nodes.iter() {
                             // Make sure we won't create any loops - child must not have parent in its

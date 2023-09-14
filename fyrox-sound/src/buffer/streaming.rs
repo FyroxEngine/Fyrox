@@ -170,7 +170,7 @@ impl StreamingBuffer {
 
         let mut streaming_source = StreamingSource::new(source)?;
 
-        let mut samples = Vec::new();
+        let mut samples = vec![];
         let channel_count = streaming_source.channel_count();
         streaming_source.read_next_samples_block_into(&mut samples);
         debug_assert_eq!(samples.len() % channel_count, 0);

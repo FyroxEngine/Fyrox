@@ -2246,7 +2246,7 @@ impl UserInterface {
         let node = self.nodes.borrow(node_handle);
         let mut cloned = UiNode(node.clone_boxed());
 
-        let mut cloned_children = Vec::new();
+        let mut cloned_children = vec![];
         for child in node.children().to_vec() {
             cloned_children.push(self.copy_node_recursive(child, map));
         }
@@ -2291,7 +2291,7 @@ impl UserInterface {
         let node = self.nodes.borrow(node_handle);
         let mut cloned = UiNode(node.clone_boxed());
 
-        let mut cloned_children = Vec::new();
+        let mut cloned_children = vec![];
         for child in node.children().to_vec() {
             let cloned_child = self.copy_node_recursive_with_limit(child, map, limit, counter);
             if cloned_child.is_some() {

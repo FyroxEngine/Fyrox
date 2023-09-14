@@ -2446,7 +2446,7 @@ impl Editor {
                 if self.is_active() {
                     // Temporarily disable cameras in currently edited scene. This is needed to prevent any
                     // scene camera to interfere with the editor camera.
-                    let mut camera_state = Vec::new();
+                    let mut camera_state = vec![];
                     if let Some(editor_scene) = self.scenes.current_editor_scene_ref() {
                         let scene = &mut self.engine.scenes[editor_scene.scene];
                         let has_preview_camera =

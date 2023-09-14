@@ -222,9 +222,9 @@ where
     }
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        let mut fields = Vec::new();
-        let mut children = Vec::new();
-        let mut columns = Vec::new();
+        let mut fields = vec![];
+        let mut children = vec![];
+        let mut columns = vec![];
 
         let colors = [
             Color::opaque(120, 0, 0),

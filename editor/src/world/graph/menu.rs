@@ -234,7 +234,7 @@ impl ItemContextMenu {
             } else if message.destination() == self.reset_inheritable_properties {
                 if let Selection::Graph(graph_selection) = &editor_scene.selection {
                     let scene = &engine.scenes[editor_scene.scene];
-                    let mut commands = Vec::new();
+                    let mut commands = vec![];
                     for node_handle in graph_selection.nodes.iter() {
                         if let Some(node) = scene.graph.try_get(*node_handle) {
                             (node as &dyn Reflect).enumerate_fields_recursively(

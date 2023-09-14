@@ -653,7 +653,7 @@ impl SurfaceData {
         num_segments: usize,
         transform: &Matrix4<f32>,
     ) -> Self {
-        let mut vertices = Vec::new();
+        let mut vertices = vec![];
         for j in 0..=num_rings {
             for i in 0..=num_segments {
                 let u = i as f32 / num_segments as f32 * std::f32::consts::TAU;
@@ -677,7 +677,7 @@ impl SurfaceData {
             }
         }
 
-        let mut triangles = Vec::new();
+        let mut triangles = vec![];
         for j in 1..=num_rings {
             for i in 1..=num_segments {
                 let a = ((num_segments + 1) * j + i - 1) as u32;

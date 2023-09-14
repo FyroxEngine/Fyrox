@@ -30,7 +30,7 @@ impl SelectInteractionMode {
             preview,
             selection_frame,
             message_sender,
-            stack: Vec::new(),
+            stack: vec![],
             click_pos: Vector2::default(),
         }
     }

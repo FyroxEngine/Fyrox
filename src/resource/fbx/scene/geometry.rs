@@ -164,7 +164,7 @@ impl FbxMeshGeometry {
             materials: read_materials(geom_node_handle, nodes)?,
             tangents: read_tangents(geom_node_handle, nodes)?,
             binormals: read_binormals(geom_node_handle, nodes)?,
-            deformers: Vec::new(),
+            deformers: vec![],
         })
     }
 
@@ -204,7 +204,7 @@ impl FbxMeshGeometry {
         &self,
         scene: &'a FbxScene,
     ) -> Result<Vec<&'a FbxBlendShapeChannel>, FbxError> {
-        let mut blend_shapes = Vec::new();
+        let mut blend_shapes = vec![];
         for &deformer_handle in &self.deformers {
             let deformer = scene.get(deformer_handle).as_deformer()?;
             for &sub_deformer in &deformer.sub_deformers {

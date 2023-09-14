@@ -92,8 +92,8 @@ impl GameSceneLoader {
 
         let ctx = &mut ui.build_ctx();
 
-        let mut children = Vec::new();
-        let mut sliders = Vec::new();
+        let mut children = vec![];
+        let mut sliders = vec![];
 
         for (row, blend_shape_name) in blend_shape_names.iter().enumerate() {
             let short_name = blend_shape_name

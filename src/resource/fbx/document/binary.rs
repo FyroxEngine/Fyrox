@@ -30,7 +30,7 @@ where
     let length = file.read_u32::<LittleEndian>()? as usize;
     let encoding = file.read_u32::<LittleEndian>()?;
     let compressed_length = file.read_u32::<LittleEndian>()? as usize;
-    let mut array = Vec::new();
+    let mut array = vec![];
 
     if encoding == 0 {
         for _ in 0..length {

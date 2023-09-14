@@ -533,7 +533,7 @@ impl NavmeshAgent {
         }
 
         if let (Some(n_from), Some(n_to)) = (n_from, n_to) {
-            let mut path_vertex_indices = Vec::new();
+            let mut path_vertex_indices = vec![];
             let result =
                 navmesh
                     .pathfinder

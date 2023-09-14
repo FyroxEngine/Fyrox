@@ -489,8 +489,8 @@ where
     #[inline]
     pub fn new() -> Self {
         Pool {
-            records: Vec::new(),
-            free_stack: Vec::new(),
+            records: vec![],
+            free_stack: vec![],
         }
     }
 
@@ -499,7 +499,7 @@ where
         let capacity = usize::try_from(capacity).expect("capacity overflowed usize");
         Pool {
             records: Vec::with_capacity(capacity),
-            free_stack: Vec::new(),
+            free_stack: vec![],
         }
     }
 
@@ -1925,7 +1925,7 @@ mod test {
     fn pool_with_capacity() {
         let p = Pool::<u32>::with_capacity(1);
         assert_eq!(p.records, Vec::with_capacity(1));
-        assert_eq!(p.free_stack, Vec::new())
+        assert_eq!(p.free_stack, vec![])
     }
 
     #[test]

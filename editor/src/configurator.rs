@@ -88,7 +88,7 @@ impl Configurator {
         .build(ctx);
 
         // Load history.
-        let mut history: Vec<HistoryEntry> = Vec::new();
+        let mut history: Vec<HistoryEntry> = vec![];
         if let Ok(mut visitor) =
             fyrox::core::futures::executor::block_on(Visitor::load_binary(HISTORY_PATH))
         {

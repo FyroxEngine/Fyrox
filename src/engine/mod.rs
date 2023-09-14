@@ -253,14 +253,14 @@ impl ScriptMessageDispatcher {
             .or_insert_with(|| FxHashSet::from_iter([receiver]));
     }
 
-    /// Unsubscribes a node from receiving any messages of the given type `T`.  
+    /// Unsubscribes a node from receiving any messages of the given type `T`.
     pub fn unsubscribe_from<T: 'static>(&mut self, receiver: Handle<Node>) {
         if let Some(group) = self.type_groups.get_mut(&TypeId::of::<T>()) {
             group.remove(&receiver);
         }
     }
 
-    /// Unsubscribes a node from receiving any messages.  
+    /// Unsubscribes a node from receiving any messages.
     pub fn unsubscribe(&mut self, receiver: Handle<Node>) {
         for group in self.type_groups.values_mut() {
             group.remove(&receiver);
@@ -623,7 +623,7 @@ struct ResourceGraphVertex {
 
 impl ResourceGraphVertex {
     pub fn new(model: ModelResource, resource_manager: ResourceManager) -> Self {
-        let mut children = Vec::new();
+        let mut children = vec![];
 
         // Look for dependent resources.
         let mut dependent_resources = HashSet::new();
@@ -1090,7 +1090,7 @@ impl Engine {
     /// will result in the almost exact copy of the context that was made before destruction.
     ///
     /// This method should be called on [`Event::Suspended`] of your game loop, however if you do not use any graphics context
-    /// (for example - if you're making a game server), then you can ignore this method completely.   
+    /// (for example - if you're making a game server), then you can ignore this method completely.
     pub fn destroy_graphics_context(&mut self) -> Result<(), EngineError> {
         if let GraphicsContext::Initialized(ref ctx) = self.graphics_context {
             let params = &ctx.params;

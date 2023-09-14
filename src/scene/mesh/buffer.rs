@@ -522,7 +522,7 @@ impl<'a> VertexBufferRefMut<'a> {
 
             self.layout_hash = calculate_layout_hash(&self.vertex_buffer.dense_layout);
 
-            let mut new_data = Vec::new();
+            let mut new_data = vec![];
 
             for chunk in self
                 .vertex_buffer
@@ -627,7 +627,7 @@ impl VertexBuffer {
             }
         }
 
-        let mut dense_layout = Vec::new();
+        let mut dense_layout = vec![];
 
         // Validate everything as much as possible and calculate vertex size.
         let mut sparse_layout = [None; VertexAttributeUsage::Count as usize];

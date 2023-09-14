@@ -170,7 +170,7 @@ impl Control for NodeSelector {
                             self.selected = selection.clone();
 
                             let mut stack = vec![self.tree_root];
-                            let mut selected_trees = Vec::new();
+                            let mut selected_trees = vec![];
                             while let Some(node_handle) = stack.pop() {
                                 let node = ui.node(node_handle);
 

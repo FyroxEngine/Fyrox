@@ -184,7 +184,7 @@ fn make_grid(
     ctx: &mut BuildContext,
     container: &SpriteSheetFramesContainer,
 ) -> (Handle<UiNode>, Vec<Handle<UiNode>>) {
-    let mut cells = Vec::new();
+    let mut cells = vec![];
     for i in 0..container.size().y {
         for j in 0..container.size().x {
             let cell_position = Vector2::new(j, i);

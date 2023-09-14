@@ -15,15 +15,15 @@ where
     let mut nodes: Pool<FbxNode> = Pool::new();
     let root_handle = nodes.spawn(FbxNode {
         name: String::from("__ROOT__"),
-        children: Vec::new(),
+        children: vec![],
         parent: Handle::NONE,
-        attributes: Vec::new(),
+        attributes: vec![],
     });
     let mut parent_handle: Handle<FbxNode> = root_handle;
     let mut node_handle: Handle<FbxNode> = Handle::NONE;
-    let mut buffer: Vec<u8> = Vec::new();
-    let mut name: Vec<u8> = Vec::new();
-    let mut value: Vec<u8> = Vec::new();
+    let mut buffer: Vec<u8> = vec![];
+    let mut name: Vec<u8> = vec![];
+    let mut value: Vec<u8> = vec![];
 
     let buf_len = reader.seek(SeekFrom::End(0))?;
     reader.rewind()?;
@@ -63,9 +63,9 @@ where
                 let name_copy = String::from_utf8(name.clone())?;
                 let node = FbxNode {
                     name: name_copy,
-                    attributes: Vec::new(),
+                    attributes: vec![],
                     parent: parent_handle,
-                    children: Vec::new(),
+                    children: vec![],
                 };
                 node_handle = nodes.spawn(node);
                 name.clear();

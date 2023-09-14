@@ -507,7 +507,7 @@ impl GeometryBufferBuilder {
 
         state.set_vertex_array_object(Some(vao));
 
-        let mut buffers = Vec::new();
+        let mut buffers = vec![];
         for builder in self.buffers {
             buffers.push(builder.build(state)?);
         }

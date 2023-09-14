@@ -23,9 +23,9 @@ impl Default for FbxNode {
     fn default() -> Self {
         Self {
             name: "".to_string(),
-            attributes: Vec::new(),
+            attributes: vec![],
             parent: Default::default(),
-            children: Vec::new(),
+            children: vec![],
         }
     }
 }

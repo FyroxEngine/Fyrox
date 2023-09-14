@@ -51,12 +51,12 @@ pub mod value;
 ///                                             v
 ///   Time   > |---------------|------------------------------------>
 ///            |               |
-///   Track1 > | node.position |                                     
+///   Track1 > | node.position |
 ///            |   X curve     |..1..........5...........10..........
 ///            |   Y curve     |..2.........-2..................1....  < Curve key frames
 ///            |   Z curve     |..1..........9......................4
-///            |_______________|  
-///   Track2   | node.property |                                  
+///            |_______________|
+///   Track2   | node.property |
 ///            | ............  |.....................................
 ///            | ............  |.....................................
 ///            | ............  |.....................................
@@ -305,7 +305,7 @@ impl Animation {
     /// Calculates new length of the animation based on the content of its tracks. It looks for the most "right"
     /// curve key in all curves of all tracks and treats it as length of the animation. The method could be used
     /// in case if you formed animation from code using just curves and don't know the actual length of the
-    /// animation.  
+    /// animation.
     pub fn fit_length_to_content(&mut self) {
         self.time_slice.start = 0.0;
         for track in self.tracks.iter_mut() {
@@ -785,7 +785,7 @@ impl Default for Animation {
     fn default() -> Self {
         Self {
             name: Default::default(),
-            tracks: Vec::new(),
+            tracks: vec![],
             speed: 1.0,
             time_position: 0.0,
             enabled: true,

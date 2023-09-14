@@ -186,7 +186,7 @@ fn main() {
                             .query_component_mut::<AnimationPlayer>()
                             .unwrap();
 
-                        let mut events = Vec::new();
+                        let mut events = vec![];
                         while let Some(event) = (**animation_player.animations_mut())
                             .get_mut(game_scene.player.locomotion_machine.walk_animation)
                             .pop_event()

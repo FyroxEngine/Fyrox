@@ -33,7 +33,7 @@ impl FbxAnimationCurve {
             ));
         }
 
-        let mut curve = FbxAnimationCurve { keys: Vec::new() };
+        let mut curve = FbxAnimationCurve { keys: vec![] };
 
         for i in 0..key_value_array.attrib_count() {
             curve.keys.push(FbxTimeValuePair {

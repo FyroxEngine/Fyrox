@@ -87,7 +87,7 @@ impl GraphSelection {
             false
         }
 
-        let mut root_nodes = Vec::new();
+        let mut root_nodes = vec![];
         for &node in self.nodes().iter() {
             let mut descendant = false;
             for &other_node in self.nodes().iter() {
@@ -172,7 +172,7 @@ impl GraphSelection {
     }
 
     pub fn local_positions(&self, graph: &Graph) -> Vec<Vector3<f32>> {
-        let mut positions = Vec::new();
+        let mut positions = vec![];
         for &handle in self.nodes.iter() {
             positions.push(**graph[handle].local_transform().position());
         }
@@ -180,7 +180,7 @@ impl GraphSelection {
     }
 
     pub fn local_rotations(&self, graph: &Graph) -> Vec<UnitQuaternion<f32>> {
-        let mut rotations = Vec::new();
+        let mut rotations = vec![];
         for &handle in self.nodes.iter() {
             rotations.push(**graph[handle].local_transform().rotation());
         }
@@ -188,7 +188,7 @@ impl GraphSelection {
     }
 
     pub fn local_scales(&self, graph: &Graph) -> Vec<Vector3<f32>> {
-        let mut scales = Vec::new();
+        let mut scales = vec![];
         for &handle in self.nodes.iter() {
             scales.push(**graph[handle].local_transform().scale());
         }

@@ -513,8 +513,8 @@ impl GridBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
-            rows: Vec::new(),
-            columns: Vec::new(),
+            rows: vec![],
+            columns: vec![],
             draw_border: false,
             border_thickness: 1.0,
         }

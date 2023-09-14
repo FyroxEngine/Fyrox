@@ -164,7 +164,7 @@ impl Control for Tree {
                                     // Select range.
                                     let mut first_position = None;
                                     let mut this_position = None;
-                                    let mut flat_hierarchy = Vec::new();
+                                    let mut flat_hierarchy = vec![];
 
                                     fn visit_widget(
                                         this_tree: &Tree,

@@ -270,7 +270,7 @@ pub fn generate_uv_meshes(
     // Step 2. Find separate "meshes" on uv map. After box mapping we will most likely
     // end up with set of faces, some of them may form meshes and each such mesh must
     // be moved with all faces it has.
-    let mut meshes = Vec::new();
+    let mut meshes = vec![];
     let mut removed_triangles = vec![false; geometry_buffer_mut.len()];
     for triangle_index in 0..geometry_buffer_mut.len() {
         if !removed_triangles[triangle_index] {
@@ -353,7 +353,7 @@ pub fn generate_uvs(
 
     meshes.sort_unstable_by(|a, b| b.area().partial_cmp(&a.area()).unwrap());
 
-    let mut rects = Vec::new();
+    let mut rects = vec![];
 
     let twice_spacing = spacing * 2.0;
 

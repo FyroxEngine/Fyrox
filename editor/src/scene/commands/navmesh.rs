@@ -215,7 +215,7 @@ impl Command for DeleteNavmeshVertexCommand {
         match std::mem::replace(&mut self.state, DeleteNavmeshVertexCommandState::Undefined) {
             DeleteNavmeshVertexCommandState::NonExecuted { vertex }
             | DeleteNavmeshVertexCommandState::Reverted { vertex } => {
-                let mut triangles = Vec::new();
+                let mut triangles = vec![];
 
                 for triangle in navmesh.triangles() {
                     if triangle.indices().contains(&(vertex as u32)) {

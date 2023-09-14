@@ -140,7 +140,7 @@ where
     T: Reflect + 'static,
     I: IntoIterator<Item = &'a T>,
 {
-    let mut items = Vec::new();
+    let mut items = vec![];
 
     for (index, item) in iter.into_iter().enumerate() {
         if let Some(definition) = definition_container.definitions().get(&TypeId::of::<T>()) {
@@ -253,7 +253,7 @@ where
                 self.filter,
             )?
         } else {
-            Vec::new()
+            vec![]
         };
 
         let panel =

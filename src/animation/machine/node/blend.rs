@@ -159,7 +159,7 @@ impl AnimationPoseSource for BlendAnimations {
     ) -> Vec<(Handle<Animation>, AnimationEvent)> {
         match strategy {
             AnimationEventCollectionStrategy::All => {
-                let mut events = Vec::new();
+                let mut events = vec![];
                 for pose in self.pose_sources.iter() {
                     if let Some(source) = nodes.try_borrow(pose.pose_source) {
                         events.extend(
@@ -364,7 +364,7 @@ impl AnimationPoseSource for BlendAnimationsByIndex {
 
                         match strategy {
                             AnimationEventCollectionStrategy::All => {
-                                let mut events = Vec::new();
+                                let mut events = vec![];
                                 for input in [prev_input, current_input] {
                                     if let Some(source) = nodes.try_borrow(input.pose_source) {
                                         events.extend(source.collect_animation_events(

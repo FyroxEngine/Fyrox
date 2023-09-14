@@ -155,7 +155,7 @@ impl AnimationPoseSource for BlendSpace {
                 ) {
                     match strategy {
                         AnimationEventCollectionStrategy::All => {
-                            let mut events = Vec::new();
+                            let mut events = vec![];
                             for pose in [pose_a, pose_b, pose_c] {
                                 events.extend(
                                     pose.collect_animation_events(

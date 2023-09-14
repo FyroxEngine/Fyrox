@@ -799,7 +799,7 @@ impl TrackList {
 
                     match self.property_binding_mode {
                         PropertyBindingMode::Generic => {
-                            let mut descriptors = Vec::new();
+                            let mut descriptors = vec![];
                             scene.graph[*first].as_reflect(&mut |node| {
                                 descriptors = object_to_property_tree("", node);
                             });
@@ -865,7 +865,7 @@ impl TrackList {
             } else if message.destination() == self.context_menu.target_node_selector {
                 if let Selection::Animation(ref scene_selection) = editor_scene.selection {
                     if let Some(first) = node_selection.first() {
-                        let mut commands = Vec::new();
+                        let mut commands = vec![];
 
                         for entity in scene_selection.entities.iter() {
                             if let SelectedEntity::Track(id) = entity {

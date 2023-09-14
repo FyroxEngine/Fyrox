@@ -65,10 +65,10 @@ impl FbxModel {
             geometric_rotation: Vector3::default(),
             geometric_scale: Vector3::new(1.0, 1.0, 1.0),
             inv_bind_transform: Matrix4::identity(),
-            geoms: Vec::new(),
-            materials: Vec::new(),
-            animation_curve_nodes: Vec::new(),
-            children: Vec::new(),
+            geoms: vec![],
+            materials: vec![],
+            animation_curve_nodes: vec![],
+            children: vec![],
             light: Handle::NONE,
         };
 

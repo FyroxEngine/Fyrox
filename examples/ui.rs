@@ -224,7 +224,7 @@ fn create_ui(engine: &mut Engine) -> Interface {
                             // message and will use received index to switch to desired video
                             // mode.
                             .with_items({
-                                let mut items = Vec::new();
+                                let mut items = vec![];
                                 for video_mode in video_modes.iter() {
                                     let size = video_mode.size();
                                     let rate = video_mode.refresh_rate_millihertz() / 1000;

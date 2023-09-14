@@ -1532,7 +1532,7 @@ impl WidgetBuilder {
             column: 0,
             margin: Thickness::zero(),
             desired_position: Vector2::default(),
-            children: Vec::new(),
+            children: vec![],
             is_hit_test_visible: true,
             visibility: true,
             z_index: 0,

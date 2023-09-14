@@ -1251,7 +1251,7 @@ impl Terrain {
             .layers
             .get_value_mut_and_mark_modified()
             .remove(layer_index);
-        let mut layer_masks = Vec::new();
+        let mut layer_masks = vec![];
         for chunk in self.chunks_mut() {
             layer_masks.push(chunk.layer_masks.remove(layer_index));
         }
@@ -1465,7 +1465,7 @@ impl NodeTrait for Terrain {
                 let chunk_transform =
                     self.global_transform() * Matrix4::new_translation(&chunk.position);
 
-                let mut selection = Vec::new();
+                let mut selection = vec![];
                 chunk.quad_tree.select(
                     &chunk_transform,
                     self.height_map_size(),
@@ -1751,7 +1751,7 @@ impl TerrainBuilder {
 
     /// Build terrain node.
     pub fn build_node(self) -> Node {
-        let mut chunks = Vec::new();
+        let mut chunks = vec![];
         for z in self.length_chunks.clone() {
             for x in self.width_chunks.clone() {
                 let heightmap =

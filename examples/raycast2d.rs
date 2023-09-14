@@ -52,7 +52,7 @@ impl Plugin for Game {
 
         let ray_direction = cursor_pos.xy() - self.from;
 
-        let mut buffer = Vec::new();
+        let mut buffer = vec![];
         scene.graph.physics2d.cast_ray(
             RayCastOptions {
                 ray_origin: Point2::from(self.from),

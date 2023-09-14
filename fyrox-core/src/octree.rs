@@ -39,7 +39,7 @@ impl Octree {
         bounds.inflate(Vector3::new(inflation, inflation, inflation));
 
         // Get initial list of indices.
-        let mut indices = Vec::new();
+        let mut indices = vec![];
         for i in 0..triangles.len() {
             indices.push(i as u32);
         }
@@ -208,7 +208,7 @@ fn build_recursive(
         let leaf_bounds = bounds.split();
 
         for i in 0..8 {
-            let mut leaf_indices = Vec::new();
+            let mut leaf_indices = vec![];
 
             for index in indices.iter() {
                 let index = *index;
@@ -283,7 +283,7 @@ mod test {
     #[test]
     fn octree_point_query() {
         let tree = Octree::new(&get_six_triangles(), 5);
-        let mut buffer = Vec::new();
+        let mut buffer = vec![];
         tree.point_query(Vector3::zeros(), &mut buffer);
 
         assert_eq!(buffer, [0, 1, 2, 3, 0, 1, 2, 3]);
@@ -292,7 +292,7 @@ mod test {
     #[test]
     fn octree_sphere_query() {
         let tree = Octree::new(&get_six_triangles(), 5);
-        let mut buffer = Vec::new();
+        let mut buffer = vec![];
         tree.sphere_query(Vector3::zeros(), 1.0, &mut buffer);
 
         assert_eq!(
@@ -309,7 +309,7 @@ mod test {
     #[test]
     fn octree_aabb_query() {
         let tree = Octree::new(&get_six_triangles(), 5);
-        let mut buffer = Vec::new();
+        let mut buffer = vec![];
         tree.aabb_query(
             &AxisAlignedBoundingBox {
                 min: Vector3::zeros(),
@@ -330,7 +330,7 @@ mod test {
     #[test]
     fn octree_ray_query() {
         let tree = Octree::new(&get_six_triangles(), 5);
-        let mut buffer = Vec::new();
+        let mut buffer = vec![];
         tree.ray_query(
             &Ray::new(Vector3::zeros(), Vector3::new(1.0, 1.0, 0.0)),
             &mut buffer,

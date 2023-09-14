@@ -66,7 +66,7 @@ impl Control for DockingManager {
         {
             if let Some(DockingManagerMessage::Layout(layout_descriptor)) = message.data() {
                 if let Some(root_tile_handle) = self.children.first().cloned() {
-                    let mut windows = Vec::new();
+                    let mut windows = vec![];
                     let mut stack = vec![root_tile_handle];
                     while let Some(tile_handle) = stack.pop() {
                         if let Some(tile) = ui

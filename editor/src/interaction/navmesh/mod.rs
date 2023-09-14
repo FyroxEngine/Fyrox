@@ -323,7 +323,7 @@ impl InteractionMode for EditNavmeshMode {
                 .map(|n| n.navmesh_ref())
             {
                 if let Some(drag_context) = self.drag_context.take() {
-                    let mut commands = Vec::new();
+                    let mut commands = vec![];
 
                     match drag_context {
                         DragContext::MoveSelection { initial_positions } => {
@@ -538,7 +538,7 @@ impl InteractionMode for EditNavmeshMode {
                         .is_some()
                         && !selection.is_empty()
                     {
-                        let mut commands = Vec::new();
+                        let mut commands = vec![];
 
                         for vertex in selection.unique_vertices().iter().rev().cloned() {
                             commands.push(SceneCommand::new(DeleteNavmeshVertexCommand::new(

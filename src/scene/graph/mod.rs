@@ -149,7 +149,7 @@ impl Default for Graph {
             physics2d: dim2::physics::PhysicsWorld::new(),
             root: Handle::NONE,
             pool: Pool::new(),
-            stack: Vec::new(),
+            stack: vec![],
             sound_context: Default::default(),
             performance_statistics: Default::default(),
             event_broadcaster: Default::default(),
@@ -261,7 +261,7 @@ impl Graph {
 
         Self {
             physics: Default::default(),
-            stack: Vec::new(),
+            stack: vec![],
             root,
             pool,
             physics2d: Default::default(),
@@ -347,7 +347,7 @@ impl Graph {
     /// used by some other scene node or not. Returns an array of nodes, that references the given node. This method
     /// is reflection-based, so it is quite slow and should not be used every frame.
     pub fn find_references_to(&self, target: Handle<Node>) -> Vec<Handle<Node>> {
-        let mut references = Vec::new();
+        let mut references = vec![];
         for (node_handle, node) in self.pair_iter() {
             (node as &dyn Reflect).apply_recursively(&mut |object| {
                 object.as_any(&mut |any| {
@@ -1429,7 +1429,7 @@ impl Graph {
     #[inline]
     pub fn take_reserve_sub_graph(&mut self, root: Handle<Node>) -> SubGraph {
         // Take out descendants first.
-        let mut descendants = Vec::new();
+        let mut descendants = vec![];
         let root_ref = &mut self[root];
         let mut stack = root_ref.children().to_vec();
         let parent = root_ref.parent;

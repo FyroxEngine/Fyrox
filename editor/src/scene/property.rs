@@ -128,7 +128,7 @@ impl PropertyDescriptor {
 }
 
 pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<PropertyDescriptor> {
-    let mut descriptors = Vec::new();
+    let mut descriptors = vec![];
 
     object.fields_info(&mut |fields_info| {
         for field_info in fields_info.iter() {
