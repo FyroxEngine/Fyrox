@@ -164,7 +164,7 @@ impl Default for SoundSource {
             rolloff_factor: 1.0,
             prev_left_samples: Default::default(),
             prev_right_samples: Default::default(),
-            prev_sampling_vector: Vector3::new(0.0, 0.0, 1.0),
+            prev_sampling_vector: Vector3::z(),
             prev_distance_gain: None,
         }
     }
@@ -447,7 +447,7 @@ impl SoundSource {
             .try_normalize(f32::EPSILON)
             // This is ok to fallback to (0, 0, 1) vector because it's given
             // in listener coordinate system.
-            .unwrap_or_else(|| Vector3::new(0.0, 0.0, 1.0))
+            .unwrap_or_else(|| Vector3::z())
     }
 
     /// Returns playback duration.

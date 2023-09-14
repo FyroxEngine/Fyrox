@@ -1416,19 +1416,16 @@ mod test {
     fn test_get_farthest_point() {
         let points = [
             Vector3::zeros(),
-            Vector3::new(1.0, 0.0, 0.0),
-            Vector3::new(0.0, 1.0, 0.0),
-            Vector3::new(0.0, 0.0, 1.0),
+            Vector3::x(),
+            Vector3::y(),
+            Vector3::z(),
             Vector3::new(1.0, 1.0, 1.0),
         ];
 
-        assert_eq!(
-            get_farthest_point(&points, Vector3::new(1.0, 0.0, 0.0)),
-            Vector3::new(1.0, 0.0, 0.0)
-        );
+        assert_eq!(get_farthest_point(&points, Vector3::x()), Vector3::x());
         assert_eq!(
             get_farthest_point(&points, Vector3::new(10.0, 0.0, 0.0)),
-            Vector3::new(1.0, 0.0, 0.0)
+            Vector3::x()
         );
         assert_eq!(
             get_farthest_point(&points, Vector3::new(1.0, 1.0, 0.0)),
@@ -1441,9 +1438,9 @@ mod test {
         assert_eq!(
             get_barycentric_coords(
                 &Vector3::zeros(),
-                &Vector3::new(1.0, 0.0, 0.0),
-                &Vector3::new(0.0, 1.0, 0.0),
-                &Vector3::new(0.0, 0.0, 1.0),
+                &Vector3::x(),
+                &Vector3::y(),
+                &Vector3::z(),
             ),
             (0.33333328, 0.33333334, 0.33333334)
         );
@@ -1465,12 +1462,7 @@ mod test {
     #[test]
     fn test_barycentric_to_world() {
         assert_eq!(
-            barycentric_to_world(
-                (2.0, 2.0, 2.0),
-                Vector3::new(1.0, 0.0, 0.0),
-                Vector3::new(0.0, 1.0, 0.0),
-                Vector3::new(0.0, 0.0, 1.0),
-            ),
+            barycentric_to_world((2.0, 2.0, 2.0), Vector3::x(), Vector3::y(), Vector3::z(),),
             Vector3::new(2.0, 2.0, 2.0)
         );
     }
@@ -1489,21 +1481,14 @@ mod test {
     #[test]
     fn test_triangle_area() {
         assert_eq!(
-            triangle_area(
-                Vector3::zeros(),
-                Vector3::new(0.0, 1.0, 0.0),
-                Vector3::new(0.0, 0.0, 1.0),
-            ),
+            triangle_area(Vector3::zeros(), Vector3::y(), Vector3::z(),),
             0.5
         );
     }
 
     #[test]
     fn test_spherical_to_cartesian() {
-        assert_eq!(
-            spherical_to_cartesian(0.0, 0.0, 1.0),
-            Vector3::new(0.0, 1.0, 0.0)
-        );
+        assert_eq!(spherical_to_cartesian(0.0, 0.0, 1.0), Vector3::y());
     }
 
     #[test]
@@ -1591,11 +1576,7 @@ mod test {
 
     #[test]
     fn test_get_closest_point() {
-        let points = [
-            Vector3::new(1.0, 0.0, 0.0),
-            Vector3::new(0.0, 1.0, 0.0),
-            Vector3::new(0.0, 0.0, 1.0),
-        ];
+        let points = [Vector3::x(), Vector3::y(), Vector3::z()];
 
         assert_eq!(get_closest_point(&points, Vector3::zeros()), Some(0),);
         assert_eq!(
@@ -1610,12 +1591,7 @@ mod test {
 
     #[test]
     fn test_get_closest_point_triangles() {
-        let points = [
-            Vector3::zeros(),
-            Vector3::new(1.0, 0.0, 0.0),
-            Vector3::new(0.0, 1.0, 0.0),
-            Vector3::new(0.0, 0.0, 1.0),
-        ];
+        let points = [Vector3::zeros(), Vector3::x(), Vector3::y(), Vector3::z()];
         let triangles = [TriangleDefinition([0, 1, 2]), TriangleDefinition([1, 2, 3])];
 
         assert_eq!(
@@ -1626,12 +1602,7 @@ mod test {
 
     #[test]
     fn test_get_closest_point_triangle_set() {
-        let points = [
-            Vector3::zeros(),
-            Vector3::new(1.0, 0.0, 0.0),
-            Vector3::new(0.0, 1.0, 0.0),
-            Vector3::new(0.0, 0.0, 1.0),
-        ];
+        let points = [Vector3::zeros(), Vector3::x(), Vector3::y(), Vector3::z()];
         let triangles = [TriangleDefinition([0, 1, 2]), TriangleDefinition([1, 2, 3])];
 
         assert_eq!(
@@ -1740,9 +1711,9 @@ mod test {
             0.0, 0.0, 0.0, 1.0,
         );
 
-        assert_eq!(m.side(), Vector3::new(1.0, 0.0, 0.0));
-        assert_eq!(m.up(), Vector3::new(0.0, 1.0, 0.0));
-        assert_eq!(m.look(), Vector3::new(0.0, 0.0, 1.0));
+        assert_eq!(m.side(), Vector3::x());
+        assert_eq!(m.up(), Vector3::y());
+        assert_eq!(m.look(), Vector3::z());
         assert_eq!(m.position(), Vector3::zeros());
         assert_eq!(
             m.basis(),
@@ -1762,9 +1733,9 @@ mod test {
             0.0, 0.0, 1.0,
         );
 
-        assert_eq!(m.side(), Vector3::new(1.0, 0.0, 0.0));
-        assert_eq!(m.up(), Vector3::new(0.0, 1.0, 0.0));
-        assert_eq!(m.look(), Vector3::new(0.0, 0.0, 1.0));
+        assert_eq!(m.side(), Vector3::x());
+        assert_eq!(m.up(), Vector3::y());
+        assert_eq!(m.look(), Vector3::z());
     }
 
     #[test]

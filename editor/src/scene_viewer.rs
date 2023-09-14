@@ -742,12 +742,8 @@ impl SceneViewer {
                                             .unwrap();
 
                                         let normal = match camera.projection() {
-                                            Projection::Perspective(_) => {
-                                                Vector3::new(0.0, 1.0, 0.0)
-                                            }
-                                            Projection::Orthographic(_) => {
-                                                Vector3::new(0.0, 0.0, 1.0)
-                                            }
+                                            Projection::Perspective(_) => Vector3::y(),
+                                            Projection::Orthographic(_) => Vector3::z(),
                                         };
 
                                         let plane = Plane::from_normal_and_point(

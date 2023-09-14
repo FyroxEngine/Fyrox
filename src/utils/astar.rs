@@ -521,7 +521,7 @@ mod test {
         let mut pathfinder = PathFinder::new();
 
         pathfinder.add_vertex(PathVertex::new(Vector3::zeros()));
-        pathfinder.add_vertex(PathVertex::new(Vector3::new(1.0, 0.0, 0.0)));
+        pathfinder.add_vertex(PathVertex::new(Vector3::x()));
         pathfinder.add_vertex(PathVertex::new(Vector3::new(1.0, 1.0, 0.0)));
 
         pathfinder.link_bidirect(0, 1);
@@ -546,7 +546,7 @@ mod test {
         let mut pathfinder = PathFinder::new();
 
         pathfinder.add_vertex(PathVertex::new(Vector3::zeros()));
-        pathfinder.add_vertex(PathVertex::new(Vector3::new(1.0, 0.0, 0.0)));
+        pathfinder.add_vertex(PathVertex::new(Vector3::x()));
         pathfinder.add_vertex(PathVertex::new(Vector3::new(1.0, 1.0, 0.0)));
 
         pathfinder.link_bidirect(0, 1);

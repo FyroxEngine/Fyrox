@@ -77,7 +77,7 @@ fn make_move_axis(
                         .with_name(name_prefix.to_owned() + "Arrow")
                         .with_local_transform(
                             TransformBuilder::new()
-                                .with_local_position(Vector3::new(0.0, 1.0, 0.0))
+                                .with_local_position(Vector3::y())
                                 .build(),
                         ),
                 )

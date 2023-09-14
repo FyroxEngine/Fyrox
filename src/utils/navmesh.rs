@@ -499,11 +499,9 @@ impl NavmeshAgent {
 
         self.current = 0;
 
-        let (n_from, begin, from_triangle) = if let Some((point, index, triangle)) = navmesh
-            .ray_cast(Ray::new(
-                from + Vector3::new(0.0, 1.0, 0.0),
-                Vector3::new(0.0, -10.0, 0.0),
-            )) {
+        let (n_from, begin, from_triangle) = if let Some((point, index, triangle)) =
+            navmesh.ray_cast(Ray::new(from + Vector3::y(), Vector3::new(0.0, -10.0, 0.0)))
+        {
             (
                 closest_point_index_in_triangle_and_adjacent(triangle, navmesh, to),
                 Some(point),
@@ -514,10 +512,8 @@ impl NavmeshAgent {
         };
 
         let (n_to, end, to_triangle) = if let Some((point, index, triangle)) =
-            navmesh.ray_cast(Ray::new(
-                to + Vector3::new(0.0, 1.0, 0.0),
-                Vector3::new(0.0, -10.0, 0.0),
-            )) {
+            navmesh.ray_cast(Ray::new(to + Vector3::y(), Vector3::new(0.0, -10.0, 0.0)))
+        {
             (
                 closest_point_index_in_triangle_and_adjacent(triangle, navmesh, from),
                 Some(point),

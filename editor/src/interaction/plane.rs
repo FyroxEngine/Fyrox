@@ -68,9 +68,9 @@ mod test {
     fn test_look_dir_is_move_dir() {
         let dirs = vec![
             Vector3::new(1.0, 1.0, 1.0),
-            Vector3::new(1.0, 0.0, 0.0),
-            Vector3::new(0.0, 1.0, 0.0),
-            Vector3::new(0.0, 0.0, 1.0),
+            Vector3::x(),
+            Vector3::y(),
+            Vector3::z(),
         ];
         for dir_x in dirs {
             for kind in PlaneKind::iter() {

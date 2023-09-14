@@ -240,18 +240,10 @@ mod test {
 
     fn get_six_triangles() -> [[Vector3<f32>; 3]; 6] {
         [
+            [Vector3::zeros(), Vector3::x(), Vector3::y()],
+            [Vector3::new(1.0, 1.0, 0.0), Vector3::x(), Vector3::y()],
             [
-                Vector3::zeros(),
-                Vector3::new(1.0, 0.0, 0.0),
-                Vector3::new(0.0, 1.0, 0.0),
-            ],
-            [
-                Vector3::new(1.0, 1.0, 0.0),
-                Vector3::new(1.0, 0.0, 0.0),
-                Vector3::new(0.0, 1.0, 0.0),
-            ],
-            [
-                Vector3::new(0.0, 1.0, 0.0),
+                Vector3::y(),
                 Vector3::new(1.0, 1.0, 0.0),
                 Vector3::new(0.0, 2.0, 0.0),
             ],

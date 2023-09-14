@@ -1,11 +1,11 @@
-# 0.31 
+# 0.31
 
 - Multi-scene editing
 - Docs for `Window` widget
 - Fixed opengl es usage when opengl is not supported
 - Docs for `Decorator` widget
 - Added `crv` extension for `CurveLoader`
-- Basic editor plugins support 
+- Basic editor plugins support
 - Updated deps
 - Expose all editor fields so they can be accessible outside
 - Docs for `UuidEditor` widget
@@ -36,7 +36,7 @@
 - Fixed crash when exiting the editor
 - Fixed opening arbitrary files from asset browser
 - Ability to open scenes from asset browser
-- User-defined data for tabs 
+- User-defined data for tabs
 - Ability to add and remove tabs in the `TabControl` widget via messages
 - Added a nine patch widget
 - Fixed tab control's content alignment
@@ -101,7 +101,7 @@
 - Helper methods to quickly check a resource state.
 - Helper methods to access script components faster.
 - Improved range property editor.
-- `Enter State` for state menu in absm editor. Works the same as double click, removes confusion for ppl that does not 
+- `Enter State` for state menu in absm editor. Works the same as double click, removes confusion for ppl that does not
 get used to double-click on things.
 - Leave preview mode when closing or changing scenes in the editor.
 - Prevent panic when trying to generate random number from an empty range.
@@ -124,7 +124,7 @@ get used to double-click on things.
 - Added `IsAnimationEnded` condition for ABSM transitions.
 - ABSM state actions. Allows you to rewind/enable/disable specific animations when entering/leaving a state.
 - Fixed incorrect "state enter" event sent from source instead of dest.
-- Added a collection of built-in resources for resource manager. This collection is used on resource deserialization 
+- Added a collection of built-in resources for resource manager. This collection is used on resource deserialization
 step to restore references to built-in resources.
 - Pre-compile built-in shaders on engine startup.
 - Ability to change camera zoom speed in the editor.
@@ -135,7 +135,7 @@ step to restore references to built-in resources.
 - Use `fast_image_resize` crate to generate mip maps (which gave 5x performance boost).
 - Configurable filter for mip-map generation for textures.
 - Fixed tooltip position - it now does not go outside of screen bounds.
-- "Immutable collection" reflection attribute for collection fields that prevent changing collection size. 
+- "Immutable collection" reflection attribute for collection fields that prevent changing collection size.
 - Ability to get typed data of specific mip level of a texture.
 - Ability to fetch specific mip level data of textures.
 - Ability to set height map of terrain chunks directly from an image.
@@ -162,7 +162,7 @@ step to restore references to built-in resources.
 - Ability to set polygon rasterization mode to select between solid and wireframe rendering.
 - Force `Framebuffer::draw_x` methods to accept element range to draw.
 - Proper culling for terrains.
-- Refactored rendering: scene nodes can now supply renderer with data. `NodeTrait::collect_render_data` is now used to 
+- Refactored rendering: scene nodes can now supply renderer with data. `NodeTrait::collect_render_data` is now used to
 supply renderer with data.
 - Batch generation is now done on per-camera (which includes light sources for shadows) basis.
 - Added a method to link nodes while keeping child's global position and rotation.
@@ -200,7 +200,7 @@ to 255.
 - Added support for min, max, step property attributes for vecN.
 - Ability to create/destroy audio output device on demand.
 - Migrate to `tinyaudio` as audio output backend
-- Use `RcUiNodeHandle` for context menus. This ensures that context menu will be destroyed when it is 
+- Use `RcUiNodeHandle` for context menus. This ensures that context menu will be destroyed when it is
 not used anymore.
 - Fixed multiple lightmapping issues.
 - Fixed incorrect `sRGB` conversion for WASM.
@@ -269,8 +269,8 @@ changes and these changes sneak in the saved scene preventing from defining stri
 - Fixed incorrect activation of transition/states during the preview mode in the ABSM editor.
 - Compound conditions for ABSM transitions
 - Fixed off-screen UI rendering compatibility with HDR pipeline.
-- Refactored scene node lifetime management - this mainly fixes the bug when a node with `Some(lifetime)` would crash 
-the editor. The same is applied to play-once sounds. `Node::update` now does not manage node's lifetime anymore, instead 
+- Refactored scene node lifetime management - this mainly fixes the bug when a node with `Some(lifetime)` would crash
+the editor. The same is applied to play-once sounds. `Node::update` now does not manage node's lifetime anymore, instead
 there's `Node::is_alive`.
 - Fixed incorrect handling of user-defined forces of rigid bodies. A body was pushed continuously using
 previously set force.
@@ -278,7 +278,7 @@ previously set force.
 - `ActiveStateChanged` event now contains both previous and new states.
 - Message passing for scripts with multiple routing strategies
 - `Graph::find_map/find_up_map/find_up_by_name`
-- Improved `Graph::find_x` methods - returns `Option<(Handle<Node>, &Node)>` now, that removes another 
+- Improved `Graph::find_x` methods - returns `Option<(Handle<Node>, &Node)>` now, that removes another
 borrow if there's a need to borrow it at a call site.
 
 
@@ -298,7 +298,7 @@ borrow if there's a need to borrow it at a call site.
 - Sprite sheet animation now has a texture associated with it.
 - Fixed reflection fallback in case of missing field setter.
 - Ability to set uv rect for Image widget
-- Scene settings window for the editor - gives you an ability to edit scene settings: change 
+- Scene settings window for the editor - gives you an ability to edit scene settings: change
 physics integration parameters, ambient lighting color, various flags, etc.
 - Prevent crash when adding a new surface to a Mesh node in the editor
 - Fixed directory/file duplicates in file browser widget when double-clicking on an item.
@@ -332,7 +332,7 @@ while iterating over them.
 - Property Selector widget - allows you to pick a property path from an object that supports `Reflect` trait.
 - `Reflect` implementation for `Uuid`
 - `fyrox::gui::utils::make_cross` - small helper to create a vector image of a cross
-- `FieldInfo::type_name` - allows to get type name of a field without using unstable 
+- `FieldInfo::type_name` - allows to get type name of a field without using unstable
 `std::any::type_name_of_val`
 - `PathVertex::g_score` penalty for A* pathfinding (kudos to [@cordain](https://github.com/Cordain))
 - Added `Default`, `Debug`,`Clone` impls for `RawMesh`
@@ -341,7 +341,7 @@ while iterating over them.
 - Preserve curve and keys id in the curve editor widget
 - Correctly wrap `Audio Panel` in docking manager tile (kudos to [@iRaiko](https://github.com/iRaiko))
 - `AsyncSceneLoader` - cross-platform (wasm included) asynchronous scene loader
-- Added support for wasm in fyrox-template - now fyrox-template generates `executor-wasm` crate which is a special 
+- Added support for wasm in fyrox-template - now fyrox-template generates `executor-wasm` crate which is a special
 version of executor for webassembly
 - Non-blocking resource waiting before processing scene scripts
 - Added missing property editor for sound status
@@ -350,9 +350,9 @@ version of executor for webassembly
 - Rectangle+RectangleFilled primitives for `VectorImage` widget
 - Draw x values in curve editor widget at the top of the view
 - Ability to show/hide axes values in the curve editor widget
-- Use messages to modify view position and zoom in the curve editor (helps to catch the moment when zoom or view 
+- Use messages to modify view position and zoom in the curve editor (helps to catch the moment when zoom or view
 position changes)
-- Fixed UI messages not being passed to plugins based on when they happened during frame (kudos to 
+- Fixed UI messages not being passed to plugins based on when they happened during frame (kudos to
 [@bolshoytoster](https://github.com/bolshoytoster))
 - Ability to explicitly set animation time slice instead of length.
 - Cloning a node now produces exact clone.
@@ -397,7 +397,7 @@ position changes)
 - Property editor for `Uuid` type.
 - Restrict `Reflect` trait on `Debug`.
 - Optional ability to `Copy Value as String` for properties in `Inspector` widget
-- Pass animation signal name to animation event - makes much easier to respond to multiple animation events with the 
+- Pass animation signal name to animation event - makes much easier to respond to multiple animation events with the
 same name
 - Ability to maximize ui windows
 - `Animation::take_events`
@@ -418,10 +418,10 @@ same name
 - Drag preview nodes are now input-transparent.
 - Expand/collapse trees by double click.
 - Fixed move/rotate/scale gizmo behaviour for mouse events.
-- Fixed fallback to defaults when editor's config is corrupted. 
+- Fixed fallback to defaults when editor's config is corrupted.
 - Save `Track Selection` option in the editor's config.
 - Clear breadcrumbs when changing scene in the editor.
-- Fixed 1-frame delay issues in the editor. 
+- Fixed 1-frame delay issues in the editor.
 - Emit MouseUp message before Drop message.
 - Fixed UI "flashing" in the editor in some cases.
 - Do not silently discard UI messages from nodes that were already be deleted.
@@ -445,14 +445,14 @@ references to different items.
 - Correctly map handles in instances after property inheritance (fixed weird bugs when handles to nodes
 in your scripts mapped to incorrect ones)
 - Refactored script processing:
-  - Added `ScriptTrait::on_start` - it is guaranteed to be called after all scripts in scene are initialized, useful 
+  - Added `ScriptTrait::on_start` - it is guaranteed to be called after all scripts in scene are initialized, useful
   when a script depends on some other script
   - Script processing is now centralized, not scattered as before.
   - More deterministic update path (`on_init` -> `on_start` -> `on_update` -> `on_destroy`)
 - Fixed crash when modifying text in a text box via message and then trying to type something.
-- `ButtonBuilder::with_text_and_font` 
+- `ButtonBuilder::with_text_and_font`
 - Show node names in for fields of `Handle<Node>` fields of structs in the editor.
-- Fixed crash in the editor when a script has resource field. 
+- Fixed crash in the editor when a script has resource field.
 - Ability to clone behaviour trees.
 - Automatic node handle mapping via reflection.
 - Removed `ScriptTrait::remap_handles` method.
@@ -480,7 +480,7 @@ to fetch scripts on scene nodes.
 - Make text box widget to accept text messages + special messages for text box widget.
 - Set 500 ms double click interval (previously it was 750 ms).
 - Fixed text selection in case of custom ui scaling.
-- Fixed `TextBox::screen_pos_to_text_pos` - incorrect usage of `char_code` as index was leading to incorrect screen 
+- Fixed `TextBox::screen_pos_to_text_pos` - incorrect usage of `char_code` as index was leading to incorrect screen
 position to text position mapping.
 - Ability to scroll text in the text box widget.
 - `Rect::with_position` + `Rect::with_size` methods.
@@ -535,7 +535,7 @@ a node.
 - Added list of recent scenes to `File` menu in the editor - makes easier to switch between most used scenes.
 - Ability to add, remove, set items for `MenuItem` widget
 - Correctly highlight selected interaction mode button
-- More hotkeys for the editor 
+- More hotkeys for the editor
   - `[5]` - activate navmesh edit mode
   - `[6]` - activate terrain edit mode
 - Ability to set `Selected` flag to `Decorator` widget on build stage
@@ -560,7 +560,7 @@ typing something in text fields.
 # 0.27
 
 - Added compile-time reflection (huge thanks to [@toyboot4e](https://github.com/toyboot4e))
-- Most editor commands were removed and replaced by universal command based on reflection. 
+- Most editor commands were removed and replaced by universal command based on reflection.
 - Backward compatibility for native engine data formats was dropped - use FyroxEd 0.13 to convert your scenes to newer
 version.
 - Fixed panic when loading an FBX model with malformed animation curves (when there is only 1 or 2 components animated
@@ -590,7 +590,7 @@ not yet loaded resource in script methods.
 there could be some textures with gradients, and they'll have significant distortion.
 - `Pool::drain` - allows you to remove all objects from a pool while processing every object via closure.
 - `Script::on_deinit` - allows you to execute any code for cleanup.
-- Added `NodeHandleMap` - a small wrapper over map that have some methods that makes node handle mapping much 
+- Added `NodeHandleMap` - a small wrapper over map that have some methods that makes node handle mapping much
 shorter.
 - Correctly handle missing properties in Inspector for various objects.
 - Provide access to main application window from plugins.
@@ -627,7 +627,7 @@ visual clutter.
 - NumericUpDown widget does not use word wrapping by default anymore
 - CheckBox widget can now be switched only by left mouse button
 - Ability to disable contacts between connected bodies of a joint
-- `style` parameter for project template generator - it defines which scene will be used by default - either `2d` 
+- `style` parameter for project template generator - it defines which scene will be used by default - either `2d`
 or `3d`
 - Ability to select portion of the texture to render in `Rectangle` nodes.
 - Ability to generate script skeleton for template generator
@@ -656,7 +656,7 @@ system.
 - Provide access to property editors container for editor's `Inspector` - it is now possible
 to register your own property editors
 - Fixed panic when syncing `Inspector` for an entity with `Option<Texture>` field.
-- Added `handle_object_property_changed` and `handle_collection_property_changed` macros to reduce 
+- Added `handle_object_property_changed` and `handle_collection_property_changed` macros to reduce
 boilerplate code in script property handling.
 - Added ability to restore resource handles for scripts
 - Fixed selection visualization in `Asset Browser`
@@ -680,10 +680,10 @@ There are no breaking changes in this release.
 - Access to simulation properties of the physics.
 - Engine and Resource manager are nonserializable anymore, check migration guide to find how to create
 save files in the correct way.
-- `Node` enumeration was removed and replaced with dynamic dispatch. This allows you to define your own 
+- `Node` enumeration was removed and replaced with dynamic dispatch. This allows you to define your own
 types of scene nodes.
 - `Base` is not a scene node anymore, it was replaced with `Pivot` node (see migration guide for more info)
-- `Base` now has `cast_shadows` property, respective property setters/getters was removed from `Mesh` and 
+- `Base` now has `cast_shadows` property, respective property setters/getters was removed from `Mesh` and
 `Terrain` nodes.
 - Ability to bring ListView item into view.
 - Logger improvements: event subscriptions + collecting timestamps
@@ -710,7 +710,7 @@ faces, especially useful for closed environment.
 - NumericUpDown don't panic anymore on edges of numeric bounds (i.e when trying to do `i32::MAX_VALUE + 1`)
 - DoubleClick support for UI.
 - Update rate fix for editor, it fixes annoying issue with flickering in text boxes.
-- `UserInterface::hit_test_unrestricted` which performs hit test that is not restricted to current 
+- `UserInterface::hit_test_unrestricted` which performs hit test that is not restricted to current
 picking restriction stack.
 - WASM renderer fixes.
 - `Pool::try_free` which returns `Option<T>` on invalid handles, instead of panicking.
@@ -725,12 +725,12 @@ picking restriction stack.
 
 ## Migration guide
 
-**WARNING:** This release **does not** provide legacy sound system conversion to new one, which means if 
+**WARNING:** This release **does not** provide legacy sound system conversion to new one, which means if
 any of your scene had any sound, they will be lost!
 
-Now there is limited access to `fyrox_sound` entities, there is no way to create sound contexts, sounds, 
-effects manually. You have to use respective scene nodes (`Sound`, `Listener`) and `Effect` from 
-`fyrox::scene::sound` module (and children modules). 
+Now there is limited access to `fyrox_sound` entities, there is no way to create sound contexts, sounds,
+effects manually. You have to use respective scene nodes (`Sound`, `Listener`) and `Effect` from
+`fyrox::scene::sound` module (and children modules).
 
 ### Nodes
 
@@ -742,8 +742,8 @@ Since `Node` enumeration was removed, there is a new way of managing nodes:
 `query_component_mut` which are able to extract references to internal parts of the nodes. This now has only one
 usage - `Light` enumeration was removed and `PointLight`, `SpotLight`, `DirectionalLight` provides unified access
 to `BaseLight` component via `query_component_ref/query_component_mut`. `query_component` could be a bit slower,
-since it might involve additional branching while attempting to query component. 
-- `Base` node was replaced with `Pivot` node (and respective `PivotBuilder`), it happend due to problems with 
+since it might involve additional branching while attempting to query component.
+- `Base` node was replaced with `Pivot` node (and respective `PivotBuilder`), it happend due to problems with
 `Deref<Target = Base>/DerefMut` implementation, if `Base` is implementing `NodeTrait` then it must implement `Deref`
 but implementing `Deref` for `Base` causes infinite deref coercion loop.
 - To be able to create custom scene nodes and having the ability to serialize/deserialize scene graph with such
@@ -757,7 +757,7 @@ It is very simply, just wrap `BaseBuilder` with a `PivotBuilder` and call `build
 ```rust
 // Before
 fn create_pivot_node(graph: &mut Graph) -> Handle<Node> {
-    BaseBuilder::new().build(graph)    
+    BaseBuilder::new().build(graph)
 }
 
 // After
@@ -793,8 +793,8 @@ fn set_light_color(node: &mut Node, color: Color) {
 
 Now there is no need to manually sync position and orientation of the sound listener, all you need to do
 instead is to create `Listener` node and attach it to your primary camera (or other scene node). Keep
-in mind that the engine supports only one listener, which means that only one listener can be active 
-at a time. The engine will not stop you from having multiple listeners active, however only first (the 
+in mind that the engine supports only one listener, which means that only one listener can be active
+at a time. The engine will not stop you from having multiple listeners active, however only first (the
 order is undefined) will be used to output sound.
 
 ### Sound sources
@@ -853,7 +853,7 @@ Effect input filters API remain unchanged.
 
 ### Engine initialization
 
-`Engine::new` signature has changed to accept `EngineInitParams`, all previous argument were moved to the 
+`Engine::new` signature has changed to accept `EngineInitParams`, all previous argument were moved to the
 structure. However, there are some new engine initialization parameters, like `serialization_context` and
 `resource_manager`. Previously `resource_manager` was created implicitly, currently it has to be created
 outside and passed to `EngineInitParams`. This is because of new `SerializationContext` which contains
@@ -898,7 +898,7 @@ fn save(game: &mut Game) {
 
     game.engine.visit("Engine", visitor)?; // This no longer works
     game.game_scene.visit("GameScene", visitor)?;
-    
+
     visitor.save_binary(Path::new(SAVE_FILE)).unwrap();
 }
 
@@ -916,9 +916,9 @@ fn load(game: &mut Game) {
 }
 ```
 
-However, on practice this approach could lead to some undesirable side effects. The main problem with the old 
+However, on practice this approach could lead to some undesirable side effects. The main problem with the old
 approach is that when you serialize the engine, it serializes all scenes you have. This fact is more or less
-ok if you have only one scene, but if you have two and more scenes (for example one for menu and one for 
+ok if you have only one scene, but if you have two and more scenes (for example one for menu and one for
 game level) it writes/reads redundant data. The second problem is that you cannot load saved games asynchronously
 using the old approach, because it takes mutable access of the engine and prevents you from off-threading work.
 
@@ -970,7 +970,7 @@ async fn load(game: &mut Game) {
 ```
 
 As you can see in the new approach you save your scene and some level data, and on load - you load the scene, add
-it to the engine as usual and load level's data. The new approach is a bit more verbose, but it is much more 
+it to the engine as usual and load level's data. The new approach is a bit more verbose, but it is much more
 flexible.
 
 # 0.24
@@ -979,7 +979,7 @@ flexible.
 
 - 2D games support (with 2D physics as well)
 - Three new scene nodes was added: RigidBody, Collider, Joint. Since rigid body, collider and joint are graph nodes
-now, it is possible to have complex hierarchies built with them.  
+now, it is possible to have complex hierarchies built with them.
 - It is possible to attach rigid body to any node in scene graph, its position now will be correct in this case (
 previously it was possible to have rigid bodies attached only on root scene nodes).
 - New `Inspector` widget + tons of built-in property editors (with the ability to add custom editors)
@@ -1017,7 +1017,7 @@ previously it was possible to have rigid bodies attached only on root scene node
 - `Log::verify` to log errors of `Result<(), Error`
 - Custom scene node properties support
 - `Alt+Click` prevents selection in `Tree` widget
-- Ability to change camera projection (Perspective or Orthographic) 
+- Ability to change camera projection (Perspective or Orthographic)
 - Smart position selection for popups (prevents them from appearing outside screen bounds)
 - High-quality mip-map generation using Lanczos filter.
 
@@ -1067,10 +1067,10 @@ because 2D had rudimentary support, and I highly doubt that there is any project
 
 ## Resource management
 
-Resource manager has changed its API and gained some useful features that should save you some time. 
+Resource manager has changed its API and gained some useful features that should save you some time.
 
-`request_texture` now accepts only one argument - path to texture, second argument was used to pass 
-`TextureImportOptions`. Import options now should be located in a separate options file. For example, you have a 
+`request_texture` now accepts only one argument - path to texture, second argument was used to pass
+`TextureImportOptions`. Import options now should be located in a separate options file. For example, you have a
 `foo.jpg` texture and you want to change its import options (compression, wrapping modes, mip maps, etc.). To do this
 you should create `foo.jpg.options` file in the same directory near your file with following content (each field is
 optional):
@@ -1087,7 +1087,7 @@ optional):
 ```
 
 The engine will read this file when you'll call `request_texture` and it will apply the options on the first load.
-This file is not mandatory, you can always set global import defaults in resource manage by calling 
+This file is not mandatory, you can always set global import defaults in resource manage by calling
 `set_texture_import_options`.
 
 `request_model` have the same changes, there is only one argument and import options were moved to options file:
@@ -1109,18 +1109,18 @@ do the conversion).
 
 Now there are two ways of adding a rigid body to a scene node:
 
-- If you want your object to have a rigid body (for example a crate with box rigid body), your object must be 
+- If you want your object to have a rigid body (for example a crate with box rigid body), your object must be
 **child** object of a rigid body. Graphically it can be represented like this:
 
 ```text
 - Rigid Body
   - Crate3DModel
-  - Cuboid Collider     
+  - Cuboid Collider
 ```
 
-- If you want your object to have a rigid body that should move together with your object (to simulate hit boxes for 
-example), then rigid body must be child object of your object. Additionally it should be marked as `Kinematic`, 
-otherwise it will be affected by simulation (simply speaking it will fall on ground). Graphically it can be 
+- If you want your object to have a rigid body that should move together with your object (to simulate hit boxes for
+example), then rigid body must be child object of your object. Additionally it should be marked as `Kinematic`,
+otherwise it will be affected by simulation (simply speaking it will fall on ground). Graphically it can be
 represented like this:
 
 ```text
@@ -1194,10 +1194,10 @@ Joints can be created in a similar way:
 fn create_ball_joint(scene: &mut Scene) -> Handle<Node> {
     JointBuilder::new(BaseBuilder::new())
         .with_params(JointParams::BallJoint(BallJoint {
-            local_anchor1: Vector3::new(1.0, 0.0, 0.0),
+            local_anchor1: Vector3::x(),
             local_anchor2: Vector3::new(-1.0, 0.0, 0.0),
-            limits_local_axis1: Vector3::new(1.0, 0.0, 0.0),
-            limits_local_axis2: Vector3::new(1.0, 0.0, 0.0),
+            limits_local_axis1: Vector3::x(),
+            limits_local_axis2: Vector3::x(),
             limits_enabled: true,
             limits_angle: 45.0,
         }))

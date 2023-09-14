@@ -198,8 +198,8 @@ impl MoveContext {
             // In case of empty space, check intersection with oXZ plane (3D) or oXY (2D).
             if let Some(camera) = graph[editor_scene.camera_controller.camera].cast::<Camera>() {
                 let normal = match camera.projection() {
-                    Projection::Perspective(_) => Vector3::new(0.0, 1.0, 0.0),
-                    Projection::Orthographic(_) => Vector3::new(0.0, 0.0, 1.0),
+                    Projection::Perspective(_) => Vector3::y(),
+                    Projection::Orthographic(_) => Vector3::z(),
                 };
 
                 let plane =

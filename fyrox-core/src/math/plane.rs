@@ -11,7 +11,7 @@ impl Default for Plane {
     #[inline]
     fn default() -> Self {
         Plane {
-            normal: Vector3::new(0.0, 1.0, 0.0),
+            normal: Vector3::y(),
             d: 0.0,
         }
     }
@@ -102,7 +102,7 @@ mod test {
         assert_eq!(
             Plane::default(),
             Plane {
-                normal: Vector3::new(0.0, 1.0, 0.0),
+                normal: Vector3::y(),
                 d: 0.0,
             }
         );
@@ -122,26 +122,26 @@ mod test {
 
     #[test]
     fn test_plane_dot() {
-        let plane = Plane::from_normal_and_point(&Vector3::new(0.0, 0.0, 1.0), &Vector3::zeros());
+        let plane = Plane::from_normal_and_point(&Vector3::z(), &Vector3::zeros());
         assert!(plane.is_some());
         assert_eq!(plane.unwrap().dot(&Vector3::new(1.0, 1.0, 1.0)), 1.0);
     }
 
     #[test]
     fn test_plane_distance() {
-        let plane = Plane::from_normal_and_point(&Vector3::new(0.0, 0.0, 1.0), &Vector3::zeros());
+        let plane = Plane::from_normal_and_point(&Vector3::z(), &Vector3::zeros());
         assert!(plane.is_some());
         assert_eq!(plane.unwrap().distance(&Vector3::zeros()), 0.0);
-        assert_eq!(plane.unwrap().distance(&Vector3::new(1.0, 0.0, 0.0)), 0.0);
-        assert_eq!(plane.unwrap().distance(&Vector3::new(0.0, 1.0, 0.0)), 0.0);
-        assert_eq!(plane.unwrap().distance(&Vector3::new(0.0, 0.0, 1.0)), 1.0);
+        assert_eq!(plane.unwrap().distance(&Vector3::x()), 0.0);
+        assert_eq!(plane.unwrap().distance(&Vector3::y()), 0.0);
+        assert_eq!(plane.unwrap().distance(&Vector3::z()), 1.0);
     }
 
     #[test]
     fn test_plane_intersection_point() {
-        let plane = Plane::from_normal_and_point(&Vector3::new(0.0, 0.0, 1.0), &Vector3::zeros());
-        let plane2 = Plane::from_normal_and_point(&Vector3::new(0.0, 1.0, 0.0), &Vector3::zeros());
-        let plane3 = Plane::from_normal_and_point(&Vector3::new(1.0, 0.0, 0.0), &Vector3::zeros());
+        let plane = Plane::from_normal_and_point(&Vector3::z(), &Vector3::zeros());
+        let plane2 = Plane::from_normal_and_point(&Vector3::y(), &Vector3::zeros());
+        let plane3 = Plane::from_normal_and_point(&Vector3::x(), &Vector3::zeros());
         assert!(plane.is_some());
         assert!(plane2.is_some());
         assert!(plane3.is_some());

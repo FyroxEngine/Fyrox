@@ -31,7 +31,7 @@ impl StaticVertex {
         Self {
             position,
             tex_coord,
-            normal: Vector3::new(0.0, 1.0, 0.0),
+            normal: Vector3::y(),
             tangent: Vector4::default(),
         }
     }

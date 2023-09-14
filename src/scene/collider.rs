@@ -120,7 +120,7 @@ impl Default for CapsuleShape {
     fn default() -> Self {
         Self {
             begin: Default::default(),
-            end: Vector3::new(0.0, 1.0, 0.0),
+            end: Vector3::y(),
             radius: 0.5,
         }
     }
@@ -139,7 +139,7 @@ impl Default for SegmentShape {
     fn default() -> Self {
         Self {
             begin: Default::default(),
-            end: Vector3::new(0.0, 1.0, 0.0),
+            end: Vector3::y(),
         }
     }
 }
@@ -159,8 +159,8 @@ impl Default for TriangleShape {
     fn default() -> Self {
         Self {
             a: Default::default(),
-            b: Vector3::new(1.0, 0.0, 0.0),
-            c: Vector3::new(0.0, 0.0, 1.0),
+            b: Vector3::x(),
+            c: Vector3::z(),
         }
     }
 }
@@ -848,7 +848,7 @@ impl ColliderBuilder {
         self
     }
 
-    /// Sets desired friction value.    
+    /// Sets desired friction value.
     pub fn with_friction(mut self, friction: f32) -> Self {
         self.friction = friction;
         self
@@ -860,7 +860,7 @@ impl ColliderBuilder {
         self
     }
 
-    /// Sets desired solver groups.    
+    /// Sets desired solver groups.
     pub fn with_solver_groups(mut self, solver_groups: InteractionGroups) -> Self {
         self.solver_groups = solver_groups;
         self

@@ -29,8 +29,8 @@ impl AxisAlignedBoundingBox {
     #[inline]
     pub const fn collapsed() -> Self {
         Self {
-            min: Vector3::zeros(),
-            max: Vector3::zeros(),
+            min: Vector3::new(0.0, 0.0, 0.0),
+            max: Vector3::new(0.0, 0.0, 0.0),
         }
     }
 
@@ -497,19 +497,19 @@ mod test {
 
         _box2.offset(Vector3::new(0.5, 0.0, 0.0));
         assert!(_box.is_intersects_aabb(&_box2));
-        _box2.offset(Vector3::new(1.0, 0.0, 0.0));
+        _box2.offset(Vector3::x());
         assert!(!_box.is_intersects_aabb(&_box2));
 
         let mut _box2 = _box;
         _box2.offset(Vector3::new(0.0, 0.5, 0.0));
         assert!(_box.is_intersects_aabb(&_box2));
-        _box2.offset(Vector3::new(0.0, 1.0, 0.0));
+        _box2.offset(Vector3::y());
         assert!(!_box.is_intersects_aabb(&_box2));
 
         let mut _box2 = _box;
         _box2.offset(Vector3::new(0.0, 0.0, 0.5));
         assert!(_box.is_intersects_aabb(&_box2));
-        _box2.offset(Vector3::new(0.0, 0.0, 1.0));
+        _box2.offset(Vector3::z());
         assert!(!_box.is_intersects_aabb(&_box2));
     }
 
@@ -522,16 +522,16 @@ mod test {
         assert_eq!(_boxes[0].max, Vector3::zeros());
 
         assert_eq!(_boxes[1].min, Vector3::new(0.0, -1.0, -1.0));
-        assert_eq!(_boxes[1].max, Vector3::new(1.0, 0.0, 0.0));
+        assert_eq!(_boxes[1].max, Vector3::x());
 
         assert_eq!(_boxes[2].min, Vector3::new(-1.0, -1.0, 0.0));
-        assert_eq!(_boxes[2].max, Vector3::new(0.0, 0.0, 1.0));
+        assert_eq!(_boxes[2].max, Vector3::z());
 
         assert_eq!(_boxes[3].min, Vector3::new(0.0, -1.0, 0.0));
         assert_eq!(_boxes[3].max, Vector3::new(1.0, 0.0, 1.0));
 
         assert_eq!(_boxes[4].min, Vector3::new(-1.0, 0.0, -1.0));
-        assert_eq!(_boxes[4].max, Vector3::new(0.0, 1.0, 0.0));
+        assert_eq!(_boxes[4].max, Vector3::y());
 
         assert_eq!(_boxes[5].min, Vector3::new(0.0, 0.0, -1.0));
         assert_eq!(_boxes[5].max, Vector3::new(1.0, 1.0, 0.0));

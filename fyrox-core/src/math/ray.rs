@@ -16,7 +16,7 @@ impl Default for Ray {
     fn default() -> Self {
         Ray {
             origin: Vector3::zeros(),
-            dir: Vector3::new(0.0, 0.0, 1.0),
+            dir: Vector3::z(),
         }
     }
 }
@@ -317,7 +317,7 @@ impl Ray {
     ) -> Option<IntersectionResult> {
         let va = (*pb - *pa)
             .try_normalize(f32::EPSILON)
-            .unwrap_or_else(|| Vector3::new(0.0, 1.0, 0.0));
+            .unwrap_or_else(|| Vector3::y());
         let vl = self.dir - va.scale(self.dir.dot(&va));
         let dp = self.origin - *pa;
         let dpva = dp - va.scale(dp.dot(&va));
@@ -461,7 +461,7 @@ mod test {
     fn default_for_ray() {
         let ray = Ray::default();
         assert_eq!(ray.origin, Vector3::zeros());
-        assert_eq!(ray.dir, Vector3::new(0.0, 0.0, 1.0));
+        assert_eq!(ray.dir, Vector3::z());
     }
 
     #[test]
@@ -559,7 +559,7 @@ mod test {
 
     #[test]
     fn ray_sphere_intersection() {
-        let ray = Ray::new(Vector3::zeros(), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Vector3::zeros(), Vector3::x());
 
         assert!(ray
             .sphere_intersection(&Vector3::new(-10.0, -10.0, -10.0), 1.0)
@@ -572,7 +572,7 @@ mod test {
 
     #[test]
     fn ray_sphere_intersection_points() {
-        let ray = Ray::new(Vector3::zeros(), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Vector3::zeros(), Vector3::x());
 
         assert!(ray
             .sphere_intersection_points(&Vector3::new(-10.0, -10.0, -10.0), 1.0)
@@ -580,13 +580,13 @@ mod test {
 
         assert_eq!(
             ray.sphere_intersection_points(&Vector3::zeros(), 1.0),
-            Some([Vector3::new(1.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0)])
+            Some([Vector3::x(), Vector3::x()])
         );
     }
 
     #[test]
     fn ray_is_intersect_sphere() {
-        let ray = Ray::new(Vector3::zeros(), Vector3::new(1.0, 0.0, 0.0));
+        let ray = Ray::new(Vector3::zeros(), Vector3::x());
 
         assert!(!ray.is_intersect_sphere(&Vector3::new(-10.0, -10.0, -10.0), 1.0));
         assert!(ray.is_intersect_sphere(&Vector3::zeros(), 1.0));
@@ -597,9 +597,9 @@ mod test {
         let ray = Ray::new(Vector3::zeros(), Vector3::new(1.0, 1.0, 1.0));
 
         assert_eq!(ray.project_point(&Vector3::zeros()), 0.0);
-        assert_eq!(ray.project_point(&Vector3::new(1.0, 0.0, 0.0)), 0.33333334);
-        assert_eq!(ray.project_point(&Vector3::new(0.0, 1.0, 0.0)), 0.33333334);
-        assert_eq!(ray.project_point(&Vector3::new(0.0, 0.0, 1.0)), 0.33333334);
+        assert_eq!(ray.project_point(&Vector3::x()), 0.33333334);
+        assert_eq!(ray.project_point(&Vector3::y()), 0.33333334);
+        assert_eq!(ray.project_point(&Vector3::z()), 0.33333334);
         assert_eq!(ray.project_point(&Vector3::new(1.0, 1.0, 1.0)), 1.0);
     }
 
@@ -721,11 +721,8 @@ mod test {
 
         assert_eq!(
             ray.plane_intersection_point(
-                &Plane::from_normal_and_point(
-                    &Vector3::new(0.0, 0.0, 1.0),
-                    &Vector3::new(1.0, 1.0, 1.0),
-                )
-                .unwrap()
+                &Plane::from_normal_and_point(&Vector3::z(), &Vector3::new(1.0, 1.0, 1.0),)
+                    .unwrap()
             ),
             None
         );
@@ -738,7 +735,7 @@ mod test {
         assert_eq!(
             ray.triangle_intersection(&[
                 Vector3::zeros(),
-                Vector3::new(1.0, 0.0, 0.0),
+                Vector3::x(),
                 Vector3::new(1.0, 1.0, 0.0),
             ]),
             Some((0.0, Vector3::zeros()))
@@ -746,7 +743,7 @@ mod test {
 
         assert_eq!(
             ray.triangle_intersection(&[
-                Vector3::new(1.0, 0.0, 0.0),
+                Vector3::x(),
                 Vector3::new(1.0, -1.0, 0.0),
                 Vector3::new(-1.0, -1.0, 0.0),
             ]),
@@ -761,7 +758,7 @@ mod test {
         assert_eq!(
             ray.triangle_intersection_point(&[
                 Vector3::zeros(),
-                Vector3::new(1.0, 0.0, 0.0),
+                Vector3::x(),
                 Vector3::new(1.0, 1.0, 0.0),
             ]),
             Some(Vector3::zeros())
@@ -769,7 +766,7 @@ mod test {
 
         assert_eq!(
             ray.triangle_intersection_point(&[
-                Vector3::new(1.0, 0.0, 0.0),
+                Vector3::x(),
                 Vector3::new(1.0, -1.0, 0.0),
                 Vector3::new(-1.0, -1.0, 0.0),
             ]),
@@ -784,7 +781,7 @@ mod test {
         // Infinite
         let ir = ray.cylinder_intersection(
             &Vector3::zeros(),
-            &Vector3::new(1.0, 0.0, 0.0),
+            &Vector3::x(),
             1.0,
             CylinderKind::Infinite,
         );
@@ -792,22 +789,14 @@ mod test {
         assert_eq!(ir.unwrap().max, 0.70710677);
 
         // Finite
-        let ir = ray.cylinder_intersection(
-            &Vector3::zeros(),
-            &Vector3::new(1.0, 0.0, 0.0),
-            1.0,
-            CylinderKind::Finite,
-        );
+        let ir =
+            ray.cylinder_intersection(&Vector3::zeros(), &Vector3::x(), 1.0, CylinderKind::Finite);
         assert_eq!(ir.unwrap().min, 0.70710677);
         assert_eq!(ir.unwrap().max, 0.70710677);
 
         // Capped
-        let ir = ray.cylinder_intersection(
-            &Vector3::zeros(),
-            &Vector3::new(1.0, 0.0, 0.0),
-            1.0,
-            CylinderKind::Capped,
-        );
+        let ir =
+            ray.cylinder_intersection(&Vector3::zeros(), &Vector3::x(), 1.0, CylinderKind::Capped);
         assert_eq!(ir.unwrap().min, -0.70710677);
         assert_eq!(ir.unwrap().max, 0.70710677);
     }
@@ -817,7 +806,7 @@ mod test {
         let ray = Ray::new(Vector3::zeros(), Vector3::new(1.0, 1.0, 1.0));
 
         assert_eq!(
-            ray.capsule_intersection(&Vector3::zeros(), &Vector3::new(1.0, 0.0, 0.0), 1.0,),
+            ray.capsule_intersection(&Vector3::zeros(), &Vector3::x(), 1.0,),
             Some([
                 Vector3::new(0.70710677, 0.70710677, 0.70710677),
                 Vector3::new(0.70710677, 0.70710677, 0.70710677)

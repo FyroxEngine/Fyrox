@@ -139,7 +139,7 @@ impl PointShadowMapRenderer {
             faces: [
                 PointShadowCubeMapFace {
                     face: CubeMapFace::PositiveX,
-                    look: Vector3::new(1.0, 0.0, 0.0),
+                    look: Vector3::x(),
                     up: Vector3::new(0.0, -1.0, 0.0),
                 },
                 PointShadowCubeMapFace {
@@ -149,8 +149,8 @@ impl PointShadowMapRenderer {
                 },
                 PointShadowCubeMapFace {
                     face: CubeMapFace::PositiveY,
-                    look: Vector3::new(0.0, 1.0, 0.0),
-                    up: Vector3::new(0.0, 0.0, 1.0),
+                    look: Vector3::y(),
+                    up: Vector3::z(),
                 },
                 PointShadowCubeMapFace {
                     face: CubeMapFace::NegativeY,
@@ -159,7 +159,7 @@ impl PointShadowMapRenderer {
                 },
                 PointShadowCubeMapFace {
                     face: CubeMapFace::PositiveZ,
-                    look: Vector3::new(0.0, 0.0, 1.0),
+                    look: Vector3::z(),
                     up: Vector3::new(0.0, -1.0, 0.0),
                 },
                 PointShadowCubeMapFace {

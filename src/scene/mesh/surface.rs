@@ -330,7 +330,7 @@ impl SurfaceData {
             // Gram-Schmidt orthogonalize
             let tangent = (t1 - normal.scale(normal.dot(&t1)))
                 .try_normalize(f32::EPSILON)
-                .unwrap_or_else(|| Vector3::new(0.0, 1.0, 0.0));
+                .unwrap_or_else(|| Vector3::y());
             let handedness = normal.cross(&t1).dot(&t2).signum();
             view.write_4_f32(
                 VertexAttributeUsage::Tangent,
@@ -740,17 +740,17 @@ impl SurfaceData {
                 builder.insert(StaticVertex::from_pos_uv_normal(
                     Vector3::new(x1, h, z1),
                     Vector2::new(t_cap_x_next, t_cap_y_next),
-                    Vector3::new(0.0, 1.0, 0.0),
+                    Vector3::y(),
                 ));
                 builder.insert(StaticVertex::from_pos_uv_normal(
                     Vector3::new(x0, h, z0),
                     Vector2::new(t_cap_x_curr, t_cap_y_curr),
-                    Vector3::new(0.0, 1.0, 0.0),
+                    Vector3::y(),
                 ));
                 builder.insert(StaticVertex::from_pos_uv_normal(
                     Vector3::new(0.0, h, 0.0),
                     Vector2::new(0.5, 0.5),
-                    Vector3::new(0.0, 1.0, 0.0),
+                    Vector3::y(),
                 ));
 
                 // back cap
@@ -1186,19 +1186,19 @@ impl SurfaceSharedData {
 ///             StaticVertex {
 ///                 position: Vector3::zeros(),
 ///                 tex_coord: Vector2::zeros(),
-///                 normal: Vector3::new(0.0, 0.0, 1.0),
+///                 normal: Vector3::z(),
 ///                 tangent: Vector4::new(1.0, 0.0, 0.0, 1.0),
 ///             },
 ///             StaticVertex {
-///                 position: Vector3::new(0.0, 1.0, 0.0),
+///                 position: Vector3::y(),
 ///                 tex_coord: Vector2::new(0.0, 1.0),
-///                 normal: Vector3::new(0.0, 0.0, 1.0),
+///                 normal: Vector3::z(),
 ///                 tangent: Vector4::new(1.0, 0.0, 0.0, 1.0),
 ///             },
 ///             StaticVertex {
 ///                 position: Vector3::new(1.0, 1.0, 0.0),
 ///                 tex_coord: Vector2::new(1.0, 1.0),
-///                 normal: Vector3::new(0.0, 0.0, 1.0),
+///                 normal: Vector3::z(),
 ///                 tangent: Vector4::new(1.0, 0.0, 0.0, 1.0),
 ///             },
 ///         ],

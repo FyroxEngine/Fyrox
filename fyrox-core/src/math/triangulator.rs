@@ -179,11 +179,7 @@ mod test {
 
     #[test]
     fn triangle_triangulation() {
-        let polygon = vec![
-            Vector3::zeros(),
-            Vector3::new(1.0, 0.0, 0.0),
-            Vector3::new(0.0, 1.0, 0.0),
-        ];
+        let polygon = vec![Vector3::zeros(), Vector3::x(), Vector3::y()];
 
         let mut ref_indices = Vec::new();
         triangulate(polygon.as_slice(), &mut ref_indices);
@@ -193,7 +189,7 @@ mod test {
     #[test]
     fn quadrilaterals_triangulation_non_concave() {
         let polygon = vec![
-            Vector3::new(0.0, 0.0, 1.0),
+            Vector3::z(),
             Vector3::new(1.0, 2.0, 1.0),
             Vector3::new(2.0, 3.0, 1.0),
             Vector3::new(3.0, 2.0, 1.0),
@@ -235,9 +231,9 @@ mod test {
 
         // Then compare previous result with series of rotated versions of the polygon.
         for axis in &[
-            Unit::new_normalize(Vector3::new(1.0, 0.0, 0.0)),
-            Unit::new_normalize(Vector3::new(0.0, 1.0, 0.0)),
-            Unit::new_normalize(Vector3::new(0.0, 0.0, 1.0)),
+            Unit::new_normalize(Vector3::x()),
+            Unit::new_normalize(Vector3::y()),
+            Unit::new_normalize(Vector3::z()),
             Unit::new_normalize(Vector3::new(1.0, 1.0, 1.0)),
         ] {
             let mut angle: f32 = 0.0;

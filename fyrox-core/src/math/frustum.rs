@@ -462,7 +462,7 @@ mod test {
         ))
         .unwrap();
 
-        assert_eq!(f.near_plane_center(), Vector3::new(0.0, 0.0, 1.0));
+        assert_eq!(f.near_plane_center(), Vector3::z());
         assert_eq!(f.far_plane_center(), Vector3::new(0.0, 0.0, -1.0));
         assert_eq!(f.view_direction(), Vector3::new(0.0, 0.0, -2.0));
         assert_eq!(f.center(), Vector3::zeros());
