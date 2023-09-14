@@ -69,22 +69,22 @@ enum SceneResource {
 impl SceneResource {
     fn path(&self) -> PathBuf {
         match self {
-            SceneResource::Model(model) => model.path(),
-            SceneResource::Texture(texture) => texture.path(),
+            Self::Model(model) => model.path(),
+            Self::Texture(texture) => texture.path(),
         }
     }
 
     fn set_path(&mut self, path: PathBuf) {
         match self {
-            SceneResource::Model(model) => model.data_ref().set_path(path),
-            SceneResource::Texture(texture) => texture.data_ref().set_path(path),
+            Self::Model(model) => model.data_ref().set_path(path),
+            Self::Texture(texture) => texture.data_ref().set_path(path),
         }
     }
 
     fn key(&self) -> usize {
         match self {
-            SceneResource::Model(model) => model.key(),
-            SceneResource::Texture(texture) => texture.key(),
+            Self::Model(model) => model.key(),
+            Self::Texture(texture) => texture.key(),
         }
     }
 }
