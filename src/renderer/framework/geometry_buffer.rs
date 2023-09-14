@@ -61,6 +61,30 @@ pub enum AttributeKind {
     UnsignedInt4,
 }
 
+impl From<(VertexAttributeDataType, u8)> for AttributeKind {
+    fn from(t: (VertexAttributeDataType, u8)) -> Self {
+        match t {
+            (VertexAttributeDataType::F32, 1) => Self::Float,
+            (VertexAttributeDataType::F32, 2) => Self::Float2,
+            (VertexAttributeDataType::F32, 3) => Self::Float3,
+            (VertexAttributeDataType::F32, 4) => Self::Float4,
+            (VertexAttributeDataType::U32, 1) => Self::UnsignedInt,
+            (VertexAttributeDataType::U32, 2) => Self::UnsignedInt2,
+            (VertexAttributeDataType::U32, 3) => Self::UnsignedInt3,
+            (VertexAttributeDataType::U32, 4) => Self::UnsignedInt4,
+            (VertexAttributeDataType::U16, 1) => Self::UnsignedShort,
+            (VertexAttributeDataType::U16, 2) => Self::UnsignedShort2,
+            (VertexAttributeDataType::U16, 3) => Self::UnsignedShort3,
+            (VertexAttributeDataType::U16, 4) => Self::UnsignedShort4,
+            (VertexAttributeDataType::U8, 1) => Self::UnsignedByte,
+            (VertexAttributeDataType::U8, 2) => Self::UnsignedByte2,
+            (VertexAttributeDataType::U8, 3) => Self::UnsignedByte3,
+            (VertexAttributeDataType::U8, 4) => Self::UnsignedByte4,
+            _ => unreachable!(),
+        }
+    }
+}
+
 pub struct AttributeDefinition {
     pub location: u32,
     pub kind: AttributeKind,
@@ -389,25 +413,7 @@ impl BufferBuilder {
                 .iter()
                 .map(|a| AttributeDefinition {
                     location: a.shader_location as u32,
-                    kind: match (a.data_type, a.size) {
-                        (VertexAttributeDataType::F32, 1) => AttributeKind::Float,
-                        (VertexAttributeDataType::F32, 2) => AttributeKind::Float2,
-                        (VertexAttributeDataType::F32, 3) => AttributeKind::Float3,
-                        (VertexAttributeDataType::F32, 4) => AttributeKind::Float4,
-                        (VertexAttributeDataType::U32, 1) => AttributeKind::UnsignedInt,
-                        (VertexAttributeDataType::U32, 2) => AttributeKind::UnsignedInt2,
-                        (VertexAttributeDataType::U32, 3) => AttributeKind::UnsignedInt3,
-                        (VertexAttributeDataType::U32, 4) => AttributeKind::UnsignedInt4,
-                        (VertexAttributeDataType::U16, 1) => AttributeKind::UnsignedShort,
-                        (VertexAttributeDataType::U16, 2) => AttributeKind::UnsignedShort2,
-                        (VertexAttributeDataType::U16, 3) => AttributeKind::UnsignedShort3,
-                        (VertexAttributeDataType::U16, 4) => AttributeKind::UnsignedShort4,
-                        (VertexAttributeDataType::U8, 1) => AttributeKind::UnsignedByte,
-                        (VertexAttributeDataType::U8, 2) => AttributeKind::UnsignedByte2,
-                        (VertexAttributeDataType::U8, 3) => AttributeKind::UnsignedByte3,
-                        (VertexAttributeDataType::U8, 4) => AttributeKind::UnsignedByte4,
-                        _ => unreachable!(),
-                    },
+                    kind: (a.data_type, a.size).into(),
                     normalized: false,
                     divisor: 0,
                 })
