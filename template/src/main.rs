@@ -516,6 +516,7 @@ fn init_workspace(base_path: &Path) {
         r#"
 [workspace]
 members = ["editor", "executor", "executor-wasm", "executor-android", "game"]
+resolver = "2"
 
 # Optimize the engine in debug builds, but leave project's code non-optimized.
 # By using this technique, you can still debug you code, but engine will be fully
