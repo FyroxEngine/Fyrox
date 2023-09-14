@@ -529,11 +529,18 @@ impl Scene {
         let mut lightmap = self.lightmap.clone();
         if let Some(lightmap) = lightmap.as_mut() {
             let mut map = FxHashMap::default();
-            for (mut handle, entry) in std::mem::take(&mut lightmap.map) {
+            for (mut handle, mut entries) in std::mem::take(&mut lightmap.map) {
+                for entry in entries.iter_mut() {
+                    for light_handle in entry.lights.iter_mut() {
+                        old_new_map.try_map(light_handle);
+                    }
+                }
+
                 if old_new_map.try_map(&mut handle) {
-                    map.insert(handle, entry);
+                    map.insert(handle, entries);
                 }
             }
+            lightmap.map = map;
         }
 
         (
