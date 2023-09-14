@@ -73,7 +73,7 @@ pub enum WindowMessage {
 
     /// Safe border size defines "part" of a window that should always be on screen when dragged.
     /// It is used to prevent moving window outside of main application window bounds, to still
-    /// be able to drag it.  
+    /// be able to drag it.
     SafeBorderSize(Option<Vector2<f32>>),
 }
 
@@ -873,7 +873,7 @@ fn make_mark(ctx: &mut BuildContext, button: HeaderButton) -> Handle<UiNode> {
         HeaderButton::Close => {
             vec![
                 Primitive::Line {
-                    begin: Vector2::new(0.0, 0.0),
+                    begin: Vector2::zeros(),
                     end: Vector2::new(12.0, 12.0),
                     thickness: 1.0,
                 },
@@ -886,7 +886,7 @@ fn make_mark(ctx: &mut BuildContext, button: HeaderButton) -> Handle<UiNode> {
         }
         HeaderButton::Minimize => {
             vec![Primitive::Line {
-                begin: Vector2::new(0.0, 0.0),
+                begin: Vector2::zeros(),
                 end: Vector2::new(12.0, 0.0),
                 thickness: 1.0,
             }]

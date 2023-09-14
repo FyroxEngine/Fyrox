@@ -462,7 +462,7 @@ impl Default for DragContext {
         Self {
             is_dragging: false,
             drag_node: Default::default(),
-            click_pos: Vector2::new(0.0, 0.0),
+            click_pos: Vector2::zeros(),
             drag_preview: Default::default(),
         }
     }
@@ -670,7 +670,7 @@ impl UserInterface {
             captured_node: Handle::NONE,
             root_canvas: Handle::NONE,
             nodes: Pool::new(),
-            cursor_position: Vector2::new(0.0, 0.0),
+            cursor_position: Vector2::zeros(),
             drawing_context: DrawingContext::new(),
             picked_node: Handle::NONE,
             prev_picked_node: Handle::NONE,
@@ -1095,7 +1095,7 @@ impl UserInterface {
 
             node.commit_measure(desired_size);
         } else {
-            node.commit_measure(Vector2::new(0.0, 0.0));
+            node.commit_measure(Vector2::zeros());
         }
 
         true
@@ -2350,7 +2350,7 @@ fn transform_size(transform_space_bounds: Vector2<f32>, matrix: &Matrix3<f32>) -
 
     //if either of the sizes is 0, return 0,0 to avoid doing math on an empty rect (bug 963569)
     if is_approx_zero(x_constr) || is_approx_zero(y_constr) {
-        return Vector2::new(0.0, 0.0);
+        return Vector2::zeros();
     }
 
     let x_constr_infinite = x_constr.is_infinite();
@@ -2369,7 +2369,7 @@ fn transform_size(transform_space_bounds: Vector2<f32>, matrix: &Matrix3<f32>) -
     // We only deal with nonsingular matrices here. The nonsingular matrix is the one
     // that has inverse (determinant != 0).
     if !matrix.is_invertible() {
-        return Vector2::new(0.0, 0.0);
+        return Vector2::zeros();
     }
 
     let a = matrix[(0, 0)];

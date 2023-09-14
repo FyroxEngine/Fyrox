@@ -18,7 +18,7 @@ pub struct WindowsSettings {
 impl Default for WindowsSettings {
     fn default() -> Self {
         Self {
-            window_position: Vector2::new(0.0, 0.0),
+            window_position: Vector2::zeros(),
             window_size: Vector2::new(1024.0, 768.0),
             layout: None,
         }

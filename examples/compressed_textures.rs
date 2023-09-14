@@ -38,7 +38,7 @@ impl PluginConstructor for GameConstructor {
 
         ImageBuilder::new(
             WidgetBuilder::new()
-                .with_desired_position(Vector2::new(0.0, 0.0))
+                .with_desired_position(Vector2::zeros())
                 .with_width(512.0)
                 .with_height(512.0),
         )

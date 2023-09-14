@@ -27,14 +27,14 @@ pub fn make_arrow_primitives(orientation: ArrowDirection, size: f32) -> Vec<Prim
         },
         ArrowDirection::Bottom => Primitive::Triangle {
             points: [
-                Vector2::new(0.0, 0.0),
+                Vector2::zeros(),
                 Vector2::new(size, 0.0),
                 Vector2::new(size * 0.5, size),
             ],
         },
         ArrowDirection::Right => Primitive::Triangle {
             points: [
-                Vector2::new(0.0, 0.0),
+                Vector2::zeros(),
                 Vector2::new(size, size * 0.5),
                 Vector2::new(0.0, size),
             ],
@@ -73,7 +73,7 @@ pub fn make_cross(ctx: &mut BuildContext, size: f32, thickness: f32) -> Handle<U
     )
     .with_primitives(vec![
         Primitive::Line {
-            begin: Vector2::new(0.0, 0.0),
+            begin: Vector2::zeros(),
             end: Vector2::new(size, size),
             thickness,
         },

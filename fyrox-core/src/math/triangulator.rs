@@ -265,7 +265,7 @@ mod test {
                     prev: 2,
                     index: 0,
                     next: 1,
-                    position: Vector2::new(0.0, 0.0),
+                    position: Vector2::zeros(),
                 },
                 Vertex {
                     prev: 0,

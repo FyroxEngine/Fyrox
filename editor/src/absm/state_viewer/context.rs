@@ -146,7 +146,7 @@ impl CanvasContextMenu {
                 blend_space.parent_state = current_state;
                 blend_space.set_points(vec![
                     BlendSpacePoint {
-                        position: Vector2::new(0.0, 0.0),
+                        position: Vector2::zeros(),
                         pose_source: Default::default(),
                     },
                     BlendSpacePoint {

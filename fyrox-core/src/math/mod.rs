@@ -1298,7 +1298,7 @@ mod test {
         let rect = Rect::new(0.0, 0.0, 1.0, 1.0);
 
         assert!(!rect.intersects_circle(Vector2::new(5.0, 5.0), 1.0));
-        assert!(rect.intersects_circle(Vector2::new(0.0, 0.0), 1.0));
+        assert!(rect.intersects_circle(Vector2::zeros(), 1.0));
         assert!(rect.intersects_circle(Vector2::new(-0.5, -0.5), 1.0));
     }
 
@@ -1348,7 +1348,7 @@ mod test {
     fn test_get_signed_triangle_area() {
         assert_eq!(
             get_signed_triangle_area(
-                Vector2::new(0.0, 0.0),
+                Vector2::zeros(),
                 Vector2::new(0.0, 1.0),
                 Vector2::new(1.0, 0.0)
             ),
@@ -1453,10 +1453,10 @@ mod test {
     fn test_get_barycentric_coords_2d() {
         assert_eq!(
             get_barycentric_coords_2d(
-                Vector2::new(0.0, 0.0),
+                Vector2::zeros(),
                 Vector2::new(1.0, 0.0),
                 Vector2::new(0.0, 1.0),
-                Vector2::new(0.0, 0.0),
+                Vector2::zeros(),
             ),
             (0.0, 0.0, 1.0)
         );

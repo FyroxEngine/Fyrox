@@ -489,7 +489,7 @@ impl Control for ColorPoint {
         let size = self.bounding_rect().size;
 
         ctx.push_triangle_filled([
-            Vector2::new(0.0, 0.0),
+            Vector2::zeros(),
             Vector2::new(size.x, 0.0),
             Vector2::new(size.x * 0.5, size.y),
         ]);

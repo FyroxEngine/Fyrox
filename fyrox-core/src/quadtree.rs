@@ -287,7 +287,7 @@ mod test {
         let tree = QuadTree::<f32>::default();
         let mut s = Vec::<f32>::new();
 
-        tree.point_query(Vector2::new(0.0, 0.0), &mut s);
+        tree.point_query(Vector2::zeros(), &mut s);
         assert_eq!(s, vec![]);
 
         let root_bounds = Rect::new(0.0, 0.0, 200.0, 200.0);

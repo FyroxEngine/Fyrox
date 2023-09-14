@@ -733,7 +733,7 @@ impl Toolbar {
                                     .with_primitives(vec![
                                         Primitive::Triangle {
                                             points: [
-                                                Vector2::new(0.0, 0.0),
+                                                Vector2::zeros(),
                                                 Vector2::new(8.0, 8.0),
                                                 Vector2::new(0.0, 16.0),
                                             ],

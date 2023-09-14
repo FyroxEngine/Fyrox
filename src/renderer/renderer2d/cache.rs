@@ -37,7 +37,7 @@ impl Mesh {
             },
             Vertex {
                 position: Vector3::new(0.5, 0.5, 0.0),
-                tex_coord: Vector2::new(0.0, 0.0),
+                tex_coord: Vector2::zeros(),
             },
             Vertex {
                 position: Vector3::new(0.5, -0.5, 0.0),

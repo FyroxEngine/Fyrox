@@ -24,7 +24,7 @@ pub enum Primitive {
         /// Points of the triangle in local coordinates.
         points: [Vector2<f32>; 3],
     },
-    /// A line of fixed thickness between two points.  
+    /// A line of fixed thickness between two points.
     Line {
         /// Beginning of the line in local coordinates.
         begin: Vector2<f32>,
@@ -131,7 +131,7 @@ impl Primitive {
 ///     )
 ///     .with_primitives(vec![
 ///         Primitive::Line {
-///             begin: Vector2::new(0.0, 0.0),
+///             begin: Vector2::zeros(),
 ///             end: Vector2::new(size, size),
 ///             thickness,
 ///         },

@@ -437,7 +437,7 @@ mod test {
 
         blend_space.set_points(vec![
             BlendSpacePoint {
-                position: Vector2::new(0.0, 0.0),
+                position: Vector2::zeros(),
                 pose_source: Default::default(),
             },
             BlendSpacePoint {
@@ -474,7 +474,7 @@ mod test {
         let mut blend_space = BlendSpace::default();
 
         blend_space.set_points(vec![BlendSpacePoint {
-            position: Vector2::new(0.0, 0.0),
+            position: Vector2::zeros(),
             pose_source: Default::default(),
         }]);
 
@@ -490,7 +490,7 @@ mod test {
 
         blend_space.set_points(vec![
             BlendSpacePoint {
-                position: Vector2::new(0.0, 0.0),
+                position: Vector2::zeros(),
                 pose_source: Default::default(),
             },
             BlendSpacePoint {
@@ -500,7 +500,7 @@ mod test {
         ]);
 
         assert_eq!(
-            blend_space.fetch_weights(Vector2::new(0.0, 0.0)),
+            blend_space.fetch_weights(Vector2::zeros()),
             Some([(0, 1.0), (1, 0.0), (0, 0.0)])
         );
 

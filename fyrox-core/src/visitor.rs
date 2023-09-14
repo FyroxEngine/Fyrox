@@ -2063,11 +2063,11 @@ mod test {
         );
 
         assert_eq!(
-            FieldKind::Vector2F32(Vector2::new(0.0, 0.0)).as_string(),
+            FieldKind::Vector2F32(Vector2::zeros()).as_string(),
             "<vec2f32 = 0; 0>, ".to_string()
         );
         assert_eq!(
-            FieldKind::Vector2F64(Vector2::new(0.0, 0.0)).as_string(),
+            FieldKind::Vector2F64(Vector2::zeros()).as_string(),
             "<vec2f64 = 0; 0>, ".to_string()
         );
         assert_eq!(

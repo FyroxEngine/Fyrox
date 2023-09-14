@@ -69,12 +69,8 @@ impl QuadTreeNode {
         for y in position.y..((position.y + node_size.y).min(height_map_size.y)) {
             for x in position.x..((position.x + node_size.x).min(height_map_size.x)) {
                 let height = height_map[(y * height_map_size.x + x) as usize];
-                if height < min_height {
-                    min_height = height;
-                }
-                if height > max_height {
-                    max_height = height;
-                }
+                min_height = min_height.min(height);
+                max_height = max_height.max(height);
             }
         }
 
@@ -280,7 +276,7 @@ impl QuadTree {
         let root = QuadTreeNode::new(
             height_map,
             height_map_size,
-            Vector2::new(0, 0),
+            Vector2::zeros(),
             height_map_size,
             block_size,
             0,

@@ -137,7 +137,7 @@ impl PluginConstructor for GameConstructor {
             .build(&mut scene.graph);
         }
 
-        let from = Vector2::new(0.0, 0.0);
+        let from = Vector2::zeros();
         create_rect(
             &mut scene.graph,
             from.to_homogeneous(),
