@@ -155,9 +155,7 @@ impl LightPanel {
                     Default::default(),
                 )
                 .unwrap();
-                lightmap
-                    .save(&self.settings.path, engine.resource_manager.clone())
-                    .unwrap();
+                Log::verify(lightmap.save(&self.settings.path, engine.resource_manager.clone()));
                 scene.set_lightmap(lightmap).unwrap();
             }
         } else if let Some(InspectorMessage::PropertyChanged(args)) = message.data() {
