@@ -31,6 +31,9 @@ enum Commands {
 
         #[clap(short, long, default_value = "3d")]
         style: String,
+
+        #[clap(long, default_value = "git")]
+        vcs: String,
     },
     /// Adds a script with given name. The name will be capitalized.
     #[clap(arg_required_else_help = true)]
@@ -498,9 +501,9 @@ fn android_main(app: fyrox::platform::android::activity::AndroidApp) {{
     );
 }
 
-fn init_workspace(base_path: &Path) {
+fn init_workspace(base_path: &Path, vcs: &str) {
     Command::new("cargo")
-        .args(["init", "--vcs", "git"])
+        .args(["init", "--vcs", vcs])
         .arg(base_path)
         .output()
         .unwrap();
@@ -516,6 +519,7 @@ fn init_workspace(base_path: &Path) {
         r#"
 [workspace]
 members = ["editor", "executor", "executor-wasm", "executor-android", "game"]
+resolver = "2"
 
 # Optimize the engine in debug builds, but leave project's code non-optimized.
 # By using this technique, you can still debug you code, but engine will be fully
@@ -526,14 +530,16 @@ opt-level = 3
 "#,
     );
 
-    // Write .gitignore
-    write_file(
-        base_path.join(".gitignore"),
-        r#"
+    if vcs == "git" {
+        // Write .gitignore
+        write_file(
+            base_path.join(".gitignore"),
+            r#"
 /target
 *.log
 "#,
-    );
+        );
+    }
 }
 
 fn init_data(base_path: &Path, style: &str) {
@@ -629,7 +635,7 @@ fn main() {
     let args: Args = Args::parse();
 
     match args.command {
-        Commands::Init { name, style } => {
+        Commands::Init { name, style, vcs } => {
             let name = check_name(&name);
             let name = match name {
                 Ok(s) => s,
@@ -641,7 +647,7 @@ fn main() {
 
             let base_path = Path::new(name);
 
-            init_workspace(base_path);
+            init_workspace(base_path, &vcs);
             init_data(base_path, &style);
             init_game(base_path, name);
             init_editor(base_path, name);

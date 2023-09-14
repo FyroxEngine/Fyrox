@@ -242,6 +242,7 @@ impl Lightmap {
     pub fn new<F>(
         scene: &mut Scene,
         texels_per_unit: u32,
+        uv_spacing: f32,
         mut filter: F,
         cancellation_token: CancellationToken,
         progress_indicator: ProgressIndicator,
@@ -377,7 +378,7 @@ impl Lightmap {
                     Err(LightmapGenerationError::Cancelled)
                 } else {
                     let mut data = data.lock();
-                    let patch = uvgen::generate_uvs(&mut data, 0.005)?;
+                    let patch = uvgen::generate_uvs(&mut data, uv_spacing)?;
                     progress_indicator.advance_progress();
                     Ok((patch.data_id, patch))
                 }
@@ -477,7 +478,8 @@ impl Lightmap {
         resource_manager: ResourceManager,
     ) -> Result<(), ResourceRegistrationError> {
         if !base_path.as_ref().exists() {
-            std::fs::create_dir(base_path.as_ref()).unwrap();
+            std::fs::create_dir_all(base_path.as_ref())
+                .map_err(|_| ResourceRegistrationError::UnableToRegister)?;
         }
 
         for (handle, entries) in self.map.iter() {
@@ -970,6 +972,7 @@ mod test {
         let lightmap = Lightmap::new(
             &mut scene,
             64,
+            0.005,
             |_, _| true,
             Default::default(),
             Default::default(),

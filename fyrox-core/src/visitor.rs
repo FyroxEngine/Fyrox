@@ -60,7 +60,7 @@ pub enum FieldKind {
     F64(f64),
     UnitQuaternion(UnitQuaternion<f32>),
     Matrix4(Matrix4<f32>),
-    Data(Vec<u8>),
+    BinaryBlob(Vec<u8>),
     Matrix3(Matrix3<f32>),
     Uuid(Uuid),
     UnitComplex(UnitComplex<f32>),
@@ -351,7 +351,7 @@ impl FieldKind {
                 }
                 out
             }
-            Self::Data(data) => {
+            Self::BinaryBlob(data) => {
                 let out = match String::from_utf8(data.clone()) {
                     Ok(s) => s,
                     Err(_) => base64::engine::general_purpose::STANDARD.encode(data),
@@ -422,8 +422,11 @@ macro_rules! impl_field_data {
 
 /// Proxy struct for plain data, we can't use `Vec<u8>` directly,
 /// because it will serialize each byte as separate node.
-pub struct Data<'a> {
-    vec: &'a mut Vec<u8>,
+pub struct BinaryBlob<'a, T>
+where
+    T: Copy,
+{
+    pub vec: &'a mut Vec<T>,
 }
 
 impl_field_data!(u64, FieldKind::U64);
@@ -484,13 +487,27 @@ impl_field_data!(Vector2<u64>, FieldKind::Vector2U64);
 impl_field_data!(Vector3<u64>, FieldKind::Vector3U64);
 impl_field_data!(Vector4<u64>, FieldKind::Vector4U64);
 
-impl<'a> Visit for Data<'a> {
+impl<'a, T> Visit for BinaryBlob<'a, T>
+where
+    T: Copy,
+{
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         if visitor.reading {
             if let Some(field) = visitor.find_field(name) {
                 match &field.kind {
-                    FieldKind::Data(data) => {
-                        *self.vec = data.clone();
+                    FieldKind::BinaryBlob(data) => {
+                        let mut bytes = std::mem::ManuallyDrop::new(data.clone());
+
+                        // SAFETY: This is kinda safe, but may cause portability issues because of various byte order.
+                        // However it seems to be fine, since big-endian is pretty much dead and unused nowadays.
+                        *self.vec = unsafe {
+                            Vec::from_raw_parts(
+                                bytes.as_mut_ptr() as *mut T,
+                                bytes.len() / std::mem::size_of::<T>(),
+                                bytes.capacity() / std::mem::size_of::<T>(),
+                            )
+                        };
+
                         Ok(())
                     }
                     _ => Err(VisitError::FieldTypeDoesNotMatch),
@@ -502,8 +519,16 @@ impl<'a> Visit for Data<'a> {
             Err(VisitError::FieldAlreadyExists(name.to_owned()))
         } else {
             let node = visitor.current_node();
+
+            let len_bytes = self.vec.len() * std::mem::size_of::<T>();
+            let mut bytes = Vec::<u8>::with_capacity(len_bytes);
+            bytes.extend_from_slice(unsafe {
+                std::slice::from_raw_parts(self.vec.as_ptr() as *const u8, len_bytes)
+            });
+
             node.fields
-                .push(Field::new(name, FieldKind::Data(self.vec.clone())));
+                .push(Field::new(name, FieldKind::BinaryBlob(bytes)));
+
             Ok(())
         }
     }
@@ -718,7 +743,7 @@ impl Field {
                     file.write_f32::<LittleEndian>(*f)?;
                 }
             }
-            FieldKind::Data(data) => {
+            FieldKind::BinaryBlob(data) => {
                 file.write_u8(14)?;
                 file.write_u32::<LittleEndian>(data.len() as u32)?;
                 file.write_all(data.as_slice())?;
@@ -910,7 +935,7 @@ impl Field {
                     }
                     Matrix4::from_row_slice(&f)
                 }),
-                14 => FieldKind::Data({
+                14 => FieldKind::BinaryBlob({
                     let len = file.read_u32::<LittleEndian>()? as usize;
                     let mut vec = vec![Default::default(); len];
                     file.read_exact(vec.as_mut_slice())?;
@@ -1405,7 +1430,7 @@ impl Visit for String {
             Vec::from(self.as_bytes())
         };
 
-        let mut proxy = Data { vec: &mut data };
+        let mut proxy = BinaryBlob { vec: &mut data };
         proxy.visit("Data", &mut region)?;
 
         if region.reading {
@@ -1438,7 +1463,7 @@ impl Visit for PathBuf {
             Vec::from(bytes)
         };
 
-        let mut proxy = Data { vec: &mut data };
+        let mut proxy = BinaryBlob { vec: &mut data };
         proxy.visit("Data", &mut region)?;
 
         if region.reading {
@@ -1841,7 +1866,7 @@ impl<T: Visit> Visit for Range<T> {
 
 #[cfg(test)]
 mod test {
-    use crate::visitor::{Data, Visit, VisitResult, Visitor};
+    use crate::visitor::{BinaryBlob, Visit, VisitResult, Visitor};
     use std::{fs::File, io::Write, path::Path, rc::Rc};
 
     use super::*;
@@ -1859,7 +1884,7 @@ mod test {
     impl Visit for Texture {
         fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
             let mut region = visitor.enter_region(name)?;
-            let mut proxy = Data {
+            let mut proxy = BinaryBlob {
                 vec: &mut self.data,
             };
             proxy.visit("Data", &mut region)?;
@@ -2010,7 +2035,7 @@ mod test {
             "<bool = true>, ".to_string()
         );
         assert_eq!(
-            FieldKind::Data(Vec::<u8>::new()).as_string(),
+            FieldKind::BinaryBlob(Vec::<u8>::new()).as_string(),
             "<data = >, ".to_string()
         );
 

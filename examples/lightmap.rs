@@ -248,6 +248,7 @@ fn create_scene_async(
                 if let Ok(lightmap) = Lightmap::new(
                     &mut scene,
                     64,
+                    0.005,
                     |_, _| true,
                     cancellation_token,
                     progress_indicator,

@@ -14,6 +14,7 @@ use crate::{
     },
     message::MessageSender,
 };
+use fyrox::gui::inspector::editors::path::PathPropertyEditorDefinition;
 use fyrox::scene::ragdoll::Limb;
 use fyrox::{
     animation::{
@@ -358,6 +359,8 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
 
     container.register_inheritable_inspectable::<Limb>();
     container.insert(VecCollectionPropertyEditorDefinition::<Limb>::new());
+
+    container.insert(PathPropertyEditorDefinition);
 
     container
 }

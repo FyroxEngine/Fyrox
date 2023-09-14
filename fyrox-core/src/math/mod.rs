@@ -713,7 +713,7 @@ impl Hash for TriangleEdge {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Default, Hash, Reflect)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default, Hash, Reflect)]
 #[repr(C)]
 pub struct TriangleDefinition(pub [u32; 3]);
 
