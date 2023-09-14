@@ -330,7 +330,7 @@ impl FbxCluster {
 
             Ok(cluster)
         } else {
-            Ok(FbxCluster {
+            Ok(Self {
                 model: Handle::NONE,
                 weights: Default::default(),
                 transform: Default::default(),
@@ -348,7 +348,7 @@ impl FbxMaterial {
     fn read(
         material_node_handle: Handle<FbxNode>,
         nodes: &FbxNodeContainer,
-    ) -> Result<FbxMaterial, FbxError> {
+    ) -> Result<Self, FbxError> {
         let mut diffuse_color = Color::WHITE;
 
         let props = nodes.get_by_name(material_node_handle, "Properties70")?;
@@ -362,7 +362,7 @@ impl FbxMaterial {
             }
         }
 
-        Ok(FbxMaterial {
+        Ok(Self {
             textures: Default::default(),
             diffuse_color,
         })
@@ -375,7 +375,7 @@ pub struct FbxDeformer {
 
 impl FbxDeformer {
     fn read(_sub_deformer_handle: Handle<FbxNode>, _nodes: &FbxNodeContainer) -> Self {
-        FbxDeformer {
+        Self {
             sub_deformers: Vec::new(),
         }
     }
@@ -392,14 +392,14 @@ pub enum FbxMapping {
 
 impl FbxMapping {
     pub fn from_string<P: AsRef<str>>(value: P) -> Result<Self, FbxError> {
-        match value.as_ref() {
-            "ByPolygon" => Ok(FbxMapping::ByPolygon),
-            "ByPolygonVertex" => Ok(FbxMapping::ByPolygonVertex),
-            "ByVertex" | "ByVertice" => Ok(FbxMapping::ByVertex),
-            "ByEdge" => Ok(FbxMapping::ByEdge),
-            "AllSame" => Ok(FbxMapping::AllSame),
-            _ => Err(FbxError::InvalidMapping),
-        }
+        Ok(match value.as_ref() {
+            "ByPolygon" => Self::ByPolygon,
+            "ByPolygonVertex" => Self::ByPolygonVertex,
+            "ByVertex" | "ertice" => Self::ByVertex,
+            "ByEdge" => Self::ByEdge,
+            "AllSame" => Self::AllSame,
+            _ => return Err(FbxError::InvalidMapping),
+        })
     }
 }
 
@@ -411,12 +411,12 @@ pub enum FbxReference {
 
 impl FbxReference {
     pub fn from_string<P: AsRef<str>>(value: P) -> Result<Self, FbxError> {
-        match value.as_ref() {
-            "Direct" => Ok(FbxReference::Direct),
-            "IndexToDirect" => Ok(FbxReference::IndexToDirect),
-            "Index" => Ok(FbxReference::IndexToDirect),
-            _ => Err(FbxError::InvalidReference),
-        }
+        Ok(match value.as_ref() {
+            "Direct" => Self::Direct,
+            "IndexToDirect" => Self::IndexToDirect,
+            "Index" => Self::IndexToDirect,
+            _ => return Err(FbxError::InvalidReference),
+        })
     }
 }
 

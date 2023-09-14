@@ -12,17 +12,15 @@ fn read_attribute<R>(type_code: u8, file: &mut R) -> Result<FbxAttribute, FbxErr
 where
     R: Read,
 {
-    match type_code {
-        b'f' | b'F' => Ok(FbxAttribute::Float(file.read_f32::<LittleEndian>()?)),
-        b'd' | b'D' => Ok(FbxAttribute::Double(file.read_f64::<LittleEndian>()?)),
-        b'l' | b'L' => Ok(FbxAttribute::Long(file.read_i64::<LittleEndian>()?)),
-        b'i' | b'I' => Ok(FbxAttribute::Integer(file.read_i32::<LittleEndian>()?)),
-        b'Y' => Ok(FbxAttribute::Integer(i32::from(
-            file.read_i16::<LittleEndian>()?,
-        ))),
-        b'b' | b'C' => Ok(FbxAttribute::Bool(file.read_u8()? != 0)),
-        _ => Err(FbxError::UnknownAttributeType(type_code)),
-    }
+    Ok(match type_code {
+        b'f' | b'F' => FbxAttribute::Float(file.read_f32::<LittleEndian>()?),
+        b'd' | b'D' => FbxAttribute::Double(file.read_f64::<LittleEndian>()?),
+        b'l' | b'L' => FbxAttribute::Long(file.read_i64::<LittleEndian>()?),
+        b'i' | b'I' => FbxAttribute::Integer(file.read_i32::<LittleEndian>()?),
+        b'Y' => FbxAttribute::Integer(i32::from(file.read_i16::<LittleEndian>()?)),
+        b'b' | b'C' => FbxAttribute::Bool(file.read_u8()? != 0),
+        _ => return Err(FbxError::UnknownAttributeType(type_code)),
+    })
 }
 
 fn read_array<R>(type_code: u8, file: &mut R) -> Result<Vec<FbxAttribute>, FbxError>

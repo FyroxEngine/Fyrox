@@ -224,23 +224,22 @@ impl Curve {
 
     #[inline]
     pub fn value_at(&self, location: f32) -> f32 {
-        if let (Some(first), Some(last)) = (self.keys.first(), self.keys.last()) {
-            if location <= first.location {
-                first.value
-            } else if location >= last.location {
-                last.value
-            } else {
-                // Use binary search for multiple spans.
-                let pos = self.keys.partition_point(|k| k.location < location);
-                let left = self.keys.get(pos.saturating_sub(1)).unwrap();
-                let right = self.keys.get(pos).unwrap();
-                left.interpolate(
-                    right,
-                    (location - left.location) / (right.location - left.location),
-                )
-            }
+        let (Some(first), Some(last)) = (self.keys.first(), self.keys.last()) else {
+            return 0.0;
+        };
+        if location <= first.location {
+            first.value
+        } else if location >= last.location {
+            last.value
         } else {
-            0.0
+            // Use binary search for multiple spans.
+            let pos = self.keys.partition_point(|k| k.location < location);
+            let left = self.keys.get(pos.saturating_sub(1)).unwrap();
+            let right = self.keys.get(pos).unwrap();
+            left.interpolate(
+                right,
+                (location - left.location) / (right.location - left.location),
+            )
         }
     }
 }

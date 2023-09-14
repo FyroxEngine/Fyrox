@@ -400,7 +400,7 @@ impl MipFilter {
 ///     s_wrap_mode: Repeat,
 ///     t_wrap_mode: ClampToEdge,
 ///     anisotropy: 8.0,
-///     compression: NoCompression,    
+///     compression: NoCompression,
 /// )
 /// ```
 #[derive(Clone, Deserialize, Serialize, Debug, Reflect)]
@@ -877,34 +877,34 @@ pub enum TexturePixelKind {
 
 impl TexturePixelKind {
     fn new(id: u32) -> Result<Self, String> {
-        match id {
-            0 => Ok(Self::R8),
-            1 => Ok(Self::RGB8),
-            2 => Ok(Self::RGBA8),
-            3 => Ok(Self::RG8),
-            4 => Ok(Self::R16),
-            5 => Ok(Self::RG16),
-            6 => Ok(Self::BGR8),
-            7 => Ok(Self::BGRA8),
-            8 => Ok(Self::RGB16),
-            9 => Ok(Self::RGBA16),
-            10 => Ok(Self::DXT1RGB),
-            11 => Ok(Self::DXT1RGBA),
-            12 => Ok(Self::DXT3RGBA),
-            13 => Ok(Self::DXT5RGBA),
-            14 => Ok(Self::R8RGTC),
-            15 => Ok(Self::RG8RGTC),
-            16 => Ok(Self::RGB32F),
-            17 => Ok(Self::RGBA32F),
-            18 => Ok(Self::Luminance8),
-            19 => Ok(Self::LuminanceAlpha8),
-            20 => Ok(Self::Luminance16),
-            21 => Ok(Self::LuminanceAlpha16),
-            22 => Ok(Self::RGB16F),
-            23 => Ok(Self::R32F),
-            24 => Ok(Self::R16F),
-            _ => Err(format!("Invalid texture kind {}!", id)),
-        }
+        Ok(match id {
+            0 => Self::R8,
+            1 => Self::RGB8,
+            2 => Self::RGBA8,
+            3 => Self::RG8,
+            4 => Self::R16,
+            5 => Self::RG16,
+            6 => Self::BGR8,
+            7 => Self::BGRA8,
+            8 => Self::RGB16,
+            9 => Self::RGBA16,
+            10 => Self::DXT1RGB,
+            11 => Self::DXT1RGBA,
+            12 => Self::DXT3RGBA,
+            13 => Self::DXT5RGBA,
+            14 => Self::R8RGTC,
+            15 => Self::RG8RGTC,
+            16 => Self::RGB32F,
+            17 => Self::RGBA32F,
+            18 => Self::Luminance8,
+            19 => Self::LuminanceAlpha8,
+            20 => Self::Luminance16,
+            21 => Self::LuminanceAlpha16,
+            22 => Self::RGB16F,
+            23 => Self::R32F,
+            24 => Self::R16F,
+            _ => return Err(format!("Invalid texture kind {}!", id)),
+        })
     }
 
     fn id(self) -> u32 {
@@ -953,16 +953,16 @@ pub enum TextureError {
 impl Display for TextureError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            TextureError::UnsupportedFormat => {
+            Self::UnsupportedFormat => {
                 write!(f, "Unsupported format!")
             }
-            TextureError::Io(v) => {
+            Self::Io(v) => {
                 write!(f, "An i/o error has occurred: {v}")
             }
-            TextureError::Image(v) => {
+            Self::Image(v) => {
                 write!(f, "Image loading error {v}")
             }
-            TextureError::FileLoadError(v) => {
+            Self::FileLoadError(v) => {
                 write!(f, "A file load error has occurred {v:?}")
             }
         }

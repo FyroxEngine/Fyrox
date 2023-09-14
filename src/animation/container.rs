@@ -39,14 +39,11 @@ impl TrackValueKind {
     /// each component has its own parametric curve.
     pub fn components_count(self) -> usize {
         match self {
-            TrackValueKind::Real => 1,
-            TrackValueKind::Vector2 => 2,
-            TrackValueKind::Vector3 => 3,
-            TrackValueKind::Vector4 => 4,
-            TrackValueKind::UnitQuaternion => {
-                // Euler angles
-                3
-            }
+            Self::Real => 1,
+            Self::Vector2 => 2,
+            // for UnitQuaternion, it is Euler angles
+            Self::Vector3 | Self::UnitQuaternion => 3,
+            Self::Vector4 => 4,
         }
     }
 }

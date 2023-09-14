@@ -39,12 +39,12 @@ pub enum Emitter {
 impl Emitter {
     /// Creates new emitter from given id.
     pub fn new(id: i32) -> Result<Self, String> {
-        match id {
-            1 => Ok(Self::Cuboid(Default::default())),
-            2 => Ok(Self::Sphere(Default::default())),
-            3 => Ok(Self::Cylinder(Default::default())),
-            _ => Err(format!("Invalid emitter id {}!", id)),
-        }
+        Ok(match id {
+            1 => Self::Cuboid(Default::default()),
+            2 => Self::Sphere(Default::default()),
+            3 => Self::Cylinder(Default::default()),
+            _ => return Err(format!("Invalid emitter id {}!", id)),
+        })
     }
 
     /// Returns id of current emitter kind.

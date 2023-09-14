@@ -75,11 +75,11 @@ impl Default for RenderPath {
 impl RenderPath {
     /// Creates render path instance from its id.
     pub fn from_id(id: u32) -> Result<Self, String> {
-        match id {
-            0 => Ok(Self::Deferred),
-            1 => Ok(Self::Forward),
-            _ => Err(format!("Invalid render path id {}!", id)),
-        }
+        Ok(match id {
+            0 => Self::Deferred,
+            1 => Self::Forward,
+            _ => return Err(format!("Invalid render path id {}!", id)),
+        })
     }
 }
 
