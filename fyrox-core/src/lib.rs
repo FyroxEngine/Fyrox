@@ -68,10 +68,7 @@ macro_rules! define_is_as {
     ($typ:tt : $kind:ident -> ref $result:path => fn $is:ident, fn $as_ref:ident, fn $as_mut:ident) => {
         /// Returns true if node is instance of given type.
         pub fn $is(&self) -> bool {
-            match self {
-                $typ::$kind(_) => true,
-                _ => false,
-            }
+            matches!(self, $typ::$kind(_))
         }
 
         /// Tries to cast shared reference to a node to given type, panics if

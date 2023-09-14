@@ -14,7 +14,7 @@ pub struct Ray {
 impl Default for Ray {
     #[inline]
     fn default() -> Self {
-        Ray {
+        Self {
             origin: Vector3::zeros(),
             dir: Vector3::z(),
         }
@@ -41,7 +41,7 @@ impl IntersectionResult {
     }
 
     #[inline]
-    pub fn from_set(results: &[Option<IntersectionResult>]) -> Option<Self> {
+    pub fn from_set(results: &[Option<Self>]) -> Option<Self> {
         let mut result = None;
         for v in results {
             match result {
@@ -61,12 +61,8 @@ impl IntersectionResult {
     /// expands range if `param` was outside of that range.
     #[inline]
     pub fn merge(&mut self, param: f32) {
-        if param < self.min {
-            self.min = param;
-        }
-        if param > self.max {
-            self.max = param;
-        }
+        self.min = self.min.min(param);
+        self.max = self.max.max(param);
     }
 
     #[inline]
@@ -87,7 +83,7 @@ impl Ray {
     /// Creates ray from two points. May fail if begin == end.
     #[inline]
     pub fn from_two_points(begin: Vector3<f32>, end: Vector3<f32>) -> Self {
-        Ray {
+        Self {
             origin: begin,
             dir: end - begin,
         }

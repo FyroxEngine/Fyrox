@@ -71,73 +71,57 @@ pub struct AttributeDefinition {
 impl AttributeKind {
     pub fn size_bytes(self) -> usize {
         match self {
-            AttributeKind::Float => size_of::<f32>(),
-            AttributeKind::Float2 => size_of::<f32>() * 2,
-            AttributeKind::Float3 => size_of::<f32>() * 3,
-            AttributeKind::Float4 => size_of::<f32>() * 4,
+            Self::Float => size_of::<f32>(),
+            Self::Float2 => size_of::<f32>() * 2,
+            Self::Float3 => size_of::<f32>() * 3,
+            Self::Float4 => size_of::<f32>() * 4,
 
-            AttributeKind::UnsignedByte => size_of::<u8>(),
-            AttributeKind::UnsignedByte2 => size_of::<u8>() * 2,
-            AttributeKind::UnsignedByte3 => size_of::<u8>() * 3,
-            AttributeKind::UnsignedByte4 => size_of::<u8>() * 4,
+            Self::UnsignedByte => size_of::<u8>(),
+            Self::UnsignedByte2 => size_of::<u8>() * 2,
+            Self::UnsignedByte3 => size_of::<u8>() * 3,
+            Self::UnsignedByte4 => size_of::<u8>() * 4,
 
-            AttributeKind::UnsignedShort => size_of::<u16>(),
-            AttributeKind::UnsignedShort2 => size_of::<u16>() * 2,
-            AttributeKind::UnsignedShort3 => size_of::<u16>() * 3,
-            AttributeKind::UnsignedShort4 => size_of::<u16>() * 4,
+            Self::UnsignedShort => size_of::<u16>(),
+            Self::UnsignedShort2 => size_of::<u16>() * 2,
+            Self::UnsignedShort3 => size_of::<u16>() * 3,
+            Self::UnsignedShort4 => size_of::<u16>() * 4,
 
-            AttributeKind::UnsignedInt => size_of::<u32>(),
-            AttributeKind::UnsignedInt2 => size_of::<u32>() * 2,
-            AttributeKind::UnsignedInt3 => size_of::<u32>() * 3,
-            AttributeKind::UnsignedInt4 => size_of::<u32>() * 4,
+            Self::UnsignedInt => size_of::<u32>(),
+            Self::UnsignedInt2 => size_of::<u32>() * 2,
+            Self::UnsignedInt3 => size_of::<u32>() * 3,
+            Self::UnsignedInt4 => size_of::<u32>() * 4,
         }
     }
 
     fn get_type(self) -> u32 {
         match self {
-            AttributeKind::Float
-            | AttributeKind::Float2
-            | AttributeKind::Float3
-            | AttributeKind::Float4 => glow::FLOAT,
+            Self::Float | Self::Float2 | Self::Float3 | Self::Float4 => glow::FLOAT,
 
-            AttributeKind::UnsignedByte
-            | AttributeKind::UnsignedByte2
-            | AttributeKind::UnsignedByte3
-            | AttributeKind::UnsignedByte4 => glow::UNSIGNED_BYTE,
+            Self::UnsignedByte
+            | Self::UnsignedByte2
+            | Self::UnsignedByte3
+            | Self::UnsignedByte4 => glow::UNSIGNED_BYTE,
 
-            AttributeKind::UnsignedShort
-            | AttributeKind::UnsignedShort2
-            | AttributeKind::UnsignedShort3
-            | AttributeKind::UnsignedShort4 => glow::UNSIGNED_SHORT,
+            Self::UnsignedShort
+            | Self::UnsignedShort2
+            | Self::UnsignedShort3
+            | Self::UnsignedShort4 => glow::UNSIGNED_SHORT,
 
-            AttributeKind::UnsignedInt
-            | AttributeKind::UnsignedInt2
-            | AttributeKind::UnsignedInt3
-            | AttributeKind::UnsignedInt4 => glow::UNSIGNED_INT,
+            Self::UnsignedInt | Self::UnsignedInt2 | Self::UnsignedInt3 | Self::UnsignedInt4 => {
+                glow::UNSIGNED_INT
+            }
         }
     }
 
     fn length(self) -> usize {
         match self {
-            AttributeKind::Float
-            | AttributeKind::UnsignedByte
-            | AttributeKind::UnsignedShort
-            | AttributeKind::UnsignedInt => 1,
+            Self::Float | Self::UnsignedByte | Self::UnsignedShort | Self::UnsignedInt => 1,
 
-            AttributeKind::Float2
-            | AttributeKind::UnsignedByte2
-            | AttributeKind::UnsignedShort2
-            | AttributeKind::UnsignedInt2 => 2,
+            Self::Float2 | Self::UnsignedByte2 | Self::UnsignedShort2 | Self::UnsignedInt2 => 2,
 
-            AttributeKind::Float3
-            | AttributeKind::UnsignedByte3
-            | AttributeKind::UnsignedShort3
-            | AttributeKind::UnsignedInt3 => 3,
+            Self::Float3 | Self::UnsignedByte3 | Self::UnsignedShort3 | Self::UnsignedInt3 => 3,
 
-            AttributeKind::Float4
-            | AttributeKind::UnsignedByte4
-            | AttributeKind::UnsignedShort4
-            | AttributeKind::UnsignedInt4 => 4,
+            Self::Float4 | Self::UnsignedByte4 | Self::UnsignedShort4 | Self::UnsignedInt4 => 4,
         }
     }
 }
