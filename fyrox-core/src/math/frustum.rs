@@ -307,12 +307,7 @@ impl Frustum {
 
     #[inline]
     pub fn is_contains_point(&self, pt: Vector3<f32>) -> bool {
-        for plane in self.planes.iter() {
-            if plane.dot(&pt) <= 0.0 {
-                return false;
-            }
-        }
-        true
+        self.planes.iter().all(|plane| plane.dot(&pt) > 0.0)
     }
 
     #[inline]
