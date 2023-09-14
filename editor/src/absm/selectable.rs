@@ -13,7 +13,7 @@ pub enum SelectableMessage {
 }
 
 impl SelectableMessage {
-    define_constructor!(SelectableMessage:Select => fn select(bool), layout: false);
+    define_constructor!(Self:Select => fn select(bool), layout: false);
 }
 
 #[derive(Default, Clone, Debug, PartialEq, Eq)]

@@ -36,23 +36,23 @@ pub enum PopupMessage {
 impl PopupMessage {
     define_constructor!(
         /// Creates [`PopupMessage::Open`] message.
-        PopupMessage:Open => fn open(), layout: false
+        Self:Open => fn open(), layout: false
     );
     define_constructor!(
         /// Creates [`PopupMessage::Close`] message.
-        PopupMessage:Close => fn close(), layout: false
+        Self:Close => fn close(), layout: false
     );
     define_constructor!(
         /// Creates [`PopupMessage::Content`] message.
-        PopupMessage:Content => fn content(Handle<UiNode>), layout: false
+        Self:Content => fn content(Handle<UiNode>), layout: false
     );
     define_constructor!(
         /// Creates [`PopupMessage::Placement`] message.
-        PopupMessage:Placement => fn placement(Placement), layout: false
+        Self:Placement => fn placement(Placement), layout: false
     );
     define_constructor!(
         /// Creates [`PopupMessage::AdjustPosition`] message.
-        PopupMessage:AdjustPosition => fn adjust_position(), layout: true
+        Self:AdjustPosition => fn adjust_position(), layout: true
     );
 }
 

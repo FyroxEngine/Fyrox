@@ -63,7 +63,7 @@ pub enum BitFieldMessage<T: BitContainer> {
 }
 
 impl<T: BitContainer> BitFieldMessage<T> {
-    define_constructor!(BitFieldMessage:Value => fn value(T), layout: false);
+    define_constructor!(Self:Value => fn value(T), layout: false);
 }
 
 #[derive(Clone)]

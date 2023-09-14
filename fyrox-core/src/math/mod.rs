@@ -34,8 +34,8 @@ where
 {
     fn default() -> Self {
         Self {
-            position: Vector2::new(Zero::zero(), Zero::zero()),
-            size: Vector2::new(Zero::zero(), Zero::zero()),
+            position: Vector2::zeros(),
+            size: Vector2::zeros(),
         }
     }
 }

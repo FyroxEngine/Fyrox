@@ -28,7 +28,7 @@ pub enum UuidEditorMessage {
 impl UuidEditorMessage {
     define_constructor!(
         /// Creates [`UuidEditorMessage::Value`] message.
-        UuidEditorMessage:Value => fn value(Uuid), layout: false
+        Self:Value => fn value(Uuid), layout: false
     );
 }
 

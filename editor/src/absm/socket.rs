@@ -28,7 +28,7 @@ pub enum SocketMessage {
 }
 
 impl SocketMessage {
-    define_constructor!(SocketMessage:StartDragging => fn start_dragging(), layout: false);
+    define_constructor!(Self:StartDragging => fn start_dragging(), layout: false);
 }
 
 #[derive(Copy, Clone, PartialEq, Hash, Debug, Eq)]

@@ -37,7 +37,7 @@ pub enum TransitionMessage {
 }
 
 impl TransitionMessage {
-    define_constructor!(TransitionMessage:Activate => fn activate(), layout: false);
+    define_constructor!(Self:Activate => fn activate(), layout: false);
 }
 
 #[derive(Clone, Debug)]

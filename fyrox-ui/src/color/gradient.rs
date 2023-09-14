@@ -31,7 +31,7 @@ pub enum ColorGradientEditorMessage {
 }
 
 impl ColorGradientEditorMessage {
-    define_constructor!(ColorGradientEditorMessage:Value => fn value(ColorGradient), layout: false);
+    define_constructor!(Self:Value => fn value(ColorGradient), layout: false);
 }
 
 #[derive(Clone)]
@@ -464,7 +464,7 @@ pub enum ColorPointMessage {
 }
 
 impl ColorPointMessage {
-    define_constructor!(ColorPointMessage:Location => fn location(f32), layout: false);
+    define_constructor!(Self:Location => fn location(f32), layout: false);
 }
 
 #[derive(Clone)]

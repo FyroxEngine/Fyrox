@@ -83,8 +83,8 @@ pub enum CollectionEditorMessage {
 }
 
 impl CollectionEditorMessage {
-    define_constructor!(CollectionEditorMessage:Items => fn items(Vec<Item>), layout: false);
-    define_constructor!(CollectionEditorMessage:ItemChanged => fn item_changed(index: usize, message: UiMessage), layout: false);
+    define_constructor!(Self:Items => fn items(Vec<Item>), layout: false);
+    define_constructor!(Self:ItemChanged => fn item_changed(index: usize, message: UiMessage), layout: false);
 }
 
 impl<T: CollectionItem> Control for CollectionEditor<T> {

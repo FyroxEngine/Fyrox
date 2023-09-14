@@ -10,7 +10,7 @@ pub struct Plane {
 impl Default for Plane {
     #[inline]
     fn default() -> Self {
-        Plane {
+        Self {
             normal: Vector3::y(),
             d: 0.0,
         }

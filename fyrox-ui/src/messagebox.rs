@@ -43,11 +43,11 @@ pub enum MessageBoxMessage {
 impl MessageBoxMessage {
     define_constructor!(
         /// Creates [`MessageBoxMessage::Open`] message.
-        MessageBoxMessage:Open => fn open(title: Option<String>, text: Option<String>), layout: false
+        Self:Open => fn open(title: Option<String>, text: Option<String>), layout: false
     );
     define_constructor!(
         /// Creates [`MessageBoxMessage::Close`] message.
-        MessageBoxMessage:Close => fn close(MessageBoxResult), layout: false
+        Self:Close => fn close(MessageBoxResult), layout: false
     );
 }
 

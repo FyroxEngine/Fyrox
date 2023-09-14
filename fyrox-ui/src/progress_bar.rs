@@ -28,7 +28,7 @@ pub enum ProgressBarMessage {
 impl ProgressBarMessage {
     define_constructor!(
         /// Creates [`ProgressBarMessage::Progress`].
-        ProgressBarMessage:Progress => fn progress(f32), layout: false
+        Self:Progress => fn progress(f32), layout: false
     );
 }
 

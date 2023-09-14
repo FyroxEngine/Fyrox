@@ -31,7 +31,7 @@ where
 impl<T: NumericType> RangeEditorMessage<T> {
     define_constructor!(
         /// Creates [`RangeEditorMessage::Value`] message.
-        RangeEditorMessage:Value => fn value(Range<T>), layout: false
+        Self:Value => fn value(Range<T>), layout: false
     );
 }
 

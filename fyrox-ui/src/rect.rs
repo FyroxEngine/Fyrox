@@ -33,7 +33,7 @@ where
 impl<T: NumericType> RectEditorMessage<T> {
     define_constructor!(
         /// Creates [`RectEditorMessage::Value`] message.
-        RectEditorMessage:Value => fn value(Rect<T>), layout: false
+        Self:Value => fn value(Rect<T>), layout: false
     );
 }
 

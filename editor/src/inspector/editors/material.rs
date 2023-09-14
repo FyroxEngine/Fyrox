@@ -34,7 +34,7 @@ pub enum MaterialFieldMessage {
 }
 
 impl MaterialFieldMessage {
-    define_constructor!(MaterialFieldMessage:Material => fn material(SharedMaterial), layout: false);
+    define_constructor!(Self:Material => fn material(SharedMaterial), layout: false);
 }
 
 #[derive(Clone)]

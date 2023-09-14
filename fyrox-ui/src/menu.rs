@@ -52,7 +52,7 @@ impl MenuMessage {
 /// A set of messages that can be used to manipulate a [`MenuItem`] widget at runtime.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MenuItemMessage {
-    /// Opens the menu item's popup with inner items.  
+    /// Opens the menu item's popup with inner items.
     Open,
     /// Closes the menu item's popup with inner items.
     Close,
@@ -69,27 +69,27 @@ pub enum MenuItemMessage {
 impl MenuItemMessage {
     define_constructor!(
         /// Creates [`MenuItemMessage::Open`] message.
-        MenuItemMessage:Open => fn open(), layout: false
+        Self:Open => fn open(), layout: false
     );
     define_constructor!(
           /// Creates [`MenuItemMessage::Close`] message.
-        MenuItemMessage:Close => fn close(), layout: false
+          Self:Close => fn close(), layout: false
     );
     define_constructor!(
           /// Creates [`MenuItemMessage::Click`] message.
-        MenuItemMessage:Click => fn click(), layout: false
+          Self:Click => fn click(), layout: false
     );
     define_constructor!(
           /// Creates [`MenuItemMessage::AddItem`] message.
-        MenuItemMessage:AddItem => fn add_item(Handle<UiNode>), layout: false
+          Self:AddItem => fn add_item(Handle<UiNode>), layout: false
     );
     define_constructor!(
           /// Creates [`MenuItemMessage::RemoveItem`] message.
-        MenuItemMessage:RemoveItem => fn remove_item(Handle<UiNode>), layout: false
+          Self:RemoveItem => fn remove_item(Handle<UiNode>), layout: false
     );
     define_constructor!(
           /// Creates [`MenuItemMessage::Items`] message.
-        MenuItemMessage:Items => fn items(Vec<Handle<UiNode>>), layout: false
+          Self:Items => fn items(Vec<Handle<UiNode>>), layout: false
     );
 }
 
