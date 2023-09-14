@@ -1606,8 +1606,8 @@ pub enum BrushShape {
 impl BrushShape {
     fn contains(&self, brush_center: Vector2<f32>, pixel_position: Vector2<f32>) -> bool {
         match *self {
-            BrushShape::Circle { radius } => (brush_center - pixel_position).norm() < radius,
-            BrushShape::Rectangle { width, length } => Rect::new(
+            Self::Circle { radius } => (brush_center - pixel_position).norm() < radius,
+            Self::Rectangle { width, length } => Rect::new(
                 brush_center.x - width * 0.5,
                 brush_center.y - length * 0.5,
                 width,

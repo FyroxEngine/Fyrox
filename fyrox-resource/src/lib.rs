@@ -257,11 +257,7 @@ where
     T: ResourceData + TypeUuidProvider,
 {
     fn eq(&self, other: &Self) -> bool {
-        match (&self.state, &other.state) {
-            (Some(a), Some(b)) => a == b,
-            (None, None) => true,
-            _ => false,
-        }
+        self.state == other.state
     }
 }
 

@@ -40,7 +40,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 pub struct PerspectiveProjection {
     /// Vertical angle at the top of viewing frustum, in radians. Larger values will increase field
     /// of view and create fish-eye effect, smaller values could be used to create "binocular" effect
-    /// or scope effect.  
+    /// or scope effect.
     #[reflect(min_value = 0.0, max_value = 6.28, step = 0.1)]
     pub fov: f32,
     /// Location of the near clipping plane. If it is larger than [`Self::z_far`] then it will be
@@ -158,7 +158,7 @@ impl OrthographicProjection {
 /// 1) Perspective projection most useful for 3D games, it makes a scene to look most natural,
 /// objects will look smaller with increasing distance.
 /// 2) Orthographic projection most useful for 2D games, objects won't look smaller with increasing
-/// distance.  
+/// distance.
 #[derive(Reflect, Clone, Debug, PartialEq, Visit, AsRefStr, EnumString, EnumVariantNames)]
 pub enum Projection {
     /// See [`PerspectiveProjection`] docs.
@@ -173,8 +173,8 @@ impl Projection {
     #[must_use]
     pub fn with_z_near(mut self, z_near: f32) -> Self {
         match self {
-            Projection::Perspective(ref mut v) => v.z_near = z_near,
-            Projection::Orthographic(ref mut v) => v.z_near = z_near,
+            Self::Perspective(ref mut v) => v.z_near = z_near,
+            Self::Orthographic(ref mut v) => v.z_near = z_near,
         }
         self
     }
@@ -184,8 +184,8 @@ impl Projection {
     #[must_use]
     pub fn with_z_far(mut self, z_far: f32) -> Self {
         match self {
-            Projection::Perspective(ref mut v) => v.z_far = z_far,
-            Projection::Orthographic(ref mut v) => v.z_far = z_far,
+            Self::Perspective(ref mut v) => v.z_far = z_far,
+            Self::Orthographic(ref mut v) => v.z_far = z_far,
         }
         self
     }
@@ -194,8 +194,8 @@ impl Projection {
     #[inline]
     pub fn set_z_near(&mut self, z_near: f32) {
         match self {
-            Projection::Perspective(v) => v.z_near = z_near,
-            Projection::Orthographic(v) => v.z_near = z_near,
+            Self::Perspective(v) => v.z_near = z_near,
+            Self::Orthographic(v) => v.z_near = z_near,
         }
     }
 
@@ -203,8 +203,8 @@ impl Projection {
     #[inline]
     pub fn set_z_far(&mut self, z_far: f32) {
         match self {
-            Projection::Perspective(v) => v.z_far = z_far,
-            Projection::Orthographic(v) => v.z_far = z_far,
+            Self::Perspective(v) => v.z_far = z_far,
+            Self::Orthographic(v) => v.z_far = z_far,
         }
     }
 
@@ -212,8 +212,8 @@ impl Projection {
     #[inline]
     pub fn z_near(&self) -> f32 {
         match self {
-            Projection::Perspective(v) => v.z_near,
-            Projection::Orthographic(v) => v.z_near,
+            Self::Perspective(v) => v.z_near,
+            Self::Orthographic(v) => v.z_near,
         }
     }
 
@@ -221,8 +221,8 @@ impl Projection {
     #[inline]
     pub fn z_far(&self) -> f32 {
         match self {
-            Projection::Perspective(v) => v.z_far,
-            Projection::Orthographic(v) => v.z_far,
+            Self::Perspective(v) => v.z_far,
+            Self::Orthographic(v) => v.z_far,
         }
     }
 
@@ -230,8 +230,8 @@ impl Projection {
     #[inline]
     pub fn matrix(&self, frame_size: Vector2<f32>) -> Matrix4<f32> {
         match self {
-            Projection::Perspective(v) => v.matrix(frame_size),
-            Projection::Orthographic(v) => v.matrix(frame_size),
+            Self::Perspective(v) => v.matrix(frame_size),
+            Self::Orthographic(v) => v.matrix(frame_size),
         }
     }
 }
@@ -729,21 +729,21 @@ pub enum ColorGradingLutCreationError {
 impl Display for ColorGradingLutCreationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ColorGradingLutCreationError::NotEnoughData { required, current } => {
+            Self::NotEnoughData { required, current } => {
                 write!(
                     f,
                     "There is not enough data in provided \
                 texture to build LUT. Required: {required}, current: {current}.",
                 )
             }
-            ColorGradingLutCreationError::InvalidPixelFormat(v) => {
+            Self::InvalidPixelFormat(v) => {
                 write!(
                     f,
                     "Pixel format is not supported. It must be either RGB8 \
                 or RGBA8, but texture has {v:?} pixel format"
                 )
             }
-            ColorGradingLutCreationError::Texture(v) => {
+            Self::Texture(v) => {
                 write!(f, "Texture load error: {v:?}")
             }
         }

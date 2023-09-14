@@ -55,9 +55,9 @@ impl VertexAttributeDataType {
     /// Returns size of data in bytes.
     pub fn size(self) -> u8 {
         match self {
-            VertexAttributeDataType::F32 | VertexAttributeDataType::U32 => 4,
-            VertexAttributeDataType::U16 => 2,
-            VertexAttributeDataType::U8 => 1,
+            Self::F32 | Self::U32 => 4,
+            Self::U16 => 2,
+            Self::U8 => 1,
         }
     }
 }
@@ -291,7 +291,7 @@ impl Deref for BytesStorage {
 ///         ],
 ///     )
 ///     .unwrap()
-/// }  
+/// }
 /// ```
 ///
 /// This example creates a simple vertex buffer that contains a single triangle with custom vertex format. The most important
@@ -583,19 +583,19 @@ pub enum ValidationError {
 impl Display for ValidationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ValidationError::InvalidAttributeSize(v) => {
+            Self::InvalidAttributeSize(v) => {
                 write!(f, "Invalid attribute size {v}. Must be either 1, 2, 3 or 4")
             }
-            ValidationError::InvalidDataSize { expected, actual } => {
+            Self::InvalidDataSize { expected, actual } => {
                 write!(f, "Invalid data size. Expected {expected}, got {actual}.")
             }
-            ValidationError::InvalidVertexSize { expected, actual } => {
+            Self::InvalidVertexSize { expected, actual } => {
                 write!(f, "Invalid vertex size. Expected {expected}, got {actual}.",)
             }
-            ValidationError::DuplicatedAttributeDescriptor => {
+            Self::DuplicatedAttributeDescriptor => {
                 write!(f, "A duplicate of a descriptor was found.")
             }
-            ValidationError::ConflictingShaderLocations(v) => {
+            Self::ConflictingShaderLocations(v) => {
                 write!(f, "Duplicate shader locations were found {v}.")
             }
         }
@@ -930,10 +930,10 @@ impl std::error::Error for VertexFetchError {}
 impl Display for VertexFetchError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            VertexFetchError::NoSuchAttribute(v) => {
+            Self::NoSuchAttribute(v) => {
                 write!(f, "No attribute with such usage: {v:?}")
             }
-            VertexFetchError::Io(v) => {
+            Self::Io(v) => {
                 write!(f, "An i/o error has occurred {v:?}")
             }
         }
