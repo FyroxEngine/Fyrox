@@ -208,6 +208,7 @@ pub mod messagebox;
 pub mod nine_patch;
 mod node;
 pub mod numeric;
+pub mod path;
 pub mod popup;
 pub mod progress_bar;
 pub mod range;
