@@ -520,7 +520,7 @@ mod test {
     fn test_remove_vertex() {
         let mut pathfinder = PathFinder::new();
 
-        pathfinder.add_vertex(PathVertex::new(Vector3::new(0.0, 0.0, 0.0)));
+        pathfinder.add_vertex(PathVertex::new(Vector3::zeros()));
         pathfinder.add_vertex(PathVertex::new(Vector3::new(1.0, 0.0, 0.0)));
         pathfinder.add_vertex(PathVertex::new(Vector3::new(1.0, 1.0, 0.0)));
 
@@ -545,7 +545,7 @@ mod test {
     fn test_insert_vertex() {
         let mut pathfinder = PathFinder::new();
 
-        pathfinder.add_vertex(PathVertex::new(Vector3::new(0.0, 0.0, 0.0)));
+        pathfinder.add_vertex(PathVertex::new(Vector3::zeros()));
         pathfinder.add_vertex(PathVertex::new(Vector3::new(1.0, 0.0, 0.0)));
         pathfinder.add_vertex(PathVertex::new(Vector3::new(1.0, 1.0, 0.0)));
 

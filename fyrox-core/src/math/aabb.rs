@@ -29,8 +29,8 @@ impl AxisAlignedBoundingBox {
     #[inline]
     pub const fn collapsed() -> Self {
         Self {
-            min: Vector3::new(0.0, 0.0, 0.0),
-            max: Vector3::new(0.0, 0.0, 0.0),
+            min: Vector3::zeros(),
+            max: Vector3::zeros(),
         }
     }
 
@@ -311,7 +311,7 @@ mod test {
     #[test]
     fn test_aabb_transform() {
         let aabb = AxisAlignedBoundingBox {
-            min: Vector3::new(0.0, 0.0, 0.0),
+            min: Vector3::zeros(),
             max: Vector3::new(1.0, 1.0, 1.0),
         };
 
@@ -341,8 +341,8 @@ mod test {
     #[test]
     fn test_aabb_collapsed() {
         let _box = AxisAlignedBoundingBox::collapsed();
-        assert_eq!(_box.min, Vector3::new(0.0, 0.0, 0.0));
-        assert_eq!(_box.max, Vector3::new(0.0, 0.0, 0.0));
+        assert_eq!(_box.min, Vector3::zeros());
+        assert_eq!(_box.max, Vector3::zeros());
     }
 
     #[test]
@@ -354,9 +354,9 @@ mod test {
 
     #[test]
     fn test_aabb_from_point() {
-        let _box = AxisAlignedBoundingBox::from_point(Vector3::new(0.0, 0.0, 0.0));
-        assert_eq!(_box.min, Vector3::new(0.0, 0.0, 0.0));
-        assert_eq!(_box.max, Vector3::new(0.0, 0.0, 0.0));
+        let _box = AxisAlignedBoundingBox::from_point(Vector3::zeros());
+        assert_eq!(_box.min, Vector3::zeros());
+        assert_eq!(_box.max, Vector3::zeros());
     }
 
     #[test]
@@ -364,7 +364,7 @@ mod test {
         let _box = AxisAlignedBoundingBox::from_points(
             vec![
                 Vector3::new(-1.0, -1.0, -1.0),
-                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::zeros(),
                 Vector3::new(1.0, 1.0, 1.0),
             ]
             .as_ref(),
@@ -416,7 +416,7 @@ mod test {
             ]
         );
         assert_eq!(_box.volume(), 8.0);
-        assert_eq!(_box.center(), Vector3::new(0.0, 0.0, 0.0));
+        assert_eq!(_box.center(), Vector3::zeros());
         assert_eq!(_box.half_extents(), Vector3::new(1.0, 1.0, 1.0));
     }
 
@@ -469,7 +469,7 @@ mod test {
     #[test]
     fn test_aabb_is_contains_point() {
         let _box = AxisAlignedBoundingBox::unit();
-        assert!(_box.is_contains_point(Vector3::new(0.0, 0.0, 0.0)));
+        assert!(_box.is_contains_point(Vector3::zeros()));
 
         for point in _box.corners() {
             assert!(_box.is_contains_point(point));
@@ -479,9 +479,9 @@ mod test {
     #[test]
     fn test_aabb_is_intersects_sphere() {
         let _box = AxisAlignedBoundingBox::unit();
-        assert!(_box.is_intersects_sphere(Vector3::new(0.0, 0.0, 0.0), 1.0));
-        assert!(_box.is_intersects_sphere(Vector3::new(0.0, 0.0, 0.0), 0.5));
-        assert!(_box.is_intersects_sphere(Vector3::new(0.0, 0.0, 0.0), 1.5));
+        assert!(_box.is_intersects_sphere(Vector3::zeros(), 1.0));
+        assert!(_box.is_intersects_sphere(Vector3::zeros(), 0.5));
+        assert!(_box.is_intersects_sphere(Vector3::zeros(), 1.5));
         assert!(_box.is_intersects_sphere(Vector3::new(0.5, 0.5, 0.5), 1.0));
         assert!(_box.is_intersects_sphere(Vector3::new(0.25, 0.25, 0.25), 1.0));
 
@@ -519,7 +519,7 @@ mod test {
         let _boxes = _box.split();
 
         assert_eq!(_boxes[0].min, Vector3::new(-1.0, -1.0, -1.0));
-        assert_eq!(_boxes[0].max, Vector3::new(0.0, 0.0, 0.0));
+        assert_eq!(_boxes[0].max, Vector3::zeros());
 
         assert_eq!(_boxes[1].min, Vector3::new(0.0, -1.0, -1.0));
         assert_eq!(_boxes[1].max, Vector3::new(1.0, 0.0, 0.0));
@@ -539,7 +539,7 @@ mod test {
         assert_eq!(_boxes[6].min, Vector3::new(-1.0, 0.0, 0.0));
         assert_eq!(_boxes[6].max, Vector3::new(0.0, 1.0, 1.0));
 
-        assert_eq!(_boxes[7].min, Vector3::new(0.0, 0.0, 0.0));
+        assert_eq!(_boxes[7].min, Vector3::zeros());
         assert_eq!(_boxes[7].max, Vector3::new(1.0, 1.0, 1.0));
     }
 }

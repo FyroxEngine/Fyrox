@@ -180,7 +180,7 @@ mod test {
     #[test]
     fn triangle_triangulation() {
         let polygon = vec![
-            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::zeros(),
             Vector3::new(1.0, 0.0, 0.0),
             Vector3::new(0.0, 1.0, 0.0),
         ];

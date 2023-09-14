@@ -241,7 +241,7 @@ mod test {
     fn get_six_triangles() -> [[Vector3<f32>; 3]; 6] {
         [
             [
-                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::zeros(),
                 Vector3::new(1.0, 0.0, 0.0),
                 Vector3::new(0.0, 1.0, 0.0),
             ],
@@ -292,7 +292,7 @@ mod test {
     fn octree_point_query() {
         let tree = Octree::new(&get_six_triangles(), 5);
         let mut buffer = Vec::new();
-        tree.point_query(Vector3::new(0.0, 0.0, 0.0), &mut buffer);
+        tree.point_query(Vector3::zeros(), &mut buffer);
 
         assert_eq!(buffer, [0, 1, 2, 3, 0, 1, 2, 3]);
     }
@@ -301,7 +301,7 @@ mod test {
     fn octree_sphere_query() {
         let tree = Octree::new(&get_six_triangles(), 5);
         let mut buffer = Vec::new();
-        tree.sphere_query(Vector3::new(0.0, 0.0, 0.0), 1.0, &mut buffer);
+        tree.sphere_query(Vector3::zeros(), 1.0, &mut buffer);
 
         assert_eq!(
             buffer,
@@ -320,7 +320,7 @@ mod test {
         let mut buffer = Vec::new();
         tree.aabb_query(
             &AxisAlignedBoundingBox {
-                min: Vector3::new(0.0, 0.0, 0.0),
+                min: Vector3::zeros(),
                 max: Vector3::new(0.5, 0.5, 0.5),
             },
             &mut buffer,
@@ -340,7 +340,7 @@ mod test {
         let tree = Octree::new(&get_six_triangles(), 5);
         let mut buffer = Vec::new();
         tree.ray_query(
-            &Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 0.0)),
+            &Ray::new(Vector3::zeros(), Vector3::new(1.0, 1.0, 0.0)),
             &mut buffer,
         );
 
@@ -359,7 +359,7 @@ mod test {
         let tree = Octree::new(&get_six_triangles(), 5);
         let mut buffer = ArrayVec::<Handle<OctreeNode>, CAP>::new();
         tree.ray_query_static::<CAP>(
-            &Ray::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 0.0)),
+            &Ray::new(Vector3::zeros(), Vector3::new(1.0, 1.0, 0.0)),
             &mut buffer,
         );
 

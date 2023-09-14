@@ -151,7 +151,7 @@ impl Visit for ParticleSystemRng {
 ///         .with_local_transform(TransformBuilder::new()
 ///             .with_local_position(pos)
 ///             .build()))
-///         .with_acceleration(Vector3::new(0.0, 0.0, 0.0))
+///         .with_acceleration(Vector3::zeros())
 ///         .with_color_over_lifetime_gradient({
 ///             let mut gradient = ColorGradient::new();
 ///             gradient.add_point(GradientPoint::new(0.00, Color::from_rgba(150, 150, 150, 0)));

@@ -90,10 +90,7 @@ mod test {
         assert_eq!(plane.d, -3.0);
 
         // Degenerated normal case
-        let plane = Plane::from_normal_and_point(
-            &Vector3::new(0.0, 0.0, 0.0),
-            &Vector3::new(0.0, 0.0, 0.0),
-        );
+        let plane = Plane::from_normal_and_point(&Vector3::zeros(), &Vector3::zeros());
         assert!(plane.is_none());
 
         let plane = Plane::from_abcd(0.0, 0.0, 0.0, 0.0);
@@ -125,22 +122,16 @@ mod test {
 
     #[test]
     fn test_plane_dot() {
-        let plane = Plane::from_normal_and_point(
-            &Vector3::new(0.0, 0.0, 1.0),
-            &Vector3::new(0.0, 0.0, 0.0),
-        );
+        let plane = Plane::from_normal_and_point(&Vector3::new(0.0, 0.0, 1.0), &Vector3::zeros());
         assert!(plane.is_some());
         assert_eq!(plane.unwrap().dot(&Vector3::new(1.0, 1.0, 1.0)), 1.0);
     }
 
     #[test]
     fn test_plane_distance() {
-        let plane = Plane::from_normal_and_point(
-            &Vector3::new(0.0, 0.0, 1.0),
-            &Vector3::new(0.0, 0.0, 0.0),
-        );
+        let plane = Plane::from_normal_and_point(&Vector3::new(0.0, 0.0, 1.0), &Vector3::zeros());
         assert!(plane.is_some());
-        assert_eq!(plane.unwrap().distance(&Vector3::new(0.0, 0.0, 0.0)), 0.0);
+        assert_eq!(plane.unwrap().distance(&Vector3::zeros()), 0.0);
         assert_eq!(plane.unwrap().distance(&Vector3::new(1.0, 0.0, 0.0)), 0.0);
         assert_eq!(plane.unwrap().distance(&Vector3::new(0.0, 1.0, 0.0)), 0.0);
         assert_eq!(plane.unwrap().distance(&Vector3::new(0.0, 0.0, 1.0)), 1.0);
@@ -148,18 +139,9 @@ mod test {
 
     #[test]
     fn test_plane_intersection_point() {
-        let plane = Plane::from_normal_and_point(
-            &Vector3::new(0.0, 0.0, 1.0),
-            &Vector3::new(0.0, 0.0, 0.0),
-        );
-        let plane2 = Plane::from_normal_and_point(
-            &Vector3::new(0.0, 1.0, 0.0),
-            &Vector3::new(0.0, 0.0, 0.0),
-        );
-        let plane3 = Plane::from_normal_and_point(
-            &Vector3::new(1.0, 0.0, 0.0),
-            &Vector3::new(0.0, 0.0, 0.0),
-        );
+        let plane = Plane::from_normal_and_point(&Vector3::new(0.0, 0.0, 1.0), &Vector3::zeros());
+        let plane2 = Plane::from_normal_and_point(&Vector3::new(0.0, 1.0, 0.0), &Vector3::zeros());
+        let plane3 = Plane::from_normal_and_point(&Vector3::new(1.0, 0.0, 0.0), &Vector3::zeros());
         assert!(plane.is_some());
         assert!(plane2.is_some());
         assert!(plane3.is_some());
@@ -168,7 +150,7 @@ mod test {
             plane
                 .unwrap()
                 .intersection_point(&plane2.unwrap(), &plane3.unwrap()),
-            Vector3::new(0.0, 0.0, 0.0)
+            Vector3::zeros()
         );
     }
 }

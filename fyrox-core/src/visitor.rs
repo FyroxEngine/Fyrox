@@ -2104,11 +2104,11 @@ mod test {
         );
 
         assert_eq!(
-            FieldKind::Vector3F32(Vector3::new(0.0, 0.0, 0.0)).as_string(),
+            FieldKind::Vector3F32(Vector3::zeros()).as_string(),
             "<vec3f32 = 0; 0; 0>, ".to_string()
         );
         assert_eq!(
-            FieldKind::Vector3F64(Vector3::new(0.0, 0.0, 0.0)).as_string(),
+            FieldKind::Vector3F64(Vector3::zeros()).as_string(),
             "<vec3f64 = 0; 0; 0>, ".to_string()
         );
         assert_eq!(

@@ -465,7 +465,7 @@ mod test {
         assert_eq!(f.near_plane_center(), Vector3::new(0.0, 0.0, 1.0));
         assert_eq!(f.far_plane_center(), Vector3::new(0.0, 0.0, -1.0));
         assert_eq!(f.view_direction(), Vector3::new(0.0, 0.0, -2.0));
-        assert_eq!(f.center(), Vector3::new(0.0, 0.0, 0.0));
+        assert_eq!(f.center(), Vector3::zeros());
     }
 
     #[test]
@@ -478,10 +478,7 @@ mod test {
         ))
         .unwrap();
 
-        assert!(f.is_intersects_point_cloud(&[
-            Vector3::new(0.0, 0.0, 0.0),
-            Vector3::new(1.0, 1.0, 1.0),
-        ]));
+        assert!(f.is_intersects_point_cloud(&[Vector3::zeros(), Vector3::new(1.0, 1.0, 1.0),]));
         assert!(!f.is_intersects_point_cloud(&[Vector3::new(-1.0, -2.0, 1.0)]));
     }
 
@@ -532,7 +529,7 @@ mod test {
         ))
         .unwrap();
 
-        assert!(f.is_contains_point(Vector3::new(0.0, 0.0, 0.0)));
+        assert!(f.is_contains_point(Vector3::zeros()));
         assert!(!f.is_contains_point(Vector3::new(10.0, 10.0, 10.0)));
     }
 
@@ -546,8 +543,8 @@ mod test {
         ))
         .unwrap();
 
-        assert!(f.is_intersects_sphere(Vector3::new(0.0, 0.0, 0.0), 1.0));
-        assert!(f.is_intersects_sphere(Vector3::new(0.0, 0.0, 0.0), 2.0));
+        assert!(f.is_intersects_sphere(Vector3::zeros(), 1.0));
+        assert!(f.is_intersects_sphere(Vector3::zeros(), 2.0));
         assert!(!f.is_intersects_sphere(Vector3::new(10.0, 10.0, 10.0), 1.0));
     }
 

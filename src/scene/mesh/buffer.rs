@@ -280,7 +280,7 @@ impl Deref for BytesStorage {
 ///         3,
 ///         vec![
 ///             MyVertex {
-///                 position: Vector3::new(0.0, 0.0, 0.0),
+///                 position: Vector3::zeros(),
 ///             },
 ///             MyVertex {
 ///                 position: Vector3::new(0.0, 1.0, 0.0),

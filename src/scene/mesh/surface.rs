@@ -597,7 +597,7 @@ impl SurfaceData {
             let t_cap_y_next = t_cap_y_next * 0.5 + 0.5;
 
             builder.insert(StaticVertex::from_pos_uv_normal(
-                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::zeros(),
                 Vector2::new(0.5, 0.5),
                 Vector3::new(0.0, -1.0, 0.0),
             ));
@@ -765,7 +765,7 @@ impl SurfaceData {
                     Vector3::new(0.0, -1.0, 0.0),
                 ));
                 builder.insert(StaticVertex::from_pos_uv_normal(
-                    Vector3::new(0.0, 0.0, 0.0),
+                    Vector3::zeros(),
                     Vector2::new(0.5, 0.5),
                     Vector3::new(0.0, -1.0, 0.0),
                 ));
@@ -1184,7 +1184,7 @@ impl SurfaceSharedData {
 ///         3,
 ///         vec![
 ///             StaticVertex {
-///                 position: Vector3::new(0.0, 0.0, 0.0),
+///                 position: Vector3::zeros(),
 ///                 tex_coord: Vector2::zeros(),
 ///                 normal: Vector3::new(0.0, 0.0, 1.0),
 ///                 tangent: Vector4::new(1.0, 0.0, 0.0, 1.0),

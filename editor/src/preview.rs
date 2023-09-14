@@ -112,7 +112,7 @@ impl PreviewPanel {
 
         // Y Axis
         scene.drawing_context.add_line(Line {
-            begin: Vector3::new(0.0, 0.0, 0.0),
+            begin: Vector3::zeros(),
             end: Vector3::new(0.0, 2.0, 0.0),
             color: Color::GREEN,
         });
