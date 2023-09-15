@@ -219,7 +219,7 @@ impl Command for DeleteNavmeshVertexCommand {
 
                 for triangle in navmesh.triangles() {
                     if triangle.indices().contains(&(vertex as u32)) {
-                        triangles.push(triangle.clone());
+                        triangles.push(*triangle);
                     }
                 }
 

@@ -77,7 +77,7 @@ fn face_vs_face(
     patch: &mut SurfaceDataPatch,
 ) {
     for other_triangle_index in other_face_triangles.iter() {
-        let other_triangle = geometry_buffer_mut[*other_triangle_index].clone();
+        let other_triangle = geometry_buffer_mut[*other_triangle_index];
         for triangle_index in face_triangles.iter() {
             'outer_loop: for vertex_index in geometry_buffer_mut[*triangle_index].indices_mut() {
                 for &other_vertex_index in other_triangle.indices() {

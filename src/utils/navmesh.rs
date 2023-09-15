@@ -396,7 +396,7 @@ impl Navmesh {
         for node in buffer.into_iter() {
             if let OctreeNode::Leaf { indices, .. } = self.octree.node(node) {
                 for &index in indices {
-                    let triangle = self.triangles[index as usize].clone();
+                    let triangle = self.triangles[index as usize];
                     let a = self.pathfinder.vertices()[triangle[0] as usize].position;
                     let b = self.pathfinder.vertices()[triangle[1] as usize].position;
                     let c = self.pathfinder.vertices()[triangle[2] as usize].position;
