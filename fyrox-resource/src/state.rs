@@ -320,3 +320,204 @@ impl ResourceState {
         })
     }
 }
+
+#[cfg(test)]
+mod test {
+
+    use fyrox_core::{
+        reflect::{FieldInfo, Reflect},
+        TypeUuidProvider,
+    };
+
+    use super::*;
+
+    #[derive(Debug, Default, Reflect, Visit)]
+    struct Stub {}
+
+    impl ResourceData for Stub {
+        fn path(&self) -> std::borrow::Cow<std::path::Path> {
+            std::borrow::Cow::Borrowed(Path::new(""))
+        }
+
+        fn set_path(&mut self, _path: std::path::PathBuf) {
+            unimplemented!()
+        }
+
+        fn as_any(&self) -> &dyn std::any::Any {
+            unimplemented!()
+        }
+
+        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+            unimplemented!()
+        }
+
+        fn type_uuid(&self) -> Uuid {
+            Uuid::default()
+        }
+    }
+
+    impl TypeUuidProvider for Stub {
+        fn type_uuid() -> Uuid {
+            Uuid::default()
+        }
+    }
+
+    #[test]
+    fn resource_state_new_pending() {
+        let path = PathBuf::from("foo.txt");
+        let type_uuid = Uuid::default();
+        let state = ResourceState::new_pending(path.clone(), type_uuid.clone());
+
+        assert!(matches!(
+            state,
+            ResourceState::Pending {
+                path: _,
+                wakers: _,
+                type_uuid: _
+            }
+        ));
+        assert_eq!(state.path(), path);
+        assert_eq!(state.type_uuid(), type_uuid);
+        assert_eq!(state.id(), 0);
+        assert!(state.is_loading());
+    }
+
+    #[test]
+    fn resource_state_new_load_error() {
+        let path = PathBuf::from("foo.txt");
+        let type_uuid = Uuid::default();
+        let state = ResourceState::new_load_error(path.clone(), None, type_uuid.clone());
+
+        assert!(matches!(
+            state,
+            ResourceState::LoadError {
+                path: _,
+                error: _,
+                type_uuid: _
+            }
+        ));
+        assert_eq!(state.path(), path);
+        assert_eq!(state.type_uuid(), type_uuid);
+        assert_eq!(state.id(), 1);
+        assert!(!state.is_loading());
+    }
+
+    #[test]
+    fn resource_state_new_ok() {
+        let state = ResourceState::new_ok(Stub {});
+
+        assert!(matches!(state, ResourceState::Ok(_)));
+        assert_eq!(state.path(), Path::new(""));
+        assert_eq!(state.type_uuid(), Uuid::default());
+        assert_eq!(state.id(), 2);
+        assert!(!state.is_loading());
+    }
+
+    #[test]
+    fn resource_state_switch_to_pending_state() {
+        // from Ok
+        let mut state = ResourceState::new_ok(Stub {});
+        state.switch_to_pending_state();
+
+        assert!(matches!(
+            state,
+            ResourceState::Pending {
+                path: _,
+                wakers: _,
+                type_uuid: _
+            }
+        ));
+        assert_eq!(state.path(), Path::new(""));
+        assert_eq!(state.type_uuid(), Uuid::default());
+
+        // from LoadError
+        let path = PathBuf::from("foo.txt");
+        let type_uuid = Uuid::default();
+        let mut state = ResourceState::new_load_error(path.clone(), None, type_uuid.clone());
+        state.switch_to_pending_state();
+
+        assert!(matches!(
+            state,
+            ResourceState::Pending {
+                path: _,
+                wakers: _,
+                type_uuid: _
+            }
+        ));
+        assert_eq!(state.path(), path);
+        assert_eq!(state.type_uuid(), type_uuid);
+
+        // from Pending
+        let path = PathBuf::from("foo.txt");
+        let type_uuid = Uuid::default();
+        let mut state = ResourceState::new_pending(path.clone(), type_uuid.clone());
+        state.switch_to_pending_state();
+
+        assert!(matches!(
+            state,
+            ResourceState::Pending {
+                path: _,
+                wakers: _,
+                type_uuid: _
+            }
+        ));
+        assert_eq!(state.path(), path);
+        assert_eq!(state.type_uuid(), type_uuid);
+    }
+
+    #[test]
+    fn visit_for_resource_state() {
+        // Visit Pending
+        let mut state = ResourceState::new_pending(PathBuf::from("foo.txt"), Uuid::default());
+        let mut visitor = Visitor::default();
+
+        assert!(state.visit("name", &mut visitor).is_ok());
+
+        // Visit LoadError
+        let mut state =
+            ResourceState::new_load_error(PathBuf::from("foo.txt"), None, Uuid::default());
+        let mut visitor = Visitor::default();
+
+        assert!(state.visit("name", &mut visitor).is_ok());
+
+        // Visit Ok
+        let mut state = ResourceState::new_ok(Stub {});
+        let mut visitor = Visitor::default();
+
+        assert!(state.visit("name", &mut visitor).is_ok());
+    }
+
+    #[test]
+    fn stub_path() {
+        let s = Stub {};
+        assert_eq!(s.path(), std::borrow::Cow::Borrowed(Path::new("")));
+    }
+
+    #[test]
+    #[should_panic]
+    fn stub_set_path() {
+        let mut s = Stub {};
+        s.set_path(PathBuf::new());
+    }
+
+    #[test]
+    #[should_panic]
+    fn stub_set_as_any() {
+        let s = Stub {};
+        ResourceData::as_any(&s);
+    }
+
+    #[test]
+    #[should_panic]
+    fn stub_set_as_any_mut() {
+        let mut s = Stub {};
+        ResourceData::as_any_mut(&mut s);
+        s.type_uuid();
+    }
+
+    #[test]
+    fn stub_set_type_uuid() {
+        let s = Stub {};
+        assert_eq!(s.type_uuid(), Uuid::default());
+    }
+}
