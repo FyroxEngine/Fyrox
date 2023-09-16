@@ -213,8 +213,13 @@ These screenshots are from [rusty-shooter](https://github.com/mrDIMAS/rusty-shoo
 
 There are many examples covering various aspects of the engine. Also don't hesitate to create an issue or ask on Discord if you need help!
 
-## [Editor](https://github.com/FyroxEngine/Fyrox/tree/master/editor)
-
+## Quick start
+To start new project and use [Editor](https://github.com/FyroxEngine/Fyrox/tree/master/editor), run:
+```sh
+fyrox-template init --name fyrox_test --style 2d
+cd fyrox_test
+cargo run --package editor --release
+```
 [![editor](https://raw.githubusercontent.com/FyroxEngine/Fyrox/master/editor/screenshots/latest.png)](https://github.com/FyroxEngine/Fyrox/tree/master/editor)
 
 ## Dependencies
