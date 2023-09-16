@@ -1768,6 +1768,7 @@ impl Editor {
             || self.audio_preview_panel.is_in_preview_mode()
             || self.animation_editor.is_in_preview_mode()
             || self.absm_editor.is_in_preview_mode()
+            || self.light_panel.is_in_preview_mode()
             || is_any_plugin_in_preview_mode
             || self
                 .scenes
@@ -2078,6 +2079,7 @@ impl Editor {
         self.asset_browser.update(&mut self.engine);
 
         if let Some(scene) = self.scenes.current_editor_scene_ref() {
+            self.light_panel.update(scene, &mut self.engine);
             self.animation_editor.update(scene, &self.engine);
             self.audio_preview_panel.update(scene, &self.engine);
         }

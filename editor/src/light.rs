@@ -2,6 +2,8 @@ use crate::{
     inspector::editors::make_property_editors_container, message::MessageSender,
     scene::EditorScene, Engine, MSG_SYNC_FLAG,
 };
+use fyrox::gui::formatted_text::WrapMode;
+use fyrox::gui::text::TextMessage;
 use fyrox::{
     core::{log::Log, pool::Handle, reflect::prelude::*, scope_profile},
     gui::{
@@ -9,14 +11,22 @@ use fyrox::{
         grid::{Column, GridBuilder, Row},
         inspector::{InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction},
         message::{MessageDirection, UiMessage},
+        progress_bar::{ProgressBarBuilder, ProgressBarMessage},
         scroll_viewer::ScrollViewerBuilder,
-        widget::WidgetBuilder,
-        window::{WindowBuilder, WindowTitle},
-        Thickness, UiNode,
+        text::TextBuilder,
+        widget::{WidgetBuilder, WidgetMessage},
+        window::{WindowBuilder, WindowMessage, WindowTitle},
+        BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
-    utils::lightmap::Lightmap,
+    utils::lightmap::{
+        CancellationToken, Lightmap, LightmapGenerationError, LightmapInputData, ProgressIndicator,
+    },
 };
-use std::{path::PathBuf, rc::Rc};
+use std::{
+    path::PathBuf,
+    rc::Rc,
+    sync::mpsc::{Receiver, Sender},
+};
 
 #[derive(Reflect, Debug)]
 struct LightmapperSettings {
@@ -56,11 +66,131 @@ impl Default for LightmapperSettings {
     }
 }
 
+struct ProgressWindow {
+    window: Handle<UiNode>,
+    progress_bar: Handle<UiNode>,
+    cancel: Handle<UiNode>,
+    text: Handle<UiNode>,
+    progress_indicator: ProgressIndicator,
+    cancellation_token: CancellationToken,
+}
+
+impl ProgressWindow {
+    pub fn new(
+        ctx: &mut BuildContext,
+        progress_indicator: ProgressIndicator,
+        cancellation_token: CancellationToken,
+    ) -> Self {
+        let progress_bar;
+        let cancel;
+        let text;
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(400.0).with_height(120.0))
+            .open(false)
+            .with_title(WindowTitle::text("Progress"))
+            .with_content(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child(
+                            TextBuilder::new(WidgetBuilder::new().on_row(0))
+                                .with_text(
+                                    "Please wait until light map is fully generated. It may \
+                                take different amount of time depending on the settings.",
+                                )
+                                .with_wrap(WrapMode::Word)
+                                .build(ctx),
+                        )
+                        .with_child({
+                            progress_bar = ProgressBarBuilder::new(
+                                WidgetBuilder::new().on_row(1).with_height(25.0),
+                            )
+                            .build(ctx);
+                            progress_bar
+                        })
+                        .with_child({
+                            text = TextBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(1)
+                                    .with_horizontal_alignment(HorizontalAlignment::Center)
+                                    .with_vertical_alignment(VerticalAlignment::Center),
+                            )
+                            .build(ctx);
+                            text
+                        })
+                        .with_child({
+                            cancel = ButtonBuilder::new(
+                                WidgetBuilder::new()
+                                    .on_row(3)
+                                    .with_width(100.0)
+                                    .with_height(25.0)
+                                    .with_horizontal_alignment(HorizontalAlignment::Right),
+                            )
+                            .with_text("Cancel")
+                            .build(ctx);
+                            cancel
+                        }),
+                )
+                .add_row(Row::auto())
+                .add_row(Row::auto())
+                .add_row(Row::stretch())
+                .add_row(Row::auto())
+                .add_column(Column::stretch())
+                .build(ctx),
+            )
+            .build(ctx);
+
+        Self {
+            window,
+            progress_bar,
+            cancel,
+            text,
+            progress_indicator,
+            cancellation_token,
+        }
+    }
+
+    pub fn show_progress(&self, ui: &UserInterface) {
+        ui.send_message(ProgressBarMessage::progress(
+            self.progress_bar,
+            MessageDirection::ToWidget,
+            self.progress_indicator.progress_percent() as f32 / 100.0,
+        ));
+
+        let stage = self.progress_indicator.stage();
+        ui.send_message(TextMessage::text(
+            self.text,
+            MessageDirection::ToWidget,
+            format!(
+                "Stage {} out of 4: {}",
+                stage as u32,
+                self.progress_indicator.stage().to_string()
+            ),
+        ));
+    }
+
+    pub fn open(&self, ui: &UserInterface) {
+        ui.send_message(WindowMessage::open_modal(
+            self.window,
+            MessageDirection::ToWidget,
+            true,
+        ));
+    }
+
+    pub fn close(&self, ui: &UserInterface) {
+        ui.send_message(WidgetMessage::remove(
+            self.window,
+            MessageDirection::ToWidget,
+        ));
+    }
+}
+
 pub struct LightPanel {
     pub window: Handle<UiNode>,
     inspector: Handle<UiNode>,
     generate: Handle<UiNode>,
     settings: LightmapperSettings,
+    progress_window: Option<ProgressWindow>,
+    sender: Sender<Result<Lightmap, LightmapGenerationError>>,
+    receiver: Receiver<Result<Lightmap, LightmapGenerationError>>,
 }
 
 impl LightPanel {
@@ -126,11 +256,16 @@ impl LightPanel {
         )
         .build(ctx);
 
+        let (sender, receiver) = std::sync::mpsc::channel();
+
         Self {
             window,
             inspector,
             generate,
             settings,
+            progress_window: None,
+            sender,
+            receiver,
         }
     }
 
@@ -146,17 +281,66 @@ impl LightPanel {
             if message.destination() == self.generate {
                 let scene = &mut engine.scenes[editor_scene.scene];
 
-                let lightmap = Lightmap::new(
+                let progress_indicator = ProgressIndicator::new();
+                let cancellation_token = CancellationToken::new();
+
+                let progress_window = ProgressWindow::new(
+                    &mut engine.user_interface.build_ctx(),
+                    progress_indicator.clone(),
+                    cancellation_token.clone(),
+                );
+                progress_window.open(&engine.user_interface);
+                self.progress_window = Some(progress_window);
+
+                if let Ok(input_data) = LightmapInputData::from_scene(
                     scene,
-                    self.settings.texels_per_unit,
-                    self.settings.spacing,
                     |handle, _| handle != editor_scene.editor_objects_root,
-                    Default::default(),
-                    Default::default(),
-                )
-                .unwrap();
-                Log::verify(lightmap.save(&self.settings.path, engine.resource_manager.clone()));
-                scene.set_lightmap(lightmap).unwrap();
+                    cancellation_token.clone(),
+                    progress_indicator.clone(),
+                ) {
+                    let sender = self.sender.clone();
+                    let texels_per_unit = self.settings.texels_per_unit;
+                    let spacing = self.settings.spacing;
+                    let path = self.settings.path.clone();
+                    let resource_manager = engine.resource_manager.clone();
+
+                    if let Err(e) = std::thread::Builder::new()
+                        .name("LightmapGenerationThread".to_string())
+                        .spawn(move || {
+                            match Lightmap::new(
+                                input_data,
+                                texels_per_unit,
+                                spacing,
+                                cancellation_token,
+                                progress_indicator,
+                            ) {
+                                Ok(lightmap) => {
+                                    if lightmap.save(path, resource_manager).is_err() {
+                                        sender
+                                            .send(Err(LightmapGenerationError::Cancelled))
+                                            .unwrap();
+                                    } else {
+                                        sender.send(Ok(lightmap)).unwrap();
+                                    }
+                                }
+                                Err(err) => {
+                                    sender.send(Err(err)).unwrap();
+                                }
+                            }
+                        })
+                    {
+                        Log::err(format!(
+                            "Failed to create a new lightmap generation thread. Reason: {}",
+                            e
+                        ))
+                    }
+                }
+            }
+
+            if let Some(progress_window) = self.progress_window.as_ref() {
+                if message.destination() == progress_window.cancel {
+                    progress_window.cancellation_token.cancel();
+                }
             }
         } else if let Some(InspectorMessage::PropertyChanged(args)) = message.data() {
             if message.destination() == self.inspector
@@ -171,5 +355,33 @@ impl LightPanel {
                 );
             }
         }
+    }
+
+    pub fn update(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
+        if let Some(progress_window) = self.progress_window.as_ref() {
+            progress_window.show_progress(&engine.user_interface);
+        }
+
+        if let Ok(result) = self.receiver.try_recv() {
+            let scene = &mut engine.scenes[editor_scene.scene];
+            match result {
+                Ok(lightmap) => {
+                    if let Err(err) = scene.set_lightmap(lightmap) {
+                        Log::err(format!("Failed to set generated lightmap. Reason: {}", err));
+                    }
+                }
+                Err(err) => {
+                    Log::err(format!("Failed to generated a lightmap. Reason: {}", err));
+                }
+            }
+
+            if let Some(progress_window) = self.progress_window.take() {
+                progress_window.close(&engine.user_interface);
+            }
+        }
+    }
+
+    pub fn is_in_preview_mode(&self) -> bool {
+        self.progress_window.is_some()
     }
 }

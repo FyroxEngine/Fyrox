@@ -138,6 +138,25 @@ pub enum ProgressStage {
     CalculatingLight = 3,
 }
 
+impl Display for ProgressStage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ProgressStage::LightsCaching => {
+                write!(f, "Caching Lights")
+            }
+            ProgressStage::UvGeneration => {
+                write!(f, "Generating UVs")
+            }
+            ProgressStage::GeometryCaching => {
+                write!(f, "Caching Geometry")
+            }
+            ProgressStage::CalculatingLight => {
+                write!(f, "Calculating Light")
+            }
+        }
+    }
+}
+
 /// Progress internals.
 #[derive(Default)]
 pub struct ProgressData {
@@ -230,19 +249,19 @@ impl From<VertexFetchError> for LightmapGenerationError {
     }
 }
 
-impl Lightmap {
-    /// Generates lightmap for given scene. This method **automatically** generates secondary
-    /// texture coordinates! This method is blocking, however internally it uses massive parallelism
-    /// to use all available CPU power efficiently.
-    ///
-    /// `texels_per_unit` defines resolution of lightmap, the higher value is, the more quality
-    /// lightmap will be generated, but also it will be slow to generate.
-    /// `progress_indicator` allows you to get info about current progress.
-    /// `cancellation_token` allows you to stop generation in any time.
-    pub fn new<F>(
-        scene: &mut Scene,
-        texels_per_unit: u32,
-        uv_spacing: f32,
+/// Data set required to generate a lightmap. It could be produced from a scene using [`LightmapInputData::from_scene`] method.
+/// It is used to split preparation step from the actual lightmap generation; to be able to put heavy generation in a separate
+/// thread.
+pub struct LightmapInputData {
+    data_set: FxHashMap<u64, SurfaceSharedData>,
+    instances: Vec<Instance>,
+    lights: Vec<LightDefinition>,
+}
+
+impl LightmapInputData {
+    /// Creates a new input data that can be later used to generate a lightmap.
+    pub fn from_scene<F>(
+        scene: &Scene,
         mut filter: F,
         cancellation_token: CancellationToken,
         progress_indicator: ProgressIndicator,
@@ -250,8 +269,6 @@ impl Lightmap {
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
-        scene.graph.update_hierarchical_data();
-
         // Extract info about lights first. We need it to be in separate array because
         // it won't be possible to store immutable references to light sources and at the
         // same time modify meshes. Also it precomputes a lot of things for faster calculations.
@@ -368,6 +385,36 @@ impl Lightmap {
                 }
             }
         }
+
+        Ok(Self {
+            data_set,
+            instances,
+            lights,
+        })
+    }
+}
+
+impl Lightmap {
+    /// Generates lightmap for given scene. This method **automatically** generates secondary
+    /// texture coordinates! This method is blocking, however internally it uses massive parallelism
+    /// to use all available CPU power efficiently.
+    ///
+    /// `texels_per_unit` defines resolution of lightmap, the higher value is, the more quality
+    /// lightmap will be generated, but also it will be slow to generate.
+    /// `progress_indicator` allows you to get info about current progress.
+    /// `cancellation_token` allows you to stop generation in any time.
+    pub fn new(
+        data: LightmapInputData,
+        texels_per_unit: u32,
+        uv_spacing: f32,
+        cancellation_token: CancellationToken,
+        progress_indicator: ProgressIndicator,
+    ) -> Result<Self, LightmapGenerationError> {
+        let LightmapInputData {
+            data_set,
+            mut instances,
+            lights,
+        } = data;
 
         progress_indicator.set_stage(ProgressStage::UvGeneration, data_set.len() as u32);
 
@@ -926,20 +973,20 @@ fn generate_lightmap(
 
 #[cfg(test)]
 mod test {
-    use crate::scene::mesh::surface::SurfaceSharedData;
     use crate::{
         core::algebra::{Matrix4, Vector3},
         scene::{
             base::BaseBuilder,
             light::{point::PointLightBuilder, BaseLightBuilder},
             mesh::{
+                surface::SurfaceSharedData,
                 surface::{SurfaceBuilder, SurfaceData},
                 MeshBuilder,
             },
             transform::TransformBuilder,
             Scene,
         },
-        utils::lightmap::Lightmap,
+        utils::lightmap::{Lightmap, LightmapInputData},
     };
 
     #[test]
@@ -969,15 +1016,16 @@ mod test {
         .with_radius(4.0)
         .build(&mut scene.graph);
 
-        let lightmap = Lightmap::new(
-            &mut scene,
-            64,
-            0.005,
+        let data = LightmapInputData::from_scene(
+            &scene,
             |_, _| true,
             Default::default(),
             Default::default(),
         )
         .unwrap();
+
+        let lightmap =
+            Lightmap::new(data, 64, 0.005, Default::default(), Default::default()).unwrap();
 
         let mut counter = 0;
         for entry_set in lightmap.map.values() {

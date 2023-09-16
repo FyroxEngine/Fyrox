@@ -8,6 +8,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::utils::lightmap::LightmapInputData;
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
@@ -245,30 +246,32 @@ fn create_scene_async(
                     .unwrap()
                     .instantiate(&mut scene);
 
-                if let Ok(lightmap) = Lightmap::new(
-                    &mut scene,
-                    64,
-                    0.005,
+                if let Ok(data) = LightmapInputData::from_scene(
+                    &scene,
                     |_, _| true,
-                    cancellation_token,
-                    progress_indicator,
+                    cancellation_token.clone(),
+                    progress_indicator.clone(),
                 ) {
-                    lightmap
-                        .save("examples/data/lightmaps/", resource_manager)
-                        .unwrap();
-                    scene.set_lightmap(lightmap).unwrap();
+                    if let Ok(lightmap) =
+                        Lightmap::new(data, 64, 0.005, cancellation_token, progress_indicator)
+                    {
+                        lightmap
+                            .save("examples/data/lightmaps/", resource_manager)
+                            .unwrap();
+                        scene.set_lightmap(lightmap).unwrap();
 
-                    for node in scene.graph.linear_iter_mut() {
-                        if node.query_component_ref::<BaseLight>().is_some() {
-                            node.set_visibility(false);
+                        for node in scene.graph.linear_iter_mut() {
+                            if node.query_component_ref::<BaseLight>().is_some() {
+                                node.set_visibility(false);
+                            }
                         }
+
+                        let mut visitor = Visitor::new();
+                        scene.save("Scene", &mut visitor).unwrap();
+                        visitor.save_binary(LIGHTMAP_SCENE_PATH).unwrap();
+
+                        context.lock().unwrap().data = Some(GameScene { scene, root });
                     }
-
-                    let mut visitor = Visitor::new();
-                    scene.save("Scene", &mut visitor).unwrap();
-                    visitor.save_binary(LIGHTMAP_SCENE_PATH).unwrap();
-
-                    context.lock().unwrap().data = Some(GameScene { scene, root });
                 }
             } else {
                 let scene = SceneLoader::from_file(
