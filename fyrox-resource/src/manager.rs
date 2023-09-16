@@ -53,7 +53,7 @@ impl ResourceWaitContext {
 pub struct ResourceManagerState {
     /// A set of resource loaders. Use this field to register your own resource loader.
     pub loaders: ResourceLoadersContainer,
-    /// Event broadcaster can be used to "subscribe" for events happening inside the container.    
+    /// Event broadcaster can be used to "subscribe" for events happening inside the container.
     pub event_broadcaster: ResourceEventBroadcaster,
     /// A container for resource constructors.
     pub constructors_container: ResourceConstructorContainer,
@@ -468,5 +468,26 @@ impl ResourceManagerState {
         } else {
             false
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn resource_wait_context_is_all_loaded() {
+        assert!(ResourceWaitContext::default().is_all_loaded());
+
+        let path = PathBuf::from("foo.txt");
+        let type_uuid = Uuid::default();
+
+        let cx = ResourceWaitContext {
+            resources: vec![
+                UntypedResource::new_pending(path.clone(), type_uuid),
+                UntypedResource::new_load_error(path.clone(), None, type_uuid),
+            ],
+        };
+        assert!(!cx.is_all_loaded());
     }
 }
