@@ -759,7 +759,7 @@ mod test {
         let res = manager.register(resource.clone(), PathBuf::from("test.txt"), |_, __| true);
         assert!(res.is_ok());
 
-        let res = manager.request_untyped(&Path::new(""), Uuid::default());
+        let res = manager.request_untyped(Path::new(""), Uuid::default());
         assert_eq!(res, resource);
     }
 
