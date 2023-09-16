@@ -762,4 +762,36 @@ mod test {
         let res = manager.request_untyped(&Path::new(""), Uuid::default());
         assert_eq!(res, resource);
     }
+
+    #[test]
+    fn display_for_resource_registration_error() {
+        assert_eq!(
+            format!("{}", ResourceRegistrationError::AlreadyRegistered),
+            "A resource is already registered!"
+        );
+        assert_eq!(
+            format!("{}", ResourceRegistrationError::InvalidState),
+            "A resource was in invalid state!"
+        );
+        assert_eq!(
+            format!("{}", ResourceRegistrationError::UnableToRegister),
+            "Unable to register the resource!"
+        );
+    }
+
+    #[test]
+    fn debug_for_resource_registration_error() {
+        assert_eq!(
+            format!("{:?}", ResourceRegistrationError::AlreadyRegistered),
+            "AlreadyRegistered"
+        );
+        assert_eq!(
+            format!("{:?}", ResourceRegistrationError::InvalidState),
+            "InvalidState"
+        );
+        assert_eq!(
+            format!("{:?}", ResourceRegistrationError::UnableToRegister),
+            "UnableToRegister"
+        );
+    }
 }
