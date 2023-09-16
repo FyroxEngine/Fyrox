@@ -366,7 +366,7 @@ mod test {
     fn resource_state_new_pending() {
         let path = PathBuf::from("foo.txt");
         let type_uuid = Uuid::default();
-        let state = ResourceState::new_pending(path.clone(), type_uuid.clone());
+        let state = ResourceState::new_pending(path.clone(), type_uuid);
 
         assert!(matches!(
             state,
@@ -386,7 +386,7 @@ mod test {
     fn resource_state_new_load_error() {
         let path = PathBuf::from("foo.txt");
         let type_uuid = Uuid::default();
-        let state = ResourceState::new_load_error(path.clone(), None, type_uuid.clone());
+        let state = ResourceState::new_load_error(path.clone(), None, type_uuid);
 
         assert!(matches!(
             state,
@@ -433,7 +433,7 @@ mod test {
         // from LoadError
         let path = PathBuf::from("foo.txt");
         let type_uuid = Uuid::default();
-        let mut state = ResourceState::new_load_error(path.clone(), None, type_uuid.clone());
+        let mut state = ResourceState::new_load_error(path.clone(), None, type_uuid);
         state.switch_to_pending_state();
 
         assert!(matches!(
@@ -450,7 +450,7 @@ mod test {
         // from Pending
         let path = PathBuf::from("foo.txt");
         let type_uuid = Uuid::default();
-        let mut state = ResourceState::new_pending(path.clone(), type_uuid.clone());
+        let mut state = ResourceState::new_pending(path.clone(), type_uuid);
         state.switch_to_pending_state();
 
         assert!(matches!(
