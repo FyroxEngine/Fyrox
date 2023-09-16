@@ -547,7 +547,7 @@ mod test {
         assert!(state.watcher.is_none());
 
         let path = PathBuf::from("test.txt");
-        if let Ok(_) = File::create(path.clone()) {
+        if File::create(path.clone()).is_ok() {
             let watcher = FileSystemWatcher::new(path.clone(), Duration::from_secs(1));
             state.set_watcher(watcher.ok());
             assert!(state.watcher.is_some());
@@ -742,7 +742,7 @@ mod test {
         let res = manager.register(resource.clone(), PathBuf::from("test.txt"), |_, __| true);
         assert!(res.is_ok());
 
-        let res: Resource<Stub> = manager.request(&Path::new(""));
+        let res: Resource<Stub> = manager.request(Path::new(""));
         assert_eq!(
             res,
             Resource {
