@@ -492,9 +492,7 @@ mod test {
             std::borrow::Cow::Borrowed(Path::new(""))
         }
 
-        fn set_path(&mut self, _path: std::path::PathBuf) {
-            unimplemented!()
-        }
+        fn set_path(&mut self, _path: std::path::PathBuf) {}
 
         fn as_any(&self) -> &dyn std::any::Any {
             unimplemented!()
@@ -712,5 +710,56 @@ mod test {
         let cx = state.get_wait_context();
 
         assert!(cx.resources.eq(&vec![resource]));
+    }
+
+    #[test]
+    fn resource_manager_new() {
+        let manager = ResourceManager::new();
+
+        assert!(manager.state.lock().is_empty());
+        assert!(manager.state().is_empty());
+    }
+
+    #[test]
+    fn resource_manager_register() {
+        let manager = ResourceManager::default();
+        let path = PathBuf::from("test.txt");
+        let type_uuid = Uuid::default();
+
+        let resource = UntypedResource::new_pending(path.clone(), type_uuid);
+        let res = manager.register(resource.clone(), path.clone(), |_, __| true);
+        assert!(res.is_err());
+
+        let resource = UntypedResource::new_ok(Stub {});
+        let res = manager.register(resource.clone(), path.clone(), |_, __| true);
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn resource_manager_request() {
+        let manager = ResourceManager::new();
+        let resource = UntypedResource::new_ok(Stub {});
+        let res = manager.register(resource.clone(), PathBuf::from("test.txt"), |_, __| true);
+        assert!(res.is_ok());
+
+        let res: Resource<Stub> = manager.request(&Path::new(""));
+        assert_eq!(
+            res,
+            Resource {
+                state: Some(resource),
+                phantom: PhantomData::<Stub>
+            }
+        );
+    }
+
+    #[test]
+    fn resource_manager_request_untyped() {
+        let manager = ResourceManager::new();
+        let resource = UntypedResource::new_ok(Stub {});
+        let res = manager.register(resource.clone(), PathBuf::from("test.txt"), |_, __| true);
+        assert!(res.is_ok());
+
+        let res = manager.request_untyped(&Path::new(""), Uuid::default());
+        assert_eq!(res, resource);
     }
 }
