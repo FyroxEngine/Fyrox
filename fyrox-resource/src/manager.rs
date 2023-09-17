@@ -53,7 +53,7 @@ impl ResourceWaitContext {
 pub struct ResourceManagerState {
     /// A set of resource loaders. Use this field to register your own resource loader.
     pub loaders: ResourceLoadersContainer,
-    /// Event broadcaster can be used to "subscribe" for events happening inside the container.    
+    /// Event broadcaster can be used to "subscribe" for events happening inside the container.
     pub event_broadcaster: ResourceEventBroadcaster,
     /// A container for resource constructors.
     pub constructors_container: ResourceConstructorContainer,
@@ -468,5 +468,330 @@ impl ResourceManagerState {
         } else {
             false
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use std::{fs::File, time::Duration};
+
+    use super::*;
+
+    use fyrox_core::{
+        reflect::{FieldInfo, Reflect},
+        visitor::{Visit, VisitResult, Visitor},
+        TypeUuidProvider,
+    };
+
+    #[derive(Debug, Default, Reflect, Visit)]
+    struct Stub {}
+
+    impl ResourceData for Stub {
+        fn path(&self) -> std::borrow::Cow<std::path::Path> {
+            std::borrow::Cow::Borrowed(Path::new(""))
+        }
+
+        fn set_path(&mut self, _path: std::path::PathBuf) {}
+
+        fn as_any(&self) -> &dyn std::any::Any {
+            unimplemented!()
+        }
+
+        fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+            unimplemented!()
+        }
+
+        fn type_uuid(&self) -> Uuid {
+            Uuid::default()
+        }
+    }
+
+    impl TypeUuidProvider for Stub {
+        fn type_uuid() -> Uuid {
+            Uuid::default()
+        }
+    }
+
+    #[test]
+    fn resource_wait_context_is_all_loaded() {
+        assert!(ResourceWaitContext::default().is_all_loaded());
+
+        let path = PathBuf::from("test.txt");
+        let type_uuid = Uuid::default();
+
+        let cx = ResourceWaitContext {
+            resources: vec![
+                UntypedResource::new_pending(path.clone(), type_uuid),
+                UntypedResource::new_load_error(path.clone(), None, type_uuid),
+            ],
+        };
+        assert!(!cx.is_all_loaded());
+    }
+
+    #[test]
+    fn resource_manager_state_new() {
+        let state = ResourceManagerState::new();
+
+        assert!(state.resources.is_empty());
+        assert!(state.loaders.is_empty());
+        assert!(state.built_in_resources.is_empty());
+        assert!(state.constructors_container.is_empty());
+        assert!(state.watcher.is_none());
+        assert!(state.is_empty());
+    }
+
+    #[test]
+    fn resource_manager_state_set_watcher() {
+        let mut state = ResourceManagerState::new();
+        assert!(state.watcher.is_none());
+
+        let path = PathBuf::from("test.txt");
+        if File::create(path.clone()).is_ok() {
+            let watcher = FileSystemWatcher::new(path.clone(), Duration::from_secs(1));
+            state.set_watcher(watcher.ok());
+            assert!(state.watcher.is_some());
+        }
+    }
+
+    #[test]
+    fn resource_manager_state_push() {
+        let mut state = ResourceManagerState::new();
+
+        assert_eq!(state.count_loaded_resources(), 0);
+        assert_eq!(state.count_pending_resources(), 0);
+        assert_eq!(state.count_registered_resources(), 0);
+        assert_eq!(state.len(), 0);
+
+        let path = PathBuf::from("test.txt");
+        let type_uuid = Uuid::default();
+        state.push(UntypedResource::new_pending(path.clone(), type_uuid));
+        state.push(UntypedResource::new_load_error(
+            path.clone(),
+            None,
+            type_uuid,
+        ));
+        state.push(UntypedResource::new_ok(Stub {}));
+
+        assert_eq!(state.count_loaded_resources(), 1);
+        assert_eq!(state.count_pending_resources(), 1);
+        assert_eq!(state.count_registered_resources(), 3);
+        assert_eq!(state.len(), 3);
+    }
+
+    #[test]
+    fn resource_manager_state_loading_progress() {
+        let mut state = ResourceManagerState::new();
+
+        assert_eq!(state.loading_progress(), 100);
+
+        let path = PathBuf::from("test.txt");
+        let type_uuid = Uuid::default();
+        state.push(UntypedResource::new_pending(path.clone(), type_uuid));
+        state.push(UntypedResource::new_load_error(
+            path.clone(),
+            None,
+            type_uuid,
+        ));
+        state.push(UntypedResource::new_ok(Stub {}));
+
+        assert_eq!(state.loading_progress(), 33);
+    }
+
+    #[test]
+    fn resource_manager_state_find() {
+        let mut state = ResourceManagerState::new();
+
+        assert!(state.find(Path::new("foo.txt")).is_none());
+
+        let path = PathBuf::from("test.txt");
+        let type_uuid = Uuid::default();
+        let resource = UntypedResource::new_pending(path.clone(), type_uuid);
+        state.push(resource.clone());
+
+        assert_eq!(state.find(path), Some(&resource));
+    }
+
+    #[test]
+    fn resource_manager_state_resources() {
+        let mut state = ResourceManagerState::new();
+
+        assert_eq!(state.resources(), Vec::new());
+
+        let path = PathBuf::from("test.txt");
+        let type_uuid = Uuid::default();
+        let r1 = UntypedResource::new_pending(path.clone(), type_uuid);
+        let r2 = UntypedResource::new_load_error(path.clone(), None, type_uuid);
+        let r3 = UntypedResource::new_ok(Stub {});
+        state.push(r1.clone());
+        state.push(r2.clone());
+        state.push(r3.clone());
+
+        assert_eq!(state.resources(), vec![r1.clone(), r2.clone(), r3.clone()]);
+        assert!(state.iter().eq([&r1, &r2, &r3]));
+    }
+
+    #[test]
+    fn resource_manager_state_destroy_unused_resources() {
+        let mut state = ResourceManagerState::new();
+
+        state.push(UntypedResource::new_pending(
+            PathBuf::from("test.txt"),
+            Uuid::default(),
+        ));
+        assert_eq!(state.len(), 1);
+
+        state.destroy_unused_resources();
+        assert_eq!(state.len(), 0);
+    }
+
+    #[test]
+    fn resource_manager_state_request() {
+        let mut state = ResourceManagerState::new();
+        let path = PathBuf::from("test.txt");
+        let type_uuid = Uuid::default();
+
+        let resource = UntypedResource::new_load_error(path.clone(), None, type_uuid);
+        state.push(resource.clone());
+
+        let res = state.request(path, type_uuid);
+        assert_eq!(res, resource);
+
+        let path = PathBuf::from("foo.txt");
+        let res = state.request(path.clone(), type_uuid);
+
+        assert_eq!(res.path(), path.clone());
+        assert_eq!(res.type_uuid(), type_uuid);
+        assert!(res.is_loading());
+    }
+
+    #[test]
+    fn resource_manager_state_reload_resource() {
+        let mut state = ResourceManagerState::new();
+
+        let resource = UntypedResource::new_ok(Stub {});
+        state.push(resource.clone());
+        state.reload_resource(resource.clone());
+
+        assert!(resource.is_loading());
+    }
+
+    #[test]
+    fn resource_manager_state_reload_resources() {
+        let mut state = ResourceManagerState::new();
+
+        let resource = UntypedResource::new_ok(Stub {});
+        state.push(resource.clone());
+        let res = state.reload_resources();
+
+        assert_eq!(res.len(), 1);
+        assert!(res[0].is_loading());
+    }
+
+    #[test]
+    fn resource_manager_state_try_reload_resource_from_path() {
+        let mut state = ResourceManagerState::new();
+        let resource =
+            UntypedResource::new_load_error(PathBuf::from("test.txt"), None, Uuid::default());
+        state.push(resource.clone());
+
+        assert!(!state.try_reload_resource_from_path(Path::new("foo.txt")));
+
+        assert!(state.try_reload_resource_from_path(Path::new("test.txt")));
+        assert!(resource.is_loading());
+    }
+
+    #[test]
+    fn resource_manager_state_get_wait_context() {
+        let mut state = ResourceManagerState::new();
+
+        let resource = UntypedResource::new_ok(Stub {});
+        state.push(resource.clone());
+        let cx = state.get_wait_context();
+
+        assert!(cx.resources.eq(&vec![resource]));
+    }
+
+    #[test]
+    fn resource_manager_new() {
+        let manager = ResourceManager::new();
+
+        assert!(manager.state.lock().is_empty());
+        assert!(manager.state().is_empty());
+    }
+
+    #[test]
+    fn resource_manager_register() {
+        let manager = ResourceManager::default();
+        let path = PathBuf::from("test.txt");
+        let type_uuid = Uuid::default();
+
+        let resource = UntypedResource::new_pending(path.clone(), type_uuid);
+        let res = manager.register(resource.clone(), path.clone(), |_, __| true);
+        assert!(res.is_err());
+
+        let resource = UntypedResource::new_ok(Stub {});
+        let res = manager.register(resource.clone(), path.clone(), |_, __| true);
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn resource_manager_request() {
+        let manager = ResourceManager::new();
+        let resource = UntypedResource::new_ok(Stub {});
+        let res = manager.register(resource.clone(), PathBuf::from("test.txt"), |_, __| true);
+        assert!(res.is_ok());
+
+        let res: Resource<Stub> = manager.request(Path::new(""));
+        assert_eq!(
+            res,
+            Resource {
+                state: Some(resource),
+                phantom: PhantomData::<Stub>
+            }
+        );
+    }
+
+    #[test]
+    fn resource_manager_request_untyped() {
+        let manager = ResourceManager::new();
+        let resource = UntypedResource::new_ok(Stub {});
+        let res = manager.register(resource.clone(), PathBuf::from("test.txt"), |_, __| true);
+        assert!(res.is_ok());
+
+        let res = manager.request_untyped(Path::new(""), Uuid::default());
+        assert_eq!(res, resource);
+    }
+
+    #[test]
+    fn display_for_resource_registration_error() {
+        assert_eq!(
+            format!("{}", ResourceRegistrationError::AlreadyRegistered),
+            "A resource is already registered!"
+        );
+        assert_eq!(
+            format!("{}", ResourceRegistrationError::InvalidState),
+            "A resource was in invalid state!"
+        );
+        assert_eq!(
+            format!("{}", ResourceRegistrationError::UnableToRegister),
+            "Unable to register the resource!"
+        );
+    }
+
+    #[test]
+    fn debug_for_resource_registration_error() {
+        assert_eq!(
+            format!("{:?}", ResourceRegistrationError::AlreadyRegistered),
+            "AlreadyRegistered"
+        );
+        assert_eq!(
+            format!("{:?}", ResourceRegistrationError::InvalidState),
+            "InvalidState"
+        );
+        assert_eq!(
+            format!("{:?}", ResourceRegistrationError::UnableToRegister),
+            "UnableToRegister"
+        );
     }
 }
