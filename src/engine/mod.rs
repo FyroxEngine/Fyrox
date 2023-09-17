@@ -1020,14 +1020,24 @@ impl Engine {
 
             #[cfg(target_arch = "wasm32")]
             let (window, glow_context, gl_kind) = {
-                let window = window_builder.build(window_target).unwrap();
-
                 use crate::core::wasm_bindgen::JsCast;
                 use crate::platform::web::WindowExtWebSys;
 
+                let inner_size = window_builder.window_attributes().inner_size;
+                let window = window_builder.build(window_target).unwrap();
+
+                let web_window = crate::core::web_sys::window().unwrap();
+                let scale_factor = web_window.device_pixel_ratio();
+
                 let canvas = window.canvas().unwrap();
 
-                let document = crate::core::web_sys::window().unwrap().document().unwrap();
+                if let Some(inner_size) = inner_size {
+                    let actual_inner_size = inner_size.to_logical(scale_factor);
+                    canvas.set_width(actual_inner_size.width);
+                    canvas.set_height(actual_inner_size.height);
+                }
+
+                let document = web_window.document().unwrap();
                 let body = document.body().unwrap();
 
                 body.append_child(&canvas)
