@@ -1484,6 +1484,10 @@ impl Renderer {
     ) -> Result<(), FrameworkError> {
         scope_profile!();
 
+        if self.frame_size.0 == 0 || self.frame_size.1 == 0 {
+            return Ok(());
+        }
+
         self.matrix_storage.begin_frame();
 
         // Make sure to drop associated data for destroyed scenes.
