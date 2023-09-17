@@ -83,6 +83,11 @@ impl ResourceData for CurveResourceState {
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
     }
+
+    fn is_procedural(&self) -> bool {
+        // TODO: Add support for procedural curves in the future.
+        false
+    }
 }
 
 impl TypeUuidProvider for CurveResourceState {

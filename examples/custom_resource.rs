@@ -60,6 +60,10 @@ impl ResourceData for CustomResource {
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
     }
+
+    fn is_procedural(&self) -> bool {
+        false
+    }
 }
 
 struct CustomResourceLoader;

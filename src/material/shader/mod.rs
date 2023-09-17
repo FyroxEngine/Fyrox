@@ -289,6 +289,8 @@ pub struct Shader {
     /// Shader definition contains description of properties and render passes.
     pub definition: ShaderDefinition,
 
+    is_procedural: bool,
+
     #[reflect(hidden)]
     pub(crate) cache_index: AtomicIndex,
 }
@@ -304,16 +306,20 @@ impl Visit for Shader {
         let mut region = visitor.enter_region(name)?;
 
         self.path.visit("Path", &mut region)?;
+        let _ = self.is_procedural.visit("IsProcedural", &mut region);
 
         drop(region);
 
         if visitor.is_reading() {
             if self.path == Path::new("Standard") {
                 self.definition = ShaderDefinition::from_str(STANDARD_SHADER_SRC).unwrap();
+                self.is_procedural = true;
             } else if self.path == Path::new("StandardTerrain") {
                 self.definition = ShaderDefinition::from_str(STANDARD_TERRAIN_SHADER_SRC).unwrap();
+                self.is_procedural = true;
             } else if self.path == Path::new("StandardTwoSides") {
                 self.definition = ShaderDefinition::from_str(STANDARD_TWOSIDES_SHADER_SRC).unwrap();
+                self.is_procedural = true;
             }
         }
 
@@ -499,6 +505,7 @@ impl Shader {
         Ok(Self {
             path: path.as_ref().to_owned(),
             definition: ShaderDefinition::from_buf(content)?,
+            is_procedural: false,
             cache_index: Default::default(),
         })
     }
@@ -508,6 +515,7 @@ impl Shader {
             path: path.as_ref().to_owned(),
             definition: ShaderDefinition::from_str(str)?,
             cache_index: Default::default(),
+            is_procedural: true,
         })
     }
 }
@@ -531,6 +539,10 @@ impl ResourceData for Shader {
 
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
+    }
+
+    fn is_procedural(&self) -> bool {
+        self.is_procedural
     }
 }
 

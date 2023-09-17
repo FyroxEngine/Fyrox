@@ -97,6 +97,16 @@ impl UntypedResource {
         matches!(*self.0.lock(), ResourceState::Pending { .. })
     }
 
+    /// Returns true if the resource is procedural (its data is generated at runtime, not stored in an external
+    /// file).
+    pub fn is_procedural(&self) -> bool {
+        match *self.0.lock() {
+            ResourceState::Ok(ref data) => data.is_procedural(),
+            // Procedural resources must always be in Ok state.
+            _ => false,
+        }
+    }
+
     /// Returns exact amount of users of the resource.
     #[inline]
     pub fn use_count(&self) -> usize {
@@ -209,6 +219,10 @@ mod test {
 
         fn type_uuid(&self) -> Uuid {
             Uuid::default()
+        }
+
+        fn is_procedural(&self) -> bool {
+            unimplemented!()
         }
     }
 

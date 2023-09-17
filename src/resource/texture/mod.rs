@@ -281,6 +281,10 @@ impl ResourceData for Texture {
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
     }
+
+    fn is_procedural(&self) -> bool {
+        self.serialize_content
+    }
 }
 
 impl Visit for Texture {

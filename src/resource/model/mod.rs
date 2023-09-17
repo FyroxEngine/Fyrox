@@ -323,6 +323,11 @@ impl ResourceData for Model {
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
     }
+
+    fn is_procedural(&self) -> bool {
+        // TODO: Add support for procedural models in the future.
+        false
+    }
 }
 
 impl Default for Model {

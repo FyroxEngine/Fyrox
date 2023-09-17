@@ -162,10 +162,10 @@ impl StreamingBuffer {
     /// This function will return Err if data source is `Raw`. It makes no sense to stream raw data which
     /// is already loaded into memory. Use Generic source instead!
     pub fn new(source: DataSource) -> Result<Self, DataSource> {
-        let external_source_path = if let DataSource::File { path, .. } = &source {
-            path.clone()
+        let (external_source_path, is_procedural) = if let DataSource::File { path, .. } = &source {
+            (path.clone(), false)
         } else {
-            Default::default()
+            (Default::default(), true)
         };
 
         let mut streaming_source = StreamingSource::new(source)?;
@@ -182,6 +182,7 @@ impl StreamingBuffer {
                 channel_count: streaming_source.channel_count(),
                 channel_duration_in_samples: streaming_source.channel_duration_in_samples(),
                 external_source_path,
+                is_procedural,
             },
             use_count: 0,
             streaming_source,

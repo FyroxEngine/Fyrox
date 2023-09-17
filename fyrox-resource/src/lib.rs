@@ -70,6 +70,9 @@ pub trait ResourceData: 'static + Debug + Visit + Send + Reflect {
 
     /// Returns unique data type id.
     fn type_uuid(&self) -> Uuid;
+
+    /// Returns true if the resource data was generated procedurally, not taken from a file.
+    fn is_procedural(&self) -> bool;
 }
 
 /// A trait for resource load error.
@@ -230,10 +233,9 @@ where
                 .expect("Resource manager must be available when deserializing resources!");
 
             let path = self.state.as_ref().unwrap().path();
+            let is_procedural = self.state.as_ref().unwrap().is_procedural();
 
-            // Procedural resources usually have path empty or use it as an id, in this case we need to
-            // check if the file actually exists to not mess up procedural resources.
-            if path.exists() {
+            if !is_procedural {
                 self.state = Some(
                     resource_manager.request_untyped(path, <T as TypeUuidProvider>::type_uuid()),
                 );

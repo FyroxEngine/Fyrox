@@ -275,4 +275,8 @@ impl ResourceData for SoundBuffer {
     fn type_uuid(&self) -> Uuid {
         SOUND_BUFFER_RESOURCE_UUID
     }
+
+    fn is_procedural(&self) -> bool {
+        self.is_procedural
+    }
 }

@@ -96,6 +96,10 @@ mod test {
         fn type_uuid(&self) -> Uuid {
             unimplemented!()
         }
+
+        fn is_procedural(&self) -> bool {
+            unimplemented!()
+        }
     }
 
     impl TypeUuidProvider for Stub {
