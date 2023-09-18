@@ -64,8 +64,8 @@ impl BloomRenderer {
                 state,
                 kind,
                 PixelKind::RGBA16F,
-                MinificationFilter::Linear,
-                MagnificationFilter::Linear,
+                MinificationFilter::Nearest,
+                MagnificationFilter::Nearest,
                 1,
                 None,
             )?;

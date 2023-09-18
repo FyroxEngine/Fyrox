@@ -559,8 +559,8 @@ impl AssociatedSceneData {
             GpuTextureKind::Rectangle { width, height },
             // Intermediate scene frame will be rendered in HDR render target.
             PixelKind::RGBA16F,
-            MinificationFilter::Linear,
-            MagnificationFilter::Linear,
+            MinificationFilter::Nearest,
+            MagnificationFilter::Nearest,
             1,
             None,
         )?;

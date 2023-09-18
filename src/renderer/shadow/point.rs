@@ -102,8 +102,8 @@ impl PointShadowMapRenderer {
                     state,
                     kind,
                     PixelKind::R16F,
-                    MinificationFilter::Linear,
-                    MagnificationFilter::Linear,
+                    MinificationFilter::Nearest,
+                    MagnificationFilter::Nearest,
                     1,
                     None,
                 )?;

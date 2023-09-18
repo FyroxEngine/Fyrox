@@ -50,8 +50,8 @@ impl Cascade {
                     ShadowMapPrecision::Full => PixelKind::D32F,
                     ShadowMapPrecision::Half => PixelKind::D16,
                 },
-                MinificationFilter::Linear,
-                MagnificationFilter::Linear,
+                MinificationFilter::Nearest,
+                MagnificationFilter::Nearest,
                 1,
                 None,
             )?;
