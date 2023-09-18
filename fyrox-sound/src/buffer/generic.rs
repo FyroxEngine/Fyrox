@@ -42,6 +42,7 @@ pub struct GenericBuffer {
     pub(crate) external_source_path: PathBuf,
     #[visit(skip)]
     pub(crate) channel_duration_in_samples: usize,
+    #[visit(optional)]
     pub(crate) is_procedural: bool,
 }
 
