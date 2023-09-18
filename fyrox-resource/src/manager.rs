@@ -417,7 +417,11 @@ impl ResourceManagerState {
             }
         }
 
-        Log::err(format!("There's no loader registered for {:?}!", path));
+        let err_msg = format!("There's no loader registered for {:?}!", path);
+
+        resource.commit_error(path.to_path_buf(), err_msg.clone());
+
+        Log::err(err_msg);
     }
 
     /// Reloads a single resource.
