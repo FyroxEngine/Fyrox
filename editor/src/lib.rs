@@ -2420,151 +2420,156 @@ impl Editor {
         self.focused || !self.settings.general.suspend_unfocused_editor
     }
 
-    pub fn run(mut self, event_loop: EventLoop<()>) -> ! {
+    pub fn run(mut self, event_loop: EventLoop<()>) {
         for_each_plugin!(self.plugins => on_start(&mut self));
 
-        event_loop.run(move |event, _, control_flow| match event {
-            Event::MainEventsCleared => {
-                if self.is_active() {
-                    update(&mut self, control_flow);
-                }
-
-                if self.exit {
-                    *control_flow = ControlFlow::Exit;
-
-                    // Kill any active child process on exit.
-                    match self.mode {
-                        Mode::Edit => {}
-                        Mode::Build { ref mut process }
-                        | Mode::Play {
-                            ref mut process, ..
-                        } => {
-                            let _ = process.kill();
-                        }
+        event_loop
+            .run(move |event, _, control_flow| match event {
+                Event::AboutToWait => {
+                    if self.is_active() {
+                        update(&mut self, control_flow);
                     }
-                }
-            }
-            Event::RedrawRequested(_) => {
-                if self.is_active() {
-                    // Temporarily disable cameras in currently edited scene. This is needed to prevent any
-                    // scene camera to interfere with the editor camera.
-                    let mut camera_state = Vec::new();
-                    if let Some(editor_scene) = self.scenes.current_editor_scene_ref() {
-                        let scene = &mut self.engine.scenes[editor_scene.scene];
-                        let has_preview_camera =
-                            scene.graph.is_valid_handle(editor_scene.preview_camera);
-                        for (handle, camera) in scene.graph.pair_iter_mut().filter_map(|(h, n)| {
-                            if has_preview_camera && h != editor_scene.preview_camera
-                                || !has_preview_camera && h != editor_scene.camera_controller.camera
-                            {
-                                n.cast_mut::<Camera>().map(|c| (h, c))
-                            } else {
-                                None
+
+                    if self.exit {
+                        *control_flow = ControlFlow::Exit;
+
+                        // Kill any active child process on exit.
+                        match self.mode {
+                            Mode::Edit => {}
+                            Mode::Build { ref mut process }
+                            | Mode::Play {
+                                ref mut process, ..
+                            } => {
+                                let _ = process.kill();
                             }
-                        }) {
-                            camera_state.push((handle, camera.is_enabled()));
-                            camera.set_enabled(false);
-                        }
-                    }
-
-                    self.engine.render().unwrap();
-
-                    // Revert state of the cameras.
-                    if let Some(scene) = self.scenes.current_editor_scene_ref() {
-                        for (handle, enabled) in camera_state {
-                            self.engine.scenes[scene.scene].graph[handle]
-                                .as_camera_mut()
-                                .set_enabled(enabled);
                         }
                     }
                 }
-            }
-            Event::WindowEvent { ref event, .. } => {
-                match event {
-                    WindowEvent::CloseRequested => {
-                        self.message_sender.send(Message::Exit { force: false });
+                Event::RedrawRequested(_) => {
+                    if self.is_active() {
+                        // Temporarily disable cameras in currently edited scene. This is needed to prevent any
+                        // scene camera to interfere with the editor camera.
+                        let mut camera_state = Vec::new();
+                        if let Some(editor_scene) = self.scenes.current_editor_scene_ref() {
+                            let scene = &mut self.engine.scenes[editor_scene.scene];
+                            let has_preview_camera =
+                                scene.graph.is_valid_handle(editor_scene.preview_camera);
+                            for (handle, camera) in
+                                scene.graph.pair_iter_mut().filter_map(|(h, n)| {
+                                    if has_preview_camera && h != editor_scene.preview_camera
+                                        || !has_preview_camera
+                                            && h != editor_scene.camera_controller.camera
+                                    {
+                                        n.cast_mut::<Camera>().map(|c| (h, c))
+                                    } else {
+                                        None
+                                    }
+                                })
+                            {
+                                camera_state.push((handle, camera.is_enabled()));
+                                camera.set_enabled(false);
+                            }
+                        }
+
+                        self.engine.render().unwrap();
+
+                        // Revert state of the cameras.
+                        if let Some(scene) = self.scenes.current_editor_scene_ref() {
+                            for (handle, enabled) in camera_state {
+                                self.engine.scenes[scene.scene].graph[handle]
+                                    .as_camera_mut()
+                                    .set_enabled(enabled);
+                            }
+                        }
                     }
-                    WindowEvent::Resized(size) => {
-                        if let Err(e) = self.engine.set_frame_size((*size).into()) {
-                            fyrox::core::log::Log::writeln(
-                                MessageKind::Error,
-                                format!("Failed to set renderer size! Reason: {:?}", e),
+                }
+                Event::WindowEvent { ref event, .. } => {
+                    match event {
+                        WindowEvent::CloseRequested => {
+                            self.message_sender.send(Message::Exit { force: false });
+                        }
+                        WindowEvent::Resized(size) => {
+                            if let Err(e) = self.engine.set_frame_size((*size).into()) {
+                                fyrox::core::log::Log::writeln(
+                                    MessageKind::Error,
+                                    format!("Failed to set renderer size! Reason: {:?}", e),
+                                );
+                            }
+
+                            let logical_size = size.to_logical(
+                                self.engine
+                                    .graphics_context
+                                    .as_initialized_ref()
+                                    .window
+                                    .scale_factor(),
                             );
-                        }
-
-                        let logical_size = size.to_logical(
                             self.engine
-                                .graphics_context
-                                .as_initialized_ref()
-                                .window
-                                .scale_factor(),
-                        );
-                        self.engine
-                            .user_interface
-                            .send_message(WidgetMessage::width(
-                                self.root_grid,
-                                MessageDirection::ToWidget,
-                                logical_size.width,
-                            ));
-                        self.engine
-                            .user_interface
-                            .send_message(WidgetMessage::height(
-                                self.root_grid,
-                                MessageDirection::ToWidget,
-                                logical_size.height,
-                            ));
+                                .user_interface
+                                .send_message(WidgetMessage::width(
+                                    self.root_grid,
+                                    MessageDirection::ToWidget,
+                                    logical_size.width,
+                                ));
+                            self.engine
+                                .user_interface
+                                .send_message(WidgetMessage::height(
+                                    self.root_grid,
+                                    MessageDirection::ToWidget,
+                                    logical_size.height,
+                                ));
 
-                        if size.width > 0 && size.height > 0 {
-                            self.settings.windows.window_size.x = size.width as f32;
-                            self.settings.windows.window_size.y = size.height as f32;
-                            Log::verify(self.settings.save());
+                            if size.width > 0 && size.height > 0 {
+                                self.settings.windows.window_size.x = size.width as f32;
+                                self.settings.windows.window_size.y = size.height as f32;
+                                Log::verify(self.settings.save());
+                            }
                         }
-                    }
-                    WindowEvent::Focused(focused) => {
-                        self.focused = *focused;
-                    }
-                    WindowEvent::Moved(new_position) => {
-                        if new_position.x > 0 && new_position.y > 0 {
-                            self.settings.windows.window_position.x = new_position.x as f32;
-                            self.settings.windows.window_position.y = new_position.y as f32;
-                            Log::verify(self.settings.save());
+                        WindowEvent::Focused(focused) => {
+                            self.focused = *focused;
                         }
+                        WindowEvent::Moved(new_position) => {
+                            if new_position.x > 0 && new_position.y > 0 {
+                                self.settings.windows.window_position.x = new_position.x as f32;
+                                self.settings.windows.window_position.y = new_position.y as f32;
+                                Log::verify(self.settings.save());
+                            }
+                        }
+                        WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                            set_ui_scaling(&self.engine.user_interface, *scale_factor as f32);
+                        }
+                        _ => (),
                     }
-                    WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
-                        set_ui_scaling(&self.engine.user_interface, *scale_factor as f32);
+
+                    self.update_loop_state.request_update_in_current_frame();
+
+                    if let Some(os_event) = translate_event(event) {
+                        self.engine.user_interface.process_os_event(&os_event);
                     }
-                    _ => (),
                 }
+                Event::LoopExiting => {
+                    Log::verify(self.settings.save());
 
-                self.update_loop_state.request_update_in_current_frame();
-
-                if let Some(os_event) = translate_event(event) {
-                    self.engine.user_interface.process_os_event(&os_event);
+                    for_each_plugin!(self.plugins => on_exit(&mut self));
                 }
-            }
-            Event::LoopDestroyed => {
-                Log::verify(self.settings.save());
+                _ => {
+                    if !self.update_loop_state.is_suspended() && self.is_active() {
+                        if self.is_suspended {
+                            for_each_plugin!(self.plugins => on_resumed(&mut self));
+                            self.is_suspended = false;
+                        }
 
-                for_each_plugin!(self.plugins => on_exit(&mut self));
-            }
-            _ => {
-                if !self.update_loop_state.is_suspended() && self.is_active() {
-                    if self.is_suspended {
-                        for_each_plugin!(self.plugins => on_resumed(&mut self));
-                        self.is_suspended = false;
+                        *control_flow = ControlFlow::Poll;
+                    } else {
+                        if !self.is_suspended {
+                            for_each_plugin!(self.plugins => on_suspended(&mut self));
+                            self.is_suspended = true;
+                        }
+
+                        *control_flow = ControlFlow::Wait;
                     }
-
-                    *control_flow = ControlFlow::Poll;
-                } else {
-                    if !self.is_suspended {
-                        for_each_plugin!(self.plugins => on_suspended(&mut self));
-                        self.is_suspended = true;
-                    }
-
-                    *control_flow = ControlFlow::Wait;
                 }
-            }
-        });
+            })
+            .unwrap();
     }
 }
 

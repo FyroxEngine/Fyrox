@@ -90,7 +90,7 @@ impl PluginConstructor for GameConstructor {
 
 fn main() {
     let mut executor = Executor::from_params(
-        EventLoop::new(),
+        EventLoop::new().unwrap(),
         GraphicsContextParams {
             window_attributes: WindowAttributes {
                 transparent: true,

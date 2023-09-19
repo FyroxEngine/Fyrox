@@ -7,6 +7,8 @@
 
 pub mod shared;
 
+use fyrox::event_loop::EventLoop;
+use fyrox::keyboard::KeyCode;
 use fyrox::resource::model::{Model, ModelResourceExtension};
 use fyrox::{
     asset::manager::ResourceManager,
@@ -32,7 +34,6 @@ use fyrox::{
     window::WindowAttributes,
 };
 use std::sync::{Arc, Mutex};
-use winit::keyboard::KeyCode;
 
 use crate::shared::create_camera;
 
@@ -374,7 +375,7 @@ impl PluginConstructor for GameConstructor {
 
 fn main() {
     let mut executor = Executor::from_params(
-        Default::default(),
+        EventLoop::new().unwrap(),
         GraphicsContextParams {
             window_attributes: WindowAttributes {
                 title: "Example - Asynchronous Scene Loading".to_string(),

@@ -323,7 +323,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
 }
 
 fn main() {
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::new().unwrap();
     let graphics_context_params = GraphicsContextParams {
         window_attributes: WindowAttributes {
             title: "Example - User Interface".to_string(),
@@ -365,154 +365,160 @@ fn main() {
     // Finally run our event loop which will respond to OS and window events and update
     // engine state accordingly. Engine lets you to decide which event should be handled,
     // this is minimal working example if how it should be.
-    event_loop.run(move |event, window_target, control_flow| {
-        match event {
-            Event::MainEventsCleared => {
-                // This main game loop - it has fixed time step which means that game
-                // code will run at fixed speed even if renderer can't give you desired
-                // 60 fps.
-                let elapsed = previous.elapsed();
-                previous = Instant::now();
-                lag += elapsed.as_secs_f32();
-                while lag >= fixed_timestep {
-                    // ************************
-                    // Put your game logic here.
-                    // ************************
+    event_loop
+        .run(move |event, window_target, control_flow| {
+            match event {
+                Event::AboutToWait => {
+                    // This main game loop - it has fixed time step which means that game
+                    // code will run at fixed speed even if renderer can't give you desired
+                    // 60 fps.
+                    let elapsed = previous.elapsed();
+                    previous = Instant::now();
+                    lag += elapsed.as_secs_f32();
+                    while lag >= fixed_timestep {
+                        // ************************
+                        // Put your game logic here.
+                        // ************************
 
-                    // Use stored scene handle to borrow a mutable reference of scene in
-                    // engine.
-                    let scene = &mut engine.scenes[scene_handle];
+                        // Use stored scene handle to borrow a mutable reference of scene in
+                        // engine.
+                        let scene = &mut engine.scenes[scene_handle];
 
-                    scene.graph[model_handle]
-                        .local_transform_mut()
-                        .set_scale(Vector3::new(model_scale, model_scale, model_scale))
-                        .set_rotation(UnitQuaternion::from_axis_angle(
-                            &Vector3::y_axis(),
-                            model_angle.to_radians(),
-                        ));
+                        scene.graph[model_handle]
+                            .local_transform_mut()
+                            .set_scale(Vector3::new(model_scale, model_scale, model_scale))
+                            .set_rotation(UnitQuaternion::from_axis_angle(
+                                &Vector3::y_axis(),
+                                model_angle.to_radians(),
+                            ));
 
-                    if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
-                        let fps = ctx.renderer.get_statistics().frames_per_second;
-                        engine.user_interface.send_message(TextMessage::text(
-                            interface.debug_text,
-                            MessageDirection::ToWidget,
-                            format!("Example 04 - User Interface\nFPS: {}", fps),
-                        ));
+                        if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                            let fps = ctx.renderer.get_statistics().frames_per_second;
+                            engine.user_interface.send_message(TextMessage::text(
+                                interface.debug_text,
+                                MessageDirection::ToWidget,
+                                format!("Example 04 - User Interface\nFPS: {}", fps),
+                            ));
+                        }
+
+                        engine.update(fixed_timestep, control_flow, &mut lag, Default::default());
+                        lag -= fixed_timestep;
                     }
 
-                    engine.update(fixed_timestep, control_flow, &mut lag, Default::default());
-                    lag -= fixed_timestep;
-                }
-
-                // It is very important to "pump" messages from UI. This our main point where we communicate
-                // with user interface. As you saw earlier, there is no callbacks on UI elements, instead we
-                // use messages to get information from UI elements. This provides perfect decoupling of logic
-                // from UI elements and works well with borrow checker.
-                while let Some(ui_message) = engine.user_interface.poll_message() {
-                    if let Some(ScrollBarMessage::Value(value)) =
-                        ui_message.data::<ScrollBarMessage>()
-                    {
-                        if ui_message.direction() == MessageDirection::FromWidget {
-                            // Some of our scroll bars has changed its value. Check which one.
-                            // Each message has source - a handle of UI element that created this message.
-                            // It is used to understand from which UI element message has come.
-                            if ui_message.destination() == interface.scale {
-                                model_scale = *value;
-                            } else if ui_message.destination() == interface.yaw {
-                                model_angle = *value;
+                    // It is very important to "pump" messages from UI. This our main point where we communicate
+                    // with user interface. As you saw earlier, there is no callbacks on UI elements, instead we
+                    // use messages to get information from UI elements. This provides perfect decoupling of logic
+                    // from UI elements and works well with borrow checker.
+                    while let Some(ui_message) = engine.user_interface.poll_message() {
+                        if let Some(ScrollBarMessage::Value(value)) =
+                            ui_message.data::<ScrollBarMessage>()
+                        {
+                            if ui_message.direction() == MessageDirection::FromWidget {
+                                // Some of our scroll bars has changed its value. Check which one.
+                                // Each message has source - a handle of UI element that created this message.
+                                // It is used to understand from which UI element message has come.
+                                if ui_message.destination() == interface.scale {
+                                    model_scale = *value;
+                                } else if ui_message.destination() == interface.yaw {
+                                    model_angle = *value;
+                                }
                             }
-                        }
-                    } else if let Some(ButtonMessage::Click) = ui_message.data::<ButtonMessage>() {
-                        // Once we received Click event from Reset button, we have to reset angle and scale
-                        // of model. To do that we borrow each UI element in engine and set its value directly.
-                        // This is not ideal because there is tight coupling between UI code and model values,
-                        // but still good enough for example.
-                        if ui_message.destination() == interface.reset {
-                            engine.user_interface.send_message(ScrollBarMessage::value(
-                                interface.scale,
-                                MessageDirection::ToWidget,
-                                DEFAULT_MODEL_SCALE,
-                            ));
-                            engine.user_interface.send_message(ScrollBarMessage::value(
-                                interface.yaw,
-                                MessageDirection::ToWidget,
-                                DEFAULT_MODEL_ROTATION,
-                            ));
-                        }
-                    } else if let Some(DropdownListMessage::SelectionChanged(Some(idx))) =
-                        ui_message.data::<DropdownListMessage>()
-                    {
-                        // Video mode has changed and we must change video mode to what user wants.
-                        if ui_message.destination() == interface.resolutions {
-                            let video_mode = interface.video_modes.get(*idx).unwrap();
+                        } else if let Some(ButtonMessage::Click) =
+                            ui_message.data::<ButtonMessage>()
+                        {
+                            // Once we received Click event from Reset button, we have to reset angle and scale
+                            // of model. To do that we borrow each UI element in engine and set its value directly.
+                            // This is not ideal because there is tight coupling between UI code and model values,
+                            // but still good enough for example.
+                            if ui_message.destination() == interface.reset {
+                                engine.user_interface.send_message(ScrollBarMessage::value(
+                                    interface.scale,
+                                    MessageDirection::ToWidget,
+                                    DEFAULT_MODEL_SCALE,
+                                ));
+                                engine.user_interface.send_message(ScrollBarMessage::value(
+                                    interface.yaw,
+                                    MessageDirection::ToWidget,
+                                    DEFAULT_MODEL_ROTATION,
+                                ));
+                            }
+                        } else if let Some(DropdownListMessage::SelectionChanged(Some(idx))) =
+                            ui_message.data::<DropdownListMessage>()
+                        {
+                            // Video mode has changed and we must change video mode to what user wants.
+                            if ui_message.destination() == interface.resolutions {
+                                let video_mode = interface.video_modes.get(*idx).unwrap();
 
-                            if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
-                                ctx.window.set_fullscreen(Some(Fullscreen::Exclusive(
-                                    video_mode.clone(),
-                                )));
+                                if let GraphicsContext::Initialized(ref ctx) =
+                                    engine.graphics_context
+                                {
+                                    ctx.window.set_fullscreen(Some(Fullscreen::Exclusive(
+                                        video_mode.clone(),
+                                    )));
 
-                                // Due to some weird bug in winit it does not send Resized event.
-                                if let Err(e) = engine.set_frame_size((
-                                    video_mode.size().width,
-                                    video_mode.size().height,
-                                )) {
-                                    Log::writeln(
-                                        MessageKind::Error,
-                                        format!("Unable to set frame size: {:?}", e),
-                                    );
+                                    // Due to some weird bug in winit it does not send Resized event.
+                                    if let Err(e) = engine.set_frame_size((
+                                        video_mode.size().width,
+                                        video_mode.size().height,
+                                    )) {
+                                        Log::writeln(
+                                            MessageKind::Error,
+                                            format!("Unable to set frame size: {:?}", e),
+                                        );
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                // Rendering must be explicitly requested and handled after RedrawRequested event is received.
-                if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
-                    ctx.window.request_redraw();
-                }
-            }
-            Event::Resumed => {
-                engine.initialize_graphics_context(window_target).unwrap();
-            }
-            Event::Suspended => {
-                engine.destroy_graphics_context().unwrap();
-            }
-            Event::RedrawRequested(_) => {
-                // Run renderer at max speed - it is not tied to game code.
-                engine.render().unwrap();
-            }
-            Event::WindowEvent { event, .. } => {
-                match &event {
-                    WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                    WindowEvent::Resized(size) => {
-                        // It is very important to handle Resized event from window, because
-                        // renderer knows nothing about window size - it must be notified
-                        // directly when window size has changed.
-                        if let Err(e) = engine.set_frame_size((*size).into()) {
-                            Log::writeln(
-                                MessageKind::Error,
-                                format!("Unable to set frame size: {:?}", e),
-                            );
-                        }
+                    // Rendering must be explicitly requested and handled after RedrawRequested event is received.
+                    if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                        ctx.window.request_redraw();
                     }
-                    WindowEvent::KeyboardInput { event: input, .. } => {
-                        if input.state == ElementState::Pressed
-                            && input.physical_key == KeyCode::Escape
-                        {
-                            *control_flow = ControlFlow::Exit;
-                        }
-                    }
-                    _ => (),
                 }
+                Event::Resumed => {
+                    engine.initialize_graphics_context(window_target).unwrap();
+                }
+                Event::Suspended => {
+                    engine.destroy_graphics_context().unwrap();
+                }
+                Event::RedrawRequested(_) => {
+                    // Run renderer at max speed - it is not tied to game code.
+                    engine.render().unwrap();
+                }
+                Event::WindowEvent { event, .. } => {
+                    match &event {
+                        WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                        WindowEvent::Resized(size) => {
+                            // It is very important to handle Resized event from window, because
+                            // renderer knows nothing about window size - it must be notified
+                            // directly when window size has changed.
+                            if let Err(e) = engine.set_frame_size((*size).into()) {
+                                Log::writeln(
+                                    MessageKind::Error,
+                                    format!("Unable to set frame size: {:?}", e),
+                                );
+                            }
+                        }
+                        WindowEvent::KeyboardInput { event: input, .. } => {
+                            if input.state == ElementState::Pressed
+                                && input.physical_key == KeyCode::Escape
+                            {
+                                *control_flow = ControlFlow::Exit;
+                            }
+                        }
+                        _ => (),
+                    }
 
-                // It is very important to "feed" user interface (UI) with events coming
-                // from main window, otherwise UI won't respond to mouse, keyboard, or any
-                // other event.
-                if let Some(os_event) = translate_event(&event) {
-                    engine.user_interface.process_os_event(&os_event);
+                    // It is very important to "feed" user interface (UI) with events coming
+                    // from main window, otherwise UI won't respond to mouse, keyboard, or any
+                    // other event.
+                    if let Some(os_event) = translate_event(&event) {
+                        engine.user_interface.process_os_event(&os_event);
+                    }
                 }
+                _ => *control_flow = ControlFlow::Poll,
             }
-            _ => *control_flow = ControlFlow::Poll,
-        }
-    });
+        })
+        .unwrap();
 }

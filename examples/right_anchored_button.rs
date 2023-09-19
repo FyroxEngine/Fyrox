@@ -18,6 +18,7 @@ use fyrox::{
     scene::Scene,
     window::WindowAttributes,
 };
+use winit::event_loop::EventLoop;
 
 struct Game {
     grid: Handle<UiNode>,
@@ -117,7 +118,7 @@ impl PluginConstructor for GameConstructor {
 
 fn main() {
     let mut executor = Executor::from_params(
-        Default::default(),
+        EventLoop::new().unwrap(),
         GraphicsContextParams {
             window_attributes: WindowAttributes {
                 title: "Example - Right Anchored Button".to_string(),

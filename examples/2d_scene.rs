@@ -4,6 +4,7 @@
 //!
 //! This example shows simple 2D scene with light sources.
 
+use fyrox::event_loop::EventLoop;
 use fyrox::resource::model::{Model, ModelResourceExtension};
 use fyrox::{
     asset::manager::ResourceManager,
@@ -171,7 +172,7 @@ impl PluginConstructor for GameConstructor {
 
 fn main() {
     let mut executor = Executor::from_params(
-        Default::default(),
+        EventLoop::new().unwrap(),
         GraphicsContextParams {
             window_attributes: WindowAttributes {
                 title: "Example - 2D Scene".to_string(),

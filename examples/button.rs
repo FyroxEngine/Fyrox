@@ -1,3 +1,4 @@
+use fyrox::event_loop::EventLoop;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle, rand::Rng},
     engine::{executor::Executor, GraphicsContext, GraphicsContextParams},
@@ -76,7 +77,7 @@ impl PluginConstructor for GameConstructor {
 
 fn main() {
     let mut executor = Executor::from_params(
-        Default::default(),
+        EventLoop::new().unwrap(),
         GraphicsContextParams {
             window_attributes: WindowAttributes {
                 title: "Example - Button".to_string(),

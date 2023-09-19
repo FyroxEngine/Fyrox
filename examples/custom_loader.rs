@@ -197,7 +197,7 @@ impl GameSceneLoader {
 }
 
 fn main() {
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::new().unwrap();
     let graphics_context_params = GraphicsContextParams {
         window_attributes: WindowAttributes {
             title: "Example - Custom Resource Loader".to_string(),
@@ -241,47 +241,49 @@ fn main() {
     let fixed_timestep = 1.0 / 60.0;
     let mut lag = 0.0;
 
-    event_loop.run(move |event, window_target, control_flow| match event {
-        Event::MainEventsCleared => {
-            let elapsed = previous.elapsed();
-            previous = Instant::now();
-            lag += elapsed.as_secs_f32();
-            while lag >= fixed_timestep {
-                engine.update(fixed_timestep, control_flow, &mut lag, Default::default());
-                lag -= fixed_timestep;
-            }
-
-            if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
-                ctx.window.request_redraw();
-            }
-        }
-        Event::Resumed => {
-            engine.initialize_graphics_context(window_target).unwrap();
-        }
-        Event::Suspended => {
-            engine.destroy_graphics_context().unwrap();
-        }
-        Event::RedrawRequested(_) => {
-            engine.render().unwrap();
-        }
-        Event::WindowEvent { event, .. } => {
-            match event {
-                WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                WindowEvent::Resized(size) => {
-                    if let Err(e) = engine.set_frame_size(size.into()) {
-                        Log::writeln(
-                            MessageKind::Error,
-                            format!("Unable to set frame size: {:?}", e),
-                        );
-                    }
+    event_loop
+        .run(move |event, window_target, control_flow| match event {
+            Event::AboutToWait => {
+                let elapsed = previous.elapsed();
+                previous = Instant::now();
+                lag += elapsed.as_secs_f32();
+                while lag >= fixed_timestep {
+                    engine.update(fixed_timestep, control_flow, &mut lag, Default::default());
+                    lag -= fixed_timestep;
                 }
-                _ => (),
-            }
 
-            if let Some(os_event) = translate_event(&event) {
-                engine.user_interface.process_os_event(&os_event);
+                if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                    ctx.window.request_redraw();
+                }
             }
-        }
-        _ => *control_flow = ControlFlow::Poll,
-    });
+            Event::Resumed => {
+                engine.initialize_graphics_context(window_target).unwrap();
+            }
+            Event::Suspended => {
+                engine.destroy_graphics_context().unwrap();
+            }
+            Event::RedrawRequested(_) => {
+                engine.render().unwrap();
+            }
+            Event::WindowEvent { event, .. } => {
+                match event {
+                    WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                    WindowEvent::Resized(size) => {
+                        if let Err(e) = engine.set_frame_size(size.into()) {
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!("Unable to set frame size: {:?}", e),
+                            );
+                        }
+                    }
+                    _ => (),
+                }
+
+                if let Some(os_event) = translate_event(&event) {
+                    engine.user_interface.process_os_event(&os_event);
+                }
+            }
+            _ => *control_flow = ControlFlow::Poll,
+        })
+        .unwrap();
 }

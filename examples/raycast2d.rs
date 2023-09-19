@@ -25,6 +25,7 @@ use fyrox::{
         Scene,
     },
 };
+use winit::event_loop::EventLoop;
 
 struct Game {
     from: Vector2<f32>,
@@ -175,7 +176,7 @@ impl PluginConstructor for GameConstructor {
 
 fn main() {
     let mut executor = Executor::from_params(
-        Default::default(),
+        EventLoop::new().unwrap(),
         GraphicsContextParams {
             window_attributes: WindowAttributes {
                 title: "Example - 2D Raycasting".to_string(),

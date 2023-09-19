@@ -1,6 +1,8 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::event_loop::EventLoop;
+use fyrox::keyboard::KeyCode;
 use fyrox::resource::model::{Model, ModelResourceExtension};
 use fyrox::{
     asset::manager::ResourceManager,
@@ -34,7 +36,6 @@ use fyrox::{
     window::WindowAttributes,
 };
 use std::collections::BTreeSet;
-use winit::keyboard::KeyCode;
 
 struct GameSceneLoader {
     scene: Scene,
@@ -272,7 +273,7 @@ impl PluginConstructor for GameConstructor {
 
 fn main() {
     let mut executor = Executor::from_params(
-        Default::default(),
+        EventLoop::new().unwrap(),
         GraphicsContextParams {
             window_attributes: WindowAttributes {
                 title: "Example - Blend Shapes".to_string(),

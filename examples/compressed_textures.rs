@@ -14,6 +14,7 @@ use fyrox::{
     utils::into_gui_texture,
     window::WindowAttributes,
 };
+use winit::event_loop::EventLoop;
 
 struct Game;
 
@@ -82,7 +83,7 @@ impl Plugin for Game {
 
 fn main() {
     let mut executor = Executor::from_params(
-        Default::default(),
+        EventLoop::new().unwrap(),
         GraphicsContextParams {
             window_attributes: WindowAttributes {
                 title: "Example - Compressed Textures".to_string(),

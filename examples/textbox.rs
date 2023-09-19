@@ -1,3 +1,4 @@
+use fyrox::event_loop::EventLoop;
 use fyrox::{
     core::{algebra::Vector2, color::Color, pool::Handle},
     engine::{executor::Executor, GraphicsContextParams},
@@ -41,7 +42,7 @@ impl PluginConstructor for GameConstructor {
 
 fn main() {
     let mut executor = Executor::from_params(
-        Default::default(),
+        EventLoop::new().unwrap(),
         GraphicsContextParams {
             window_attributes: WindowAttributes {
                 title: "Example - Text Box".to_string(),

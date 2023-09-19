@@ -60,7 +60,7 @@ strum = "0.25.0"
 strum_macros = "0.25.0"
 clap = { version = "4", features = ["derive"] }
 spade = "2.1.0"
-winit = { version = "0.29.0-beta.0", features = ["serde"] }
+winit = { version = "0.29.1-beta", features = ["serde"] }
 half = "2.2.1"
 fast_image_resize = "2.7.0"
 
@@ -69,11 +69,11 @@ enable_profiler = ["fyrox-core/enable_profiler"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 glutin = "0.30.10"
-glutin-winit = "0.4.0-beta.0"
+glutin-winit = "0.4.1-beta"
 raw-window-handle = "0.5.0"
 
 [target.'cfg(target_os = "android")'.dependencies]
-winit = { version = "0.29.0-beta.0", features = ["android-native-activity"] }
+winit = { version = "0.29.1-beta", features = ["android-native-activity"] }
 
 [profile.github-ci]
 inherits = "dev"

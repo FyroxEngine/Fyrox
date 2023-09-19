@@ -1,3 +1,4 @@
+use fyrox::event_loop::EventLoop;
 use fyrox::{
     core::pool::Handle,
     engine::{executor::Executor, GraphicsContextParams},
@@ -57,7 +58,7 @@ impl PluginConstructor for GameConstructor {
 
 fn main() {
     let mut executor = Executor::from_params(
-        Default::default(),
+        EventLoop::new().unwrap(),
         GraphicsContextParams {
             window_attributes: WindowAttributes {
                 title: "Example - Grid".to_string(),

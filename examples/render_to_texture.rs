@@ -1,3 +1,4 @@
+use fyrox::event_loop::EventLoop;
 use fyrox::resource::texture::TextureResourceExtension;
 use fyrox::{
     core::{algebra::Vector2, futures::executor::block_on, pool::Handle},
@@ -153,7 +154,7 @@ impl PluginConstructor for GameConstructor {
 
 fn main() {
     let mut executor = Executor::from_params(
-        Default::default(),
+        EventLoop::new().unwrap(),
         GraphicsContextParams {
             window_attributes: WindowAttributes {
                 title: "Example - Render Target".to_string(),

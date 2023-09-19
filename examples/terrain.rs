@@ -3,6 +3,7 @@
 pub mod shared;
 
 use crate::shared::create_camera;
+use fyrox::event_loop::EventLoop;
 use fyrox::resource::texture::Texture;
 use fyrox::{
     asset::manager::ResourceManager,
@@ -277,7 +278,7 @@ impl PluginConstructor for GameConstructor {
 
 fn main() {
     let mut executor = Executor::from_params(
-        Default::default(),
+        EventLoop::new().unwrap(),
         GraphicsContextParams {
             window_attributes: WindowAttributes {
                 title: "Example - Terrain".to_string(),

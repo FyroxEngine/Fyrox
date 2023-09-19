@@ -127,7 +127,7 @@ pub struct Game {
 
 impl Game {
     pub fn new(title: &str) -> (Self, EventLoop<()>) {
-        let event_loop = EventLoop::new();
+        let event_loop = EventLoop::new().unwrap();
 
         let graphics_context_params = GraphicsContextParams {
             window_attributes: WindowAttributes {

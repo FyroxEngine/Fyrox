@@ -300,7 +300,7 @@ struct InputController {
 }
 
 fn main() {
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::new().unwrap();
     let graphics_context_params = GraphicsContextParams {
         window_attributes: WindowAttributes {
             title: "Example - Lightmap".to_string(),
@@ -366,122 +366,33 @@ fn main() {
     // Finally run our event loop which will respond to OS and window events and update
     // engine state accordingly. Engine lets you to decide which event should be handled,
     // this is minimal working example if how it should be.
-    event_loop.run(move |event, window_target, control_flow| {
-        match event {
-            Event::MainEventsCleared => {
-                // This main game loop - it has fixed time step which means that game
-                // code will run at fixed speed even if renderer can't give you desired
-                // 60 fps.
-                let elapsed = previous.elapsed();
-                previous = Instant::now();
-                lag += elapsed.as_secs_f32();
-                while lag >= fixed_timestep {
-                    // ************************
-                    // Put your game logic here.
-                    // ************************
+    event_loop
+        .run(move |event, window_target, control_flow| {
+            match event {
+                Event::AboutToWait => {
+                    // This main game loop - it has fixed time step which means that game
+                    // code will run at fixed speed even if renderer can't give you desired
+                    // 60 fps.
+                    let elapsed = previous.elapsed();
+                    previous = Instant::now();
+                    lag += elapsed.as_secs_f32();
+                    while lag >= fixed_timestep {
+                        // ************************
+                        // Put your game logic here.
+                        // ************************
 
-                    // Check each frame if our scene is created - here we just trying to lock context
-                    // without blocking, it is important for main thread to be functional while other
-                    // thread still loading data.
-                    if let Ok(mut load_context) = game_scene.try_lock() {
-                        if let Some(game_scene) = load_context.data.take() {
-                            // Add scene to engine - engine will take ownership over scene and will return
-                            // you a handle to scene which can be used later on to borrow it and do some
-                            // actions you need.
-                            scene_handle = engine.scenes.add(game_scene.scene);
-                            model_handle = game_scene.root;
+                        // Check each frame if our scene is created - here we just trying to lock context
+                        // without blocking, it is important for main thread to be functional while other
+                        // thread still loading data.
+                        if let Ok(mut load_context) = game_scene.try_lock() {
+                            if let Some(game_scene) = load_context.data.take() {
+                                // Add scene to engine - engine will take ownership over scene and will return
+                                // you a handle to scene which can be used later on to borrow it and do some
+                                // actions you need.
+                                scene_handle = engine.scenes.add(game_scene.scene);
+                                model_handle = game_scene.root;
 
-                            // Once scene is loaded, we should hide progress bar and text.
-                            engine
-                                .user_interface
-                                .send_message(WidgetMessage::visibility(
-                                    interface.progress_grid,
-                                    MessageDirection::ToWidget,
-                                    false,
-                                ));
-                            engine.user_interface.send_message(WindowMessage::close(
-                                interface.choice_window,
-                                MessageDirection::ToWidget,
-                            ));
-                        }
-
-                        let stage = match load_context.progress_indicator.stage() {
-                            ProgressStage::LightsCaching => "Caching Lights",
-                            ProgressStage::UvGeneration => "Generating UVs",
-                            ProgressStage::GeometryCaching => "Caching Geometry",
-                            ProgressStage::CalculatingLight => "Calculating Light",
-                        };
-
-                        let message = if load_context.generate_lightmap {
-                            format!(
-                                "Please wait until lightmap is fully generated.\n\
-                                Stage {} of 4: {}\n\
-                                Elapsed time: {:.2} s",
-                                load_context.progress_indicator.stage() as u32 + 1,
-                                stage,
-                                load_context.start_time.elapsed().as_secs_f32(),
-                            )
-                        } else {
-                            format!(
-                                "Please wait until existing lightmap is fully loaded.\n\
-                                Elapsed time: {:.2} s",
-                                load_context.start_time.elapsed().as_secs_f32(),
-                            )
-                        };
-
-                        // Report progress in UI.
-                        engine
-                            .user_interface
-                            .send_message(ProgressBarMessage::progress(
-                                interface.progress_bar,
-                                MessageDirection::ToWidget,
-                                load_context.progress_indicator.progress_percent() as f32 / 100.0,
-                            ));
-                        engine.user_interface.send_message(TextMessage::text(
-                            interface.progress_text,
-                            MessageDirection::ToWidget,
-                            message,
-                        ));
-                    }
-
-                    // Update scene only if it is loaded.
-                    if scene_handle.is_some() {
-                        // Use stored scene handle to borrow a mutable reference of scene in
-                        // engine.
-                        let scene = &mut engine.scenes[scene_handle];
-
-                        // Rotate model according to input controller state.
-                        if input_controller.rotate_left {
-                            model_angle -= 5.0f32.to_radians();
-                        } else if input_controller.rotate_right {
-                            model_angle += 5.0f32.to_radians();
-                        }
-
-                        scene.graph[model_handle]
-                            .local_transform_mut()
-                            .set_rotation(UnitQuaternion::from_axis_angle(
-                                &Vector3::y_axis(),
-                                model_angle,
-                            ));
-                    }
-
-                    // While scene is loading, we will update progress bar.
-                    if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
-                        let debug_text = format!(
-                            "Example 09 - Lightmap\nUse [A][D] keys to rotate model.\n{}",
-                            ctx.renderer.get_statistics()
-                        );
-                        engine.user_interface.send_message(TextMessage::text(
-                            interface.debug_text,
-                            MessageDirection::ToWidget,
-                            debug_text,
-                        ));
-                    }
-
-                    while let Some(ui_event) = engine.user_interface.poll_message() {
-                        if let Some(ButtonMessage::Click) = ui_event.data::<ButtonMessage>() {
-                            if ui_event.destination() == interface.cancel {
-                                game_scene.lock().unwrap().cancellation_token.cancel();
+                                // Once scene is loaded, we should hide progress bar and text.
                                 engine
                                     .user_interface
                                     .send_message(WidgetMessage::visibility(
@@ -489,124 +400,217 @@ fn main() {
                                         MessageDirection::ToWidget,
                                         false,
                                     ));
-                                engine
-                                    .user_interface
-                                    .send_message(WindowMessage::open_modal(
+                                engine.user_interface.send_message(WindowMessage::close(
+                                    interface.choice_window,
+                                    MessageDirection::ToWidget,
+                                ));
+                            }
+
+                            let stage = match load_context.progress_indicator.stage() {
+                                ProgressStage::LightsCaching => "Caching Lights",
+                                ProgressStage::UvGeneration => "Generating UVs",
+                                ProgressStage::GeometryCaching => "Caching Geometry",
+                                ProgressStage::CalculatingLight => "Calculating Light",
+                            };
+
+                            let message = if load_context.generate_lightmap {
+                                format!(
+                                    "Please wait until lightmap is fully generated.\n\
+                                Stage {} of 4: {}\n\
+                                Elapsed time: {:.2} s",
+                                    load_context.progress_indicator.stage() as u32 + 1,
+                                    stage,
+                                    load_context.start_time.elapsed().as_secs_f32(),
+                                )
+                            } else {
+                                format!(
+                                    "Please wait until existing lightmap is fully loaded.\n\
+                                Elapsed time: {:.2} s",
+                                    load_context.start_time.elapsed().as_secs_f32(),
+                                )
+                            };
+
+                            // Report progress in UI.
+                            engine
+                                .user_interface
+                                .send_message(ProgressBarMessage::progress(
+                                    interface.progress_bar,
+                                    MessageDirection::ToWidget,
+                                    load_context.progress_indicator.progress_percent() as f32
+                                        / 100.0,
+                                ));
+                            engine.user_interface.send_message(TextMessage::text(
+                                interface.progress_text,
+                                MessageDirection::ToWidget,
+                                message,
+                            ));
+                        }
+
+                        // Update scene only if it is loaded.
+                        if scene_handle.is_some() {
+                            // Use stored scene handle to borrow a mutable reference of scene in
+                            // engine.
+                            let scene = &mut engine.scenes[scene_handle];
+
+                            // Rotate model according to input controller state.
+                            if input_controller.rotate_left {
+                                model_angle -= 5.0f32.to_radians();
+                            } else if input_controller.rotate_right {
+                                model_angle += 5.0f32.to_radians();
+                            }
+
+                            scene.graph[model_handle]
+                                .local_transform_mut()
+                                .set_rotation(UnitQuaternion::from_axis_angle(
+                                    &Vector3::y_axis(),
+                                    model_angle,
+                                ));
+                        }
+
+                        // While scene is loading, we will update progress bar.
+                        if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                            let debug_text = format!(
+                                "Example 09 - Lightmap\nUse [A][D] keys to rotate model.\n{}",
+                                ctx.renderer.get_statistics()
+                            );
+                            engine.user_interface.send_message(TextMessage::text(
+                                interface.debug_text,
+                                MessageDirection::ToWidget,
+                                debug_text,
+                            ));
+                        }
+
+                        while let Some(ui_event) = engine.user_interface.poll_message() {
+                            if let Some(ButtonMessage::Click) = ui_event.data::<ButtonMessage>() {
+                                if ui_event.destination() == interface.cancel {
+                                    game_scene.lock().unwrap().cancellation_token.cancel();
+                                    engine
+                                        .user_interface
+                                        .send_message(WidgetMessage::visibility(
+                                            interface.progress_grid,
+                                            MessageDirection::ToWidget,
+                                            false,
+                                        ));
+                                    engine
+                                        .user_interface
+                                        .send_message(WindowMessage::open_modal(
+                                            interface.choice_window,
+                                            MessageDirection::ToWidget,
+                                            true,
+                                        ));
+                                } else if ui_event.destination() == interface.generate_new {
+                                    game_scene = create_scene_async(
+                                        engine.serialization_context.clone(),
+                                        engine.resource_manager.clone(),
+                                        true,
+                                    );
+                                    engine.user_interface.send_message(WindowMessage::close(
                                         interface.choice_window,
                                         MessageDirection::ToWidget,
-                                        true,
                                     ));
-                            } else if ui_event.destination() == interface.generate_new {
-                                game_scene = create_scene_async(
-                                    engine.serialization_context.clone(),
-                                    engine.resource_manager.clone(),
-                                    true,
-                                );
-                                engine.user_interface.send_message(WindowMessage::close(
-                                    interface.choice_window,
-                                    MessageDirection::ToWidget,
-                                ));
-                                engine
-                                    .user_interface
-                                    .send_message(WidgetMessage::visibility(
-                                        interface.progress_grid,
+                                    engine
+                                        .user_interface
+                                        .send_message(WidgetMessage::visibility(
+                                            interface.progress_grid,
+                                            MessageDirection::ToWidget,
+                                            true,
+                                        ));
+                                } else if ui_event.destination() == interface.load_existing {
+                                    game_scene = create_scene_async(
+                                        engine.serialization_context.clone(),
+                                        engine.resource_manager.clone(),
+                                        false,
+                                    );
+                                    engine.user_interface.send_message(WindowMessage::close(
+                                        interface.choice_window,
                                         MessageDirection::ToWidget,
-                                        true,
                                     ));
-                            } else if ui_event.destination() == interface.load_existing {
-                                game_scene = create_scene_async(
-                                    engine.serialization_context.clone(),
-                                    engine.resource_manager.clone(),
-                                    false,
-                                );
-                                engine.user_interface.send_message(WindowMessage::close(
-                                    interface.choice_window,
-                                    MessageDirection::ToWidget,
-                                ));
-                                engine
-                                    .user_interface
-                                    .send_message(WidgetMessage::visibility(
-                                        interface.progress_grid,
-                                        MessageDirection::ToWidget,
-                                        true,
-                                    ));
+                                    engine
+                                        .user_interface
+                                        .send_message(WidgetMessage::visibility(
+                                            interface.progress_grid,
+                                            MessageDirection::ToWidget,
+                                            true,
+                                        ));
+                                }
                             }
                         }
+
+                        engine.update(fixed_timestep, control_flow, &mut lag, Default::default());
+
+                        lag -= fixed_timestep;
                     }
 
-                    engine.update(fixed_timestep, control_flow, &mut lag, Default::default());
-
-                    lag -= fixed_timestep;
-                }
-
-                // Rendering must be explicitly requested and handled after RedrawRequested event is received.
-                if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
-                    ctx.window.request_redraw();
-                }
-            }
-            Event::Resumed => {
-                engine.initialize_graphics_context(window_target).unwrap();
-            }
-            Event::Suspended => {
-                engine.destroy_graphics_context().unwrap();
-            }
-            Event::RedrawRequested(_) => {
-                // Run renderer at max speed - it is not tied to game code.
-                engine.render().unwrap();
-            }
-            Event::WindowEvent { event, .. } => {
-                match &event {
-                    WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                    WindowEvent::Resized(size) => {
-                        // It is very important to handle Resized event from window, because
-                        // renderer knows nothing about window size - it must be notified
-                        // directly when window size has changed.
-                        if let Err(e) = engine.set_frame_size((*size).into()) {
-                            Log::writeln(
-                                MessageKind::Error,
-                                format!("Unable to set frame size: {:?}", e),
-                            );
-                        }
-
-                        // Root UI node should be resized too, otherwise progress bar will stay
-                        // in wrong position after resize.
-                        if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
-                            let size = size.to_logical(ctx.window.scale_factor());
-                            engine.user_interface.send_message(WidgetMessage::width(
-                                interface.root,
-                                MessageDirection::ToWidget,
-                                size.width,
-                            ));
-                            engine.user_interface.send_message(WidgetMessage::height(
-                                interface.root,
-                                MessageDirection::ToWidget,
-                                size.height,
-                            ));
-                        }
+                    // Rendering must be explicitly requested and handled after RedrawRequested event is received.
+                    if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                        ctx.window.request_redraw();
                     }
-                    WindowEvent::KeyboardInput { event: input, .. } => match input.physical_key {
-                        KeyCode::KeyA => {
-                            input_controller.rotate_left = input.state == ElementState::Pressed
+                }
+                Event::Resumed => {
+                    engine.initialize_graphics_context(window_target).unwrap();
+                }
+                Event::Suspended => {
+                    engine.destroy_graphics_context().unwrap();
+                }
+                Event::RedrawRequested(_) => {
+                    // Run renderer at max speed - it is not tied to game code.
+                    engine.render().unwrap();
+                }
+                Event::WindowEvent { event, .. } => {
+                    match &event {
+                        WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                        WindowEvent::Resized(size) => {
+                            // It is very important to handle Resized event from window, because
+                            // renderer knows nothing about window size - it must be notified
+                            // directly when window size has changed.
+                            if let Err(e) = engine.set_frame_size((*size).into()) {
+                                Log::writeln(
+                                    MessageKind::Error,
+                                    format!("Unable to set frame size: {:?}", e),
+                                );
+                            }
+
+                            // Root UI node should be resized too, otherwise progress bar will stay
+                            // in wrong position after resize.
+                            if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                                let size = size.to_logical(ctx.window.scale_factor());
+                                engine.user_interface.send_message(WidgetMessage::width(
+                                    interface.root,
+                                    MessageDirection::ToWidget,
+                                    size.width,
+                                ));
+                                engine.user_interface.send_message(WidgetMessage::height(
+                                    interface.root,
+                                    MessageDirection::ToWidget,
+                                    size.height,
+                                ));
+                            }
                         }
-                        KeyCode::KeyD => {
-                            input_controller.rotate_right = input.state == ElementState::Pressed
-                        }
+                        WindowEvent::KeyboardInput { event: input, .. } => match input.physical_key
+                        {
+                            KeyCode::KeyA => {
+                                input_controller.rotate_left = input.state == ElementState::Pressed
+                            }
+                            KeyCode::KeyD => {
+                                input_controller.rotate_right = input.state == ElementState::Pressed
+                            }
+                            _ => (),
+                        },
                         _ => (),
-                    },
-                    _ => (),
-                }
+                    }
 
-                // It is very important to "feed" user interface (UI) with events coming
-                // from main window, otherwise UI won't respond to mouse, keyboard, or any
-                // other event.
-                if let Some(os_event) = translate_event(&event) {
-                    engine.user_interface.process_os_event(&os_event);
+                    // It is very important to "feed" user interface (UI) with events coming
+                    // from main window, otherwise UI won't respond to mouse, keyboard, or any
+                    // other event.
+                    if let Some(os_event) = translate_event(&event) {
+                        engine.user_interface.process_os_event(&os_event);
+                    }
                 }
+                Event::DeviceEvent { .. } => {
+                    // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
+                }
+                _ => *control_flow = ControlFlow::Poll,
             }
-            Event::DeviceEvent { .. } => {
-                // Handle key input events via `WindowEvent`, not via `DeviceEvent` (#32)
-            }
-            _ => *control_flow = ControlFlow::Poll,
-        }
-    });
+        })
+        .unwrap();
 }

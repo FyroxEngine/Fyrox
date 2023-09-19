@@ -1,3 +1,4 @@
+use fyrox::event_loop::EventLoop;
 use fyrox::{
     asset::{
         event::ResourceEventBroadcaster,
@@ -146,7 +147,7 @@ impl PluginConstructor for GameConstructor {
 
 fn main() {
     let mut executor = Executor::from_params(
-        Default::default(),
+        EventLoop::new().unwrap(),
         GraphicsContextParams {
             window_attributes: WindowAttributes {
                 title: "Example - Custom Resource".to_string(),

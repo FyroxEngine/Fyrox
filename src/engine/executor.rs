@@ -10,10 +10,11 @@ use crate::{
         Engine, EngineInitParams, GraphicsContext, GraphicsContextParams, SerializationContext,
     },
     event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
     plugin::PluginConstructor,
     scene::loader::AsyncSceneLoader,
     utils::translate_event,
+    window::WindowAttributes,
 };
 use clap::Parser;
 use std::{
@@ -21,7 +22,6 @@ use std::{
     sync::Arc,
     time::Duration,
 };
-use winit::window::WindowAttributes;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = None)]
@@ -90,7 +90,7 @@ impl Executor {
     /// way to create an executor see [`Executor::from_params`].
     pub fn new() -> Self {
         Self::from_params(
-            EventLoop::new(),
+            EventLoop::new().unwrap(),
             GraphicsContextParams {
                 window_attributes: WindowAttributes {
                     resizable: true,
@@ -132,8 +132,8 @@ impl Executor {
         self.engine.add_plugin_constructor(plugin)
     }
 
-    /// Runs the executor - starts your game. This function is never returns.
-    pub fn run(mut self) -> ! {
+    /// Runs the executor - starts your game.
+    pub fn run(mut self) {
         let mut engine = self.engine;
         let event_loop = self.event_loop;
         let headless = self.headless;
@@ -156,7 +156,9 @@ impl Executor {
         let fixed_time_step = 1.0 / self.desired_update_rate;
         let mut lag = 0.0;
 
-        event_loop.run(move |event, window_target, control_flow| {
+        run_executor(event_loop, move |event, window_target, control_flow| {
+            control_flow.set_wait_timeout(Duration::from_millis(16));
+
             engine.handle_os_event_by_plugins(&event, fixed_time_step, control_flow, &mut lag);
 
             let scenes = engine
@@ -196,7 +198,7 @@ impl Executor {
                         &mut lag,
                     );
                 }
-                Event::MainEventsCleared => {
+                Event::AboutToWait => {
                     prepare_control_flow(control_flow, fixed_time_step);
 
                     if let Some(loader) = self.loader.as_ref() {
@@ -271,5 +273,21 @@ fn prepare_control_flow(control_flow: &mut ControlFlow, #[allow(unused_variables
     #[cfg(not(target_arch = "wasm32"))]
     {
         control_flow.set_poll();
+    }
+}
+
+fn run_executor<T, F>(event_loop: EventLoop<T>, callback: F)
+where
+    F: FnMut(Event<T>, &EventLoopWindowTarget<T>, &mut ControlFlow) + 'static,
+{
+    #[cfg(target_arch = "wasm32")]
+    {
+        use winit::platform::web::EventLoopExtWebSys;
+        event_loop.spawn(callback);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        event_loop.run(callback).unwrap();
     }
 }

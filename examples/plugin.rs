@@ -1,4 +1,5 @@
 use fyrox::engine::GraphicsContext;
+use fyrox::event_loop::EventLoop;
 use fyrox::{
     core::{
         color::{Color, Hsv},
@@ -44,7 +45,7 @@ impl PluginConstructor for GameConstructor {
 
 fn main() {
     let mut executor = Executor::from_params(
-        Default::default(),
+        EventLoop::new().unwrap(),
         GraphicsContextParams {
             window_attributes: WindowAttributes {
                 title: "Example - Plugins".to_string(),
