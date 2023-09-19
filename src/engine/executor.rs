@@ -19,6 +19,7 @@ use clap::Parser;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
+    time::Duration,
 };
 use winit::window::WindowAttributes;
 
@@ -196,6 +197,8 @@ impl Executor {
                     );
                 }
                 Event::MainEventsCleared => {
+                    prepare_control_flow(control_flow, fixed_time_step);
+
                     if let Some(loader) = self.loader.as_ref() {
                         if let Some(result) = loader.fetch_result() {
                             let override_scene = match result {
@@ -221,11 +224,6 @@ impl Executor {
                         lag -= fixed_time_step;
                     }
 
-                    if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
-                        ctx.window.request_redraw();
-                    }
-                }
-                Event::RedrawRequested(_) => {
                     engine.handle_before_rendering_by_plugins(
                         fixed_time_step,
                         control_flow,
@@ -233,6 +231,10 @@ impl Executor {
                     );
 
                     engine.render().unwrap();
+
+                    if let GraphicsContext::Initialized(ref ctx) = engine.graphics_context {
+                        ctx.window.request_redraw();
+                    }
                 }
                 Event::WindowEvent { event, .. } => {
                     match event {
@@ -252,8 +254,22 @@ impl Executor {
                         engine.user_interface.process_os_event(&os_event);
                     }
                 }
-                _ => *control_flow = ControlFlow::Poll,
+                _ => (),
             }
         })
+    }
+}
+
+fn prepare_control_flow(control_flow: &mut ControlFlow, #[allow(unused_variables)] time_step: f32) {
+    // On WebAssembly, force the browser to wait the time step. Polling is kinda problematic here,
+    // because it leads to unstable frame rate.
+    #[cfg(target_arch = "wasm32")]
+    {
+        control_flow.set_wait_timeout(Duration::from_secs_f32(time_step));
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        control_flow.set_poll();
     }
 }
