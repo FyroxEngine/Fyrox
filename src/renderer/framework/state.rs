@@ -892,6 +892,7 @@ impl PipelineState {
 
     /// Checks for errors, returns true if any error has occurred.
     pub fn check_error(&self) -> bool {
+        #[cfg(debug_assertions)]
         unsafe {
             let error_code = self.gl.get_error();
             if error_code != glow::NO_ERROR {
@@ -922,5 +923,8 @@ impl PipelineState {
                 false
             }
         }
+
+        #[cfg(not(debug_assertions))]
+        false
     }
 }
