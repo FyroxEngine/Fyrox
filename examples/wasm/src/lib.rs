@@ -4,6 +4,7 @@
 //!
 //! Warning - Work in progress!
 
+use fyrox::platform::web::EventLoopExtWebSys;
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
@@ -275,7 +276,7 @@ struct InputController {
 pub fn main_js() {
     set_once();
 
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::new().unwrap();
 
     let graphics_context_params = GraphicsContextParams {
         window_attributes: WindowAttributes {
@@ -323,9 +324,9 @@ pub fn main_js() {
     // Finally run our event loop which will respond to OS and window events and update
     // engine state accordingly. Engine lets you to decide which event should be handled,
     // this is minimal working example if how it should be.
-    event_loop.run(move |event, window_target, control_flow| {
+    event_loop.spawn(move |event, window_target, control_flow| {
         match event {
-            Event::MainEventsCleared => {
+            Event::AboutToWait => {
                 // This main game loop - it has fixed time step which means that game
                 // code will run at fixed speed even if renderer can't give you desired
                 // 60 fps.
