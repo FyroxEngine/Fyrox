@@ -1346,7 +1346,7 @@ impl Texture {
             let width = dyn_img.width();
             let height = dyn_img.height();
 
-            let mut pixel_kind = match dyn_img {
+            let src_pixel_kind = match dyn_img {
                 DynamicImage::ImageLuma8(_) => TexturePixelKind::Luminance8,
                 DynamicImage::ImageLumaA8(_) => TexturePixelKind::LuminanceAlpha8,
                 DynamicImage::ImageRgb8(_) => TexturePixelKind::RGB8,
@@ -1359,21 +1359,22 @@ impl Texture {
                 DynamicImage::ImageRgba32F(_) => TexturePixelKind::RGBA32F,
                 _ => return Err(TextureError::UnsupportedFormat),
             };
+            let mut final_pixel_kind = src_pixel_kind;
 
             let mut mip_count = 0;
             let mut bytes = Vec::with_capacity(
-                width as usize * height as usize * pixel_kind.size_in_bytes().unwrap_or(4),
+                width as usize * height as usize * src_pixel_kind.size_in_bytes().unwrap_or(4),
             );
 
             if gen_mip_maps {
-                let pixel_type = convert_pixel_type_enum(pixel_kind);
+                let src_pixel_type = convert_pixel_type_enum(src_pixel_kind);
                 let mut level_width = width;
                 let mut level_height = height;
                 let mut current_level = fr::Image::from_vec_u8(
                     NonZeroU32::new(level_width).unwrap(),
                     NonZeroU32::new(level_height).unwrap(),
                     dyn_img.as_bytes().to_vec(),
-                    pixel_type,
+                    src_pixel_type,
                 )
                 .map_err(|_| TextureError::UnsupportedFormat)?;
 
@@ -1382,7 +1383,7 @@ impl Texture {
                         let mut dst_img = fr::Image::new(
                             NonZeroU32::new(level_width).unwrap(),
                             NonZeroU32::new(level_height).unwrap(),
-                            pixel_type,
+                            src_pixel_type,
                         );
 
                         let mut resizer = fr::Resizer::new(fr::ResizeAlg::Convolution(
@@ -1401,13 +1402,13 @@ impl Texture {
                     if compression == CompressionOptions::NoCompression {
                         bytes.extend_from_slice(current_level.buffer())
                     } else if let Some((compressed_data, new_pixel_kind)) = try_compress(
-                        pixel_kind,
+                        src_pixel_kind,
                         current_level.buffer(),
                         level_width as usize,
                         level_height as usize,
                         compression,
                     ) {
-                        pixel_kind = new_pixel_kind;
+                        final_pixel_kind = new_pixel_kind;
                         bytes.extend_from_slice(&compressed_data);
                     } else {
                         bytes.extend_from_slice(current_level.buffer())
@@ -1422,13 +1423,13 @@ impl Texture {
                 if compression == CompressionOptions::NoCompression {
                     bytes.extend_from_slice(dyn_img.as_bytes());
                 } else if let Some((compressed_data, new_pixel_kind)) = try_compress(
-                    pixel_kind,
+                    src_pixel_kind,
                     dyn_img.as_bytes(),
                     width as usize,
                     height as usize,
                     compression,
                 ) {
-                    pixel_kind = new_pixel_kind;
+                    final_pixel_kind = new_pixel_kind;
                     bytes.extend_from_slice(&compressed_data);
                 } else {
                     bytes.extend_from_slice(dyn_img.as_bytes())
@@ -1436,7 +1437,7 @@ impl Texture {
             }
 
             Ok(Self {
-                pixel_kind,
+                pixel_kind: final_pixel_kind,
                 kind: TextureKind::Rectangle { width, height },
                 data_hash: data_hash(&bytes),
                 bytes: bytes.into(),
