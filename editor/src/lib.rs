@@ -830,7 +830,7 @@ impl Editor {
         let asset_browser = AssetBrowser::new(&mut engine);
         let menu = Menu::new(&mut engine, message_sender.clone(), &settings);
         let light_panel = LightPanel::new(&mut engine, message_sender.clone());
-        let audio_panel = AudioPanel::new(&mut engine);
+        let audio_panel = AudioPanel::new(&mut engine, message_sender.clone());
 
         let ctx = &mut engine.user_interface.build_ctx();
         let navmesh_panel = NavmeshPanel::new(ctx, message_sender.clone());

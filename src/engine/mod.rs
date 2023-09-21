@@ -42,6 +42,7 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_sound::buffer::{loader::SoundBufferLoader, SoundBuffer};
+use fyrox_sound::renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData};
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{
     config::ConfigTemplateBuilder,
@@ -821,6 +822,7 @@ pub(crate) fn initialize_resource_manager_loaders(
     state.constructors_container.add::<Model>();
     state.constructors_container.add::<CurveResourceState>();
     state.constructors_container.add::<SoundBuffer>();
+    state.constructors_container.add::<HrirSphereResourceData>();
 
     let loaders = &mut state.loaders;
     loaders.set(model_loader);
@@ -832,6 +834,7 @@ pub(crate) fn initialize_resource_manager_loaders(
     });
     loaders.set(ShaderLoader);
     loaders.set(CurveLoader);
+    loaders.set(HrirSphereLoader);
 }
 
 impl Engine {

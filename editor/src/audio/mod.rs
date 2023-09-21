@@ -1,7 +1,9 @@
-use crate::message::MessageSender;
+use crate::scene::commands::sound_context::SetHrtfRendererHrirSphereResource;
 use crate::{
     audio::bus::{AudioBusView, AudioBusViewBuilder, AudioBusViewMessage},
     gui::make_dropdown_list_option,
+    inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
+    message::MessageSender,
     scene::commands::{
         effect::{AddAudioBusCommand, LinkAudioBuses, RemoveAudioBusCommand},
         sound_context::{SetDistanceModelCommand, SetRendererCommand},
@@ -13,12 +15,11 @@ use crate::{
     Selection, UserInterface,
 };
 use fyrox::{
-    core::{log::Log, pool::Handle},
+    core::{futures::executor::block_on, pool::Handle},
     engine::Engine,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         dropdown_list::{DropdownListBuilder, DropdownListMessage},
-        file_browser::{FileSelectorFieldBuilder, FileSelectorFieldMessage},
         grid::{Column, Row},
         list_view::{ListView, ListViewBuilder, ListViewMessage},
         message::UiMessage,
@@ -29,11 +30,9 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         Orientation, Thickness, UiNode, VerticalAlignment,
     },
-    scene::sound::{
-        AudioBus, AudioBusGraph, DistanceModel, HrirSphere, HrtfRenderer, Renderer, SAMPLE_RATE,
-    },
+    scene::sound::{AudioBus, AudioBusGraph, DistanceModel, HrirSphereResourceData, Renderer},
 };
-use std::cmp::Ordering;
+use std::{cmp::Ordering, rc::Rc};
 use strum::VariantNames;
 
 mod bus;
@@ -61,7 +60,7 @@ pub struct AudioPanel {
     audio_buses: Handle<UiNode>,
     distance_model: Handle<UiNode>,
     renderer: Handle<UiNode>,
-    hrir_sphere_path: Handle<UiNode>,
+    hrir_resource: Handle<UiNode>,
 }
 
 fn item_bus(item: Handle<UiNode>, ui: &UserInterface) -> Handle<AudioBus> {
@@ -92,7 +91,7 @@ fn audio_bus_effect_names(audio_bus: &AudioBus) -> Vec<String> {
 }
 
 impl AudioPanel {
-    pub fn new(engine: &mut Engine) -> Self {
+    pub fn new(engine: &mut Engine, sender: MessageSender) -> Self {
         let ctx = &mut engine.user_interface.build_ctx();
 
         let add_bus;
@@ -100,7 +99,7 @@ impl AudioPanel {
         let buses;
         let distance_model;
         let renderer;
-        let hrir_sphere_path;
+        let hrir_resource;
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("AudioPanel"))
             .with_content(
                 GridBuilder::new(
@@ -165,18 +164,20 @@ impl AudioPanel {
                                         renderer
                                     })
                                     .with_child({
-                                        hrir_sphere_path = FileSelectorFieldBuilder::new(
-                                            WidgetBuilder::new()
-                                                .with_tooltip(make_simple_tooltip(
-                                                    ctx,
-                                                    "A path to a HRIR sphere used \
-                                                    by the HRTF renderer.",
-                                                ))
-                                                .with_width(120.0)
-                                                .with_margin(Thickness::uniform(1.0)),
+                                        hrir_resource = ResourceFieldBuilder::<
+                                            HrirSphereResourceData,
+                                        >::new(
+                                            WidgetBuilder::new(),
+                                            Rc::new(|resource_manager, path| {
+                                                block_on(
+                                                    resource_manager
+                                                        .request::<HrirSphereResourceData, _>(path),
+                                                )
+                                            }),
+                                            sender,
                                         )
-                                        .build(ctx);
-                                        hrir_sphere_path
+                                        .build(ctx, engine.resource_manager.clone());
+                                        hrir_resource
                                     }),
                             )
                             .with_orientation(Orientation::Horizontal)
@@ -238,7 +239,7 @@ impl AudioPanel {
             add_bus,
             remove_bus,
             renderer,
-            hrir_sphere_path,
+            hrir_resource,
         }
     }
 
@@ -326,23 +327,13 @@ impl AudioPanel {
                     sender.do_scene_command(SetDistanceModelCommand::new(distance_model));
                 }
             }
-        } else if let Some(FileSelectorFieldMessage::Path(path)) = message.data() {
-            if message.destination() == self.hrir_sphere_path
+        } else if let Some(ResourceFieldMessage::Value(resource)) =
+            message.data::<ResourceFieldMessage<HrirSphereResourceData>>()
+        {
+            if message.destination() == self.hrir_resource
                 && message.direction() == MessageDirection::FromWidget
             {
-                match HrirSphere::from_file(path, SAMPLE_RATE) {
-                    Ok(hrir_sphere) => {
-                        sender.do_scene_command(SetRendererCommand::new(Renderer::HrtfRenderer(
-                            HrtfRenderer::new(hrir_sphere),
-                        )));
-                    }
-                    Err(e) => {
-                        Log::err(format!(
-                            "Failed to load a HRIR sphere from {:?}. Reason: {:?}",
-                            path, e
-                        ));
-                    }
-                }
+                sender.do_scene_command(SetHrtfRendererHrirSphereResource::new(resource.clone()));
             }
         }
     }
@@ -518,20 +509,21 @@ impl AudioPanel {
         if let Renderer::HrtfRenderer(hrtf) = context_state.renderer_ref() {
             send_sync_message(
                 ui,
-                WidgetMessage::visibility(self.hrir_sphere_path, MessageDirection::ToWidget, true),
+                WidgetMessage::visibility(self.hrir_resource, MessageDirection::ToWidget, true),
             );
+
             send_sync_message(
                 ui,
-                FileSelectorFieldMessage::path(
-                    self.hrir_sphere_path,
+                ResourceFieldMessage::value(
+                    self.hrir_resource,
                     MessageDirection::ToWidget,
-                    hrtf.hrir_sphere_path().to_path_buf(),
+                    hrtf.hrir_sphere_resource(),
                 ),
             );
         } else {
             send_sync_message(
                 ui,
-                WidgetMessage::visibility(self.hrir_sphere_path, MessageDirection::ToWidget, false),
+                WidgetMessage::visibility(self.hrir_resource, MessageDirection::ToWidget, false),
             );
         }
     }

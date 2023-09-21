@@ -234,7 +234,7 @@ fn is_engine_resource(ext: &OsStr) -> bool {
     let ext = ext.to_string_lossy().to_lowercase();
     matches!(
         ext.as_str(),
-        "rgs" | "fbx" | "jpg" | "tga" | "png" | "bmp" | "ogg" | "wav" | "shader"
+        "rgs" | "fbx" | "jpg" | "tga" | "png" | "bmp" | "ogg" | "wav" | "shader" | "hrir"
     )
 }
 

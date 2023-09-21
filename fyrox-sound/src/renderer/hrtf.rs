@@ -20,17 +20,18 @@
 //!
 //! ```no_run
 //! use fyrox_sound::context::{self, SoundContext};
-//! use fyrox_sound::renderer::hrtf::{HrtfRenderer};
+//! use fyrox_sound::renderer::hrtf::{HrirSphereResource, HrirSphereResourceExt, HrtfRenderer};
 //! use fyrox_sound::renderer::Renderer;
-//! use std::path::Path;
+//! use std::path::{Path, PathBuf};
 //! use hrtf::HrirSphere;
 //!
 //! fn use_hrtf(context: &mut SoundContext) {
 //!     // IRC_1002_C.bin is HRIR sphere in binary format, can be any valid HRIR sphere
 //!     // from base mentioned above.
-//!     let hrir_sphere = HrirSphere::from_file("examples/data/IRC_1002_C.bin", context::SAMPLE_RATE).unwrap();
+//!     let hrir_path = PathBuf::from("examples/data/IRC_1002_C.bin");
+//!     let hrir_sphere = HrirSphere::from_file(&hrir_path, context::SAMPLE_RATE).unwrap();
 //!
-//!     context.state().set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(hrir_sphere)));
+//!     context.state().set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(HrirSphereResource::from_hrir_sphere(hrir_sphere, hrir_path))));
 //! }
 //! ```
 //!
@@ -58,19 +59,32 @@ use crate::{
     source::SoundSource,
 };
 use fyrox_core::{
+    log::Log,
     reflect::prelude::*,
+    uuid::{uuid, Uuid},
     visitor::{Visit, VisitResult, Visitor},
+    TypeUuidProvider,
+};
+use fyrox_resource::{
+    event::ResourceEventBroadcaster,
+    loader::{BoxedLoaderFuture, ResourceLoader},
+    untyped::UntypedResource,
+    Resource, ResourceData, ResourceStateRef,
 };
 use hrtf::HrirSphere;
 use std::{
+    any::Any,
+    borrow::Cow,
     fmt::Debug,
+    fmt::Formatter,
+    io::Cursor,
     path::{Path, PathBuf},
 };
 
 /// See module docs.
 #[derive(Clone, Debug, Default, Reflect)]
 pub struct HrtfRenderer {
-    hrir_path: PathBuf,
+    hrir_resource: Option<HrirSphereResource>,
     #[reflect(hidden)]
     processor: Option<hrtf::HrtfProcessor>,
 }
@@ -79,13 +93,7 @@ impl Visit for HrtfRenderer {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        self.hrir_path.visit("ResourcePath", &mut region)?;
-
-        drop(region);
-
-        if visitor.is_reading() {
-            self.try_reload();
-        }
+        Log::verify(self.hrir_resource.visit("HrirResource", &mut region));
 
         Ok(())
     }
@@ -93,38 +101,27 @@ impl Visit for HrtfRenderer {
 
 impl HrtfRenderer {
     /// Creates new HRTF renderer using specified HRTF sphere. See module docs for more info.
-    pub fn new(hrir_sphere: hrtf::HrirSphere) -> Self {
+    pub fn new(hrir_sphere_resource: HrirSphereResource) -> Self {
         Self {
-            hrir_path: hrir_sphere.source().to_path_buf(),
             processor: Some(hrtf::HrtfProcessor::new(
-                hrir_sphere,
+                {
+                    let sphere = hrir_sphere_resource.data_ref().hrir_sphere.clone().unwrap();
+                    sphere
+                },
                 SoundContext::HRTF_INTERPOLATION_STEPS,
                 SoundContext::HRTF_BLOCK_LEN,
             )),
+            hrir_resource: Some(hrir_sphere_resource),
         }
     }
 
-    /// Tries to load a new HRIR sphere from a given path and re-initialize the renderer to use it.
-    pub fn set_hrir_sphere_from_path<P: AsRef<Path>>(&mut self, path: P) {
-        self.hrir_path = path.as_ref().to_path_buf();
-        self.try_reload();
+    pub fn set_hrir_sphere_resource(&mut self, resource: Option<HrirSphereResource>) {
+        self.hrir_resource = resource;
+        self.processor = None;
     }
 
-    /// Returns currently used HRIR path.
-    pub fn hrir_sphere_path(&self) -> &Path {
-        &self.hrir_path
-    }
-
-    fn try_reload(&mut self) {
-        self.processor = HrirSphere::from_file(&self.hrir_path, context::SAMPLE_RATE)
-            .ok()
-            .map(|sphere| {
-                hrtf::HrtfProcessor::new(
-                    sphere,
-                    SoundContext::HRTF_INTERPOLATION_STEPS,
-                    SoundContext::HRTF_BLOCK_LEN,
-                )
-            });
+    pub fn hrir_sphere_resource(&self) -> Option<HrirSphereResource> {
+        self.hrir_resource.clone()
     }
 
     pub(crate) fn render_source(
@@ -134,6 +131,24 @@ impl HrtfRenderer {
         distance_model: DistanceModel,
         out_buf: &mut [(f32, f32)],
     ) {
+        // Re-create HRTF processor on the fly only when a respective HRIR sphere resource is fully loaded.
+        // This is a poor-man's async support for crippled OSes such as WebAssembly.
+        if self.processor.is_none() {
+            if let Some(resource) = self.hrir_resource.as_ref() {
+                let state = resource.state();
+                match state.get() {
+                    ResourceStateRef::Ok(hrir) => {
+                        self.processor = Some(hrtf::HrtfProcessor::new(
+                            hrir.hrir_sphere.clone().unwrap(),
+                            SoundContext::HRTF_INTERPOLATION_STEPS,
+                            SoundContext::HRTF_BLOCK_LEN,
+                        ));
+                    }
+                    _ => (),
+                }
+            }
+        }
+
         // Render as 2D first with k = (1.0 - spatial_blend).
         render_source_2d_only(source, out_buf);
 
@@ -166,5 +181,139 @@ impl HrtfRenderer {
 
         source.prev_sampling_vector = new_sampling_vector;
         source.prev_distance_gain = Some(new_distance_gain);
+    }
+}
+
+#[derive(Reflect, Default)]
+pub struct HrirSphereResourceData {
+    path: PathBuf,
+    #[reflect(hidden)]
+    hrir_sphere: Option<HrirSphere>,
+}
+
+impl Debug for HrirSphereResourceData {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HrirSphereResourceData")
+            .field("Path", &self.path.to_string_lossy().to_string())
+            .finish()
+    }
+}
+
+impl Visit for HrirSphereResourceData {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut guard = visitor.enter_region(name)?;
+
+        self.path.visit("Path", &mut guard)?;
+
+        Ok(())
+    }
+}
+
+impl TypeUuidProvider for HrirSphereResourceData {
+    fn type_uuid() -> Uuid {
+        uuid!("c92a0fa3-0ed3-49a9-be44-8f06271c6be2")
+    }
+}
+
+impl ResourceData for HrirSphereResourceData {
+    fn path(&self) -> Cow<Path> {
+        Cow::Borrowed(&self.path)
+    }
+
+    fn set_path(&mut self, path: PathBuf) {
+        self.path = path;
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn type_uuid(&self) -> Uuid {
+        <Self as TypeUuidProvider>::type_uuid()
+    }
+
+    fn is_procedural(&self) -> bool {
+        false
+    }
+}
+
+pub struct HrirSphereLoader;
+
+impl ResourceLoader for HrirSphereLoader {
+    fn extensions(&self) -> &[&str] {
+        &["hrir"]
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn load(
+        &self,
+        hrir_sphere: UntypedResource,
+        event_broadcaster: ResourceEventBroadcaster,
+        reload: bool,
+    ) -> BoxedLoaderFuture {
+        Box::pin(async move {
+            let path = hrir_sphere.path().to_path_buf();
+
+            match fyrox_core::io::load_file(&path).await {
+                Ok(file) => match HrirSphere::new(Cursor::new(file), context::SAMPLE_RATE) {
+                    Ok(sphere) => {
+                        Log::info(format!("HRIR sphere {:?} is loaded!", path));
+
+                        hrir_sphere.commit_ok(HrirSphereResourceData {
+                            hrir_sphere: Some(sphere),
+                            path,
+                        });
+
+                        event_broadcaster.broadcast_loaded_or_reloaded(hrir_sphere, reload);
+                    }
+                    Err(error) => {
+                        Log::err(format!(
+                            "Unable to load HRIR sphere from {:?}! Reason {:?}",
+                            path, error
+                        ));
+
+                        hrir_sphere.commit_error(path, error);
+                    }
+                },
+                Err(error) => {
+                    Log::err(format!(
+                        "Unable to load HRIR sphere from {:?}! Reason {:?}",
+                        path, error
+                    ));
+
+                    hrir_sphere.commit_error(path, error);
+                }
+            }
+        })
+    }
+}
+
+pub type HrirSphereResource = Resource<HrirSphereResourceData>;
+
+pub trait HrirSphereResourceExt {
+    fn from_hrir_sphere(hrir_sphere: HrirSphere, path: PathBuf) -> Self;
+}
+
+impl HrirSphereResourceExt for HrirSphereResource {
+    fn from_hrir_sphere(hrir_sphere: HrirSphere, path: PathBuf) -> Self {
+        Resource::new_ok(HrirSphereResourceData {
+            hrir_sphere: Some(hrir_sphere),
+            path,
+        })
     }
 }

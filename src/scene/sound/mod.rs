@@ -32,7 +32,7 @@ pub use fyrox_sound::{
     engine::SoundEngine,
     error::SoundError,
     hrtf::HrirSphere,
-    renderer::{hrtf::HrtfRenderer, Renderer},
+    renderer::{hrtf::*, Renderer},
     source::Status,
 };
 

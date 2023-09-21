@@ -1,5 +1,6 @@
 use fyrox_core::algebra::Point3;
 use fyrox_sound::buffer::SoundBufferResourceExtension;
+use fyrox_sound::renderer::hrtf::{HrirSphereResource, HrirSphereResourceExt};
 use fyrox_sound::{
     algebra::{UnitQuaternion, Vector3},
     buffer::{DataSource, SoundBufferResource},
@@ -10,6 +11,7 @@ use fyrox_sound::{
     renderer::{hrtf::HrtfRenderer, Renderer},
     source::{SoundSourceBuilder, Status},
 };
+use std::path::PathBuf;
 use std::{
     thread,
     time::{self, Duration},
@@ -19,8 +21,8 @@ fn main() {
     // Initialize sound engine with default output device.
     let engine = SoundEngine::new().unwrap();
 
-    let hrir_sphere =
-        HrirSphere::from_file("examples/data/IRC_1002_C.bin", context::SAMPLE_RATE).unwrap();
+    let hrir_path = PathBuf::from("examples/data/IRC_1002_C.bin");
+    let hrir_sphere = HrirSphere::from_file(&hrir_path, context::SAMPLE_RATE).unwrap();
 
     // Initialize new sound context with default output device.
     let context = SoundContext::new();
@@ -30,7 +32,9 @@ fn main() {
     // Set HRTF renderer instead of default.
     context
         .state()
-        .set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(hrir_sphere)));
+        .set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(
+            HrirSphereResource::from_hrir_sphere(hrir_sphere, hrir_path),
+        )));
 
     // Create some sounds.
     let sound_buffer = SoundBufferResource::new_generic(
