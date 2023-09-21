@@ -230,12 +230,13 @@ pub struct AssetBrowser {
     dependency_viewer: DependencyViewer,
 }
 
-fn is_engine_resource(ext: &OsStr) -> bool {
-    let ext = ext.to_string_lossy().to_lowercase();
-    matches!(
-        ext.as_str(),
-        "rgs" | "fbx" | "jpg" | "tga" | "png" | "bmp" | "ogg" | "wav" | "shader" | "hrir"
-    )
+fn is_supported_resource(ext: &OsStr, resource_manager: &ResourceManager) -> bool {
+    resource_manager.state().loaders.iter().any(|loader| {
+        loader
+            .extensions()
+            .iter()
+            .any(|loader_ext| OsStr::new(loader_ext) == ext)
+    })
 }
 
 impl AssetBrowser {
@@ -421,7 +422,9 @@ impl AssetBrowser {
             for entry in dir_iter.flatten() {
                 if let Ok(entry_path) = make_relative_path(entry.path()) {
                     if !entry_path.is_dir()
-                        && entry_path.extension().map_or(false, is_engine_resource)
+                        && entry_path
+                            .extension()
+                            .map_or(false, |ext| is_supported_resource(ext, &resource_manager))
                     {
                         let asset_item = self.add_asset(&entry_path, ui, resource_manager);
 
@@ -574,7 +577,7 @@ impl AssetBrowser {
                     let search_text = search_text.to_lowercase();
                     for dir in fyrox::walkdir::WalkDir::new(".").into_iter().flatten() {
                         if let Some(extension) = dir.path().extension() {
-                            if is_engine_resource(extension) {
+                            if is_supported_resource(extension, &engine.resource_manager) {
                                 let file_stem = dir
                                     .path()
                                     .file_stem()
