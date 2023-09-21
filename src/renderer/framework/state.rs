@@ -1,11 +1,5 @@
 use crate::{
-    core::{
-        color::Color,
-        log::{Log, MessageKind},
-        math::Rect,
-        reflect::prelude::*,
-        visitor::prelude::*,
-    },
+    core::{color::Color, math::Rect, reflect::prelude::*, visitor::prelude::*},
     renderer::framework::framebuffer::{CullFace, DrawParameters},
 };
 use glow::{Framebuffer, HasContext};
@@ -894,6 +888,8 @@ impl PipelineState {
     pub fn check_error(&self) -> bool {
         #[cfg(debug_assertions)]
         unsafe {
+            use crate::core::log::{Log, MessageKind};
+
             let error_code = self.gl.get_error();
             if error_code != glow::NO_ERROR {
                 let code = match error_code {
