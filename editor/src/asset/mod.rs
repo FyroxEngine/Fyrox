@@ -424,7 +424,7 @@ impl AssetBrowser {
                     if !entry_path.is_dir()
                         && entry_path
                             .extension()
-                            .map_or(false, |ext| is_supported_resource(ext, &resource_manager))
+                            .map_or(false, |ext| is_supported_resource(ext, resource_manager))
                     {
                         let asset_item = self.add_asset(&entry_path, ui, resource_manager);
 

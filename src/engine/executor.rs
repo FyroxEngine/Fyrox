@@ -20,7 +20,6 @@ use clap::Parser;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
-    time::Duration,
 };
 
 #[derive(Parser, Debug)]

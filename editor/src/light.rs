@@ -162,7 +162,7 @@ impl ProgressWindow {
             format!(
                 "Stage {} out of 4: {}",
                 stage as u32,
-                self.progress_indicator.stage().to_string()
+                self.progress_indicator.stage()
             ),
         ));
     }

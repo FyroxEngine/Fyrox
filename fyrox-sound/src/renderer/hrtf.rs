@@ -115,11 +115,14 @@ impl HrtfRenderer {
         }
     }
 
+    /// Sets a desired HRIR sphere resource. Current state of the renderer will be reset and then it will be recreated
+    /// on the next render call only if the resource is fully loaded.
     pub fn set_hrir_sphere_resource(&mut self, resource: Option<HrirSphereResource>) {
         self.hrir_resource = resource;
         self.processor = None;
     }
 
+    /// Returns current HRIR sphere resource (if any).
     pub fn hrir_sphere_resource(&self) -> Option<HrirSphereResource> {
         self.hrir_resource.clone()
     }
@@ -136,15 +139,12 @@ impl HrtfRenderer {
         if self.processor.is_none() {
             if let Some(resource) = self.hrir_resource.as_ref() {
                 let state = resource.state();
-                match state.get() {
-                    ResourceStateRef::Ok(hrir) => {
-                        self.processor = Some(hrtf::HrtfProcessor::new(
-                            hrir.hrir_sphere.clone().unwrap(),
-                            SoundContext::HRTF_INTERPOLATION_STEPS,
-                            SoundContext::HRTF_BLOCK_LEN,
-                        ));
-                    }
-                    _ => (),
+                if let ResourceStateRef::Ok(hrir) = state.get() {
+                    self.processor = Some(hrtf::HrtfProcessor::new(
+                        hrir.hrir_sphere.clone().unwrap(),
+                        SoundContext::HRTF_INTERPOLATION_STEPS,
+                        SoundContext::HRTF_BLOCK_LEN,
+                    ));
                 }
             }
         }
@@ -184,6 +184,8 @@ impl HrtfRenderer {
     }
 }
 
+/// Wrapper for [`HrirSphere`] to be able to use it in the resource manager, that will handle async resource
+/// loading automatically.
 #[derive(Reflect, Default)]
 pub struct HrirSphereResourceData {
     path: PathBuf,
@@ -241,6 +243,7 @@ impl ResourceData for HrirSphereResourceData {
     }
 }
 
+/// Resource loader for [`HrirSphereResource`].
 pub struct HrirSphereLoader;
 
 impl ResourceLoader for HrirSphereLoader {
@@ -303,9 +306,13 @@ impl ResourceLoader for HrirSphereLoader {
     }
 }
 
+/// An alias to `Resource<HrirSphereResourceData>`.
 pub type HrirSphereResource = Resource<HrirSphereResourceData>;
 
+/// A set of extension methods for [`HrirSphereResource`]
 pub trait HrirSphereResourceExt {
+    /// Creates a new HRIR sphere resource directly from pre-loaded HRIR sphere. It could be used if you
+    /// do not use a resource manager, but want to load HRIR spheres manually.
     fn from_hrir_sphere(hrir_sphere: HrirSphere, path: PathBuf) -> Self;
 }
 
