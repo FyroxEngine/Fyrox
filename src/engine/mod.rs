@@ -1023,8 +1023,11 @@ impl Engine {
 
             #[cfg(target_arch = "wasm32")]
             let (window, glow_context, gl_kind) = {
-                use crate::core::wasm_bindgen::JsCast;
-                use crate::platform::web::WindowExtWebSys;
+                use crate::{
+                    core::wasm_bindgen::JsCast,
+                    dpi::{LogicalSize, PhysicalSize},
+                    platform::web::WindowExtWebSys,
+                };
 
                 let inner_size = window_builder.window_attributes().inner_size;
                 let window = window_builder.build(window_target).unwrap();
@@ -1034,10 +1037,27 @@ impl Engine {
 
                 let canvas = window.canvas().unwrap();
 
+                // For some reason winit completely ignores the requested inner size. This is a quick-n-dirty fix
+                // that also handles HiDPI monitors. It has one issue - if user changes DPI, it won't be handled
+                // correctly.
                 if let Some(inner_size) = inner_size {
-                    let actual_inner_size = inner_size.to_logical(scale_factor);
-                    canvas.set_width(actual_inner_size.width);
-                    canvas.set_height(actual_inner_size.height);
+                    let physical_inner_size: PhysicalSize<u32> =
+                        inner_size.to_physical(scale_factor);
+
+                    canvas.set_width(physical_inner_size.width);
+                    canvas.set_height(physical_inner_size.height);
+
+                    let logical_inner_size: LogicalSize<f64> = inner_size.to_logical(scale_factor);
+                    Log::verify(
+                        canvas
+                            .style()
+                            .set_property("width", &format!("{}px", logical_inner_size.width)),
+                    );
+                    Log::verify(
+                        canvas
+                            .style()
+                            .set_property("height", &format!("{}px", logical_inner_size.height)),
+                    );
                 }
 
                 let document = web_window.document().unwrap();
