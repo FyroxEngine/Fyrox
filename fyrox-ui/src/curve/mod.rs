@@ -306,10 +306,6 @@ impl Control for CurveEditor {
                                             })
                                     }
                                 }
-
-                                if self.operation_context.is_some() {
-                                    ui.capture_mouse(self.handle);
-                                }
                             } else {
                                 self.operation_context = Some(OperationContext::BoxSelection {
                                     initial_mouse_pos: local_mouse_pos,
@@ -317,7 +313,11 @@ impl Control for CurveEditor {
                                     max: Default::default(),
                                 })
                             }
+
+                            if self.operation_context.is_some() {
+                                ui.capture_mouse(self.handle);
                         }
+                    }
                     }
 
                     WidgetMessage::MouseUp { .. } => {
