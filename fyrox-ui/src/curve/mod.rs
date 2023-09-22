@@ -284,8 +284,8 @@ impl Control for CurveEditor {
                                                     initial_position: self
                                                         .key_container
                                                         .key_ref(*k)
-                                                        .unwrap()
-                                                        .position,
+                                                        .map(|k| k.position)
+                                                        .unwrap_or_default(),
                                                 })
                                                 .collect::<Vec<_>>(),
                                             initial_mouse_pos: local_mouse_pos,
