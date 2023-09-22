@@ -427,7 +427,7 @@ use fyroxed_base::{{Editor, StartupData}};
 use {}::GameConstructor;
 
 fn main() {{
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::new().unwrap();
     let mut editor = Editor::new(
         &event_loop,
         Some(StartupData {{
