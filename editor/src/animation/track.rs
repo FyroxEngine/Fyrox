@@ -49,7 +49,7 @@ use fyrox::{
         menu::MenuItemMessage,
         message::{MessageDirection, OsEvent, UiMessage},
         popup::PopupBuilder,
-        scroll_viewer::ScrollViewerBuilder,
+        scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
         stack_panel::StackPanelBuilder,
         text::{Text, TextBuilder, TextMessage},
         text_box::{TextBoxBuilder, TextCommitMode},
@@ -568,6 +568,7 @@ pub struct TrackList {
     curve_views: FxHashMap<Uuid, Handle<UiNode>>,
     context_menu: TrackContextMenu,
     property_binding_mode: PropertyBindingMode,
+    scroll_viewer: Handle<UiNode>,
 }
 
 struct CurveViewData {
@@ -594,12 +595,13 @@ impl TrackList {
         let add_position_track;
         let add_rotation_track;
         let add_scale_track;
+        let scroll_viewer;
 
         let panel = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child(toolbar.panel)
-                .with_child(
-                    ScrollViewerBuilder::new(
+                .with_child({
+                    scroll_viewer = ScrollViewerBuilder::new(
                         WidgetBuilder::new()
                             .on_row(1)
                             .on_column(0)
@@ -612,8 +614,9 @@ impl TrackList {
                         .build(ctx);
                         tree_root
                     })
-                    .build(ctx),
-                )
+                    .build(ctx);
+                    scroll_viewer
+                })
                 .with_child(
                     StackPanelBuilder::new(
                         WidgetBuilder::new()
@@ -705,6 +708,7 @@ impl TrackList {
             track_views: Default::default(),
             curve_views: Default::default(),
             property_binding_mode: PropertyBindingMode::Generic,
+            scroll_viewer,
         }
     }
 
@@ -781,6 +785,30 @@ impl TrackList {
 
                     None
                 });
+
+                if filter_text.is_empty() {
+                    // Focus currently selected entity when clearing the filter.
+                    if let Selection::Animation(ref scene_selection) = editor_scene.selection {
+                        if let Some(first) = scene_selection.entities.first() {
+                            let ui_node = match first {
+                                SelectedEntity::Track(id) => {
+                                    self.track_views.get(id).cloned().unwrap_or_default()
+                                }
+                                SelectedEntity::Curve(id) => {
+                                    self.curve_views.get(id).cloned().unwrap_or_default()
+                                }
+                                _ => Default::default(),
+                            };
+                            if ui_node.is_some() {
+                                ui.send_message(ScrollViewerMessage::bring_into_view(
+                                    self.scroll_viewer,
+                                    MessageDirection::ToWidget,
+                                    ui_node,
+                                ));
+                            }
+                        }
+                    }
+                }
             }
         } else if let Some(WindowMessage::Close) = message.data() {
             if message.destination() == self.node_selector
