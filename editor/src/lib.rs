@@ -2417,7 +2417,8 @@ impl Editor {
     }
 
     pub fn is_active(&self) -> bool {
-        self.focused || !self.settings.general.suspend_unfocused_editor
+        !self.update_loop_state.is_suspended()
+            && (self.focused || !self.settings.general.suspend_unfocused_editor)
     }
 
     pub fn run(mut self, event_loop: EventLoop<()>) {
