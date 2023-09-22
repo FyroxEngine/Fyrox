@@ -316,8 +316,8 @@ impl Control for CurveEditor {
 
                             if self.operation_context.is_some() {
                                 ui.capture_mouse(self.handle);
+                            }
                         }
-                    }
                     }
 
                     WidgetMessage::MouseUp { .. } => {
@@ -635,7 +635,7 @@ impl Control for CurveEditor {
                 ));
             }
         } else if let Some(NumericUpDownMessage::<f32>::Value(value)) = message.data() {
-            if message.direction() == MessageDirection::FromWidget {
+            if message.direction() == MessageDirection::FromWidget && !message.handled() {
                 if message.destination() == self.context_menu.key_value {
                     ui.send_message(CurveEditorMessage::change_selected_keys_value(
                         self.handle,
@@ -778,17 +778,23 @@ impl CurveEditor {
         if let Some(Selection::Keys { keys }) = self.selection.as_ref() {
             if let Some(first) = keys.iter().next() {
                 if let Some(key) = self.key_container.key_ref(*first) {
-                    ui.send_message(NumericUpDownMessage::value(
-                        self.context_menu.key_location,
-                        MessageDirection::ToWidget,
-                        key.position.x,
-                    ));
+                    ui.send_message(
+                        NumericUpDownMessage::value(
+                            self.context_menu.key_location,
+                            MessageDirection::ToWidget,
+                            key.position.x,
+                        )
+                        .with_handled(true),
+                    );
 
-                    ui.send_message(NumericUpDownMessage::value(
-                        self.context_menu.key_value,
-                        MessageDirection::ToWidget,
-                        key.position.y,
-                    ));
+                    ui.send_message(
+                        NumericUpDownMessage::value(
+                            self.context_menu.key_value,
+                            MessageDirection::ToWidget,
+                            key.position.y,
+                        )
+                        .with_handled(true),
+                    );
                 }
             }
         }
