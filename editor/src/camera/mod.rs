@@ -1,7 +1,5 @@
-use crate::{
-    settings::{camera::CameraSettings, keys::KeyBindings},
-    SceneCameraSettings,
-};
+use crate::settings::scene::SceneCameraSettings;
+use crate::settings::{camera::CameraSettings, keys::KeyBindings};
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},

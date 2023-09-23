@@ -7,6 +7,7 @@ use crate::{
         EditorScene, Selection,
     },
     send_sync_message,
+    settings::scene::{NodeInfo, SceneSettings},
     utils::window_content,
     world::graph::{
         item::{SceneItem, SceneItemBuilder, SceneItemMessage},
@@ -82,6 +83,7 @@ fn make_graph_node_item(
     ctx: &mut BuildContext,
     context_menu: RcUiNodeHandle,
     sender: MessageSender,
+    is_expanded: bool,
 ) -> Handle<UiNode> {
     let icon = if node.is_point_light() || node.is_directional_light() || node.is_spot_light() {
         load_image(include_bytes!("../../resources/embed/light.png"))
@@ -97,16 +99,19 @@ fn make_graph_node_item(
         load_image(include_bytes!("../../resources/embed/cube.png"))
     };
 
-    SceneItemBuilder::new(TreeBuilder::new(
-        WidgetBuilder::new()
-            .with_margin(Thickness {
-                left: 1.0,
-                top: 1.0,
-                right: 0.0,
-                bottom: 0.0,
-            })
-            .with_context_menu(context_menu),
-    ))
+    SceneItemBuilder::new(
+        TreeBuilder::new(
+            WidgetBuilder::new()
+                .with_margin(Thickness {
+                    left: 1.0,
+                    top: 1.0,
+                    right: 0.0,
+                    bottom: 0.0,
+                })
+                .with_context_menu(context_menu),
+        )
+        .with_expanded(is_expanded),
+    )
     .with_text_brush(if node.resource().is_some() {
         Brush::Solid(Color::opaque(160, 160, 200))
     } else {
@@ -151,6 +156,19 @@ fn colorize(handle: Handle<UiNode>, ui: &UserInterface, index: &mut usize) {
     for &item in node.children() {
         colorize(item, ui, index);
     }
+}
+
+fn fetch_expanded_state(
+    node: Handle<Node>,
+    editor_scene: &EditorScene,
+    settings: &Settings,
+) -> bool {
+    editor_scene
+        .path
+        .as_ref()
+        .and_then(|p| settings.scene_settings.get(p))
+        .and_then(|s| s.node_infos.get(&node))
+        .map_or(true, |i| i.is_expanded)
 }
 
 impl WorldViewer {
@@ -299,14 +317,19 @@ impl WorldViewer {
         }
     }
 
-    pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
+    pub fn sync_to_model(
+        &mut self,
+        editor_scene: &EditorScene,
+        engine: &mut Engine,
+        settings: &Settings,
+    ) {
         scope_profile!();
 
         let scene = &mut engine.scenes[editor_scene.scene];
         let graph = &mut scene.graph;
         let ui = &mut engine.user_interface;
 
-        self.sync_graph(ui, editor_scene, graph);
+        self.sync_graph(ui, editor_scene, graph, settings);
 
         self.validate(editor_scene, engine);
     }
@@ -385,7 +408,13 @@ impl WorldViewer {
         }
     }
 
-    fn sync_graph(&mut self, ui: &mut UserInterface, editor_scene: &EditorScene, graph: &Graph) {
+    fn sync_graph(
+        &mut self,
+        ui: &mut UserInterface,
+        editor_scene: &EditorScene,
+        graph: &Graph,
+        settings: &Settings,
+    ) {
         // Sync tree structure with graph structure.
         self.stack.clear();
         self.stack
@@ -446,6 +475,7 @@ impl WorldViewer {
                                     &mut ui.build_ctx(),
                                     self.item_context_menu.menu.clone(),
                                     self.sender.clone(),
+                                    fetch_expanded_state(child_handle, editor_scene, settings),
                                 );
                                 send_sync_message(
                                     ui,
@@ -471,6 +501,7 @@ impl WorldViewer {
                         &mut ui.build_ctx(),
                         self.item_context_menu.menu.clone(),
                         self.sender.clone(),
+                        fetch_expanded_state(node_handle, editor_scene, settings),
                     );
                     send_sync_message(
                         ui,
@@ -630,6 +661,24 @@ impl WorldViewer {
             {
                 self.sender
                     .send(Message::SetWorldViewerFilter(text.clone()));
+            }
+        } else if let Some(TreeMessage::Expand { expand, .. }) = message.data() {
+            if let Some(scene_view_item) = engine
+                .user_interface
+                .node(message.destination())
+                .query_component::<SceneItem>()
+            {
+                if let Some(path) = editor_scene.path.as_ref() {
+                    settings
+                        .scene_settings
+                        .entry(path.clone())
+                        .or_insert_with(SceneSettings::default)
+                        .node_infos
+                        .entry(scene_view_item.entity_handle)
+                        .or_insert_with(NodeInfo::default)
+                        .is_expanded = *expand;
+                    Log::verify(settings.save());
+                }
             }
         }
     }

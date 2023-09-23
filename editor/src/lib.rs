@@ -75,7 +75,7 @@ use crate::{
         EditorScene, Selection,
     },
     scene_viewer::SceneViewer,
-    settings::{camera::SceneCameraSettings, Settings},
+    settings::Settings,
     utils::{doc::DocWindow, path_fixer::PathFixer},
     world::{graph::selection::GraphSelection, WorldViewer},
 };
@@ -144,6 +144,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::settings::scene::{SceneCameraSettings, SceneSettings};
 use crate::utils::ragdoll::RagdollWizard;
 pub use message::Message;
 
@@ -1597,7 +1598,8 @@ impl Editor {
             self.absm_editor.sync_to_model(editor_scene, engine);
             self.scene_settings.sync_to_model(editor_scene, engine);
             self.inspector.sync_to_model(editor_scene, engine);
-            self.world_viewer.sync_to_model(editor_scene, engine);
+            self.world_viewer
+                .sync_to_model(editor_scene, engine, &self.settings);
             self.material_editor
                 .sync_to_model(&mut engine.user_interface);
             self.audio_panel.sync_to_model(editor_scene, engine);
@@ -2316,14 +2318,11 @@ impl Editor {
                     pitch: editor_scene.camera_controller.pitch,
                 };
 
-                if let Some(entry) = self.settings.camera.camera_settings.get_mut(path) {
-                    *entry = last_settings;
-                } else {
-                    self.settings
-                        .camera
-                        .camera_settings
-                        .insert(path.clone(), last_settings);
-                }
+                self.settings
+                    .scene_settings
+                    .entry(path.clone())
+                    .or_insert_with(SceneSettings::default)
+                    .camera_settings = last_settings;
             }
 
             if let Some(mode) = editor_scene_entry.current_interaction_mode {

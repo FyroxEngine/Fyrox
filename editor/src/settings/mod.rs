@@ -1,3 +1,4 @@
+use crate::settings::scene::SceneSettings;
 use crate::{
     inspector::editors::make_property_editors_container,
     message::MessageSender,
@@ -35,6 +36,7 @@ use fyrox::{
 };
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::{fs::File, path::PathBuf, rc::Rc};
 
 pub mod camera;
@@ -47,6 +49,7 @@ pub mod move_mode;
 pub mod navmesh;
 pub mod recent;
 pub mod rotate_mode;
+pub mod scene;
 pub mod selection;
 pub mod windows;
 
@@ -70,6 +73,8 @@ pub struct Settings {
     pub camera: CameraSettings,
     pub navmesh: NavmeshSettings,
     pub key_bindings: KeyBindings,
+    #[reflect(hidden)]
+    pub scene_settings: HashMap<PathBuf, SceneSettings>,
     #[reflect(hidden)]
     pub recent: RecentFiles,
     #[serde(default)]

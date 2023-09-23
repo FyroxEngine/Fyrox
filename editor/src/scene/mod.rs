@@ -67,7 +67,7 @@ impl EditorScene {
             &mut scene.graph,
             editor_objects_root,
             path.as_ref()
-                .and_then(|p| settings.camera.camera_settings.get(p)),
+                .and_then(|p| settings.scene_settings.get(p).map(|s| &s.camera_settings)),
         );
 
         // Freeze physics simulation in while editing scene by setting time step to zero.
