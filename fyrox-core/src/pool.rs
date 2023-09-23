@@ -28,6 +28,7 @@ use crate::{
     visitor::{Visit, VisitResult, Visitor},
 };
 use arrayvec::ArrayVec;
+use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::{
     fmt::{Debug, Display, Formatter},
@@ -186,7 +187,7 @@ where
 /// Handle is some sort of non-owning reference to content in a pool. It stores
 /// index of object and additional information that allows to ensure that handle
 /// is still valid (points to the same object as when handle was created).
-#[derive(Reflect)]
+#[derive(Reflect, Serialize, Deserialize)]
 pub struct Handle<T> {
     /// Index of object in pool.
     #[reflect(read_only, description = "Index of an object in a pool.")]
@@ -197,6 +198,7 @@ pub struct Handle<T> {
     generation: u32,
     /// Type holder.
     #[reflect(hidden)]
+    #[serde(skip)]
     type_marker: PhantomData<T>,
 }
 
