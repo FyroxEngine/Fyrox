@@ -14,6 +14,7 @@ use crate::{
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
+    path::Path,
     path::PathBuf,
 };
 
@@ -117,8 +118,8 @@ impl PathEditorBuilder {
         }
     }
 
-    pub fn with_path(mut self, path: PathBuf) -> Self {
-        self.path = path;
+    pub fn with_path<P: AsRef<Path>>(mut self, path: P) -> Self {
+        self.path = path.as_ref().to_owned();
         self
     }
 
