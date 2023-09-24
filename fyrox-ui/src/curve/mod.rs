@@ -916,7 +916,12 @@ impl CurveEditor {
         let screen_bounds = self.screen_bounds();
         // Draw background.
         ctx.push_rect_filled(&screen_bounds, None);
-        ctx.commit(screen_bounds, self.background(), CommandTexture::None, None);
+        ctx.commit(
+            self.clip_bounds(),
+            self.background(),
+            CommandTexture::None,
+            None,
+        );
     }
 
     fn draw_highlight_zones(&self, ctx: &mut DrawingContext) {
@@ -992,7 +997,7 @@ impl CurveEditor {
         ctx.push_line(hb, he, 2.0);
 
         ctx.commit(
-            screen_bounds,
+            self.clip_bounds(),
             self.grid_brush.clone(),
             CommandTexture::None,
             None,
@@ -1007,7 +1012,7 @@ impl CurveEditor {
                 let y = local_left_bottom.y - k * h;
                 text.set_text(format!("{:.1}", y)).build();
                 ctx.draw_text(
-                    screen_bounds,
+                    self.clip_bounds(),
                     self.point_to_screen_space(Vector2::new(local_left_bottom_n.x, y)),
                     &text,
                 );
@@ -1020,7 +1025,7 @@ impl CurveEditor {
                 let x = local_left_bottom.x + k * w;
                 text.set_text(format!("{:.1}", x)).build();
                 ctx.draw_text(
-                    screen_bounds,
+                    self.clip_bounds(),
                     self.point_to_screen_space(Vector2::new(x, local_left_bottom_n.y)),
                     &text,
                 );
@@ -1106,11 +1111,15 @@ impl CurveEditor {
                 ),
             }
         }
-        ctx.commit(screen_bounds, self.foreground(), CommandTexture::None, None);
+        ctx.commit(
+            self.clip_bounds(),
+            self.foreground(),
+            CommandTexture::None,
+            None,
+        );
     }
 
     fn draw_keys(&self, ctx: &mut DrawingContext) {
-        let screen_bounds = self.screen_bounds();
         let keys_to_draw = self.key_container.keys();
 
         for (i, key) in keys_to_draw.iter().enumerate() {
@@ -1191,7 +1200,7 @@ impl CurveEditor {
             }
 
             ctx.commit(
-                screen_bounds,
+                self.clip_bounds(),
                 if selected {
                     self.selected_key_brush.clone()
                 } else {
@@ -1213,7 +1222,7 @@ impl CurveEditor {
 
             ctx.push_rect(&rect, 1.0);
             ctx.commit(
-                self.screen_bounds(),
+                self.clip_bounds(),
                 Brush::Solid(Color::WHITE),
                 CommandTexture::None,
                 None,
