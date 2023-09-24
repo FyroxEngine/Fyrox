@@ -478,7 +478,9 @@ impl ResourceManagerState {
 #[cfg(test)]
 mod test {
 
-    use std::{fs::File, time::Duration};
+    use std::{any::Any, fs::File, time::Duration};
+
+    use crate::loader::{BoxedLoaderFuture, ResourceLoader};
 
     use super::*;
 
@@ -493,7 +495,7 @@ mod test {
 
     impl ResourceData for Stub {
         fn path(&self) -> std::borrow::Cow<std::path::Path> {
-            std::borrow::Cow::Borrowed(Path::new(""))
+            std::borrow::Cow::Borrowed(Path::new("test.txt"))
         }
 
         fn set_path(&mut self, _path: std::path::PathBuf) {}
@@ -518,6 +520,36 @@ mod test {
     impl TypeUuidProvider for Stub {
         fn type_uuid() -> Uuid {
             Uuid::default()
+        }
+    }
+
+    impl ResourceLoader for Stub {
+        fn extensions(&self) -> &[&str] {
+            &["txt"]
+        }
+
+        fn into_any(self: Box<Self>) -> Box<dyn Any> {
+            self
+        }
+
+        fn as_any(&self) -> &dyn Any {
+            self
+        }
+
+        fn as_any_mut(&mut self) -> &mut dyn Any {
+            self
+        }
+
+        fn load(
+            &self,
+            resource: UntypedResource,
+            event_broadcaster: ResourceEventBroadcaster,
+            reload: bool,
+        ) -> BoxedLoaderFuture {
+            Box::pin(async move {
+                resource.commit_ok(Stub::default());
+                event_broadcaster.broadcast_loaded_or_reloaded(resource, reload);
+            })
         }
     }
 
@@ -670,12 +702,13 @@ mod test {
 
         assert_eq!(res.path(), path.clone());
         assert_eq!(res.type_uuid(), type_uuid);
-        assert!(res.is_loading());
+        assert!(!res.is_loading());
     }
 
     #[test]
     fn resource_manager_state_reload_resource() {
         let mut state = ResourceManagerState::new();
+        state.loaders.set(Stub {});
 
         let resource = UntypedResource::new_ok(Stub {});
         state.push(resource.clone());
@@ -687,6 +720,7 @@ mod test {
     #[test]
     fn resource_manager_state_reload_resources() {
         let mut state = ResourceManagerState::new();
+        state.loaders.set(Stub {});
 
         let resource = UntypedResource::new_ok(Stub {});
         state.push(resource.clone());
@@ -699,6 +733,8 @@ mod test {
     #[test]
     fn resource_manager_state_try_reload_resource_from_path() {
         let mut state = ResourceManagerState::new();
+        state.loaders.set(Stub {});
+
         let resource =
             UntypedResource::new_load_error(PathBuf::from("test.txt"), None, Uuid::default());
         state.push(resource.clone());
@@ -747,10 +783,10 @@ mod test {
     fn resource_manager_request() {
         let manager = ResourceManager::new();
         let resource = UntypedResource::new_ok(Stub {});
-        let res = manager.register(resource.clone(), PathBuf::from("test.txt"), |_, __| true);
+        let res = manager.register(resource.clone(), PathBuf::from("foo.txt"), |_, __| true);
         assert!(res.is_ok());
 
-        let res: Resource<Stub> = manager.request(Path::new(""));
+        let res: Resource<Stub> = manager.request(Path::new("test.txt"));
         assert_eq!(
             res,
             Resource {
@@ -764,10 +800,10 @@ mod test {
     fn resource_manager_request_untyped() {
         let manager = ResourceManager::new();
         let resource = UntypedResource::new_ok(Stub {});
-        let res = manager.register(resource.clone(), PathBuf::from("test.txt"), |_, __| true);
+        let res = manager.register(resource.clone(), PathBuf::from("foo.txt"), |_, __| true);
         assert!(res.is_ok());
 
-        let res = manager.request_untyped(Path::new(""), Uuid::default());
+        let res = manager.request_untyped(Path::new("test.txt"), Uuid::default());
         assert_eq!(res, resource);
     }
 
