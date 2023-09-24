@@ -441,6 +441,8 @@ impl Control for CurveEditor {
                             MessageDirection::ToWidget,
                             new_zoom,
                         ));
+
+                        message.set_handled(true);
                     }
                     _ => {}
                 }
