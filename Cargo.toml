@@ -22,12 +22,10 @@ members = [
     "fyrox-sound",
     "fyrox-ui",
     "fyrox-resource",
-    "examples/wasm",
 	"editor",
     "editor-standalone",
 	"template"
 ]
-exclude = ["examples/scripting"]
 
 [profile.dev]
 opt-level = 0

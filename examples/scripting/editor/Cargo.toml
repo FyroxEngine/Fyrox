@@ -1,9 +1,0 @@
-[package]
-name = "editor"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-fyrox = { path = "../../../../fyrox" }
-fyroxed_base = { path = "../../../../fyrox/editor" }
-game = {path = "../game" }
