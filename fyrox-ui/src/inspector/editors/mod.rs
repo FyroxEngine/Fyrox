@@ -1,4 +1,3 @@
-use crate::inspector::PropertyFilter;
 use crate::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
@@ -18,6 +17,7 @@ use crate::{
             enumeration::{EnumPropertyEditorDefinition, InspectableEnum},
             inherit::InheritablePropertyEditorDefinition,
             inspectable::InspectablePropertyEditorDefinition,
+            key::KeyBindingPropertyEditorDefinition,
             numeric::NumericPropertyEditorDefinition,
             quat::QuatPropertyEditorDefinition,
             range::RangePropertyEditorDefinition,
@@ -29,8 +29,9 @@ use crate::{
                 Vec4PropertyEditorDefinition,
             },
         },
-        InspectorEnvironment, InspectorError, PropertyChanged,
+        InspectorEnvironment, InspectorError, PropertyChanged, PropertyFilter,
     },
+    key::KeyBinding,
     message::UiMessage,
     BuildContext, UiNode, UserInterface,
 };
@@ -249,6 +250,10 @@ impl PropertyEditorDefinitionContainer {
         // Color Gradient.
         container.insert(ColorGradientPropertyEditorDefinition);
         container.insert(InheritablePropertyEditorDefinition::<ColorGradient>::new());
+
+        // Key Binding
+        container.insert(KeyBindingPropertyEditorDefinition);
+        container.insert(InheritablePropertyEditorDefinition::<KeyBinding>::new());
 
         container
     }

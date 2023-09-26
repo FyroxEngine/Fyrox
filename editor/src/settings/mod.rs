@@ -20,8 +20,7 @@ use fyrox::{
             editors::{
                 enumeration::EnumPropertyEditorDefinition,
                 inspectable::InspectablePropertyEditorDefinition,
-                key::{HotKeyPropertyEditorDefinition, KeyBindingPropertyEditorDefinition},
-                PropertyEditorDefinitionContainer,
+                key::HotKeyPropertyEditorDefinition, PropertyEditorDefinitionContainer,
             },
             InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction, PropertyChanged,
         },
@@ -149,7 +148,6 @@ impl Settings {
         container.insert(InspectablePropertyEditorDefinition::<NavmeshSettings>::new());
         container.insert(InspectablePropertyEditorDefinition::<KeyBindings>::new());
         container.insert(HotKeyPropertyEditorDefinition);
-        container.insert(KeyBindingPropertyEditorDefinition);
 
         Rc::new(container)
     }

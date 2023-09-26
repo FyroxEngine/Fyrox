@@ -1,6 +1,6 @@
 use crate::{
     brush::Brush,
-    core::{color::Color, pool::Handle, reflect::prelude::*},
+    core::{color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     define_constructor, define_widget_deref,
     draw::{CommandTexture, Draw, DrawingContext},
     message::{KeyCode, KeyboardModifiers, MessageDirection, MouseButton, UiMessage},
@@ -246,8 +246,9 @@ impl HotKeyEditorBuilder {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Reflect)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Reflect, Visit, Default)]
 pub enum KeyBinding {
+    #[default]
     NotSet,
     Some(KeyCode),
 }
@@ -264,12 +265,6 @@ impl PartialEq<KeyCode> for KeyBinding {
 impl KeyBinding {
     pub fn from_key_code(key: KeyCode) -> Self {
         Self::Some(key)
-    }
-}
-
-impl Default for KeyBinding {
-    fn default() -> Self {
-        Self::NotSet
     }
 }
 

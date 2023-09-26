@@ -4,7 +4,7 @@
 #![warn(missing_docs)]
 
 use crate::{
-    core::{algebra::Vector2, pool::Handle, reflect::prelude::*},
+    core::{algebra::Vector2, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     UiNode,
 };
 use serde::{Deserialize, Serialize};
@@ -492,11 +492,14 @@ impl KeyboardModifiers {
     Serialize,
     Deserialize,
     Reflect,
+    Visit,
+    Default,
 )]
 #[repr(u32)]
 #[allow(missing_docs)]
 pub enum KeyCode {
     /// This variant is used when the key cannot be translated to any other variant.
+    #[default]
     Unknown,
     /// <kbd>`</kbd> on a US keyboard. This is also called a backtick or grave.
     /// This is the <kbd>半角</kbd>/<kbd>全角</kbd>/<kbd>漢字</kbd>
