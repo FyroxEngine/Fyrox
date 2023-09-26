@@ -1,5 +1,7 @@
 use crate::{command::Command, create_terrain_layer_material, scene::commands::SceneContext};
-use fyrox::resource::texture::{TextureKind, TexturePixelKind, TextureResourceExtension};
+use fyrox::resource::texture::{
+    TextureKind, TexturePixelKind, TextureResourceExtension, TextureWrapMode,
+};
 use fyrox::{
     core::pool::Handle,
     resource::texture::TextureResource,
@@ -119,20 +121,23 @@ impl ModifyTerrainHeightCommand {
                 .iter_mut()
                 .zip(self.new_heightmaps.iter_mut()),
         ) {
-            chunk
-                .replace_height_map(
-                    TextureResource::from_bytes(
-                        TextureKind::Rectangle {
-                            width: heigth_map_size.x,
-                            height: heigth_map_size.y,
-                        },
-                        TexturePixelKind::R32F,
-                        utils::transmute_vec_as_bytes(new.clone()),
-                        true,
-                    )
-                    .unwrap(),
-                )
-                .unwrap();
+            let height_map = TextureResource::from_bytes(
+                TextureKind::Rectangle {
+                    width: heigth_map_size.x,
+                    height: heigth_map_size.y,
+                },
+                TexturePixelKind::R32F,
+                utils::transmute_vec_as_bytes(new.clone()),
+                true,
+            )
+            .unwrap();
+
+            let mut data = height_map.data_ref();
+            data.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
+            data.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
+            drop(data);
+
+            chunk.replace_height_map(height_map).unwrap();
             std::mem::swap(old, new);
         }
     }
