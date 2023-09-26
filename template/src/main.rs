@@ -560,9 +560,10 @@ fn init_data(base_path: &Path, style: &str) {
 }
 
 fn init_script(raw_name: &str) {
-    let base_path = Path::new("game/src/");
+    let mut base_path = Path::new("game/src/");
     if !base_path.exists() {
-        panic!("game/src directory does not exists!")
+        eprintln!("game/src directory does not exists! Fallback to root directory...");
+        base_path = Path::new("");
     }
 
     let script_file_stem = raw_name.to_case(Case::Snake);
