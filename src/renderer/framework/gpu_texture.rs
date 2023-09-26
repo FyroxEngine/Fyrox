@@ -386,7 +386,7 @@ fn image_1d_size_bytes(pixel_kind: PixelKind, length: usize) -> usize {
     }
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Hash, Debug)]
 #[repr(u32)]
 pub enum MagnificationFilter {
     Nearest,
@@ -411,7 +411,7 @@ impl From<TextureMagnificationFilter> for MagnificationFilter {
     }
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Hash, Debug)]
 #[repr(u32)]
 pub enum MinificationFilter {
     Nearest = glow::NEAREST,
@@ -440,7 +440,7 @@ impl MinificationFilter {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 #[repr(u32)]
 pub enum WrapMode {
     Repeat = glow::REPEAT,
