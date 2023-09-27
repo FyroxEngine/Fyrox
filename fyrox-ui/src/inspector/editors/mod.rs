@@ -3,6 +3,7 @@ use crate::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
         color::Color,
         color_gradient::ColorGradient,
+        curve::Curve,
         math::{Rect, SmoothAngle},
         pool::Handle,
         reflect::{FieldInfo, FieldValue, Reflect},
@@ -14,6 +15,7 @@ use crate::{
             bool::BoolPropertyEditorDefinition,
             collection::{CollectionItem, VecCollectionPropertyEditorDefinition},
             color::{ColorGradientPropertyEditorDefinition, ColorPropertyEditorDefinition},
+            curve::CurvePropertyEditorDefinition,
             enumeration::{EnumPropertyEditorDefinition, InspectableEnum},
             inherit::InheritablePropertyEditorDefinition,
             inspectable::InspectablePropertyEditorDefinition,
@@ -51,6 +53,7 @@ pub mod bit;
 pub mod bool;
 pub mod collection;
 pub mod color;
+pub mod curve;
 pub mod enumeration;
 pub mod inherit;
 pub mod inspectable;
@@ -254,6 +257,10 @@ impl PropertyEditorDefinitionContainer {
         // Key Binding
         container.insert(KeyBindingPropertyEditorDefinition);
         container.insert(InheritablePropertyEditorDefinition::<KeyBinding>::new());
+
+        // Curve
+        container.insert(CurvePropertyEditorDefinition);
+        container.insert(InheritablePropertyEditorDefinition::<Curve>::new());
 
         container
     }
