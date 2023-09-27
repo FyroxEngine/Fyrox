@@ -1,5 +1,5 @@
 use crate::{
-    math::{cubicf, lerpf},
+    math::{cubicf, inf_sup_cubicf, lerpf, Rect},
     reflect::prelude::*,
     visitor::prelude::*,
 };
@@ -242,6 +242,77 @@ impl Curve {
         } else {
             0.0
         }
+    }
+
+    pub fn bounds(&self) -> Rect<f32> {
+        let mut max_y = -f32::MAX;
+        let mut min_y = f32::MAX;
+        let mut max_x = -f32::MAX;
+        let mut min_x = f32::MAX;
+
+        let mut push = |x: f32, y: f32| {
+            if x > max_x {
+                max_x = x;
+            }
+            if x < min_x {
+                min_x = x;
+            }
+            if y > max_y {
+                max_y = y;
+            }
+            if y < min_y {
+                min_y = y;
+            }
+        };
+
+        for keys in self.keys.windows(2) {
+            let left = &keys[0];
+            let right = &keys[1];
+            match (&left.kind, &right.kind) {
+                // Cubic-to-constant and cubic-to-linear is depicted as Hermite spline with right tangent == 0.0.
+                (
+                    CurveKeyKind::Cubic {
+                        right_tangent: left_tangent,
+                        ..
+                    },
+                    CurveKeyKind::Constant,
+                )
+                | (
+                    CurveKeyKind::Cubic {
+                        right_tangent: left_tangent,
+                        ..
+                    },
+                    CurveKeyKind::Linear,
+                ) => {
+                    let (y0, y1) = inf_sup_cubicf(left.value, right.value, *left_tangent, 0.0);
+                    push(left.location, y0);
+                    push(right.location, y1);
+                }
+
+                // Cubic-to-cubic is depicted as Hermite spline.
+                (
+                    CurveKeyKind::Cubic {
+                        right_tangent: left_tangent,
+                        ..
+                    },
+                    CurveKeyKind::Cubic {
+                        left_tangent: right_tangent,
+                        ..
+                    },
+                ) => {
+                    let (y0, y1) =
+                        inf_sup_cubicf(left.value, right.value, *left_tangent, *right_tangent);
+                    push(left.location, y0);
+                    push(right.location, y1);
+                }
+                _ => {
+                    push(left.location, left.value);
+                    push(right.location, right.value);
+                }
+            }
+        }
+
+        Rect::new(min_x, min_y, max_x - min_x, max_y - min_y)
     }
 }
 

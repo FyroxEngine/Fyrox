@@ -27,15 +27,22 @@ impl PropertyEditorDefinition for CurvePropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<Curve>()?;
-        Ok(PropertyEditorInstance::Simple {
-            editor: CurveEditorBuilder::new(
-                WidgetBuilder::new()
-                    .with_min_size(Vector2::new(0.0, 200.0))
-                    .with_margin(Thickness::uniform(1.0)),
-            )
-            .with_curve(value.clone())
-            .build(ctx.build_context),
-        })
+        let editor = CurveEditorBuilder::new(
+            WidgetBuilder::new()
+                .with_min_size(Vector2::new(0.0, 200.0))
+                .with_margin(Thickness::uniform(1.0)),
+        )
+        .with_curve(value.clone())
+        .build(ctx.build_context);
+        ctx.build_context
+            .sender()
+            .send(CurveEditorMessage::zoom_to_fit(
+                editor,
+                MessageDirection::ToWidget,
+                true,
+            ))
+            .unwrap();
+        Ok(PropertyEditorInstance::Simple { editor })
     }
 
     fn create_message(

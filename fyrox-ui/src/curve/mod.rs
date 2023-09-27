@@ -4,7 +4,7 @@ use crate::{
         algebra::{Matrix3, Point2, SimdPartialOrd, Vector2, Vector3},
         color::Color,
         curve::{Curve, CurveKeyKind},
-        math::{cubicf, inf_sup_cubicf, lerpf, wrap_angle, Rect},
+        math::{cubicf, lerpf, wrap_angle, Rect},
         pool::Handle,
         uuid::Uuid,
     },
@@ -23,6 +23,7 @@ use crate::{
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fxhash::FxHashSet;
+use std::sync::mpsc::Sender;
 use std::{
     any::{Any, TypeId},
     cell::{Cell, RefCell},
@@ -36,7 +37,11 @@ pub enum CurveEditorMessage {
     Sync(Curve),
     ViewPosition(Vector2<f32>),
     Zoom(Vector2<f32>),
-    ZoomToFit,
+    ZoomToFit {
+        /// Should the zoom to fit be performed on some of the next update cycle (up to 10 frames delay), or immediately when
+        /// processing the message.
+        after_layout: bool,
+    },
     HighlightZones(Vec<HighlightZone>),
 
     // Internal messages. Use only when you know what you're doing.
@@ -54,7 +59,7 @@ impl CurveEditorMessage {
     define_constructor!(CurveEditorMessage:Sync => fn sync(Curve), layout: false);
     define_constructor!(CurveEditorMessage:ViewPosition => fn view_position(Vector2<f32>), layout: false);
     define_constructor!(CurveEditorMessage:Zoom => fn zoom(Vector2<f32>), layout: false);
-    define_constructor!(CurveEditorMessage:ZoomToFit => fn zoom_to_fit(), layout: false);
+    define_constructor!(CurveEditorMessage:ZoomToFit => fn zoom_to_fit(after_layout: bool), layout: true);
     define_constructor!(CurveEditorMessage:HighlightZones => fn hightlight_zones(Vec<HighlightZone>), layout: false);
     // Internal. Use only when you know what you're doing.
     define_constructor!(CurveEditorMessage:RemoveSelection => fn remove_selection(), layout: false);
@@ -103,6 +108,7 @@ pub struct CurveEditor {
     min_zoom: Vector2<f32>,
     max_zoom: Vector2<f32>,
     highlight_zones: Vec<HighlightZone>,
+    zoom_to_fit_timer: Option<usize>,
 }
 
 crate::define_widget_deref!(CurveEditor);
@@ -479,106 +485,14 @@ impl Control for CurveEditor {
                             self.sort_keys();
                             self.send_curve(ui);
                         }
-                        CurveEditorMessage::ZoomToFit => {
-                            let mut max_y = -f32::MAX;
-                            let mut min_y = f32::MAX;
-                            let mut max_x = -f32::MAX;
-                            let mut min_x = f32::MAX;
-
-                            let mut push = |x: f32, y: f32| {
-                                if x > max_x {
-                                    max_x = x;
-                                }
-                                if x < min_x {
-                                    min_x = x;
-                                }
-                                if y > max_y {
-                                    max_y = y;
-                                }
-                                if y < min_y {
-                                    min_y = y;
-                                }
-                            };
-
-                            for keys in self.key_container.keys().windows(2) {
-                                let left = &keys[0];
-                                let right = &keys[1];
-                                match (&left.kind, &right.kind) {
-                                    // Cubic-to-constant and cubic-to-linear is depicted as Hermite spline with right tangent == 0.0.
-                                    (
-                                        CurveKeyKind::Cubic {
-                                            right_tangent: left_tangent,
-                                            ..
-                                        },
-                                        CurveKeyKind::Constant,
-                                    )
-                                    | (
-                                        CurveKeyKind::Cubic {
-                                            right_tangent: left_tangent,
-                                            ..
-                                        },
-                                        CurveKeyKind::Linear,
-                                    ) => {
-                                        let (y0, y1) = inf_sup_cubicf(
-                                            left.position.y,
-                                            right.position.y,
-                                            *left_tangent,
-                                            0.0,
-                                        );
-                                        push(left.position.x, y0);
-                                        push(right.position.x, y1);
-                                    }
-
-                                    // Cubic-to-cubic is depicted as Hermite spline.
-                                    (
-                                        CurveKeyKind::Cubic {
-                                            right_tangent: left_tangent,
-                                            ..
-                                        },
-                                        CurveKeyKind::Cubic {
-                                            left_tangent: right_tangent,
-                                            ..
-                                        },
-                                    ) => {
-                                        let (y0, y1) = inf_sup_cubicf(
-                                            left.position.y,
-                                            right.position.y,
-                                            *left_tangent,
-                                            *right_tangent,
-                                        );
-                                        push(left.position.x, y0);
-                                        push(right.position.x, y1);
-                                    }
-                                    _ => {
-                                        push(left.position.x, left.position.y);
-                                        push(right.position.x, right.position.y);
-                                    }
-                                }
+                        CurveEditorMessage::ZoomToFit { after_layout } => {
+                            if *after_layout {
+                                // TODO: Layout system could take up to 10 frames in worst cases. This is super hackish solution
+                                // but when it works, who cares.
+                                self.zoom_to_fit_timer = Some(10);
+                            } else {
+                                self.zoom_to_fit(&ui.sender);
                             }
-
-                            let min = Vector2::new(min_x, min_y);
-                            let max = Vector2::new(max_x, max_y);
-                            let center = (min + max).scale(0.5);
-
-                            ui.send_message(CurveEditorMessage::zoom(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                                Vector2::new(
-                                    self.actual_local_size().x
-                                        / (max.x - min.x).max(5.0 * f32::EPSILON),
-                                    self.actual_local_size().y
-                                        / (max.y - min.y).max(5.0 * f32::EPSILON),
-                                ),
-                            ));
-
-                            ui.send_message(CurveEditorMessage::view_position(
-                                self.handle,
-                                MessageDirection::ToWidget,
-                                Vector2::new(
-                                    self.actual_local_size().x * 0.5 - center.x,
-                                    -self.actual_local_size().y * 0.5 + center.y,
-                                ),
-                            ));
                         }
                         CurveEditorMessage::ChangeSelectedKeysValue(value) => {
                             self.change_selected_keys_value(*value, ui);
@@ -634,6 +548,7 @@ impl Control for CurveEditor {
                 ui.send_message(CurveEditorMessage::zoom_to_fit(
                     self.handle,
                     MessageDirection::ToWidget,
+                    false,
                 ));
             }
         } else if let Some(NumericUpDownMessage::<f32>::Value(value)) = message.data() {
@@ -651,6 +566,16 @@ impl Control for CurveEditor {
                         *value,
                     ));
                 }
+            }
+        }
+    }
+
+    fn update(&mut self, _dt: f32, sender: &Sender<UiMessage>) {
+        if let Some(timer) = self.zoom_to_fit_timer.as_mut() {
+            *timer = timer.saturating_sub(1);
+            if *timer == 0 {
+                self.zoom_to_fit(sender);
+                self.zoom_to_fit_timer = None;
             }
         }
     }
@@ -695,6 +620,33 @@ impl CurveEditor {
             let clamped_view_space = -clamped_local_space_position;
             clamped_view_space
         });
+    }
+
+    fn zoom_to_fit(&mut self, sender: &Sender<UiMessage>) {
+        let bounds = self.key_container.curve().bounds();
+        let center = bounds.center();
+
+        sender
+            .send(CurveEditorMessage::zoom(
+                self.handle,
+                MessageDirection::ToWidget,
+                Vector2::new(
+                    self.actual_local_size().x / bounds.w().max(5.0 * f32::EPSILON),
+                    self.actual_local_size().y / bounds.h().max(5.0 * f32::EPSILON),
+                ),
+            ))
+            .unwrap();
+
+        sender
+            .send(CurveEditorMessage::view_position(
+                self.handle,
+                MessageDirection::ToWidget,
+                Vector2::new(
+                    self.actual_local_size().x * 0.5 - center.x,
+                    -self.actual_local_size().y * 0.5 + center.y,
+                ),
+            ))
+            .unwrap();
     }
 
     fn update_matrices(&self) {
@@ -1484,6 +1436,7 @@ impl CurveEditorBuilder {
             min_zoom: self.min_zoom,
             max_zoom: self.max_zoom,
             highlight_zones: self.highlight_zones,
+            zoom_to_fit_timer: None,
         };
 
         ctx.add_node(UiNode::new(editor))

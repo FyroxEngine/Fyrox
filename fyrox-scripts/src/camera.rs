@@ -1,6 +1,7 @@
 //! Flying camera controller script is used to create flying cameras, that can be rotated via mouse and moved via keyboard keys.
 //! See [`FlyingCameraController`] docs for more info and usage examples.
 
+use fyrox::core::curve::{Curve, CurveKey, CurveKeyKind};
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -39,6 +40,9 @@ pub struct FlyingCameraController {
     pub move_left_key: InheritableVariable<KeyBinding>,
     pub move_right_key: InheritableVariable<KeyBinding>,
 
+    pub acceleration_curve: InheritableVariable<Curve>,
+    pub deceleration_curve: InheritableVariable<Curve>,
+
     #[reflect(hidden)]
     #[visit(skip)]
     move_forward: bool,
@@ -66,6 +70,44 @@ impl Default for FlyingCameraController {
             move_backward_key: KeyBinding::Some(KeyCode::KeyS).into(),
             move_left_key: KeyBinding::Some(KeyCode::KeyA).into(),
             move_right_key: KeyBinding::Some(KeyCode::KeyD).into(),
+            acceleration_curve: Curve::from(vec![
+                CurveKey::new(
+                    0.0,
+                    0.0,
+                    CurveKeyKind::Cubic {
+                        left_tangent: 0.0,
+                        right_tangent: 0.0,
+                    },
+                ),
+                CurveKey::new(
+                    1.0,
+                    1.0,
+                    CurveKeyKind::Cubic {
+                        left_tangent: 0.0,
+                        right_tangent: 0.0,
+                    },
+                ),
+            ])
+            .into(),
+            deceleration_curve: Curve::from(vec![
+                CurveKey::new(
+                    0.0,
+                    1.0,
+                    CurveKeyKind::Cubic {
+                        left_tangent: 0.0,
+                        right_tangent: 0.0,
+                    },
+                ),
+                CurveKey::new(
+                    1.0,
+                    0.0,
+                    CurveKeyKind::Cubic {
+                        left_tangent: 0.0,
+                        right_tangent: 0.0,
+                    },
+                ),
+            ])
+            .into(),
             move_forward: false,
             move_backward: false,
             move_left: false,
