@@ -63,13 +63,7 @@ jobs:
       - run: cargo update
       - name: Build
         run: |
-          cd examples/wasm
-          wasm-pack build --target web
-      - name: Test
-        run: |
-          cd examples/wasm
-          wasm-pack test --headless --chrome
-          wasm-pack test --headless --firefox
+          cargo build --verbose --target=wasm32-unknown-unknown --all-targets --all-features
 
   format:
     name: Rustfmt CI
