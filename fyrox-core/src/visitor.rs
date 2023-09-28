@@ -191,6 +191,7 @@ impl<'a, T: Pod> PodVecView<'a, T> {
 }
 
 impl<'a, T: Pod> Visit for PodVecView<'a, T> {
+    #[allow(clippy::uninit_vec)]
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         if visitor.reading {
             if let Some(field) = visitor.find_field(name) {

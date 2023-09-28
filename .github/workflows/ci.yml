@@ -58,6 +58,7 @@ jobs:
           override: true
       - name: Install Dependencies
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - run: rustup target add wasm32-unknown-unknown
       - run: rustup update
       - run: rustc --version && cargo --version
       - run: cargo update
