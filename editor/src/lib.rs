@@ -76,6 +76,7 @@ use crate::{
     },
     scene_viewer::SceneViewer,
     settings::Settings,
+    utils::ragdoll::RagdollWizard,
     utils::{doc::DocWindow, path_fixer::PathFixer},
     world::{graph::selection::GraphSelection, WorldViewer},
 };
@@ -144,8 +145,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::settings::scene::{SceneCameraSettings, SceneSettings};
-use crate::utils::ragdoll::RagdollWizard;
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -1164,7 +1163,6 @@ impl Editor {
         if let Some(path) = path.as_ref() {
             if !self.settings.recent.scenes.contains(path) {
                 self.settings.recent.scenes.push(path.clone());
-                Log::verify(self.settings.save());
                 self.menu
                     .file_menu
                     .update_recent_files_list(&mut self.engine.user_interface, &self.settings);
@@ -2303,27 +2301,9 @@ impl Editor {
         if let Some(editor_scene_entry) = self.scenes.current_scene_entry_mut() {
             let editor_scene = &mut editor_scene_entry.editor_scene;
 
-            editor_scene.update(&mut self.engine, dt, &self.settings);
+            editor_scene.update(&mut self.engine, dt, &mut self.settings);
 
             self.absm_editor.update(editor_scene, &mut self.engine);
-
-            let scene = &self.engine.scenes[editor_scene.scene];
-
-            // Save camera current camera settings for current scene to be able to load them
-            // on next launch.
-            if let Some(path) = editor_scene.path.as_ref() {
-                let last_settings = SceneCameraSettings {
-                    position: editor_scene.camera_controller.position(&scene.graph),
-                    yaw: editor_scene.camera_controller.yaw,
-                    pitch: editor_scene.camera_controller.pitch,
-                };
-
-                self.settings
-                    .scene_settings
-                    .entry(path.clone())
-                    .or_insert_with(SceneSettings::default)
-                    .camera_settings = last_settings;
-            }
 
             if let Some(mode) = editor_scene_entry.current_interaction_mode {
                 editor_scene_entry.interaction_modes[mode as usize].update(
@@ -2334,6 +2314,8 @@ impl Editor {
                 );
             }
         }
+
+        self.settings.update();
     }
 
     fn save_layout(&mut self) {
@@ -2345,7 +2327,6 @@ impl Editor {
             .unwrap()
             .layout(&self.engine.user_interface);
         self.settings.windows.layout = Some(layout);
-        Log::verify(self.settings.save());
     }
 
     fn load_layout(&mut self) {
@@ -2521,7 +2502,6 @@ impl Editor {
                             if size.width > 0 && size.height > 0 {
                                 self.settings.windows.window_size.x = size.width as f32;
                                 self.settings.windows.window_size.y = size.height as f32;
-                                Log::verify(self.settings.save());
                             }
                         }
                         WindowEvent::Focused(focused) => {
@@ -2531,7 +2511,6 @@ impl Editor {
                             if new_position.x > 0 && new_position.y > 0 {
                                 self.settings.windows.window_position.x = new_position.x as f32;
                                 self.settings.windows.window_position.y = new_position.y as f32;
-                                Log::verify(self.settings.save());
                             }
                         }
                         WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
@@ -2547,7 +2526,7 @@ impl Editor {
                     }
                 }
                 Event::LoopExiting => {
-                    Log::verify(self.settings.save());
+                    self.settings.force_save();
 
                     for_each_plugin!(self.plugins => on_exit(&mut self));
                 }

@@ -1,5 +1,9 @@
-use crate::settings::scene::SceneCameraSettings;
-use crate::settings::{camera::CameraSettings, keys::KeyBindings};
+use crate::settings::{
+    camera::CameraSettings,
+    keys::KeyBindings,
+    scene::{SceneCameraSettings, SceneSettings},
+    Settings,
+};
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
@@ -29,6 +33,7 @@ use fyrox::{
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
+    path::PathBuf,
 };
 
 pub mod panel;
@@ -54,6 +59,7 @@ pub struct CameraController {
     stack: Vec<Handle<Node>>,
     editor_context: PickContext,
     scene_context: PickContext,
+    prev_interaction_state: bool,
 }
 
 #[derive(Clone)]
@@ -139,6 +145,7 @@ impl CameraController {
             stack: Default::default(),
             editor_context: Default::default(),
             scene_context: Default::default(),
+            prev_interaction_state: false,
         }
     }
 
@@ -241,6 +248,39 @@ impl CameraController {
         }
     }
 
+    fn on_interaction_ended(
+        &self,
+        settings: &mut Settings,
+        scene_path: Option<&PathBuf>,
+        graph: &Graph,
+    ) {
+        if let Some(path) = scene_path {
+            // Save camera current camera settings for current scene to be able to load them
+            // on next launch.
+            let last_settings = SceneCameraSettings {
+                position: self.position(graph),
+                yaw: self.yaw,
+                pitch: self.pitch,
+            };
+
+            if let Some(scene_settings) = settings.scene_settings.get(path) {
+                if scene_settings.camera_settings != last_settings {
+                    settings
+                        .scene_settings
+                        .get_mut(path)
+                        .unwrap()
+                        .camera_settings = last_settings;
+                }
+            } else {
+                let mut scene_settings = SceneSettings::default();
+                scene_settings.camera_settings = last_settings;
+                settings
+                    .scene_settings
+                    .insert(path.to_owned(), scene_settings);
+            };
+        }
+    }
+
     pub fn on_mouse_button_up(&mut self, button: MouseButton) {
         match button {
             MouseButton::Right => {
@@ -332,7 +372,13 @@ impl CameraController {
         graph[self.pivot].global_position()
     }
 
-    pub fn update(&mut self, graph: &mut Graph, settings: &CameraSettings, dt: f32) {
+    pub fn update(
+        &mut self,
+        graph: &mut Graph,
+        settings: &mut Settings,
+        scene_path: Option<&PathBuf>,
+        dt: f32,
+    ) {
         let camera = graph[self.camera].as_camera_mut();
 
         match camera.projection_value() {
@@ -366,7 +412,7 @@ impl CameraController {
                 }
 
                 if let Some(v) = move_vec.try_normalize(std::f32::EPSILON) {
-                    move_vec = v.scale(self.speed_factor * settings.speed * dt);
+                    move_vec = v.scale(self.speed_factor * settings.camera.speed * dt);
                 }
 
                 move_vec += side * self.drag_side;
@@ -409,7 +455,7 @@ impl CameraController {
                 move_vec.y += self.drag_up;
 
                 if let Some(v) = move_vec.try_normalize(f32::EPSILON) {
-                    move_vec = v.scale(self.speed_factor * settings.speed * dt);
+                    move_vec = v.scale(self.speed_factor * settings.camera.speed * dt);
                 }
 
                 camera
@@ -431,6 +477,13 @@ impl CameraController {
 
         self.drag_side = 0.0;
         self.drag_up = 0.0;
+
+        if !self.is_interacting() && self.prev_interaction_state {
+            self.on_interaction_ended(settings, scene_path, graph);
+            self.prev_interaction_state = false;
+        } else {
+            self.prev_interaction_state = true;
+        }
     }
 
     pub fn pick<F>(&mut self, options: PickingOptions<'_, F>) -> Option<CameraPickResult>

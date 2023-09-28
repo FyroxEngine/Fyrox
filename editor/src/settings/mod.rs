@@ -1,4 +1,3 @@
-use crate::settings::scene::SceneSettings;
 use crate::{
     inspector::editors::make_property_editors_container,
     message::MessageSender,
@@ -6,8 +5,8 @@ use crate::{
         camera::CameraSettings, debugging::DebuggingSettings, general::GeneralSettings,
         graphics::GraphicsSettings, keys::KeyBindings, model::ModelSettings,
         move_mode::MoveInteractionModeSettings, navmesh::NavmeshSettings, recent::RecentFiles,
-        rotate_mode::RotateInteractionModeSettings, selection::SelectionSettings,
-        windows::WindowsSettings,
+        rotate_mode::RotateInteractionModeSettings, scene::SceneSettings,
+        selection::SelectionSettings, windows::WindowsSettings,
     },
     Engine, MSG_SYNC_FLAG,
 };
@@ -35,8 +34,13 @@ use fyrox::{
 };
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::{fs::File, path::PathBuf, rc::Rc};
+use std::{
+    collections::HashMap,
+    fs::File,
+    ops::{Deref, DerefMut},
+    path::PathBuf,
+    rc::Rc,
+};
 
 pub mod camera;
 pub mod debugging;
@@ -60,7 +64,7 @@ pub struct SettingsWindow {
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Default, Debug, Reflect)]
-pub struct Settings {
+pub struct SettingsData {
     pub selection: SelectionSettings,
     pub graphics: GraphicsSettings,
     #[serde(default)]
@@ -79,6 +83,48 @@ pub struct Settings {
     #[serde(default)]
     #[reflect(hidden)]
     pub windows: WindowsSettings,
+}
+
+#[derive(Default)]
+pub struct Settings {
+    settings: SettingsData,
+    need_save: bool,
+}
+
+impl Deref for Settings {
+    type Target = SettingsData;
+
+    fn deref(&self) -> &Self::Target {
+        &self.settings
+    }
+}
+
+impl DerefMut for Settings {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.need_save = true;
+        &mut self.settings
+    }
+}
+
+impl Settings {
+    pub fn load() -> Result<Self, SettingsError> {
+        Ok(Settings {
+            settings: SettingsData::load()?,
+            need_save: false,
+        })
+    }
+
+    pub fn force_save(&mut self) {
+        self.need_save = false;
+        Log::verify(self.settings.save());
+    }
+
+    pub fn update(&mut self) {
+        if self.need_save {
+            self.need_save = false;
+            Log::verify(self.settings.save());
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -106,7 +152,7 @@ impl From<ron::Error> for SettingsError {
     }
 }
 
-impl Settings {
+impl SettingsData {
     const FILE_NAME: &'static str = "settings.ron";
 
     fn full_path() -> PathBuf {
@@ -118,10 +164,11 @@ impl Settings {
         Ok(ron::de::from_reader(file)?)
     }
 
-    pub fn save(&mut self) -> Result<(), SettingsError> {
+    fn save(&mut self) -> Result<(), SettingsError> {
         let file = File::create(Self::full_path())?;
         self.recent.deduplicate_and_refresh();
         ron::ser::to_writer_pretty(file, self, PrettyConfig::default())?;
+        Log::info("Settings were successfully saved!");
         Ok(())
     }
 
@@ -242,9 +289,9 @@ impl SettingsWindow {
 
     fn sync_to_model(&self, ui: &mut UserInterface, settings: &Settings, sender: &MessageSender) {
         let context = InspectorContext::from_object(
-            settings,
+            &**settings,
             &mut ui.build_ctx(),
-            Settings::make_property_editors_container(sender.clone()),
+            SettingsData::make_property_editors_container(sender.clone()),
             None,
             MSG_SYNC_FLAG,
             0,
@@ -276,7 +323,7 @@ impl SettingsWindow {
                     MessageDirection::ToWidget,
                 ));
             } else if message.destination() == self.default {
-                *settings = Default::default();
+                **settings = Default::default();
                 need_save = true;
                 self.sync_to_model(&mut engine.user_interface, settings, sender);
             }

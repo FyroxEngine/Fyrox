@@ -158,7 +158,7 @@ impl EditorScene {
         }
     }
 
-    pub fn update(&mut self, engine: &mut Engine, dt: f32, settings: &Settings) {
+    pub fn update(&mut self, engine: &mut Engine, dt: f32, settings: &mut Settings) {
         self.draw_auxiliary_geometry(engine, settings);
 
         let scene = &mut engine.scenes[self.scene];
@@ -174,7 +174,7 @@ impl EditorScene {
         camera.projection_mut().set_z_far(settings.graphics.z_far);
 
         self.camera_controller
-            .update(&mut scene.graph, &settings.camera, dt);
+            .update(&mut scene.graph, settings, self.path.as_ref(), dt);
     }
 
     pub fn draw_auxiliary_geometry(&mut self, engine: &mut Engine, settings: &Settings) {

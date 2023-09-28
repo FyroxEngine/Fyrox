@@ -19,7 +19,6 @@ use crate::{
 use fyrox::{
     core::{
         color::Color,
-        log::Log,
         pool::{ErasedHandle, Handle},
         scope_profile,
     },
@@ -650,7 +649,6 @@ impl WorldViewer {
         {
             if message.destination() == self.track_selection {
                 settings.selection.track_selection = *value;
-                Log::verify(settings.save());
                 if *value {
                     self.locate_selection(&editor_scene.selection, engine);
                 }
@@ -677,7 +675,6 @@ impl WorldViewer {
                         .entry(scene_view_item.entity_handle)
                         .or_insert_with(NodeInfo::default)
                         .is_expanded = *expand;
-                    Log::verify(settings.save());
                 }
             }
         }
