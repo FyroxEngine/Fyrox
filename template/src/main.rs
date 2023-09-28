@@ -56,6 +56,7 @@ enum Commands {
 // and to solve this we just hard code these values and pray for the best.
 const CURRENT_ENGINE_VERSION: &str = "0.31.0";
 const CURRENT_EDITOR_VERSION: &str = "0.18.0";
+const CURRENT_SCRIPTS_VERSION: &str = "https://github.com/FyroxEngine/Fyrox"; // TODO: `fyrox-scripts` is unpublished yet.
 
 fn write_file<P: AsRef<Path>, S: AsRef<str>>(path: P, content: S) {
     let mut file = File::create(path.as_ref()).unwrap();
@@ -129,8 +130,6 @@ fn init_game(base_path: &Path, name: &str) {
         .output()
         .unwrap();
 
-    let engine_version = CURRENT_ENGINE_VERSION;
-
     // Write Cargo.toml
     write_file(
         base_path.join("game/Cargo.toml"),
@@ -142,7 +141,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fyrox = "{engine_version}""#,
+fyrox = {{workspace = true}}"#,
         ),
     );
 
@@ -248,8 +247,6 @@ fn init_executor(base_path: &Path, name: &str) {
         .output()
         .unwrap();
 
-    let engine_version = CURRENT_ENGINE_VERSION;
-
     // Write Cargo.toml
     write_file(
         base_path.join("executor/Cargo.toml"),
@@ -261,7 +258,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fyrox = "{engine_version}"
+fyrox = {{workspace = true}}
 {name} = {{ path = "../game" }}"#,
         ),
     );
@@ -291,8 +288,6 @@ fn init_wasm_executor(base_path: &Path, name: &str) {
         .output()
         .unwrap();
 
-    let engine_version = CURRENT_ENGINE_VERSION;
-
     // Write Cargo.toml
     write_file(
         base_path.join("executor-wasm/Cargo.toml"),
@@ -307,7 +302,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-fyrox = "{engine_version}"
+fyrox = {{workspace = true}}
 {name} = {{ path = "../game" }}"#,
         ),
     );
@@ -398,9 +393,6 @@ fn init_editor(base_path: &Path, name: &str) {
         .output()
         .unwrap();
 
-    let engine_version = CURRENT_ENGINE_VERSION;
-    let editor_version = CURRENT_EDITOR_VERSION;
-
     // Write Cargo.toml
     write_file(
         base_path.join("editor/Cargo.toml"),
@@ -412,8 +404,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-fyrox = "{engine_version}"
-fyroxed_base = "{editor_version}"
+fyrox = {{workspace = true}}
+fyroxed_base = {{workspace = true}}
 {name} = {{ path = "../game" }}"#,
         ),
     );
@@ -469,9 +461,9 @@ strip = "strip"
 crate-type = ["cdylib"]
 
 [dependencies]
-fyrox = "{}"
+fyrox = {{ workspace = true }}
 {} = {{ path = "../game" }}"#,
-            CURRENT_ENGINE_VERSION, name,
+            name,
         ),
     );
 
@@ -521,10 +513,16 @@ fn init_workspace(base_path: &Path, vcs: &str) {
     // Write Cargo.toml
     write_file(
         base_path.join("Cargo.toml"),
-        r#"
+        format!(
+            r#"
 [workspace]
 members = ["editor", "executor", "executor-wasm", "executor-android", "game"]
 resolver = "2"
+
+[workspace.dependencies.fyrox]
+version = "{CURRENT_ENGINE_VERSION}"
+[workspace.dependencies.fyroxed_base]
+version = "{CURRENT_EDITOR_VERSION}"
 
 # Optimize the engine in debug builds, but leave project's code non-optimized.
 # By using this technique, you can still debug you code, but engine will be fully
@@ -533,6 +531,7 @@ resolver = "2"
 [profile.dev.package."*"]
 opt-level = 3
 "#,
+        ),
     );
 
     if vcs == "git" {
@@ -679,9 +678,6 @@ fn main() {
             init_script(&name);
         }
         Commands::Upgrade { version } => {
-            let engine_version = CURRENT_ENGINE_VERSION;
-            let editor_version = CURRENT_EDITOR_VERSION;
-
             let semver_regex = Regex::new(include_str!("regex")).unwrap();
 
             if version != "latest" && version != "nightly" && !semver_regex.is_match(&version) {
@@ -694,67 +690,74 @@ fn main() {
                 exit(1);
             }
 
-            // Engine -> Editor version mapping.
+            // Engine -> (Editor, Scripts) version mapping.
             let editor_versions = [
-                ("0.31.0".to_string(), "0.18.0".to_string()),
-                ("0.30.0".to_string(), "0.17.0".to_string()),
-                ("0.29.0".to_string(), "0.16.0".to_string()),
-                ("0.28.0".to_string(), "0.15.0".to_string()),
-                ("0.27.1".to_string(), "0.14.1".to_string()),
-                ("0.27.0".to_string(), "0.14.0".to_string()),
-                ("0.26.0".to_string(), "0.13.0".to_string()),
+                (
+                    "0.32.0".to_string(),
+                    ("0.19.0".to_string(), Some("0.1.0".to_string())),
+                ),
+                ("0.31.0".to_string(), ("0.18.0".to_string(), None)),
+                ("0.30.0".to_string(), ("0.17.0".to_string(), None)),
+                ("0.29.0".to_string(), ("0.16.0".to_string(), None)),
+                ("0.28.0".to_string(), ("0.15.0".to_string(), None)),
+                ("0.27.1".to_string(), ("0.14.1".to_string(), None)),
+                ("0.27.0".to_string(), ("0.14.0".to_string(), None)),
+                ("0.26.0".to_string(), ("0.13.0".to_string(), None)),
             ]
             .into_iter()
-            .collect::<HashMap<String, String>>();
+            .collect::<HashMap<_, _>>();
 
-            for (path, is_editor) in [
-                ("game/Cargo.toml", false),
-                ("editor/Cargo.toml", true),
-                ("executor/Cargo.toml", false),
-                ("executor-android/Cargo.toml", false),
-                ("executor-wasm/Cargo.toml", false),
-            ] {
-                // Some executors might be missing if user decided to not use them, so here we check if
-                // manifest exists.
-                if let Ok(mut file) = File::open(path) {
-                    let mut toml = String::new();
-                    if file.read_to_string(&mut toml).is_ok() {
-                        drop(file);
+            // Open workspace manifest.
+            let workspace_manifest_path = "Cargo.toml";
+            if let Ok(mut file) = File::open(workspace_manifest_path) {
+                let mut toml = String::new();
+                if file.read_to_string(&mut toml).is_ok() {
+                    drop(file);
 
-                        if let Ok(mut document) = toml.parse::<Document>() {
-                            if let Some(dependencies) = document
+                    if let Ok(mut document) = toml.parse::<Document>() {
+                        if let Some(workspace) =
+                            document.get_mut("workspace").and_then(|i| i.as_table_mut())
+                        {
+                            if let Some(dependencies) = workspace
                                 .get_mut("dependencies")
                                 .and_then(|i| i.as_table_mut())
                             {
                                 if version == "latest" {
-                                    dependencies["fyrox"] = value(engine_version);
-                                    if is_editor {
-                                        dependencies["fyroxed_base"] = value(editor_version);
+                                    dependencies["fyrox"] = value(CURRENT_ENGINE_VERSION);
+                                    dependencies["fyroxed_base"] = value(CURRENT_EDITOR_VERSION);
+                                    if dependencies.contains_key("fyrox_scripts") {
+                                        dependencies["fyrox_scripts"] =
+                                            value(CURRENT_SCRIPTS_VERSION);
                                     }
                                 } else if version == "nightly" {
                                     let mut table = table();
                                     table["git"] = value("https://github.com/FyroxEngine/Fyrox");
 
                                     dependencies["fyrox"] = table.clone();
-                                    if is_editor {
-                                        dependencies["fyroxed_base"] = table;
-                                    }
+                                    dependencies["fyroxed_base"] = table.clone();
                                 } else {
                                     dependencies["fyrox"] = value(version.clone());
-                                    if is_editor {
-                                        if let Some(editor_version) = editor_versions.get(&version)
-                                        {
-                                            dependencies["fyroxed_base"] = value(editor_version);
-                                        } else {
-                                            println!("WARNING: matching editor version not found!");
+                                    if let Some((editor_version, scripts_version)) =
+                                        editor_versions.get(&version)
+                                    {
+                                        dependencies["fyroxed_base"] = value(editor_version);
+                                        if let Some(scripts_version) = scripts_version {
+                                            if dependencies.contains_key("fyrox_scripts") {
+                                                dependencies["fyrox_scripts"] =
+                                                    value(scripts_version);
+                                            }
                                         }
+                                    } else {
+                                        println!(
+                                            "WARNING: matching editor/scripts version not found!"
+                                        );
                                     }
                                 }
                             }
-
-                            let mut file = File::create(path).unwrap();
-                            file.write_all(document.to_string().as_bytes()).unwrap();
                         }
+
+                        let mut file = File::create(workspace_manifest_path).unwrap();
+                        file.write_all(document.to_string().as_bytes()).unwrap();
                     }
                 }
             }
