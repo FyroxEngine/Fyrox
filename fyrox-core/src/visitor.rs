@@ -201,12 +201,17 @@ impl<'a, T: Pod> Visit for PodVecView<'a, T> {
                         bytes,
                     } => {
                         if *type_id == self.type_id {
-                            let mut owned_bytes = bytes.clone();
-                            let len = owned_bytes.len() / (*element_size as usize);
-                            *self.vec = unsafe {
-                                Vec::from_raw_parts(owned_bytes.as_mut_ptr() as *mut T, len, len)
-                            };
-                            std::mem::forget(owned_bytes);
+                            let len = bytes.len() / *element_size as usize;
+                            let mut data = Vec::<T>::with_capacity(len);
+                            unsafe {
+                                data.set_len(len);
+                                std::ptr::copy_nonoverlapping(
+                                    bytes.as_ptr(),
+                                    data.as_mut_ptr() as *mut u8,
+                                    bytes.len(),
+                                );
+                            }
+                            *self.vec = data;
                             Ok(())
                         } else {
                             Err(VisitError::TypeMismatch)
