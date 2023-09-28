@@ -272,11 +272,13 @@ impl CameraController {
                         .camera_settings = last_settings;
                 }
             } else {
-                let mut scene_settings = SceneSettings::default();
-                scene_settings.camera_settings = last_settings;
-                settings
-                    .scene_settings
-                    .insert(path.to_owned(), scene_settings);
+                settings.scene_settings.insert(
+                    path.to_owned(),
+                    SceneSettings {
+                        camera_settings: last_settings,
+                        ..Default::default()
+                    },
+                );
             };
         }
     }

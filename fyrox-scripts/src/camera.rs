@@ -205,30 +205,32 @@ impl TypeUuidProvider for FlyingCameraController {
 impl ScriptTrait for FlyingCameraController {
     fn on_os_event(&mut self, event: &Event<()>, context: &mut ScriptContext) {
         match event {
-            Event::WindowEvent { event, .. } => {
-                if let WindowEvent::KeyboardInput { event, .. } = event {
-                    for (binding, state) in [
-                        (&self.move_forward_key, &mut self.move_forward),
-                        (&self.move_backward_key, &mut self.move_backward),
-                        (&self.move_left_key, &mut self.move_left),
-                        (&self.move_right_key, &mut self.move_right),
-                    ] {
-                        if let KeyBinding::Some(key_code) = **binding {
-                            if utils::translate_key_from_ui(key_code) == event.physical_key {
-                                *state = event.state == ElementState::Pressed;
-                            }
+            Event::WindowEvent {
+                event: WindowEvent::KeyboardInput { event, .. },
+                ..
+            } => {
+                for (binding, state) in [
+                    (&self.move_forward_key, &mut self.move_forward),
+                    (&self.move_backward_key, &mut self.move_backward),
+                    (&self.move_left_key, &mut self.move_left),
+                    (&self.move_right_key, &mut self.move_right),
+                ] {
+                    if let KeyBinding::Some(key_code) = **binding {
+                        if utils::translate_key_from_ui(key_code) == event.physical_key {
+                            *state = event.state == ElementState::Pressed;
                         }
                     }
                 }
             }
-            Event::DeviceEvent { event, .. } => {
-                if let DeviceEvent::MouseMotion { delta, .. } = event {
-                    let speed = *self.sensitivity * context.dt;
-                    *self.yaw -= (delta.0 as f32) * speed;
-                    *self.pitch = (*self.pitch + delta.1 as f32 * speed)
-                        .max(self.pitch_limit.start)
-                        .min(self.pitch_limit.end);
-                }
+            Event::DeviceEvent {
+                event: DeviceEvent::MouseMotion { delta, .. },
+                ..
+            } => {
+                let speed = *self.sensitivity * context.dt;
+                *self.yaw -= (delta.0 as f32) * speed;
+                *self.pitch = (*self.pitch + delta.1 as f32 * speed)
+                    .max(self.pitch_limit.start)
+                    .min(self.pitch_limit.end);
             }
             _ => {}
         }
