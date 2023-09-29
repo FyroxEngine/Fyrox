@@ -16,6 +16,8 @@ pub struct TerrainKeyBindings {
     pub decrease_brush_size: HotKey,
     pub increase_brush_opacity: HotKey,
     pub decrease_brush_opacity: HotKey,
+    pub prev_layer: HotKey,
+    pub next_layer: HotKey,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
@@ -63,6 +65,8 @@ fn default_terrain_key_bindings() -> TerrainKeyBindings {
         decrease_brush_size: HotKey::from_key_code(KeyCode::BracketLeft),
         increase_brush_opacity: HotKey::from_key_code(KeyCode::Period),
         decrease_brush_opacity: HotKey::from_key_code(KeyCode::Comma),
+        prev_layer: HotKey::from_key_code(KeyCode::Semicolon),
+        next_layer: HotKey::from_key_code(KeyCode::Quote),
     }
 }
 

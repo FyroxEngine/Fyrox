@@ -402,6 +402,16 @@ impl InteractionMode for TerrainInteractionMode {
                 BrushMode::DrawOnMask { alpha, .. } => modify_clamp(alpha, 0.01, 0.0, 1.0),
             }
             processed = true;
+        } else if hotkey == &key_bindings.prev_layer {
+            if let BrushMode::DrawOnMask { layer, .. } = &mut self.brush.mode {
+                *layer = layer.saturating_sub(1);
+            }
+            processed = true;
+        } else if hotkey == &key_bindings.next_layer {
+            if let BrushMode::DrawOnMask { layer, .. } = &mut self.brush.mode {
+                *layer = layer.saturating_add(1);
+            }
+            processed = true;
         }
 
         if processed {
