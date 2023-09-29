@@ -1,4 +1,5 @@
 use crate::{scene::EditorScene, settings::Settings, Engine};
+use fyrox::gui::key::HotKey;
 use fyrox::scene::camera::Projection;
 use fyrox::{
     core::{
@@ -67,14 +68,19 @@ pub trait InteractionMode: BaseInteractionMode {
 
     fn update(
         &mut self,
-        _editor_scene: &mut EditorScene,
-        _camera: Handle<Node>,
-        _engine: &mut Engine,
-        _settings: &Settings,
+        #[allow(unused_variables)] editor_scene: &mut EditorScene,
+        #[allow(unused_variables)] camera: Handle<Node>,
+        #[allow(unused_variables)] engine: &mut Engine,
+        #[allow(unused_variables)] settings: &Settings,
     ) {
     }
 
-    fn activate(&mut self, _editor_scene: &EditorScene, _engine: &mut Engine) {}
+    fn activate(
+        &mut self,
+        #[allow(unused_variables)] editor_scene: &EditorScene,
+        #[allow(unused_variables)] engine: &mut Engine,
+    ) {
+    }
 
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut Engine);
 
@@ -82,9 +88,9 @@ pub trait InteractionMode: BaseInteractionMode {
     /// keyboard message routing. Return `false` if the `key` is unhandled.
     fn on_key_down(
         &mut self,
-        _key: KeyCode,
-        _editor_scene: &mut EditorScene,
-        _engine: &mut Engine,
+        #[allow(unused_variables)] key: KeyCode,
+        #[allow(unused_variables)] editor_scene: &mut EditorScene,
+        #[allow(unused_variables)] engine: &mut Engine,
     ) -> bool {
         false
     }
@@ -93,22 +99,32 @@ pub trait InteractionMode: BaseInteractionMode {
     /// keyboard message routing. Return `false` if the `key` is unhandled.
     fn on_key_up(
         &mut self,
-        _key: KeyCode,
-        _editor_scene: &mut EditorScene,
-        _engine: &mut Engine,
+        #[allow(unused_variables)] key: KeyCode,
+        #[allow(unused_variables)] editor_scene: &mut EditorScene,
+        #[allow(unused_variables)] engine: &mut Engine,
     ) -> bool {
         false
     }
 
     fn handle_ui_message(
         &mut self,
-        _message: &UiMessage,
-        _editor_scene: &mut EditorScene,
-        _engine: &mut Engine,
+        #[allow(unused_variables)] message: &UiMessage,
+        #[allow(unused_variables)] editor_scene: &mut EditorScene,
+        #[allow(unused_variables)] engine: &mut Engine,
     ) {
     }
 
     fn on_drop(&mut self, _engine: &mut Engine) {}
+
+    fn on_hot_key(
+        &mut self,
+        #[allow(unused_variables)] hotkey: &HotKey,
+        #[allow(unused_variables)] editor_scene: &mut EditorScene,
+        #[allow(unused_variables)] engine: &mut Engine,
+        #[allow(unused_variables)] settings: &Settings,
+    ) -> bool {
+        false
+    }
 }
 
 pub fn calculate_gizmo_distance_scaling(

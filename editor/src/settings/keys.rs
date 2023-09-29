@@ -8,6 +8,17 @@ use fyrox::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
+pub struct TerrainKeyBindings {
+    pub modify_height_map_mode: HotKey,
+    pub draw_on_mask_mode: HotKey,
+    pub flatten_slopes_mode: HotKey,
+    pub increase_brush_size: HotKey,
+    pub decrease_brush_size: HotKey,
+    pub increase_brush_opacity: HotKey,
+    pub decrease_brush_opacity: HotKey,
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
 pub struct KeyBindings {
     pub move_forward: KeyBinding,
     pub move_back: KeyBinding,
@@ -35,10 +46,24 @@ pub struct KeyBindings {
     pub remove_selection: HotKey,
     #[serde(default = "default_focus_hotkey")]
     pub focus: HotKey,
+    #[serde(default = "default_terrain_key_bindings")]
+    pub terrain_key_bindings: TerrainKeyBindings,
 }
 
 fn default_focus_hotkey() -> HotKey {
     HotKey::from_key_code(KeyCode::KeyF)
+}
+
+fn default_terrain_key_bindings() -> TerrainKeyBindings {
+    TerrainKeyBindings {
+        modify_height_map_mode: HotKey::from_key_code(KeyCode::F1),
+        draw_on_mask_mode: HotKey::from_key_code(KeyCode::F2),
+        flatten_slopes_mode: HotKey::from_key_code(KeyCode::F3),
+        increase_brush_size: HotKey::from_key_code(KeyCode::BracketRight),
+        decrease_brush_size: HotKey::from_key_code(KeyCode::BracketLeft),
+        increase_brush_opacity: HotKey::from_key_code(KeyCode::Period),
+        decrease_brush_opacity: HotKey::from_key_code(KeyCode::Comma),
+    }
 }
 
 impl Default for KeyBindings {
@@ -69,6 +94,7 @@ impl Default for KeyBindings {
             close_scene: HotKey::ctrl_key(KeyCode::KeyQ),
             remove_selection: HotKey::from_key_code(KeyCode::Delete),
             focus: default_focus_hotkey(),
+            terrain_key_bindings: default_terrain_key_bindings(),
         }
     }
 }

@@ -1196,89 +1196,102 @@ impl Editor {
                 code: *key,
                 modifiers,
             };
-            let key_bindings = &self.settings.key_bindings;
 
-            if hot_key == key_bindings.redo {
-                sender.send(Message::RedoSceneCommand);
-            } else if hot_key == key_bindings.undo {
-                sender.send(Message::UndoSceneCommand);
-            } else if hot_key == key_bindings.enable_select_mode {
-                sender.send(Message::SetInteractionMode(InteractionModeKind::Select));
-            } else if hot_key == key_bindings.enable_move_mode {
-                sender.send(Message::SetInteractionMode(InteractionModeKind::Move));
-            } else if hot_key == key_bindings.enable_rotate_mode {
-                sender.send(Message::SetInteractionMode(InteractionModeKind::Rotate));
-            } else if hot_key == key_bindings.enable_scale_mode {
-                sender.send(Message::SetInteractionMode(InteractionModeKind::Scale));
-            } else if hot_key == key_bindings.enable_navmesh_mode {
-                sender.send(Message::SetInteractionMode(InteractionModeKind::Navmesh));
-            } else if hot_key == key_bindings.enable_terrain_mode {
-                sender.send(Message::SetInteractionMode(InteractionModeKind::Terrain));
-            } else if hot_key == key_bindings.load_scene {
-                sender.send(Message::OpenLoadSceneDialog);
-            } else if hot_key == key_bindings.save_scene {
-                if let Some(entry) = self.scenes.current_scene_entry_ref() {
-                    if let Some(path) = entry.editor_scene.path.as_ref() {
-                        self.message_sender.send(Message::SaveScene {
-                            scene: entry.editor_scene.scene,
-                            path: path.clone(),
-                        });
-                    } else {
-                        // Scene wasn't saved yet, open Save As dialog.
-                        engine
-                            .user_interface
-                            .send_message(WindowMessage::open_modal(
-                                self.save_file_selector,
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
-                    }
+            let mut processed = false;
+            if let Some(scene) = self.scenes.current_scene_entry_mut() {
+                if let Some(current_interaction_mode) = scene.current_interaction_mode {
+                    processed |= scene.interaction_modes[current_interaction_mode as usize]
+                        .on_hot_key(&hot_key, &mut scene.editor_scene, engine, &self.settings);
                 }
-            } else if hot_key == key_bindings.copy_selection {
-                if let Some(editor_scene) = self.scenes.current_editor_scene_mut() {
-                    if let Selection::Graph(graph_selection) = &editor_scene.selection {
-                        editor_scene.clipboard.fill_from_selection(
-                            graph_selection,
-                            editor_scene.scene,
-                            engine,
-                        );
-                    }
-                }
-            } else if hot_key == key_bindings.paste {
-                if let Some(editor_scene) = self.scenes.current_editor_scene_mut() {
-                    if !editor_scene.clipboard.is_empty() {
-                        sender.do_scene_command(PasteCommand::new(editor_scene.scene_content_root));
-                    }
-                }
-            } else if hot_key == key_bindings.new_scene {
-                sender.send(Message::NewScene);
-            } else if hot_key == key_bindings.close_scene {
-                if let Some(editor_scene) = self.scenes.current_editor_scene_ref() {
-                    sender.send(Message::CloseScene(editor_scene.scene));
-                }
-            } else if hot_key == key_bindings.remove_selection {
-                if let Some(editor_scene) = self.scenes.current_editor_scene_mut() {
-                    if !editor_scene.selection.is_empty() {
-                        if let Selection::Graph(_) = editor_scene.selection {
-                            if self.settings.general.show_node_removal_dialog
-                                && editor_scene.is_current_selection_has_external_refs(
-                                    &engine.scenes[editor_scene.scene].graph,
-                                )
-                            {
-                                sender.send(Message::OpenNodeRemovalDialog);
-                            } else {
-                                sender.send(Message::DoSceneCommand(
-                                    make_delete_selection_command(editor_scene, engine),
+            }
+
+            if !processed {
+                let key_bindings = &self.settings.key_bindings;
+
+                if hot_key == key_bindings.redo {
+                    sender.send(Message::RedoSceneCommand);
+                } else if hot_key == key_bindings.undo {
+                    sender.send(Message::UndoSceneCommand);
+                } else if hot_key == key_bindings.enable_select_mode {
+                    sender.send(Message::SetInteractionMode(InteractionModeKind::Select));
+                } else if hot_key == key_bindings.enable_move_mode {
+                    sender.send(Message::SetInteractionMode(InteractionModeKind::Move));
+                } else if hot_key == key_bindings.enable_rotate_mode {
+                    sender.send(Message::SetInteractionMode(InteractionModeKind::Rotate));
+                } else if hot_key == key_bindings.enable_scale_mode {
+                    sender.send(Message::SetInteractionMode(InteractionModeKind::Scale));
+                } else if hot_key == key_bindings.enable_navmesh_mode {
+                    sender.send(Message::SetInteractionMode(InteractionModeKind::Navmesh));
+                } else if hot_key == key_bindings.enable_terrain_mode {
+                    sender.send(Message::SetInteractionMode(InteractionModeKind::Terrain));
+                } else if hot_key == key_bindings.load_scene {
+                    sender.send(Message::OpenLoadSceneDialog);
+                } else if hot_key == key_bindings.save_scene {
+                    if let Some(entry) = self.scenes.current_scene_entry_ref() {
+                        if let Some(path) = entry.editor_scene.path.as_ref() {
+                            self.message_sender.send(Message::SaveScene {
+                                scene: entry.editor_scene.scene,
+                                path: path.clone(),
+                            });
+                        } else {
+                            // Scene wasn't saved yet, open Save As dialog.
+                            engine
+                                .user_interface
+                                .send_message(WindowMessage::open_modal(
+                                    self.save_file_selector,
+                                    MessageDirection::ToWidget,
+                                    true,
                                 ));
+                        }
+                    }
+                } else if hot_key == key_bindings.copy_selection {
+                    if let Some(editor_scene) = self.scenes.current_editor_scene_mut() {
+                        if let Selection::Graph(graph_selection) = &editor_scene.selection {
+                            editor_scene.clipboard.fill_from_selection(
+                                graph_selection,
+                                editor_scene.scene,
+                                engine,
+                            );
+                        }
+                    }
+                } else if hot_key == key_bindings.paste {
+                    if let Some(editor_scene) = self.scenes.current_editor_scene_mut() {
+                        if !editor_scene.clipboard.is_empty() {
+                            sender.do_scene_command(PasteCommand::new(
+                                editor_scene.scene_content_root,
+                            ));
+                        }
+                    }
+                } else if hot_key == key_bindings.new_scene {
+                    sender.send(Message::NewScene);
+                } else if hot_key == key_bindings.close_scene {
+                    if let Some(editor_scene) = self.scenes.current_editor_scene_ref() {
+                        sender.send(Message::CloseScene(editor_scene.scene));
+                    }
+                } else if hot_key == key_bindings.remove_selection {
+                    if let Some(editor_scene) = self.scenes.current_editor_scene_mut() {
+                        if !editor_scene.selection.is_empty() {
+                            if let Selection::Graph(_) = editor_scene.selection {
+                                if self.settings.general.show_node_removal_dialog
+                                    && editor_scene.is_current_selection_has_external_refs(
+                                        &engine.scenes[editor_scene.scene].graph,
+                                    )
+                                {
+                                    sender.send(Message::OpenNodeRemovalDialog);
+                                } else {
+                                    sender.send(Message::DoSceneCommand(
+                                        make_delete_selection_command(editor_scene, engine),
+                                    ));
+                                }
                             }
                         }
                     }
-                }
-            } else if hot_key == key_bindings.focus {
-                if let Some(editor_scene) = self.scenes.current_editor_scene_mut() {
-                    if let Selection::Graph(selection) = &editor_scene.selection {
-                        if let Some(first) = selection.nodes.first() {
-                            sender.send(Message::FocusObject(*first));
+                } else if hot_key == key_bindings.focus {
+                    if let Some(editor_scene) = self.scenes.current_editor_scene_mut() {
+                        if let Selection::Graph(selection) = &editor_scene.selection {
+                            if let Some(first) = selection.nodes.first() {
+                                sender.send(Message::FocusObject(*first));
+                            }
                         }
                     }
                 }

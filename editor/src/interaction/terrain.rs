@@ -9,7 +9,6 @@ use crate::{
     settings::Settings,
     MSG_SYNC_FLAG,
 };
-use fyrox::gui::inspector::PropertyAction;
 use fyrox::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -25,8 +24,9 @@ use fyrox::{
             editors::{
                 enumeration::EnumPropertyEditorDefinition, PropertyEditorDefinitionContainer,
             },
-            Inspector, InspectorBuilder, InspectorContext, InspectorMessage,
+            Inspector, InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction,
         },
+        key::HotKey,
         message::{MessageDirection, UiMessage},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
@@ -335,6 +335,82 @@ impl InteractionMode for TerrainInteractionMode {
             MessageDirection::ToWidget,
         ));
     }
+
+    fn on_hot_key(
+        &mut self,
+        hotkey: &HotKey,
+        _editor_scene: &mut EditorScene,
+        engine: &mut Engine,
+        settings: &Settings,
+    ) -> bool {
+        let mut processed = false;
+
+        fn modify_clamp(x: &mut f32, delta: f32, min: f32, max: f32) {
+            *x = (*x + delta).clamp(min, max)
+        }
+
+        let key_bindings = &settings.key_bindings.terrain_key_bindings;
+        if hotkey == &key_bindings.draw_on_mask_mode {
+            self.brush.mode = BrushMode::DrawOnMask {
+                layer: 0,
+                alpha: 1.0,
+            };
+            processed = true;
+        } else if hotkey == &key_bindings.modify_height_map_mode {
+            self.brush.mode = BrushMode::ModifyHeightMap { amount: 1.0 };
+            processed = true;
+        } else if hotkey == &key_bindings.flatten_slopes_mode {
+            self.brush.mode = BrushMode::FlattenHeightMap { height: 0.0 };
+            processed = true;
+        } else if hotkey == &key_bindings.increase_brush_size {
+            match &mut self.brush.shape {
+                BrushShape::Circle { radius } => modify_clamp(radius, 0.05, 0.0, f32::MAX),
+                BrushShape::Rectangle { width, length } => {
+                    modify_clamp(width, 0.05, 0.0, f32::MAX);
+                    modify_clamp(length, 0.05, 0.0, f32::MAX);
+                }
+            }
+            processed = true;
+        } else if hotkey == &key_bindings.decrease_brush_size {
+            match &mut self.brush.shape {
+                BrushShape::Circle { radius } => modify_clamp(radius, -0.05, 0.0, f32::MAX),
+                BrushShape::Rectangle { width, length } => {
+                    modify_clamp(width, -0.05, 0.0, f32::MAX);
+                    modify_clamp(length, -0.05, 0.0, f32::MAX);
+                }
+            }
+            processed = true;
+        } else if hotkey == &key_bindings.decrease_brush_opacity {
+            match &mut self.brush.mode {
+                BrushMode::ModifyHeightMap { amount } => {
+                    *amount -= 0.01;
+                }
+                BrushMode::FlattenHeightMap { height } => {
+                    *height -= 0.01;
+                }
+                BrushMode::DrawOnMask { alpha, .. } => modify_clamp(alpha, -0.01, 0.0, 1.0),
+            }
+            processed = true;
+        } else if hotkey == &key_bindings.increase_brush_opacity {
+            match &mut self.brush.mode {
+                BrushMode::ModifyHeightMap { amount } => {
+                    *amount += 0.01;
+                }
+                BrushMode::FlattenHeightMap { height } => {
+                    *height += 0.01;
+                }
+                BrushMode::DrawOnMask { alpha, .. } => modify_clamp(alpha, 0.01, 0.0, 1.0),
+            }
+            processed = true;
+        }
+
+        if processed {
+            self.brush_panel
+                .sync_to_model(&mut engine.user_interface, &self.brush);
+        }
+
+        processed
+    }
 }
 
 struct BrushPanel {
@@ -404,7 +480,7 @@ impl BrushPanel {
         );
 
         let inspector;
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(200.0).with_height(250.0))
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(150.0))
             .can_close(false)
             .with_content({
                 inspector = InspectorBuilder::new(WidgetBuilder::new())
