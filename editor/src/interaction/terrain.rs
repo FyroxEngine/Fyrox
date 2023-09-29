@@ -274,9 +274,9 @@ impl InteractionMode for TerrainInteractionMode {
                             }
 
                             let scale = match self.brush.shape {
-                                BrushShape::Circle { radius } => Vector3::new(radius, 1.0, radius),
+                                BrushShape::Circle { radius } => Vector3::new(radius, radius, 1.0),
                                 BrushShape::Rectangle { width, length } => {
-                                    Vector3::new(width, 1.0, length)
+                                    Vector3::new(width, length, 1.0)
                                 }
                             };
 
