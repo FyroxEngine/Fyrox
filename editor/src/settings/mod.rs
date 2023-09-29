@@ -3,9 +3,9 @@ use crate::{
     message::MessageSender,
     settings::{
         camera::CameraSettings, debugging::DebuggingSettings, general::GeneralSettings,
-        graphics::GraphicsSettings, keys::KeyBindings, model::ModelSettings,
-        move_mode::MoveInteractionModeSettings, navmesh::NavmeshSettings, recent::RecentFiles,
-        rotate_mode::RotateInteractionModeSettings, scene::SceneSettings,
+        graphics::GraphicsSettings, keys::KeyBindings, keys::TerrainKeyBindings,
+        model::ModelSettings, move_mode::MoveInteractionModeSettings, navmesh::NavmeshSettings,
+        recent::RecentFiles, rotate_mode::RotateInteractionModeSettings, scene::SceneSettings,
         selection::SelectionSettings, windows::WindowsSettings,
     },
     Engine, MSG_SYNC_FLAG,
@@ -194,6 +194,7 @@ impl SettingsData {
         container.insert(InspectablePropertyEditorDefinition::<ModelSettings>::new());
         container.insert(InspectablePropertyEditorDefinition::<NavmeshSettings>::new());
         container.insert(InspectablePropertyEditorDefinition::<KeyBindings>::new());
+        container.insert(InspectablePropertyEditorDefinition::<TerrainKeyBindings>::new());
         container.insert(HotKeyPropertyEditorDefinition);
 
         Rc::new(container)
