@@ -2,8 +2,8 @@ use crate::{
     scene::{EditorScene, Selection},
     send_sync_message, Message,
 };
-use fyrox::asset::ResourceStateRef;
 use fyrox::{
+    asset::ResourceStateRef,
     core::pool::Handle,
     engine::Engine,
     gui::{
@@ -22,7 +22,6 @@ use fyrox::{
         sound::{Sound, Status},
     },
 };
-use std::time::Duration;
 
 pub struct AudioPreviewPanel {
     pub window: Handle<UiNode>,
@@ -234,10 +233,7 @@ impl AudioPreviewPanel {
                                     ScrollBarMessage::value(
                                         self.time,
                                         MessageDirection::ToWidget,
-                                        sound
-                                            .playback_time()
-                                            .as_secs_f32()
-                                            .clamp(0.0, duration_secs),
+                                        sound.playback_time().clamp(0.0, duration_secs),
                                     ),
                                 );
                             }
@@ -287,7 +283,7 @@ impl AudioPreviewPanel {
                         ScrollBarMessage::value(
                             self.time,
                             MessageDirection::ToWidget,
-                            sound.playback_time().as_secs_f32(),
+                            sound.playback_time(),
                         ),
                     );
 
@@ -316,7 +312,7 @@ impl AudioPreviewPanel {
                         } else if message.destination() == self.stop {
                             sound.set_status(Status::Stopped);
                         } else if message.destination() == self.rewind {
-                            sound.set_playback_time(Duration::from_secs(0));
+                            sound.set_playback_time(0.0);
                         }
                     }
                 }
@@ -338,7 +334,7 @@ impl AudioPreviewPanel {
 
                     for &node in &selection.nodes {
                         if let Some(sound) = scene.graph.try_get_mut_of_type::<Sound>(node) {
-                            sound.set_playback_time(Duration::from_secs_f32(*playback_position));
+                            sound.set_playback_time(*playback_position);
                         }
                     }
                 }

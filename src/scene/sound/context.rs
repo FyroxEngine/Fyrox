@@ -146,7 +146,9 @@ impl SoundContext {
         if let Some(source) = self.native.state().try_get_source_mut(sound.native.get()) {
             // Sync back.
             sound.status.set_value_silent(source.status());
-            sound.playback_time.set_value_silent(source.playback_time());
+            sound
+                .playback_time
+                .set_value_silent(source.playback_time().as_secs_f32());
         }
     }
 
@@ -180,7 +182,7 @@ impl SoundContext {
                 source.set_radius(v);
             });
             sound.playback_time.try_sync_model(|v| {
-                source.set_playback_time(v);
+                source.set_playback_time(Duration::from_secs_f32(v));
             });
             sound.pitch.try_sync_model(|v| {
                 source.set_pitch(v);
@@ -219,7 +221,7 @@ impl SoundContext {
                 .with_panning(sound.panning())
                 .with_pitch(sound.pitch())
                 .with_status(sound.status())
-                .with_playback_time(sound.playback_time())
+                .with_playback_time(Duration::from_secs_f32(sound.playback_time()))
                 .with_position(sound.global_position())
                 .with_radius(sound.radius())
                 .with_max_distance(sound.max_distance())

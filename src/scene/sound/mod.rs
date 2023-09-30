@@ -89,8 +89,9 @@ pub struct Sound {
     #[reflect(setter = "set_rolloff_factor")]
     rolloff_factor: InheritableVariable<f32>,
 
-    #[reflect(setter = "set_playback_time")]
-    playback_time: InheritableVariable<Duration>,
+    #[visit(optional)]
+    #[reflect(setter = "set_playback_time", min_value = 0.0)]
+    playback_time: InheritableVariable<f32>,
 
     #[reflect(setter = "set_spatial_blend")]
     spatial_blend: InheritableVariable<f32>,
@@ -295,13 +296,13 @@ impl Sound {
         self.status.set_value_and_mark_modified(Status::Stopped);
     }
 
-    /// Returns playback duration.
-    pub fn playback_time(&self) -> Duration {
+    /// Returns playback time.
+    pub fn playback_time(&self) -> f32 {
         *self.playback_time
     }
 
     /// Sets playback duration.
-    pub fn set_playback_time(&mut self, time: Duration) -> Duration {
+    pub fn set_playback_time(&mut self, time: f32) -> f32 {
         self.playback_time.set_value_and_mark_modified(time)
     }
 
@@ -543,7 +544,7 @@ impl SoundBuilder {
             radius: self.radius.into(),
             max_distance: self.max_distance.into(),
             rolloff_factor: self.rolloff_factor.into(),
-            playback_time: self.playback_time.into(),
+            playback_time: self.playback_time.as_secs_f32().into(),
             spatial_blend: self.spatial_blend.into(),
             audio_bus: self.audio_bus.into(),
             native: Default::default(),
