@@ -529,12 +529,12 @@ impl SoundSource {
                 streaming.read_next_block();
             }
             if end_reached {
+                self.buf_read_pos = 0.0;
+                self.playback_pos = 0.0;
                 if !self.looping {
                     self.status = Status::Stopped;
                     return;
                 }
-                self.buf_read_pos = 0.0;
-                self.playback_pos = 0.0;
             } else {
                 self.buf_read_pos -= len as f64 / channel_count as f64;
             }
