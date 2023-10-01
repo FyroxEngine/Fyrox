@@ -255,7 +255,7 @@ impl CameraController {
 
         match *camera.projection_mut() {
             Projection::Perspective(_) => {
-                self.z_offset = (self.z_offset + delta * 0.1).clamp(-100.0, 0.0);
+                self.z_offset = (self.z_offset + delta).clamp(-100.0, 0.0);
             }
             Projection::Orthographic(ref mut ortho) => {
                 ortho.vertical_size = (ortho.vertical_size - delta).max(f32::EPSILON);

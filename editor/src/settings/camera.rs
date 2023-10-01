@@ -2,7 +2,7 @@ use fyrox::core::reflect::prelude::*;
 use serde::{Deserialize, Serialize};
 
 fn default_zoom_speed() -> f32 {
-    1.0
+    0.5
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
