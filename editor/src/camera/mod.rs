@@ -178,7 +178,7 @@ impl CameraController {
             || self.move_up
     }
 
-    pub fn fit_object(&self, scene: &mut Scene, handle: Handle<Node>) {
+    pub fn fit_object(&mut self, scene: &mut Scene, handle: Handle<Node>) {
         // Combine AABBs from the descendants.
         let mut aabb = AxisAlignedBoundingBox::default();
         for descendant in scene.graph.traverse_iter(handle) {
@@ -202,6 +202,8 @@ impl CameraController {
                 .map(|rs| rs.x as f32 / rs.y as f32)
                 .unwrap_or(1.0),
         );
+
+        self.z_offset = 0.0;
 
         match fit_parameters {
             FitParameters::Perspective { position } => {
@@ -250,12 +252,15 @@ impl CameraController {
         }
     }
 
-    pub fn on_mouse_wheel(&mut self, delta: f32, graph: &mut Graph) {
+    pub fn on_mouse_wheel(&mut self, delta: f32, graph: &mut Graph, settings: &Settings) {
         let camera = graph[self.camera].as_camera_mut();
 
         match *camera.projection_mut() {
             Projection::Perspective(_) => {
-                self.z_offset = (self.z_offset + delta).clamp(-100.0, 0.0);
+                self.z_offset = (self.z_offset + delta).clamp(
+                    -settings.camera.zoom_range.end,
+                    -settings.camera.zoom_range.start,
+                );
             }
             Projection::Orthographic(ref mut ortho) => {
                 ortho.vertical_size = (ortho.vertical_size - delta).max(f32::EPSILON);
@@ -317,12 +322,14 @@ impl CameraController {
                 if let RotationMode::Center { prev_z_offset } = self.rotate {
                     self.z_offset = prev_z_offset;
                     self.move_along_look_vector(-self.z_offset, graph);
-                }
 
-                self.rotate = RotationMode::None;
+                    self.rotate = RotationMode::None;
+                } else {
+                    self.drag = false;
+                }
             }
             MouseButton::Middle => {
-                self.drag = false;
+                self.rotate = RotationMode::None;
             }
             _ => (),
         }
@@ -337,7 +344,7 @@ impl CameraController {
         match button {
             MouseButton::Right => {
                 if modifiers.shift {
-                    self.rotate = RotationMode::Orbital;
+                    self.drag = true;
                 } else {
                     self.rotate = RotationMode::Center {
                         prev_z_offset: self.z_offset,
@@ -347,7 +354,7 @@ impl CameraController {
                 }
             }
             MouseButton::Middle => {
-                self.drag = true;
+                self.rotate = RotationMode::Orbital;
             }
             _ => (),
         }

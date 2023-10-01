@@ -635,7 +635,7 @@ pub struct UpdateLoopState(u32);
 impl Default for UpdateLoopState {
     fn default() -> Self {
         // Run at least a second from the start to ensure that all OS-specific stuff was done.
-        Self(60000)
+        Self(60)
     }
 }
 
@@ -2222,7 +2222,7 @@ impl Editor {
                         self.select_object(type_id, handle);
                     }
                     Message::FocusObject(handle) => {
-                        if let Some(editor_scene) = self.scenes.current_editor_scene_ref() {
+                        if let Some(editor_scene) = self.scenes.current_editor_scene_mut() {
                             let scene = &mut self.engine.scenes[editor_scene.scene];
                             editor_scene.camera_controller.fit_object(scene, handle);
                         }
