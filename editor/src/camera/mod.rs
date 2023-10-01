@@ -4,6 +4,7 @@ use crate::settings::{
     scene::{SceneCameraSettings, SceneSettings},
     Settings,
 };
+use fyrox::core::algebra::UnitVector3;
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3},
@@ -24,9 +25,7 @@ use fyrox::{
             Mesh,
         },
         node::Node,
-        pivot::PivotBuilder,
         sound::listener::ListenerBuilder,
-        transform::TransformBuilder,
         Scene,
     },
 };
@@ -41,7 +40,6 @@ pub mod panel;
 pub const DEFAULT_Z_OFFSET: f32 = -3.0;
 
 pub struct CameraController {
-    pub pivot: Handle<Node>,
     pub camera: Handle<Node>,
     pub yaw: f32,
     pub pitch: f32,
@@ -101,33 +99,18 @@ impl CameraController {
     ) -> Self {
         let settings = settings.cloned().unwrap_or_default();
 
-        let camera;
-        let pivot = PivotBuilder::new(
+        let camera = CameraBuilder::new(
             BaseBuilder::new()
-                .with_children(&[{
-                    camera = CameraBuilder::new(
-                        BaseBuilder::new()
-                            .with_children(&[ListenerBuilder::new(BaseBuilder::new()).build(graph)])
-                            .with_name("EditorCamera"),
-                    )
-                    .with_exposure(Exposure::Manual(std::f32::consts::E))
-                    .with_z_far(512.0)
-                    .build(graph);
-                    camera
-                }])
-                .with_name("EditorCameraPivot")
-                .with_local_transform(
-                    TransformBuilder::new()
-                        .with_local_position(settings.position)
-                        .build(),
-                ),
+                .with_children(&[ListenerBuilder::new(BaseBuilder::new()).build(graph)])
+                .with_name("EditorCamera"),
         )
+        .with_exposure(Exposure::Manual(std::f32::consts::E))
+        .with_z_far(512.0)
         .build(graph);
 
-        graph.link_nodes(pivot, root);
+        graph.link_nodes(camera, root);
 
         Self {
-            pivot,
             camera,
             yaw: settings.yaw,
             pitch: settings.pitch,
@@ -187,7 +170,7 @@ impl CameraController {
 
         match fit_parameters {
             FitParameters::Perspective { position } => {
-                scene.graph[self.pivot]
+                scene.graph[self.camera]
                     .local_transform_mut()
                     .set_position(position);
             }
@@ -200,7 +183,7 @@ impl CameraController {
                 {
                     ortho.vertical_size = vertical_size;
                 }
-                scene.graph[self.pivot]
+                scene.graph[self.camera]
                     .local_transform_mut()
                     .set_position(position);
             }
@@ -238,9 +221,7 @@ impl CameraController {
         match *camera.projection_mut() {
             Projection::Perspective(_) => {
                 let look = camera.global_transform().look();
-                graph[self.pivot]
-                    .local_transform_mut()
-                    .offset(look.scale(delta));
+                camera.local_transform_mut().offset(look.scale(delta));
             }
             Projection::Orthographic(ref mut ortho) => {
                 ortho.vertical_size = (ortho.vertical_size - delta).max(f32::EPSILON);
@@ -371,7 +352,7 @@ impl CameraController {
     }
 
     pub fn position(&self, graph: &Graph) -> Vector3<f32> {
-        graph[self.pivot].global_position()
+        graph[self.camera].global_position()
     }
 
     pub fn update(
@@ -420,19 +401,15 @@ impl CameraController {
                 move_vec += side * self.drag_side;
                 move_vec.y += self.drag_up;
 
+                let yaw = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), self.yaw);
                 camera
                     .local_transform_mut()
-                    .set_rotation(UnitQuaternion::from_axis_angle(
-                        &Vector3::x_axis(),
-                        self.pitch,
-                    ));
-
-                graph[self.pivot]
-                    .local_transform_mut()
-                    .set_rotation(UnitQuaternion::from_axis_angle(
-                        &Vector3::y_axis(),
-                        self.yaw,
-                    ))
+                    .set_rotation(
+                        UnitQuaternion::from_axis_angle(
+                            &UnitVector3::new_normalize(yaw * Vector3::x()),
+                            self.pitch,
+                        ) * yaw,
+                    )
                     .offset(move_vec);
             }
             Projection::Orthographic(_) => {
@@ -460,11 +437,7 @@ impl CameraController {
                     move_vec = v.scale(self.speed_factor * settings.camera.speed * dt);
                 }
 
-                camera
-                    .local_transform_mut()
-                    .set_rotation(UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 0.0));
-
-                let local_transform = graph[self.pivot].local_transform_mut();
+                let local_transform = camera.local_transform_mut();
 
                 let mut new_position = **local_transform.position();
                 new_position.z = DEFAULT_Z_OFFSET;
