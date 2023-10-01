@@ -1,4 +1,3 @@
-use crate::camera;
 use fyrox::{
     core::{algebra::Vector3, pool::Handle},
     scene::node::Node,
@@ -16,7 +15,7 @@ pub struct SceneCameraSettings {
 impl Default for SceneCameraSettings {
     fn default() -> Self {
         Self {
-            position: Vector3::new(0.0, 1.0, camera::DEFAULT_Z_OFFSET),
+            position: Vector3::new(0.0, 1.0, 0.0),
             yaw: 0.0,
             pitch: 0.0,
         }

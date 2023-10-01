@@ -213,6 +213,7 @@ impl InteractionMode for EditNavmeshMode {
         let ray = camera.make_ray(mouse_pos, frame_size);
 
         let camera = editor_scene.camera_controller.camera;
+        let camera_pivot = editor_scene.camera_controller.pivot;
         let gizmo_origin = self.move_gizmo.origin;
         let editor_node = editor_scene
             .camera_controller
@@ -223,7 +224,9 @@ impl InteractionMode for EditNavmeshMode {
                 scene_content_root: editor_scene.scene_content_root,
                 screen_size: frame_size,
                 editor_only: true,
-                filter: |handle, _| handle != camera && handle != gizmo_origin,
+                filter: |handle, _| {
+                    handle != camera && handle != camera_pivot && handle != gizmo_origin
+                },
                 ignore_back_faces: settings.selection.ignore_back_faces,
                 use_picking_loop: true,
                 only_meshes: false,

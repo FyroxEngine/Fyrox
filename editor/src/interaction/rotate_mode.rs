@@ -56,6 +56,7 @@ impl InteractionMode for RotateInteractionMode {
 
         // Pick gizmo nodes.
         let camera = editor_scene.camera_controller.camera;
+        let camera_pivot = editor_scene.camera_controller.pivot;
         if let Some(result) = editor_scene.camera_controller.pick(PickingOptions {
             cursor_pos: mouse_pos,
             graph,
@@ -63,7 +64,9 @@ impl InteractionMode for RotateInteractionMode {
             scene_content_root: editor_scene.scene_content_root,
             screen_size: frame_size,
             editor_only: true,
-            filter: |handle, _| handle != camera && handle != self.rotation_gizmo.origin,
+            filter: |handle, _| {
+                handle != camera && handle != camera_pivot && handle != self.rotation_gizmo.origin
+            },
             ignore_back_faces: settings.selection.ignore_back_faces,
             use_picking_loop: true,
             only_meshes: false,

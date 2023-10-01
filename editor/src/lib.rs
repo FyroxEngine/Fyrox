@@ -635,7 +635,7 @@ pub struct UpdateLoopState(u32);
 impl Default for UpdateLoopState {
     fn default() -> Self {
         // Run at least a second from the start to ensure that all OS-specific stuff was done.
-        Self(60)
+        Self(60000)
     }
 }
 

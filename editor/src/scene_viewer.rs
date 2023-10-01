@@ -1075,7 +1075,9 @@ impl SceneViewer {
             }
         }
 
-        editor_scene.camera_controller.on_mouse_button_up(button);
+        editor_scene
+            .camera_controller
+            .on_mouse_button_up(button, &mut engine.scenes[editor_scene.scene].graph);
     }
 
     fn on_mouse_down(
@@ -1107,7 +1109,11 @@ impl SceneViewer {
             }
         }
 
-        editor_scene.camera_controller.on_mouse_button_down(button);
+        editor_scene.camera_controller.on_mouse_button_down(
+            button,
+            engine.user_interface.keyboard_modifiers(),
+            &mut engine.scenes[editor_scene.scene].graph,
+        );
     }
 
     fn on_drop(
