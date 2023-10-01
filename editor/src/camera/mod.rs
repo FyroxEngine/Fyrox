@@ -203,13 +203,12 @@ impl CameraController {
                 .unwrap_or(1.0),
         );
 
-        self.z_offset = 0.0;
-
         match fit_parameters {
-            FitParameters::Perspective { position } => {
+            FitParameters::Perspective { distance, .. } => {
                 scene.graph[self.pivot]
                     .local_transform_mut()
-                    .set_position(position);
+                    .set_position(aabb.center());
+                self.z_offset = -distance;
             }
             FitParameters::Orthographic {
                 position,
@@ -223,6 +222,7 @@ impl CameraController {
                 scene.graph[self.pivot]
                     .local_transform_mut()
                     .set_position(position);
+                self.z_offset = 0.0;
             }
         }
     }

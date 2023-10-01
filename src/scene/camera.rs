@@ -374,6 +374,8 @@ pub enum FitParameters {
     Perspective {
         /// New world-space position of the camera.
         position: Vector3<f32>,
+        /// Distance from the center of an AABB of the object to the `position`.
+        distance: f32,
     },
     /// Fitting parameters for orthographic projection.
     Orthographic {
@@ -581,6 +583,7 @@ impl Camera {
 
                 FitParameters::Perspective {
                     position: aabb.center() - look_vector.scale(distance),
+                    distance,
                 }
             }
             Projection::Orthographic(_) => {
