@@ -1,3 +1,4 @@
+use crate::scene_viewer::gizmo::SceneGizmo;
 use crate::{
     camera::PickingOptions, gui::make_dropdown_list_option,
     gui::make_dropdown_list_option_with_height, load_image, message::MessageSender,
@@ -55,6 +56,8 @@ use fyrox::{
 };
 use std::cmp::Ordering;
 
+mod gizmo;
+
 struct PreviewInstance {
     instance: Handle<Node>,
     nodes: FxHashSet<Handle<Node>>,
@@ -84,6 +87,7 @@ pub struct SceneViewer {
     preview_instance: Option<PreviewInstance>,
     no_scene_reminder: Handle<UiNode>,
     tab_control: Handle<UiNode>,
+    scene_gizmo: SceneGizmo,
 }
 
 fn make_interaction_mode_button(
@@ -130,6 +134,8 @@ fn make_interaction_mode_button(
 
 impl SceneViewer {
     pub fn new(engine: &mut Engine, sender: MessageSender) -> Self {
+        let scene_gizmo = SceneGizmo::new(engine);
+
         let ctx = &mut engine.user_interface.build_ctx();
 
         let select_mode_tooltip = "Select Object(s) - Shortcut: [1]\n\nSelection interaction mode \
@@ -180,7 +186,7 @@ impl SceneViewer {
                 .with_child({
                     select_mode = make_interaction_mode_button(
                         ctx,
-                        include_bytes!("../resources/embed/select.png"),
+                        include_bytes!("../../resources/embed/select.png"),
                         select_mode_tooltip,
                         true,
                     );
@@ -189,7 +195,7 @@ impl SceneViewer {
                 .with_child({
                     move_mode = make_interaction_mode_button(
                         ctx,
-                        include_bytes!("../resources/embed/move_arrow.png"),
+                        include_bytes!("../../resources/embed/move_arrow.png"),
                         move_mode_tooltip,
                         false,
                     );
@@ -198,7 +204,7 @@ impl SceneViewer {
                 .with_child({
                     rotate_mode = make_interaction_mode_button(
                         ctx,
-                        include_bytes!("../resources/embed/rotate_arrow.png"),
+                        include_bytes!("../../resources/embed/rotate_arrow.png"),
                         rotate_mode_tooltip,
                         false,
                     );
@@ -207,7 +213,7 @@ impl SceneViewer {
                 .with_child({
                     scale_mode = make_interaction_mode_button(
                         ctx,
-                        include_bytes!("../resources/embed/scale_arrow.png"),
+                        include_bytes!("../../resources/embed/scale_arrow.png"),
                         scale_mode_tooltip,
                         false,
                     );
@@ -216,7 +222,7 @@ impl SceneViewer {
                 .with_child({
                     navmesh_mode = make_interaction_mode_button(
                         ctx,
-                        include_bytes!("../resources/embed/navmesh.png"),
+                        include_bytes!("../../resources/embed/navmesh.png"),
                         navmesh_mode_tooltip,
                         false,
                     );
@@ -225,7 +231,7 @@ impl SceneViewer {
                 .with_child({
                     terrain_mode = make_interaction_mode_button(
                         ctx,
-                        include_bytes!("../resources/embed/terrain.png"),
+                        include_bytes!("../../resources/embed/terrain.png"),
                         terrain_mode_tooltip,
                         false,
                     );
@@ -313,7 +319,7 @@ impl SceneViewer {
                                             ))),
                                     )
                                     .with_opt_texture(load_image(include_bytes!(
-                                        "../resources/embed/play.png"
+                                        "../../resources/embed/play.png"
                                     )))
                                     .build(ctx),
                                 )
@@ -338,7 +344,7 @@ impl SceneViewer {
                                             ))),
                                     )
                                     .with_opt_texture(load_image(include_bytes!(
-                                        "../resources/embed/stop.png"
+                                        "../../resources/embed/stop.png"
                                     )))
                                     .build(ctx),
                                 )
@@ -367,6 +373,18 @@ impl SceneViewer {
         .with_wrap(WrapMode::Word)
         .build(ctx);
 
+        let scene_gizmo_image = ImageBuilder::new(
+            WidgetBuilder::new()
+                .with_width(85.0)
+                .with_height(85.0)
+                .with_horizontal_alignment(HorizontalAlignment::Right)
+                .with_vertical_alignment(VerticalAlignment::Top)
+                .with_margin(Thickness::uniform(1.0)),
+        )
+        .with_flip(true)
+        .with_texture(into_gui_texture(scene_gizmo.render_target.clone()))
+        .build(ctx);
+
         let tab_control;
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("SceneViewer"))
             .can_close(false)
@@ -390,6 +408,7 @@ impl SceneViewer {
                                             WidgetBuilder::new()
                                                 .with_child(no_scene_reminder)
                                                 .with_child(interaction_mode_panel)
+                                                .with_child(scene_gizmo_image)
                                                 .with_allow_drop(true),
                                         )
                                         .with_flip(true)
@@ -452,6 +471,7 @@ impl SceneViewer {
             stop,
             no_scene_reminder,
             tab_control,
+            scene_gizmo,
         }
     }
 }
@@ -1197,5 +1217,9 @@ impl SceneViewer {
                 }
             }
         }
+    }
+
+    pub fn update(&self, editor_scene: &EditorScene, engine: &mut Engine) {
+        self.scene_gizmo.sync_rotations(editor_scene, engine);
     }
 }

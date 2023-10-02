@@ -2103,6 +2103,7 @@ impl Editor {
             self.light_panel.update(scene, &mut self.engine);
             self.animation_editor.update(scene, &self.engine);
             self.audio_preview_panel.update(scene, &self.engine);
+            self.scene_viewer.update(scene, &mut self.engine);
         }
 
         self.overlay_pass.borrow_mut().pictogram_size = self.settings.debugging.pictogram_size;
