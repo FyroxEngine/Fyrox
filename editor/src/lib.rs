@@ -2594,18 +2594,21 @@ fn update(editor: &mut Editor, control_flow: &mut ControlFlow) {
 
         let mut switches = FxHashMap::default();
 
-        for (other_scene_handle, _) in editor.engine.scenes.pair_iter() {
-            if let Some(scene) = editor.scenes.current_editor_scene_ref() {
-                switches.insert(scene.scene, scene.graph_switches.clone());
+        for other_editor_scene_entry in editor.scenes.scenes.iter() {
+            if let Some(current_editor_scene) = editor.scenes.current_editor_scene_ref() {
+                switches.insert(
+                    current_editor_scene.scene,
+                    current_editor_scene.graph_switches.clone(),
+                );
 
-                if scene.scene == other_scene_handle {
+                if current_editor_scene.scene == other_editor_scene_entry.editor_scene.scene {
                     continue;
                 }
             }
 
             // Other scenes will be paused.
             switches.insert(
-                other_scene_handle,
+                other_editor_scene_entry.editor_scene.scene,
                 GraphUpdateSwitches {
                     paused: true,
                     ..Default::default()
