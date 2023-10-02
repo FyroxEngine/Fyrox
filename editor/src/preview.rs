@@ -1,4 +1,5 @@
 use crate::{load_image, Engine};
+use fyrox::scene::SceneRenderingOptions;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3},
@@ -157,10 +158,13 @@ impl PreviewPanel {
         )
         .build(&mut scene.graph);
 
-        scene.ambient_lighting_color = Color::opaque(80, 80, 80);
+        scene.rendering_options.ambient_lighting_color = Color::opaque(80, 80, 80);
 
         let render_target = TextureResource::new_render_target(width, height);
-        scene.render_target = Some(render_target.clone());
+        scene.rendering_options = SceneRenderingOptions {
+            render_target: Some(render_target.clone()),
+            ..Default::default()
+        };
 
         let scene = engine.scenes.add(scene);
 
@@ -363,8 +367,13 @@ impl PreviewPanel {
         let scene = &mut engine.scenes[self.scene];
 
         // Create new render target if preview frame has changed its size.
-        let (rt_width, rt_height) = if let TextureKind::Rectangle { width, height } =
-            scene.render_target.clone().unwrap().data_ref().kind()
+        let (rt_width, rt_height) = if let TextureKind::Rectangle { width, height } = scene
+            .rendering_options
+            .render_target
+            .clone()
+            .unwrap()
+            .data_ref()
+            .kind()
         {
             (width, height)
         } else {
@@ -375,7 +384,7 @@ impl PreviewPanel {
             if rt_width != frame_size.x as u32 || rt_height != frame_size.y as u32 {
                 let rt =
                     TextureResource::new_render_target(frame_size.x as u32, frame_size.y as u32);
-                scene.render_target = Some(rt.clone());
+                scene.rendering_options.render_target = Some(rt.clone());
                 engine.user_interface.send_message(ImageMessage::texture(
                     self.frame,
                     MessageDirection::ToWidget,

@@ -148,6 +148,50 @@ impl IndexMut<Handle<Navmesh>> for NavMeshContainer {
     }
 }
 
+/// Rendering options of a scene. It allows you to specify a render target to render the scene to, change its clear color, etc.
+#[derive(Debug, Visit, Reflect)]
+pub struct SceneRenderingOptions {
+    /// A texture to draw the scene to. If empty, then the scene will be drawn on screen directly. It is useful to "embed" some scene into other
+    /// by drawing a quad with this texture. This can be used to make in-game video conference - you can make separate scene with
+    /// your characters and draw scene into a texture, then in the main scene you can attach this texture to some quad which will be used
+    /// as a monitor. Other usage could be a previewer of models, like a pictogram of character in real-time strategies, in other words
+    /// there are plenty of possible uses.
+    pub render_target: Option<TextureResource>,
+
+    /// Default color of the render target. Default is [`None`], which forces the renderer to use clear color of the back buffer.
+    /// Could be set to transparent to make background transparent.
+    pub clear_color: Option<Color>,
+
+    /// Defines how polygons of the scene will be rasterized. By default it set to [`PolygonFillMode::Fill`],
+    /// [`PolygonFillMode::Line`] could be used to render the scene in wireframe mode.
+    pub polygon_rasterization_mode: PolygonFillMode,
+
+    /// Color of the ambient lighting.
+    pub ambient_lighting_color: Color,
+}
+
+impl Default for SceneRenderingOptions {
+    fn default() -> Self {
+        Self {
+            render_target: None,
+            clear_color: None,
+            polygon_rasterization_mode: Default::default(),
+            ambient_lighting_color: Color::opaque(100, 100, 100),
+        }
+    }
+}
+
+impl Clone for SceneRenderingOptions {
+    fn clone(&self) -> Self {
+        Self {
+            render_target: None, // Intentionally not copied!
+            clear_color: self.clear_color,
+            polygon_rasterization_mode: self.polygon_rasterization_mode,
+            ambient_lighting_color: self.ambient_lighting_color,
+        }
+    }
+}
+
 /// See module docs.
 #[derive(Debug, Reflect)]
 pub struct Scene {
@@ -156,14 +200,8 @@ pub struct Scene {
     /// info.
     pub graph: Graph,
 
-    /// Texture to draw scene to. If empty, scene will be drawn on screen directly.
-    /// It is useful to "embed" some scene into other by drawing a quad with this
-    /// texture. This can be used to make in-game video conference - you can make
-    /// separate scene with your characters and draw scene into texture, then in
-    /// main scene you can attach this texture to some quad which will be used as
-    /// monitor. Other usage could be previewer of models, like pictogram of character
-    /// in real-time strategies, in other words there are plenty of possible uses.
-    pub render_target: Option<TextureResource>,
+    /// Rendering options of a scene. See [`SceneRenderingOptions`] docs for more info.
+    pub rendering_options: SceneRenderingOptions,
 
     /// Drawing context for simple graphics.
     #[reflect(hidden)]
@@ -176,9 +214,6 @@ pub struct Scene {
     #[reflect(hidden)]
     pub performance_statistics: PerformanceStatistics,
 
-    /// Color of ambient lighting.
-    pub ambient_lighting_color: Color,
-
     /// Whether the scene will be updated and rendered or not. Default is true.
     /// This flag allowing you to build a scene manager for your game. For example,
     /// you may have a scene for menu and one per level. Menu's scene is persistent,
@@ -187,23 +222,17 @@ pub struct Scene {
     /// to false for menu's scene and when you need to open a menu - set it to true and
     /// set `enabled` flag to false for level's scene.
     pub enabled: bool,
-
-    /// Defines how polygons of the scene will be rasterized. By default it set to [`PolygonFillMode::Fill`],
-    /// [`PolygonFillMode::Line`] could be used to render the scene in wireframe mode.
-    pub polygon_rasterization_mode: PolygonFillMode,
 }
 
 impl Default for Scene {
     fn default() -> Self {
         Self {
             graph: Default::default(),
-            render_target: None,
+            rendering_options: Default::default(),
             lightmap: None,
             drawing_context: Default::default(),
             performance_statistics: Default::default(),
-            ambient_lighting_color: Color::opaque(100, 100, 100),
             enabled: true,
-            polygon_rasterization_mode: Default::default(),
         }
     }
 }
@@ -358,13 +387,11 @@ impl Scene {
         Self {
             // Graph must be created with `new` method because it differs from `default`
             graph: Graph::new(),
-            render_target: None,
+            rendering_options: Default::default(),
             lightmap: None,
             drawing_context: Default::default(),
             performance_statistics: Default::default(),
-            ambient_lighting_color: Color::opaque(100, 100, 100),
             enabled: true,
-            polygon_rasterization_mode: Default::default(),
         }
     }
 
@@ -546,15 +573,11 @@ impl Scene {
         (
             Self {
                 graph,
-                // Render target is intentionally not copied, because it does not makes sense - a copy
-                // will redraw frame completely.
-                render_target: Default::default(),
+                rendering_options: self.rendering_options.clone(),
                 lightmap,
                 drawing_context: self.drawing_context.clone(),
                 performance_statistics: Default::default(),
-                ambient_lighting_color: self.ambient_lighting_color,
                 enabled: self.enabled,
-                polygon_rasterization_mode: self.polygon_rasterization_mode,
             },
             old_new_map,
         )
@@ -565,14 +588,12 @@ impl Scene {
 
         self.graph.visit("Graph", &mut region)?;
         self.lightmap.visit("Lightmap", &mut region)?;
-        self.ambient_lighting_color
-            .visit("AmbientLightingColor", &mut region)?;
         self.enabled.visit("Enabled", &mut region)?;
         let _ = self
-            .polygon_rasterization_mode
-            .visit("PolygonRasterizationMode", &mut region);
+            .rendering_options
+            .visit("RenderingOptions", &mut region);
 
-        // Backward compatibility.\
+        // Backward compatibility.
         let mut navmeshes = NavMeshContainer::default();
         if navmeshes.visit("NavMeshes", &mut region).is_ok() {
             for (i, navmesh) in navmeshes.iter().enumerate() {

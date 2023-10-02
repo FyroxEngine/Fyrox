@@ -196,6 +196,7 @@ impl CameraController {
         let fit_parameters = scene.graph[self.camera].as_camera().fit(
             &aabb,
             scene
+                .rendering_options
                 .render_target
                 .as_ref()
                 .and_then(|rt| rt.data_ref().kind().rectangle_size())

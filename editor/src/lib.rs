@@ -1149,7 +1149,7 @@ impl Editor {
         self.poll_ui_messages();
 
         // Setup new one.
-        scene.render_target = Some(TextureResource::new_render_target(0, 0));
+        scene.rendering_options.render_target = Some(TextureResource::new_render_target(0, 0));
 
         self.scenes.add_scene_and_select(
             scene,
@@ -1645,17 +1645,25 @@ impl Editor {
             let scene = &mut engine.scenes[editor_scene.scene];
 
             // Create new render target if preview frame has changed its size.
-            if let TextureKind::Rectangle { width, height } =
-                scene.render_target.clone().unwrap().data_ref().kind()
+            if let TextureKind::Rectangle { width, height } = scene
+                .rendering_options
+                .render_target
+                .clone()
+                .unwrap()
+                .data_ref()
+                .kind()
             {
                 let frame_size = self.scene_viewer.frame_bounds(&engine.user_interface).size;
                 if width != frame_size.x as u32 || height != frame_size.y as u32 {
-                    scene.render_target = Some(TextureResource::new_render_target(
-                        frame_size.x as u32,
-                        frame_size.y as u32,
-                    ));
-                    self.scene_viewer
-                        .set_render_target(&engine.user_interface, scene.render_target.clone());
+                    scene.rendering_options.render_target =
+                        Some(TextureResource::new_render_target(
+                            frame_size.x as u32,
+                            frame_size.y as u32,
+                        ));
+                    self.scene_viewer.set_render_target(
+                        &engine.user_interface,
+                        scene.rendering_options.render_target.clone(),
+                    );
                 }
             }
         }
@@ -1928,7 +1936,7 @@ impl Editor {
     fn create_new_scene(&mut self) {
         let mut scene = Scene::new();
 
-        scene.ambient_lighting_color = Color::opaque(200, 200, 200);
+        scene.rendering_options.ambient_lighting_color = Color::opaque(200, 200, 200);
 
         self.add_scene(scene, None);
     }

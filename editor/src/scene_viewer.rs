@@ -900,7 +900,10 @@ impl SceneViewer {
                 ),
             );
 
-            self.set_render_target(&engine.user_interface, scene.render_target.clone());
+            self.set_render_target(
+                &engine.user_interface,
+                scene.rendering_options.render_target.clone(),
+            );
 
             if let Selection::Graph(ref selection) = editor_scene.selection {
                 if let Some((_, position)) = selection.global_rotation_position(&scene.graph) {

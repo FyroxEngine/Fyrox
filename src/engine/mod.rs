@@ -1241,13 +1241,18 @@ impl Engine {
             self.handle_model_events();
 
             for (handle, scene) in self.scenes.pair_iter_mut().filter(|(_, s)| s.enabled) {
-                let frame_size = scene.render_target.as_ref().map_or(window_size, |rt| {
-                    if let TextureKind::Rectangle { width, height } = rt.data_ref().kind() {
-                        Vector2::new(width as f32, height as f32)
-                    } else {
-                        panic!("only rectangle textures can be used as render target!");
-                    }
-                });
+                let frame_size =
+                    scene
+                        .rendering_options
+                        .render_target
+                        .as_ref()
+                        .map_or(window_size, |rt| {
+                            if let TextureKind::Rectangle { width, height } = rt.data_ref().kind() {
+                                Vector2::new(width as f32, height as f32)
+                            } else {
+                                panic!("only rectangle textures can be used as render target!");
+                            }
+                        });
 
                 scene.update(
                     frame_size,

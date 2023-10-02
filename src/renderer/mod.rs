@@ -1518,6 +1518,7 @@ impl Renderer {
             let graph = &scene.graph;
 
             let frame_size = scene
+                .rendering_options
                 .render_target
                 .as_ref()
                 .map_or_else(
@@ -1573,7 +1574,7 @@ impl Renderer {
             // to draw something on offscreen and then draw it on some mesh.
             // TODO: However it can be dangerous to use frame texture as it may be bound to
             //  pipeline.
-            if let Some(rt) = scene.render_target.clone() {
+            if let Some(rt) = scene.rendering_options.render_target.clone() {
                 self.texture_cache.map.insert(
                     rt.key(),
                     CacheEntry {
@@ -1604,7 +1605,7 @@ impl Renderer {
 
                 state.set_polygon_fill_mode(
                     PolygonFace::FrontAndBack,
-                    scene.polygon_rasterization_mode,
+                    scene.rendering_options.polygon_rasterization_mode,
                 );
 
                 self.statistics += scene_associated_data.gbuffer.fill(GBufferRenderContext {
@@ -1631,7 +1632,12 @@ impl Renderer {
                 scene_associated_data.hdr_scene_framebuffer.clear(
                     state,
                     viewport,
-                    Some(self.backbuffer_clear_color),
+                    Some(
+                        scene
+                            .rendering_options
+                            .clear_color
+                            .unwrap_or(self.backbuffer_clear_color),
+                    ),
                     None, // Keep depth, we've just copied valid data in it.
                     Some(0),
                 );
@@ -1644,7 +1650,7 @@ impl Renderer {
                             camera,
                             gbuffer: &mut scene_associated_data.gbuffer,
                             white_dummy: self.white_dummy.clone(),
-                            ambient_color: scene.ambient_lighting_color,
+                            ambient_color: scene.rendering_options.ambient_lighting_color,
                             settings: &self.quality_settings,
                             textures: &mut self.texture_cache,
                             geometry_cache: &mut self.geometry_cache,
@@ -1694,7 +1700,7 @@ impl Renderer {
                     graph,
                     &mut self.texture_cache,
                     self.white_dummy.clone(),
-                    scene.ambient_lighting_color,
+                    scene.rendering_options.ambient_lighting_color,
                 )?;
 
                 self.statistics += self.forward_renderer.render(ForwardRenderContext {
@@ -1824,7 +1830,7 @@ impl Renderer {
             }
 
             // Optionally render everything into back buffer.
-            if scene.render_target.is_none() {
+            if scene.rendering_options.render_target.is_none() {
                 let quad = &self.quad;
                 self.statistics.geometry += blit_pixels(
                     state,
