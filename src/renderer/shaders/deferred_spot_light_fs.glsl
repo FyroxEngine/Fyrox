@@ -31,9 +31,10 @@ void main()
     vec3 fragmentPosition = S_UnProject(vec3(texCoord, texture(depthTexture, texCoord).r), invViewProj);
     vec3 fragmentToLight = lightPos - fragmentPosition;
     float distance = length(fragmentToLight);
+    vec4 diffuseColor = texture(colorTexture, texCoord);
 
     TPBRContext ctx;
-    ctx.albedo = S_SRGBToLinear(texture(colorTexture, texCoord)).rgb;
+    ctx.albedo = S_SRGBToLinear(diffuseColor).rgb;
     ctx.fragmentToLight = fragmentToLight / distance;
     ctx.fragmentNormal = normalize(texture(normalTexture, texCoord).xyz * 2.0 - 1.0);
     ctx.lightColor = lightColor.rgb;
@@ -58,5 +59,5 @@ void main()
         cookieAttenuation = texture(cookieTexture, texCoords);
     }
 
-    FragColor = cookieAttenuation * vec4(distanceAttenuation * lightIntensity * coneFactor * shadow * lighting, 1.0);
+    FragColor = cookieAttenuation * vec4(distanceAttenuation * lightIntensity * coneFactor * shadow * lighting, diffuseColor.a);
 }

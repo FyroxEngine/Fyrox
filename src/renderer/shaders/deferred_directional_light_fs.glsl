@@ -38,9 +38,10 @@ void main()
     vec3 material = texture(materialTexture, texCoord).rgb;
 
     vec3 fragmentPosition = S_UnProject(vec3(texCoord, texture(depthTexture, texCoord).r), invViewProj);
+    vec4 diffuseColor = texture(colorTexture, texCoord);
 
     TPBRContext ctx;
-    ctx.albedo = S_SRGBToLinear(texture(colorTexture, texCoord)).rgb;
+    ctx.albedo = S_SRGBToLinear(diffuseColor).rgb;
     ctx.fragmentToLight = lightDirection;
     ctx.fragmentNormal = normalize(texture(normalTexture, texCoord).xyz * 2.0 - 1.0);
     ctx.lightColor = lightColor.rgb;
@@ -61,5 +62,5 @@ void main()
         shadow = CsmGetShadow(shadowCascade2, fragmentPosition, lightViewProjMatrices[2]);
     }
 
-    FragColor = shadow * vec4(lightIntensity * lighting, 1.0);
+    FragColor = shadow * vec4(lightIntensity * lighting, diffuseColor.a);
 }
