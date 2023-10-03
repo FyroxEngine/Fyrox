@@ -220,7 +220,19 @@ impl SceneGizmo {
             .set_rotation(pivot_rotation);
     }
 
-    pub fn on_click(&self, pos: Vector2<f32>, engine: &Engine) -> Option<CameraRotation> {
+    fn parts(&self) -> [(Handle<Node>, Color); 7] {
+        [
+            (self.center, Color::WHITE),
+            (self.pos_x, Color::RED),
+            (self.neg_x, Color::WHITE),
+            (self.pos_y, Color::GREEN),
+            (self.neg_y, Color::WHITE),
+            (self.pos_z, Color::BLUE),
+            (self.neg_z, Color::WHITE),
+        ]
+    }
+
+    fn pick(&self, pos: Vector2<f32>, engine: &Engine) -> Handle<Node> {
         let graph = &engine.scenes[self.scene].graph;
         let ray = graph[self.camera].as_camera().make_ray(
             pos,
@@ -234,15 +246,7 @@ impl SceneGizmo {
 
         let mut closest = Handle::NONE;
         let mut min_toi = f32::MAX;
-        for node in [
-            self.center,
-            self.pos_x,
-            self.neg_x,
-            self.pos_y,
-            self.neg_y,
-            self.pos_z,
-            self.neg_z,
-        ] {
+        for (node, _) in self.parts() {
             let node_ref = &graph[node];
             if let Some(result) = ray.aabb_intersection(
                 &node_ref
@@ -255,6 +259,40 @@ impl SceneGizmo {
                 }
             }
         }
+
+        closest
+    }
+
+    pub fn on_mouse_move(&self, pos: Vector2<f32>, engine: &Engine) {
+        let graph = &engine.scenes[self.scene].graph;
+        let closest = self.pick(pos, engine);
+
+        fn set_color(node: Handle<Node>, graph: &Graph, color: Color) {
+            graph[node].as_mesh().surfaces()[0]
+                .material()
+                .lock()
+                .set_property(
+                    &ImmutableString::new("diffuseColor"),
+                    PropertyValue::Color(color),
+                )
+                .unwrap();
+        }
+
+        for (node, default_color) in self.parts() {
+            set_color(
+                node,
+                graph,
+                if node == closest {
+                    Color::opaque(255, 255, 0)
+                } else {
+                    default_color
+                },
+            )
+        }
+    }
+
+    pub fn on_click(&self, pos: Vector2<f32>, engine: &Engine) -> Option<CameraRotation> {
+        let closest = self.pick(pos, engine);
 
         if closest == self.neg_x {
             Some(CameraRotation {

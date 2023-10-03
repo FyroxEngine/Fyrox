@@ -800,18 +800,29 @@ impl SceneViewer {
                         _ => {}
                     }
                 } else if message.destination() == self.scene_gizmo_image {
-                    if let WidgetMessage::MouseDown { button, pos, .. } = *msg {
-                        if button == MouseButton::Left {
+                    match *msg {
+                        WidgetMessage::MouseDown { button, pos, .. } => {
+                            if button == MouseButton::Left {
+                                let rel_pos = pos
+                                    - engine
+                                        .user_interface
+                                        .node(self.scene_gizmo_image)
+                                        .screen_position();
+                                if let Some(rotation) = self.scene_gizmo.on_click(rel_pos, engine) {
+                                    editor_scene.camera_controller.pitch = rotation.pitch;
+                                    editor_scene.camera_controller.yaw = rotation.yaw;
+                                }
+                            }
+                        }
+                        WidgetMessage::MouseMove { pos, .. } => {
                             let rel_pos = pos
                                 - engine
                                     .user_interface
                                     .node(self.scene_gizmo_image)
                                     .screen_position();
-                            if let Some(rotation) = self.scene_gizmo.on_click(rel_pos, engine) {
-                                editor_scene.camera_controller.pitch = rotation.pitch;
-                                editor_scene.camera_controller.yaw = rotation.yaw;
-                            }
+                            self.scene_gizmo.on_mouse_move(rel_pos, engine);
                         }
+                        _ => (),
                     }
                 }
             }
