@@ -1,16 +1,17 @@
-use crate::message::MessageSender;
 use crate::{
-    inspector::editors::make_property_editors_container,
+    inspector::editors::make_property_editors_container, message::MessageSender,
     scene::settings::command::make_set_scene_property_command, EditorScene, Message,
     MessageDirection, MSG_SYNC_FLAG,
 };
 use fyrox::{
-    core::pool::Handle,
+    core::{color::Color, pool::Handle},
     engine::Engine,
     gui::{
         inspector::{
             editors::{
-                inspectable::InspectablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
+                enumeration::EnumPropertyEditorDefinition,
+                inspectable::InspectablePropertyEditorDefinition,
+                PropertyEditorDefinitionContainer,
             },
             InspectorBuilder, InspectorContext, InspectorMessage, PropertyFilter,
         },
@@ -27,6 +28,7 @@ use fyrox::{
             physics::{IntegrationParameters, PhysicsWorld},
             Graph, NodePool,
         },
+        SceneRenderingOptions,
     },
     utils::lightmap::Lightmap,
 };
@@ -65,6 +67,8 @@ impl SceneSettingsWindow {
         container.insert(InspectablePropertyEditorDefinition::<
             dim2::physics::PhysicsWorld,
         >::new());
+        container.insert(InspectablePropertyEditorDefinition::<SceneRenderingOptions>::new());
+        container.insert(EnumPropertyEditorDefinition::<Color>::new_optional());
 
         Self {
             window,
