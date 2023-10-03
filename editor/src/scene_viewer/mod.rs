@@ -1,4 +1,4 @@
-use crate::scene_viewer::gizmo::SceneGizmo;
+use crate::scene_viewer::gizmo::{SceneGizmo, SceneGizmoAction};
 use crate::{
     camera::PickingOptions, gui::make_dropdown_list_option,
     gui::make_dropdown_list_option_with_height, load_image, message::MessageSender,
@@ -808,9 +808,39 @@ impl SceneViewer {
                                         .user_interface
                                         .node(self.scene_gizmo_image)
                                         .screen_position();
-                                if let Some(rotation) = self.scene_gizmo.on_click(rel_pos, engine) {
-                                    editor_scene.camera_controller.pitch = rotation.pitch;
-                                    editor_scene.camera_controller.yaw = rotation.yaw;
+                                if let Some(action) = self.scene_gizmo.on_click(rel_pos, engine) {
+                                    match action {
+                                        SceneGizmoAction::Rotate(rotation) => {
+                                            editor_scene.camera_controller.pitch = rotation.pitch;
+                                            editor_scene.camera_controller.yaw = rotation.yaw;
+                                        }
+                                        SceneGizmoAction::SwitchProjection => {
+                                            let graph = &engine.scenes[editor_scene.scene].graph;
+                                            match graph[editor_scene.camera_controller.camera]
+                                                .as_camera()
+                                                .projection()
+                                            {
+                                                Projection::Perspective(_) => {
+                                                    ui.send_message(
+                                                        DropdownListMessage::selection(
+                                                            self.camera_projection,
+                                                            MessageDirection::ToWidget,
+                                                            Some(1),
+                                                        ),
+                                                    );
+                                                }
+                                                Projection::Orthographic(_) => {
+                                                    ui.send_message(
+                                                        DropdownListMessage::selection(
+                                                            self.camera_projection,
+                                                            MessageDirection::ToWidget,
+                                                            Some(0),
+                                                        ),
+                                                    );
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

@@ -30,6 +30,11 @@ pub struct CameraRotation {
     pub pitch: f32,
 }
 
+pub enum SceneGizmoAction {
+    Rotate(CameraRotation),
+    SwitchProjection,
+}
+
 pub struct SceneGizmo {
     pub scene: Handle<Scene>,
     pub render_target: TextureResource,
@@ -291,39 +296,41 @@ impl SceneGizmo {
         }
     }
 
-    pub fn on_click(&self, pos: Vector2<f32>, engine: &Engine) -> Option<CameraRotation> {
+    pub fn on_click(&self, pos: Vector2<f32>, engine: &Engine) -> Option<SceneGizmoAction> {
         let closest = self.pick(pos, engine);
 
         if closest == self.neg_x {
-            Some(CameraRotation {
+            Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 0.0,
                 yaw: -90.0f32.to_radians(),
-            })
+            }))
         } else if closest == self.pos_x {
-            Some(CameraRotation {
+            Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 0.0,
                 yaw: 90.0f32.to_radians(),
-            })
+            }))
         } else if closest == self.neg_y {
-            Some(CameraRotation {
+            Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: -90.0f32.to_radians(),
                 yaw: 0.0,
-            })
+            }))
         } else if closest == self.pos_y {
-            Some(CameraRotation {
+            Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 90.0f32.to_radians(),
                 yaw: 0.0,
-            })
+            }))
         } else if closest == self.neg_z {
-            Some(CameraRotation {
+            Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 0.0,
                 yaw: 0.0f32.to_radians(),
-            })
+            }))
         } else if closest == self.pos_z {
-            Some(CameraRotation {
+            Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 0.0,
                 yaw: -180.0f32.to_radians(),
-            })
+            }))
+        } else if closest == self.center {
+            Some(SceneGizmoAction::SwitchProjection)
         } else {
             None
         }
