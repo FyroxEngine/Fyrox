@@ -29,6 +29,7 @@ pub struct SpotLightShader {
     pub camera_position: UniformLocation,
     pub shadow_bias: UniformLocation,
     pub light_intensity: UniformLocation,
+    pub shadow_alpha: UniformLocation,
 }
 
 impl SpotLightShader {
@@ -77,6 +78,7 @@ impl SpotLightShader {
             shadow_bias: program.uniform_location(state, &ImmutableString::new("shadowBias"))?,
             light_intensity: program
                 .uniform_location(state, &ImmutableString::new("lightIntensity"))?,
+            shadow_alpha: program.uniform_location(state, &ImmutableString::new("shadowAlpha"))?,
             program,
         })
     }

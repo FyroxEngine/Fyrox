@@ -20,6 +20,7 @@ uniform float shadowMapInvSize;
 uniform float shadowBias;
 uniform bool cookieEnabled;
 uniform float lightIntensity;
+uniform float shadowAlpha;
 
 in vec2 texCoord;
 out vec4 FragColor;
@@ -52,6 +53,7 @@ void main()
     float shadow = S_SpotShadowFactor(
         shadowsEnabled, softShadows, shadowBias, fragmentPosition,
             lightViewProjMatrix, shadowMapInvSize, spotShadowTexture);
+    float finalShadow = mix(1.0, shadow, shadowAlpha);
 
     vec4 cookieAttenuation = vec4(1.0);
     if (cookieEnabled) {
@@ -59,5 +61,5 @@ void main()
         cookieAttenuation = texture(cookieTexture, texCoords);
     }
 
-    FragColor = cookieAttenuation * vec4(distanceAttenuation * lightIntensity * coneFactor * shadow * lighting, diffuseColor.a);
+    FragColor = cookieAttenuation * vec4(distanceAttenuation * lightIntensity * coneFactor * finalShadow * lighting, diffuseColor.a);
 }

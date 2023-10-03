@@ -13,6 +13,7 @@ uniform bool softShadows;
 uniform bool shadowsEnabled;
 uniform float shadowBias;
 uniform float lightIntensity;
+uniform float shadowAlpha;
 
 in vec2 texCoord;
 out vec4 FragColor;
@@ -42,6 +43,7 @@ void main()
 
     float shadow = S_PointShadow(
         shadowsEnabled, softShadows, distance, shadowBias, ctx.fragmentToLight, pointShadowTexture);
+    float finalShadow = mix(1.0, shadow, shadowAlpha);
 
-    FragColor = vec4(lightIntensity * distanceAttenuation * shadow * lighting, diffuseColor.a);
+    FragColor = vec4(lightIntensity * distanceAttenuation * finalShadow * lighting, diffuseColor.a);
 }

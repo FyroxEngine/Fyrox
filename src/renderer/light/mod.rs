@@ -441,33 +441,36 @@ impl DeferredLightRenderer {
 
             let distance_to_camera = (light.global_position() - camera.global_position()).norm();
 
-            let (raw_radius, shadows_distance, shadows_enabled) = if let Some(spot_light) =
-                light.cast::<SpotLight>()
-            {
-                (
-                    spot_light.distance(),
-                    settings.spot_shadows_distance,
-                    spot_light.base_light_ref().is_cast_shadows()
-                        && distance_to_camera <= settings.spot_shadows_distance
-                        && settings.spot_shadows_enabled,
-                )
-            } else if let Some(point_light) = light.cast::<PointLight>() {
-                (
-                    point_light.radius(),
-                    settings.point_shadows_distance,
-                    point_light.base_light_ref().is_cast_shadows()
-                        && distance_to_camera <= settings.point_shadows_distance
-                        && settings.point_shadows_enabled,
-                )
-            } else if let Some(directional) = light.cast::<DirectionalLight>() {
-                (
-                    f32::MAX,
-                    0.0,
-                    directional.base_light_ref().is_cast_shadows() && settings.csm_settings.enabled,
-                )
-            } else {
-                continue;
-            };
+            let (raw_radius, shadows_distance, shadows_enabled, shadows_fade_out_range) =
+                if let Some(spot_light) = light.cast::<SpotLight>() {
+                    (
+                        spot_light.distance(),
+                        settings.spot_shadows_distance,
+                        spot_light.base_light_ref().is_cast_shadows()
+                            && distance_to_camera <= settings.spot_shadows_distance
+                            && settings.spot_shadows_enabled,
+                        settings.spot_shadows_fade_out_range,
+                    )
+                } else if let Some(point_light) = light.cast::<PointLight>() {
+                    (
+                        point_light.radius(),
+                        settings.point_shadows_distance,
+                        point_light.base_light_ref().is_cast_shadows()
+                            && distance_to_camera <= settings.point_shadows_distance
+                            && settings.point_shadows_enabled,
+                        settings.point_shadows_fade_out_range,
+                    )
+                } else if let Some(directional) = light.cast::<DirectionalLight>() {
+                    (
+                        f32::MAX,
+                        0.0,
+                        directional.base_light_ref().is_cast_shadows()
+                            && settings.csm_settings.enabled,
+                        0.0,
+                    )
+                } else {
+                    continue;
+                };
 
             let light_position = light.global_position();
             let scl = light.local_transform().scale();
@@ -494,6 +497,13 @@ impl DeferredLightRenderer {
                 } else {
                     2
                 };
+
+            let left_boundary = (shadows_distance - shadows_fade_out_range).max(0.0);
+            let shadows_alpha = if distance_to_camera <= left_boundary {
+                1.0
+            } else {
+                1.0 - (distance_to_camera - left_boundary) / shadows_fade_out_range
+            };
 
             let mut light_view_projection = Matrix4::identity();
 
@@ -732,7 +742,8 @@ impl DeferredLightRenderer {
                             .set_f32(
                                 &shader.light_intensity,
                                 spot_light.base_light_ref().intensity(),
-                            );
+                            )
+                            .set_f32(&shader.shadow_alpha, shadows_alpha);
                     },
                 )?
             } else if let Some(point_light) = light.cast::<PointLight>() {
@@ -774,7 +785,8 @@ impl DeferredLightRenderer {
                                 &self
                                     .point_shadow_map_renderer
                                     .cascade_texture(cascade_index),
-                            );
+                            )
+                            .set_f32(&shader.shadow_alpha, shadows_alpha);
                     },
                 )?
             } else if let Some(directional) = light.cast::<DirectionalLight>() {

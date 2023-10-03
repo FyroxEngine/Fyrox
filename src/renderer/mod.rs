@@ -272,6 +272,8 @@ pub struct QualitySettings {
     /// Point shadow map precision. Allows you to select compromise between
     /// quality and performance.
     pub point_shadow_map_precision: ShadowMapPrecision,
+    ///
+    pub point_shadows_fade_out_range: f32,
 
     /// Spot shadows
     /// Size of square shadow map texture in pixels
@@ -285,6 +287,8 @@ pub struct QualitySettings {
     /// Spot shadow map precision. Allows you to select compromise between
     /// quality and performance.
     pub spot_shadow_map_precision: ShadowMapPrecision,
+    ///
+    pub spot_shadows_fade_out_range: f32,
 
     /// Cascaded-shadow maps settings.
     pub csm_settings: CsmSettings,
@@ -323,11 +327,13 @@ impl QualitySettings {
             point_shadows_distance: 20.0,
             point_shadows_enabled: true,
             point_soft_shadows: true,
+            point_shadows_fade_out_range: 1.0,
 
             spot_shadow_map_size: 2048,
             spot_shadows_distance: 20.0,
             spot_shadows_enabled: true,
             spot_soft_shadows: true,
+            spot_shadows_fade_out_range: 1.0,
 
             use_ssao: true,
             ssao_radius: 0.5,
@@ -354,11 +360,13 @@ impl QualitySettings {
             point_shadows_distance: 15.0,
             point_shadows_enabled: true,
             point_soft_shadows: true,
+            point_shadows_fade_out_range: 1.0,
 
             spot_shadow_map_size: 1024,
             spot_shadows_distance: 15.0,
             spot_shadows_enabled: true,
             spot_soft_shadows: true,
+            spot_shadows_fade_out_range: 1.0,
 
             use_ssao: true,
             ssao_radius: 0.5,
@@ -390,11 +398,13 @@ impl QualitySettings {
             point_shadows_distance: 5.0,
             point_shadows_enabled: true,
             point_soft_shadows: false,
+            point_shadows_fade_out_range: 1.0,
 
             spot_shadow_map_size: 512,
             spot_shadows_distance: 5.0,
             spot_shadows_enabled: true,
             spot_soft_shadows: false,
+            spot_shadows_fade_out_range: 1.0,
 
             use_ssao: true,
             ssao_radius: 0.5,
@@ -426,11 +436,13 @@ impl QualitySettings {
             point_shadows_distance: 0.0,
             point_shadows_enabled: false,
             point_soft_shadows: false,
+            point_shadows_fade_out_range: 1.0,
 
             spot_shadow_map_size: 1,
             spot_shadows_distance: 0.0,
             spot_shadows_enabled: false,
             spot_soft_shadows: false,
+            spot_shadows_fade_out_range: 1.0,
 
             use_ssao: false,
             ssao_radius: 0.5,
