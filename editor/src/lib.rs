@@ -1784,6 +1784,12 @@ impl Editor {
             i += 1;
         }
 
+        let stays_active = match self.mode {
+            Mode::Edit => false,
+            Mode::Build { .. } => true,
+            Mode::Play { .. } => false,
+        };
+
         self.particle_system_control_panel.is_in_preview_mode()
             || self.camera_control_panel.is_in_preview_mode()
             || self.audio_preview_panel.is_in_preview_mode()
@@ -1795,6 +1801,7 @@ impl Editor {
                 .scenes
                 .current_editor_scene_ref()
                 .map_or(false, |s| s.camera_controller.is_interacting())
+            || stays_active
     }
 
     fn save_scene(&mut self, scene: Handle<Scene>, path: PathBuf) {
