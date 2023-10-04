@@ -1,3 +1,8 @@
+//! Path editor is a simple widget that has a text box, that shows the current path and a "..." button, that opens a file
+//! selector. See [`PathEditor`] docs for more info and usage examples.
+
+#![warn(missing_docs)]
+
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::pool::Handle,
@@ -18,21 +23,53 @@ use std::{
     path::PathBuf,
 };
 
+/// A set of messages for the [`PathEditor`] widget.
 #[derive(Debug, Clone, PartialEq)]
 pub enum PathEditorMessage {
+    /// A message, that is used to set new value of the editor or to receive changes from the editor.
     Path(PathBuf),
 }
 
 impl PathEditorMessage {
-    define_constructor!(PathEditorMessage:Path => fn path(PathBuf), layout: false);
+    define_constructor!(
+        /// Creates [`PathEditorMessage::Path`] message.
+        PathEditorMessage:Path => fn path(PathBuf), layout: false
+    );
 }
 
+/// Path editor is a simple widget that has a text box, that shows the current path and a "..." button, that opens a file
+/// selector.
+///
+/// ## Examples
+///
+/// An instance of the editor could be created like so:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle, path::PathEditorBuilder, widget::WidgetBuilder, BuildContext, UiNode,
+/// # };
+/// # use std::path::PathBuf;
+/// #
+/// fn create_path_editor(path: PathBuf, ctx: &mut BuildContext) -> Handle<UiNode> {
+///     PathEditorBuilder::new(WidgetBuilder::new())
+///         .with_path(path)
+///         .build(ctx)
+/// }
+/// ```
+///
+/// To receive the changes, listen to [`PathEditorMessage::Path`] and check for its direction, it should be [`MessageDirection::FromWidget`].
+/// To set a new path value, send [`PathEditorMessage::Path`] message, but with [`MessageDirection::ToWidget`].
 #[derive(Clone)]
 pub struct PathEditor {
+    /// Base widget of the editor.
     pub widget: Widget,
+    /// A handle of the text field, that is used to show current path.
     pub text_field: Handle<UiNode>,
+    /// A button, that opens a file selection.
     pub select: Handle<UiNode>,
+    /// Current file selector instance, could be [`Handle::NONE`] if the selector is closed.
     pub selector: Handle<UiNode>,
+    /// Current path.
     pub path: PathBuf,
 }
 
@@ -105,12 +142,14 @@ impl Control for PathEditor {
     }
 }
 
+/// Path editor builder creates [`PathEditor`] instances and adds them to the user interface.
 pub struct PathEditorBuilder {
     widget_builder: WidgetBuilder,
     path: PathBuf,
 }
 
 impl PathEditorBuilder {
+    /// Creates new builder instance.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -118,11 +157,13 @@ impl PathEditorBuilder {
         }
     }
 
+    /// Sets the desired path.
     pub fn with_path<P: AsRef<Path>>(mut self, path: P) -> Self {
         self.path = path.as_ref().to_owned();
         self
     }
 
+    /// Finishes widget building and adds it to the user interface returning a handle to the instance.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let text_field;
         let select;
