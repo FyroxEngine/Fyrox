@@ -1,5 +1,4 @@
-use crate::message::MessageSender;
-use crate::Message;
+use crate::{message::MessageSender, Message};
 use fyrox::{
     core::{parking_lot::Mutex, pool::Handle},
     gui::{
@@ -18,7 +17,7 @@ use fyrox::{
 };
 use std::{
     io::{BufRead, BufReader},
-    process::ChildStdout,
+    process::ChildStderr,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -38,7 +37,7 @@ impl BuildWindow {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let log_text;
         let stop;
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(200.0))
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(420.0).with_height(200.0))
             .can_minimize(false)
             .can_close(false)
             .open(false)
@@ -105,13 +104,7 @@ impl BuildWindow {
         }
     }
 
-    pub fn listen(&mut self, mut stdout: ChildStdout, ui: &UserInterface) {
-        ui.send_message(WindowMessage::open_modal(
-            self.window,
-            MessageDirection::ToWidget,
-            true,
-        ));
-
+    pub fn listen(&mut self, mut stdout: ChildStderr, ui: &UserInterface) {
         let log = self.log.clone();
         self.active.store(true, Ordering::SeqCst);
         let reader_active = self.active.clone();
@@ -119,11 +112,19 @@ impl BuildWindow {
         std::thread::spawn(move || {
             while reader_active.load(Ordering::SeqCst) {
                 for line in BufReader::new(&mut stdout).lines().take(10).flatten() {
-                    log.lock().push_str(&line);
+                    let mut log_guard = log.lock();
+                    log_guard.push_str(&line);
+                    log_guard.push('\n');
                     log_changed.store(true, Ordering::SeqCst);
                 }
             }
         });
+
+        ui.send_message(WindowMessage::open_modal(
+            self.window,
+            MessageDirection::ToWidget,
+            true,
+        ));
     }
 
     pub fn reset(&mut self, ui: &UserInterface) {

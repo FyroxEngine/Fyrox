@@ -1531,7 +1531,7 @@ impl Editor {
                 if scene.path.is_some() {
                     let mut process = std::process::Command::new("cargo");
                     process
-                        .stdout(Stdio::piped())
+                        .stderr(Stdio::piped())
                         .arg("build")
                         .arg("--package")
                         .arg("executor");
@@ -1543,7 +1543,7 @@ impl Editor {
                     match process.spawn() {
                         Ok(mut process) => {
                             self.build_window.listen(
-                                process.stdout.take().unwrap(),
+                                process.stderr.take().unwrap(),
                                 &self.engine.user_interface,
                             );
 
