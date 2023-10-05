@@ -20,7 +20,9 @@ pub struct TextureLoader {
 
 impl ResourceLoader for TextureLoader {
     fn extensions(&self) -> &[&str] {
-        &["jpg", "jpeg", "tga", "gif", "bmp", "png", "tiff", "dds"]
+        &[
+            "jpg", "jpeg", "tga", "gif", "bmp", "png", "tiff", "tif", "dds",
+        ]
     }
 
     fn into_any(self: Box<Self>) -> Box<dyn Any> {
