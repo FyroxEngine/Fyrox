@@ -449,9 +449,9 @@ impl NodeTrait for Mesh {
                     )
                     .normalize()
                     .scale(len);
-                let binormal = tangent
+                let binormal = normal
                     .xyz()
-                    .cross(&normal)
+                    .cross(&tangent)
                     .scale(vertex_tangent.w)
                     .normalize()
                     .scale(len);
