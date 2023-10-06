@@ -279,35 +279,35 @@ float Internal_FetchHeight(in sampler2D heightTexture, vec2 texCoords) {
     return texture(heightTexture, texCoords).r;
 }
 
-vec2 S_ComputeParallaxTextureCoordinates(in sampler2D heightTexture, vec3 eyeVec, vec2 texCoords, vec3 normal) {
+vec2 S_ComputeParallaxTextureCoordinates(in sampler2D heightTexture, vec3 eyeVec, vec2 texCoords) {
     const float minLayers = 8.0;
     const float maxLayers = 15.0;
     const int maxIterations = 15;
-    const float parallaxScale = 0.05;
+    const float parallaxScale = 0.1;
 
-    float numLayers = mix(maxLayers, minLayers, abs(dot(normal, eyeVec)));
+    float t = max(0.0, abs(dot(vec3(0.0, 0.0, 1.0), eyeVec)));
+    float numLayers = mix(maxLayers, minLayers, t);
+    float layerDepth = 1.0 / numLayers;
+    float currentLayerDepth = 0.0;
 
-    float layerHeight = 1.0 / numLayers;
-    float curLayerHeight = 0.0;
-    vec2 dtex = parallaxScale * eyeVec.xy / numLayers;
+    vec2 deltaTexCoords = parallaxScale * eyeVec.xy / numLayers;
 
     vec2 currentTexCoords = texCoords;
-
-    float height = Internal_FetchHeight(heightTexture, currentTexCoords);
+    float currentDepthMapValue = Internal_FetchHeight(heightTexture, currentTexCoords);
 
     for (int i = 0; i < maxIterations; i++) {
-        if (height > curLayerHeight) {
-            curLayerHeight += layerHeight;
-            currentTexCoords -= dtex;
-            height = Internal_FetchHeight(heightTexture, currentTexCoords);
+        if (currentLayerDepth < currentDepthMapValue) {
+            currentTexCoords += deltaTexCoords;
+            currentDepthMapValue = Internal_FetchHeight(heightTexture, currentTexCoords);
+            currentLayerDepth += layerDepth;
         } else {
             break;
         }
     }
 
-    vec2 prev = currentTexCoords + dtex;
-    float nextH = height - curLayerHeight;
-    float prevH = Internal_FetchHeight(heightTexture, prev) - curLayerHeight + layerHeight;
+    vec2 prev = currentTexCoords - deltaTexCoords;
+    float nextH = currentDepthMapValue - currentLayerDepth;
+    float prevH = Internal_FetchHeight(heightTexture, prev) - currentLayerDepth + layerDepth;
 
     float weight = nextH / (nextH - prevH);
 

@@ -157,7 +157,7 @@
                     mat3 nm = mat3(fyrox_worldMatrix);
                     normal = normalize(nm * localNormal);
                     tangent = normalize(nm * localTangent);
-                    binormal = normalize(vertexTangent.w * cross(tangent, normal));
+                    binormal = normalize(vertexTangent.w * cross(normal, tangent));
                     texCoord = vertexTexCoord;
                     position = vec3(fyrox_worldMatrix * localPosition);
                     secondTexCoord = vertexSecondTexCoord;
@@ -207,7 +207,7 @@
                     vec2 tc;
                     if (fyrox_usePOM) {
                         vec3 toFragmentTangentSpace = normalize(transpose(tangentSpace) * toFragment);
-                        tc = S_ComputeParallaxTextureCoordinates(heightTexture, toFragmentTangentSpace, texCoord * texCoordScale, normal);
+                        tc = S_ComputeParallaxTextureCoordinates(heightTexture, toFragmentTangentSpace, texCoord * texCoordScale);
                     } else {
                         tc = texCoord * texCoordScale;
                     }
