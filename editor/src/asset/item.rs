@@ -1,19 +1,21 @@
 use crate::{gui::AssetItemMessage, load_image};
-use fyrox::resource::texture::Texture;
 use fyrox::{
     asset::manager::ResourceManager,
-    core::{color::Color, pool::Handle},
+    core::{algebra::Vector2, color::Color, pool::Handle},
     gui::{
+        border::BorderBuilder,
         brush::Brush,
         draw::{CommandTexture, Draw, DrawingContext},
+        formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         message::{MessageDirection, UiMessage},
         text::TextBuilder,
-        utils::make_simple_tooltip,
         widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
+        BuildContext, Control, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode,
+        UserInterface, BRUSH_DARKER, BRUSH_DARKEST,
     },
+    resource::texture::Texture,
     utils::into_gui_texture,
 };
 use std::{
@@ -125,6 +127,28 @@ pub struct AssetItemBuilder {
     path: Option<PathBuf>,
 }
 
+fn make_tooltip(ctx: &mut BuildContext, text: &str) -> RcUiNodeHandle {
+    let handle = BorderBuilder::new(
+        WidgetBuilder::new()
+            .with_visibility(false)
+            .with_foreground(BRUSH_DARKEST)
+            .with_background(Brush::Solid(Color::opaque(230, 230, 230)))
+            .with_max_size(Vector2::new(300.0, f32::INFINITY))
+            .with_child(
+                TextBuilder::new(
+                    WidgetBuilder::new()
+                        .with_margin(Thickness::uniform(2.0))
+                        .with_foreground(BRUSH_DARKER),
+                )
+                .with_wrap(WrapMode::Letter)
+                .with_text(text)
+                .build(ctx),
+            ),
+    )
+    .build(ctx);
+    RcUiNodeHandle::new(handle, ctx.sender())
+}
+
 impl AssetItemBuilder {
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
@@ -148,7 +172,7 @@ impl AssetItemBuilder {
         let texture =
             path.extension()
                 .and_then(|ext| match ext.to_string_lossy().to_lowercase().as_ref() {
-                    "jpg" | "tga" | "png" | "bmp" => {
+                    "jpg" | "tga" | "png" | "bmp" | "tif" | "tiff" => {
                         kind = AssetKind::Texture;
                         Some(into_gui_texture(
                             resource_manager.request::<Texture, _>(&path),
@@ -184,7 +208,7 @@ impl AssetItemBuilder {
                 .with_margin(Thickness::uniform(1.0))
                 .with_allow_drag(true)
                 .with_foreground(Brush::Solid(Color::opaque(50, 50, 50)))
-                .with_tooltip(make_simple_tooltip(ctx, &format!("{:?}", path)))
+                .with_tooltip(make_tooltip(ctx, &format!("{:?}", path)))
                 .with_child(
                     GridBuilder::new(
                         WidgetBuilder::new()

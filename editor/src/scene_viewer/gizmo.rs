@@ -111,10 +111,10 @@ impl SceneGizmo {
                 },
                 {
                     pos_x = make_cone(
-                        Matrix4::new_translation(&Vector3::new(-1.50, 0.0, 0.0))
+                        Matrix4::new_translation(&Vector3::new(1.50, 0.0, 0.0))
                             * UnitQuaternion::from_axis_angle(
                                 &Vector3::z_axis(),
-                                -90.0f32.to_radians(),
+                                90.0f32.to_radians(),
                             )
                             .to_homogeneous(),
                         Color::RED,
@@ -124,10 +124,10 @@ impl SceneGizmo {
                 },
                 {
                     neg_x = make_cone(
-                        Matrix4::new_translation(&Vector3::new(1.50, 0.0, 0.0))
+                        Matrix4::new_translation(&Vector3::new(-1.50, 0.0, 0.0))
                             * UnitQuaternion::from_axis_angle(
                                 &Vector3::z_axis(),
-                                90.0f32.to_radians(),
+                                -90.0f32.to_radians(),
                             )
                             .to_homogeneous(),
                         Color::WHITE,
@@ -302,12 +302,12 @@ impl SceneGizmo {
         if closest == self.neg_x {
             Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 0.0,
-                yaw: -90.0f32.to_radians(),
+                yaw: 90.0f32.to_radians(),
             }))
         } else if closest == self.pos_x {
             Some(SceneGizmoAction::Rotate(CameraRotation {
                 pitch: 0.0,
-                yaw: 90.0f32.to_radians(),
+                yaw: -90.0f32.to_radians(),
             }))
         } else if closest == self.neg_y {
             Some(SceneGizmoAction::Rotate(CameraRotation {

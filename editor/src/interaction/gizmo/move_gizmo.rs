@@ -156,7 +156,7 @@ impl MoveGizmo {
         graph.link_nodes(smart_dot, origin);
         let (x_axis, x_arrow) = make_move_axis(
             graph,
-            UnitQuaternion::from_axis_angle(&Vector3::z_axis(), 90.0f32.to_radians()),
+            UnitQuaternion::from_axis_angle(&Vector3::z_axis(), -90.0f32.to_radians()),
             Color::RED,
             "X",
         );
@@ -176,7 +176,7 @@ impl MoveGizmo {
         );
         graph.link_nodes(z_axis, origin);
 
-        let xy_transform = Matrix4::new_translation(&Vector3::new(-0.5, 0.5, 0.0))
+        let xy_transform = Matrix4::new_translation(&Vector3::new(0.5, 0.5, 0.0))
             * UnitQuaternion::from_axis_angle(&Vector3::x_axis(), 90.0f32.to_radians())
                 .to_homogeneous();
         let xy_plane = create_quad_plane(graph, xy_transform, Color::BLUE, "XYPlane");
@@ -190,7 +190,7 @@ impl MoveGizmo {
 
         let zx_plane = create_quad_plane(
             graph,
-            Matrix4::new_translation(&Vector3::new(-0.5, 0.0, 0.5)),
+            Matrix4::new_translation(&Vector3::new(0.5, 0.0, 0.5)),
             Color::GREEN,
             "ZXPlane",
         );
