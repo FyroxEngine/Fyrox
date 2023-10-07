@@ -42,7 +42,7 @@ impl FbxScene {
         let header_handle = nodes.find(document.root(), "FBXHeaderExtension")?;
         let version = nodes.get_by_name(header_handle, "FBXVersion")?;
         let version = version.get_attrib(0)?.as_i32()?;
-        if version < 7100 && version > 7400 {
+        if version < 7100 {
             return Err(FbxError::UnsupportedVersion(version));
         }
 

@@ -7,7 +7,6 @@ use crate::{
         EditorScene, Selection,
     },
     send_sync_message,
-    settings::scene::{NodeInfo, SceneSettings},
     utils::window_content,
     world::graph::{
         item::{SceneItem, SceneItemBuilder, SceneItemMessage},
@@ -670,10 +669,10 @@ impl WorldViewer {
                     settings
                         .scene_settings
                         .entry(path.clone())
-                        .or_insert_with(SceneSettings::default)
+                        .or_default()
                         .node_infos
                         .entry(scene_view_item.entity_handle)
-                        .or_insert_with(NodeInfo::default)
+                        .or_default()
                         .is_expanded = *expand;
                 }
             }

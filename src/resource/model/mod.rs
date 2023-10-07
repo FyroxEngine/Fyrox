@@ -176,7 +176,7 @@ impl ModelResourceExtension for ModelResource {
 
             // Reset inheritable properties, so property inheritance system will take properties
             // from parent objects on resolve stage.
-            node.as_reflect_mut(&mut |node| mark_inheritable_properties_non_modified(node));
+            node.as_reflect_mut(&mut mark_inheritable_properties_non_modified);
 
             // Continue on children.
             stack.extend_from_slice(node.children());

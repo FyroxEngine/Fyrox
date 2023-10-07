@@ -76,7 +76,7 @@ impl TileDescriptor {
             .map(|t| Self {
                 content: TileContentDescriptor::from_tile(&t.content, ui),
             })
-            .unwrap_or_else(Self::default)
+            .unwrap_or_default()
     }
 
     fn from_tile_handle_slice(slice: &[Handle<UiNode>; 2], ui: &UserInterface) -> [Box<Self>; 2] {
