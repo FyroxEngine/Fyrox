@@ -51,6 +51,14 @@
             name: "diffuseColor",
             kind: Color(r: 255, g: 255, b: 255, a: 255),
         ),
+        (
+            name: "parallaxCenter",
+            kind: Float(0.0),
+        ),
+        (
+            name: "parallaxScale",
+            kind: Float(0.08),
+        ),
     ],
 
     passes: [
@@ -157,7 +165,7 @@
                     mat3 nm = mat3(fyrox_worldMatrix);
                     normal = normalize(nm * localNormal);
                     tangent = normalize(nm * localTangent);
-                    binormal = normalize(vertexTangent.w * cross(tangent, normal));
+                    binormal = normalize(vertexTangent.w * cross(normal, tangent));
                     texCoord = vertexTexCoord;
                     position = vec3(fyrox_worldMatrix * localPosition);
                     secondTexCoord = vertexSecondTexCoord;
@@ -186,6 +194,8 @@
                 uniform uint layerIndex;
                 uniform vec3 emissionStrength;
                 uniform vec4 diffuseColor;
+                uniform float parallaxCenter;
+                uniform float parallaxScale;
 
                 // Define uniforms with reserved names. Fyrox will automatically provide
                 // required data to these uniforms.
@@ -207,7 +217,13 @@
                     vec2 tc;
                     if (fyrox_usePOM) {
                         vec3 toFragmentTangentSpace = normalize(transpose(tangentSpace) * toFragment);
-                        tc = S_ComputeParallaxTextureCoordinates(heightTexture, toFragmentTangentSpace, texCoord * texCoordScale, normal);
+                        tc = S_ComputeParallaxTextureCoordinates(
+                            heightTexture,
+                            toFragmentTangentSpace,
+                            texCoord * texCoordScale,
+                            parallaxCenter,
+                            parallaxScale
+                        );
                     } else {
                         tc = texCoord * texCoordScale;
                     }
