@@ -279,18 +279,17 @@ float Internal_FetchHeight(in sampler2D heightTexture, vec2 texCoords, float cen
     return clamp(texture(heightTexture, texCoords).r - center, 0.0, 1.0);
 }
 
-vec2 S_ComputeParallaxTextureCoordinates(in sampler2D heightTexture, vec3 eyeVec, vec2 texCoords, float center) {
+vec2 S_ComputeParallaxTextureCoordinates(in sampler2D heightTexture, vec3 eyeVec, vec2 texCoords, float center, float scale) {
     const float minLayers = 8.0;
     const float maxLayers = 15.0;
     const int maxIterations = 15;
-    const float parallaxScale = 0.1;
 
     float t = max(0.0, abs(dot(vec3(0.0, 0.0, 1.0), eyeVec)));
     float numLayers = mix(maxLayers, minLayers, t);
     float layerDepth = 1.0 / numLayers;
     float currentLayerDepth = 0.0;
 
-    vec2 deltaTexCoords = parallaxScale * eyeVec.xy / numLayers;
+    vec2 deltaTexCoords = scale * eyeVec.xy / numLayers;
 
     vec2 currentTexCoords = texCoords;
     float currentDepthMapValue = Internal_FetchHeight(heightTexture, currentTexCoords, center);

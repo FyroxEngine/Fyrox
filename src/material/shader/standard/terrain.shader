@@ -67,6 +67,10 @@
             name: "parallaxCenter",
             kind: Float(0.0),
         ),
+        (
+            name: "parallaxScale",
+            kind: Float(0.08),
+        ),
     ],
 
     passes: [
@@ -167,6 +171,7 @@
                 uniform sampler2D maskTexture;
                 uniform vec4 diffuseColor;
                 uniform float parallaxCenter;
+                uniform float parallaxScale;
 
                 // Define uniforms with reserved names. Fyrox will automatically provide
                 // required data to these uniforms.
@@ -192,7 +197,8 @@
                             heightTexture,
                             toFragmentTangentSpace,
                             texCoord * texCoordScale,
-                            parallaxCenter
+                            parallaxCenter,
+                            parallaxScale
                         );
                     } else {
                         tc = texCoord * texCoordScale;
