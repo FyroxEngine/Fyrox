@@ -63,6 +63,10 @@
             name: "diffuseColor",
             kind: Color(r: 255, g: 255, b: 255, a: 255),
         ),
+        (
+            name: "parallaxCenter",
+            kind: Float(0.0),
+        ),
     ],
 
     passes: [
@@ -162,6 +166,7 @@
                 uniform vec3 emissionStrength;
                 uniform sampler2D maskTexture;
                 uniform vec4 diffuseColor;
+                uniform float parallaxCenter;
 
                 // Define uniforms with reserved names. Fyrox will automatically provide
                 // required data to these uniforms.
@@ -183,7 +188,12 @@
                     vec2 tc;
                     if (fyrox_usePOM) {
                         vec3 toFragmentTangentSpace = normalize(transpose(tangentSpace) * toFragment);
-                        tc = S_ComputeParallaxTextureCoordinates(heightTexture, toFragmentTangentSpace, texCoord * texCoordScale);
+                        tc = S_ComputeParallaxTextureCoordinates(
+                            heightTexture,
+                            toFragmentTangentSpace,
+                            texCoord * texCoordScale,
+                            parallaxCenter
+                        );
                     } else {
                         tc = texCoord * texCoordScale;
                     }

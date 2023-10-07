@@ -275,11 +275,11 @@ float S_SpotShadowFactor(
     }
 }
 
-float Internal_FetchHeight(in sampler2D heightTexture, vec2 texCoords) {
-    return texture(heightTexture, texCoords).r;
+float Internal_FetchHeight(in sampler2D heightTexture, vec2 texCoords, float center) {
+    return clamp(texture(heightTexture, texCoords).r - center, 0.0, 1.0);
 }
 
-vec2 S_ComputeParallaxTextureCoordinates(in sampler2D heightTexture, vec3 eyeVec, vec2 texCoords) {
+vec2 S_ComputeParallaxTextureCoordinates(in sampler2D heightTexture, vec3 eyeVec, vec2 texCoords, float center) {
     const float minLayers = 8.0;
     const float maxLayers = 15.0;
     const int maxIterations = 15;
@@ -293,12 +293,12 @@ vec2 S_ComputeParallaxTextureCoordinates(in sampler2D heightTexture, vec3 eyeVec
     vec2 deltaTexCoords = parallaxScale * eyeVec.xy / numLayers;
 
     vec2 currentTexCoords = texCoords;
-    float currentDepthMapValue = Internal_FetchHeight(heightTexture, currentTexCoords);
+    float currentDepthMapValue = Internal_FetchHeight(heightTexture, currentTexCoords, center);
 
     for (int i = 0; i < maxIterations; i++) {
         if (currentLayerDepth < currentDepthMapValue) {
             currentTexCoords -= deltaTexCoords;
-            currentDepthMapValue = Internal_FetchHeight(heightTexture, currentTexCoords);
+            currentDepthMapValue = Internal_FetchHeight(heightTexture, currentTexCoords, center);
             currentLayerDepth += layerDepth;
         } else {
             break;
@@ -307,7 +307,7 @@ vec2 S_ComputeParallaxTextureCoordinates(in sampler2D heightTexture, vec3 eyeVec
 
     vec2 prev = currentTexCoords + deltaTexCoords;
     float nextH = currentDepthMapValue - currentLayerDepth;
-    float prevH = Internal_FetchHeight(heightTexture, prev) - currentLayerDepth + layerDepth;
+    float prevH = Internal_FetchHeight(heightTexture, prev, center) - currentLayerDepth + layerDepth;
 
     float weight = nextH / (nextH - prevH);
 
