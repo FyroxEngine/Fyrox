@@ -297,7 +297,7 @@ vec2 S_ComputeParallaxTextureCoordinates(in sampler2D heightTexture, vec3 eyeVec
 
     for (int i = 0; i < maxIterations; i++) {
         if (currentLayerDepth < currentDepthMapValue) {
-            currentTexCoords += deltaTexCoords;
+            currentTexCoords -= deltaTexCoords;
             currentDepthMapValue = Internal_FetchHeight(heightTexture, currentTexCoords);
             currentLayerDepth += layerDepth;
         } else {
@@ -305,7 +305,7 @@ vec2 S_ComputeParallaxTextureCoordinates(in sampler2D heightTexture, vec3 eyeVec
         }
     }
 
-    vec2 prev = currentTexCoords - deltaTexCoords;
+    vec2 prev = currentTexCoords + deltaTexCoords;
     float nextH = currentDepthMapValue - currentLayerDepth;
     float prevH = Internal_FetchHeight(heightTexture, prev) - currentLayerDepth + layerDepth;
 
