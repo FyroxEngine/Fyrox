@@ -320,7 +320,7 @@ impl SceneLoader {
     }
 
     /// Finishes scene loading.
-    pub async fn finish(self) -> Scene {
+    pub async fn finish(self, resource_manager: &ResourceManager) -> Scene {
         let mut scene = self.scene;
 
         Log::info("SceneLoader::finish() - Collecting resources used by the scene...");
@@ -369,7 +369,7 @@ impl SceneLoader {
         join_all(skybox_textures).await;
 
         // And do resolve to extract correct graphical data and so on.
-        scene.resolve();
+        scene.resolve(resource_manager);
 
         scene
     }
@@ -396,10 +396,10 @@ impl Scene {
     }
 
     /// Synchronizes the state of the scene with external resources.
-    pub fn resolve(&mut self) {
+    pub fn resolve(&mut self, resource_manager: &ResourceManager) {
         Log::writeln(MessageKind::Information, "Starting resolve...");
 
-        self.graph.resolve();
+        self.graph.resolve(resource_manager);
         self.graph.update_hierarchical_data();
 
         // Re-apply lightmap if any. This has to be done after resolve because we must patch surface

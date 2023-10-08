@@ -56,6 +56,7 @@ use crate::{
 };
 use fxhash::FxHashSet;
 use fyrox_core::math::aabb::AxisAlignedBoundingBox;
+use fyrox_resource::manager::ResourceManager;
 use rapier3d::geometry::ColliderHandle;
 use std::{
     any::Any,
@@ -1075,7 +1076,7 @@ impl Graph {
         }
     }
 
-    pub(crate) fn resolve(&mut self) {
+    pub(crate) fn resolve(&mut self, resource_manager: &ResourceManager) {
         Log::writeln(MessageKind::Information, "Resolving graph...");
 
         self.restore_dynamic_node_data();
@@ -1092,6 +1093,22 @@ impl Graph {
                     Log::verify(skybox.create_cubemap());
                 }
             }
+        }
+
+        // Sync materials with shaders.
+        let mut materials = FxHashSet::default();
+        for node in self.linear_iter_mut() {
+            (node as &mut dyn Reflect).enumerate_fields_recursively(&mut |_, _, v| {
+                v.downcast_ref::<SharedMaterial>(&mut |material| {
+                    if let Some(material) = material {
+                        materials.insert(material.clone());
+                    }
+                })
+            });
+        }
+
+        for material in materials {
+            material.lock().sync_to_shader(resource_manager);
         }
 
         Log::writeln(MessageKind::Information, "Graph resolved successfully!");

@@ -317,7 +317,7 @@ impl PathFixer {
                         match SceneLoader::load(
                             "Scene",
                             serialization_context,
-                            resource_manager,
+                            resource_manager.clone(),
                             &mut visitor,
                             Some(path.clone()),
                         ) {
@@ -329,7 +329,7 @@ impl PathFixer {
                                 );
                             }
                             Ok(loader) => {
-                                let scene = block_on(loader.finish());
+                                let scene = block_on(loader.finish(&resource_manager));
 
                                 // Gather resources.
 

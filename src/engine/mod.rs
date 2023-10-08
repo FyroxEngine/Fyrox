@@ -656,7 +656,7 @@ impl ResourceGraphVertex {
         }
     }
 
-    pub fn resolve(&self) {
+    pub fn resolve(&self, resource_manager: &ResourceManager) {
         Log::info(format!(
             "Resolving {} resource from dependency graph...",
             self.resource.path().display()
@@ -664,10 +664,13 @@ impl ResourceGraphVertex {
 
         // Wait until resource is fully loaded, then resolve.
         if block_on(self.resource.clone()).is_ok() {
-            self.resource.data_ref().get_scene_mut().resolve();
+            self.resource
+                .data_ref()
+                .get_scene_mut()
+                .resolve(resource_manager);
 
             for child in self.children.iter() {
-                child.resolve();
+                child.resolve(resource_manager);
             }
         }
     }
@@ -684,8 +687,8 @@ impl ResourceDependencyGraph {
         }
     }
 
-    pub fn resolve(&self) {
-        self.root.resolve()
+    pub fn resolve(&self, resource_manager: &ResourceManager) {
+        self.root.resolve(resource_manager)
     }
 }
 
@@ -1515,7 +1518,8 @@ impl Engine {
                     ));
 
                     // Build resource dependency graph and resolve it first.
-                    ResourceDependencyGraph::new(model, self.resource_manager.clone()).resolve();
+                    ResourceDependencyGraph::new(model, self.resource_manager.clone())
+                        .resolve(&self.resource_manager);
 
                     Log::info("Propagating changes to active scenes...");
 
@@ -1523,7 +1527,7 @@ impl Engine {
                     // TODO: This might be inefficient if there is bunch of scenes loaded,
                     // however this seems to be very rare case so it should be ok.
                     for scene in self.scenes.iter_mut() {
-                        scene.resolve();
+                        scene.resolve(&self.resource_manager);
                     }
                 }
             }

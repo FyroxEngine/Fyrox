@@ -516,7 +516,7 @@ impl Model {
                     resource_manager.clone(),
                 )
                 .await?
-                .finish()
+                .finish(&resource_manager)
                 .await,
                 NodeMapping::UseHandles,
             ),

@@ -18,6 +18,8 @@ use crate::{
     resource::texture::{Texture, TextureResource},
 };
 use fxhash::FxHashMap;
+use fyrox_core::log::Log;
+use std::hash::{Hash, Hasher};
 use std::{
     fmt::{Display, Formatter},
     ops::Deref,
@@ -665,41 +667,55 @@ impl Material {
     /// Adds missing properties with default values, removes non-existent properties. Does not modify any existing
     /// properties. This method has limited usage, that is mostly related to shader hot reloading. Returns `true`
     /// if the syncing was successful, `false` - if the shader resource is not loaded.
-    pub async fn sync_to_shader(&mut self, resource_manager: ResourceManager) -> bool {
-        if let Ok(shader_resource) = self.shader.clone().await {
-            if let ResourceStateRef::Ok(shader) = shader_resource.state().get() {
-                if shader.definition.properties.len() > self.properties.len() {
-                    // Some property was added to the shader, but missing in the material.
-                    for property_definition in shader.definition.properties.iter() {
-                        let name = ImmutableString::new(&property_definition.name);
-                        if !self.properties.contains_key(&name) {
-                            // Add the property with default values.
-                            self.properties.insert(
-                                name,
-                                PropertyValue::from_property_kind(
-                                    &property_definition.kind,
-                                    Some(&resource_manager),
-                                ),
-                            );
-                        }
-                    }
-                } else {
-                    // Some property was removed from the shader, but still exists in the material.
-                    for property_name in self.properties.keys().cloned().collect::<Vec<_>>() {
-                        if shader
-                            .definition
-                            .properties
-                            .iter()
-                            .all(|p| p.name != property_name.as_ref())
-                        {
-                            self.properties.remove(&property_name);
-                        }
+    pub fn sync_to_shader(&mut self, resource_manager: &ResourceManager) -> bool {
+        let shader_path = self.shader.path();
+        if let ResourceStateRef::Ok(shader) = self.shader.state().get() {
+            if shader.definition.properties.len() > self.properties.len() {
+                // Some property was added to the shader, but missing in the material.
+                for property_definition in shader.definition.properties.iter() {
+                    let name = ImmutableString::new(&property_definition.name);
+                    if !self.properties.contains_key(&name) {
+                        // Add the property with default values.
+                        self.properties.insert(
+                            name.clone(),
+                            PropertyValue::from_property_kind(
+                                &property_definition.kind,
+                                Some(&resource_manager),
+                            ),
+                        );
+
+                        Log::info(format!(
+                            "Added {} property to the material instance, since it exists in the \
+                            shader {}, but not in the material instance.",
+                            name,
+                            shader_path.display()
+                        ));
                     }
                 }
+            } else {
+                // Some property was removed from the shader, but still exists in the material.
+                for property_name in self.properties.keys().cloned().collect::<Vec<_>>() {
+                    if shader
+                        .definition
+                        .properties
+                        .iter()
+                        .all(|p| p.name != property_name.as_ref())
+                    {
+                        self.properties.remove(&property_name);
 
-                return true;
+                        Log::info(format!(
+                            "Removing {} property from the material instance, since it does \
+                        not exists in the shader {}.",
+                            property_name,
+                            shader_path.display()
+                        ));
+                    }
+                }
             }
+
+            return true;
         }
+
         false
     }
 
@@ -732,6 +748,15 @@ impl Default for SharedMaterial {
 impl PartialEq for SharedMaterial {
     fn eq(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Eq for SharedMaterial {}
+
+impl Hash for SharedMaterial {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        let ptr_num = &*self.0 as *const _ as u64;
+        ptr_num.hash(state);
     }
 }
 
