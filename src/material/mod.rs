@@ -680,7 +680,7 @@ impl Material {
                             name.clone(),
                             PropertyValue::from_property_kind(
                                 &property_definition.kind,
-                                Some(&resource_manager),
+                                Some(resource_manager),
                             ),
                         );
 
