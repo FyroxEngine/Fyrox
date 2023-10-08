@@ -4,10 +4,8 @@
 
 #![warn(missing_docs)]
 
-use crate::material::shader::ShaderResourceExtension;
-use crate::resource::texture::Texture;
 use crate::{
-    asset::manager::ResourceManager,
+    asset::{manager::ResourceManager, ResourceStateRef},
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,
@@ -16,8 +14,8 @@ use crate::{
         sstorage::ImmutableString,
         visitor::prelude::*,
     },
-    material::shader::{PropertyKind, SamplerFallback, ShaderResource},
-    resource::texture::TextureResource,
+    material::shader::{PropertyKind, SamplerFallback, ShaderResource, ShaderResourceExtension},
+    resource::texture::{Texture, TextureResource},
 };
 use fxhash::FxHashMap;
 use std::{
@@ -154,6 +152,46 @@ macro_rules! define_as_ref {
 }
 
 impl PropertyValue {
+    /// Creates property value from its shader's representation.
+    pub fn from_property_kind(
+        kind: &PropertyKind,
+        resource_manager: Option<&ResourceManager>,
+    ) -> Self {
+        match kind {
+            PropertyKind::Float(value) => PropertyValue::Float(*value),
+            PropertyKind::Int(value) => PropertyValue::Int(*value),
+            PropertyKind::UInt(value) => PropertyValue::UInt(*value),
+            PropertyKind::Vector2(value) => PropertyValue::Vector2(*value),
+            PropertyKind::Vector3(value) => PropertyValue::Vector3(*value),
+            PropertyKind::Vector4(value) => PropertyValue::Vector4(*value),
+            PropertyKind::Color { r, g, b, a } => {
+                PropertyValue::Color(Color::from_rgba(*r, *g, *b, *a))
+            }
+            PropertyKind::Matrix2(value) => PropertyValue::Matrix2(*value),
+            PropertyKind::Matrix3(value) => PropertyValue::Matrix3(*value),
+            PropertyKind::Matrix4(value) => PropertyValue::Matrix4(*value),
+            PropertyKind::Bool(value) => PropertyValue::Bool(*value),
+            PropertyKind::Sampler {
+                default,
+                fallback: usage,
+            } => PropertyValue::Sampler {
+                value: default
+                    .as_ref()
+                    .and_then(|path| resource_manager.map(|rm| rm.request::<Texture, _>(path))),
+                fallback: *usage,
+            },
+            PropertyKind::FloatArray(value) => PropertyValue::FloatArray(value.clone()),
+            PropertyKind::IntArray(value) => PropertyValue::IntArray(value.clone()),
+            PropertyKind::UIntArray(value) => PropertyValue::UIntArray(value.clone()),
+            PropertyKind::Vector2Array(value) => PropertyValue::Vector2Array(value.clone()),
+            PropertyKind::Vector3Array(value) => PropertyValue::Vector3Array(value.clone()),
+            PropertyKind::Vector4Array(value) => PropertyValue::Vector4Array(value.clone()),
+            PropertyKind::Matrix2Array(value) => PropertyValue::Matrix2Array(value.clone()),
+            PropertyKind::Matrix3Array(value) => PropertyValue::Matrix3Array(value.clone()),
+            PropertyKind::Matrix4Array(value) => PropertyValue::Matrix4Array(value.clone()),
+        }
+    }
+
     define_as!(
         /// Tries to unwrap property value as float.
         as_float = Float -> f32
@@ -475,42 +513,10 @@ impl Material {
 
         let mut property_values = FxHashMap::default();
         for property_definition in data.definition.properties.iter() {
-            let value = match &property_definition.kind {
-                PropertyKind::Float(value) => PropertyValue::Float(*value),
-                PropertyKind::Int(value) => PropertyValue::Int(*value),
-                PropertyKind::UInt(value) => PropertyValue::UInt(*value),
-                PropertyKind::Vector2(value) => PropertyValue::Vector2(*value),
-                PropertyKind::Vector3(value) => PropertyValue::Vector3(*value),
-                PropertyKind::Vector4(value) => PropertyValue::Vector4(*value),
-                PropertyKind::Color { r, g, b, a } => {
-                    PropertyValue::Color(Color::from_rgba(*r, *g, *b, *a))
-                }
-                PropertyKind::Matrix2(value) => PropertyValue::Matrix2(*value),
-                PropertyKind::Matrix3(value) => PropertyValue::Matrix3(*value),
-                PropertyKind::Matrix4(value) => PropertyValue::Matrix4(*value),
-                PropertyKind::Bool(value) => PropertyValue::Bool(*value),
-                PropertyKind::Sampler {
-                    default,
-                    fallback: usage,
-                } => PropertyValue::Sampler {
-                    value: default.as_ref().and_then(|path| {
-                        resource_manager
-                            .clone()
-                            .map(|rm| rm.request::<Texture, _>(path))
-                    }),
-                    fallback: *usage,
-                },
-                PropertyKind::FloatArray(value) => PropertyValue::FloatArray(value.clone()),
-                PropertyKind::IntArray(value) => PropertyValue::IntArray(value.clone()),
-                PropertyKind::UIntArray(value) => PropertyValue::UIntArray(value.clone()),
-                PropertyKind::Vector2Array(value) => PropertyValue::Vector2Array(value.clone()),
-                PropertyKind::Vector3Array(value) => PropertyValue::Vector3Array(value.clone()),
-                PropertyKind::Vector4Array(value) => PropertyValue::Vector4Array(value.clone()),
-                PropertyKind::Matrix2Array(value) => PropertyValue::Matrix2Array(value.clone()),
-                PropertyKind::Matrix3Array(value) => PropertyValue::Matrix3Array(value.clone()),
-                PropertyKind::Matrix4Array(value) => PropertyValue::Matrix4Array(value.clone()),
-            };
-
+            let value = PropertyValue::from_property_kind(
+                &property_definition.kind,
+                resource_manager.as_ref(),
+            );
             property_values.insert(ImmutableString::new(&property_definition.name), value);
         }
 
@@ -654,6 +660,47 @@ impl Material {
                 property_name: name.deref().to_owned(),
             })
         }
+    }
+
+    /// Adds missing properties with default values, removes non-existent properties. Does not modify any existing
+    /// properties. This method has limited usage, that is mostly related to shader hot reloading. Returns `true`
+    /// if the syncing was successful, `false` - if the shader resource is not loaded.
+    pub async fn sync_to_shader(&mut self, resource_manager: ResourceManager) -> bool {
+        if let Ok(shader_resource) = self.shader.clone().await {
+            if let ResourceStateRef::Ok(shader) = shader_resource.state().get() {
+                if shader.definition.properties.len() > self.properties.len() {
+                    // Some property was added to the shader, but missing in the material.
+                    for property_definition in shader.definition.properties.iter() {
+                        let name = ImmutableString::new(&property_definition.name);
+                        if !self.properties.contains_key(&name) {
+                            // Add the property with default values.
+                            self.properties.insert(
+                                name,
+                                PropertyValue::from_property_kind(
+                                    &property_definition.kind,
+                                    Some(&resource_manager),
+                                ),
+                            );
+                        }
+                    }
+                } else {
+                    // Some property was removed from the shader, but still exists in the material.
+                    for property_name in self.properties.keys().cloned().collect::<Vec<_>>() {
+                        if shader
+                            .definition
+                            .properties
+                            .iter()
+                            .all(|p| p.name != property_name.as_ref())
+                        {
+                            self.properties.remove(&property_name);
+                        }
+                    }
+                }
+
+                return true;
+            }
+        }
+        false
     }
 
     /// Returns a reference to current shader.
