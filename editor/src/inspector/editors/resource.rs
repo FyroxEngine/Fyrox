@@ -4,10 +4,12 @@ use crate::{
 };
 use fyrox::{
     asset::{manager::ResourceManager, Resource, ResourceData, ResourceLoadError},
-    core::{make_relative_path, pool::Handle, TypeUuidProvider},
+    core::{color::Color, make_relative_path, pool::Handle, TypeUuidProvider},
     gui::{
+        brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
         define_constructor,
+        draw::{CommandTexture, Draw, DrawingContext},
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         inspector::{
@@ -20,7 +22,7 @@ use fyrox::{
         message::{MessageDirection, UiMessage},
         text::{TextBuilder, TextMessage},
         widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
+        BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
 };
 use std::{
@@ -144,6 +146,18 @@ where
         }
     }
 
+    fn draw(&self, drawing_context: &mut DrawingContext) {
+        // Emit transparent geometry for the field to be able to catch mouse events without precise pointing at the
+        // node name letters.
+        drawing_context.push_rect_filled(&self.bounding_rect(), None);
+        drawing_context.commit(
+            self.clip_bounds(),
+            Brush::Solid(Color::TRANSPARENT),
+            CommandTexture::None,
+            None,
+        );
+    }
+
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
@@ -239,7 +253,8 @@ where
                                     WidgetBuilder::new()
                                         .on_column(0)
                                         .with_width(16.0)
-                                        .with_height(16.0),
+                                        .with_height(16.0)
+                                        .with_margin(Thickness::uniform(1.0)),
                                 )
                                 .with_opt_texture(load_image(include_bytes!(
                                     "../../../resources/embed/sound_source.png"
@@ -247,15 +262,22 @@ where
                                 .build(ctx),
                             )
                             .with_child({
-                                name = TextBuilder::new(WidgetBuilder::new().on_column(1))
-                                    .with_text(resource_path(&self.resource))
-                                    .with_vertical_text_alignment(VerticalAlignment::Center)
-                                    .build(ctx);
+                                name = TextBuilder::new(
+                                    WidgetBuilder::new()
+                                        .on_column(1)
+                                        .with_margin(Thickness::uniform(1.0))
+                                        .with_vertical_alignment(VerticalAlignment::Center),
+                                )
+                                .with_text(resource_path(&self.resource))
+                                .build(ctx);
                                 name
                             })
                             .with_child({
                                 locate = ButtonBuilder::new(
-                                    WidgetBuilder::new().with_width(24.0).on_column(2),
+                                    WidgetBuilder::new()
+                                        .with_width(24.0)
+                                        .on_column(2)
+                                        .with_margin(Thickness::uniform(1.0)),
                                 )
                                 .with_text("<<")
                                 .build(ctx);
