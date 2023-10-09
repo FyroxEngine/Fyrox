@@ -1615,6 +1615,7 @@ impl Engine {
     {
         constructor.register(PluginRegistrationContext {
             serialization_context: &self.serialization_context,
+            resource_manager: &self.resource_manager,
         });
 
         self.plugin_constructors.push(Box::new(constructor));

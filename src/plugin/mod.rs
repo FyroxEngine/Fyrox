@@ -46,6 +46,8 @@ pub struct PluginRegistrationContext<'a> {
     /// A reference to serialization context of the engine. See [`SerializationContext`] for more
     /// info.
     pub serialization_context: &'a Arc<SerializationContext>,
+    /// A reference to the resource manager instance of the engine. Could be used to register resource loaders.
+    pub resource_manager: &'a ResourceManager,
 }
 
 /// Contains plugin environment.
