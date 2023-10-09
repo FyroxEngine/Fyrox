@@ -3,6 +3,7 @@
 use crate::{
     core::{
         curve::Curve,
+        log::Log,
         uuid::Uuid,
         visitor::{prelude::*, RegionGuard},
     },
@@ -313,6 +314,13 @@ impl ResourceState {
     /// Changes internal state to [`ResourceState::LoadError`].
     pub fn commit_error<E: ResourceLoadError>(&mut self, path: PathBuf, error: E) {
         let type_uuid = self.type_uuid();
+
+        Log::err(format!(
+            "An error occurred while loading {} resource. Reason: {:?}",
+            path.display(),
+            error
+        ));
+
         self.commit(ResourceState::LoadError {
             path,
             error: Some(Arc::new(error)),
