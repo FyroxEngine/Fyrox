@@ -1071,7 +1071,10 @@ impl Editor {
             node_removal_dialog,
             doc_window,
             plugins: Default::default(),
-            focused: false,
+            // Apparently, some window managers (like Wayland), does not send `Focused` event after the window
+            // was created. So we must assume that the editor is focused by default, otherwise editor's thread
+            // will sleep forever and the window won't come up.
+            focused: true,
             update_loop_state: UpdateLoopState::default(),
             is_suspended: false,
             ragdoll_wizard,
