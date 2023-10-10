@@ -1,65 +1,73 @@
 //! Resource loader. It manages resource loading.
 
 use crate::{event::ResourceEventBroadcaster, UntypedResource};
+use fyrox_core::uuid::Uuid;
 use std::{any::Any, future::Future, pin::Pin};
+
+#[cfg(target_arch = "wasm32")]
+#[doc(hidden)]
+pub trait BaseResourceLoader: 'static {}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[doc(hidden)]
+pub trait BaseResourceLoader: Send + 'static {}
+
+impl<T> BaseResourceLoader for T where T: ResourceLoader {}
+
+/// A simple type-casting trait that has auto-impl.
+pub trait ResourceLoaderTypeTrait: BaseResourceLoader {
+    /// Converts `self` into boxed `Any`.
+    fn into_any(self: Box<Self>) -> Box<dyn Any>;
+
+    /// Returns `self` as `&dyn Any`. It is useful for downcasting to a particular type.
+    fn as_any(&self) -> &dyn Any;
+
+    /// Returns `self` as `&mut dyn Any`. It is useful for downcasting to a particular type.
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+}
+
+impl<T> ResourceLoaderTypeTrait for T
+where
+    T: ResourceLoader,
+{
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+}
+
+/// Trait for resource loading.
+pub trait ResourceLoader: ResourceLoaderTypeTrait {
+    /// Returns a list of file extensions supported by the loader. Resource manager will use this list
+    /// to pick the correct resource loader when the user requests a resource.
+    fn extensions(&self) -> &[&str];
+
+    /// Must return a type uuid of the resource data type.
+    fn data_type_uuid(&self) -> Uuid;
+
+    /// Loads or reloads a resource.
+    fn load(
+        &self,
+        resource: UntypedResource,
+        event_broadcaster: ResourceEventBroadcaster,
+        reload: bool,
+    ) -> BoxedLoaderFuture;
+}
 
 /// Future type for resource loading. See 'ResourceLoader'.
 #[cfg(target_arch = "wasm32")]
 pub type BoxedLoaderFuture = Pin<Box<dyn Future<Output = ()>>>;
 
-/// Trait for resource loading.
-#[cfg(target_arch = "wasm32")]
-pub trait ResourceLoader: 'static {
-    /// Returns a list of file extensions supported by the loader. Resource manager will use this list
-    /// to pick the correct resource loader when the user requests a resource.
-    fn extensions(&self) -> &[&str];
-
-    /// Converts `self` into boxed `Any`.
-    fn into_any(self: Box<Self>) -> Box<dyn Any>;
-
-    /// Returns `self` as `&dyn Any`. It is useful for downcasting to a particular type.
-    fn as_any(&self) -> &dyn Any;
-
-    /// Returns `self` as `&mut dyn Any`. It is useful for downcasting to a particular type.
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-
-    /// Loads or reloads a resource.
-    fn load(
-        &self,
-        resource: UntypedResource,
-        event_broadcaster: ResourceEventBroadcaster,
-        reload: bool,
-    ) -> BoxedLoaderFuture;
-}
-
 /// Future type for resource loading. See 'ResourceLoader'.
 #[cfg(not(target_arch = "wasm32"))]
 pub type BoxedLoaderFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
-
-/// Trait for resource loading.
-#[cfg(not(target_arch = "wasm32"))]
-pub trait ResourceLoader: Send + 'static {
-    /// Returns a list of file extensions supported by the loader. Resource manager will use this list
-    /// to pick the correct resource loader when the user requests a resource.
-    fn extensions(&self) -> &[&str];
-
-    /// Converts `self` into boxed `Any`.
-    fn into_any(self: Box<Self>) -> Box<dyn Any>;
-
-    /// Returns `self` as `&dyn Any`. It is useful for downcasting to a particular type.
-    fn as_any(&self) -> &dyn Any;
-
-    /// Returns `self` as `&mut dyn Any`. It is useful for downcasting to a particular type.
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-
-    /// Loads or reloads a resource.
-    fn load(
-        &self,
-        resource: UntypedResource,
-        event_broadcaster: ResourceEventBroadcaster,
-        reload: bool,
-    ) -> BoxedLoaderFuture;
-}
 
 /// Container for resource loaders.
 #[derive(Default)]
@@ -159,21 +167,16 @@ impl ResourceLoadersContainer {
 mod test {
     use super::*;
 
-    impl ResourceLoader for u32 {
+    #[derive(Eq, PartialEq, Debug)]
+    struct MyResourceLoader;
+
+    impl ResourceLoader for MyResourceLoader {
         fn extensions(&self) -> &[&str] {
             &[]
         }
 
-        fn into_any(self: Box<Self>) -> Box<dyn Any> {
-            self
-        }
-
-        fn as_any(&self) -> &dyn Any {
-            self
-        }
-
-        fn as_any_mut(&mut self) -> &mut dyn Any {
-            self
+        fn data_type_uuid(&self) -> Uuid {
+            Default::default()
         }
 
         fn load(
@@ -198,10 +201,10 @@ mod test {
     #[test]
     fn resource_loader_container_set() {
         let mut container = ResourceLoadersContainer::new();
-        let res = container.set(42);
-        let res2 = container.set(42);
+        let res = container.set(MyResourceLoader);
+        let res2 = container.set(MyResourceLoader);
         assert_eq!(res, None);
-        assert_eq!(res2, Some(42));
+        assert_eq!(res2, Some(MyResourceLoader));
 
         assert_eq!(container.len(), 1);
     }
@@ -210,26 +213,26 @@ mod test {
     fn resource_loader_container_find() {
         let mut container = ResourceLoadersContainer::new();
 
-        let res = container.find::<u32>();
+        let res = container.find::<MyResourceLoader>();
         assert_eq!(res, None);
 
-        container.set(42);
-        let res = container.find::<u32>();
+        container.set(MyResourceLoader);
+        let res = container.find::<MyResourceLoader>();
 
-        assert_eq!(res, Some(&42));
+        assert_eq!(res, Some(&MyResourceLoader));
     }
 
     #[test]
     fn resource_loader_container_find_mut() {
         let mut container = ResourceLoadersContainer::new();
 
-        let res = container.find_mut::<u32>();
+        let res = container.find_mut::<MyResourceLoader>();
         assert_eq!(res, None);
 
-        container.set(42);
-        let res = container.find_mut::<u32>();
+        container.set(MyResourceLoader);
+        let res = container.find_mut::<MyResourceLoader>();
 
-        assert_eq!(res, Some(&mut 42));
+        assert_eq!(res, Some(&mut MyResourceLoader));
     }
 
     #[test]
@@ -238,8 +241,8 @@ mod test {
         assert!(container.is_empty());
         assert_eq!(container.len(), 0);
 
-        container.set(42);
-        container.set(15);
+        container.set(MyResourceLoader);
+        container.set(MyResourceLoader);
         assert!(!container.is_empty());
         assert_eq!(container.len(), 1);
     }

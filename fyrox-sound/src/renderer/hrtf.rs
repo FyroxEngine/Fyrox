@@ -251,16 +251,8 @@ impl ResourceLoader for HrirSphereLoader {
         &["hrir"]
     }
 
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
+    fn data_type_uuid(&self) -> Uuid {
+        <HrirSphereResourceData as TypeUuidProvider>::type_uuid()
     }
 
     fn load(

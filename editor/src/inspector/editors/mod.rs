@@ -185,7 +185,11 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
         .register_inheritable_vec_collection::<fyrox::animation::spritesheet::signal::Signal>();
 
     container.insert(ResourceFieldPropertyEditorDefinition::<Model>::new(
-        Rc::new(|resource_manager, path| block_on(resource_manager.request::<Model, _>(path))),
+        Rc::new(|resource_manager, path| {
+            resource_manager
+                .try_request::<Model, _>(path)
+                .map(|r| block_on(r))
+        }),
         sender.clone(),
     ));
     container.insert(InheritablePropertyEditorDefinition::<Option<ModelResource>>::new());
@@ -193,7 +197,9 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
 
     container.insert(ResourceFieldPropertyEditorDefinition::<SoundBuffer>::new(
         Rc::new(|resource_manager, path| {
-            block_on(resource_manager.request::<SoundBuffer, _>(path))
+            resource_manager
+                .try_request::<SoundBuffer, _>(path)
+                .map(|r| block_on(r))
         }),
         sender.clone(),
     ));
@@ -205,7 +211,9 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(
         ResourceFieldPropertyEditorDefinition::<CurveResourceState>::new(
             Rc::new(|resource_manager, path| {
-                block_on(resource_manager.request::<CurveResourceState, _>(path))
+                resource_manager
+                    .try_request::<CurveResourceState, _>(path)
+                    .map(|r| block_on(r))
             }),
             sender.clone(),
         ),
@@ -214,7 +222,11 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.register_inheritable_vec_collection::<Option<CurveResource>>();
 
     container.insert(ResourceFieldPropertyEditorDefinition::<Shader>::new(
-        Rc::new(|resource_manager, path| block_on(resource_manager.request::<Shader, _>(path))),
+        Rc::new(|resource_manager, path| {
+            resource_manager
+                .try_request::<Shader, _>(path)
+                .map(|r| block_on(r))
+        }),
         sender,
     ));
     container.insert(InheritablePropertyEditorDefinition::<Option<ShaderResource>>::new());

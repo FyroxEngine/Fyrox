@@ -8,11 +8,11 @@ use crate::{
         options::try_get_import_settings,
         untyped::UntypedResource,
     },
-    core::log::Log,
+    core::{log::Log, uuid::Uuid, TypeUuidProvider},
     engine::SerializationContext,
     resource::model::{Model, ModelImportOptions},
 };
-use std::{any::Any, sync::Arc};
+use std::sync::Arc;
 
 /// Default implementation for model loading.
 pub struct ModelLoader {
@@ -30,16 +30,8 @@ impl ResourceLoader for ModelLoader {
         &["rgs", "fbx"]
     }
 
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
+    fn data_type_uuid(&self) -> Uuid {
+        Model::type_uuid()
     }
 
     fn load(

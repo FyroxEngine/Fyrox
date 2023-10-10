@@ -6,10 +6,9 @@ use crate::{
         loader::{BoxedLoaderFuture, ResourceLoader},
         untyped::UntypedResource,
     },
-    core::log::Log,
+    core::{log::Log, uuid::Uuid, TypeUuidProvider},
     resource::curve::CurveResourceState,
 };
-use std::any::Any;
 
 /// Default implementation for curve loading.
 pub struct CurveLoader;
@@ -19,16 +18,8 @@ impl ResourceLoader for CurveLoader {
         &["curve", "crv"]
     }
 
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
+    fn data_type_uuid(&self) -> Uuid {
+        CurveResourceState::type_uuid()
     }
 
     fn load(
@@ -38,8 +29,7 @@ impl ResourceLoader for CurveLoader {
         reload: bool,
     ) -> BoxedLoaderFuture {
         Box::pin(async move {
-            let path = curve.0.lock().path().to_path_buf();
-
+            let path = curve.path();
             match CurveResourceState::from_file(&path).await {
                 Ok(curve_state) => {
                     Log::info(format!("Curve {:?} is loaded!", path));

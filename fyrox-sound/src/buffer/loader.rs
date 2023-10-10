@@ -1,8 +1,7 @@
 //! Sound buffer loader.
 
 use crate::buffer::{DataSource, SoundBuffer, SoundBufferResourceLoadError};
-use fyrox_core::log::Log;
-use fyrox_core::reflect::prelude::*;
+use fyrox_core::{log::Log, reflect::prelude::*, uuid::Uuid, TypeUuidProvider};
 use fyrox_resource::{
     event::ResourceEventBroadcaster,
     loader::{BoxedLoaderFuture, ResourceLoader},
@@ -10,7 +9,6 @@ use fyrox_resource::{
     untyped::UntypedResource,
 };
 use serde::{Deserialize, Serialize};
-use std::any::Any;
 
 /// Defines sound buffer resource import options.
 #[derive(Clone, Deserialize, Serialize, Default, Debug, Reflect)]
@@ -32,16 +30,8 @@ impl ResourceLoader for SoundBufferLoader {
         &["wav", "ogg"]
     }
 
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
+    fn data_type_uuid(&self) -> Uuid {
+        SoundBuffer::type_uuid()
     }
 
     fn load(

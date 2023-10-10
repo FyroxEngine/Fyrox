@@ -2,12 +2,10 @@
 
 use crate::{
     asset::loader::{BoxedLoaderFuture, ResourceLoader},
-    core::log::Log,
+    core::{log::Log, uuid::Uuid, TypeUuidProvider},
     material::shader::Shader,
 };
-use fyrox_resource::event::ResourceEventBroadcaster;
-use fyrox_resource::untyped::UntypedResource;
-use std::any::Any;
+use fyrox_resource::{event::ResourceEventBroadcaster, untyped::UntypedResource};
 
 /// Default implementation for shader loading.
 pub struct ShaderLoader;
@@ -17,16 +15,8 @@ impl ResourceLoader for ShaderLoader {
         &["shader"]
     }
 
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
+    fn data_type_uuid(&self) -> Uuid {
+        Shader::type_uuid()
     }
 
     fn load(

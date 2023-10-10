@@ -1,5 +1,6 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
+use crate::loader::ResourceLoader;
 use crate::{
     constructor::ResourceConstructorContainer,
     entry::{TimedEntry, DEFAULT_RESOURCE_LIFETIME},
@@ -15,16 +16,15 @@ use fyrox_core::{
     log::Log,
     make_relative_path, notify,
     parking_lot::{Mutex, MutexGuard},
-    uuid::Uuid,
     watcher::FileSystemWatcher,
     TypeUuidProvider,
 };
-use std::path::PathBuf;
 use std::{
     ffi::OsStr,
     fmt::{Debug, Display, Formatter},
     marker::PhantomData,
     path::Path,
+    path::PathBuf,
     sync::Arc,
 };
 
@@ -142,14 +142,17 @@ impl ResourceManager {
     /// Actual resource state can be fetched by [`Resource::state`] method. If you know for sure that the resource
     /// is already loaded, then you can use [`Resource::data_ref`] to obtain a reference to the actual resource data.
     /// Keep in mind, that this method will panic if the resource non in `Ok` state.
+    ///
+    /// ## Panic
+    ///
+    /// This method will panic, if type UUID of `T` does not match the actual type UUID of the resource. If this
+    /// is undesirable, use [`Self::try_request`] instead.
     pub fn request<T, P>(&self, path: P) -> Resource<T>
     where
         P: AsRef<Path>,
         T: ResourceData + TypeUuidProvider,
     {
-        let untyped = self
-            .state()
-            .request(path, <T as TypeUuidProvider>::type_uuid());
+        let untyped = self.state().request(path);
         let actual_type_uuid = untyped.type_uuid();
         assert_eq!(actual_type_uuid, <T as TypeUuidProvider>::type_uuid());
         Resource {
@@ -158,12 +161,35 @@ impl ResourceManager {
         }
     }
 
+    /// The same as [`Self::request`], but returns [`None`] if type UUID of `T` does not match the actual type UUID
+    /// of the resource.
+    ///
+    /// ## Panic
+    ///
+    /// This method does not panic.
+    pub fn try_request<T, P>(&self, path: P) -> Option<Resource<T>>
+    where
+        P: AsRef<Path>,
+        T: ResourceData + TypeUuidProvider,
+    {
+        let untyped = self.state().request(path);
+        let actual_type_uuid = untyped.type_uuid();
+        if actual_type_uuid == <T as TypeUuidProvider>::type_uuid() {
+            Some(Resource {
+                state: Some(untyped),
+                phantom: PhantomData::<T>,
+            })
+        } else {
+            None
+        }
+    }
+
     /// Same as [`Self::request`], but returns untyped resource.
-    pub fn request_untyped<P>(&self, path: P, type_uuid: Uuid) -> UntypedResource
+    pub fn request_untyped<P>(&self, path: P) -> UntypedResource
     where
         P: AsRef<Path>,
     {
-        self.state().request(path, type_uuid)
+        self.state().request(path)
     }
 
     /// Saves given resources in the specified path and registers it in resource manager, so
@@ -380,48 +406,58 @@ impl ResourceManagerState {
     }
 
     /// Tries to load a resources at a given path.
-    pub fn request<P>(&mut self, path: P, type_uuid: Uuid) -> UntypedResource
+    pub fn request<P>(&mut self, path: P) -> UntypedResource
     where
         P: AsRef<Path>,
     {
         match self.find(path.as_ref()) {
             Some(existing) => existing.clone(),
             None => {
-                let resource = UntypedResource::new_pending(path.as_ref().to_owned(), type_uuid);
+                if let Some(loader) = self.find_loader(path.as_ref()) {
+                    let resource = UntypedResource::new_pending(
+                        path.as_ref().to_owned(),
+                        loader.data_type_uuid(),
+                    );
 
-                self.push(resource.clone());
+                    self.spawn_loading_task(loader, resource.clone(), false);
 
-                self.try_spawn_loading_task(path.as_ref(), resource.clone(), false);
+                    self.push(resource.clone());
 
-                resource
+                    resource
+                } else {
+                    UntypedResource::new_load_error(
+                        path.as_ref().to_owned(),
+                        Some(Arc::new(format!(
+                            "There's no resource loader for {} resource!",
+                            path.as_ref().display()
+                        ))),
+                        Default::default(),
+                    )
+                }
             }
         }
     }
 
-    fn try_spawn_loading_task(&mut self, path: &Path, resource: UntypedResource, reload: bool) {
-        if let Some(loader) = path.extension() {
-            let ext_lowercase = loader.to_ascii_lowercase();
-            if let Some(loader) = self.loaders.iter().find(|loader| {
+    fn find_loader(&self, path: &Path) -> Option<&dyn ResourceLoader> {
+        path.extension().and_then(|extension| {
+            let ext_lowercase = extension.to_ascii_lowercase();
+            self.loaders.iter().find(|loader| {
                 loader
                     .extensions()
                     .iter()
                     .any(|ext| OsStr::new(ext) == ext_lowercase.as_os_str())
-            }) {
-                self.task_pool.spawn_task(loader.load(
-                    resource,
-                    self.event_broadcaster.clone(),
-                    reload,
-                ));
+            })
+        })
+    }
 
-                return;
-            }
-        }
-
-        let err_msg = format!("There's no loader registered for {:?}!", path);
-
-        resource.commit_error(path.to_path_buf(), err_msg.clone());
-
-        Log::err(err_msg);
+    fn spawn_loading_task(
+        &self,
+        loader: &dyn ResourceLoader,
+        resource: UntypedResource,
+        reload: bool,
+    ) {
+        self.task_pool
+            .spawn_task(loader.load(resource, self.event_broadcaster.clone(), reload));
     }
 
     /// Reloads a single resource.
@@ -430,10 +466,18 @@ impl ResourceManagerState {
 
         if !state.is_loading() {
             let path = state.path().to_path_buf();
-            state.switch_to_pending_state();
-            drop(state);
+            if let Some(loader) = self.find_loader(&path) {
+                state.switch_to_pending_state();
+                drop(state);
 
-            self.try_spawn_loading_task(&path, resource, true);
+                self.spawn_loading_task(loader, resource, true);
+            } else {
+                let msg = format!(
+                    "There's no resource loader for {} resource!",
+                    path.display()
+                );
+                resource.commit_error(path, msg)
+            }
         }
     }
 
@@ -477,13 +521,13 @@ impl ResourceManagerState {
 
 #[cfg(test)]
 mod test {
-
-    use std::{any::Any, fs::File, time::Duration};
+    use std::{fs::File, time::Duration};
 
     use crate::loader::{BoxedLoaderFuture, ResourceLoader};
 
     use super::*;
 
+    use fyrox_core::uuid::{uuid, Uuid};
     use fyrox_core::{
         reflect::{FieldInfo, Reflect},
         visitor::{Visit, VisitResult, Visitor},
@@ -492,6 +536,12 @@ mod test {
 
     #[derive(Debug, Default, Reflect, Visit)]
     struct Stub {}
+
+    impl TypeUuidProvider for Stub {
+        fn type_uuid() -> Uuid {
+            uuid!("9d873ff4-3126-47e1-a492-7cd8e7168239")
+        }
+    }
 
     impl ResourceData for Stub {
         fn path(&self) -> std::borrow::Cow<std::path::Path> {
@@ -509,17 +559,11 @@ mod test {
         }
 
         fn type_uuid(&self) -> Uuid {
-            Uuid::default()
+            <Self as TypeUuidProvider>::type_uuid()
         }
 
         fn is_procedural(&self) -> bool {
             unimplemented!()
-        }
-    }
-
-    impl TypeUuidProvider for Stub {
-        fn type_uuid() -> Uuid {
-            Uuid::default()
         }
     }
 
@@ -528,16 +572,8 @@ mod test {
             &["txt"]
         }
 
-        fn into_any(self: Box<Self>) -> Box<dyn Any> {
-            self
-        }
-
-        fn as_any(&self) -> &dyn Any {
-            self
-        }
-
-        fn as_any_mut(&mut self) -> &mut dyn Any {
-            self
+        fn data_type_uuid(&self) -> Uuid {
+            <Stub as TypeUuidProvider>::type_uuid()
         }
 
         fn load(
@@ -694,11 +730,11 @@ mod test {
         let resource = UntypedResource::new_load_error(path.clone(), None, type_uuid);
         state.push(resource.clone());
 
-        let res = state.request(path, type_uuid);
+        let res = state.request(path);
         assert_eq!(res, resource);
 
         let path = PathBuf::from("foo.txt");
-        let res = state.request(path.clone(), type_uuid);
+        let res = state.request(path.clone());
 
         assert_eq!(res.path(), path.clone());
         assert_eq!(res.type_uuid(), type_uuid);
@@ -803,7 +839,7 @@ mod test {
         let res = manager.register(resource.clone(), PathBuf::from("foo.txt"), |_, __| true);
         assert!(res.is_ok());
 
-        let res = manager.request_untyped(Path::new("test.txt"), Uuid::default());
+        let res = manager.request_untyped(Path::new("test.txt"));
         assert_eq!(res, resource);
     }
 

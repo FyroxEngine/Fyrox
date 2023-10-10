@@ -72,8 +72,12 @@ where
     define_constructor!(ResourceFieldMessage:Value => fn value(Option<Resource<T>>), layout: false);
 }
 
-pub type ResourceLoaderCallback<T> =
-    Rc<dyn Fn(&ResourceManager, &Path) -> Result<Resource<T>, Option<Arc<dyn ResourceLoadError>>>>;
+pub type ResourceLoaderCallback<T> = Rc<
+    dyn Fn(
+        &ResourceManager,
+        &Path,
+    ) -> Option<Result<Resource<T>, Option<Arc<dyn ResourceLoadError>>>>,
+>;
 
 pub struct ResourceField<T>
 where
@@ -165,7 +169,7 @@ where
             if message.destination() == self.handle() {
                 if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
                     if let Ok(relative_path) = make_relative_path(&item.path) {
-                        if let Ok(value) =
+                        if let Some(Ok(value)) =
                             (self.loader)(&self.resource_manager, relative_path.as_path())
                         {
                             ui.send_message(ResourceFieldMessage::value(

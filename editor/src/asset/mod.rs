@@ -604,11 +604,9 @@ impl AssetBrowser {
                     .try_get_node(self.context_menu.placement_target)
                     .and_then(|n| n.cast::<AssetItem>())
                 {
-                    if let Ok(resource) = block_on(
-                        engine
-                            .resource_manager
-                            .request_untyped(&item.path, Default::default()),
-                    ) {
+                    if let Ok(resource) =
+                        block_on(engine.resource_manager.request_untyped(&item.path))
+                    {
                         self.dependency_viewer
                             .open(&resource, &mut engine.user_interface);
                     }

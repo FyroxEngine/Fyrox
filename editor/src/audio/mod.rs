@@ -169,10 +169,9 @@ impl AudioPanel {
                                         >::new(
                                             WidgetBuilder::new(),
                                             Rc::new(|resource_manager, path| {
-                                                block_on(
-                                                    resource_manager
-                                                        .request::<HrirSphereResourceData, _>(path),
-                                                )
+                                                resource_manager
+                                                    .try_request::<HrirSphereResourceData, _>(path)
+                                                    .map(|r| block_on(r))
                                             }),
                                             sender,
                                         )

@@ -7,10 +7,9 @@ use crate::{
         options::try_get_import_settings,
         untyped::UntypedResource,
     },
-    core::{instant, log::Log},
+    core::{instant, log::Log, uuid::Uuid, TypeUuidProvider},
     resource::texture::{Texture, TextureImportOptions},
 };
-use std::any::Any;
 
 /// Default implementation for texture loading.
 pub struct TextureLoader {
@@ -25,16 +24,8 @@ impl ResourceLoader for TextureLoader {
         ]
     }
 
-    fn into_any(self: Box<Self>) -> Box<dyn Any> {
-        self
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
+    fn data_type_uuid(&self) -> Uuid {
+        Texture::type_uuid()
     }
 
     fn load(

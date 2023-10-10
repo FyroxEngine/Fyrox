@@ -250,10 +250,7 @@ where
                 drop(state);
                 let is_procedural = self.state.as_ref().unwrap().is_procedural();
                 if !is_procedural {
-                    self.state = Some(
-                        resource_manager
-                            .request_untyped(path, <T as TypeUuidProvider>::type_uuid()),
-                    );
+                    self.state = Some(resource_manager.request_untyped(path));
                 }
             }
         }
