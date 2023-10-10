@@ -69,7 +69,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - run: rustc --version && cargo --version
-      - run: cargo update
       - name: Build
         run: |
           cargo build --verbose --target=wasm32-unknown-unknown --all-targets --all-features
