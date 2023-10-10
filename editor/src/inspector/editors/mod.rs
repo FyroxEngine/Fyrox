@@ -186,9 +186,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
 
     container.insert(ResourceFieldPropertyEditorDefinition::<Model>::new(
         Rc::new(|resource_manager, path| {
-            resource_manager
-                .try_request::<Model, _>(path)
-                .map(|r| block_on(r))
+            resource_manager.try_request::<Model, _>(path).map(block_on)
         }),
         sender.clone(),
     ));
@@ -199,7 +197,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
         Rc::new(|resource_manager, path| {
             resource_manager
                 .try_request::<SoundBuffer, _>(path)
-                .map(|r| block_on(r))
+                .map(block_on)
         }),
         sender.clone(),
     ));
@@ -213,7 +211,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
             Rc::new(|resource_manager, path| {
                 resource_manager
                     .try_request::<CurveResourceState, _>(path)
-                    .map(|r| block_on(r))
+                    .map(block_on)
             }),
             sender.clone(),
         ),
@@ -225,7 +223,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
         Rc::new(|resource_manager, path| {
             resource_manager
                 .try_request::<Shader, _>(path)
-                .map(|r| block_on(r))
+                .map(block_on)
         }),
         sender,
     ));

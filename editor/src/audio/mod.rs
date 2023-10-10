@@ -171,7 +171,7 @@ impl AudioPanel {
                                             Rc::new(|resource_manager, path| {
                                                 resource_manager
                                                     .try_request::<HrirSphereResourceData, _>(path)
-                                                    .map(|r| block_on(r))
+                                                    .map(block_on)
                                             }),
                                             sender,
                                         )
