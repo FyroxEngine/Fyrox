@@ -1,5 +1,12 @@
 name: CI
-on: [push, pull_request]
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    # This allows running it on any branch manually:
+    # https://docs.github.com/en/actions/managing-workflow-runs/manually-running-a-workflow
+
 env:
   CARGO_TERM_COLOR: always
   # Deny warns here as a catch-all and because some commands (e.g. cargo build) don't accept `--deny warnings`
@@ -19,18 +26,21 @@ jobs:
         # For reference: https://github.com/actions/virtual-environments#available-environments
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-          profile: minimal
-          override: true
+      # Caching must be after toolchain selection
+      - uses: Swatinem/rust-cache@v2
+
       - name: Install linux deps
         if: ${{ matrix.os == 'ubuntu-latest' }}
+        # Note that for running your Fyrox game on CI, you might need additinal deps like libxkbcommon-x11 and OpenGL
+        # and you might need to run it using xvfb-run even in headless mode.
         run: |
           sudo apt-get update # Run update first or install might start failing eventually.
           sudo apt-get install --no-install-recommends -y libasound2-dev libudev-dev pkg-config xorg-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
-      - run: rustup update
+
       - run: rustc --version && cargo --version
       - name: Build
         # Use build instead of check since it needs to be built for tests anyway
@@ -50,18 +60,15 @@ jobs:
       matrix:
         rust: [stable]
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-          profile: minimal
-          override: true
-      - name: Install Dependencies
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-      - run: rustup target add wasm32-unknown-unknown
-      - run: rustup update
+          targets: wasm32-unknown-unknown
+      # Caching must be after toolchain selection
+      - uses: Swatinem/rust-cache@v2
+
       - run: rustc --version && cargo --version
-      - run: cargo update
       - name: Build
         run: |
           cargo build --verbose --target=wasm32-unknown-unknown --all-targets --all-features
@@ -70,27 +77,34 @@ jobs:
     name: Rustfmt CI
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - run: rustup update
+      - uses: actions/checkout@v3
+      # Use rust-toolchain because GHA tends to still have an old version for a few days after a new Rust release.
+      - uses: dtolnay/rust-toolchain@stable
+
       - run: cargo fmt --version
       - run: cargo fmt -- --check
 
   clippy:
-    runs-on: ubuntu-latest
+    name: Clippy CI
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # For reference: https://github.com/actions/virtual-environments#available-environments
+        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable # Check on stable because nightly sometimes has faulty lints that makes CI fail
-          profile: minimal
-          components: clippy
-          override: true
-      - name: Update
-        run: sudo apt update
-      - name: Install Dependencies
+      - uses: actions/checkout@v3
+      # Use rust-toolchain because GHA tends to still have an old version for a few days after a new Rust release.
+      - uses: dtolnay/rust-toolchain@stable
+      # Caching must be after toolchain selection
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install linux deps
+        if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
-          sudo apt-get update # Run update first or install might start failing eventually
+          sudo apt-get update # Run update first or install might start failing eventually.
           sudo apt-get install --no-install-recommends -y libasound2-dev libudev-dev pkg-config xorg-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev
+
       - run: cargo clippy --version
         # Using --all-targets to also check tests and examples.
         # Note that technically --all-features doesn't check all code when something is *disabled* by a feature.
@@ -100,13 +114,12 @@ jobs:
     name: Documentation CI
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
-      - run: rustup update
+      - uses: actions/checkout@v3
+      # Docs.rs uses nightly https://docs.rs/about/builds
+      - uses: dtolnay/rust-toolchain@nightly
+      # Caching must be after toolchain selection
+      - uses: Swatinem/rust-cache@v2
+
       - run: rustc --version && cargo --version
       - name: Build Docs
         run: cargo doc --all-features
