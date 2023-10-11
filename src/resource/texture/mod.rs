@@ -35,7 +35,8 @@ use crate::{
 use ddsfile::{Caps2, D3DFormat};
 use fast_image_resize as fr;
 use fxhash::FxHasher;
-use image::{ColorType, DynamicImage, ImageError, ImageFormat};
+use fyrox_core::num_traits::Bounded;
+use image::{ColorType, DynamicImage, ImageError, ImageFormat, Pixel};
 use serde::{Deserialize, Serialize};
 use std::{
     any::Any,
@@ -423,6 +424,8 @@ pub struct TextureImportOptions {
     pub(crate) compression: CompressionOptions,
     #[serde(default)]
     pub(crate) mip_filter: MipFilter,
+    #[serde(default)]
+    pub(crate) flip_green_channel: bool,
 }
 
 impl Default for TextureImportOptions {
@@ -435,6 +438,7 @@ impl Default for TextureImportOptions {
             anisotropy: 16.0,
             compression: CompressionOptions::default(),
             mip_filter: Default::default(),
+            flip_green_channel: false,
         }
     }
 }
@@ -554,9 +558,7 @@ pub trait TextureResourceExtension: Sized {
     /// Main use cases for this method are: procedural textures, icons for GUI.
     fn load_from_memory(
         data: &[u8],
-        compression: CompressionOptions,
-        gen_mip_maps: bool,
-        mip_filter: MipFilter,
+        import_options: TextureImportOptions,
     ) -> Result<Self, TextureError>;
 
     /// Tries to create new texture from given parameters, it may fail only if size of data passed
@@ -595,15 +597,11 @@ impl TextureResourceExtension for TextureResource {
 
     fn load_from_memory(
         data: &[u8],
-        compression: CompressionOptions,
-        gen_mip_maps: bool,
-        mip_filter: MipFilter,
+        import_options: TextureImportOptions,
     ) -> Result<Self, TextureError> {
         Ok(Resource::new_ok(Texture::load_from_memory(
             data,
-            compression,
-            gen_mip_maps,
-            mip_filter,
+            import_options,
         )?))
     }
 
@@ -1223,6 +1221,17 @@ fn convert_pixel_type_enum(pixel_kind: TexturePixelKind) -> fr::PixelType {
     }
 }
 
+fn flip_green_channel<'a, P>(pixels: impl Iterator<Item = &'a mut P>)
+where
+    P: Pixel + 'a,
+{
+    for pixel in pixels {
+        let green = &mut pixel.channels_mut()[1];
+        let inverted = P::Subpixel::max_value() - *green;
+        *green = inverted;
+    }
+}
+
 impl Texture {
     /// Tries to load a texture from given data in one of the following formats: PNG, BMP, TGA, JPG, DDS, GIF. Use
     /// this method if you want to load a texture from embedded data.
@@ -1247,9 +1256,7 @@ impl Texture {
     /// Main use cases for this method are: procedural textures, icons for GUI.
     pub fn load_from_memory(
         data: &[u8],
-        compression: CompressionOptions,
-        gen_mip_maps: bool,
-        mip_filter: MipFilter,
+        import_options: TextureImportOptions,
     ) -> Result<Self, TextureError> {
         // DDS is special. It can contain various kinds of textures as well as textures with
         // various pixel formats.
@@ -1308,12 +1315,14 @@ impl Texture {
             };
 
             Ok(Self {
+                path: Default::default(),
                 pixel_kind,
                 data_hash: data_hash(&bytes),
-                minification_filter: TextureMinificationFilter::LinearMipMapLinear,
-                magnification_filter: TextureMagnificationFilter::Linear,
-                s_wrap_mode: TextureWrapMode::Repeat,
-                t_wrap_mode: TextureWrapMode::Repeat,
+                minification_filter: import_options.minification_filter,
+                magnification_filter: import_options.magnification_filter,
+                s_wrap_mode: import_options.s_wrap_mode,
+                t_wrap_mode: import_options.t_wrap_mode,
+                anisotropy: import_options.anisotropy,
                 mip_count,
                 bytes: bytes.into(),
                 kind: if dds.header.caps2 & Caps2::CUBEMAP == Caps2::CUBEMAP {
@@ -1333,11 +1342,12 @@ impl Texture {
                         height: dds.header.height,
                     }
                 },
-                ..Default::default()
+                serialize_content: false,
+                is_render_target: false,
             })
         } else {
             // Commonly used formats are all rectangle textures.
-            let dyn_img = image::load_from_memory(data)
+            let mut dyn_img = image::load_from_memory(data)
                 // Try to load as TGA, this is needed because TGA is badly designed format and does not
                 // have an identifier in the beginning of the file (so called "magic") that allows quickly
                 // check if the file is really contains expected data.
@@ -1345,6 +1355,18 @@ impl Texture {
 
             let width = dyn_img.width();
             let height = dyn_img.height();
+
+            if import_options.flip_green_channel {
+                match dyn_img {
+                    DynamicImage::ImageRgb8(ref mut img) => flip_green_channel(img.pixels_mut()),
+                    DynamicImage::ImageRgba8(ref mut img) => flip_green_channel(img.pixels_mut()),
+                    DynamicImage::ImageRgb16(ref mut img) => flip_green_channel(img.pixels_mut()),
+                    DynamicImage::ImageRgba16(ref mut img) => flip_green_channel(img.pixels_mut()),
+                    DynamicImage::ImageRgb32F(ref mut img) => flip_green_channel(img.pixels_mut()),
+                    DynamicImage::ImageRgba32F(ref mut img) => flip_green_channel(img.pixels_mut()),
+                    _ => (),
+                }
+            }
 
             let src_pixel_kind = match dyn_img {
                 DynamicImage::ImageLuma8(_) => TexturePixelKind::Luminance8,
@@ -1366,7 +1388,7 @@ impl Texture {
                 width as usize * height as usize * src_pixel_kind.size_in_bytes().unwrap_or(4),
             );
 
-            if gen_mip_maps {
+            if import_options.minification_filter.is_using_mip_mapping() {
                 let src_pixel_type = convert_pixel_type_enum(src_pixel_kind);
                 let mut level_width = width;
                 let mut level_height = height;
@@ -1387,7 +1409,7 @@ impl Texture {
                         );
 
                         let mut resizer = fr::Resizer::new(fr::ResizeAlg::Convolution(
-                            mip_filter.into_filter_type(),
+                            import_options.mip_filter.into_filter_type(),
                         ));
 
                         resizer
@@ -1399,14 +1421,14 @@ impl Texture {
 
                     mip_count += 1;
 
-                    if compression == CompressionOptions::NoCompression {
+                    if import_options.compression == CompressionOptions::NoCompression {
                         bytes.extend_from_slice(current_level.buffer())
                     } else if let Some((compressed_data, new_pixel_kind)) = try_compress(
                         src_pixel_kind,
                         current_level.buffer(),
                         level_width as usize,
                         level_height as usize,
-                        compression,
+                        import_options.compression,
                     ) {
                         final_pixel_kind = new_pixel_kind;
                         bytes.extend_from_slice(&compressed_data);
@@ -1420,14 +1442,14 @@ impl Texture {
             } else {
                 mip_count = 1;
 
-                if compression == CompressionOptions::NoCompression {
+                if import_options.compression == CompressionOptions::NoCompression {
                     bytes.extend_from_slice(dyn_img.as_bytes());
                 } else if let Some((compressed_data, new_pixel_kind)) = try_compress(
                     src_pixel_kind,
                     dyn_img.as_bytes(),
                     width as usize,
                     height as usize,
-                    compression,
+                    import_options.compression,
                 ) {
                     final_pixel_kind = new_pixel_kind;
                     bytes.extend_from_slice(&compressed_data);
@@ -1437,12 +1459,19 @@ impl Texture {
             }
 
             Ok(Self {
+                path: Default::default(),
                 pixel_kind: final_pixel_kind,
                 kind: TextureKind::Rectangle { width, height },
                 data_hash: data_hash(&bytes),
                 bytes: bytes.into(),
                 mip_count,
-                ..Default::default()
+                minification_filter: import_options.minification_filter,
+                magnification_filter: import_options.magnification_filter,
+                s_wrap_mode: import_options.s_wrap_mode,
+                t_wrap_mode: import_options.t_wrap_mode,
+                anisotropy: import_options.anisotropy,
+                serialize_content: false,
+                is_render_target: false,
             })
         }
     }
@@ -1455,12 +1484,10 @@ impl Texture {
     /// resources.
     pub(crate) async fn load_from_file<P: AsRef<Path>>(
         path: P,
-        compression: CompressionOptions,
-        gen_mip_maps: bool,
-        mip_filter: MipFilter,
+        import_options: TextureImportOptions,
     ) -> Result<Self, TextureError> {
         let data = io::load_file(path.as_ref()).await?;
-        let mut texture = Self::load_from_memory(&data, compression, gen_mip_maps, mip_filter)?;
+        let mut texture = Self::load_from_memory(&data, import_options)?;
         texture.path = path.as_ref().to_path_buf();
         Ok(texture)
     }

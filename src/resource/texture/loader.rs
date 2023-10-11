@@ -43,29 +43,14 @@ impl ResourceLoader for TextureLoader {
                 .await
                 .unwrap_or(default_import_options);
 
-            let gen_mip_maps = import_options.minification_filter.is_using_mip_mapping();
-
             let time = instant::Instant::now();
-            match Texture::load_from_file(
-                &path,
-                import_options.compression,
-                gen_mip_maps,
-                import_options.mip_filter,
-            )
-            .await
-            {
-                Ok(mut raw_texture) => {
+            match Texture::load_from_file(&path, import_options).await {
+                Ok(raw_texture) => {
                     Log::info(format!(
                         "Texture {:?} is loaded in {:?}!",
                         path,
                         time.elapsed()
                     ));
-
-                    raw_texture.set_magnification_filter(import_options.magnification_filter);
-                    raw_texture.set_minification_filter(import_options.minification_filter);
-                    raw_texture.set_anisotropy_level(import_options.anisotropy);
-                    raw_texture.set_s_wrap_mode(import_options.s_wrap_mode);
-                    raw_texture.set_t_wrap_mode(import_options.t_wrap_mode);
 
                     texture.commit_ok(raw_texture);
 

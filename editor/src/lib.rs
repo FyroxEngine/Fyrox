@@ -122,7 +122,8 @@ use fyrox::{
     },
     plugin::PluginConstructor,
     resource::texture::{
-        CompressionOptions, TextureKind, TextureResource, TextureResourceExtension,
+        CompressionOptions, TextureImportOptions, TextureKind, TextureMinificationFilter,
+        TextureResource, TextureResourceExtension,
     },
     scene::{
         camera::Camera, graph::GraphUpdateSwitches, mesh::Mesh, node::Node, Scene, SceneLoader,
@@ -159,9 +160,9 @@ pub fn load_image(data: &[u8]) -> Option<draw::SharedTexture> {
     Some(into_gui_texture(
         TextureResource::load_from_memory(
             data,
-            CompressionOptions::NoCompression,
-            false,
-            Default::default(),
+            TextureImportOptions::default()
+                .with_compression(CompressionOptions::NoCompression)
+                .with_minification_filter(TextureMinificationFilter::Linear),
         )
         .ok()?,
     ))
@@ -769,9 +770,9 @@ impl Editor {
 
         if let Ok(icon_img) = TextureResource::load_from_memory(
             include_bytes!("../resources/embed/icon.png"),
-            CompressionOptions::NoCompression,
-            false,
-            Default::default(),
+            TextureImportOptions::default()
+                .with_compression(CompressionOptions::NoCompression)
+                .with_minification_filter(TextureMinificationFilter::Linear),
         ) {
             let data = icon_img.data_ref();
             if let TextureKind::Rectangle { width, height } = data.kind() {

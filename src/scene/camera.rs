@@ -1,6 +1,8 @@
 //! Contains all methods and structures to create and manage cameras. See [`Camera`] docs for more info.
 
-use crate::resource::texture::CompressionOptions;
+use crate::resource::texture::{
+    CompressionOptions, TextureImportOptions, TextureMinificationFilter,
+};
 use crate::{
     asset::{ResourceLoadError, ResourceStateRef},
     core::{
@@ -911,9 +913,9 @@ pub enum SkyBoxKind {
 fn load_texture(data: &[u8], id: &str) -> TextureResource {
     let texture = TextureResource::load_from_memory(
         data,
-        CompressionOptions::NoCompression,
-        false,
-        Default::default(),
+        TextureImportOptions::default()
+            .with_compression(CompressionOptions::NoCompression)
+            .with_minification_filter(TextureMinificationFilter::Linear),
     )
     .ok()
     .unwrap();

@@ -1,5 +1,7 @@
 use fyrox::renderer::framework::geometry_buffer::ElementRange;
-use fyrox::resource::texture::TextureResourceExtension;
+use fyrox::resource::texture::{
+    TextureImportOptions, TextureMinificationFilter, TextureResourceExtension,
+};
 use fyrox::{
     core::{algebra::Matrix4, math::Matrix4Ext, sstorage::ImmutableString},
     renderer::{
@@ -68,16 +70,16 @@ impl OverlayRenderPass {
             shader: OverlayShader::new(state).unwrap(),
             sound_icon: TextureResource::load_from_memory(
                 include_bytes!("../resources/embed/sound_source.png"),
-                CompressionOptions::NoCompression,
-                false,
-                Default::default(),
+                TextureImportOptions::default()
+                    .with_compression(CompressionOptions::NoCompression)
+                    .with_minification_filter(TextureMinificationFilter::Linear),
             )
             .unwrap(),
             light_icon: TextureResource::load_from_memory(
                 include_bytes!("../resources/embed/light_source.png"),
-                CompressionOptions::NoCompression,
-                false,
-                Default::default(),
+                TextureImportOptions::default()
+                    .with_compression(CompressionOptions::NoCompression)
+                    .with_minification_filter(TextureMinificationFilter::Linear),
             )
             .unwrap(),
             pictogram_size: 0.33,
