@@ -265,6 +265,17 @@ impl Sound {
         self.status.set_value_and_mark_modified(Status::Playing);
     }
 
+    /// Tries to play a sound. Will succeed, only if the sound is not already playing. Could be useful, if you need
+    /// to prevent the sound to start over until it is fully played.
+    pub fn try_play(&mut self) -> bool {
+        if *self.status == Status::Playing {
+            false
+        } else {
+            self.play();
+            true
+        }
+    }
+
     /// Changes status to `Paused`
     pub fn pause(&mut self) {
         self.status.set_value_and_mark_modified(Status::Paused);
