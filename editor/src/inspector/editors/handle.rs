@@ -1,4 +1,5 @@
 use crate::{
+    load_image,
     message::MessageSender,
     scene::selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
     world::graph::item::SceneItem,
@@ -12,6 +13,7 @@ use fyrox::{
         define_constructor,
         draw::{CommandTexture, Draw, DrawingContext},
         grid::{Column, GridBuilder, Row},
+        image::ImageBuilder,
         inspector::{
             editors::{
                 PropertyEditorBuildContext, PropertyEditorDefinition, PropertyEditorInstance,
@@ -23,8 +25,8 @@ use fyrox::{
         text::{TextBuilder, TextMessage},
         utils::make_simple_tooltip,
         widget::{Widget, WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowMessage},
-        BuildContext, Control,
+        window::{WindowBuilder, WindowMessage, WindowTitle},
+        BuildContext, Control, Thickness,
     },
     scene::node::Node,
 };
@@ -205,6 +207,7 @@ impl Control for HandlePropertyEditor {
             } else if message.destination == self.pick {
                 let node_selector = NodeSelectorWindowBuilder::new(
                     WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+                        .with_title(WindowTitle::text("Select a Node"))
                         .open(false),
                 )
                 .build(&mut ui.build_ctx());
@@ -224,10 +227,10 @@ impl Control for HandlePropertyEditor {
     }
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
-        if message.destination() == self.selector
-            && message.direction() == MessageDirection::FromWidget
-        {
-            if let Some(NodeSelectorMessage::Selection(selection)) = message.data() {
+        if let Some(NodeSelectorMessage::Selection(selection)) = message.data() {
+            if message.destination() == self.selector
+                && message.direction() == MessageDirection::FromWidget
+            {
                 if let Some(first) = selection.first() {
                     ui.send_message(HandlePropertyEditorMessage::value(
                         self.handle,
@@ -235,6 +238,13 @@ impl Control for HandlePropertyEditor {
                         *first,
                     ));
                 }
+            }
+        } else if let Some(WindowMessage::Close) = message.data() {
+            if message.destination() == self.selector {
+                ui.send_message(WidgetMessage::remove(
+                    self.selector,
+                    MessageDirection::ToWidget,
+                ));
             }
         }
     }
@@ -244,6 +254,18 @@ struct HandlePropertyEditorBuilder {
     widget_builder: WidgetBuilder,
     value: Handle<Node>,
     sender: MessageSender,
+}
+
+fn make_icon(data: &[u8], color: Color, ctx: &mut BuildContext) -> Handle<UiNode> {
+    ImageBuilder::new(
+        WidgetBuilder::new()
+            .with_width(16.0)
+            .with_height(16.0)
+            .with_margin(Thickness::uniform(1.0))
+            .with_background(Brush::Solid(color)),
+    )
+    .with_opt_texture(load_image(data))
+    .build(ctx)
 }
 
 impl HandlePropertyEditorBuilder {
@@ -287,7 +309,11 @@ impl HandlePropertyEditorBuilder {
                             .with_height(20.0)
                             .on_column(1),
                     )
-                    .with_text("O")
+                    .with_content(make_icon(
+                        include_bytes!("../../../resources/embed/pick.png"),
+                        Color::opaque(0, 180, 0),
+                        ctx,
+                    ))
                     .build(ctx);
                     pick
                 })
@@ -299,7 +325,11 @@ impl HandlePropertyEditorBuilder {
                             .with_height(20.0)
                             .on_column(2),
                     )
-                    .with_text(">>")
+                    .with_content(make_icon(
+                        include_bytes!("../../../resources/embed/locate.png"),
+                        Color::opaque(180, 180, 180),
+                        ctx,
+                    ))
                     .build(ctx);
                     locate
                 })
@@ -311,7 +341,11 @@ impl HandlePropertyEditorBuilder {
                             .with_height(20.0)
                             .on_column(3),
                     )
-                    .with_text("*")
+                    .with_content(make_icon(
+                        include_bytes!("../../../resources/embed/select_in_wv.png"),
+                        Color::opaque(180, 180, 180),
+                        ctx,
+                    ))
                     .build(ctx);
                     select
                 })
@@ -323,7 +357,11 @@ impl HandlePropertyEditorBuilder {
                             .with_height(20.0)
                             .on_column(4),
                     )
-                    .with_text("X")
+                    .with_content(make_icon(
+                        include_bytes!("../../../resources/embed/cross.png"),
+                        Color::opaque(180, 0, 0),
+                        ctx,
+                    ))
                     .build(ctx);
                     make_unassigned
                 }),
