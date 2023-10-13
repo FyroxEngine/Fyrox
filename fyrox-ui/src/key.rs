@@ -1,3 +1,8 @@
+//! A set of editors for hot keys and key bindings. See [`HotKeyEditor`] and [`KeyBindingEditor`] widget's docs
+//! for more info and usage examples.
+
+#![warn(missing_docs)]
+
 use crate::{
     brush::Brush,
     core::{color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*},
@@ -15,16 +20,23 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Reflect)]
+/// Hot key is a combination of a key code with an arbitrary set of keyboard modifiers (such as Ctrl, Shift, Alt keys).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Reflect, Default)]
 pub enum HotKey {
+    /// Unset hot key. Does nothing. This is default value.
+    #[default]
     NotSet,
+    /// Some hot key.
     Some {
+        /// Physical key code.
         code: KeyCode,
+        /// A set of keyboard modifiers.
         modifiers: KeyboardModifiers,
     },
 }
 
 impl HotKey {
+    /// Creates a new hot key that consists of a single key, without any modifiers.
     pub fn from_key_code(key: KeyCode) -> Self {
         Self::Some {
             code: key,
@@ -32,6 +44,7 @@ impl HotKey {
         }
     }
 
+    /// Creates a new hot key, that consists of combination `Ctrl + Key`.
     pub fn ctrl_key(key: KeyCode) -> Self {
         Self::Some {
             code: key,
@@ -42,6 +55,7 @@ impl HotKey {
         }
     }
 
+    /// Creates a new hot key, that consists of combination `Shift + Key`.
     pub fn shift_key(key: KeyCode) -> Self {
         Self::Some {
             code: key,
@@ -52,6 +66,7 @@ impl HotKey {
         }
     }
 
+    /// Creates a new hot key, that consists of combination `Alt + Key`.
     pub fn alt_key(key: KeyCode) -> Self {
         Self::Some {
             code: key,
@@ -60,12 +75,6 @@ impl HotKey {
                 ..Default::default()
             },
         }
-    }
-}
-
-impl Default for HotKey {
-    fn default() -> Self {
-        Self::NotSet
     }
 }
 
@@ -92,15 +101,56 @@ impl Display for HotKey {
     }
 }
 
+/// A set of messages, that is used to alternate the state of [`HotKeyEditor`] widget or to listen to its changes.
 #[derive(Debug, Clone, PartialEq)]
 pub enum HotKeyEditorMessage {
+    /// A message, that is either used to modify current value of a [`HotKey`] widget instance (with [`MessageDirection::ToWidget`])
+    /// or to listen to its changes (with [`MessageDirection::FromWidget`]).
     Value(HotKey),
 }
 
 impl HotKeyEditorMessage {
-    define_constructor!(HotKeyEditorMessage:Value => fn value(HotKey), layout: false);
+    define_constructor!(
+        /// Creates [`HotKeyEditorMessage::Value`] message.
+        HotKeyEditorMessage:Value => fn value(HotKey), layout: false
+    );
 }
 
+/// Hot key editor is used to provide a unified way of editing an arbitrary combination of modifiers keyboard keys (such
+/// as Ctrl, Shift, Alt) with any other key. It could be used, if you need a simple way to add an editor for [`HotKey`].
+///
+/// ## Examples
+///
+/// The following example creates a new hot key editor with a `Ctrl+C` hot key as default value:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     key::{HotKey, HotKeyEditorBuilder},
+/// #     message::{KeyCode, KeyboardModifiers},
+/// #     widget::WidgetBuilder,
+/// #     BuildContext, UiNode,
+/// # };
+/// #
+/// fn create_hot_key_editor(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     HotKeyEditorBuilder::new(WidgetBuilder::new())
+///         .with_value(
+///             // Ctrl+C hot key.
+///             HotKey::Some {
+///                 code: KeyCode::KeyC,
+///                 modifiers: KeyboardModifiers {
+///                     control: true,
+///                     ..Default::default()
+///                 },
+///             },
+///         )
+///         .build(ctx)
+/// }
+/// ```
+///
+/// ## Messages
+///
+/// Use [`HotKeyEditorMessage`] message to alternate the state of a hot key widget, or to listen to its changes.
 #[derive(Clone)]
 pub struct HotKeyEditor {
     widget: Widget,
@@ -212,12 +262,14 @@ impl Control for HotKeyEditor {
     }
 }
 
+/// Hot key editor builder creates [`HotKeyEditor`] widget instances and adds them to the user interface.
 pub struct HotKeyEditorBuilder {
     widget_builder: WidgetBuilder,
     value: HotKey,
 }
 
 impl HotKeyEditorBuilder {
+    /// Creates a new hot key editor builder.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -225,11 +277,13 @@ impl HotKeyEditorBuilder {
         }
     }
 
+    /// Sets the desired default value of the hot key editor.
     pub fn with_value(mut self, hot_key: HotKey) -> Self {
         self.value = hot_key;
         self
     }
 
+    /// Finishes widget building and adds it to the user interface, returning a handle to the new instance.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let text = TextBuilder::new(WidgetBuilder::new())
             .with_text(format!("{}", self.value))
@@ -246,10 +300,14 @@ impl HotKeyEditorBuilder {
     }
 }
 
+/// Key binding is a simplified version of [`HotKey`] that consists of a single physical key code. It is usually
+/// used for "unconditional" (independent of modifier keys state) triggering of some action.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Reflect, Visit, Default)]
 pub enum KeyBinding {
+    /// Unset key binding. Does nothing.
     #[default]
     NotSet,
+    /// Some physical key binding.
     Some(KeyCode),
 }
 
@@ -263,6 +321,7 @@ impl PartialEq<KeyCode> for KeyBinding {
 }
 
 impl KeyBinding {
+    /// Creates a new key binding from a physical key code.
     pub fn from_key_code(key: KeyCode) -> Self {
         Self::Some(key)
     }
@@ -277,15 +336,44 @@ impl Display for KeyBinding {
     }
 }
 
+/// A set of messages, that is used to modify [`KeyBindingEditor`] state or to listen to its changes.
 #[derive(Debug, Clone, PartialEq)]
 pub enum KeyBindingEditorMessage {
+    /// A message, that is used to fetch a new value of a key binding, or to set new one.
     Value(KeyBinding),
 }
 
 impl KeyBindingEditorMessage {
-    define_constructor!(KeyBindingEditorMessage:Value => fn value(KeyBinding), layout: false);
+    define_constructor!(
+        /// Creates [`KeyBindingEditorMessage::Value`] message.
+        KeyBindingEditorMessage:Value => fn value(KeyBinding), layout: false);
 }
 
+/// Key binding editor is used to provide a unified way of setting a key binding.
+///
+/// ## Examples
+///
+/// The following example creates a new key binding editor with a `W` key binding as a value.
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     key::{KeyBinding, KeyBindingEditorBuilder},
+/// #     message::KeyCode,
+/// #     widget::WidgetBuilder,
+/// #     BuildContext, UiNode,
+/// # };
+/// #
+/// fn create_key_binding_editor(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     KeyBindingEditorBuilder::new(WidgetBuilder::new())
+///         .with_value(KeyBinding::Some(KeyCode::KeyW))
+///         .build(ctx)
+/// }
+/// ```
+///
+/// ## Messages
+///
+/// Use [`KeyBindingEditorMessage`] message to alternate the state of a key binding widget, or to listen to its changes.
 #[derive(Clone)]
 pub struct KeyBindingEditor {
     widget: Widget,
@@ -382,12 +470,14 @@ impl Control for KeyBindingEditor {
     }
 }
 
+/// Key binding editor builder is used to create [`KeyBindingEditor`] widgets and add them to the user interface.
 pub struct KeyBindingEditorBuilder {
     widget_builder: WidgetBuilder,
     value: KeyBinding,
 }
 
 impl KeyBindingEditorBuilder {
+    /// Creates a new key binding editor builder.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -395,11 +485,13 @@ impl KeyBindingEditorBuilder {
         }
     }
 
+    /// Sets the desired key binding value.
     pub fn with_value(mut self, key_binding: KeyBinding) -> Self {
         self.value = key_binding;
         self
     }
 
+    /// Finishes widget building and adds the new widget instance to the user interface, returning a handle of it.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let text = TextBuilder::new(WidgetBuilder::new())
             .with_text(format!("{}", self.value))
