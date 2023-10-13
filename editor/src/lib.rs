@@ -146,6 +146,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::scene::selector::HierarchyNode;
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -2310,6 +2311,22 @@ impl Editor {
                     }
                     Message::LoadLayout => {
                         self.load_layout();
+                    }
+                    Message::ProvideSceneHierarchy { view } => {
+                        if let Some(editor_scene) = self.scenes.current_editor_scene_ref() {
+                            let scene = &self.engine.scenes[editor_scene.scene];
+                            self.engine.user_interface.send_message(
+                                HandlePropertyEditorMessage::hierarchy(
+                                    view,
+                                    MessageDirection::ToWidget,
+                                    HierarchyNode::from_scene_node(
+                                        editor_scene.scene_content_root,
+                                        Handle::NONE,
+                                        &scene.graph,
+                                    ),
+                                ),
+                            );
+                        }
                     }
                 }
             }

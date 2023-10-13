@@ -69,6 +69,9 @@ pub enum Message {
         view: Handle<UiNode>,
         handle: Handle<Node>,
     },
+    ProvideSceneHierarchy {
+        view: Handle<UiNode>,
+    },
     ForceSync,
     ShowDocumentation(String),
     SaveLayout,

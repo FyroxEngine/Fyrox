@@ -1,14 +1,16 @@
-use crate::message::MessageSender;
 use crate::{
-    world::graph::item::SceneItem, Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
+    message::MessageSender,
+    scene::selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
+    world::graph::item::SceneItem,
+    Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
 };
-use fyrox::gui::draw::{CommandTexture, Draw, DrawingContext};
 use fyrox::{
     core::{color::Color, pool::Handle},
     gui::{
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
         define_constructor,
+        draw::{CommandTexture, Draw, DrawingContext},
         grid::{Column, GridBuilder, Row},
         inspector::{
             editors::{
@@ -21,6 +23,7 @@ use fyrox::{
         text::{TextBuilder, TextMessage},
         utils::make_simple_tooltip,
         widget::{Widget, WidgetBuilder, WidgetMessage},
+        window::{WindowBuilder, WindowMessage},
         BuildContext, Control,
     },
     scene::node::Node,
@@ -36,11 +39,13 @@ use std::{
 pub enum HandlePropertyEditorMessage {
     Value(Handle<Node>),
     Name(Option<String>),
+    Hierarchy(HierarchyNode),
 }
 
 impl HandlePropertyEditorMessage {
     define_constructor!(HandlePropertyEditorMessage:Value => fn value(Handle<Node>), layout: false);
     define_constructor!(HandlePropertyEditorMessage:Name => fn name(Option<String>), layout: false);
+    define_constructor!(HandlePropertyEditorMessage:Hierarchy => fn hierarchy(HierarchyNode), layout: false);
 }
 
 #[derive(Debug)]
@@ -52,6 +57,8 @@ pub struct HandlePropertyEditor {
     make_unassigned: Handle<UiNode>,
     value: Handle<Node>,
     sender: MessageSender,
+    selector: Handle<UiNode>,
+    pick: Handle<UiNode>,
 }
 
 impl Clone for HandlePropertyEditor {
@@ -61,9 +68,11 @@ impl Clone for HandlePropertyEditor {
             text: self.text,
             value: self.value,
             sender: self.sender.clone(),
+            selector: self.selector,
             locate: self.locate,
             select: self.select,
             make_unassigned: self.make_unassigned,
+            pick: self.pick,
         }
     }
 }
@@ -157,6 +166,13 @@ impl Control for HandlePropertyEditor {
                             ));
                         };
                     }
+                    HandlePropertyEditorMessage::Hierarchy(hierarchy) => {
+                        ui.send_message(NodeSelectorMessage::hierarchy(
+                            self.selector,
+                            MessageDirection::ToWidget,
+                            hierarchy.clone(),
+                        ));
+                    }
                 }
             }
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
@@ -186,6 +202,39 @@ impl Control for HandlePropertyEditor {
                     MessageDirection::ToWidget,
                     Handle::NONE,
                 ));
+            } else if message.destination == self.pick {
+                let node_selector = NodeSelectorWindowBuilder::new(
+                    WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+                        .open(false),
+                )
+                .build(&mut ui.build_ctx());
+
+                ui.send_message(WindowMessage::open_modal(
+                    node_selector,
+                    MessageDirection::ToWidget,
+                    true,
+                ));
+
+                self.sender
+                    .send(Message::ProvideSceneHierarchy { view: self.handle });
+
+                self.selector = node_selector;
+            }
+        }
+    }
+
+    fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
+        if message.destination() == self.selector
+            && message.direction() == MessageDirection::FromWidget
+        {
+            if let Some(NodeSelectorMessage::Selection(selection)) = message.data() {
+                if let Some(first) = selection.first() {
+                    ui.send_message(HandlePropertyEditorMessage::value(
+                        self.handle,
+                        MessageDirection::ToWidget,
+                        *first,
+                    ));
+                }
             }
         }
     }
@@ -216,6 +265,7 @@ impl HandlePropertyEditorBuilder {
         let locate;
         let select;
         let make_unassigned;
+        let pick;
         let grid = GridBuilder::new(
             WidgetBuilder::new()
                 .with_child({
@@ -230,12 +280,24 @@ impl HandlePropertyEditorBuilder {
                     text
                 })
                 .with_child({
+                    pick = ButtonBuilder::new(
+                        WidgetBuilder::new()
+                            .with_tooltip(make_simple_tooltip(ctx, "Set..."))
+                            .with_width(20.0)
+                            .with_height(20.0)
+                            .on_column(1),
+                    )
+                    .with_text("O")
+                    .build(ctx);
+                    pick
+                })
+                .with_child({
                     locate = ButtonBuilder::new(
                         WidgetBuilder::new()
                             .with_tooltip(make_simple_tooltip(ctx, "Locate Object"))
                             .with_width(20.0)
                             .with_height(20.0)
-                            .on_column(1),
+                            .on_column(2),
                     )
                     .with_text(">>")
                     .build(ctx);
@@ -247,7 +309,7 @@ impl HandlePropertyEditorBuilder {
                             .with_tooltip(make_simple_tooltip(ctx, "Select Object"))
                             .with_width(20.0)
                             .with_height(20.0)
-                            .on_column(2),
+                            .on_column(3),
                     )
                     .with_text("*")
                     .build(ctx);
@@ -259,7 +321,7 @@ impl HandlePropertyEditorBuilder {
                             .with_tooltip(make_simple_tooltip(ctx, "Make Unassigned"))
                             .with_width(20.0)
                             .with_height(20.0)
-                            .on_column(3),
+                            .on_column(4),
                     )
                     .with_text("X")
                     .build(ctx);
@@ -268,6 +330,7 @@ impl HandlePropertyEditorBuilder {
         )
         .add_row(Row::stretch())
         .add_column(Column::stretch())
+        .add_column(Column::auto())
         .add_column(Column::auto())
         .add_column(Column::auto())
         .add_column(Column::auto())
@@ -280,15 +343,18 @@ impl HandlePropertyEditorBuilder {
                     ctx,
                     "Use <Alt+Mouse Drag> in World Viewer to assign the value here.",
                 ))
+                .with_preview_messages(true)
                 .with_allow_drop(true)
                 .with_child(grid)
                 .build(),
             text,
             value: self.value,
             sender: self.sender,
+            selector: Default::default(),
             locate,
             select,
             make_unassigned,
+            pick,
         };
 
         ctx.add_node(UiNode::new(editor))
