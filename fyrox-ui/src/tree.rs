@@ -71,6 +71,7 @@ pub enum TreeRootMessage {
     Selected(Vec<Handle<UiNode>>),
     ExpandAll,
     CollapseAll,
+    ItemsChanged,
 }
 
 impl TreeRootMessage {
@@ -80,6 +81,7 @@ impl TreeRootMessage {
     define_constructor!(TreeRootMessage:Selected => fn select(Vec<Handle<UiNode >>), layout: false);
     define_constructor!(TreeRootMessage:ExpandAll => fn expand_all(), layout: false);
     define_constructor!(TreeRootMessage:CollapseAll => fn collapse_all(), layout: false);
+    define_constructor!(TreeRootMessage:ItemsChanged => fn items_changed(), layout: false);
 }
 
 #[derive(Debug, Clone)]
@@ -593,6 +595,10 @@ impl Control for TreeRoot {
                         ));
 
                         self.items.push(item);
+                        ui.send_message(TreeRootMessage::items_changed(
+                            self.handle,
+                            MessageDirection::FromWidget,
+                        ));
                     }
                     &TreeRootMessage::RemoveItem(item) => {
                         if let Some(pos) = self.items.iter().position(|&i| i == item) {
@@ -600,7 +606,12 @@ impl Control for TreeRoot {
                                 item,
                                 MessageDirection::ToWidget,
                             ));
+
                             self.items.remove(pos);
+                            ui.send_message(TreeRootMessage::items_changed(
+                                self.handle,
+                                MessageDirection::FromWidget,
+                            ));
                         }
                     }
                     TreeRootMessage::Items(items) => {
@@ -617,7 +628,12 @@ impl Control for TreeRoot {
                                 self.panel,
                             ));
                         }
+
                         self.items = items.to_vec();
+                        ui.send_message(TreeRootMessage::items_changed(
+                            self.handle,
+                            MessageDirection::FromWidget,
+                        ));
                     }
                     TreeRootMessage::Selected(selected) => {
                         if &self.selected != selected {
@@ -651,6 +667,9 @@ impl Control for TreeRoot {
                     }
                     TreeRootMessage::ExpandAll => {
                         self.expand_all(ui, true);
+                    }
+                    TreeRootMessage::ItemsChanged => {
+                        // Do nothing.
                     }
                 }
             }
