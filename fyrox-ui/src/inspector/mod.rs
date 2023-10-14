@@ -455,6 +455,12 @@ fn make_expander_check_box(
     property_description: &str,
     ctx: &mut BuildContext,
 ) -> Handle<UiNode> {
+    let description = if property_description.is_empty() {
+        property_name.to_string()
+    } else {
+        format!("{}\n\n{}", property_name, property_description)
+    };
+
     CheckBoxBuilder::new(
         WidgetBuilder::new()
             .with_vertical_alignment(VerticalAlignment::Center)
@@ -472,7 +478,7 @@ fn make_expander_check_box(
     .with_content(
         TextBuilder::new(
             WidgetBuilder::new()
-                .with_opt_tooltip(make_tooltip(ctx, property_description))
+                .with_opt_tooltip(make_tooltip(ctx, &description))
                 .with_height(16.0)
                 .with_margin(Thickness::left(2.0)),
         )
