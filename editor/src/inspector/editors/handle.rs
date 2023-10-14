@@ -174,6 +174,12 @@ impl Control for HandlePropertyEditor {
                             MessageDirection::ToWidget,
                             hierarchy.clone(),
                         ));
+
+                        ui.send_message(NodeSelectorMessage::selection(
+                            self.selector,
+                            MessageDirection::ToWidget,
+                            vec![self.value],
+                        ));
                     }
                 }
             }
