@@ -221,8 +221,9 @@ impl Control for CurveEditor {
                                 } => {
                                     let local_delta = local_mouse_pos - initial_mouse_pos;
                                     for entry in entries {
-                                        let key = self.key_container.key_mut(entry.key).unwrap();
-                                        key.position = entry.initial_position + local_delta;
+                                        if let Some(key) = self.key_container.key_mut(entry.key) {
+                                            key.position = entry.initial_position + local_delta;
+                                        }
                                     }
                                     self.sort_keys();
                                 }
@@ -239,33 +240,39 @@ impl Control for CurveEditor {
                                     ));
                                 }
                                 OperationContext::DragTangent { key, left } => {
-                                    let key_pos =
-                                        self.key_container.key_index_ref(*key).unwrap().position;
-                                    let screen_key_pos = self.point_to_screen_space(key_pos);
-                                    let key = self.key_container.key_index_mut(*key).unwrap();
-                                    if let CurveKeyKind::Cubic {
-                                        left_tangent,
-                                        right_tangent,
-                                    } = &mut key.kind
-                                    {
-                                        let mut local_delta = pos - screen_key_pos;
-                                        if *left {
-                                            local_delta.x = local_delta.x.min(f32::EPSILON);
-                                        } else {
-                                            local_delta.x = local_delta.x.max(f32::EPSILON);
-                                        }
-                                        let tangent =
-                                            (local_delta.y / local_delta.x).clamp(-10e6, 10e6);
+                                    if let Some(key) = self.key_container.key_index_mut(*key) {
+                                        let key_pos = key.position;
 
-                                        if *left {
-                                            *left_tangent = tangent;
+                                        let screen_key_pos = self
+                                            .screen_matrix
+                                            .get()
+                                            .transform_point(&Point2::from(key_pos))
+                                            .coords;
+
+                                        if let CurveKeyKind::Cubic {
+                                            left_tangent,
+                                            right_tangent,
+                                        } = &mut key.kind
+                                        {
+                                            let mut local_delta = pos - screen_key_pos;
+                                            if *left {
+                                                local_delta.x = local_delta.x.min(f32::EPSILON);
+                                            } else {
+                                                local_delta.x = local_delta.x.max(f32::EPSILON);
+                                            }
+                                            let tangent =
+                                                (local_delta.y / local_delta.x).clamp(-10e6, 10e6);
+
+                                            if *left {
+                                                *left_tangent = tangent;
+                                            } else {
+                                                *right_tangent = tangent;
+                                            }
                                         } else {
-                                            *right_tangent = tangent;
+                                            unreachable!(
+                                                "attempt to edit tangents of non-cubic curve key!"
+                                            )
                                         }
-                                    } else {
-                                        unreachable!(
-                                            "attempt to edit tangents of non-cubic curve key!"
-                                        )
                                     }
                                 }
                                 OperationContext::BoxSelection {
@@ -371,38 +378,41 @@ impl Control for CurveEditor {
                             if let Some(picked) = pick_result {
                                 match picked {
                                     PickResult::Key(picked_key) => {
-                                        let picked_key_id = self
+                                        if let Some(picked_key_id) = self
                                             .key_container
                                             .key_index_ref(picked_key)
-                                            .unwrap()
-                                            .id;
-                                        if let Some(selection) = self.selection.as_mut() {
-                                            match selection {
-                                                Selection::Keys { keys } => {
-                                                    if ui.keyboard_modifiers().control {
-                                                        keys.insert(picked_key_id);
+                                            .map(|key| key.id)
+                                        {
+                                            if let Some(selection) = self.selection.as_mut() {
+                                                match selection {
+                                                    Selection::Keys { keys } => {
+                                                        if ui.keyboard_modifiers().control {
+                                                            keys.insert(picked_key_id);
+                                                        }
+                                                        if !keys.contains(&picked_key_id) {
+                                                            self.set_selection(
+                                                                Some(Selection::single_key(
+                                                                    picked_key_id,
+                                                                )),
+                                                                ui,
+                                                            );
+                                                        }
                                                     }
-                                                    if !keys.contains(&picked_key_id) {
-                                                        self.set_selection(
+                                                    Selection::LeftTangent { .. }
+                                                    | Selection::RightTangent { .. } => self
+                                                        .set_selection(
                                                             Some(Selection::single_key(
                                                                 picked_key_id,
                                                             )),
                                                             ui,
-                                                        );
-                                                    }
+                                                        ),
                                                 }
-                                                Selection::LeftTangent { .. }
-                                                | Selection::RightTangent { .. } => self
-                                                    .set_selection(
-                                                        Some(Selection::single_key(picked_key_id)),
-                                                        ui,
-                                                    ),
+                                            } else {
+                                                self.set_selection(
+                                                    Some(Selection::single_key(picked_key_id)),
+                                                    ui,
+                                                );
                                             }
-                                        } else {
-                                            self.set_selection(
-                                                Some(Selection::single_key(picked_key_id)),
-                                                ui,
-                                            );
                                         }
                                     }
                                     PickResult::LeftTangent(picked_key) => {
@@ -770,7 +780,9 @@ impl CurveEditor {
     fn change_selected_keys_kind(&mut self, kind: CurveKeyKind, ui: &mut UserInterface) {
         if let Some(Selection::Keys { keys }) = self.selection.as_ref() {
             for key in keys {
-                self.key_container.key_mut(*key).unwrap().kind = kind.clone();
+                if let Some(key) = self.key_container.key_mut(*key) {
+                    key.kind = kind.clone();
+                }
             }
 
             self.send_curve(ui);
@@ -781,10 +793,12 @@ impl CurveEditor {
         if let Some(Selection::Keys { keys }) = self.selection.as_ref() {
             let mut modified = false;
             for key in keys {
-                let key_value = &mut self.key_container.key_mut(*key).unwrap().position.y;
-                if (*key_value).ne(&value) {
-                    *key_value = value;
-                    modified = true;
+                if let Some(key) = self.key_container.key_mut(*key) {
+                    let key_value = &mut key.position.y;
+                    if (*key_value).ne(&value) {
+                        *key_value = value;
+                        modified = true;
+                    }
                 }
             }
 
@@ -798,10 +812,12 @@ impl CurveEditor {
         if let Some(Selection::Keys { keys }) = self.selection.as_ref() {
             let mut modified = false;
             for key in keys {
-                let key_location = &mut self.key_container.key_mut(*key).unwrap().position.x;
-                if (*key_location).ne(&location) {
-                    *key_location = location;
-                    modified = true;
+                if let Some(key) = self.key_container.key_mut(*key) {
+                    let key_location = &mut key.position.x;
+                    if (*key_location).ne(&location) {
+                        *key_location = location;
+                        modified = true;
+                    }
                 }
             }
 
