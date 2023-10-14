@@ -1642,6 +1642,8 @@ impl Editor {
             self.world_viewer
                 .post_update(scene, &mut self.engine, &self.settings);
         }
+
+        for_each_plugin!(self.plugins => on_post_update(self));
     }
 
     fn handle_resize(&mut self) {

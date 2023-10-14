@@ -73,6 +73,10 @@ pub trait EditorPlugin {
     /// actions.
     fn on_update(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}
 
+    /// This method is called at the end of all update routines of both the engine and the editor. It could be used to
+    /// perform some actions, that require all pre-defined steps to be done.
+    fn on_post_update(&mut self, #[allow(unused_variables)] editor: &mut Editor) {}
+
     /// This method is called when the editor receives a control message. It could be used to catch and react to specific
     /// actions in the editor (such as: scene loading, command execution, undo, redo, etc.).
     fn on_message(
