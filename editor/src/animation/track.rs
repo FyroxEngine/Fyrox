@@ -1213,17 +1213,20 @@ impl TrackList {
                                 let ctx = &mut ui.build_ctx();
                                 let group = TreeBuilder::new(WidgetBuilder::new())
                                     .with_content(
-                                        TextBuilder::new(WidgetBuilder::new())
-                                            .with_text(format!(
-                                                "{} ({}:{})",
-                                                graph
-                                                    .try_get(model_track.target())
-                                                    .map(|n| n.name())
-                                                    .unwrap_or_default(),
-                                                model_track.target().index(),
-                                                model_track.target().generation()
-                                            ))
-                                            .build(ctx),
+                                        TextBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_vertical_alignment(VerticalAlignment::Center),
+                                        )
+                                        .with_text(format!(
+                                            "{} ({}:{})",
+                                            graph
+                                                .try_get(model_track.target())
+                                                .map(|n| n.name())
+                                                .unwrap_or_default(),
+                                            model_track.target().index(),
+                                            model_track.target().generation()
+                                        ))
+                                        .build(ctx),
                                     )
                                     .build(ctx);
                                 send_sync_message(
@@ -1361,7 +1364,12 @@ impl TrackList {
                                     .unwrap()
                                     .content,
                                 MessageDirection::ToWidget,
-                                target.name_owned(),
+                                format!(
+                                    "{} ({}:{})",
+                                    target.name(),
+                                    track_model.target().index(),
+                                    track_model.target().generation()
+                                ),
                             ),
                         );
                     }
