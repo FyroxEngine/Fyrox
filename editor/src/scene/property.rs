@@ -9,11 +9,10 @@ use fyrox::{
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, OsEvent, UiMessage},
         scroll_viewer::ScrollViewerBuilder,
+        searchbar::{SearchBarBuilder, SearchBarMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
-        text_box::TextBoxBuilder,
-        tree::{TreeBuilder, TreeRootBuilder, TreeRootMessage},
-        utils,
+        tree::{Tree, TreeBuilder, TreeRootBuilder, TreeRootMessage},
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{Window, WindowBuilder, WindowMessage},
         BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness,
@@ -47,6 +46,7 @@ pub struct PropertyDescriptor {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PropertyDescriptorData {
+    pub name: String,
     pub path: String,
     pub type_id: TypeId,
 }
@@ -87,6 +87,30 @@ fn make_views_for_property_descriptor_collection(
         .collect()
 }
 
+fn apply_filter_recursive(node: Handle<UiNode>, filter: &str, ui: &UserInterface) -> bool {
+    let node_ref = ui.node(node);
+
+    let mut is_any_match = false;
+    for &child in node_ref.children() {
+        is_any_match |= apply_filter_recursive(child, filter, ui)
+    }
+
+    if let Some(data) = node_ref
+        .query_component::<Tree>()
+        .and_then(|n| n.user_data_ref::<PropertyDescriptorData>())
+    {
+        is_any_match |= data.name.to_lowercase().contains(filter);
+
+        ui.send_message(WidgetMessage::visibility(
+            node,
+            MessageDirection::ToWidget,
+            is_any_match,
+        ));
+    }
+
+    is_any_match
+}
+
 impl PropertyDescriptor {
     fn make_view(
         &self,
@@ -104,8 +128,15 @@ impl PropertyDescriptor {
         );
 
         if !items.is_empty() || allowed_types.map_or(true, |types| types.contains(&self.type_id)) {
+            let name = format!(
+                "{} ({})",
+                self.display_name,
+                make_pretty_type_name(&self.type_name)
+            );
+
             TreeBuilder::new(
                 WidgetBuilder::new().with_user_data(Rc::new(PropertyDescriptorData {
+                    name: name.clone(),
                     path: self.path.clone(),
                     type_id: self.type_id,
                 })),
@@ -113,11 +144,7 @@ impl PropertyDescriptor {
             .with_items(items)
             .with_content(
                 TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
-                    .with_text(format!(
-                        "{} ({})",
-                        self.display_name,
-                        make_pretty_type_name(&self.type_name)
-                    ))
+                    .with_text(name)
                     .build(ctx),
             )
             .build(ctx)
@@ -251,6 +278,7 @@ pub struct PropertySelector {
     widget: Widget,
     selected_property_path: Vec<PropertyDescriptorData>,
     tree_root: Handle<UiNode>,
+    search_bar: Handle<UiNode>,
 }
 
 define_widget_deref!(PropertySelector);
@@ -293,6 +321,12 @@ impl Control for PropertySelector {
                 self.selected_property_path = selection.clone();
                 ui.send_message(message.reverse());
             }
+        } else if let Some(SearchBarMessage::Text(filter_text)) = message.data() {
+            if message.destination() == self.search_bar
+                && message.direction() == MessageDirection::FromWidget
+            {
+                apply_filter_recursive(self.tree_root, &filter_text.to_lowercase(), ui);
+            }
         }
     }
 }
@@ -324,36 +358,19 @@ impl PropertySelectorBuilder {
 
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let tree_root;
-        let filter_text;
-        let clear_filter;
+        let search_bar;
         let content = GridBuilder::new(
             WidgetBuilder::new()
-                .with_child(
-                    GridBuilder::new(
+                .with_child({
+                    search_bar = SearchBarBuilder::new(
                         WidgetBuilder::new()
                             .on_row(0)
                             .on_column(0)
-                            .with_child({
-                                filter_text = TextBoxBuilder::new(
-                                    WidgetBuilder::new().on_row(0).on_column(0),
-                                )
-                                .build(ctx);
-                                filter_text
-                            })
-                            .with_child({
-                                clear_filter = ButtonBuilder::new(
-                                    WidgetBuilder::new().on_row(0).on_column(1).with_width(20.0),
-                                )
-                                .with_content(utils::make_cross(ctx, 10.0, 2.0))
-                                .build(ctx);
-                                clear_filter
-                            }),
+                            .with_margin(Thickness::uniform(1.0)),
                     )
-                    .add_column(Column::stretch())
-                    .add_column(Column::auto())
-                    .add_row(Row::strict(22.0))
-                    .build(ctx),
-                )
+                    .build(ctx);
+                    search_bar
+                })
                 .with_child(
                     BorderBuilder::new(
                         WidgetBuilder::new()
@@ -389,6 +406,7 @@ impl PropertySelectorBuilder {
             widget: self.widget_builder.with_child(content).build(),
             selected_property_path: Default::default(),
             tree_root,
+            search_bar,
         };
 
         ctx.add_node(UiNode::new(selector))
