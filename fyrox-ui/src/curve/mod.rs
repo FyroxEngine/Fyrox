@@ -633,7 +633,11 @@ impl CurveEditor {
     }
 
     fn zoom_to_fit(&mut self, sender: &Sender<UiMessage>) {
-        let bounds = self.key_container.curve().bounds();
+        let bounds = if self.key_container.keys().is_empty() {
+            Rect::new(-1.0, -1.0, 2.0, 2.0)
+        } else {
+            self.key_container.curve().bounds()
+        };
         let center = bounds.center();
 
         sender
