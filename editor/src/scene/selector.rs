@@ -183,6 +183,19 @@ impl Control for NodeSelector {
                 && message.direction() == MessageDirection::FromWidget
             {
                 apply_filter_recursive(self.tree_root, &filter_text.to_lowercase(), ui);
+
+                // Bring first item of current selection in the view when clearing the filter.
+                if filter_text.is_empty() {
+                    let selected_trees = self.find_selected_tree_items(ui);
+
+                    if let Some(first) = selected_trees.first() {
+                        ui.send_message(ScrollViewerMessage::bring_into_view(
+                            self.scroll_viewer,
+                            MessageDirection::ToWidget,
+                            *first,
+                        ));
+                    }
+                }
             }
         } else if let Some(TreeRootMessage::Selected(selection)) = message.data() {
             if message.destination() == self.tree_root
@@ -208,9 +221,10 @@ impl Control for NodeSelector {
 }
 
 impl NodeSelector {
-    fn sync_selection(&self, ui: &UserInterface) {
+    fn find_selected_tree_items(&self, ui: &UserInterface) -> Vec<Handle<UiNode>> {
         let mut stack = vec![self.tree_root];
         let mut selected_trees = Vec::new();
+
         while let Some(node_handle) = stack.pop() {
             let node = ui.node(node_handle);
 
@@ -225,6 +239,12 @@ impl NodeSelector {
 
             stack.extend_from_slice(node.children());
         }
+
+        selected_trees
+    }
+
+    fn sync_selection(&self, ui: &UserInterface) {
+        let selected_trees = self.find_selected_tree_items(ui);
 
         if let Some(first) = selected_trees.first() {
             ui.send_message(ScrollViewerMessage::bring_into_view(
