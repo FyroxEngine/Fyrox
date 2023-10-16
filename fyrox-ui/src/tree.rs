@@ -1,11 +1,7 @@
-//! Tree widget allows you to create views for hierarchical data.
-//!
-//! ## Built-in controls
-//!
-//! Selection works on all mouse buttons, not just left.
-//!
-//! `Ctrl+Click` - enables multi-selection.
-//! `Alt+Click` - prevents selection allowing you to use drag'n'drop.
+//! Tree widget allows you to create views for hierarchical data. See [`Tree`] docs for more info
+//! and usage examples.
+
+#![warn(missing_docs)]
 
 use crate::{
     border::BorderBuilder,
@@ -27,9 +23,11 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+/// Opaque selection state of a tree.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct SelectionState(pub(crate) bool);
 
+/// Expansion strategy for a hierarchical structure.
 #[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Debug)]
 pub enum TreeExpansionStrategy {
     /// Expand a single item.
@@ -40,60 +38,186 @@ pub enum TreeExpansionStrategy {
     RecursiveAncestors,
 }
 
+/// A set of messages, that could be used to alternate the state of a [`Tree`] widget.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TreeMessage {
+    /// A message, that is used to expand a tree. Exact expansion behavior depends on the expansion
+    /// strategy (see [`TreeExpansionStrategy`] docs for more info).
     Expand {
+        /// Expand (`true`) or collapse (`false`) a tree.
         expand: bool,
+        /// Expansion strategy.
         expansion_strategy: TreeExpansionStrategy,
     },
+    /// A message, that is used to add an item to a tree.
     AddItem(Handle<UiNode>),
+    /// A message, that is used to remove an item from a tree.
     RemoveItem(Handle<UiNode>),
+    /// A message, that is used to prevent expander from being hidden when a tree does not have
+    /// any child items.
     SetExpanderShown(bool),
+    /// A message, that is use to specify a new set of children items of a tree.
     SetItems(Vec<Handle<UiNode>>),
     // Private, do not use. For internal needs only. Use TreeRootMessage::Selected.
+    #[doc(hidden)]
     Select(SelectionState),
 }
 
 impl TreeMessage {
-    define_constructor!(TreeMessage:Expand => fn expand(expand: bool, expansion_strategy: TreeExpansionStrategy), layout: false);
-    define_constructor!(TreeMessage:AddItem => fn add_item(Handle<UiNode>), layout: false);
-    define_constructor!(TreeMessage:RemoveItem => fn remove_item(Handle<UiNode>), layout: false);
-    define_constructor!(TreeMessage:SetExpanderShown => fn set_expander_shown(bool), layout: false);
-    define_constructor!(TreeMessage:SetItems => fn set_items(Vec<Handle<UiNode >>), layout: false);
-    define_constructor!(TreeMessage:Select => fn select(SelectionState), layout: false);
+    define_constructor!(
+        /// Creates [`TreeMessage::Expand`] message.
+        TreeMessage:Expand => fn expand(expand: bool, expansion_strategy: TreeExpansionStrategy), layout: false
+    );
+    define_constructor!(
+        /// Creates [`TreeMessage::AddItem`] message.
+        TreeMessage:AddItem => fn add_item(Handle<UiNode>), layout: false
+    );
+    define_constructor!(
+        /// Creates [`TreeMessage::RemoveItem`] message.
+        TreeMessage:RemoveItem => fn remove_item(Handle<UiNode>), layout: false
+    );
+    define_constructor!(
+        /// Creates [`TreeMessage::SetExpanderShown`] message.
+        TreeMessage:SetExpanderShown => fn set_expander_shown(bool), layout: false
+    );
+    define_constructor!(
+        /// Creates [`TreeMessage::SetItems`] message.
+        TreeMessage:SetItems => fn set_items(Vec<Handle<UiNode >>), layout: false
+    );
+    define_constructor!(
+        /// Creates [`TreeMessage::Select`] message.
+        TreeMessage:Select => fn select(SelectionState), layout: false
+    );
 }
 
+/// A set of messages, that could be used to alternate the state of a [`TreeRoot`] widget.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TreeRootMessage {
+    /// A message, that is used to add a child item to a tree root.
     AddItem(Handle<UiNode>),
+    /// A message, that is used to remove a child item from a tree root.
     RemoveItem(Handle<UiNode>),
+    /// A message, that is used to specify a new set of children items of a tree root.
     Items(Vec<Handle<UiNode>>),
+    /// A message, that it is used to fetch or set current selection of a tree root.
     Selected(Vec<Handle<UiNode>>),
+    /// A message, that is used to expand all descendant trees in the hierarchy.
     ExpandAll,
+    /// A message, that is used to collapse all descendant trees in the hierarchy.
     CollapseAll,
+    /// A message, that is used as a notification when tree root's items has changed.
     ItemsChanged,
 }
 
 impl TreeRootMessage {
-    define_constructor!(TreeRootMessage:AddItem => fn add_item(Handle<UiNode>), layout: false);
-    define_constructor!(TreeRootMessage:RemoveItem=> fn remove_item(Handle<UiNode>), layout: false);
-    define_constructor!(TreeRootMessage:Items => fn items(Vec<Handle<UiNode >>), layout: false);
-    define_constructor!(TreeRootMessage:Selected => fn select(Vec<Handle<UiNode >>), layout: false);
-    define_constructor!(TreeRootMessage:ExpandAll => fn expand_all(), layout: false);
-    define_constructor!(TreeRootMessage:CollapseAll => fn collapse_all(), layout: false);
-    define_constructor!(TreeRootMessage:ItemsChanged => fn items_changed(), layout: false);
+    define_constructor!(
+        /// Creates [`TreeRootMessage::AddItem`] message.
+        TreeRootMessage:AddItem => fn add_item(Handle<UiNode>), layout: false
+    );
+    define_constructor!(
+        /// Creates [`TreeRootMessage::RemoveItem`] message.
+        TreeRootMessage:RemoveItem=> fn remove_item(Handle<UiNode>), layout: false
+    );
+    define_constructor!(
+        /// Creates [`TreeRootMessage::Items`] message.
+        TreeRootMessage:Items => fn items(Vec<Handle<UiNode >>), layout: false
+    );
+    define_constructor!(
+        /// Creates [`TreeRootMessage::Selected`] message.
+        TreeRootMessage:Selected => fn select(Vec<Handle<UiNode >>), layout: false
+    );
+    define_constructor!(
+        /// Creates [`TreeRootMessage::ExpandAll`] message.
+        TreeRootMessage:ExpandAll => fn expand_all(), layout: false
+    );
+    define_constructor!(
+        /// Creates [`TreeRootMessage::CollapseAll`] message.
+        TreeRootMessage:CollapseAll => fn collapse_all(), layout: false
+    );
+    define_constructor!(
+        /// Creates [`TreeRootMessage::ItemsChanged`] message.
+        TreeRootMessage:ItemsChanged => fn items_changed(), layout: false
+    );
 }
 
+/// Tree widget allows you to create views for hierarchical data. It could be used to show file
+/// system entries, graphs, and anything else that could be represented as a tree.
+///
+/// ## Examples
+///
+/// A simple tree with one root and two children items could be created like so:
+///
+/// ```rust
+/// # use fyrox_ui::{
+/// #     core::pool::Handle,
+/// #     text::TextBuilder,
+/// #     tree::{TreeBuilder, TreeRootBuilder},
+/// #     widget::WidgetBuilder,
+/// #     BuildContext, UiNode,
+/// # };
+/// #
+/// fn create_tree(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     // Note, that `TreeRoot` widget is mandatory here. Otherwise some functionality of
+///     // descendant trees won't work.
+///     TreeRootBuilder::new(WidgetBuilder::new())
+///         .with_items(vec![TreeBuilder::new(WidgetBuilder::new())
+///             .with_content(
+///                 TextBuilder::new(WidgetBuilder::new())
+///                     .with_text("Root Item 0")
+///                     .build(ctx),
+///             )
+///             .with_items(vec![
+///                 TreeBuilder::new(WidgetBuilder::new())
+///                     .with_content(
+///                         TextBuilder::new(WidgetBuilder::new())
+///                             .with_text("Child Item 0")
+///                             .build(ctx),
+///                     )
+///                     .build(ctx),
+///                 TreeBuilder::new(WidgetBuilder::new())
+///                     .with_content(
+///                         TextBuilder::new(WidgetBuilder::new())
+///                             .with_text("Child Item 1")
+///                             .build(ctx),
+///                     )
+///                     .build(ctx),
+///             ])
+///             .build(ctx)])
+///         .build(ctx)
+/// }
+/// ```
+///
+/// Note, that `TreeRoot` widget is mandatory here. Otherwise some functionality of descendant trees
+/// won't work (primarily - selection). See [`TreeRoot`] docs for more detailed explanation.
+///
+/// ## Built-in controls
+///
+/// Tree widget is a rich control element, which has its own set of controls:
+///
+/// `Any Mouse Button` - select.
+/// `Ctrl+Click` - enables multi-selection.
+/// `Alt+Click` - prevents selection allowing you to use drag'n'drop.
+/// `Shift+Click` - selects a span of items.
 #[derive(Debug, Clone)]
 pub struct Tree {
+    /// Base widget of the tree.
     pub widget: Widget,
+    /// Current expander of the tree. Usually, it is just a handle of CheckBox widget.
     pub expander: Handle<UiNode>,
+    /// Current content of the tree.
     pub content: Handle<UiNode>,
+    /// Current layout panel, that used to arrange children items.
     pub panel: Handle<UiNode>,
+    /// A flag, that indicates whether the tree is expanded or not.
     pub is_expanded: bool,
+    /// Current background widget of the tree.
     pub background: Handle<UiNode>,
+    /// Current set of items of the tree.
     pub items: Vec<Handle<UiNode>>,
+    /// A flag, that defines whether the tree is selected or not.
     pub is_selected: bool,
+    /// A flag, that defines whether the tree should always show its expander, even if there's no
+    /// children elements, or not.
     pub always_show_expander: bool,
 }
 
@@ -384,6 +508,7 @@ impl Tree {
     }
 }
 
+/// Tree builder creates [`Tree`] widget instances and adds them to the user interface.
 pub struct TreeBuilder {
     widget_builder: WidgetBuilder,
     items: Vec<Handle<UiNode>>,
@@ -394,6 +519,7 @@ pub struct TreeBuilder {
 }
 
 impl TreeBuilder {
+    /// Creates a new tree builder instance.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -405,31 +531,38 @@ impl TreeBuilder {
         }
     }
 
+    /// Sets the desired children items of the tree.
     pub fn with_items(mut self, items: Vec<Handle<UiNode>>) -> Self {
         self.items = items;
         self
     }
 
+    /// Sets the desired content of the tree.
     pub fn with_content(mut self, content: Handle<UiNode>) -> Self {
         self.content = content;
         self
     }
 
+    /// Sets the desired expansion state of the tree.
     pub fn with_expanded(mut self, expanded: bool) -> Self {
         self.is_expanded = expanded;
         self
     }
 
+    /// Sets whether the tree should always show its expander, no matter if has children items or
+    /// not.
     pub fn with_always_show_expander(mut self, state: bool) -> Self {
         self.always_show_expander = state;
         self
     }
 
+    /// Sets the desired background of the tree.
     pub fn with_back(mut self, back: Handle<UiNode>) -> Self {
         self.back = Some(back);
         self
     }
 
+    /// Builds the tree widget, but does not add it to user interface.
     pub fn build_tree(self, ctx: &mut BuildContext) -> Tree {
         let expander = build_expander(
             self.always_show_expander,
@@ -516,6 +649,8 @@ impl TreeBuilder {
         }
     }
 
+    /// Finishes widget building and adds it to the user interface, returning a handle to the new
+    /// instance.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let tree = self.build_tree(ctx);
         ctx.add_node(UiNode::new(tree))
@@ -555,11 +690,18 @@ fn build_expander(
     .build(ctx)
 }
 
+/// Tree root is special widget that handles the entire hierarchy of descendant [`Tree`] widgets. Its
+/// main purpose is to handle selection of descendant [`Tree`] widgets. Tree root cannot have a
+/// content and it only could have children tree items. See docs for [`Tree`] for usage examples.
 #[derive(Debug, Clone)]
 pub struct TreeRoot {
+    /// Base widget of the tree root.
     pub widget: Widget,
+    /// Current layout panel of the tree root, that is used to arrange children trees.
     pub panel: Handle<UiNode>,
+    /// Current items of the tree root.
     pub items: Vec<Handle<UiNode>>,
+    /// Selected items of the tree root.
     pub selected: Vec<Handle<UiNode>>,
 }
 
@@ -678,10 +820,6 @@ impl Control for TreeRoot {
 }
 
 impl TreeRoot {
-    pub fn items(&self) -> &[Handle<UiNode>] {
-        &self.items
-    }
-
     fn expand_all(&self, ui: &UserInterface, expand: bool) {
         for &item in self.items.iter() {
             ui.send_message(TreeMessage::expand(
@@ -694,12 +832,14 @@ impl TreeRoot {
     }
 }
 
+/// Tree root builder creates [`TreeRoot`] instances and adds them to the user interface.
 pub struct TreeRootBuilder {
     widget_builder: WidgetBuilder,
     items: Vec<Handle<UiNode>>,
 }
 
 impl TreeRootBuilder {
+    /// Creates new tree root builder.
     pub fn new(widget_builder: WidgetBuilder) -> Self {
         Self {
             widget_builder,
@@ -707,11 +847,13 @@ impl TreeRootBuilder {
         }
     }
 
+    /// Sets the desired items of the tree root.
     pub fn with_items(mut self, items: Vec<Handle<UiNode>>) -> Self {
         self.items = items;
         self
     }
 
+    /// Finishes widget building and adds the new instance to the user interface, returning its handle.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let panel =
             StackPanelBuilder::new(WidgetBuilder::new().with_children(self.items.iter().cloned()))

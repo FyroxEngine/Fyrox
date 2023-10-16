@@ -520,7 +520,7 @@ fn find_tree<P: AsRef<Path>>(node: Handle<UiNode>, path: &P, ui: &UserInterface)
             }
         }
     } else if let Some(root) = node_ref.cast::<TreeRoot>() {
-        for &item in root.items() {
+        for &item in &root.items {
             let tree = find_tree(item, path, ui);
             if tree.is_some() {
                 tree_handle = tree;
