@@ -2235,8 +2235,13 @@ impl Editor {
                             .locate_path(&self.engine.user_interface, path);
                     }
                     Message::SetWorldViewerFilter(filter) => {
-                        self.world_viewer
-                            .set_filter(filter, &self.engine.user_interface);
+                        if let Some(editor_scene) = self.scenes.current_editor_scene_ref() {
+                            self.world_viewer.set_filter(
+                                filter,
+                                editor_scene,
+                                &self.engine.user_interface,
+                            );
+                        }
                     }
                     Message::LocateObject { type_id, handle } => self
                         .world_viewer

@@ -553,7 +553,7 @@ impl WorldViewer {
         colorize(self.tree_root, ui, &mut index);
     }
 
-    fn apply_filter(&self, ui: &UserInterface) {
+    fn apply_filter(&self, editor_scene: &EditorScene, ui: &UserInterface) {
         fn apply_filter_recursive(node: Handle<UiNode>, filter: &str, ui: &UserInterface) -> bool {
             let node_ref = ui.node(node);
 
@@ -579,11 +579,25 @@ impl WorldViewer {
         }
 
         apply_filter_recursive(self.tree_root, &self.filter.to_lowercase(), ui);
+
+        if self.filter.is_empty() {
+            if let Selection::Graph(ref selection) = editor_scene.selection {
+                if let Some(first) = selection.nodes().first() {
+                    if let Some(view) = self.node_to_view_map.get(first) {
+                        ui.send_message(ScrollViewerMessage::bring_into_view(
+                            self.scroll_view,
+                            MessageDirection::ToWidget,
+                            *view,
+                        ));
+                    }
+                }
+            }
+        }
     }
 
-    pub fn set_filter(&mut self, filter: String, ui: &UserInterface) {
+    pub fn set_filter(&mut self, filter: String, editor_scene: &EditorScene, ui: &UserInterface) {
         self.filter = filter;
-        self.apply_filter(ui)
+        self.apply_filter(editor_scene, ui)
     }
 
     pub fn handle_ui_message(
