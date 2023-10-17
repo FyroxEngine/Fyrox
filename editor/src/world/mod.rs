@@ -538,7 +538,7 @@ impl WorldViewer {
                     stack.extend_from_slice(&item.tree.items);
                 }
             } else if let Some(root) = ui_node.cast::<TreeRoot>() {
-                stack.extend_from_slice(root.items())
+                stack.extend_from_slice(&root.items)
             }
         }
 
