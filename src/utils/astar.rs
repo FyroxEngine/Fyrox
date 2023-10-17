@@ -73,7 +73,7 @@ impl PathVertex {
     }
 
     /// Sets penalty for vertex g_score calculation
-    /// Penalty can be interpreted as measure, how harder is to travel
+    /// Penalty can be interpreted as measure, how much harder it is to travel
     /// to this vertex.
     pub fn set_penalty(&mut self, new_penalty: f32) {
         self.g_penalty = new_penalty;
@@ -212,7 +212,7 @@ impl PathFinder {
         &self.vertices
     }
 
-    /// Returns reference to the array of vertices.
+    /// Returns mutable reference to the array of vertices.
     pub fn vertices_mut(&mut self) -> &mut [PathVertex] {
         &mut self.vertices
     }
@@ -285,7 +285,7 @@ impl PathFinder {
     ///
     /// # Notes
     ///
-    /// This is more or less naive implementation, it most certainly will be slower than specialized solutions.
+    /// This is more or less a naive implementation, it most certainly will be slower than specialized solutions.
     pub fn build(
         &mut self,
         from: usize,
@@ -303,7 +303,7 @@ impl PathFinder {
     ///
     /// # Notes
     ///
-    /// This is more or less naive implementation, it most certainly will be slower than specialized solutions.
+    /// This is more or less a naive implementation, it most certainly will be slower than specialized solutions.
     pub fn build_and_convert<F, T>(
         &mut self,
         from: usize,
