@@ -23,19 +23,24 @@
 //! is used in skinning (animating 3d model by set of bones).
 
 use crate::{
-    asset::ResourceStateRef,
+    asset::{manager::ResourceManager, ResourceStateRef},
     core::{
         algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
         instant,
         log::{Log, MessageKind},
+        math::aabb::AxisAlignedBoundingBox,
         math::Matrix4Ext,
         pool::{Handle, MultiBorrowContext, Pool, Ticket},
         reflect::prelude::*,
+        sstorage::ImmutableString,
         variable::try_inherit_properties,
         visitor::{Visit, VisitResult, Visitor},
     },
-    material::SharedMaterial,
+    material::{shader::SamplerFallback, PropertyValue, SharedMaterial},
     resource::model::{ModelResource, ModelResourceExtension, NodeMapping},
+    scene::mesh::buffer::{
+        VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage, VertexWriteTrait,
+    },
     scene::{
         self,
         base::NodeScriptMessage,
@@ -53,10 +58,9 @@ use crate::{
         transform::TransformBuilder,
     },
     script::ScriptTrait,
+    utils::lightmap::Lightmap,
 };
-use fxhash::FxHashSet;
-use fyrox_core::math::aabb::AxisAlignedBoundingBox;
-use fyrox_resource::manager::ResourceManager;
+use fxhash::{FxHashMap, FxHashSet};
 use rapier3d::geometry::ColliderHandle;
 use std::{
     any::Any,
@@ -135,6 +139,9 @@ pub struct Graph {
     #[reflect(hidden)]
     pub event_broadcaster: GraphEventBroadcaster,
 
+    /// Current lightmap.
+    lightmap: Option<Lightmap>,
+
     #[reflect(hidden)]
     pub(crate) script_message_sender: Sender<NodeScriptMessage>,
     #[reflect(hidden)]
@@ -156,6 +163,7 @@ impl Default for Graph {
             event_broadcaster: Default::default(),
             script_message_receiver: rx,
             script_message_sender: tx,
+            lightmap: None,
         }
     }
 }
@@ -271,6 +279,7 @@ impl Graph {
             event_broadcaster: Default::default(),
             script_message_receiver: rx,
             script_message_sender: tx,
+            lightmap: None,
         }
     }
 
@@ -1111,7 +1120,140 @@ impl Graph {
             material.lock().sync_to_shader(resource_manager);
         }
 
+        self.apply_lightmap();
+
         Log::writeln(MessageKind::Information, "Graph resolved successfully!");
+    }
+
+    /// Tries to set new lightmap to scene.
+    pub fn set_lightmap(&mut self, lightmap: Lightmap) -> Result<Option<Lightmap>, &'static str> {
+        // Assign textures to surfaces.
+        for (handle, lightmaps) in lightmap.map.iter() {
+            if let Some(mesh) = self[*handle].cast_mut::<Mesh>() {
+                if mesh.surfaces().len() != lightmaps.len() {
+                    return Err("failed to set lightmap, surface count mismatch");
+                }
+
+                for (surface, entry) in mesh.surfaces_mut().iter_mut().zip(lightmaps) {
+                    // This unwrap() call must never panic in normal conditions, because texture wrapped in Option
+                    // only to implement Default trait to be serializable.
+                    let texture = entry.texture.clone().unwrap();
+                    if let Err(e) = surface.material().lock().set_property(
+                        &ImmutableString::new("lightmapTexture"),
+                        PropertyValue::Sampler {
+                            value: Some(texture),
+                            fallback: SamplerFallback::Black,
+                        },
+                    ) {
+                        Log::writeln(
+                            MessageKind::Error,
+                            format!(
+                                "Failed to apply light map texture to material. Reason {:?}",
+                                e
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+        Ok(std::mem::replace(&mut self.lightmap, Some(lightmap)))
+    }
+
+    /// Returns current lightmap.
+    pub fn lightmap(&self) -> Option<&Lightmap> {
+        self.lightmap.as_ref()
+    }
+
+    fn apply_lightmap(&mut self) {
+        // Re-apply lightmap if any. This has to be done after resolve because we must patch surface
+        // data at this stage, but if we'd do this before we wouldn't be able to do this because
+        // meshes contains invalid surface data.
+        if let Some(lightmap) = self.lightmap.as_mut() {
+            // Patch surface data first. To do this we gather all surface data instances and
+            // look in patch data if we have patch for data.
+            let mut unique_data_set = FxHashMap::default();
+            for &handle in lightmap.map.keys() {
+                if let Some(mesh) = self.pool[handle].cast_mut::<Mesh>() {
+                    for surface in mesh.surfaces() {
+                        let data = surface.data();
+                        unique_data_set.entry(data.key()).or_insert(data);
+                    }
+                }
+            }
+
+            for (_, data) in unique_data_set.into_iter() {
+                let mut data = data.lock();
+
+                if let Some(patch) = lightmap.patches.get(&data.content_hash()) {
+                    if !data
+                        .vertex_buffer
+                        .has_attribute(VertexAttributeUsage::TexCoord1)
+                    {
+                        data.vertex_buffer
+                            .modify()
+                            .add_attribute(
+                                VertexAttributeDescriptor {
+                                    usage: VertexAttributeUsage::TexCoord1,
+                                    data_type: VertexAttributeDataType::F32,
+                                    size: 2,
+                                    divisor: 0,
+                                    shader_location: 6, // HACK: GBuffer renderer expects it to be at 6
+                                },
+                                Vector2::<f32>::default(),
+                            )
+                            .unwrap();
+                    }
+
+                    data.geometry_buffer.set_triangles(patch.triangles.clone());
+
+                    let mut vertex_buffer_mut = data.vertex_buffer.modify();
+                    for &v in patch.additional_vertices.iter() {
+                        vertex_buffer_mut.duplicate(v as usize);
+                    }
+
+                    assert_eq!(
+                        vertex_buffer_mut.vertex_count() as usize,
+                        patch.second_tex_coords.len()
+                    );
+                    for (mut view, &tex_coord) in vertex_buffer_mut
+                        .iter_mut()
+                        .zip(patch.second_tex_coords.iter())
+                    {
+                        view.write_2_f32(VertexAttributeUsage::TexCoord1, tex_coord)
+                            .unwrap();
+                    }
+                } else {
+                    Log::writeln(
+                        MessageKind::Warning,
+                        "Failed to get surface data patch while resolving lightmap!\
+                    This means that surface has changed and lightmap must be regenerated!",
+                    );
+                }
+            }
+
+            // Apply textures.
+            for (&handle, entries) in lightmap.map.iter_mut() {
+                if let Some(mesh) = self.pool[handle].cast_mut::<Mesh>() {
+                    for (entry, surface) in entries.iter_mut().zip(mesh.surfaces_mut()) {
+                        if let Err(e) = surface.material().lock().set_property(
+                            &ImmutableString::new("lightmapTexture"),
+                            PropertyValue::Sampler {
+                                value: entry.texture.clone(),
+                                fallback: SamplerFallback::Black,
+                            },
+                        ) {
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!(
+                                    "Failed to apply light map texture to material. Reason {:?}",
+                                    e
+                                ),
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 
     pub(crate) fn update_hierarchical_data_recursively(
@@ -1538,6 +1680,25 @@ impl Graph {
 
         let (copy_root, old_new_map) = self.copy_node(root, &mut copy, filter);
         assert_eq!(copy.root, copy_root);
+
+        let mut lightmap = self.lightmap.clone();
+        if let Some(lightmap) = lightmap.as_mut() {
+            let mut map = FxHashMap::default();
+            for (mut handle, mut entries) in std::mem::take(&mut lightmap.map) {
+                for entry in entries.iter_mut() {
+                    for light_handle in entry.lights.iter_mut() {
+                        old_new_map.try_map(light_handle);
+                    }
+                }
+
+                if old_new_map.try_map(&mut handle) {
+                    map.insert(handle, entries);
+                }
+            }
+            lightmap.map = map;
+        }
+        copy.lightmap = lightmap;
+
         (copy, old_new_map)
     }
 
@@ -1795,6 +1956,7 @@ impl Visit for Graph {
         self.sound_context.visit("SoundContext", &mut region)?;
         self.physics.visit("PhysicsWorld", &mut region)?;
         self.physics2d.visit("PhysicsWorld2D", &mut region)?;
+        let _ = self.lightmap.visit("Lightmap", &mut region);
 
         Ok(())
     }
