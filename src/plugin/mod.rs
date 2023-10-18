@@ -34,10 +34,10 @@ pub trait PluginConstructor {
     ///
     /// ## Arguments
     ///
-    /// `has_scene` argument tells you that there's already a scene specified. It is used primarily
-    /// by the editor, to run your game with a scene you have current opened in the editor. If this
-    /// flag is `true` then you should not load a default scene of your game.
-    fn create_instance(&self, has_scene: bool, context: PluginContext) -> Box<dyn Plugin>;
+    /// `scene_path` argument tells you that there's already a scene specified. It is used primarily
+    /// by the editor, to run your game with a scene you have current opened in the editor. Typical
+    /// usage would be: `scene_path.unwrap_or("a/path/to/my/default/scene.rgs")`
+    fn create_instance(&self, scene_path: Option<&str>, context: PluginContext) -> Box<dyn Plugin>;
 }
 
 /// Contains plugin environment for the registration stage.

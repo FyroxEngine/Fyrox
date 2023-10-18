@@ -189,70 +189,6 @@ impl GraphicsContext {
     }
 }
 
-mod kek {
-    use crate::{
-        core::{color::Color, log::Log, pool::Handle},
-        plugin::{Plugin, PluginConstructor, PluginContext},
-        scene::Scene,
-    };
-    use std::path::Path;
-
-    struct GameConstructor;
-
-    impl PluginConstructor for GameConstructor {
-        fn create_instance(&self, has_scene: bool, context: PluginContext) -> Box<dyn Plugin> {
-            Box::new(MyGame::new(has_scene, context))
-        }
-    }
-
-    struct MyGame {
-        scene: Handle<Scene>,
-    }
-
-    impl MyGame {
-        pub fn new(has_scene: bool, context: PluginContext) -> Self {
-            // Request a scene only if there's no scene loaded.
-            if !has_scene {
-                context.async_scene_loader.request("data/scene.rgs");
-            }
-
-            Self {
-                scene: Handle::NONE,
-            }
-        }
-    }
-
-    impl Plugin for MyGame {
-        fn on_scene_begin_loading(&mut self, path: &Path, _context: &mut PluginContext) {
-            Log::info(format!("{} scene has started loading.", path.display()));
-
-            // Use this method if you need to so something when a scene started loading.
-        }
-
-        fn on_scene_loaded(
-            &mut self,
-            path: &Path,
-            scene: Handle<Scene>,
-            context: &mut PluginContext,
-        ) {
-            // Optionally remove previous scene.
-            if self.scene.is_some() {
-                context.scenes.remove(self.scene);
-            }
-
-            // Remember new scene handle.
-            self.scene = scene;
-
-            Log::info(format!("{} scene was loaded!", path.display()));
-
-            // Do something with a newly loaded scene.
-            let scene_ref = &mut context.scenes[scene];
-
-            scene_ref.rendering_options.ambient_lighting_color = Color::opaque(20, 20, 20);
-        }
-    }
-}
-
 /// A helper that is used to load scenes asynchronously.
 ///
 /// ## Examples
@@ -268,8 +204,12 @@ mod kek {
 /// struct GameConstructor;
 ///
 /// impl PluginConstructor for GameConstructor {
-///     fn create_instance(&self, has_scene: bool, context: PluginContext) -> Box<dyn Plugin> {
-///         Box::new(MyGame::new(has_scene, context))
+///     fn create_instance(
+///         &self,
+///         scene_path: Option<&str>,
+///         context: PluginContext,
+///     ) -> Box<dyn Plugin> {
+///         Box::new(MyGame::new(scene_path, context))
 ///     }
 /// }
 ///
@@ -278,11 +218,10 @@ mod kek {
 /// }
 ///
 /// impl MyGame {
-///     pub fn new(has_scene: bool, context: PluginContext) -> Self {
-///         // Request a scene only if there's no scene loaded.
-///         if !has_scene {
-///             context.async_scene_loader.request("data/scene.rgs");
-///         }
+///     pub fn new(scene_path: Option<&str>, context: PluginContext) -> Self {
+///         context
+///             .async_scene_loader
+///             .request(scene_path.unwrap_or("data/scene.rgs"));
 ///
 ///         Self {
 ///             scene: Handle::NONE,
@@ -1822,7 +1761,7 @@ impl Engine {
     }
 
     /// Enables or disables registered plugins.
-    pub(crate) fn enable_plugins(&mut self, has_scene: bool, enabled: bool) {
+    pub(crate) fn enable_plugins(&mut self, scene_path: Option<&str>, enabled: bool) {
         if self.plugins_enabled != enabled {
             self.plugins_enabled = enabled;
 
@@ -1830,7 +1769,7 @@ impl Engine {
                 // Create and initialize instances.
                 for constructor in self.plugin_constructors.iter() {
                     self.plugins.push(constructor.create_instance(
-                        has_scene,
+                        scene_path,
                         PluginContext {
                             scenes: &mut self.scenes,
                             resource_manager: &self.resource_manager,
@@ -1899,7 +1838,7 @@ impl Drop for Engine {
         }
 
         // Finally disable plugins.
-        self.enable_plugins(false, false);
+        self.enable_plugins(None, false);
     }
 }
 

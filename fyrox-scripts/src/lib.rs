@@ -24,7 +24,7 @@ pub mod camera;
 ///   }
 /// #   fn create_instance(
 /// #       &self,
-/// #       _override_scene: Handle<Scene>,
+/// #       _scene_path: Option<&str>,
 /// #       _context: PluginContext,
 /// #   ) -> Box<dyn Plugin> {
 /// #       unimplemented!()

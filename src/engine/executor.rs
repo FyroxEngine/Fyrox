@@ -136,11 +136,14 @@ impl Executor {
 
         let args = Args::parse();
 
-        if !args.override_scene.is_empty() {
-            engine.async_scene_loader.request(&args.override_scene);
-        }
-
-        engine.enable_plugins(!args.override_scene.is_empty(), true);
+        engine.enable_plugins(
+            if args.override_scene.is_empty() {
+                None
+            } else {
+                Some(&args.override_scene)
+            },
+            true,
+        );
 
         let mut previous = Instant::now();
         let fixed_time_step = 1.0 / self.desired_update_rate;
