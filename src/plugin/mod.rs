@@ -2,17 +2,19 @@
 
 #![warn(missing_docs)]
 
-use crate::engine::ScriptProcessor;
 use crate::{
     asset::manager::ResourceManager,
     core::pool::Handle,
-    engine::{GraphicsContext, PerformanceStatistics, SerializationContext},
+    engine::{
+        AsyncSceneLoader, GraphicsContext, PerformanceStatistics, ScriptProcessor,
+        SerializationContext,
+    },
     event::Event,
     event_loop::ControlFlow,
     gui::{message::UiMessage, UserInterface},
     scene::{Scene, SceneContainer},
 };
-use std::{any::Any, sync::Arc};
+use std::{any::Any, path::Path, sync::Arc};
 
 /// Plugin constructor is a first step of 2-stage plugin initialization. It is responsible for plugin script
 /// registration and for creating actual plugin instance.
@@ -30,15 +32,12 @@ pub trait PluginConstructor {
     /// The method is called when the engine creates plugin instances. It allows to create initialized plugin
     /// instance.
     ///
-    /// # Important notes
+    /// ## Arguments
     ///
-    /// `override_scene` is a handle to an override scene that is currently active. It is used only in editor
-    /// when you enter play mode, on other cases it is `Handle::NONE`.
-    fn create_instance(
-        &self,
-        #[allow(unused_variables)] override_scene: Handle<Scene>,
-        context: PluginContext,
-    ) -> Box<dyn Plugin>;
+    /// `has_scene` argument tells you that there's already a scene specified. It is used primarily
+    /// by the editor, to run your game with a scene you have current opened in the editor. If this
+    /// flag is `true` then you should not load a default scene of your game.
+    fn create_instance(&self, has_scene: bool, context: PluginContext) -> Box<dyn Plugin>;
 }
 
 /// Contains plugin environment for the registration stage.
@@ -94,6 +93,10 @@ pub struct PluginContext<'a, 'b> {
 
     /// Script processor is used to run script methods in a strict order.
     pub script_processor: &'a ScriptProcessor,
+
+    /// Asynchronous scene loader. It is used to request scene loading. See [`AsyncSceneLoader`] docs
+    /// for usage example.
+    pub async_scene_loader: &'a mut AsyncSceneLoader,
 }
 
 /// Base plugin automatically implements type casting for plugins.
@@ -235,6 +238,27 @@ pub trait Plugin: BasePlugin {
         #[allow(unused_variables)] context: &mut PluginContext,
         #[allow(unused_variables)] message: &UiMessage,
         #[allow(unused_variables)] control_flow: &mut ControlFlow,
+    ) {
+    }
+
+    /// This method is called when the engine starts loading a scene from the given `path`. It could
+    /// be used to "catch" the moment when the scene is about to be loaded; to show a progress bar
+    /// for example. See [`AsyncSceneLoader`] docs for usage example.
+    fn on_scene_begin_loading(
+        &mut self,
+        #[allow(unused_variables)] path: &Path,
+        #[allow(unused_variables)] context: &mut PluginContext,
+    ) {
+    }
+
+    /// This method is called when the engine finishes loading a scene from the given `path`. Use
+    /// this method if you need do something with a newly loaded scene. See [`AsyncSceneLoader`] docs
+    /// for usage example.
+    fn on_scene_loaded(
+        &mut self,
+        #[allow(unused_variables)] path: &Path,
+        #[allow(unused_variables)] scene: Handle<Scene>,
+        #[allow(unused_variables)] context: &mut PluginContext,
     ) {
     }
 }

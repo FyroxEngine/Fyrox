@@ -12,7 +12,6 @@ use crate::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
     plugin::PluginConstructor,
-    scene::loader::AsyncSceneLoader,
     utils::translate_event,
     window::WindowAttributes,
 };
@@ -34,7 +33,6 @@ pub struct Executor {
     event_loop: EventLoop<()>,
     engine: Engine,
     desired_update_rate: f32,
-    loader: Option<AsyncSceneLoader>,
     headless: bool,
 }
 
@@ -80,7 +78,6 @@ impl Executor {
             event_loop,
             engine,
             desired_update_rate: Self::DEFAULT_UPDATE_RATE,
-            loader: None,
             headless: false,
         }
     }
@@ -132,7 +129,7 @@ impl Executor {
     }
 
     /// Runs the executor - starts your game.
-    pub fn run(mut self) {
+    pub fn run(self) {
         let mut engine = self.engine;
         let event_loop = self.event_loop;
         let headless = self.headless;
@@ -140,16 +137,10 @@ impl Executor {
         let args = Args::parse();
 
         if !args.override_scene.is_empty() {
-            // Try to load specified scene in a separate thread.
-            self.loader = Some(AsyncSceneLoader::begin_loading(
-                args.override_scene.into(),
-                engine.serialization_context.clone(),
-                engine.resource_manager.clone(),
-            ));
-        } else {
-            // Enable plugins immediately.
-            engine.enable_plugins(Default::default(), true);
+            engine.async_scene_loader.request(&args.override_scene);
         }
+
+        engine.enable_plugins(!args.override_scene.is_empty(), true);
 
         let mut previous = Instant::now();
         let fixed_time_step = 1.0 / self.desired_update_rate;
@@ -198,22 +189,6 @@ impl Executor {
                     );
                 }
                 Event::AboutToWait => {
-                    if let Some(loader) = self.loader.as_ref() {
-                        if let Some(result) = loader.fetch_result() {
-                            let override_scene = match result {
-                                Ok(scene) => engine.scenes.add(scene),
-                                Err(e) => {
-                                    Log::err(e);
-                                    Default::default()
-                                }
-                            };
-
-                            engine.enable_plugins(override_scene, true);
-
-                            self.loader = None;
-                        }
-                    }
-
                     let elapsed = previous.elapsed();
                     previous = Instant::now();
                     lag += elapsed.as_secs_f32();

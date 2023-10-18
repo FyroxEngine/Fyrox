@@ -6,7 +6,6 @@
 pub mod error;
 pub mod executor;
 
-use crate::scene::camera::SkyBoxKind;
 use crate::{
     asset::{
         event::ResourceEvent,
@@ -23,11 +22,12 @@ use crate::{
     renderer::{framework::error::FrameworkError, framework::state::GlKind, Renderer},
     resource::{
         curve::{loader::CurveLoader, CurveResourceState},
-        model::{loader::ModelLoader, Model, ModelResource},
+        model::{loader::ModelLoader, Model, ModelResource, ModelResourceExtension},
         texture::{loader::TextureLoader, Texture, TextureKind},
     },
     scene::{
         base::NodeScriptMessage,
+        camera::SkyBoxKind,
         graph::GraphUpdateSwitches,
         node::{constructor::NodeConstructorContainer, Node},
         sound::SoundEngine,
@@ -41,8 +41,10 @@ use crate::{
     window::{Window, WindowBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_sound::buffer::{loader::SoundBufferLoader, SoundBuffer};
-use fyrox_sound::renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData};
+use fyrox_sound::{
+    buffer::{loader::SoundBufferLoader, SoundBuffer},
+    renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
+};
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{
     config::ConfigTemplateBuilder,
@@ -60,16 +62,17 @@ use raw_window_handle::HasRawWindowHandle;
 use std::{
     any::TypeId,
     collections::{HashSet, VecDeque},
+    ffi::CString,
     fmt::{Display, Formatter},
+    num::NonZeroU32,
     ops::Deref,
+    path::Path,
     sync::{
         mpsc::{channel, Receiver},
         Arc,
     },
     time::Duration,
 };
-#[cfg(not(target_arch = "wasm32"))]
-use std::{ffi::CString, num::NonZeroU32};
 use winit::{
     dpi::{Position, Size},
     event_loop::EventLoopWindowTarget,
@@ -186,6 +189,168 @@ impl GraphicsContext {
     }
 }
 
+mod kek {
+    use crate::{
+        core::{color::Color, log::Log, pool::Handle},
+        plugin::{Plugin, PluginConstructor, PluginContext},
+        scene::Scene,
+    };
+    use std::path::Path;
+
+    struct GameConstructor;
+
+    impl PluginConstructor for GameConstructor {
+        fn create_instance(&self, has_scene: bool, context: PluginContext) -> Box<dyn Plugin> {
+            Box::new(MyGame::new(has_scene, context))
+        }
+    }
+
+    struct MyGame {
+        scene: Handle<Scene>,
+    }
+
+    impl MyGame {
+        pub fn new(has_scene: bool, context: PluginContext) -> Self {
+            // Request a scene only if there's no scene loaded.
+            if !has_scene {
+                context.async_scene_loader.request("data/scene.rgs");
+            }
+
+            Self {
+                scene: Handle::NONE,
+            }
+        }
+    }
+
+    impl Plugin for MyGame {
+        fn on_scene_begin_loading(&mut self, path: &Path, _context: &mut PluginContext) {
+            Log::info(format!("{} scene has started loading.", path.display()));
+
+            // Use this method if you need to so something when a scene started loading.
+        }
+
+        fn on_scene_loaded(
+            &mut self,
+            path: &Path,
+            scene: Handle<Scene>,
+            context: &mut PluginContext,
+        ) {
+            // Optionally remove previous scene.
+            if self.scene.is_some() {
+                context.scenes.remove(self.scene);
+            }
+
+            // Remember new scene handle.
+            self.scene = scene;
+
+            Log::info(format!("{} scene was loaded!", path.display()));
+
+            // Do something with a newly loaded scene.
+            let scene_ref = &mut context.scenes[scene];
+
+            scene_ref.rendering_options.ambient_lighting_color = Color::opaque(20, 20, 20);
+        }
+    }
+}
+
+/// A helper that is used to load scenes asynchronously.
+///
+/// ## Examples
+///
+/// ```rust
+/// use fyrox::{
+///     core::{color::Color, log::Log, pool::Handle},
+///     plugin::{Plugin, PluginConstructor, PluginContext},
+///     scene::Scene,
+/// };
+/// use std::path::Path;
+///
+/// struct GameConstructor;
+///
+/// impl PluginConstructor for GameConstructor {
+///     fn create_instance(&self, has_scene: bool, context: PluginContext) -> Box<dyn Plugin> {
+///         Box::new(MyGame::new(has_scene, context))
+///     }
+/// }
+///
+/// struct MyGame {
+///     scene: Handle<Scene>,
+/// }
+///
+/// impl MyGame {
+///     pub fn new(has_scene: bool, context: PluginContext) -> Self {
+///         // Request a scene only if there's no scene loaded.
+///         if !has_scene {
+///             context.async_scene_loader.request("data/scene.rgs");
+///         }
+///
+///         Self {
+///             scene: Handle::NONE,
+///         }
+///     }
+/// }
+///
+/// impl Plugin for MyGame {
+///     fn on_scene_begin_loading(&mut self, path: &Path, _context: &mut PluginContext) {
+///         Log::info(format!("{} scene has started loading.", path.display()));
+///
+///         // Use this method if you need to so something when a scene started loading.
+///     }
+///
+///     fn on_scene_loaded(
+///         &mut self,
+///         path: &Path,
+///         scene: Handle<Scene>,
+///         context: &mut PluginContext,
+///     ) {
+///         // Optionally remove previous scene.
+///         if self.scene.is_some() {
+///             context.scenes.remove(self.scene);
+///         }
+///
+///         // Remember new scene handle.
+///         self.scene = scene;
+///
+///         Log::info(format!("{} scene was loaded!", path.display()));
+///
+///         // Do something with a newly loaded scene.
+///         let scene_ref = &mut context.scenes[scene];
+///
+///         scene_ref.rendering_options.ambient_lighting_color = Color::opaque(20, 20, 20);
+///     }
+/// }
+/// ```
+///
+/// This example shows a typical usage of the loader, an instance of which is available in the
+/// plugin context. `Game::new` requests a new scene, which internally asks a resource manager to
+/// load the scene. Then, when the scene is fully loaded, the engine calls `Plugin::on_scene_loaded`
+/// method which allows you to do something with the newly loaded scene by taking a reference of it.
+pub struct AsyncSceneLoader {
+    resource_manager: ResourceManager,
+    receiver: Receiver<ResourceEvent>,
+    loading_scenes: FxHashSet<ModelResource>,
+}
+
+impl AsyncSceneLoader {
+    fn new(resource_manager: ResourceManager) -> Self {
+        let (sender, receiver) = channel();
+
+        resource_manager.state().event_broadcaster.add(sender);
+
+        Self {
+            resource_manager,
+            receiver,
+            loading_scenes: Default::default(),
+        }
+    }
+
+    /// Requests a scene for loading. See [`AsyncSceneLoader`] for usage example.
+    pub fn request<P: AsRef<Path>>(&mut self, path: P) {
+        let model_resource = self.resource_manager.request::<Model, _>(path);
+        self.loading_scenes.insert(model_resource);
+    }
+}
+
 /// See module docs.
 pub struct Engine {
     /// Graphics context of the engine. See [`GraphicsContext`] docs for more info.
@@ -202,6 +367,9 @@ pub struct Engine {
 
     /// All available scenes in the engine.
     pub scenes: SceneContainer,
+
+    /// An instance of the async scene loader. See [`AsyncSceneLoader`] docs for usage example.
+    pub async_scene_loader: AsyncSceneLoader,
 
     performance_statistics: PerformanceStatistics,
 
@@ -895,6 +1063,7 @@ impl Engine {
         Ok(Self {
             graphics_context: GraphicsContext::Uninitialized(graphics_context_params),
             model_events_receiver: tx,
+            async_scene_loader: AsyncSceneLoader::new(resource_manager.clone()),
             resource_manager,
             scenes: SceneContainer::new(sound_engine.clone()),
             sound_engine,
@@ -1210,8 +1379,92 @@ impl Engine {
         lag: &mut f32,
         switches: FxHashMap<Handle<Scene>, GraphUpdateSwitches>,
     ) {
+        self.handle_async_scene_loading(dt, lag);
         self.pre_update(dt, control_flow, lag, switches);
         self.post_update(dt);
+    }
+
+    fn handle_async_scene_loading(&mut self, dt: f32, lag: &mut f32) {
+        while let Ok(event) = self.async_scene_loader.receiver.try_recv() {
+            match event {
+                ResourceEvent::Added(untyped) => {
+                    if let Some(model) = untyped.try_cast::<Model>() {
+                        let path = model.path();
+                        if self.async_scene_loader.loading_scenes.contains(&model) {
+                            // Notify plugins about a scene, that started loading.
+                            if self.plugins_enabled {
+                                let mut context = PluginContext {
+                                    scenes: &mut self.scenes,
+                                    resource_manager: &self.resource_manager,
+                                    graphics_context: &mut self.graphics_context,
+                                    dt,
+                                    lag,
+                                    user_interface: &mut self.user_interface,
+                                    serialization_context: &self.serialization_context,
+                                    performance_statistics: &self.performance_statistics,
+                                    elapsed_time: self.elapsed_time,
+                                    script_processor: &self.script_processor,
+                                    async_scene_loader: &mut self.async_scene_loader,
+                                };
+
+                                for plugin in self.plugins.iter_mut() {
+                                    plugin.on_scene_begin_loading(&path, &mut context);
+                                }
+                            }
+                        }
+                    }
+                }
+                ResourceEvent::Loaded(untyped) => {
+                    if let Some(model) = untyped.try_cast::<Model>() {
+                        if self
+                            .async_scene_loader
+                            .loading_scenes
+                            .take(&model)
+                            .is_some()
+                        {
+                            let path = model.path();
+                            if model.is_ok() {
+                                let mut scene = Scene::new();
+
+                                model.instantiate(&mut scene);
+
+                                let mutex_guard = model.data_ref();
+                                let model_scene = mutex_guard.get_scene();
+
+                                scene.enabled = model_scene.enabled;
+                                scene.rendering_options = model_scene.rendering_options.clone();
+
+                                drop(mutex_guard);
+
+                                let scene_handle = self.scenes.add(scene);
+
+                                // Notify plugins about newly loaded scene.
+                                if self.plugins_enabled {
+                                    let mut context = PluginContext {
+                                        scenes: &mut self.scenes,
+                                        resource_manager: &self.resource_manager,
+                                        graphics_context: &mut self.graphics_context,
+                                        dt,
+                                        lag,
+                                        user_interface: &mut self.user_interface,
+                                        serialization_context: &self.serialization_context,
+                                        performance_statistics: &self.performance_statistics,
+                                        elapsed_time: self.elapsed_time,
+                                        script_processor: &self.script_processor,
+                                        async_scene_loader: &mut self.async_scene_loader,
+                                    };
+
+                                    for plugin in self.plugins.iter_mut() {
+                                        plugin.on_scene_loaded(&path, scene_handle, &mut context);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
     }
 
     /// Performs pre update for the engine.
@@ -1326,6 +1579,7 @@ impl Engine {
                 performance_statistics: &self.performance_statistics,
                 elapsed_time: self.elapsed_time,
                 script_processor: &self.script_processor,
+                async_scene_loader: &mut self.async_scene_loader,
             };
 
             for plugin in self.plugins.iter_mut() {
@@ -1344,6 +1598,7 @@ impl Engine {
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
                     script_processor: &self.script_processor,
+                    async_scene_loader: &mut self.async_scene_loader,
                 };
 
                 for plugin in self.plugins.iter_mut() {
@@ -1377,6 +1632,7 @@ impl Engine {
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
                         script_processor: &self.script_processor,
+                        async_scene_loader: &mut self.async_scene_loader,
                     },
                     control_flow,
                 );
@@ -1404,6 +1660,7 @@ impl Engine {
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
                         script_processor: &self.script_processor,
+                        async_scene_loader: &mut self.async_scene_loader,
                     },
                     control_flow,
                 );
@@ -1431,6 +1688,7 @@ impl Engine {
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
                         script_processor: &self.script_processor,
+                        async_scene_loader: &mut self.async_scene_loader,
                     },
                     control_flow,
                 );
@@ -1458,6 +1716,7 @@ impl Engine {
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
                         script_processor: &self.script_processor,
+                        async_scene_loader: &mut self.async_scene_loader,
                     },
                     control_flow,
                 );
@@ -1563,7 +1822,7 @@ impl Engine {
     }
 
     /// Enables or disables registered plugins.
-    pub(crate) fn enable_plugins(&mut self, override_scene: Handle<Scene>, enabled: bool) {
+    pub(crate) fn enable_plugins(&mut self, has_scene: bool, enabled: bool) {
         if self.plugins_enabled != enabled {
             self.plugins_enabled = enabled;
 
@@ -1571,7 +1830,7 @@ impl Engine {
                 // Create and initialize instances.
                 for constructor in self.plugin_constructors.iter() {
                     self.plugins.push(constructor.create_instance(
-                        override_scene,
+                        has_scene,
                         PluginContext {
                             scenes: &mut self.scenes,
                             resource_manager: &self.resource_manager,
@@ -1583,6 +1842,7 @@ impl Engine {
                             performance_statistics: &self.performance_statistics,
                             elapsed_time: self.elapsed_time,
                             script_processor: &self.script_processor,
+                            async_scene_loader: &mut self.async_scene_loader,
                         },
                     ));
                 }
@@ -1602,6 +1862,7 @@ impl Engine {
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
                         script_processor: &self.script_processor,
+                        async_scene_loader: &mut self.async_scene_loader,
                     });
                 }
             }
@@ -1638,7 +1899,7 @@ impl Drop for Engine {
         }
 
         // Finally disable plugins.
-        self.enable_plugins(Default::default(), false);
+        self.enable_plugins(false, false);
     }
 }
 
