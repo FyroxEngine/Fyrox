@@ -517,6 +517,14 @@ impl ResourceManagerState {
             false
         }
     }
+
+    /// Forgets that a resource at the given path was ever loaded, thus making it possible to reload it
+    /// again as a new instance.
+    pub fn unregister(&mut self, path: &Path) {
+        if let Some(position) = self.resources.iter().position(|r| r.path() == path) {
+            self.resources.remove(position);
+        }
+    }
 }
 
 #[cfg(test)]
