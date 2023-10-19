@@ -220,7 +220,7 @@ impl PartialPath {
         new_g_score: f32,
         new_f_score: f32,
     ) -> PartialPath {
-        let mut clone = Clone::clone(self);
+        let mut clone = self.clone();
         clone.vertices.push(new_vertex);
         clone.g_score = new_g_score;
         clone.f_score = new_f_score;
@@ -503,7 +503,7 @@ impl PathFinder {
     ///
     /// This is more or less a naive implementation, it most certainly will be slower than specialized solutions.
     pub fn build(
-        &mut self,
+        &self,
         from: usize,
         to: usize,
         path: &mut Vec<Vector3<f32>>,
@@ -529,12 +529,9 @@ impl PathFinder {
         // stores best path found
         let mut best_path = PartialPath::default();
 
-        // TODO: don't hard code this
-        let max_search_iterations = 1000u16;
-        let mut search_iteration = 0u16;
-
         // search loop
-        while search_iteration < max_search_iterations {
+        // TODO: don't hard code max search itterations
+        for _ in 0..1000 {
             // breakes loop if heap is empty
             if search_heap.is_empty() {
                 break;
@@ -543,11 +540,6 @@ impl PathFinder {
             // pops best partial path off the heap to use for this itteration
             // we unwrap because we already checked for an empty heap
             let current_path = search_heap.pop().unwrap();
-
-            // updates best path
-            if current_path > best_path {
-                best_path = current_path.clone();
-            }
 
             let current_index = *current_path.vertices.last().unwrap();
             let current_vertex = self
@@ -596,7 +588,10 @@ impl PathFinder {
                 ));
             }
 
-            search_iteration += 1;
+            // updates best path
+            if current_path > best_path {
+                best_path = current_path;
+            }
         }
 
         // No direct path found, then return best partial path
