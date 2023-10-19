@@ -218,8 +218,12 @@ impl Plugin for Game {
         &mut self,
         _path: &Path,
         scene: Handle<Scene>,
-        _context: &mut PluginContext,
+        context: &mut PluginContext,
     ) {
+        if self.scene.is_some() {
+            context.scenes.remove(self.scene);
+        }
+    
         self.scene = scene;
     }
 }
