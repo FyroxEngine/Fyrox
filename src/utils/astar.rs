@@ -11,7 +11,12 @@ use crate::core::{
     math::{self, PositionProvider},
     visitor::prelude::*,
 };
-use std::fmt::{Display, Formatter};
+use fyrox_ui::message::MessageData;
+use std::{
+    cmp::Ordering,
+    collections::BinaryHeap,
+    fmt::{Display, Formatter},
+};
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 enum PathVertexState {
@@ -155,6 +160,75 @@ impl Display for PathError {
     }
 }
 
+#[derive(Clone)]
+/// A partailly complete path containing the indexes to its vertices and its A* scores
+pub struct PartialPath {
+    vertices: Vec<usize>,
+    g_score: f32,
+    f_score: f32,
+}
+
+impl Default for PartialPath {
+    fn default() -> Self {
+        Self {
+            vertices: Vec::new(),
+            g_score: f32::MAX,
+            f_score: f32::MAX,
+        }
+    }
+}
+
+impl Ord for PartialPath {
+    fn cmp(&self, other: &Self) -> Ordering {
+        (self.f_score.total_cmp(&other.f_score))
+            .then(self.g_score.total_cmp(&other.g_score))
+            .then(self.vertices.cmp(&other.vertices))
+            .reverse()
+    }
+}
+
+impl PartialOrd for PartialPath {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for PartialPath {
+    fn eq(&self, other: &Self) -> bool {
+        self.f_score == other.f_score
+            && self.g_score == other.g_score
+            && self.vertices == other.vertices
+    }
+}
+
+impl Eq for PartialPath {}
+
+impl PartialPath {
+    /// creates a new partial path from the starting vertex index
+    pub fn new(start: usize) -> Self {
+        Self {
+            vertices: vec![start],
+            g_score: 0f32,
+            f_score: f32::MAX,
+        }
+    }
+
+    /// returns a clone with the new vertex added to the end and updates scores to given new scores
+    pub fn clone_and_add(
+        &self,
+        new_vertex: usize,
+        new_g_score: f32,
+        new_f_score: f32,
+    ) -> PartialPath {
+        let mut clone = Clone::clone(self);
+        clone.vertices.push(new_vertex);
+        clone.g_score = new_g_score;
+        clone.f_score = new_f_score;
+
+        return clone;
+    }
+}
+
 impl PathFinder {
     /// Creates new empty path finder.
     pub fn new() -> Self {
@@ -286,7 +360,7 @@ impl PathFinder {
     /// # Notes
     ///
     /// This is more or less a naive implementation, it most certainly will be slower than specialized solutions.
-    pub fn build(
+    pub fn build_old(
         &mut self,
         from: usize,
         to: usize,
@@ -412,6 +486,133 @@ impl PathFinder {
 
         self.reconstruct_path(closest_index, path, func);
 
+        if path.is_empty() {
+            Ok(PathKind::Empty)
+        } else {
+            Ok(PathKind::Partial)
+        }
+    }
+
+    /// Tries to build path from begin point to end point. Returns path kind:
+    ///
+    /// - Full: there are direct path from begin to end.
+    /// - Partial: there are not direct path from begin to end, but it is closest.
+    /// - Empty: no path available - in most cases indicates some error in input params.
+    ///
+    /// # Notes
+    ///
+    /// This is more or less a naive implementation, it most certainly will be slower than specialized solutions.
+    pub fn build(
+        &mut self,
+        from: usize,
+        to: usize,
+        path: &mut Vec<Vector3<f32>>,
+    ) -> Result<PathKind, PathError> {
+        if self.vertices.is_empty() {
+            return Ok(PathKind::Empty);
+        }
+
+        path.clear();
+
+        let end_pos = self
+            .vertices
+            .get(to)
+            .ok_or(PathError::InvalidIndex(to))?
+            .position;
+
+        // creates heap for searching
+        let mut search_heap: BinaryHeap<PartialPath> = BinaryHeap::new();
+
+        // creates first partial path and adds it to heap
+        search_heap.push(PartialPath::new(from));
+
+        // stores best path found
+        let mut best_path = PartialPath::default();
+
+        // TODO: don't hard code this
+        let max_search_iterations = 1000u16;
+        let mut search_iteration = 0u16;
+
+        // search loop
+        while search_iteration < max_search_iterations {
+            // breakes loop if heap is empty
+            if search_heap.is_empty() {
+                break;
+            }
+
+            // pops best partial path off the heap to use for this itteration
+            // we unwrap because we already checked for an empty heap
+            let current_path = search_heap.pop().unwrap();
+
+            // updates best path
+            if current_path > best_path {
+                best_path = current_path.clone();
+            }
+
+            let current_index = *current_path.vertices.last().unwrap();
+            let current_vertex = self
+                .vertices
+                .get(current_index)
+                .ok_or(PathError::InvalidIndex(current_index))?;
+
+            // evaluates path scores one level deeper and adds the paths to the heap
+            for i in current_vertex.neighbours.iter() {
+                let neighbour_index = *i as usize;
+
+                // returns path if neighbour is end vertex
+                if neighbour_index == to {
+                    let mut path_indicies = current_path.vertices.clone();
+                    path_indicies.push(neighbour_index);
+
+                    // converts from indicies to positions
+                    // TODO: conversion should be moved to its own funtion
+                    for index in path_indicies.iter() {
+                        let postion = self
+                            .vertices
+                            .get(*index)
+                            .ok_or(PathError::InvalidIndex(*index))?;
+
+                        path.push(postion.position);
+                    }
+                    path.reverse();
+                    return Ok(PathKind::Full);
+                }
+
+                let neighbour = self
+                    .vertices
+                    .get(neighbour_index)
+                    .ok_or(PathError::InvalidIndex(current_index))?;
+
+                let neighbour_g_score = current_path.g_score
+                    + ((current_vertex.position - neighbour.position).norm_squared()
+                        * neighbour.g_penalty);
+
+                let neighbour_f_score = neighbour_g_score + heuristic(neighbour.position, end_pos);
+
+                search_heap.push(current_path.clone_and_add(
+                    neighbour_index,
+                    neighbour_g_score,
+                    neighbour_f_score,
+                ));
+            }
+
+            search_iteration += 1;
+        }
+
+        // No direct path found, then return best partial path
+
+        // converts from indicies to positions
+        // TODO: conversion should be moved to its own funtion
+        for index in best_path.vertices.iter() {
+            let postion = self
+                .vertices
+                .get(*index)
+                .ok_or(PathError::InvalidIndex(*index))?;
+
+            path.push(postion.position);
+        }
+
+        path.reverse();
         if path.is_empty() {
             Ok(PathKind::Empty)
         } else {
