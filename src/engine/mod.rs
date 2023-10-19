@@ -285,6 +285,7 @@ impl AsyncSceneLoader {
 
     /// Requests a scene for loading. See [`AsyncSceneLoader`] for usage example.
     pub fn request<P: AsRef<Path>>(&mut self, path: P) {
+        self.resource_manager.state().unregister(path.as_ref());
         let model_resource = self.resource_manager.request::<Model, _>(path);
         self.loading_scenes.insert(model_resource);
     }
