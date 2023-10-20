@@ -390,6 +390,12 @@ where
         self.state.as_ref().unwrap().0.lock().path().to_path_buf()
     }
 
+    /// Sets a new path of the resource.
+    #[inline]
+    pub fn set_path(&mut self, new_path: PathBuf) {
+        self.state.as_ref().unwrap().set_path(new_path);
+    }
+
     /// Allows you to obtain reference to the resource data.
     ///
     /// # Panic
