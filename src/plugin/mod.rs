@@ -10,11 +10,11 @@ use crate::{
         SerializationContext,
     },
     event::Event,
-    event_loop::ControlFlow,
     gui::{message::UiMessage, UserInterface},
     scene::{Scene, SceneContainer},
 };
 use std::{any::Any, path::Path, sync::Arc};
+use winit::event_loop::EventLoopWindowTarget;
 
 /// Plugin constructor is a first step of 2-stage plugin initialization. It is responsible for plugin script
 /// registration and for creating actual plugin instance.
@@ -97,6 +97,10 @@ pub struct PluginContext<'a, 'b> {
     /// Asynchronous scene loader. It is used to request scene loading. See [`AsyncSceneLoader`] docs
     /// for usage example.
     pub async_scene_loader: &'a mut AsyncSceneLoader,
+
+    /// Special field that associates main application event loop (not game loop) with OS-specific
+    /// windows. It also can be used to alternate control flow of the application.
+    pub window_target: Option<&'b EventLoopWindowTarget<()>>,
 }
 
 /// Base plugin automatically implements type casting for plugins.
@@ -187,12 +191,7 @@ pub trait Plugin: BasePlugin {
 
     /// Updates the plugin internals at fixed rate (see [`PluginContext::dt`] parameter for more
     /// info).
-    fn update(
-        &mut self,
-        #[allow(unused_variables)] context: &mut PluginContext,
-        #[allow(unused_variables)] control_flow: &mut ControlFlow,
-    ) {
-    }
+    fn update(&mut self, #[allow(unused_variables)] context: &mut PluginContext) {}
 
     /// The method is called when the main window receives an event from the OS. The main use of
     /// the method is to respond to some external events, for example an event from keyboard or
@@ -201,7 +200,6 @@ pub trait Plugin: BasePlugin {
         &mut self,
         #[allow(unused_variables)] event: &Event<()>,
         #[allow(unused_variables)] context: PluginContext,
-        #[allow(unused_variables)] control_flow: &mut ControlFlow,
     ) {
     }
 
@@ -210,25 +208,15 @@ pub trait Plugin: BasePlugin {
     fn on_graphics_context_initialized(
         &mut self,
         #[allow(unused_variables)] context: PluginContext,
-        #[allow(unused_variables)] control_flow: &mut ControlFlow,
     ) {
     }
 
     /// The method is called before the actual frame rendering. It could be useful to render off-screen
     /// data (render something to texture, that can be used later in the main frame).
-    fn before_rendering(
-        &mut self,
-        #[allow(unused_variables)] context: PluginContext,
-        #[allow(unused_variables)] control_flow: &mut ControlFlow,
-    ) {
-    }
+    fn before_rendering(&mut self, #[allow(unused_variables)] context: PluginContext) {}
 
     /// The method is called when the current graphics context was destroyed.
-    fn on_graphics_context_destroyed(
-        &mut self,
-        #[allow(unused_variables)] context: PluginContext,
-        #[allow(unused_variables)] control_flow: &mut ControlFlow,
-    ) {
+    fn on_graphics_context_destroyed(&mut self, #[allow(unused_variables)] context: PluginContext) {
     }
 
     /// The method will be called when there is any message from main user interface instance
@@ -237,7 +225,6 @@ pub trait Plugin: BasePlugin {
         &mut self,
         #[allow(unused_variables)] context: &mut PluginContext,
         #[allow(unused_variables)] message: &UiMessage,
-        #[allow(unused_variables)] control_flow: &mut ControlFlow,
     ) {
     }
 

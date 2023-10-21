@@ -15,7 +15,6 @@ use crate::{
     core::{algebra::Vector2, futures::executor::block_on, instant, log::Log, pool::Handle},
     engine::error::EngineError,
     event::Event,
-    event_loop::ControlFlow,
     gui::UserInterface,
     material::shader::{loader::ShaderLoader, Shader, ShaderResource, ShaderResourceExtension},
     plugin::{Plugin, PluginConstructor, PluginContext, PluginRegistrationContext},
@@ -49,7 +48,7 @@ use fyrox_sound::{
 use glutin::{
     config::ConfigTemplateBuilder,
     context::{
-        ContextApi, ContextAttributesBuilder, GlProfile, NotCurrentGlContextSurfaceAccessor,
+        ContextApi, ContextAttributesBuilder, GlProfile, NotCurrentGlContext,
         PossiblyCurrentContext, Version,
     },
     display::{GetGlDisplay, GlDisplay},
@@ -1047,14 +1046,14 @@ impl Engine {
                 window_builder = window_builder.with_resize_increments(resize_increments);
             }
             unsafe {
-                window_builder =
-                    window_builder.with_parent_window(params.window_attributes.parent_window);
+                window_builder = window_builder
+                    .with_parent_window(params.window_attributes.parent_window().cloned());
             }
             window_builder = window_builder
                 .with_resizable(params.window_attributes.resizable)
                 .with_enabled_buttons(params.window_attributes.enabled_buttons)
                 .with_title(params.window_attributes.title.clone())
-                .with_fullscreen(params.window_attributes.fullscreen.clone())
+                .with_fullscreen(params.window_attributes.fullscreen().cloned())
                 .with_maximized(params.window_attributes.maximized)
                 .with_visible(params.window_attributes.visible)
                 .with_transparent(params.window_attributes.transparent)
@@ -1240,28 +1239,29 @@ impl Engine {
         if let GraphicsContext::Initialized(ref ctx) = self.graphics_context {
             let params = &ctx.params;
             let window = &ctx.window;
+
+            let mut window_attributes = WindowAttributes::default();
+
+            window_attributes.inner_size = Some(Size::Physical(window.inner_size()));
+            window_attributes.min_inner_size = params.window_attributes.min_inner_size;
+            window_attributes.max_inner_size = params.window_attributes.max_inner_size;
+            window_attributes.position = window.outer_position().ok().map(Position::Physical);
+            window_attributes.resizable = window.is_resizable();
+            window_attributes.enabled_buttons = window.enabled_buttons();
+            window_attributes.title = window.title();
+            window_attributes.maximized = window.is_maximized();
+            window_attributes.visible = window.is_visible().unwrap_or(true);
+            window_attributes.transparent = params.window_attributes.transparent;
+            window_attributes.decorations = window.is_decorated();
+            window_attributes.window_icon = params.window_attributes.window_icon.clone();
+            window_attributes.preferred_theme = params.window_attributes.preferred_theme;
+            window_attributes.resize_increments = window.resize_increments().map(Size::Physical);
+            window_attributes.content_protected = params.window_attributes.content_protected;
+            window_attributes.window_level = params.window_attributes.window_level;
+            window_attributes.active = params.window_attributes.active;
+
             self.graphics_context = GraphicsContext::Uninitialized(GraphicsContextParams {
-                window_attributes: WindowAttributes {
-                    inner_size: Some(Size::Physical(window.inner_size())),
-                    min_inner_size: params.window_attributes.min_inner_size,
-                    max_inner_size: params.window_attributes.max_inner_size,
-                    position: window.outer_position().ok().map(Position::Physical),
-                    resizable: window.is_resizable(),
-                    enabled_buttons: window.enabled_buttons(),
-                    title: window.title(),
-                    fullscreen: window.fullscreen(),
-                    maximized: window.is_maximized(),
-                    visible: window.is_visible().unwrap_or(true),
-                    transparent: params.window_attributes.transparent,
-                    decorations: window.is_decorated(),
-                    window_icon: params.window_attributes.window_icon.clone(),
-                    preferred_theme: params.window_attributes.preferred_theme,
-                    resize_increments: window.resize_increments().map(Size::Physical),
-                    content_protected: params.window_attributes.content_protected,
-                    window_level: params.window_attributes.window_level,
-                    parent_window: params.window_attributes.parent_window,
-                    active: params.window_attributes.active,
-                },
+                window_attributes,
                 vsync: params.vsync,
             });
 
@@ -1315,16 +1315,21 @@ impl Engine {
     pub fn update(
         &mut self,
         dt: f32,
-        control_flow: &mut ControlFlow,
+        window_target: &EventLoopWindowTarget<()>,
         lag: &mut f32,
         switches: FxHashMap<Handle<Scene>, GraphUpdateSwitches>,
     ) {
-        self.handle_async_scene_loading(dt, lag);
-        self.pre_update(dt, control_flow, lag, switches);
+        self.handle_async_scene_loading(dt, lag, window_target);
+        self.pre_update(dt, window_target, lag, switches);
         self.post_update(dt);
     }
 
-    fn handle_async_scene_loading(&mut self, dt: f32, lag: &mut f32) {
+    fn handle_async_scene_loading(
+        &mut self,
+        dt: f32,
+        lag: &mut f32,
+        window_target: &EventLoopWindowTarget<()>,
+    ) {
         while let Ok(event) = self.async_scene_loader.receiver.try_recv() {
             match event {
                 ResourceEvent::Added(untyped) => {
@@ -1345,6 +1350,7 @@ impl Engine {
                                     elapsed_time: self.elapsed_time,
                                     script_processor: &self.script_processor,
                                     async_scene_loader: &mut self.async_scene_loader,
+                                    window_target: Some(window_target),
                                 };
 
                                 for plugin in self.plugins.iter_mut() {
@@ -1392,6 +1398,7 @@ impl Engine {
                                         elapsed_time: self.elapsed_time,
                                         script_processor: &self.script_processor,
                                         async_scene_loader: &mut self.async_scene_loader,
+                                        window_target: Some(window_target),
                                     };
 
                                     for plugin in self.plugins.iter_mut() {
@@ -1424,7 +1431,7 @@ impl Engine {
     pub fn pre_update(
         &mut self,
         dt: f32,
-        control_flow: &mut ControlFlow,
+        window_target: &EventLoopWindowTarget<()>,
         lag: &mut f32,
         switches: FxHashMap<Handle<Scene>, GraphUpdateSwitches>,
     ) {
@@ -1457,7 +1464,7 @@ impl Engine {
                 );
             }
 
-            self.update_plugins(dt, control_flow, lag);
+            self.update_plugins(dt, window_target, lag);
             self.handle_scripts(dt);
         }
     }
@@ -1504,7 +1511,12 @@ impl Engine {
         self.performance_statistics.scripts_time = instant::Instant::now() - time;
     }
 
-    fn update_plugins(&mut self, dt: f32, control_flow: &mut ControlFlow, lag: &mut f32) {
+    fn update_plugins(
+        &mut self,
+        dt: f32,
+        window_target: &EventLoopWindowTarget<()>,
+        lag: &mut f32,
+    ) {
         let time = instant::Instant::now();
 
         if self.plugins_enabled {
@@ -1520,10 +1532,11 @@ impl Engine {
                 elapsed_time: self.elapsed_time,
                 script_processor: &self.script_processor,
                 async_scene_loader: &mut self.async_scene_loader,
+                window_target: Some(window_target),
             };
 
             for plugin in self.plugins.iter_mut() {
-                plugin.update(&mut context, control_flow);
+                plugin.update(&mut context);
             }
 
             while let Some(message) = self.user_interface.poll_message() {
@@ -1539,10 +1552,11 @@ impl Engine {
                     elapsed_time: self.elapsed_time,
                     script_processor: &self.script_processor,
                     async_scene_loader: &mut self.async_scene_loader,
+                    window_target: Some(window_target),
                 };
 
                 for plugin in self.plugins.iter_mut() {
-                    plugin.on_ui_message(&mut context, &message, control_flow);
+                    plugin.on_ui_message(&mut context, &message);
                 }
             }
         }
@@ -1554,7 +1568,7 @@ impl Engine {
         &mut self,
         event: &Event<()>,
         dt: f32,
-        control_flow: &mut ControlFlow,
+        window_target: &EventLoopWindowTarget<()>,
         lag: &mut f32,
     ) {
         if self.plugins_enabled {
@@ -1573,8 +1587,8 @@ impl Engine {
                         elapsed_time: self.elapsed_time,
                         script_processor: &self.script_processor,
                         async_scene_loader: &mut self.async_scene_loader,
+                        window_target: Some(window_target),
                     },
-                    control_flow,
                 );
             }
         }
@@ -1583,27 +1597,25 @@ impl Engine {
     pub(crate) fn handle_graphics_context_created_by_plugins(
         &mut self,
         dt: f32,
-        control_flow: &mut ControlFlow,
+        window_target: &EventLoopWindowTarget<()>,
         lag: &mut f32,
     ) {
         if self.plugins_enabled {
             for plugin in self.plugins.iter_mut() {
-                plugin.on_graphics_context_initialized(
-                    PluginContext {
-                        scenes: &mut self.scenes,
-                        resource_manager: &self.resource_manager,
-                        graphics_context: &mut self.graphics_context,
-                        dt,
-                        lag,
-                        user_interface: &mut self.user_interface,
-                        serialization_context: &self.serialization_context,
-                        performance_statistics: &self.performance_statistics,
-                        elapsed_time: self.elapsed_time,
-                        script_processor: &self.script_processor,
-                        async_scene_loader: &mut self.async_scene_loader,
-                    },
-                    control_flow,
-                );
+                plugin.on_graphics_context_initialized(PluginContext {
+                    scenes: &mut self.scenes,
+                    resource_manager: &self.resource_manager,
+                    graphics_context: &mut self.graphics_context,
+                    dt,
+                    lag,
+                    user_interface: &mut self.user_interface,
+                    serialization_context: &self.serialization_context,
+                    performance_statistics: &self.performance_statistics,
+                    elapsed_time: self.elapsed_time,
+                    script_processor: &self.script_processor,
+                    async_scene_loader: &mut self.async_scene_loader,
+                    window_target: Some(window_target),
+                });
             }
         }
     }
@@ -1611,27 +1623,25 @@ impl Engine {
     pub(crate) fn handle_graphics_context_destroyed_by_plugins(
         &mut self,
         dt: f32,
-        control_flow: &mut ControlFlow,
+        window_target: &EventLoopWindowTarget<()>,
         lag: &mut f32,
     ) {
         if self.plugins_enabled {
             for plugin in self.plugins.iter_mut() {
-                plugin.on_graphics_context_destroyed(
-                    PluginContext {
-                        scenes: &mut self.scenes,
-                        resource_manager: &self.resource_manager,
-                        graphics_context: &mut self.graphics_context,
-                        dt,
-                        lag,
-                        user_interface: &mut self.user_interface,
-                        serialization_context: &self.serialization_context,
-                        performance_statistics: &self.performance_statistics,
-                        elapsed_time: self.elapsed_time,
-                        script_processor: &self.script_processor,
-                        async_scene_loader: &mut self.async_scene_loader,
-                    },
-                    control_flow,
-                );
+                plugin.on_graphics_context_destroyed(PluginContext {
+                    scenes: &mut self.scenes,
+                    resource_manager: &self.resource_manager,
+                    graphics_context: &mut self.graphics_context,
+                    dt,
+                    lag,
+                    user_interface: &mut self.user_interface,
+                    serialization_context: &self.serialization_context,
+                    performance_statistics: &self.performance_statistics,
+                    elapsed_time: self.elapsed_time,
+                    script_processor: &self.script_processor,
+                    async_scene_loader: &mut self.async_scene_loader,
+                    window_target: Some(window_target),
+                });
             }
         }
     }
@@ -1639,27 +1649,25 @@ impl Engine {
     pub(crate) fn handle_before_rendering_by_plugins(
         &mut self,
         dt: f32,
-        control_flow: &mut ControlFlow,
+        window_target: &EventLoopWindowTarget<()>,
         lag: &mut f32,
     ) {
         if self.plugins_enabled {
             for plugin in self.plugins.iter_mut() {
-                plugin.before_rendering(
-                    PluginContext {
-                        scenes: &mut self.scenes,
-                        resource_manager: &self.resource_manager,
-                        graphics_context: &mut self.graphics_context,
-                        dt,
-                        lag,
-                        user_interface: &mut self.user_interface,
-                        serialization_context: &self.serialization_context,
-                        performance_statistics: &self.performance_statistics,
-                        elapsed_time: self.elapsed_time,
-                        script_processor: &self.script_processor,
-                        async_scene_loader: &mut self.async_scene_loader,
-                    },
-                    control_flow,
-                );
+                plugin.before_rendering(PluginContext {
+                    scenes: &mut self.scenes,
+                    resource_manager: &self.resource_manager,
+                    graphics_context: &mut self.graphics_context,
+                    dt,
+                    lag,
+                    user_interface: &mut self.user_interface,
+                    serialization_context: &self.serialization_context,
+                    performance_statistics: &self.performance_statistics,
+                    elapsed_time: self.elapsed_time,
+                    script_processor: &self.script_processor,
+                    async_scene_loader: &mut self.async_scene_loader,
+                    window_target: Some(window_target),
+                });
             }
         }
     }
@@ -1762,7 +1770,12 @@ impl Engine {
     }
 
     /// Enables or disables registered plugins.
-    pub(crate) fn enable_plugins(&mut self, scene_path: Option<&str>, enabled: bool) {
+    pub(crate) fn enable_plugins(
+        &mut self,
+        scene_path: Option<&str>,
+        enabled: bool,
+        window_target: Option<&EventLoopWindowTarget<()>>,
+    ) {
         if self.plugins_enabled != enabled {
             self.plugins_enabled = enabled;
 
@@ -1783,6 +1796,7 @@ impl Engine {
                             elapsed_time: self.elapsed_time,
                             script_processor: &self.script_processor,
                             async_scene_loader: &mut self.async_scene_loader,
+                            window_target,
                         },
                     ));
                 }
@@ -1803,6 +1817,7 @@ impl Engine {
                         elapsed_time: self.elapsed_time,
                         script_processor: &self.script_processor,
                         async_scene_loader: &mut self.async_scene_loader,
+                        window_target,
                     });
                 }
             }
@@ -1839,7 +1854,7 @@ impl Drop for Engine {
         }
 
         // Finally disable plugins.
-        self.enable_plugins(None, false);
+        self.enable_plugins(None, false, None);
     }
 }
 

@@ -23,12 +23,11 @@ use crate::{
 use fyrox_ui::message::CursorIcon;
 use half::f16;
 use std::{any::Any, hash::Hasher, sync::Arc};
-use winit::keyboard::NativeKeyCode;
+use winit::keyboard::PhysicalKey;
 
 /// Translates `winit`'s key code to `fyrox-ui`'s key code.
 pub fn translate_key_to_ui(key: KeyCode) -> message::KeyCode {
     match key {
-        KeyCode::Unidentified(_) => message::KeyCode::Unknown,
         KeyCode::Backquote => message::KeyCode::Backquote,
         KeyCode::Backslash => message::KeyCode::Backslash,
         KeyCode::BracketLeft => message::KeyCode::BracketLeft,
@@ -424,7 +423,7 @@ pub fn translate_key_from_ui(key: message::KeyCode) -> KeyCode {
         message::KeyCode::F33 => KeyCode::F33,
         message::KeyCode::F34 => KeyCode::F34,
         message::KeyCode::F35 => KeyCode::F35,
-        _ => KeyCode::Unidentified(NativeKeyCode::Unidentified),
+        _ => KeyCode::Fn,
     }
 }
 
@@ -491,15 +490,21 @@ pub fn translate_state(state: ElementState) -> ButtonState {
 /// Translates window event to fyrox-ui event.
 pub fn translate_event(event: &WindowEvent) -> Option<OsEvent> {
     match event {
-        WindowEvent::KeyboardInput { event, .. } => Some(OsEvent::KeyboardInput {
-            button: translate_key_to_ui(event.physical_key),
-            state: translate_state(event.state),
-            text: event
-                .text
-                .as_ref()
-                .map(|s| s.to_string())
-                .unwrap_or_default(),
-        }),
+        WindowEvent::KeyboardInput { event, .. } => {
+            if let PhysicalKey::Code(key) = event.physical_key {
+                Some(OsEvent::KeyboardInput {
+                    button: translate_key_to_ui(key),
+                    state: translate_state(event.state),
+                    text: event
+                        .text
+                        .as_ref()
+                        .map(|s| s.to_string())
+                        .unwrap_or_default(),
+                })
+            } else {
+                None
+            }
+        }
         WindowEvent::CursorMoved { position, .. } => Some(OsEvent::CursorMoved {
             position: Vector2::new(position.x as f32, position.y as f32),
         }),
@@ -534,7 +539,6 @@ pub fn translate_keyboard_modifiers(modifiers: ModifiersState) -> KeyboardModifi
 /// game and you need quickly map key code to its name.
 pub fn virtual_key_code_name(code: KeyCode) -> &'static str {
     match code {
-        KeyCode::Unidentified(_) => "Unidentified",
         KeyCode::Backquote => "Backquote",
         KeyCode::Backslash => "Backslash",
         KeyCode::BracketLeft => "BracketLeft",

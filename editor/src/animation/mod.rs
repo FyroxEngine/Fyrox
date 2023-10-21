@@ -626,8 +626,6 @@ impl AnimationEditor {
                             .iter()
                             .find(|c| &c.id() == selected_curve_id)
                     }) {
-                        dbg!();
-
                         send_sync_message(
                             &engine.user_interface,
                             CurveEditorMessage::sync(
