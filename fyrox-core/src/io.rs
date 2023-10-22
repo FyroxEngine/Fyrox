@@ -48,7 +48,7 @@ pub async fn load_file<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, FileLoadError
         let mut opened_asset = asset_manager
             .open(&std::ffi::CString::new(path.as_ref().to_str().unwrap()).unwrap())
             .ok_or_else(|| FileLoadError::Custom(format!("File {:?} not found!", path.as_ref())))?;
-        let bytes = opened_asset.get_buffer()?;
+        let bytes = opened_asset.buffer()?;
         Ok(bytes.to_vec())
     }
 
