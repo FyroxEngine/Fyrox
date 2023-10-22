@@ -1380,6 +1380,19 @@ impl Engine {
                                 scene.enabled = model_scene.enabled;
                                 scene.rendering_options = model_scene.rendering_options.clone();
 
+                                scene.graph.sound_context =
+                                    model_scene.graph.sound_context.deep_clone();
+
+                                scene.graph.physics.enabled = model_scene.graph.physics.enabled;
+                                scene.graph.physics.gravity = model_scene.graph.physics.gravity;
+                                scene.graph.physics.integration_parameters =
+                                    model_scene.graph.physics.integration_parameters;
+
+                                scene.graph.physics2d.enabled = model_scene.graph.physics2d.enabled;
+                                scene.graph.physics2d.gravity = model_scene.graph.physics2d.gravity;
+                                scene.graph.physics2d.integration_parameters =
+                                    model_scene.graph.physics2d.integration_parameters;
+
                                 drop(mutex_guard);
 
                                 let scene_handle = self.scenes.add(scene);
