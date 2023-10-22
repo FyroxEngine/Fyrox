@@ -152,7 +152,6 @@ fyrox = {{workspace = true}}"#,
 use fyrox::{
     core::pool::Handle,
     event::Event,
-    event_loop::ControlFlow,
     gui::message::UiMessage,
     plugin::{Plugin, PluginConstructor, PluginContext, PluginRegistrationContext},
     scene::Scene,
@@ -192,7 +191,7 @@ impl Plugin for Game {
         // Do a cleanup here.
     }
 
-    fn update(&mut self, _context: &mut PluginContext, _control_flow: &mut ControlFlow) {
+    fn update(&mut self, _context: &mut PluginContext) {
         // Add your global update code here.
     }
 
@@ -200,7 +199,6 @@ impl Plugin for Game {
         &mut self,
         _event: &Event<()>,
         _context: PluginContext,
-        _control_flow: &mut ControlFlow,
     ) {
         // Do something on OS event here.
     }
@@ -209,7 +207,6 @@ impl Plugin for Game {
         &mut self,
         _context: &mut PluginContext,
         _message: &UiMessage,
-        _control_flow: &mut ControlFlow,
     ) {
         // Handle UI events here.
     }
