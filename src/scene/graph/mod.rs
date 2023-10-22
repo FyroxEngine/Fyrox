@@ -286,7 +286,7 @@ impl Graph {
     /// Creates a new graph using a hierarchy of nodes specified by the `root`.
     pub fn from_hierarchy(root: Handle<Node>, other_graph: &Self) -> Self {
         let mut graph = Self::default();
-        other_graph.copy_node(root, &mut graph, &mut |_, _| true);
+        other_graph.copy_node(root, &mut graph, &mut |_, _| true, &mut |_, _, _| {});
         graph
     }
 
@@ -730,17 +730,25 @@ impl Graph {
     /// Filter allows to exclude some nodes from copied hierarchy. It must return false for
     /// odd nodes. Filtering applied only to descendant nodes.
     #[inline]
-    pub fn copy_node<F>(
+    pub fn copy_node<F, C>(
         &self,
         node_handle: Handle<Node>,
         dest_graph: &mut Graph,
         filter: &mut F,
+        callback: &mut C,
     ) -> (Handle<Node>, NodeHandleMap)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
+        C: FnMut(Handle<Node>, Handle<Node>, &mut Node),
     {
         let mut old_new_mapping = NodeHandleMap::default();
-        let root_handle = self.copy_node_raw(node_handle, dest_graph, &mut old_new_mapping, filter);
+        let root_handle = self.copy_node_raw(
+            node_handle,
+            dest_graph,
+            &mut old_new_mapping,
+            filter,
+            callback,
+        );
 
         remap_handles(&old_new_mapping, dest_graph);
 
@@ -822,15 +830,17 @@ impl Graph {
         clone
     }
 
-    fn copy_node_raw<F>(
+    fn copy_node_raw<F, C>(
         &self,
         root_handle: Handle<Node>,
         dest_graph: &mut Graph,
         old_new_mapping: &mut NodeHandleMap,
         filter: &mut F,
+        callback: &mut C,
     ) -> Handle<Node>
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
+        C: FnMut(Handle<Node>, Handle<Node>, &mut Node),
     {
         let src_node = &self.pool[root_handle];
         let dest_node = clear_links(src_node.clone_box());
@@ -838,13 +848,23 @@ impl Graph {
         old_new_mapping.map.insert(root_handle, dest_copy_handle);
         for &src_child_handle in src_node.children() {
             if filter(src_child_handle, &self.pool[src_child_handle]) {
-                let dest_child_handle =
-                    self.copy_node_raw(src_child_handle, dest_graph, old_new_mapping, filter);
+                let dest_child_handle = self.copy_node_raw(
+                    src_child_handle,
+                    dest_graph,
+                    old_new_mapping,
+                    filter,
+                    callback,
+                );
                 if !dest_child_handle.is_none() {
                     dest_graph.link_nodes(dest_child_handle, dest_copy_handle);
                 }
             }
         }
+        callback(
+            dest_copy_handle,
+            root_handle,
+            &mut dest_graph[dest_copy_handle],
+        );
         dest_copy_handle
     }
 
@@ -1669,16 +1689,22 @@ impl Graph {
     /// Creates deep copy of graph. Allows filtering while copying, returns copy and
     /// old-to-new node mapping.
     #[inline]
-    pub fn clone<F>(&self, root: Handle<Node>, filter: &mut F) -> (Self, NodeHandleMap)
+    pub fn clone<F, C>(
+        &self,
+        root: Handle<Node>,
+        filter: &mut F,
+        callback: &mut C,
+    ) -> (Self, NodeHandleMap)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
+        C: FnMut(Handle<Node>, Handle<Node>, &mut Node),
     {
         let mut copy = Self {
             sound_context: self.sound_context.deep_clone(),
             ..Default::default()
         };
 
-        let (copy_root, old_new_map) = self.copy_node(root, &mut copy, filter);
+        let (copy_root, old_new_map) = self.copy_node(root, &mut copy, filter, callback);
         assert_eq!(copy.root, copy_root);
 
         let mut lightmap = self.lightmap.clone();

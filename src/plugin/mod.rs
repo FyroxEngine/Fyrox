@@ -163,7 +163,6 @@ impl dyn Plugin {
 ///     event::Event
 /// };
 /// use std::str::FromStr;
-/// use fyrox::event_loop::ControlFlow;
 ///
 /// #[derive(Default)]
 /// struct MyPlugin {}
@@ -174,12 +173,12 @@ impl dyn Plugin {
 ///         // The implementation is optional.
 ///     }
 ///
-///     fn update(&mut self, context: &mut PluginContext, control_flow: &mut ControlFlow) {
+///     fn update(&mut self, context: &mut PluginContext) {
 ///         // The method is called on every frame, it is guaranteed to have fixed update rate.
 ///         // The implementation is optional.
 ///     }
 ///
-///     fn on_os_event(&mut self, event: &Event<()>, context: PluginContext, control_flow: &mut ControlFlow) {
+///     fn on_os_event(&mut self, event: &Event<()>, context: PluginContext) {
 ///         // The method is called when the main window receives an event from the OS.
 ///     }
 /// }

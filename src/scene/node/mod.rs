@@ -4,6 +4,7 @@
 
 #![warn(missing_docs)]
 
+use crate::resource::model::ModelResource;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -36,6 +37,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_core::variable::mark_inheritable_properties_non_modified;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -440,6 +442,26 @@ impl Node {
 
     pub(crate) fn mark_inheritable_variables_as_modified(&mut self) {
         variable::mark_inheritable_properties_modified(self)
+    }
+
+    pub(crate) fn set_inheritance_data(
+        &mut self,
+        original_handle: Handle<Node>,
+        model: ModelResource,
+    ) {
+        // Notify instantiated node about resource it was created from.
+        self.resource = Some(model.clone());
+
+        // Reset resource instance root flag, this is needed because a node after instantiation cannot
+        // be a root anymore.
+        self.is_resource_instance_root = false;
+
+        // Reset inheritable properties, so property inheritance system will take properties
+        // from parent objects on resolve stage.
+        self.as_reflect_mut(&mut mark_inheritable_properties_non_modified);
+
+        // Fill original handles to instances.
+        self.original_handle_in_resource = original_handle;
     }
 
     define_is_as!(Mesh => fn is_mesh, fn as_mesh, fn as_mesh_mut);

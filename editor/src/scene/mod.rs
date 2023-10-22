@@ -101,8 +101,11 @@ impl EditorScene {
         let scene = &mut engine.scenes[self.scene];
 
         let editor_root = self.editor_objects_root;
-        let (pure_scene, _) =
-            scene.clone(self.scene_content_root, &mut |node, _| node != editor_root);
+        let (pure_scene, _) = scene.clone(
+            self.scene_content_root,
+            &mut |node, _| node != editor_root,
+            &mut |_, _, _| {},
+        );
 
         pure_scene
     }

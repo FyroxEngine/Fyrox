@@ -2404,9 +2404,12 @@ impl Editor {
             let mut dest_scene = Scene::new();
             if let Selection::Graph(ref graph_selection) = editor_scene.selection {
                 for root_node in graph_selection.root_nodes(&source_scene.graph) {
-                    source_scene
-                        .graph
-                        .copy_node(root_node, &mut dest_scene.graph, &mut |_, _| true);
+                    source_scene.graph.copy_node(
+                        root_node,
+                        &mut dest_scene.graph,
+                        &mut |_, _| true,
+                        &mut |_, _, _| {},
+                    );
                 }
 
                 let mut visitor = Visitor::new();

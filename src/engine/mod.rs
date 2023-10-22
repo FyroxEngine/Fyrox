@@ -21,7 +21,7 @@ use crate::{
     renderer::{framework::error::FrameworkError, framework::state::GlKind, Renderer},
     resource::{
         curve::{loader::CurveLoader, CurveResourceState},
-        model::{loader::ModelLoader, Model, ModelResource, ModelResourceExtension},
+        model::{loader::ModelLoader, Model, ModelResource},
         texture::{loader::TextureLoader, Texture, TextureKind},
     },
     scene::{
@@ -188,6 +188,10 @@ impl GraphicsContext {
     }
 }
 
+struct SceneLoadingOptions {
+    derived: bool,
+}
+
 /// A helper that is used to load scenes asynchronously.
 ///
 /// ## Examples
@@ -266,7 +270,7 @@ impl GraphicsContext {
 pub struct AsyncSceneLoader {
     resource_manager: ResourceManager,
     receiver: Receiver<ResourceEvent>,
-    loading_scenes: FxHashSet<ModelResource>,
+    loading_scenes: FxHashMap<ModelResource, SceneLoadingOptions>,
 }
 
 impl AsyncSceneLoader {
@@ -282,11 +286,30 @@ impl AsyncSceneLoader {
         }
     }
 
-    /// Requests a scene for loading. See [`AsyncSceneLoader`] for usage example.
-    pub fn request<P: AsRef<Path>>(&mut self, path: P) {
+    fn request_with_options<P: AsRef<Path>>(&mut self, path: P, opts: SceneLoadingOptions) {
         self.resource_manager.state().unregister(path.as_ref());
         let model_resource = self.resource_manager.request::<Model, _>(path);
-        self.loading_scenes.insert(model_resource);
+        self.loading_scenes.insert(model_resource, opts);
+    }
+
+    /// Requests a scene for loading as derived scene. See [`AsyncSceneLoader`] for usage example.
+    ///
+    /// ## Raw vs Derived Scene
+    ///
+    /// Derived scene means its nodes will derive their properties from the nodes from the source
+    /// scene. Derived scene is useful for saved games - you can serialize your scene as usual and
+    /// it will only contain a "difference" between the original scene and yours. To load the same
+    /// scene as raw scene use [`Self::request_raw`] method.
+    ///
+    /// Raw scene, on other hand, loads the scene as-is without any additional markings for the
+    /// scene nodes. It could be useful to load saved games.
+    pub fn request<P: AsRef<Path>>(&mut self, path: P) {
+        self.request_with_options(path, SceneLoadingOptions { derived: true });
+    }
+
+    /// Requests a scene for loading in raw mode. See [`Self::request`] docs for more info.
+    pub fn request_raw<P: AsRef<Path>>(&mut self, path: P) {
+        self.request_with_options(path, SceneLoadingOptions { derived: false });
     }
 }
 
@@ -968,11 +991,10 @@ impl Engine {
     /// };
     /// use std::sync::Arc;
     ///
+    /// let mut window_attributes = WindowAttributes::default();
+    /// window_attributes.title = "Some title".to_string();
     /// let graphics_context_params = GraphicsContextParams {
-    ///     window_attributes: WindowAttributes {
-    ///         title: "Some title".to_string(),
-    ///         ..Default::default()
-    ///     },
+    ///     window_attributes,
     ///     vsync: true,
     /// };
     ///
@@ -1335,7 +1357,7 @@ impl Engine {
                 ResourceEvent::Added(untyped) => {
                     if let Some(model) = untyped.try_cast::<Model>() {
                         let path = model.path();
-                        if self.async_scene_loader.loading_scenes.contains(&model) {
+                        if self.async_scene_loader.loading_scenes.contains_key(&model) {
                             // Notify plugins about a scene, that started loading.
                             if self.plugins_enabled {
                                 let mut context = PluginContext {
@@ -1362,36 +1384,27 @@ impl Engine {
                 }
                 ResourceEvent::Loaded(untyped) => {
                     if let Some(model) = untyped.try_cast::<Model>() {
-                        if self
-                            .async_scene_loader
-                            .loading_scenes
-                            .take(&model)
-                            .is_some()
+                        if let Some(options) = self.async_scene_loader.loading_scenes.remove(&model)
                         {
                             let path = model.path();
                             if model.is_ok() {
-                                let mut scene = Scene::new();
-
-                                model.instantiate(&mut scene);
-
                                 let mutex_guard = model.data_ref();
                                 let model_scene = mutex_guard.get_scene();
 
-                                scene.enabled = model_scene.enabled;
-                                scene.rendering_options = model_scene.rendering_options.clone();
-
-                                scene.graph.sound_context =
-                                    model_scene.graph.sound_context.deep_clone();
-
-                                scene.graph.physics.enabled = model_scene.graph.physics.enabled;
-                                scene.graph.physics.gravity = model_scene.graph.physics.gravity;
-                                scene.graph.physics.integration_parameters =
-                                    model_scene.graph.physics.integration_parameters;
-
-                                scene.graph.physics2d.enabled = model_scene.graph.physics2d.enabled;
-                                scene.graph.physics2d.gravity = model_scene.graph.physics2d.gravity;
-                                scene.graph.physics2d.integration_parameters =
-                                    model_scene.graph.physics2d.integration_parameters;
+                                let scene = model_scene
+                                    .clone(
+                                        model_scene.graph.get_root(),
+                                        &mut |_, _| true,
+                                        &mut |_, original_handle, node| {
+                                            if options.derived {
+                                                node.set_inheritance_data(
+                                                    original_handle,
+                                                    model.clone(),
+                                                )
+                                            }
+                                        },
+                                    )
+                                    .0;
 
                                 drop(mutex_guard);
 
