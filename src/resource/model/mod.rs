@@ -68,7 +68,7 @@ pub struct Model {
     #[visit(skip)]
     pub(crate) mapping: NodeMapping,
     #[visit(skip)]
-    scene: Scene,
+    pub(crate) scene: Scene,
 }
 
 impl TypeUuidProvider for Model {
@@ -496,6 +496,7 @@ impl Model {
                     resource_manager.clone(),
                 )
                 .await?
+                .0
                 .finish(&resource_manager)
                 .await,
                 NodeMapping::UseHandles,

@@ -1873,7 +1873,7 @@ impl Editor {
         };
         match result {
             Ok(loader) => {
-                let scene = block_on(loader.finish(&engine.resource_manager));
+                let scene = block_on(loader.0.finish(&engine.resource_manager));
 
                 self.add_scene(scene, Some(scene_path));
             }

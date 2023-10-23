@@ -13,6 +13,7 @@ use crate::{
     gui::{message::UiMessage, UserInterface},
     scene::{Scene, SceneContainer},
 };
+use fyrox_core::visitor::VisitError;
 use std::{any::Any, path::Path, sync::Arc};
 use winit::event_loop::EventLoopWindowTarget;
 
@@ -244,6 +245,17 @@ pub trait Plugin: BasePlugin {
         &mut self,
         #[allow(unused_variables)] path: &Path,
         #[allow(unused_variables)] scene: Handle<Scene>,
+        #[allow(unused_variables)] data: &[u8],
+        #[allow(unused_variables)] context: &mut PluginContext,
+    ) {
+    }
+
+    /// This method is called when the engine finishes loading a scene from the given `path` with
+    /// some error. This method could be used to report any issues to a user.
+    fn on_scene_loading_failed(
+        &mut self,
+        #[allow(unused_variables)] path: &Path,
+        #[allow(unused_variables)] error: &VisitError,
         #[allow(unused_variables)] context: &mut PluginContext,
     ) {
     }

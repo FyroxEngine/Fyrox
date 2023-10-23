@@ -6,6 +6,8 @@
 pub mod error;
 pub mod executor;
 
+use crate::resource::model::NodeMapping;
+use crate::scene::SceneLoader;
 use crate::{
     asset::{
         event::ResourceEvent,
@@ -40,6 +42,7 @@ use crate::{
     window::{Window, WindowBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_core::visitor::VisitError;
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
@@ -58,6 +61,8 @@ use glutin::{
 use glutin_winit::{DisplayBuilder, GlWindow};
 #[cfg(not(target_arch = "wasm32"))]
 use raw_window_handle::HasRawWindowHandle;
+use std::path::PathBuf;
+use std::sync::mpsc::Sender;
 use std::{
     any::TypeId,
     collections::{HashSet, VecDeque},
@@ -269,27 +274,91 @@ struct SceneLoadingOptions {
 /// method which allows you to do something with the newly loaded scene by taking a reference of it.
 pub struct AsyncSceneLoader {
     resource_manager: ResourceManager,
-    receiver: Receiver<ResourceEvent>,
-    loading_scenes: FxHashMap<ModelResource, SceneLoadingOptions>,
+    serialization_context: Arc<SerializationContext>,
+    receiver: Receiver<SceneLoadingResult>,
+    sender: Sender<SceneLoadingResult>,
+    loading_scenes: FxHashMap<PathBuf, LoadingScene>,
+}
+
+struct LoadingScene {
+    reported: bool,
+    path: PathBuf,
+    options: SceneLoadingOptions,
+}
+
+struct SceneLoadingResult {
+    path: PathBuf,
+    result: Result<(Scene, Vec<u8>), VisitError>,
 }
 
 impl AsyncSceneLoader {
-    fn new(resource_manager: ResourceManager) -> Self {
+    fn new(
+        resource_manager: ResourceManager,
+        serialization_context: Arc<SerializationContext>,
+    ) -> Self {
         let (sender, receiver) = channel();
-
-        resource_manager.state().event_broadcaster.add(sender);
-
         Self {
             resource_manager,
+            serialization_context,
             receiver,
+            sender,
             loading_scenes: Default::default(),
         }
     }
 
     fn request_with_options<P: AsRef<Path>>(&mut self, path: P, opts: SceneLoadingOptions) {
-        self.resource_manager.state().unregister(path.as_ref());
-        let model_resource = self.resource_manager.request::<Model, _>(path);
-        self.loading_scenes.insert(model_resource, opts);
+        let path = path.as_ref().to_path_buf();
+
+        if self.loading_scenes.contains_key(&path) {
+            Log::warn(format!("A scene {} is already loading!", path.display()))
+        } else {
+            // Register a new request.
+            self.loading_scenes.insert(
+                path.clone(),
+                LoadingScene {
+                    reported: false,
+                    path: path.clone(),
+                    options: opts,
+                },
+            );
+
+            // Start loading in a separate off-thread task.
+            let sender = self.sender.clone();
+            let serialization_context = self.serialization_context.clone();
+            let resource_manager = self.resource_manager.clone();
+            let future = async move {
+                match SceneLoader::from_file(
+                    path.clone(),
+                    serialization_context,
+                    resource_manager.clone(),
+                )
+                .await
+                {
+                    Ok((loader, data)) => {
+                        Log::verify(sender.send(SceneLoadingResult {
+                            path,
+                            result: Ok((loader.finish(&resource_manager).await, data)),
+                        }));
+                    }
+                    Err(e) => {
+                        Log::verify(sender.send(SceneLoadingResult {
+                            path,
+                            result: Err(e),
+                        }));
+                    }
+                }
+            };
+
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                std::thread::spawn(move || block_on(future));
+            }
+
+            #[cfg(target_arch = "wasm32")]
+            {
+                crate::core::wasm_bindgen_futures::spawn_local(future);
+            }
+        }
     }
 
     /// Requests a scene for loading as derived scene. See [`AsyncSceneLoader`] for usage example.
@@ -1024,7 +1093,10 @@ impl Engine {
         Ok(Self {
             graphics_context: GraphicsContext::Uninitialized(graphics_context_params),
             model_events_receiver: tx,
-            async_scene_loader: AsyncSceneLoader::new(resource_manager.clone()),
+            async_scene_loader: AsyncSceneLoader::new(
+                resource_manager.clone(),
+                serialization_context.clone(),
+            ),
             resource_manager,
             scenes: SceneContainer::new(sound_engine.clone()),
             sound_engine,
@@ -1352,90 +1424,103 @@ impl Engine {
         lag: &mut f32,
         window_target: &EventLoopWindowTarget<()>,
     ) {
-        while let Ok(event) = self.async_scene_loader.receiver.try_recv() {
-            match event {
-                ResourceEvent::Added(untyped) => {
-                    if let Some(model) = untyped.try_cast::<Model>() {
-                        let path = model.path();
-                        if self.async_scene_loader.loading_scenes.contains_key(&model) {
-                            // Notify plugins about a scene, that started loading.
-                            if self.plugins_enabled {
-                                let mut context = PluginContext {
-                                    scenes: &mut self.scenes,
-                                    resource_manager: &self.resource_manager,
-                                    graphics_context: &mut self.graphics_context,
-                                    dt,
-                                    lag,
-                                    user_interface: &mut self.user_interface,
-                                    serialization_context: &self.serialization_context,
-                                    performance_statistics: &self.performance_statistics,
-                                    elapsed_time: self.elapsed_time,
-                                    script_processor: &self.script_processor,
-                                    async_scene_loader: &mut self.async_scene_loader,
-                                    window_target: Some(window_target),
-                                };
+        let len = self.async_scene_loader.loading_scenes.len();
+        let mut n = 0;
+        while n < len {
+            if let Some(request) = self.async_scene_loader.loading_scenes.values_mut().nth(n) {
+                if !request.reported {
+                    request.reported = true;
 
-                                for plugin in self.plugins.iter_mut() {
-                                    plugin.on_scene_begin_loading(&path, &mut context);
-                                }
+                    // Notify plugins about a scene, that started loading.
+                    if self.plugins_enabled {
+                        let path = request.path.clone();
+                        let mut context = PluginContext {
+                            scenes: &mut self.scenes,
+                            resource_manager: &self.resource_manager,
+                            graphics_context: &mut self.graphics_context,
+                            dt,
+                            lag,
+                            user_interface: &mut self.user_interface,
+                            serialization_context: &self.serialization_context,
+                            performance_statistics: &self.performance_statistics,
+                            elapsed_time: self.elapsed_time,
+                            script_processor: &self.script_processor,
+                            async_scene_loader: &mut self.async_scene_loader,
+                            window_target: Some(window_target),
+                        };
+
+                        for plugin in self.plugins.iter_mut() {
+                            plugin.on_scene_begin_loading(&path, &mut context);
+                        }
+                    }
+                }
+            }
+
+            n += 1;
+        }
+
+        while let Ok(loading_result) = self.async_scene_loader.receiver.try_recv() {
+            if let Some(request) = self
+                .async_scene_loader
+                .loading_scenes
+                .remove(&loading_result.path)
+            {
+                let mut context = PluginContext {
+                    scenes: &mut self.scenes,
+                    resource_manager: &self.resource_manager,
+                    graphics_context: &mut self.graphics_context,
+                    dt,
+                    lag,
+                    user_interface: &mut self.user_interface,
+                    serialization_context: &self.serialization_context,
+                    performance_statistics: &self.performance_statistics,
+                    elapsed_time: self.elapsed_time,
+                    script_processor: &self.script_processor,
+                    async_scene_loader: &mut self.async_scene_loader,
+                    window_target: Some(window_target),
+                };
+
+                match loading_result.result {
+                    Ok((mut scene, data)) => {
+                        if request.options.derived {
+                            // Create fake resource, that will point to the scene we've loaded the
+                            // scene from and force scene nodes to inherit data from them.
+                            let model = ModelResource::new_ok(Model {
+                                path: request.path.clone(),
+                                mapping: NodeMapping::UseHandles,
+                                // Do not create any scene here, because we don't want to have the
+                                // same scene to be created multiple times to reduce memory
+                                // consumption.
+                                scene: Default::default(),
+                            });
+
+                            for (handle, node) in scene.graph.pair_iter_mut() {
+                                node.set_inheritance_data(handle, model.clone());
+                            }
+                        }
+
+                        let scene_handle = context.scenes.add(scene);
+                        // Notify plugins about newly loaded scene.
+                        if self.plugins_enabled {
+                            for plugin in self.plugins.iter_mut() {
+                                plugin.on_scene_loaded(
+                                    &request.path,
+                                    scene_handle,
+                                    &data,
+                                    &mut context,
+                                );
+                            }
+                        }
+                    }
+                    Err(error) => {
+                        // Notify plugins about a scene, that is failed to load.
+                        if self.plugins_enabled {
+                            for plugin in self.plugins.iter_mut() {
+                                plugin.on_scene_loading_failed(&request.path, &error, &mut context);
                             }
                         }
                     }
                 }
-                ResourceEvent::Loaded(untyped) => {
-                    if let Some(model) = untyped.try_cast::<Model>() {
-                        if let Some(options) = self.async_scene_loader.loading_scenes.remove(&model)
-                        {
-                            let path = model.path();
-                            if model.is_ok() {
-                                let mutex_guard = model.data_ref();
-                                let model_scene = mutex_guard.get_scene();
-
-                                let scene = model_scene
-                                    .clone(
-                                        model_scene.graph.get_root(),
-                                        &mut |_, _| true,
-                                        &mut |_, original_handle, node| {
-                                            if options.derived {
-                                                node.set_inheritance_data(
-                                                    original_handle,
-                                                    model.clone(),
-                                                )
-                                            }
-                                        },
-                                    )
-                                    .0;
-
-                                drop(mutex_guard);
-
-                                let scene_handle = self.scenes.add(scene);
-
-                                // Notify plugins about newly loaded scene.
-                                if self.plugins_enabled {
-                                    let mut context = PluginContext {
-                                        scenes: &mut self.scenes,
-                                        resource_manager: &self.resource_manager,
-                                        graphics_context: &mut self.graphics_context,
-                                        dt,
-                                        lag,
-                                        user_interface: &mut self.user_interface,
-                                        serialization_context: &self.serialization_context,
-                                        performance_statistics: &self.performance_statistics,
-                                        elapsed_time: self.elapsed_time,
-                                        script_processor: &self.script_processor,
-                                        async_scene_loader: &mut self.async_scene_loader,
-                                        window_target: Some(window_target),
-                                    };
-
-                                    for plugin in self.plugins.iter_mut() {
-                                        plugin.on_scene_loaded(&path, scene_handle, &mut context);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                _ => {}
             }
         }
     }

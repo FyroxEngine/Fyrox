@@ -53,6 +53,7 @@ use crate::{
     utils::navmesh::Navmesh,
 };
 use fxhash::FxHashSet;
+use fyrox_core::io;
 use std::{
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},
@@ -271,15 +272,17 @@ impl SceneLoader {
         path: P,
         serialization_context: Arc<SerializationContext>,
         resource_manager: ResourceManager,
-    ) -> Result<Self, VisitError> {
-        let mut visitor = Visitor::load_binary(path.as_ref()).await?;
-        Self::load(
+    ) -> Result<(Self, Vec<u8>), VisitError> {
+        let data = io::load_file(path.as_ref()).await?;
+        let mut visitor = Visitor::load_from_memory(&data)?;
+        let loader = Self::load(
             "Scene",
             serialization_context,
             resource_manager,
             &mut visitor,
             Some(path.as_ref().to_path_buf()),
-        )
+        )?;
+        Ok((loader, data))
     }
 
     /// Tries to load a scene using specified visitor and region name.
