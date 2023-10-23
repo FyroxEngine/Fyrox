@@ -1330,10 +1330,10 @@ impl Visitor {
     }
 
     pub async fn load_binary<P: AsRef<Path>>(path: P) -> Result<Self, VisitError> {
-        Self::load_from_memory(io::load_file(path).await?)
+        Self::load_from_memory(&io::load_file(path).await?)
     }
 
-    pub fn load_from_memory(data: Vec<u8>) -> Result<Self, VisitError> {
+    pub fn load_from_memory(data: &[u8]) -> Result<Self, VisitError> {
         let mut reader = Cursor::new(data);
         let mut magic: [u8; 4] = Default::default();
         reader.read_exact(&mut magic)?;
