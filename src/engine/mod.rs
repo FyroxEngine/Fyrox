@@ -1728,7 +1728,7 @@ impl Engine {
                     dt,
                     self.elapsed_time,
                     |script, context| {
-                        if script.initialized {
+                        if script.initialized && script.started {
                             script.on_os_event(event, context);
                         }
                     },
