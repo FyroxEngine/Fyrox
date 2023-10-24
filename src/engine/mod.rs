@@ -44,7 +44,7 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_core::reflect::Reflect;
-use fyrox_core::variable::{mark_inheritable_properties_non_modified, try_inherit_properties};
+use fyrox_core::variable::try_inherit_properties;
 use fyrox_core::visitor::VisitError;
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
@@ -64,9 +64,6 @@ use glutin::{
 use glutin_winit::{DisplayBuilder, GlWindow};
 #[cfg(not(target_arch = "wasm32"))]
 use raw_window_handle::HasRawWindowHandle;
-use std::any::Any;
-use std::path::PathBuf;
-use std::sync::mpsc::Sender;
 use std::{
     any::TypeId,
     collections::{HashSet, VecDeque},
@@ -74,9 +71,9 @@ use std::{
     fmt::{Display, Formatter},
     num::NonZeroU32,
     ops::Deref,
-    path::Path,
+    path::{Path, PathBuf},
     sync::{
-        mpsc::{channel, Receiver},
+        mpsc::{channel, Receiver, Sender},
         Arc,
     },
     time::Duration,

@@ -97,9 +97,13 @@ impl PartialEq for SoundContext {
     }
 }
 
+/// A set of flags, that can be used to define what should be skipped during the
+/// serialization of a sound context.
 #[derive(Default, Debug, Clone)]
 pub struct SerializationOptions {
+    /// All sources won't be serialized, if set.
     pub skip_sources: bool,
+    /// Bus graph won't be serialized, if set.
     pub skip_bus_graph: bool,
 }
 
@@ -113,6 +117,8 @@ pub struct State {
     bus_graph: AudioBusGraph,
     distance_model: DistanceModel,
     paused: bool,
+    /// A set of flags, that can be used to define what should be skipped during the
+    /// serialization of a sound context.
     #[reflect(hidden)]
     pub serialization_options: SerializationOptions,
 }

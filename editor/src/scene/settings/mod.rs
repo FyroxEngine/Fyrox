@@ -9,9 +9,7 @@ use fyrox::{
     gui::{
         inspector::{
             editors::{
-                enumeration::EnumPropertyEditorDefinition,
-                inspectable::InspectablePropertyEditorDefinition,
-                PropertyEditorDefinitionContainer,
+                enumeration::EnumPropertyEditorDefinition, PropertyEditorDefinitionContainer,
             },
             InspectorBuilder, InspectorContext, InspectorMessage, PropertyFilter,
         },
