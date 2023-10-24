@@ -97,6 +97,12 @@ impl PartialEq for SoundContext {
     }
 }
 
+#[derive(Default, Debug, Clone)]
+pub struct SerializationOptions {
+    pub skip_sources: bool,
+    pub skip_bus_graph: bool,
+}
+
 /// Internal state of context.
 #[derive(Default, Debug, Clone, Reflect)]
 pub struct State {
@@ -107,6 +113,8 @@ pub struct State {
     bus_graph: AudioBusGraph,
     distance_model: DistanceModel,
     paused: bool,
+    #[reflect(hidden)]
+    pub serialization_options: SerializationOptions,
 }
 
 impl State {
@@ -312,6 +320,7 @@ impl SoundContext {
                 bus_graph: AudioBusGraph::new(),
                 distance_model: DistanceModel::InverseDistance,
                 paused: false,
+                serialization_options: Default::default(),
             }))),
         }
     }
@@ -360,8 +369,12 @@ impl Visit for State {
         let mut region = visitor.enter_region(name)?;
 
         self.listener.visit("Listener", &mut region)?;
-        self.sources.visit("Sources", &mut region)?;
-        self.bus_graph.visit("BusGraph", &mut region)?;
+        if !self.serialization_options.skip_sources {
+            self.sources.visit("Sources", &mut region)?;
+        }
+        if !self.serialization_options.skip_bus_graph {
+            self.bus_graph.visit("BusGraph", &mut region)?;
+        }
         self.renderer.visit("Renderer", &mut region)?;
         self.paused.visit("Paused", &mut region)?;
         self.distance_model.visit("DistanceModel", &mut region)?;
