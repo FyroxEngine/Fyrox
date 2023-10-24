@@ -1526,7 +1526,7 @@ impl Renderer {
         let backbuffer_width = self.frame_size.0 as f32;
         let backbuffer_height = self.frame_size.1 as f32;
 
-        for (scene_handle, scene) in scenes.pair_iter().filter(|(_, s)| s.enabled) {
+        for (scene_handle, scene) in scenes.pair_iter().filter(|(_, s)| *s.enabled) {
             let graph = &scene.graph;
 
             let frame_size = scene

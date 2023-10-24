@@ -54,6 +54,7 @@ use crate::{
 };
 use fxhash::FxHashSet;
 use fyrox_core::io;
+use fyrox_core::variable::InheritableVariable;
 use std::{
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},
@@ -140,7 +141,7 @@ impl IndexMut<Handle<Navmesh>> for NavMeshContainer {
 }
 
 /// Rendering options of a scene. It allows you to specify a render target to render the scene to, change its clear color, etc.
-#[derive(Debug, Visit, Reflect)]
+#[derive(Debug, Visit, Reflect, PartialEq)]
 pub struct SceneRenderingOptions {
     /// A texture to draw the scene to. If empty, then the scene will be drawn on screen directly. It is useful to "embed" some scene into other
     /// by drawing a quad with this texture. This can be used to make in-game video conference - you can make separate scene with
@@ -192,7 +193,7 @@ pub struct Scene {
     pub graph: Graph,
 
     /// Rendering options of a scene. See [`SceneRenderingOptions`] docs for more info.
-    pub rendering_options: SceneRenderingOptions,
+    pub rendering_options: InheritableVariable<SceneRenderingOptions>,
 
     /// Drawing context for simple graphics.
     #[reflect(hidden)]
@@ -209,7 +210,7 @@ pub struct Scene {
     /// loaded and playing a game. When you're start playing, just set `enabled` flag
     /// to false for menu's scene and when you need to open a menu - set it to true and
     /// set `enabled` flag to false for level's scene.
-    pub enabled: bool,
+    pub enabled: InheritableVariable<bool>,
 }
 
 impl Default for Scene {
@@ -219,7 +220,7 @@ impl Default for Scene {
             rendering_options: Default::default(),
             drawing_context: Default::default(),
             performance_statistics: Default::default(),
-            enabled: true,
+            enabled: true.into(),
         }
     }
 }
@@ -379,7 +380,7 @@ impl Scene {
             rendering_options: Default::default(),
             drawing_context: Default::default(),
             performance_statistics: Default::default(),
-            enabled: true,
+            enabled: true.into(),
         }
     }
 
@@ -428,7 +429,7 @@ impl Scene {
                 rendering_options: self.rendering_options.clone(),
                 drawing_context: self.drawing_context.clone(),
                 performance_statistics: Default::default(),
-                enabled: self.enabled,
+                enabled: self.enabled.clone(),
             },
             old_new_map,
         )

@@ -7,6 +7,7 @@ pub mod error;
 pub mod executor;
 
 use crate::resource::model::NodeMapping;
+use crate::scene::graph::NodePool;
 use crate::scene::SceneLoader;
 use crate::{
     asset::{
@@ -42,6 +43,8 @@ use crate::{
     window::{Window, WindowBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_core::reflect::Reflect;
+use fyrox_core::variable::{mark_inheritable_properties_non_modified, try_inherit_properties};
 use fyrox_core::visitor::VisitError;
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
@@ -61,6 +64,7 @@ use glutin::{
 use glutin_winit::{DisplayBuilder, GlWindow};
 #[cfg(not(target_arch = "wasm32"))]
 use raw_window_handle::HasRawWindowHandle;
+use std::any::Any;
 use std::path::PathBuf;
 use std::sync::mpsc::Sender;
 use std::{
@@ -640,7 +644,7 @@ impl ScriptProcessor {
             let scene = &mut scenes[scripted_scene.handle];
 
             // Disabled scenes should not update their scripts.
-            if !scene.enabled {
+            if !*scene.enabled {
                 continue 'scene_loop;
             }
 
@@ -1497,9 +1501,36 @@ impl Engine {
                             for (handle, node) in scene.graph.pair_iter_mut() {
                                 node.set_inheritance_data(handle, model.clone());
                             }
+
+                            // Reset modified flags in every inheritable property of the scene.
+                            // Except nodes, they're inherited in a separate place.
+                            (&mut scene as &mut dyn Reflect).apply_recursively_mut(&mut |object| {
+                                let type_id = (*object).type_id();
+                                if type_id != TypeId::of::<NodePool>() {
+                                    object.as_inheritable_variable_mut(&mut |variable| {
+                                        if let Some(variable) = variable {
+                                            variable.reset_modified_flag();
+                                        }
+                                    });
+                                }
+                            })
+                        } else {
+                            // Take scene data from the source scene.
+                            let source_asset = scene.graph[scene.graph.get_root()]
+                                .root_resource()
+                                .expect("Source asset must exist!");
+                            let source_asset_ref = source_asset.data_ref();
+                            let source_scene_ref = &source_asset_ref.scene;
+                            try_inherit_properties(
+                                &mut scene,
+                                source_scene_ref,
+                                &[TypeId::of::<NodePool>()],
+                            )
+                            .expect("Failed to inherit properties!");
                         }
 
                         let scene_handle = context.scenes.add(scene);
+
                         // Notify plugins about newly loaded scene.
                         if self.plugins_enabled {
                             for plugin in self.plugins.iter_mut() {
@@ -1554,7 +1585,7 @@ impl Engine {
             ctx.renderer.update_caches(dt);
             self.handle_model_events();
 
-            for (handle, scene) in self.scenes.pair_iter_mut().filter(|(_, s)| s.enabled) {
+            for (handle, scene) in self.scenes.pair_iter_mut().filter(|(_, s)| *s.enabled) {
                 let frame_size =
                     scene
                         .rendering_options
@@ -1803,7 +1834,7 @@ impl Engine {
             .find(|s| s.handle == scene)
         {
             let scene = &mut self.scenes[scene];
-            if scene.enabled {
+            if *scene.enabled {
                 process_scripts(
                     scene,
                     &mut self.plugins,

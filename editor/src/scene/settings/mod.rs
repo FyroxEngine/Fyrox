@@ -61,13 +61,11 @@ impl SceneSettingsWindow {
 
         let container = make_property_editors_container(sender);
 
-        container.insert(InspectablePropertyEditorDefinition::<Graph>::new());
-        container.insert(InspectablePropertyEditorDefinition::<IntegrationParameters>::new());
-        container.insert(InspectablePropertyEditorDefinition::<PhysicsWorld>::new());
-        container.insert(InspectablePropertyEditorDefinition::<
-            dim2::physics::PhysicsWorld,
-        >::new());
-        container.insert(InspectablePropertyEditorDefinition::<SceneRenderingOptions>::new());
+        container.register_inheritable_inspectable::<Graph>();
+        container.register_inheritable_inspectable::<IntegrationParameters>();
+        container.register_inheritable_inspectable::<PhysicsWorld>();
+        container.register_inheritable_inspectable::<dim2::physics::PhysicsWorld>();
+        container.register_inheritable_inspectable::<SceneRenderingOptions>();
         container.insert(EnumPropertyEditorDefinition::<Color>::new_optional());
 
         Self {

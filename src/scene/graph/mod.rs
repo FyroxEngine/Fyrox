@@ -140,6 +140,7 @@ pub struct Graph {
     pub event_broadcaster: GraphEventBroadcaster,
 
     /// Current lightmap.
+    //lightmap: InheritableVariable<Option<Lightmap>>,
     lightmap: Option<Lightmap>,
 
     #[reflect(hidden)]

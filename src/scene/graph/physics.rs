@@ -33,6 +33,7 @@ use crate::{
     },
     utils::raw_mesh::{RawMeshBuilder, RawVertex},
 };
+use fyrox_core::variable::InheritableVariable;
 use rapier3d::{
     dynamics::{
         CCDSolver, GenericJoint, GenericJointBuilder, ImpulseJointHandle, ImpulseJointSet,
@@ -719,7 +720,7 @@ fn collider_shape_into_native_shape(
 ///
 /// This is almost one-to-one copy of Rapier's integration parameters with custom attributes for
 /// each parameter.
-#[derive(Copy, Clone, Visit, Reflect, Debug)]
+#[derive(Copy, Clone, Visit, Reflect, Debug, PartialEq)]
 pub struct IntegrationParameters {
     /// The time step length, default is None - this means that physics simulation will use engine's
     /// time step.
@@ -878,13 +879,13 @@ impl Default for IntegrationParameters {
 #[derive(Visit, Reflect)]
 pub struct PhysicsWorld {
     /// A flag that defines whether physics simulation is enabled or not.
-    pub enabled: bool,
+    pub enabled: InheritableVariable<bool>,
 
     /// A set of parameters that define behavior of every rigid body.
-    pub integration_parameters: IntegrationParameters,
+    pub integration_parameters: InheritableVariable<IntegrationParameters>,
 
     /// Current gravity vector. Default is (0.0, -9.81, 0.0)
-    pub gravity: Vector3<f32>,
+    pub gravity: InheritableVariable<Vector3<f32>>,
 
     /// Performance statistics of a single simulation step.
     #[visit(skip)]
@@ -973,10 +974,10 @@ impl PhysicsWorld {
     /// Creates a new instance of the physics world.
     pub(super) fn new() -> Self {
         Self {
-            enabled: true,
+            enabled: true.into(),
             pipeline: PhysicsPipeline::new(),
-            gravity: Vector3::new(0.0, -9.81, 0.0),
-            integration_parameters: IntegrationParameters::default(),
+            gravity: Vector3::new(0.0, -9.81, 0.0).into(),
+            integration_parameters: IntegrationParameters::default().into(),
             broad_phase: BroadPhase::new(),
             narrow_phase: NarrowPhase::new(),
             ccd_solver: CCDSolver::new(),
@@ -1001,7 +1002,7 @@ impl PhysicsWorld {
     pub(super) fn update(&mut self, dt: f32) {
         let time = instant::Instant::now();
 
-        if self.enabled {
+        if *self.enabled {
             let integration_parameters = rapier3d::dynamics::IntegrationParameters {
                 dt: self.integration_parameters.dt.unwrap_or(dt),
                 min_ccd_dt: self.integration_parameters.min_ccd_dt,
@@ -1195,7 +1196,7 @@ impl PhysicsWorld {
         rigid_body: &mut scene::rigidbody::RigidBody,
         parent_transform: Matrix4<f32>,
     ) {
-        if self.enabled {
+        if *self.enabled {
             if let Some(native) = self.bodies.get(rigid_body.native.get()) {
                 if native.body_type() == RigidBodyType::Dynamic {
                     let local_transform: Matrix4<f32> = parent_transform

@@ -99,7 +99,7 @@ impl<'a> SoundContextGuard<'a> {
 
 impl Default for SoundContext {
     fn default() -> Self {
-        let mut native = fyrox_sound::context::SoundContext::new();
+        let native = fyrox_sound::context::SoundContext::new();
         let mut state = native.state();
         // There's no need to serialize native sources, because they'll be re-created automatically.
         state.serialization_options.skip_sources = true;
