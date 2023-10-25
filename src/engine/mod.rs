@@ -249,6 +249,7 @@ struct SceneLoadingOptions {
 ///         &mut self,
 ///         path: &Path,
 ///         scene: Handle<Scene>,
+///         data: &[u8],
 ///         context: &mut PluginContext,
 ///     ) {
 ///         // Optionally remove previous scene.
