@@ -1513,17 +1513,17 @@ impl Engine {
                             })
                         } else {
                             // Take scene data from the source scene.
-                            let source_asset = scene.graph[scene.graph.get_root()]
-                                .root_resource()
-                                .expect("Source asset must exist!");
-                            let source_asset_ref = source_asset.data_ref();
-                            let source_scene_ref = &source_asset_ref.scene;
-                            try_inherit_properties(
-                                &mut scene,
-                                source_scene_ref,
-                                &[TypeId::of::<NodePool>()],
-                            )
-                            .expect("Failed to inherit properties!");
+                            if let Some(source_asset) =
+                                scene.graph[scene.graph.get_root()].root_resource()
+                            {
+                                let source_asset_ref = source_asset.data_ref();
+                                let source_scene_ref = &source_asset_ref.scene;
+                                Log::verify(try_inherit_properties(
+                                    &mut scene,
+                                    source_scene_ref,
+                                    &[TypeId::of::<NodePool>()],
+                                ));
+                            }
                         }
 
                         let scene_handle = context.scenes.add(scene);
