@@ -592,7 +592,6 @@ impl ScriptProcessor {
     fn register_scripted_scene(
         &mut self,
         scene: Handle<Scene>,
-        scenes: &mut SceneContainer,
         resource_manager: &ResourceManager,
     ) {
         // Ensure that the scene wasn't registered previously.
@@ -604,17 +603,6 @@ impl ScriptProcessor {
             message_sender: ScriptMessageSender { sender: tx },
             message_dispatcher: ScriptMessageDispatcher::new(rx),
         });
-
-        let graph = &mut scenes[scene].graph;
-
-        // Spawn events for each node in the scene to force the engine to
-        // initialize scripts.
-        for (handle, _) in graph.pair_iter() {
-            graph
-                .script_message_sender
-                .send(NodeScriptMessage::InitializeScript { handle })
-                .unwrap();
-        }
 
         self.wait_list
             .push(resource_manager.state().get_wait_context());
@@ -646,12 +634,25 @@ impl ScriptProcessor {
                 continue 'scene_loop;
             }
 
-            // Fill in initial handles to nodes to update.
+            // Fill in initial handles to nodes to initialize, start, update.
             let mut update_queue = VecDeque::new();
+            let mut start_queue = VecDeque::new();
             for (handle, node) in scene.graph.pair_iter() {
                 if let Some(script) = node.script.as_ref() {
-                    if script.initialized && script.started {
-                        update_queue.push_back(handle);
+                    if node.is_globally_enabled() {
+                        if script.initialized {
+                            if script.started {
+                                update_queue.push_back(handle);
+                            } else {
+                                start_queue.push_back(handle);
+                            }
+                        } else {
+                            scene
+                                .graph
+                                .script_message_sender
+                                .send(NodeScriptMessage::InitializeScript { handle })
+                                .unwrap();
+                        }
                     }
                 }
             }
@@ -675,8 +676,6 @@ impl ScriptProcessor {
                 };
 
                 'init_loop: for init_loop_iteration in 0..max_iterations {
-                    let mut start_queue = VecDeque::new();
-
                     // Process events first. `on_init` of a script can also create some other instances
                     // and these will be correctly initialized on current frame.
                     while let Ok(event) = context.scene.graph.script_message_receiver.try_recv() {
@@ -1632,11 +1631,8 @@ impl Engine {
 
     /// Registers a scene for script processing.
     pub fn register_scripted_scene(&mut self, scene: Handle<Scene>) {
-        self.script_processor.register_scripted_scene(
-            scene,
-            &mut self.scenes,
-            &self.resource_manager,
-        )
+        self.script_processor
+            .register_scripted_scene(scene, &self.resource_manager)
     }
 
     fn handle_scripts(&mut self, dt: f32) {
