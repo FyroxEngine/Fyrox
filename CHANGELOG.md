@@ -1,5 +1,8 @@
 # 0.32 (WIP)
 
+- Do not call `Script::on_os_event` if script is not started yet.
+- Borrow instead of move in `Visitor::load_from_memory`.
+- Ability to load scenes in two modes - derived and raw.
 - Fixed selection issues in the animation editor.
 - Fixed path fixer.
 - Ability to set resource path.
