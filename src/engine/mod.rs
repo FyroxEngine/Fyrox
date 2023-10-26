@@ -2129,11 +2129,7 @@ mod test {
 
         let mut script_processor = ScriptProcessor::default();
 
-        script_processor.register_scripted_scene(
-            scene_handle,
-            &mut scene_container,
-            &resource_manager,
-        );
+        script_processor.register_scripted_scene(scene_handle, &resource_manager);
 
         let handle_on_init = Handle::new(2, 1);
         let handle_on_start = Handle::new(3, 1);
@@ -2300,11 +2296,7 @@ mod test {
 
         let mut script_processor = ScriptProcessor::default();
 
-        script_processor.register_scripted_scene(
-            scene_handle,
-            &mut scene_container,
-            &resource_manager,
-        );
+        script_processor.register_scripted_scene(scene_handle, &resource_manager);
 
         for iteration in 0..2 {
             script_processor.handle_scripts(
