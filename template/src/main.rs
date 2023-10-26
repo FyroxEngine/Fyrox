@@ -56,7 +56,7 @@ enum Commands {
 // and to solve this we just hard code these values and pray for the best.
 const CURRENT_ENGINE_VERSION: &str = "0.31.0";
 const CURRENT_EDITOR_VERSION: &str = "0.18.0";
-const CURRENT_SCRIPTS_VERSION: &str = "https://github.com/FyroxEngine/Fyrox"; // TODO: `fyrox-scripts` is unpublished yet.
+const CURRENT_SCRIPTS_VERSION: &str = "0.1.0";
 
 fn write_file<P: AsRef<Path>, S: AsRef<str>>(path: P, content: S) {
     let mut file = File::create(path.as_ref()).unwrap();
