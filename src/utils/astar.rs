@@ -635,7 +635,7 @@ mod test {
     use crate::rand::Rng;
     use crate::{
         core::{algebra::Vector3, rand},
-        utils::astar::{PathFinder, PathVertex},
+        utils::astar::{PathFinder, PathKind, PathVertex},
     };
     use std::time::Instant;
 
@@ -762,31 +762,8 @@ mod test {
         assert_eq!(pathfinder.vertex(3).unwrap().neighbours, vec![2, 1]);
     }
 
-    fn generate_grid(size: usize) -> PathFinder {
-        let mut pathfinder = PathFinder::new();
-
-        // Create vertices.
-        let mut vertices = Vec::new();
-        for y in 0..size {
-            for x in 0..size {
-                vertices.push(PathVertex::new(Vector3::new(x as f32, y as f32, 0.0)));
-            }
-        }
-        pathfinder.set_vertices(vertices);
-
-        // Link vertices as grid.
-        for y in 0..(size - 1) {
-            for x in 0..(size - 1) {
-                pathfinder.link_bidirect(y * size + x, y * size + x + 1);
-                pathfinder.link_bidirect(y * size + x, (y + 1) * size + x);
-            }
-        }
-
-        return pathfinder;
-    }
-
     #[test]
-    fn astar_large_grid_benchmark() {
+    fn astar_complete_grid_benchmark() {
         let start_time = Instant::now();
         let mut path = Vec::new();
 
@@ -794,7 +771,24 @@ mod test {
             println!("benchmarking grid size of: {}^2", size);
             let setup_start_time = Instant::now();
 
-            let mut pathfinder = generate_grid(size);
+            let mut pathfinder = PathFinder::new();
+
+            // Create vertices.
+            let mut vertices = Vec::new();
+            for y in 0..size {
+                for x in 0..size {
+                    vertices.push(PathVertex::new(Vector3::new(x as f32, y as f32, 0.0)));
+                }
+            }
+            pathfinder.set_vertices(vertices);
+
+            // Link vertices as grid.
+            for y in 0..(size - 1) {
+                for x in 0..(size - 1) {
+                    pathfinder.link_bidirect(y * size + x, y * size + x + 1);
+                    pathfinder.link_bidirect(y * size + x, (y + 1) * size + x);
+                }
+            }
 
             let setup_complete_time = Instant::now();
             println!(
@@ -845,6 +839,93 @@ mod test {
                 setup_start_time.elapsed()
             );
         }
+        println!("Total time: {:?}\n", start_time.elapsed());
+    }
+
+    #[test]
+    fn astar_island_benchmark() {
+        let start_time = Instant::now();
+
+        let size = 10;
+        let mut path = Vec::new();
+        let mut pathfinder = PathFinder::new();
+
+        // Create vertices.
+        let mut vertices = Vec::new();
+        for y in 0..size {
+            for x in 0..size {
+                vertices.push(PathVertex::new(Vector3::new(x as f32, y as f32, 0.0)));
+            }
+        }
+        pathfinder.set_vertices(vertices);
+
+        // Link vertices as grid.
+        // seperates grids half way down the y-axis
+        for y in 0..(size - 1) {
+            for x in 0..(size - 1) {
+                if x != ((size / 2) - 1) {
+                    pathfinder.link_bidirect(y * size + x, y * size + x + 1);
+                }
+                pathfinder.link_bidirect(y * size + x, (y + 1) * size + x);
+            }
+        }
+
+        let setup_complete_time = Instant::now();
+        println!(
+            "setup in: {:?}",
+            setup_complete_time.duration_since(start_time)
+        );
+
+        for _ in 0..10 {
+            // generates a random start point on the left half of the grid
+            let sx = rand::thread_rng().gen_range(0..((size / 2) - 1));
+            let sy = rand::thread_rng().gen_range(0..(size - 1));
+
+            // generates a random end point on the right half of the grid
+            let tx = rand::thread_rng().gen_range((size / 2)..(size - 1));
+            let ty = rand::thread_rng().gen_range(0..(size - 1));
+
+            let from = sy * size + sx;
+            let to = ty * size + tx;
+
+            let path_result = pathfinder.build(from, to, &mut path);
+
+            assert!(path_result.is_ok());
+            assert_eq!(path_result.unwrap(), PathKind::Partial);
+            assert!(!path.is_empty());
+
+            if path.len() > 1 {
+                // partial path should be along the divide and at the same y height as end point
+                // let best_end = ty * size + ((size / 2) - 1);
+                // assert_eq!(
+                //     *path.first().unwrap(),
+                //     pathfinder.vertex(best_end).unwrap().position
+                // );
+
+                // partial path should be along the divide
+                assert_eq!(path.first().unwrap().x as i32, ((size / 2) - 1) as i32);
+                // start point should be start point
+                assert_eq!(
+                    *path.last().unwrap(),
+                    pathfinder.vertex(from).unwrap().position
+                );
+            } else {
+                let point = *path.first().unwrap();
+                assert_eq!(point, pathfinder.vertex(to).unwrap().position);
+                assert_eq!(point, pathfinder.vertex(from).unwrap().position);
+            }
+
+            for pair in path.chunks(2) {
+                if pair.len() == 2 {
+                    let a = pair[0];
+                    let b = pair[1];
+
+                    assert!(a.metric_distance(&b) <= 2.0f32.sqrt());
+                }
+            }
+        }
+
+        println!("paths found in: {:?}", setup_complete_time.elapsed());
         println!("Total time: {:?}\n", start_time.elapsed());
     }
 }
