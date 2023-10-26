@@ -928,4 +928,76 @@ mod test {
         println!("paths found in: {:?}", setup_complete_time.elapsed());
         println!("Total time: {:?}\n", start_time.elapsed());
     }
+
+    #[test]
+    fn astar_backwards_travel_benchmark() {
+        let start_time = Instant::now();
+
+        let size = 200;
+        let mut path = Vec::new();
+        let mut pathfinder = PathFinder::new();
+
+        // Create vertices.
+        let mut vertices = Vec::new();
+        for y in 0..size {
+            for x in 0..size {
+                vertices.push(PathVertex::new(Vector3::new(x as f32, y as f32, 0.0)));
+            }
+        }
+        pathfinder.set_vertices(vertices);
+
+        // Link vertices as grid.
+        // seperates grid diagonally down the xy plane leaving only one conection in the corner
+        for y in 0..(size - 1) {
+            for x in (0..(size - 1)).rev() {
+                if y == 0 || x != y {
+                    pathfinder.link_bidirect(y * size + x, y * size + x + 1);
+                    pathfinder.link_bidirect(y * size + x, (y + 1) * size + x);
+                }
+            }
+        }
+
+        let setup_complete_time = Instant::now();
+        println!(
+            "setup in: {:?}",
+            setup_complete_time.duration_since(start_time)
+        );
+
+        for _ in 0..1000 {
+            // a point on the center right edge
+            let from = (size / 2) * size + (size - 1);
+            // a point on the center top edge
+            let to = (size - 1) * size + (size / 2);
+
+            assert!(pathfinder.build(from, to, &mut path).is_ok());
+            assert!(!path.is_empty());
+
+            if path.len() > 1 {
+                assert_eq!(
+                    *path.first().unwrap(),
+                    pathfinder.vertex(to).unwrap().position
+                );
+                assert_eq!(
+                    *path.last().unwrap(),
+                    pathfinder.vertex(from).unwrap().position
+                );
+            } else {
+                let point = *path.first().unwrap();
+                assert_eq!(point, pathfinder.vertex(to).unwrap().position);
+                assert_eq!(point, pathfinder.vertex(from).unwrap().position);
+            }
+
+            for pair in path.chunks(2) {
+                if pair.len() == 2 {
+                    let a = pair[0];
+                    let b = pair[1];
+
+                    assert!(a.metric_distance(&b) <= 2.0f32.sqrt());
+                }
+            }
+        }
+
+        println!("paths found in: {:?}", setup_complete_time.elapsed());
+        println!("Total time: {:?}\n", start_time.elapsed());
+    }
 }
