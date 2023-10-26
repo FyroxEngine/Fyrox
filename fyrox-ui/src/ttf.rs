@@ -24,13 +24,13 @@ pub struct FontGlyph {
 }
 
 pub struct Font {
-    height: f32,
-    glyphs: Vec<FontGlyph>,
-    ascender: f32,
-    descender: f32,
-    char_map: FxHashMap<u32, usize>,
-    atlas: Vec<u8>,
-    atlas_size: usize,
+    pub height: f32,
+    pub glyphs: Vec<FontGlyph>,
+    pub ascender: f32,
+    pub descender: f32,
+    pub char_map: FxHashMap<u32, usize>,
+    pub atlas: Vec<u8>,
+    pub atlas_size: usize,
     pub texture: Option<SharedTexture>,
 }
 
