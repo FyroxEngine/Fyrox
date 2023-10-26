@@ -768,10 +768,12 @@ mod test {
     }
 
     #[test]
+    /// Tests A*'s speed when finding a direct path with no obsticles
     fn astar_complete_grid_benchmark() {
         let start_time = Instant::now();
         let mut path = Vec::new();
 
+        println!();
         for size in [10, 40, 100, 500] {
             println!("benchmarking grid size of: {}^2", size);
             let setup_start_time = Instant::now();
@@ -848,10 +850,11 @@ mod test {
     }
 
     #[test]
+    /// Tests A*'s speed when finding partial paths (no direct path available)
     fn astar_island_benchmark() {
         let start_time = Instant::now();
 
-        let size = 10;
+        let size = 100;
         let mut path = Vec::new();
         let mut pathfinder = PathFinder::new();
 
@@ -876,12 +879,13 @@ mod test {
         }
 
         let setup_complete_time = Instant::now();
+
         println!(
-            "setup in: {:?}",
+            "\nsetup in: {:?}",
             setup_complete_time.duration_since(start_time)
         );
 
-        for _ in 0..10 {
+        for _ in 0..1000 {
             // generates a random start point on the left half of the grid
             let sx = rand::thread_rng().gen_range(0..((size / 2) - 1));
             let sy = rand::thread_rng().gen_range(0..(size - 1));
@@ -935,10 +939,11 @@ mod test {
     }
 
     #[test]
+    /// Tests A*'s speed when when finding indirect paths (major obstacle in the way)
     fn astar_backwards_travel_benchmark() {
         let start_time = Instant::now();
 
-        let size = 200;
+        let size = 100;
         let mut path = Vec::new();
         let mut pathfinder = PathFinder::new();
 
@@ -963,8 +968,9 @@ mod test {
         }
 
         let setup_complete_time = Instant::now();
+
         println!(
-            "setup in: {:?}",
+            "\nsetup in: {:?}",
             setup_complete_time.duration_since(start_time)
         );
 
