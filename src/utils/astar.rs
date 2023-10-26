@@ -530,7 +530,7 @@ impl PathFinder {
         let mut best_path = PartialPath::default();
 
         // search loop
-        // TODO: don't hard code max search itterations
+        // TODO: don't hard code max search iterations
         for _ in 0..1000 {
             // breakes loop if heap is empty
             if search_heap.is_empty() {
@@ -568,6 +568,11 @@ impl PathFinder {
                     }
                     path.reverse();
                     return Ok(PathKind::Full);
+                }
+
+                //TODO: add a check to avoid going in circles
+                if current_path.vertices.contains(&neighbour_index) {
+                    continue;
                 }
 
                 let neighbour = self
