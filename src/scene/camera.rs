@@ -925,27 +925,21 @@ fn load_texture(data: &[u8], id: &str) -> TextureResource {
 
 lazy_static! {
     static ref BUILT_IN_SKYBOX_FRONT: TextureResource = load_texture(
-        include_bytes!("../../data/front.png"),
+        include_bytes!("skybox/front.png"),
         "__BUILT_IN_SKYBOX_FRONT",
     );
-    static ref BUILT_IN_SKYBOX_BACK: TextureResource = load_texture(
-        include_bytes!("../../data/back.png"),
-        "__BUILT_IN_SKYBOX_BACK",
-    );
-    static ref BUILT_IN_SKYBOX_TOP: TextureResource = load_texture(
-        include_bytes!("../../data/top.png"),
-        "__BUILT_IN_SKYBOX_TOP",
-    );
+    static ref BUILT_IN_SKYBOX_BACK: TextureResource =
+        load_texture(include_bytes!("skybox/back.png"), "__BUILT_IN_SKYBOX_BACK",);
+    static ref BUILT_IN_SKYBOX_TOP: TextureResource =
+        load_texture(include_bytes!("skybox/top.png"), "__BUILT_IN_SKYBOX_TOP",);
     static ref BUILT_IN_SKYBOX_BOTTOM: TextureResource = load_texture(
-        include_bytes!("../../data/bottom.png"),
+        include_bytes!("skybox/bottom.png"),
         "__BUILT_IN_SKYBOX_BOTTOM",
     );
-    static ref BUILT_IN_SKYBOX_LEFT: TextureResource = load_texture(
-        include_bytes!("../../data/left.png"),
-        "__BUILT_IN_SKYBOX_LEFT",
-    );
+    static ref BUILT_IN_SKYBOX_LEFT: TextureResource =
+        load_texture(include_bytes!("skybox/left.png"), "__BUILT_IN_SKYBOX_LEFT",);
     static ref BUILT_IN_SKYBOX_RIGHT: TextureResource = load_texture(
-        include_bytes!("../../data/right.png"),
+        include_bytes!("skybox/right.png"),
         "__BUILT_IN_SKYBOX_RIGHT",
     );
     static ref BUILT_IN_SKYBOX: SkyBox = SkyBoxKind::make_built_in_skybox();
