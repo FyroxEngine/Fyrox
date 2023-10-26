@@ -211,16 +211,17 @@ impl Plugin for Game {
         // Handle UI events here.
     }
     
-    fn on_scene_begin_loading(&mut self, _path: &Path, ctx: &mut PluginContext) {
+    fn on_scene_begin_loading(&mut self, path: &Path, ctx: &mut PluginContext) {
         if self.scene.is_some() {
-            context.scenes.remove(self.scene);
+            ctx.scenes.remove(self.scene);
         }
     }
 
     fn on_scene_loaded(
         &mut self,
-        _path: &Path,
+        path: &Path,
         scene: Handle<Scene>,
+        data: &[u8],
         context: &mut PluginContext,
     ) {    
         self.scene = scene;
