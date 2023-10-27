@@ -80,7 +80,7 @@ use crate::{
     utils::{doc::DocWindow, path_fixer::PathFixer},
     world::{graph::selection::GraphSelection, WorldViewer},
 };
-use fyrox::event_loop::EventLoopWindowTarget;
+use fyrox::{asset::io::FsResourceIo, event_loop::EventLoopWindowTarget};
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
@@ -1867,6 +1867,7 @@ impl Editor {
         let result = {
             block_on(SceneLoader::from_file(
                 &scene_path,
+                &FsResourceIo,
                 engine.serialization_context.clone(),
                 engine.resource_manager.clone(),
             ))

@@ -1,6 +1,7 @@
 use crate::asset::inspector::handlers::ImportOptionsHandler;
 use fyrox::{
     asset::{
+        io::FsResourceIo,
         manager::ResourceManager,
         options::{try_get_import_settings, ImportOptions},
     },
@@ -19,7 +20,8 @@ impl ModelImportOptionsHandler {
     pub fn new(resource_path: &Path) -> Self {
         Self {
             resource_path: resource_path.to_owned(),
-            options: block_on(try_get_import_settings(resource_path)).unwrap_or_default(),
+            options: block_on(try_get_import_settings(resource_path, &FsResourceIo))
+                .unwrap_or_default(),
         }
     }
 }
@@ -33,7 +35,8 @@ impl ImportOptionsHandler for ModelImportOptionsHandler {
     }
 
     fn revert(&mut self) {
-        self.options = block_on(try_get_import_settings(&self.resource_path)).unwrap_or_default();
+        self.options = block_on(try_get_import_settings(&self.resource_path, &FsResourceIo))
+            .unwrap_or_default();
     }
 
     fn value(&self) -> &dyn Reflect {
