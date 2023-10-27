@@ -330,10 +330,7 @@ impl AsyncSceneLoader {
             let resource_manager = self.resource_manager.clone();
 
             // Aquire the resource IO from the resource manager
-            let io = {
-                let state = resource_manager.state();
-                state.resource_io.clone()
-            };
+            let io = resource_manager.resource_io();
 
             let future = async move {
                 match SceneLoader::from_file(

@@ -61,7 +61,7 @@ pub struct ResourceManagerState {
     /// A set of built-in resources, that will be used to resolve references on deserialization.
     pub built_in_resources: FxHashMap<PathBuf, UntypedResource>,
     /// The resource acccess interface
-    pub resource_io: Arc<dyn ResourceIo>,
+    resource_io: Arc<dyn ResourceIo>,
 
     resources: Vec<TimedEntry<UntypedResource>>,
     task_pool: Arc<TaskPool>,
@@ -118,6 +118,12 @@ impl ResourceManager {
     /// Returns a guarded reference to internal state of resource manager.
     pub fn state(&self) -> MutexGuard<'_, ResourceManagerState> {
         self.state.lock()
+    }
+
+    /// Returns the ResourceIo used by this resource manager
+    pub fn resource_io(&self) -> Arc<dyn ResourceIo> {
+        let state = self.state();
+        state.resource_io.clone()
     }
 
     /// Requests a resource of the given type located at the given path. This method is non-blocking, instead
