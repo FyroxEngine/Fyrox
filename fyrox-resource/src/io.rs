@@ -1,7 +1,7 @@
 //! Provides an interface for IO operations that a resource loader will use, this facilliates
 //! things such as loading assets within archive files
 
-use fyrox_core::{futures::future::BoxFuture, io::FileLoadError};
+use fyrox_core::io::FileLoadError;
 use std::future::{ready, Future};
 use std::iter::empty;
 use std::pin::Pin;
