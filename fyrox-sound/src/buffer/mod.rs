@@ -15,7 +15,10 @@ use crate::{
 use fyrox_core::{
     io::FileLoadError, reflect::prelude::*, uuid::Uuid, visitor::prelude::*, TypeUuidProvider,
 };
-use fyrox_resource::{Resource, ResourceData, SOUND_BUFFER_RESOURCE_UUID};
+use fyrox_resource::{
+    io::{FileReader, ResourceIo},
+    Resource, ResourceData, SOUND_BUFFER_RESOURCE_UUID,
+};
 use std::{
     any::Any,
     borrow::Cow,
@@ -39,13 +42,8 @@ pub enum DataSource {
         /// Path to file.
         path: PathBuf,
 
-        /// Buffered file opened for read.
-        #[cfg(not(target_arch = "wasm32"))]
-        data: std::io::BufReader<std::fs::File>,
-
-        /// TODO: In case of WASM load file entirely.
-        #[cfg(target_arch = "wasm32")]
-        data: Cursor<Vec<u8>>,
+        /// Reader for reading from the source
+        data: Box<dyn FileReader>,
     },
 
     /// Data source is a memory block. Memory block must be in valid format (wav or vorbis/ogg). This variant can
@@ -105,21 +103,13 @@ pub trait RawStreamingDataSource: Iterator<Item = f32> + Send + Sync + Debug {
 
 impl DataSource {
     /// Tries to create new `File` data source from given path. May fail if file does not exists.
-    pub async fn from_file<P>(path: P) -> Result<Self, FileLoadError>
+    pub async fn from_file<P>(path: P, io: &dyn ResourceIo) -> Result<Self, FileLoadError>
     where
         P: AsRef<Path>,
     {
         Ok(DataSource::File {
             path: path.as_ref().to_path_buf(),
-
-            #[cfg(not(target_arch = "wasm32"))]
-            data: std::io::BufReader::new(match std::fs::File::open(path) {
-                Ok(file) => file,
-                Err(e) => return Err(FileLoadError::Io(e)),
-            }),
-
-            #[cfg(target_arch = "wasm32")]
-            data: Cursor::new(fyrox_core::io::load_file(path).await?),
+            data: io.file_reader(path.as_ref()).await?,
         })
     }
 

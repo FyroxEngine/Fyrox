@@ -17,7 +17,6 @@ use crate::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3, Vector4},
         curve::{CurveKey, CurveKeyKind},
         instant::Instant,
-        io,
         log::{Log, MessageKind},
         math::{self, triangulator::triangulate, RotationOrder},
         pool::Handle,
@@ -60,13 +59,13 @@ use crate::{
     utils::{self, raw_mesh::RawMeshBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_resource::io::ResourceIo;
 use std::{
     cmp::Ordering,
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
     path::Path,
 };
-use walkdir::WalkDir;
 
 /// Input angles in degrees
 fn quat_from_euler(euler: Vector3<f32>) -> UnitQuaternion<f32> {
@@ -307,9 +306,13 @@ async fn create_surfaces(
                     ),
                 )
             }
+
+            let io = resource_manager.resource_io();
+
             for (name, texture_handle) in material.textures.iter() {
                 let texture = fbx_scene.get(*texture_handle).as_texture()?;
                 let path = texture.get_file_path();
+
                 if let Some(filename) = path.file_name() {
                     let texture_path = match model_import_options.material_search_options {
                         MaterialSearchOptions::MaterialsDirectory(ref directory) => {
@@ -320,7 +323,7 @@ async fn create_surfaces(
                             let mut path = model_path.to_owned();
                             while let Some(parent) = path.parent() {
                                 let candidate = parent.join(filename);
-                                if io::exists(&candidate).await {
+                                if io.exists(&candidate).await {
                                     texture_path = Some(candidate);
                                     break;
                                 }
@@ -330,15 +333,21 @@ async fn create_surfaces(
                         }
                         MaterialSearchOptions::WorkingDirectory => {
                             let mut texture_path = None;
-                            for dir in WalkDir::new(".").into_iter().flatten() {
-                                if dir.path().is_dir() {
-                                    let candidate = dir.path().join(filename);
-                                    if candidate.exists() {
-                                        texture_path = Some(candidate);
-                                        break;
+
+                            let path = Path::new(".");
+
+                            if let Ok(iter) = io.walk_directory(path).await {
+                                for dir in iter {
+                                    if io.is_dir(&dir).await {
+                                        let candidate = dir.join(filename);
+                                        if candidate.exists() {
+                                            texture_path = Some(candidate);
+                                            break;
+                                        }
                                     }
                                 }
                             }
+
                             texture_path
                         }
                         MaterialSearchOptions::UsePathDirectly => Some(path.clone()),
@@ -889,6 +898,7 @@ async fn convert(
 pub async fn load_to_scene<P: AsRef<Path>>(
     scene: &mut Scene,
     resource_manager: ResourceManager,
+    io: &dyn ResourceIo,
     path: P,
     model_import_options: &ModelImportOptions,
 ) -> Result<(), FbxError> {
@@ -900,7 +910,7 @@ pub async fn load_to_scene<P: AsRef<Path>>(
     );
 
     let now = Instant::now();
-    let fbx = FbxDocument::new(path.as_ref()).await?;
+    let fbx = FbxDocument::new(path.as_ref(), io).await?;
     let parsing_time = now.elapsed().as_millis();
 
     let now = Instant::now();

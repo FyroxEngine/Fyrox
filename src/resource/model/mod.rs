@@ -42,6 +42,7 @@ use crate::{
         Scene, SceneLoader,
     },
 };
+use fyrox_resource::io::ResourceIo;
 use serde::{Deserialize, Serialize};
 use std::{
     any::Any,
@@ -458,6 +459,7 @@ impl From<VisitError> for ModelLoadError {
 impl Model {
     pub(crate) async fn load<P: AsRef<Path>>(
         path: P,
+        io: &dyn ResourceIo,
         serialization_context: Arc<SerializationContext>,
         resource_manager: ResourceManager,
         model_import_options: ModelImportOptions,
@@ -479,6 +481,7 @@ impl Model {
                 fbx::load_to_scene(
                     &mut scene,
                     resource_manager,
+                    io,
                     path.as_ref(),
                     &model_import_options,
                 )
@@ -492,6 +495,7 @@ impl Model {
             "rgs" => (
                 SceneLoader::from_file(
                     path.as_ref(),
+                    io,
                     serialization_context,
                     resource_manager.clone(),
                 )

@@ -1,8 +1,8 @@
 //! Resource loader. It manages resource loading.
 
-use crate::{event::ResourceEventBroadcaster, UntypedResource};
+use crate::{event::ResourceEventBroadcaster, io::ResourceIo, UntypedResource};
 use fyrox_core::uuid::Uuid;
-use std::{any::Any, future::Future, pin::Pin};
+use std::{any::Any, future::Future, pin::Pin, sync::Arc};
 
 #[cfg(target_arch = "wasm32")]
 #[doc(hidden)]
@@ -58,6 +58,7 @@ pub trait ResourceLoader: ResourceLoaderTypeTrait {
         resource: UntypedResource,
         event_broadcaster: ResourceEventBroadcaster,
         reload: bool,
+        io: Arc<dyn ResourceIo>,
     ) -> BoxedLoaderFuture;
 }
 
@@ -184,6 +185,7 @@ mod test {
             _resource: UntypedResource,
             _event_broadcaster: ResourceEventBroadcaster,
             _reload: bool,
+            _io: Arc<dyn ResourceIo>,
         ) -> BoxedLoaderFuture {
             todo!()
         }

@@ -1,11 +1,13 @@
 //! Shader loader.
 
+use std::sync::Arc;
+
 use crate::{
     asset::loader::{BoxedLoaderFuture, ResourceLoader},
     core::{log::Log, uuid::Uuid, TypeUuidProvider},
     material::shader::Shader,
 };
-use fyrox_resource::{event::ResourceEventBroadcaster, untyped::UntypedResource};
+use fyrox_resource::{event::ResourceEventBroadcaster, io::ResourceIo, untyped::UntypedResource};
 
 /// Default implementation for shader loading.
 pub struct ShaderLoader;
@@ -24,11 +26,12 @@ impl ResourceLoader for ShaderLoader {
         shader: UntypedResource,
         event_broadcaster: ResourceEventBroadcaster,
         reload: bool,
+        io: Arc<dyn ResourceIo>,
     ) -> BoxedLoaderFuture {
         Box::pin(async move {
             let path = shader.path().to_path_buf();
 
-            match Shader::from_file(&path).await {
+            match Shader::from_file(&path, io.as_ref()).await {
                 Ok(shader_state) => {
                     Log::info(format!("Shader {:?} is loaded!", path));
 

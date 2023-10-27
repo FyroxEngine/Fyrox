@@ -1,5 +1,7 @@
 //! Model loader.
 
+use fyrox_resource::io::ResourceIo;
+
 use crate::{
     asset::{
         event::ResourceEventBroadcaster,
@@ -39,19 +41,29 @@ impl ResourceLoader for ModelLoader {
         model: UntypedResource,
         event_broadcaster: ResourceEventBroadcaster,
         reload: bool,
+        io: Arc<dyn ResourceIo>,
     ) -> BoxedLoaderFuture {
         let resource_manager = self.resource_manager.clone();
         let node_constructors = self.serialization_context.clone();
         let default_import_options = self.default_import_options.clone();
 
         Box::pin(async move {
+            let io = io.as_ref();
             let path = model.path().to_path_buf();
 
-            let import_options = try_get_import_settings(&path)
+            let import_options = try_get_import_settings(&path, io)
                 .await
                 .unwrap_or(default_import_options);
 
-            match Model::load(&path, node_constructors, resource_manager, import_options).await {
+            match Model::load(
+                &path,
+                io,
+                node_constructors,
+                resource_manager,
+                import_options,
+            )
+            .await
+            {
                 Ok(raw_model) => {
                     Log::info(format!("Model {:?} is loaded!", path));
 

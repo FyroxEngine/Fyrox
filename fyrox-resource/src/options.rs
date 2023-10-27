@@ -1,6 +1,6 @@
 //! Resource import options common traits.
 
-use crate::core::{append_extension, io};
+use crate::{core::append_extension, io::ResourceIo};
 use fyrox_core::log::Log;
 use ron::ser::PrettyConfig;
 use serde::{de::DeserializeOwned, Serialize};
@@ -21,13 +21,13 @@ pub trait ImportOptions: Serialize + DeserializeOwned + Default + Clone {
 
 /// Tries to load import settings for a resource. It is not part of ImportOptions trait because
 /// `async fn` is not yet supported for traits.
-pub async fn try_get_import_settings<T>(resource_path: &Path) -> Option<T>
+pub async fn try_get_import_settings<T>(resource_path: &Path, io: &dyn ResourceIo) -> Option<T>
 where
     T: ImportOptions,
 {
     let settings_path = append_extension(resource_path, "options");
 
-    match io::load_file(&settings_path).await {
+    match io.load_file(settings_path.as_ref()).await {
         Ok(bytes) => match ron::de::from_bytes::<T>(&bytes) {
             Ok(options) => Some(options),
             Err(e) => {

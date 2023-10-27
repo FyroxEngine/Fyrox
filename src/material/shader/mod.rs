@@ -229,7 +229,7 @@ use crate::{
     asset::{Resource, ResourceData},
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
-        io::{self, FileLoadError},
+        io::FileLoadError,
         reflect::prelude::*,
         sparse::AtomicIndex,
         visitor::prelude::*,
@@ -239,7 +239,7 @@ use crate::{
 };
 use fyrox_core::uuid::Uuid;
 use fyrox_core::TypeUuidProvider;
-use fyrox_resource::SHADER_RESOURCE_UUID;
+use fyrox_resource::{io::ResourceIo, SHADER_RESOURCE_UUID};
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::fmt::{Display, Formatter};
@@ -500,8 +500,11 @@ impl ShaderDefinition {
 }
 
 impl Shader {
-    pub(crate) async fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, ShaderError> {
-        let content = io::load_file(path.as_ref()).await?;
+    pub(crate) async fn from_file<P: AsRef<Path>>(
+        path: P,
+        io: &dyn ResourceIo,
+    ) -> Result<Self, ShaderError> {
+        let content = io.load_file(path.as_ref()).await?;
         Ok(Self {
             path: path.as_ref().to_owned(),
             definition: ShaderDefinition::from_buf(content)?,
@@ -671,7 +674,7 @@ mod test {
         let code = r#"
             (
                 name: "TestShader",
-            
+
                 properties: [
                     (
                         name: "diffuseTexture",

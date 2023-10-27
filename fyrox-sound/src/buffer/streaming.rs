@@ -14,9 +14,10 @@
 //! ```no_run
 //! use std::sync::{Mutex, Arc};
 //! use fyrox_sound::buffer::{SoundBufferResource, DataSource, SoundBufferResourceExtension};
+//! use fyrox_resource::io::FsResourceIo;
 //!
 //! async fn make_streaming_buffer() -> SoundBufferResource {
-//!     let data_source = DataSource::from_file("some_long_sound.ogg").await.unwrap();
+//!     let data_source = DataSource::from_file("some_long_sound.ogg", &FsResourceIo).await.unwrap();
 //!     SoundBufferResource::new_streaming(data_source).unwrap()
 //! }
 //! ```

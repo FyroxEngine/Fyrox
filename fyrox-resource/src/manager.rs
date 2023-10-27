@@ -1,5 +1,6 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
+use crate::io::{FsResourceIo, ResourceIo};
 use crate::loader::ResourceLoader;
 use crate::{
     constructor::ResourceConstructorContainer,
@@ -59,6 +60,9 @@ pub struct ResourceManagerState {
     pub constructors_container: ResourceConstructorContainer,
     /// A set of built-in resources, that will be used to resolve references on deserialization.
     pub built_in_resources: FxHashMap<PathBuf, UntypedResource>,
+    /// The resource acccess interface
+    resource_io: Arc<dyn ResourceIo>,
+
     resources: Vec<TimedEntry<UntypedResource>>,
     task_pool: Arc<TaskPool>,
     watcher: Option<FileSystemWatcher>,
@@ -114,6 +118,12 @@ impl ResourceManager {
     /// Returns a guarded reference to internal state of resource manager.
     pub fn state(&self) -> MutexGuard<'_, ResourceManagerState> {
         self.state.lock()
+    }
+
+    /// Returns the ResourceIo used by this resource manager
+    pub fn resource_io(&self) -> Arc<dyn ResourceIo> {
+        let state = self.state();
+        state.resource_io.clone()
     }
 
     /// Requests a resource of the given type located at the given path. This method is non-blocking, instead
@@ -244,7 +254,15 @@ impl ResourceManagerState {
             constructors_container: Default::default(),
             watcher: None,
             built_in_resources: Default::default(),
+            // Use the file system resource io by default
+            resource_io: Arc::new(FsResourceIo),
         }
+    }
+
+    /// Set the IO source that the resource manager should use when
+    /// loading assets
+    pub fn set_resource_io(&mut self, resource_io: Arc<dyn ResourceIo>) {
+        self.resource_io = resource_io;
     }
 
     /// Sets resource watcher which will track any modifications in file system and forcing
@@ -456,8 +474,12 @@ impl ResourceManagerState {
         resource: UntypedResource,
         reload: bool,
     ) {
-        self.task_pool
-            .spawn_task(loader.load(resource, self.event_broadcaster.clone(), reload));
+        self.task_pool.spawn_task(loader.load(
+            resource,
+            self.event_broadcaster.clone(),
+            reload,
+            self.resource_io.clone(),
+        ));
     }
 
     /// Reloads a single resource.
@@ -589,6 +611,7 @@ mod test {
             resource: UntypedResource,
             event_broadcaster: ResourceEventBroadcaster,
             reload: bool,
+            _io: Arc<dyn ResourceIo>,
         ) -> BoxedLoaderFuture {
             Box::pin(async move {
                 resource.commit_ok(Stub::default());

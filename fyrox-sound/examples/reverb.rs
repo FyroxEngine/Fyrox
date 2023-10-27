@@ -1,3 +1,4 @@
+use fyrox_resource::io::FsResourceIo;
 use fyrox_sound::buffer::SoundBufferResourceExtension;
 use fyrox_sound::renderer::hrtf::{HrirSphereResource, HrirSphereResourceExt};
 use fyrox_sound::{
@@ -51,7 +52,11 @@ fn main() {
 
     // Create some sounds.
     let sound_buffer = SoundBufferResource::new_generic(
-        block_on(DataSource::from_file("examples/data/door_open.wav")).unwrap(),
+        block_on(DataSource::from_file(
+            "examples/data/door_open.wav", // Load from the default resource io (File system)
+            &FsResourceIo,
+        ))
+        .unwrap(),
     )
     .unwrap();
     let source = SoundSourceBuilder::new()
@@ -64,7 +69,12 @@ fn main() {
     context.state().add_source(source);
 
     let sound_buffer = SoundBufferResource::new_generic(
-        block_on(DataSource::from_file("examples/data/drop.wav")).unwrap(),
+        block_on(DataSource::from_file(
+            "examples/data/drop.wav",
+            // Load from the default resource io (File system)
+            &FsResourceIo,
+        ))
+        .unwrap(),
     )
     .unwrap();
     let source = SoundSourceBuilder::new()
