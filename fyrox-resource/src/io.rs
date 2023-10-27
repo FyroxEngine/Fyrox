@@ -2,8 +2,9 @@
 //! things such as loading assets within archive files
 
 use fyrox_core::{futures::future::BoxFuture, io::FileLoadError};
-use std::future::ready;
+use std::future::{ready, Future};
 use std::iter::empty;
+use std::pin::Pin;
 use std::{
     fmt::Debug,
     io::{Cursor, Read, Seek},
@@ -12,8 +13,17 @@ use std::{
 use walkdir::WalkDir;
 
 /// Trait for files readers ensuring they implement the required traits
+#[cfg(target_arch = "wasm32")]
+pub trait FileReader: Debug + Read + Seek + 'static {}
+
+#[cfg(target_arch = "wasm32")]
+impl<F> FileReader for F where F: Debug + Read + Seek + 'static {}
+
+/// Trait for files readers ensuring they implement the required traits
+#[cfg(not(target_arch = "wasm32"))]
 pub trait FileReader: Debug + Send + Read + Seek + 'static {}
 
+#[cfg(not(target_arch = "wasm32"))]
 impl<F> FileReader for F where F: Debug + Send + Read + Seek + 'static {}
 
 /// Interface wrapping IO operations for doing this like loading files
@@ -21,7 +31,10 @@ impl<F> FileReader for F where F: Debug + Send + Read + Seek + 'static {}
 pub trait ResourceIo: Send + Sync + 'static {
     /// Attempts to load the file at the provided path returning
     /// the entire byte contents of the file or an error
-    fn load_file<'a>(&'a self, path: &'a Path) -> BoxFuture<'a, Result<Vec<u8>, FileLoadError>>;
+    fn load_file<'a>(
+        &'a self,
+        path: &'a Path,
+    ) -> ResourceIoFuture<'a, Result<Vec<u8>, FileLoadError>>;
 
     /// Provides an iterator over the paths present in the provided
     /// path, this should only provide paths immediately within the directory
@@ -30,7 +43,7 @@ pub trait ResourceIo: Send + Sync + 'static {
     fn read_directory<'a>(
         &'a self,
         #[allow(unused)] path: &'a Path,
-    ) -> BoxFuture<'a, Result<Box<dyn Iterator<Item = PathBuf> + Send>, FileLoadError>> {
+    ) -> ResourceIoFuture<'a, Result<Box<dyn Iterator<Item = PathBuf> + Send>, FileLoadError>> {
         let iter: Box<dyn Iterator<Item = PathBuf> + Send> = Box::new(empty());
         Box::pin(ready(Ok(iter)))
     }
@@ -42,7 +55,7 @@ pub trait ResourceIo: Send + Sync + 'static {
     fn walk_directory<'a>(
         &'a self,
         #[allow(unused)] path: &'a Path,
-    ) -> BoxFuture<'a, Result<Box<dyn Iterator<Item = PathBuf> + Send>, FileLoadError>> {
+    ) -> ResourceIoFuture<'a, Result<Box<dyn Iterator<Item = PathBuf> + Send>, FileLoadError>> {
         let iter: Box<dyn Iterator<Item = PathBuf> + Send> = Box::new(empty());
         Box::pin(ready(Ok(iter)))
     }
@@ -55,7 +68,7 @@ pub trait ResourceIo: Send + Sync + 'static {
     fn file_reader<'a>(
         &'a self,
         path: &'a Path,
-    ) -> BoxFuture<'a, Result<Box<dyn FileReader>, FileLoadError>> {
+    ) -> ResourceIoFuture<'a, Result<Box<dyn FileReader>, FileLoadError>> {
         Box::pin(async move {
             let bytes = self.load_file(path).await?;
             let read: Box<dyn FileReader> = Box::new(Cursor::new(bytes));
@@ -64,13 +77,13 @@ pub trait ResourceIo: Send + Sync + 'static {
     }
 
     /// Used to check whether a path exists
-    fn exists<'a>(&'a self, path: &'a Path) -> BoxFuture<'a, bool>;
+    fn exists<'a>(&'a self, path: &'a Path) -> ResourceIoFuture<'a, bool>;
 
     /// Used to check whether a path is a file
-    fn is_file<'a>(&'a self, path: &'a Path) -> BoxFuture<'a, bool>;
+    fn is_file<'a>(&'a self, path: &'a Path) -> ResourceIoFuture<'a, bool>;
 
     /// Used to check whether a path is a dir
-    fn is_dir<'a>(&'a self, path: &'a Path) -> BoxFuture<'a, bool>;
+    fn is_dir<'a>(&'a self, path: &'a Path) -> ResourceIoFuture<'a, bool>;
 }
 
 /// Standard resource IO provider that uses the file system to
@@ -78,8 +91,25 @@ pub trait ResourceIo: Send + Sync + 'static {
 #[derive(Default)]
 pub struct FsResourceIo;
 
+/// Future for resource io loading
+#[cfg(target_arch = "wasm32")]
+pub type ResourceIoFuture<'a, V> = Pin<Box<dyn Future<Output = V> + 'a>>;
+/// Future for resource io loading
+#[cfg(not(target_arch = "wasm32"))]
+pub type ResourceIoFuture<'a, V> = Pin<Box<dyn Future<Output = V> + Send + 'a>>;
+
+/// Iterator of paths
+#[cfg(target_arch = "wasm32")]
+pub type PathIter = Box<dyn Iterator<Item = PathBuf>>;
+/// Iterator of paths
+#[cfg(not(target_arch = "wasm32"))]
+pub type PathIter = Box<dyn Iterator<Item = PathBuf> + Send>;
+
 impl ResourceIo for FsResourceIo {
-    fn load_file<'a>(&'a self, path: &'a Path) -> BoxFuture<'a, Result<Vec<u8>, FileLoadError>> {
+    fn load_file<'a>(
+        &'a self,
+        path: &'a Path,
+    ) -> ResourceIoFuture<'a, Result<Vec<u8>, FileLoadError>> {
         Box::pin(fyrox_core::io::load_file(path))
     }
 
@@ -91,10 +121,10 @@ impl ResourceIo for FsResourceIo {
     fn read_directory<'a>(
         &'a self,
         #[allow(unused)] path: &'a Path,
-    ) -> BoxFuture<'a, Result<Box<dyn Iterator<Item = PathBuf> + Send>, FileLoadError>> {
+    ) -> ResourceIoFuture<'a, Result<PathIter, FileLoadError>> {
         Box::pin(async move {
             let iter = std::fs::read_dir(path)?.flatten().map(|entry| entry.path());
-            let iter: Box<dyn Iterator<Item = PathBuf> + Send> = Box::new(iter);
+            let iter: PathIter = Box::new(iter);
             Ok(iter)
         })
     }
@@ -105,14 +135,14 @@ impl ResourceIo for FsResourceIo {
     fn walk_directory<'a>(
         &'a self,
         path: &'a Path,
-    ) -> BoxFuture<'a, Result<Box<dyn Iterator<Item = PathBuf> + Send>, FileLoadError>> {
+    ) -> ResourceIoFuture<'a, Result<PathIter, FileLoadError>> {
         Box::pin(async move {
             let iter = WalkDir::new(path)
                 .into_iter()
                 .flatten()
                 .map(|value| value.into_path());
 
-            let iter: Box<dyn Iterator<Item = PathBuf> + Send> = Box::new(iter);
+            let iter: PathIter = Box::new(iter);
 
             Ok(iter)
         })
@@ -126,7 +156,7 @@ impl ResourceIo for FsResourceIo {
     fn file_reader<'a>(
         &'a self,
         path: &'a Path,
-    ) -> BoxFuture<'a, Result<Box<dyn FileReader>, FileLoadError>> {
+    ) -> ResourceIoFuture<'a, Result<Box<dyn FileReader>, FileLoadError>> {
         Box::pin(async move {
             let file = match std::fs::File::open(path) {
                 Ok(file) => file,
@@ -138,15 +168,15 @@ impl ResourceIo for FsResourceIo {
         })
     }
 
-    fn exists<'a>(&'a self, path: &'a Path) -> BoxFuture<'a, bool> {
+    fn exists<'a>(&'a self, path: &'a Path) -> ResourceIoFuture<'a, bool> {
         Box::pin(fyrox_core::io::exists(path))
     }
 
-    fn is_file<'a>(&'a self, path: &'a Path) -> BoxFuture<'a, bool> {
+    fn is_file<'a>(&'a self, path: &'a Path) -> ResourceIoFuture<'a, bool> {
         Box::pin(fyrox_core::io::is_file(path))
     }
 
-    fn is_dir<'a>(&'a self, path: &'a Path) -> BoxFuture<'a, bool> {
+    fn is_dir<'a>(&'a self, path: &'a Path) -> ResourceIoFuture<'a, bool> {
         Box::pin(fyrox_core::io::is_dir(path))
     }
 }
