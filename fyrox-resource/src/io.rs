@@ -28,7 +28,7 @@ pub trait ResourceIo: Send + Sync + 'static {
     fn walk_directory<'a>(
         &'a self,
         path: &'a Path,
-    ) -> BoxFuture<'a, Result<Box<dyn Iterator<Item = PathBuf>>, FileLoadError>>;
+    ) -> BoxFuture<'a, Result<Box<dyn Iterator<Item = PathBuf> + Send>, FileLoadError>>;
 
     /// Attempts to open a file reader to the proivded path for
     /// reading its bytes
@@ -69,20 +69,31 @@ impl ResourceIo for FsResourceIo {
     fn walk_directory<'a>(
         &'a self,
         path: &'a Path,
-    ) -> BoxFuture<'a, Result<Box<dyn Iterator<Item = PathBuf>>, FileLoadError>> {
-        Box::pin(async move {
-            // TODO: I'm not sure if WalkDir is acceptable for wasm and mobile platforms
-            // might need to be updated for those platforms
+    ) -> BoxFuture<'a, Result<Box<dyn Iterator<Item = PathBuf> + Send>, FileLoadError>> {
+        // I dont think directory walking works on android or wasm so this is no-op with an empty iterator
+        #[cfg(any(target_os = "android", target_arch = "wasm32"))]
+        {
+            let iter: Box<dyn Iterator<Item = PathBuf> + Send> = Box::new(None.into_iter());
+            return Box::pin(ready(Ok(iter)));
+        }
 
-            let iter = WalkDir::new(path)
-                .into_iter()
-                .flatten()
-                .map(|value| value.into_path());
+        // Use walkdir for normal use
+        #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
+        {
+            Box::pin(async move {
+                // TODO: I'm not sure if WalkDir is acceptable for wasm and mobile platforms
+                // might need to be updated for those platforms
 
-            let iter: Box<dyn Iterator<Item = PathBuf>> = Box::new(iter);
+                let iter = WalkDir::new(path)
+                    .into_iter()
+                    .flatten()
+                    .map(|value| value.into_path());
 
-            Ok(iter)
-        })
+                let iter: Box<dyn Iterator<Item = PathBuf> + Send> = Box::new(iter);
+
+                Ok(iter)
+            })
+        }
     }
 
     /// Only use file reader when not targetting android or wasm
