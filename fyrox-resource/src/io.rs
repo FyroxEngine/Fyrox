@@ -12,17 +12,8 @@ use std::{
 };
 
 /// Trait for files readers ensuring they implement the required traits
-#[cfg(target_arch = "wasm32")]
-pub trait FileReader: Debug + Read + Seek + 'static {}
-
-#[cfg(target_arch = "wasm32")]
-impl<F> FileReader for F where F: Debug + Read + Seek + 'static {}
-
-/// Trait for files readers ensuring they implement the required traits
-#[cfg(not(target_arch = "wasm32"))]
 pub trait FileReader: Debug + Send + Read + Seek + 'static {}
 
-#[cfg(not(target_arch = "wasm32"))]
 impl<F> FileReader for F where F: Debug + Send + Read + Seek + 'static {}
 
 /// Interface wrapping IO operations for doing this like loading files
