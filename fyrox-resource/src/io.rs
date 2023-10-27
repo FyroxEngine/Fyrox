@@ -24,7 +24,19 @@ pub trait ResourceIo: Send + Sync + 'static {
     fn load_file<'a>(&'a self, path: &'a Path) -> BoxFuture<'a, Result<Vec<u8>, FileLoadError>>;
 
     /// Provides an iterator over the paths present in the provided
-    /// path directory FsResourceIo
+    /// path, this should only provide paths immediately within the directory
+    ///
+    /// Default implementation is no-op returning an empty iterator
+    fn read_directory<'a>(
+        &'a self,
+        #[allow(unused)] path: &'a Path,
+    ) -> BoxFuture<'a, Result<Box<dyn Iterator<Item = PathBuf> + Send>, FileLoadError>> {
+        let iter: Box<dyn Iterator<Item = PathBuf> + Send> = Box::new(empty());
+        Box::pin(ready(Ok(iter)))
+    }
+
+    /// Provides an iterator over the paths present in the provided
+    /// path directory this implementation should walk the directory paths
     ///
     /// Default implementation is no-op returning an empty iterator
     fn walk_directory<'a>(
@@ -69,6 +81,22 @@ pub struct FsResourceIo;
 impl ResourceIo for FsResourceIo {
     fn load_file<'a>(&'a self, path: &'a Path) -> BoxFuture<'a, Result<Vec<u8>, FileLoadError>> {
         Box::pin(fyrox_core::io::load_file(path))
+    }
+
+    /// Android and wasm should fallback to the default no-op impl as im not sure if they
+    /// can directly read a directory
+    ///
+    /// TODO: Needs an android implementation for reading a directory
+    #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
+    fn read_directory<'a>(
+        &'a self,
+        #[allow(unused)] path: &'a Path,
+    ) -> BoxFuture<'a, Result<Box<dyn Iterator<Item = PathBuf> + Send>, FileLoadError>> {
+        Box::pin(async move {
+            let iter = std::fs::read_dir(path)?.flatten().map(|entry| entry.path());
+            let iter: Box<dyn Iterator<Item = PathBuf> + Send> = Box::new(iter);
+            Ok(iter)
+        })
     }
 
     /// Android and wasm should fallback to the default no-op impl as im not sure if they
