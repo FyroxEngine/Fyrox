@@ -2,6 +2,7 @@ use crate::inspector::editors::spritesheet::window::SpriteSheetFramesEditorWindo
 use fyrox::{
     animation::spritesheet::SpriteSheetFramesContainer,
     core::pool::Handle,
+    core::{reflect::prelude::*, visitor::prelude::*},
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         define_constructor, define_widget_deref,
@@ -39,7 +40,7 @@ impl SpriteSheetFramesPropertyEditorMessage {
     define_constructor!(SpriteSheetFramesPropertyEditorMessage:Value => fn value(SpriteSheetFramesContainer), layout: false);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Reflect, Visit)]
 pub struct SpriteSheetFramesPropertyEditor {
     widget: Widget,
     edit_button: Handle<UiNode>,

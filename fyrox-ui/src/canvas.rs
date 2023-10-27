@@ -5,7 +5,10 @@
 #![warn(missing_docs)]
 
 use crate::{
-    core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
+    core::{
+        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, scope_profile,
+        visitor::prelude::*,
+    },
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
@@ -48,7 +51,7 @@ use std::{
 ///     .build(ctx)
 /// }
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct Canvas {
     /// Base widget of the canvas.
     pub widget: Widget,

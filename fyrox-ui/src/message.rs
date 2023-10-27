@@ -456,6 +456,7 @@ pub enum OsEvent {
     Serialize,
     Deserialize,
     Reflect,
+    Visit,
 )]
 pub struct KeyboardModifiers {
     /// `Alt` key is pressed.
@@ -945,7 +946,7 @@ pub enum KeyCode {
 }
 
 /// A fixed set of cursor icons that available on most OSes.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Default)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Default, Visit, Reflect)]
 pub enum CursorIcon {
     /// The platform-dependent default cursor. Often rendered as arrow.
     #[default]

@@ -6,6 +6,7 @@
 
 use crate::{
     core::{algebra::Vector2, color::Color, math::Rect, math::Vector2Ext, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
@@ -17,7 +18,7 @@ use std::{
 };
 
 /// Primitive is a simplest shape, that consists of one or multiple lines of the same thickness.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub enum Primitive {
     /// Solid triangle primitive.
     Triangle {
@@ -55,6 +56,16 @@ pub enum Primitive {
         /// Rectangle bounds in local coordinates.
         rect: Rect<f32>,
     },
+}
+
+impl Default for Primitive {
+    fn default() -> Self {
+        Self::Line {
+            begin: Default::default(),
+            end: Default::default(),
+            thickness: 0.0,
+        }
+    }
 }
 
 fn line_thickness_vector(a: Vector2<f32>, b: Vector2<f32>, thickness: f32) -> Vector2<f32> {
@@ -147,7 +158,7 @@ impl Primitive {
 ///
 /// Keep in mind that all primitives located in local coordinates. The color of the vector image can be changed by
 /// setting a new foreground brush.
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct VectorImage {
     /// Base widget of the image.
     pub widget: Widget,

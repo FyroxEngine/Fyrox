@@ -7,6 +7,7 @@ use crate::{
     border::{Border, BorderBuilder},
     brush::Brush,
     core::{algebra::Vector2, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     draw::DrawingContext,
     message::{MessageDirection, UiMessage},
@@ -87,7 +88,7 @@ impl DecoratorMessage {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct Decorator {
     /// Base widget of the decorator.
     pub border: Border,

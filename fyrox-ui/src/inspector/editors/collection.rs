@@ -1,5 +1,6 @@
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
+    core::visitor::prelude::*,
     core::{
         pool::Handle,
         reflect::{FieldInfo, FieldValue, Reflect},
@@ -29,7 +30,7 @@ use std::{
     rc::Rc,
 };
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Default, Visit, Reflect)]
 pub struct Item {
     editor_instance: PropertyEditorInstance,
     remove: Handle<UiNode>,
@@ -39,13 +40,17 @@ pub trait CollectionItem: Clone + Reflect + Debug + Default + 'static {}
 
 impl<T: Clone + Reflect + Debug + Default + 'static> CollectionItem for T {}
 
-#[derive(Debug)]
+#[derive(Debug, Visit, Reflect)]
 pub struct CollectionEditor<T: CollectionItem> {
     pub widget: Widget,
     pub add: Handle<UiNode>,
     pub items: Vec<Item>,
     pub panel: Handle<UiNode>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub layer_index: usize,
+    #[reflect(hidden)]
+    #[visit(skip)]
     pub phantom: PhantomData<T>,
 }
 

@@ -1,4 +1,5 @@
 use crate::{
+    core::visitor::prelude::*,
     core::{pool::Handle, reflect::prelude::*, reflect::FieldValue},
     define_constructor,
     inspector::{
@@ -24,7 +25,7 @@ use std::{
     rc::Rc,
 };
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Visit, Reflect, Default)]
 pub struct Item {
     pub editor_instance: PropertyEditorInstance,
 }
@@ -38,7 +39,7 @@ impl ArrayEditorMessage {
     define_constructor!(ArrayEditorMessage:ItemChanged => fn item_changed(index: usize, message: UiMessage), layout: false);
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct ArrayEditor {
     pub widget: Widget,
     pub items: Vec<Item>,

@@ -6,6 +6,7 @@
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{pool::Handle, uuid::Uuid},
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor, define_widget_deref,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
@@ -50,7 +51,7 @@ impl UuidEditorMessage {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct UuidEditor {
     widget: Widget,
     value: Uuid,

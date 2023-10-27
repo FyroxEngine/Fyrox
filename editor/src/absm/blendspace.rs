@@ -20,6 +20,8 @@ use fyrox::{
         color::Color,
         math::{Rect, TriangleDefinition},
         pool::Handle,
+        reflect::prelude::*,
+        visitor::prelude::*,
     },
     gui::{
         brush::Brush,
@@ -37,6 +39,7 @@ use fyrox::{
         UserInterface, VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT, BRUSH_LIGHTEST,
     },
 };
+use std::fmt::{Debug, Formatter};
 use std::{
     any::{Any, TypeId},
     cell::Cell,
@@ -71,8 +74,10 @@ impl BlendSpaceFieldMessage {
     define_constructor!(BlendSpaceFieldMessage:RemovePoint  => fn remove_point(usize), layout: false);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 struct ContextMenu {
+    #[visit(skip)]
+    #[reflect(hidden)]
     menu: RcUiNodeHandle,
     add_point: Handle<UiNode>,
     placement_target: Cell<Handle<UiNode>>,
@@ -86,7 +91,7 @@ enum DragContext {
     Point { point: usize },
 }
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect)]
 struct BlendSpaceField {
     widget: Widget,
     points: Vec<Handle<UiNode>>,
@@ -97,8 +102,16 @@ struct BlendSpaceField {
     triangles: Vec<TriangleDefinition>,
     grid_brush: Brush,
     sampling_point: Vector2<f32>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     drag_context: Option<DragContext>,
     field_context_menu: ContextMenu,
+}
+
+impl Debug for BlendSpaceField {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "BlendSpaceField")
+    }
 }
 
 define_widget_deref!(BlendSpaceField);
@@ -533,7 +546,7 @@ impl BlendSpaceFieldPointMessage {
     define_constructor!(BlendSpaceFieldPointMessage:Select => fn select(), layout: false);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 struct BlendSpaceFieldPoint {
     widget: Widget,
     selected: bool,

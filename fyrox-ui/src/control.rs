@@ -1,5 +1,5 @@
 use crate::{
-    core::{algebra::Vector2, pool::Handle, scope_profile},
+    core::{algebra::Vector2, pool::Handle, reflect::Reflect, scope_profile, visitor::Visit},
     draw::DrawingContext,
     message::{OsEvent, UiMessage},
     widget::Widget,
@@ -47,7 +47,7 @@ impl<T: Any + Clone + 'static + Control> BaseControl for T {
 }
 
 /// Trait for all UI controls in library.
-pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
+pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + Visit {
     /// Allows a widget to provide access to inner components. For example you can build your custom
     /// MyTree widget using engine's Tree widget as a base. The engine needs to know whether the custom
     /// widget is actually extends functionality of some existing widget.
@@ -58,13 +58,16 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
     /// implementation:
     ///
     /// ```rust
-    /// # use fyrox_ui::{define_widget_deref, message::UiMessage, Control, UserInterface, widget::Widget};
+    /// # use fyrox_ui::{
+    /// #     define_widget_deref, message::UiMessage, Control, UserInterface, widget::Widget,
+    /// #     core::{visitor::prelude::*, reflect::prelude::*},
+    /// # };
     /// # use std::{
     /// #     any::{Any, TypeId},
     /// #     ops::{Deref, DerefMut},
     /// # };
     /// #
-    /// # #[derive(Clone)]
+    /// # #[derive(Clone, Visit, Reflect, Debug)]
     /// # struct MyWidget {
     /// #     widget: Widget,
     /// # }
@@ -107,6 +110,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
     /// ```rust
     /// # use fyrox_ui::{
     /// #     core::algebra::Vector2, define_widget_deref, message::UiMessage, Control, UserInterface,
+    /// #     core::{visitor::prelude::*, reflect::prelude::*},
     /// #     widget::Widget,
     /// # };
     /// # use std::{
@@ -114,7 +118,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
     /// #     ops::{Deref, DerefMut},
     /// # };
     /// #
-    /// #[derive(Clone)]
+    /// #[derive(Clone, Visit, Reflect, Debug)]
     /// struct MyWidget {
     ///     widget: Widget,
     /// }
@@ -179,6 +183,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
     /// ```rust
     /// # use fyrox_ui::{
     /// #     core::{algebra::Vector2, math::Rect},
+    /// #     core::{visitor::prelude::*, reflect::prelude::*},
     /// #     define_widget_deref,
     /// #     message::UiMessage,
     /// #     Control, UserInterface, widget::Widget,
@@ -188,7 +193,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
     /// #     ops::{Deref, DerefMut},
     /// # };
     /// #
-    /// #[derive(Clone)]
+    /// #[derive(Clone, Visit, Reflect, Debug)]
     /// struct MyWidget {
     ///     widget: Widget,
     /// }
@@ -241,6 +246,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
     /// # use fyrox_ui::{
     /// #     define_widget_deref,
     /// #     draw::{CommandTexture, Draw, DrawingContext},
+    /// #     core::{visitor::prelude::*, reflect::prelude::*},
     /// #     message::UiMessage,
     /// #     Control, UserInterface, widget::Widget,
     /// # };
@@ -249,7 +255,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut {
     /// #     ops::{Deref, DerefMut},
     /// # };
     /// #
-    /// #[derive(Clone)]
+    /// #[derive(Clone, Visit, Reflect, Debug)]
     /// struct MyWidget {
     ///     widget: Widget,
     /// }

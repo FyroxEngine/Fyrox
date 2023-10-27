@@ -11,6 +11,7 @@ use crate::{
         math::Rect,
         pool::Handle,
     },
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
     formatted_text::{FormattedText, FormattedTextBuilder, WrapMode},
@@ -93,7 +94,7 @@ pub enum VerticalDirection {
 }
 
 /// Defines a position in the text. It is just a coordinates of a character in text.
-#[derive(Copy, Clone, PartialEq, Eq, Debug, Default)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Visit, Reflect)]
 pub struct Position {
     /// Line index.
     pub line: usize,
@@ -103,7 +104,7 @@ pub struct Position {
 }
 
 /// Defines the way, how the text box widget will commit the text that was typed in
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Debug, Default)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Ord, Hash, Debug, Default, Visit, Reflect)]
 #[repr(u32)]
 pub enum TextCommitMode {
     /// Text box will immediately send [`TextMessage::Text`] message after any change (after any pressed button).
@@ -123,7 +124,7 @@ pub enum TextCommitMode {
 }
 
 /// Defines a set of two positions in the text, that forms a specific range.
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Visit, Reflect, Default)]
 pub struct SelectionRange {
     /// Position of the beginning.
     pub begin: Position,
@@ -377,7 +378,7 @@ pub type FilterCallback = dyn FnMut(char) -> bool;
 ///
 /// You can change brush of caret by using [`TextBoxBuilder::with_caret_brush`] and also selection brush by using
 /// [`TextBoxBuilder::with_selection_brush`], it could be useful if you don't like default colors.
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect)]
 pub struct TextBox {
     /// Base widget of the text box.
     pub widget: Widget,
@@ -390,6 +391,8 @@ pub struct TextBox {
     /// Blinking interval in seconds.
     pub blink_interval: f32,
     /// Formatted text that stores actual text and performs its layout. See [`FormattedText`] docs for more info.
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub formatted_text: RefCell<FormattedText>,
     /// Current selection range.
     pub selection_range: Option<SelectionRange>,
@@ -402,6 +405,8 @@ pub struct TextBox {
     /// Current selection brush of the text box.
     pub selection_brush: Brush,
     /// Current character filter of the text box.
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub filter: Option<Rc<RefCell<FilterCallback>>>,
     /// Current text commit mode of the text box.
     pub commit_mode: TextCommitMode,

@@ -6,6 +6,7 @@ use crate::{
     brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     decorator::DecoratorBuilder,
     define_constructor,
     grid::{Column, GridBuilder, Row},
@@ -208,7 +209,7 @@ impl WindowMessage {
 /// to interact with anything else until the modal is dismissed.
 ///
 /// Any window can be set and unset as a modal via the *modal* function.
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct Window {
     /// Base widget of the window.
     pub widget: Widget,
@@ -259,9 +260,10 @@ const GRIP_SIZE: f32 = 6.0;
 const CORNER_GRIP_SIZE: f32 = GRIP_SIZE * 2.0;
 
 /// Kind of a resizing grip.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Visit, Reflect, Default)]
 pub enum GripKind {
     /// Left-top corner grip.
+    #[default]
     LeftTopCorner = 0,
     /// Right-top corner grip.
     RightTopCorner = 1,
@@ -280,7 +282,7 @@ pub enum GripKind {
 }
 
 /// Resizing grip.
-#[derive(Clone)]
+#[derive(Clone, Visit, Default, Debug, Reflect)]
 pub struct Grip {
     /// Kind of the grip.
     pub kind: GripKind,

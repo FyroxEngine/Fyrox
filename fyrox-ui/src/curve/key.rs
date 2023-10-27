@@ -1,11 +1,13 @@
 use crate::core::{
     algebra::Vector2,
     curve::{Curve, CurveKey, CurveKeyKind},
+    reflect::prelude::*,
     uuid::Uuid,
+    visitor::prelude::*,
 };
 use std::cmp::Ordering;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Visit, Reflect, Default)]
 pub struct CurveKeyView {
     pub position: Vector2<f32>,
     pub kind: CurveKeyKind,
@@ -22,7 +24,7 @@ impl From<&CurveKey> for CurveKeyView {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct KeyContainer {
     id: Uuid,
     keys: Vec<CurveKeyView>,

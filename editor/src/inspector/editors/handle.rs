@@ -7,6 +7,7 @@ use crate::{
 };
 use fyrox::{
     core::{color::Color, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     gui::{
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
@@ -50,7 +51,7 @@ impl HandlePropertyEditorMessage {
     define_constructor!(HandlePropertyEditorMessage:Hierarchy => fn hierarchy(HierarchyNode), layout: false);
 }
 
-#[derive(Debug)]
+#[derive(Debug, Visit, Reflect)]
 pub struct HandlePropertyEditor {
     widget: Widget,
     text: Handle<UiNode>,
@@ -58,6 +59,8 @@ pub struct HandlePropertyEditor {
     select: Handle<UiNode>,
     make_unassigned: Handle<UiNode>,
     value: Handle<Node>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     sender: MessageSender,
     selector: Handle<UiNode>,
     pick: Handle<UiNode>,

@@ -3,6 +3,7 @@ use crate::{Message, MessageDirection};
 use fyrox::{
     asset::core::pool::Handle,
     core::parking_lot::Mutex,
+    core::{reflect::prelude::*, visitor::prelude::*},
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         define_constructor,
@@ -37,9 +38,11 @@ impl MaterialFieldMessage {
     define_constructor!(MaterialFieldMessage:Material => fn material(SharedMaterial), layout: false);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect)]
 pub struct MaterialFieldEditor {
     widget: Widget,
+    #[visit(skip)]
+    #[reflect(hidden)]
     sender: MessageSender,
     text: Handle<UiNode>,
     edit: Handle<UiNode>,

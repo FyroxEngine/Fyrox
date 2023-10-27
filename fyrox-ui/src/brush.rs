@@ -2,10 +2,10 @@
 
 #![warn(missing_docs)]
 
-use crate::{core::algebra::Vector2, core::color::Color};
+use crate::core::{algebra::Vector2, color::Color, reflect::prelude::*, visitor::prelude::*};
 
 /// Gradient point defines a point on a surface with a color.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Reflect, Visit, Default)]
 pub struct GradientPoint {
     /// A distance from an origin of the gradient.
     pub stop: f32,
@@ -14,7 +14,7 @@ pub struct GradientPoint {
 }
 
 /// Brush defines a way to fill an arbitrary surface.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Reflect, Visit)]
 pub enum Brush {
     /// A brush, that fills a surface with a solid color.
     Solid(Color),
@@ -36,4 +36,10 @@ pub enum Brush {
         /// Stops of the gradient.
         stops: Vec<GradientPoint>,
     },
+}
+
+impl Default for Brush {
+    fn default() -> Self {
+        Self::Solid(Color::WHITE)
+    }
 }

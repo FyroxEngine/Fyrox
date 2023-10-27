@@ -6,6 +6,7 @@ use crate::{
         pool::Handle,
         reflect::{CastError, Reflect, ResolvePath},
     },
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     expander::ExpanderBuilder,
     formatted_text::WrapMode,
@@ -336,9 +337,11 @@ pub trait InspectorEnvironment: Any {
     fn as_any(&self) -> &dyn Any;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct Inspector {
     pub widget: Widget,
+    #[reflect(hidden)]
+    #[visit(skip)]
     pub context: InspectorContext,
 }
 

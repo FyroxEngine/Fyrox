@@ -1,5 +1,5 @@
 use fyrox::{
-    core::{algebra::Vector2, pool::Handle},
+    core::{algebra::Vector2, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     gui::{
         define_constructor,
         message::{MessageDirection, UiMessage},
@@ -18,7 +18,7 @@ impl SegmentMessage {
     define_constructor!(SegmentMessage:DestPosition => fn dest_position(Vector2<f32>), layout: false);
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Reflect, Visit)]
 pub struct Segment {
     pub source: Handle<UiNode>,
     pub source_pos: Vector2<f32>,

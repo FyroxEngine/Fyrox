@@ -240,6 +240,7 @@ use crate::{
         color::Color,
         math::Rect,
         pool::{Handle, Pool},
+        reflect::prelude::*,
         scope_profile,
         visitor::prelude::*,
     },
@@ -353,7 +354,7 @@ impl Deref for RcUiNodeHandle {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Visit, Default, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Visit, Reflect, Default, Serialize, Deserialize)]
 pub enum Orientation {
     #[default]
     Vertical,
@@ -383,9 +384,9 @@ impl NodeHandleMapping {
 
     pub fn resolve_cell(&self, old: &mut Cell<Handle<UiNode>>) {
         // None handles aren't mapped.
-        if old.get().is_some() {
+        if Cell::get(old).is_some() {
             if let Some(clone) = self.hash_map.get(&old.get()) {
-                old.set(*clone)
+                Cell::set(old, *clone)
             }
         }
     }
@@ -406,7 +407,7 @@ impl NodeStatistics {
         for node in ui.nodes.iter() {
             statistics
                 .0
-                .entry(node.type_name())
+                .entry(BaseControl::type_name(&*node.0))
                 .and_modify(|counter| *counter += 1)
                 .or_insert(1);
         }

@@ -6,6 +6,7 @@
 use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     draw::DrawingContext,
     formatted_text::{FormattedText, FormattedTextBuilder, WrapMode},
@@ -308,11 +309,13 @@ impl TextMessage {
 ///
 /// Please keep in mind, that like any other situation when you "changing" something via messages, you should remember
 /// that the change is **not** immediate.
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct Text {
     /// Base widget of the Text widget.
     pub widget: Widget,
     /// [`FormattedText`] instance that is used to layout text and generate drawing commands.
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub formatted_text: RefCell<FormattedText>,
 }
 

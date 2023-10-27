@@ -1,6 +1,6 @@
 //! UI node is a type-agnostic wrapper for any widget type. See [`UiNode`] docs for more info.
 
-use crate::Control;
+use crate::{BaseControl, Control};
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
@@ -35,6 +35,7 @@ impl UiNode {
     /// # use fyrox_ui::{
     /// #     core::pool::Handle,
     /// #     define_widget_deref,
+    /// #     core::{visitor::prelude::*, reflect::prelude::*},
     /// #     message::UiMessage,
     /// #     widget::{Widget, WidgetBuilder},
     /// #     BuildContext, Control, UiNode, UserInterface,
@@ -44,7 +45,7 @@ impl UiNode {
     /// #     ops::{Deref, DerefMut},
     /// # };
     /// #
-    /// #[derive(Clone)]
+    /// #[derive(Clone, Visit, Reflect, Debug)]
     /// struct MyWidget {
     ///     widget: Widget,
     /// }
@@ -91,7 +92,7 @@ impl UiNode {
     where
         T: Control,
     {
-        self.0.as_any().downcast_ref::<T>()
+        BaseControl::as_any(&*self.0).downcast_ref::<T>()
     }
 
     /// Tries to perform **direct** downcasting to a particular widget type. It is just a simple wrapper
@@ -100,7 +101,7 @@ impl UiNode {
     where
         T: Control,
     {
-        self.0.as_any_mut().downcast_mut::<T>()
+        BaseControl::as_any_mut(&mut *self.0).downcast_mut::<T>()
     }
 
     /// Tries to fetch a component of the given type `T`. At very basis it mimics [`Self::cast`] behaviour, but

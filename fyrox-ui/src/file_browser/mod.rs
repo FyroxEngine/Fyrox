@@ -5,6 +5,7 @@
 
 use crate::{
     core::pool::Handle,
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     file_browser::menu::ItemContextMenu,
     grid::{Column, GridBuilder, Row},
@@ -85,13 +86,13 @@ impl Debug for Filter {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Visit, Reflect)]
 pub enum FileBrowserMode {
     Open,
     Save { default_file_name: PathBuf },
 }
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect)]
 pub struct FileBrowser {
     pub widget: Widget,
     pub tree_root: Handle<UiNode>,
@@ -99,14 +100,28 @@ pub struct FileBrowser {
     pub scroll_viewer: Handle<UiNode>,
     pub path: PathBuf,
     pub root: Option<PathBuf>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub filter: Option<Filter>,
     pub mode: FileBrowserMode,
     pub file_name: Handle<UiNode>,
     pub file_name_value: PathBuf,
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub fs_receiver: Rc<Receiver<notify::Event>>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub item_context_menu: RcUiNodeHandle,
     #[allow(clippy::type_complexity)]
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub watcher: Rc<cell::Cell<Option<(notify::RecommendedWatcher, thread::JoinHandle<()>)>>>,
+}
+
+impl Debug for FileBrowser {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "FileBrowser")
+    }
 }
 
 crate::define_widget_deref!(FileBrowser);

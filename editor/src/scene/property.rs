@@ -1,5 +1,8 @@
 use fyrox::{
-    core::{algebra::Vector2, pool::Handle, reflect::Reflect, sstorage::ImmutableString},
+    core::{
+        algebra::Vector2, pool::Handle, reflect::prelude::*, sstorage::ImmutableString,
+        visitor::prelude::*,
+    },
     fxhash::FxHashSet,
     gui::{
         border::BorderBuilder,
@@ -273,9 +276,11 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
     descriptors
 }
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct PropertySelector {
     widget: Widget,
+    #[reflect(hidden)]
+    #[visit(skip)]
     selected_property_path: Vec<PropertyDescriptorData>,
     tree_root: Handle<UiNode>,
     search_bar: Handle<UiNode>,
@@ -413,12 +418,14 @@ impl PropertySelectorBuilder {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct PropertySelectorWindow {
     window: Window,
     selector: Handle<UiNode>,
     ok: Handle<UiNode>,
     cancel: Handle<UiNode>,
+    #[reflect(hidden)]
+    #[visit(skip)]
     allowed_types: Option<FxHashSet<TypeId>>,
 }
 

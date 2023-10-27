@@ -5,6 +5,7 @@
 //! Docking manager can hold any types of UI elements, but dragging works only
 //! for windows.
 
+use crate::core::{reflect::prelude::*, visitor::prelude::*};
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
@@ -38,7 +39,7 @@ impl DockingManagerMessage {
     );
 }
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct DockingManager {
     pub widget: Widget,
     pub floating_windows: RefCell<Vec<Handle<UiNode>>>,

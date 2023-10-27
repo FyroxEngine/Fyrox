@@ -5,15 +5,18 @@
 
 use crate::{
     brush::Brush,
-    core::{algebra::Vector2, math::Rect, pool::Handle},
+    core::{
+        algebra::{Matrix3, Point2, Vector2},
+        math::Rect,
+        pool::Handle,
+        reflect::prelude::*,
+        uuid::Uuid,
+        visitor::prelude::*,
+    },
     define_constructor,
     message::{CursorIcon, KeyCode, MessageDirection, UiMessage},
     HorizontalAlignment, LayoutEvent, MouseButton, MouseState, RcUiNodeHandle, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_FOREGROUND, BRUSH_PRIMARY,
-};
-use fyrox_core::{
-    algebra::{Matrix3, Point2},
-    uuid::Uuid,
 };
 use std::{
     any::Any,
@@ -550,7 +553,7 @@ impl WidgetMessage {
 /// Widget is a base UI element, that is always used to build derived, more complex, widgets. In general, it is a container
 /// for layout information, basic visual appearance, visibility options, parent-child information. It does almost nothing
 /// on its own, instead, the user interface modifies its state accordingly.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Reflect, Visit)]
 pub struct Widget {
     /// Self handle of the widget. It is valid **only**, if the widget is added to the user interface, in other
     /// cases it will most likely be [`Handle::NONE`].
@@ -592,6 +595,8 @@ pub struct Widget {
     /// A handle to the parent node of this widget.
     pub parent: Handle<UiNode>,
     /// Indices of drawing commands in the drawing context emitted by this widget. It is used for picking.
+    #[reflect(hidden)]
+    #[visit(skip)]
     pub command_indices: RefCell<Vec<usize>>,
     /// A flag, that indicates that the mouse is directly over the widget. It will be raised only for top-most widget in the
     /// "stack" of widgets.
@@ -606,6 +611,8 @@ pub struct Widget {
     /// A flag, that defines whether the drop from drag'n'drop functionality can be accepted by the widget or not.
     pub allow_drop: bool,
     /// Optional, user-defined data.
+    #[reflect(hidden)]
+    #[visit(skip)]
     pub user_data: Option<Rc<dyn Any>>,
     /// A flag, that defines whether the widget should be drawn in a separate drawind pass after any other widget that draws
     /// normally.
@@ -618,10 +625,14 @@ pub struct Widget {
     /// Optional opacity of the widget. It should be in `[0.0..1.0]` range, where 0.0 - fully transparent, 1.0 - fully opaque.
     pub opacity: Option<f32>,
     /// An optional ref counted handle to a tooltip used by the widget.
+    #[reflect(hidden)] // TODO
+    #[visit(skip)] // TODO
     pub tooltip: Option<RcUiNodeHandle>,
     /// Maximum available time to show the tooltip after the cursor was moved away from the widget.
     pub tooltip_time: f32,
     /// An optional ref counted handle to a context menu used by the widget.
+    #[reflect(hidden)] // TODO
+    #[visit(skip)] // TODO
     pub context_menu: Option<RcUiNodeHandle>,
     /// A flag, that defines whether the widget should be clipped by the parent bounds or not.
     pub clip_to_bounds: bool,
@@ -639,6 +650,8 @@ pub struct Widget {
     /// is called or not.
     pub handle_os_events: bool,
     /// Internal sender for layout events.
+    #[reflect(hidden)]
+    #[visit(skip)]
     pub layout_events_sender: Option<Sender<LayoutEvent>>,
     /// Unique identifier of the widget.
     pub id: Uuid,
@@ -646,22 +659,40 @@ pub struct Widget {
     // Layout. Interior mutability is a must here because layout performed in a series of recursive calls.
     //
     /// A flag, that defines whether the measurement results are still valid or not.
+    #[reflect(hidden)]
+    #[visit(skip)]
     pub measure_valid: Cell<bool>,
     /// A flag, that defines whether the arrangement results are still valid or not.
+    #[reflect(hidden)]
+    #[visit(skip)]
     pub arrange_valid: Cell<bool>,
     /// Results or previous measurement.
+    #[reflect(hidden)]
+    #[visit(skip)]
     pub prev_measure: Cell<Vector2<f32>>,
     /// Results or previous arrangement.
+    #[reflect(hidden)]
+    #[visit(skip)]
     pub prev_arrange: Cell<Rect<f32>>,
     /// Desired size of the node after Measure pass.
+    #[reflect(hidden)]
+    #[visit(skip)]
     pub desired_size: Cell<Vector2<f32>>,
     /// Actual local position of the widget after Arrange pass.
+    #[reflect(hidden)]
+    #[visit(skip)]
     pub actual_local_position: Cell<Vector2<f32>>,
     /// Actual local size of the widget after Arrange pass.
+    #[reflect(hidden)]
+    #[visit(skip)]
     pub actual_local_size: Cell<Vector2<f32>>,
     /// Previous global visibility of the widget.
+    #[reflect(hidden)]
+    #[visit(skip)]
     pub prev_global_visibility: bool,
     /// Current clip bounds of the widget.
+    #[reflect(hidden)]
+    #[visit(skip)]
     pub clip_bounds: Cell<Rect<f32>>,
 }
 

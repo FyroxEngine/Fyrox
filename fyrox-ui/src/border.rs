@@ -4,7 +4,10 @@
 //! usage examples.
 
 use crate::{
-    core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
+    core::{
+        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, scope_profile,
+        visitor::prelude::*,
+    },
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
@@ -78,7 +81,7 @@ use std::{
 /// .with_stroke_thickness(Thickness {left: 2.0, right: 2.0, top: 2.0, bottom: 2.0})
 /// .build(&mut ui.build_ctx());
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct Border {
     /// Base widget of the border. See [`Widget`] docs for more info.
     pub widget: Widget,

@@ -5,6 +5,7 @@
 
 use crate::{
     core::{algebra::Vector2, math::Rect, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
@@ -100,7 +101,7 @@ impl<T: NumericType> RectEditorMessage<T> {
 ///     }
 /// }
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Visit, Reflect)]
 pub struct RectEditor<T>
 where
     T: NumericType,

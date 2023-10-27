@@ -5,6 +5,7 @@ use crate::{
 use fyrox::gui::inspector::PropertyFilter;
 use fyrox::{
     core::{pool::Handle, uuid::Uuid},
+    core::{reflect::prelude::*, visitor::prelude::*},
     engine::SerializationContext,
     gui::{
         define_constructor,
@@ -43,7 +44,7 @@ impl ScriptPropertyEditorMessage {
     define_constructor!(ScriptPropertyEditorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct ScriptPropertyEditor {
     widget: Widget,
     inspector: Handle<UiNode>,

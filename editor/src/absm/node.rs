@@ -3,7 +3,7 @@ use crate::absm::{
     BORDER_COLOR, NORMAL_BACKGROUND, SELECTED_BACKGROUND,
 };
 use fyrox::{
-    core::{color::Color, pool::Handle},
+    core::{color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     gui::{
         border::{BorderBuilder, BorderMessage},
         brush::Brush,
@@ -18,17 +18,19 @@ use fyrox::{
         VerticalAlignment,
     },
 };
+use std::fmt::{Debug, Formatter};
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct AbsmBaseNode {
     pub input_sockets: Vec<Handle<UiNode>>,
     pub output_socket: Handle<UiNode>,
 }
 
+#[derive(Visit, Reflect)]
 pub struct AbsmNode<T>
 where
     T: 'static,
@@ -45,6 +47,12 @@ where
     selected_color: Color,
     name: Handle<UiNode>,
     edit: Handle<UiNode>,
+}
+
+impl<T> Debug for AbsmNode<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "AbsmNode")
+    }
 }
 
 impl<T> Clone for AbsmNode<T>

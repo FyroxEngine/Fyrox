@@ -8,6 +8,7 @@ use crate::{
 use fyrox::animation::machine::Transition;
 use fyrox::{
     core::{algebra::Vector2, color::Color, color::Hsv, math::Rect, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     gui::{
         brush::Brush,
         define_constructor, define_widget_deref,
@@ -40,7 +41,7 @@ impl TransitionMessage {
     define_constructor!(TransitionMessage:Activate => fn activate(), layout: false);
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct TransitionView {
     widget: Widget,
     pub segment: Segment,

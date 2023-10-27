@@ -1,6 +1,7 @@
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{algebra::Vector2, log::Log, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
     menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
@@ -23,7 +24,7 @@ use std::{
     sync::mpsc::Sender,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Default, Debug)]
 pub struct FolderNameDialog {
     pub dialog: Handle<UiNode>,
     pub folder_name_tb: Handle<UiNode>,
@@ -32,7 +33,7 @@ pub struct FolderNameDialog {
     pub cancel: Handle<UiNode>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct ItemContextMenu {
     pub popup: Popup,
     pub delete: Handle<UiNode>,

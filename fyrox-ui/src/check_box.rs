@@ -8,6 +8,7 @@ use crate::{
     border::BorderBuilder,
     brush::Brush,
     core::{algebra::Vector2, color::Color, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
@@ -128,7 +129,7 @@ impl CheckBoxMessage {
 /// 2) [`CheckBoxBuilder::with_check_mark`] - sets the widget that will be used as checked icon.
 /// 3) [`CheckBoxBuilder::with_uncheck_mark`] - sets the widget that will be used as unchecked icon.
 /// 4) [`CheckBoxBuilder::with_undefined_mark`] - sets the widget that will be used as undefined icon.
-#[derive(Clone)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct CheckBox {
     /// Base widget of the check box.
     pub widget: Widget,

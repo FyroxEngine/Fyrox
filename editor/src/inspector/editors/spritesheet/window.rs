@@ -2,6 +2,7 @@ use crate::inspector::editors::spritesheet::SpriteSheetFramesPropertyEditorMessa
 use fyrox::{
     animation::spritesheet::{SpriteSheetAnimation, SpriteSheetFramesContainer},
     core::{algebra::Vector2, color::Color, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     gui::{
         border::BorderBuilder,
         brush::Brush,
@@ -29,7 +30,7 @@ use std::{
     sync::mpsc::Sender,
 };
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct SpriteSheetFramesEditorWindow {
     window: Window,
     editor: Handle<UiNode>,

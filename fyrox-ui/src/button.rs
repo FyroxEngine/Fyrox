@@ -5,6 +5,7 @@
 use crate::{
     border::BorderBuilder,
     core::pool::Handle,
+    core::{reflect::prelude::*, visitor::prelude::*},
     decorator::DecoratorBuilder,
     define_constructor,
     message::{MessageDirection, UiMessage},
@@ -74,7 +75,7 @@ impl ButtonMessage {
 ///     }
 /// }
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct Button {
     /// Base widget of the button.
     pub widget: Widget,

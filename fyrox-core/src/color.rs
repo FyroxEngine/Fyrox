@@ -52,7 +52,7 @@ impl From<Vector4<f32>> for Color {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Visit, Reflect)]
 pub struct Hsv {
     /// [0; 360] range
     hue: f32,

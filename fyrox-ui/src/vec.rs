@@ -2,6 +2,7 @@ use crate::{
     border::BorderBuilder,
     brush::Brush,
     core::{algebra::SVector, color::Color, num_traits, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
@@ -70,16 +71,24 @@ where
     define_constructor!(VecEditorMessage:Value => fn value(SVector<T, D>), layout: false);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct VecEditor<T, const D: usize>
 where
     T: NumericType,
 {
     pub widget: Widget,
     pub fields: Vec<Handle<UiNode>>,
+    #[reflect(hidden)]
+    #[visit(skip)]
     pub value: SVector<T, D>,
+    #[reflect(hidden)]
+    #[visit(skip)]
     pub min: SVector<T, D>,
+    #[reflect(hidden)]
+    #[visit(skip)]
     pub max: SVector<T, D>,
+    #[reflect(hidden)]
+    #[visit(skip)]
     pub step: SVector<T, D>,
 }
 

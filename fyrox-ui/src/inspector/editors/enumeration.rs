@@ -2,6 +2,7 @@ use crate::inspector::PropertyFilter;
 use crate::{
     border::BorderBuilder,
     core::pool::Handle,
+    core::{reflect::prelude::*, visitor::prelude::*},
     decorator::DecoratorBuilder,
     define_constructor,
     dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
@@ -47,16 +48,31 @@ impl EnumPropertyEditorMessage {
     define_constructor!(EnumPropertyEditorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
 }
 
+#[derive(Visit, Reflect)]
 pub struct EnumPropertyEditor<T: InspectableEnum> {
     pub widget: Widget,
     pub variant_selector: Handle<UiNode>,
     pub inspector: Handle<UiNode>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub definition: EnumPropertyEditorDefinition<T>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub definition_container: Rc<PropertyEditorDefinitionContainer>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub environment: Option<Rc<dyn InspectorEnvironment>>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub sync_flag: u64,
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub layer_index: usize,
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub generate_property_string_values: bool,
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub filter: PropertyFilter,
 }
 

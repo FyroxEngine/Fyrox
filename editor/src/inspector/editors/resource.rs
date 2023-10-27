@@ -5,6 +5,7 @@ use crate::{
 use fyrox::{
     asset::{manager::ResourceManager, Resource, ResourceData, ResourceLoadError},
     core::{color::Color, make_relative_path, pool::Handle, TypeUuidProvider},
+    core::{reflect::prelude::*, visitor::prelude::*},
     gui::{
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
@@ -79,16 +80,25 @@ pub type ResourceLoaderCallback<T> = Rc<
     ) -> Option<Result<Resource<T>, Option<Arc<dyn ResourceLoadError>>>>,
 >;
 
+#[derive(Visit, Reflect)]
 pub struct ResourceField<T>
 where
     T: ResourceData + TypeUuidProvider,
 {
     widget: Widget,
     name: Handle<UiNode>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     resource_manager: ResourceManager,
+    #[visit(skip)]
+    #[reflect(hidden)]
     resource: Option<Resource<T>>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     loader: ResourceLoaderCallback<T>,
     locate: Handle<UiNode>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     sender: MessageSender,
 }
 

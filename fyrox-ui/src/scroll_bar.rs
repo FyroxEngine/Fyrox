@@ -9,6 +9,7 @@ use crate::{
     button::{ButtonBuilder, ButtonMessage},
     canvas::CanvasBuilder,
     core::{algebra::Vector2, color::Color, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     decorator::DecoratorBuilder,
     define_constructor,
     grid::{Column, GridBuilder, Row},
@@ -116,7 +117,7 @@ impl ScrollBarMessage {
 ///
 /// Scroll bar provides arrows to change the current value using a fixed step value. You can change it using
 /// [`ScrollBarBuilder::with_step`] method.
-#[derive(Clone)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct ScrollBar {
     /// Base widget of the scroll bar.
     pub widget: Widget,

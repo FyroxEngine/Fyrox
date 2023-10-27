@@ -1,4 +1,5 @@
 use crate::{
+    core::visitor::prelude::*,
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
         color::Color,
@@ -98,7 +99,7 @@ pub struct PropertyEditorTranslationContext<'b, 'c> {
     pub definition_container: Rc<PropertyEditorDefinitionContainer>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Visit, Reflect)]
 pub enum PropertyEditorInstance {
     Simple {
         /// A property editor. Could be any widget that capable of editing a property
@@ -112,6 +113,14 @@ pub enum PropertyEditorInstance {
         /// value.
         editor: Handle<UiNode>,
     },
+}
+
+impl Default for PropertyEditorInstance {
+    fn default() -> Self {
+        Self::Simple {
+            editor: Default::default(),
+        }
+    }
 }
 
 impl PropertyEditorInstance {

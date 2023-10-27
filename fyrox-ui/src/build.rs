@@ -23,6 +23,7 @@ use std::{
 /// ```rust
 /// # use fyrox_ui::{
 /// #     core::pool::Handle,
+/// #     core::{visitor::prelude::*, reflect::prelude::*},
 /// #     define_widget_deref,
 /// #     message::UiMessage,
 /// #     widget::{Widget, WidgetBuilder},
@@ -33,7 +34,7 @@ use std::{
 /// #     ops::{Deref, DerefMut},
 /// # };
 /// #
-/// #[derive(Clone)]
+/// #[derive(Clone, Visit, Reflect, Debug)]
 /// struct MyWidget {
 ///     widget: Widget,
 /// }

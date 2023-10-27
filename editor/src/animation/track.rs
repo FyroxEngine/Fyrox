@@ -37,6 +37,7 @@ use fyrox::{
         uuid::Uuid,
         variable::InheritableVariable,
     },
+    core::{reflect::prelude::*, visitor::prelude::*},
     fxhash::{FxHashMap, FxHashSet},
     gui::{
         brush::Brush,
@@ -236,7 +237,7 @@ impl TrackViewMessage {
     define_constructor!(TrackViewMessage:TrackTargetIsValid => fn track_target_is_valid(Result<(), String>), layout: false);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Reflect, Visit)]
 struct TrackView {
     tree: Tree,
     id: Uuid,
