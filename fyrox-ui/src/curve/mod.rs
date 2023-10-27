@@ -1425,8 +1425,9 @@ impl CurveEditorBuilder {
             .build(ctx);
         let context_menu = RcUiNodeHandle::new(context_menu, ctx.sender());
 
-        if self.widget_builder.foreground.is_none() {
-            self.widget_builder.foreground = Some(Brush::Solid(Color::opaque(130, 130, 130)))
+        if self.widget_builder.palette.foreground_normal.is_none() {
+            self.widget_builder.palette.foreground_normal =
+                Some(Brush::Solid(Color::opaque(130, 130, 130)))
         }
 
         let editor = CurveEditor {

@@ -548,8 +548,9 @@ impl TextBuilder {
             ui.default_font()
         };
 
-        if self.widget_builder.foreground.is_none() {
-            self.widget_builder.foreground = Some(Brush::Solid(Color::opaque(220, 220, 220)));
+        if self.widget_builder.palette.foreground_normal.is_none() {
+            self.widget_builder.palette.foreground_normal =
+                Some(Brush::Solid(Color::opaque(220, 220, 220)));
         }
 
         let text = Text {

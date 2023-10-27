@@ -550,6 +550,153 @@ impl WidgetMessage {
     );
 }
 
+#[derive(Clone, Visit, Reflect, Debug)]
+pub struct WidgetPalette {
+    /// Background brush of the widget.
+    pub background_normal: Brush,
+    /// Foreground brush of the widget.
+    pub foreground_normal: Brush,
+
+    /// Background brush of the widget.
+    pub background_hover: Brush,
+    /// Foreground brush of the widget.
+    pub foreground_hover: Brush,
+}
+
+#[derive(Default)]
+pub struct WidgetPaletteBuilder {
+    /// Background brush of the widget.
+    pub background_normal: Option<Brush>,
+    /// Foreground brush of the widget.
+    pub foreground_normal: Option<Brush>,
+
+    /// Background brush of the widget.
+    pub background_hover: Option<Brush>,
+    /// Foreground brush of the widget.
+    pub foreground_hover: Option<Brush>,
+}
+
+impl WidgetPaletteBuilder {
+    #[inline]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    #[inline]
+    pub fn with_background(mut self, brush: Brush) -> Self {
+        self.with_background_normal(brush.clone())
+            .with_background_hover(brush)
+    }
+
+    pub fn with_background_normal(mut self, brush: Brush) -> Self {
+        self.background_normal = Some(brush);
+        self
+    }
+
+    pub fn with_background_hover(mut self, brush: Brush) -> Self {
+        self.background_hover = Some(brush);
+        self
+    }
+
+    #[inline]
+    pub fn with_foreground(mut self, brush: Brush) -> Self {
+        self.with_foreground_normal(brush.clone())
+            .with_foreground_hover(brush)
+    }
+
+    pub fn with_foreground_normal(mut self, brush: Brush) -> Self {
+        self.foreground_normal = Some(brush);
+        self
+    }
+
+    pub fn with_foreground_hover(mut self, brush: Brush) -> Self {
+        self.foreground_hover = Some(brush);
+        self
+    }
+}
+
+impl WidgetPaletteBuilder {
+    pub fn build(self) -> WidgetPalette {
+        WidgetPalette {
+            background_normal: self
+                .background_normal
+                .unwrap_or_else(|| BRUSH_PRIMARY.clone()),
+            background_hover: self
+                .background_hover
+                .unwrap_or_else(|| BRUSH_PRIMARY.clone()),
+            foreground_normal: self
+                .foreground_normal
+                .unwrap_or_else(|| BRUSH_FOREGROUND.clone()),
+            foreground_hover: self
+                .foreground_hover
+                .unwrap_or_else(|| BRUSH_FOREGROUND.clone()),
+        }
+    }
+}
+
+impl Default for WidgetPalette {
+    fn default() -> Self {
+        Self {
+            background_normal: BRUSH_PRIMARY.clone(),
+            background_hover: BRUSH_PRIMARY.clone(),
+            foreground_normal: BRUSH_FOREGROUND.clone(),
+            foreground_hover: BRUSH_FOREGROUND.clone(),
+        }
+    }
+}
+
+/// A set of messages that is used to modify [`WidgetPalette`] states.
+#[derive(Debug, Clone, PartialEq)]
+pub enum WidgetPaletteMessage {
+    BackgroundNormal(Brush),
+    BackgroundHover(Brush),
+    ForegroundNormal(Brush),
+    ForegroundHover(Brush),
+}
+
+impl WidgetPalette {
+    pub fn set_normal(&self, handle: Handle<UiNode>, ui: &mut UserInterface) {
+        ui.send_message(WidgetMessage::background(
+            handle,
+            MessageDirection::ToWidget,
+            self.background_normal.clone(),
+        ));
+
+        ui.send_message(WidgetMessage::foreground(
+            handle,
+            MessageDirection::ToWidget,
+            self.foreground_normal.clone(),
+        ));
+    }
+
+    pub fn set_hover(&self, handle: Handle<UiNode>, ui: &mut UserInterface) {
+        ui.send_message(WidgetMessage::background(
+            handle,
+            MessageDirection::ToWidget,
+            self.background_hover.clone(),
+        ));
+
+        ui.send_message(WidgetMessage::foreground(
+            handle,
+            MessageDirection::ToWidget,
+            self.foreground_hover.clone(),
+        ));
+    }
+
+    pub fn handle_widget_message(
+        &self,
+        handle: Handle<UiNode>,
+        ui: &mut UserInterface,
+        msg: &WidgetMessage,
+    ) {
+        match msg {
+            WidgetMessage::MouseLeave => self.set_normal(handle, ui),
+            WidgetMessage::MouseEnter => self.set_hover(handle, ui),
+            _ => {}
+        }
+    }
+}
+
 /// Widget is a base UI element, that is always used to build derived, more complex, widgets. In general, it is a container
 /// for layout information, basic visual appearance, visibility options, parent-child information. It does almost nothing
 /// on its own, instead, the user interface modifies its state accordingly.
@@ -572,6 +719,9 @@ pub struct Widget {
     pub min_size: Vector2<f32>,
     /// Maximum width and height. Default is [`f32::INFINITY`] for both axes.
     pub max_size: Vector2<f32>,
+
+    pub palette: WidgetPalette,
+
     /// Background brush of the widget.
     pub background: Brush,
     /// Foreground brush of the widget.
@@ -1488,10 +1638,8 @@ pub struct WidgetBuilder {
     pub max_size: Option<Vector2<f32>>,
     /// Min size of the widget.
     pub min_size: Option<Vector2<f32>>,
-    /// Background brush of the widget.
-    pub background: Option<Brush>,
-    /// Foreground brush of the widget.
-    pub foreground: Option<Brush>,
+    /// Palette of the widget
+    pub palette: WidgetPaletteBuilder,
     /// Row index of the widget.
     pub row: usize,
     /// Column index of the widget.
@@ -1557,8 +1705,7 @@ impl WidgetBuilder {
             horizontal_alignment: HorizontalAlignment::default(),
             max_size: None,
             min_size: None,
-            background: None,
-            foreground: None,
+            palette: WidgetPaletteBuilder::default(),
             row: 0,
             column: 0,
             margin: Thickness::zero(),
@@ -1648,15 +1795,23 @@ impl WidgetBuilder {
         self
     }
 
+    /// Sets the desired palette of the widet
+    pub fn with_palette(mut self, palette: WidgetPaletteBuilder) -> Self {
+        self.palette = palette;
+        self
+    }
+
     /// Sets the desired background brush of the widget.
     pub fn with_background(mut self, brush: Brush) -> Self {
-        self.background = Some(brush);
+        self.palette = self.palette.with_background(brush);
+
         self
     }
 
     /// Sets the desired foreground brush of the widget.
     pub fn with_foreground(mut self, brush: Brush) -> Self {
-        self.foreground = Some(brush);
+        self.palette = self.palette.with_foreground(brush);
+
         self
     }
 
@@ -1816,6 +1971,7 @@ impl WidgetBuilder {
 
     /// Finishes building of the base widget.
     pub fn build(self) -> Widget {
+        let palette = self.palette.build();
         Widget {
             handle: Default::default(),
             name: self.name,
@@ -1829,8 +1985,9 @@ impl WidgetBuilder {
             max_size: self
                 .max_size
                 .unwrap_or_else(|| Vector2::new(f32::INFINITY, f32::INFINITY)),
-            background: self.background.unwrap_or_else(|| BRUSH_PRIMARY.clone()),
-            foreground: self.foreground.unwrap_or_else(|| BRUSH_FOREGROUND.clone()),
+            foreground: palette.foreground_normal.clone(),
+            background: palette.background_normal.clone(),
+            palette,
             row: self.row,
             column: self.column,
             vertical_alignment: self.vertical_alignment,

@@ -400,8 +400,8 @@ impl NinePatchBuilder {
         self
     }
     pub fn build(mut self, ui: &mut BuildContext) -> Handle<UiNode> {
-        if self.widget_builder.background.is_none() {
-            self.widget_builder.background = Some(Brush::Solid(Color::WHITE))
+        if self.widget_builder.palette.background_normal.is_none() {
+            self.widget_builder.palette.background_normal = Some(Brush::Solid(Color::WHITE))
         }
 
         // if one of the margins hasn't been set just mirror the opposite one.

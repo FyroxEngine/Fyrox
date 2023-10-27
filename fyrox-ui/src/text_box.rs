@@ -1723,11 +1723,11 @@ impl TextBoxBuilder {
 
     /// Creates a new [`TextBox`] instance and adds it to the user interface.
     pub fn build(mut self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        if self.widget_builder.foreground.is_none() {
-            self.widget_builder.foreground = Some(BRUSH_TEXT);
+        if self.widget_builder.palette.foreground_normal.is_none() {
+            self.widget_builder.palette.foreground_normal = Some(BRUSH_TEXT);
         }
-        if self.widget_builder.background.is_none() {
-            self.widget_builder.background = Some(BRUSH_DARKER);
+        if self.widget_builder.palette.background_normal.is_none() {
+            self.widget_builder.palette.background_normal = Some(BRUSH_DARKER);
         }
         if self.widget_builder.cursor.is_none() {
             self.widget_builder.cursor = Some(CursorIcon::Text);

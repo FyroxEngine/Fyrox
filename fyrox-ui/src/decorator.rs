@@ -92,10 +92,7 @@ impl DecoratorMessage {
 pub struct Decorator {
     /// Base widget of the decorator.
     pub border: Border,
-    /// Current brush used for `Normal` state.
-    pub normal_brush: Brush,
-    /// Current brush used for `Hovered` state.
-    pub hover_brush: Brush,
+
     /// Current brush used for `Pressed` state.
     pub pressed_brush: Brush,
     /// Current brush used for `Selected` state.
@@ -166,34 +163,11 @@ impl Control for Decorator {
                                 self.selected_brush.clone(),
                             ));
                         } else {
-                            ui.send_message(WidgetMessage::background(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                self.normal_brush.clone(),
-                            ));
+                            self.border.palette.set_normal(self.handle(), ui);
                         }
                     }
                 }
-                DecoratorMessage::HoverBrush(brush) => {
-                    self.hover_brush = brush.clone();
-                    if self.is_mouse_directly_over {
-                        ui.send_message(WidgetMessage::background(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            self.hover_brush.clone(),
-                        ));
-                    }
-                }
-                DecoratorMessage::NormalBrush(brush) => {
-                    self.normal_brush = brush.clone();
-                    if !self.is_selected && !self.is_mouse_directly_over {
-                        ui.send_message(WidgetMessage::background(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            self.normal_brush.clone(),
-                        ));
-                    }
-                }
+
                 DecoratorMessage::PressedBrush(brush) => {
                     self.pressed_brush = brush.clone();
                 }
@@ -207,11 +181,18 @@ impl Control for Decorator {
                         ));
                     }
                 }
+                DecoratorMessage::HoverBrush(_) => {}
+                DecoratorMessage::NormalBrush(_) => {}
             }
         } else if let Some(msg) = message.data::<WidgetMessage>() {
             if message.destination() == self.handle()
                 || self.has_descendant(message.destination(), ui)
             {
+                // Pass the message to the palette first
+                self.border
+                    .palette
+                    .handle_widget_message(self.handle(), ui, msg);
+
                 match msg {
                     WidgetMessage::MouseLeave => {
                         if self.is_selected {
@@ -220,20 +201,7 @@ impl Control for Decorator {
                                 MessageDirection::ToWidget,
                                 self.selected_brush.clone(),
                             ));
-                        } else {
-                            ui.send_message(WidgetMessage::background(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                self.normal_brush.clone(),
-                            ));
                         }
-                    }
-                    WidgetMessage::MouseEnter => {
-                        ui.send_message(WidgetMessage::background(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            self.hover_brush.clone(),
-                        ));
                     }
                     WidgetMessage::MouseDown { .. } if self.is_pressable => {
                         ui.send_message(WidgetMessage::background(
@@ -250,11 +218,7 @@ impl Control for Decorator {
                                 self.selected_brush.clone(),
                             ));
                         } else {
-                            ui.send_message(WidgetMessage::background(
-                                self.handle(),
-                                MessageDirection::ToWidget,
-                                self.normal_brush.clone(),
-                            ));
+                            self.border.palette.set_normal(self.handle(), ui);
                         }
                     }
                     _ => {}
@@ -267,8 +231,6 @@ impl Control for Decorator {
 /// Creates [`Decorator`] widget instances and adds them to the user interface.
 pub struct DecoratorBuilder {
     border_builder: BorderBuilder,
-    normal_brush: Brush,
-    hover_brush: Brush,
     pressed_brush: Brush,
     selected_brush: Brush,
     pressable: bool,
@@ -280,8 +242,6 @@ impl DecoratorBuilder {
     pub fn new(border_builder: BorderBuilder) -> Self {
         Self {
             border_builder,
-            normal_brush: BRUSH_LIGHT,
-            hover_brush: BRUSH_LIGHTER,
             pressed_brush: BRUSH_LIGHTEST,
             selected_brush: BRUSH_BRIGHT,
             pressable: true,
@@ -291,13 +251,14 @@ impl DecoratorBuilder {
 
     /// Sets a desired brush for `Normal` state.
     pub fn with_normal_brush(mut self, brush: Brush) -> Self {
-        self.normal_brush = brush;
+        self.border_builder.widget_builder.palette.background_normal = Some(brush);
         self
     }
 
     /// Sets a desired brush for `Hovered` state.
     pub fn with_hover_brush(mut self, brush: Brush) -> Self {
-        self.hover_brush = brush;
+        self.border_builder.widget_builder.palette.background_hover = Some(brush);
+
         self
     }
 
@@ -327,25 +288,26 @@ impl DecoratorBuilder {
 
     /// Finishes decorator instance building.
     pub fn build(mut self, ui: &mut BuildContext) -> Handle<UiNode> {
-        let normal_brush = self.normal_brush;
         let selected_brush = self.selected_brush;
 
-        if self.border_builder.widget_builder.foreground.is_none() {
-            self.border_builder.widget_builder.foreground = Some(BRUSH_DARKER);
+        if self
+            .border_builder
+            .widget_builder
+            .palette
+            .foreground_normal
+            .is_none()
+        {
+            self.border_builder.widget_builder.palette.foreground_normal = Some(BRUSH_DARKER);
         }
 
         let mut border = self.border_builder.build_border();
 
         if self.selected {
             border.set_background(selected_brush.clone());
-        } else {
-            border.set_background(normal_brush.clone());
         }
-
         let node = UiNode::new(Decorator {
             border,
-            normal_brush,
-            hover_brush: self.hover_brush,
+
             pressed_brush: self.pressed_brush,
             selected_brush,
             is_selected: self.selected,

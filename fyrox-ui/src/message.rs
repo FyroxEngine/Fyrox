@@ -215,7 +215,7 @@ where
 /// }
 ///
 /// impl MyWidgetMessage {
-///     define_constructor!(MyWidgetMessage:DoSomething => fn do_something(), layout: false);     
+///     define_constructor!(MyWidgetMessage:DoSomething => fn do_something(), layout: false);
 ///     define_constructor!(MyWidgetMessage:Foo => fn foo(u32), layout: false);
 ///     define_constructor!(MyWidgetMessage:Bar => fn bar(foo: u32, baz: u8), layout: false);
 /// }

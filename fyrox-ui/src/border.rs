@@ -3,11 +3,11 @@
 //! The Border widget provides a stylized, static border around its child widget. See [`Border`] docs for more info and
 //! usage examples.
 
+use fyrox_core::{reflect::Reflect, visitor::Visit};
+
 use crate::{
-    core::{
-        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, scope_profile,
-        visitor::prelude::*,
-    },
+    core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
@@ -81,7 +81,7 @@ use std::{
 /// .with_stroke_thickness(Thickness {left: 2.0, right: 2.0, top: 2.0, bottom: 2.0})
 /// .build(&mut ui.build_ctx());
 /// ```
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Debug, Clone, Reflect, Visit)]
 pub struct Border {
     /// Base widget of the border. See [`Widget`] docs for more info.
     pub widget: Widget,
@@ -219,8 +219,8 @@ impl BorderBuilder {
 
     /// Creates a [`Border`] widget, but does not add it to the user interface. Also see [`Self::build`] docs.
     pub fn build_border(mut self) -> Border {
-        if self.widget_builder.foreground.is_none() {
-            self.widget_builder.foreground = Some(BRUSH_PRIMARY);
+        if self.widget_builder.palette.foreground_normal.is_none() {
+            self.widget_builder.palette.foreground_normal = Some(BRUSH_PRIMARY);
         }
         Border {
             widget: self.widget_builder.build(),
