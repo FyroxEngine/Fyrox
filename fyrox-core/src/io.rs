@@ -144,7 +144,7 @@ pub async fn is_file<P: AsRef<Path>>(path: P) -> bool {
         path.as_ref().is_file()
     }
 
-    // On android of wasm the default exists logic works for files
+    // On android and wasm the default exists logic works for files
     #[cfg(any(target_os = "android", target_arch = "wasm32"))]
     {
         exists(path).await

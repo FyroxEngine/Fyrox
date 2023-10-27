@@ -103,10 +103,11 @@ impl ResourceIo for FsResourceIo {
         Box::pin(fyrox_core::io::load_file(path))
     }
 
-    /// Android and wasm should fallback to the default no-op impl as im not sure if they
+    /// wasm should fallback to the default no-op impl as im not sure if they
     /// can directly read a directory
     ///
-    /// TODO: Needs an android implementation for reading a directory
+    /// Note: Android directory reading should be possible just I have not created
+    /// an implementation for this yet
     #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
     fn read_directory<'a>(
         &'a self,
@@ -119,8 +120,8 @@ impl ResourceIo for FsResourceIo {
         })
     }
 
-    /// Android and wasm should fallback to the default no-op impl as im not sure if they
-    /// can be walked
+    /// Android and wasm should fallback to the default no-op impl as they cant be
+    /// walked with WalkDir
     #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
     fn walk_directory<'a>(
         &'a self,
@@ -142,7 +143,7 @@ impl ResourceIo for FsResourceIo {
 
     /// Only use file reader when not targetting android or wasm
     ///
-    /// Note: Might be possible to using the android Asset for reading as
+    /// Note: Might be possible to use the Android Asset struct for reading as
     /// long as its Send + Sync + 'static (It already implements Debug + Read + Seek)
     #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
     fn file_reader<'a>(
