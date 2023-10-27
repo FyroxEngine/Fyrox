@@ -10,7 +10,6 @@ use std::{
     io::{Cursor, Read, Seek},
     path::{Path, PathBuf},
 };
-use walkdir::WalkDir;
 
 /// Trait for files readers ensuring they implement the required traits
 #[cfg(target_arch = "wasm32")]
@@ -137,6 +136,8 @@ impl ResourceIo for FsResourceIo {
         path: &'a Path,
     ) -> ResourceIoFuture<'a, Result<PathIter, FileLoadError>> {
         Box::pin(async move {
+            use walkdir::WalkDir;
+
             let iter = WalkDir::new(path)
                 .into_iter()
                 .flatten()
