@@ -113,7 +113,7 @@ pub async fn exists<P: AsRef<Path>>(path: P) -> bool {
     }
 }
 
-pub async fn is_dir<P: AsRef<Path>>(path: P) -> bool {
+pub async fn is_dir<P: AsRef<Path>>(#[allow(unused)] path: P) -> bool {
     #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
     {
         path.as_ref().is_dir()
