@@ -17,7 +17,6 @@ use crate::{
         algebra::{Matrix4, Point3, UnitQuaternion, Vector2, Vector3, Vector4},
         curve::{CurveKey, CurveKeyKind},
         instant::Instant,
-        io,
         log::{Log, MessageKind},
         math::{self, triangulator::triangulate, RotationOrder},
         pool::Handle,
@@ -67,7 +66,6 @@ use std::{
     hash::{Hash, Hasher},
     path::Path,
 };
-use walkdir::WalkDir;
 
 /// Input angles in degrees
 fn quat_from_euler(euler: Vector3<f32>) -> UnitQuaternion<f32> {
@@ -308,6 +306,9 @@ async fn create_surfaces(
                     ),
                 )
             }
+
+            let io = resource_manager.resource_io();
+
             for (name, texture_handle) in material.textures.iter() {
                 let texture = fbx_scene.get(*texture_handle).as_texture()?;
                 let path = texture.get_file_path();
@@ -322,7 +323,7 @@ async fn create_surfaces(
                             let mut path = model_path.to_owned();
                             while let Some(parent) = path.parent() {
                                 let candidate = parent.join(filename);
-                                if io::exists(&candidate).await {
+                                if io.exists(&candidate).await {
                                     texture_path = Some(candidate);
                                     break;
                                 }
@@ -332,15 +333,21 @@ async fn create_surfaces(
                         }
                         MaterialSearchOptions::WorkingDirectory => {
                             let mut texture_path = None;
-                            for dir in WalkDir::new(".").into_iter().flatten() {
-                                if dir.path().is_dir() {
-                                    let candidate = dir.path().join(filename);
-                                    if candidate.exists() {
-                                        texture_path = Some(candidate);
-                                        break;
+
+                            let path = Path::new(".");
+
+                            if let Ok(iter) = io.walk_directory(path).await {
+                                for dir in iter {
+                                    if io.is_dir(&dir).await {
+                                        let candidate = dir.join(filename);
+                                        if candidate.exists() {
+                                            texture_path = Some(candidate);
+                                            break;
+                                        }
                                     }
                                 }
                             }
+
                             texture_path
                         }
                         MaterialSearchOptions::UsePathDirectly => Some(path.clone()),
