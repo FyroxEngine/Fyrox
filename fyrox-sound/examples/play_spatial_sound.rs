@@ -1,4 +1,5 @@
 use fyrox_core::futures::executor::block_on;
+use fyrox_resource::io::FsResourceIo;
 use fyrox_sound::buffer::SoundBufferResourceExtension;
 use fyrox_sound::{
     algebra::{Point3, UnitQuaternion, Vector3},
@@ -24,7 +25,12 @@ fn main() {
 
     // Load sound buffer.
     let drop_buffer = SoundBufferResource::new_generic(
-        block_on(DataSource::from_file("examples/data/drop.wav")).unwrap(),
+        block_on(DataSource::from_file(
+            "examples/data/drop.wav",
+            // Load from the default resource io (File system)
+            &FsResourceIo,
+        ))
+        .unwrap(),
     )
     .unwrap();
 

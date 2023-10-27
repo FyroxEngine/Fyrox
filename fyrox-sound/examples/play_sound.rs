@@ -1,3 +1,4 @@
+use fyrox_resource::io::FsResourceIo;
 use fyrox_sound::buffer::SoundBufferResourceExtension;
 use fyrox_sound::{
     buffer::{DataSource, SoundBufferResource},
@@ -22,6 +23,8 @@ fn main() {
     let door_open_buffer = SoundBufferResource::new_generic(
         fyrox_sound::futures::executor::block_on(DataSource::from_file(
             "examples/data/door_open.wav",
+            // Load from the default resource io (File system)
+            &FsResourceIo,
         ))
         .unwrap(),
     )
