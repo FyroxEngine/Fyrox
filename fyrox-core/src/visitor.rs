@@ -1870,6 +1870,20 @@ impl<T: Visit> Visit for Range<T> {
     }
 }
 
+impl Visit for usize {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut this = *self as u64;
+        this.visit(name, visitor)
+    }
+}
+
+impl Visit for isize {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut this = *self as i64;
+        this.visit(name, visitor)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::visitor::{BinaryBlob, Visit, VisitResult, Visitor};
