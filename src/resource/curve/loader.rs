@@ -1,5 +1,9 @@
 //! Curve loader.
 
+use std::sync::Arc;
+
+use fyrox_resource::io::ResourceIo;
+
 use crate::{
     asset::{
         event::ResourceEventBroadcaster,
@@ -27,10 +31,11 @@ impl ResourceLoader for CurveLoader {
         curve: UntypedResource,
         event_broadcaster: ResourceEventBroadcaster,
         reload: bool,
+        io: Arc<dyn ResourceIo>,
     ) -> BoxedLoaderFuture {
         Box::pin(async move {
             let path = curve.path();
-            match CurveResourceState::from_file(&path).await {
+            match CurveResourceState::from_file(&path, io.as_ref()).await {
                 Ok(curve_state) => {
                     Log::info(format!("Curve {:?} is loaded!", path));
 

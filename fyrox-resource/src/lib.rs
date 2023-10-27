@@ -37,6 +37,7 @@ pub mod constructor;
 pub mod entry;
 pub mod event;
 pub mod graph;
+pub mod io;
 pub mod loader;
 pub mod manager;
 pub mod options;

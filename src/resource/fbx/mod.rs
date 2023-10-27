@@ -60,6 +60,7 @@ use crate::{
     utils::{self, raw_mesh::RawMeshBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_resource::io::ResourceIo;
 use std::{
     cmp::Ordering,
     collections::hash_map::DefaultHasher,
@@ -310,6 +311,7 @@ async fn create_surfaces(
             for (name, texture_handle) in material.textures.iter() {
                 let texture = fbx_scene.get(*texture_handle).as_texture()?;
                 let path = texture.get_file_path();
+
                 if let Some(filename) = path.file_name() {
                     let texture_path = match model_import_options.material_search_options {
                         MaterialSearchOptions::MaterialsDirectory(ref directory) => {
@@ -889,6 +891,7 @@ async fn convert(
 pub async fn load_to_scene<P: AsRef<Path>>(
     scene: &mut Scene,
     resource_manager: ResourceManager,
+    io: &dyn ResourceIo,
     path: P,
     model_import_options: &ModelImportOptions,
 ) -> Result<(), FbxError> {
@@ -900,7 +903,7 @@ pub async fn load_to_scene<P: AsRef<Path>>(
     );
 
     let now = Instant::now();
-    let fbx = FbxDocument::new(path.as_ref()).await?;
+    let fbx = FbxDocument::new(path.as_ref(), io).await?;
     let parsing_time = now.elapsed().as_millis();
 
     let now = Instant::now();

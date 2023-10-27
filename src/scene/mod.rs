@@ -52,8 +52,8 @@ use crate::{
     },
     utils::navmesh::Navmesh,
 };
+use asset::io::ResourceIo;
 use fxhash::FxHashSet;
-use fyrox_core::io;
 use fyrox_core::variable::InheritableVariable;
 use std::{
     fmt::{Display, Formatter},
@@ -271,10 +271,11 @@ impl SceneLoader {
     /// Such scenes can be made in rusty editor.
     pub async fn from_file<P: AsRef<Path>>(
         path: P,
+        io: &dyn ResourceIo,
         serialization_context: Arc<SerializationContext>,
         resource_manager: ResourceManager,
     ) -> Result<(Self, Vec<u8>), VisitError> {
-        let data = io::load_file(path.as_ref()).await?;
+        let data = io.load_file(path.as_ref()).await?;
         let mut visitor = Visitor::load_from_memory(&data)?;
         let loader = Self::load(
             "Scene",
