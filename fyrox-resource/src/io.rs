@@ -3,7 +3,6 @@
 
 use std::{
     fmt::Debug,
-    future::ready,
     io::{Cursor, Read, Seek},
     path::{Path, PathBuf},
 };
@@ -73,6 +72,8 @@ impl ResourceIo for FsResourceIo {
         // I dont think directory walking works on android or wasm so this is no-op with an empty iterator
         #[cfg(any(target_os = "android", target_arch = "wasm32"))]
         {
+            use std::future::ready;
+
             let iter: Box<dyn Iterator<Item = PathBuf> + Send> = Box::new(None.into_iter());
             return Box::pin(ready(Ok(iter)));
         }
