@@ -1,13 +1,14 @@
 //! Provides an interface for IO operations that a resource loader will use, this facilliates
 //! things such as loading assets within archive files
 
+use fyrox_core::{futures::future::BoxFuture, io::FileLoadError};
+use std::future::ready;
+use std::iter::empty;
 use std::{
     fmt::Debug,
     io::{Cursor, Read, Seek},
     path::{Path, PathBuf},
 };
-
-use fyrox_core::{futures::future::BoxFuture, io::FileLoadError};
 use walkdir::WalkDir;
 
 /// Trait for files readers ensuring they implement the required traits
@@ -23,11 +24,16 @@ pub trait ResourceIo: Send + Sync + 'static {
     fn load_file<'a>(&'a self, path: &'a Path) -> BoxFuture<'a, Result<Vec<u8>, FileLoadError>>;
 
     /// Provides an iterator over the paths present in the provided
-    /// path directory FsResourceIo uses WalkDir bu
+    /// path directory FsResourceIo
+    ///
+    /// Default implementation is no-op returning an empty iterator
     fn walk_directory<'a>(
         &'a self,
-        path: &'a Path,
-    ) -> BoxFuture<'a, Result<Box<dyn Iterator<Item = PathBuf> + Send>, FileLoadError>>;
+        #[allow(unused)] path: &'a Path,
+    ) -> BoxFuture<'a, Result<Box<dyn Iterator<Item = PathBuf> + Send>, FileLoadError>> {
+        let iter: Box<dyn Iterator<Item = PathBuf> + Send> = Box::new(empty());
+        Box::pin(ready(Ok(iter)))
+    }
 
     /// Attempts to open a file reader to the proivded path for
     /// reading its bytes
@@ -65,36 +71,23 @@ impl ResourceIo for FsResourceIo {
         Box::pin(fyrox_core::io::load_file(path))
     }
 
+    /// Android and wasm should fallback to the default no-op impl as im not sure if they
+    /// can be walked
+    #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
     fn walk_directory<'a>(
         &'a self,
         path: &'a Path,
     ) -> BoxFuture<'a, Result<Box<dyn Iterator<Item = PathBuf> + Send>, FileLoadError>> {
-        // I dont think directory walking works on android or wasm so this is no-op with an empty iterator
-        #[cfg(any(target_os = "android", target_arch = "wasm32"))]
-        {
-            use std::future::ready;
+        Box::pin(async move {
+            let iter = WalkDir::new(path)
+                .into_iter()
+                .flatten()
+                .map(|value| value.into_path());
 
-            let iter: Box<dyn Iterator<Item = PathBuf> + Send> = Box::new(None.into_iter());
-            return Box::pin(ready(Ok(iter)));
-        }
+            let iter: Box<dyn Iterator<Item = PathBuf> + Send> = Box::new(iter);
 
-        // Use walkdir for normal use
-        #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
-        {
-            Box::pin(async move {
-                // TODO: I'm not sure if WalkDir is acceptable for wasm and mobile platforms
-                // might need to be updated for those platforms
-
-                let iter = WalkDir::new(path)
-                    .into_iter()
-                    .flatten()
-                    .map(|value| value.into_path());
-
-                let iter: Box<dyn Iterator<Item = PathBuf> + Send> = Box::new(iter);
-
-                Ok(iter)
-            })
-        }
+            Ok(iter)
+        })
     }
 
     /// Only use file reader when not targetting android or wasm
