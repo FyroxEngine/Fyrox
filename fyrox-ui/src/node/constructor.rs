@@ -18,9 +18,7 @@ pub struct WidgetConstructorContainer {
 impl WidgetConstructorContainer {
     /// Creates default widget constructor container with constructors for built-in widgets.
     pub fn new() -> Self {
-        let container = WidgetConstructorContainer::default();
-
-        container
+        WidgetConstructorContainer::default()
     }
 
     /// Adds new type constructor for a given type and return previous constructor for the type

@@ -1,5 +1,7 @@
 use crate::{
-    core::{algebra::Vector2, pool::Handle, reflect::Reflect, scope_profile, visitor::Visit},
+    core::{
+        algebra::Vector2, pool::Handle, reflect::Reflect, scope_profile, uuid::Uuid, visitor::Visit,
+    },
     draw::DrawingContext,
     message::{OsEvent, UiMessage},
     widget::Widget,
@@ -354,5 +356,11 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
         #[allow(unused_variables)] ui: &mut UserInterface,
         #[allow(unused_variables)] event: &OsEvent,
     ) {
+    }
+
+    fn id(&self) -> Uuid {
+        // TODO: This must be implemented on per-widget basis, but since there's 60+ widgets it
+        // is hard to implement in one go, so leaving this default invalid impl.
+        Default::default()
     }
 }
