@@ -6,6 +6,8 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+pub mod constructor;
+
 /// UI node is a type-agnostic wrapper for any widget type. Internally, it is just a trait object
 /// that provides common widget interface. Its main use is to reduce code bloat (no need to type
 /// `Box<dyn Control>` everywhere, just `UiNode`) and to provide some useful methods such as type
