@@ -453,6 +453,7 @@ impl NodeStatistics {
     }
 }
 
+#[derive(Visit, Reflect, Debug)]
 pub struct DragContext {
     pub is_dragging: bool,
     pub drag_node: Handle<UiNode>,
@@ -471,7 +472,7 @@ impl Default for DragContext {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Visit, Reflect)]
 pub struct MouseState {
     pub left: ButtonState,
     pub right: ButtonState,
@@ -489,7 +490,7 @@ impl Default for MouseState {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Visit, Reflect, Debug, Default)]
 pub struct RestrictionEntry {
     /// Handle to UI node to which picking must be restricted to.
     pub handle: Handle<UiNode>,
@@ -504,6 +505,7 @@ pub struct RestrictionEntry {
     pub stop: bool,
 }
 
+#[derive(Debug)]
 struct TooltipEntry {
     tooltip: RcUiNodeHandle,
     /// Time remaining until this entry should disappear (in seconds).
@@ -539,15 +541,26 @@ pub enum LayoutEvent {
     VisibilityChanged(Handle<UiNode>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Visit, Reflect, Default)]
 struct DoubleClickEntry {
     timer: f32,
     click_count: u32,
 }
 
+struct Clipboard(Option<RefCell<ClipboardContext>>);
+
+impl Debug for Clipboard {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Clipboard")
+    }
+}
+
+#[derive(Visit, Reflect, Debug)]
 pub struct UserInterface {
     screen_size: Vector2<f32>,
     nodes: Pool<UiNode, WidgetContainer>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     drawing_context: DrawingContext,
     visual_debug: bool,
     root_canvas: Handle<UiNode>,
@@ -556,22 +569,42 @@ pub struct UserInterface {
     captured_node: Handle<UiNode>,
     keyboard_focus_node: Handle<UiNode>,
     cursor_position: Vector2<f32>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     receiver: Receiver<UiMessage>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     sender: Sender<UiMessage>,
     stack: Vec<Handle<UiNode>>,
     picking_stack: Vec<RestrictionEntry>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     bubble_queue: VecDeque<Handle<UiNode>>,
     drag_context: DragContext,
     mouse_state: MouseState,
     keyboard_modifiers: KeyboardModifiers,
     cursor_icon: CursorIcon,
+    #[visit(skip)]
+    #[reflect(hidden)]
     active_tooltip: Option<TooltipEntry>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     preview_set: FxHashSet<Handle<UiNode>>,
-    clipboard: Option<RefCell<ClipboardContext>>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    clipboard: Clipboard,
+    #[visit(skip)]
+    #[reflect(hidden)]
     layout_events_receiver: Receiver<LayoutEvent>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     layout_events_sender: Sender<LayoutEvent>,
     need_update_global_transform: bool,
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub default_font: SharedFont,
+    #[visit(skip)]
+    #[reflect(hidden)]
     double_click_entries: FxHashMap<MouseButton, DoubleClickEntry>,
     pub double_click_time_slice: f32,
 }
@@ -687,7 +720,7 @@ impl UserInterface {
             cursor_icon: Default::default(),
             active_tooltip: Default::default(),
             preview_set: Default::default(),
-            clipboard: ClipboardContext::new().ok().map(RefCell::new),
+            clipboard: Clipboard(ClipboardContext::new().ok().map(RefCell::new)),
             layout_events_receiver,
             layout_events_sender,
             need_update_global_transform: Default::default(),
@@ -961,11 +994,11 @@ impl UserInterface {
     }
 
     pub fn clipboard(&self) -> Option<Ref<ClipboardContext>> {
-        self.clipboard.as_ref().map(|v| v.borrow())
+        self.clipboard.0.as_ref().map(|v| v.borrow())
     }
 
     pub fn clipboard_mut(&self) -> Option<RefMut<ClipboardContext>> {
-        self.clipboard.as_ref().map(|v| v.borrow_mut())
+        self.clipboard.0.as_ref().map(|v| v.borrow_mut())
     }
 
     pub fn arrange_node(&self, handle: Handle<UiNode>, final_rect: &Rect<f32>) -> bool {
