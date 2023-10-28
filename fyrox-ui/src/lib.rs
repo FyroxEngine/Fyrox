@@ -235,6 +235,7 @@ pub mod wrap_panel;
 use crate::{
     brush::Brush,
     canvas::Canvas,
+    container::WidgetContainer,
     core::{
         algebra::{Matrix3, Vector2},
         color::Color,
@@ -546,7 +547,7 @@ struct DoubleClickEntry {
 
 pub struct UserInterface {
     screen_size: Vector2<f32>,
-    nodes: Pool<UiNode>,
+    nodes: Pool<UiNode, WidgetContainer>,
     drawing_context: DrawingContext,
     visual_debug: bool,
     root_canvas: Handle<UiNode>,
@@ -575,7 +576,7 @@ pub struct UserInterface {
     pub double_click_time_slice: f32,
 }
 
-fn is_on_screen(node: &UiNode, nodes: &Pool<UiNode>) -> bool {
+fn is_on_screen(node: &UiNode, nodes: &Pool<UiNode, WidgetContainer>) -> bool {
     // Crawl up on tree and check if current bounds are intersects with every screen bound
     // of parents chain. This is needed because some control can move their children outside of
     // their bounds (like scroll viewer, etc.) and single intersection test of parent bounds with
@@ -593,7 +594,7 @@ fn is_on_screen(node: &UiNode, nodes: &Pool<UiNode>) -> bool {
 }
 
 fn draw_node(
-    nodes: &Pool<UiNode>,
+    nodes: &Pool<UiNode, WidgetContainer>,
     node_handle: Handle<UiNode>,
     drawing_context: &mut DrawingContext,
 ) {
@@ -644,7 +645,7 @@ fn draw_node(
     }
 }
 
-fn is_node_enabled(nodes: &Pool<UiNode>, handle: Handle<UiNode>) -> bool {
+fn is_node_enabled(nodes: &Pool<UiNode, WidgetContainer>, handle: Handle<UiNode>) -> bool {
     let root_node = &nodes[handle];
     let mut enabled = root_node.enabled();
     let mut parent = root_node.parent();
@@ -812,7 +813,7 @@ impl UserInterface {
 
     fn handle_layout_events(&mut self) {
         fn invalidate_recursive_up(
-            nodes: &Pool<UiNode>,
+            nodes: &Pool<UiNode, WidgetContainer>,
             node: Handle<UiNode>,
             callback: fn(&UiNode),
         ) {
@@ -2089,7 +2090,7 @@ impl UserInterface {
         event_processed
     }
 
-    pub fn nodes(&self) -> &Pool<UiNode> {
+    pub fn nodes(&self) -> &Pool<UiNode, WidgetContainer> {
         &self.nodes
     }
 
