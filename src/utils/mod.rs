@@ -23,7 +23,10 @@ use crate::{
 use fyrox_ui::message::CursorIcon;
 use half::f16;
 use std::{any::Any, hash::Hasher, sync::Arc};
-use winit::keyboard::PhysicalKey;
+use winit::{
+    event::{Touch, TouchPhase},
+    keyboard::PhysicalKey,
+};
 
 /// Translates `winit`'s key code to `fyrox-ui`'s key code.
 pub fn translate_key_to_ui(key: KeyCode) -> message::KeyCode {
@@ -517,10 +520,36 @@ pub fn translate_event(event: &WindowEvent) -> Option<OsEvent> {
         WindowEvent::MouseInput { state, button, .. } => Some(OsEvent::MouseInput {
             button: translate_button(*button),
             state: translate_state(*state),
+            touch_data: None,
         }),
         &WindowEvent::ModifiersChanged(modifiers) => Some(OsEvent::KeyboardModifiers(
             translate_keyboard_modifiers(modifiers.state()),
         )),
+        WindowEvent::Touch(Touch {
+            phase,
+            device_id,
+            location,
+            force,
+            id,
+        }) => Some(OsEvent::MouseInput {
+            button: crate::gui::message::MouseButton::Left,
+            state: if phase == &TouchPhase::Started {
+                ButtonState::Pressed
+            } else if phase == &TouchPhase::Ended {
+                ButtonState::Released
+            } else if phase == &TouchPhase::Moved {
+                ButtonState::Moved
+            } else {
+                ButtonState::Cancelled
+            },
+            touch_data: Some(Touch {
+                phase,
+                device_id,
+                location,
+                force,
+                id,
+            }),
+        }),
         _ => None,
     }
 }

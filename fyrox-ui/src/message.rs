@@ -10,6 +10,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::{any::Any, cell::Cell, fmt::Debug, rc::Rc};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use winit::event::Touch;
 
 /// Defines a new message constructor for a enum variant. It is widely used in this crate to create shortcuts to create
 /// messages. Why is it needed anyway? Just to reduce boilerplate code as much as possible.
@@ -215,7 +216,7 @@ where
 /// }
 ///
 /// impl MyWidgetMessage {
-///     define_constructor!(MyWidgetMessage:DoSomething => fn do_something(), layout: false);     
+///     define_constructor!(MyWidgetMessage:DoSomething => fn do_something(), layout: false);
 ///     define_constructor!(MyWidgetMessage:Foo => fn foo(u32), layout: false);
 ///     define_constructor!(MyWidgetMessage:Bar => fn bar(foo: u32, baz: u8), layout: false);
 /// }
@@ -394,6 +395,10 @@ pub enum ButtonState {
     Pressed,
     /// Released state.
     Released,
+    /// Matches TouchPhase::Moved
+    Moved,
+    /// Matches TouchPhase::Cancelled
+    Cancelled,
 }
 
 /// A set of possible mouse buttons.
@@ -421,6 +426,8 @@ pub enum OsEvent {
         button: MouseButton,
         /// Mouse button state.
         state: ButtonState,
+        /// Touch data from translated event
+        touch_data: Option<Touch>,
     },
     /// Cursor event.
     CursorMoved {
