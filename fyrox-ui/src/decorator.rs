@@ -188,11 +188,6 @@ impl Control for Decorator {
             if message.destination() == self.handle()
                 || self.has_descendant(message.destination(), ui)
             {
-                // Pass the message to the palette first
-                self.border
-                    .palette
-                    .handle_widget_message(self.handle(), ui, msg);
-
                 match msg {
                     WidgetMessage::MouseLeave => {
                         if self.is_selected {

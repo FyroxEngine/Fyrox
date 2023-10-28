@@ -617,19 +617,27 @@ impl WidgetPaletteBuilder {
 
 impl WidgetPaletteBuilder {
     pub fn build(self) -> WidgetPalette {
+        let background_normal = self
+            .background_normal
+            .unwrap_or_else(|| BRUSH_PRIMARY.clone());
+
+        let background_hover = self
+            .background_hover
+            .unwrap_or_else(|| background_normal.clone());
+
+        let foreground_normal = self
+            .foreground_normal
+            .unwrap_or_else(|| BRUSH_FOREGROUND.clone());
+
+        let foreground_hover = self
+            .foreground_hover
+            .unwrap_or_else(|| foreground_normal.clone());
+
         WidgetPalette {
-            background_normal: self
-                .background_normal
-                .unwrap_or_else(|| BRUSH_PRIMARY.clone()),
-            background_hover: self
-                .background_hover
-                .unwrap_or_else(|| BRUSH_PRIMARY.clone()),
-            foreground_normal: self
-                .foreground_normal
-                .unwrap_or_else(|| BRUSH_FOREGROUND.clone()),
-            foreground_hover: self
-                .foreground_hover
-                .unwrap_or_else(|| BRUSH_FOREGROUND.clone()),
+            background_normal,
+            background_hover,
+            foreground_normal,
+            foreground_hover,
         }
     }
 }
@@ -655,6 +663,8 @@ pub enum WidgetPaletteMessage {
 }
 
 impl WidgetPalette {
+    /// Updates the background and foreground color of the provided
+    /// node to be the normal colors from this palette
     pub fn set_normal(&self, handle: Handle<UiNode>, ui: &mut UserInterface) {
         ui.send_message(WidgetMessage::background(
             handle,
@@ -669,6 +679,8 @@ impl WidgetPalette {
         ));
     }
 
+    /// Updates the background and foreground color of the provided
+    /// node to be the hover colors from this palette
     pub fn set_hover(&self, handle: Handle<UiNode>, ui: &mut UserInterface) {
         ui.send_message(WidgetMessage::background(
             handle,
@@ -681,19 +693,6 @@ impl WidgetPalette {
             MessageDirection::ToWidget,
             self.foreground_hover.clone(),
         ));
-    }
-
-    pub fn handle_widget_message(
-        &self,
-        handle: Handle<UiNode>,
-        ui: &mut UserInterface,
-        msg: &WidgetMessage,
-    ) {
-        match msg {
-            WidgetMessage::MouseLeave => self.set_normal(handle, ui),
-            WidgetMessage::MouseEnter => self.set_hover(handle, ui),
-            _ => {}
-        }
     }
 }
 
@@ -1255,8 +1254,22 @@ impl Widget {
 
     /// Handles incoming [`WidgetMessage`]s. This method **must** be called in [`crate::control::Control::handle_routed_message`]
     /// of any derived widgets!
-    pub fn handle_routed_message(&mut self, _ui: &mut UserInterface, msg: &mut UiMessage) {
-        if msg.destination() == self.handle() && msg.direction() == MessageDirection::ToWidget {
+    pub fn handle_routed_message(&mut self, ui: &mut UserInterface, msg: &mut UiMessage) {
+        let is_self = msg.destination() == self.handle();
+
+        // Widget hover handling
+        if is_self || self.has_descendant(msg.destination(), ui) {
+            if let Some(msg) = msg.data::<WidgetMessage>() {
+                match msg {
+                    // Default palette changing behavior
+                    WidgetMessage::MouseLeave => self.palette.set_normal(self.handle(), ui),
+                    WidgetMessage::MouseEnter => self.palette.set_hover(self.handle(), ui),
+                    _ => {}
+                }
+            }
+        }
+
+        if is_self && msg.direction() == MessageDirection::ToWidget {
             if let Some(msg) = msg.data::<WidgetMessage>() {
                 match msg {
                     &WidgetMessage::Opacity(opacity) => self.opacity = opacity,
