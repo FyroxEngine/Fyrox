@@ -1968,6 +1968,8 @@ impl UserInterface {
                             event_processed = true;
                         }
                     }
+                    ButtonState::Moved => {}
+                    ButtonState::Cancelled => {}
                 }
             }
             OsEvent::CursorMoved { position } => {
@@ -2093,6 +2095,8 @@ impl UserInterface {
                             MessageDirection::FromWidget,
                             *button,
                         )),
+                        ButtonState::Moved => {}
+                        ButtonState::Cancelled => {}
                     }
 
                     event_processed = true;

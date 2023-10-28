@@ -543,11 +543,11 @@ pub fn translate_event(event: &WindowEvent) -> Option<OsEvent> {
                 ButtonState::Cancelled
             },
             touch_data: Some(Touch {
-                phase,
-                device_id,
-                location,
-                force,
-                id,
+                phase: phase.clone(),
+                device_id: device_id.clone(),
+                location: location.clone(),
+                force: force.clone(),
+                id: id.clone(),
             }),
         }),
         _ => None,
