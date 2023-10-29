@@ -29,7 +29,15 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 /// with z_far of current projection matrix.
 #[derive(Debug, Default, Clone, Visit, Reflect, PartialEq)]
 pub struct LevelOfDetail {
+    #[reflect(
+        description = "Beginning of the range in which the level will be visible. \
+    It is expressed in normalized coordinates: where 0.0 - closest to camera, 1.0 - \
+    farthest from camera."
+    )]
     begin: f32,
+    #[reflect(description = "End of the range in which the level will be visible. \
+    It is expressed in normalized coordinates: where 0.0 - closest to camera, 1.0 - \
+    farthest from camera.")]
     end: f32,
     /// List of objects, where each object represents level of detail of parent's
     /// LOD group.
