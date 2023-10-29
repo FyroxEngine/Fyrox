@@ -23,7 +23,7 @@ use crate::{
 use fyrox_ui::message::CursorIcon;
 use half::f16;
 use std::{any::Any, hash::Hasher, sync::Arc};
-use winit::keyboard::PhysicalKey;
+use winit::{event::Touch, keyboard::PhysicalKey};
 
 /// Translates `winit`'s key code to `fyrox-ui`'s key code.
 pub fn translate_key_to_ui(key: KeyCode) -> message::KeyCode {
@@ -521,6 +521,42 @@ pub fn translate_event(event: &WindowEvent) -> Option<OsEvent> {
         &WindowEvent::ModifiersChanged(modifiers) => Some(OsEvent::KeyboardModifiers(
             translate_keyboard_modifiers(modifiers.state()),
         )),
+        WindowEvent::Touch(Touch {
+            phase,
+            location,
+            force,
+            id,
+            ..
+        }) => Some(OsEvent::Touch {
+            phase: match phase {
+                winit::event::TouchPhase::Started => fyrox_ui::message::TouchPhase::Started,
+                winit::event::TouchPhase::Moved => fyrox_ui::message::TouchPhase::Moved,
+                winit::event::TouchPhase::Ended => fyrox_ui::message::TouchPhase::Ended,
+                winit::event::TouchPhase::Cancelled => fyrox_ui::message::TouchPhase::Cancelled,
+            },
+            location: Vector2::new(location.x as f32, location.y as f32),
+            force: match force {
+                Some(force) => match force {
+                    winit::event::Force::Calibrated {
+                        force,
+                        max_possible_force,
+                        altitude_angle,
+                    } => Some(fyrox_ui::message::Force::Calibrated {
+                        force: force.to_be_bytes(),
+                        max_possible_force: max_possible_force.to_be_bytes(),
+                        altitude_angle: match altitude_angle {
+                            Some(altitude_angle) => Some(altitude_angle.to_be_bytes()),
+                            None => None,
+                        },
+                    }),
+                    winit::event::Force::Normalized(value) => {
+                        Some(fyrox_ui::message::Force::Normalized(value.to_be_bytes()))
+                    }
+                },
+                None => None,
+            },
+            id: *id,
+        }),
         _ => None,
     }
 }

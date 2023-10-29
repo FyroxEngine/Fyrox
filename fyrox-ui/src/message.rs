@@ -215,7 +215,7 @@ where
 /// }
 ///
 /// impl MyWidgetMessage {
-///     define_constructor!(MyWidgetMessage:DoSomething => fn do_something(), layout: false);     
+///     define_constructor!(MyWidgetMessage:DoSomething => fn do_something(), layout: false);
 ///     define_constructor!(MyWidgetMessage:Foo => fn foo(u32), layout: false);
 ///     define_constructor!(MyWidgetMessage:Bar => fn bar(foo: u32, baz: u8), layout: false);
 /// }
@@ -413,6 +413,78 @@ pub enum MouseButton {
     Other(u16),
 }
 
+/// A set of possible touch phases
+#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy, Visit, Reflect)]
+pub enum TouchPhase {
+    /// Touch started
+    Started,
+    /// Touch and drag
+    Moved,
+    /// Touch ended
+    Ended,
+    /// Touch cancelled
+    Cancelled,
+}
+
+/// Describes the force of a touch event
+#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy, Visit, Reflect)]
+pub enum Force {
+    /// On iOS, the force is calibrated so that the same number corresponds to
+    /// roughly the same amount of pressure on the screen regardless of the
+    /// device.
+    Calibrated {
+        /// The force of the touch, where a value of 1.0 represents the force of
+        /// an average touch (predetermined by the system, not user-specific).
+        ///
+        /// The force reported by Apple Pencil is measured along the axis of the
+        /// pencil. If you want a force perpendicular to the device, you need to
+        /// calculate this value using the `altitude_angle` value.
+        force: [u8; 8],
+        /// The maximum possible force for a touch.
+        ///
+        /// The value of this field is sufficiently high to provide a wide
+        /// dynamic range for values of the `force` field.
+        max_possible_force: [u8; 8],
+        /// The altitude (in radians) of the stylus.
+        ///
+        /// A value of 0 radians indicates that the stylus is parallel to the
+        /// surface. The value of this property is Pi/2 when the stylus is
+        /// perpendicular to the surface.
+        altitude_angle: Option<[u8; 8]>,
+    },
+    /// If the platform reports the force as normalized, we have no way of
+    /// knowing how much pressure 1.0 corresponds to – we know it's the maximum
+    /// amount of force, but as to how much force, you might either have to
+    /// press really really hard, or not hard at all, depending on the device.
+    Normalized([u8; 8]),
+}
+
+impl Force {
+    /// Returns the force normalized to the range between 0.0 and 1.0 inclusive.
+    ///
+    /// Instead of normalizing the force, you should prefer to handle
+    /// [`Force::Calibrated`] so that the amount of force the user has to apply is
+    /// consistent across devices.
+    pub fn normalized(&self) -> f64 {
+        match self {
+            Force::Calibrated {
+                force,
+                max_possible_force,
+                altitude_angle,
+            } => {
+                let force = match altitude_angle {
+                    Some(altitude_angle) => {
+                        f64::from_be_bytes(*force) / f64::from_be_bytes(*altitude_angle).sin()
+                    }
+                    None => f64::from_be_bytes(*force),
+                };
+                force / f64::from_be_bytes(*max_possible_force)
+            }
+            Force::Normalized(force) => f64::from_be_bytes(*force),
+        }
+    }
+}
+
 /// An event that an OS sends to a window, that is then can be used to "feed" the user interface so it can do some actions.
 pub enum OsEvent {
     /// Mouse input event.
@@ -440,6 +512,16 @@ pub enum OsEvent {
     KeyboardModifiers(KeyboardModifiers),
     /// Mouse wheel event, with a tuple that stores the (x, y) offsets.
     MouseWheel(f32, f32),
+    Touch {
+        /// Phase of the touch event
+        phase: TouchPhase,
+        /// Screen location of touch event
+        location: Vector2<f32>,
+        /// Pressure exerted during force event
+        force: Option<Force>,
+        /// Unique touch event identifier to distinguish between fingers, for example
+        id: u64,
+    },
 }
 
 /// A set of possible keyboard modifiers.

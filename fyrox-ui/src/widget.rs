@@ -14,7 +14,7 @@ use crate::{
         visitor::prelude::*,
     },
     define_constructor,
-    message::{CursorIcon, KeyCode, MessageDirection, UiMessage},
+    message::{CursorIcon, Force, KeyCode, MessageDirection, UiMessage},
     HorizontalAlignment, LayoutEvent, MouseButton, MouseState, RcUiNodeHandle, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_FOREGROUND, BRUSH_PRIMARY,
 };
@@ -547,6 +547,36 @@ impl WidgetMessage {
         /// Creates [`WidgetMessage::DoubleClick`] message. This method is for internal use only, and should not
         /// be used anywhere else.
         WidgetMessage:DoubleClick => fn double_click(button: MouseButton), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::TouchStarted`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:TouchStarted => fn touch_started(pos: Vector2<f32>, force: Option<Force>, id: u64), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::TouchEnded`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:TouchEnded => fn touch_ended(pos: Vector2<f32>, id: u64), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::TouchMoved`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:TouchMoved => fn touch_moved(pos: Vector2<f32>, force: Option<Force>, id: u64), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::TouchCancelled`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:TouchCancelled => fn touch_cancelled(pos: Vector2<f32>, id: u64), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::TouchStarted`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:DoubleTap => fn double_tap(pos: Vector2<f32>, force: Option<Force>, id: u64), layout: false
     );
 }
 
