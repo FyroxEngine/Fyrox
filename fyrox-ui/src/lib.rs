@@ -2279,7 +2279,6 @@ impl UserInterface {
                         event_processed = true;
                     }
                 }
-                _ => {}
             },
         }
 

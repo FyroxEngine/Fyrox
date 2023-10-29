@@ -512,6 +512,7 @@ pub enum OsEvent {
     KeyboardModifiers(KeyboardModifiers),
     /// Mouse wheel event, with a tuple that stores the (x, y) offsets.
     MouseWheel(f32, f32),
+    /// Touch event.
     Touch {
         /// Phase of the touch event
         phase: TouchPhase,
