@@ -1,5 +1,6 @@
 //! Scene physics module.
 
+use crate::scene::dim2::joint::JointLocalFrames;
 use crate::{
     core::{
         algebra::{
@@ -982,7 +983,8 @@ impl PhysicsWorld {
             joint.contacts_enabled.try_sync_model(|v| {
                 native.data.set_contacts_enabled(v);
             });
-            if joint.need_rebind.get() {
+            let mut local_frames = joint.local_frames.borrow_mut();
+            if local_frames.is_none() {
                 if let (Some(body1), Some(body2)) = (
                     nodes
                         .try_borrow(joint.body1())
@@ -994,7 +996,7 @@ impl PhysicsWorld {
                     let (local_frame1, local_frame2) = calculate_local_frames(joint, body1, body2);
                     native.data =
                         convert_joint_params((*joint.params).clone(), local_frame1, local_frame2);
-                    joint.need_rebind.set(false);
+                    *local_frames = Some(JointLocalFrames::new(&local_frame1, &local_frame2));
                 }
             }
         } else {
@@ -1011,8 +1013,27 @@ impl PhysicsWorld {
                     .try_borrow(body2_handle)
                     .and_then(|n| n.cast::<dim2::rigidbody::RigidBody>()),
             ) {
-                // Calculate local frames first.
-                let (local_frame1, local_frame2) = calculate_local_frames(joint, body1, body2);
+                // Calculate local frames first (if needed).
+                let mut local_frames = joint.local_frames.borrow_mut();
+                let (local_frame1, local_frame2) = local_frames
+                    .clone()
+                    .map(|frames| {
+                        (
+                            Isometry2 {
+                                rotation: frames.body1.rotation,
+                                translation: Translation2 {
+                                    vector: frames.body1.position,
+                                },
+                            },
+                            Isometry2 {
+                                rotation: frames.body2.rotation,
+                                translation: Translation2 {
+                                    vector: frames.body2.position,
+                                },
+                            },
+                        )
+                    })
+                    .unwrap_or_else(|| calculate_local_frames(joint, body1, body2));
 
                 let native_body1 = body1.native.get();
                 let native_body2 = body2.native.get();
@@ -1026,7 +1047,7 @@ impl PhysicsWorld {
                     self.add_joint(handle, native_body1, native_body2, native_joint);
 
                 joint.native.set(native_handle);
-                joint.need_rebind.set(false);
+                *local_frames = Some(JointLocalFrames::new(&local_frame1, &local_frame2));
 
                 Log::writeln(
                     MessageKind::Information,
