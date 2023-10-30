@@ -337,9 +337,10 @@ impl AsyncSceneLoader {
                 .await
                 {
                     Ok((loader, data)) => {
+                        let scene = loader.finish(&resource_manager).await;
                         Log::verify(sender.send(SceneLoadingResult {
                             path,
-                            result: Ok((loader.finish(&resource_manager).await, data)),
+                            result: Ok((scene, data)),
                         }));
                     }
                     Err(e) => {
