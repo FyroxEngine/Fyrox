@@ -2,7 +2,7 @@
 
 use crate::{
     core::{
-        algebra::Matrix4,
+        algebra::{Isometry2, Matrix4, UnitComplex, Vector2},
         log::Log,
         math::{aabb::AxisAlignedBoundingBox, m4x4_approx_eq},
         pool::Handle,
@@ -22,7 +22,7 @@ use crate::{
 };
 use rapier2d::dynamics::ImpulseJointHandle;
 use std::{
-    cell::Cell,
+    cell::{Cell, RefCell},
     ops::{Deref, DerefMut, Range},
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
@@ -100,6 +100,36 @@ impl Default for JointParams {
     }
 }
 
+#[derive(Visit, Reflect, Debug, Clone, Default)]
+pub(crate) struct LocalFrame {
+    pub position: Vector2<f32>,
+    pub rotation: UnitComplex<f32>,
+}
+
+impl LocalFrame {
+    pub fn new(isometry: &Isometry2<f32>) -> Self {
+        Self {
+            position: isometry.translation.vector,
+            rotation: isometry.rotation,
+        }
+    }
+}
+
+#[derive(Visit, Reflect, Debug, Clone, Default)]
+pub(crate) struct JointLocalFrames {
+    pub body1: LocalFrame,
+    pub body2: LocalFrame,
+}
+
+impl JointLocalFrames {
+    pub fn new(isometry1: &Isometry2<f32>, isometry2: &Isometry2<f32>) -> Self {
+        Self {
+            body1: LocalFrame::new(isometry1),
+            body2: LocalFrame::new(isometry2),
+        }
+    }
+}
+
 /// Joint is used to restrict motion of two rigid bodies. There are numerous examples of joints in
 /// real life: door hinge, ball joints in human arms, etc.
 #[derive(Visit, Reflect, Debug)]
@@ -119,13 +149,13 @@ pub struct Joint {
     #[reflect(setter = "set_contacts_enabled")]
     pub(crate) contacts_enabled: InheritableVariable<bool>,
 
-    #[visit(skip)]
+    #[visit(optional)]
     #[reflect(hidden)]
-    pub(crate) native: Cell<ImpulseJointHandle>,
+    pub(crate) local_frames: RefCell<Option<JointLocalFrames>>,
 
     #[visit(skip)]
     #[reflect(hidden)]
-    pub(crate) need_rebind: Cell<bool>,
+    pub(crate) native: Cell<ImpulseJointHandle>,
 }
 
 impl Default for Joint {
@@ -135,10 +165,10 @@ impl Default for Joint {
             params: Default::default(),
             body1: Default::default(),
             body2: Default::default(),
+            local_frames: Default::default(),
             contacts_enabled: InheritableVariable::new_modified(true),
             // Do not copy. The copy will have its own native representation.
             native: Cell::new(ImpulseJointHandle::invalid()),
-            need_rebind: Cell::new(true),
         }
     }
 }
@@ -164,9 +194,9 @@ impl Clone for Joint {
             params: self.params.clone(),
             body1: self.body1.clone(),
             body2: self.body2.clone(),
+            local_frames: self.local_frames.clone(),
             contacts_enabled: self.contacts_enabled.clone(),
             native: Cell::new(ImpulseJointHandle::invalid()),
-            need_rebind: Cell::new(true),
         }
     }
 }
@@ -260,7 +290,7 @@ impl NodeTrait for Joint {
 
     fn sync_transform(&self, new_global_transform: &Matrix4<f32>, _context: &mut SyncContext) {
         if !m4x4_approx_eq(new_global_transform, &self.global_transform()) {
-            self.need_rebind.set(true);
+            self.local_frames.borrow_mut().take();
         }
     }
 
@@ -347,9 +377,9 @@ impl JointBuilder {
             params: self.params.into(),
             body1: self.body1.into(),
             body2: self.body2.into(),
+            local_frames: Default::default(),
             contacts_enabled: self.contacts_enabled.into(),
             native: Cell::new(ImpulseJointHandle::invalid()),
-            need_rebind: Cell::new(true),
         }
     }
 

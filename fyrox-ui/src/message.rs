@@ -388,7 +388,7 @@ impl UiMessage {
 }
 
 /// Mouse button state.
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy, Visit, Reflect)]
 pub enum ButtonState {
     /// Pressed state.
     Pressed,
@@ -397,7 +397,7 @@ pub enum ButtonState {
 }
 
 /// A set of possible mouse buttons.
-#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Hash, Ord, PartialOrd, PartialEq, Eq, Clone, Copy, Visit, Reflect)]
 pub enum MouseButton {
     /// Left mouse button.
     Left,

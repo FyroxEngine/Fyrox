@@ -15,6 +15,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
 };
+use fyrox_core::uuid::{uuid, Uuid};
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -145,6 +146,10 @@ impl Control for Button {
                 }
             }
         }
+    }
+
+    fn id(&self) -> Uuid {
+        uuid!("1e4e0ee7-86d2-4e97-a099-1295bd70360a")
     }
 }
 

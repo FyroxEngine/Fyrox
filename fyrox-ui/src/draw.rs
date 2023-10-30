@@ -11,7 +11,7 @@ use crate::{
 };
 use std::{any::Any, ops::Range, sync::Arc};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 #[repr(C)]
 pub struct Vertex {
     pub pos: Vector2<f32>,
@@ -50,7 +50,7 @@ impl PartialEq for SharedTexture {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum CommandTexture {
     None,
     Texture(SharedTexture),
@@ -58,7 +58,7 @@ pub enum CommandTexture {
 }
 
 /// A set of triangles that will be used for clipping.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ClippingGeometry {
     pub vertex_buffer: Vec<Vertex>,
     pub triangle_buffer: Vec<TriangleDefinition>,
@@ -112,7 +112,7 @@ impl ClippingGeometry {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Command {
     /// Clipping bounds, should be used for scissor-test. Screen-space.
     pub clip_bounds: Rect<f32>,
@@ -470,7 +470,7 @@ pub trait Draw {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TransformStack {
     transform: Matrix3<f32>,
     stack: Vec<Matrix3<f32>>,
@@ -506,6 +506,7 @@ impl TransformStack {
     }
 }
 
+#[derive(Debug)]
 pub struct DrawingContext {
     vertex_buffer: Vec<Vertex>,
     triangle_buffer: Vec<TriangleDefinition>,

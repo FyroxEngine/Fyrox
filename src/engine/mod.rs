@@ -1489,16 +1489,28 @@ impl Engine {
                 match loading_result.result {
                     Ok((mut scene, data)) => {
                         if request.options.derived {
-                            // Create fake resource, that will point to the scene we've loaded the
+                            // Create a resource, that will point to the scene we've loaded the
                             // scene from and force scene nodes to inherit data from them.
                             let model = ModelResource::new_ok(Model {
                                 path: request.path.clone(),
                                 mapping: NodeMapping::UseHandles,
-                                // Do not create any scene here, because we don't want to have the
-                                // same scene to be created multiple times to reduce memory
-                                // consumption.
-                                scene: Default::default(),
+                                // We have to create a full copy of the scene, because otherwise
+                                // some methods (`Base::root_resource` in particular) won't work
+                                // correctly.
+                                scene: scene
+                                    .clone(
+                                        scene.graph.get_root(),
+                                        &mut |_, _| true,
+                                        &mut |_, _, _| {},
+                                    )
+                                    .0,
                             });
+
+                            Log::verify(self.resource_manager.register(
+                                model.clone().into_untyped(),
+                                request.path.clone(),
+                                |_, _| true,
+                            ));
 
                             for (handle, node) in scene.graph.pair_iter_mut() {
                                 node.set_inheritance_data(handle, model.clone());
