@@ -9,7 +9,7 @@ repository = "https://github.com/FyroxEngine/Fyrox"
 include = ["/src/**/*", "/Cargo.toml", "/README.md"]
 readme = "README.md"
 resolver = "2"
-rust-version = "1.56"
+rust-version = "1.72"
 
 [lib]
 proc-macro = true
