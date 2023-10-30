@@ -302,6 +302,9 @@ pub enum WidgetMessage {
     /// A request to set new tooltip for a widget. Old tooltip will be removed only if its reference
     /// counter was 1.
     Tooltip(Option<RcUiNodeHandle>),
+
+    /// Message to update the widget palette
+    WidgetPaletteMessage(WidgetPaletteMessage),
 }
 
 impl WidgetMessage {
@@ -470,6 +473,12 @@ impl WidgetMessage {
         WidgetMessage:Unfocus => fn unfocus(), layout: false
     );
 
+    define_constructor!(
+        /// Creates [`WidgetMessage::WidgetPaletteMessage`] message. This message is used
+        /// to update the palette brushes for the widget
+        WidgetMessage:WidgetPaletteMessage => fn widget_palette(WidgetPaletteMessage), layout: false
+    );
+
     // Internal messages. Do not use.
     define_constructor!(
         /// Creates [`WidgetMessage::MouseDown`] message. This method is for internal use only, and should not
@@ -550,6 +559,7 @@ impl WidgetMessage {
     );
 }
 
+/// Palette of colors for a widget to use for different states
 #[derive(Clone, Visit, Reflect, Debug)]
 pub struct WidgetPalette {
     /// Background brush of the widget.
@@ -557,12 +567,13 @@ pub struct WidgetPalette {
     /// Foreground brush of the widget.
     pub foreground_normal: Brush,
 
-    /// Background brush of the widget.
+    /// Background brush of the widget when its hovered.
     pub background_hover: Brush,
-    /// Foreground brush of the widget.
+    /// Foreground brush of the widget when its hovered.
     pub foreground_hover: Brush,
 }
 
+/// Builder for creating a `WidgetPalette`
 #[derive(Default)]
 pub struct WidgetPaletteBuilder {
     /// Background brush of the widget.
@@ -577,38 +588,45 @@ pub struct WidgetPaletteBuilder {
 }
 
 impl WidgetPaletteBuilder {
+    /// Creates a new `WidgetPaletteBuilder`
     #[inline]
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Sets the normal and hover background colors to the provided brush
     #[inline]
-    pub fn with_background(mut self, brush: Brush) -> Self {
+    pub fn with_background(self, brush: Brush) -> Self {
         self.with_background_normal(brush.clone())
             .with_background_hover(brush)
     }
 
+    /// Sets the normal background color to the provided brush
     pub fn with_background_normal(mut self, brush: Brush) -> Self {
         self.background_normal = Some(brush);
         self
     }
 
+    /// Sets the hover background color to the provided brush
     pub fn with_background_hover(mut self, brush: Brush) -> Self {
         self.background_hover = Some(brush);
         self
     }
 
+    /// Sets the normal and hover foreground colors to the provided brush
     #[inline]
-    pub fn with_foreground(mut self, brush: Brush) -> Self {
+    pub fn with_foreground(self, brush: Brush) -> Self {
         self.with_foreground_normal(brush.clone())
             .with_foreground_hover(brush)
     }
 
+    /// Sets the normal foreground color to the provided brush
     pub fn with_foreground_normal(mut self, brush: Brush) -> Self {
         self.foreground_normal = Some(brush);
         self
     }
 
+    /// Sets the hover foreground color to the provided brush
     pub fn with_foreground_hover(mut self, brush: Brush) -> Self {
         self.foreground_hover = Some(brush);
         self
@@ -616,6 +634,7 @@ impl WidgetPaletteBuilder {
 }
 
 impl WidgetPaletteBuilder {
+    /// Builds a `WidgetPalette` from this builder
     pub fn build(self) -> WidgetPalette {
         let background_normal = self
             .background_normal
@@ -656,9 +675,13 @@ impl Default for WidgetPalette {
 /// A set of messages that is used to modify [`WidgetPalette`] states.
 #[derive(Debug, Clone, PartialEq)]
 pub enum WidgetPaletteMessage {
+    /// Set the palette normal background brush.
     BackgroundNormal(Brush),
+    /// Set the palette hover background brush.
     BackgroundHover(Brush),
+    /// Set the palette normal foreground brush.
     ForegroundNormal(Brush),
+    /// Set the palette hover foreground brush.
     ForegroundHover(Brush),
 }
 
@@ -718,9 +741,8 @@ pub struct Widget {
     pub min_size: Vector2<f32>,
     /// Maximum width and height. Default is [`f32::INFINITY`] for both axes.
     pub max_size: Vector2<f32>,
-
+    /// The color palette for the widget.
     pub palette: WidgetPalette,
-
     /// Background brush of the widget.
     pub background: Brush,
     /// Foreground brush of the widget.
@@ -1357,6 +1379,21 @@ impl Widget {
                     WidgetMessage::RenderTransform(transform) => {
                         self.render_transform = *transform;
                     }
+
+                    WidgetMessage::WidgetPaletteMessage(msg) => match msg {
+                        WidgetPaletteMessage::BackgroundNormal(brush) => {
+                            self.palette.background_normal = brush.clone()
+                        }
+                        WidgetPaletteMessage::BackgroundHover(brush) => {
+                            self.palette.background_hover = brush.clone()
+                        }
+                        WidgetPaletteMessage::ForegroundNormal(brush) => {
+                            self.palette.foreground_normal = brush.clone()
+                        }
+                        WidgetPaletteMessage::ForegroundHover(brush) => {
+                            self.palette.foreground_hover = brush.clone()
+                        }
+                    },
                     _ => (),
                 }
             }
