@@ -181,8 +181,12 @@ impl Control for Decorator {
                         ));
                     }
                 }
-                DecoratorMessage::HoverBrush(_) => {}
-                DecoratorMessage::NormalBrush(_) => {}
+                DecoratorMessage::HoverBrush(hover_brush) => {
+                    self.palette.background_hover = hover_brush.clone();
+                }
+                DecoratorMessage::NormalBrush(normal_brush) => {
+                    self.palette.background_normal = normal_brush.clone();
+                }
             }
         } else if let Some(msg) = message.data::<WidgetMessage>() {
             if message.destination() == self.handle()
