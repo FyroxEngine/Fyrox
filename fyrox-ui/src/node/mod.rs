@@ -1,10 +1,17 @@
 //! UI node is a type-agnostic wrapper for any widget type. See [`UiNode`] docs for more info.
 
-use crate::{BaseControl, Control};
+use crate::{
+    core::{reflect::prelude::*, visitor::prelude::*},
+    BaseControl, Control,
+};
 use std::{
-    any::TypeId,
+    any::{Any, TypeId},
+    fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
+
+pub mod constructor;
+pub mod container;
 
 /// UI node is a type-agnostic wrapper for any widget type. Internally, it is just a trait object
 /// that provides common widget interface. Its main use is to reduce code bloat (no need to type
@@ -12,6 +19,12 @@ use std::{
 /// casting, component querying, etc. You could also be interested in [`Control`] docs, since it
 /// contains all the interesting stuff and detailed description for each method.
 pub struct UiNode(pub Box<dyn Control>);
+
+impl Debug for UiNode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
 
 impl Deref for UiNode {
     type Target = dyn Control;
@@ -125,5 +138,74 @@ impl UiNode {
         T: 'static,
     {
         self.query_component::<T>().is_some()
+    }
+}
+
+impl Visit for UiNode {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.0.visit(name, visitor)
+    }
+}
+
+impl Reflect for UiNode {
+    fn type_name(&self) -> &'static str {
+        Reflect::type_name(self.0.deref())
+    }
+
+    fn doc(&self) -> &'static str {
+        self.0.deref().doc()
+    }
+
+    fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
+        self.0.deref().fields_info(func)
+    }
+
+    fn into_any(self: Box<Self>) -> Box<dyn Any> {
+        self.0.into_any()
+    }
+
+    fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
+        Reflect::as_any(self.0.deref(), func)
+    }
+
+    fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
+        Reflect::as_any_mut(self.0.deref_mut(), func)
+    }
+
+    fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
+        self.0.deref().as_reflect(func)
+    }
+
+    fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
+        self.0.deref_mut().as_reflect_mut(func)
+    }
+
+    fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
+        self.0.deref_mut().set(value)
+    }
+
+    fn set_field(
+        &mut self,
+        field: &str,
+        value: Box<dyn Reflect>,
+        func: &mut dyn FnMut(Result<Box<dyn Reflect>, Box<dyn Reflect>>),
+    ) {
+        self.0.deref_mut().set_field(field, value, func)
+    }
+
+    fn fields(&self, func: &mut dyn FnMut(Vec<&dyn Reflect>)) {
+        self.0.deref().fields(func)
+    }
+
+    fn fields_mut(&mut self, func: &mut dyn FnMut(Vec<&mut dyn Reflect>)) {
+        self.0.deref_mut().fields_mut(func)
+    }
+
+    fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
+        self.0.deref().field(name, func)
+    }
+
+    fn field_mut(&mut self, name: &str, func: &mut dyn FnMut(Option<&mut dyn Reflect>)) {
+        self.0.deref_mut().field_mut(name, func)
     }
 }
