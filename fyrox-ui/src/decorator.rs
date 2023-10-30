@@ -13,7 +13,7 @@ use crate::{
     message::{MessageDirection, UiMessage},
     widget::{Widget, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, UiNode, UserInterface, BRUSH_BRIGHT, BRUSH_DARKER,
-    BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
+    BRUSH_LIGHTEST,
 };
 use std::{
     any::{Any, TypeId},
@@ -163,7 +163,7 @@ impl Control for Decorator {
                                 self.selected_brush.clone(),
                             ));
                         } else {
-                            self.border.palette.set_normal(self.handle(), ui);
+                            self.palette.set_normal(self.handle(), ui);
                         }
                     }
                 }
@@ -181,6 +181,8 @@ impl Control for Decorator {
                         ));
                     }
                 }
+
+                // Backward compatablity (Updates colors on underlying palette)
                 DecoratorMessage::HoverBrush(hover_brush) => {
                     self.palette.background_hover = hover_brush.clone();
                 }
@@ -249,12 +251,22 @@ impl DecoratorBuilder {
     }
 
     /// Sets a desired brush for `Normal` state.
+    ///
+    /// ## Backward compatablity
+    ///
+    /// For future use you should use the `with_palette` along with
+    /// a `WidgetPaletteBuilder` on the underlying widget
     pub fn with_normal_brush(mut self, brush: Brush) -> Self {
         self.border_builder.widget_builder.palette.background_normal = Some(brush);
         self
     }
 
     /// Sets a desired brush for `Hovered` state.
+    ///
+    /// ## Backward compatablity
+    ///
+    /// For future use you should use the `with_palette` along with
+    /// a `WidgetPaletteBuilder` on the underlying widget
     pub fn with_hover_brush(mut self, brush: Brush) -> Self {
         self.border_builder.widget_builder.palette.background_hover = Some(brush);
 

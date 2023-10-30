@@ -1852,6 +1852,11 @@ impl WidgetBuilder {
     }
 
     /// Sets the desired background brush of the widget.
+    ///
+    /// ## Backward compatablity
+    ///
+    /// For future use you should use the `with_palette`
+    /// along with a `WidgetPaletteBuilder`
     pub fn with_background(mut self, brush: Brush) -> Self {
         self.palette = self.palette.with_background(brush);
 
@@ -1859,6 +1864,11 @@ impl WidgetBuilder {
     }
 
     /// Sets the desired foreground brush of the widget.
+    ///
+    /// ## Backward compatablity
+    ///
+    /// For future use you should use the `with_palette`
+    /// along with a `WidgetPaletteBuilder`
     pub fn with_foreground(mut self, brush: Brush) -> Self {
         self.palette = self.palette.with_foreground(brush);
 
