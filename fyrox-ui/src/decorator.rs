@@ -182,7 +182,7 @@ impl Control for Decorator {
                     }
                 }
 
-                // Backward compatablity (Updates colors on underlying palette)
+                // Backward compatibility (Updates colors on underlying palette)
                 DecoratorMessage::HoverBrush(hover_brush) => {
                     self.palette.background_hover = hover_brush.clone();
                 }
@@ -252,7 +252,7 @@ impl DecoratorBuilder {
 
     /// Sets a desired brush for `Normal` state.
     ///
-    /// ## Backward compatablity
+    /// ## Backward compatibility
     ///
     /// For future use you should use the `with_palette` along with
     /// a `WidgetPaletteBuilder` on the underlying widget
@@ -263,7 +263,7 @@ impl DecoratorBuilder {
 
     /// Sets a desired brush for `Hovered` state.
     ///
-    /// ## Backward compatablity
+    /// ## Backward compatibility
     ///
     /// For future use you should use the `with_palette` along with
     /// a `WidgetPaletteBuilder` on the underlying widget

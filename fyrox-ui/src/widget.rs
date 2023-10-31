@@ -1853,7 +1853,7 @@ impl WidgetBuilder {
 
     /// Sets the desired background brush of the widget.
     ///
-    /// ## Backward compatablity
+    /// ## Backward compatibility
     ///
     /// For future use you should use the `with_palette`
     /// along with a `WidgetPaletteBuilder`
@@ -1865,7 +1865,7 @@ impl WidgetBuilder {
 
     /// Sets the desired foreground brush of the widget.
     ///
-    /// ## Backward compatablity
+    /// ## Backward compatibility
     ///
     /// For future use you should use the `with_palette`
     /// along with a `WidgetPaletteBuilder`

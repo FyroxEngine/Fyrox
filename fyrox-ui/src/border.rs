@@ -3,8 +3,6 @@
 //! The Border widget provides a stylized, static border around its child widget. See [`Border`] docs for more info and
 //! usage examples.
 
-use fyrox_core::{reflect::Reflect, visitor::Visit};
-
 use crate::{
     core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
     core::{reflect::prelude::*, visitor::prelude::*},
