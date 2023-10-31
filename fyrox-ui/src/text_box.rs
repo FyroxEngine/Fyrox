@@ -1008,9 +1008,7 @@ impl Control for TextBox {
 
         self.formatted_text
             .borrow_mut()
-            .set_constraint(Vector2::new(bounds.w(), bounds.h()))
-            .set_brush(self.widget.foreground())
-            .build();
+            .set_brush(self.widget.foreground());
 
         let view_bounds = self.rect_to_view_pos(bounds);
         if let Some(ref selection_range) = self.selection_range.map(|r| r.normalized()) {
