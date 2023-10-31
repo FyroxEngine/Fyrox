@@ -12,7 +12,7 @@ homepage = "https://fyrox.rs"
 documentation = "https://docs.rs/fyrox-resource"
 repository = "https://github.com/FyroxEngine/Fyrox"
 resolver = "2"
-rust-version = "1.56"
+rust-version = "1.72"
 
 [dependencies]
 fyrox-core = { path = "../fyrox-core", version = "0.26.0" }

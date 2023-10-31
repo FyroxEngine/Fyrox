@@ -784,6 +784,11 @@ impl Editor {
         }
 
         // High-DPI screen support
+        Log::info(format!(
+            "UI scaling of your OS is: {}",
+            graphics_context.window.scale_factor()
+        ));
+
         let logical_size = graphics_context
             .window
             .inner_size()
