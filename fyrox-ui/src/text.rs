@@ -334,11 +334,13 @@ impl Control for Text {
         self.formatted_text
             .borrow_mut()
             .set_constraint(available_size)
-            .set_brush(self.widget.foreground())
             .build()
     }
 
     fn draw(&self, drawing_context: &mut DrawingContext) {
+        self.formatted_text
+            .borrow_mut()
+            .set_brush(self.widget.foreground());
         let bounds = self.widget.bounding_rect();
         drawing_context.draw_text(
             self.clip_bounds(),
