@@ -11,7 +11,7 @@ use crate::{
     define_constructor,
     draw::DrawingContext,
     message::{MessageDirection, UiMessage},
-    widget::{Widget, WidgetMessage},
+    widget::{Widget, WidgetMessage, WidgetPalette},
     BuildContext, Control, NodeHandleMapping, UiNode, UserInterface, BRUSH_BRIGHT, BRUSH_DARKER,
     BRUSH_LIGHTEST,
 };
@@ -163,7 +163,7 @@ impl Control for Decorator {
                                 self.selected_brush.clone(),
                             ));
                         } else {
-                            self.palette.set_normal(self.handle(), ui);
+                            WidgetPalette::set_normal(self);
                         }
                     }
                 }
@@ -219,7 +219,7 @@ impl Control for Decorator {
                                 self.selected_brush.clone(),
                             ));
                         } else {
-                            self.border.palette.set_normal(self.handle(), ui);
+                            WidgetPalette::set_normal(self);
                         }
                     }
                     _ => {}

@@ -687,35 +687,27 @@ pub enum WidgetPaletteMessage {
 
 impl WidgetPalette {
     /// Updates the background and foreground color of the provided
-    /// node to be the normal colors from this palette
-    pub fn set_normal(&self, handle: Handle<UiNode>, ui: &mut UserInterface) {
-        ui.send_message(WidgetMessage::background(
-            handle,
-            MessageDirection::ToWidget,
-            self.background_normal.clone(),
-        ));
+    /// widget to be the normal colors from its palette
+    pub fn set_normal(widget: &mut Widget) {
+        if widget.background != widget.palette.background_normal {
+            widget.background = widget.palette.background_normal.clone();
+        }
 
-        ui.send_message(WidgetMessage::foreground(
-            handle,
-            MessageDirection::ToWidget,
-            self.foreground_normal.clone(),
-        ));
+        if widget.foreground != widget.palette.foreground_normal {
+            widget.foreground = widget.palette.foreground_normal.clone();
+        }
     }
 
     /// Updates the background and foreground color of the provided
-    /// node to be the hover colors from this palette
-    pub fn set_hover(&self, handle: Handle<UiNode>, ui: &mut UserInterface) {
-        ui.send_message(WidgetMessage::background(
-            handle,
-            MessageDirection::ToWidget,
-            self.background_hover.clone(),
-        ));
+    /// widget to be the hover colors from its palette
+    pub fn set_hover(widget: &mut Widget) {
+        if widget.background != widget.palette.background_hover {
+            widget.background = widget.palette.background_hover.clone();
+        }
 
-        ui.send_message(WidgetMessage::foreground(
-            handle,
-            MessageDirection::ToWidget,
-            self.foreground_hover.clone(),
-        ));
+        if widget.foreground != widget.palette.foreground_hover {
+            widget.foreground = widget.palette.foreground_hover.clone();
+        }
     }
 }
 
@@ -1284,8 +1276,8 @@ impl Widget {
             if let Some(msg) = msg.data::<WidgetMessage>() {
                 match msg {
                     // Default palette changing behavior
-                    WidgetMessage::MouseLeave => self.palette.set_normal(self.handle(), ui),
-                    WidgetMessage::MouseEnter => self.palette.set_hover(self.handle(), ui),
+                    WidgetMessage::MouseLeave => WidgetPalette::set_normal(self),
+                    WidgetMessage::MouseEnter => WidgetPalette::set_hover(self),
                     _ => {}
                 }
             }
