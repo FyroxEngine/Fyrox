@@ -544,10 +544,9 @@ pub fn translate_event(event: &WindowEvent) -> Option<OsEvent> {
                     } => Some(fyrox_ui::message::Force::Calibrated {
                         force: force.to_be_bytes(),
                         max_possible_force: max_possible_force.to_be_bytes(),
-                        altitude_angle: match altitude_angle {
-                            Some(altitude_angle) => Some(altitude_angle.to_be_bytes()),
-                            None => None,
-                        },
+                        altitude_angle: altitude_angle
+                            .as_ref()
+                            .map(|altitude_angle| altitude_angle.to_be_bytes()),
                     }),
                     winit::event::Force::Normalized(value) => {
                         Some(fyrox_ui::message::Force::Normalized(value.to_be_bytes()))

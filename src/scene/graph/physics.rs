@@ -99,11 +99,22 @@ impl From<rapier2d::geometry::FeatureId> for FeatureId {
 /// between two colliders. Each collider has its combination rule of type `CoefficientCombineRule`,
 /// the rule actually used is given by `max(first_combine_rule, second_combine_rule)`.
 #[derive(
-    Copy, Clone, Debug, PartialEq, Eq, Visit, Reflect, EnumVariantNames, EnumString, AsRefStr,
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Visit,
+    Reflect,
+    EnumVariantNames,
+    EnumString,
+    AsRefStr,
+    Default,
 )]
 #[repr(u32)]
 pub enum CoefficientCombineRule {
     /// The two coefficients are averaged.
+    #[default]
     Average = 0,
     /// The smallest coefficient is chosen.
     Min,
@@ -111,12 +122,6 @@ pub enum CoefficientCombineRule {
     Multiply,
     /// The greatest coefficient is chosen.
     Max,
-}
-
-impl Default for CoefficientCombineRule {
-    fn default() -> Self {
-        CoefficientCombineRule::Average
-    }
 }
 
 impl From<rapier3d::dynamics::CoefficientCombineRule> for CoefficientCombineRule {
