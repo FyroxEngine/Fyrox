@@ -178,6 +178,7 @@
 
 pub use copypasta;
 pub use fyrox_core as core;
+use message::TouchPhase;
 
 mod alignment;
 pub mod bit;
@@ -2102,6 +2103,183 @@ impl UserInterface {
                 // TODO: Is message needed for focused node?
                 self.keyboard_modifiers = modifiers;
             }
+            OsEvent::Touch {
+                phase,
+                location,
+                force,
+                id,
+            } => match phase {
+                TouchPhase::Started => {
+                    self.cursor_position = *location;
+                    let picked_changed =
+                        self.try_set_picked_node(self.hit_test(self.cursor_position));
+
+                    let mut emit_double_tap = false;
+                    if !picked_changed {
+                        match self.double_click_entries.entry(MouseButton::Left) {
+                            Entry::Occupied(e) => {
+                                let entry = e.into_mut();
+                                if entry.timer > 0.0 {
+                                    entry.click_count += 1;
+                                    if entry.click_count >= 2 {
+                                        entry.click_count = 0;
+                                        entry.timer = self.double_click_time_slice;
+                                        emit_double_tap = true;
+                                    }
+                                } else {
+                                    entry.timer = self.double_click_time_slice;
+                                    entry.click_count = 1;
+                                }
+                            }
+                            Entry::Vacant(entry) => {
+                                // A button was clicked for the first time, no double click
+                                // in this case.
+                                entry.insert(DoubleClickEntry {
+                                    timer: self.double_click_time_slice,
+                                    click_count: 1,
+                                });
+                            }
+                        }
+                    }
+
+                    // Try to find draggable node in hierarchy starting from picked node.
+                    if self.picked_node.is_some() {
+                        self.stack.clear();
+                        self.stack.push(self.picked_node);
+                        while let Some(handle) = self.stack.pop() {
+                            let node = &self.nodes[handle];
+                            if node.is_drag_allowed() {
+                                self.drag_context.drag_node = handle;
+                                self.stack.clear();
+                                break;
+                            } else if node.parent().is_some() {
+                                self.stack.push(node.parent());
+                            }
+                        }
+                        self.drag_context.click_pos = self.cursor_position;
+                    }
+
+                    self.request_focus(self.picked_node);
+
+                    if self.picked_node.is_some() {
+                        self.send_message(WidgetMessage::touch_started(
+                            self.picked_node,
+                            MessageDirection::FromWidget,
+                            self.cursor_position,
+                            *force,
+                            *id,
+                        ));
+                        event_processed = true;
+                    }
+
+                    // Make sure double click will be emitted after mouse down event.
+                    if emit_double_tap {
+                        self.send_message(WidgetMessage::double_tap(
+                            self.picked_node,
+                            MessageDirection::FromWidget,
+                            *location,
+                            *force,
+                            *id,
+                        ));
+                    }
+                }
+                TouchPhase::Moved => {
+                    self.cursor_position = *location;
+                    self.try_set_picked_node(self.hit_test(self.cursor_position));
+
+                    // Try to find draggable node in hierarchy starting from picked node.
+                    if self.picked_node.is_some() {
+                        self.stack.clear();
+                        self.stack.push(self.picked_node);
+                        while let Some(handle) = self.stack.pop() {
+                            let node = &self.nodes[handle];
+                            if node.is_drag_allowed() {
+                                self.drag_context.drag_node = handle;
+                                self.stack.clear();
+                                break;
+                            } else if node.parent().is_some() {
+                                self.stack.push(node.parent());
+                            }
+                        }
+                        self.drag_context.click_pos = self.cursor_position;
+                    }
+
+                    self.request_focus(self.picked_node);
+
+                    if self.picked_node.is_some() {
+                        self.send_message(WidgetMessage::touch_moved(
+                            self.picked_node,
+                            MessageDirection::FromWidget,
+                            self.cursor_position,
+                            *force,
+                            *id,
+                        ));
+                        event_processed = true;
+                    }
+                }
+                TouchPhase::Ended => {
+                    if self.picked_node.is_some() {
+                        self.send_message(WidgetMessage::touch_ended(
+                            self.picked_node,
+                            MessageDirection::FromWidget,
+                            self.cursor_position,
+                            *id,
+                        ));
+
+                        if self.drag_context.is_dragging {
+                            self.drag_context.is_dragging = false;
+
+                            // Try to find node with drop allowed in hierarchy starting from picked node.
+                            self.stack.clear();
+                            self.stack.push(self.picked_node);
+                            while let Some(handle) = self.stack.pop() {
+                                let node = &self.nodes[handle];
+                                if node.is_drop_allowed() {
+                                    self.send_message(WidgetMessage::drop(
+                                        handle,
+                                        MessageDirection::FromWidget,
+                                        self.drag_context.drag_node,
+                                    ));
+                                    self.stack.clear();
+                                    break;
+                                } else if node.parent().is_some() {
+                                    self.stack.push(node.parent());
+                                }
+                            }
+                        }
+                        self.drag_context.drag_node = Handle::NONE;
+                        if self.nodes.is_valid_handle(self.drag_context.drag_preview) {
+                            self.remove_node(self.drag_context.drag_preview);
+                            self.drag_context.drag_preview = Default::default();
+                        }
+
+                        event_processed = true;
+                    }
+                }
+                TouchPhase::Cancelled => {
+                    if self.picked_node.is_some() {
+                        self.send_message(WidgetMessage::touch_cancelled(
+                            self.picked_node,
+                            MessageDirection::FromWidget,
+                            self.cursor_position,
+                            *id,
+                        ));
+
+                        if self.drag_context.is_dragging {
+                            self.drag_context.is_dragging = false;
+                            self.cursor_icon = CursorIcon::Default;
+                            self.stack.clear();
+                        }
+                        self.drag_context.drag_node = Handle::NONE;
+                        if self.nodes.is_valid_handle(self.drag_context.drag_preview) {
+                            self.remove_node(self.drag_context.drag_preview);
+                            self.drag_context.drag_preview = Default::default();
+                        }
+
+                        event_processed = true;
+                    }
+                }
+            },
         }
 
         self.prev_picked_node = self.picked_node;

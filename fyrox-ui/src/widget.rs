@@ -14,7 +14,7 @@ use crate::{
         visitor::prelude::*,
     },
     define_constructor,
-    message::{CursorIcon, KeyCode, MessageDirection, UiMessage},
+    message::{CursorIcon, Force, KeyCode, MessageDirection, UiMessage},
     HorizontalAlignment, LayoutEvent, MouseButton, MouseState, RcUiNodeHandle, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_FOREGROUND, BRUSH_PRIMARY,
 };
@@ -302,6 +302,62 @@ pub enum WidgetMessage {
     /// A request to set new tooltip for a widget. Old tooltip will be removed only if its reference
     /// counter was 1.
     Tooltip(Option<RcUiNodeHandle>),
+
+    /// Initiated when user places finger on the screen.
+    ///
+    /// Direction: **From UI**.
+    TouchStarted {
+        /// position of user's finger
+        pos: Vector2<f32>,
+        /// pressure exerted on screen at pos
+        force: Option<Force>,
+        /// unique identifier for touch event
+        id: u64,
+    },
+
+    /// Initiated when user removes finger from the screen.
+    ///
+    /// Direction: **From UI**.
+    TouchEnded {
+        /// position of user's finger
+        pos: Vector2<f32>,
+        /// unique identifier for touch event
+        id: u64,
+    },
+
+    /// Initiated when user drags their finger across the screen.
+    ///
+    /// Direction: **From UI**.
+    TouchMoved {
+        /// position of user's finger
+        pos: Vector2<f32>,
+        /// pressure exerted on screen at pos
+        force: Option<Force>,
+        /// unique identifier for touch event
+        id: u64,
+    },
+
+    /// Initiated when user cancels their touch event.
+    ///
+    /// Direction: **From UI**.
+    TouchCancelled {
+        /// position of user's finger
+        pos: Vector2<f32>,
+        /// unique identifier for touch event
+        id: u64,
+    },
+
+    /// Initiated when user taps the screen two or more times in rapid succession.
+    ///
+    /// Direction: **From UI**.
+    DoubleTap {
+        /// position of user's finger
+        pos: Vector2<f32>,
+        /// pressure exerted on screen at pos
+        force: Option<Force>,
+        /// unique identifier for touch event
+        id: u64,
+    },
 }
 
 impl WidgetMessage {
@@ -547,6 +603,36 @@ impl WidgetMessage {
         /// Creates [`WidgetMessage::DoubleClick`] message. This method is for internal use only, and should not
         /// be used anywhere else.
         WidgetMessage:DoubleClick => fn double_click(button: MouseButton), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::TouchStarted`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:TouchStarted => fn touch_started(pos: Vector2<f32>, force: Option<Force>, id: u64), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::TouchEnded`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:TouchEnded => fn touch_ended(pos: Vector2<f32>, id: u64), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::TouchMoved`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:TouchMoved => fn touch_moved(pos: Vector2<f32>, force: Option<Force>, id: u64), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::TouchCancelled`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:TouchCancelled => fn touch_cancelled(pos: Vector2<f32>, id: u64), layout: false
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::DoubleTap`] message. This method is for internal use only, and should not
+        /// be used anywhere else.
+        WidgetMessage:DoubleTap => fn double_tap(pos: Vector2<f32>, force: Option<Force>, id: u64), layout: false
     );
 }
 

@@ -122,6 +122,22 @@ impl Control for Button {
                         ui.capture_mouse(message.destination());
                         message.set_handled(true);
                     }
+                    WidgetMessage::TouchStarted { .. } => {
+                        ui.capture_mouse(message.destination());
+                        message.set_handled(true);
+                    }
+                    WidgetMessage::TouchMoved { .. } => {
+                        ui.capture_mouse(message.destination());
+                        message.set_handled(true);
+                    }
+                    WidgetMessage::TouchEnded { .. } => {
+                        ui.send_message(ButtonMessage::click(
+                            self.handle(),
+                            MessageDirection::FromWidget,
+                        ));
+                        ui.release_mouse_capture();
+                        message.set_handled(true);
+                    }
                     _ => (),
                 }
             }
