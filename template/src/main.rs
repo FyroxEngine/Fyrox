@@ -6,7 +6,7 @@ use regex::Regex;
 use std::{
     collections::HashMap,
     fmt::Display,
-    fs::{create_dir_all, remove_dir_all, File},
+    fs::{create_dir_all, read_dir, remove_dir_all, File},
     io::{Read, Write},
     path::Path,
     process::{exit, Command},
@@ -34,6 +34,9 @@ enum Commands {
 
         #[clap(long, default_value = "git")]
         vcs: String,
+
+        #[clap(long, default_value = "false")]
+        overwrite: bool,
     },
     /// Adds a script with given name. The name will be capitalized.
     #[clap(arg_required_else_help = true)]
@@ -210,7 +213,7 @@ impl Plugin for Game {
     ) {
         // Handle UI events here.
     }
-    
+
     fn on_scene_begin_loading(&mut self, path: &Path, ctx: &mut PluginContext) {
         if self.scene.is_some() {
             ctx.scenes.remove(self.scene);
@@ -223,7 +226,7 @@ impl Plugin for Game {
         scene: Handle<Scene>,
         data: &[u8],
         context: &mut PluginContext,
-    ) {    
+    ) {
         self.scene = scene;
     }
 }
@@ -631,7 +634,12 @@ fn main() {
     let args: Args = Args::parse();
 
     match args.command {
-        Commands::Init { name, style, vcs } => {
+        Commands::Init {
+            name,
+            style,
+            vcs,
+            overwrite,
+        } => {
             let name = check_name(&name);
             let name = match name {
                 Ok(s) => s,
@@ -642,6 +650,18 @@ fn main() {
             };
 
             let base_path = Path::new(name);
+
+            // Check the path is empty / doesn't already exist (To prevent overriding)
+            if !overwrite
+                && base_path.exists()
+                && read_dir(base_path).into_iter().flatten().next().is_some()
+            {
+                println!(
+                    "Non-empty folder named {} already exists, provide --overwrite to create the project anyway",
+                    base_path.display()
+                );
+                return;
+            }
 
             init_workspace(base_path, &vcs);
             init_data(base_path, &style);
