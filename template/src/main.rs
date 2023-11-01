@@ -654,7 +654,10 @@ fn main() {
             // Check the path is empty / doesn't already exist (To prevent overriding)
             if !overwrite
                 && base_path.exists()
-                && read_dir(base_path).into_iter().flatten().next().is_some()
+                && read_dir(base_path)
+                    .expect("Failed to check if path is not empty")
+                    .next()
+                    .is_some()
             {
                 println!(
                     "Non-empty folder named {} already exists, provide --overwrite to create the project anyway",
