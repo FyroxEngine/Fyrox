@@ -416,9 +416,10 @@ impl NodeTrait for Mesh {
                     element_range: ElementRange::Full,
                     persistent_identifier: PersistentIdentifier::new_combined(
                         surface.data_ref(),
-                        ctx.node_handle,
+                        self.self_handle,
                         index,
                     ),
+                    node_handle: self.self_handle,
                 },
             );
         }
