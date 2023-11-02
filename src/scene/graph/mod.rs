@@ -923,7 +923,7 @@ impl Graph {
                             })
                         } else {
                             Log::warn(format!(
-                                "Unable to find original handle for node {}",
+                                "Unable to find original handle for node {}. The node will be removed!",
                                 node.name(),
                             ))
                         }
@@ -981,13 +981,12 @@ impl Graph {
         }
     }
 
+    // This method checks integrity of the graph and restores it if needed. For example, if a node was added in a parent asset,
+    // then it must be added in the graph. Alternatively, if a node was deleted in a parent asset, then its instance must be
+    // deleted in the graph.
     fn restore_integrity(&mut self) -> Vec<(Handle<Node>, ModelResource)> {
         Log::writeln(MessageKind::Information, "Checking integrity...");
 
-        // Check integrity - if a node was added in resource, it must be also added in the graph.
-        // However if a node was deleted in resource, we must leave it the graph because there
-        // might be some other nodes that were attached to the one that was deleted in resource or
-        // a node might be referenced somewhere in user code.
         let instances = self
             .pool
             .pair_iter()
@@ -1004,6 +1003,48 @@ impl Graph {
         let mut restored_count = 0;
 
         for (instance_root, resource) in instances.iter().cloned() {
+            // Step 1. Find and remove orphaned nodes.
+            let mut nodes_to_delete = Vec::new();
+            for node in self.traverse_iter(instance_root) {
+                if let Some(resource) = node.resource() {
+                    let path = resource.path();
+                    if let ResourceStateRef::Ok(model) = resource.state().get() {
+                        if !model
+                            .scene
+                            .graph
+                            .is_valid_handle(node.original_handle_in_resource)
+                        {
+                            nodes_to_delete.push(node.self_handle);
+
+                            Log::warn(format!(
+                                "Node {} ({}:{}) and its children will be deleted, because it \
+                    does not exist in the parent asset `{}`!",
+                                node.name(),
+                                node.self_handle.index(),
+                                node.self_handle.generation(),
+                                path.display()
+                            ))
+                        }
+                    } else {
+                        Log::warn(format!(
+                            "Node {} ({}:{}) and its children will be deleted, because its \
+                    parent asset `{}` failed to load!",
+                            node.name(),
+                            node.self_handle.index(),
+                            node.self_handle.generation(),
+                            path.display()
+                        ))
+                    }
+                }
+            }
+
+            for node_to_delete in nodes_to_delete {
+                if self.is_valid_handle(node_to_delete) {
+                    self.remove_node(node_to_delete);
+                }
+            }
+
+            // Step 2. Look for missing nodes and create appropriate instances for them.
             let model = resource.state();
             if let ResourceStateRef::Ok(data) = model.get() {
                 let resource_graph = &data.get_scene().graph;
@@ -2146,9 +2187,10 @@ mod test {
     fn create_scene() -> Scene {
         let mut scene = Scene::new();
 
-        let mesh;
-        PivotBuilder::new(BaseBuilder::new().with_name("Pivot").with_children(&[{
-            mesh = MeshBuilder::new(
+        PivotBuilder::new(BaseBuilder::new().with_name("Pivot")).build(&mut scene.graph);
+
+        PivotBuilder::new(BaseBuilder::new().with_name("MeshPivot").with_children(&[{
+            MeshBuilder::new(
                 BaseBuilder::new().with_name("Mesh").with_local_transform(
                     TransformBuilder::new()
                         .with_local_position(Vector3::new(3.0, 2.0, 1.0))
@@ -2159,16 +2201,9 @@ mod test {
                 SurfaceData::make_cone(16, 1.0, 1.0, &Matrix4::identity()),
             ))
             .build()])
-            .build(&mut scene.graph);
-            mesh
+            .build(&mut scene.graph)
         }]))
         .build(&mut scene.graph);
-
-        let mesh = scene.graph[mesh].as_mesh();
-        assert_eq!(mesh.surfaces().len(), 1);
-        assert!(mesh.surfaces()[0].bones.is_modified());
-        assert!(mesh.surfaces()[0].data.is_modified());
-        assert!(mesh.surfaces()[0].material.is_modified());
 
         scene
     }
@@ -2238,6 +2273,10 @@ mod test {
                 .build(&mut scene.graph);
             scene.graph.link_nodes(pivot, mesh);
 
+            // Remove existing nodes.
+            let existing_pivot = scene.graph.find_by_name_from_root("Pivot").unwrap().0;
+            scene.graph.remove_node(existing_pivot);
+
             // Save the scene back.
             save_scene(&mut scene, root_asset_path);
         }
@@ -2250,10 +2289,24 @@ mod test {
 
             let derived_data = derived_asset.data_ref();
             let derived_scene = derived_data.get_scene();
-            derived_scene.graph.find_by_name_from_root("Pivot").unwrap();
+
+            // Pivot must also be removed from the derived asset, because it is deleted in the root asset.
+            assert_eq!(
+                derived_scene
+                    .graph
+                    .find_by_name_from_root("Pivot")
+                    .map(|(h, _)| h),
+                None
+            );
+
+            let mesh_pivot = derived_scene
+                .graph
+                .find_by_name_from_root("MeshPivot")
+                .unwrap()
+                .0;
             let mesh = derived_scene
                 .graph
-                .find_by_name_from_root("Mesh")
+                .find_by_name(mesh_pivot, "Mesh")
                 .unwrap()
                 .0;
             derived_scene
