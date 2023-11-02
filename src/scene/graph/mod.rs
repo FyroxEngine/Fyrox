@@ -872,7 +872,7 @@ impl Graph {
     fn restore_original_handles_and_inherit_properties(&mut self) {
         // Iterate over each node in the graph and resolve original handles. Original handle is a handle
         // to a node in resource from which a node was instantiated from. Also sync inheritable properties
-        // if needed and copy surfaces from originals.
+        // if needed.
         for node in self.pool.iter_mut() {
             if let Some(model) = node.resource() {
                 let model = model.state();
@@ -911,6 +911,35 @@ impl Graph {
                             node.original_handle_in_resource = original;
                             node.inv_bind_pose_transform = resource_node.inv_bind_pose_transform();
 
+                            // Check if the actual node types (this and parent's) are equal, and if not - copy the
+                            // node and replace its base.
+                            let mut types_match = true;
+                            node.as_reflect(&mut |node_reflect| {
+                                resource_node.as_reflect(&mut |resource_node_reflect| {
+                                    types_match =
+                                        node_reflect.type_id() == resource_node_reflect.type_id();
+
+                                    if !types_match {
+                                        Log::warn(format!(
+                                            "Node {}({}:{}) instance \
+                                        have different type than in the respective parent \
+                                        asset {}. The type will be fixed.",
+                                            node.name(),
+                                            node.self_handle.index(),
+                                            node.self_handle.generation(),
+                                            data.path.display()
+                                        ));
+                                    }
+                                })
+                            });
+                            if !types_match {
+                                let base = (**node).clone();
+                                let mut resource_node_clone = resource_node.clone_box();
+                                *(&mut **resource_node_clone) = base;
+                                *node = resource_node_clone;
+                            }
+
+                            // Then try to inherit properties.
                             node.as_reflect_mut(&mut |node_reflect| {
                                 resource_node.as_reflect(&mut |resource_node_reflect| {
                                     Log::verify(try_inherit_properties(
