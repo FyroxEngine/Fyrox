@@ -1991,12 +1991,30 @@ impl Visit for Graph {
 
 #[cfg(test)]
 mod test {
-    use crate::scene::base::BaseBuilder;
-    use crate::scene::pivot::PivotBuilder;
     use crate::{
-        core::pool::Handle,
-        scene::{graph::Graph, node::Node, pivot::Pivot},
+        asset::{io::FsResourceIo, manager::ResourceManager},
+        core::{
+            algebra::{Matrix4, Vector3},
+            futures::executor::block_on,
+            pool::Handle,
+            visitor::Visitor,
+        },
+        engine::{self, SerializationContext},
+        resource::model::{Model, ModelResourceExtension},
+        scene::{
+            base::BaseBuilder,
+            graph::Graph,
+            mesh::{
+                surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
+                MeshBuilder,
+            },
+            node::Node,
+            pivot::{Pivot, PivotBuilder},
+            transform::TransformBuilder,
+            Scene, SceneLoader,
+        },
     };
+    use std::{fs, path::Path, sync::Arc};
 
     #[test]
     fn graph_init_test() {
@@ -2123,5 +2141,129 @@ mod test {
         assert_eq!(graph[b].parent, a);
 
         assert!(graph[b].children.is_empty());
+    }
+
+    fn create_scene() -> Scene {
+        let mut scene = Scene::new();
+
+        let mesh;
+        PivotBuilder::new(BaseBuilder::new().with_name("Pivot").with_children(&[{
+            mesh = MeshBuilder::new(
+                BaseBuilder::new().with_name("Mesh").with_local_transform(
+                    TransformBuilder::new()
+                        .with_local_position(Vector3::new(3.0, 2.0, 1.0))
+                        .build(),
+                ),
+            )
+            .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+                SurfaceData::make_cone(16, 1.0, 1.0, &Matrix4::identity()),
+            ))
+            .build()])
+            .build(&mut scene.graph);
+            mesh
+        }]))
+        .build(&mut scene.graph);
+
+        let mesh = scene.graph[mesh].as_mesh();
+        assert_eq!(mesh.surfaces().len(), 1);
+        assert!(mesh.surfaces()[0].bones.is_modified());
+        assert!(mesh.surfaces()[0].data.is_modified());
+        assert!(mesh.surfaces()[0].material.is_modified());
+
+        scene
+    }
+
+    fn save_scene(scene: &mut Scene, path: &Path) {
+        let mut visitor = Visitor::new();
+        scene.save("Scene", &mut visitor).unwrap();
+        visitor.save_binary(path).unwrap();
+    }
+
+    fn make_resource_manager() -> ResourceManager {
+        let resource_manager = ResourceManager::new();
+        engine::initialize_resource_manager_loaders(
+            &resource_manager,
+            Arc::new(SerializationContext::new()),
+        );
+        resource_manager
+    }
+
+    #[test]
+    fn test_restore_integrity() {
+        if !Path::new("test_output").exists() {
+            fs::create_dir_all("test_output").unwrap();
+        }
+
+        let root_asset_path = Path::new("test_output/root.rgs");
+        let derived_asset_path = Path::new("test_output/derived.rgs");
+
+        // Create root scene and save it.
+        {
+            let mut scene = create_scene();
+            save_scene(&mut scene, root_asset_path);
+        }
+
+        // Create root resource instance in a derived resource. This creates a derived asset.
+        {
+            let resource_manager = make_resource_manager();
+            let root_asset =
+                block_on(resource_manager.request::<Model, _>(root_asset_path)).unwrap();
+
+            let mut derived = Scene::new();
+            root_asset.instantiate(&mut derived);
+            save_scene(&mut derived, derived_asset_path);
+        }
+
+        // Now load the root asset, modify it, save it back and reload the derived asset.
+        {
+            let resource_manager = make_resource_manager();
+            let mut scene = block_on(
+                block_on(SceneLoader::from_file(
+                    root_asset_path,
+                    &FsResourceIo,
+                    Arc::new(SerializationContext::new()),
+                    resource_manager.clone(),
+                ))
+                .unwrap()
+                .0
+                .finish(&resource_manager),
+            );
+
+            // Add a new node to the root node of the scene.
+            PivotBuilder::new(BaseBuilder::new().with_name("AddedLater")).build(&mut scene.graph);
+
+            // Add a new node to the mesh.
+            let mesh = scene.graph.find_by_name_from_root("Mesh").unwrap().0;
+            let pivot = PivotBuilder::new(BaseBuilder::new().with_name("NewChildOfMesh"))
+                .build(&mut scene.graph);
+            scene.graph.link_nodes(pivot, mesh);
+
+            // Save the scene back.
+            save_scene(&mut scene, root_asset_path);
+        }
+
+        // Load the derived scene and check if its content was synced with the content of the root asset.
+        {
+            let resource_manager = make_resource_manager();
+            let derived_asset =
+                block_on(resource_manager.request::<Model, _>(derived_asset_path)).unwrap();
+
+            let derived_data = derived_asset.data_ref();
+            let derived_scene = derived_data.get_scene();
+            derived_scene.graph.find_by_name_from_root("Pivot").unwrap();
+            let mesh = derived_scene
+                .graph
+                .find_by_name_from_root("Mesh")
+                .unwrap()
+                .0;
+            derived_scene
+                .graph
+                .find_by_name_from_root("AddedLater")
+                .unwrap();
+            derived_scene
+                .graph
+                .find_by_name(mesh, "NewChildOfMesh")
+                .unwrap();
+        }
     }
 }
