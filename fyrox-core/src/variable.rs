@@ -35,9 +35,9 @@ pub enum InheritError {
     /// Types of properties mismatch.
     TypesMismatch {
         /// Type of left property.
-        left_type: TypeId,
+        left_type: &'static str,
         /// Type of right property.
-        right_type: TypeId,
+        right_type: &'static str,
     },
 }
 
@@ -404,8 +404,8 @@ where
                 }
                 None => {
                     result = Err(InheritError::TypesMismatch {
-                        left_type: TypeId::of::<Self>(),
-                        right_type: parent.type_id(),
+                        left_type: std::any::type_name::<T>(),
+                        right_type: parent.type_name(),
                     });
                 }
             });
@@ -507,8 +507,8 @@ pub fn try_inherit_properties(
 
     if child_type_id != parent_type_id {
         return Err(InheritError::TypesMismatch {
-            left_type: (*child).type_id(),
-            right_type: (*parent).type_id(),
+            left_type: (*child).type_name(),
+            right_type: (*parent).type_name(),
         });
     }
 
