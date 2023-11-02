@@ -61,6 +61,7 @@ use crate::{
     utils::lightmap::Lightmap,
 };
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_core::variable;
 use rapier3d::geometry::ColliderHandle;
 use std::{
     any::Any,
@@ -935,6 +936,9 @@ impl Graph {
                             if !types_match {
                                 let base = (**node).clone();
                                 let mut resource_node_clone = resource_node.clone_box();
+                                variable::mark_inheritable_properties_non_modified(
+                                    &mut resource_node_clone as &mut dyn Reflect,
+                                );
                                 *(&mut **resource_node_clone) = base;
                                 *node = resource_node_clone;
                             }
