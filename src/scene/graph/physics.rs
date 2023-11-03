@@ -186,7 +186,7 @@ impl PhysicsPerformanceStatistics {
 }
 
 /// A ray intersection result.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Intersection {
     /// A handle of the collider with which intersection was detected.
     pub collider: Handle<Node>,
@@ -281,6 +281,7 @@ impl<const CAP: usize> QueryResultsStorage for ArrayVec<Intersection, CAP> {
 }
 
 /// Data of the contact.
+#[derive(Debug, Clone, PartialEq)]
 pub struct ContactData {
     /// The contact point in the local-space of the first shape.
     pub local_p1: Vector3<f32>,
@@ -297,6 +298,7 @@ pub struct ContactData {
 }
 
 /// A contact manifold between two colliders.
+#[derive(Debug, Clone, PartialEq)]
 pub struct ContactManifold {
     /// The contacts points.
     pub points: Vec<ContactData>,
@@ -313,6 +315,7 @@ pub struct ContactManifold {
 }
 
 /// Contact info for pair of colliders.
+#[derive(Debug, Clone, PartialEq)]
 pub struct ContactPair {
     /// The first collider involved in the contact pair.
     pub collider1: Handle<Node>,
@@ -370,6 +373,7 @@ impl ContactPair {
 }
 
 /// Intersection info for pair of colliders.
+#[derive(Debug, Clone, PartialEq)]
 pub struct IntersectionPair {
     /// The first collider involved in the contact pair.
     pub collider1: Handle<Node>,
