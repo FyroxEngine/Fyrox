@@ -572,6 +572,23 @@ impl NavmeshAgent {
         }
     }
 
+    // Collects indices of triangles that has path vertices in them.
+    // TODO: This method uses brute-force algorithm with bad complexity.
+    fn make_triangle_strip(&self, navmesh: &Navmesh, path_vertices: &[usize]) -> Vec<usize> {
+        let mut triangle_indices = Vec::new();
+
+        for path_vertex in path_vertices.iter() {
+            'triangle_loop: for triangle in navmesh.triangles.iter() {
+                if triangle.0.contains(&(*path_vertex as u32)) {
+                    triangle_indices.push(*path_vertex);
+                    break 'triangle_loop;
+                }
+            }
+        }
+
+        triangle_indices
+    }
+
     fn smooth_path(&mut self, navmesh: &Navmesh, path_vertex_indices: &[usize]) {
         let vertices = navmesh.vertices();
 
