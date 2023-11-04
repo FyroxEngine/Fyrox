@@ -416,6 +416,79 @@ impl Navmesh {
 
         result
     }
+
+    // Collects indices of triangles that has path vertices in them.
+    // TODO: This method uses brute-force algorithm with bad complexity.
+    fn make_triangle_strip(&self, path_vertices: &[usize]) -> Vec<usize> {
+        let mut triangle_indices = Vec::new();
+
+        for path_vertex in path_vertices.iter() {
+            'triangle_loop: for triangle in self.triangles.iter() {
+                if triangle.0.contains(&(*path_vertex as u32)) {
+                    triangle_indices.push(*path_vertex);
+                    break 'triangle_loop;
+                }
+            }
+        }
+
+        triangle_indices
+    }
+
+    // Collects all portals alone the given path of triangles. Portal is an edge that leads to another triangle,
+    // from which another triangle could be seen, that in sum leads to the destination triangle.
+    // TODO: This method uses brute-force algorithm with bad complexity.
+    fn collect_portals_along_path(
+        &self,
+        src_triangle_index: usize,
+        dest_triangle_index: usize,
+        dest_position: Vector3<f32>,
+        path_triangles: &[usize],
+    ) -> Vec<(usize, usize)> {
+        let mut portals = Vec::new();
+
+        let vertices = self.vertices();
+        let mut current_triangle = src_triangle_index;
+        'outer_loop: loop {
+            let a = vertices[current_triangle[0] as usize].position;
+            let b = vertices[current_triangle[1] as usize].position;
+            let c = vertices[current_triangle[2] as usize].position;
+            let ca = c - a;
+            let ba = b - a;
+            let triangle_normal = ca.cross(&ba);
+            'edge_loop: for edge in self.triangles[current_triangle].edges() {
+                let a = vertices[edge.a as usize].position;
+                let b = vertices[edge.b as usize].position;
+                let edge_vector = b - a;
+                let edge_normal = edge_vector.cross(&triangle_normal);
+                let target_vector = dest_position - a;
+                let looks_towards_target = edge_normal.dot(&target_vector) >= 0.0;
+                if looks_towards_target {
+                    portals.push((edge.a as usize, edge.b as usize));
+
+                    // Find adjacent triangle to continue portals searching.
+                    'triangle_loop: for triangle_index in path_triangles.iter() {
+                        if *triangle_index == dest_triangle_index {
+                            break 'outer_loop;
+                        }
+
+                        if *triangle_index != current_triangle {
+                            let triangle = self.triangles[*triangle_index];
+                            for other_edge in triangle.edges() {
+                                if edge == other_edge {
+                                    current_triangle = *triangle_index;
+                                    break 'triangle_loop;
+                                }
+                            }
+                        }
+                    }
+
+                    break 'edge_loop;
+                }
+            }
+        }
+
+        portals
+    }
 }
 
 /// Navmesh agent is a "pathfinding unit" that performs navigation on a mesh. It is designed to
@@ -570,23 +643,6 @@ impl NavmeshAgent {
         } else {
             Err(PathError::Custom("Empty navmesh!".to_owned()))
         }
-    }
-
-    // Collects indices of triangles that has path vertices in them.
-    // TODO: This method uses brute-force algorithm with bad complexity.
-    fn make_triangle_strip(&self, navmesh: &Navmesh, path_vertices: &[usize]) -> Vec<usize> {
-        let mut triangle_indices = Vec::new();
-
-        for path_vertex in path_vertices.iter() {
-            'triangle_loop: for triangle in navmesh.triangles.iter() {
-                if triangle.0.contains(&(*path_vertex as u32)) {
-                    triangle_indices.push(*path_vertex);
-                    break 'triangle_loop;
-                }
-            }
-        }
-
-        triangle_indices
     }
 
     fn smooth_path(&mut self, navmesh: &Navmesh, path_vertex_indices: &[usize]) {
