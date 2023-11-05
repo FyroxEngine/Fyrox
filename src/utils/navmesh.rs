@@ -476,8 +476,7 @@ impl Navmesh {
         let mut visited_triangles = FxHashSet::default();
         let vertices = self.vertices();
         let mut current_triangle_index = src_triangle_index;
-        let mut iter_count = 0;
-        while current_triangle_index != dest_triangle_index && iter_count < path_triangles.len() {
+        while current_triangle_index != dest_triangle_index {
             visited_triangles.insert(current_triangle_index);
             let current_triangle = &self.triangles[current_triangle_index];
             let a = vertices[current_triangle[0] as usize].position;
@@ -500,20 +499,23 @@ impl Navmesh {
                     });
 
                     // Find adjacent triangle to continue portals searching.
-                    'triangle_loop: for other_triangle_index in path_triangles.iter() {
-                        if !visited_triangles.contains(other_triangle_index) {
-                            let other_triangle = self.triangles[*other_triangle_index];
-                            for other_triangle_edge in other_triangle.edges() {
-                                if current_triangle_edge == other_triangle_edge {
-                                    current_triangle_index = *other_triangle_index;
-                                    break 'triangle_loop;
+                    if path_triangles.len() > 1 {
+                        'triangle_loop: for other_triangle_index in path_triangles.iter() {
+                            if !visited_triangles.contains(other_triangle_index) {
+                                let other_triangle = self.triangles[*other_triangle_index];
+                                for other_triangle_edge in other_triangle.edges() {
+                                    if current_triangle_edge == other_triangle_edge {
+                                        current_triangle_index = *other_triangle_index;
+                                        break 'triangle_loop;
+                                    }
                                 }
                             }
                         }
+                    } else {
+                        current_triangle_index = dest_triangle_index;
                     }
                 }
             }
-            iter_count += 1;
         }
 
         portals
@@ -729,8 +731,7 @@ impl NavmeshAgent {
                     left_index = apex_index;
                     right_index = apex_index;
                     // Restart scan
-                    i = apex_index;
-                    dbg!(i);
+                    i = apex_index + 1;
                     continue;
                 }
             }
@@ -755,7 +756,7 @@ impl NavmeshAgent {
                     left_index = apex_index;
                     right_index = apex_index;
                     // Restart scan
-                    i = apex_index;
+                    i = apex_index + 1;
                     continue;
                 }
             }
