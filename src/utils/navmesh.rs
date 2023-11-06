@@ -851,12 +851,11 @@ impl NavmeshAgentBuilder {
 mod test {
     use crate::{
         core::{algebra::Vector3, math::TriangleDefinition},
-        utils::navmesh::make_graph,
-        utils::navmesh::Navmesh,
+        utils::navmesh::{Navmesh, NavmeshAgent},
     };
 
     #[test]
-    fn test_collect_portals() {
+    fn test_navmesh() {
         let mut navmesh = Navmesh::new(
             vec![
                 TriangleDefinition([0, 1, 3]),
@@ -878,7 +877,12 @@ mod test {
             ],
         );
 
-        let graph = make_graph(&navmesh.triangles, &navmesh.vertices);
+        let mut agent = NavmeshAgent::new();
+
+        agent.set_target(Vector3::new(3.0, 0.0, 1.0));
+        agent.update(1.0 / 60.0, &mut navmesh).unwrap();
+
+        let graph = navmesh.graph.as_ref().unwrap();
 
         assert_eq!(graph.vertices.len(), 6);
         assert_eq!(graph.vertices[0].neighbours[0], 1);
@@ -897,24 +901,13 @@ mod test {
 
         assert_eq!(graph.vertices[5].neighbours[0], 4);
 
-        navmesh.graph = Some(graph);
-
-        let start = 0;
-        let end = 5;
-
-        let mut path = Vec::new();
-        let mut path_triangles = Vec::new();
-        navmesh
-            .graph
-            .as_mut()
-            .unwrap()
-            .build_and_convert(start, end, &mut path, |i, v| {
-                path_triangles.push(i);
-                v.position
-            })
-            .unwrap();
-        dbg!(&path_triangles);
-        let portals = navmesh.collect_portals_along_path(&path_triangles);
-        dbg!(&portals);
+        assert_eq!(
+            agent.path,
+            vec![
+                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::new(3.0, 0.0, 1.0),
+                Vector3::new(3.0, 0.0, 1.0)
+            ]
+        );
     }
 }
