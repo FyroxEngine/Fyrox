@@ -5,6 +5,7 @@
 
 #![warn(missing_docs)]
 
+use crate::utils::astar::{GraphVertex, VertexDataProvider};
 use crate::{
     core::{
         algebra::{Point3, Vector3},
@@ -20,11 +21,41 @@ use crate::{
         Mesh,
     },
     utils::{
-        astar::{PathError, PathFinder, PathKind, PathVertex},
+        astar::{Graph, PathError, PathKind, VertexData},
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
 use fxhash::FxHashSet;
+use fyrox_core::math::PositionProvider;
+use std::ops::{Deref, DerefMut};
+
+#[derive(Clone, Debug, Default, Visit)]
+struct Vertex {
+    triangle_index: usize,
+    data: VertexData,
+}
+
+impl Deref for Vertex {
+    type Target = VertexData;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl DerefMut for Vertex {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.data
+    }
+}
+
+impl PositionProvider for Vertex {
+    fn position(&self) -> Vector3<f32> {
+        self.data.position
+    }
+}
+
+impl VertexDataProvider for Vertex {}
 
 /// See module docs.
 #[derive(Clone, Debug, Default, Reflect)]
@@ -32,13 +63,14 @@ use fxhash::FxHashSet;
 pub struct Navmesh {
     octree: Octree,
     triangles: Vec<TriangleDefinition>,
-    pathfinder: PathFinder,
+    vertices: Vec<Vector3<f32>>,
+    graph: Option<Graph<Vertex>>,
     query_buffer: Vec<u32>,
 }
 
 impl PartialEq for Navmesh {
     fn eq(&self, other: &Self) -> bool {
-        self.triangles == other.triangles && self.pathfinder == other.pathfinder
+        self.triangles == other.triangles && self.vertices == other.vertices
     }
 }
 
@@ -46,22 +78,36 @@ impl Visit for Navmesh {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        self.pathfinder.visit("PathFinder", &mut region)?;
+        // Backward compatibility.
+        if region.is_reading() {
+            let mut pathfinder = Graph::<GraphVertex>::new();
+            if pathfinder.visit("PathFinder", &mut region).is_ok() {
+                self.vertices = pathfinder
+                    .vertices
+                    .iter()
+                    .map(|v| v.position)
+                    .collect::<Vec<_>>();
+            } else {
+                self.vertices.visit("Vertices", &mut region)?;
+            }
+        } else {
+            self.vertices.visit("Vertices", &mut region)?;
+        }
+
         self.triangles.visit("Triangles", &mut region)?;
 
         drop(region);
 
         // No need to save octree, we can restore it on load.
         if visitor.is_reading() {
-            let vertices = self.pathfinder.vertices();
             let raw_triangles = self
                 .triangles
                 .iter()
                 .map(|t| {
                     [
-                        vertices[t[0] as usize].position,
-                        vertices[t[1] as usize].position,
-                        vertices[t[2] as usize].position,
+                        self.vertices[t[0] as usize],
+                        self.vertices[t[1] as usize],
+                        self.vertices[t[2] as usize],
                     ]
                 })
                 .collect::<Vec<[Vector3<f32>; 3]>>();
@@ -103,11 +149,53 @@ fn winding(a: Vector3<f32>, b: Vector3<f32>, c: Vector3<f32>) -> Winding {
     }
 }
 */
+
+fn make_graph(triangles: &[TriangleDefinition], vertices: &[Vector3<f32>]) -> Graph<Vertex> {
+    let mut graph = Graph::new();
+
+    // Add vertices at the center of each triangle.
+    for (triangle_index, triangle) in triangles.iter().enumerate() {
+        let a = vertices[triangle[0] as usize];
+        let b = vertices[triangle[1] as usize];
+        let c = vertices[triangle[2] as usize];
+
+        let center = (a + b + c).scale(1.0 / 3.0);
+        graph.add_vertex(Vertex {
+            triangle_index,
+            data: VertexData::new(center),
+        });
+    }
+
+    // Link vertices.
+    for (triangle_index, triangle) in triangles.iter().enumerate() {
+        // Vertex index in the graph matches triangle index.
+        let vertex_index = triangle_index;
+
+        for edge in triangle.edges() {
+            for (other_triangle_index, other_triangle) in triangles.iter().enumerate() {
+                if triangle_index != other_triangle_index {
+                    // Vertex index in the graph matches triangle index.
+                    let other_vertex_index = other_triangle_index;
+
+                    'inner_edge_loop: for other_edge in other_triangle.edges() {
+                        if edge == other_edge {
+                            graph.link_bidirect(vertex_index, other_vertex_index);
+                            break 'inner_edge_loop;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    graph
+}
+
 impl Navmesh {
     /// Creates new navigation mesh from given set of triangles and vertices. This is
     /// low level method that allows to specify triangles and vertices directly. In
     /// most cases you should use `from_mesh` method.
-    pub fn new(triangles: &[TriangleDefinition], vertices: &[Vector3<f32>]) -> Self {
+    pub fn new(triangles: Vec<TriangleDefinition>, vertices: Vec<Vector3<f32>>) -> Self {
         // Build triangles for octree.
         let raw_triangles = triangles
             .iter()
@@ -120,25 +208,11 @@ impl Navmesh {
             })
             .collect::<Vec<[Vector3<f32>; 3]>>();
 
-        // Fill in pathfinder.
-        let mut pathfinder = PathFinder::new();
-        pathfinder.set_vertices(vertices.iter().map(|v| PathVertex::new(*v)).collect());
-
-        let mut edges = FxHashSet::default();
-        for triangle in triangles {
-            for edge in triangle.edges() {
-                edges.insert(edge);
-            }
-        }
-
-        for edge in edges {
-            pathfinder.link_bidirect(edge.a as usize, edge.b as usize);
-        }
-
         Self {
-            triangles: triangles.to_vec(),
+            graph: None,
+            triangles,
+            vertices,
             octree: Octree::new(&raw_triangles, 32),
-            pathfinder,
             query_buffer: Default::default(),
         }
     }
@@ -209,9 +283,8 @@ impl Navmesh {
         let mesh = builder.build();
 
         Navmesh::new(
-            &mesh.triangles,
-            &mesh
-                .vertices
+            mesh.triangles,
+            mesh.vertices
                 .into_iter()
                 .map(|v| Vector3::new(v.x, v.y, v.z))
                 .collect::<Vec<_>>(),
@@ -223,10 +296,10 @@ impl Navmesh {
     pub fn query_closest(&mut self, point: Vector3<f32>) -> Option<(usize, usize)> {
         self.octree.point_query(point, &mut self.query_buffer);
         if self.query_buffer.is_empty() {
-            math::get_closest_point_triangle_set(self.pathfinder.vertices(), &self.triangles, point)
+            math::get_closest_point_triangle_set(&self.vertices, &self.triangles, point)
         } else {
             math::get_closest_point_triangles(
-                self.pathfinder.vertices(),
+                &self.vertices,
                 &self.triangles,
                 &self.query_buffer,
                 point,
@@ -243,48 +316,15 @@ impl Navmesh {
     /// the triangle must be valid!
     pub fn add_triangle(&mut self, triangle: TriangleDefinition) -> u32 {
         let index = self.triangles.len();
-        for edge in triangle.edges() {
-            self.pathfinder
-                .link_bidirect(edge.a as usize, edge.b as usize);
-        }
+        self.graph = None;
         self.triangles.push(triangle);
         index as u32
     }
 
-    /// Removes a triangle at the given index from the navigational mesh. Automatically fixes vertex links in the
-    /// internal navigational graph.
+    /// Removes a triangle at the given index from the navigational mesh.
     pub fn remove_triangle(&mut self, index: usize) -> TriangleDefinition {
         let triangle = self.triangles.remove(index);
-        for &vertex_index in triangle.indices() {
-            let mut isolated = true;
-            for other_triangle in self.triangles.iter() {
-                if other_triangle.indices().contains(&vertex_index) {
-                    isolated = false;
-                    break;
-                }
-            }
-
-            if isolated {
-                if let Some(vertex) = self.pathfinder.vertex_mut(vertex_index as usize) {
-                    let neighbour_indices = vertex.neighbours.clone();
-                    vertex.neighbours.clear();
-
-                    for neighbour_index in neighbour_indices {
-                        if let Some(neighbour_vertex) =
-                            self.pathfinder.vertex_mut(neighbour_index as usize)
-                        {
-                            if let Some(position) = neighbour_vertex
-                                .neighbours
-                                .iter()
-                                .position(|n| *n == vertex_index)
-                            {
-                                neighbour_vertex.neighbours.remove(position);
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        self.graph = None;
         triangle
     }
 
@@ -300,7 +340,7 @@ impl Navmesh {
 
     /// Removes a vertex at the given index from the navigational mesh. All triangles that share the vertex will
     /// be also removed.
-    pub fn remove_vertex(&mut self, index: usize) -> PathVertex {
+    pub fn remove_vertex(&mut self, index: usize) -> Vector3<f32> {
         // Remove triangles that sharing the vertex first.
         let mut i = 0;
         while i < self.triangles.len() {
@@ -330,36 +370,40 @@ impl Navmesh {
             }
         }
 
-        self.pathfinder.remove_vertex(index)
+        self.vertices.remove(index)
     }
 
     /// Returns reference to the internal array of vertices.
-    pub fn vertices(&self) -> &[PathVertex] {
-        self.pathfinder.vertices()
+    pub fn vertices(&self) -> &[Vector3<f32>] {
+        &self.vertices
     }
 
     /// Returns a mutable reference to the internal array of vertices.
-    pub fn vertices_mut(&mut self) -> &mut [PathVertex] {
-        self.pathfinder.vertices_mut()
+    pub fn vertices_mut(&mut self) -> &mut [Vector3<f32>] {
+        self.graph = None;
+        &mut self.vertices
     }
 
     /// Adds the vertex to the navigational mesh. The vertex will **not** be connected with any other vertex.
-    pub fn add_vertex(&mut self, vertex: PathVertex) -> u32 {
-        self.pathfinder.add_vertex(vertex)
+    pub fn add_vertex(&mut self, vertex: Vector3<f32>) -> u32 {
+        let index = self.vertices.len();
+        self.vertices.push(vertex);
+        self.graph = None;
+        index as u32
     }
 
     /// Removes last vertex from the navigational mesh. All triangles that share the vertex will be also removed.
-    pub fn pop_vertex(&mut self) -> Option<PathVertex> {
-        if self.pathfinder.vertices().is_empty() {
+    pub fn pop_vertex(&mut self) -> Option<Vector3<f32>> {
+        if self.vertices.is_empty() {
             None
         } else {
-            Some(self.remove_vertex(self.pathfinder.vertices().len() - 1))
+            Some(self.remove_vertex(self.vertices.len() - 1))
         }
     }
 
     /// Inserts the vertex at the given index. Automatically shift indices in triangles to preserve mesh structure.
-    pub fn insert_vertex(&mut self, index: u32, vertex: PathVertex) {
-        self.pathfinder.insert_vertex(index, vertex);
+    pub fn insert_vertex(&mut self, index: u32, vertex: Vector3<f32>) {
+        self.vertices.insert(index as usize, vertex);
 
         // Shift vertex indices in triangles. Example:
         //
@@ -379,6 +423,8 @@ impl Navmesh {
                 }
             }
         }
+
+        self.graph = None;
     }
 
     /// Returns shared reference to inner octree.
@@ -398,7 +444,7 @@ impl Navmesh {
     /// fn find_path(navmesh: &mut Navmesh, begin: Vector3<f32>, end: Vector3<f32>, path: &mut Vec<Vector3<f32>>) -> Result<PathKind, PathError> {
     ///     if let Some(begin_index) = navmesh.query_closest(begin) {
     ///         if let Some(end_index) = navmesh.query_closest(end) {
-    ///             return navmesh.build_path(begin_index, end_index, path);
+    ///             return navmesh.build_path(begin_index.0, end_index.0, path);
     ///         }
     ///     }
     ///     Ok(PathKind::Empty)
@@ -410,7 +456,10 @@ impl Navmesh {
         to: usize,
         path: &mut Vec<Vector3<f32>>,
     ) -> Result<PathKind, PathError> {
-        self.pathfinder.build(from, to, path)
+        let graph = self
+            .graph
+            .get_or_insert_with(|| make_graph(&self.triangles, &self.vertices));
+        graph.build(from, to, path)
     }
 
     /// Tries to pick a triangle by given ray. Returns closest result.
@@ -425,9 +474,9 @@ impl Navmesh {
             if let OctreeNode::Leaf { indices, .. } = self.octree.node(node) {
                 for &index in indices {
                     let triangle = self.triangles[index as usize];
-                    let a = self.pathfinder.vertices()[triangle[0] as usize].position;
-                    let b = self.pathfinder.vertices()[triangle[1] as usize].position;
-                    let c = self.pathfinder.vertices()[triangle[2] as usize].position;
+                    let a = self.vertices()[triangle[0] as usize];
+                    let b = self.vertices()[triangle[1] as usize];
+                    let c = self.vertices()[triangle[2] as usize];
 
                     if let Some(intersection) = ray.triangle_intersection_point(&[a, b, c]) {
                         let distance = intersection.metric_distance(&ray.origin);
@@ -479,15 +528,15 @@ impl Navmesh {
         while current_triangle_index != dest_triangle_index {
             visited_triangles.insert(current_triangle_index);
             let current_triangle = &self.triangles[current_triangle_index];
-            let a = vertices[current_triangle[0] as usize].position;
-            let b = vertices[current_triangle[1] as usize].position;
-            let c = vertices[current_triangle[2] as usize].position;
+            let a = vertices[current_triangle[0] as usize];
+            let b = vertices[current_triangle[1] as usize];
+            let c = vertices[current_triangle[2] as usize];
             let ca = c - a;
             let ba = b - a;
             let triangle_normal = ba.cross(&ca);
             for current_triangle_edge in current_triangle.edges() {
-                let a = vertices[current_triangle_edge.a as usize].position;
-                let b = vertices[current_triangle_edge.b as usize].position;
+                let a = vertices[current_triangle_edge.a as usize];
+                let b = vertices[current_triangle_edge.b as usize];
                 let edge_vector = b - a;
                 let edge_normal = edge_vector.cross(&triangle_normal);
                 let target_vector = dest_position - a;
@@ -587,7 +636,7 @@ fn closest_point_index_in_triangle(
 ) -> Option<(usize, usize)> {
     let mut triangles = ArrayVec::<TriangleDefinition, 1>::new();
     triangles.push(triangle);
-    math::get_closest_point_triangle_set(navmesh.pathfinder.vertices(), &triangles, to)
+    math::get_closest_point_triangle_set(navmesh.vertices(), &triangles, to)
 }
 
 fn query_data(
@@ -606,11 +655,7 @@ fn query_data(
             triangle_index,
         ))
     } else if let Some((point_index, triangle_index)) = navmesh.query_closest(query_point) {
-        Some((
-            point_index,
-            navmesh.vertices()[point_index].position,
-            triangle_index,
-        ))
+        Some((point_index, navmesh.vertices()[point_index], triangle_index))
     } else {
         None
     }
@@ -643,7 +688,10 @@ impl NavmeshAgent {
                 }
 
                 let mut path_vertex_indices = Vec::new();
-                let path_kind = navmesh.pathfinder.build_and_convert(
+                let graph = navmesh
+                    .graph
+                    .get_or_insert_with(|| make_graph(&navmesh.triangles, &navmesh.vertices));
+                let path_kind = graph.build_and_convert(
                     src_vertex_index,
                     dest_vertex_index,
                     &mut self.path,
@@ -708,8 +756,8 @@ impl NavmeshAgent {
 
         let mut i = 0;
         while i < portals.len() {
-            let left = vertices[portals[i].left].position;
-            let right = vertices[portals[i].right].position;
+            let left = vertices[portals[i].left];
+            let right = vertices[portals[i].right];
 
             // Update right vertex.
             if signed_triangle_area_2d(portal_apex, portal_right, right) <= 0.0 {
@@ -891,44 +939,14 @@ impl NavmeshAgentBuilder {
 mod test {
     use crate::{
         core::{algebra::Vector3, math::TriangleDefinition},
+        utils::navmesh::make_graph,
         utils::navmesh::Navmesh,
     };
-
-    fn make_navmesh() -> Navmesh {
-        //             0                 1
-        //              *---------------*
-        //            / | \       A     |
-        //           /  |     \         |
-        //          /   |   B     \     |
-        //         /    |             \ |
-        //        /   3 *---------------* 2
-        //       / C  /                /
-        //      /   /    D      /
-        //     /  /      /
-        //    / /   /
-        //   //
-        //    4
-        Navmesh::new(
-            &[
-                TriangleDefinition([0, 1, 2]),
-                TriangleDefinition([0, 2, 3]),
-                TriangleDefinition([0, 3, 4]),
-                TriangleDefinition([3, 2, 4]),
-            ],
-            &[
-                Vector3::new(-1.0, 0.0, 1.0),
-                Vector3::new(1.0, 0.0, 1.0),
-                Vector3::new(1.0, 0.0, -1.0),
-                Vector3::new(-1.0, 0.0, -1.0),
-                Vector3::new(-2.0, 0.0, 2.0),
-            ],
-        )
-    }
 
     #[test]
     fn test_collect_portals() {
         let mut navmesh = Navmesh::new(
-            &[
+            vec![
                 TriangleDefinition([0, 1, 3]),
                 TriangleDefinition([1, 2, 3]),
                 TriangleDefinition([2, 5, 3]),
@@ -936,7 +954,7 @@ mod test {
                 TriangleDefinition([4, 7, 5]),
                 TriangleDefinition([4, 6, 7]),
             ],
-            &[
+            vec![
                 Vector3::new(0.0, 0.0, 0.0),
                 Vector3::new(0.0, 0.0, 1.0),
                 Vector3::new(1.0, 0.0, 1.0),
@@ -950,12 +968,13 @@ mod test {
 
         let start = 0;
         let end = 6;
-        let dest_position = navmesh.vertices()[end].position;
+        let dest_position = navmesh.vertices()[end];
 
         let mut path = Vec::new();
         let mut indices = Vec::new();
         navmesh
-            .pathfinder
+            .graph
+            .get_or_insert_with(|| make_graph(&navmesh.triangles, &navmesh.vertices))
             .build_and_convert(start, end, &mut path, |i, v| {
                 indices.push(i);
                 v.position
@@ -966,94 +985,5 @@ mod test {
         dbg!(&strip);
         let portals = navmesh.collect_portals_along_path(0, 5, dest_position, &strip);
         dbg!(&portals);
-    }
-
-    #[test]
-    fn test_remove_triangle() {
-        let mut navmesh = make_navmesh();
-
-        assert_eq!(navmesh.vertices()[0].neighbours, vec![4, 1, 2, 3]);
-        assert_eq!(navmesh.vertices()[1].neighbours, vec![2, 0]);
-        assert_eq!(navmesh.vertices()[2].neighbours, vec![1, 3, 0, 4]);
-        assert_eq!(navmesh.vertices()[3].neighbours, vec![4, 2, 0]);
-        assert_eq!(navmesh.vertices()[4].neighbours, vec![3, 0, 2]);
-
-        navmesh.remove_triangle(1); // B
-
-        assert_eq!(navmesh.vertices()[0].neighbours, vec![4, 1, 2, 3]);
-        assert_eq!(navmesh.vertices()[1].neighbours, vec![2, 0]);
-        assert_eq!(navmesh.vertices()[2].neighbours, vec![1, 3, 0, 4]);
-        assert_eq!(navmesh.vertices()[3].neighbours, vec![4, 2, 0]);
-        assert_eq!(navmesh.vertices()[4].neighbours, vec![3, 0, 2]);
-
-        navmesh.remove_triangle(0); // A
-
-        assert_eq!(navmesh.vertices()[0].neighbours, vec![4, 2, 3]);
-        assert_eq!(navmesh.vertices()[1].neighbours, vec![]);
-        assert_eq!(navmesh.vertices()[2].neighbours, vec![3, 0, 4]);
-        assert_eq!(navmesh.vertices()[3].neighbours, vec![4, 2, 0]);
-        assert_eq!(navmesh.vertices()[4].neighbours, vec![3, 0, 2]);
-
-        navmesh.remove_triangle(0); // C
-
-        assert_eq!(navmesh.vertices()[0].neighbours, vec![]);
-        assert_eq!(navmesh.vertices()[1].neighbours, vec![]);
-        assert_eq!(navmesh.vertices()[2].neighbours, vec![3, 4]);
-        assert_eq!(navmesh.vertices()[3].neighbours, vec![4, 2]);
-        assert_eq!(navmesh.vertices()[4].neighbours, vec![3, 2]);
-
-        navmesh.remove_triangle(0); // D
-
-        assert_eq!(navmesh.vertices()[0].neighbours, vec![]);
-        assert_eq!(navmesh.vertices()[1].neighbours, vec![]);
-        assert_eq!(navmesh.vertices()[2].neighbours, vec![]);
-        assert_eq!(navmesh.vertices()[3].neighbours, vec![]);
-        assert_eq!(navmesh.vertices()[4].neighbours, vec![]);
-    }
-
-    #[test]
-    fn test_remove_vertex() {
-        let mut navmesh = make_navmesh();
-
-        assert_eq!(navmesh.vertices()[0].neighbours, vec![4, 1, 2, 3]);
-        assert_eq!(navmesh.vertices()[1].neighbours, vec![2, 0]);
-        assert_eq!(navmesh.vertices()[2].neighbours, vec![1, 3, 0, 4]);
-        assert_eq!(navmesh.vertices()[3].neighbours, vec![4, 2, 0]);
-        assert_eq!(navmesh.vertices()[4].neighbours, vec![3, 0, 2]);
-
-        navmesh.remove_vertex(4);
-
-        assert_eq!(navmesh.triangles().len(), 2);
-
-        assert_eq!(navmesh.vertices()[0].neighbours, vec![1, 2, 3]);
-        assert_eq!(navmesh.vertices()[1].neighbours, vec![2, 0]);
-        assert_eq!(navmesh.vertices()[2].neighbours, vec![1, 3, 0]);
-        assert_eq!(navmesh.vertices()[3].neighbours, vec![2, 0]);
-
-        navmesh.remove_vertex(3);
-
-        assert_eq!(navmesh.triangles().len(), 1);
-
-        assert_eq!(navmesh.vertices()[0].neighbours, vec![1, 2]);
-        assert_eq!(navmesh.vertices()[1].neighbours, vec![2, 0]);
-        assert_eq!(navmesh.vertices()[2].neighbours, vec![1, 0]);
-
-        navmesh.remove_vertex(2);
-
-        assert_eq!(navmesh.triangles().len(), 0);
-
-        assert_eq!(navmesh.vertices()[0].neighbours, vec![]);
-        assert_eq!(navmesh.vertices()[1].neighbours, vec![]);
-
-        navmesh.remove_vertex(1);
-
-        assert_eq!(navmesh.triangles().len(), 0);
-
-        assert_eq!(navmesh.vertices()[0].neighbours, vec![]);
-
-        navmesh.remove_vertex(0);
-
-        assert_eq!(navmesh.triangles().len(), 0);
-        assert_eq!(navmesh.vertices().len(), 0);
     }
 }

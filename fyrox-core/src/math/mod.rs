@@ -1631,7 +1631,7 @@ mod test {
 
         assert_eq!(
             get_closest_point_triangles(&points, &triangles, &[0, 1], Vector3::new(1.0, 1.0, 1.0)),
-            Some(1)
+            Some((1, 0))
         );
     }
 
@@ -1647,7 +1647,7 @@ mod test {
 
         assert_eq!(
             get_closest_point_triangle_set(&points, &triangles, Vector3::new(1.0, 1.0, 1.0)),
-            Some(1)
+            Some((1, 0))
         );
     }
 
