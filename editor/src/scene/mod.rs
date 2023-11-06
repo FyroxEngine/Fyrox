@@ -253,7 +253,7 @@ impl EditorScene {
 
                     for (index, vertex) in navmesh.navmesh_ref().vertices().iter().enumerate() {
                         ctx.draw_sphere(
-                            vertex.position,
+                            *vertex,
                             10,
                             10,
                             settings.navmesh.vertex_radius,
@@ -270,8 +270,8 @@ impl EditorScene {
                     for triangle in navmesh.navmesh_ref().triangles().iter() {
                         for edge in &triangle.edges() {
                             ctx.add_line(Line {
-                                begin: navmesh.navmesh_ref().vertices()[edge.a as usize].position,
-                                end: navmesh.navmesh_ref().vertices()[edge.b as usize].position,
+                                begin: navmesh.navmesh_ref().vertices()[edge.a as usize],
+                                end: navmesh.navmesh_ref().vertices()[edge.b as usize],
                                 color: selection.map_or(Color::GREEN, |s| {
                                     if s.contains_edge(*edge) {
                                         Color::RED

@@ -335,8 +335,8 @@ impl CreateEntityMenu {
                         )
                     } else if message.destination() == self.create_navmesh {
                         let navmesh = Navmesh::new(
-                            &[TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])],
-                            &[
+                            vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])],
+                            vec![
                                 Vector3::new(-1.0, 0.0, 1.0),
                                 Vector3::new(1.0, 0.0, 1.0),
                                 Vector3::new(1.0, 0.0, -1.0),

@@ -43,8 +43,8 @@ use std::ops::{Deref, DerefMut};
 /// fn create_navmesh(graph: &mut Graph) -> Handle<Node> {
 ///     // A simple navmesh with four vertices and two triangles.
 ///     let navmesh = Navmesh::new(
-///         &[TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])],
-///         &[
+///         vec![TriangleDefinition([0, 1, 2]), TriangleDefinition([0, 2, 3])],
+///         vec![
 ///             Vector3::new(-1.0, 0.0, 1.0),
 ///             Vector3::new(1.0, 0.0, 1.0),
 ///             Vector3::new(1.0, 0.0, -1.0),
@@ -152,14 +152,14 @@ impl NodeTrait for NavigationalMesh {
 
     fn debug_draw(&self, ctx: &mut SceneDrawingContext) {
         for vertex in self.navmesh.vertices().iter() {
-            ctx.draw_sphere(vertex.position, 6, 6, 0.1, Color::GREEN);
+            ctx.draw_sphere(*vertex, 6, 6, 0.1, Color::GREEN);
         }
 
         for triangle in self.navmesh.triangles().iter() {
             for edge in &triangle.edges() {
                 ctx.add_line(Line {
-                    begin: self.navmesh.vertices()[edge.a as usize].position,
-                    end: self.navmesh.vertices()[edge.b as usize].position,
+                    begin: self.navmesh.vertices()[edge.a as usize],
+                    end: self.navmesh.vertices()[edge.b as usize],
                     color: Color::GREEN,
                 });
             }
