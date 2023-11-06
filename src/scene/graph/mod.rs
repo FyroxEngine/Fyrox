@@ -939,7 +939,7 @@ impl Graph {
                                 variable::mark_inheritable_properties_non_modified(
                                     &mut resource_node_clone as &mut dyn Reflect,
                                 );
-                                *(&mut **resource_node_clone) = base;
+                                **resource_node_clone = base;
                                 *node = resource_node_clone;
                             }
 

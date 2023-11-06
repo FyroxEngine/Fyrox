@@ -339,8 +339,8 @@ impl InteractionMode for EditNavmeshMode {
                             vertices,
                             opposite_edge,
                         } => {
-                            let va = vertices[0].clone();
-                            let vb = vertices[1].clone();
+                            let va = vertices[0];
+                            let vb = vertices[1];
 
                             commands.push(SceneCommand::new(AddNavmeshEdgeCommand::new(
                                 selection.navmesh_node(),
@@ -396,8 +396,8 @@ impl InteractionMode for EditNavmeshMode {
                         if engine.user_interface.keyboard_modifiers().shift
                             && !self.drag_context.as_ref().unwrap().is_edge_duplication()
                         {
-                            let new_begin = navmesh.vertices()[edge.a as usize].clone();
-                            let new_end = navmesh.vertices()[edge.b as usize].clone();
+                            let new_begin = navmesh.vertices()[edge.a as usize];
+                            let new_end = navmesh.vertices()[edge.b as usize];
 
                             self.drag_context = Some(DragContext::EdgeDuplication {
                                 vertices: [new_begin, new_end],
