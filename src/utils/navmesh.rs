@@ -515,13 +515,6 @@ impl Navmesh {
         }
         None
     }
-
-    fn collect_portals_along_path(&self, path_triangles: &[usize]) -> Vec<Portal> {
-        path_triangles
-            .windows(2)
-            .map(|pair| self.portal_between(pair[0], pair[1]).unwrap())
-            .collect()
-    }
 }
 
 /// Navmesh agent is a "pathfinding unit" that performs navigation on a mesh. It is designed to
@@ -661,74 +654,71 @@ impl NavmeshAgent {
         self.path.clear();
         self.path.push(src_position);
 
-        let vertices = navmesh.vertices();
+        if path_triangles.len() > 1 {
+            let mut portal_apex = src_position;
+            let mut portal_left = src_position;
+            let mut portal_right = src_position;
 
-        let portals = navmesh.collect_portals_along_path(path_triangles);
+            let mut left_index = 0;
+            let mut right_index = 0;
 
-        let mut portal_apex = src_position;
-        let mut portal_left = src_position;
-        let mut portal_right = src_position;
+            let mut i = 0;
+            while i < path_triangles.len().saturating_sub(1) {
+                let portal = navmesh
+                    .portal_between(path_triangles[i], path_triangles[i + 1])
+                    .unwrap();
 
-        let mut apex_index;
-        let mut left_index = 0;
-        let mut right_index = 0;
+                let left = navmesh.vertices[portal.left];
+                let right = navmesh.vertices[portal.right];
 
-        let mut i = 0;
-        while i < portals.len() {
-            let left = vertices[portals[i].left];
-            let right = vertices[portals[i].right];
-
-            // Update right vertex.
-            if signed_triangle_area_2d(portal_apex, portal_right, right) <= 0.0 {
-                if portal_apex == portal_right
-                    || signed_triangle_area_2d(portal_apex, portal_left, right) > 0.0
-                {
-                    // Tighten the funnel.
-                    portal_right = right;
-                    right_index = i;
-                } else {
-                    // Right over left, insert left to path and restart scan from portal left point.
-                    self.path.push(portal_left);
-                    // Make current left the new apex.
-                    portal_apex = portal_left;
-                    apex_index = left_index;
-                    // Reset portal
-                    portal_left = portal_apex;
-                    portal_right = portal_apex;
-                    left_index = apex_index;
-                    right_index = apex_index;
-                    // Restart scan
-                    i = apex_index + 1;
-                    continue;
+                // Update right vertex.
+                if signed_triangle_area_2d(portal_apex, portal_right, right) <= 0.0 {
+                    if portal_apex == portal_right
+                        || signed_triangle_area_2d(portal_apex, portal_left, right) > 0.0
+                    {
+                        // Tighten the funnel.
+                        portal_right = right;
+                        right_index = i;
+                    } else {
+                        // Right over left, insert left to path and restart scan from portal left point.
+                        self.path.push(portal_left);
+                        // Make current left the new apex.
+                        portal_apex = portal_left;
+                        // Reset portal
+                        portal_left = portal_apex;
+                        portal_right = portal_apex;
+                        right_index = left_index;
+                        // Restart scan
+                        i = left_index + 1;
+                        continue;
+                    }
                 }
-            }
 
-            // Update left vertex.
-            if signed_triangle_area_2d(portal_apex, portal_left, left) >= 0.0 {
-                if portal_apex == portal_left
-                    || signed_triangle_area_2d(portal_apex, portal_right, left) < 0.0
-                {
-                    // Tighten the funnel.
-                    portal_left = left;
-                    left_index = i;
-                } else {
-                    // Left over right, insert right to path and restart scan from portal right point.
-                    self.path.push(portal_right);
-                    // Make current right the new apex.
-                    portal_apex = portal_right;
-                    apex_index = right_index;
-                    // Reset portal
-                    portal_left = portal_apex;
-                    portal_right = portal_apex;
-                    left_index = apex_index;
-                    right_index = apex_index;
-                    // Restart scan
-                    i = apex_index + 1;
-                    continue;
+                // Update left vertex.
+                if signed_triangle_area_2d(portal_apex, portal_left, left) >= 0.0 {
+                    if portal_apex == portal_left
+                        || signed_triangle_area_2d(portal_apex, portal_right, left) < 0.0
+                    {
+                        // Tighten the funnel.
+                        portal_left = left;
+                        left_index = i;
+                    } else {
+                        // Left over right, insert right to path and restart scan from portal right point.
+                        self.path.push(portal_right);
+                        // Make current right the new apex.
+                        portal_apex = portal_right;
+                        // Reset portal
+                        portal_left = portal_apex;
+                        portal_right = portal_apex;
+                        left_index = right_index;
+                        // Restart scan
+                        i = right_index + 1;
+                        continue;
+                    }
                 }
-            }
 
-            i += 1;
+                i += 1;
+            }
         }
 
         self.path.push(dest_position);
