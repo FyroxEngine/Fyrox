@@ -25,7 +25,6 @@ use crate::{
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
-use fxhash::FxHashSet;
 use fyrox_core::math::PositionProvider;
 use std::ops::{Deref, DerefMut};
 
@@ -132,14 +131,11 @@ fn signed_triangle_area_2d(a: Vector3<f32>, b: Vector3<f32>, c: Vector3<f32>) ->
     acx * abz - abx * acz
 }
 
-/*
-
 #[derive(PartialEq, Clone, Copy, Eq)]
 enum Winding {
     Clockwise,
     CounterClockwise,
 }
-
 
 fn winding(a: Vector3<f32>, b: Vector3<f32>, c: Vector3<f32>) -> Winding {
     if signed_triangle_area_2d(a, b, c) > 0.0 {
@@ -148,7 +144,6 @@ fn winding(a: Vector3<f32>, b: Vector3<f32>, c: Vector3<f32>) -> Winding {
         Winding::CounterClockwise
     }
 }
-*/
 
 fn make_graph(triangles: &[TriangleDefinition], vertices: &[Vector3<f32>]) -> Graph<Vertex> {
     let mut graph = Graph::new();
@@ -463,7 +458,7 @@ impl Navmesh {
     }
 
     /// Tries to pick a triangle by given ray. Returns closest result.
-    pub fn ray_cast(&self, ray: Ray) -> Option<(Vector3<f32>, usize, TriangleDefinition)> {
+    pub fn ray_cast(&self, ray: Ray) -> Option<(Vector3<f32>, usize)> {
         let mut buffer = ArrayVec::<Handle<OctreeNode>, 128>::new();
 
         self.octree.ray_query_static(&ray, &mut buffer);
@@ -482,7 +477,7 @@ impl Navmesh {
                         let distance = intersection.metric_distance(&ray.origin);
                         if distance < closest_distance {
                             closest_distance = distance;
-                            result = Some((intersection, index as usize, triangle));
+                            result = Some((intersection, index as usize));
                         }
                     }
                 }
@@ -494,80 +489,38 @@ impl Navmesh {
         result
     }
 
-    // Collects indices of triangles that has path vertices in them.
-    // TODO: This method uses brute-force algorithm with bad complexity.
-    fn make_triangle_strip(&self, path_vertices: &[usize]) -> FxHashSet<usize> {
-        let mut triangle_indices = FxHashSet::default();
+    fn portal_between(&self, src_triangle: usize, dest_triangle: usize) -> Option<Portal> {
+        let src_triangle = self.triangles.get(src_triangle)?;
+        let dest_triangle = self.triangles.get(dest_triangle)?;
+        for src_triangle_edge in src_triangle.edges() {
+            for dest_triangle_edge in dest_triangle.edges() {
+                if src_triangle_edge == dest_triangle_edge {
+                    let a = self.vertices[src_triangle[0] as usize];
+                    let b = self.vertices[src_triangle[1] as usize];
+                    let c = self.vertices[src_triangle[2] as usize];
 
-        for path_vertex in path_vertices.iter() {
-            for (triangle_index, triangle) in self.triangles.iter().enumerate() {
-                if triangle.0.contains(&(*path_vertex as u32)) {
-                    triangle_indices.insert(triangle_index);
+                    return if winding(a, b, c) == Winding::Clockwise {
+                        Some(Portal {
+                            left: src_triangle_edge.a as usize,
+                            right: src_triangle_edge.b as usize,
+                        })
+                    } else {
+                        Some(Portal {
+                            left: src_triangle_edge.b as usize,
+                            right: src_triangle_edge.a as usize,
+                        })
+                    };
                 }
             }
         }
-
-        triangle_indices
+        None
     }
 
-    // Collects all portals alone the given path of triangles. Portal is an edge that leads to another triangle,
-    // from which another triangle could be seen, that in sum leads to the destination triangle.
-    // TODO: This method uses brute-force algorithm with bad complexity.
-    fn collect_portals_along_path(
-        &self,
-        src_triangle_index: usize,
-        dest_triangle_index: usize,
-        dest_position: Vector3<f32>,
-        path_triangles: &FxHashSet<usize>,
-    ) -> Vec<Portal> {
-        let mut portals = Vec::new();
-
-        let mut visited_triangles = FxHashSet::default();
-        let vertices = self.vertices();
-        let mut current_triangle_index = src_triangle_index;
-        while current_triangle_index != dest_triangle_index {
-            visited_triangles.insert(current_triangle_index);
-            let current_triangle = &self.triangles[current_triangle_index];
-            let a = vertices[current_triangle[0] as usize];
-            let b = vertices[current_triangle[1] as usize];
-            let c = vertices[current_triangle[2] as usize];
-            let ca = c - a;
-            let ba = b - a;
-            let triangle_normal = ba.cross(&ca);
-            for current_triangle_edge in current_triangle.edges() {
-                let a = vertices[current_triangle_edge.a as usize];
-                let b = vertices[current_triangle_edge.b as usize];
-                let edge_vector = b - a;
-                let edge_normal = edge_vector.cross(&triangle_normal);
-                let target_vector = dest_position - a;
-                let looks_towards_target = edge_normal.dot(&target_vector) > 0.0;
-                if looks_towards_target {
-                    portals.push(Portal {
-                        left: current_triangle_edge.a as usize,
-                        right: current_triangle_edge.b as usize,
-                    });
-
-                    // Find adjacent triangle to continue portals searching.
-                    if path_triangles.len() > 1 {
-                        'triangle_loop: for other_triangle_index in path_triangles.iter() {
-                            if !visited_triangles.contains(other_triangle_index) {
-                                let other_triangle = self.triangles[*other_triangle_index];
-                                for other_triangle_edge in other_triangle.edges() {
-                                    if current_triangle_edge == other_triangle_edge {
-                                        current_triangle_index = *other_triangle_index;
-                                        break 'triangle_loop;
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        current_triangle_index = dest_triangle_index;
-                    }
-                }
-            }
-        }
-
-        portals
+    fn collect_portals_along_path(&self, path_triangles: &[usize]) -> Vec<Portal> {
+        path_triangles
+            .windows(2)
+            .map(|pair| self.portal_between(pair[0], pair[1]).unwrap())
+            .collect()
     }
 }
 
@@ -629,33 +582,14 @@ impl NavmeshAgent {
     }
 }
 
-fn closest_point_index_in_triangle(
-    triangle: TriangleDefinition,
-    navmesh: &Navmesh,
-    to: Vector3<f32>,
-) -> Option<(usize, usize)> {
-    let mut triangles = ArrayVec::<TriangleDefinition, 1>::new();
-    triangles.push(triangle);
-    math::get_closest_point_triangle_set(navmesh.vertices(), &triangles, to)
-}
-
-fn query_data(
-    navmesh: &mut Navmesh,
-    query_point: Vector3<f32>,
-) -> Option<(usize, Vector3<f32>, usize)> {
-    if let Some((point, triangle_index, triangle)) = navmesh.ray_cast(Ray::new(
+fn query_data(navmesh: &mut Navmesh, query_point: Vector3<f32>) -> Option<(Vector3<f32>, usize)> {
+    if let Some((point, triangle_index)) = navmesh.ray_cast(Ray::new(
         query_point + Vector3::new(0.0, 1.0, 0.0),
         Vector3::new(0.0, -10.0, 0.0),
     )) {
-        Some((
-            closest_point_index_in_triangle(triangle, navmesh, query_point)
-                .unwrap()
-                .0,
-            point,
-            triangle_index,
-        ))
+        Some((point, triangle_index))
     } else if let Some((point_index, triangle_index)) = navmesh.query_closest(query_point) {
-        Some((point_index, navmesh.vertices()[point_index], triangle_index))
+        Some((navmesh.vertices()[point_index], triangle_index))
     } else {
         None
     }
@@ -674,12 +608,8 @@ impl NavmeshAgent {
 
         self.current = 0;
 
-        if let Some((src_vertex_index, src_point_on_navmesh, src_triangle)) =
-            query_data(navmesh, src_point)
-        {
-            if let Some((dest_vertex_index, dest_point_on_navmesh, dest_triangle)) =
-                query_data(navmesh, dest_point)
-            {
+        if let Some((src_point_on_navmesh, src_triangle)) = query_data(navmesh, src_point) {
+            if let Some((dest_point_on_navmesh, dest_triangle)) = query_data(navmesh, dest_point) {
                 if src_triangle == dest_triangle {
                     self.path.push(src_point_on_navmesh);
                     self.path.push(dest_point_on_navmesh);
@@ -687,16 +617,16 @@ impl NavmeshAgent {
                     return Ok(PathKind::Full);
                 }
 
-                let mut path_vertex_indices = Vec::new();
+                let mut path_triangle_indices = Vec::new();
                 let graph = navmesh
                     .graph
                     .get_or_insert_with(|| make_graph(&navmesh.triangles, &navmesh.vertices));
                 let path_kind = graph.build_and_convert(
-                    src_vertex_index,
-                    dest_vertex_index,
+                    src_triangle,
+                    dest_triangle,
                     &mut self.path,
                     |idx, v| {
-                        path_vertex_indices.push(idx);
+                        path_triangle_indices.push(idx);
                         v.position
                     },
                 )?;
@@ -705,15 +635,13 @@ impl NavmeshAgent {
                 self.path.push(src_point_on_navmesh);
 
                 self.path.reverse();
-                path_vertex_indices.reverse();
+                path_triangle_indices.reverse();
 
                 self.straighten_path(
                     navmesh,
-                    src_triangle,
-                    dest_triangle,
                     src_point_on_navmesh,
                     dest_point_on_navmesh,
-                    &path_vertex_indices,
+                    &path_triangle_indices,
                 );
 
                 return Ok(path_kind);
@@ -726,25 +654,16 @@ impl NavmeshAgent {
     fn straighten_path(
         &mut self,
         navmesh: &Navmesh,
-        src_triangle_index: usize,
-        dest_triangle_index: usize,
         src_position: Vector3<f32>,
         dest_position: Vector3<f32>,
-        path_vertices: &[usize],
+        path_triangles: &[usize],
     ) {
         self.path.clear();
         self.path.push(src_position);
 
         let vertices = navmesh.vertices();
 
-        let path_triangles = navmesh.make_triangle_strip(path_vertices);
-
-        let portals = navmesh.collect_portals_along_path(
-            src_triangle_index,
-            dest_triangle_index,
-            dest_position,
-            &path_triangles,
-        );
+        let portals = navmesh.collect_portals_along_path(path_triangles);
 
         let mut portal_apex = src_position;
         let mut portal_left = src_position;
@@ -966,24 +885,43 @@ mod test {
             ],
         );
 
+        let graph = make_graph(&navmesh.triangles, &navmesh.vertices);
+
+        assert_eq!(graph.vertices.len(), 6);
+        assert_eq!(graph.vertices[0].neighbours[0], 1);
+
+        assert_eq!(graph.vertices[1].neighbours[0], 0);
+        assert_eq!(graph.vertices[1].neighbours[1], 2);
+
+        assert_eq!(graph.vertices[2].neighbours[0], 1);
+        assert_eq!(graph.vertices[2].neighbours[1], 3);
+
+        assert_eq!(graph.vertices[3].neighbours[0], 2);
+        assert_eq!(graph.vertices[3].neighbours[1], 4);
+
+        assert_eq!(graph.vertices[4].neighbours[0], 3);
+        assert_eq!(graph.vertices[4].neighbours[1], 5);
+
+        assert_eq!(graph.vertices[5].neighbours[0], 4);
+
+        navmesh.graph = Some(graph);
+
         let start = 0;
-        let end = 6;
-        let dest_position = navmesh.vertices()[end];
+        let end = 5;
 
         let mut path = Vec::new();
-        let mut indices = Vec::new();
+        let mut path_triangles = Vec::new();
         navmesh
             .graph
-            .get_or_insert_with(|| make_graph(&navmesh.triangles, &navmesh.vertices))
+            .as_mut()
+            .unwrap()
             .build_and_convert(start, end, &mut path, |i, v| {
-                indices.push(i);
+                path_triangles.push(i);
                 v.position
             })
             .unwrap();
-        dbg!(&indices);
-        let strip = navmesh.make_triangle_strip(&indices);
-        dbg!(&strip);
-        let portals = navmesh.collect_portals_along_path(0, 5, dest_position, &strip);
+        dbg!(&path_triangles);
+        let portals = navmesh.collect_portals_along_path(&path_triangles);
         dbg!(&portals);
     }
 }

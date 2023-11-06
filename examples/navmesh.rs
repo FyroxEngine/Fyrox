@@ -77,7 +77,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         ));
 
     resource_manager
-        .request::<Model, _>("examples/data/navmesh_scene.rgs")
+        .request::<Model, _>("examples/data/navmesh_scene2.rgs")
         .await
         .unwrap()
         .instantiate(&mut scene);
@@ -180,7 +180,7 @@ impl Plugin for Game {
             }
         }
 
-        let navmesh_handle = scene.graph.find_by_name_from_root("Navmesh").unwrap().0;
+        let navmesh_handle = scene.graph.find_by_name_from_root("Navmesh0").unwrap().0;
         let navmesh_node = scene.graph[navmesh_handle].as_navigational_mesh_mut();
         navmesh_node.debug_draw(&mut scene.drawing_context);
         let navmesh = navmesh_node.navmesh_mut();
