@@ -5,12 +5,11 @@
 
 #![warn(missing_docs)]
 
-use crate::utils::astar::{GraphVertex, VertexDataProvider};
 use crate::{
     core::{
         algebra::{Point3, Vector3},
         arrayvec::ArrayVec,
-        math::{self, ray::Ray, TriangleDefinition},
+        math::{self, ray::Ray, PositionProvider, TriangleDefinition},
         octree::{Octree, OctreeNode},
         pool::Handle,
         reflect::prelude::*,
@@ -21,11 +20,10 @@ use crate::{
         Mesh,
     },
     utils::{
-        astar::{Graph, PathError, PathKind, VertexData},
+        astar::{Graph, GraphVertex, PathError, PathKind, VertexData, VertexDataProvider},
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
-use fyrox_core::math::PositionProvider;
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone, Debug, Default, Visit)]
@@ -663,13 +661,18 @@ impl NavmeshAgent {
             let mut right_index = 0;
 
             let mut i = 0;
-            while i < path_triangles.len().saturating_sub(1) {
-                let portal = navmesh
-                    .portal_between(path_triangles[i], path_triangles[i + 1])
-                    .unwrap();
-
-                let left = navmesh.vertices[portal.left];
-                let right = navmesh.vertices[portal.right];
+            while i < path_triangles.len() {
+                let (left, right) = if i + 1 < path_triangles.len() {
+                    let portal = navmesh
+                        .portal_between(path_triangles[i], path_triangles[i + 1])
+                        .unwrap();
+                    (
+                        navmesh.vertices[portal.left],
+                        navmesh.vertices[portal.right],
+                    )
+                } else {
+                    (dest_position, dest_position)
+                };
 
                 // Update right vertex.
                 if signed_triangle_area_2d(portal_apex, portal_right, right) <= 0.0 {
