@@ -1,12 +1,3 @@
-//! Example 01. Simple scene.
-//!
-//! Difficulty: Easy.
-//!
-//! This example shows how to create simple scene with animated model.
-
-use fyrox::event_loop::EventLoop;
-use fyrox::scene::camera::CameraBuilder;
-use fyrox::scene::node::NodeTrait;
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
@@ -19,35 +10,27 @@ use fyrox::{
     dpi::LogicalPosition,
     engine::{executor::Executor, GraphicsContext, GraphicsContextParams},
     event::{ElementState, Event, WindowEvent},
-    gui::{
-        message::MessageDirection,
-        text::{TextBuilder, TextMessage},
-        widget::WidgetBuilder,
-        BuildContext, UiNode,
-    },
+    event_loop::EventLoop,
     keyboard::KeyCode,
     material::{Material, PropertyValue, SharedMaterial},
     plugin::{Plugin, PluginConstructor, PluginContext},
     resource::model::{Model, ModelResourceExtension},
     scene::{
         base::BaseBuilder,
+        camera::CameraBuilder,
         debug::Line,
         graph::physics::{Intersection, RayCastOptions},
         mesh::{
             surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
             MeshBuilder,
         },
-        node::Node,
+        node::{Node, NodeTrait},
         transform::TransformBuilder,
         Scene,
     },
     utils::navmesh::NavmeshAgent,
 };
 use winit::keyboard::PhysicalKey;
-
-fn create_ui(ctx: &mut BuildContext) -> Handle<UiNode> {
-    TextBuilder::new(WidgetBuilder::new()).build(ctx)
-}
 
 struct GameScene {
     scene: Scene,
@@ -77,7 +60,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         ));
 
     resource_manager
-        .request::<Model, _>("examples/data/navmesh_scene2.rgs")
+        .request::<Model, _>("examples/data/navmesh_scene.rgs")
         .await
         .unwrap()
         .instantiate(&mut scene);
@@ -143,7 +126,6 @@ struct Game {
     target_position: Vector3<f32>,
     mouse_position: Vector2<f32>,
     navmesh_agent: NavmeshAgent,
-    debug_text: Handle<UiNode>,
 }
 
 impl Plugin for Game {
@@ -180,15 +162,13 @@ impl Plugin for Game {
             }
         }
 
-        let navmesh_handle = scene.graph.find_by_name_from_root("Navmesh0").unwrap().0;
+        let navmesh_handle = scene.graph.find_by_name_from_root("Navmesh").unwrap().0;
         let navmesh_node = scene.graph[navmesh_handle].as_navigational_mesh_mut();
         navmesh_node.debug_draw(&mut scene.drawing_context);
         let navmesh = navmesh_node.navmesh_mut();
 
-        let last = std::time::Instant::now();
         self.navmesh_agent.set_target(self.target_position);
         let _ = self.navmesh_agent.update(context.dt, navmesh);
-        let agent_time = std::time::Instant::now() - last;
 
         scene.graph[self.agent]
             .local_transform_mut()
@@ -200,19 +180,6 @@ impl Plugin for Game {
                 end: pts[1],
                 color: Color::opaque(255, 0, 0),
             });
-        }
-
-        if let GraphicsContext::Initialized(ref graphics_context) = context.graphics_context {
-            let fps = graphics_context.renderer.get_statistics().frames_per_second;
-            let text = format!(
-                "Example 12 - Navigation Mesh\nFPS: {}\nAgent time: {:?}",
-                fps, agent_time
-            );
-            context.user_interface.send_message(TextMessage::text(
-                self.debug_text,
-                MessageDirection::ToWidget,
-                text,
-            ));
         }
     }
 
@@ -251,8 +218,6 @@ impl PluginConstructor for GameConstructor {
         _override_scene: Option<&str>,
         context: PluginContext,
     ) -> Box<dyn Plugin> {
-        let debug_text = create_ui(&mut context.user_interface.build_ctx());
-
         // Create test scene.
         let GameScene {
             scene,
@@ -280,7 +245,6 @@ impl PluginConstructor for GameConstructor {
             target_position: Default::default(),
             mouse_position: Default::default(),
             navmesh_agent,
-            debug_text,
         })
     }
 }
