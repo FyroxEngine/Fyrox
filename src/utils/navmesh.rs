@@ -528,6 +528,8 @@ pub struct NavmeshAgent {
     recalculation_threshold: f32,
     speed: f32,
     path_dirty: bool,
+    #[visit(optional)]
+    radius: f32,
 }
 
 impl Default for NavmeshAgent {
@@ -549,6 +551,7 @@ impl NavmeshAgent {
             recalculation_threshold: 0.25,
             speed: 1.5,
             path_dirty: true,
+            radius: 0.2,
         }
     }
 
@@ -570,6 +573,19 @@ impl NavmeshAgent {
     /// Returns current agent's movement speed.
     pub fn speed(&self) -> f32 {
         self.speed
+    }
+
+    /// Sets a new radius for the navmesh agent. The agent will use this radius to walk around
+    /// corners with the distance equal to the radius. This could help to prevent the agent from
+    /// being stuck in the corners. The default value is 0.2 meters.
+    pub fn set_radius(&mut self, radius: f32) {
+        self.radius = radius;
+    }
+
+    /// Returns the current radius of the navmesh agent. See [`Self::set_radius`] for more info
+    /// about radius parameter.
+    pub fn radius(&self) -> f32 {
+        self.radius
     }
 }
 
@@ -666,10 +682,20 @@ impl NavmeshAgent {
                     let portal = navmesh
                         .portal_between(path_triangles[i], path_triangles[i + 1])
                         .unwrap();
-                    (
-                        navmesh.vertices[portal.left],
-                        navmesh.vertices[portal.right],
-                    )
+
+                    let mut left = navmesh.vertices[portal.left];
+                    let mut right = navmesh.vertices[portal.right];
+
+                    if self.radius > 0.0 {
+                        let delta = right - left;
+                        let len = delta.norm();
+                        let offset = delta.scale(self.radius.min(len * 0.5) / len);
+
+                        left += offset;
+                        right -= offset;
+                    }
+
+                    (left, right)
                 } else {
                     (dest_position, dest_position)
                 };
