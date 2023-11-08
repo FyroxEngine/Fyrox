@@ -9,7 +9,7 @@ use crate::{
     core::{
         algebra::{Point3, Vector3},
         arrayvec::ArrayVec,
-        math::{self, ray::Ray, PositionProvider, TriangleDefinition},
+        math::{self, ray::Ray, PositionProvider, TriangleDefinition, Vector3Ext},
         octree::{Octree, OctreeNode},
         pool::Handle,
         reflect::prelude::*,
@@ -596,7 +596,27 @@ fn query_data(navmesh: &mut Navmesh, query_point: Vector3<f32>) -> Option<(Vecto
     )) {
         Some((point, triangle_index))
     } else if let Some((point_index, triangle_index)) = navmesh.query_closest(query_point) {
-        Some((navmesh.vertices()[point_index], triangle_index))
+        let mut closest_pt_on_edge = None;
+        let mut closest_distance = f32::MAX;
+        for edge in navmesh.triangles[triangle_index].edges() {
+            let a = navmesh.vertices[edge.a as usize];
+            let b = navmesh.vertices[edge.b as usize];
+            let ray = Ray::from_two_points(a, b);
+            let t = ray.project_point(&query_point);
+            if (0.0..=1.0).contains(&t) {
+                let edge_pt_projection = ray.get_point(t);
+                let sqr_distance = query_point.sqr_distance(&edge_pt_projection);
+                if sqr_distance < closest_distance {
+                    closest_distance = sqr_distance;
+                    closest_pt_on_edge = Some(ray.get_point(t));
+                }
+            }
+        }
+
+        Some((
+            closest_pt_on_edge.unwrap_or_else(|| navmesh.vertices()[point_index]),
+            triangle_index,
+        ))
     } else {
         None
     }
