@@ -440,7 +440,7 @@ impl Navmesh {
     ///             return navmesh.build_path(begin_index.0, end_index.0, path);
     ///         }
     ///     }
-    ///     Ok(PathKind::Empty)
+    ///     Ok(PathKind::Partial)
     /// }
     /// ```
     pub fn build_path(
@@ -628,20 +628,11 @@ impl NavmeshAgent {
                 let graph = navmesh
                     .graph
                     .get_or_insert_with(|| make_graph(&navmesh.triangles, &navmesh.vertices));
-                let path_kind = graph.build_and_convert(
-                    src_triangle,
-                    dest_triangle,
-                    &mut self.path,
-                    |idx, v| {
+                let path_kind =
+                    graph.build_and_convert(src_triangle, dest_triangle, |idx, _| {
                         path_triangle_indices.push(idx);
-                        v.position
-                    },
-                )?;
+                    })?;
 
-                self.path.insert(0, dest_point_on_navmesh);
-                self.path.push(src_point_on_navmesh);
-
-                self.path.reverse();
                 path_triangle_indices.reverse();
 
                 self.straighten_path(
@@ -655,7 +646,7 @@ impl NavmeshAgent {
             }
         }
 
-        Err(PathError::Custom("Empty navmesh!".to_owned()))
+        Err(PathError::Empty)
     }
 
     fn straighten_path(
@@ -665,7 +656,6 @@ impl NavmeshAgent {
         dest_position: Vector3<f32>,
         path_triangles: &[usize],
     ) {
-        self.path.clear();
         self.path.push(src_position);
 
         if path_triangles.len() > 1 {

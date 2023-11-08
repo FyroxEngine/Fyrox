@@ -139,9 +139,6 @@ pub enum PathKind {
     /// happen if there are isolated "islands" of graph vertices with no links between
     /// them and you trying to find path from one "island" to other.
     Partial,
-    /// Either array of vertices to search on was empty, or search was started from
-    /// isolated vertex.
-    Empty,
 }
 
 fn heuristic(a: Vector3<f32>, b: Vector3<f32>) -> f32 {
@@ -171,8 +168,8 @@ pub enum PathError {
     /// There is a vertex that has itself as neighbour.
     CyclicReferenceFound(usize),
 
-    /// User-defined error.
-    Custom(String),
+    /// Graph was empty.
+    Empty,
 }
 
 impl Display for PathError {
@@ -184,8 +181,8 @@ impl Display for PathError {
             PathError::CyclicReferenceFound(v) => {
                 write!(f, "Cyclical reference was found {v}.")
             }
-            PathError::Custom(v) => {
-                write!(f, "An error has occurred {v}")
+            PathError::Empty => {
+                write!(f, "Graph was empty")
             }
         }
     }
@@ -328,7 +325,8 @@ impl<T: VertexDataProvider> Graph<T> {
         to: usize,
         path: &mut Vec<Vector3<f32>>,
     ) -> Result<PathKind, PathError> {
-        self.build_and_convert(from, to, path, |_, v| v.position)
+        path.clear();
+        self.build_and_convert(from, to, |_, v| path.push(v.position))
     }
 
     /// Tries to build path from begin point to end point. Returns path kind:
@@ -340,21 +338,18 @@ impl<T: VertexDataProvider> Graph<T> {
     /// # Notes
     ///
     /// This is more or less naive implementation, it most certainly will be slower than specialized solutions.
-    pub fn build_and_convert<F, V>(
+    pub fn build_and_convert<F>(
         &mut self,
         from: usize,
         to: usize,
-        path: &mut Vec<V>,
         func: F,
     ) -> Result<PathKind, PathError>
     where
-        F: FnMut(usize, &T) -> V,
+        F: FnMut(usize, &T),
     {
         if self.vertices.is_empty() {
-            return Ok(PathKind::Empty);
+            return Ok(PathKind::Partial);
         }
-
-        path.clear();
 
         for vertex in self.vertices.iter_mut() {
             vertex.clear();
@@ -387,7 +382,7 @@ impl<T: VertexDataProvider> Graph<T> {
             }
 
             if current_index == to {
-                self.reconstruct_path(current_index, path, func);
+                self.reconstruct_path(current_index, func);
                 return Ok(PathKind::Full);
             }
 
@@ -445,21 +440,17 @@ impl<T: VertexDataProvider> Graph<T> {
             }
         }
 
-        self.reconstruct_path(closest_index, path, func);
+        self.reconstruct_path(closest_index, func);
 
-        if path.is_empty() {
-            Ok(PathKind::Empty)
-        } else {
-            Ok(PathKind::Partial)
-        }
+        Ok(PathKind::Partial)
     }
 
-    fn reconstruct_path<F, V>(&self, mut current: usize, path: &mut Vec<V>, mut func: F)
+    fn reconstruct_path<F>(&self, mut current: usize, mut func: F)
     where
-        F: FnMut(usize, &T) -> V,
+        F: FnMut(usize, &T),
     {
         while let Some(vertex) = self.vertices.get(current) {
-            path.push(func(current, vertex));
+            func(current, vertex);
             if let Some(parent) = vertex.parent {
                 current = parent;
             } else {
