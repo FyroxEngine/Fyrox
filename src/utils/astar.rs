@@ -11,7 +11,7 @@ use crate::core::{
     math::{self, PositionProvider},
     visitor::prelude::*,
 };
-use fyrox_ui::message::MessageData;
+
 use std::{
     cmp::Ordering,
     collections::BinaryHeap,
@@ -179,25 +179,25 @@ impl Default for PartialPath {
 }
 
 impl Ord for PartialPath {
+    /// only compairs f-value and heuristic
     fn cmp(&self, other: &Self) -> Ordering {
         (self.f_score.total_cmp(&other.f_score))
-            .then(self.g_score.total_cmp(&other.g_score))
-            .then(self.vertices.cmp(&other.vertices))
+            .then((self.f_score - self.g_score).total_cmp(&(other.f_score - other.g_score)))
             .reverse()
     }
 }
 
 impl PartialOrd for PartialPath {
+    /// only compairs f-value and heuristic
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl PartialEq for PartialPath {
+    /// only determaines if values are equal not equal composition
     fn eq(&self, other: &Self) -> bool {
-        self.f_score == other.f_score
-            && self.g_score == other.g_score
-            && self.vertices == other.vertices
+        self.f_score == other.f_score && self.g_score == other.g_score
     }
 }
 
@@ -210,6 +210,7 @@ impl PartialPath {
             vertices: vec![start],
             g_score: 0f32,
             f_score: f32::MAX,
+            //f_score: f32::MAX / 10f32,
         }
     }
 
@@ -514,6 +515,8 @@ impl PathFinder {
 
         path.clear();
 
+        let mut searched_vertices = vec![false; self.vertices.len()];
+
         let end_pos = self
             .vertices
             .get(to)
@@ -537,11 +540,21 @@ impl PathFinder {
                 break;
             }
 
-            // pops best partial path off the heap to use for this itteration
-            // we unwrap because we already checked for an empty heap
+            // pops best partial path off the heap to use for this iteration
             let current_path = search_heap.pop().unwrap();
 
             let current_index = *current_path.vertices.last().unwrap();
+
+            // updates best path
+            if current_path > best_path {
+                best_path = current_path.clone();
+
+                // breaks if end is found
+                if current_index == to {
+                    break;
+                }
+            }
+
             let current_vertex = self
                 .vertices
                 .get(current_index)
@@ -551,34 +564,15 @@ impl PathFinder {
             for i in current_vertex.neighbours.iter() {
                 let neighbour_index = *i as usize;
 
-                // returns path if neighbour is end vertex
-                if neighbour_index == to {
-                    let mut path_indicies = current_path.vertices.clone();
-                    path_indicies.push(neighbour_index);
-
-                    // converts from indicies to positions
-                    // TODO: conversion should be moved to its own funtion
-                    for index in path_indicies.iter() {
-                        let postion = self
-                            .vertices
-                            .get(*index)
-                            .ok_or(PathError::InvalidIndex(*index))?;
-
-                        path.push(postion.position);
-                    }
-                    path.reverse();
-                    return Ok(PathKind::Full);
-                }
-
-                //TODO: add a check to avoid going in circles
-                if current_path.vertices.contains(&neighbour_index) {
+                //avoids going in circles
+                if searched_vertices[neighbour_index] {
                     continue;
                 }
 
                 let neighbour = self
                     .vertices
                     .get(neighbour_index)
-                    .ok_or(PathError::InvalidIndex(current_index))?;
+                    .ok_or(PathError::InvalidIndex(neighbour_index))?;
 
                 let neighbour_g_score = current_path.g_score
                     + ((current_vertex.position - neighbour.position).norm_squared()
@@ -593,28 +587,25 @@ impl PathFinder {
                 ));
             }
 
-            // updates best path
-            if current_path > best_path {
-                best_path = current_path;
-            }
+            //marks vertex as searched
+            searched_vertices[current_index] = true;
         }
 
-        // No direct path found, then return best partial path
-
         // converts from indicies to positions
-        // TODO: conversion should be moved to its own funtion
         for index in best_path.vertices.iter() {
-            let postion = self
+            let vertex = self
                 .vertices
                 .get(*index)
                 .ok_or(PathError::InvalidIndex(*index))?;
 
-            path.push(postion.position);
+            path.push(vertex.position);
         }
-
         path.reverse();
+
         if path.is_empty() {
             Ok(PathKind::Empty)
+        } else if *path.first().unwrap() == end_pos {
+            Ok(PathKind::Full)
         } else {
             Ok(PathKind::Partial)
         }
@@ -957,7 +948,7 @@ mod test {
         pathfinder.set_vertices(vertices);
 
         // Link vertices as grid.
-        // seperates grid diagonally down the xy plane leaving only one conection in the corner
+        // seperates grid diagonally down the xy plane leaving only one connection in the corner
         for y in 0..(size - 1) {
             for x in (0..(size - 1)).rev() {
                 if y == 0 || x != y {
