@@ -4,20 +4,26 @@
 //! possible path from vertex to vertex. In vast majority of games it is used in pair
 //! with navigation meshes (navmesh). Check navmesh module docs for more info.
 
-#![allow(missing_docs)] // TODO
+#![warn(missing_docs)]
 
 use crate::core::{
     algebra::Vector3,
     math::{self, PositionProvider},
     visitor::prelude::*,
 };
-use std::fmt::{Display, Formatter};
-use std::ops::{Deref, DerefMut};
+use std::{
+    fmt::{Display, Formatter},
+    ops::{Deref, DerefMut},
+};
 
+/// State a of path vertex.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum PathVertexState {
+    /// A vertex wasn't visited and yet to be processed.
     NonVisited,
+    /// A vertex is inside an open set (to be visited).
     Open,
+    /// A vertex is inside an closed set (was visited).
     Closed,
 }
 
@@ -27,16 +33,21 @@ pub enum PathVertexState {
 pub struct VertexData {
     /// Position in the world coordinates
     pub position: Vector3<f32>,
+    /// A set of indices of neighbour vertices.
     pub neighbours: Vec<u32>,
+    /// Current state of the vertex.
     #[visit(skip)]
     pub state: PathVertexState,
     /// Penalty can be interpreted as measure, how harder is to travel to this vertex.
     #[visit(skip)]
     pub g_penalty: f32,
+    /// Path cost of the vertex.
     #[visit(skip)]
     pub g_score: f32,
+    /// A numeric metric, of how effective would be moving to neighbour in finding the optimal path.
     #[visit(skip)]
     pub f_score: f32,
+    /// An index of a vertex that is previous (relative to this) in the path.
     #[visit(skip)]
     pub parent: Option<usize>,
 }
@@ -78,14 +89,19 @@ impl VertexData {
     }
 }
 
+/// A trait, that describes and arbitrary vertex that could be used in a graph. It allows you to
+/// use your structure to store additional info in the graph.
 pub trait VertexDataProvider: Deref<Target = VertexData> + DerefMut + PositionProvider {}
 
+/// A default graph vertex with no additional data.
 #[derive(Default, PartialEq, Debug)]
 pub struct GraphVertex {
+    /// Data of the vertex.
     pub data: VertexData,
 }
 
 impl GraphVertex {
+    /// Creates a new graph vertex.
     pub fn new(position: Vector3<f32>) -> Self {
         Self {
             data: VertexData::new(position),
@@ -127,6 +143,7 @@ pub struct Graph<T>
 where
     T: VertexDataProvider,
 {
+    /// Vertices of the graph.
     pub vertices: Vec<T>,
 }
 
