@@ -9,7 +9,7 @@ use crate::{
     core::{
         algebra::{Point3, Vector3},
         arrayvec::ArrayVec,
-        math::{self, ray::Ray, PositionProvider, TriangleDefinition, Vector3Ext},
+        math::{self, plane::Plane, ray::Ray, PositionProvider, TriangleDefinition, Vector3Ext},
         octree::{Octree, OctreeNode},
         pool::Handle,
         reflect::prelude::*,
@@ -301,20 +301,78 @@ impl Navmesh {
         )
     }
 
-    /// Searches for a closest graph vertex to the given point. Returns Some((vertex_index, triangle_index)), or None
-    /// if navmesh was empty.
-    pub fn query_closest(&mut self, point: Vector3<f32>) -> Option<(usize, usize)> {
-        self.octree.point_query(point, &mut self.query_buffer);
+    /// Tries to get a projected point on the navmesh, that is closest to the given query point.
+    /// Returns a tuple with the projection point and the triangle index, that contains this
+    /// projection point.
+    ///
+    /// ## Complexity
+    ///
+    /// This method has `O(log(n))` complexity in the best case (when the query point lies inside the
+    /// navmesh bounds) and `O(n)` complexity in the worst case. `n` here is the number of triangles
+    /// in the navmesh.
+    pub fn query_closest(&mut self, query_point: Vector3<f32>) -> Option<(Vector3<f32>, usize)> {
+        self.octree.point_query(query_point, &mut self.query_buffer);
         if self.query_buffer.is_empty() {
-            math::get_closest_point_triangle_set(&self.vertices, &self.triangles, point)
+            // O(n)
+            self.query_closest_internal((0..self.triangles.len()).into_iter(), query_point)
         } else {
-            math::get_closest_point_triangles(
-                &self.vertices,
-                &self.triangles,
-                &self.query_buffer,
-                point,
-            )
+            // O(log(n))
+            self.query_closest_internal(self.query_buffer.iter().map(|i| *i as usize), query_point)
         }
+    }
+
+    fn query_closest_internal(
+        &self,
+        triangles: impl Iterator<Item = usize>,
+        query_point: Vector3<f32>,
+    ) -> Option<(Vector3<f32>, usize)> {
+        let mut closest = None;
+        let mut closest_distance = f32::MAX;
+
+        for triangle_index in triangles {
+            let triangle = &self.triangles[triangle_index];
+            let a = self.vertices[triangle[0] as usize];
+            let b = self.vertices[triangle[1] as usize];
+            let c = self.vertices[triangle[2] as usize];
+
+            let plane = Plane::from_triangle(&a, &b, &c)?;
+            let projection = plane.project(&query_point);
+            if math::is_point_inside_triangle(&projection, &[a, b, c]) {
+                let sqr_distance = query_point.sqr_distance(&projection);
+                if sqr_distance < closest_distance {
+                    closest_distance = sqr_distance;
+                    closest = Some((projection, triangle_index));
+                }
+            }
+
+            // Check each edge by projecting the query point onto it and checking where the
+            // projection lies.
+            for edge in self.triangles[triangle_index].edges() {
+                let a = self.vertices[edge.a as usize];
+                let b = self.vertices[edge.b as usize];
+                let ray = Ray::from_two_points(a, b);
+                let t = ray.project_point(&query_point);
+                if (0.0..=1.0).contains(&t) {
+                    let edge_pt_projection = ray.get_point(t);
+                    let sqr_distance = query_point.sqr_distance(&edge_pt_projection);
+                    if sqr_distance < closest_distance {
+                        closest_distance = sqr_distance;
+                        closest = Some((ray.get_point(t), triangle_index));
+                    }
+                }
+            }
+
+            // Also check vertices.
+            for pt in [a, b, c] {
+                let sqr_distance = query_point.sqr_distance(&pt);
+                if sqr_distance < closest_distance {
+                    closest_distance = sqr_distance;
+                    closest = Some((pt, triangle_index));
+                }
+            }
+        }
+
+        closest
     }
 
     /// Returns reference to array of triangles.
@@ -452,9 +510,9 @@ impl Navmesh {
     /// use fyrox::utils::astar::{PathKind, PathError};
     ///
     /// fn find_path(navmesh: &mut Navmesh, begin: Vector3<f32>, end: Vector3<f32>, path: &mut Vec<Vector3<f32>>) -> Result<PathKind, PathError> {
-    ///     if let Some(begin_index) = navmesh.query_closest(begin) {
-    ///         if let Some(end_index) = navmesh.query_closest(end) {
-    ///             return navmesh.build_path(begin_index.0, end_index.0, path);
+    ///     if let Some((_, begin_index)) = navmesh.query_closest(begin) {
+    ///         if let Some((_, end_index)) = navmesh.query_closest(end) {
+    ///             return navmesh.build_path(begin_index, end_index, path);
     ///         }
     ///     }
     ///     Ok(PathKind::Partial)
@@ -619,39 +677,6 @@ impl NavmeshAgent {
     }
 }
 
-fn query_data(navmesh: &mut Navmesh, query_point: Vector3<f32>) -> Option<(Vector3<f32>, usize)> {
-    if let Some((point, triangle_index)) = navmesh.ray_cast(Ray::new(
-        query_point + Vector3::new(0.0, 1.0, 0.0),
-        Vector3::new(0.0, -10.0, 0.0),
-    )) {
-        Some((point, triangle_index))
-    } else if let Some((point_index, triangle_index)) = navmesh.query_closest(query_point) {
-        let mut closest_pt_on_edge = None;
-        let mut closest_distance = f32::MAX;
-        for edge in navmesh.triangles[triangle_index].edges() {
-            let a = navmesh.vertices[edge.a as usize];
-            let b = navmesh.vertices[edge.b as usize];
-            let ray = Ray::from_two_points(a, b);
-            let t = ray.project_point(&query_point);
-            if (0.0..=1.0).contains(&t) {
-                let edge_pt_projection = ray.get_point(t);
-                let sqr_distance = query_point.sqr_distance(&edge_pt_projection);
-                if sqr_distance < closest_distance {
-                    closest_distance = sqr_distance;
-                    closest_pt_on_edge = Some(ray.get_point(t));
-                }
-            }
-        }
-
-        Some((
-            closest_pt_on_edge.unwrap_or_else(|| navmesh.vertices()[point_index]),
-            triangle_index,
-        ))
-    } else {
-        None
-    }
-}
-
 impl NavmeshAgent {
     /// Calculates path from point A to point B. In most cases there is no need to use this method
     /// directly, because `update` will call it anyway if target position has moved.
@@ -665,8 +690,9 @@ impl NavmeshAgent {
 
         self.current = 0;
 
-        if let Some((src_point_on_navmesh, src_triangle)) = query_data(navmesh, src_point) {
-            if let Some((dest_point_on_navmesh, dest_triangle)) = query_data(navmesh, dest_point) {
+        if let Some((src_point_on_navmesh, src_triangle)) = navmesh.query_closest(src_point) {
+            if let Some((dest_point_on_navmesh, dest_triangle)) = navmesh.query_closest(dest_point)
+            {
                 if src_triangle == dest_triangle {
                     self.path.push(src_point_on_navmesh);
                     self.path.push(dest_point_on_navmesh);

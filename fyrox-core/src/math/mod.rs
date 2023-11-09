@@ -824,7 +824,7 @@ pub fn get_closest_point<P: PositionProvider>(points: &[P], point: Vector3<f32>)
 pub fn get_closest_point_triangles<P>(
     points: &[P],
     triangles: &[TriangleDefinition],
-    triangle_indices: &[u32],
+    triangle_indices: impl Iterator<Item = usize>,
     point: Vector3<f32>,
 ) -> Option<(usize, usize)>
 where
@@ -833,13 +833,13 @@ where
     let mut closest_sqr_distance = f32::MAX;
     let mut closest_index = None;
     for triangle_index in triangle_indices {
-        let triangle = triangles.get(*triangle_index as usize).unwrap();
+        let triangle = triangles.get(triangle_index).unwrap();
         for point_index in triangle.0.iter() {
             let vertex = points.get(*point_index as usize).unwrap();
             let sqr_distance = (vertex.position() - point).norm_squared();
             if sqr_distance < closest_sqr_distance {
                 closest_sqr_distance = sqr_distance;
-                closest_index = Some((*point_index as usize, *triangle_index as usize));
+                closest_index = Some((*point_index as usize, triangle_index));
             }
         }
     }
@@ -1630,7 +1630,12 @@ mod test {
         let triangles = [TriangleDefinition([0, 1, 2]), TriangleDefinition([1, 2, 3])];
 
         assert_eq!(
-            get_closest_point_triangles(&points, &triangles, &[0, 1], Vector3::new(1.0, 1.0, 1.0)),
+            get_closest_point_triangles(
+                &points,
+                &triangles,
+                [0, 1].into_iter(),
+                Vector3::new(1.0, 1.0, 1.0)
+            ),
             Some((1, 0))
         );
     }
