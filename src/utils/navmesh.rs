@@ -24,6 +24,7 @@ use crate::{
         raw_mesh::{RawMeshBuilder, RawVertex},
     },
 };
+use fxhash::{FxBuildHasher, FxHashMap};
 use std::ops::{Deref, DerefMut};
 
 #[derive(Clone, Debug, Default, Visit)]
@@ -159,24 +160,40 @@ fn make_graph(triangles: &[TriangleDefinition], vertices: &[Vector3<f32>]) -> Gr
         });
     }
 
+    // Build edge-triangle map first.
+    #[derive(Copy, Clone, PartialEq, Hash, Eq)]
+    struct Edge {
+        a: usize,
+        b: usize,
+    }
+
+    let total_edge_count = triangles.len() * 3;
+    let mut edge_triangle_map =
+        FxHashMap::with_capacity_and_hasher(total_edge_count, FxBuildHasher::default());
+
+    for (triangle_index, triangle) in triangles.iter().enumerate() {
+        for edge in triangle.edges() {
+            edge_triangle_map.insert(
+                Edge {
+                    a: edge.a as usize,
+                    b: edge.b as usize,
+                },
+                triangle_index,
+            );
+        }
+    }
+
     // Link vertices.
     for (triangle_index, triangle) in triangles.iter().enumerate() {
-        // Vertex index in the graph matches triangle index.
-        let vertex_index = triangle_index;
-
         for edge in triangle.edges() {
-            for (other_triangle_index, other_triangle) in triangles.iter().enumerate() {
-                if triangle_index != other_triangle_index {
-                    // Vertex index in the graph matches triangle index.
-                    let other_vertex_index = other_triangle_index;
+            // Adjacent edge must have opposite winding.
+            let adjacent_edge = Edge {
+                a: edge.b as usize,
+                b: edge.a as usize,
+            };
 
-                    'inner_edge_loop: for other_edge in other_triangle.edges() {
-                        if edge == other_edge {
-                            graph.link_bidirect(vertex_index, other_vertex_index);
-                            break 'inner_edge_loop;
-                        }
-                    }
-                }
+            if let Some(adjacent_triangle_index) = edge_triangle_map.get(&adjacent_edge) {
+                graph.link_bidirect(triangle_index, *adjacent_triangle_index);
             }
         }
     }
