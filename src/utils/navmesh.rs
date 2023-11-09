@@ -592,6 +592,19 @@ impl NavmeshAgent {
         self.speed
     }
 
+    /// Sets a new path recalculation threshold (in meters). The threshold is used to prevent
+    /// path recalculation in case if a target's position or the agent position haven't significantly
+    /// moved. This significance is defined by the threshold.
+    pub fn set_threshold(&mut self, threshold: f32) {
+        self.recalculation_threshold = threshold;
+    }
+
+    /// Returns the current path recalculation threshold (in meters). See [`Self::set_threshold`]
+    /// for more info.
+    pub fn threshold(&self) -> f32 {
+        self.recalculation_threshold
+    }
+
     /// Sets a new radius for the navmesh agent. The agent will use this radius to walk around
     /// corners with the distance equal to the radius. This could help to prevent the agent from
     /// being stuck in the corners. The default value is 0.2 meters.
