@@ -238,8 +238,8 @@ impl LogPanel {
                                 .with_context_menu(self.context_menu.menu.clone())
                                 .with_margin(Thickness::uniform(1.0))
                                 .with_foreground(Brush::Solid(match msg.kind {
-                                    MessageKind::Information => Color::opaque(210, 210, 210),
-                                    MessageKind::Warning => Color::ORANGE,
+                                    MessageKind::Information => Color::ANTIQUE_WHITE,
+                                    MessageKind::Warning => Color::GOLD,
                                     MessageKind::Error => Color::RED,
                                 })),
                         )
