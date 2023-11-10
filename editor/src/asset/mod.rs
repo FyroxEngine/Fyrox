@@ -438,6 +438,17 @@ impl AssetBrowser {
             }
         }
 
+        if let Ok(path) = path.canonicalize() {
+            if let Ok(working_dir) = std::env::current_dir().and_then(|dir| dir.canonicalize()) {
+                if path == working_dir {
+                    let state = resource_manager.state();
+                    for (path, _) in state.built_in_resources.iter() {
+                        self.add_asset(path, ui, &resource_manager);
+                    }
+                }
+            }
+        }
+
         if handle_to_select.is_some() {
             ui.send_message(AssetItemMessage::select(
                 handle_to_select,
