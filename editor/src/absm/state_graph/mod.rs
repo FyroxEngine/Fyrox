@@ -142,13 +142,12 @@ impl StateGraphViewer {
             if let Some(msg) = message.data::<AbsmCanvasMessage>() {
                 match msg {
                     AbsmCanvasMessage::CommitTransition {
-                        source_node: source,
-                        dest_node: dest,
+                        source_node,
+                        dest_node,
                     } => {
                         if message.direction() == MessageDirection::FromWidget {
-                            let source = fetch_state_node_model_handle(*source, ui);
-                            let dest = fetch_state_node_model_handle(*dest, ui);
-
+                            let source = fetch_state_node_model_handle(*source_node, ui);
+                            let dest = fetch_state_node_model_handle(*dest_node, ui);
                             sender.do_scene_command(AddTransitionCommand::new(
                                 absm_node_handle,
                                 layer_index,
@@ -208,6 +207,27 @@ impl StateGraphViewer {
                                     editor_scene.selection.clone(),
                                 ));
                             }
+                        }
+                    }
+                    AbsmCanvasMessage::CommitTransitionToAllNodes {
+                        source_node,
+                        dest_nodes,
+                    } => {
+                        if message.direction() == MessageDirection::FromWidget {
+                            let source = fetch_state_node_model_handle(*source_node, ui);
+                            let commands = dest_nodes
+                                .iter()
+                                .map(|node| {
+                                    let dest_state = fetch_state_node_model_handle(*node, ui);
+                                    SceneCommand::new(AddTransitionCommand::new(
+                                        absm_node_handle,
+                                        layer_index,
+                                        Transition::new("Transition", source, dest_state, 1.0, ""),
+                                    ))
+                                })
+                                .collect::<Vec<_>>();
+
+                            sender.do_scene_command(CommandGroup::from(commands));
                         }
                     }
                     _ => (),

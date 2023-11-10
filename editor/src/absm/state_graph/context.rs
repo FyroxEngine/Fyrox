@@ -1,8 +1,8 @@
 use crate::{
     absm::{
-        canvas::{AbsmCanvasMessage, Mode},
+        canvas::{AbsmCanvas, AbsmCanvasMessage, Mode},
         command::{
-            AddStateCommand, DeleteStateCommand, DeleteTransitionCommand,
+            AddStateCommand, AddTransitionCommand, DeleteStateCommand, DeleteTransitionCommand,
             SetMachineEntryStateCommand,
         },
         node::{AbsmNode, AbsmNodeMessage},
@@ -17,7 +17,7 @@ use crate::{
     },
 };
 use fyrox::{
-    animation::machine::State,
+    animation::machine::{State, Transition},
     core::pool::Handle,
     gui::{
         menu::MenuItemMessage,
@@ -30,8 +30,11 @@ use fyrox::{
     scene::{animation::absm::AnimationBlendingStateMachine, node::Node},
 };
 
+use super::fetch_state_node_model_handle;
+
 pub struct CanvasContextMenu {
     create_state: Handle<UiNode>,
+    connect_all_nodes: Handle<UiNode>,
     pub menu: RcUiNodeHandle,
     pub canvas: Handle<UiNode>,
     pub node_context_menu: Option<RcUiNodeHandle>,
@@ -40,12 +43,19 @@ pub struct CanvasContextMenu {
 impl CanvasContextMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let create_state;
+        let connect_all_nodes;
         let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
             .with_content(
-                StackPanelBuilder::new(WidgetBuilder::new().with_child({
-                    create_state = create_menu_item("Create State", vec![], ctx);
-                    create_state
-                }))
+                StackPanelBuilder::new(WidgetBuilder::new().with_children([
+                    {
+                        create_state = create_menu_item("Create State", vec![], ctx);
+                        create_state
+                    },
+                    {
+                        connect_all_nodes = create_menu_item("Connect all nodes", vec![], ctx);
+                        connect_all_nodes
+                    },
+                ]))
                 .build(ctx),
             )
             .build(ctx);
@@ -53,6 +63,7 @@ impl CanvasContextMenu {
 
         Self {
             create_state,
+            connect_all_nodes,
             menu,
             canvas: Default::default(),
             node_context_menu: Default::default(),
@@ -82,6 +93,36 @@ impl CanvasContextMenu {
                         root: Default::default(),
                     },
                 ));
+            } else if message.destination() == self.connect_all_nodes {
+                let canvas = ui
+                    .node(self.canvas)
+                    .query_component::<AbsmCanvas>()
+                    .unwrap();
+                let state_nodes = canvas.children();
+                let mut states = Vec::default();
+                for source in state_nodes {
+                    for dest in state_nodes {
+                        if source != dest {
+                            states.push((source, dest));
+                        }
+                    }
+                }
+
+                let commands = states
+                    .iter()
+                    .map(|(source_node, dest_node)| {
+                        let (source, dest) = (
+                            fetch_state_node_model_handle(**source_node, ui),
+                            fetch_state_node_model_handle(**dest_node, ui),
+                        );
+                        SceneCommand::new(AddTransitionCommand::new(
+                            absm_node_handle,
+                            layer_index,
+                            Transition::new("Transition", source, dest, 1.0, ""),
+                        ))
+                    })
+                    .collect::<Vec<_>>();
+                sender.do_scene_command(CommandGroup::from(commands));
             }
         }
     }
@@ -92,6 +133,7 @@ pub struct NodeContextMenu {
     remove: Handle<UiNode>,
     set_as_entry_state: Handle<UiNode>,
     enter_state: Handle<UiNode>,
+    connect_to_all_nodes: Handle<UiNode>,
     pub menu: RcUiNodeHandle,
     pub canvas: Handle<UiNode>,
     placement_target: Handle<UiNode>,
@@ -103,6 +145,7 @@ impl NodeContextMenu {
         let remove;
         let set_as_entry_state;
         let enter_state;
+        let connect_to_all_nodes;
         let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
             .with_content(
                 StackPanelBuilder::new(
@@ -123,6 +166,14 @@ impl NodeContextMenu {
                         .with_child({
                             enter_state = create_menu_item("Enter State", vec![], ctx);
                             enter_state
+                        })
+                        .with_child({
+                            connect_to_all_nodes = create_menu_item(
+                                "Create all transition from current state",
+                                vec![],
+                                ctx,
+                            );
+                            connect_to_all_nodes
                         }),
                 )
                 .build(ctx),
@@ -138,6 +189,7 @@ impl NodeContextMenu {
             placement_target: Default::default(),
             set_as_entry_state,
             enter_state,
+            connect_to_all_nodes,
         }
     }
 
@@ -149,6 +201,7 @@ impl NodeContextMenu {
         absm_node_handle: Handle<Node>,
         absm_node: &AnimationBlendingStateMachine,
         layer_index: usize,
+        // canvas: Handle<UiNode>,
         editor_scene: &EditorScene,
     ) {
         let machine = absm_node.machine();
@@ -233,6 +286,24 @@ impl NodeContextMenu {
                 ui.send_message(AbsmNodeMessage::enter(
                     self.placement_target,
                     MessageDirection::FromWidget,
+                ));
+            } else if message.destination == self.connect_to_all_nodes {
+                let canvas = ui
+                    .node(self.canvas)
+                    .cast::<AbsmCanvas>()
+                    .expect("Must be absm canvas");
+
+                let state_nodes = canvas
+                    .children()
+                    .iter()
+                    .cloned()
+                    .filter(|c| ui.node(*c).has_component::<AbsmNode<State>>())
+                    .collect::<Vec<_>>();
+                ui.send_message(AbsmCanvasMessage::commit_transition_to_all_nodes(
+                    self.canvas,
+                    MessageDirection::FromWidget,
+                    self.placement_target,
+                    state_nodes,
                 ));
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
