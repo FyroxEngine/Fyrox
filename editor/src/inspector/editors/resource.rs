@@ -178,9 +178,20 @@ where
         if let Some(WidgetMessage::Drop(dropped)) = message.data::<WidgetMessage>() {
             if message.destination() == self.handle() {
                 if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                    if let Ok(relative_path) = make_relative_path(&item.path) {
+                    let path = if self
+                        .resource_manager
+                        .state()
+                        .built_in_resources
+                        .contains_key(&item.path)
+                    {
+                        Ok(item.path.clone())
+                    } else {
+                        make_relative_path(&item.path)
+                    };
+
+                    if let Ok(path) = path {
                         if let Some(Ok(value)) =
-                            (self.loader)(&self.resource_manager, relative_path.as_path())
+                            (self.loader)(&self.resource_manager, path.as_path())
                         {
                             ui.send_message(ResourceFieldMessage::value(
                                 self.handle(),
