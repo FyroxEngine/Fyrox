@@ -428,6 +428,10 @@ impl ResourceManagerState {
     where
         P: AsRef<Path>,
     {
+        if let Some(built_in_resource) = self.built_in_resources.get(path.as_ref()) {
+            return built_in_resource.clone();
+        }
+
         match self.find(path.as_ref()) {
             Some(existing) => existing.clone(),
             None => {
