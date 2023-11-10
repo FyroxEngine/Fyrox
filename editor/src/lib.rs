@@ -71,6 +71,7 @@ use crate::{
             ChangeSelectionCommand, CommandGroup, PasteCommand, SceneCommand, SceneContext,
         },
         dialog::NodeRemovalDialog,
+        selector::HierarchyNode,
         settings::SceneSettingsWindow,
         EditorScene, Selection,
     },
@@ -80,9 +81,8 @@ use crate::{
     utils::{doc::DocWindow, path_fixer::PathFixer},
     world::{graph::selection::GraphSelection, WorldViewer},
 };
-use fyrox::{asset::io::FsResourceIo, event_loop::EventLoopWindowTarget};
 use fyrox::{
-    asset::manager::ResourceManager,
+    asset::{io::FsResourceIo, manager::ResourceManager},
     core::{
         algebra::{Matrix3, Vector2},
         color::Color,
@@ -97,7 +97,7 @@ use fyrox::{
     dpi::{PhysicalPosition, PhysicalSize},
     engine::{Engine, EngineInitParams, GraphicsContextParams, SerializationContext},
     event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
     fxhash::FxHashMap,
     gui::{
         brush::Brush,
@@ -147,7 +147,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::scene::selector::HierarchyNode;
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -1022,7 +1021,7 @@ impl Editor {
 
         let scene_settings = SceneSettingsWindow::new(ctx, message_sender.clone());
 
-        let material_editor = MaterialEditor::new(&mut engine);
+        let material_editor = MaterialEditor::new(&mut engine, message_sender.clone());
 
         if let Some(layout) = settings.windows.layout.as_ref() {
             engine
