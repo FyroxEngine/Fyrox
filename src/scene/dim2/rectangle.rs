@@ -5,8 +5,9 @@
 
 use crate::{
     core::{
+        algebra::Point3,
         color::Color,
-        math::{aabb::AxisAlignedBoundingBox, Rect},
+        math::{aabb::AxisAlignedBoundingBox, Rect, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
         uuid::{uuid, Uuid},
@@ -14,10 +15,13 @@ use crate::{
         visitor::prelude::*,
         TypeUuidProvider,
     },
+    material::{Material, SharedMaterial},
+    renderer::batch::RenderContext,
     resource::texture::TextureResource,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
+        mesh::{vertex::StaticVertex, RenderPath},
         node::{Node, NodeTrait},
     },
 };
@@ -113,6 +117,9 @@ pub struct Rectangle {
     #[reflect(setter = "set_uv_rect")]
     #[visit(optional)] // Backward compatibility
     uv_rect: InheritableVariable<Rect<f32>>,
+
+    #[visit(optional)]
+    material: InheritableVariable<SharedMaterial>,
 }
 
 impl Default for Rectangle {
@@ -122,6 +129,9 @@ impl Default for Rectangle {
             texture: Default::default(),
             color: Default::default(),
             uv_rect: InheritableVariable::new_modified(Rect::new(0.0, 0.0, 1.0, 1.0)),
+            material: InheritableVariable::new_modified(SharedMaterial::new(
+                Material::standard_2d(),
+            )),
         }
     }
 }
@@ -207,6 +217,50 @@ impl NodeTrait for Rectangle {
     fn id(&self) -> Uuid {
         Self::type_uuid()
     }
+
+    fn collect_render_data(&self, ctx: &mut RenderContext) {
+        let global_transform = self.global_transform();
+
+        let vertices = [
+            StaticVertex::from_pos_uv(
+                global_transform
+                    .transform_point(&Point3::new(-0.5, 0.5, 0.0))
+                    .coords,
+                self.uv_rect.left_top_corner(),
+            ),
+            StaticVertex::from_pos_uv(
+                global_transform
+                    .transform_point(&Point3::new(0.5, 0.5, 0.0))
+                    .coords,
+                self.uv_rect.right_top_corner(),
+            ),
+            StaticVertex::from_pos_uv(
+                global_transform
+                    .transform_point(&Point3::new(0.5, -0.5, 0.0))
+                    .coords,
+                self.uv_rect.right_bottom_corner(),
+            ),
+            StaticVertex::from_pos_uv(
+                global_transform
+                    .transform_point(&Point3::new(-0.5, -0.5, 0.0))
+                    .coords,
+                self.uv_rect.left_bottom_corner(),
+            ),
+        ];
+
+        let triangles = [TriangleDefinition([0, 1, 2]), TriangleDefinition([2, 3, 0])];
+
+        ctx.storage.push_triangles(
+            &vertices,
+            &triangles,
+            &self.material,
+            RenderPath::Forward,
+            0,
+            0,
+            false,
+            self.self_handle,
+        )
+    }
 }
 
 /// Allows you to create rectangle in declarative manner.
@@ -215,6 +269,7 @@ pub struct RectangleBuilder {
     texture: Option<TextureResource>,
     color: Color,
     uv_rect: Rect<f32>,
+    material: SharedMaterial,
 }
 
 impl RectangleBuilder {
@@ -225,6 +280,7 @@ impl RectangleBuilder {
             texture: None,
             color: Color::WHITE,
             uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
+            material: SharedMaterial::new(Material::standard_2d()),
         }
     }
 
@@ -247,6 +303,11 @@ impl RectangleBuilder {
         self
     }
 
+    pub fn with_material(mut self, material: SharedMaterial) -> Self {
+        self.material = material;
+        self
+    }
+
     /// Creates new [`Rectangle`] instance.
     pub fn build_rectangle(self) -> Rectangle {
         Rectangle {
@@ -254,6 +315,7 @@ impl RectangleBuilder {
             texture: self.texture.into(),
             color: self.color.into(),
             uv_rect: self.uv_rect.into(),
+            material: self.material.into(),
         }
     }
 

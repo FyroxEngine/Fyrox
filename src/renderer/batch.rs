@@ -1,10 +1,12 @@
 //! The module responsible for batch generation for rendering optimizations.
 
-use crate::scene::node::Node;
+use crate::scene::mesh::buffer::{TriangleBuffer, VertexBuffer, VertexTrait};
+use crate::scene::mesh::surface::SurfaceData;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
         math::frustum::Frustum,
+        pool::Handle,
         sstorage::ImmutableString,
     },
     material::SharedMaterial,
@@ -12,14 +14,16 @@ use crate::{
     scene::{
         graph::Graph,
         mesh::{surface::SurfaceSharedData, RenderPath},
+        node::Node,
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
-use fyrox_core::pool::Handle;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::Hash;
+use fyrox_core::math::TriangleDefinition;
+use std::any::TypeId;
 use std::{
+    collections::hash_map::DefaultHasher,
     fmt::{Debug, Formatter},
+    hash::Hash,
     hash::Hasher,
 };
 
@@ -203,6 +207,81 @@ impl RenderDataBatchStorage {
         storage.sort();
 
         storage
+    }
+
+    pub fn push_triangles<T>(
+        &mut self,
+        vertices: &[T],
+        local_triangles: &[TriangleDefinition],
+        material: &SharedMaterial,
+        render_path: RenderPath,
+        decal_layer_index: u8,
+        sort_index: u64,
+        is_skinned: bool,
+        node_handle: Handle<Node>,
+    ) where
+        T: VertexTrait,
+    {
+        let mut hasher = FxHasher::default();
+        hasher.write_u64(material.key());
+        TypeId::of::<T>().hash(&mut hasher);
+        hasher.write_u8(if is_skinned { 1 } else { 0 });
+        hasher.write_u8(decal_layer_index);
+        hasher.write_u32(render_path as u32);
+        let key = hasher.finish();
+
+        let batch = if let Some(&batch_index) = self.batch_map.get(&key) {
+            self.batches.get_mut(batch_index).unwrap()
+        } else {
+            // Initialize empty vertex buffer.
+            let vertex_buffer =
+                VertexBuffer::new::<T>(0, Vec::with_capacity(vertices.len())).unwrap();
+
+            // Initialize empty triangle buffer.
+            let triangle_buffer = TriangleBuffer::new(Vec::with_capacity(local_triangles.len()));
+
+            // Create temporary surface data (valid for one frame).
+            let data =
+                SurfaceSharedData::new(SurfaceData::new(vertex_buffer, triangle_buffer, true));
+
+            self.batch_map.insert(key, self.batches.len());
+            let persistent_identifier = PersistentIdentifier::new_combined(&data, node_handle, 0);
+            self.batches.push(RenderDataBatch {
+                data,
+                sort_index,
+                instances: vec![
+                    // Each batch must have at least one instance to be rendered.
+                    SurfaceInstanceData {
+                        world_transform: Matrix4::identity(),
+                        bone_matrices: Default::default(),
+                        depth_offset: Default::default(),
+                        blend_shapes_weights: Default::default(),
+                        element_range: Default::default(),
+                        persistent_identifier,
+                        node_handle,
+                    },
+                ],
+                material: material.clone(),
+                is_skinned,
+                render_path,
+                decal_layer_index,
+            });
+            self.batches.last_mut().unwrap()
+        };
+
+        let mut data = batch.data.lock();
+        let last_vertex_index = data.vertex_buffer.vertex_count();
+
+        // Append vertices.
+        data.vertex_buffer
+            .modify()
+            .push_vertices(vertices)
+            .expect("Vertex types mismatch!");
+
+        // Write triangle indices, but offset each by last vertex index to prevent overlapping.
+        data.geometry_buffer
+            .modify()
+            .push_triangles_iter(local_triangles.iter().map(|t| t.add(last_vertex_index)));
     }
 
     /// Adds a new surface instance to the storage. The method will automatically put the instance in the appropriate

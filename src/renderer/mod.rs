@@ -1708,18 +1708,19 @@ impl Renderer {
                     viewport,
                     textures: &mut self.texture_cache,
                 })?;
+                /*
 
-                self.statistics += self.renderer2d.render(
-                    state,
-                    camera,
-                    &mut scene_associated_data.hdr_scene_framebuffer,
-                    viewport,
-                    graph,
-                    &mut self.texture_cache,
-                    self.white_dummy.clone(),
-                    scene.rendering_options.ambient_lighting_color,
-                )?;
-
+                                self.statistics += self.renderer2d.render(
+                                    state,
+                                    camera,
+                                    &mut scene_associated_data.hdr_scene_framebuffer,
+                                    viewport,
+                                    graph,
+                                    &mut self.texture_cache,
+                                    self.white_dummy.clone(),
+                                    scene.rendering_options.ambient_lighting_color,
+                                )?;
+                */
                 self.statistics += self.forward_renderer.render(ForwardRenderContext {
                     state,
                     camera,

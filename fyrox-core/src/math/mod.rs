@@ -745,6 +745,11 @@ impl TriangleDefinition {
             },
         ]
     }
+
+    #[inline]
+    pub fn add(&self, i: u32) -> Self {
+        Self([self.0[0] + i, self.0[1] + i, self.0[2] + i])
+    }
 }
 
 impl Visit for TriangleDefinition {
