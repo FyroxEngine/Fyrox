@@ -1304,6 +1304,10 @@ impl<'a> TriangleBufferRefMut<'a> {
         self.triangles.extend_from_slice(triangles)
     }
 
+    pub fn push_triangles_iter(&mut self, triangles: impl Iterator<Item = TriangleDefinition>) {
+        self.triangles.extend(triangles)
+    }
+
     /// Clears the buffer.
     pub fn clear(&mut self) {
         self.triangles.clear();
