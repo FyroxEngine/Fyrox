@@ -77,6 +77,12 @@ pub(super) enum AbsmCanvasMessage {
     CommitDrag {
         entries: Vec<Entry>,
     },
+
+    CommitTransitionToAllNodes {
+        source_node: Handle<UiNode>,
+        dest_nodes: Vec<Handle<UiNode>>,
+    },
+
     SelectionChanged(Vec<Handle<UiNode>>),
     ForceSyncDependentObjects,
 }
@@ -86,6 +92,7 @@ impl AbsmCanvasMessage {
     define_constructor!(AbsmCanvasMessage:CommitTransition => fn commit_transition(source_node: Handle<UiNode>, dest_node: Handle<UiNode>), layout: false);
     define_constructor!(AbsmCanvasMessage:CommitConnection => fn commit_connection(source_socket: Handle<UiNode>, dest_socket: Handle<UiNode>), layout: false);
     define_constructor!(AbsmCanvasMessage:CommitDrag => fn commit_drag(entries: Vec<Entry>), layout: false);
+    define_constructor!(AbsmCanvasMessage:CommitTransitionToAllNodes => fn commit_transition_to_all_nodes(source_node: Handle<UiNode>, dest_nodes: Vec<Handle<UiNode>>), layout: false);
     define_constructor!(AbsmCanvasMessage:SelectionChanged => fn selection_changed(Vec<Handle<UiNode>>), layout: false);
     define_constructor!(AbsmCanvasMessage:ForceSyncDependentObjects => fn force_sync_dependent_objects(), layout: true);
 }
@@ -363,7 +370,7 @@ impl Control for AbsmCanvas {
             None,
         );
 
-        match self.mode {
+        match &self.mode {
             Mode::CreateTransition {
                 source_pos,
                 dest_pos,
@@ -373,8 +380,8 @@ impl Control for AbsmCanvas {
                     ctx,
                     self.clip_bounds(),
                     Brush::Solid(Color::WHITE),
-                    source_pos,
-                    dest_pos,
+                    *source_pos,
+                    *dest_pos,
                 );
             }
             Mode::CreateConnection {
@@ -384,12 +391,13 @@ impl Control for AbsmCanvas {
             } => {
                 connection::draw_connection(
                     ctx,
-                    source_pos,
-                    dest_pos,
+                    *source_pos,
+                    *dest_pos,
                     self.clip_bounds(),
                     Brush::Solid(Color::WHITE),
                 );
             }
+
             _ => {}
         }
     }
@@ -472,6 +480,7 @@ impl Control for AbsmCanvas {
                             self.set_selection(&[], ui);
                         }
                     }
+
                     _ => {}
                 }
             }
@@ -509,7 +518,7 @@ impl Control for AbsmCanvas {
                             // Do not allow to create connections between sockets of the same node.
                             if dest_socket_ref.parent_node != source_socket_ref.parent_node
                                 // Only allow to create connections either from Input -> Output, or
-                                // Output -> Input. Input -> Input or Output -> Output is now 
+                                // Output -> Input. Input -> Input or Output -> Output is now
                                 // allowed.
                                 && dest_socket_ref.direction != source_socket_ref.direction
                             {
@@ -530,6 +539,7 @@ impl Control for AbsmCanvas {
 
                         self.mode = Mode::Normal;
                     }
+
                     _ => {}
                 }
             }
