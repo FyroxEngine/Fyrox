@@ -9,7 +9,7 @@ use crate::{
         math::TriangleDefinition,
         visitor::prelude::*,
     },
-    utils::value_as_u8_slice,
+    utils::{array_as_u8_slice, value_as_u8_slice},
 };
 use fxhash::FxHasher;
 use std::{
@@ -25,7 +25,7 @@ use std::{
 /// A common trait for all vertex types. **IMPORTANT:** Implementors **must** use `#[repr(C)]` attribute, otherwise the compiler
 /// is free to reorder fields and you might get weird results, because definition order will be different from memory order! See
 /// examples in [`VertexBuffer`] docs.
-pub trait VertexTrait: Copy {
+pub trait VertexTrait: Copy + 'static {
     /// Returns memory layout of the vertex. It basically tells a GPU how to interpret every byte range
     /// of your vertex type; which kind of information it holds.
     fn layout() -> &'static [VertexAttributeDescriptor];
@@ -373,6 +373,66 @@ impl<'a> VertexBufferRefMut<'a> {
                 .data
                 .extend_from_slice(value_as_u8_slice(vertex));
             self.vertex_buffer.vertex_count += 1;
+            Ok(())
+        } else {
+            Err(ValidationError::InvalidVertexSize {
+                expected: self.vertex_buffer.vertex_size,
+                actual: std::mem::size_of::<T>() as u8,
+            })
+        }
+    }
+
+    /// Tries to append a slice of vertices to the buffer.
+    ///
+    /// # Safety and validation
+    ///
+    /// This method accepts any type that has appropriate size, the size must be equal
+    /// with the size defined by layout. The Copy trait bound is required to ensure that
+    /// the type does not have any custom destructors.
+    pub fn push_vertices<T>(&mut self, vertices: &[T]) -> Result<(), ValidationError>
+    where
+        T: VertexTrait,
+    {
+        if std::mem::size_of::<T>() == self.vertex_buffer.vertex_size as usize {
+            self.vertex_buffer
+                .data
+                .extend_from_slice(array_as_u8_slice(vertices));
+            self.vertex_buffer.vertex_count += vertices.len() as u32;
+            Ok(())
+        } else {
+            Err(ValidationError::InvalidVertexSize {
+                expected: self.vertex_buffer.vertex_size,
+                actual: std::mem::size_of::<T>() as u8,
+            })
+        }
+    }
+
+    /// Tries to append a slice of vertices to the buffer. Each vertex will be transformed using
+    /// `transformer` callback.
+    ///
+    /// # Safety and validation
+    ///
+    /// This method accepts any type that has appropriate size, the size must be equal
+    /// with the size defined by layout. The Copy trait bound is required to ensure that
+    /// the type does not have any custom destructors.
+    pub fn push_vertices_transform<T, F>(
+        &mut self,
+        vertices: &[T],
+        mut transformer: F,
+    ) -> Result<(), ValidationError>
+    where
+        T: VertexTrait,
+        F: FnMut(&T) -> T,
+    {
+        if std::mem::size_of::<T>() == self.vertex_buffer.vertex_size as usize {
+            for vertex in vertices {
+                let transformed = transformer(vertex);
+
+                self.vertex_buffer
+                    .data
+                    .extend_from_slice(value_as_u8_slice(&transformed));
+            }
+            self.vertex_buffer.vertex_count += vertices.len() as u32;
             Ok(())
         } else {
             Err(ValidationError::InvalidVertexSize {
@@ -1238,6 +1298,10 @@ impl<'a> TriangleBufferRefMut<'a> {
     /// Adds new triangle in the buffer.
     pub fn push(&mut self, triangle: TriangleDefinition) {
         self.triangles.push(triangle)
+    }
+
+    pub fn push_triangles(&mut self, triangles: &[TriangleDefinition]) {
+        self.triangles.extend_from_slice(triangles)
     }
 
     /// Clears the buffer.
