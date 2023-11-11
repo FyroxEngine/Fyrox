@@ -5,6 +5,7 @@
 
 use crate::{
     core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
+    core::{reflect::prelude::*, visitor::prelude::*},
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
@@ -17,9 +18,10 @@ use std::{
 };
 
 /// Size mode defines how grid's dimension (see [`GridDimension`]) will behave on layout step.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Reflect, Visit, Default)]
 pub enum SizeMode {
     /// Strict size of the dimension.
+    #[default]
     Strict,
     /// Size of the dimension will match the size of the inner content.
     Auto,
@@ -28,7 +30,7 @@ pub enum SizeMode {
 }
 
 /// Grid dimension defines sizing rules and constraints for [`Grid`]'s rows and columns.
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug, Reflect, Visit, Default)]
 pub struct GridDimension {
     /// Current size mode of the dimension.
     pub size_mode: SizeMode,
@@ -138,7 +140,7 @@ pub type Row = GridDimension;
 /// You can add any number of rows and columns to a grid widget, and each grid cell does **not** need to have a UI widget
 /// in it to be valid. For example you can add a column and set it to a specific size via strict to provide spacing between
 /// two other columns.
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct Grid {
     /// Base widget of the grid.
     pub widget: Widget,
@@ -151,10 +153,14 @@ pub struct Grid {
     /// Defines border thickness when `draw_border` is on.
     pub border_thickness: f32,
     /// Current set of cells of the grid.
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub cells: RefCell<Vec<Cell>>,
     /// A set of four groups, where each group contains cell indices. It is used for measurement
     /// purposes to group the cells in specific way, so it can be measured in the correct order
     /// later.
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub groups: RefCell<[Vec<usize>; 4]>,
 }
 
@@ -162,7 +168,7 @@ crate::define_widget_deref!(Grid);
 
 /// Cell of the grid, that contains additional information for layout purposes. It does not have any
 /// particular use outside of grid's internals.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Cell {
     /// A set of nodes of the cell.
     pub nodes: Vec<Handle<UiNode>>,

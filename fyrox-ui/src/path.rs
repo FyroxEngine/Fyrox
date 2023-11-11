@@ -6,6 +6,7 @@
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::pool::Handle,
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     file_browser::{FileSelectorBuilder, FileSelectorMessage},
     grid::{Column, GridBuilder, Row},
@@ -59,7 +60,7 @@ impl PathEditorMessage {
 ///
 /// To receive the changes, listen to [`PathEditorMessage::Path`] and check for its direction, it should be [`MessageDirection::FromWidget`].
 /// To set a new path value, send [`PathEditorMessage::Path`] message, but with [`MessageDirection::ToWidget`].
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct PathEditor {
     /// Base widget of the editor.
     pub widget: Widget,

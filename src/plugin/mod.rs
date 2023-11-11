@@ -2,17 +2,20 @@
 
 #![warn(missing_docs)]
 
-use crate::engine::ScriptProcessor;
 use crate::{
     asset::manager::ResourceManager,
     core::pool::Handle,
-    engine::{GraphicsContext, PerformanceStatistics, SerializationContext},
+    engine::{
+        AsyncSceneLoader, GraphicsContext, PerformanceStatistics, ScriptProcessor,
+        SerializationContext,
+    },
     event::Event,
-    event_loop::ControlFlow,
     gui::{message::UiMessage, UserInterface},
     scene::{Scene, SceneContainer},
 };
-use std::{any::Any, sync::Arc};
+use fyrox_core::visitor::VisitError;
+use std::{any::Any, path::Path, sync::Arc};
+use winit::event_loop::EventLoopWindowTarget;
 
 /// Plugin constructor is a first step of 2-stage plugin initialization. It is responsible for plugin script
 /// registration and for creating actual plugin instance.
@@ -30,15 +33,12 @@ pub trait PluginConstructor {
     /// The method is called when the engine creates plugin instances. It allows to create initialized plugin
     /// instance.
     ///
-    /// # Important notes
+    /// ## Arguments
     ///
-    /// `override_scene` is a handle to an override scene that is currently active. It is used only in editor
-    /// when you enter play mode, on other cases it is `Handle::NONE`.
-    fn create_instance(
-        &self,
-        #[allow(unused_variables)] override_scene: Handle<Scene>,
-        context: PluginContext,
-    ) -> Box<dyn Plugin>;
+    /// `scene_path` argument tells you that there's already a scene specified. It is used primarily
+    /// by the editor, to run your game with a scene you have current opened in the editor. Typical
+    /// usage would be: `scene_path.unwrap_or("a/path/to/my/default/scene.rgs")`
+    fn create_instance(&self, scene_path: Option<&str>, context: PluginContext) -> Box<dyn Plugin>;
 }
 
 /// Contains plugin environment for the registration stage.
@@ -94,6 +94,14 @@ pub struct PluginContext<'a, 'b> {
 
     /// Script processor is used to run script methods in a strict order.
     pub script_processor: &'a ScriptProcessor,
+
+    /// Asynchronous scene loader. It is used to request scene loading. See [`AsyncSceneLoader`] docs
+    /// for usage example.
+    pub async_scene_loader: &'a mut AsyncSceneLoader,
+
+    /// Special field that associates main application event loop (not game loop) with OS-specific
+    /// windows. It also can be used to alternate control flow of the application.
+    pub window_target: Option<&'b EventLoopWindowTarget<()>>,
 }
 
 /// Base plugin automatically implements type casting for plugins.
@@ -156,7 +164,6 @@ impl dyn Plugin {
 ///     event::Event
 /// };
 /// use std::str::FromStr;
-/// use fyrox::event_loop::ControlFlow;
 ///
 /// #[derive(Default)]
 /// struct MyPlugin {}
@@ -167,12 +174,12 @@ impl dyn Plugin {
 ///         // The implementation is optional.
 ///     }
 ///
-///     fn update(&mut self, context: &mut PluginContext, control_flow: &mut ControlFlow) {
+///     fn update(&mut self, context: &mut PluginContext) {
 ///         // The method is called on every frame, it is guaranteed to have fixed update rate.
 ///         // The implementation is optional.
 ///     }
 ///
-///     fn on_os_event(&mut self, event: &Event<()>, context: PluginContext, control_flow: &mut ControlFlow) {
+///     fn on_os_event(&mut self, event: &Event<()>, context: PluginContext) {
 ///         // The method is called when the main window receives an event from the OS.
 ///     }
 /// }
@@ -184,12 +191,7 @@ pub trait Plugin: BasePlugin {
 
     /// Updates the plugin internals at fixed rate (see [`PluginContext::dt`] parameter for more
     /// info).
-    fn update(
-        &mut self,
-        #[allow(unused_variables)] context: &mut PluginContext,
-        #[allow(unused_variables)] control_flow: &mut ControlFlow,
-    ) {
-    }
+    fn update(&mut self, #[allow(unused_variables)] context: &mut PluginContext) {}
 
     /// The method is called when the main window receives an event from the OS. The main use of
     /// the method is to respond to some external events, for example an event from keyboard or
@@ -198,7 +200,6 @@ pub trait Plugin: BasePlugin {
         &mut self,
         #[allow(unused_variables)] event: &Event<()>,
         #[allow(unused_variables)] context: PluginContext,
-        #[allow(unused_variables)] control_flow: &mut ControlFlow,
     ) {
     }
 
@@ -207,25 +208,15 @@ pub trait Plugin: BasePlugin {
     fn on_graphics_context_initialized(
         &mut self,
         #[allow(unused_variables)] context: PluginContext,
-        #[allow(unused_variables)] control_flow: &mut ControlFlow,
     ) {
     }
 
     /// The method is called before the actual frame rendering. It could be useful to render off-screen
     /// data (render something to texture, that can be used later in the main frame).
-    fn before_rendering(
-        &mut self,
-        #[allow(unused_variables)] context: PluginContext,
-        #[allow(unused_variables)] control_flow: &mut ControlFlow,
-    ) {
-    }
+    fn before_rendering(&mut self, #[allow(unused_variables)] context: PluginContext) {}
 
     /// The method is called when the current graphics context was destroyed.
-    fn on_graphics_context_destroyed(
-        &mut self,
-        #[allow(unused_variables)] context: PluginContext,
-        #[allow(unused_variables)] control_flow: &mut ControlFlow,
-    ) {
+    fn on_graphics_context_destroyed(&mut self, #[allow(unused_variables)] context: PluginContext) {
     }
 
     /// The method will be called when there is any message from main user interface instance
@@ -234,7 +225,38 @@ pub trait Plugin: BasePlugin {
         &mut self,
         #[allow(unused_variables)] context: &mut PluginContext,
         #[allow(unused_variables)] message: &UiMessage,
-        #[allow(unused_variables)] control_flow: &mut ControlFlow,
+    ) {
+    }
+
+    /// This method is called when the engine starts loading a scene from the given `path`. It could
+    /// be used to "catch" the moment when the scene is about to be loaded; to show a progress bar
+    /// for example. See [`AsyncSceneLoader`] docs for usage example.
+    fn on_scene_begin_loading(
+        &mut self,
+        #[allow(unused_variables)] path: &Path,
+        #[allow(unused_variables)] context: &mut PluginContext,
+    ) {
+    }
+
+    /// This method is called when the engine finishes loading a scene from the given `path`. Use
+    /// this method if you need do something with a newly loaded scene. See [`AsyncSceneLoader`] docs
+    /// for usage example.
+    fn on_scene_loaded(
+        &mut self,
+        #[allow(unused_variables)] path: &Path,
+        #[allow(unused_variables)] scene: Handle<Scene>,
+        #[allow(unused_variables)] data: &[u8],
+        #[allow(unused_variables)] context: &mut PluginContext,
+    ) {
+    }
+
+    /// This method is called when the engine finishes loading a scene from the given `path` with
+    /// some error. This method could be used to report any issues to a user.
+    fn on_scene_loading_failed(
+        &mut self,
+        #[allow(unused_variables)] path: &Path,
+        #[allow(unused_variables)] error: &VisitError,
+        #[allow(unused_variables)] context: &mut PluginContext,
     ) {
     }
 }

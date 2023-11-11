@@ -164,7 +164,8 @@ impl PreviewPanel {
         scene.rendering_options = SceneRenderingOptions {
             render_target: Some(render_target.clone()),
             ..Default::default()
-        };
+        }
+        .into();
 
         let scene = engine.scenes.add(scene);
 

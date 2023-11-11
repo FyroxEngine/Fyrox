@@ -2,6 +2,7 @@ use crate::utils::make_node_name;
 use fyrox::gui::scroll_viewer::ScrollViewerMessage;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     gui::{
         border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
@@ -107,7 +108,7 @@ struct TreeData {
     handle: Handle<Node>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct NodeSelector {
     widget: Widget,
     tree_root: Handle<UiNode>,
@@ -332,7 +333,7 @@ impl NodeSelectorBuilder {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct NodeSelectorWindow {
     window: Window,
     selector: Handle<UiNode>,

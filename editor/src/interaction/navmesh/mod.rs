@@ -41,7 +41,6 @@ use fyrox::{
         BuildContext, Orientation, Thickness, UiNode, UserInterface,
     },
     scene::{camera::Camera, navmesh::NavigationalMesh, node::Node},
-    utils::astar::PathVertex,
 };
 use std::collections::HashMap;
 
@@ -166,7 +165,7 @@ enum DragContext {
         initial_positions: HashMap<usize, Vector3<f32>>,
     },
     EdgeDuplication {
-        vertices: [PathVertex; 2],
+        vertices: [Vector3<f32>; 2],
         opposite_edge: TriangleEdge,
     },
 }
@@ -244,7 +243,7 @@ impl InteractionMode for EditNavmeshMode {
                 {
                     let mut initial_positions = HashMap::new();
                     for (index, vertex) in navmesh.vertices().iter().enumerate() {
-                        initial_positions.insert(index, vertex.position);
+                        initial_positions.insert(index, *vertex);
                     }
                     self.plane_kind = plane_kind;
                     self.drag_context = Some(DragContext::MoveSelection { initial_positions });
@@ -262,7 +261,7 @@ impl InteractionMode for EditNavmeshMode {
                 let mut picked = false;
                 for (index, vertex) in navmesh.vertices().iter().enumerate() {
                     if ray
-                        .sphere_intersection(&vertex.position, settings.navmesh.vertex_radius)
+                        .sphere_intersection(vertex, settings.navmesh.vertex_radius)
                         .is_some()
                     {
                         new_selection.add(NavmeshEntity::Vertex(index));
@@ -274,8 +273,8 @@ impl InteractionMode for EditNavmeshMode {
                 if !picked {
                     for triangle in navmesh.triangles().iter() {
                         for edge in &triangle.edges() {
-                            let begin = navmesh.vertices()[edge.a as usize].position;
-                            let end = navmesh.vertices()[edge.b as usize].position;
+                            let begin = navmesh.vertices()[edge.a as usize];
+                            let end = navmesh.vertices()[edge.b as usize];
                             if ray
                                 .cylinder_intersection(
                                     &begin,
@@ -332,7 +331,7 @@ impl InteractionMode for EditNavmeshMode {
                                     selection.navmesh_node(),
                                     *vertex,
                                     *initial_positions.get(vertex).unwrap(),
-                                    navmesh.vertices()[*vertex].position,
+                                    navmesh.vertices()[*vertex],
                                 )));
                             }
                         }
@@ -340,8 +339,8 @@ impl InteractionMode for EditNavmeshMode {
                             vertices,
                             opposite_edge,
                         } => {
-                            let va = vertices[0].clone();
-                            let vb = vertices[1].clone();
+                            let va = vertices[0];
+                            let vb = vertices[1];
 
                             commands.push(SceneCommand::new(AddNavmeshEdgeCommand::new(
                                 selection.navmesh_node(),
@@ -397,8 +396,8 @@ impl InteractionMode for EditNavmeshMode {
                         if engine.user_interface.keyboard_modifiers().shift
                             && !self.drag_context.as_ref().unwrap().is_edge_duplication()
                         {
-                            let new_begin = navmesh.vertices()[edge.a as usize].clone();
-                            let new_end = navmesh.vertices()[edge.b as usize].clone();
+                            let new_begin = navmesh.vertices()[edge.a as usize];
+                            let new_end = navmesh.vertices()[edge.b as usize];
 
                             self.drag_context = Some(DragContext::EdgeDuplication {
                                 vertices: [new_begin, new_end],
@@ -421,12 +420,12 @@ impl InteractionMode for EditNavmeshMode {
                     match drag_context {
                         DragContext::MoveSelection { .. } => {
                             for &vertex in &*selection.unique_vertices() {
-                                navmesh.vertices_mut()[vertex].position += offset;
+                                navmesh.vertices_mut()[vertex] += offset;
                             }
                         }
                         DragContext::EdgeDuplication { vertices, .. } => {
                             for vertex in vertices.iter_mut() {
-                                vertex.position += offset;
+                                *vertex += offset;
                             }
                         }
                     }
@@ -463,7 +462,7 @@ impl InteractionMode for EditNavmeshMode {
                 {
                     for vertex in vertices.iter() {
                         scene.drawing_context.draw_sphere(
-                            vertex.position,
+                            *vertex,
                             10,
                             10,
                             settings.navmesh.vertex_radius,
@@ -471,10 +470,10 @@ impl InteractionMode for EditNavmeshMode {
                         );
                     }
 
-                    let ob = navmesh.vertices()[opposite_edge.a as usize].position;
-                    let nb = vertices[0].position;
-                    let oe = navmesh.vertices()[opposite_edge.b as usize].position;
-                    let ne = vertices[1].position;
+                    let ob = navmesh.vertices()[opposite_edge.a as usize];
+                    let nb = vertices[0];
+                    let oe = navmesh.vertices()[opposite_edge.b as usize];
+                    let ne = vertices[1];
 
                     scene.drawing_context.add_line(fyrox::scene::debug::Line {
                         begin: nb,
@@ -497,10 +496,10 @@ impl InteractionMode for EditNavmeshMode {
                 if let Some(first) = selection.first() {
                     gizmo_visible = true;
                     gizmo_position = match *first {
-                        NavmeshEntity::Vertex(v) => navmesh.vertices()[v].position,
+                        NavmeshEntity::Vertex(v) => navmesh.vertices()[v],
                         NavmeshEntity::Edge(edge) => {
-                            let a = navmesh.vertices()[edge.a as usize].position;
-                            let b = navmesh.vertices()[edge.b as usize].position;
+                            let a = navmesh.vertices()[edge.a as usize];
+                            let b = navmesh.vertices()[edge.b as usize];
                             (a + b).scale(0.5)
                         }
                     };

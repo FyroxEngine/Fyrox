@@ -7,6 +7,7 @@ use crate::{
     border::BorderBuilder,
     brush::Brush,
     core::{algebra::Vector2, color::Color, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     decorator::DecoratorBuilder,
     define_constructor,
     grid::{Column, GridBuilder, Row},
@@ -144,7 +145,7 @@ impl MenuItemMessage {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct Menu {
     widget: Widget,
     active: bool,
@@ -253,17 +254,18 @@ impl Control for Menu {
 }
 
 /// A set of possible placements of a popup with items of a menu item.
-#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Eq, Hash, Visit, Reflect, Default, Debug)]
 pub enum MenuItemPlacement {
     /// Bottom placement.
     Bottom,
     /// Right placement.
+    #[default]
     Right,
 }
 
 /// Menu item is a widget with arbitrary content, that has a "floating" panel (popup) for sub-items if the menu item. This was menu items can form
 /// arbitrary hierarchies. See [`Menu`] docs for examples.
-#[derive(Clone)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct MenuItem {
     /// Base widget of the menu item.
     pub widget: Widget,

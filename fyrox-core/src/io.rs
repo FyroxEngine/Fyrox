@@ -48,7 +48,7 @@ pub async fn load_file<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, FileLoadError
         let mut opened_asset = asset_manager
             .open(&std::ffi::CString::new(path.as_ref().to_str().unwrap()).unwrap())
             .ok_or_else(|| FileLoadError::Custom(format!("File {:?} not found!", path.as_ref())))?;
-        let bytes = opened_asset.get_buffer()?;
+        let bytes = opened_asset.buffer()?;
         Ok(bytes.to_vec())
     }
 
@@ -110,5 +110,43 @@ pub async fn exists<P: AsRef<Path>>(path: P) -> bool {
             }
             None => false,
         }
+    }
+}
+
+pub async fn is_dir<P: AsRef<Path>>(#[allow(unused)] path: P) -> bool {
+    #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
+    {
+        path.as_ref().is_dir()
+    }
+
+    #[cfg(target_os = "android")]
+    {
+        ANDROID_APP
+            .get()
+            .map(|v| {
+                v.asset_manager()
+                    .open_dir(&std::ffi::CString::new(path.as_ref().to_str().unwrap()).unwrap())
+                    .is_some()
+            })
+            .unwrap_or_default()
+    }
+
+    // TODO: Is directory checking possible on wasm?
+    #[cfg(target_arch = "wasm32")]
+    {
+        false
+    }
+}
+
+pub async fn is_file<P: AsRef<Path>>(path: P) -> bool {
+    #[cfg(all(not(target_os = "android"), not(target_arch = "wasm32")))]
+    {
+        path.as_ref().is_file()
+    }
+
+    // On android and wasm the default exists logic works for files
+    #[cfg(any(target_os = "android", target_arch = "wasm32"))]
+    {
+        exists(path).await
     }
 }

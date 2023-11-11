@@ -1,9 +1,12 @@
 //! Sound buffer loader.
 
+use std::sync::Arc;
+
 use crate::buffer::{DataSource, SoundBuffer, SoundBufferResourceLoadError};
 use fyrox_core::{log::Log, reflect::prelude::*, uuid::Uuid, TypeUuidProvider};
 use fyrox_resource::{
     event::ResourceEventBroadcaster,
+    io::ResourceIo,
     loader::{BoxedLoaderFuture, ResourceLoader},
     options::{try_get_import_settings, ImportOptions},
     untyped::UntypedResource,
@@ -39,17 +42,20 @@ impl ResourceLoader for SoundBufferLoader {
         resource: UntypedResource,
         event_broadcaster: ResourceEventBroadcaster,
         reload: bool,
+        io: Arc<dyn ResourceIo>,
     ) -> BoxedLoaderFuture {
         let default_import_options = self.default_import_options.clone();
 
         Box::pin(async move {
+            let io = io.as_ref();
+
             let path = resource.path().to_path_buf();
 
-            let import_options = try_get_import_settings(&path)
+            let import_options = try_get_import_settings(&path, io)
                 .await
                 .unwrap_or(default_import_options);
 
-            match DataSource::from_file(&path).await {
+            match DataSource::from_file(&path, io).await {
                 Ok(source) => {
                     let buffer = if import_options.stream {
                         SoundBuffer::raw_streaming(source)

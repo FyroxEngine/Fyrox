@@ -7,6 +7,7 @@ use crate::{
         TypeUuidProvider,
     },
 };
+use fyrox_resource::io::ResourceIo;
 use serde::{Deserialize, Serialize};
 use std::{
     any::Any,
@@ -98,8 +99,9 @@ impl TypeUuidProvider for CurveResourceState {
 
 impl CurveResourceState {
     /// Load a curve resource from the specific file path.
-    pub async fn from_file(path: &Path) -> Result<Self, CurveResourceError> {
-        let mut visitor = Visitor::load_binary(path).await?;
+    pub async fn from_file(path: &Path, io: &dyn ResourceIo) -> Result<Self, CurveResourceError> {
+        let bytes = io.load_file(path).await?;
+        let mut visitor = Visitor::load_from_memory(&bytes)?;
         let mut curve = Curve::default();
         curve.visit("Curve", &mut visitor)?;
         Ok(Self {

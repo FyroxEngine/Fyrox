@@ -3,6 +3,7 @@ use fyrox_core::scope_profile;
 use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     draw::{CommandTexture, Draw, DrawingContext, SharedTexture},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
@@ -14,9 +15,11 @@ use std::{
 };
 
 /// Automatically arranges children by rows and columns
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct NinePatch {
     pub widget: Widget,
+    #[visit(skip)] // TODO
+    #[reflect(hidden)] // TODO
     texture: Option<SharedTexture>,
 
     pub bottom_margin_uv: f32,

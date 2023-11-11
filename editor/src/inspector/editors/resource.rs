@@ -5,6 +5,7 @@ use crate::{
 use fyrox::{
     asset::{manager::ResourceManager, Resource, ResourceData, ResourceLoadError},
     core::{color::Color, make_relative_path, pool::Handle, TypeUuidProvider},
+    core::{reflect::prelude::*, visitor::prelude::*},
     gui::{
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
@@ -79,16 +80,25 @@ pub type ResourceLoaderCallback<T> = Rc<
     ) -> Option<Result<Resource<T>, Option<Arc<dyn ResourceLoadError>>>>,
 >;
 
+#[derive(Visit, Reflect)]
 pub struct ResourceField<T>
 where
     T: ResourceData + TypeUuidProvider,
 {
     widget: Widget,
     name: Handle<UiNode>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     resource_manager: ResourceManager,
+    #[visit(skip)]
+    #[reflect(hidden)]
     resource: Option<Resource<T>>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     loader: ResourceLoaderCallback<T>,
     locate: Handle<UiNode>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     sender: MessageSender,
 }
 
@@ -168,9 +178,20 @@ where
         if let Some(WidgetMessage::Drop(dropped)) = message.data::<WidgetMessage>() {
             if message.destination() == self.handle() {
                 if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
-                    if let Ok(relative_path) = make_relative_path(&item.path) {
+                    let path = if self
+                        .resource_manager
+                        .state()
+                        .built_in_resources
+                        .contains_key(&item.path)
+                    {
+                        Ok(item.path.clone())
+                    } else {
+                        make_relative_path(&item.path)
+                    };
+
+                    if let Ok(path) = path {
                         if let Some(Ok(value)) =
-                            (self.loader)(&self.resource_manager, relative_path.as_path())
+                            (self.loader)(&self.resource_manager, path.as_path())
                         {
                             ui.send_message(ResourceFieldMessage::value(
                                 self.handle(),

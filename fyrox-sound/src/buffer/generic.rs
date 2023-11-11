@@ -13,9 +13,10 @@
 //! ```no_run
 //! use std::sync::{Mutex, Arc};
 //! use fyrox_sound::buffer::{SoundBufferResource, DataSource, SoundBufferResourceExtension};
+//! use fyrox_resource::io::FsResourceIo;
 //!
 //! async fn make_buffer() -> SoundBufferResource {
-//!     let data_source = DataSource::from_file("sound.wav").await.unwrap();
+//!     let data_source = DataSource::from_file("sound.wav", &FsResourceIo).await.unwrap();
 //!     SoundBufferResource::new_generic(data_source).unwrap()
 //! }
 //! ```
@@ -167,7 +168,7 @@ impl GenericBuffer {
         self.sample_rate
     }
 
-    /// Returns exact time length of the buffer.  
+    /// Returns exact time length of the buffer.
     #[inline]
     pub fn duration(&self) -> Duration {
         Duration::from_nanos(

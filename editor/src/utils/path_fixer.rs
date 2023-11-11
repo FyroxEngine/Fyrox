@@ -3,8 +3,7 @@
 
 use crate::{make_scene_file_filter, Message};
 use fyrox::{
-    asset::manager::ResourceManager,
-    asset::ResourceData,
+    asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
         color::Color, futures::executor::block_on, pool::Handle, replace_slashes, visitor::Visitor,
     },
@@ -26,17 +25,9 @@ use fyrox::{
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
         VerticalAlignment,
     },
-    material::PropertyValue,
-    resource::{model::ModelResource, texture::TextureResource},
-    scene::{
-        camera::Camera, decal::Decal, dim2::rectangle::Rectangle, light::spot::SpotLight,
-        mesh::Mesh, particle_system::ParticleSystem, sprite::Sprite, terrain::Terrain, Scene,
-        SceneLoader,
-    },
+    scene::{Scene, SceneLoader},
 };
 use std::{
-    collections::HashSet,
-    hash::{Hash, Hasher},
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -48,7 +39,7 @@ pub struct PathFixer {
     scene_selector: Handle<UiNode>,
     load_scene: Handle<UiNode>,
     scene: Option<Scene>,
-    orphaned_scene_resources: Vec<SceneResource>,
+    orphaned_scene_resources: Vec<UntypedResource>,
     resources_list: Handle<UiNode>,
     cancel: Handle<UiNode>,
     ok: Handle<UiNode>,
@@ -58,50 +49,6 @@ pub struct PathFixer {
     new_path_selector: Handle<UiNode>,
     auto_fix: Handle<UiNode>,
 }
-
-#[derive(Clone)]
-enum SceneResource {
-    Model(ModelResource),
-    Texture(TextureResource),
-    // TODO: Add sound buffers.
-}
-
-impl SceneResource {
-    fn path(&self) -> PathBuf {
-        match self {
-            SceneResource::Model(model) => model.path(),
-            SceneResource::Texture(texture) => texture.path(),
-        }
-    }
-
-    fn set_path(&mut self, path: PathBuf) {
-        match self {
-            SceneResource::Model(model) => model.data_ref().set_path(path),
-            SceneResource::Texture(texture) => texture.data_ref().set_path(path),
-        }
-    }
-
-    fn key(&self) -> usize {
-        match self {
-            SceneResource::Model(model) => model.key(),
-            SceneResource::Texture(texture) => texture.key(),
-        }
-    }
-}
-
-impl Hash for SceneResource {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_usize(self.key());
-    }
-}
-
-impl PartialEq for SceneResource {
-    fn eq(&self, other: &Self) -> bool {
-        self.key() == other.key()
-    }
-}
-
-impl Eq for SceneResource {}
 
 fn find_file(name: &Path) -> Vec<PathBuf> {
     let mut files = Vec::new();
@@ -332,102 +279,7 @@ impl PathFixer {
                                 let scene = block_on(loader.finish(&resource_manager));
 
                                 // Gather resources.
-
-                                // Use hash map to remove duplicates.
-                                let mut scene_resources = HashSet::new();
-
-                                for node in scene.graph.linear_iter() {
-                                    if let Some(model) = node.resource() {
-                                        scene_resources.insert(SceneResource::Model(model));
-                                    }
-
-                                    if let Some(spot_light) = node.cast::<SpotLight>() {
-                                        if let Some(texture) = spot_light.cookie_texture() {
-                                            scene_resources
-                                                .insert(SceneResource::Texture(texture.clone()));
-                                        }
-                                    } else if let Some(camera) = node.cast::<Camera>() {
-                                        if let Some(skybox) = camera.skybox_ref() {
-                                            for texture in skybox.textures().iter().flatten() {
-                                                scene_resources.insert(SceneResource::Texture(
-                                                    texture.clone(),
-                                                ));
-                                            }
-                                        }
-                                    } else if let Some(mesh) = node.cast::<Mesh>() {
-                                        for surface in mesh.surfaces() {
-                                            for texture in surface
-                                                .material()
-                                                .lock()
-                                                .properties()
-                                                .values()
-                                                .filter_map(|v| {
-                                                    if let PropertyValue::Sampler {
-                                                        value, ..
-                                                    } = v
-                                                    {
-                                                        value.clone()
-                                                    } else {
-                                                        None
-                                                    }
-                                                })
-                                            {
-                                                scene_resources.insert(SceneResource::Texture(
-                                                    texture.clone(),
-                                                ));
-                                            }
-                                        }
-                                    } else if let Some(sprite) = node.cast::<Sprite>() {
-                                        if let Some(texture) = sprite.texture() {
-                                            scene_resources.insert(SceneResource::Texture(texture));
-                                        }
-                                    } else if let Some(decal) = node.cast::<Decal>() {
-                                        if let Some(texture) = decal.diffuse_texture() {
-                                            scene_resources
-                                                .insert(SceneResource::Texture(texture.clone()));
-                                        }
-                                        if let Some(texture) = decal.normal_texture() {
-                                            scene_resources
-                                                .insert(SceneResource::Texture(texture.clone()));
-                                        }
-                                    } else if let Some(particle_system) =
-                                        node.cast::<ParticleSystem>()
-                                    {
-                                        if let Some(texture) = particle_system.texture() {
-                                            scene_resources.insert(SceneResource::Texture(texture));
-                                        }
-                                    } else if let Some(terrain) = node.cast::<Terrain>() {
-                                        for layer in terrain.layers() {
-                                            for texture in layer
-                                                .material
-                                                .lock()
-                                                .properties()
-                                                .values()
-                                                .filter_map(|v| {
-                                                    if let PropertyValue::Sampler {
-                                                        value, ..
-                                                    } = v
-                                                    {
-                                                        value.clone()
-                                                    } else {
-                                                        None
-                                                    }
-                                                })
-                                            {
-                                                scene_resources.insert(SceneResource::Texture(
-                                                    texture.clone(),
-                                                ));
-                                            }
-                                        }
-                                    } else if let Some(rectangle) = node.cast::<Rectangle>() {
-                                        if let Some(texture) = rectangle.texture() {
-                                            scene_resources
-                                                .insert(SceneResource::Texture(texture.clone()));
-                                        }
-                                    } else {
-                                        // Nothing
-                                    }
-                                }
+                                let scene_resources = scene.collect_used_resources();
 
                                 // Turn hash map into vec to be able to index it.
                                 self.orphaned_scene_resources = scene_resources

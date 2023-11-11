@@ -1,5 +1,6 @@
 use fyrox::{
     core::pool::Handle,
+    core::{reflect::prelude::*, visitor::prelude::*},
     gui::{
         define_widget_deref,
         grid::Column,
@@ -23,7 +24,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 #[allow(dead_code)]
 pub struct SurfaceDataPropertyEditor {
     widget: Widget,

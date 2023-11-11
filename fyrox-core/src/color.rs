@@ -52,7 +52,7 @@ impl From<Vector4<f32>> for Color {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Visit, Reflect)]
 pub struct Hsv {
     /// [0; 360] range
     hue: f32,
@@ -286,52 +286,160 @@ impl From<Color> for Hsl {
 }
 
 impl Color {
-    pub const WHITE: Self = Self {
-        r: 255,
-        g: 255,
-        b: 255,
-        a: 255,
-    };
-    pub const BLACK: Self = Self {
-        r: 0,
-        g: 0,
-        b: 0,
-        a: 255,
-    };
-    pub const RED: Self = Self {
-        r: 255,
-        g: 0,
-        b: 0,
-        a: 255,
-    };
-    pub const GREEN: Self = Self {
-        r: 0,
-        g: 255,
-        b: 0,
-        a: 255,
-    };
-    pub const BLUE: Self = Self {
-        r: 0,
-        g: 0,
-        b: 255,
-        a: 255,
-    };
-    pub const TRANSPARENT: Self = Self {
-        r: 0,
-        g: 0,
-        b: 0,
-        a: 0,
-    };
-    pub const ORANGE: Self = Self {
-        r: 255,
-        g: 69,
-        b: 0,
-        a: 255,
-    };
+    pub const WHITE: Self = Self::repeat(255);
+    pub const BLACK: Self = Self::opaque(0, 0, 0);
+    pub const RED: Self = Self::opaque(255, 0, 0);
+    pub const GREEN: Self = Self::opaque(0, 255, 0);
+    pub const BLUE: Self = Self::opaque(0, 0, 255);
+    pub const TRANSPARENT: Self = Self::repeat(0);
+    pub const MAROON: Self = Self::opaque(128, 0, 0);
+    pub const DARK_RED: Self = Self::opaque(139, 0, 0);
+    pub const BROWN: Self = Self::opaque(165, 42, 42);
+    pub const FIREBRICK: Self = Self::opaque(178, 34, 34);
+    pub const CRIMSON: Self = Self::opaque(220, 20, 60);
+    pub const TOMATO: Self = Self::opaque(255, 99, 71);
+    pub const CORAL: Self = Self::opaque(255, 127, 80);
+    pub const INDIAN_RED: Self = Self::opaque(205, 92, 92);
+    pub const LIGHT_CORAL: Self = Self::opaque(240, 128, 128);
+    pub const DARK_SALMON: Self = Self::opaque(233, 150, 122);
+    pub const SALMON: Self = Self::opaque(250, 128, 114);
+    pub const LIGHT_SALMON: Self = Self::opaque(255, 160, 122);
+    pub const ORANGE_RED: Self = Self::opaque(255, 69, 0);
+    pub const DARK_ORANGE: Self = Self::opaque(255, 140, 0);
+    pub const ORANGE: Self = Self::opaque(255, 165, 0);
+    pub const GOLD: Self = Self::opaque(255, 215, 0);
+    pub const DARK_GOLDEN_ROD: Self = Self::opaque(184, 134, 11);
+    pub const GOLDEN_ROD: Self = Self::opaque(218, 165, 32);
+    pub const PALE_GOLDEN_ROD: Self = Self::opaque(238, 232, 170);
+    pub const DARK_KHAKI: Self = Self::opaque(189, 183, 107);
+    pub const KHAKI: Self = Self::opaque(240, 230, 140);
+    pub const OLIVE: Self = Self::opaque(128, 128, 0);
+    pub const YELLOW: Self = Self::opaque(255, 255, 0);
+    pub const YELLOW_GREEN: Self = Self::opaque(154, 205, 50);
+    pub const DARK_OLIVE_GREEN: Self = Self::opaque(85, 107, 47);
+    pub const OLIVE_DRAB: Self = Self::opaque(107, 142, 35);
+    pub const LAWN_GREEN: Self = Self::opaque(124, 252, 0);
+    pub const CHARTREUSE: Self = Self::opaque(127, 255, 0);
+    pub const GREEN_YELLOW: Self = Self::opaque(173, 255, 47);
+    pub const DARK_GREEN: Self = Self::opaque(0, 100, 0);
+    pub const FOREST_GREEN: Self = Self::opaque(34, 139, 34);
+    pub const LIME: Self = Self::opaque(0, 255, 0);
+    pub const LIME_GREEN: Self = Self::opaque(50, 205, 50);
+    pub const LIGHT_GREEN: Self = Self::opaque(144, 238, 144);
+    pub const PALE_GREEN: Self = Self::opaque(152, 251, 152);
+    pub const DARK_SEA_GREEN: Self = Self::opaque(143, 188, 143);
+    pub const MEDIUM_SPRING_GREEN: Self = Self::opaque(0, 250, 154);
+    pub const SPRING_GREEN: Self = Self::opaque(0, 255, 127);
+    pub const SEA_GREEN: Self = Self::opaque(46, 139, 87);
+    pub const MEDIUM_AQUA_MARINE: Self = Self::opaque(102, 205, 170);
+    pub const MEDIUM_SEA_GREEN: Self = Self::opaque(60, 179, 113);
+    pub const LIGHT_SEA_GREEN: Self = Self::opaque(32, 178, 170);
+    pub const DARK_SLATE_GRAY: Self = Self::opaque(47, 79, 79);
+    pub const TEAL: Self = Self::opaque(0, 128, 128);
+    pub const DARK_CYAN: Self = Self::opaque(0, 139, 139);
+    pub const AQUA: Self = Self::opaque(0, 255, 255);
+    pub const CYAN: Self = Self::opaque(0, 255, 255);
+    pub const LIGHT_CYAN: Self = Self::opaque(224, 255, 255);
+    pub const DARK_TURQUOISE: Self = Self::opaque(0, 206, 209);
+    pub const TURQUOISE: Self = Self::opaque(64, 224, 208);
+    pub const MEDIUM_TURQUOISE: Self = Self::opaque(72, 209, 204);
+    pub const PALE_TURQUOISE: Self = Self::opaque(175, 238, 238);
+    pub const AQUA_MARINE: Self = Self::opaque(127, 255, 212);
+    pub const POWDER_BLUE: Self = Self::opaque(176, 224, 230);
+    pub const CADET_BLUE: Self = Self::opaque(95, 158, 160);
+    pub const STEEL_BLUE: Self = Self::opaque(70, 130, 180);
+    pub const CORN_FLOWER_BLUE: Self = Self::opaque(100, 149, 237);
+    pub const DEEP_SKY_BLUE: Self = Self::opaque(0, 191, 255);
+    pub const DODGER_BLUE: Self = Self::opaque(30, 144, 255);
+    pub const LIGHT_BLUE: Self = Self::opaque(173, 216, 230);
+    pub const SKY_BLUE: Self = Self::opaque(135, 206, 235);
+    pub const LIGHT_SKY_BLUE: Self = Self::opaque(135, 206, 250);
+    pub const MIDNIGHT_BLUE: Self = Self::opaque(25, 25, 112);
+    pub const NAVY: Self = Self::opaque(0, 0, 128);
+    pub const DARK_BLUE: Self = Self::opaque(0, 0, 139);
+    pub const MEDIUM_BLUE: Self = Self::opaque(0, 0, 205);
+    pub const ROYAL_BLUE: Self = Self::opaque(65, 105, 225);
+    pub const BLUE_VIOLET: Self = Self::opaque(138, 43, 226);
+    pub const INDIGO: Self = Self::opaque(75, 0, 130);
+    pub const DARK_SLATE_BLUE: Self = Self::opaque(72, 61, 139);
+    pub const SLATE_BLUE: Self = Self::opaque(106, 90, 205);
+    pub const MEDIUM_SLATE_BLUE: Self = Self::opaque(123, 104, 238);
+    pub const MEDIUM_PURPLE: Self = Self::opaque(147, 112, 219);
+    pub const DARK_MAGENTA: Self = Self::opaque(139, 0, 139);
+    pub const DARK_VIOLET: Self = Self::opaque(148, 0, 211);
+    pub const DARK_ORCHID: Self = Self::opaque(153, 50, 204);
+    pub const MEDIUM_ORCHID: Self = Self::opaque(186, 85, 211);
+    pub const PURPLE: Self = Self::opaque(128, 0, 128);
+    pub const THISTLE: Self = Self::opaque(216, 191, 216);
+    pub const PLUM: Self = Self::opaque(221, 160, 221);
+    pub const VIOLET: Self = Self::opaque(238, 130, 238);
+    pub const MAGENTA: Self = Self::opaque(255, 0, 255);
+    pub const ORCHID: Self = Self::opaque(218, 112, 214);
+    pub const MEDIUM_VIOLET_RED: Self = Self::opaque(199, 21, 133);
+    pub const PALE_VIOLET_RED: Self = Self::opaque(219, 112, 147);
+    pub const DEEP_PINK: Self = Self::opaque(255, 20, 147);
+    pub const HOT_PINK: Self = Self::opaque(255, 105, 180);
+    pub const LIGHT_PINK: Self = Self::opaque(255, 182, 193);
+    pub const PINK: Self = Self::opaque(255, 192, 203);
+    pub const ANTIQUE_WHITE: Self = Self::opaque(250, 235, 215);
+    pub const BEIGE: Self = Self::opaque(245, 245, 220);
+    pub const BISQUE: Self = Self::opaque(255, 228, 196);
+    pub const BLANCHED_ALMOND: Self = Self::opaque(255, 235, 205);
+    pub const WHEAT: Self = Self::opaque(245, 222, 179);
+    pub const CORN_SILK: Self = Self::opaque(255, 248, 220);
+    pub const LEMON_CHIFFON: Self = Self::opaque(255, 250, 205);
+    pub const LIGHT_GOLDEN_ROD_YELLOW: Self = Self::opaque(250, 250, 210);
+    pub const LIGHT_YELLOW: Self = Self::opaque(255, 255, 224);
+    pub const SADDLE_BROWN: Self = Self::opaque(139, 69, 19);
+    pub const SIENNA: Self = Self::opaque(160, 82, 45);
+    pub const CHOCOLATE: Self = Self::opaque(210, 105, 30);
+    pub const PERU: Self = Self::opaque(205, 133, 63);
+    pub const SANDY_BROWN: Self = Self::opaque(244, 164, 96);
+    pub const BURLY_WOOD: Self = Self::opaque(222, 184, 135);
+    pub const TAN: Self = Self::opaque(210, 180, 140);
+    pub const ROSY_BROWN: Self = Self::opaque(188, 143, 143);
+    pub const MOCCASIN: Self = Self::opaque(255, 228, 181);
+    pub const NAVAJO_WHITE: Self = Self::opaque(255, 222, 173);
+    pub const PEACH_PUFF: Self = Self::opaque(255, 218, 185);
+    pub const MISTY_ROSE: Self = Self::opaque(255, 228, 225);
+    pub const LAVENDER_BLUSH: Self = Self::opaque(255, 240, 245);
+    pub const LINEN: Self = Self::opaque(250, 240, 230);
+    pub const OLD_LACE: Self = Self::opaque(253, 245, 230);
+    pub const PAPAYA_WHIP: Self = Self::opaque(255, 239, 213);
+    pub const SEA_SHELL: Self = Self::opaque(255, 245, 238);
+    pub const MINT_CREAM: Self = Self::opaque(245, 255, 250);
+    pub const SLATE_GRAY: Self = Self::opaque(112, 128, 144);
+    pub const LIGHT_SLATE_GRAY: Self = Self::opaque(119, 136, 153);
+    pub const LIGHT_STEEL_BLUE: Self = Self::opaque(176, 196, 222);
+    pub const LAVENDER: Self = Self::opaque(230, 230, 250);
+    pub const FLORAL_WHITE: Self = Self::opaque(255, 250, 240);
+    pub const ALICE_BLUE: Self = Self::opaque(240, 248, 255);
+    pub const GHOST_WHITE: Self = Self::opaque(248, 248, 255);
+    pub const HONEYDEW: Self = Self::opaque(240, 255, 240);
+    pub const IVORY: Self = Self::opaque(255, 255, 240);
+    pub const AZURE: Self = Self::opaque(240, 255, 255);
+    pub const SNOW: Self = Self::opaque(255, 250, 250);
+    pub const DIM_GRAY: Self = Self::opaque(105, 105, 105);
+    pub const GRAY: Self = Self::opaque(128, 128, 128);
+    pub const DARK_GRAY: Self = Self::opaque(169, 169, 169);
+    pub const SILVER: Self = Self::opaque(192, 192, 192);
+    pub const LIGHT_GRAY: Self = Self::opaque(211, 211, 211);
+    pub const GAINSBORO: Self = Self::opaque(220, 220, 220);
+    pub const WHITE_SMOKE: Self = Self::opaque(245, 245, 245);
 
     #[inline]
     pub const fn opaque(r: u8, g: u8, b: u8) -> Self {
         Self { r, g, b, a: 255 }
+    }
+
+    #[inline]
+    pub const fn repeat(c: u8) -> Self {
+        Self {
+            r: c,
+            g: c,
+            b: c,
+            a: c,
+        }
     }
 
     #[inline]

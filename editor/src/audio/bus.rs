@@ -1,6 +1,7 @@
 use crate::gui::make_dropdown_list_option;
 use fyrox::{
     core::pool::Handle,
+    core::{reflect::prelude::*, visitor::prelude::*},
     gui::{
         border::BorderBuilder,
         decorator::DecoratorBuilder,
@@ -37,7 +38,7 @@ impl AudioBusViewMessage {
     define_constructor!(AudioBusViewMessage:Name => fn name(String), layout: false);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct AudioBusView {
     widget: Widget,
     pub bus: Handle<AudioBus>,

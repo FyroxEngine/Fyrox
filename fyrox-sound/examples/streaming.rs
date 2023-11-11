@@ -1,3 +1,4 @@
+use fyrox_resource::io::FsResourceIo;
 use fyrox_sound::buffer::SoundBufferResourceExtension;
 use fyrox_sound::{
     buffer::{DataSource, SoundBufferResource},
@@ -20,7 +21,12 @@ fn main() {
 
     // Load sound buffer.
     let waterfall_buffer = SoundBufferResource::new_streaming(
-        block_on(DataSource::from_file("examples/data/waterfall.ogg")).unwrap(),
+        block_on(DataSource::from_file(
+            "examples/data/waterfall.ogg",
+            // Load from the default resource io (File system)
+            &FsResourceIo,
+        ))
+        .unwrap(),
     )
     .unwrap();
 

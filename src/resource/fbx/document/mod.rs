@@ -2,10 +2,11 @@ mod ascii;
 pub mod attribute;
 mod binary;
 
+use fyrox_resource::io::ResourceIo;
+
 use crate::{
     core::{
         algebra::Vector3,
-        io,
         pool::{Handle, Pool},
     },
     resource::fbx::{document::attribute::FbxAttribute, error::FbxError},
@@ -121,11 +122,12 @@ fn is_binary(data: &[u8]) -> bool {
 }
 
 impl FbxDocument {
-    pub async fn new<P: AsRef<Path>>(path: P) -> Result<FbxDocument, FbxError> {
-        let data = io::load_file(path).await?;
-
+    pub async fn new<P: AsRef<Path>>(
+        path: P,
+        io: &dyn ResourceIo,
+    ) -> Result<FbxDocument, FbxError> {
+        let data = io.load_file(path.as_ref()).await?;
         let is_bin = is_binary(&data);
-
         let mut reader = Cursor::new(data);
 
         if is_bin {

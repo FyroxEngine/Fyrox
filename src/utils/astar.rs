@@ -16,35 +16,46 @@ use std::{
     cmp::Ordering,
     collections::BinaryHeap,
     fmt::{Display, Formatter},
+    ops::{Deref, DerefMut},
 };
 
+/// State a of path vertex.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
-enum PathVertexState {
+pub enum PathVertexState {
+    /// A vertex wasn't visited and yet to be processed.
     NonVisited,
+    /// A vertex is inside an open set (to be visited).
     Open,
+    /// A vertex is inside an closed set (was visited).
     Closed,
 }
 
 /// Graph vertex that contains position in world and list of indices of neighbour
 /// vertices.
 #[derive(Clone, Debug, Visit, PartialEq)]
-pub struct PathVertex {
+pub struct VertexData {
     /// Position in the world coordinates
     pub position: Vector3<f32>,
-    pub(crate) neighbours: Vec<u32>,
+    /// A set of indices of neighbour vertices.
+    pub neighbours: Vec<u32>,
+    /// Current state of the vertex.
     #[visit(skip)]
-    state: PathVertexState,
+    pub state: PathVertexState,
+    /// Penalty can be interpreted as measure, how harder is to travel to this vertex.
     #[visit(skip)]
-    g_penalty: f32,
+    pub g_penalty: f32,
+    /// Path cost of the vertex.
     #[visit(skip)]
-    g_score: f32,
+    pub g_score: f32,
+    /// A numeric metric, of how effective would be moving to neighbour in finding the optimal path.
     #[visit(skip)]
-    f_score: f32,
+    pub f_score: f32,
+    /// An index of a vertex that is previous (relative to this) in the path.
     #[visit(skip)]
-    parent: Option<usize>,
+    pub parent: Option<usize>,
 }
 
-impl Default for PathVertex {
+impl Default for VertexData {
     fn default() -> Self {
         Self {
             position: Default::default(),
@@ -58,7 +69,7 @@ impl Default for PathVertex {
     }
 }
 
-impl PathVertex {
+impl VertexData {
     /// Creates new vertex at given position.
     pub fn new(position: Vector3<f32>) -> Self {
         Self {
@@ -72,18 +83,6 @@ impl PathVertex {
         }
     }
 
-    /// Returns reference to array of indices of neighbour vertices.
-    pub fn neighbours(&self) -> &[u32] {
-        &self.neighbours
-    }
-
-    /// Sets penalty for vertex g_score calculation
-    /// Penalty can be interpreted as measure, how much harder it is to travel
-    /// to this vertex.
-    pub fn set_penalty(&mut self, new_penalty: f32) {
-        self.g_penalty = new_penalty;
-    }
-
     fn clear(&mut self) {
         self.g_penalty = 1f32;
         self.g_score = f32::MAX;
@@ -93,10 +92,62 @@ impl PathVertex {
     }
 }
 
+/// A trait, that describes and arbitrary vertex that could be used in a graph. It allows you to
+/// use your structure to store additional info in the graph.
+pub trait VertexDataProvider: Deref<Target = VertexData> + DerefMut + PositionProvider {}
+
+/// A default graph vertex with no additional data.
+#[derive(Default, PartialEq, Debug)]
+pub struct GraphVertex {
+    /// Data of the vertex.
+    pub data: VertexData,
+}
+
+impl GraphVertex {
+    /// Creates a new graph vertex.
+    pub fn new(position: Vector3<f32>) -> Self {
+        Self {
+            data: VertexData::new(position),
+        }
+    }
+}
+
+impl Deref for GraphVertex {
+    type Target = VertexData;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl DerefMut for GraphVertex {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.data
+    }
+}
+
+impl PositionProvider for GraphVertex {
+    fn position(&self) -> Vector3<f32> {
+        self.data.position
+    }
+}
+
+impl Visit for GraphVertex {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.data.visit(name, visitor)
+    }
+}
+
+impl VertexDataProvider for GraphVertex {}
+
 /// See module docs.
 #[derive(Clone, Debug, Visit, PartialEq)]
-pub struct PathFinder {
-    vertices: Vec<PathVertex>,
+pub struct Graph<T>
+where
+    T: VertexDataProvider,
+{
+    /// Vertices of the graph.
+    pub vertices: Vec<T>,
 }
 
 /// Shows path status.
@@ -108,22 +159,19 @@ pub enum PathKind {
     /// happen if there are isolated "islands" of graph vertices with no links between
     /// them and you trying to find path from one "island" to other.
     Partial,
-    /// Either array of vertices to search on was empty, or search was started from
-    /// isolated vertex.
-    Empty,
 }
 
 fn heuristic(a: Vector3<f32>, b: Vector3<f32>) -> f32 {
     (a - b).norm_squared()
 }
 
-impl Default for PathFinder {
+impl<T: VertexDataProvider> Default for Graph<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl PositionProvider for PathVertex {
+impl PositionProvider for VertexData {
     fn position(&self) -> Vector3<f32> {
         self.position
     }
@@ -140,8 +188,8 @@ pub enum PathError {
     /// There is a vertex that has itself as neighbour.
     CyclicReferenceFound(usize),
 
-    /// User-defined error.
-    Custom(String),
+    /// Graph was empty.
+    Empty,
 }
 
 impl Display for PathError {
@@ -153,8 +201,8 @@ impl Display for PathError {
             PathError::CyclicReferenceFound(v) => {
                 write!(f, "Cyclical reference was found {v}.")
             }
-            PathError::Custom(v) => {
-                write!(f, "An error has occurred {v}")
+            PathError::Empty => {
+                write!(f, "Graph was empty")
             }
         }
     }
@@ -230,7 +278,7 @@ impl PartialPath {
     }
 }
 
-impl PathFinder {
+impl<T: VertexDataProvider> Graph<T> {
     /// Creates new empty path finder.
     pub fn new() -> Self {
         Self {
@@ -241,7 +289,7 @@ impl PathFinder {
     /// Sets active set of vertices. Links between vertices must contain
     /// valid indices (which are not out-of-bounds), otherwise path from/to
     /// such vertices won't be built.
-    pub fn set_vertices(&mut self, vertices: Vec<PathVertex>) {
+    pub fn set_vertices(&mut self, vertices: Vec<T>) {
         self.vertices = vertices;
     }
 
@@ -273,27 +321,27 @@ impl PathFinder {
     }
 
     /// Returns shared reference to a path vertex at the given index.
-    pub fn vertex(&self, index: usize) -> Option<&PathVertex> {
+    pub fn vertex(&self, index: usize) -> Option<&T> {
         self.vertices.get(index)
     }
 
     /// Returns mutable reference to a path vertex at the given index.
-    pub fn vertex_mut(&mut self, index: usize) -> Option<&mut PathVertex> {
+    pub fn vertex_mut(&mut self, index: usize) -> Option<&mut T> {
         self.vertices.get_mut(index)
     }
 
     /// Returns reference to the array of vertices.
-    pub fn vertices(&self) -> &[PathVertex] {
+    pub fn vertices(&self) -> &[T] {
         &self.vertices
     }
 
     /// Returns mutable reference to the array of vertices.
-    pub fn vertices_mut(&mut self) -> &mut [PathVertex] {
+    pub fn vertices_mut(&mut self) -> &mut [T] {
         &mut self.vertices
     }
 
     /// Adds a new vertex to the path finder.
-    pub fn add_vertex(&mut self, vertex: PathVertex) -> u32 {
+    pub fn add_vertex(&mut self, vertex: T) -> u32 {
         let index = self.vertices.len();
         // Since we're adding the vertex to the end of the array, we don't need to
         // shift indices of neighbours (like `insert_vertex`)
@@ -304,7 +352,7 @@ impl PathFinder {
     /// Removes last vertex from the graph. Automatically cleans "dangling" references to the deleted vertex
     /// from every other vertex in the graph and shifts indices of neighbour vertices, to preserve graph
     /// structure.
-    pub fn pop_vertex(&mut self) -> Option<PathVertex> {
+    pub fn pop_vertex(&mut self) -> Option<T> {
         if self.vertices.is_empty() {
             None
         } else {
@@ -315,7 +363,7 @@ impl PathFinder {
     /// Removes a vertex at the given index from the graph. Automatically cleans "dangling" references to the
     /// deleted vertex from every other vertex in the graph and shifts indices of neighbour vertices, to
     /// preserve graph structure.
-    pub fn remove_vertex(&mut self, index: usize) -> PathVertex {
+    pub fn remove_vertex(&mut self, index: usize) -> T {
         for other_vertex in self.vertices.iter_mut() {
             // Remove "references" to the vertex, that will be deleted.
             if let Some(position) = other_vertex
@@ -339,7 +387,7 @@ impl PathFinder {
 
     /// Inserts the vertex at the given index. Automatically shifts neighbour indices of every other vertex
     /// in the graph to preserve graph structure.
-    pub fn insert_vertex(&mut self, index: u32, vertex: PathVertex) {
+    pub fn insert_vertex(&mut self, index: u32, vertex: T) {
         self.vertices.insert(index as usize, vertex);
 
         // Shift neighbour indices to preserve vertex indexation.
@@ -367,7 +415,8 @@ impl PathFinder {
         to: usize,
         path: &mut Vec<Vector3<f32>>,
     ) -> Result<PathKind, PathError> {
-        self.build_and_convert(from, to, path, |_, v| v.position)
+        path.clear();
+        self.build_and_convert(from, to, |_, v| path.push(v.position))
     }
 
     /// Tries to build path from begin point to end point. Returns path kind:
@@ -379,21 +428,18 @@ impl PathFinder {
     /// # Notes
     ///
     /// This is more or less a naive implementation, it most certainly will be slower than specialized solutions.
-    pub fn build_and_convert<F, T>(
+    pub fn build_and_convert<F>(
         &mut self,
         from: usize,
         to: usize,
-        path: &mut Vec<T>,
         func: F,
     ) -> Result<PathKind, PathError>
     where
-        F: FnMut(usize, &PathVertex) -> T,
+        F: FnMut(usize, &T),
     {
         if self.vertices.is_empty() {
-            return Ok(PathKind::Empty);
+            return Ok(PathKind::Partial);
         }
-
-        path.clear();
 
         for vertex in self.vertices.iter_mut() {
             vertex.clear();
@@ -426,7 +472,7 @@ impl PathFinder {
             }
 
             if current_index == to {
-                self.reconstruct_path(current_index, path, func);
+                self.reconstruct_path(current_index, func);
                 return Ok(PathKind::Full);
             }
 
@@ -434,8 +480,7 @@ impl PathFinder {
 
             // Take second mutable reference to vertices array, we'll enforce borrowing rules
             // at runtime. It will *never* give two mutable references to same path vertex.
-            let unsafe_vertices: &mut Vec<PathVertex> =
-                unsafe { &mut *(&mut self.vertices as *mut _) };
+            let unsafe_vertices: &mut Vec<T> = unsafe { &mut *(&mut self.vertices as *mut _) };
 
             let current_vertex = self
                 .vertices
@@ -485,13 +530,9 @@ impl PathFinder {
             }
         }
 
-        self.reconstruct_path(closest_index, path, func);
+        self.reconstruct_path(closest_index, func);
 
-        if path.is_empty() {
-            Ok(PathKind::Empty)
-        } else {
-            Ok(PathKind::Partial)
-        }
+        Ok(PathKind::Partial)
     }
 
     /// Tries to build path from begin point to end point. Returns path kind:
@@ -510,7 +551,7 @@ impl PathFinder {
         path: &mut Vec<Vector3<f32>>,
     ) -> Result<PathKind, PathError> {
         if self.vertices.is_empty() {
-            return Ok(PathKind::Empty);
+            return Ok(PathKind::Partial);
         }
 
         path.clear();
@@ -603,7 +644,7 @@ impl PathFinder {
         path.reverse();
 
         if path.is_empty() {
-            Ok(PathKind::Empty)
+            Err(PathError::Empty)
         } else if *path.first().unwrap() == end_pos {
             Ok(PathKind::Full)
         } else {
@@ -611,12 +652,12 @@ impl PathFinder {
         }
     }
 
-    fn reconstruct_path<F, T>(&self, mut current: usize, path: &mut Vec<T>, mut func: F)
+    fn reconstruct_path<F>(&self, mut current: usize, mut func: F)
     where
-        F: FnMut(usize, &PathVertex) -> T,
+        F: FnMut(usize, &T),
     {
         while let Some(vertex) = self.vertices.get(current) {
-            path.push(func(current, vertex));
+            func(current, vertex);
             if let Some(parent) = vertex.parent {
                 current = parent;
             } else {
@@ -631,13 +672,13 @@ mod test {
     use crate::rand::Rng;
     use crate::{
         core::{algebra::Vector3, rand},
-        utils::astar::{PathFinder, PathKind, PathVertex},
+        utils::astar::{Graph, GraphVertex, PathKind},
     };
     use std::time::Instant;
 
     #[test]
     fn astar_random_points() {
-        let mut pathfinder = PathFinder::new();
+        let mut pathfinder = Graph::<GraphVertex>::new();
 
         let mut path = Vec::new();
         assert!(pathfinder.build(0, 0, &mut path).is_ok());
@@ -649,7 +690,7 @@ mod test {
         let mut vertices = Vec::new();
         for y in 0..size {
             for x in 0..size {
-                vertices.push(PathVertex::new(Vector3::new(x as f32, y as f32, 0.0)));
+                vertices.push(GraphVertex::new(Vector3::new(x as f32, y as f32, 0.0)));
             }
         }
         pathfinder.set_vertices(vertices);
@@ -711,11 +752,11 @@ mod test {
 
     #[test]
     fn test_remove_vertex() {
-        let mut pathfinder = PathFinder::new();
+        let mut pathfinder = Graph::<GraphVertex>::new();
 
-        pathfinder.add_vertex(PathVertex::new(Vector3::new(0.0, 0.0, 0.0)));
-        pathfinder.add_vertex(PathVertex::new(Vector3::new(1.0, 0.0, 0.0)));
-        pathfinder.add_vertex(PathVertex::new(Vector3::new(1.0, 1.0, 0.0)));
+        pathfinder.add_vertex(GraphVertex::new(Vector3::new(0.0, 0.0, 0.0)));
+        pathfinder.add_vertex(GraphVertex::new(Vector3::new(1.0, 0.0, 0.0)));
+        pathfinder.add_vertex(GraphVertex::new(Vector3::new(1.0, 1.0, 0.0)));
 
         pathfinder.link_bidirect(0, 1);
         pathfinder.link_bidirect(1, 2);
@@ -736,11 +777,11 @@ mod test {
 
     #[test]
     fn test_insert_vertex() {
-        let mut pathfinder = PathFinder::new();
+        let mut pathfinder = Graph::new();
 
-        pathfinder.add_vertex(PathVertex::new(Vector3::new(0.0, 0.0, 0.0)));
-        pathfinder.add_vertex(PathVertex::new(Vector3::new(1.0, 0.0, 0.0)));
-        pathfinder.add_vertex(PathVertex::new(Vector3::new(1.0, 1.0, 0.0)));
+        pathfinder.add_vertex(GraphVertex::new(Vector3::new(0.0, 0.0, 0.0)));
+        pathfinder.add_vertex(GraphVertex::new(Vector3::new(1.0, 0.0, 0.0)));
+        pathfinder.add_vertex(GraphVertex::new(Vector3::new(1.0, 1.0, 0.0)));
 
         pathfinder.link_bidirect(0, 1);
         pathfinder.link_bidirect(1, 2);
@@ -750,7 +791,7 @@ mod test {
         assert_eq!(pathfinder.vertex(1).unwrap().neighbours, vec![0, 2]);
         assert_eq!(pathfinder.vertex(2).unwrap().neighbours, vec![1, 0]);
 
-        pathfinder.insert_vertex(0, PathVertex::new(Vector3::new(1.0, 1.0, 1.0)));
+        pathfinder.insert_vertex(0, GraphVertex::new(Vector3::new(1.0, 1.0, 1.0)));
 
         assert_eq!(pathfinder.vertex(0).unwrap().neighbours, vec![]);
         assert_eq!(pathfinder.vertex(1).unwrap().neighbours, vec![2, 3]);
@@ -769,13 +810,13 @@ mod test {
             println!("benchmarking grid size of: {}^2", size);
             let setup_start_time = Instant::now();
 
-            let mut pathfinder = PathFinder::new();
+            let mut pathfinder = Graph::new();
 
             // Create vertices.
             let mut vertices = Vec::new();
             for y in 0..size {
                 for x in 0..size {
-                    vertices.push(PathVertex::new(Vector3::new(x as f32, y as f32, 0.0)));
+                    vertices.push(GraphVertex::new(Vector3::new(x as f32, y as f32, 0.0)));
                 }
             }
             pathfinder.set_vertices(vertices);
@@ -847,13 +888,13 @@ mod test {
 
         let size = 100;
         let mut path = Vec::new();
-        let mut pathfinder = PathFinder::new();
+        let mut pathfinder = Graph::new();
 
         // Create vertices.
         let mut vertices = Vec::new();
         for y in 0..size {
             for x in 0..size {
-                vertices.push(PathVertex::new(Vector3::new(x as f32, y as f32, 0.0)));
+                vertices.push(GraphVertex::new(Vector3::new(x as f32, y as f32, 0.0)));
             }
         }
         pathfinder.set_vertices(vertices);
@@ -936,13 +977,13 @@ mod test {
 
         let size = 100;
         let mut path = Vec::new();
-        let mut pathfinder = PathFinder::new();
+        let mut pathfinder = Graph::new();
 
         // Create vertices.
         let mut vertices = Vec::new();
         for y in 0..size {
             for x in 0..size {
-                vertices.push(PathVertex::new(Vector3::new(x as f32, y as f32, 0.0)));
+                vertices.push(GraphVertex::new(Vector3::new(x as f32, y as f32, 0.0)));
             }
         }
         pathfinder.set_vertices(vertices);

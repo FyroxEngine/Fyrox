@@ -1,13 +1,13 @@
 use crate::{
     asset::item::AssetItem,
-    gui::make_dropdown_list_option,
+    inspector::editors::resource::{ResourceFieldBuilder, ResourceFieldMessage},
     message::MessageSender,
     preview::PreviewPanel,
     scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
     send_sync_message, Engine, Message,
 };
 use fyrox::{
-    asset::{manager::ResourceManager, untyped::UntypedResource},
+    asset::untyped::UntypedResource,
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
         futures::executor::block_on,
@@ -21,7 +21,6 @@ use fyrox::{
         border::BorderBuilder,
         check_box::{CheckBoxBuilder, CheckBoxMessage},
         color::{ColorFieldBuilder, ColorFieldMessage},
-        dropdown_list::{DropdownListBuilder, DropdownListMessage},
         grid::{Column, GridBuilder, Row},
         image::{Image, ImageBuilder, ImageMessage},
         list_view::{ListViewBuilder, ListViewMessage},
@@ -40,10 +39,7 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
-    material::{
-        shader::{Shader, ShaderResource, ShaderResourceExtension},
-        Material, PropertyValue, SharedMaterial,
-    },
+    material::{shader::Shader, PropertyValue, SharedMaterial},
     resource::texture::Texture,
     scene::{
         base::BaseBuilder,
@@ -54,6 +50,7 @@ use fyrox::{
     },
     utils::into_gui_texture,
 };
+use std::rc::Rc;
 
 struct TextureContextMenu {
     popup: RcUiNodeHandle,
@@ -91,8 +88,7 @@ pub struct MaterialEditor {
     properties: BiDirHashMap<ImmutableString, Handle<UiNode>>,
     preview: PreviewPanel,
     material: Option<SharedMaterial>,
-    available_shaders: Handle<UiNode>,
-    shaders_list: Vec<ShaderResource>,
+    shader: Handle<UiNode>,
     texture_context_menu: TextureContextMenu,
 }
 
@@ -237,7 +233,7 @@ fn sync_array_of_arrays<'a, T, I, B>(
 }
 
 impl MaterialEditor {
-    pub fn new(engine: &mut Engine) -> Self {
+    pub fn new(engine: &mut Engine, sender: MessageSender) -> Self {
         let mut preview = PreviewPanel::new(engine, 300, 400);
 
         let graph = &mut engine.scenes[preview.scene()].graph;
@@ -253,7 +249,7 @@ impl MaterialEditor {
 
         let panel;
         let properties_panel;
-        let available_shaders;
+        let shader;
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0))
             .open(false)
             .with_title(WindowTitle::text("Material Editor"))
@@ -273,12 +269,17 @@ impl MaterialEditor {
                                         .build(ctx),
                                     )
                                     .with_child({
-                                        available_shaders = DropdownListBuilder::new(
+                                        shader = ResourceFieldBuilder::new(
                                             WidgetBuilder::new().on_column(1),
+                                            Rc::new(|resource_manager, path| {
+                                                resource_manager
+                                                    .try_request::<Shader, _>(path)
+                                                    .map(block_on)
+                                            }),
+                                            sender,
                                         )
-                                        .with_close_on_selection(true)
-                                        .build(ctx);
-                                        available_shaders
+                                        .build(ctx, engine.resource_manager.clone());
+                                        shader
                                     }),
                             )
                             .add_column(Column::strict(150.0))
@@ -311,68 +312,15 @@ impl MaterialEditor {
 
         ctx.link(preview.root, panel);
 
-        let mut editor = Self {
+        Self {
             texture_context_menu: TextureContextMenu::new(ctx),
             window,
             preview,
             properties_panel,
             properties: Default::default(),
             material: None,
-            available_shaders,
-            shaders_list: Default::default(),
-        };
-
-        editor.sync_available_shaders_list(engine.resource_manager.clone());
-
-        editor
-    }
-
-    pub fn sync_available_shaders_list(&mut self, resource_manager: ResourceManager) {
-        self.shaders_list.clear();
-
-        self.shaders_list
-            .extend_from_slice(&ShaderResource::standard_shaders());
-
-        for dir in fyrox::walkdir::WalkDir::new(".").into_iter().flatten() {
-            let path = dir.path();
-            if let Some(extension) = path.extension() {
-                if extension == "shader" {
-                    if let Ok(relative_path) = make_relative_path(path) {
-                        self.shaders_list
-                            .push(resource_manager.request::<Shader, _>(relative_path));
-                    }
-                }
-            }
+            shader,
         }
-
-        // Wait all shaders to load.
-        block_on(fyrox::core::futures::future::join_all(
-            self.shaders_list.iter().cloned(),
-        ));
-    }
-
-    pub fn create_shaders_items(&self, ui: &mut UserInterface, material: &Material) {
-        let items = self
-            .shaders_list
-            .iter()
-            .map(|s| make_dropdown_list_option(&mut ui.build_ctx(), &s.data_ref().definition.name))
-            .collect::<Vec<_>>();
-
-        send_sync_message(
-            ui,
-            DropdownListMessage::items(self.available_shaders, MessageDirection::ToWidget, items),
-        );
-
-        send_sync_message(
-            ui,
-            DropdownListMessage::selection(
-                self.available_shaders,
-                MessageDirection::ToWidget,
-                self.shaders_list
-                    .iter()
-                    .position(|s| material.shader().key() == s.key()),
-            ),
-        )
     }
 
     pub fn set_material(&mut self, material: Option<SharedMaterial>, engine: &mut Engine) {
@@ -625,7 +573,14 @@ impl MaterialEditor {
                 }
             }
 
-            self.create_shaders_items(ui, &material);
+            send_sync_message(
+                ui,
+                ResourceFieldMessage::value(
+                    self.shader,
+                    MessageDirection::ToWidget,
+                    Some(material.shader().clone()),
+                ),
+            );
         } else {
             send_sync_message(
                 ui,
@@ -643,22 +598,15 @@ impl MaterialEditor {
         self.preview.handle_message(message, engine);
 
         if let Some(material) = self.material.clone() {
-            if let Some(msg) = message.data::<DropdownListMessage>() {
-                if message.destination() == self.available_shaders
+            if let Some(msg) = message.data::<ResourceFieldMessage<Shader>>() {
+                if message.destination() == self.shader
                     && message.direction() == MessageDirection::FromWidget
                 {
-                    match msg {
-                        DropdownListMessage::SelectionChanged(Some(value)) => {
-                            sender.do_scene_command(SetMaterialShaderCommand::new(
-                                material.clone(),
-                                self.shaders_list[*value].clone(),
-                            ));
-                        }
-                        DropdownListMessage::Open => {
-                            self.sync_available_shaders_list(engine.resource_manager.clone());
-                            self.create_shaders_items(&mut engine.user_interface, &material.lock());
-                        }
-                        _ => (),
+                    if let ResourceFieldMessage::Value(Some(value)) = msg {
+                        sender.do_scene_command(SetMaterialShaderCommand::new(
+                            material.clone(),
+                            value.clone(),
+                        ));
                     }
                 }
             } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) =

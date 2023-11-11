@@ -67,6 +67,7 @@ use fyrox_core::{
 };
 use fyrox_resource::{
     event::ResourceEventBroadcaster,
+    io::ResourceIo,
     loader::{BoxedLoaderFuture, ResourceLoader},
     untyped::UntypedResource,
     Resource, ResourceData, ResourceStateRef,
@@ -77,8 +78,8 @@ use std::{
     borrow::Cow,
     fmt::Debug,
     fmt::Formatter,
-    io::Cursor,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 /// See module docs.
@@ -260,12 +261,13 @@ impl ResourceLoader for HrirSphereLoader {
         hrir_sphere: UntypedResource,
         event_broadcaster: ResourceEventBroadcaster,
         reload: bool,
+        io: Arc<dyn ResourceIo>,
     ) -> BoxedLoaderFuture {
         Box::pin(async move {
             let path = hrir_sphere.path().to_path_buf();
 
-            match fyrox_core::io::load_file(&path).await {
-                Ok(file) => match HrirSphere::new(Cursor::new(file), context::SAMPLE_RATE) {
+            match io.file_reader(&path).await {
+                Ok(reader) => match HrirSphere::new(reader, context::SAMPLE_RATE) {
                     Ok(sphere) => {
                         Log::info(format!("HRIR sphere {:?} is loaded!", path));
 

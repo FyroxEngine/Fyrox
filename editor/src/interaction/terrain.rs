@@ -491,7 +491,8 @@ impl BrushPanel {
 
         let inspector;
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(150.0))
-            .can_close(false)
+            .can_minimize(false)
+            .can_maximize(false)
             .with_content({
                 inspector = InspectorBuilder::new(WidgetBuilder::new())
                     .with_context(context)

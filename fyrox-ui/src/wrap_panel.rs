@@ -6,6 +6,7 @@
 
 use crate::{
     core::{algebra::Vector2, math::Rect, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     message::{MessageDirection, UiMessage},
     widget::{Widget, WidgetBuilder},
@@ -59,20 +60,22 @@ impl WrapPanelMessage {
 ///
 /// Wrap panel can stack your widgets either in vertical or horizontal direction. Use `.with_orientation` while building
 /// the panel to switch orientation to desired.
-#[derive(Clone)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct WrapPanel {
     /// Base widget of the wrap panel.
     pub widget: Widget,
     /// Current orientation of the wrap panel.
     pub orientation: Orientation,
     /// Internal lines storage.
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub lines: RefCell<Vec<Line>>,
 }
 
 crate::define_widget_deref!(WrapPanel);
 
 /// Represents a single line (either vertical or horizontal) with arranged widgets.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Line {
     /// Indices of the children widgets that belongs to this line.
     pub children: Range<usize>,

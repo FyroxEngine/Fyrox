@@ -6,6 +6,8 @@ use crate::{
         color::{Color, Hsv},
         math::Rect,
         pool::Handle,
+        reflect::prelude::*,
+        visitor::prelude::*,
     },
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
@@ -99,7 +101,7 @@ impl ColorFieldMessage {
     define_constructor!(ColorFieldMessage:Color => fn color(Color), layout: false);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct AlphaBar {
     pub widget: Widget,
     pub orientation: Orientation,
@@ -368,7 +370,7 @@ impl AlphaBarBuilder {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct HueBar {
     pub widget: Widget,
     pub orientation: Orientation,
@@ -525,7 +527,7 @@ impl HueBarBuilder {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct SaturationBrightnessField {
     pub widget: Widget,
     pub is_picking: bool,
@@ -731,7 +733,7 @@ impl SaturationBrightnessFieldBuilder {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct ColorPicker {
     pub widget: Widget,
     pub hue_bar: Handle<UiNode>,
@@ -1166,7 +1168,7 @@ impl ColorPickerBuilder {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct ColorField {
     pub widget: Widget,
     pub popup: Handle<UiNode>,

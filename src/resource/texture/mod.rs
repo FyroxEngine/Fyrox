@@ -25,7 +25,7 @@ use crate::{
     core::{
         algebra::{Vector2, Vector3},
         futures::io::Error,
-        io::{self, FileLoadError},
+        io::FileLoadError,
         reflect::prelude::*,
         uuid::Uuid,
         visitor::{PodVecView, Visit, VisitError, VisitResult, Visitor},
@@ -36,6 +36,7 @@ use ddsfile::{Caps2, D3DFormat};
 use fast_image_resize as fr;
 use fxhash::FxHasher;
 use fyrox_core::num_traits::Bounded;
+use fyrox_resource::io::ResourceIo;
 use image::{ColorType, DynamicImage, ImageError, ImageFormat, Pixel};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -405,7 +406,7 @@ impl MipFilter {
 ///     s_wrap_mode: Repeat,
 ///     t_wrap_mode: ClampToEdge,
 ///     anisotropy: 8.0,
-///     compression: NoCompression,    
+///     compression: NoCompression,
 /// )
 /// ```
 #[derive(Clone, Deserialize, Serialize, Debug, Reflect)]
@@ -1484,9 +1485,10 @@ impl Texture {
     /// resources.
     pub(crate) async fn load_from_file<P: AsRef<Path>>(
         path: P,
+        io: &dyn ResourceIo,
         import_options: TextureImportOptions,
     ) -> Result<Self, TextureError> {
-        let data = io::load_file(path.as_ref()).await?;
+        let data = io.load_file(path.as_ref()).await?;
         let mut texture = Self::load_from_memory(&data, import_options)?;
         texture.path = path.as_ref().to_path_buf();
         Ok(texture)

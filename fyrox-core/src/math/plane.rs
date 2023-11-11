@@ -1,5 +1,7 @@
-use crate::algebra::Vector3;
-use crate::visitor::{Visit, VisitResult, Visitor};
+use crate::{
+    algebra::Vector3,
+    visitor::{Visit, VisitResult, Visitor},
+};
 
 #[derive(Copy, Clone, Debug, PartialEq, Visit)]
 pub struct Plane {
@@ -30,6 +32,14 @@ impl Plane {
             })
     }
 
+    /// Tries to create a plane from three points (triangle). May fail if the triangle is degenerated
+    /// (collapsed into a point or a line).
+    #[inline]
+    pub fn from_triangle(a: &Vector3<f32>, b: &Vector3<f32>, c: &Vector3<f32>) -> Option<Self> {
+        let normal = (b - a).cross(&(c - a));
+        Self::from_normal_and_point(&normal, &a)
+    }
+
     /// Creates plane using coefficients of plane equation Ax + By + Cz + D = 0
     /// May fail if length of normal vector is zero (normal is degenerated vector).
     #[inline]
@@ -55,6 +65,12 @@ impl Plane {
     #[inline]
     pub fn distance(&self, point: &Vector3<f32>) -> f32 {
         self.dot(point).abs()
+    }
+
+    /// Projects the given point onto the plane along the normal vector of the plane.
+    #[inline]
+    pub fn project(&self, point: &Vector3<f32>) -> Vector3<f32> {
+        point - self.normal.scale(self.normal.dot(point) + self.d)
     }
 
     /// <http://geomalgorithms.com/a05-_intersect-1.html>

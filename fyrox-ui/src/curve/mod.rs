@@ -8,6 +8,7 @@ use crate::{
         pool::Handle,
         uuid::Uuid,
     },
+    core::{reflect::prelude::*, visitor::prelude::*},
     curve::key::{CurveKeyView, KeyContainer},
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
@@ -70,36 +71,48 @@ impl CurveEditorMessage {
 }
 
 /// Highlight zone in values space.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Visit, Reflect, Default)]
 pub struct HighlightZone {
     pub rect: Rect<f32>,
     pub brush: Brush,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct CurveEditor {
     widget: Widget,
     key_container: KeyContainer,
     zoom: Vector2<f32>,
     view_position: Vector2<f32>,
     // Transforms a point from local to view coordinates.
+    #[visit(skip)]
+    #[reflect(hidden)]
     view_matrix: Cell<Matrix3<f32>>,
     // Transforms a point from local to screen coordinates.
     // View and screen coordinates are different:
     //  - view is a local viewer of curve editor
     //  - screen is global space
+    #[visit(skip)]
+    #[reflect(hidden)]
     screen_matrix: Cell<Matrix3<f32>>,
     // Transform a point from screen space (i.e. mouse position) to the
     // local space (the space where all keys are)
+    #[visit(skip)]
+    #[reflect(hidden)]
     inv_screen_matrix: Cell<Matrix3<f32>>,
     key_brush: Brush,
     selected_key_brush: Brush,
     key_size: f32,
     grid_brush: Brush,
+    #[visit(skip)]
+    #[reflect(hidden)]
     operation_context: Option<OperationContext>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     selection: Option<Selection>,
     handle_radius: f32,
     context_menu: ContextMenu,
+    #[visit(skip)]
+    #[reflect(hidden)]
     text: RefCell<FormattedText>,
     view_bounds: Option<Rect<f32>>,
     show_x_values: bool,
@@ -108,13 +121,17 @@ pub struct CurveEditor {
     min_zoom: Vector2<f32>,
     max_zoom: Vector2<f32>,
     highlight_zones: Vec<HighlightZone>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     zoom_to_fit_timer: Option<usize>,
 }
 
 crate::define_widget_deref!(CurveEditor);
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 struct ContextMenu {
+    #[visit(skip)] // TODO
+    #[reflect(hidden)] // TODO
     widget: RcUiNodeHandle,
     add_key: Handle<UiNode>,
     remove: Handle<UiNode>,
@@ -128,13 +145,13 @@ struct ContextMenu {
     key_location: Handle<UiNode>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct DragEntry {
     key: Uuid,
     initial_position: Vector2<f32>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum OperationContext {
     DragKeys {
         // In local coordinates.
@@ -157,7 +174,7 @@ enum OperationContext {
     },
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum Selection {
     Keys { keys: FxHashSet<Uuid> },
     // It is ok to use index directly in case of tangents since

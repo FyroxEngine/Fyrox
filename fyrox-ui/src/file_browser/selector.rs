@@ -1,6 +1,7 @@
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{algebra::Vector2, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor, define_widget_deref,
     draw::DrawingContext,
     file_browser::{FileBrowser, FileBrowserBuilder, FileBrowserMessage, FileBrowserMode, Filter},
@@ -40,7 +41,7 @@ impl FileSelectorMessage {
 
 /// File selector is a modal window that allows you to select a file (or directory) and commit or
 /// cancel selection.
-#[derive(Clone)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct FileSelector {
     pub window: Window,
     pub browser: Handle<UiNode>,
@@ -292,7 +293,7 @@ impl FileSelectorFieldMessage {
     define_constructor!(FileSelectorFieldMessage:Path => fn path(PathBuf), layout: false);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct FileSelectorField {
     widget: Widget,
     path: PathBuf,

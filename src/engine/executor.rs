@@ -12,7 +12,6 @@ use crate::{
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
     plugin::PluginConstructor,
-    scene::loader::AsyncSceneLoader,
     utils::translate_event,
     window::WindowAttributes,
 };
@@ -34,7 +33,6 @@ pub struct Executor {
     event_loop: EventLoop<()>,
     engine: Engine,
     desired_update_rate: f32,
-    loader: Option<AsyncSceneLoader>,
     headless: bool,
 }
 
@@ -80,7 +78,6 @@ impl Executor {
             event_loop,
             engine,
             desired_update_rate: Self::DEFAULT_UPDATE_RATE,
-            loader: None,
             headless: false,
         }
     }
@@ -88,14 +85,14 @@ impl Executor {
     /// Creates new game executor using default window and with vsync turned on. For more flexible
     /// way to create an executor see [`Executor::from_params`].
     pub fn new() -> Self {
+        let mut window_attributes = WindowAttributes::default();
+        window_attributes.resizable = true;
+        window_attributes.title = "Fyrox Game".to_string();
+
         Self::from_params(
             EventLoop::new().unwrap(),
             GraphicsContextParams {
-                window_attributes: WindowAttributes {
-                    resizable: true,
-                    title: "Fyrox Game".to_string(),
-                    ..Default::default()
-                },
+                window_attributes,
                 vsync: true,
             },
         )
@@ -132,33 +129,31 @@ impl Executor {
     }
 
     /// Runs the executor - starts your game.
-    pub fn run(mut self) {
+    pub fn run(self) {
         let mut engine = self.engine;
         let event_loop = self.event_loop;
         let headless = self.headless;
 
         let args = Args::parse();
 
-        if !args.override_scene.is_empty() {
-            // Try to load specified scene in a separate thread.
-            self.loader = Some(AsyncSceneLoader::begin_loading(
-                args.override_scene.into(),
-                engine.serialization_context.clone(),
-                engine.resource_manager.clone(),
-            ));
-        } else {
-            // Enable plugins immediately.
-            engine.enable_plugins(Default::default(), true);
-        }
+        engine.enable_plugins(
+            if args.override_scene.is_empty() {
+                None
+            } else {
+                Some(&args.override_scene)
+            },
+            true,
+            Some(&event_loop),
+        );
 
         let mut previous = Instant::now();
         let fixed_time_step = 1.0 / self.desired_update_rate;
         let mut lag = 0.0;
 
-        run_executor(event_loop, move |event, window_target, control_flow| {
-            control_flow.set_wait();
+        run_executor(event_loop, move |event, window_target| {
+            window_target.set_control_flow(ControlFlow::Wait);
 
-            engine.handle_os_event_by_plugins(&event, fixed_time_step, control_flow, &mut lag);
+            engine.handle_os_event_by_plugins(&event, fixed_time_step, window_target, &mut lag);
 
             let scenes = engine
                 .scenes
@@ -182,7 +177,7 @@ impl Executor {
 
                     engine.handle_graphics_context_created_by_plugins(
                         fixed_time_step,
-                        control_flow,
+                        window_target,
                         &mut lag,
                     );
                 }
@@ -193,33 +188,17 @@ impl Executor {
 
                     engine.handle_graphics_context_destroyed_by_plugins(
                         fixed_time_step,
-                        control_flow,
+                        window_target,
                         &mut lag,
                     );
                 }
                 Event::AboutToWait => {
-                    if let Some(loader) = self.loader.as_ref() {
-                        if let Some(result) = loader.fetch_result() {
-                            let override_scene = match result {
-                                Ok(scene) => engine.scenes.add(scene),
-                                Err(e) => {
-                                    Log::err(e);
-                                    Default::default()
-                                }
-                            };
-
-                            engine.enable_plugins(override_scene, true);
-
-                            self.loader = None;
-                        }
-                    }
-
                     let elapsed = previous.elapsed();
                     previous = Instant::now();
                     lag += elapsed.as_secs_f32();
 
                     while lag >= fixed_time_step {
-                        engine.update(fixed_time_step, control_flow, &mut lag, Default::default());
+                        engine.update(fixed_time_step, window_target, &mut lag, Default::default());
                         lag -= fixed_time_step;
                     }
 
@@ -227,19 +206,9 @@ impl Executor {
                         ctx.window.request_redraw();
                     }
                 }
-
-                Event::RedrawRequested(_) => {
-                    engine.handle_before_rendering_by_plugins(
-                        fixed_time_step,
-                        control_flow,
-                        &mut lag,
-                    );
-
-                    engine.render().unwrap();
-                }
                 Event::WindowEvent { event, .. } => {
                     match event {
-                        WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                        WindowEvent::CloseRequested => window_target.exit(),
                         WindowEvent::Resized(size) => {
                             if let Err(e) = engine.set_frame_size(size.into()) {
                                 Log::writeln(
@@ -247,6 +216,15 @@ impl Executor {
                                     format!("Unable to set frame size: {:?}", e),
                                 );
                             }
+                        }
+                        WindowEvent::RedrawRequested => {
+                            engine.handle_before_rendering_by_plugins(
+                                fixed_time_step,
+                                window_target,
+                                &mut lag,
+                            );
+
+                            engine.render().unwrap();
                         }
                         _ => (),
                     }
@@ -261,9 +239,9 @@ impl Executor {
     }
 }
 
-fn run_executor<T, F>(event_loop: EventLoop<T>, callback: F)
+fn run_executor<F>(event_loop: EventLoop<()>, callback: F)
 where
-    F: FnMut(Event<T>, &EventLoopWindowTarget<T>, &mut ControlFlow) + 'static,
+    F: FnMut(Event<()>, &EventLoopWindowTarget<()>) + 'static,
 {
     #[cfg(target_arch = "wasm32")]
     {

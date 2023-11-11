@@ -8,6 +8,7 @@ use crate::{
         math::Rect,
         pool::Handle,
     },
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor, define_widget_deref,
     draw::{CommandTexture, Draw, DrawingContext},
     grid::{Column, GridBuilder, Row},
@@ -34,7 +35,7 @@ impl ColorGradientEditorMessage {
     define_constructor!(ColorGradientEditorMessage:Value => fn value(ColorGradient), layout: false);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct ColorGradientField {
     widget: Widget,
     color_gradient: ColorGradient,
@@ -150,13 +151,17 @@ impl ColorGradientFieldBuilder {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct ColorGradientEditor {
     widget: Widget,
     gradient_field: Handle<UiNode>,
     selector_field: Handle<UiNode>,
     points_canvas: Handle<UiNode>,
+    #[visit(skip)] // TODO
+    #[reflect(hidden)] // TODO
     context_menu: RcUiNodeHandle,
+    #[visit(skip)] // TODO
+    #[reflect(hidden)] // TODO
     point_context_menu: RcUiNodeHandle,
     add_point: Handle<UiNode>,
     remove_point: Handle<UiNode>,
@@ -467,7 +472,7 @@ impl ColorPointMessage {
     define_constructor!(ColorPointMessage:Location => fn location(f32), layout: false);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Visit, Reflect)]
 struct ColorPoint {
     widget: Widget,
     location: f32,
@@ -602,7 +607,7 @@ impl ColorPointBuilder {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 struct ColorPointsCanvas {
     widget: Widget,
 }

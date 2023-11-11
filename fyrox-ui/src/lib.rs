@@ -178,6 +178,7 @@
 
 pub use copypasta;
 pub use fyrox_core as core;
+use message::TouchPhase;
 
 mod alignment;
 pub mod bit;
@@ -235,11 +236,13 @@ pub mod wrap_panel;
 use crate::{
     brush::Brush,
     canvas::Canvas,
+    container::WidgetContainer,
     core::{
         algebra::{Matrix3, Vector2},
         color::Color,
         math::Rect,
         pool::{Handle, Pool},
+        reflect::prelude::*,
         scope_profile,
         visitor::prelude::*,
     },
@@ -353,7 +356,7 @@ impl Deref for RcUiNodeHandle {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Visit, Default, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Visit, Reflect, Default, Serialize, Deserialize)]
 pub enum Orientation {
     #[default]
     Vertical,
@@ -383,9 +386,9 @@ impl NodeHandleMapping {
 
     pub fn resolve_cell(&self, old: &mut Cell<Handle<UiNode>>) {
         // None handles aren't mapped.
-        if old.get().is_some() {
+        if Cell::get(old).is_some() {
             if let Some(clone) = self.hash_map.get(&old.get()) {
-                old.set(*clone)
+                Cell::set(old, *clone)
             }
         }
     }
@@ -406,7 +409,7 @@ impl NodeStatistics {
         for node in ui.nodes.iter() {
             statistics
                 .0
-                .entry(node.type_name())
+                .entry(BaseControl::type_name(&*node.0))
                 .and_modify(|counter| *counter += 1)
                 .or_insert(1);
         }
@@ -451,6 +454,7 @@ impl NodeStatistics {
     }
 }
 
+#[derive(Visit, Reflect, Debug)]
 pub struct DragContext {
     pub is_dragging: bool,
     pub drag_node: Handle<UiNode>,
@@ -469,7 +473,7 @@ impl Default for DragContext {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Visit, Reflect)]
 pub struct MouseState {
     pub left: ButtonState,
     pub right: ButtonState,
@@ -487,7 +491,7 @@ impl Default for MouseState {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Visit, Reflect, Debug, Default)]
 pub struct RestrictionEntry {
     /// Handle to UI node to which picking must be restricted to.
     pub handle: Handle<UiNode>,
@@ -502,6 +506,7 @@ pub struct RestrictionEntry {
     pub stop: bool,
 }
 
+#[derive(Debug)]
 struct TooltipEntry {
     tooltip: RcUiNodeHandle,
     /// Time remaining until this entry should disappear (in seconds).
@@ -537,15 +542,26 @@ pub enum LayoutEvent {
     VisibilityChanged(Handle<UiNode>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Visit, Reflect, Default)]
 struct DoubleClickEntry {
     timer: f32,
     click_count: u32,
 }
 
+struct Clipboard(Option<RefCell<ClipboardContext>>);
+
+impl Debug for Clipboard {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Clipboard")
+    }
+}
+
+#[derive(Visit, Reflect, Debug)]
 pub struct UserInterface {
     screen_size: Vector2<f32>,
-    nodes: Pool<UiNode>,
+    nodes: Pool<UiNode, WidgetContainer>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     drawing_context: DrawingContext,
     visual_debug: bool,
     root_canvas: Handle<UiNode>,
@@ -554,27 +570,47 @@ pub struct UserInterface {
     captured_node: Handle<UiNode>,
     keyboard_focus_node: Handle<UiNode>,
     cursor_position: Vector2<f32>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     receiver: Receiver<UiMessage>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     sender: Sender<UiMessage>,
     stack: Vec<Handle<UiNode>>,
     picking_stack: Vec<RestrictionEntry>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     bubble_queue: VecDeque<Handle<UiNode>>,
     drag_context: DragContext,
     mouse_state: MouseState,
     keyboard_modifiers: KeyboardModifiers,
     cursor_icon: CursorIcon,
+    #[visit(skip)]
+    #[reflect(hidden)]
     active_tooltip: Option<TooltipEntry>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     preview_set: FxHashSet<Handle<UiNode>>,
-    clipboard: Option<RefCell<ClipboardContext>>,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    clipboard: Clipboard,
+    #[visit(skip)]
+    #[reflect(hidden)]
     layout_events_receiver: Receiver<LayoutEvent>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     layout_events_sender: Sender<LayoutEvent>,
     need_update_global_transform: bool,
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub default_font: SharedFont,
+    #[visit(skip)]
+    #[reflect(hidden)]
     double_click_entries: FxHashMap<MouseButton, DoubleClickEntry>,
     pub double_click_time_slice: f32,
 }
 
-fn is_on_screen(node: &UiNode, nodes: &Pool<UiNode>) -> bool {
+fn is_on_screen(node: &UiNode, nodes: &Pool<UiNode, WidgetContainer>) -> bool {
     // Crawl up on tree and check if current bounds are intersects with every screen bound
     // of parents chain. This is needed because some control can move their children outside of
     // their bounds (like scroll viewer, etc.) and single intersection test of parent bounds with
@@ -592,7 +628,7 @@ fn is_on_screen(node: &UiNode, nodes: &Pool<UiNode>) -> bool {
 }
 
 fn draw_node(
-    nodes: &Pool<UiNode>,
+    nodes: &Pool<UiNode, WidgetContainer>,
     node_handle: Handle<UiNode>,
     drawing_context: &mut DrawingContext,
 ) {
@@ -643,7 +679,7 @@ fn draw_node(
     }
 }
 
-fn is_node_enabled(nodes: &Pool<UiNode>, handle: Handle<UiNode>) -> bool {
+fn is_node_enabled(nodes: &Pool<UiNode, WidgetContainer>, handle: Handle<UiNode>) -> bool {
     let root_node = &nodes[handle];
     let mut enabled = root_node.enabled();
     let mut parent = root_node.parent();
@@ -685,7 +721,7 @@ impl UserInterface {
             cursor_icon: Default::default(),
             active_tooltip: Default::default(),
             preview_set: Default::default(),
-            clipboard: ClipboardContext::new().ok().map(RefCell::new),
+            clipboard: Clipboard(ClipboardContext::new().ok().map(RefCell::new)),
             layout_events_receiver,
             layout_events_sender,
             need_update_global_transform: Default::default(),
@@ -811,7 +847,7 @@ impl UserInterface {
 
     fn handle_layout_events(&mut self) {
         fn invalidate_recursive_up(
-            nodes: &Pool<UiNode>,
+            nodes: &Pool<UiNode, WidgetContainer>,
             node: Handle<UiNode>,
             callback: fn(&UiNode),
         ) {
@@ -959,11 +995,11 @@ impl UserInterface {
     }
 
     pub fn clipboard(&self) -> Option<Ref<ClipboardContext>> {
-        self.clipboard.as_ref().map(|v| v.borrow())
+        self.clipboard.0.as_ref().map(|v| v.borrow())
     }
 
     pub fn clipboard_mut(&self) -> Option<RefMut<ClipboardContext>> {
-        self.clipboard.as_ref().map(|v| v.borrow_mut())
+        self.clipboard.0.as_ref().map(|v| v.borrow_mut())
     }
 
     pub fn arrange_node(&self, handle: Handle<UiNode>, final_rect: &Rect<f32>) -> bool {
@@ -2067,6 +2103,183 @@ impl UserInterface {
                 // TODO: Is message needed for focused node?
                 self.keyboard_modifiers = modifiers;
             }
+            OsEvent::Touch {
+                phase,
+                location,
+                force,
+                id,
+            } => match phase {
+                TouchPhase::Started => {
+                    self.cursor_position = *location;
+                    let picked_changed =
+                        self.try_set_picked_node(self.hit_test(self.cursor_position));
+
+                    let mut emit_double_tap = false;
+                    if !picked_changed {
+                        match self.double_click_entries.entry(MouseButton::Left) {
+                            Entry::Occupied(e) => {
+                                let entry = e.into_mut();
+                                if entry.timer > 0.0 {
+                                    entry.click_count += 1;
+                                    if entry.click_count >= 2 {
+                                        entry.click_count = 0;
+                                        entry.timer = self.double_click_time_slice;
+                                        emit_double_tap = true;
+                                    }
+                                } else {
+                                    entry.timer = self.double_click_time_slice;
+                                    entry.click_count = 1;
+                                }
+                            }
+                            Entry::Vacant(entry) => {
+                                // A button was clicked for the first time, no double click
+                                // in this case.
+                                entry.insert(DoubleClickEntry {
+                                    timer: self.double_click_time_slice,
+                                    click_count: 1,
+                                });
+                            }
+                        }
+                    }
+
+                    // Try to find draggable node in hierarchy starting from picked node.
+                    if self.picked_node.is_some() {
+                        self.stack.clear();
+                        self.stack.push(self.picked_node);
+                        while let Some(handle) = self.stack.pop() {
+                            let node = &self.nodes[handle];
+                            if node.is_drag_allowed() {
+                                self.drag_context.drag_node = handle;
+                                self.stack.clear();
+                                break;
+                            } else if node.parent().is_some() {
+                                self.stack.push(node.parent());
+                            }
+                        }
+                        self.drag_context.click_pos = self.cursor_position;
+                    }
+
+                    self.request_focus(self.picked_node);
+
+                    if self.picked_node.is_some() {
+                        self.send_message(WidgetMessage::touch_started(
+                            self.picked_node,
+                            MessageDirection::FromWidget,
+                            self.cursor_position,
+                            *force,
+                            *id,
+                        ));
+                        event_processed = true;
+                    }
+
+                    // Make sure double click will be emitted after mouse down event.
+                    if emit_double_tap {
+                        self.send_message(WidgetMessage::double_tap(
+                            self.picked_node,
+                            MessageDirection::FromWidget,
+                            *location,
+                            *force,
+                            *id,
+                        ));
+                    }
+                }
+                TouchPhase::Moved => {
+                    self.cursor_position = *location;
+                    self.try_set_picked_node(self.hit_test(self.cursor_position));
+
+                    // Try to find draggable node in hierarchy starting from picked node.
+                    if self.picked_node.is_some() {
+                        self.stack.clear();
+                        self.stack.push(self.picked_node);
+                        while let Some(handle) = self.stack.pop() {
+                            let node = &self.nodes[handle];
+                            if node.is_drag_allowed() {
+                                self.drag_context.drag_node = handle;
+                                self.stack.clear();
+                                break;
+                            } else if node.parent().is_some() {
+                                self.stack.push(node.parent());
+                            }
+                        }
+                        self.drag_context.click_pos = self.cursor_position;
+                    }
+
+                    self.request_focus(self.picked_node);
+
+                    if self.picked_node.is_some() {
+                        self.send_message(WidgetMessage::touch_moved(
+                            self.picked_node,
+                            MessageDirection::FromWidget,
+                            self.cursor_position,
+                            *force,
+                            *id,
+                        ));
+                        event_processed = true;
+                    }
+                }
+                TouchPhase::Ended => {
+                    if self.picked_node.is_some() {
+                        self.send_message(WidgetMessage::touch_ended(
+                            self.picked_node,
+                            MessageDirection::FromWidget,
+                            self.cursor_position,
+                            *id,
+                        ));
+
+                        if self.drag_context.is_dragging {
+                            self.drag_context.is_dragging = false;
+
+                            // Try to find node with drop allowed in hierarchy starting from picked node.
+                            self.stack.clear();
+                            self.stack.push(self.picked_node);
+                            while let Some(handle) = self.stack.pop() {
+                                let node = &self.nodes[handle];
+                                if node.is_drop_allowed() {
+                                    self.send_message(WidgetMessage::drop(
+                                        handle,
+                                        MessageDirection::FromWidget,
+                                        self.drag_context.drag_node,
+                                    ));
+                                    self.stack.clear();
+                                    break;
+                                } else if node.parent().is_some() {
+                                    self.stack.push(node.parent());
+                                }
+                            }
+                        }
+                        self.drag_context.drag_node = Handle::NONE;
+                        if self.nodes.is_valid_handle(self.drag_context.drag_preview) {
+                            self.remove_node(self.drag_context.drag_preview);
+                            self.drag_context.drag_preview = Default::default();
+                        }
+
+                        event_processed = true;
+                    }
+                }
+                TouchPhase::Cancelled => {
+                    if self.picked_node.is_some() {
+                        self.send_message(WidgetMessage::touch_cancelled(
+                            self.picked_node,
+                            MessageDirection::FromWidget,
+                            self.cursor_position,
+                            *id,
+                        ));
+
+                        if self.drag_context.is_dragging {
+                            self.drag_context.is_dragging = false;
+                            self.cursor_icon = CursorIcon::Default;
+                            self.stack.clear();
+                        }
+                        self.drag_context.drag_node = Handle::NONE;
+                        if self.nodes.is_valid_handle(self.drag_context.drag_preview) {
+                            self.remove_node(self.drag_context.drag_preview);
+                            self.drag_context.drag_preview = Default::default();
+                        }
+
+                        event_processed = true;
+                    }
+                }
+            },
         }
 
         self.prev_picked_node = self.picked_node;
@@ -2088,7 +2301,7 @@ impl UserInterface {
         event_processed
     }
 
-    pub fn nodes(&self) -> &Pool<UiNode> {
+    pub fn nodes(&self) -> &Pool<UiNode, WidgetContainer> {
         &self.nodes
     }
 

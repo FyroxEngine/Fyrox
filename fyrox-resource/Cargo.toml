@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-resource"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
 license = "MIT"
@@ -12,10 +12,11 @@ homepage = "https://fyrox.rs"
 documentation = "https://docs.rs/fyrox-resource"
 repository = "https://github.com/FyroxEngine/Fyrox"
 resolver = "2"
-rust-version = "1.56"
+rust-version = "1.72"
 
 [dependencies]
-fyrox-core = { path = "../fyrox-core", version = "0.25.0" }
+fyrox-core = { path = "../fyrox-core", version = "0.26.0" }
 fxhash = "0.2.1"
 ron = "0.8.0"
 serde = { version = "1", features = ["derive"] }
+walkdir = "2.3.2"

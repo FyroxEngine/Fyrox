@@ -8,6 +8,7 @@ use crate::{
     border::BorderBuilder,
     button::{ButtonBuilder, ButtonMessage},
     core::{algebra::Vector2, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor, define_widget_deref,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
@@ -73,7 +74,7 @@ impl SearchBarMessage {
 ///     }
 /// }
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct SearchBar {
     /// Base widget of the search bar.
     pub widget: Widget,

@@ -2,6 +2,7 @@ use crate::{gui::AssetItemMessage, load_image};
 use fyrox::{
     asset::manager::ResourceManager,
     core::{algebra::Vector2, color::Color, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     gui::{
         border::BorderBuilder,
         brush::Brush,
@@ -25,7 +26,7 @@ use std::{
 };
 
 #[allow(dead_code)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Visit, Reflect)]
 pub struct AssetItem {
     widget: Widget,
     pub path: PathBuf,
@@ -34,7 +35,7 @@ pub struct AssetItem {
     selected: bool,
 }
 
-#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Visit, Reflect)]
 pub enum AssetKind {
     Unknown,
     Model,

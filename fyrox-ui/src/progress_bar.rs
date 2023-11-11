@@ -8,6 +8,7 @@ use crate::{
     brush::Brush,
     canvas::CanvasBuilder,
     core::{algebra::Vector2, color::Color, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     message::{MessageDirection, UiMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -68,7 +69,7 @@ impl ProgressBarMessage {
 ///     ));
 /// }
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct ProgressBar {
     /// Base widget of the progress bar.
     pub widget: Widget,

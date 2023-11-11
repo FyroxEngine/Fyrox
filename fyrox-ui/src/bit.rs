@@ -5,6 +5,8 @@ use crate::{
     core::{
         num_traits::{NumCast, One, Zero},
         pool::Handle,
+        reflect::prelude::*,
+        visitor::prelude::*,
     },
     define_constructor,
     message::UiMessage,
@@ -13,7 +15,6 @@ use crate::{
     BuildContext, Control, MessageDirection, MouseButton, NodeHandleMapping, Orientation,
     Thickness, UiNode, UserInterface, WidgetMessage,
 };
-use fyrox_core::reflect::Reflect;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -35,6 +36,7 @@ pub trait BitContainer:
     + PartialEq
     + Debug
     + Reflect
+    + Visit
     + 'static
 {
 }
@@ -53,6 +55,7 @@ impl<T> BitContainer for T where
         + PartialEq
         + Debug
         + Reflect
+        + Visit
         + 'static
 {
 }
@@ -66,7 +69,7 @@ impl<T: BitContainer> BitFieldMessage<T> {
     define_constructor!(BitFieldMessage:Value => fn value(T), layout: false);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Reflect, Visit, Debug)]
 pub struct BitField<T>
 where
     T: BitContainer,

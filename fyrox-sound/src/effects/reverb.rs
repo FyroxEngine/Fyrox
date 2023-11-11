@@ -131,7 +131,7 @@ impl ChannelReverb {
 }
 
 /// See module docs.
-#[derive(Debug, Clone, Visit, Reflect, PartialEq)]
+#[derive(Debug, Clone, Reflect, PartialEq)]
 pub struct Reverb {
     dry: f32,
     wet: f32,
@@ -145,6 +145,24 @@ pub struct Reverb {
     right: ChannelReverb,
 }
 
+impl Visit for Reverb {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+
+        self.dry.visit("Dry", &mut region)?;
+        self.wet.visit("Wet", &mut region)?;
+        self.decay_time.visit("DecayTime", &mut region)?;
+        self.fc.visit("Fc", &mut region)?;
+
+        if region.is_reading() {
+            self.left = ChannelReverb::new(0, self.fc, Reverb::FEEDBACK, self.decay_time);
+            self.right = ChannelReverb::new(23, self.fc, Reverb::FEEDBACK, self.decay_time);
+        }
+
+        Ok(())
+    }
+}
+
 impl Default for Reverb {
     fn default() -> Self {
         Self::new()
@@ -154,6 +172,8 @@ impl Default for Reverb {
 impl Reverb {
     /// Total amount of allpass + comb filters per channel
     const TOTAL_FILTERS_COUNT: f32 = 4.0 + 8.0;
+
+    const FEEDBACK: f32 = 0.84;
 
     /// Accumulated gain of all sources of signal (all filters, delay lines, etc.)
     /// it is used to scale input samples and prevent multiplication of signal gain
@@ -166,7 +186,7 @@ impl Reverb {
     /// 5 seconds decay time.
     pub fn new() -> Self {
         let fc = 0.25615; // 11296 Hz at 44100 Hz sample rate
-        let feedback = 0.84;
+
         let decay_time = 2.0;
 
         Self {
@@ -174,8 +194,8 @@ impl Reverb {
             wet: 1.0,
             decay_time: 2.0,
             fc,
-            left: ChannelReverb::new(0, fc, feedback, decay_time),
-            right: ChannelReverb::new(23, fc, feedback, decay_time),
+            left: ChannelReverb::new(0, fc, Reverb::FEEDBACK, decay_time),
+            right: ChannelReverb::new(23, fc, Reverb::FEEDBACK, decay_time),
         }
     }
 

@@ -7,6 +7,7 @@ use fyrox::{
         pool::Handle,
         uuid::Uuid,
     },
+    core::{reflect::prelude::*, visitor::prelude::*},
     gui::{
         define_constructor, define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
@@ -21,6 +22,7 @@ use fyrox::{
         BRUSH_LIGHTEST,
     },
 };
+use std::fmt::{Debug, Formatter};
 use std::{
     any::{Any, TypeId},
     cell::{Cell, RefCell},
@@ -132,16 +134,30 @@ struct DragContext {
     entity: DragEntity,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect)]
 pub struct Ruler {
     widget: Widget,
     zoom: f32,
     view_position: f32,
+    #[visit(skip)]
+    #[reflect(hidden)]
     text: RefCell<FormattedText>,
     value: f32,
+    #[visit(skip)]
+    #[reflect(hidden)]
     drag_context: Option<DragContext>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     signals: RefCell<Vec<SignalView>>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     context_menu: ContextMenu,
+}
+
+impl Debug for Ruler {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Ruler")
+    }
 }
 
 define_widget_deref!(Ruler);

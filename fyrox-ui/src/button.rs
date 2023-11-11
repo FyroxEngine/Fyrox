@@ -5,6 +5,7 @@
 use crate::{
     border::BorderBuilder,
     core::pool::Handle,
+    core::{reflect::prelude::*, visitor::prelude::*},
     decorator::DecoratorBuilder,
     define_constructor,
     message::{MessageDirection, UiMessage},
@@ -14,6 +15,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
 };
+use fyrox_core::uuid::{uuid, Uuid};
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -74,7 +76,7 @@ impl ButtonMessage {
 ///     }
 /// }
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct Button {
     /// Base widget of the button.
     pub widget: Widget,
@@ -120,6 +122,22 @@ impl Control for Button {
                         ui.capture_mouse(message.destination());
                         message.set_handled(true);
                     }
+                    WidgetMessage::TouchStarted { .. } => {
+                        ui.capture_mouse(message.destination());
+                        message.set_handled(true);
+                    }
+                    WidgetMessage::TouchMoved { .. } => {
+                        ui.capture_mouse(message.destination());
+                        message.set_handled(true);
+                    }
+                    WidgetMessage::TouchEnded { .. } => {
+                        ui.send_message(ButtonMessage::click(
+                            self.handle(),
+                            MessageDirection::FromWidget,
+                        ));
+                        ui.release_mouse_capture();
+                        message.set_handled(true);
+                    }
                     _ => (),
                 }
             }
@@ -144,6 +162,10 @@ impl Control for Button {
                 }
             }
         }
+    }
+
+    fn id(&self) -> Uuid {
+        uuid!("1e4e0ee7-86d2-4e97-a099-1295bd70360a")
     }
 }
 

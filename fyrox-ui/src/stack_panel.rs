@@ -5,6 +5,7 @@
 
 use crate::{
     core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     message::{MessageDirection, UiMessage},
     widget::{Widget, WidgetBuilder},
@@ -92,7 +93,7 @@ impl StackPanelMessage {
 ///     .build(ctx);
 /// # }
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct StackPanel {
     /// Base widget of the stack panel.
     pub widget: Widget,

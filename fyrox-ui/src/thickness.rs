@@ -1,10 +1,10 @@
 //! Describes the thickness of a frame around a rectangle (for all four sides).
 
-use crate::core::algebra::Vector2;
+use crate::core::{algebra::Vector2, reflect::prelude::*, visitor::prelude::*};
 
 /// Describes the thickness of a frame around a rectangle (for all four sides). It is primarily used to
 /// define margins and to define stroke thickness for various widgets.
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug, Reflect, Visit)]
 pub struct Thickness {
     /// Thickness of the left side of a rectangle.
     pub left: f32,

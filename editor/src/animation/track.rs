@@ -37,6 +37,7 @@ use fyrox::{
         uuid::Uuid,
         variable::InheritableVariable,
     },
+    core::{reflect::prelude::*, visitor::prelude::*},
     fxhash::{FxHashMap, FxHashSet},
     gui::{
         brush::Brush,
@@ -236,7 +237,7 @@ impl TrackViewMessage {
     define_constructor!(TrackViewMessage:TrackTargetIsValid => fn track_target_is_valid(Result<(), String>), layout: false);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Reflect, Visit)]
 struct TrackView {
     tree: Tree,
     id: Uuid,
@@ -569,6 +570,7 @@ pub struct TrackList {
     context_menu: TrackContextMenu,
     property_binding_mode: PropertyBindingMode,
     scroll_viewer: Handle<UiNode>,
+    selected_animation: Handle<Animation>,
 }
 
 struct CurveViewData {
@@ -709,6 +711,7 @@ impl TrackList {
             curve_views: Default::default(),
             property_binding_mode: PropertyBindingMode::Generic,
             scroll_viewer,
+            selected_animation: Default::default(),
         }
     }
 
@@ -1132,10 +1135,16 @@ impl TrackList {
     pub fn sync_to_model(
         &mut self,
         animation: &Animation,
+        animation_handle: Handle<Animation>,
         graph: &Graph,
         editor_scene: &EditorScene,
         ui: &mut UserInterface,
     ) {
+        if self.selected_animation != animation_handle {
+            self.clear(ui);
+            self.selected_animation = animation_handle;
+        }
+
         match animation.tracks().len().cmp(&self.track_views.len()) {
             Ordering::Less => {
                 for track_view in self.track_views.clone().values() {

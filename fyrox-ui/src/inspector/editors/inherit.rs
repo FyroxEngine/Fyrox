@@ -3,6 +3,7 @@
 
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
+    core::visitor::prelude::*,
     core::{pool::Handle, reflect::prelude::*, variable::InheritableVariable},
     define_constructor,
     grid::{Column, GridBuilder, Row},
@@ -39,7 +40,7 @@ impl InheritablePropertyEditorMessage {
     define_constructor!(InheritablePropertyEditorMessage:Modified => fn modified(bool), layout: false);
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Visit, Reflect)]
 pub struct InheritablePropertyEditor {
     widget: Widget,
     revert: Handle<UiNode>,

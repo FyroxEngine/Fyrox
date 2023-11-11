@@ -23,19 +23,24 @@
 //! is used in skinning (animating 3d model by set of bones).
 
 use crate::{
-    asset::ResourceStateRef,
+    asset::{manager::ResourceManager, ResourceStateRef},
     core::{
         algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
         instant,
         log::{Log, MessageKind},
+        math::aabb::AxisAlignedBoundingBox,
         math::Matrix4Ext,
         pool::{Handle, MultiBorrowContext, Pool, Ticket},
         reflect::prelude::*,
+        sstorage::ImmutableString,
         variable::try_inherit_properties,
         visitor::{Visit, VisitResult, Visitor},
     },
-    material::SharedMaterial,
+    material::{shader::SamplerFallback, PropertyValue, SharedMaterial},
     resource::model::{ModelResource, ModelResourceExtension, NodeMapping},
+    scene::mesh::buffer::{
+        VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage, VertexWriteTrait,
+    },
     scene::{
         self,
         base::NodeScriptMessage,
@@ -53,10 +58,10 @@ use crate::{
         transform::TransformBuilder,
     },
     script::ScriptTrait,
+    utils::lightmap::Lightmap,
 };
-use fxhash::FxHashSet;
-use fyrox_core::math::aabb::AxisAlignedBoundingBox;
-use fyrox_resource::manager::ResourceManager;
+use fxhash::{FxHashMap, FxHashSet};
+use fyrox_core::variable;
 use rapier3d::geometry::ColliderHandle;
 use std::{
     any::Any,
@@ -135,6 +140,10 @@ pub struct Graph {
     #[reflect(hidden)]
     pub event_broadcaster: GraphEventBroadcaster,
 
+    /// Current lightmap.
+    //lightmap: InheritableVariable<Option<Lightmap>>,
+    lightmap: Option<Lightmap>,
+
     #[reflect(hidden)]
     pub(crate) script_message_sender: Sender<NodeScriptMessage>,
     #[reflect(hidden)]
@@ -156,6 +165,7 @@ impl Default for Graph {
             event_broadcaster: Default::default(),
             script_message_receiver: rx,
             script_message_sender: tx,
+            lightmap: None,
         }
     }
 }
@@ -271,13 +281,14 @@ impl Graph {
             event_broadcaster: Default::default(),
             script_message_receiver: rx,
             script_message_sender: tx,
+            lightmap: None,
         }
     }
 
     /// Creates a new graph using a hierarchy of nodes specified by the `root`.
     pub fn from_hierarchy(root: Handle<Node>, other_graph: &Self) -> Self {
         let mut graph = Self::default();
-        other_graph.copy_node(root, &mut graph, &mut |_, _| true);
+        other_graph.copy_node(root, &mut graph, &mut |_, _| true, &mut |_, _, _| {});
         graph
     }
 
@@ -721,17 +732,25 @@ impl Graph {
     /// Filter allows to exclude some nodes from copied hierarchy. It must return false for
     /// odd nodes. Filtering applied only to descendant nodes.
     #[inline]
-    pub fn copy_node<F>(
+    pub fn copy_node<F, C>(
         &self,
         node_handle: Handle<Node>,
         dest_graph: &mut Graph,
         filter: &mut F,
+        callback: &mut C,
     ) -> (Handle<Node>, NodeHandleMap)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
+        C: FnMut(Handle<Node>, Handle<Node>, &mut Node),
     {
         let mut old_new_mapping = NodeHandleMap::default();
-        let root_handle = self.copy_node_raw(node_handle, dest_graph, &mut old_new_mapping, filter);
+        let root_handle = self.copy_node_raw(
+            node_handle,
+            dest_graph,
+            &mut old_new_mapping,
+            filter,
+            callback,
+        );
 
         remap_handles(&old_new_mapping, dest_graph);
 
@@ -813,15 +832,17 @@ impl Graph {
         clone
     }
 
-    fn copy_node_raw<F>(
+    fn copy_node_raw<F, C>(
         &self,
         root_handle: Handle<Node>,
         dest_graph: &mut Graph,
         old_new_mapping: &mut NodeHandleMap,
         filter: &mut F,
+        callback: &mut C,
     ) -> Handle<Node>
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
+        C: FnMut(Handle<Node>, Handle<Node>, &mut Node),
     {
         let src_node = &self.pool[root_handle];
         let dest_node = clear_links(src_node.clone_box());
@@ -829,20 +850,30 @@ impl Graph {
         old_new_mapping.map.insert(root_handle, dest_copy_handle);
         for &src_child_handle in src_node.children() {
             if filter(src_child_handle, &self.pool[src_child_handle]) {
-                let dest_child_handle =
-                    self.copy_node_raw(src_child_handle, dest_graph, old_new_mapping, filter);
+                let dest_child_handle = self.copy_node_raw(
+                    src_child_handle,
+                    dest_graph,
+                    old_new_mapping,
+                    filter,
+                    callback,
+                );
                 if !dest_child_handle.is_none() {
                     dest_graph.link_nodes(dest_child_handle, dest_copy_handle);
                 }
             }
         }
+        callback(
+            dest_copy_handle,
+            root_handle,
+            &mut dest_graph[dest_copy_handle],
+        );
         dest_copy_handle
     }
 
     fn restore_original_handles_and_inherit_properties(&mut self) {
         // Iterate over each node in the graph and resolve original handles. Original handle is a handle
         // to a node in resource from which a node was instantiated from. Also sync inheritable properties
-        // if needed and copy surfaces from originals.
+        // if needed.
         for node in self.pool.iter_mut() {
             if let Some(model) = node.resource() {
                 let model = model.state();
@@ -881,6 +912,38 @@ impl Graph {
                             node.original_handle_in_resource = original;
                             node.inv_bind_pose_transform = resource_node.inv_bind_pose_transform();
 
+                            // Check if the actual node types (this and parent's) are equal, and if not - copy the
+                            // node and replace its base.
+                            let mut types_match = true;
+                            node.as_reflect(&mut |node_reflect| {
+                                resource_node.as_reflect(&mut |resource_node_reflect| {
+                                    types_match =
+                                        node_reflect.type_id() == resource_node_reflect.type_id();
+
+                                    if !types_match {
+                                        Log::warn(format!(
+                                            "Node {}({}:{}) instance \
+                                        have different type than in the respective parent \
+                                        asset {}. The type will be fixed.",
+                                            node.name(),
+                                            node.self_handle.index(),
+                                            node.self_handle.generation(),
+                                            data.path.display()
+                                        ));
+                                    }
+                                })
+                            });
+                            if !types_match {
+                                let base = (**node).clone();
+                                let mut resource_node_clone = resource_node.clone_box();
+                                variable::mark_inheritable_properties_non_modified(
+                                    &mut resource_node_clone as &mut dyn Reflect,
+                                );
+                                **resource_node_clone = base;
+                                *node = resource_node_clone;
+                            }
+
+                            // Then try to inherit properties.
                             node.as_reflect_mut(&mut |node_reflect| {
                                 resource_node.as_reflect(&mut |resource_node_reflect| {
                                     Log::verify(try_inherit_properties(
@@ -893,7 +956,7 @@ impl Graph {
                             })
                         } else {
                             Log::warn(format!(
-                                "Unable to find original handle for node {}",
+                                "Unable to find original handle for node {}. The node will be removed!",
                                 node.name(),
                             ))
                         }
@@ -951,13 +1014,12 @@ impl Graph {
         }
     }
 
+    // This method checks integrity of the graph and restores it if needed. For example, if a node was added in a parent asset,
+    // then it must be added in the graph. Alternatively, if a node was deleted in a parent asset, then its instance must be
+    // deleted in the graph.
     fn restore_integrity(&mut self) -> Vec<(Handle<Node>, ModelResource)> {
         Log::writeln(MessageKind::Information, "Checking integrity...");
 
-        // Check integrity - if a node was added in resource, it must be also added in the graph.
-        // However if a node was deleted in resource, we must leave it the graph because there
-        // might be some other nodes that were attached to the one that was deleted in resource or
-        // a node might be referenced somewhere in user code.
         let instances = self
             .pool
             .pair_iter()
@@ -974,6 +1036,48 @@ impl Graph {
         let mut restored_count = 0;
 
         for (instance_root, resource) in instances.iter().cloned() {
+            // Step 1. Find and remove orphaned nodes.
+            let mut nodes_to_delete = Vec::new();
+            for node in self.traverse_iter(instance_root) {
+                if let Some(resource) = node.resource() {
+                    let path = resource.path();
+                    if let ResourceStateRef::Ok(model) = resource.state().get() {
+                        if !model
+                            .scene
+                            .graph
+                            .is_valid_handle(node.original_handle_in_resource)
+                        {
+                            nodes_to_delete.push(node.self_handle);
+
+                            Log::warn(format!(
+                                "Node {} ({}:{}) and its children will be deleted, because it \
+                    does not exist in the parent asset `{}`!",
+                                node.name(),
+                                node.self_handle.index(),
+                                node.self_handle.generation(),
+                                path.display()
+                            ))
+                        }
+                    } else {
+                        Log::warn(format!(
+                            "Node {} ({}:{}) and its children will be deleted, because its \
+                    parent asset `{}` failed to load!",
+                            node.name(),
+                            node.self_handle.index(),
+                            node.self_handle.generation(),
+                            path.display()
+                        ))
+                    }
+                }
+            }
+
+            for node_to_delete in nodes_to_delete {
+                if self.is_valid_handle(node_to_delete) {
+                    self.remove_node(node_to_delete);
+                }
+            }
+
+            // Step 2. Look for missing nodes and create appropriate instances for them.
             let model = resource.state();
             if let ResourceStateRef::Ok(data) = model.get() {
                 let resource_graph = &data.get_scene().graph;
@@ -1111,7 +1215,140 @@ impl Graph {
             material.lock().sync_to_shader(resource_manager);
         }
 
+        self.apply_lightmap();
+
         Log::writeln(MessageKind::Information, "Graph resolved successfully!");
+    }
+
+    /// Tries to set new lightmap to scene.
+    pub fn set_lightmap(&mut self, lightmap: Lightmap) -> Result<Option<Lightmap>, &'static str> {
+        // Assign textures to surfaces.
+        for (handle, lightmaps) in lightmap.map.iter() {
+            if let Some(mesh) = self[*handle].cast_mut::<Mesh>() {
+                if mesh.surfaces().len() != lightmaps.len() {
+                    return Err("failed to set lightmap, surface count mismatch");
+                }
+
+                for (surface, entry) in mesh.surfaces_mut().iter_mut().zip(lightmaps) {
+                    // This unwrap() call must never panic in normal conditions, because texture wrapped in Option
+                    // only to implement Default trait to be serializable.
+                    let texture = entry.texture.clone().unwrap();
+                    if let Err(e) = surface.material().lock().set_property(
+                        &ImmutableString::new("lightmapTexture"),
+                        PropertyValue::Sampler {
+                            value: Some(texture),
+                            fallback: SamplerFallback::Black,
+                        },
+                    ) {
+                        Log::writeln(
+                            MessageKind::Error,
+                            format!(
+                                "Failed to apply light map texture to material. Reason {:?}",
+                                e
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+        Ok(std::mem::replace(&mut self.lightmap, Some(lightmap)))
+    }
+
+    /// Returns current lightmap.
+    pub fn lightmap(&self) -> Option<&Lightmap> {
+        self.lightmap.as_ref()
+    }
+
+    fn apply_lightmap(&mut self) {
+        // Re-apply lightmap if any. This has to be done after resolve because we must patch surface
+        // data at this stage, but if we'd do this before we wouldn't be able to do this because
+        // meshes contains invalid surface data.
+        if let Some(lightmap) = self.lightmap.as_mut() {
+            // Patch surface data first. To do this we gather all surface data instances and
+            // look in patch data if we have patch for data.
+            let mut unique_data_set = FxHashMap::default();
+            for &handle in lightmap.map.keys() {
+                if let Some(mesh) = self.pool[handle].cast_mut::<Mesh>() {
+                    for surface in mesh.surfaces() {
+                        let data = surface.data();
+                        unique_data_set.entry(data.key()).or_insert(data);
+                    }
+                }
+            }
+
+            for (_, data) in unique_data_set.into_iter() {
+                let mut data = data.lock();
+
+                if let Some(patch) = lightmap.patches.get(&data.content_hash()) {
+                    if !data
+                        .vertex_buffer
+                        .has_attribute(VertexAttributeUsage::TexCoord1)
+                    {
+                        data.vertex_buffer
+                            .modify()
+                            .add_attribute(
+                                VertexAttributeDescriptor {
+                                    usage: VertexAttributeUsage::TexCoord1,
+                                    data_type: VertexAttributeDataType::F32,
+                                    size: 2,
+                                    divisor: 0,
+                                    shader_location: 6, // HACK: GBuffer renderer expects it to be at 6
+                                },
+                                Vector2::<f32>::default(),
+                            )
+                            .unwrap();
+                    }
+
+                    data.geometry_buffer.set_triangles(patch.triangles.clone());
+
+                    let mut vertex_buffer_mut = data.vertex_buffer.modify();
+                    for &v in patch.additional_vertices.iter() {
+                        vertex_buffer_mut.duplicate(v as usize);
+                    }
+
+                    assert_eq!(
+                        vertex_buffer_mut.vertex_count() as usize,
+                        patch.second_tex_coords.len()
+                    );
+                    for (mut view, &tex_coord) in vertex_buffer_mut
+                        .iter_mut()
+                        .zip(patch.second_tex_coords.iter())
+                    {
+                        view.write_2_f32(VertexAttributeUsage::TexCoord1, tex_coord)
+                            .unwrap();
+                    }
+                } else {
+                    Log::writeln(
+                        MessageKind::Warning,
+                        "Failed to get surface data patch while resolving lightmap!\
+                    This means that surface has changed and lightmap must be regenerated!",
+                    );
+                }
+            }
+
+            // Apply textures.
+            for (&handle, entries) in lightmap.map.iter_mut() {
+                if let Some(mesh) = self.pool[handle].cast_mut::<Mesh>() {
+                    for (entry, surface) in entries.iter_mut().zip(mesh.surfaces_mut()) {
+                        if let Err(e) = surface.material().lock().set_property(
+                            &ImmutableString::new("lightmapTexture"),
+                            PropertyValue::Sampler {
+                                value: entry.texture.clone(),
+                                fallback: SamplerFallback::Black,
+                            },
+                        ) {
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!(
+                                    "Failed to apply light map texture to material. Reason {:?}",
+                                    e
+                                ),
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 
     pub(crate) fn update_hierarchical_data_recursively(
@@ -1527,17 +1764,42 @@ impl Graph {
     /// Creates deep copy of graph. Allows filtering while copying, returns copy and
     /// old-to-new node mapping.
     #[inline]
-    pub fn clone<F>(&self, root: Handle<Node>, filter: &mut F) -> (Self, NodeHandleMap)
+    pub fn clone<F, C>(
+        &self,
+        root: Handle<Node>,
+        filter: &mut F,
+        callback: &mut C,
+    ) -> (Self, NodeHandleMap)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
+        C: FnMut(Handle<Node>, Handle<Node>, &mut Node),
     {
         let mut copy = Self {
             sound_context: self.sound_context.deep_clone(),
             ..Default::default()
         };
 
-        let (copy_root, old_new_map) = self.copy_node(root, &mut copy, filter);
+        let (copy_root, old_new_map) = self.copy_node(root, &mut copy, filter, callback);
         assert_eq!(copy.root, copy_root);
+
+        let mut lightmap = self.lightmap.clone();
+        if let Some(lightmap) = lightmap.as_mut() {
+            let mut map = FxHashMap::default();
+            for (mut handle, mut entries) in std::mem::take(&mut lightmap.map) {
+                for entry in entries.iter_mut() {
+                    for light_handle in entry.lights.iter_mut() {
+                        old_new_map.try_map(light_handle);
+                    }
+                }
+
+                if old_new_map.try_map(&mut handle) {
+                    map.insert(handle, entries);
+                }
+            }
+            lightmap.map = map;
+        }
+        copy.lightmap = lightmap;
+
         (copy, old_new_map)
     }
 
@@ -1795,6 +2057,7 @@ impl Visit for Graph {
         self.sound_context.visit("SoundContext", &mut region)?;
         self.physics.visit("PhysicsWorld", &mut region)?;
         self.physics2d.visit("PhysicsWorld2D", &mut region)?;
+        let _ = self.lightmap.visit("Lightmap", &mut region);
 
         Ok(())
     }
@@ -1802,12 +2065,30 @@ impl Visit for Graph {
 
 #[cfg(test)]
 mod test {
-    use crate::scene::base::BaseBuilder;
-    use crate::scene::pivot::PivotBuilder;
     use crate::{
-        core::pool::Handle,
-        scene::{graph::Graph, node::Node, pivot::Pivot},
+        asset::{io::FsResourceIo, manager::ResourceManager},
+        core::{
+            algebra::{Matrix4, Vector3},
+            futures::executor::block_on,
+            pool::Handle,
+            visitor::Visitor,
+        },
+        engine::{self, SerializationContext},
+        resource::model::{Model, ModelResourceExtension},
+        scene::{
+            base::BaseBuilder,
+            graph::Graph,
+            mesh::{
+                surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
+                MeshBuilder,
+            },
+            node::Node,
+            pivot::{Pivot, PivotBuilder},
+            transform::TransformBuilder,
+            Scene, SceneLoader,
+        },
     };
+    use std::{fs, path::Path, sync::Arc};
 
     #[test]
     fn graph_init_test() {
@@ -1934,5 +2215,141 @@ mod test {
         assert_eq!(graph[b].parent, a);
 
         assert!(graph[b].children.is_empty());
+    }
+
+    fn create_scene() -> Scene {
+        let mut scene = Scene::new();
+
+        PivotBuilder::new(BaseBuilder::new().with_name("Pivot")).build(&mut scene.graph);
+
+        PivotBuilder::new(BaseBuilder::new().with_name("MeshPivot").with_children(&[{
+            MeshBuilder::new(
+                BaseBuilder::new().with_name("Mesh").with_local_transform(
+                    TransformBuilder::new()
+                        .with_local_position(Vector3::new(3.0, 2.0, 1.0))
+                        .build(),
+                ),
+            )
+            .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+                SurfaceData::make_cone(16, 1.0, 1.0, &Matrix4::identity()),
+            ))
+            .build()])
+            .build(&mut scene.graph)
+        }]))
+        .build(&mut scene.graph);
+
+        scene
+    }
+
+    fn save_scene(scene: &mut Scene, path: &Path) {
+        let mut visitor = Visitor::new();
+        scene.save("Scene", &mut visitor).unwrap();
+        visitor.save_binary(path).unwrap();
+    }
+
+    fn make_resource_manager() -> ResourceManager {
+        let resource_manager = ResourceManager::new();
+        engine::initialize_resource_manager_loaders(
+            &resource_manager,
+            Arc::new(SerializationContext::new()),
+        );
+        resource_manager
+    }
+
+    #[test]
+    fn test_restore_integrity() {
+        if !Path::new("test_output").exists() {
+            fs::create_dir_all("test_output").unwrap();
+        }
+
+        let root_asset_path = Path::new("test_output/root2.rgs");
+        let derived_asset_path = Path::new("test_output/derived2.rgs");
+
+        // Create root scene and save it.
+        {
+            let mut scene = create_scene();
+            save_scene(&mut scene, root_asset_path);
+        }
+
+        // Create root resource instance in a derived resource. This creates a derived asset.
+        {
+            let resource_manager = make_resource_manager();
+            let root_asset =
+                block_on(resource_manager.request::<Model, _>(root_asset_path)).unwrap();
+
+            let mut derived = Scene::new();
+            root_asset.instantiate(&mut derived);
+            save_scene(&mut derived, derived_asset_path);
+        }
+
+        // Now load the root asset, modify it, save it back and reload the derived asset.
+        {
+            let resource_manager = make_resource_manager();
+            let mut scene = block_on(
+                block_on(SceneLoader::from_file(
+                    root_asset_path,
+                    &FsResourceIo,
+                    Arc::new(SerializationContext::new()),
+                    resource_manager.clone(),
+                ))
+                .unwrap()
+                .0
+                .finish(&resource_manager),
+            );
+
+            // Add a new node to the root node of the scene.
+            PivotBuilder::new(BaseBuilder::new().with_name("AddedLater")).build(&mut scene.graph);
+
+            // Add a new node to the mesh.
+            let mesh = scene.graph.find_by_name_from_root("Mesh").unwrap().0;
+            let pivot = PivotBuilder::new(BaseBuilder::new().with_name("NewChildOfMesh"))
+                .build(&mut scene.graph);
+            scene.graph.link_nodes(pivot, mesh);
+
+            // Remove existing nodes.
+            let existing_pivot = scene.graph.find_by_name_from_root("Pivot").unwrap().0;
+            scene.graph.remove_node(existing_pivot);
+
+            // Save the scene back.
+            save_scene(&mut scene, root_asset_path);
+        }
+
+        // Load the derived scene and check if its content was synced with the content of the root asset.
+        {
+            let resource_manager = make_resource_manager();
+            let derived_asset =
+                block_on(resource_manager.request::<Model, _>(derived_asset_path)).unwrap();
+
+            let derived_data = derived_asset.data_ref();
+            let derived_scene = derived_data.get_scene();
+
+            // Pivot must also be removed from the derived asset, because it is deleted in the root asset.
+            assert_eq!(
+                derived_scene
+                    .graph
+                    .find_by_name_from_root("Pivot")
+                    .map(|(h, _)| h),
+                None
+            );
+
+            let mesh_pivot = derived_scene
+                .graph
+                .find_by_name_from_root("MeshPivot")
+                .unwrap()
+                .0;
+            let mesh = derived_scene
+                .graph
+                .find_by_name(mesh_pivot, "Mesh")
+                .unwrap()
+                .0;
+            derived_scene
+                .graph
+                .find_by_name_from_root("AddedLater")
+                .unwrap();
+            derived_scene
+                .graph
+                .find_by_name(mesh, "NewChildOfMesh")
+                .unwrap();
+        }
     }
 }

@@ -2,6 +2,7 @@
 
 use fyrox::{
     core::pool::Handle,
+    core::{reflect::prelude::*, visitor::prelude::*},
     gui::message::{MessageDirection, MouseButton, UiMessage},
     gui::widget::WidgetMessage,
     gui::{define_constructor, UiNode, UserInterface},
@@ -16,7 +17,7 @@ impl SelectableMessage {
     define_constructor!(SelectableMessage:Select => fn select(bool), layout: false);
 }
 
-#[derive(Default, Clone, Debug, PartialEq, Eq)]
+#[derive(Default, Clone, Debug, PartialEq, Eq, Visit, Reflect)]
 pub struct Selectable {
     pub selected: bool,
 }

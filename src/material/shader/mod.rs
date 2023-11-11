@@ -146,21 +146,25 @@
 //! - PointShadow - A pass that emits distance from a fragment to a point light, later this depth
 //! map will be used to render shadows.
 //!
-//! # Built-in variables
+//! ## Built-in properties
 //!
-//! There are number of build-in variables that Fyrox pass to each shader automatically:
+//! There are number of built-in properties, that Fyrox will try to assign automatically if they're defined
+//! in your shader:
 //!
-//! | Name                      | Type            | Description
-//! |---------------------------|-----------------|--------------------------------------------
-//! | fyrox_worldMatrix          | `Matrix4`       | Local-to-world transformation.
-//! | fyrox_worldViewProjection  | `Matrix4`       | Local-to-clip-space transform.
-//! | fyrox_boneMatrices         | `[Matrix4; 60]` | Array of bone matrices.
-//! | fyrox_useSkeletalAnimation | `Vector3`       | Whether skinned meshes is rendering or not.
-//! | fyrox_cameraPosition       | `Vector3`       | Position of the camera.
-//! | fyrox_usePOM               | `bool`          | Whether to use parallax mapping or not.
-//! | fyrox_lightPosition        | `Vector3`       | Light position.
+//! | Name                       | Type         | Description                                                                                                       |
+//! |----------------------------|--------------|-------------------------------------------------------------------------------------------------------------------|
+//! | fyrox_worldMatrix          | `mat4`       | Local-to-world transformation.                                                                                    |
+//! | fyrox_worldViewProjection  | `mat4`       | Local-to-clip-space transform.                                                                                    |
+//! | fyrox_boneMatrices         | `sampler2D`  | Array of bone matrices packed into a texture. Use `S_FetchMatrix` built-in method to fetch a matrix by its index. |
+//! | fyrox_useSkeletalAnimation | `bool`       | Whether skinned meshes is rendering or not.                                                                       |
+//! | fyrox_cameraPosition       | `vec3`       | Position of the camera.                                                                                           |
+//! | fyrox_usePOM               | `bool`       | Whether to use parallax mapping or not.                                                                           |
+//! | fyrox_lightPosition        | `vec3`       | Light position.                                                                                                   |
+//! | fyrox_blendShapesStorage   | `sampler3D`  | 3D texture of layered blend shape storage. Use `S_FetchBlendShapeOffsets` built-in method to fetch info.          |
+//! | fyrox_blendShapesWeights   | `float[128]` | Weights of all available blend shapes.                                                                            |
+//! | fyrox_blendShapesCount     | `int`        | Total amount of blend shapes.                                                                                     |
 //!
-//! To use any of the variables, just define a uniform with appropriate name:
+//! To use any of the properties, just define a uniform with an appropriate name:
 //!
 //! ```glsl
 //! uniform mat4 fyrox_worldMatrix;
@@ -229,7 +233,7 @@ use crate::{
     asset::{Resource, ResourceData},
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
-        io::{self, FileLoadError},
+        io::FileLoadError,
         reflect::prelude::*,
         sparse::AtomicIndex,
         visitor::prelude::*,
@@ -239,7 +243,7 @@ use crate::{
 };
 use fyrox_core::uuid::Uuid;
 use fyrox_core::TypeUuidProvider;
-use fyrox_resource::SHADER_RESOURCE_UUID;
+use fyrox_resource::{io::ResourceIo, SHADER_RESOURCE_UUID};
 use serde::{Deserialize, Serialize};
 use std::any::Any;
 use std::fmt::{Display, Formatter};
@@ -500,8 +504,11 @@ impl ShaderDefinition {
 }
 
 impl Shader {
-    pub(crate) async fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, ShaderError> {
-        let content = io::load_file(path.as_ref()).await?;
+    pub(crate) async fn from_file<P: AsRef<Path>>(
+        path: P,
+        io: &dyn ResourceIo,
+    ) -> Result<Self, ShaderError> {
+        let content = io.load_file(path.as_ref()).await?;
         Ok(Self {
             path: path.as_ref().to_owned(),
             definition: ShaderDefinition::from_buf(content)?,
@@ -671,7 +678,7 @@ mod test {
         let code = r#"
             (
                 name: "TestShader",
-            
+
                 properties: [
                     (
                         name: "diffuseTexture",

@@ -71,6 +71,7 @@ use crate::{
             ChangeSelectionCommand, CommandGroup, PasteCommand, SceneCommand, SceneContext,
         },
         dialog::NodeRemovalDialog,
+        selector::HierarchyNode,
         settings::SceneSettingsWindow,
         EditorScene, Selection,
     },
@@ -81,7 +82,7 @@ use crate::{
     world::{graph::selection::GraphSelection, WorldViewer},
 };
 use fyrox::{
-    asset::manager::ResourceManager,
+    asset::{io::FsResourceIo, manager::ResourceManager},
     core::{
         algebra::{Matrix3, Vector2},
         color::Color,
@@ -96,7 +97,7 @@ use fyrox::{
     dpi::{PhysicalPosition, PhysicalSize},
     engine::{Engine, EngineInitParams, GraphicsContextParams, SerializationContext},
     event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
     fxhash::FxHashMap,
     gui::{
         brush::Brush,
@@ -146,7 +147,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::scene::selector::HierarchyNode;
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -739,20 +739,19 @@ impl Editor {
             settings.windows.window_size.y,
         );
 
+        let mut window_attributes = WindowAttributes::default();
+        window_attributes.inner_size = Some(inner_size.into());
+        window_attributes.position = Some(
+            PhysicalPosition::new(
+                settings.windows.window_position.x,
+                settings.windows.window_position.y,
+            )
+            .into(),
+        );
+        window_attributes.resizable = true;
+        window_attributes.title = "FyroxEd".to_string();
         let graphics_context_params = GraphicsContextParams {
-            window_attributes: WindowAttributes {
-                inner_size: Some(inner_size.into()),
-                position: Some(
-                    PhysicalPosition::new(
-                        settings.windows.window_position.x,
-                        settings.windows.window_position.y,
-                    )
-                    .into(),
-                ),
-                resizable: true,
-                title: "FyroxEd".to_string(),
-                ..Default::default()
-            },
+            window_attributes,
             vsync: true,
         };
 
@@ -784,6 +783,11 @@ impl Editor {
         }
 
         // High-DPI screen support
+        Log::info(format!(
+            "UI scaling of your OS is: {}",
+            graphics_context.window.scale_factor()
+        ));
+
         let logical_size = graphics_context
             .window
             .inner_size()
@@ -1017,7 +1021,7 @@ impl Editor {
 
         let scene_settings = SceneSettingsWindow::new(ctx, message_sender.clone());
 
-        let material_editor = MaterialEditor::new(&mut engine);
+        let material_editor = MaterialEditor::new(&mut engine, message_sender.clone());
 
         if let Some(layout) = settings.windows.layout.as_ref() {
             engine
@@ -1867,13 +1871,14 @@ impl Editor {
         let result = {
             block_on(SceneLoader::from_file(
                 &scene_path,
+                &FsResourceIo,
                 engine.serialization_context.clone(),
                 engine.resource_manager.clone(),
             ))
         };
         match result {
             Ok(loader) => {
-                let scene = block_on(loader.finish(&engine.resource_manager));
+                let scene = block_on(loader.0.finish(&engine.resource_manager));
 
                 self.add_scene(scene, Some(scene_path));
             }
@@ -2404,9 +2409,12 @@ impl Editor {
             let mut dest_scene = Scene::new();
             if let Selection::Graph(ref graph_selection) = editor_scene.selection {
                 for root_node in graph_selection.root_nodes(&source_scene.graph) {
-                    source_scene
-                        .graph
-                        .copy_node(root_node, &mut dest_scene.graph, &mut |_, _| true);
+                    source_scene.graph.copy_node(
+                        root_node,
+                        &mut dest_scene.graph,
+                        &mut |_, _| true,
+                        &mut |_, _, _| {},
+                    );
                 }
 
                 let mut visitor = Visitor::new();
@@ -2462,14 +2470,14 @@ impl Editor {
         for_each_plugin!(self.plugins => on_start(&mut self));
 
         event_loop
-            .run(move |event, _, control_flow| match event {
+            .run(move |event, window_target| match event {
                 Event::AboutToWait => {
                     if self.is_active() {
-                        update(&mut self, control_flow);
+                        update(&mut self, window_target);
                     }
 
                     if self.exit {
-                        *control_flow = ControlFlow::Exit;
+                        window_target.exit();
 
                         // Kill any active child process on exit.
                         match self.mode {
@@ -2479,44 +2487,6 @@ impl Editor {
                                 ref mut process, ..
                             } => {
                                 let _ = process.kill();
-                            }
-                        }
-                    }
-                }
-                Event::RedrawRequested(_) => {
-                    if self.is_active() {
-                        // Temporarily disable cameras in currently edited scene. This is needed to prevent any
-                        // scene camera to interfere with the editor camera.
-                        let mut camera_state = Vec::new();
-                        if let Some(editor_scene) = self.scenes.current_editor_scene_ref() {
-                            let scene = &mut self.engine.scenes[editor_scene.scene];
-                            let has_preview_camera =
-                                scene.graph.is_valid_handle(editor_scene.preview_camera);
-                            for (handle, camera) in
-                                scene.graph.pair_iter_mut().filter_map(|(h, n)| {
-                                    if has_preview_camera && h != editor_scene.preview_camera
-                                        || !has_preview_camera
-                                            && h != editor_scene.camera_controller.camera
-                                    {
-                                        n.cast_mut::<Camera>().map(|c| (h, c))
-                                    } else {
-                                        None
-                                    }
-                                })
-                            {
-                                camera_state.push((handle, camera.is_enabled()));
-                                camera.set_enabled(false);
-                            }
-                        }
-
-                        self.engine.render().unwrap();
-
-                        // Revert state of the cameras.
-                        if let Some(scene) = self.scenes.current_editor_scene_ref() {
-                            for (handle, enabled) in camera_state {
-                                self.engine.scenes[scene.scene].graph[handle]
-                                    .as_camera_mut()
-                                    .set_enabled(enabled);
                             }
                         }
                     }
@@ -2573,6 +2543,45 @@ impl Editor {
                         WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
                             set_ui_scaling(&self.engine.user_interface, *scale_factor as f32);
                         }
+                        WindowEvent::RedrawRequested => {
+                            if self.is_active() {
+                                // Temporarily disable cameras in currently edited scene. This is needed to prevent any
+                                // scene camera to interfere with the editor camera.
+                                let mut camera_state = Vec::new();
+                                if let Some(editor_scene) = self.scenes.current_editor_scene_ref() {
+                                    let scene = &mut self.engine.scenes[editor_scene.scene];
+                                    let has_preview_camera =
+                                        scene.graph.is_valid_handle(editor_scene.preview_camera);
+                                    for (handle, camera) in
+                                        scene.graph.pair_iter_mut().filter_map(|(h, n)| {
+                                            if has_preview_camera
+                                                && h != editor_scene.preview_camera
+                                                || !has_preview_camera
+                                                    && h != editor_scene.camera_controller.camera
+                                            {
+                                                n.cast_mut::<Camera>().map(|c| (h, c))
+                                            } else {
+                                                None
+                                            }
+                                        })
+                                    {
+                                        camera_state.push((handle, camera.is_enabled()));
+                                        camera.set_enabled(false);
+                                    }
+                                }
+
+                                self.engine.render().unwrap();
+
+                                // Revert state of the cameras.
+                                if let Some(scene) = self.scenes.current_editor_scene_ref() {
+                                    for (handle, enabled) in camera_state {
+                                        self.engine.scenes[scene.scene].graph[handle]
+                                            .as_camera_mut()
+                                            .set_enabled(enabled);
+                                    }
+                                }
+                            }
+                        }
                         _ => (),
                     }
 
@@ -2594,14 +2603,14 @@ impl Editor {
                             self.is_suspended = false;
                         }
 
-                        *control_flow = ControlFlow::Poll;
+                        window_target.set_control_flow(ControlFlow::Poll);
                     } else {
                         if !self.is_suspended {
                             for_each_plugin!(self.plugins => on_suspended(&mut self));
                             self.is_suspended = true;
                         }
 
-                        *control_flow = ControlFlow::Wait;
+                        window_target.set_control_flow(ControlFlow::Wait);
                     }
                 }
             })
@@ -2618,7 +2627,7 @@ fn set_ui_scaling(ui: &UserInterface, scale: f32) {
     ));
 }
 
-fn update(editor: &mut Editor, control_flow: &mut ControlFlow) {
+fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
     scope_profile!();
 
     let elapsed = editor.game_loop_data.clock.elapsed().as_secs_f32();
@@ -2654,7 +2663,7 @@ fn update(editor: &mut Editor, control_flow: &mut ControlFlow) {
 
         editor.engine.pre_update(
             FIXED_TIMESTEP,
-            control_flow,
+            window_target,
             &mut editor.game_loop_data.lag,
             switches,
         );

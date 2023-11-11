@@ -1,5 +1,9 @@
 //! Texture loader.
 
+use std::sync::Arc;
+
+use fyrox_resource::io::ResourceIo;
+
 use crate::{
     asset::{
         event::ResourceEventBroadcaster,
@@ -33,18 +37,20 @@ impl ResourceLoader for TextureLoader {
         texture: UntypedResource,
         event_broadcaster: ResourceEventBroadcaster,
         reload: bool,
+        io: Arc<dyn ResourceIo>,
     ) -> BoxedLoaderFuture {
         let default_import_options = self.default_import_options.clone();
-
         Box::pin(async move {
+            let io = io.as_ref();
+
             let path = texture.path().to_path_buf();
 
-            let import_options = try_get_import_settings(&path)
+            let import_options = try_get_import_settings(&path, io)
                 .await
                 .unwrap_or(default_import_options);
 
             let time = instant::Instant::now();
-            match Texture::load_from_file(&path, import_options).await {
+            match Texture::load_from_file(&path, io, import_options).await {
                 Ok(raw_texture) => {
                     Log::info(format!(
                         "Texture {:?} is loaded in {:?}!",

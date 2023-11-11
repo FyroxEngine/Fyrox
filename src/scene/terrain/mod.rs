@@ -1544,9 +1544,10 @@ impl NodeTrait for Terrain {
                                 element_range: ElementRange::Full,
                                 persistent_identifier: PersistentIdentifier::new_combined(
                                     &self.geometry.data,
-                                    ctx.node_handle,
+                                    self.self_handle,
                                     node.persistent_index,
                                 ),
+                                node_handle: self.self_handle,
                             },
                         );
                     } else {
@@ -1566,9 +1567,10 @@ impl NodeTrait for Terrain {
                                         element_range: self.geometry.quadrants[i],
                                         persistent_identifier: PersistentIdentifier::new_combined(
                                             &self.geometry.data,
-                                            ctx.node_handle,
+                                            self.self_handle,
                                             node.persistent_index,
                                         ),
+                                        node_handle: self.self_handle,
                                     },
                                 );
                             }

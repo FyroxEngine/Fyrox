@@ -8,6 +8,7 @@ use crate::{
     brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
     core::{color::Color, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     decorator::{DecoratorBuilder, DecoratorMessage},
     define_constructor,
     grid::{Column, GridBuilder, Row},
@@ -89,7 +90,7 @@ impl Debug for TabUserData {
 }
 
 /// Tab of the [`TabControl`] widget. It stores important tab data, that is widely used at runtime.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Visit, Reflect, Default, Debug)]
 pub struct Tab {
     /// A handle of the header button, that is used to switch tabs.
     pub header_button: Handle<UiNode>,
@@ -100,6 +101,8 @@ pub struct Tab {
     /// A handle to a container widget, that holds the header.
     pub header_container: Handle<UiNode>,
     /// User-defined data.
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub user_data: Option<TabUserData>,
     /// A handle of a node that is used to highlight tab's state.
     pub decorator: Handle<UiNode>,
@@ -194,7 +197,7 @@ pub struct Tab {
 /// # }
 ///
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct TabControl {
     /// Base widget of the tab control.
     pub widget: Widget,

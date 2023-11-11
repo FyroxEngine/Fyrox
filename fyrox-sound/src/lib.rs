@@ -30,10 +30,11 @@
 //!     },
 //! };
 //! use fyrox_sound::buffer::SoundBufferResourceExtension;
+//! use fyrox_resource::io::FsResourceIo;
 //!
 //!  let context = SoundContext::new();
 //!
-//!  let sound_buffer = SoundBufferResource::new_generic(fyrox_sound::futures::executor::block_on(DataSource::from_file("sound.wav")).unwrap()).unwrap();
+//!  let sound_buffer = SoundBufferResource::new_generic(fyrox_sound::futures::executor::block_on(DataSource::from_file("sound.wav", &FsResourceIo)).unwrap()).unwrap();
 //!
 //!  let source = SoundSourceBuilder::new()
 //!     .with_buffer(sound_buffer)

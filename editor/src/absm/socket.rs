@@ -1,6 +1,7 @@
 use fyrox::{
     animation::machine::PoseNode,
     core::{algebra::Vector2, color::Color, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     gui::{
         brush::Brush,
         define_constructor, define_widget_deref,
@@ -31,13 +32,14 @@ impl SocketMessage {
     define_constructor!(SocketMessage:StartDragging => fn start_dragging(), layout: false);
 }
 
-#[derive(Copy, Clone, PartialEq, Hash, Debug, Eq)]
+#[derive(Copy, Clone, PartialEq, Hash, Debug, Eq, Visit, Reflect, Default)]
 pub enum SocketDirection {
+    #[default]
     Input,
     Output,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct Socket {
     widget: Widget,
     click_position: Option<Vector2<f32>>,

@@ -37,6 +37,7 @@ pub mod constructor;
 pub mod entry;
 pub mod event;
 pub mod graph;
+pub mod io;
 pub mod loader;
 pub mod manager;
 pub mod options;
@@ -388,6 +389,12 @@ where
     #[inline]
     pub fn path(&self) -> PathBuf {
         self.state.as_ref().unwrap().0.lock().path().to_path_buf()
+    }
+
+    /// Sets a new path of the resource.
+    #[inline]
+    pub fn set_path(&mut self, new_path: PathBuf) {
+        self.state.as_ref().unwrap().set_path(new_path);
     }
 
     /// Allows you to obtain reference to the resource data.

@@ -6,7 +6,9 @@
 pub mod error;
 pub mod executor;
 
-use crate::scene::camera::SkyBoxKind;
+use crate::resource::model::NodeMapping;
+use crate::scene::graph::NodePool;
+use crate::scene::SceneLoader;
 use crate::{
     asset::{
         event::ResourceEvent,
@@ -16,7 +18,6 @@ use crate::{
     core::{algebra::Vector2, futures::executor::block_on, instant, log::Log, pool::Handle},
     engine::error::EngineError,
     event::Event,
-    event_loop::ControlFlow,
     gui::UserInterface,
     material::shader::{loader::ShaderLoader, Shader, ShaderResource, ShaderResourceExtension},
     plugin::{Plugin, PluginConstructor, PluginContext, PluginRegistrationContext},
@@ -28,6 +29,7 @@ use crate::{
     },
     scene::{
         base::NodeScriptMessage,
+        camera::SkyBoxKind,
         graph::GraphUpdateSwitches,
         node::{constructor::NodeConstructorContainer, Node},
         sound::SoundEngine,
@@ -41,13 +43,18 @@ use crate::{
     window::{Window, WindowBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_sound::buffer::{loader::SoundBufferLoader, SoundBuffer};
-use fyrox_sound::renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData};
+use fyrox_core::reflect::Reflect;
+use fyrox_core::variable::try_inherit_properties;
+use fyrox_core::visitor::VisitError;
+use fyrox_sound::{
+    buffer::{loader::SoundBufferLoader, SoundBuffer},
+    renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
+};
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{
     config::ConfigTemplateBuilder,
     context::{
-        ContextApi, ContextAttributesBuilder, GlProfile, NotCurrentGlContextSurfaceAccessor,
+        ContextApi, ContextAttributesBuilder, GlProfile, NotCurrentGlContext,
         PossiblyCurrentContext, Version,
     },
     display::{GetGlDisplay, GlDisplay},
@@ -60,16 +67,17 @@ use raw_window_handle::HasRawWindowHandle;
 use std::{
     any::TypeId,
     collections::{HashSet, VecDeque},
+    ffi::CString,
     fmt::{Display, Formatter},
+    num::NonZeroU32,
     ops::Deref,
+    path::{Path, PathBuf},
     sync::{
-        mpsc::{channel, Receiver},
+        mpsc::{channel, Receiver, Sender},
         Arc,
     },
     time::Duration,
 };
-#[cfg(not(target_arch = "wasm32"))]
-use std::{ffi::CString, num::NonZeroU32};
 use winit::{
     dpi::{Position, Size},
     event_loop::EventLoopWindowTarget,
@@ -186,6 +194,202 @@ impl GraphicsContext {
     }
 }
 
+struct SceneLoadingOptions {
+    derived: bool,
+}
+
+/// A helper that is used to load scenes asynchronously.
+///
+/// ## Examples
+///
+/// ```rust
+/// use fyrox::{
+///     core::{color::Color, log::Log, pool::Handle},
+///     plugin::{Plugin, PluginConstructor, PluginContext},
+///     scene::Scene,
+/// };
+/// use std::path::Path;
+///
+/// struct GameConstructor;
+///
+/// impl PluginConstructor for GameConstructor {
+///     fn create_instance(
+///         &self,
+///         scene_path: Option<&str>,
+///         context: PluginContext,
+///     ) -> Box<dyn Plugin> {
+///         Box::new(MyGame::new(scene_path, context))
+///     }
+/// }
+///
+/// struct MyGame {
+///     scene: Handle<Scene>,
+/// }
+///
+/// impl MyGame {
+///     pub fn new(scene_path: Option<&str>, context: PluginContext) -> Self {
+///         context
+///             .async_scene_loader
+///             .request(scene_path.unwrap_or("data/scene.rgs"));
+///
+///         Self {
+///             scene: Handle::NONE,
+///         }
+///     }
+/// }
+///
+/// impl Plugin for MyGame {
+///     fn on_scene_begin_loading(&mut self, path: &Path, _context: &mut PluginContext) {
+///         Log::info(format!("{} scene has started loading.", path.display()));
+///
+///         // Use this method if you need to so something when a scene started loading.
+///     }
+///
+///     fn on_scene_loaded(
+///         &mut self,
+///         path: &Path,
+///         scene: Handle<Scene>,
+///         data: &[u8],
+///         context: &mut PluginContext,
+///     ) {
+///         // Optionally remove previous scene.
+///         if self.scene.is_some() {
+///             context.scenes.remove(self.scene);
+///         }
+///
+///         // Remember new scene handle.
+///         self.scene = scene;
+///
+///         Log::info(format!("{} scene was loaded!", path.display()));
+///
+///         // Do something with a newly loaded scene.
+///         let scene_ref = &mut context.scenes[scene];
+///
+///         scene_ref.rendering_options.ambient_lighting_color = Color::opaque(20, 20, 20);
+///     }
+/// }
+/// ```
+///
+/// This example shows a typical usage of the loader, an instance of which is available in the
+/// plugin context. `Game::new` requests a new scene, which internally asks a resource manager to
+/// load the scene. Then, when the scene is fully loaded, the engine calls `Plugin::on_scene_loaded`
+/// method which allows you to do something with the newly loaded scene by taking a reference of it.
+pub struct AsyncSceneLoader {
+    resource_manager: ResourceManager,
+    serialization_context: Arc<SerializationContext>,
+    receiver: Receiver<SceneLoadingResult>,
+    sender: Sender<SceneLoadingResult>,
+    loading_scenes: FxHashMap<PathBuf, LoadingScene>,
+}
+
+struct LoadingScene {
+    reported: bool,
+    path: PathBuf,
+    options: SceneLoadingOptions,
+}
+
+struct SceneLoadingResult {
+    path: PathBuf,
+    result: Result<(Scene, Vec<u8>), VisitError>,
+}
+
+impl AsyncSceneLoader {
+    fn new(
+        resource_manager: ResourceManager,
+        serialization_context: Arc<SerializationContext>,
+    ) -> Self {
+        let (sender, receiver) = channel();
+        Self {
+            resource_manager,
+            serialization_context,
+            receiver,
+            sender,
+            loading_scenes: Default::default(),
+        }
+    }
+
+    fn request_with_options<P: AsRef<Path>>(&mut self, path: P, opts: SceneLoadingOptions) {
+        let path = path.as_ref().to_path_buf();
+
+        if self.loading_scenes.contains_key(&path) {
+            Log::warn(format!("A scene {} is already loading!", path.display()))
+        } else {
+            // Register a new request.
+            self.loading_scenes.insert(
+                path.clone(),
+                LoadingScene {
+                    reported: false,
+                    path: path.clone(),
+                    options: opts,
+                },
+            );
+
+            // Start loading in a separate off-thread task.
+            let sender = self.sender.clone();
+            let serialization_context = self.serialization_context.clone();
+            let resource_manager = self.resource_manager.clone();
+
+            // Aquire the resource IO from the resource manager
+            let io = resource_manager.resource_io();
+
+            let future = async move {
+                match SceneLoader::from_file(
+                    path.clone(),
+                    io.as_ref(),
+                    serialization_context,
+                    resource_manager.clone(),
+                )
+                .await
+                {
+                    Ok((loader, data)) => {
+                        let scene = loader.finish(&resource_manager).await;
+                        Log::verify(sender.send(SceneLoadingResult {
+                            path,
+                            result: Ok((scene, data)),
+                        }));
+                    }
+                    Err(e) => {
+                        Log::verify(sender.send(SceneLoadingResult {
+                            path,
+                            result: Err(e),
+                        }));
+                    }
+                }
+            };
+
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                std::thread::spawn(move || block_on(future));
+            }
+
+            #[cfg(target_arch = "wasm32")]
+            {
+                crate::core::wasm_bindgen_futures::spawn_local(future);
+            }
+        }
+    }
+
+    /// Requests a scene for loading as derived scene. See [`AsyncSceneLoader`] for usage example.
+    ///
+    /// ## Raw vs Derived Scene
+    ///
+    /// Derived scene means its nodes will derive their properties from the nodes from the source
+    /// scene. Derived scene is useful for saved games - you can serialize your scene as usual and
+    /// it will only contain a "difference" between the original scene and yours. To load the same
+    /// scene as raw scene use [`Self::request_raw`] method.
+    ///
+    /// Raw scene, on other hand, loads the scene as-is without any additional markings for the
+    /// scene nodes. It could be useful to load saved games.
+    pub fn request<P: AsRef<Path>>(&mut self, path: P) {
+        self.request_with_options(path, SceneLoadingOptions { derived: true });
+    }
+
+    /// Requests a scene for loading in raw mode. See [`Self::request`] docs for more info.
+    pub fn request_raw<P: AsRef<Path>>(&mut self, path: P) {
+        self.request_with_options(path, SceneLoadingOptions { derived: false });
+    }
+}
+
 /// See module docs.
 pub struct Engine {
     /// Graphics context of the engine. See [`GraphicsContext`] docs for more info.
@@ -202,6 +406,9 @@ pub struct Engine {
 
     /// All available scenes in the engine.
     pub scenes: SceneContainer,
+
+    /// An instance of the async scene loader. See [`AsyncSceneLoader`] docs for usage example.
+    pub async_scene_loader: AsyncSceneLoader,
 
     performance_statistics: PerformanceStatistics,
 
@@ -254,14 +461,14 @@ impl ScriptMessageDispatcher {
             .or_insert_with(|| FxHashSet::from_iter([receiver]));
     }
 
-    /// Unsubscribes a node from receiving any messages of the given type `T`.  
+    /// Unsubscribes a node from receiving any messages of the given type `T`.
     pub fn unsubscribe_from<T: 'static>(&mut self, receiver: Handle<Node>) {
         if let Some(group) = self.type_groups.get_mut(&TypeId::of::<T>()) {
             group.remove(&receiver);
         }
     }
 
-    /// Unsubscribes a node from receiving any messages.  
+    /// Unsubscribes a node from receiving any messages.
     pub fn unsubscribe(&mut self, receiver: Handle<Node>) {
         for group in self.type_groups.values_mut() {
             group.remove(&receiver);
@@ -391,7 +598,6 @@ impl ScriptProcessor {
     fn register_scripted_scene(
         &mut self,
         scene: Handle<Scene>,
-        scenes: &mut SceneContainer,
         resource_manager: &ResourceManager,
     ) {
         // Ensure that the scene wasn't registered previously.
@@ -403,17 +609,6 @@ impl ScriptProcessor {
             message_sender: ScriptMessageSender { sender: tx },
             message_dispatcher: ScriptMessageDispatcher::new(rx),
         });
-
-        let graph = &mut scenes[scene].graph;
-
-        // Spawn events for each node in the scene to force the engine to
-        // initialize scripts.
-        for (handle, _) in graph.pair_iter() {
-            graph
-                .script_message_sender
-                .send(NodeScriptMessage::InitializeScript { handle })
-                .unwrap();
-        }
 
         self.wait_list
             .push(resource_manager.state().get_wait_context());
@@ -441,16 +636,29 @@ impl ScriptProcessor {
             let scene = &mut scenes[scripted_scene.handle];
 
             // Disabled scenes should not update their scripts.
-            if !scene.enabled {
+            if !*scene.enabled {
                 continue 'scene_loop;
             }
 
-            // Fill in initial handles to nodes to update.
+            // Fill in initial handles to nodes to initialize, start, update.
             let mut update_queue = VecDeque::new();
+            let mut start_queue = VecDeque::new();
             for (handle, node) in scene.graph.pair_iter() {
                 if let Some(script) = node.script.as_ref() {
-                    if script.initialized && script.started {
-                        update_queue.push_back(handle);
+                    if node.is_globally_enabled() {
+                        if script.initialized {
+                            if script.started {
+                                update_queue.push_back(handle);
+                            } else {
+                                start_queue.push_back(handle);
+                            }
+                        } else {
+                            scene
+                                .graph
+                                .script_message_sender
+                                .send(NodeScriptMessage::InitializeScript { handle })
+                                .unwrap();
+                        }
                     }
                 }
             }
@@ -474,8 +682,6 @@ impl ScriptProcessor {
                 };
 
                 'init_loop: for init_loop_iteration in 0..max_iterations {
-                    let mut start_queue = VecDeque::new();
-
                     // Process events first. `on_init` of a script can also create some other instances
                     // and these will be correctly initialized on current frame.
                     while let Ok(event) = context.scene.graph.script_message_receiver.try_recv() {
@@ -861,11 +1067,10 @@ impl Engine {
     /// };
     /// use std::sync::Arc;
     ///
+    /// let mut window_attributes = WindowAttributes::default();
+    /// window_attributes.title = "Some title".to_string();
     /// let graphics_context_params = GraphicsContextParams {
-    ///     window_attributes: WindowAttributes {
-    ///         title: "Some title".to_string(),
-    ///         ..Default::default()
-    ///     },
+    ///     window_attributes,
     ///     vsync: true,
     /// };
     ///
@@ -895,6 +1100,10 @@ impl Engine {
         Ok(Self {
             graphics_context: GraphicsContext::Uninitialized(graphics_context_params),
             model_events_receiver: tx,
+            async_scene_loader: AsyncSceneLoader::new(
+                resource_manager.clone(),
+                serialization_context.clone(),
+            ),
             resource_manager,
             scenes: SceneContainer::new(sound_engine.clone()),
             sound_engine,
@@ -938,14 +1147,14 @@ impl Engine {
                 window_builder = window_builder.with_resize_increments(resize_increments);
             }
             unsafe {
-                window_builder =
-                    window_builder.with_parent_window(params.window_attributes.parent_window);
+                window_builder = window_builder
+                    .with_parent_window(params.window_attributes.parent_window().cloned());
             }
             window_builder = window_builder
                 .with_resizable(params.window_attributes.resizable)
                 .with_enabled_buttons(params.window_attributes.enabled_buttons)
                 .with_title(params.window_attributes.title.clone())
-                .with_fullscreen(params.window_attributes.fullscreen.clone())
+                .with_fullscreen(params.window_attributes.fullscreen().cloned())
                 .with_maximized(params.window_attributes.maximized)
                 .with_visible(params.window_attributes.visible)
                 .with_transparent(params.window_attributes.transparent)
@@ -1126,33 +1335,34 @@ impl Engine {
     /// will result in the almost exact copy of the context that was made before destruction.
     ///
     /// This method should be called on [`Event::Suspended`] of your game loop, however if you do not use any graphics context
-    /// (for example - if you're making a game server), then you can ignore this method completely.   
+    /// (for example - if you're making a game server), then you can ignore this method completely.
     pub fn destroy_graphics_context(&mut self) -> Result<(), EngineError> {
         if let GraphicsContext::Initialized(ref ctx) = self.graphics_context {
             let params = &ctx.params;
             let window = &ctx.window;
+
+            let mut window_attributes = WindowAttributes::default();
+
+            window_attributes.inner_size = Some(Size::Physical(window.inner_size()));
+            window_attributes.min_inner_size = params.window_attributes.min_inner_size;
+            window_attributes.max_inner_size = params.window_attributes.max_inner_size;
+            window_attributes.position = window.outer_position().ok().map(Position::Physical);
+            window_attributes.resizable = window.is_resizable();
+            window_attributes.enabled_buttons = window.enabled_buttons();
+            window_attributes.title = window.title();
+            window_attributes.maximized = window.is_maximized();
+            window_attributes.visible = window.is_visible().unwrap_or(true);
+            window_attributes.transparent = params.window_attributes.transparent;
+            window_attributes.decorations = window.is_decorated();
+            window_attributes.window_icon = params.window_attributes.window_icon.clone();
+            window_attributes.preferred_theme = params.window_attributes.preferred_theme;
+            window_attributes.resize_increments = window.resize_increments().map(Size::Physical);
+            window_attributes.content_protected = params.window_attributes.content_protected;
+            window_attributes.window_level = params.window_attributes.window_level;
+            window_attributes.active = params.window_attributes.active;
+
             self.graphics_context = GraphicsContext::Uninitialized(GraphicsContextParams {
-                window_attributes: WindowAttributes {
-                    inner_size: Some(Size::Physical(window.inner_size())),
-                    min_inner_size: params.window_attributes.min_inner_size,
-                    max_inner_size: params.window_attributes.max_inner_size,
-                    position: window.outer_position().ok().map(Position::Physical),
-                    resizable: window.is_resizable(),
-                    enabled_buttons: window.enabled_buttons(),
-                    title: window.title(),
-                    fullscreen: window.fullscreen(),
-                    maximized: window.is_maximized(),
-                    visible: window.is_visible().unwrap_or(true),
-                    transparent: params.window_attributes.transparent,
-                    decorations: window.is_decorated(),
-                    window_icon: params.window_attributes.window_icon.clone(),
-                    preferred_theme: params.window_attributes.preferred_theme,
-                    resize_increments: window.resize_increments().map(Size::Physical),
-                    content_protected: params.window_attributes.content_protected,
-                    window_level: params.window_attributes.window_level,
-                    parent_window: params.window_attributes.parent_window,
-                    active: params.window_attributes.active,
-                },
+                window_attributes,
                 vsync: params.vsync,
             });
 
@@ -1206,12 +1416,159 @@ impl Engine {
     pub fn update(
         &mut self,
         dt: f32,
-        control_flow: &mut ControlFlow,
+        window_target: &EventLoopWindowTarget<()>,
         lag: &mut f32,
         switches: FxHashMap<Handle<Scene>, GraphUpdateSwitches>,
     ) {
-        self.pre_update(dt, control_flow, lag, switches);
+        self.handle_async_scene_loading(dt, lag, window_target);
+        self.pre_update(dt, window_target, lag, switches);
         self.post_update(dt);
+    }
+
+    fn handle_async_scene_loading(
+        &mut self,
+        dt: f32,
+        lag: &mut f32,
+        window_target: &EventLoopWindowTarget<()>,
+    ) {
+        let len = self.async_scene_loader.loading_scenes.len();
+        let mut n = 0;
+        while n < len {
+            if let Some(request) = self.async_scene_loader.loading_scenes.values_mut().nth(n) {
+                if !request.reported {
+                    request.reported = true;
+
+                    // Notify plugins about a scene, that started loading.
+                    if self.plugins_enabled {
+                        let path = request.path.clone();
+                        let mut context = PluginContext {
+                            scenes: &mut self.scenes,
+                            resource_manager: &self.resource_manager,
+                            graphics_context: &mut self.graphics_context,
+                            dt,
+                            lag,
+                            user_interface: &mut self.user_interface,
+                            serialization_context: &self.serialization_context,
+                            performance_statistics: &self.performance_statistics,
+                            elapsed_time: self.elapsed_time,
+                            script_processor: &self.script_processor,
+                            async_scene_loader: &mut self.async_scene_loader,
+                            window_target: Some(window_target),
+                        };
+
+                        for plugin in self.plugins.iter_mut() {
+                            plugin.on_scene_begin_loading(&path, &mut context);
+                        }
+                    }
+                }
+            }
+
+            n += 1;
+        }
+
+        while let Ok(loading_result) = self.async_scene_loader.receiver.try_recv() {
+            if let Some(request) = self
+                .async_scene_loader
+                .loading_scenes
+                .remove(&loading_result.path)
+            {
+                let mut context = PluginContext {
+                    scenes: &mut self.scenes,
+                    resource_manager: &self.resource_manager,
+                    graphics_context: &mut self.graphics_context,
+                    dt,
+                    lag,
+                    user_interface: &mut self.user_interface,
+                    serialization_context: &self.serialization_context,
+                    performance_statistics: &self.performance_statistics,
+                    elapsed_time: self.elapsed_time,
+                    script_processor: &self.script_processor,
+                    async_scene_loader: &mut self.async_scene_loader,
+                    window_target: Some(window_target),
+                };
+
+                match loading_result.result {
+                    Ok((mut scene, data)) => {
+                        if request.options.derived {
+                            // Create a resource, that will point to the scene we've loaded the
+                            // scene from and force scene nodes to inherit data from them.
+                            let model = ModelResource::new_ok(Model {
+                                path: request.path.clone(),
+                                mapping: NodeMapping::UseHandles,
+                                // We have to create a full copy of the scene, because otherwise
+                                // some methods (`Base::root_resource` in particular) won't work
+                                // correctly.
+                                scene: scene
+                                    .clone(
+                                        scene.graph.get_root(),
+                                        &mut |_, _| true,
+                                        &mut |_, _, _| {},
+                                    )
+                                    .0,
+                            });
+
+                            Log::verify(self.resource_manager.register(
+                                model.clone().into_untyped(),
+                                request.path.clone(),
+                                |_, _| true,
+                            ));
+
+                            for (handle, node) in scene.graph.pair_iter_mut() {
+                                node.set_inheritance_data(handle, model.clone());
+                            }
+
+                            // Reset modified flags in every inheritable property of the scene.
+                            // Except nodes, they're inherited in a separate place.
+                            (&mut scene as &mut dyn Reflect).apply_recursively_mut(&mut |object| {
+                                let type_id = (*object).type_id();
+                                if type_id != TypeId::of::<NodePool>() {
+                                    object.as_inheritable_variable_mut(&mut |variable| {
+                                        if let Some(variable) = variable {
+                                            variable.reset_modified_flag();
+                                        }
+                                    });
+                                }
+                            })
+                        } else {
+                            // Take scene data from the source scene.
+                            if let Some(source_asset) =
+                                scene.graph[scene.graph.get_root()].root_resource()
+                            {
+                                let source_asset_ref = source_asset.data_ref();
+                                let source_scene_ref = &source_asset_ref.scene;
+                                Log::verify(try_inherit_properties(
+                                    &mut scene,
+                                    source_scene_ref,
+                                    &[TypeId::of::<NodePool>()],
+                                ));
+                            }
+                        }
+
+                        let scene_handle = context.scenes.add(scene);
+
+                        // Notify plugins about newly loaded scene.
+                        if self.plugins_enabled {
+                            for plugin in self.plugins.iter_mut() {
+                                plugin.on_scene_loaded(
+                                    &request.path,
+                                    scene_handle,
+                                    &data,
+                                    &mut context,
+                                );
+                            }
+                        }
+                    }
+                    Err(error) => {
+                        // Notify plugins about a scene, that is failed to load.
+                        if self.plugins_enabled {
+                            for plugin in self.plugins.iter_mut() {
+                                plugin.on_scene_loading_failed(&request.path, &error, &mut context);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// Performs pre update for the engine.
@@ -1231,7 +1588,7 @@ impl Engine {
     pub fn pre_update(
         &mut self,
         dt: f32,
-        control_flow: &mut ControlFlow,
+        window_target: &EventLoopWindowTarget<()>,
         lag: &mut f32,
         switches: FxHashMap<Handle<Scene>, GraphUpdateSwitches>,
     ) {
@@ -1243,7 +1600,7 @@ impl Engine {
             ctx.renderer.update_caches(dt);
             self.handle_model_events();
 
-            for (handle, scene) in self.scenes.pair_iter_mut().filter(|(_, s)| s.enabled) {
+            for (handle, scene) in self.scenes.pair_iter_mut().filter(|(_, s)| *s.enabled) {
                 let frame_size =
                     scene
                         .rendering_options
@@ -1264,7 +1621,7 @@ impl Engine {
                 );
             }
 
-            self.update_plugins(dt, control_flow, lag);
+            self.update_plugins(dt, window_target, lag);
             self.handle_scripts(dt);
         }
     }
@@ -1292,11 +1649,8 @@ impl Engine {
 
     /// Registers a scene for script processing.
     pub fn register_scripted_scene(&mut self, scene: Handle<Scene>) {
-        self.script_processor.register_scripted_scene(
-            scene,
-            &mut self.scenes,
-            &self.resource_manager,
-        )
+        self.script_processor
+            .register_scripted_scene(scene, &self.resource_manager)
     }
 
     fn handle_scripts(&mut self, dt: f32) {
@@ -1311,7 +1665,12 @@ impl Engine {
         self.performance_statistics.scripts_time = instant::Instant::now() - time;
     }
 
-    fn update_plugins(&mut self, dt: f32, control_flow: &mut ControlFlow, lag: &mut f32) {
+    fn update_plugins(
+        &mut self,
+        dt: f32,
+        window_target: &EventLoopWindowTarget<()>,
+        lag: &mut f32,
+    ) {
         let time = instant::Instant::now();
 
         if self.plugins_enabled {
@@ -1326,10 +1685,12 @@ impl Engine {
                 performance_statistics: &self.performance_statistics,
                 elapsed_time: self.elapsed_time,
                 script_processor: &self.script_processor,
+                async_scene_loader: &mut self.async_scene_loader,
+                window_target: Some(window_target),
             };
 
             for plugin in self.plugins.iter_mut() {
-                plugin.update(&mut context, control_flow);
+                plugin.update(&mut context);
             }
 
             while let Some(message) = self.user_interface.poll_message() {
@@ -1344,10 +1705,12 @@ impl Engine {
                     performance_statistics: &self.performance_statistics,
                     elapsed_time: self.elapsed_time,
                     script_processor: &self.script_processor,
+                    async_scene_loader: &mut self.async_scene_loader,
+                    window_target: Some(window_target),
                 };
 
                 for plugin in self.plugins.iter_mut() {
-                    plugin.on_ui_message(&mut context, &message, control_flow);
+                    plugin.on_ui_message(&mut context, &message);
                 }
             }
         }
@@ -1359,7 +1722,7 @@ impl Engine {
         &mut self,
         event: &Event<()>,
         dt: f32,
-        control_flow: &mut ControlFlow,
+        window_target: &EventLoopWindowTarget<()>,
         lag: &mut f32,
     ) {
         if self.plugins_enabled {
@@ -1377,8 +1740,9 @@ impl Engine {
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
                         script_processor: &self.script_processor,
+                        async_scene_loader: &mut self.async_scene_loader,
+                        window_target: Some(window_target),
                     },
-                    control_flow,
                 );
             }
         }
@@ -1387,26 +1751,25 @@ impl Engine {
     pub(crate) fn handle_graphics_context_created_by_plugins(
         &mut self,
         dt: f32,
-        control_flow: &mut ControlFlow,
+        window_target: &EventLoopWindowTarget<()>,
         lag: &mut f32,
     ) {
         if self.plugins_enabled {
             for plugin in self.plugins.iter_mut() {
-                plugin.on_graphics_context_initialized(
-                    PluginContext {
-                        scenes: &mut self.scenes,
-                        resource_manager: &self.resource_manager,
-                        graphics_context: &mut self.graphics_context,
-                        dt,
-                        lag,
-                        user_interface: &mut self.user_interface,
-                        serialization_context: &self.serialization_context,
-                        performance_statistics: &self.performance_statistics,
-                        elapsed_time: self.elapsed_time,
-                        script_processor: &self.script_processor,
-                    },
-                    control_flow,
-                );
+                plugin.on_graphics_context_initialized(PluginContext {
+                    scenes: &mut self.scenes,
+                    resource_manager: &self.resource_manager,
+                    graphics_context: &mut self.graphics_context,
+                    dt,
+                    lag,
+                    user_interface: &mut self.user_interface,
+                    serialization_context: &self.serialization_context,
+                    performance_statistics: &self.performance_statistics,
+                    elapsed_time: self.elapsed_time,
+                    script_processor: &self.script_processor,
+                    async_scene_loader: &mut self.async_scene_loader,
+                    window_target: Some(window_target),
+                });
             }
         }
     }
@@ -1414,26 +1777,25 @@ impl Engine {
     pub(crate) fn handle_graphics_context_destroyed_by_plugins(
         &mut self,
         dt: f32,
-        control_flow: &mut ControlFlow,
+        window_target: &EventLoopWindowTarget<()>,
         lag: &mut f32,
     ) {
         if self.plugins_enabled {
             for plugin in self.plugins.iter_mut() {
-                plugin.on_graphics_context_destroyed(
-                    PluginContext {
-                        scenes: &mut self.scenes,
-                        resource_manager: &self.resource_manager,
-                        graphics_context: &mut self.graphics_context,
-                        dt,
-                        lag,
-                        user_interface: &mut self.user_interface,
-                        serialization_context: &self.serialization_context,
-                        performance_statistics: &self.performance_statistics,
-                        elapsed_time: self.elapsed_time,
-                        script_processor: &self.script_processor,
-                    },
-                    control_flow,
-                );
+                plugin.on_graphics_context_destroyed(PluginContext {
+                    scenes: &mut self.scenes,
+                    resource_manager: &self.resource_manager,
+                    graphics_context: &mut self.graphics_context,
+                    dt,
+                    lag,
+                    user_interface: &mut self.user_interface,
+                    serialization_context: &self.serialization_context,
+                    performance_statistics: &self.performance_statistics,
+                    elapsed_time: self.elapsed_time,
+                    script_processor: &self.script_processor,
+                    async_scene_loader: &mut self.async_scene_loader,
+                    window_target: Some(window_target),
+                });
             }
         }
     }
@@ -1441,26 +1803,25 @@ impl Engine {
     pub(crate) fn handle_before_rendering_by_plugins(
         &mut self,
         dt: f32,
-        control_flow: &mut ControlFlow,
+        window_target: &EventLoopWindowTarget<()>,
         lag: &mut f32,
     ) {
         if self.plugins_enabled {
             for plugin in self.plugins.iter_mut() {
-                plugin.before_rendering(
-                    PluginContext {
-                        scenes: &mut self.scenes,
-                        resource_manager: &self.resource_manager,
-                        graphics_context: &mut self.graphics_context,
-                        dt,
-                        lag,
-                        user_interface: &mut self.user_interface,
-                        serialization_context: &self.serialization_context,
-                        performance_statistics: &self.performance_statistics,
-                        elapsed_time: self.elapsed_time,
-                        script_processor: &self.script_processor,
-                    },
-                    control_flow,
-                );
+                plugin.before_rendering(PluginContext {
+                    scenes: &mut self.scenes,
+                    resource_manager: &self.resource_manager,
+                    graphics_context: &mut self.graphics_context,
+                    dt,
+                    lag,
+                    user_interface: &mut self.user_interface,
+                    serialization_context: &self.serialization_context,
+                    performance_statistics: &self.performance_statistics,
+                    elapsed_time: self.elapsed_time,
+                    script_processor: &self.script_processor,
+                    async_scene_loader: &mut self.async_scene_loader,
+                    window_target: Some(window_target),
+                });
             }
         }
     }
@@ -1485,7 +1846,7 @@ impl Engine {
             .find(|s| s.handle == scene)
         {
             let scene = &mut self.scenes[scene];
-            if scene.enabled {
+            if *scene.enabled {
                 process_scripts(
                     scene,
                     &mut self.plugins,
@@ -1495,7 +1856,7 @@ impl Engine {
                     dt,
                     self.elapsed_time,
                     |script, context| {
-                        if script.initialized {
+                        if script.initialized && script.started {
                             script.on_os_event(event, context);
                         }
                     },
@@ -1563,7 +1924,12 @@ impl Engine {
     }
 
     /// Enables or disables registered plugins.
-    pub(crate) fn enable_plugins(&mut self, override_scene: Handle<Scene>, enabled: bool) {
+    pub(crate) fn enable_plugins(
+        &mut self,
+        scene_path: Option<&str>,
+        enabled: bool,
+        window_target: Option<&EventLoopWindowTarget<()>>,
+    ) {
         if self.plugins_enabled != enabled {
             self.plugins_enabled = enabled;
 
@@ -1571,7 +1937,7 @@ impl Engine {
                 // Create and initialize instances.
                 for constructor in self.plugin_constructors.iter() {
                     self.plugins.push(constructor.create_instance(
-                        override_scene,
+                        scene_path,
                         PluginContext {
                             scenes: &mut self.scenes,
                             resource_manager: &self.resource_manager,
@@ -1583,6 +1949,8 @@ impl Engine {
                             performance_statistics: &self.performance_statistics,
                             elapsed_time: self.elapsed_time,
                             script_processor: &self.script_processor,
+                            async_scene_loader: &mut self.async_scene_loader,
+                            window_target,
                         },
                     ));
                 }
@@ -1602,6 +1970,8 @@ impl Engine {
                         performance_statistics: &self.performance_statistics,
                         elapsed_time: self.elapsed_time,
                         script_processor: &self.script_processor,
+                        async_scene_loader: &mut self.async_scene_loader,
+                        window_target,
                     });
                 }
             }
@@ -1638,7 +2008,7 @@ impl Drop for Engine {
         }
 
         // Finally disable plugins.
-        self.enable_plugins(Default::default(), false);
+        self.enable_plugins(None, false, None);
     }
 }
 
@@ -1777,11 +2147,7 @@ mod test {
 
         let mut script_processor = ScriptProcessor::default();
 
-        script_processor.register_scripted_scene(
-            scene_handle,
-            &mut scene_container,
-            &resource_manager,
-        );
+        script_processor.register_scripted_scene(scene_handle, &resource_manager);
 
         let handle_on_init = Handle::new(2, 1);
         let handle_on_start = Handle::new(3, 1);
@@ -1948,11 +2314,7 @@ mod test {
 
         let mut script_processor = ScriptProcessor::default();
 
-        script_processor.register_scripted_scene(
-            scene_handle,
-            &mut scene_container,
-            &resource_manager,
-        );
+        script_processor.register_scripted_scene(scene_handle, &resource_manager);
 
         for iteration in 0..2 {
             script_processor.handle_scripts(

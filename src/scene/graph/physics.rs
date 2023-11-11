@@ -13,7 +13,7 @@ use crate::{
         parking_lot::Mutex,
         pool::Handle,
         reflect::prelude::*,
-        variable::VariableFlags,
+        variable::{InheritableVariable, VariableFlags},
         visitor::prelude::*,
         BiDirHashMap,
     },
@@ -22,7 +22,7 @@ use crate::{
         collider::{self, ColliderShape, GeometrySource},
         debug::SceneDrawingContext,
         graph::{isometric_global_transform, NodePool},
-        joint::JointParams,
+        joint::{JointLocalFrames, JointParams},
         mesh::{
             buffer::{VertexAttributeUsage, VertexReadTrait},
             Mesh,
@@ -33,6 +33,7 @@ use crate::{
     },
     utils::raw_mesh::{RawMeshBuilder, RawVertex},
 };
+use fyrox_core::algebra::Translation;
 use rapier3d::{
     dynamics::{
         CCDSolver, GenericJoint, GenericJointBuilder, ImpulseJointHandle, ImpulseJointSet,
@@ -98,11 +99,22 @@ impl From<rapier2d::geometry::FeatureId> for FeatureId {
 /// between two colliders. Each collider has its combination rule of type `CoefficientCombineRule`,
 /// the rule actually used is given by `max(first_combine_rule, second_combine_rule)`.
 #[derive(
-    Copy, Clone, Debug, PartialEq, Eq, Visit, Reflect, EnumVariantNames, EnumString, AsRefStr,
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Visit,
+    Reflect,
+    EnumVariantNames,
+    EnumString,
+    AsRefStr,
+    Default,
 )]
 #[repr(u32)]
 pub enum CoefficientCombineRule {
     /// The two coefficients are averaged.
+    #[default]
     Average = 0,
     /// The smallest coefficient is chosen.
     Min,
@@ -110,12 +122,6 @@ pub enum CoefficientCombineRule {
     Multiply,
     /// The greatest coefficient is chosen.
     Max,
-}
-
-impl Default for CoefficientCombineRule {
-    fn default() -> Self {
-        CoefficientCombineRule::Average
-    }
 }
 
 impl From<rapier3d::dynamics::CoefficientCombineRule> for CoefficientCombineRule {
@@ -180,7 +186,7 @@ impl PhysicsPerformanceStatistics {
 }
 
 /// A ray intersection result.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Intersection {
     /// A handle of the collider with which intersection was detected.
     pub collider: Handle<Node>,
@@ -275,6 +281,7 @@ impl<const CAP: usize> QueryResultsStorage for ArrayVec<Intersection, CAP> {
 }
 
 /// Data of the contact.
+#[derive(Debug, Clone, PartialEq)]
 pub struct ContactData {
     /// The contact point in the local-space of the first shape.
     pub local_p1: Vector3<f32>,
@@ -291,6 +298,7 @@ pub struct ContactData {
 }
 
 /// A contact manifold between two colliders.
+#[derive(Debug, Clone, PartialEq)]
 pub struct ContactManifold {
     /// The contacts points.
     pub points: Vec<ContactData>,
@@ -307,6 +315,7 @@ pub struct ContactManifold {
 }
 
 /// Contact info for pair of colliders.
+#[derive(Debug, Clone, PartialEq)]
 pub struct ContactPair {
     /// The first collider involved in the contact pair.
     pub collider1: Handle<Node>,
@@ -364,6 +373,7 @@ impl ContactPair {
 }
 
 /// Intersection info for pair of colliders.
+#[derive(Debug, Clone, PartialEq)]
 pub struct IntersectionPair {
     /// The first collider involved in the contact pair.
     pub collider1: Handle<Node>,
@@ -719,7 +729,7 @@ fn collider_shape_into_native_shape(
 ///
 /// This is almost one-to-one copy of Rapier's integration parameters with custom attributes for
 /// each parameter.
-#[derive(Copy, Clone, Visit, Reflect, Debug)]
+#[derive(Copy, Clone, Visit, Reflect, Debug, PartialEq)]
 pub struct IntegrationParameters {
     /// The time step length, default is None - this means that physics simulation will use engine's
     /// time step.
@@ -878,13 +888,13 @@ impl Default for IntegrationParameters {
 #[derive(Visit, Reflect)]
 pub struct PhysicsWorld {
     /// A flag that defines whether physics simulation is enabled or not.
-    pub enabled: bool,
+    pub enabled: InheritableVariable<bool>,
 
     /// A set of parameters that define behavior of every rigid body.
-    pub integration_parameters: IntegrationParameters,
+    pub integration_parameters: InheritableVariable<IntegrationParameters>,
 
     /// Current gravity vector. Default is (0.0, -9.81, 0.0)
-    pub gravity: Vector3<f32>,
+    pub gravity: InheritableVariable<Vector3<f32>>,
 
     /// Performance statistics of a single simulation step.
     #[visit(skip)]
@@ -973,10 +983,10 @@ impl PhysicsWorld {
     /// Creates a new instance of the physics world.
     pub(super) fn new() -> Self {
         Self {
-            enabled: true,
+            enabled: true.into(),
             pipeline: PhysicsPipeline::new(),
-            gravity: Vector3::new(0.0, -9.81, 0.0),
-            integration_parameters: IntegrationParameters::default(),
+            gravity: Vector3::new(0.0, -9.81, 0.0).into(),
+            integration_parameters: IntegrationParameters::default().into(),
             broad_phase: BroadPhase::new(),
             narrow_phase: NarrowPhase::new(),
             ccd_solver: CCDSolver::new(),
@@ -1001,7 +1011,7 @@ impl PhysicsWorld {
     pub(super) fn update(&mut self, dt: f32) {
         let time = instant::Instant::now();
 
-        if self.enabled {
+        if *self.enabled {
             let integration_parameters = rapier3d::dynamics::IntegrationParameters {
                 dt: self.integration_parameters.dt.unwrap_or(dt),
                 min_ccd_dt: self.integration_parameters.min_ccd_dt,
@@ -1195,7 +1205,7 @@ impl PhysicsWorld {
         rigid_body: &mut scene::rigidbody::RigidBody,
         parent_transform: Matrix4<f32>,
     ) {
-        if self.enabled {
+        if *self.enabled {
             if let Some(native) = self.bodies.get(rigid_body.native.get()) {
                 if native.body_type() == RigidBodyType::Dynamic {
                     let local_transform: Matrix4<f32> = parent_transform
@@ -1559,7 +1569,9 @@ impl PhysicsWorld {
             joint.contacts_enabled.try_sync_model(|v| {
                 native.data.set_contacts_enabled(v);
             });
-            if joint.need_rebind.get() {
+
+            let mut local_frames = joint.local_frames.borrow_mut();
+            if local_frames.is_none() {
                 if let (Some(body1), Some(body2)) = (
                     nodes
                         .try_borrow(joint.body1())
@@ -1571,7 +1583,7 @@ impl PhysicsWorld {
                     let (local_frame1, local_frame2) = calculate_local_frames(joint, body1, body2);
                     native.data =
                         convert_joint_params((*joint.params).clone(), local_frame1, local_frame2);
-                    joint.need_rebind.set(false);
+                    *local_frames = Some(JointLocalFrames::new(&local_frame1, &local_frame2));
                 }
             }
         } else {
@@ -1591,8 +1603,27 @@ impl PhysicsWorld {
                         .filter(|b| self.bodies.get(b.native.get()).is_some())
                 }),
             ) {
-                // Calculate local frames first.
-                let (local_frame1, local_frame2) = calculate_local_frames(joint, body1, body2);
+                // Calculate local frames first (if needed).
+                let mut local_frames = joint.local_frames.borrow_mut();
+                let (local_frame1, local_frame2) = local_frames
+                    .clone()
+                    .map(|frames| {
+                        (
+                            Isometry3 {
+                                rotation: frames.body1.rotation,
+                                translation: Translation {
+                                    vector: frames.body1.position,
+                                },
+                            },
+                            Isometry3 {
+                                rotation: frames.body2.rotation,
+                                translation: Translation {
+                                    vector: frames.body2.position,
+                                },
+                            },
+                        )
+                    })
+                    .unwrap_or_else(|| calculate_local_frames(joint, body1, body2));
 
                 let native_body1 = body1.native.get();
                 let native_body2 = body2.native.get();
@@ -1603,7 +1634,7 @@ impl PhysicsWorld {
                     self.add_joint(handle, native_body1, native_body2, native_joint);
 
                 joint.native.set(native_handle);
-                joint.need_rebind.set(false);
+                *local_frames = Some(JointLocalFrames::new(&local_frame1, &local_frame2));
 
                 Log::writeln(
                     MessageKind::Information,

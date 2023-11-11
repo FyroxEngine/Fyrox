@@ -6,6 +6,7 @@
 
 use crate::{
     core::{algebra::Vector2, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
@@ -134,7 +135,7 @@ impl ScrollViewerMessage {
 ///     ))
 /// }
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct ScrollViewer {
     /// Base widget of the scroll viewer.
     pub widget: Widget,

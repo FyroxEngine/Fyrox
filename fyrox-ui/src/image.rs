@@ -7,6 +7,7 @@ use crate::{
     brush::Brush,
     color::draw_checker_board,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext, SharedTexture},
     message::{MessageDirection, UiMessage},
@@ -151,11 +152,13 @@ impl ImageMessage {
 /// It is useful if you have many custom UI elements packed in a single texture atlas. Drawing using atlases is much more
 /// efficient and faster. This could also be used for animations, when you have multiple frames packed in a single atlas
 /// and changing texture coordinates over the time.
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct Image {
     /// Base widget of the image.
     pub widget: Widget,
     /// Current texture of the image.
+    #[visit(skip)] // TODO
+    #[reflect(hidden)] // TODO
     pub texture: Option<SharedTexture>,
     /// Defines whether to vertically flip the image or not.
     pub flip: bool,

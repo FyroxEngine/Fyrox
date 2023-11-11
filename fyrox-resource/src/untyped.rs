@@ -128,6 +128,21 @@ impl UntypedResource {
         }
     }
 
+    /// Set a new path for the untyped resource.
+    pub fn set_path(&self, new_path: PathBuf) {
+        match &mut *self.0.lock() {
+            ResourceState::Pending { path, .. } => {
+                *path = new_path;
+            }
+            ResourceState::LoadError { path, .. } => {
+                *path = new_path;
+            }
+            ResourceState::Ok(data) => {
+                data.set_path(new_path);
+            }
+        }
+    }
+
     /// Tries to cast untyped resource to a particular type.
     pub fn try_cast<T>(&self) -> Option<Resource<T>>
     where

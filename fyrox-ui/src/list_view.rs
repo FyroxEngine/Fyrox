@@ -7,6 +7,7 @@ use crate::{
     border::BorderBuilder,
     brush::Brush,
     core::{color::Color, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     decorator::{Decorator, DecoratorMessage},
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
@@ -213,11 +214,13 @@ impl ListViewMessage {
 ///     ));
 /// }
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct ListView {
     /// Base widget of the list view.
     pub widget: Widget,
     /// Current selection.
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub selected_index: Option<usize>,
     /// An array of handle of item containers, which wraps the actual items.
     pub item_containers: Vec<Handle<UiNode>>,
@@ -286,7 +289,7 @@ impl ListView {
 }
 
 /// A wrapper for list view items, that is used to add selection functionality to arbitrary items.
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct ListViewItem {
     /// Base widget of the list view item.
     pub widget: Widget,

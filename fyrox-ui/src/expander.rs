@@ -6,6 +6,7 @@
 use crate::{
     check_box::{CheckBoxBuilder, CheckBoxMessage},
     core::pool::Handle,
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
@@ -133,7 +134,7 @@ impl ExpanderMessage {
 ///
 /// To switch expander state at runtime, send [`ExpanderMessage::Expand`] to your Expander widget instance with
 /// [`MessageDirection::ToWidget`].
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct Expander {
     /// Base widget of the expander.
     pub widget: Widget,

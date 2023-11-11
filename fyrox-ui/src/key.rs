@@ -21,7 +21,7 @@ use std::{
 };
 
 /// Hot key is a combination of a key code with an arbitrary set of keyboard modifiers (such as Ctrl, Shift, Alt keys).
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Reflect, Default)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Reflect, Default, Visit)]
 pub enum HotKey {
     /// Unset hot key. Does nothing. This is default value.
     #[default]
@@ -151,7 +151,7 @@ impl HotKeyEditorMessage {
 /// ## Messages
 ///
 /// Use [`HotKeyEditorMessage`] message to alternate the state of a hot key widget, or to listen to its changes.
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct HotKeyEditor {
     widget: Widget,
     text: Handle<UiNode>,
@@ -374,7 +374,7 @@ impl KeyBindingEditorMessage {
 /// ## Messages
 ///
 /// Use [`KeyBindingEditorMessage`] message to alternate the state of a key binding widget, or to listen to its changes.
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct KeyBindingEditor {
     widget: Widget,
     text: Handle<UiNode>,

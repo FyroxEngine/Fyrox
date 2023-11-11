@@ -12,6 +12,7 @@ use crate::{
         pool::Handle,
         reflect::Reflect,
     },
+    core::{reflect::prelude::*, visitor::prelude::*},
     decorator::DecoratorBuilder,
     define_constructor,
     grid::{Column, GridBuilder, Row},
@@ -49,6 +50,7 @@ pub trait NumericType:
     + NumCast
     + Default
     + Reflect
+    + Visit
     + 'static
 {
 }
@@ -68,6 +70,7 @@ impl<T> NumericType for T where
         + NumCast
         + Default
         + Reflect
+        + Visit
         + 'static
 {
 }
@@ -129,7 +132,7 @@ impl<T: NumericType> NumericUpDownMessage<T> {
 }
 
 /// Used to store drag info when dragging the cursor on the up/down buttons.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum DragContext<T: NumericType> {
     /// Dragging is just started.
     PreDrag {
@@ -233,7 +236,7 @@ pub enum DragContext<T: NumericType> {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct NumericUpDown<T: NumericType> {
     /// Base widget of the [`NumericUpDown`] widget.
     pub widget: Widget,
@@ -254,6 +257,8 @@ pub struct NumericUpDown<T: NumericType> {
     /// Current precision of the widget in decimal places.
     pub precision: usize,
     /// Internal dragging context.
+    #[visit(skip)]
+    #[reflect(hidden)]
     pub drag_context: Option<DragContext<T>>,
     /// Defines how movement in Y axis will be translated in the actual value change. It is some sort of a scaling modifier.
     pub drag_value_scaling: f32,

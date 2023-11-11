@@ -15,6 +15,8 @@ use fyrox::{
         color::Color,
         math::{round_to_step, Rect},
         pool::Handle,
+        reflect::prelude::*,
+        visitor::prelude::*,
     },
     gui::{
         brush::Brush,
@@ -31,19 +33,19 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit, Reflect, Default)]
 pub(super) struct Entry {
     pub node: Handle<UiNode>,
     pub initial_position: Vector2<f32>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit, Reflect, Default)]
 pub(super) struct DragContext {
     initial_cursor_position: Vector2<f32>,
     entries: Vec<Entry>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Visit, Reflect)]
 pub(super) enum Mode {
     Normal,
     Drag {
@@ -88,7 +90,7 @@ impl AbsmCanvasMessage {
     define_constructor!(AbsmCanvasMessage:ForceSyncDependentObjects => fn force_sync_dependent_objects(), layout: true);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct AbsmCanvas {
     widget: Widget,
     selection: Vec<Handle<UiNode>>,

@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-template"
-version = "0.8.0"
+version = "0.9.1"
 edition = "2021"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 license = "MIT"
@@ -11,7 +11,7 @@ include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
 homepage = "https://fyrox.rs"
 repository = "https://github.com/FyroxEngine/Fyrox"
 readme = "README.md"
-rust-version = "1.56"
+rust-version = "1.72"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

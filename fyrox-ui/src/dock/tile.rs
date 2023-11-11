@@ -2,6 +2,7 @@ use crate::{
     border::BorderBuilder,
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     dock::DockingManager,
     grid::{Column, GridBuilder, Row},
@@ -34,7 +35,7 @@ impl TileMessage {
         first: bool), layout: false);
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Visit, Reflect)]
 pub enum TileContent {
     Empty,
     Window(Handle<UiNode>),
@@ -60,7 +61,7 @@ impl TileContent {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct Tile {
     pub widget: Widget,
     pub left_anchor: Handle<UiNode>,

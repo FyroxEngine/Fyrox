@@ -7,6 +7,7 @@ use fyrox::{
         algebra::{Matrix3, Point2, Vector2},
         pool::Handle,
     },
+    core::{reflect::prelude::*, visitor::prelude::*},
     gui::{
         define_constructor, define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
@@ -33,7 +34,7 @@ impl ThumbMessage {
     define_constructor!(ThumbMessage:Position => fn position(f32), layout: false);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct Thumb {
     widget: Widget,
     zoom: f32,

@@ -6,7 +6,7 @@ use regex::Regex;
 use std::{
     collections::HashMap,
     fmt::Display,
-    fs::{create_dir_all, remove_dir_all, File},
+    fs::{create_dir_all, read_dir, remove_dir_all, File},
     io::{Read, Write},
     path::Path,
     process::{exit, Command},
@@ -34,6 +34,9 @@ enum Commands {
 
         #[clap(long, default_value = "git")]
         vcs: String,
+
+        #[clap(long, default_value = "false")]
+        overwrite: bool,
     },
     /// Adds a script with given name. The name will be capitalized.
     #[clap(arg_required_else_help = true)]
@@ -54,9 +57,9 @@ enum Commands {
 // However, it does not seem to work with builds published to crates.io, because when
 // the template generator is published, it does not have these Cargo.toml's available
 // and to solve this we just hard code these values and pray for the best.
-const CURRENT_ENGINE_VERSION: &str = "0.31.0";
-const CURRENT_EDITOR_VERSION: &str = "0.18.0";
-const CURRENT_SCRIPTS_VERSION: &str = "https://github.com/FyroxEngine/Fyrox"; // TODO: `fyrox-scripts` is unpublished yet.
+const CURRENT_ENGINE_VERSION: &str = "0.32.0";
+const CURRENT_EDITOR_VERSION: &str = "0.19.0";
+const CURRENT_SCRIPTS_VERSION: &str = "0.1.0";
 
 fn write_file<P: AsRef<Path>, S: AsRef<str>>(path: P, content: S) {
     let mut file = File::create(path.as_ref()).unwrap();
@@ -152,12 +155,11 @@ fyrox = {{workspace = true}}"#,
 use fyrox::{
     core::pool::Handle,
     event::Event,
-    event_loop::ControlFlow,
     gui::message::UiMessage,
     plugin::{Plugin, PluginConstructor, PluginContext, PluginRegistrationContext},
-    scene::{Scene, loader::AsyncSceneLoader},
-    core::log::Log
+    scene::Scene,
 };
+use std::path::Path;
 
 pub struct GameConstructor;
 
@@ -166,35 +168,24 @@ impl PluginConstructor for GameConstructor {
         // Register your scripts here.
     }
 
-    fn create_instance(
-        &self,
-        override_scene: Handle<Scene>,
-        context: PluginContext,
-    ) -> Box<dyn Plugin> {
-        Box::new(Game::new(override_scene, context))
+    fn create_instance(&self, scene_path: Option<&str>, context: PluginContext) -> Box<dyn Plugin> {
+        Box::new(Game::new(scene_path, context))
     }
 }
 
 pub struct Game {
     scene: Handle<Scene>,
-    loader: Option<AsyncSceneLoader>,
 }
 
 impl Game {
-    pub fn new(override_scene: Handle<Scene>, context: PluginContext) -> Self {
-        let mut loader = None;
-        let scene = if override_scene.is_some() {
-            override_scene
-        } else {
-            loader = Some(AsyncSceneLoader::begin_loading(
-                "data/scene.rgs".into(),
-                context.serialization_context.clone(),
-                context.resource_manager.clone(),
-            ));
-            Default::default()
-        };
+    pub fn new(scene_path: Option<&str>, context: PluginContext) -> Self {
+        context
+            .async_scene_loader
+            .request(scene_path.unwrap_or("data/scene.rgs"));
 
-        Self { scene, loader }
+        Self {
+            scene: Handle::NONE,
+        }
     }
 }
 
@@ -203,18 +194,7 @@ impl Plugin for Game {
         // Do a cleanup here.
     }
 
-    fn update(&mut self, context: &mut PluginContext, _control_flow: &mut ControlFlow) {
-         if let Some(loader) = self.loader.as_ref() {
-            if let Some(result) = loader.fetch_result() {
-                match result {
-                    Ok(scene) => {
-                        self.scene = context.scenes.add(scene);
-                    }
-                    Err(err) => Log::err(err),
-                }
-            }
-        }
-
+    fn update(&mut self, _context: &mut PluginContext) {
         // Add your global update code here.
     }
 
@@ -222,7 +202,6 @@ impl Plugin for Game {
         &mut self,
         _event: &Event<()>,
         _context: PluginContext,
-        _control_flow: &mut ControlFlow,
     ) {
         // Do something on OS event here.
     }
@@ -231,9 +210,24 @@ impl Plugin for Game {
         &mut self,
         _context: &mut PluginContext,
         _message: &UiMessage,
-        _control_flow: &mut ControlFlow,
     ) {
         // Handle UI events here.
+    }
+
+    fn on_scene_begin_loading(&mut self, path: &Path, ctx: &mut PluginContext) {
+        if self.scene.is_some() {
+            ctx.scenes.remove(self.scene);
+        }
+    }
+
+    fn on_scene_loaded(
+        &mut self,
+        path: &Path,
+        scene: Handle<Scene>,
+        data: &[u8],
+        context: &mut PluginContext,
+    ) {
+        self.scene = scene;
     }
 }
 "#,
@@ -640,7 +634,12 @@ fn main() {
     let args: Args = Args::parse();
 
     match args.command {
-        Commands::Init { name, style, vcs } => {
+        Commands::Init {
+            name,
+            style,
+            vcs,
+            overwrite,
+        } => {
             let name = check_name(&name);
             let name = match name {
                 Ok(s) => s,
@@ -651,6 +650,21 @@ fn main() {
             };
 
             let base_path = Path::new(name);
+
+            // Check the path is empty / doesn't already exist (To prevent overriding)
+            if !overwrite
+                && base_path.exists()
+                && read_dir(base_path)
+                    .expect("Failed to check if path is not empty")
+                    .next()
+                    .is_some()
+            {
+                println!(
+                    "Non-empty folder named {} already exists, provide --overwrite to create the project anyway",
+                    base_path.display()
+                );
+                return;
+            }
 
             init_workspace(base_path, &vcs);
             init_data(base_path, &style);

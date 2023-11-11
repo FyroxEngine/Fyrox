@@ -14,8 +14,9 @@ fn stepf(p0: f32, p1: f32, t: f32) -> f32 {
     }
 }
 
-#[derive(Visit, Clone, Debug, PartialEq)]
+#[derive(Visit, Default, Clone, Debug, PartialEq, Reflect)]
 pub enum CurveKeyKind {
+    #[default]
     Constant,
     Linear,
     Cubic {
@@ -33,13 +34,6 @@ impl CurveKeyKind {
             left_tangent: left_angle_radians.tan(),
             right_tangent: right_angle_radians.tan(),
         }
-    }
-}
-
-impl Default for CurveKeyKind {
-    #[inline]
-    fn default() -> Self {
-        Self::Constant
     }
 }
 

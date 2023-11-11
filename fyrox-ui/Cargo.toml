@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-ui"
-version = "0.22.0"
+version = "0.23.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
 license = "MIT"
@@ -13,10 +13,10 @@ documentation = "https://docs.rs/fyrox-ui"
 repository = "https://github.com/FyroxEngine/Fyrox"
 readme = "README.md"
 resolver = "2"
-rust-version = "1.56"
+rust-version = "1.72"
 
 [dependencies]
-fyrox-core = { path = "../fyrox-core", version = "0.25.0", features = ["serde"] }
+fyrox-core = { path = "../fyrox-core", version = "0.26.0", features = ["serde"] }
 lazy_static = "1.4.0"
 copypasta = "0.8.1"
 fontdue = "0.7.2"

@@ -30,7 +30,6 @@ use crate::{
         pool::Handle,
         reflect::prelude::*,
         uuid::Uuid,
-        variable::mark_inheritable_properties_non_modified,
         visitor::{Visit, VisitError, VisitResult, Visitor},
         TypeUuidProvider,
     },
@@ -43,6 +42,7 @@ use crate::{
         Scene, SceneLoader,
     },
 };
+use fyrox_resource::io::ResourceIo;
 use serde::{Deserialize, Serialize};
 use std::{
     any::Any,
@@ -69,7 +69,7 @@ pub struct Model {
     #[visit(skip)]
     pub(crate) mapping: NodeMapping,
     #[visit(skip)]
-    scene: Scene,
+    pub(crate) scene: Scene,
 }
 
 impl TypeUuidProvider for Model {
@@ -157,35 +157,14 @@ impl ModelResourceExtension for ModelResource {
         handle: Handle<Node>,
         dest_graph: &mut Graph,
     ) -> (Handle<Node>, NodeHandleMap) {
-        let (root, old_to_new) =
-            model_data
-                .scene
-                .graph
-                .copy_node(handle, dest_graph, &mut |_, _| true);
-
-        // Notify instantiated nodes about resource they were created from.
-        let mut stack = vec![root];
-        while let Some(node_handle) = stack.pop() {
-            let node = &mut dest_graph[node_handle];
-
-            node.resource = Some(model.clone());
-
-            // Reset resource instance root flag, this is needed because a node after instantiation cannot
-            // be a root anymore.
-            node.is_resource_instance_root = false;
-
-            // Reset inheritable properties, so property inheritance system will take properties
-            // from parent objects on resolve stage.
-            node.as_reflect_mut(&mut mark_inheritable_properties_non_modified);
-
-            // Continue on children.
-            stack.extend_from_slice(node.children());
-        }
-
-        // Fill original handles to instances.
-        for (&old, &new) in old_to_new.inner().iter() {
-            dest_graph[new].original_handle_in_resource = old;
-        }
+        let (root, old_to_new) = model_data.scene.graph.copy_node(
+            handle,
+            dest_graph,
+            &mut |_, _| true,
+            &mut |_, original_handle, node| {
+                node.set_inheritance_data(original_handle, model.clone());
+            },
+        );
 
         dest_graph.update_hierarchical_data_for_descendants(root);
 
@@ -202,6 +181,8 @@ impl ModelResourceExtension for ModelResource {
             &mut dest_scene.graph,
         )
         .0;
+
+        // Explicitly mark as root node.
         dest_scene.graph[instance_root].is_resource_instance_root = true;
 
         std::mem::drop(data);
@@ -478,6 +459,7 @@ impl From<VisitError> for ModelLoadError {
 impl Model {
     pub(crate) async fn load<P: AsRef<Path>>(
         path: P,
+        io: &dyn ResourceIo,
         serialization_context: Arc<SerializationContext>,
         resource_manager: ResourceManager,
         model_import_options: ModelImportOptions,
@@ -499,6 +481,7 @@ impl Model {
                 fbx::load_to_scene(
                     &mut scene,
                     resource_manager,
+                    io,
                     path.as_ref(),
                     &model_import_options,
                 )
@@ -512,10 +495,12 @@ impl Model {
             "rgs" => (
                 SceneLoader::from_file(
                     path.as_ref(),
+                    io,
                     serialization_context,
                     resource_manager.clone(),
                 )
                 .await?
+                .0
                 .finish(&resource_manager)
                 .await,
                 NodeMapping::UseHandles,

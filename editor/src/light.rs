@@ -366,7 +366,7 @@ impl LightPanel {
             let scene = &mut engine.scenes[editor_scene.scene];
             match result {
                 Ok(lightmap) => {
-                    if let Err(err) = scene.set_lightmap(lightmap) {
+                    if let Err(err) = scene.graph.set_lightmap(lightmap) {
                         Log::err(format!("Failed to set generated lightmap. Reason: {}", err));
                     }
                 }

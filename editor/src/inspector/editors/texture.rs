@@ -2,6 +2,7 @@ use crate::{asset::item::AssetItem, inspector::EditorEnvironment};
 use fyrox::{
     asset::manager::ResourceManager,
     core::{algebra::Vector2, make_relative_path, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     gui::{
         define_constructor,
         image::{ImageBuilder, ImageMessage},
@@ -25,10 +26,12 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect)]
 pub struct TextureEditor {
     widget: Widget,
     image: Handle<UiNode>,
+    #[visit(skip)]
+    #[reflect(hidden)]
     resource_manager: ResourceManager,
     texture: Option<TextureResource>,
 }

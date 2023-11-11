@@ -15,7 +15,6 @@ pub mod dim2;
 pub mod graph;
 pub mod joint;
 pub mod light;
-pub mod loader;
 pub mod mesh;
 pub mod navmesh;
 pub mod node;
@@ -37,11 +36,9 @@ use crate::{
         log::{Log, MessageKind},
         pool::{Handle, Pool, Ticket},
         reflect::prelude::*,
-        sstorage::ImmutableString,
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     engine::SerializationContext,
-    material::{shader::SamplerFallback, PropertyValue},
     renderer::framework::state::PolygonFillMode,
     resource::texture::TextureResource,
     scene::{
@@ -49,25 +46,20 @@ use crate::{
         camera::Camera,
         debug::SceneDrawingContext,
         graph::{map::NodeHandleMap, Graph, GraphPerformanceStatistics, GraphUpdateSwitches},
-        mesh::{
-            buffer::{
-                VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
-                VertexWriteTrait,
-            },
-            Mesh,
-        },
         navmesh::NavigationalMeshBuilder,
         node::Node,
         sound::SoundEngine,
     },
-    utils::{lightmap::Lightmap, navmesh::Navmesh},
+    utils::navmesh::Navmesh,
 };
-use fxhash::{FxHashMap, FxHashSet};
-use std::path::PathBuf;
+use asset::io::ResourceIo;
+use fxhash::FxHashSet;
+use fyrox_core::variable::InheritableVariable;
 use std::{
     fmt::{Display, Formatter},
     ops::{Index, IndexMut},
     path::Path,
+    path::PathBuf,
     sync::Arc,
 };
 
@@ -149,7 +141,7 @@ impl IndexMut<Handle<Navmesh>> for NavMeshContainer {
 }
 
 /// Rendering options of a scene. It allows you to specify a render target to render the scene to, change its clear color, etc.
-#[derive(Debug, Visit, Reflect)]
+#[derive(Debug, Visit, Reflect, PartialEq)]
 pub struct SceneRenderingOptions {
     /// A texture to draw the scene to. If empty, then the scene will be drawn on screen directly. It is useful to "embed" some scene into other
     /// by drawing a quad with this texture. This can be used to make in-game video conference - you can make separate scene with
@@ -201,14 +193,11 @@ pub struct Scene {
     pub graph: Graph,
 
     /// Rendering options of a scene. See [`SceneRenderingOptions`] docs for more info.
-    pub rendering_options: SceneRenderingOptions,
+    pub rendering_options: InheritableVariable<SceneRenderingOptions>,
 
     /// Drawing context for simple graphics.
     #[reflect(hidden)]
     pub drawing_context: SceneDrawingContext,
-
-    /// Current lightmap.
-    lightmap: Option<Lightmap>,
 
     /// Performance statistics from last `update` call.
     #[reflect(hidden)]
@@ -221,7 +210,7 @@ pub struct Scene {
     /// loaded and playing a game. When you're start playing, just set `enabled` flag
     /// to false for menu's scene and when you need to open a menu - set it to true and
     /// set `enabled` flag to false for level's scene.
-    pub enabled: bool,
+    pub enabled: InheritableVariable<bool>,
 }
 
 impl Default for Scene {
@@ -229,10 +218,9 @@ impl Default for Scene {
         Self {
             graph: Default::default(),
             rendering_options: Default::default(),
-            lightmap: None,
             drawing_context: Default::default(),
             performance_statistics: Default::default(),
-            enabled: true,
+            enabled: true.into(),
         }
     }
 }
@@ -283,17 +271,20 @@ impl SceneLoader {
     /// Such scenes can be made in rusty editor.
     pub async fn from_file<P: AsRef<Path>>(
         path: P,
+        io: &dyn ResourceIo,
         serialization_context: Arc<SerializationContext>,
         resource_manager: ResourceManager,
-    ) -> Result<Self, VisitError> {
-        let mut visitor = Visitor::load_binary(path.as_ref()).await?;
-        Self::load(
+    ) -> Result<(Self, Vec<u8>), VisitError> {
+        let data = io.load_file(path.as_ref()).await?;
+        let mut visitor = Visitor::load_from_memory(&data)?;
+        let loader = Self::load(
             "Scene",
             serialization_context,
             resource_manager,
             &mut visitor,
             Some(path.as_ref().to_path_buf()),
-        )
+        )?;
+        Ok((loader, data))
     }
 
     /// Tries to load a scene using specified visitor and region name.
@@ -388,10 +379,9 @@ impl Scene {
             // Graph must be created with `new` method because it differs from `default`
             graph: Graph::new(),
             rendering_options: Default::default(),
-            lightmap: None,
             drawing_context: Default::default(),
             performance_statistics: Default::default(),
-            enabled: true,
+            enabled: true.into(),
         }
     }
 
@@ -400,97 +390,6 @@ impl Scene {
         Log::writeln(MessageKind::Information, "Starting resolve...");
 
         self.graph.resolve(resource_manager);
-        self.graph.update_hierarchical_data();
-
-        // Re-apply lightmap if any. This has to be done after resolve because we must patch surface
-        // data at this stage, but if we'd do this before we wouldn't be able to do this because
-        // meshes contains invalid surface data.
-        if let Some(lightmap) = self.lightmap.as_mut() {
-            // Patch surface data first. To do this we gather all surface data instances and
-            // look in patch data if we have patch for data.
-            let mut unique_data_set = FxHashMap::default();
-            for &handle in lightmap.map.keys() {
-                if let Some(mesh) = self.graph[handle].cast_mut::<Mesh>() {
-                    for surface in mesh.surfaces() {
-                        let data = surface.data();
-                        unique_data_set.entry(data.key()).or_insert(data);
-                    }
-                }
-            }
-
-            for (_, data) in unique_data_set.into_iter() {
-                let mut data = data.lock();
-
-                if let Some(patch) = lightmap.patches.get(&data.content_hash()) {
-                    if !data
-                        .vertex_buffer
-                        .has_attribute(VertexAttributeUsage::TexCoord1)
-                    {
-                        data.vertex_buffer
-                            .modify()
-                            .add_attribute(
-                                VertexAttributeDescriptor {
-                                    usage: VertexAttributeUsage::TexCoord1,
-                                    data_type: VertexAttributeDataType::F32,
-                                    size: 2,
-                                    divisor: 0,
-                                    shader_location: 6, // HACK: GBuffer renderer expects it to be at 6
-                                },
-                                Vector2::<f32>::default(),
-                            )
-                            .unwrap();
-                    }
-
-                    data.geometry_buffer.set_triangles(patch.triangles.clone());
-
-                    let mut vertex_buffer_mut = data.vertex_buffer.modify();
-                    for &v in patch.additional_vertices.iter() {
-                        vertex_buffer_mut.duplicate(v as usize);
-                    }
-
-                    assert_eq!(
-                        vertex_buffer_mut.vertex_count() as usize,
-                        patch.second_tex_coords.len()
-                    );
-                    for (mut view, &tex_coord) in vertex_buffer_mut
-                        .iter_mut()
-                        .zip(patch.second_tex_coords.iter())
-                    {
-                        view.write_2_f32(VertexAttributeUsage::TexCoord1, tex_coord)
-                            .unwrap();
-                    }
-                } else {
-                    Log::writeln(
-                        MessageKind::Warning,
-                        "Failed to get surface data patch while resolving lightmap!\
-                    This means that surface has changed and lightmap must be regenerated!",
-                    );
-                }
-            }
-
-            // Apply textures.
-            for (&handle, entries) in lightmap.map.iter_mut() {
-                if let Some(mesh) = self.graph[handle].cast_mut::<Mesh>() {
-                    for (entry, surface) in entries.iter_mut().zip(mesh.surfaces_mut()) {
-                        if let Err(e) = surface.material().lock().set_property(
-                            &ImmutableString::new("lightmapTexture"),
-                            PropertyValue::Sampler {
-                                value: entry.texture.clone(),
-                                fallback: SamplerFallback::Black,
-                            },
-                        ) {
-                            Log::writeln(
-                                MessageKind::Error,
-                                format!(
-                                    "Failed to apply light map texture to material. Reason {:?}",
-                                    e
-                                ),
-                            )
-                        }
-                    }
-                }
-            }
-        }
 
         Log::writeln(MessageKind::Information, "Resolve succeeded!");
     }
@@ -503,40 +402,6 @@ impl Scene {
         collection
     }
 
-    /// Tries to set new lightmap to scene.
-    pub fn set_lightmap(&mut self, lightmap: Lightmap) -> Result<Option<Lightmap>, &'static str> {
-        // Assign textures to surfaces.
-        for (handle, lightmaps) in lightmap.map.iter() {
-            if let Some(mesh) = self.graph[*handle].cast_mut::<Mesh>() {
-                if mesh.surfaces().len() != lightmaps.len() {
-                    return Err("failed to set lightmap, surface count mismatch");
-                }
-
-                for (surface, entry) in mesh.surfaces_mut().iter_mut().zip(lightmaps) {
-                    // This unwrap() call must never panic in normal conditions, because texture wrapped in Option
-                    // only to implement Default trait to be serializable.
-                    let texture = entry.texture.clone().unwrap();
-                    if let Err(e) = surface.material().lock().set_property(
-                        &ImmutableString::new("lightmapTexture"),
-                        PropertyValue::Sampler {
-                            value: Some(texture),
-                            fallback: SamplerFallback::Black,
-                        },
-                    ) {
-                        Log::writeln(
-                            MessageKind::Error,
-                            format!(
-                                "Failed to apply light map texture to material. Reason {:?}",
-                                e
-                            ),
-                        )
-                    }
-                }
-            }
-        }
-        Ok(std::mem::replace(&mut self.lightmap, Some(lightmap)))
-    }
-
     /// Performs single update tick with given delta time from last frame. Internally
     /// it updates physics, animations, and each graph node. In most cases there is
     /// no need to call it directly, engine automatically updates all available scenes.
@@ -547,37 +412,25 @@ impl Scene {
 
     /// Creates deep copy of a scene, filter predicate allows you to filter out nodes
     /// by your criteria.
-    pub fn clone<F>(&self, root: Handle<Node>, filter: &mut F) -> (Self, NodeHandleMap)
+    pub fn clone<F, C>(
+        &self,
+        root: Handle<Node>,
+        filter: &mut F,
+        callback: &mut C,
+    ) -> (Self, NodeHandleMap)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
+        C: FnMut(Handle<Node>, Handle<Node>, &mut Node),
     {
-        let (graph, old_new_map) = self.graph.clone(root, filter);
-
-        let mut lightmap = self.lightmap.clone();
-        if let Some(lightmap) = lightmap.as_mut() {
-            let mut map = FxHashMap::default();
-            for (mut handle, mut entries) in std::mem::take(&mut lightmap.map) {
-                for entry in entries.iter_mut() {
-                    for light_handle in entry.lights.iter_mut() {
-                        old_new_map.try_map(light_handle);
-                    }
-                }
-
-                if old_new_map.try_map(&mut handle) {
-                    map.insert(handle, entries);
-                }
-            }
-            lightmap.map = map;
-        }
+        let (graph, old_new_map) = self.graph.clone(root, filter, callback);
 
         (
             Self {
                 graph,
                 rendering_options: self.rendering_options.clone(),
-                lightmap,
                 drawing_context: self.drawing_context.clone(),
                 performance_statistics: Default::default(),
-                enabled: self.enabled,
+                enabled: self.enabled.clone(),
             },
             old_new_map,
         )
@@ -587,7 +440,7 @@ impl Scene {
         let mut region = visitor.enter_region(region_name)?;
 
         self.graph.visit("Graph", &mut region)?;
-        self.lightmap.visit("Lightmap", &mut region)?;
+
         self.enabled.visit("Enabled", &mut region)?;
         let _ = self
             .rendering_options

@@ -10,7 +10,7 @@ use fyrox::{
         pool::Handle,
     },
     scene::node::Node,
-    utils::{astar::PathVertex, navmesh::Navmesh},
+    utils::navmesh::Navmesh,
 };
 
 #[derive(Debug)]
@@ -31,15 +31,15 @@ fn fetch_navmesh<'a>(ctx: &'a mut SceneContext, node: Handle<Node>) -> &'a mut N
 #[derive(Debug)]
 enum AddNavmeshEdgeCommandState {
     Undefined,
-    NonExecuted { edge: (PathVertex, PathVertex) },
+    NonExecuted { edge: (Vector3<f32>, Vector3<f32>) },
     Executed,
-    Reverted { edge: (PathVertex, PathVertex) },
+    Reverted { edge: (Vector3<f32>, Vector3<f32>) },
 }
 
 impl AddNavmeshEdgeCommand {
     pub fn new(
         navmesh_node: Handle<Node>,
-        edge: (PathVertex, PathVertex),
+        edge: (Vector3<f32>, Vector3<f32>),
         opposite_edge: TriangleEdge,
         select: bool,
     ) -> Self {
@@ -186,7 +186,7 @@ pub enum DeleteNavmeshVertexCommandState {
         vertex: usize,
     },
     Executed {
-        vertex: PathVertex,
+        vertex: Vector3<f32>,
         vertex_index: usize,
         triangles: Vec<TriangleDefinition>,
     },
@@ -287,7 +287,7 @@ impl MoveNavmeshVertexCommand {
     }
 
     fn set_position(&self, navmesh: &mut Navmesh, position: Vector3<f32>) {
-        navmesh.vertices_mut()[self.vertex].position = position;
+        navmesh.vertices_mut()[self.vertex] = position;
     }
 }
 

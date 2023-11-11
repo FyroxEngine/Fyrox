@@ -1,6 +1,9 @@
 use crate::{absm::segment::Segment, utils::fetch_node_screen_center};
 use fyrox::{
-    core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
+    core::{
+        algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
+        visitor::prelude::*,
+    },
     gui::{
         brush::Brush,
         define_widget_deref,
@@ -18,7 +21,7 @@ use std::{
 const PICKED_BRUSH: Brush = Brush::Solid(Color::opaque(100, 100, 100));
 const NORMAL_BRUSH: Brush = Brush::Solid(Color::opaque(80, 80, 80));
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Visit, Reflect)]
 pub struct Connection {
     widget: Widget,
     pub segment: Segment,

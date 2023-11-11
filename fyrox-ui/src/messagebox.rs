@@ -7,6 +7,7 @@
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{algebra::Vector2, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     draw::DrawingContext,
     formatted_text::WrapMode,
@@ -67,9 +68,10 @@ pub enum MessageBoxResult {
 }
 
 /// A fixed set of possible buttons in a message box.
-#[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Debug)]
+#[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Debug, Visit, Reflect, Default)]
 pub enum MessageBoxButtons {
     /// Only `Ok` button. It is typically used to show a message with results of some finished action.
+    #[default]
     Ok,
     /// `Yes` and `No` buttons. It is typically used to show a message to ask a user if they are want to continue or not.
     YesNo,
@@ -150,7 +152,7 @@ pub enum MessageBoxButtons {
 ///
 /// There's no way to change the style of the message box, nor add some widgets to it. If you need custom message box, then you
 /// need to create your own widget. This message box is meant to be used as a standard dialog box for standard situations in UI.
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct MessageBox {
     /// Base window of the message box.
     pub window: Window,

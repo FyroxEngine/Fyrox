@@ -5,6 +5,7 @@
 
 use crate::{
     core::pool::Handle,
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
@@ -97,7 +98,7 @@ impl<T: NumericType> RangeEditorMessage<T> {
 ///
 /// Be very careful about the type of the range when sending a message, you need to send a range of exact type, that match the type
 /// of your editor, otherwise the message have no effect. The same applied to fetching.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Reflect, Visit)]
 pub struct RangeEditor<T>
 where
     T: NumericType,
@@ -105,6 +106,8 @@ where
     /// Base widget of the range editor.
     pub widget: Widget,
     /// Current value of the range editor.
+    #[visit(skip)] // TODO
+    #[reflect(hidden)] // TODO
     pub value: Range<T>,
     /// A handle to numeric field that is used to show/modify start value of current range.
     pub start: Handle<UiNode>,

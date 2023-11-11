@@ -4,6 +4,7 @@
 use crate::{
     border::BorderBuilder,
     core::{algebra::Vector2, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     grid::{Column, GridBuilder, Row},
     list_view::{ListViewBuilder, ListViewMessage},
@@ -37,7 +38,7 @@ impl DropdownListMessage {
     define_constructor!(DropdownListMessage:Close => fn close(), layout: false);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Visit, Reflect)]
 pub struct DropdownList {
     pub widget: Widget,
     pub popup: Handle<UiNode>,

@@ -7,6 +7,7 @@
 use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle, scope_profile},
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
     message::{MessageDirection, UiMessage},
@@ -137,7 +138,7 @@ impl ScrollPanelMessage {
 ///     ))
 /// }
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Visit, Reflect, Debug)]
 pub struct ScrollPanel {
     /// Base widget of the scroll panel.
     pub widget: Widget,

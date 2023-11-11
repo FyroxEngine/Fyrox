@@ -6,6 +6,7 @@
 use crate::{
     border::BorderBuilder,
     core::{algebra::Vector2, math::Rect, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     message::{ButtonState, MessageDirection, OsEvent, UiMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -57,7 +58,7 @@ impl PopupMessage {
 }
 
 /// Defines a method of popup placement.
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, PartialEq, Debug, Visit, Reflect)]
 pub enum Placement {
     /// A popup should be placed relative to given widget at the left top corner of the widget screen bounds.
     /// Widget handle could be [`Handle::NONE`], in this case the popup will be placed at the left top corner of the screen.
@@ -261,7 +262,7 @@ impl Placement {
 ///
 /// Popup widget can automatically adjust its position to always remain on screen, which is useful for tooltips, dropdown lists,
 /// etc. To enable this option, use [`PopupBuilder::with_smart_placement`] with `true` as the first argument.
-#[derive(Clone)]
+#[derive(Clone, Visit, Debug, Reflect)]
 pub struct Popup {
     /// Base widget of the popup.
     pub widget: Widget,

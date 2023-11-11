@@ -2,6 +2,7 @@ use crate::{load_image, message::MessageSender, utils::make_node_name, Message};
 use fyrox::scene::node::Node;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle},
+    core::{reflect::prelude::*, visitor::prelude::*},
     gui::{
         brush::Brush,
         define_constructor,
@@ -35,6 +36,7 @@ impl SceneItemMessage {
     define_constructor!(SceneItemMessage:Validate => fn validate(Result<(), String>), layout: false);
 }
 
+#[derive(Visit, Reflect)]
 pub struct SceneItem {
     pub tree: Tree,
     text_name: Handle<UiNode>,
@@ -43,6 +45,8 @@ pub struct SceneItem {
     pub entity_handle: Handle<Node>,
     // Can be unassigned if there's no warning.
     pub warning_icon: Handle<UiNode>,
+    #[reflect(hidden)]
+    #[visit(skip)]
     sender: MessageSender,
 }
 

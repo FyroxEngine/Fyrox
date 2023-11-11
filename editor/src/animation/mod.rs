@@ -578,6 +578,7 @@ impl AnimationEditor {
             if let Some(animation) = animation_player.animations().try_get(selection.animation) {
                 self.track_list.sync_to_model(
                     animation,
+                    selection.animation,
                     &scene.graph,
                     editor_scene,
                     &mut engine.user_interface,
