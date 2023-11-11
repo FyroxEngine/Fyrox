@@ -94,6 +94,8 @@ pub enum VertexAttributeUsage {
     BoneWeight = 11,
     /// Bone indices. Usually `Vector4<u8>`.
     BoneIndices = 12,
+    /// Color. Usually `Vector4<u8>`.
+    Color = 13,
     /// Maximum amount of attribute kinds.
     Count,
 }
@@ -309,7 +311,7 @@ impl Deref for BytesStorage {
 #[derive(Clone, Visit, Default, Debug)]
 pub struct VertexBuffer {
     dense_layout: Vec<VertexAttribute>,
-    sparse_layout: [Option<VertexAttribute>; 13],
+    sparse_layout: [Option<VertexAttribute>; VertexAttributeUsage::Count as usize],
     vertex_size: u8,
     vertex_count: u32,
     data: BytesStorage,
