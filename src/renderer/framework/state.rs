@@ -884,43 +884,40 @@ impl PipelineState {
         self.frame_statistics
     }
 
-    /// Checks for errors, returns true if any error has occurred.
-    pub fn check_error(&self) -> bool {
+    /// Checks for errors.
+    pub fn check_error(&self) {
         #[cfg(debug_assertions)]
         unsafe {
             use crate::core::log::{Log, MessageKind};
 
-            let error_code = self.gl.get_error();
-            if error_code != glow::NO_ERROR {
-                let code = match error_code {
-                    glow::INVALID_ENUM => "GL_INVALID_ENUM",
-                    glow::INVALID_VALUE => "GL_INVALID_VALUE",
-                    glow::INVALID_OPERATION => "GL_INVALID_OPERATION",
-                    glow::STACK_OVERFLOW => "GL_STACK_OVERFLOW",
-                    glow::STACK_UNDERFLOW => "GL_STACK_UNDERFLOW",
-                    glow::OUT_OF_MEMORY => "GL_OUT_OF_MEMORY",
-                    _ => "Unknown",
-                };
+            loop {
+                let error_code = self.gl.get_error();
+                if error_code == glow::NO_ERROR {
+                    break;
+                } else {
+                    let code = match error_code {
+                        glow::INVALID_ENUM => "GL_INVALID_ENUM",
+                        glow::INVALID_VALUE => "GL_INVALID_VALUE",
+                        glow::INVALID_OPERATION => "GL_INVALID_OPERATION",
+                        glow::STACK_OVERFLOW => "GL_STACK_OVERFLOW",
+                        glow::STACK_UNDERFLOW => "GL_STACK_UNDERFLOW",
+                        glow::OUT_OF_MEMORY => "GL_OUT_OF_MEMORY",
+                        _ => "Unknown",
+                    };
 
-                Log::writeln(
-                    MessageKind::Error,
-                    format!("{} error has occurred! Stability is not guaranteed!", code),
-                );
+                    Log::writeln(
+                        MessageKind::Error,
+                        format!("{} error has occurred! Stability is not guaranteed!", code),
+                    );
 
-                #[cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))]
-                {
-                    for entry in self.gl.get_debug_message_log(64) {
-                        Log::writeln(MessageKind::Error, format!("OpenGL message: {:?}", entry))
+                    #[cfg(all(not(target_arch = "wasm32"), not(target_os = "android")))]
+                    {
+                        for entry in self.gl.get_debug_message_log(64) {
+                            Log::writeln(MessageKind::Error, format!("OpenGL message: {:?}", entry))
+                        }
                     }
                 }
-
-                true
-            } else {
-                false
             }
         }
-
-        #[cfg(not(debug_assertions))]
-        false
     }
 }
