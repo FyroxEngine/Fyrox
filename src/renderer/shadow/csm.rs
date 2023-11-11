@@ -25,6 +25,7 @@ use crate::{
         light::directional::{DirectionalLight, FrustumSplitOptions, CSM_NUM_CASCADES},
     },
 };
+use fyrox_core::color::Color;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct Cascade {
@@ -307,6 +308,8 @@ impl CsmRenderer {
                                     black_dummy: black_dummy.clone(),
                                     volume_dummy: volume_dummy.clone(),
                                     persistent_identifier: instance.persistent_identifier,
+                                    light_data: None,            // TODO
+                                    ambient_light: Color::WHITE, // TODO
                                 });
                             },
                         )?;

@@ -16,7 +16,6 @@ pub mod framework;
 pub mod batch;
 pub mod cache;
 pub mod debug_renderer;
-pub mod renderer2d;
 pub mod storage;
 pub mod ui_renderer;
 
@@ -77,7 +76,6 @@ use crate::{
         hdr::HighDynamicRangeRenderer,
         light::{DeferredLightRenderer, DeferredRendererContext, LightingStatistics},
         particle_system_renderer::{ParticleSystemRenderContext, ParticleSystemRenderer},
-        renderer2d::Renderer2d,
         sprite_renderer::{SpriteRenderContext, SpriteRenderer},
         storage::MatrixStorageCache,
         ui_renderer::{UiRenderContext, UiRenderer},
@@ -86,6 +84,7 @@ use crate::{
     scene::{camera::Camera, mesh::surface::SurfaceData, Scene, SceneContainer},
 };
 use fxhash::FxHashMap;
+use fyrox_core::algebra::Vector4;
 use glow::HasContext;
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{
@@ -738,7 +737,6 @@ pub struct Renderer {
     geometry_cache: GeometryCache,
     forward_renderer: ForwardRenderer,
     fxaa_renderer: FxaaRenderer,
-    renderer2d: Renderer2d,
     texture_event_receiver: Receiver<ResourceEvent>,
     shader_event_receiver: Receiver<ResourceEvent>,
     matrix_storage: MatrixStorageCache,
@@ -946,6 +944,26 @@ fn blit_pixels(
     )
 }
 
+pub(crate) struct LightData<const N: usize = 16> {
+    count: usize,
+    color_radius: [Vector4<f32>; N],
+    position: [Vector3<f32>; N],
+    direction: [Vector3<f32>; N],
+    parameters: [Vector2<f32>; N],
+}
+
+impl<const N: usize> Default for LightData<N> {
+    fn default() -> Self {
+        Self {
+            count: 0,
+            color_radius: [Default::default(); N],
+            position: [Default::default(); N],
+            direction: [Default::default(); N],
+            parameters: [Default::default(); N],
+        }
+    }
+}
+
 pub(crate) struct MaterialContext<'a, 'b, 'c> {
     pub material: &'a Material,
     pub program_binding: &'a mut GpuProgramBinding<'b, 'c>,
@@ -963,6 +981,8 @@ pub(crate) struct MaterialContext<'a, 'b, 'c> {
     pub light_position: &'a Vector3<f32>,
     pub blend_shapes_storage: Option<&'a TextureResource>,
     pub blend_shapes_weights: &'a [f32],
+    pub light_data: Option<&'a LightData>,
+    pub ambient_light: Color,
 
     // Fallback samplers.
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
@@ -1010,6 +1030,38 @@ pub(crate) fn apply_material(ctx: MaterialContext) {
     if let Some(location) = &built_in_uniforms[BuiltInUniform::LightPosition as usize] {
         ctx.program_binding
             .set_vector3(location, ctx.light_position);
+    }
+
+    if let Some(light_data) = ctx.light_data {
+        if let Some(location) = &built_in_uniforms[BuiltInUniform::LightCount as usize] {
+            ctx.program_binding
+                .set_i32(location, light_data.count as i32);
+        }
+
+        if let Some(location) = &built_in_uniforms[BuiltInUniform::LightsColorRadius as usize] {
+            ctx.program_binding
+                .set_vector4_slice(location, &light_data.color_radius);
+        }
+
+        if let Some(location) = &built_in_uniforms[BuiltInUniform::LightsPosition as usize] {
+            ctx.program_binding
+                .set_vector3_slice(location, &light_data.position);
+        }
+
+        if let Some(location) = &built_in_uniforms[BuiltInUniform::LightsDirection as usize] {
+            ctx.program_binding
+                .set_vector3_slice(location, &light_data.direction);
+        }
+
+        if let Some(location) = &built_in_uniforms[BuiltInUniform::LightsParameters as usize] {
+            ctx.program_binding
+                .set_vector2_slice(location, &light_data.parameters);
+        }
+    }
+
+    if let Some(location) = &built_in_uniforms[BuiltInUniform::AmbientLight as usize] {
+        ctx.program_binding
+            .set_srgb_color(location, &ctx.ambient_light);
     }
 
     if let Some(location) = &built_in_uniforms[BuiltInUniform::BlendShapesStorage as usize] {
@@ -1258,7 +1310,6 @@ impl Renderer {
             ui_frame_buffers: Default::default(),
             fxaa_renderer: FxaaRenderer::new(&mut state)?,
             statistics: Statistics::default(),
-            renderer2d: Renderer2d::new(&mut state)?,
             shader_event_receiver,
             texture_event_receiver,
             shader_cache,
@@ -1365,7 +1416,6 @@ impl Renderer {
     pub fn flush(&mut self) {
         self.texture_cache.clear();
         self.geometry_cache.clear();
-        self.renderer2d.flush();
     }
 
     /// Renders given UI into specified render target. This method is especially useful if you need
@@ -1491,7 +1541,6 @@ impl Renderer {
         self.update_texture_cache(dt);
         self.update_shader_cache(dt);
         self.geometry_cache.update(dt);
-        self.renderer2d.update_caches(dt);
     }
 
     fn render_frame(
@@ -1708,21 +1757,10 @@ impl Renderer {
                     viewport,
                     textures: &mut self.texture_cache,
                 })?;
-                /*
 
-                                self.statistics += self.renderer2d.render(
-                                    state,
-                                    camera,
-                                    &mut scene_associated_data.hdr_scene_framebuffer,
-                                    viewport,
-                                    graph,
-                                    &mut self.texture_cache,
-                                    self.white_dummy.clone(),
-                                    scene.rendering_options.ambient_lighting_color,
-                                )?;
-                */
                 self.statistics += self.forward_renderer.render(ForwardRenderContext {
                     state,
+                    graph,
                     camera,
                     geom_cache: &mut self.geometry_cache,
                     texture_cache: &mut self.texture_cache,
@@ -1736,6 +1774,7 @@ impl Renderer {
                     black_dummy: self.black_dummy.clone(),
                     volume_dummy: self.volume_dummy.clone(),
                     matrix_storage: &mut self.matrix_storage,
+                    ambient_light: scene.rendering_options.ambient_lighting_color,
                 })?;
 
                 for render_pass in self.scene_render_passes.iter() {

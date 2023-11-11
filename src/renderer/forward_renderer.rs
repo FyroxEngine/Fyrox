@@ -7,7 +7,13 @@
 //! path).
 
 use crate::{
-    core::{math::Rect, scope_profile, sstorage::ImmutableString},
+    core::{
+        algebra::{Vector2, Vector4},
+        color::Color,
+        math::{frustum::Frustum, Rect},
+        scope_profile,
+        sstorage::ImmutableString,
+    },
     renderer::{
         apply_material,
         batch::RenderDataBatchStorage,
@@ -17,9 +23,14 @@ use crate::{
             state::PipelineState,
         },
         storage::MatrixStorageCache,
-        GeometryCache, MaterialContext, QualitySettings, RenderPassStatistics,
+        GeometryCache, LightData, MaterialContext, QualitySettings, RenderPassStatistics,
     },
-    scene::{camera::Camera, mesh::RenderPath},
+    scene::{
+        camera::Camera,
+        graph::Graph,
+        light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
+        mesh::RenderPath,
+    },
 };
 use std::{cell::RefCell, rc::Rc};
 
@@ -29,6 +40,7 @@ pub(crate) struct ForwardRenderer {
 
 pub(crate) struct ForwardRenderContext<'a, 'b> {
     pub state: &'a mut PipelineState,
+    pub graph: &'b Graph,
     pub camera: &'b Camera,
     pub geom_cache: &'a mut GeometryCache,
     pub texture_cache: &'a mut TextureCache,
@@ -42,6 +54,7 @@ pub(crate) struct ForwardRenderContext<'a, 'b> {
     pub black_dummy: Rc<RefCell<GpuTexture>>,
     pub volume_dummy: Rc<RefCell<GpuTexture>>,
     pub matrix_storage: &'a mut MatrixStorageCache,
+    pub ambient_light: Color,
 }
 
 impl ForwardRenderer {
@@ -61,6 +74,7 @@ impl ForwardRenderer {
 
         let ForwardRenderContext {
             state,
+            graph,
             camera,
             geom_cache,
             texture_cache,
@@ -74,9 +88,59 @@ impl ForwardRenderer {
             black_dummy,
             volume_dummy,
             matrix_storage,
+            ambient_light,
         } = args;
 
         let initial_view_projection = camera.view_projection_matrix();
+
+        let frustum = Frustum::from_view_projection_matrix(camera.view_projection_matrix())
+            .unwrap_or_default();
+
+        let mut light_data = LightData::default();
+        for light in graph.linear_iter() {
+            if !light.global_visibility() || light_data.count == light_data.parameters.len() {
+                continue;
+            }
+
+            let (radius, half_cone_angle_cos, half_hotspot_angle_cos, color) =
+                if let Some(point) = light.cast::<PointLight>() {
+                    (
+                        point.radius(),
+                        std::f32::consts::PI.cos(),
+                        std::f32::consts::PI.cos(),
+                        point.base_light_ref().color().as_frgb(),
+                    )
+                } else if let Some(spot) = light.cast::<SpotLight>() {
+                    (
+                        spot.distance(),
+                        (spot.hotspot_cone_angle() * 0.5).cos(),
+                        (spot.full_cone_angle() * 0.5).cos(),
+                        spot.base_light_ref().color().as_frgb(),
+                    )
+                } else if let Some(directional) = light.cast::<DirectionalLight>() {
+                    (
+                        f32::INFINITY,
+                        std::f32::consts::PI.cos(),
+                        std::f32::consts::PI.cos(),
+                        directional.base_light_ref().color().as_frgb(),
+                    )
+                } else {
+                    continue;
+                };
+
+            if frustum.is_intersects_aabb(&light.world_bounding_box()) {
+                let light_num = light_data.count;
+
+                light_data.position[light_num] = light.global_position();
+                light_data.direction[light_num] = light.up_vector();
+                light_data.color_radius[light_num] =
+                    Vector4::new(color.x, color.y, color.z, radius);
+                light_data.parameters[light_num] =
+                    Vector2::new(half_cone_angle_cos, half_hotspot_angle_cos);
+
+                light_data.count += 1;
+            }
+        }
 
         for batch in batch_storage
             .batches
@@ -132,6 +196,8 @@ impl ForwardRenderer {
                                 volume_dummy: volume_dummy.clone(),
                                 matrix_storage,
                                 persistent_identifier: instance.persistent_identifier,
+                                light_data: Some(&light_data),
+                                ambient_light,
                             });
                         },
                     )?;

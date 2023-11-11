@@ -208,6 +208,8 @@ impl SpotShadowMapRenderer {
                                 black_dummy: black_dummy.clone(),
                                 volume_dummy: volume_dummy.clone(),
                                 persistent_identifier: instance.persistent_identifier,
+                                light_data: None,            // TODO
+                                ambient_light: Color::WHITE, // TODO
                             });
                         },
                     )?;

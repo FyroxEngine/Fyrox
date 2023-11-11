@@ -11,15 +11,9 @@ use fyrox::{
         pool::Handle,
         sstorage::ImmutableString,
     },
-    engine::{executor::Executor, GraphicsContext, GraphicsContextParams},
+    engine::{executor::Executor, GraphicsContextParams},
     event::{ElementState, Event, WindowEvent},
     event_loop::EventLoop,
-    gui::{
-        message::MessageDirection,
-        text::{TextBuilder, TextMessage},
-        widget::WidgetBuilder,
-        UiNode,
-    },
     material::{Material, PropertyValue, SharedMaterial},
     plugin::{Plugin, PluginConstructor, PluginContext},
     resource::texture::Texture,
@@ -59,7 +53,7 @@ impl SceneLoader {
             .set_property(
                 &ImmutableString::new("diffuseTexture"),
                 PropertyValue::Sampler {
-                    value: Some(resource_manager.request::<Texture, _>("Crate.png")),
+                    value: Some(resource_manager.request::<Texture, _>("examples/Crate.png")),
                     fallback: Default::default(),
                 },
             )
