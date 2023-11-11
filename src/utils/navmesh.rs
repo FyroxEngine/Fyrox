@@ -527,7 +527,7 @@ impl Navmesh {
         let graph = self
             .graph
             .get_or_insert_with(|| make_graph(&self.triangles, &self.vertices));
-        graph.build(from, to, path)
+        graph.build_positional_path(from, to, path)
     }
 
     /// Tries to pick a triangle by given ray. Returns closest result.
@@ -704,10 +704,15 @@ impl NavmeshAgent {
                 let graph = navmesh
                     .graph
                     .get_or_insert_with(|| make_graph(&navmesh.triangles, &navmesh.vertices));
-                let path_kind =
-                    graph.build_and_convert(src_triangle, dest_triangle, |idx, _| {
-                        path_triangle_indices.push(idx);
-                    })?;
+                let path_kind = graph.build_indexed_path(
+                    src_triangle,
+                    dest_triangle,
+                    &mut path_triangle_indices,
+                )?;
+                // let path_kind =
+                //     graph.build_and_convert(src_triangle, dest_triangle, |idx, _| {
+                //         path_triangle_indices.push(idx);
+                //     })?;
 
                 path_triangle_indices.reverse();
 
