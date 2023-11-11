@@ -12,7 +12,7 @@
         (
             name: "Forward",
             draw_parameters: DrawParameters(
-                cull_face: Some(Back),
+                cull_face: None,
                 color_write: ColorMask(
                     red: true,
                     green: true,
@@ -45,6 +45,7 @@
                r#"
                 layout(location = 0) in vec3 vertexPosition;
                 layout(location = 1) in vec2 vertexTexCoord;
+                layout(location = 2) in vec4 vertexColor;
 
                 uniform mat4 fyrox_worldViewProjection;
                 uniform mat4 fyrox_worldMatrix;
@@ -58,7 +59,7 @@
                     texCoord = vertexTexCoord;
                     fragmentPosition = (fyrox_worldMatrix * vec4(vertexPosition, 1.0)).xyz;
                     gl_Position = fyrox_worldViewProjection * vec4(vertexPosition, 1.0);
-                    color = vec4(1.0, 1.0, 1.0, 1.0);
+                    color = vertexColor;
                 }
                "#,
 

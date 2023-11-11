@@ -3,6 +3,9 @@
 //!
 //! See [`Rectangle`] docs for more info.
 
+use crate::scene::mesh::buffer::{
+    VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage, VertexTrait,
+};
 use crate::{
     core::{
         algebra::Point3,
@@ -17,15 +20,80 @@ use crate::{
     },
     material::{Material, SharedMaterial},
     renderer::batch::RenderContext,
-    resource::texture::TextureResource,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
-        mesh::{vertex::StaticVertex, RenderPath},
+        mesh::RenderPath,
         node::{Node, NodeTrait},
     },
 };
+use fyrox_core::algebra::{Vector2, Vector3};
+use std::hash::{Hash, Hasher};
 use std::ops::{Deref, DerefMut};
+
+/// A vertex for static meshes.
+#[derive(Copy, Clone, Debug, Default)]
+#[repr(C)] // OpenGL expects this structure packed as in C
+pub struct RectangleVertex {
+    /// Position of vertex in local coordinates.
+    pub position: Vector3<f32>,
+    /// Texture coordinates.
+    pub tex_coord: Vector2<f32>,
+    /// Diffuse color.
+    pub color: Color,
+}
+
+impl VertexTrait for RectangleVertex {
+    fn layout() -> &'static [VertexAttributeDescriptor] {
+        &[
+            VertexAttributeDescriptor {
+                usage: VertexAttributeUsage::Position,
+                data_type: VertexAttributeDataType::F32,
+                size: 3,
+                divisor: 0,
+                shader_location: 0,
+            },
+            VertexAttributeDescriptor {
+                usage: VertexAttributeUsage::TexCoord0,
+                data_type: VertexAttributeDataType::F32,
+                size: 2,
+                divisor: 0,
+                shader_location: 1,
+            },
+            VertexAttributeDescriptor {
+                usage: VertexAttributeUsage::Color,
+                data_type: VertexAttributeDataType::U8,
+                size: 4,
+                divisor: 0,
+                shader_location: 2,
+            },
+        ]
+    }
+}
+
+impl PartialEq for RectangleVertex {
+    fn eq(&self, other: &Self) -> bool {
+        self.position == other.position
+            && self.tex_coord == other.tex_coord
+            && self.color == other.color
+    }
+}
+
+// This is safe because Vertex is tightly packed struct with C representation
+// there is no padding bytes which may contain garbage data. This is strictly
+// required because vertices will be directly passed on GPU.
+impl Hash for RectangleVertex {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        #[allow(unsafe_code)]
+        unsafe {
+            let bytes = self as *const Self as *const u8;
+            state.write(std::slice::from_raw_parts(
+                bytes,
+                std::mem::size_of::<Self>(),
+            ))
+        }
+    }
+}
 
 /// Rectangle is the simplest "2D" node, it can be used to create "2D" graphics. 2D is in quotes
 /// here because the node is actually a 3D node, like everything else in the engine.
@@ -107,10 +175,6 @@ use std::ops::{Deref, DerefMut};
 pub struct Rectangle {
     base: Base,
 
-    #[reflect(setter = "set_texture")]
-    #[visit(optional)] // Backward compatibility
-    texture: InheritableVariable<Option<TextureResource>>,
-
     #[reflect(setter = "set_color")]
     color: InheritableVariable<Color>,
 
@@ -126,7 +190,6 @@ impl Default for Rectangle {
     fn default() -> Self {
         Self {
             base: Default::default(),
-            texture: Default::default(),
             color: Default::default(),
             uv_rect: InheritableVariable::new_modified(Rect::new(0.0, 0.0, 1.0, 1.0)),
             material: InheritableVariable::new_modified(SharedMaterial::new(
@@ -157,24 +220,17 @@ impl TypeUuidProvider for Rectangle {
 }
 
 impl Rectangle {
-    /// Returns a texture used by the rectangle.
-    pub fn texture(&self) -> Option<&TextureResource> {
-        self.texture.as_ref()
-    }
-
-    /// Returns a texture used by the rectangle.
-    pub fn texture_value(&self) -> Option<TextureResource> {
-        (*self.texture).clone()
-    }
-
-    /// Sets new texture for the rectangle.
-    pub fn set_texture(&mut self, texture: Option<TextureResource>) -> Option<TextureResource> {
-        self.texture.set_value_and_mark_modified(texture)
-    }
-
     /// Returns current color of the rectangle.
     pub fn color(&self) -> Color {
         *self.color
+    }
+
+    pub fn material(&self) -> &InheritableVariable<SharedMaterial> {
+        &self.material
+    }
+
+    pub fn material_mut(&mut self) -> &mut InheritableVariable<SharedMaterial> {
+        &mut self.material
     }
 
     /// Sets color of the rectangle.
@@ -222,30 +278,34 @@ impl NodeTrait for Rectangle {
         let global_transform = self.global_transform();
 
         let vertices = [
-            StaticVertex::from_pos_uv(
-                global_transform
+            RectangleVertex {
+                position: global_transform
                     .transform_point(&Point3::new(-0.5, 0.5, 0.0))
                     .coords,
-                self.uv_rect.left_top_corner(),
-            ),
-            StaticVertex::from_pos_uv(
-                global_transform
+                tex_coord: self.uv_rect.left_top_corner(),
+                color: *self.color,
+            },
+            RectangleVertex {
+                position: global_transform
                     .transform_point(&Point3::new(0.5, 0.5, 0.0))
                     .coords,
-                self.uv_rect.right_top_corner(),
-            ),
-            StaticVertex::from_pos_uv(
-                global_transform
+                tex_coord: self.uv_rect.right_top_corner(),
+                color: *self.color,
+            },
+            RectangleVertex {
+                position: global_transform
                     .transform_point(&Point3::new(0.5, -0.5, 0.0))
                     .coords,
-                self.uv_rect.right_bottom_corner(),
-            ),
-            StaticVertex::from_pos_uv(
-                global_transform
+                tex_coord: self.uv_rect.right_bottom_corner(),
+                color: *self.color,
+            },
+            RectangleVertex {
+                position: global_transform
                     .transform_point(&Point3::new(-0.5, -0.5, 0.0))
                     .coords,
-                self.uv_rect.left_bottom_corner(),
-            ),
+                tex_coord: self.uv_rect.left_bottom_corner(),
+                color: *self.color,
+            },
         ];
 
         let triangles = [TriangleDefinition([0, 1, 2]), TriangleDefinition([2, 3, 0])];
@@ -266,7 +326,6 @@ impl NodeTrait for Rectangle {
 /// Allows you to create rectangle in declarative manner.
 pub struct RectangleBuilder {
     base_builder: BaseBuilder,
-    texture: Option<TextureResource>,
     color: Color,
     uv_rect: Rect<f32>,
     material: SharedMaterial,
@@ -277,17 +336,10 @@ impl RectangleBuilder {
     pub fn new(base_builder: BaseBuilder) -> Self {
         Self {
             base_builder,
-            texture: None,
             color: Color::WHITE,
             uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
             material: SharedMaterial::new(Material::standard_2d()),
         }
-    }
-
-    /// Sets desired texture of the rectangle.
-    pub fn with_texture(mut self, texture: TextureResource) -> Self {
-        self.texture = Some(texture);
-        self
     }
 
     /// Sets desired color of the rectangle.
@@ -312,7 +364,6 @@ impl RectangleBuilder {
     pub fn build_rectangle(self) -> Rectangle {
         Rectangle {
             base: self.base_builder.build_base(),
-            texture: self.texture.into(),
             color: self.color.into(),
             uv_rect: self.uv_rect.into(),
             material: self.material.into(),
