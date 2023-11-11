@@ -1,17 +1,17 @@
 use crate::{
-    core::{scope_profile, sparse::SparseBuffer},
+    asset::entry::DEFAULT_RESOURCE_LIFETIME,
+    core::{scope_profile, sparse::AtomicIndex, sparse::SparseBuffer},
     renderer::framework::{
         geometry_buffer::{GeometryBuffer, GeometryBufferKind},
         state::PipelineState,
     },
     scene::mesh::surface::{SurfaceData, SurfaceSharedData},
 };
-use fyrox_core::sparse::AtomicIndex;
-use fyrox_resource::entry::DEFAULT_RESOURCE_LIFETIME;
 
 struct CacheEntry {
     buffer: GeometryBuffer,
-    data_hash: u64,
+    vertex_modification_time_stamp: f64,
+    triangles_modification_time_stamp: f64,
     layout_hash: u64,
     time_to_live: f32,
 }
@@ -32,7 +32,8 @@ fn create_geometry_buffer(
     let index = buffer.spawn(CacheEntry {
         buffer: geometry_buffer,
         time_to_live: DEFAULT_RESOURCE_LIFETIME,
-        data_hash: data.content_hash(),
+        vertex_modification_time_stamp: data.vertex_buffer.modification_time_stamp(),
+        triangles_modification_time_stamp: data.geometry_buffer.modification_time_stamp(),
         layout_hash: data.vertex_buffer.layout_hash(),
     });
 
@@ -55,18 +56,29 @@ impl GeometryCache {
             // We also must check if buffer's layout changed, and if so - recreate the entire
             // buffer.
             if entry.layout_hash == data.vertex_buffer.layout_hash() {
-                let data_hash = data.content_hash();
-                if data_hash != entry.data_hash {
-                    // Content has changed, upload new content.
+                if data.vertex_buffer.modification_time_stamp()
+                    != entry.vertex_modification_time_stamp
+                {
+                    // Vertices has changed, upload the new content.
                     entry
                         .buffer
                         .set_buffer_data(state, 0, data.vertex_buffer.raw_data());
+
+                    entry.vertex_modification_time_stamp =
+                        data.vertex_buffer.modification_time_stamp();
+                }
+
+                if data.geometry_buffer.modification_time_stamp()
+                    != entry.triangles_modification_time_stamp
+                {
+                    // Triangles has changed, upload the new content.
                     entry
                         .buffer
                         .bind(state)
                         .set_triangles(data.geometry_buffer.triangles_ref());
 
-                    entry.data_hash = data_hash;
+                    entry.triangles_modification_time_stamp =
+                        data.geometry_buffer.modification_time_stamp();
                 }
 
                 entry.time_to_live = DEFAULT_RESOURCE_LIFETIME;

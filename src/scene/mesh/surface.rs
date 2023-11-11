@@ -1,7 +1,6 @@
 //! Surface is a set of triangles with a single material. Such arrangement makes GPU rendering very efficient.
 //! See [`Surface`] docs for more info and usage examples.
 
-use crate::scene::mesh::buffer::VertexTrait;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
@@ -20,7 +19,7 @@ use crate::{
         mesh::{
             buffer::{
                 TriangleBuffer, VertexAttributeUsage, VertexBuffer, VertexFetchError,
-                VertexReadTrait, VertexWriteTrait,
+                VertexReadTrait, VertexTrait, VertexWriteTrait,
             },
             vertex::StaticVertex,
         },
@@ -994,11 +993,12 @@ impl SurfaceData {
         data
     }
 
-    /// Calculates hash based on contents of surface shared data.
+    /// Calculates hash based on the contents of the surface shared data. This could be time-consuming
+    /// if there's a lot of vertices or indices.
     pub fn content_hash(&self) -> u64 {
         hash_combine(
-            self.geometry_buffer.data_hash(),
-            self.vertex_buffer.data_hash(),
+            self.geometry_buffer.content_hash(),
+            self.vertex_buffer.content_hash(),
         )
     }
 

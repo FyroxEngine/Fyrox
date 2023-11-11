@@ -12,6 +12,7 @@ use crate::{
     utils::{array_as_u8_slice, value_as_u8_slice},
 };
 use fxhash::FxHasher;
+use fyrox_core::instant;
 use std::{
     alloc::Layout,
     fmt::{Display, Formatter},
@@ -334,9 +335,10 @@ pub struct VertexBuffer {
     vertex_size: u8,
     vertex_count: u32,
     data: BytesStorage,
-    data_hash: u64,
     #[visit(optional)]
     layout_hash: u64,
+    #[visit(optional)]
+    modification_time_stamp: f64,
 }
 
 fn calculate_layout_hash(layout: &[VertexAttribute]) -> u64 {
@@ -358,8 +360,7 @@ pub struct VertexBufferRefMut<'a> {
 
 impl<'a> Drop for VertexBufferRefMut<'a> {
     fn drop(&mut self) {
-        // Recalculate data hash.
-        self.vertex_buffer.data_hash = calculate_data_hash(&self.vertex_buffer.data);
+        self.vertex_buffer.modification_time_stamp = instant::now();
     }
 }
 
@@ -750,7 +751,7 @@ impl VertexBuffer {
         Ok(Self {
             vertex_size: vertex_size_bytes,
             vertex_count: vertex_count as u32,
-            data_hash: calculate_data_hash(&bytes),
+            modification_time_stamp: instant::now(),
             data: bytes,
             layout_hash: calculate_layout_hash(&dense_layout),
             sparse_layout,
@@ -768,9 +769,14 @@ impl VertexBuffer {
         self.vertex_count == 0
     }
 
-    /// Returns cached data hash. Cached value is guaranteed to be in actual state.
-    pub fn data_hash(&self) -> u64 {
-        self.data_hash
+    /// Returns the last time (in milliseconds) when the buffer was modified.
+    pub fn modification_time_stamp(&self) -> f64 {
+        self.modification_time_stamp
+    }
+
+    /// Calculates inner data hash.
+    pub fn content_hash(&self) -> u64 {
+        calculate_data_hash(&self.data.bytes)
     }
 
     /// Returns hash of vertex buffer layout. Cached value is guaranteed to be in actual state.
@@ -1219,7 +1225,7 @@ impl<'a> VertexWriteTrait for VertexViewMut<'a> {
 #[derive(Visit, Default, Clone, Debug)]
 pub struct TriangleBuffer {
     triangles: Vec<TriangleDefinition>,
-    data_hash: u64,
+    modification_time_stamp: f64,
 }
 
 fn calculate_triangle_buffer_hash(triangles: &[TriangleDefinition]) -> u64 {
@@ -1231,11 +1237,9 @@ fn calculate_triangle_buffer_hash(triangles: &[TriangleDefinition]) -> u64 {
 impl TriangleBuffer {
     /// Creates new triangle buffer with given set of triangles.
     pub fn new(triangles: Vec<TriangleDefinition>) -> Self {
-        let hash = calculate_triangle_buffer_hash(&triangles);
-
         Self {
             triangles,
-            data_hash: hash,
+            modification_time_stamp: instant::now(),
         }
     }
 
@@ -1251,8 +1255,8 @@ impl TriangleBuffer {
 
     /// Sets a new set of triangles.
     pub fn set_triangles(&mut self, triangles: Vec<TriangleDefinition>) {
-        self.data_hash = calculate_triangle_buffer_hash(&triangles);
         self.triangles = triangles;
+        self.modification_time_stamp = instant::now();
     }
 
     /// Returns amount of triangles in the buffer.
@@ -1265,9 +1269,14 @@ impl TriangleBuffer {
         self.triangles.is_empty()
     }
 
-    /// Returns cached data hash. Cached value is guaranteed to be in actual state.
-    pub fn data_hash(&self) -> u64 {
-        self.data_hash
+    /// Returns the last time (in milliseconds) when the buffer was modified.
+    pub fn modification_time_stamp(&self) -> f64 {
+        self.modification_time_stamp
+    }
+
+    /// Calculates inner data hash.
+    pub fn content_hash(&self) -> u64 {
+        calculate_triangle_buffer_hash(&self.triangles)
     }
 
     /// See VertexBuffer::modify for more info.
@@ -1307,8 +1316,7 @@ impl<'a> DerefMut for TriangleBufferRefMut<'a> {
 
 impl<'a> Drop for TriangleBufferRefMut<'a> {
     fn drop(&mut self) {
-        self.triangle_buffer.data_hash =
-            calculate_triangle_buffer_hash(&self.triangle_buffer.triangles);
+        self.triangle_buffer.modification_time_stamp = instant::now();
     }
 }
 
