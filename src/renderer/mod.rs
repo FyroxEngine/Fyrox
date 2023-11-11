@@ -808,6 +808,11 @@ pub struct SceneRenderPassContext<'a, 'b> {
     /// instance of a `SurfaceData`.
     pub geometry_cache: &'a mut GeometryCache,
 
+    /// A cache that stores all native shaders associated with a shader resource. You can use it
+    /// to get a ready-to-use set of shaders for your shader resource, which could be obtained
+    /// from a material.
+    pub shader_cache: &'a mut ShaderCache,
+
     /// A storage that contains "pre-compiled" groups of render data (batches).
     pub batch_storage: &'a RenderDataBatchStorage,
 
@@ -1740,6 +1745,7 @@ impl Renderer {
                                 pipeline_state: state,
                                 texture_cache: &mut self.texture_cache,
                                 geometry_cache: &mut self.geometry_cache,
+                                shader_cache: &mut self.shader_cache,
                                 quality_settings: &self.quality_settings,
                                 batch_storage: &batch_storage,
                                 viewport,
@@ -1821,6 +1827,7 @@ impl Renderer {
                                 pipeline_state: state,
                                 texture_cache: &mut self.texture_cache,
                                 geometry_cache: &mut self.geometry_cache,
+                                shader_cache: &mut self.shader_cache,
                                 quality_settings: &self.quality_settings,
                                 batch_storage: &batch_storage,
                                 viewport,
