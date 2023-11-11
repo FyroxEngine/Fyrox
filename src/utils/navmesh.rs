@@ -314,7 +314,7 @@ impl Navmesh {
         self.octree.point_query(query_point, &mut self.query_buffer);
         if self.query_buffer.is_empty() {
             // O(n)
-            self.query_closest_internal((0..self.triangles.len()).into_iter(), query_point)
+            self.query_closest_internal(0..self.triangles.len(), query_point)
         } else {
             // O(log(n))
             self.query_closest_internal(self.query_buffer.iter().map(|i| *i as usize), query_point)

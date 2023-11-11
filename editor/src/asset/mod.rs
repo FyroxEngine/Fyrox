@@ -443,7 +443,7 @@ impl AssetBrowser {
                 if path == working_dir {
                     let state = resource_manager.state();
                     for (path, _) in state.built_in_resources.iter() {
-                        self.add_asset(path, ui, &resource_manager);
+                        self.add_asset(path, ui, resource_manager);
                     }
                 }
             }

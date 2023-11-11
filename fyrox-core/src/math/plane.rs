@@ -37,7 +37,7 @@ impl Plane {
     #[inline]
     pub fn from_triangle(a: &Vector3<f32>, b: &Vector3<f32>, c: &Vector3<f32>) -> Option<Self> {
         let normal = (b - a).cross(&(c - a));
-        Self::from_normal_and_point(&normal, &a)
+        Self::from_normal_and_point(&normal, a)
     }
 
     /// Creates plane using coefficients of plane equation Ax + By + Cz + D = 0
