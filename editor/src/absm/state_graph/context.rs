@@ -201,7 +201,6 @@ impl NodeContextMenu {
         absm_node_handle: Handle<Node>,
         absm_node: &AnimationBlendingStateMachine,
         layer_index: usize,
-        // canvas: Handle<UiNode>,
         editor_scene: &EditorScene,
     ) {
         let machine = absm_node.machine();
