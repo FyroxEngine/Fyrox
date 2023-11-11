@@ -123,6 +123,15 @@ pub struct VertexAttributeDescriptor {
     pub divisor: u8,
     /// Defines location of the attribute in a shader (`layout(location = x) attrib;`)
     pub shader_location: u8,
+    /// Whether the attribute values should be normalized into `0.0..1.0` range or not.
+    /// If this field is set to `false`, then the numbers will appear "as-is" when fetching
+    /// them in a shader. On the other hand, if it is `true`, then any numeric value will be
+    /// normalized by applying `normalized = num / T::max()` equation. This way all numbers will
+    /// always stay in `0.0..1.0` range.
+    ///
+    /// For example, normalization could be useful for RGB colors that expressed as three bytes (u8).
+    /// In this case normalization will turn the color into `0.0..1.0` range.  
+    pub normalized: bool,
 }
 
 /// Vertex attribute is a simple "bridge" between raw data and its interpretation. In
@@ -145,6 +154,15 @@ pub struct VertexAttribute {
     pub offset: u8,
     /// Defines location of the attribute in a shader (`layout(location = x) attrib;`)
     pub shader_location: u8,
+    /// Whether the attribute values should be normalized into `0.0..1.0` range or not.
+    /// If this field is set to `false`, then the numbers will appear "as-is" when fetching
+    /// them in a shader. On the other hand, if it is `true`, then any numeric value will be
+    /// normalized by applying `normalized = num / T::max()` equation. This way all numbers will
+    /// always stay in `0.0..1.0` range.
+    ///
+    /// For example, normalization could be useful for RGB colors that expressed as three bytes (u8).
+    /// In this case normalization will turn the color into `0.0..1.0` range.  
+    pub normalized: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -578,6 +596,7 @@ impl<'a> VertexBufferRefMut<'a> {
                 divisor: descriptor.divisor,
                 offset: self.vertex_buffer.vertex_size,
                 shader_location: descriptor.shader_location,
+                normalized: descriptor.normalized,
             };
             self.vertex_buffer.sparse_layout[descriptor.usage as usize] = Some(vertex_attribute);
             self.vertex_buffer.dense_layout.push(vertex_attribute);
@@ -708,6 +727,7 @@ impl VertexBuffer {
                 divisor: attribute.divisor,
                 offset: vertex_size_bytes,
                 shader_location: attribute.shader_location,
+                normalized: attribute.normalized,
             };
 
             dense_layout.push(vertex_attribute);

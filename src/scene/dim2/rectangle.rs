@@ -52,6 +52,7 @@ impl VertexTrait for RectangleVertex {
                 size: 3,
                 divisor: 0,
                 shader_location: 0,
+                normalized: false,
             },
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::TexCoord0,
@@ -59,6 +60,7 @@ impl VertexTrait for RectangleVertex {
                 size: 2,
                 divisor: 0,
                 shader_location: 1,
+                normalized: false,
             },
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::Color,
@@ -66,6 +68,7 @@ impl VertexTrait for RectangleVertex {
                 size: 4,
                 divisor: 0,
                 shader_location: 2,
+                normalized: true,
             },
         ]
     }

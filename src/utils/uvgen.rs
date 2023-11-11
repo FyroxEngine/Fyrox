@@ -236,6 +236,7 @@ pub fn generate_uv_meshes(
                     size: 2,
                     divisor: 0,
                     shader_location: 6, // HACK: GBuffer renderer expects it to be at 6
+                    normalized: false,
                 },
                 Vector2::<f32>::default(),
             )

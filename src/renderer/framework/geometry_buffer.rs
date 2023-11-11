@@ -424,8 +424,8 @@ impl BufferBuilder {
                         (VertexAttributeDataType::U8, 4) => AttributeKind::UnsignedByte4,
                         _ => unreachable!(),
                     },
-                    normalized: false,
-                    divisor: 0,
+                    normalized: a.normalized,
+                    divisor: a.divisor as u32,
                 })
                 .collect(),
             data: buffer.raw_data().as_ptr(),
