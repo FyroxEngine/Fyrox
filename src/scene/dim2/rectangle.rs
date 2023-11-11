@@ -257,28 +257,28 @@ impl NodeTrait for Rectangle {
                 position: global_transform
                     .transform_point(&Point3::new(-0.5, 0.5, 0.0))
                     .coords,
-                tex_coord: self.uv_rect.left_top_corner(),
+                tex_coord: self.uv_rect.right_top_corner(),
                 color: *self.color,
             },
             RectangleVertex {
                 position: global_transform
                     .transform_point(&Point3::new(0.5, 0.5, 0.0))
                     .coords,
-                tex_coord: self.uv_rect.right_top_corner(),
+                tex_coord: self.uv_rect.left_top_corner(),
                 color: *self.color,
             },
             RectangleVertex {
                 position: global_transform
                     .transform_point(&Point3::new(0.5, -0.5, 0.0))
                     .coords,
-                tex_coord: self.uv_rect.right_bottom_corner(),
+                tex_coord: self.uv_rect.left_bottom_corner(),
                 color: *self.color,
             },
             RectangleVertex {
                 position: global_transform
                     .transform_point(&Point3::new(-0.5, -0.5, 0.0))
                     .coords,
-                tex_coord: self.uv_rect.left_bottom_corner(),
+                tex_coord: self.uv_rect.right_bottom_corner(),
                 color: *self.color,
             },
         ];
