@@ -162,6 +162,7 @@ pub struct VertexAttribute {
     ///
     /// For example, normalization could be useful for RGB colors that expressed as three bytes (u8).
     /// In this case normalization will turn the color into `0.0..1.0` range.  
+    #[visit(optional)]
     pub normalized: bool,
 }
 
