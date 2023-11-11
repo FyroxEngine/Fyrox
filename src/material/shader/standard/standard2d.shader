@@ -71,7 +71,7 @@
                 uniform vec3 fyrox_lightsPosition[16];
                 uniform vec3 fyrox_lightsDirection[16];
                 uniform vec2 fyrox_lightsParameters[16]; // x = hotspot angle, y - full cone angle delta
-                uniform vec3 fyrox_ambientLightColor;
+                uniform vec4 fyrox_ambientLightColor;
 
                 out vec4 FragColor;
 
@@ -81,7 +81,7 @@
 
                 void main()
                 {
-                    vec3 lighting = fyrox_ambientLightColor;
+                    vec3 lighting = fyrox_ambientLightColor.xyz;
                     for(int i = 0; i < fyrox_lightCount; ++i) {
                         // "Unpack" light parameters.
                         float halfHotspotAngleCos = fyrox_lightsParameters[i].x;
