@@ -3,33 +3,37 @@
 //!
 //! See [`Rectangle`] docs for more info.
 
-use crate::scene::mesh::buffer::{
-    VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage, VertexTrait,
-};
 use crate::{
     core::{
-        algebra::Point3,
+        algebra::{Point3, Vector2, Vector3},
         color::Color,
+        log::Log,
         math::{aabb::AxisAlignedBoundingBox, Rect, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
+        sstorage::ImmutableString,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
         TypeUuidProvider,
     },
-    material::{Material, SharedMaterial},
+    material::{shader::SamplerFallback, Material, PropertyValue, SharedMaterial},
     renderer::batch::RenderContext,
+    resource::texture::TextureResource,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
+        mesh::buffer::{
+            VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage, VertexTrait,
+        },
         mesh::RenderPath,
         node::{Node, NodeTrait},
     },
 };
-use fyrox_core::algebra::{Vector2, Vector3};
-use std::hash::{Hash, Hasher};
-use std::ops::{Deref, DerefMut};
+use std::{
+    hash::{Hash, Hasher},
+    ops::{Deref, DerefMut},
+};
 
 /// A vertex for static meshes.
 #[derive(Copy, Clone, Debug, Default)]
@@ -103,69 +107,7 @@ impl Hash for RectangleVertex {
 ///
 /// ## Performance
 ///
-/// Rectangles use specialized renderer that is heavily optimized to render tons of rectangles at
-/// once, so you can use rectangles almost for everything in 2D games.
-///
-/// ## Limitations
-///
-/// Rectangle nodes does not support custom materials - it is a simplified version of a Mesh node
-/// that allows you draw a rectangle with a texture and a color. Its main purpose is to be able to
-/// start making games as quick as possible without diving too deep into details (shaders, render
-/// passes, etc.). You can still create a "rectangle" with custom material, use Mesh node with
-/// single rectangle surface:
-///
-/// ```rust
-/// use fyrox::{
-///     core::{
-///         algebra::{Matrix4, Vector3},
-///         parking_lot::Mutex,
-///         pool::Handle,
-///     },
-///     material::Material,
-///     scene::{
-///         base::BaseBuilder,
-///         graph::Graph,
-///         mesh::{
-///             surface::{SurfaceBuilder, SurfaceData},
-///             MeshBuilder, RenderPath,
-///         },
-///         node::Node,
-///         transform::TransformBuilder,
-///     },
-/// };
-/// use std::sync::Arc;
-/// use fyrox::material::SharedMaterial;
-/// use fyrox::scene::mesh::surface::SurfaceSharedData;
-///
-/// fn create_rect_with_custom_material(
-///     graph: &mut Graph,
-///     material: SharedMaterial,
-/// ) -> Handle<Node> {
-///     MeshBuilder::new(
-///         BaseBuilder::new().with_local_transform(
-///             TransformBuilder::new()
-///                 .with_local_scale(Vector3::new(0.4, 0.2, 1.0))
-///                 .build(),
-///         ),
-///     )
-///     .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
-///         SurfaceData::make_quad(&Matrix4::identity()),
-///     ))
-///     .with_material(material)
-///     .build()])
-///     .with_render_path(RenderPath::Forward)
-///     .build(graph)
-/// }
-/// ```
-///
-/// This will effectively "mimic" the Rectangle node, but will allow you to use the full power of
-/// custom shaders. Keep in mind that Mesh nodes will be rendered via Deferred Renderer, while
-/// Rectangle nodes rendered with specialized renderer, that might result in some graphical artifacts.
-///
-/// Rectangle nodes has limited lighting support, it means that they still will be lit by standard
-/// scene lights, but it will be a very simple diffuse lighting without any "physically correct"
-/// lighting. This is perfectly ok for 95% of 2D games, if you want to add custom lighting then
-/// you should use custom shader.
+/// Rectangles use batching to let you draw tons of rectangles with high performance.
 ///
 /// # Specifying region for rendering
 ///
@@ -174,7 +116,7 @@ impl Hash for RectangleVertex {
 /// image, but just changing portion for rendering. Keep in mind that the coordinates are normalized
 /// which means `[0; 0]` corresponds to top-left corner of the texture and `[1; 1]` corresponds to
 /// right-bottom corner.
-#[derive(Visit, Reflect, Debug, Clone)]
+#[derive(Reflect, Debug, Clone)]
 pub struct Rectangle {
     base: Base,
 
@@ -182,11 +124,41 @@ pub struct Rectangle {
     color: InheritableVariable<Color>,
 
     #[reflect(setter = "set_uv_rect")]
-    #[visit(optional)] // Backward compatibility
     uv_rect: InheritableVariable<Rect<f32>>,
 
-    #[visit(optional)]
     material: InheritableVariable<SharedMaterial>,
+}
+
+impl Visit for Rectangle {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+
+        if region.is_reading() {
+            let mut texture: InheritableVariable<Option<TextureResource>> = Default::default();
+            if texture.visit("Texture", &mut region).is_ok() {
+                // Backward compatibility.
+                let mut material = Material::standard_2d();
+                Log::verify(material.set_property(
+                    &ImmutableString::new("diffuseTexture"),
+                    PropertyValue::Sampler {
+                        value: (*texture).clone(),
+                        fallback: SamplerFallback::White,
+                    },
+                ));
+                self.material = SharedMaterial::new(material).into();
+            } else {
+                self.material.visit("Material", &mut region)?;
+            }
+        } else {
+            self.material.visit("Material", &mut region)?;
+        }
+
+        self.base.visit("Base", &mut region)?;
+        self.color.visit("Color", &mut region)?;
+        let _ = self.uv_rect.visit("Material", &mut region);
+
+        Ok(())
+    }
 }
 
 impl Default for Rectangle {
