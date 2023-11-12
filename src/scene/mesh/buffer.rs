@@ -12,7 +12,6 @@ use crate::{
     utils::{array_as_u8_slice, value_as_u8_slice},
 };
 use fxhash::FxHasher;
-use fyrox_core::instant;
 use std::{
     alloc::Layout,
     fmt::{Display, Formatter},
@@ -338,7 +337,7 @@ pub struct VertexBuffer {
     #[visit(optional)]
     layout_hash: u64,
     #[visit(optional)]
-    modification_time_stamp: f64,
+    modifications_counter: u64,
 }
 
 fn calculate_layout_hash(layout: &[VertexAttribute]) -> u64 {
@@ -360,7 +359,7 @@ pub struct VertexBufferRefMut<'a> {
 
 impl<'a> Drop for VertexBufferRefMut<'a> {
     fn drop(&mut self) {
-        self.vertex_buffer.modification_time_stamp = instant::now();
+        self.vertex_buffer.modifications_counter += 1;
     }
 }
 
@@ -751,7 +750,7 @@ impl VertexBuffer {
         Ok(Self {
             vertex_size: vertex_size_bytes,
             vertex_count: vertex_count as u32,
-            modification_time_stamp: instant::now(),
+            modifications_counter: 0,
             data: bytes,
             layout_hash: calculate_layout_hash(&dense_layout),
             sparse_layout,
@@ -769,9 +768,9 @@ impl VertexBuffer {
         self.vertex_count == 0
     }
 
-    /// Returns the last time (in milliseconds) when the buffer was modified.
-    pub fn modification_time_stamp(&self) -> f64 {
-        self.modification_time_stamp
+    /// Returns the total amount of times the buffer was modified.
+    pub fn modifications_count(&self) -> u64 {
+        self.modifications_counter
     }
 
     /// Calculates inner data hash.
@@ -1225,7 +1224,7 @@ impl<'a> VertexWriteTrait for VertexViewMut<'a> {
 #[derive(Visit, Default, Clone, Debug)]
 pub struct TriangleBuffer {
     triangles: Vec<TriangleDefinition>,
-    modification_time_stamp: f64,
+    modifications_counter: u64,
 }
 
 fn calculate_triangle_buffer_hash(triangles: &[TriangleDefinition]) -> u64 {
@@ -1239,7 +1238,7 @@ impl TriangleBuffer {
     pub fn new(triangles: Vec<TriangleDefinition>) -> Self {
         Self {
             triangles,
-            modification_time_stamp: instant::now(),
+            modifications_counter: 0,
         }
     }
 
@@ -1256,7 +1255,7 @@ impl TriangleBuffer {
     /// Sets a new set of triangles.
     pub fn set_triangles(&mut self, triangles: Vec<TriangleDefinition>) {
         self.triangles = triangles;
-        self.modification_time_stamp = instant::now();
+        self.modifications_counter += 1;
     }
 
     /// Returns amount of triangles in the buffer.
@@ -1269,9 +1268,9 @@ impl TriangleBuffer {
         self.triangles.is_empty()
     }
 
-    /// Returns the last time (in milliseconds) when the buffer was modified.
-    pub fn modification_time_stamp(&self) -> f64 {
-        self.modification_time_stamp
+    /// Returns the total amount of times the buffer was modified.
+    pub fn modifications_count(&self) -> u64 {
+        self.modifications_counter
     }
 
     /// Calculates inner data hash.
@@ -1316,7 +1315,7 @@ impl<'a> DerefMut for TriangleBufferRefMut<'a> {
 
 impl<'a> Drop for TriangleBufferRefMut<'a> {
     fn drop(&mut self) {
-        self.triangle_buffer.modification_time_stamp = instant::now();
+        self.triangle_buffer.modifications_counter += 1;
     }
 }
 
