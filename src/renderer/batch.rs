@@ -233,12 +233,14 @@ impl RenderDataBatchStorage {
         let batch = if let Some(&batch_index) = self.batch_map.get(&key) {
             self.batches.get_mut(batch_index).unwrap()
         } else {
+            let default_capacity = 4096;
+
             // Initialize empty vertex buffer.
             let vertex_buffer =
-                VertexBuffer::new::<T>(0, Vec::with_capacity(vertices.len())).unwrap();
+                VertexBuffer::new::<T>(0, Vec::with_capacity(default_capacity)).unwrap();
 
             // Initialize empty triangle buffer.
-            let triangle_buffer = TriangleBuffer::new(Vec::with_capacity(local_triangles.len()));
+            let triangle_buffer = TriangleBuffer::new(Vec::with_capacity(default_capacity * 3));
 
             // Create temporary surface data (valid for one frame).
             let data =
