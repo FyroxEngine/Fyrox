@@ -238,6 +238,7 @@ impl Visit for ParticleSystem {
         let mut region = visitor.enter_region(name)?;
 
         self.base.visit("Base", &mut region)?;
+        self.emitters.visit("Emitters", &mut region)?;
         self.acceleration.visit("Acceleration", &mut region)?;
         self.color_over_lifetime
             .visit("ColorGradient", &mut region)?;
