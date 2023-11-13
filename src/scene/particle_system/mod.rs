@@ -221,9 +221,6 @@ pub struct ParticleSystem {
     #[reflect(setter = "set_color_over_lifetime_gradient")]
     color_over_lifetime: InheritableVariable<ColorGradient>,
 
-    #[reflect(setter = "set_soft_boundary_sharpness_factor")]
-    soft_boundary_sharpness_factor: InheritableVariable<f32>,
-
     #[reflect(setter = "play")]
     #[visit(rename = "Enabled")]
     is_playing: InheritableVariable<bool>,
@@ -276,11 +273,6 @@ impl ParticleSystem {
             .set_value_and_mark_modified(gradient)
     }
 
-    /// Return current soft boundary sharpness factor.
-    pub fn soft_boundary_sharpness_factor(&self) -> f32 {
-        *self.soft_boundary_sharpness_factor
-    }
-
     /// Plays or pauses the particle system. Paused particle system remains in "frozen" state
     /// until played again again. You can manually reset state of the system by calling [`Self::clear_particles`].
     pub fn play(&mut self, is_playing: bool) -> bool {
@@ -290,15 +282,6 @@ impl ParticleSystem {
     /// Returns current particle system status.
     pub fn is_playing(&self) -> bool {
         *self.is_playing
-    }
-
-    /// Sets soft boundary sharpness factor. This value defines how wide soft boundary will be.
-    /// The greater the factor is the more thin the boundary will be, and vice versa. This
-    /// parameter allows you to manipulate particle "softness" - the engine automatically adds
-    /// fading to those pixels of a particle which is close enough to other geometry in a scene.
-    pub fn set_soft_boundary_sharpness_factor(&mut self, factor: f32) -> f32 {
-        self.soft_boundary_sharpness_factor
-            .set_value_and_mark_modified(factor)
     }
 
     /// Replaces the particles in the particle system with pre-generated set. It could be useful
@@ -548,7 +531,6 @@ pub struct ParticleSystemBuilder {
     acceleration: Vector3<f32>,
     particles: Vec<Particle>,
     color_over_lifetime: ColorGradient,
-    soft_boundary_sharpness_factor: f32,
     is_playing: bool,
     rng: ParticleSystemRng,
 }
@@ -563,7 +545,6 @@ impl ParticleSystemBuilder {
             particles: Default::default(),
             acceleration: Vector3::new(0.0, -9.81, 0.0),
             color_over_lifetime: Default::default(),
-            soft_boundary_sharpness_factor: 2.5,
             is_playing: true,
             rng: ParticleSystemRng::default(),
         }
@@ -578,12 +559,6 @@ impl ParticleSystemBuilder {
     /// Sets desired material for particle system.
     pub fn with_material(mut self, material: SharedMaterial) -> Self {
         self.material = material;
-        self
-    }
-
-    /// Sets desired soft boundary sharpness factor.
-    pub fn with_soft_boundary_sharpness_factor(mut self, factor: f32) -> Self {
-        self.soft_boundary_sharpness_factor = factor;
         self
     }
 
@@ -627,7 +602,6 @@ impl ParticleSystemBuilder {
             material: self.material.into(),
             acceleration: self.acceleration.into(),
             color_over_lifetime: self.color_over_lifetime.into(),
-            soft_boundary_sharpness_factor: self.soft_boundary_sharpness_factor.into(),
             is_playing: self.is_playing.into(),
             rng: self.rng,
         }
