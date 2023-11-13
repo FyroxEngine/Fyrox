@@ -3,7 +3,7 @@
 
 use crate::{
     core::{
-        algebra::{Vector2, Vector3},
+        algebra::{Point3, Vector2, Vector3},
         color_gradient::ColorGradient,
         math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
         pool::Handle,
@@ -506,37 +506,43 @@ impl NodeTrait for ParticleSystem {
             }
         });
 
+        let global_transform = self.global_transform();
+
         let vertices = sorted_particles
             .iter()
             .map(|particle_index| {
                 let particle = self.particles.get(*particle_index as usize).unwrap();
 
+                let position = global_transform
+                    .transform_point(&Point3::from(particle.position))
+                    .coords;
+
                 let linear_color = particle.color.srgb_to_linear();
 
                 [
                     Vertex {
-                        position: particle.position,
+                        position,
                         tex_coord: Vector2::default(),
                         size: particle.size,
                         rotation: particle.rotation,
                         color: linear_color,
                     },
                     Vertex {
-                        position: particle.position,
+                        position,
                         tex_coord: Vector2::new(1.0, 0.0),
                         size: particle.size,
                         rotation: particle.rotation,
                         color: linear_color,
                     },
                     Vertex {
-                        position: particle.position,
+                        position,
                         tex_coord: Vector2::new(1.0, 1.0),
                         size: particle.size,
                         rotation: particle.rotation,
                         color: linear_color,
                     },
                     Vertex {
-                        position: particle.position,
+                        position,
                         tex_coord: Vector2::new(0.0, 1.0),
                         size: particle.size,
                         rotation: particle.rotation,
