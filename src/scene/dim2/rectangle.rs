@@ -105,11 +105,46 @@ impl Hash for RectangleVertex {
 /// Rectangle is the simplest "2D" node, it can be used to create "2D" graphics. 2D is in quotes
 /// here because the node is actually a 3D node, like everything else in the engine.
 ///
+/// ## Material
+///
+/// Rectangles could use an arbitrary material for rendering, which means that you have full control
+/// on how the rectangle will be rendered on screen.
+///
+/// By default, the rectangle uses standard 2D material which has only one property - `diffuseTexture`.
+/// You could use it to set a texture for your rectangle:
+///
+/// ```rust
+/// # use fyrox::{
+/// #     core::sstorage::ImmutableString,
+/// #     material::{shader::SamplerFallback, PropertyValue},
+/// #     resource::texture::TextureResource,
+/// #     scene::dim2::rectangle::Rectangle,
+/// # };
+/// #
+/// fn set_texture(rect: &mut Rectangle, texture: Option<TextureResource>) {
+///     rect.material()
+///         .lock()
+///         .set_property(
+///             &ImmutableString::new("diffuseTexture"),
+///             PropertyValue::Sampler {
+///                 value: texture,
+///                 fallback: SamplerFallback::White,
+///             },
+///         )
+///         // This could fail, if you have a custom material without diffuseTexture property.
+///         // Otherwise it is safe to just unwrap.
+///         .unwrap();
+/// }
+/// ```
+///
+/// The same property could also be changed in the editor using the Material Editor invoked from
+/// the `Material` property in the Inspector.
+///
 /// ## Performance
 ///
 /// Rectangles use batching to let you draw tons of rectangles with high performance.
 ///
-/// # Specifying region for rendering
+/// ## Specifying region for rendering
 ///
 /// You can specify a portion of the texture that will be used for rendering using [`Self::set_uv_rect`]
 /// method. This is especially useful if you need to create sprite sheet animation, you use the single
