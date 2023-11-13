@@ -508,60 +508,55 @@ impl NodeTrait for ParticleSystem {
 
         let global_transform = self.global_transform();
 
-        let vertices = sorted_particles
-            .iter()
-            .map(|particle_index| {
-                let particle = self.particles.get(*particle_index as usize).unwrap();
+        let vertices = sorted_particles.iter().flat_map(|particle_index| {
+            let particle = self.particles.get(*particle_index as usize).unwrap();
 
-                let position = global_transform
-                    .transform_point(&Point3::from(particle.position))
-                    .coords;
+            let position = global_transform
+                .transform_point(&Point3::from(particle.position))
+                .coords;
 
-                let linear_color = particle.color.srgb_to_linear();
+            let linear_color = particle.color.srgb_to_linear();
 
-                [
-                    Vertex {
-                        position,
-                        tex_coord: Vector2::default(),
-                        size: particle.size,
-                        rotation: particle.rotation,
-                        color: linear_color,
-                    },
-                    Vertex {
-                        position,
-                        tex_coord: Vector2::new(1.0, 0.0),
-                        size: particle.size,
-                        rotation: particle.rotation,
-                        color: linear_color,
-                    },
-                    Vertex {
-                        position,
-                        tex_coord: Vector2::new(1.0, 1.0),
-                        size: particle.size,
-                        rotation: particle.rotation,
-                        color: linear_color,
-                    },
-                    Vertex {
-                        position,
-                        tex_coord: Vector2::new(0.0, 1.0),
-                        size: particle.size,
-                        rotation: particle.rotation,
-                        color: linear_color,
-                    },
-                ]
-            })
-            .flatten();
+            [
+                Vertex {
+                    position,
+                    tex_coord: Vector2::default(),
+                    size: particle.size,
+                    rotation: particle.rotation,
+                    color: linear_color,
+                },
+                Vertex {
+                    position,
+                    tex_coord: Vector2::new(1.0, 0.0),
+                    size: particle.size,
+                    rotation: particle.rotation,
+                    color: linear_color,
+                },
+                Vertex {
+                    position,
+                    tex_coord: Vector2::new(1.0, 1.0),
+                    size: particle.size,
+                    rotation: particle.rotation,
+                    color: linear_color,
+                },
+                Vertex {
+                    position,
+                    tex_coord: Vector2::new(0.0, 1.0),
+                    size: particle.size,
+                    rotation: particle.rotation,
+                    color: linear_color,
+                },
+            ]
+        });
 
-        let triangles = (0..sorted_particles.len())
-            .map(|i| {
-                let base_index = (i * 4) as u32;
+        let triangles = (0..sorted_particles.len()).flat_map(|i| {
+            let base_index = (i * 4) as u32;
 
-                [
-                    TriangleDefinition([base_index, base_index + 1, base_index + 2]),
-                    TriangleDefinition([base_index, base_index + 2, base_index + 3]),
-                ]
-            })
-            .flatten();
+            [
+                TriangleDefinition([base_index, base_index + 1, base_index + 2]),
+                TriangleDefinition([base_index, base_index + 2, base_index + 3]),
+            ]
+        });
 
         ctx.storage.push_triangles(
             vertices,
