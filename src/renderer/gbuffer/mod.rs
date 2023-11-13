@@ -303,7 +303,7 @@ impl GBuffer {
             .filter(|b| b.render_path == RenderPath::Deferred)
         {
             let material = batch.material.lock();
-            let geometry = geom_cache.get(state, &batch.data);
+            let geometry = geom_cache.get(state, &batch.data, batch.time_to_live);
             let blend_shapes_storage = batch
                 .data
                 .lock()

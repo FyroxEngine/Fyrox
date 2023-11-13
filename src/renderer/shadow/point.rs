@@ -250,7 +250,7 @@ impl PointShadowMapRenderer {
 
             for batch in batches.batches.iter() {
                 let material = batch.material.lock();
-                let geometry = geom_cache.get(state, &batch.data);
+                let geometry = geom_cache.get(state, &batch.data, batch.time_to_live);
                 let blend_shapes_storage = batch
                     .data
                     .lock()

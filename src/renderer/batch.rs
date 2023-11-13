@@ -1,11 +1,10 @@
 //! The module responsible for batch generation for rendering optimizations.
 
-use crate::scene::mesh::buffer::{TriangleBuffer, VertexBuffer, VertexTrait};
-use crate::scene::mesh::surface::SurfaceData;
+use crate::renderer::cache::geometry::TimeToLive;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
-        math::frustum::Frustum,
+        math::{frustum::Frustum, TriangleDefinition},
         pool::Handle,
         sstorage::ImmutableString,
     },
@@ -13,18 +12,20 @@ use crate::{
     renderer::framework::geometry_buffer::ElementRange,
     scene::{
         graph::Graph,
-        mesh::{surface::SurfaceSharedData, RenderPath},
+        mesh::{
+            buffer::{TriangleBuffer, VertexBuffer, VertexTrait},
+            surface::{SurfaceData, SurfaceSharedData},
+            RenderPath,
+        },
         node::Node,
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
-use fyrox_core::math::TriangleDefinition;
-use std::any::TypeId;
 use std::{
+    any::TypeId,
     collections::hash_map::DefaultHasher,
     fmt::{Debug, Formatter},
-    hash::Hash,
-    hash::Hasher,
+    hash::{Hash, Hasher},
 };
 
 /// Observer info contains all the data, that describes an observer. It could be a real camera, light source's
@@ -112,6 +113,9 @@ pub struct SurfaceInstanceData {
 pub struct RenderDataBatch {
     /// A pointer to shared surface data.
     pub data: SurfaceSharedData,
+    /// Amount of time (in seconds) for GPU geometry buffer (vertex + index buffers) generated for
+    /// the `data`.
+    pub time_to_live: TimeToLive,
     /// A set of instances.
     pub instances: Vec<SurfaceInstanceData>,
     /// A material that is shared across all instances.
@@ -267,6 +271,8 @@ impl RenderDataBatchStorage {
                 is_skinned,
                 render_path,
                 decal_layer_index,
+                // Temporary buffer lives one frame.
+                time_to_live: TimeToLive(0.0),
             });
             self.batches.last_mut().unwrap()
         };
@@ -320,6 +326,7 @@ impl RenderDataBatchStorage {
                 is_skinned,
                 render_path,
                 decal_layer_index,
+                time_to_live: Default::default(),
             });
             self.batches.last_mut().unwrap()
         };

@@ -7,13 +7,37 @@ use crate::{
     },
     scene::mesh::surface::{SurfaceData, SurfaceSharedData},
 };
+use std::ops::{Deref, DerefMut};
+
+#[derive(Copy, Clone, PartialEq)]
+pub struct TimeToLive(pub f32);
+
+impl Default for TimeToLive {
+    fn default() -> Self {
+        Self(DEFAULT_RESOURCE_LIFETIME)
+    }
+}
+
+impl Deref for TimeToLive {
+    type Target = f32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for TimeToLive {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 struct CacheEntry {
     buffer: GeometryBuffer,
     vertex_modifications_count: u64,
     triangles_modifications_count: u64,
     layout_hash: u64,
-    time_to_live: f32,
+    time_to_live: TimeToLive,
 }
 
 #[derive(Default)]
@@ -25,13 +49,14 @@ fn create_geometry_buffer(
     data: &SurfaceData,
     state: &mut PipelineState,
     buffer: &mut SparseBuffer<CacheEntry>,
+    time_to_live: TimeToLive,
 ) -> AtomicIndex {
     let geometry_buffer =
         GeometryBuffer::from_surface_data(data, GeometryBufferKind::StaticDraw, state);
 
     let index = buffer.spawn(CacheEntry {
         buffer: geometry_buffer,
-        time_to_live: DEFAULT_RESOURCE_LIFETIME,
+        time_to_live,
         vertex_modifications_count: data.vertex_buffer.modifications_count(),
         triangles_modifications_count: data.geometry_buffer.modifications_count(),
         layout_hash: data.vertex_buffer.layout_hash(),
@@ -47,6 +72,7 @@ impl GeometryCache {
         &'a mut self,
         state: &mut PipelineState,
         data: &SurfaceSharedData,
+        ttl: TimeToLive,
     ) -> &'a mut GeometryBuffer {
         scope_profile!();
 
@@ -77,29 +103,25 @@ impl GeometryCache {
                         data.geometry_buffer.modifications_count();
                 }
 
-                entry.time_to_live = DEFAULT_RESOURCE_LIFETIME;
+                entry.time_to_live = ttl;
 
-                &mut self.buffer.get_mut(&data.cache_entry).unwrap().buffer
-            } else {
-                let index = create_geometry_buffer(&data, state, &mut self.buffer);
-                &mut self.buffer.get_mut(&index).unwrap().buffer
+                return &mut self.buffer.get_mut(&data.cache_entry).unwrap().buffer;
             }
-        } else {
-            let index = create_geometry_buffer(&data, state, &mut self.buffer);
-            &mut self.buffer.get_mut(&index).unwrap().buffer
         }
+        let index = create_geometry_buffer(&data, state, &mut self.buffer, ttl);
+        &mut self.buffer.get_mut(&index).unwrap().buffer
     }
 
     pub fn update(&mut self, dt: f32) {
         scope_profile!();
 
         for entry in self.buffer.iter_mut() {
-            entry.time_to_live -= dt;
+            *entry.time_to_live -= dt;
         }
 
         for i in 0..self.buffer.len() {
             if let Some(entry) = self.buffer.get_raw(i) {
-                if entry.time_to_live <= 0.0 {
+                if *entry.time_to_live <= 0.0 {
                     self.buffer.free_raw(i);
                 }
             }
