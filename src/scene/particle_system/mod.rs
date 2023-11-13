@@ -8,14 +8,16 @@ use crate::{
         math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
+        sstorage::ImmutableString,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
         TypeUuidProvider,
     },
-    material::{Material, SharedMaterial},
+    material::{shader::SamplerFallback, Material, PropertyValue, SharedMaterial},
     rand::{prelude::StdRng, Error, RngCore, SeedableRng},
     renderer::{self, batch::RenderContext},
+    resource::texture::TextureResource,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -203,7 +205,7 @@ impl Visit for ParticleSystemRng {
 ///     .build(graph);
 /// }
 /// ```
-#[derive(Debug, Visit, Clone, Reflect)]
+#[derive(Debug, Clone, Reflect)]
 pub struct ParticleSystem {
     base: Base,
 
@@ -211,18 +213,15 @@ pub struct ParticleSystem {
     pub emitters: InheritableVariable<Vec<Emitter>>,
 
     #[reflect(setter = "set_material")]
-    #[visit(optional)]
     material: InheritableVariable<SharedMaterial>,
 
     #[reflect(setter = "set_acceleration")]
     acceleration: InheritableVariable<Vector3<f32>>,
 
-    #[visit(rename = "ColorGradient", optional)]
     #[reflect(setter = "set_color_over_lifetime_gradient")]
     color_over_lifetime: InheritableVariable<ColorGradient>,
 
     #[reflect(setter = "play")]
-    #[visit(rename = "Enabled")]
     is_playing: InheritableVariable<bool>,
 
     #[reflect(hidden)]
@@ -231,8 +230,56 @@ pub struct ParticleSystem {
     #[reflect(hidden)]
     free_particles: Vec<u32>,
 
-    #[visit(optional)]
     rng: ParticleSystemRng,
+}
+
+impl Visit for ParticleSystem {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+
+        self.base.visit("Base", &mut region)?;
+        self.acceleration.visit("Acceleration", &mut region)?;
+        self.color_over_lifetime
+            .visit("ColorGradient", &mut region)?;
+        self.is_playing.visit("Enabled", &mut region)?;
+        self.particles.visit("Particles", &mut region)?;
+        self.free_particles.visit("FreeParticles", &mut region)?;
+        let _ = self.rng.visit("Rng", &mut region);
+
+        // Backward compatibility.
+        let mut texture: InheritableVariable<Option<TextureResource>> = Default::default();
+        if texture.visit("Texture", &mut region).is_ok() {
+            let mut material = Material::standard_particle_system();
+            material
+                .set_property(
+                    &ImmutableString::new("diffuseTexture"),
+                    PropertyValue::Sampler {
+                        value: texture.deref().clone(),
+                        fallback: SamplerFallback::White,
+                    },
+                )
+                .unwrap();
+            self.material = SharedMaterial::new(material).into();
+        } else {
+            self.material.visit(name, &mut region)?;
+        }
+
+        let mut soft_boundary_sharpness_factor = 100.0;
+        if soft_boundary_sharpness_factor
+            .visit("SoftBoundarySharpnessFactor", &mut region)
+            .is_ok()
+        {
+            self.material
+                .lock()
+                .set_property(
+                    &ImmutableString::new("softBoundarySharpnessFactor"),
+                    PropertyValue::Float(soft_boundary_sharpness_factor),
+                )
+                .unwrap();
+        }
+
+        Ok(())
+    }
 }
 
 impl Deref for ParticleSystem {
