@@ -1,6 +1,5 @@
 //! The module responsible for batch generation for rendering optimizations.
 
-use crate::renderer::cache::geometry::TimeToLive;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -9,7 +8,7 @@ use crate::{
         sstorage::ImmutableString,
     },
     material::SharedMaterial,
-    renderer::framework::geometry_buffer::ElementRange,
+    renderer::{cache::geometry::TimeToLive, framework::geometry_buffer::ElementRange},
     scene::{
         graph::Graph,
         mesh::{
@@ -28,11 +27,6 @@ use std::{
     fmt::{Debug, Formatter},
     hash::{Hash, Hasher},
 };
-
-/*
-use fyrox_core::parking_lot::MutexGuard;
-use std::marker::PhantomData;
- */
 
 /// Observer info contains all the data, that describes an observer. It could be a real camera, light source's
 /// "virtual camera" that is used for shadow mapping, etc.
@@ -145,38 +139,6 @@ impl Debug for RenderDataBatch {
         )
     }
 }
-
-/*
-pub struct MeshSurfaceContext<'a, T>
-where
-    T: VertexTrait,
-{
-    guard: MutexGuard<'a, SurfaceData>,
-    type_holder: PhantomData<T>,
-}
-
-impl<'a, T> MeshSurfaceContext<'a, T>
-where
-    T: VertexTrait,
-{
-    pub fn push_triangle(&self) {
-        let last_vertex_index = self.guard.vertex_buffer.vertex_count();
-
-        // Append vertices.
-        self.guard
-            .vertex_buffer
-            .modify()
-            .push_vertices(vertices)
-            .expect("Vertex types mismatch!");
-
-        // Write triangle indices, but offset each by last vertex index to prevent overlapping.
-        self.guard
-            .geometry_buffer
-            .modify()
-            .push_triangles_iter(local_triangles.iter().map(|t| t.add(last_vertex_index)));
-    }
-}
-*/
 
 /// Batch storage handles batch generation for a scene before rendering. It is used to optimize
 /// rendering by reducing amount of state changes of OpenGL context.
