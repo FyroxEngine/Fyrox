@@ -18,7 +18,7 @@ use crate::{
         TypeUuidProvider,
     },
     material::{shader::SamplerFallback, Material, PropertyValue, SharedMaterial},
-    renderer::batch::RenderContext,
+    renderer::{self, batch::RenderContext},
     resource::texture::TextureResource,
     scene::{
         base::{Base, BaseBuilder},
@@ -250,6 +250,17 @@ impl NodeTrait for Rectangle {
     }
 
     fn collect_render_data(&self, ctx: &mut RenderContext) {
+        if !self.global_visibility()
+            || !self.is_globally_enabled()
+            || !ctx.frustum.is_intersects_aabb(&self.world_bounding_box())
+        {
+            return;
+        }
+
+        if renderer::is_shadow_pass(ctx.render_pass_name) {
+            return;
+        }
+
         let global_transform = self.global_transform();
 
         let vertices = [
