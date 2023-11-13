@@ -292,6 +292,7 @@ impl Deref for BytesStorage {
 ///             size: 3,
 ///             divisor: 0,
 ///             shader_location: 0,
+///             normalized: false
 ///         }]
 ///     }
 /// }
