@@ -261,6 +261,12 @@ pub const STANDARD_SHADER_NAME: &str = "Standard";
 /// A source code of the standard shader.
 pub const STANDARD_SHADER_SRC: &str = include_str!("standard/standard.shader");
 
+/// A name of the standard 2D shader.
+pub const STANDARD_2D_SHADER_NAME: &str = "Standard2D";
+
+/// A source code of the standard 2D shader.
+pub const STANDARD_2D_SHADER_SRC: &str = include_str!("standard/standard2d.shader");
+
 /// A name of the standard two-sides shader.
 pub const STANDARD_TWOSIDES_SHADER_NAME: &str = "StandardTwoSides";
 
@@ -274,10 +280,19 @@ pub const STANDARD_TERRAIN_SHADER_NAME: &str = "StandardTerrain";
 pub const STANDARD_TERRAIN_SHADER_SRC: &str = include_str!("standard/terrain.shader");
 
 /// A list of names of standard shaders.
-pub const STANDARD_SHADER_NAMES: [&str; 3] = [
+pub const STANDARD_SHADER_NAMES: [&str; 4] = [
     STANDARD_SHADER_NAME,
+    STANDARD_2D_SHADER_NAME,
     STANDARD_TWOSIDES_SHADER_NAME,
     STANDARD_TERRAIN_SHADER_NAME,
+];
+
+/// A list of source code of standard shaders.
+pub const STANDARD_SHADER_SOURCES: [&str; 4] = [
+    STANDARD_SHADER_SRC,
+    STANDARD_2D_SHADER_SRC,
+    STANDARD_TWOSIDES_SHADER_SRC,
+    STANDARD_TERRAIN_SHADER_SRC,
 ];
 
 /// Internal state of the shader.
@@ -315,15 +330,12 @@ impl Visit for Shader {
         drop(region);
 
         if visitor.is_reading() {
-            if self.path == Path::new("Standard") {
-                self.definition = ShaderDefinition::from_str(STANDARD_SHADER_SRC).unwrap();
-                self.is_procedural = true;
-            } else if self.path == Path::new("StandardTerrain") {
-                self.definition = ShaderDefinition::from_str(STANDARD_TERRAIN_SHADER_SRC).unwrap();
-                self.is_procedural = true;
-            } else if self.path == Path::new("StandardTwoSides") {
-                self.definition = ShaderDefinition::from_str(STANDARD_TWOSIDES_SHADER_SRC).unwrap();
-                self.is_procedural = true;
+            for (path, src) in STANDARD_SHADER_NAMES.iter().zip(STANDARD_SHADER_SOURCES) {
+                if self.path == Path::new(path) {
+                    self.definition = ShaderDefinition::from_str(src).unwrap();
+                    self.is_procedural = true;
+                    break;
+                }
             }
         }
 
@@ -600,6 +612,9 @@ pub trait ShaderResourceExtension: Sized {
     /// Returns an instance of standard shader.
     fn standard() -> Self;
 
+    /// Returns an instance of standard 2D shader.
+    fn standard_2d() -> Self;
+
     /// Returns an instance of standard terrain shader.
     fn standard_terrain() -> Self;
 
@@ -620,6 +635,11 @@ impl ShaderResourceExtension for ShaderResource {
     /// Returns an instance of standard shader.
     fn standard() -> Self {
         STANDARD.clone()
+    }
+
+    /// Returns an instance of standard 2D shader.
+    fn standard_2d() -> Self {
+        STANDARD_2D.clone()
     }
 
     /// Returns an instance of standard terrain shader.
@@ -651,6 +671,12 @@ impl ImportOptions for ShaderImportOptions {}
 lazy_static! {
     static ref STANDARD: ShaderResource = ShaderResource::new_ok(
         Shader::from_str(STANDARD_SHADER_SRC, STANDARD_SHADER_NAME).unwrap(),
+    );
+}
+
+lazy_static! {
+    static ref STANDARD_2D: ShaderResource = ShaderResource::new_ok(
+        Shader::from_str(STANDARD_2D_SHADER_SRC, STANDARD_2D_SHADER_NAME).unwrap(),
     );
 }
 

@@ -94,6 +94,8 @@ pub enum VertexAttributeUsage {
     BoneWeight = 11,
     /// Bone indices. Usually `Vector4<u8>`.
     BoneIndices = 12,
+    /// Color. Usually `Vector4<u8>`.
+    Color = 13,
     /// Maximum amount of attribute kinds.
     Count,
 }
@@ -121,6 +123,15 @@ pub struct VertexAttributeDescriptor {
     pub divisor: u8,
     /// Defines location of the attribute in a shader (`layout(location = x) attrib;`)
     pub shader_location: u8,
+    /// Whether the attribute values should be normalized into `0.0..1.0` range or not.
+    /// If this field is set to `false`, then the numbers will appear "as-is" when fetching
+    /// them in a shader. On the other hand, if it is `true`, then any numeric value will be
+    /// normalized by applying `normalized = num / T::max()` equation. This way all numbers will
+    /// always stay in `0.0..1.0` range.
+    ///
+    /// For example, normalization could be useful for RGB colors that expressed as three bytes (u8).
+    /// In this case normalization will turn the color into `0.0..1.0` range.  
+    pub normalized: bool,
 }
 
 /// Vertex attribute is a simple "bridge" between raw data and its interpretation. In
@@ -143,6 +154,16 @@ pub struct VertexAttribute {
     pub offset: u8,
     /// Defines location of the attribute in a shader (`layout(location = x) attrib;`)
     pub shader_location: u8,
+    /// Whether the attribute values should be normalized into `0.0..1.0` range or not.
+    /// If this field is set to `false`, then the numbers will appear "as-is" when fetching
+    /// them in a shader. On the other hand, if it is `true`, then any numeric value will be
+    /// normalized by applying `normalized = num / T::max()` equation. This way all numbers will
+    /// always stay in `0.0..1.0` range.
+    ///
+    /// For example, normalization could be useful for RGB colors that expressed as three bytes (u8).
+    /// In this case normalization will turn the color into `0.0..1.0` range.  
+    #[visit(optional)]
+    pub normalized: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -271,6 +292,7 @@ impl Deref for BytesStorage {
 ///             size: 3,
 ///             divisor: 0,
 ///             shader_location: 0,
+///             normalized: false
 ///         }]
 ///     }
 /// }
@@ -309,13 +331,14 @@ impl Deref for BytesStorage {
 #[derive(Clone, Visit, Default, Debug)]
 pub struct VertexBuffer {
     dense_layout: Vec<VertexAttribute>,
-    sparse_layout: [Option<VertexAttribute>; 13],
+    sparse_layout: [Option<VertexAttribute>; VertexAttributeUsage::Count as usize],
     vertex_size: u8,
     vertex_count: u32,
     data: BytesStorage,
-    data_hash: u64,
     #[visit(optional)]
     layout_hash: u64,
+    #[visit(optional)]
+    modifications_counter: u64,
 }
 
 fn calculate_layout_hash(layout: &[VertexAttribute]) -> u64 {
@@ -337,8 +360,7 @@ pub struct VertexBufferRefMut<'a> {
 
 impl<'a> Drop for VertexBufferRefMut<'a> {
     fn drop(&mut self) {
-        // Recalculate data hash.
-        self.vertex_buffer.data_hash = calculate_data_hash(&self.vertex_buffer.data);
+        self.vertex_buffer.modifications_counter += 1;
     }
 }
 
@@ -576,6 +598,7 @@ impl<'a> VertexBufferRefMut<'a> {
                 divisor: descriptor.divisor,
                 offset: self.vertex_buffer.vertex_size,
                 shader_location: descriptor.shader_location,
+                normalized: descriptor.normalized,
             };
             self.vertex_buffer.sparse_layout[descriptor.usage as usize] = Some(vertex_attribute);
             self.vertex_buffer.dense_layout.push(vertex_attribute);
@@ -706,6 +729,7 @@ impl VertexBuffer {
                 divisor: attribute.divisor,
                 offset: vertex_size_bytes,
                 shader_location: attribute.shader_location,
+                normalized: attribute.normalized,
             };
 
             dense_layout.push(vertex_attribute);
@@ -727,7 +751,7 @@ impl VertexBuffer {
         Ok(Self {
             vertex_size: vertex_size_bytes,
             vertex_count: vertex_count as u32,
-            data_hash: calculate_data_hash(&bytes),
+            modifications_counter: 0,
             data: bytes,
             layout_hash: calculate_layout_hash(&dense_layout),
             sparse_layout,
@@ -745,9 +769,14 @@ impl VertexBuffer {
         self.vertex_count == 0
     }
 
-    /// Returns cached data hash. Cached value is guaranteed to be in actual state.
-    pub fn data_hash(&self) -> u64 {
-        self.data_hash
+    /// Returns the total amount of times the buffer was modified.
+    pub fn modifications_count(&self) -> u64 {
+        self.modifications_counter
+    }
+
+    /// Calculates inner data hash.
+    pub fn content_hash(&self) -> u64 {
+        calculate_data_hash(&self.data.bytes)
     }
 
     /// Returns hash of vertex buffer layout. Cached value is guaranteed to be in actual state.
@@ -1196,7 +1225,7 @@ impl<'a> VertexWriteTrait for VertexViewMut<'a> {
 #[derive(Visit, Default, Clone, Debug)]
 pub struct TriangleBuffer {
     triangles: Vec<TriangleDefinition>,
-    data_hash: u64,
+    modifications_counter: u64,
 }
 
 fn calculate_triangle_buffer_hash(triangles: &[TriangleDefinition]) -> u64 {
@@ -1208,11 +1237,9 @@ fn calculate_triangle_buffer_hash(triangles: &[TriangleDefinition]) -> u64 {
 impl TriangleBuffer {
     /// Creates new triangle buffer with given set of triangles.
     pub fn new(triangles: Vec<TriangleDefinition>) -> Self {
-        let hash = calculate_triangle_buffer_hash(&triangles);
-
         Self {
             triangles,
-            data_hash: hash,
+            modifications_counter: 0,
         }
     }
 
@@ -1228,8 +1255,8 @@ impl TriangleBuffer {
 
     /// Sets a new set of triangles.
     pub fn set_triangles(&mut self, triangles: Vec<TriangleDefinition>) {
-        self.data_hash = calculate_triangle_buffer_hash(&triangles);
         self.triangles = triangles;
+        self.modifications_counter += 1;
     }
 
     /// Returns amount of triangles in the buffer.
@@ -1242,9 +1269,14 @@ impl TriangleBuffer {
         self.triangles.is_empty()
     }
 
-    /// Returns cached data hash. Cached value is guaranteed to be in actual state.
-    pub fn data_hash(&self) -> u64 {
-        self.data_hash
+    /// Returns the total amount of times the buffer was modified.
+    pub fn modifications_count(&self) -> u64 {
+        self.modifications_counter
+    }
+
+    /// Calculates inner data hash.
+    pub fn content_hash(&self) -> u64 {
+        calculate_triangle_buffer_hash(&self.triangles)
     }
 
     /// See VertexBuffer::modify for more info.
@@ -1284,8 +1316,7 @@ impl<'a> DerefMut for TriangleBufferRefMut<'a> {
 
 impl<'a> Drop for TriangleBufferRefMut<'a> {
     fn drop(&mut self) {
-        self.triangle_buffer.data_hash =
-            calculate_triangle_buffer_hash(&self.triangle_buffer.triangles);
+        self.triangle_buffer.modifications_counter += 1;
     }
 }
 
@@ -1300,10 +1331,12 @@ impl<'a> TriangleBufferRefMut<'a> {
         self.triangles.push(triangle)
     }
 
+    /// Adds triangles from the given slice to the current buffer.
     pub fn push_triangles(&mut self, triangles: &[TriangleDefinition]) {
         self.triangles.extend_from_slice(triangles)
     }
 
+    /// Adds triangles from the given iterator to the current buffer.
     pub fn push_triangles_iter(&mut self, triangles: impl Iterator<Item = TriangleDefinition>) {
         self.triangles.extend(triangles)
     }
@@ -1360,6 +1393,7 @@ mod test {
                     size: 3,
                     divisor: 0,
                     shader_location: 0,
+                    normalized: false,
                 },
                 VertexAttributeDescriptor {
                     usage: VertexAttributeUsage::TexCoord0,
@@ -1367,6 +1401,7 @@ mod test {
                     size: 2,
                     divisor: 0,
                     shader_location: 1,
+                    normalized: false,
                 },
                 VertexAttributeDescriptor {
                     usage: VertexAttributeUsage::TexCoord1,
@@ -1374,6 +1409,7 @@ mod test {
                     size: 2,
                     divisor: 0,
                     shader_location: 2,
+                    normalized: false,
                 },
                 VertexAttributeDescriptor {
                     usage: VertexAttributeUsage::Normal,
@@ -1381,6 +1417,7 @@ mod test {
                     size: 3,
                     divisor: 0,
                     shader_location: 3,
+                    normalized: false,
                 },
                 VertexAttributeDescriptor {
                     usage: VertexAttributeUsage::Tangent,
@@ -1388,6 +1425,7 @@ mod test {
                     size: 4,
                     divisor: 0,
                     shader_location: 4,
+                    normalized: false,
                 },
                 VertexAttributeDescriptor {
                     usage: VertexAttributeUsage::BoneWeight,
@@ -1395,6 +1433,7 @@ mod test {
                     size: 4,
                     divisor: 0,
                     shader_location: 5,
+                    normalized: false,
                 },
                 VertexAttributeDescriptor {
                     usage: VertexAttributeUsage::BoneIndices,
@@ -1402,6 +1441,7 @@ mod test {
                     size: 4,
                     divisor: 0,
                     shader_location: 6,
+                    normalized: false,
                 },
             ];
 
@@ -1542,6 +1582,7 @@ mod test {
                     size: 2,
                     divisor: 0,
                     shader_location: 7,
+                    normalized: false,
                 },
                 fill,
             )

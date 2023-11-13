@@ -34,6 +34,12 @@ pub enum BuiltInUniform {
     BlendShapesStorage,
     BlendShapesWeights,
     BlendShapesCount,
+    LightCount,
+    LightsColorRadius,
+    LightsPosition,
+    LightsDirection,
+    LightsParameters,
+    AmbientLight,
     // Must be last.
     Count,
 }
@@ -438,7 +444,18 @@ fn fetch_built_in_uniform_locations(
         fetch_uniform_location(state, program, "fyrox_blendShapesWeights");
     locations[BuiltInUniform::BlendShapesCount as usize] =
         fetch_uniform_location(state, program, "fyrox_blendShapesCount");
-
+    locations[BuiltInUniform::LightCount as usize] =
+        fetch_uniform_location(state, program, "fyrox_lightCount");
+    locations[BuiltInUniform::LightsColorRadius as usize] =
+        fetch_uniform_location(state, program, "fyrox_lightsColorRadius");
+    locations[BuiltInUniform::LightsPosition as usize] =
+        fetch_uniform_location(state, program, "fyrox_lightsPosition");
+    locations[BuiltInUniform::LightsDirection as usize] =
+        fetch_uniform_location(state, program, "fyrox_lightsDirection");
+    locations[BuiltInUniform::LightsParameters as usize] =
+        fetch_uniform_location(state, program, "fyrox_lightsParameters");
+    locations[BuiltInUniform::AmbientLight as usize] =
+        fetch_uniform_location(state, program, "fyrox_ambientLightColor");
     locations
 }
 

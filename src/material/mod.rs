@@ -467,6 +467,11 @@ impl Material {
         Self::from_shader(ShaderResource::standard(), None)
     }
 
+    /// Creates new instance of standard 2D material.
+    pub fn standard_2d() -> Self {
+        Self::from_shader(ShaderResource::standard_2d(), None)
+    }
+
     /// Creates new instance of standard material that renders both sides of a face.
     pub fn standard_two_sides() -> Self {
         Self::from_shader(ShaderResource::standard_twosides(), None)

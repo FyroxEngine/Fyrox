@@ -25,6 +25,7 @@ use crate::{
         light::directional::{DirectionalLight, FrustumSplitOptions, CSM_NUM_CASCADES},
     },
 };
+use fyrox_core::color::Color;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct Cascade {
@@ -256,7 +257,7 @@ impl CsmRenderer {
 
             for batch in batches.batches.iter() {
                 let material = batch.material.lock();
-                let geometry = geom_cache.get(state, &batch.data);
+                let geometry = geom_cache.get(state, &batch.data, batch.time_to_live);
                 let blend_shapes_storage = batch
                     .data
                     .lock()
@@ -307,6 +308,8 @@ impl CsmRenderer {
                                     black_dummy: black_dummy.clone(),
                                     volume_dummy: volume_dummy.clone(),
                                     persistent_identifier: instance.persistent_identifier,
+                                    light_data: None,            // TODO
+                                    ambient_light: Color::WHITE, // TODO
                                 });
                             },
                         )?;

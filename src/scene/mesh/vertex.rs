@@ -60,6 +60,7 @@ impl VertexTrait for StaticVertex {
                 size: 3,
                 divisor: 0,
                 shader_location: 0,
+                normalized: false,
             },
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::TexCoord0,
@@ -67,6 +68,7 @@ impl VertexTrait for StaticVertex {
                 size: 2,
                 divisor: 0,
                 shader_location: 1,
+                normalized: false,
             },
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::Normal,
@@ -74,6 +76,7 @@ impl VertexTrait for StaticVertex {
                 size: 3,
                 divisor: 0,
                 shader_location: 2,
+                normalized: false,
             },
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::Tangent,
@@ -81,6 +84,7 @@ impl VertexTrait for StaticVertex {
                 size: 4,
                 divisor: 0,
                 shader_location: 3,
+                normalized: false,
             },
         ];
         &LAYOUT
@@ -134,13 +138,14 @@ pub struct AnimatedVertex {
 
 impl VertexTrait for AnimatedVertex {
     fn layout() -> &'static [VertexAttributeDescriptor] {
-        static LAYOUT: [VertexAttributeDescriptor; 6] = [
+        &[
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::Position,
                 data_type: VertexAttributeDataType::F32,
                 size: 3,
                 divisor: 0,
                 shader_location: 0,
+                normalized: false,
             },
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::TexCoord0,
@@ -148,6 +153,7 @@ impl VertexTrait for AnimatedVertex {
                 size: 2,
                 divisor: 0,
                 shader_location: 1,
+                normalized: false,
             },
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::Normal,
@@ -155,6 +161,7 @@ impl VertexTrait for AnimatedVertex {
                 size: 3,
                 divisor: 0,
                 shader_location: 2,
+                normalized: false,
             },
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::Tangent,
@@ -162,6 +169,7 @@ impl VertexTrait for AnimatedVertex {
                 size: 4,
                 divisor: 0,
                 shader_location: 3,
+                normalized: false,
             },
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::BoneWeight,
@@ -169,6 +177,7 @@ impl VertexTrait for AnimatedVertex {
                 size: 4,
                 divisor: 0,
                 shader_location: 4,
+                normalized: false,
             },
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::BoneIndices,
@@ -176,9 +185,9 @@ impl VertexTrait for AnimatedVertex {
                 size: 4,
                 divisor: 0,
                 shader_location: 5,
+                normalized: false,
             },
-        ];
-        &LAYOUT
+        ]
     }
 }
 
@@ -228,14 +237,14 @@ impl SimpleVertex {
 
 impl VertexTrait for SimpleVertex {
     fn layout() -> &'static [VertexAttributeDescriptor] {
-        static LAYOUT: [VertexAttributeDescriptor; 1] = [VertexAttributeDescriptor {
+        &[VertexAttributeDescriptor {
             usage: VertexAttributeUsage::Position,
             data_type: VertexAttributeDataType::F32,
             size: 3,
             divisor: 0,
             shader_location: 0,
-        }];
-        &LAYOUT
+            normalized: false,
+        }]
     }
 }
 
@@ -311,13 +320,14 @@ impl Visit for OldVertex {
 
 impl VertexTrait for OldVertex {
     fn layout() -> &'static [VertexAttributeDescriptor] {
-        static LAYOUT: [VertexAttributeDescriptor; 7] = [
+        &[
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::Position,
                 data_type: VertexAttributeDataType::F32,
                 size: 3,
                 divisor: 0,
                 shader_location: 0,
+                normalized: false,
             },
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::TexCoord0,
@@ -325,6 +335,7 @@ impl VertexTrait for OldVertex {
                 size: 2,
                 divisor: 0,
                 shader_location: 1,
+                normalized: false,
             },
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::Normal,
@@ -332,6 +343,7 @@ impl VertexTrait for OldVertex {
                 size: 3,
                 divisor: 0,
                 shader_location: 2,
+                normalized: false,
             },
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::Tangent,
@@ -339,6 +351,7 @@ impl VertexTrait for OldVertex {
                 size: 4,
                 divisor: 0,
                 shader_location: 3,
+                normalized: false,
             },
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::BoneWeight,
@@ -346,6 +359,7 @@ impl VertexTrait for OldVertex {
                 size: 4,
                 divisor: 0,
                 shader_location: 4,
+                normalized: false,
             },
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::BoneIndices,
@@ -353,6 +367,7 @@ impl VertexTrait for OldVertex {
                 size: 4,
                 divisor: 0,
                 shader_location: 5,
+                normalized: false,
             },
             VertexAttributeDescriptor {
                 usage: VertexAttributeUsage::TexCoord1,
@@ -360,8 +375,8 @@ impl VertexTrait for OldVertex {
                 size: 2,
                 divisor: 0,
                 shader_location: 6,
+                normalized: false,
             },
-        ];
-        &LAYOUT
+        ]
     }
 }

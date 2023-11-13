@@ -303,7 +303,7 @@ impl GBuffer {
             .filter(|b| b.render_path == RenderPath::Deferred)
         {
             let material = batch.material.lock();
-            let geometry = geom_cache.get(state, &batch.data);
+            let geometry = geom_cache.get(state, &batch.data, batch.time_to_live);
             let blend_shapes_storage = batch
                 .data
                 .lock()
@@ -344,6 +344,8 @@ impl GBuffer {
                             black_dummy: black_dummy.clone(),
                             volume_dummy: volume_dummy.clone(),
                             persistent_identifier: instance.persistent_identifier,
+                            light_data: None,
+                            ambient_light: Color::WHITE, // TODO
                         });
                     };
 
