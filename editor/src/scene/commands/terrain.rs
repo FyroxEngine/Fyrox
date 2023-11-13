@@ -1,4 +1,5 @@
 use crate::{command::Command, create_terrain_layer_material, scene::commands::SceneContext};
+use fyrox::core::log::Log;
 use fyrox::resource::texture::{
     TextureKind, TexturePixelKind, TextureResourceExtension, TextureWrapMode,
 };
@@ -187,19 +188,23 @@ impl ModifyTerrainLayerMaskCommand {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
 
         for (i, chunk) in terrain.chunks_mut().iter_mut().enumerate() {
-            let old = &mut self.old_masks[i];
-            let new = &mut self.new_masks[i];
-            let chunk_mask = &mut chunk.layer_masks[self.layer];
+            if i >= self.old_masks.len() || i >= self.new_masks.len() {
+                Log::err("Invalid mask index.")
+            } else {
+                let old = &mut self.old_masks[i];
+                let new = &mut self.new_masks[i];
+                let chunk_mask = &mut chunk.layer_masks[self.layer];
 
-            let mut texture_data = chunk_mask.data_ref();
+                let mut texture_data = chunk_mask.data_ref();
 
-            for (mask_pixel, new_pixel) in
-                texture_data.modify().data_mut().iter_mut().zip(new.iter())
-            {
-                *mask_pixel = *new_pixel;
+                for (mask_pixel, new_pixel) in
+                    texture_data.modify().data_mut().iter_mut().zip(new.iter())
+                {
+                    *mask_pixel = *new_pixel;
+                }
+
+                std::mem::swap(old, new);
             }
-
-            std::mem::swap(old, new);
         }
     }
 }
