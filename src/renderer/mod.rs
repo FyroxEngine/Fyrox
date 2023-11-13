@@ -1931,7 +1931,6 @@ impl Renderer {
         self.render_frame(scenes, drawing_context)?;
         self.statistics.end_frame();
         surface.swap_buffers(context)?;
-        self.state.check_error();
         self.statistics.finalize();
         self.statistics.pipeline = self.state.pipeline_statistics();
         Ok(())
@@ -1945,7 +1944,6 @@ impl Renderer {
     ) -> Result<(), FrameworkError> {
         self.render_frame(scenes, drawing_context)?;
         self.statistics.end_frame();
-        self.state.check_error();
         self.statistics.finalize();
         self.statistics.pipeline = self.state.pipeline_statistics();
         Ok(())
