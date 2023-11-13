@@ -8,7 +8,7 @@
         ),
         (
             name: "softBoundarySharpnessFactor",
-            kind: Float(2.5),
+            kind: Float(100.0),
         )
     ],
 
