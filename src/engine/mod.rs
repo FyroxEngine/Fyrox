@@ -1184,12 +1184,20 @@ impl Engine {
 
                 let gl_display = gl_config.display();
 
+                #[cfg(debug_assertions)]
+                let debug = true;
+
+                #[cfg(not(debug_assertions))]
+                let debug = true;
+
                 let gl3_3_core_context_attributes = ContextAttributesBuilder::new()
+                    .with_debug(debug)
                     .with_profile(GlProfile::Core)
                     .with_context_api(ContextApi::OpenGl(Some(Version::new(3, 3))))
                     .build(Some(raw_window_handle));
 
                 let gles3_context_attributes = ContextAttributesBuilder::new()
+                    .with_debug(debug)
                     .with_profile(GlProfile::Core)
                     .with_context_api(ContextApi::Gles(Some(Version::new(3, 0))))
                     .build(Some(raw_window_handle));
