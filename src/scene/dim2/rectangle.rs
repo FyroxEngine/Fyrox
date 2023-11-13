@@ -343,6 +343,7 @@ impl RectangleBuilder {
         self
     }
 
+    /// Sets the desired material of the rectangle.
     pub fn with_material(mut self, material: SharedMaterial) -> Self {
         self.material = material;
         self
