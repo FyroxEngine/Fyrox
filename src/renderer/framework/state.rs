@@ -460,7 +460,8 @@ impl PipelineState {
                         {
                             MessageKind::Warning
                         } else {
-                            MessageKind::Information
+                            // Ignore any info because it tend to produce spam.
+                            return;
                         };
 
                         let source = if source == glow::DEBUG_SOURCE_API {
