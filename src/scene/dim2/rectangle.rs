@@ -200,10 +200,12 @@ impl Rectangle {
         *self.color
     }
 
+    /// Returns a reference to the current material used by the rectangle.
     pub fn material(&self) -> &InheritableVariable<SharedMaterial> {
         &self.material
     }
 
+    /// Returns a reference to the current material used by the rectangle.
     pub fn material_mut(&mut self) -> &mut InheritableVariable<SharedMaterial> {
         &mut self.material
     }

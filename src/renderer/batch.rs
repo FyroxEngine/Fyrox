@@ -213,6 +213,28 @@ impl RenderDataBatchStorage {
         storage
     }
 
+    /// Adds a new mesh to the batch storage using the given set of vertices and triangles. This
+    /// method automatically creates a render batch according to a hash of the following parameters:
+    ///
+    /// - Material
+    /// - Vertex Type
+    /// - Render Path
+    /// - Skinning
+    /// - Decal Layer Index
+    ///
+    /// If one of these parameters is different, then a new batch will be created and used to store
+    /// the given vertices and indices. If an appropriate batch exists, the the method will store
+    /// the given vertices and the triangles in it.
+    ///
+    /// ## When to use
+    ///
+    /// This method is used to reduce amount of draw calls of underlying GAPI, by merging small
+    /// portions of data into one big block that shares drawing parameters and can be rendered in
+    /// a single draw call. The vertices in this case should be pre-processed by applying world
+    /// transform to them.
+    ///
+    /// Do not use this method if you have a mesh with lots of vertices and triangles, because
+    /// pre-processing them on CPU could take more time than rendering them directly on GPU one-by-one.
     pub fn push_triangles<T>(
         &mut self,
         vertices: &[T],

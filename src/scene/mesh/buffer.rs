@@ -1330,10 +1330,12 @@ impl<'a> TriangleBufferRefMut<'a> {
         self.triangles.push(triangle)
     }
 
+    /// Adds triangles from the given slice to the current buffer.
     pub fn push_triangles(&mut self, triangles: &[TriangleDefinition]) {
         self.triangles.extend_from_slice(triangles)
     }
 
+    /// Adds triangles from the given iterator to the current buffer.
     pub fn push_triangles_iter(&mut self, triangles: impl Iterator<Item = TriangleDefinition>) {
         self.triangles.extend(triangles)
     }
@@ -1390,6 +1392,7 @@ mod test {
                     size: 3,
                     divisor: 0,
                     shader_location: 0,
+                    normalized: false,
                 },
                 VertexAttributeDescriptor {
                     usage: VertexAttributeUsage::TexCoord0,
@@ -1397,6 +1400,7 @@ mod test {
                     size: 2,
                     divisor: 0,
                     shader_location: 1,
+                    normalized: false,
                 },
                 VertexAttributeDescriptor {
                     usage: VertexAttributeUsage::TexCoord1,
@@ -1404,6 +1408,7 @@ mod test {
                     size: 2,
                     divisor: 0,
                     shader_location: 2,
+                    normalized: false,
                 },
                 VertexAttributeDescriptor {
                     usage: VertexAttributeUsage::Normal,
@@ -1411,6 +1416,7 @@ mod test {
                     size: 3,
                     divisor: 0,
                     shader_location: 3,
+                    normalized: false,
                 },
                 VertexAttributeDescriptor {
                     usage: VertexAttributeUsage::Tangent,
@@ -1418,6 +1424,7 @@ mod test {
                     size: 4,
                     divisor: 0,
                     shader_location: 4,
+                    normalized: false,
                 },
                 VertexAttributeDescriptor {
                     usage: VertexAttributeUsage::BoneWeight,
@@ -1425,6 +1432,7 @@ mod test {
                     size: 4,
                     divisor: 0,
                     shader_location: 5,
+                    normalized: false,
                 },
                 VertexAttributeDescriptor {
                     usage: VertexAttributeUsage::BoneIndices,
@@ -1432,6 +1440,7 @@ mod test {
                     size: 4,
                     divisor: 0,
                     shader_location: 6,
+                    normalized: false,
                 },
             ];
 
@@ -1572,6 +1581,7 @@ mod test {
                     size: 2,
                     divisor: 0,
                     shader_location: 7,
+                    normalized: false,
                 },
                 fill,
             )
