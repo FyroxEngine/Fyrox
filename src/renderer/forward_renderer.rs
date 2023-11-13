@@ -32,6 +32,7 @@ use crate::{
         mesh::RenderPath,
     },
 };
+use fyrox_core::math::Matrix4Ext;
 use std::{cell::RefCell, rc::Rc};
 
 pub(crate) struct ForwardRenderer {
@@ -53,6 +54,7 @@ pub(crate) struct ForwardRenderContext<'a, 'b> {
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
     pub black_dummy: Rc<RefCell<GpuTexture>>,
     pub volume_dummy: Rc<RefCell<GpuTexture>>,
+    pub scene_depth: Rc<RefCell<GpuTexture>>,
     pub matrix_storage: &'a mut MatrixStorageCache,
     pub ambient_light: Color,
 }
@@ -87,6 +89,7 @@ impl ForwardRenderer {
             normal_dummy,
             black_dummy,
             volume_dummy,
+            scene_depth,
             matrix_storage,
             ambient_light,
         } = args;
@@ -95,6 +98,11 @@ impl ForwardRenderer {
 
         let frustum = Frustum::from_view_projection_matrix(camera.view_projection_matrix())
             .unwrap_or_default();
+
+        let inv_view = camera.inv_view_matrix().unwrap();
+
+        let camera_up = inv_view.up();
+        let camera_side = inv_view.side();
 
         let mut light_data = LightData::default();
         for light in graph.linear_iter() {
@@ -182,10 +190,15 @@ impl ForwardRenderer {
                                 program_binding: &mut program_binding,
                                 texture_cache,
                                 world_matrix: &instance.world_transform,
+                                view_projection_matrix: &view_projection,
                                 wvp_matrix: &(view_projection * instance.world_transform),
                                 bone_matrices: &instance.bone_matrices,
                                 use_skeletal_animation: batch.is_skinned,
                                 camera_position: &camera.global_position(),
+                                camera_up_vector: &camera_up,
+                                camera_side_vector: &camera_side,
+                                z_near: camera.projection().z_near(),
+                                z_far: camera.projection().z_far(),
                                 use_pom: quality_settings.use_parallax_mapping,
                                 light_position: &Default::default(),
                                 blend_shapes_storage: blend_shapes_storage.as_ref(),
@@ -198,6 +211,7 @@ impl ForwardRenderer {
                                 persistent_identifier: instance.persistent_identifier,
                                 light_data: Some(&light_data),
                                 ambient_light,
+                                scene_depth: Some(&scene_depth),
                             });
                         },
                     )?;

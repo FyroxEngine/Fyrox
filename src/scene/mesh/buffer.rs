@@ -96,6 +96,22 @@ pub enum VertexAttributeUsage {
     BoneIndices = 12,
     /// Color. Usually `Vector4<u8>`.
     Color = 13,
+    /// First custom attribute with arbitrary, context-dependent meaning.
+    Custom0 = 14,
+    /// Second custom attribute with arbitrary, context-dependent meaning.
+    Custom1 = 15,
+    /// Third custom attribute with arbitrary, context-dependent meaning.
+    Custom2 = 16,
+    /// Fourth custom attribute with arbitrary, context-dependent meaning.
+    Custom3 = 17,
+    /// Fifth custom attribute with arbitrary, context-dependent meaning.
+    Custom4 = 18,
+    /// Sixth custom attribute with arbitrary, context-dependent meaning.
+    Custom5 = 19,
+    /// Seventh custom attribute with arbitrary, context-dependent meaning.
+    Custom6 = 20,
+    /// Eigth custom attribute with arbitrary, context-dependent meaning.
+    Custom7 = 21,
     /// Maximum amount of attribute kinds.
     Count,
 }
@@ -420,6 +436,36 @@ impl<'a> VertexBufferRefMut<'a> {
                 .data
                 .extend_from_slice(array_as_u8_slice(vertices));
             self.vertex_buffer.vertex_count += vertices.len() as u32;
+            Ok(())
+        } else {
+            Err(ValidationError::InvalidVertexSize {
+                expected: self.vertex_buffer.vertex_size,
+                actual: std::mem::size_of::<T>() as u8,
+            })
+        }
+    }
+
+    /// Tries to append the vertices that the given iterator produces.
+    ///
+    /// # Safety and validation
+    ///
+    /// This method accepts any type that has appropriate size, the size must be equal
+    /// with the size defined by layout. The Copy trait bound is required to ensure that
+    /// the type does not have any custom destructors.
+    pub fn push_vertices_iter<T>(
+        &mut self,
+        vertices: impl Iterator<Item = T>,
+    ) -> Result<(), ValidationError>
+    where
+        T: VertexTrait,
+    {
+        if std::mem::size_of::<T>() == self.vertex_buffer.vertex_size as usize {
+            for vertex in vertices {
+                self.vertex_buffer
+                    .data
+                    .extend_from_slice(value_as_u8_slice(&vertex));
+                self.vertex_buffer.vertex_count += 1;
+            }
             Ok(())
         } else {
             Err(ValidationError::InvalidVertexSize {

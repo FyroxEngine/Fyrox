@@ -25,6 +25,7 @@ use crate::{
     },
     scene::graph::Graph,
 };
+use fyrox_core::math::Matrix4Ext;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct PointShadowMapRenderer {
@@ -236,6 +237,10 @@ impl PointShadowMapRenderer {
             );
             let light_view_projection_matrix = light_projection_matrix * light_view_matrix;
 
+            let inv_view = light_view_matrix.try_inverse().unwrap();
+            let camera_up = inv_view.up();
+            let camera_side = inv_view.side();
+
             let batches = RenderDataBatchStorage::from_graph(
                 graph,
                 ObserverInfo {
@@ -277,11 +282,15 @@ impl PointShadowMapRenderer {
                                     texture_cache,
                                     matrix_storage,
                                     world_matrix: &instance.world_transform,
+                                    view_projection_matrix: &light_view_projection_matrix,
                                     wvp_matrix: &(light_view_projection_matrix
                                         * instance.world_transform),
                                     bone_matrices: &instance.bone_matrices,
                                     use_skeletal_animation: batch.is_skinned,
                                     camera_position: &Default::default(),
+                                    camera_up_vector: &camera_up,
+                                    camera_side_vector: &camera_side,
+                                    z_near,
                                     use_pom: false,
                                     light_position: &light_pos,
                                     blend_shapes_storage: blend_shapes_storage.as_ref(),
@@ -293,6 +302,8 @@ impl PointShadowMapRenderer {
                                     persistent_identifier: instance.persistent_identifier,
                                     light_data: None,            // TODO
                                     ambient_light: Color::WHITE, // TODO
+                                    scene_depth: None,
+                                    z_far,
                                 });
                             },
                         )?;

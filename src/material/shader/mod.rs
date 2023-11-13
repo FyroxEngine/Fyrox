@@ -229,26 +229,24 @@
 //! is enough.
 
 use crate::{
-    asset::options::ImportOptions,
-    asset::{Resource, ResourceData},
+    asset::{io::ResourceIo, options::ImportOptions, Resource, ResourceData, SHADER_RESOURCE_UUID},
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         io::FileLoadError,
         reflect::prelude::*,
         sparse::AtomicIndex,
+        uuid::Uuid,
         visitor::prelude::*,
+        TypeUuidProvider,
     },
     lazy_static::lazy_static,
     renderer::framework::framebuffer::DrawParameters,
 };
-use fyrox_core::uuid::Uuid;
-use fyrox_core::TypeUuidProvider;
-use fyrox_resource::{io::ResourceIo, SHADER_RESOURCE_UUID};
 use serde::{Deserialize, Serialize};
-use std::any::Any;
-use std::fmt::{Display, Formatter};
 use std::{
+    any::Any,
     borrow::Cow,
+    fmt::{Display, Formatter},
     io::Cursor,
     path::{Path, PathBuf},
 };
@@ -267,6 +265,13 @@ pub const STANDARD_2D_SHADER_NAME: &str = "Standard2D";
 /// A source code of the standard 2D shader.
 pub const STANDARD_2D_SHADER_SRC: &str = include_str!("standard/standard2d.shader");
 
+/// A name of the standard particle system shader.
+pub const STANDARD_PARTICLE_SYSTEM_SHADER_NAME: &str = "StandardParticleSystem";
+
+/// A source code of the standard particle system shader.
+pub const STANDARD_PARTICLE_SYSTEM_SHADER_SRC: &str =
+    include_str!("standard/standard_particle_system.shader");
+
 /// A name of the standard two-sides shader.
 pub const STANDARD_TWOSIDES_SHADER_NAME: &str = "StandardTwoSides";
 
@@ -280,17 +285,19 @@ pub const STANDARD_TERRAIN_SHADER_NAME: &str = "StandardTerrain";
 pub const STANDARD_TERRAIN_SHADER_SRC: &str = include_str!("standard/terrain.shader");
 
 /// A list of names of standard shaders.
-pub const STANDARD_SHADER_NAMES: [&str; 4] = [
+pub const STANDARD_SHADER_NAMES: [&str; 5] = [
     STANDARD_SHADER_NAME,
     STANDARD_2D_SHADER_NAME,
+    STANDARD_PARTICLE_SYSTEM_SHADER_NAME,
     STANDARD_TWOSIDES_SHADER_NAME,
     STANDARD_TERRAIN_SHADER_NAME,
 ];
 
 /// A list of source code of standard shaders.
-pub const STANDARD_SHADER_SOURCES: [&str; 4] = [
+pub const STANDARD_SHADER_SOURCES: [&str; 5] = [
     STANDARD_SHADER_SRC,
     STANDARD_2D_SHADER_SRC,
+    STANDARD_PARTICLE_SYSTEM_SHADER_SRC,
     STANDARD_TWOSIDES_SHADER_SRC,
     STANDARD_TERRAIN_SHADER_SRC,
 ];
@@ -615,6 +622,9 @@ pub trait ShaderResourceExtension: Sized {
     /// Returns an instance of standard 2D shader.
     fn standard_2d() -> Self;
 
+    /// Returns an instance of standard particle system shader.
+    fn standard_particle_system() -> Self;
+
     /// Returns an instance of standard terrain shader.
     fn standard_terrain() -> Self;
 
@@ -642,6 +652,11 @@ impl ShaderResourceExtension for ShaderResource {
         STANDARD_2D.clone()
     }
 
+    /// Returns an instance of standard particle system shader.
+    fn standard_particle_system() -> Self {
+        STANDARD_PARTICLE_SYSTEM.clone()
+    }
+
     /// Returns an instance of standard terrain shader.
     fn standard_terrain() -> Self {
         STANDARD_TERRAIN.clone()
@@ -656,6 +671,8 @@ impl ShaderResourceExtension for ShaderResource {
     fn standard_shaders() -> Vec<ShaderResource> {
         vec![
             Self::standard(),
+            Self::standard_2d(),
+            Self::standard_particle_system(),
             Self::standard_terrain(),
             Self::standard_twosides(),
         ]
@@ -677,6 +694,16 @@ lazy_static! {
 lazy_static! {
     static ref STANDARD_2D: ShaderResource = ShaderResource::new_ok(
         Shader::from_str(STANDARD_2D_SHADER_SRC, STANDARD_2D_SHADER_NAME).unwrap(),
+    );
+}
+
+lazy_static! {
+    static ref STANDARD_PARTICLE_SYSTEM: ShaderResource = ShaderResource::new_ok(
+        Shader::from_str(
+            STANDARD_PARTICLE_SYSTEM_SHADER_SRC,
+            STANDARD_PARTICLE_SYSTEM_SHADER_NAME
+        )
+        .unwrap(),
     );
 }
 

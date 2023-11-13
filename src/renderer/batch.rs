@@ -21,12 +21,18 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
+
 use std::{
     any::TypeId,
     collections::hash_map::DefaultHasher,
     fmt::{Debug, Formatter},
     hash::{Hash, Hasher},
 };
+
+/*
+use fyrox_core::parking_lot::MutexGuard;
+use std::marker::PhantomData;
+ */
 
 /// Observer info contains all the data, that describes an observer. It could be a real camera, light source's
 /// "virtual camera" that is used for shadow mapping, etc.
@@ -140,6 +146,38 @@ impl Debug for RenderDataBatch {
     }
 }
 
+/*
+pub struct MeshSurfaceContext<'a, T>
+where
+    T: VertexTrait,
+{
+    guard: MutexGuard<'a, SurfaceData>,
+    type_holder: PhantomData<T>,
+}
+
+impl<'a, T> MeshSurfaceContext<'a, T>
+where
+    T: VertexTrait,
+{
+    pub fn push_triangle(&self) {
+        let last_vertex_index = self.guard.vertex_buffer.vertex_count();
+
+        // Append vertices.
+        self.guard
+            .vertex_buffer
+            .modify()
+            .push_vertices(vertices)
+            .expect("Vertex types mismatch!");
+
+        // Write triangle indices, but offset each by last vertex index to prevent overlapping.
+        self.guard
+            .geometry_buffer
+            .modify()
+            .push_triangles_iter(local_triangles.iter().map(|t| t.add(last_vertex_index)));
+    }
+}
+*/
+
 /// Batch storage handles batch generation for a scene before rendering. It is used to optimize
 /// rendering by reducing amount of state changes of OpenGL context.
 #[derive(Default)]
@@ -237,8 +275,8 @@ impl RenderDataBatchStorage {
     /// pre-processing them on CPU could take more time than rendering them directly on GPU one-by-one.
     pub fn push_triangles<T>(
         &mut self,
-        vertices: &[T],
-        local_triangles: &[TriangleDefinition],
+        vertices: impl Iterator<Item = T>,
+        local_triangles: impl Iterator<Item = TriangleDefinition>,
         material: &SharedMaterial,
         render_path: RenderPath,
         decal_layer_index: u8,
@@ -305,13 +343,13 @@ impl RenderDataBatchStorage {
         // Append vertices.
         data.vertex_buffer
             .modify()
-            .push_vertices(vertices)
+            .push_vertices_iter(vertices)
             .expect("Vertex types mismatch!");
 
         // Write triangle indices, but offset each by last vertex index to prevent overlapping.
         data.geometry_buffer
             .modify()
-            .push_triangles_iter(local_triangles.iter().map(|t| t.add(last_vertex_index)));
+            .push_triangles_iter(local_triangles.map(|t| t.add(last_vertex_index)));
     }
 
     /// Adds a new surface instance to the storage. The method will automatically put the instance in the appropriate

@@ -27,7 +27,6 @@ mod gbuffer;
 mod hdr;
 mod light;
 mod light_volume;
-mod particle_system_renderer;
 mod shadow;
 mod skybox_shader;
 mod sprite_renderer;
@@ -75,7 +74,6 @@ use crate::{
         gbuffer::{GBuffer, GBufferRenderContext},
         hdr::HighDynamicRangeRenderer,
         light::{DeferredLightRenderer, DeferredRendererContext, LightingStatistics},
-        particle_system_renderer::{ParticleSystemRenderContext, ParticleSystemRenderer},
         sprite_renderer::{SpriteRenderContext, SpriteRenderer},
         storage::MatrixStorageCache,
         ui_renderer::{UiRenderContext, UiRenderer},
@@ -706,7 +704,6 @@ pub struct Renderer {
     deferred_light_renderer: DeferredLightRenderer,
     flat_shader: FlatShader,
     sprite_renderer: SpriteRenderer,
-    particle_system_renderer: ParticleSystemRenderer,
     /// Dummy white one pixel texture which will be used as stub when rendering
     /// something without texture specified.
     pub white_dummy: Rc<RefCell<GpuTexture>>,
@@ -973,16 +970,25 @@ pub(crate) struct MaterialContext<'a, 'b, 'c> {
 
     // Built-in uniforms.
     pub world_matrix: &'a Matrix4<f32>,
+    pub view_projection_matrix: &'a Matrix4<f32>,
     pub wvp_matrix: &'a Matrix4<f32>,
     pub bone_matrices: &'a [Matrix4<f32>],
     pub use_skeletal_animation: bool,
-    pub camera_position: &'a Vector3<f32>,
     pub use_pom: bool,
     pub light_position: &'a Vector3<f32>,
     pub blend_shapes_storage: Option<&'a TextureResource>,
     pub blend_shapes_weights: &'a [f32],
     pub light_data: Option<&'a LightData>,
     pub ambient_light: Color,
+    // TODO: Add depth pre-pass to remove Option here. Current architecture allows only forward
+    // renderer to have access to depth buffer that is available from G-Buffer.
+    pub scene_depth: Option<&'a Rc<RefCell<GpuTexture>>>,
+
+    pub camera_position: &'a Vector3<f32>,
+    pub camera_up_vector: &'a Vector3<f32>,
+    pub camera_side_vector: &'a Vector3<f32>,
+    pub z_near: f32,
+    pub z_far: f32,
 
     // Fallback samplers.
     pub normal_dummy: Rc<RefCell<GpuTexture>>,
@@ -997,6 +1003,10 @@ pub(crate) fn apply_material(ctx: MaterialContext) {
     // Apply values for built-in uniforms.
     if let Some(location) = &built_in_uniforms[BuiltInUniform::WorldMatrix as usize] {
         ctx.program_binding.set_matrix4(location, ctx.world_matrix);
+    }
+    if let Some(location) = &built_in_uniforms[BuiltInUniform::ViewProjectionMatrix as usize] {
+        ctx.program_binding
+            .set_matrix4(location, ctx.view_projection_matrix);
     }
     if let Some(location) = &built_in_uniforms[BuiltInUniform::WorldViewProjectionMatrix as usize] {
         ctx.program_binding.set_matrix4(location, ctx.wvp_matrix);
@@ -1024,6 +1034,28 @@ pub(crate) fn apply_material(ctx: MaterialContext) {
         ctx.program_binding
             .set_vector3(location, ctx.camera_position);
     }
+
+    if let Some(location) = &built_in_uniforms[BuiltInUniform::CameraUpVector as usize] {
+        ctx.program_binding
+            .set_vector3(location, ctx.camera_up_vector);
+    }
+    if let Some(location) = &built_in_uniforms[BuiltInUniform::CameraSideVector as usize] {
+        ctx.program_binding
+            .set_vector3(location, ctx.camera_side_vector);
+    }
+    if let Some(location) = &built_in_uniforms[BuiltInUniform::ZNear as usize] {
+        ctx.program_binding.set_f32(location, ctx.z_near);
+    }
+    if let Some(location) = &built_in_uniforms[BuiltInUniform::ZFar as usize] {
+        ctx.program_binding.set_f32(location, ctx.z_far);
+    }
+
+    if let Some(location) = &built_in_uniforms[BuiltInUniform::SceneDepth as usize] {
+        if let Some(scene_depth) = ctx.scene_depth.as_ref() {
+            ctx.program_binding.set_texture(location, scene_depth);
+        }
+    }
+
     if let Some(location) = &built_in_uniforms[BuiltInUniform::UsePOM as usize] {
         ctx.program_binding.set_bool(location, ctx.use_pom);
     }
@@ -1299,7 +1331,6 @@ impl Renderer {
                 &mut state,
             ),
             ui_renderer: UiRenderer::new(&mut state)?,
-            particle_system_renderer: ParticleSystemRenderer::new(&mut state)?,
             quality_settings: settings,
             debug_renderer: DebugRenderer::new(&mut state)?,
             scene_data_map: Default::default(),
@@ -1733,21 +1764,6 @@ impl Renderer {
 
                 let depth = scene_associated_data.gbuffer.depth();
 
-                self.statistics +=
-                    self.particle_system_renderer
-                        .render(ParticleSystemRenderContext {
-                            state,
-                            framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
-                            graph,
-                            camera,
-                            white_dummy: self.white_dummy.clone(),
-                            depth,
-                            frame_width: frame_size.x,
-                            frame_height: frame_size.y,
-                            viewport,
-                            texture_cache: &mut self.texture_cache,
-                        })?;
-
                 self.statistics += self.sprite_renderer.render(SpriteRenderContext {
                     state,
                     framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
@@ -1773,6 +1789,7 @@ impl Renderer {
                     normal_dummy: self.normal_dummy.clone(),
                     black_dummy: self.black_dummy.clone(),
                     volume_dummy: self.volume_dummy.clone(),
+                    scene_depth: depth,
                     matrix_storage: &mut self.matrix_storage,
                     ambient_light: scene.rendering_options.ambient_lighting_color,
                 })?;

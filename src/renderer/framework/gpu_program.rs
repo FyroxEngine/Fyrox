@@ -25,10 +25,16 @@ pub struct GpuProgram {
 #[repr(usize)]
 pub enum BuiltInUniform {
     WorldMatrix,
+    ViewProjectionMatrix,
     WorldViewProjectionMatrix,
     BoneMatrices,
     UseSkeletalAnimation,
     CameraPosition,
+    CameraUpVector,
+    CameraSideVector,
+    ZNear,
+    ZFar,
+    SceneDepth,
     UsePOM,
     LightPosition,
     BlendShapesStorage,
@@ -426,24 +432,39 @@ fn fetch_built_in_uniform_locations(
 
     locations[BuiltInUniform::WorldMatrix as usize] =
         fetch_uniform_location(state, program, "fyrox_worldMatrix");
+    locations[BuiltInUniform::ViewProjectionMatrix as usize] =
+        fetch_uniform_location(state, program, "fyrox_viewProjectionMatrix");
     locations[BuiltInUniform::WorldViewProjectionMatrix as usize] =
         fetch_uniform_location(state, program, "fyrox_worldViewProjection");
+
     locations[BuiltInUniform::BoneMatrices as usize] =
         fetch_uniform_location(state, program, "fyrox_boneMatrices");
     locations[BuiltInUniform::UseSkeletalAnimation as usize] =
         fetch_uniform_location(state, program, "fyrox_useSkeletalAnimation");
+
     locations[BuiltInUniform::CameraPosition as usize] =
         fetch_uniform_location(state, program, "fyrox_cameraPosition");
+    locations[BuiltInUniform::CameraUpVector as usize] =
+        fetch_uniform_location(state, program, "fyrox_cameraUpVector");
+    locations[BuiltInUniform::CameraSideVector as usize] =
+        fetch_uniform_location(state, program, "fyrox_cameraSideVector");
+    locations[BuiltInUniform::ZNear as usize] =
+        fetch_uniform_location(state, program, "fyrox_zNear");
+    locations[BuiltInUniform::ZFar as usize] = fetch_uniform_location(state, program, "fyrox_zFar");
+
+    locations[BuiltInUniform::SceneDepth as usize] =
+        fetch_uniform_location(state, program, "fyrox_sceneDepth");
+
     locations[BuiltInUniform::UsePOM as usize] =
         fetch_uniform_location(state, program, "fyrox_usePOM");
-    locations[BuiltInUniform::LightPosition as usize] =
-        fetch_uniform_location(state, program, "fyrox_lightPosition");
+
     locations[BuiltInUniform::BlendShapesStorage as usize] =
         fetch_uniform_location(state, program, "fyrox_blendShapesStorage");
     locations[BuiltInUniform::BlendShapesWeights as usize] =
         fetch_uniform_location(state, program, "fyrox_blendShapesWeights");
     locations[BuiltInUniform::BlendShapesCount as usize] =
         fetch_uniform_location(state, program, "fyrox_blendShapesCount");
+
     locations[BuiltInUniform::LightCount as usize] =
         fetch_uniform_location(state, program, "fyrox_lightCount");
     locations[BuiltInUniform::LightsColorRadius as usize] =
@@ -456,6 +477,9 @@ fn fetch_built_in_uniform_locations(
         fetch_uniform_location(state, program, "fyrox_lightsParameters");
     locations[BuiltInUniform::AmbientLight as usize] =
         fetch_uniform_location(state, program, "fyrox_ambientLightColor");
+    locations[BuiltInUniform::LightPosition as usize] =
+        fetch_uniform_location(state, program, "fyrox_lightPosition");
+
     locations
 }
 

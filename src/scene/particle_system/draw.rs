@@ -1,10 +1,16 @@
-use crate::core::algebra::{Vector2, Vector3};
-use crate::core::color::Color;
-use crate::core::math::TriangleDefinition;
+use crate::{
+    core::{
+        algebra::{Vector2, Vector3},
+        color::Color,
+    },
+    scene::mesh::buffer::{
+        VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage, VertexTrait,
+    },
+};
 
 /// OpenGL expects this structure packed as in C.
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Vertex {
     pub position: Vector3<f32>,
     pub tex_coord: Vector2<f32>,
@@ -13,26 +19,49 @@ pub struct Vertex {
     pub color: Color,
 }
 
-/// Particle system is "rendered" into special buffer, which contains vertices and faces.
-#[derive(Default)]
-pub struct DrawData {
-    pub(super) vertices: Vec<Vertex>,
-    pub(super) triangles: Vec<TriangleDefinition>,
-}
-
-impl DrawData {
-    pub fn clear(&mut self) {
-        self.vertices.clear();
-        self.triangles.clear();
-    }
-
-    /// Returns shared reference to array of vertices.
-    pub fn vertices(&self) -> &[Vertex] {
-        &self.vertices
-    }
-
-    /// Returns shared reference to array of triangles.
-    pub fn triangles(&self) -> &[TriangleDefinition] {
-        &self.triangles
+impl VertexTrait for Vertex {
+    fn layout() -> &'static [VertexAttributeDescriptor] {
+        &[
+            VertexAttributeDescriptor {
+                usage: VertexAttributeUsage::Position,
+                data_type: VertexAttributeDataType::F32,
+                size: 3,
+                divisor: 0,
+                shader_location: 0,
+                normalized: false,
+            },
+            VertexAttributeDescriptor {
+                usage: VertexAttributeUsage::TexCoord0,
+                data_type: VertexAttributeDataType::F32,
+                size: 2,
+                divisor: 0,
+                shader_location: 1,
+                normalized: false,
+            },
+            VertexAttributeDescriptor {
+                usage: VertexAttributeUsage::Custom0,
+                data_type: VertexAttributeDataType::F32,
+                size: 1,
+                divisor: 0,
+                shader_location: 2,
+                normalized: false,
+            },
+            VertexAttributeDescriptor {
+                usage: VertexAttributeUsage::Custom1,
+                data_type: VertexAttributeDataType::F32,
+                size: 1,
+                divisor: 0,
+                shader_location: 3,
+                normalized: false,
+            },
+            VertexAttributeDescriptor {
+                usage: VertexAttributeUsage::Color,
+                data_type: VertexAttributeDataType::U8,
+                size: 4,
+                divisor: 0,
+                shader_location: 4,
+                normalized: true,
+            },
+        ]
     }
 }

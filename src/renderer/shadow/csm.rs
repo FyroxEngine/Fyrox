@@ -26,6 +26,7 @@ use crate::{
     },
 };
 use fyrox_core::color::Color;
+use fyrox_core::math::Matrix4Ext;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct Cascade {
@@ -247,6 +248,10 @@ impl CsmRenderer {
                 aabb.min.x, aabb.max.x, aabb.min.y, aabb.max.y, aabb.min.z, aabb.max.z,
             );
 
+            let inv_view = light_view_matrix.try_inverse().unwrap();
+            let camera_up = inv_view.up();
+            let camera_side = inv_view.side();
+
             let light_view_projection = cascade_projection_matrix * light_view_matrix;
             self.cascades[i].view_proj_matrix = light_view_projection;
             self.cascades[i].z_far = z_far;
@@ -295,10 +300,14 @@ impl CsmRenderer {
                                     texture_cache,
                                     matrix_storage,
                                     world_matrix: &instance.world_transform,
+                                    view_projection_matrix: &light_view_projection,
                                     wvp_matrix: &(light_view_projection * instance.world_transform),
                                     bone_matrices: &instance.bone_matrices,
                                     use_skeletal_animation: batch.is_skinned,
                                     camera_position: &camera.global_position(),
+                                    camera_up_vector: &camera_up,
+                                    camera_side_vector: &camera_side,
+                                    z_near,
                                     use_pom: false,
                                     light_position: &Default::default(),
                                     blend_shapes_storage: blend_shapes_storage.as_ref(),
@@ -310,6 +319,8 @@ impl CsmRenderer {
                                     persistent_identifier: instance.persistent_identifier,
                                     light_data: None,            // TODO
                                     ambient_light: Color::WHITE, // TODO
+                                    scene_depth: None,
+                                    z_far,
                                 });
                             },
                         )?;

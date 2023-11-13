@@ -45,6 +45,7 @@ use crate::{
         mesh::{surface::SurfaceData, RenderPath},
     },
 };
+use fyrox_core::math::Matrix4Ext;
 use std::{cell::RefCell, rc::Rc};
 
 mod decal;
@@ -297,6 +298,11 @@ impl GBuffer {
 
         let initial_view_projection = camera.view_projection_matrix();
 
+        let inv_view = camera.inv_view_matrix().unwrap();
+
+        let camera_up = inv_view.up();
+        let camera_side = inv_view.side();
+
         for batch in batch_storage
             .batches
             .iter()
@@ -331,10 +337,14 @@ impl GBuffer {
                             texture_cache,
                             matrix_storage,
                             world_matrix: &instance.world_transform,
+                            view_projection_matrix: &view_projection,
                             wvp_matrix: &(view_projection * instance.world_transform),
                             bone_matrices: &instance.bone_matrices,
                             use_skeletal_animation: batch.is_skinned,
                             camera_position: &camera.global_position(),
+                            camera_up_vector: &camera_up,
+                            camera_side_vector: &camera_side,
+                            z_near: camera.projection().z_near(),
                             use_pom: use_parallax_mapping,
                             light_position: &Default::default(),
                             blend_shapes_storage: blend_shapes_storage.as_ref(),
@@ -346,6 +356,8 @@ impl GBuffer {
                             persistent_identifier: instance.persistent_identifier,
                             light_data: None,
                             ambient_light: Color::WHITE, // TODO
+                            scene_depth: None,           // TODO. Add z-pre-pass.
+                            z_far: camera.projection().z_far(),
                         });
                     };
 

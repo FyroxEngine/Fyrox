@@ -334,8 +334,8 @@ impl NodeTrait for Rectangle {
         let triangles = [TriangleDefinition([0, 1, 2]), TriangleDefinition([2, 3, 0])];
 
         ctx.storage.push_triangles(
-            &vertices,
-            &triangles,
+            vertices.into_iter(),
+            triangles.into_iter(),
             &self.material,
             RenderPath::Forward,
             0,
