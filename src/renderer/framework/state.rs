@@ -1,11 +1,5 @@
 use crate::{
-    core::{
-        color::Color,
-        log::{Log, MessageKind},
-        math::Rect,
-        reflect::prelude::*,
-        visitor::prelude::*,
-    },
+    core::{color::Color, math::Rect, reflect::prelude::*, visitor::prelude::*},
     renderer::framework::framebuffer::{CullFace, DrawParameters},
 };
 use glow::{Framebuffer, HasContext};
@@ -451,6 +445,8 @@ impl PipelineState {
 
             #[cfg(debug_assertions)]
             {
+                use crate::core::log::{Log, MessageKind};
+
                 if context.supported_extensions().contains("GL_KHR_debug") {
                     context.debug_message_callback(|source, msg_type, id, severity, message| {
                         let message_kind = if severity == glow::DEBUG_SEVERITY_HIGH {
@@ -460,7 +456,8 @@ impl PipelineState {
                         {
                             MessageKind::Warning
                         } else {
-                            MessageKind::Information
+                            // Ignore any info because it tend to produce spam.
+                            return;
                         };
 
                         let source = if source == glow::DEBUG_SOURCE_API {

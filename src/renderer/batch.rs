@@ -1,6 +1,5 @@
 //! The module responsible for batch generation for rendering optimizations.
 
-use crate::renderer::cache::geometry::TimeToLive;
 use crate::{
     core::{
         algebra::{Matrix4, Vector3},
@@ -9,7 +8,7 @@ use crate::{
         sstorage::ImmutableString,
     },
     material::SharedMaterial,
-    renderer::framework::geometry_buffer::ElementRange,
+    renderer::{cache::geometry::TimeToLive, framework::geometry_buffer::ElementRange},
     scene::{
         graph::Graph,
         mesh::{
@@ -21,6 +20,7 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap, FxHasher};
+
 use std::{
     any::TypeId,
     collections::hash_map::DefaultHasher,
@@ -237,8 +237,8 @@ impl RenderDataBatchStorage {
     /// pre-processing them on CPU could take more time than rendering them directly on GPU one-by-one.
     pub fn push_triangles<T>(
         &mut self,
-        vertices: &[T],
-        local_triangles: &[TriangleDefinition],
+        vertices: impl Iterator<Item = T>,
+        local_triangles: impl Iterator<Item = TriangleDefinition>,
         material: &SharedMaterial,
         render_path: RenderPath,
         decal_layer_index: u8,
@@ -305,13 +305,13 @@ impl RenderDataBatchStorage {
         // Append vertices.
         data.vertex_buffer
             .modify()
-            .push_vertices(vertices)
+            .push_vertices_iter(vertices)
             .expect("Vertex types mismatch!");
 
         // Write triangle indices, but offset each by last vertex index to prevent overlapping.
         data.geometry_buffer
             .modify()
-            .push_triangles_iter(local_triangles.iter().map(|t| t.add(last_vertex_index)));
+            .push_triangles_iter(local_triangles.map(|t| t.add(last_vertex_index)));
     }
 
     /// Adds a new surface instance to the storage. The method will automatically put the instance in the appropriate

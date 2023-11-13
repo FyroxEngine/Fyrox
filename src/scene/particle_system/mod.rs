@@ -3,24 +3,28 @@
 
 use crate::{
     core::{
-        algebra::{Vector2, Vector3},
+        algebra::{Point3, Vector2, Vector3},
         color_gradient::ColorGradient,
         math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
+        sstorage::ImmutableString,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
         TypeUuidProvider,
     },
+    material::{shader::SamplerFallback, Material, PropertyValue, SharedMaterial},
     rand::{prelude::StdRng, Error, RngCore, SeedableRng},
+    renderer::{self, batch::RenderContext},
     resource::texture::TextureResource,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
+        mesh::RenderPath,
         node::{Node, NodeTrait, UpdateContext},
         particle_system::{
-            draw::{DrawData, Vertex},
+            draw::Vertex,
             emitter::{Emit, Emitter},
             particle::Particle,
         },
@@ -130,72 +134,94 @@ impl Visit for ParticleSystemRng {
 /// Simple smoke effect can be create like so:
 ///
 /// ```
-/// use fyrox::scene::particle_system::{
-///     emitter::sphere::SphereEmitter, ParticleSystemBuilder, emitter::Emitter,
-///     emitter::base::BaseEmitterBuilder, emitter::sphere::SphereEmitterBuilder
-/// };
-/// use fyrox::asset::manager::ResourceManager;
-/// use fyrox::core::algebra::Vector3;
-/// use fyrox::scene::graph::Graph;
-/// use fyrox::scene::node::Node;
-/// use fyrox::scene::transform::TransformBuilder;
-/// use fyrox::core::color_gradient::{GradientPoint, ColorGradient};
-/// use fyrox::scene::base::BaseBuilder;
-/// use fyrox::core::color::Color;
-/// use std::path::Path;
-/// use fyrox::resource::texture::{Texture, TexturePixelKind};
-///
+/// # use fyrox::{
+/// #     asset::manager::ResourceManager,
+/// #     core::{
+/// #         algebra::Vector3,
+/// #         color::Color,
+/// #         color_gradient::{ColorGradient, GradientPoint},
+/// #         sstorage::ImmutableString,
+/// #     },
+/// #     material::{Material, PropertyValue, SharedMaterial},
+/// #     resource::texture::Texture,
+/// #     scene::{
+/// #         base::BaseBuilder,
+/// #         graph::Graph,
+/// #         particle_system::{
+/// #             emitter::base::BaseEmitterBuilder, emitter::sphere::SphereEmitterBuilder,
+/// #             ParticleSystemBuilder,
+/// #         },
+/// #         transform::TransformBuilder,
+/// #     },
+/// # };
+/// # use std::path::Path;
+/// #
 /// fn create_smoke(graph: &mut Graph, resource_manager: &mut ResourceManager, pos: Vector3<f32>) {
-///      ParticleSystemBuilder::new(BaseBuilder::new()
-///         .with_lifetime(5.0)
-///         .with_local_transform(TransformBuilder::new()
-///             .with_local_position(pos)
-///             .build()))
-///         .with_acceleration(Vector3::new(0.0, 0.0, 0.0))
-///         .with_color_over_lifetime_gradient({
-///             let mut gradient = ColorGradient::new();
-///             gradient.add_point(GradientPoint::new(0.00, Color::from_rgba(150, 150, 150, 0)));
-///             gradient.add_point(GradientPoint::new(0.05, Color::from_rgba(150, 150, 150, 220)));
-///             gradient.add_point(GradientPoint::new(0.85, Color::from_rgba(255, 255, 255, 180)));
-///             gradient.add_point(GradientPoint::new(1.00, Color::from_rgba(255, 255, 255, 0)));
-///             gradient
-///         })
-///         .with_emitters(vec![
-///             SphereEmitterBuilder::new(BaseEmitterBuilder::new()
-///                 .with_max_particles(100)
-///                 .with_spawn_rate(50)
-///                 .with_x_velocity_range(-0.01..0.01)
-///                 .with_y_velocity_range(0.02..0.03)
-///                 .with_z_velocity_range(-0.01..0.01))
-///                 .with_radius(0.01)
-///                 .build()
-///         ])
-///         .with_texture(resource_manager.request::<Texture, _>(Path::new("data/particles/smoke_04.tga")))
-///         .build(graph);
+///     let mut material = Material::standard_particle_system();
+///     material
+///         .set_property(
+///             &ImmutableString::new("diffuseTexture"),
+///             PropertyValue::Sampler {
+///                 value: Some(
+///                     resource_manager
+///                         .request::<Texture, _>(Path::new("data/particles/smoke_04.tga")),
+///                 ),
+///                 fallback: Default::default(),
+///             },
+///         )
+///         .unwrap();
+///
+///     ParticleSystemBuilder::new(
+///         BaseBuilder::new()
+///             .with_lifetime(5.0)
+///             .with_local_transform(TransformBuilder::new().with_local_position(pos).build()),
+///     )
+///     .with_acceleration(Vector3::new(0.0, 0.0, 0.0))
+///     .with_color_over_lifetime_gradient({
+///         let mut gradient = ColorGradient::new();
+///         gradient.add_point(GradientPoint::new(0.00, Color::from_rgba(150, 150, 150, 0)));
+///         gradient.add_point(GradientPoint::new(
+///             0.05,
+///             Color::from_rgba(150, 150, 150, 220),
+///         ));
+///         gradient.add_point(GradientPoint::new(
+///             0.85,
+///             Color::from_rgba(255, 255, 255, 180),
+///         ));
+///         gradient.add_point(GradientPoint::new(1.00, Color::from_rgba(255, 255, 255, 0)));
+///         gradient
+///     })
+///     .with_emitters(vec![SphereEmitterBuilder::new(
+///         BaseEmitterBuilder::new()
+///             .with_max_particles(100)
+///             .with_spawn_rate(50)
+///             .with_x_velocity_range(-0.01..0.01)
+///             .with_y_velocity_range(0.02..0.03)
+///             .with_z_velocity_range(-0.01..0.01),
+///     )
+///     .with_radius(0.01)
+///     .build()])
+///     .with_material(SharedMaterial::new(material))
+///     .build(graph);
 /// }
 /// ```
-#[derive(Debug, Visit, Clone, Reflect)]
+#[derive(Debug, Clone, Reflect)]
 pub struct ParticleSystem {
     base: Base,
 
     /// List of emitters of the particle system.
     pub emitters: InheritableVariable<Vec<Emitter>>,
 
-    #[reflect(setter = "set_texture")]
-    texture: InheritableVariable<Option<TextureResource>>,
+    #[reflect(setter = "set_material")]
+    material: InheritableVariable<SharedMaterial>,
 
     #[reflect(setter = "set_acceleration")]
     acceleration: InheritableVariable<Vector3<f32>>,
 
-    #[visit(rename = "ColorGradient", optional)]
     #[reflect(setter = "set_color_over_lifetime_gradient")]
     color_over_lifetime: InheritableVariable<ColorGradient>,
 
-    #[reflect(setter = "set_soft_boundary_sharpness_factor")]
-    soft_boundary_sharpness_factor: InheritableVariable<f32>,
-
     #[reflect(setter = "play")]
-    #[visit(rename = "Enabled")]
     is_playing: InheritableVariable<bool>,
 
     #[reflect(hidden)]
@@ -204,8 +230,57 @@ pub struct ParticleSystem {
     #[reflect(hidden)]
     free_particles: Vec<u32>,
 
-    #[visit(optional)]
     rng: ParticleSystemRng,
+}
+
+impl Visit for ParticleSystem {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+
+        self.base.visit("Base", &mut region)?;
+        self.emitters.visit("Emitters", &mut region)?;
+        self.acceleration.visit("Acceleration", &mut region)?;
+        self.color_over_lifetime
+            .visit("ColorGradient", &mut region)?;
+        self.is_playing.visit("Enabled", &mut region)?;
+        self.particles.visit("Particles", &mut region)?;
+        self.free_particles.visit("FreeParticles", &mut region)?;
+        let _ = self.rng.visit("Rng", &mut region);
+
+        // Backward compatibility.
+        let mut texture: InheritableVariable<Option<TextureResource>> = Default::default();
+        if texture.visit("Texture", &mut region).is_ok() {
+            let mut material = Material::standard_particle_system();
+            material
+                .set_property(
+                    &ImmutableString::new("diffuseTexture"),
+                    PropertyValue::Sampler {
+                        value: texture.deref().clone(),
+                        fallback: SamplerFallback::White,
+                    },
+                )
+                .unwrap();
+            self.material = SharedMaterial::new(material).into();
+        } else {
+            self.material.visit(name, &mut region)?;
+        }
+
+        let mut soft_boundary_sharpness_factor = 100.0;
+        if soft_boundary_sharpness_factor
+            .visit("SoftBoundarySharpnessFactor", &mut region)
+            .is_ok()
+        {
+            self.material
+                .lock()
+                .set_property(
+                    &ImmutableString::new("softBoundarySharpnessFactor"),
+                    PropertyValue::Float(soft_boundary_sharpness_factor),
+                )
+                .unwrap();
+        }
+
+        Ok(())
+    }
 }
 
 impl Deref for ParticleSystem {
@@ -246,11 +321,6 @@ impl ParticleSystem {
             .set_value_and_mark_modified(gradient)
     }
 
-    /// Return current soft boundary sharpness factor.
-    pub fn soft_boundary_sharpness_factor(&self) -> f32 {
-        *self.soft_boundary_sharpness_factor
-    }
-
     /// Plays or pauses the particle system. Paused particle system remains in "frozen" state
     /// until played again again. You can manually reset state of the system by calling [`Self::clear_particles`].
     pub fn play(&mut self, is_playing: bool) -> bool {
@@ -260,15 +330,6 @@ impl ParticleSystem {
     /// Returns current particle system status.
     pub fn is_playing(&self) -> bool {
         *self.is_playing
-    }
-
-    /// Sets soft boundary sharpness factor. This value defines how wide soft boundary will be.
-    /// The greater the factor is the more thin the boundary will be, and vice versa. This
-    /// parameter allows you to manipulate particle "softness" - the engine automatically adds
-    /// fading to those pixels of a particle which is close enough to other geometry in a scene.
-    pub fn set_soft_boundary_sharpness_factor(&mut self, factor: f32) -> f32 {
-        self.soft_boundary_sharpness_factor
-            .set_value_and_mark_modified(factor)
     }
 
     /// Replaces the particles in the particle system with pre-generated set. It could be useful
@@ -293,108 +354,19 @@ impl ParticleSystem {
         }
     }
 
-    /// Generates new draw data for current frame. Should not be used directly, unless you
-    /// absolutely need draw data before rendering. It is automatically called by renderer.
-    pub fn generate_draw_data(
-        &self,
-        sorted_particles: &mut Vec<u32>,
-        draw_data: &mut DrawData,
-        camera_pos: &Vector3<f32>,
-    ) {
-        sorted_particles.clear();
-        for (i, particle) in self.particles.iter().enumerate() {
-            if particle.alive {
-                let actual_position = particle.position + self.base.global_position();
-                particle
-                    .sqr_distance_to_camera
-                    .set((camera_pos - actual_position).norm_squared());
-                sorted_particles.push(i as u32);
-            }
-        }
-
-        let particles = &self.particles;
-
-        sorted_particles.sort_by(|a, b| {
-            let particle_a = particles.get(*a as usize).unwrap();
-            let particle_b = particles.get(*b as usize).unwrap();
-
-            // Reverse ordering because we want to sort back-to-front.
-            if particle_a.sqr_distance_to_camera < particle_b.sqr_distance_to_camera {
-                Ordering::Greater
-            } else if particle_a.sqr_distance_to_camera > particle_b.sqr_distance_to_camera {
-                Ordering::Less
-            } else {
-                Ordering::Equal
-            }
-        });
-
-        draw_data.clear();
-
-        for (i, particle_index) in sorted_particles.iter().enumerate() {
-            let particle = self.particles.get(*particle_index as usize).unwrap();
-
-            let linear_color = particle.color.srgb_to_linear();
-
-            draw_data.vertices.push(Vertex {
-                position: particle.position,
-                tex_coord: Vector2::default(),
-                size: particle.size,
-                rotation: particle.rotation,
-                color: linear_color,
-            });
-
-            draw_data.vertices.push(Vertex {
-                position: particle.position,
-                tex_coord: Vector2::new(1.0, 0.0),
-                size: particle.size,
-                rotation: particle.rotation,
-                color: linear_color,
-            });
-
-            draw_data.vertices.push(Vertex {
-                position: particle.position,
-                tex_coord: Vector2::new(1.0, 1.0),
-                size: particle.size,
-                rotation: particle.rotation,
-                color: linear_color,
-            });
-
-            draw_data.vertices.push(Vertex {
-                position: particle.position,
-                tex_coord: Vector2::new(0.0, 1.0),
-                size: particle.size,
-                rotation: particle.rotation,
-                color: linear_color,
-            });
-
-            let base_index = (i * 4) as u32;
-
-            draw_data.triangles.push(TriangleDefinition([
-                base_index,
-                base_index + 1,
-                base_index + 2,
-            ]));
-            draw_data.triangles.push(TriangleDefinition([
-                base_index,
-                base_index + 2,
-                base_index + 3,
-            ]));
-        }
+    /// Sets the new material for the particle system.
+    pub fn set_material(&mut self, material: SharedMaterial) -> SharedMaterial {
+        self.material.set_value_and_mark_modified(material)
     }
 
-    /// Sets new texture for particle system.
-    pub fn set_texture(&mut self, texture: Option<TextureResource>) -> Option<TextureResource> {
-        self.texture.set_value_and_mark_modified(texture)
+    /// Returns current material used by particle system.
+    pub fn texture(&self) -> SharedMaterial {
+        (*self.material).clone()
     }
 
-    /// Returns current texture used by particle system.
-    pub fn texture(&self) -> Option<TextureResource> {
-        (*self.texture).clone()
-    }
-
-    /// Returns current texture used by particle system by ref.
-    pub fn texture_ref(&self) -> Option<&TextureResource> {
-        self.texture.as_ref()
+    /// Returns current material used by particle system by ref.
+    pub fn texture_ref(&self) -> &SharedMaterial {
+        &self.material
     }
 
     fn tick(&mut self, dt: f32) {
@@ -494,6 +466,109 @@ impl NodeTrait for ParticleSystem {
             self.tick(dt);
         }
     }
+
+    fn collect_render_data(&self, ctx: &mut RenderContext) {
+        if !self.global_visibility()
+            || !self.is_globally_enabled()
+            || !ctx.frustum.is_intersects_aabb(&self.world_bounding_box())
+        {
+            return;
+        }
+
+        if renderer::is_shadow_pass(ctx.render_pass_name) && !self.cast_shadows() {
+            return;
+        }
+
+        let mut sorted_particles = Vec::new();
+        for (i, particle) in self.particles.iter().enumerate() {
+            if particle.alive {
+                let actual_position = particle.position + self.base.global_position();
+                particle
+                    .sqr_distance_to_camera
+                    .set((*ctx.observer_position - actual_position).norm_squared());
+                sorted_particles.push(i as u32);
+            }
+        }
+
+        let particles = &self.particles;
+
+        sorted_particles.sort_by(|a, b| {
+            let particle_a = particles.get(*a as usize).unwrap();
+            let particle_b = particles.get(*b as usize).unwrap();
+
+            // Reverse ordering because we want to sort back-to-front.
+            if particle_a.sqr_distance_to_camera < particle_b.sqr_distance_to_camera {
+                Ordering::Greater
+            } else if particle_a.sqr_distance_to_camera > particle_b.sqr_distance_to_camera {
+                Ordering::Less
+            } else {
+                Ordering::Equal
+            }
+        });
+
+        let global_transform = self.global_transform();
+
+        let vertices = sorted_particles.iter().flat_map(|particle_index| {
+            let particle = self.particles.get(*particle_index as usize).unwrap();
+
+            let position = global_transform
+                .transform_point(&Point3::from(particle.position))
+                .coords;
+
+            let linear_color = particle.color.srgb_to_linear();
+
+            [
+                Vertex {
+                    position,
+                    tex_coord: Vector2::default(),
+                    size: particle.size,
+                    rotation: particle.rotation,
+                    color: linear_color,
+                },
+                Vertex {
+                    position,
+                    tex_coord: Vector2::new(1.0, 0.0),
+                    size: particle.size,
+                    rotation: particle.rotation,
+                    color: linear_color,
+                },
+                Vertex {
+                    position,
+                    tex_coord: Vector2::new(1.0, 1.0),
+                    size: particle.size,
+                    rotation: particle.rotation,
+                    color: linear_color,
+                },
+                Vertex {
+                    position,
+                    tex_coord: Vector2::new(0.0, 1.0),
+                    size: particle.size,
+                    rotation: particle.rotation,
+                    color: linear_color,
+                },
+            ]
+        });
+
+        let triangles = (0..sorted_particles.len()).flat_map(|i| {
+            let base_index = (i * 4) as u32;
+
+            [
+                TriangleDefinition([base_index, base_index + 1, base_index + 2]),
+                TriangleDefinition([base_index, base_index + 2, base_index + 3]),
+            ]
+        });
+
+        ctx.storage.push_triangles(
+            vertices,
+            triangles,
+            &self.material,
+            RenderPath::Forward,
+            0,
+            0,
+            false,
+            self.self_handle,
+        )
+    }
 }
 
 /// Particle system builder allows you to construct particle system in declarative manner.
@@ -501,11 +576,10 @@ impl NodeTrait for ParticleSystem {
 pub struct ParticleSystemBuilder {
     base_builder: BaseBuilder,
     emitters: Vec<Emitter>,
-    texture: Option<TextureResource>,
+    material: SharedMaterial,
     acceleration: Vector3<f32>,
     particles: Vec<Particle>,
     color_over_lifetime: ColorGradient,
-    soft_boundary_sharpness_factor: f32,
     is_playing: bool,
     rng: ParticleSystemRng,
 }
@@ -516,11 +590,10 @@ impl ParticleSystemBuilder {
         Self {
             base_builder,
             emitters: Default::default(),
-            texture: None,
+            material: SharedMaterial::new(Material::standard_particle_system()),
             particles: Default::default(),
             acceleration: Vector3::new(0.0, -9.81, 0.0),
             color_over_lifetime: Default::default(),
-            soft_boundary_sharpness_factor: 2.5,
             is_playing: true,
             rng: ParticleSystemRng::default(),
         }
@@ -532,21 +605,9 @@ impl ParticleSystemBuilder {
         self
     }
 
-    /// Sets desired texture for particle system.
-    pub fn with_texture(mut self, texture: TextureResource) -> Self {
-        self.texture = Some(texture);
-        self
-    }
-
-    /// Sets desired texture for particle system.
-    pub fn with_opt_texture(mut self, texture: Option<TextureResource>) -> Self {
-        self.texture = texture;
-        self
-    }
-
-    /// Sets desired soft boundary sharpness factor.
-    pub fn with_soft_boundary_sharpness_factor(mut self, factor: f32) -> Self {
-        self.soft_boundary_sharpness_factor = factor;
+    /// Sets desired material for particle system.
+    pub fn with_material(mut self, material: SharedMaterial) -> Self {
+        self.material = material;
         self
     }
 
@@ -587,10 +648,9 @@ impl ParticleSystemBuilder {
             particles: self.particles,
             free_particles: Vec::new(),
             emitters: self.emitters.into(),
-            texture: self.texture.into(),
+            material: self.material.into(),
             acceleration: self.acceleration.into(),
             color_over_lifetime: self.color_over_lifetime.into(),
-            soft_boundary_sharpness_factor: self.soft_boundary_sharpness_factor.into(),
             is_playing: self.is_playing.into(),
             rng: self.rng,
         }
