@@ -120,7 +120,10 @@ fn copy_layer_masks(terrain: &Terrain, layer: usize) -> Vec<Vec<u8>> {
     let mut masks = Vec::new();
 
     for chunk in terrain.chunks_ref() {
-        masks.push(chunk.layer_masks[layer].data_ref().data().to_vec());
+        match chunk.layer_masks.get(layer) {
+            Some(mask) => masks.push(mask.data_ref().data().to_vec()),
+            None => Log::err("layer index out of range"),
+        }
     }
 
     masks
