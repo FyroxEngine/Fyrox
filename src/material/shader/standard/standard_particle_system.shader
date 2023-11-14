@@ -1,5 +1,5 @@
 (
-    name: "Standard2DShader",
+    name: "StandardParticleSystemShader",
 
     properties: [
         (
