@@ -95,6 +95,12 @@ impl ImmutableString {
     }
 }
 
+impl From<&str> for ImmutableString {
+    fn from(value: &str) -> Self {
+        Self::new(value)
+    }
+}
+
 impl Deref for ImmutableString {
     type Target = str;
 
