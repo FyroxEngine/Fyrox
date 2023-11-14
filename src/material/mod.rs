@@ -9,6 +9,7 @@ use crate::{
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,
+        log::Log,
         parking_lot::{Mutex, MutexGuard},
         reflect::prelude::*,
         sstorage::ImmutableString,
@@ -18,10 +19,9 @@ use crate::{
     resource::texture::{Texture, TextureResource},
 };
 use fxhash::FxHashMap;
-use fyrox_core::log::Log;
-use std::hash::{Hash, Hasher};
 use std::{
     fmt::{Display, Formatter},
+    hash::{Hash, Hasher},
     ops::Deref,
     sync::Arc,
 };
@@ -677,6 +677,22 @@ impl Material {
                 property_name: name.deref().to_owned(),
             })
         }
+    }
+
+    /// Sets a value for sampler at the given name. It is a shortcut for [`Self::set_property`]
+    /// method with [`PropertyValue::Sampler`] and [`SamplerFallback::White`].
+    pub fn set_texture(
+        &mut self,
+        name: &ImmutableString,
+        texture: Option<TextureResource>,
+    ) -> Result<(), MaterialError> {
+        self.set_property(
+            name,
+            PropertyValue::Sampler {
+                value: texture,
+                fallback: SamplerFallback::White,
+            },
+        )
     }
 
     /// Adds missing properties with default values, removes non-existent properties. Does not modify any existing
