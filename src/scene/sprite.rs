@@ -87,46 +87,55 @@ impl VertexTrait for SpriteVertex {
     }
 }
 
-/// Sprite is a billboard which always faces towards camera. It can be used as a "model" for bullets, and so on.
-///
-/// # Implementation details
-///
-/// Sprite is just a ready-to-use mesh with special material that ensures that the orientation of the faces
-/// in the mesh is always on camera. Nothing stops you from implementing this manually using [Mesh](super::mesh::Mesh),
-/// it could be done by using Forward render pass. You may need this for custom effects. Current implementation
-/// is very simple, but still covers 95% of use cases.
+/// Sprite is a billboard which always faces towards camera. It can be used as a "model" for bullets,
+/// and so on.
 ///
 /// # Depth sorting
 ///
-/// Sprites are **not** depth-sorted so there could be some blending issues if multiple sprites are stacked one behind
-/// another.
+/// Sprites are **not** depth-sorted so there could be some blending issues if multiple sprites are
+/// stacked one behind another.
 ///
 /// # Performance
 ///
-/// Huge amount of sprites may cause performance issues, also you should not use sprites to make particle systems,
-/// use [ParticleSystem](super::particle_system::ParticleSystem) instead.
+/// Sprites rendering uses batching to reduce amount of draw calls - it basically merges multiple
+/// sprites with the same material into one mesh and renders it in a single draw call which is quite
+/// fast and can handle tens of thousands sprites with ease. You should not, however, use sprites to
+/// make particle systems, use [ParticleSystem](super::particle_system::ParticleSystem) instead.
 ///
 /// # Example
 ///
-/// ```rust
-/// use fyrox::{
-///     scene::{
-///         node::Node,
-///         sprite::SpriteBuilder,
-///         base::BaseBuilder,
-///         graph::Graph
-///     },
-///     asset::manager::ResourceManager,
-///     core::pool::{Handle},
-/// };
-/// use fyrox::resource::texture::Texture;
+/// The following example creates a new sprite node with a material, that uses a simple smoke
+/// texture:
 ///
+/// ```rust
+/// # use fyrox::{
+/// #     asset::manager::ResourceManager,
+/// #     core::pool::Handle,
+/// #     material::{Material, SharedMaterial},
+/// #     resource::texture::Texture,
+/// #     scene::{base::BaseBuilder, graph::Graph, node::Node, sprite::SpriteBuilder},
+/// # };
+/// #
 /// fn create_smoke(resource_manager: ResourceManager, graph: &mut Graph) -> Handle<Node> {
+///     let mut material = Material::standard_sprite();
+///
+///     material
+///         .set_texture(
+///             &"smoke.png".into(),
+///             Some(resource_manager.request::<Texture, _>("smoke.png")),
+///         )
+///         .unwrap();
+///
 ///     SpriteBuilder::new(BaseBuilder::new())
-///         .with_texture(resource_manager.request::<Texture, _>("smoke.png"))
+///         .with_material(SharedMaterial::new(material))
 ///         .build(graph)
 /// }
 /// ```
+///
+/// Keep in mind, that this example creates new material instance each call of the method and
+/// **does not** reuse it. Ideally, you should reuse the shared material across multiple instances
+/// to get best possible performance. Otherwise, each your sprite will be put in a separate batch
+/// which will force your GPU to render a single sprite in dedicated draw call which is quite slow.
 #[derive(Debug, Reflect, Clone)]
 pub struct Sprite {
     base: Base,
@@ -243,12 +252,12 @@ impl Sprite {
         *self.rotation
     }
 
-    /// Returns a reference to the current material used by the rectangle.
+    /// Returns a reference to the current material used by the sprite.
     pub fn material(&self) -> &InheritableVariable<SharedMaterial> {
         &self.material
     }
 
-    /// Returns a reference to the current material used by the rectangle.
+    /// Returns a reference to the current material used by the sprite.
     pub fn material_mut(&mut self) -> &mut InheritableVariable<SharedMaterial> {
         &mut self.material
     }
@@ -369,14 +378,14 @@ impl SpriteBuilder {
         }
     }
 
-    /// Sets desired portion of the texture for the rectangle. See [`Rectangle::set_uv_rect`]
+    /// Sets desired portion of the texture for the sprite. See [`Sprite::set_uv_rect`]
     /// for more info.
     pub fn with_uv_rect(mut self, uv_rect: Rect<f32>) -> Self {
         self.uv_rect = uv_rect;
         self
     }
 
-    /// Sets the desired material of the rectangle.
+    /// Sets the desired material of the sprite.
     pub fn with_material(mut self, material: SharedMaterial) -> Self {
         self.material = material;
         self
