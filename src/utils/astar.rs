@@ -390,7 +390,7 @@ impl<T: VertexDataProvider> Graph<T> {
         path.clear();
 
         if self.vertices.is_empty() {
-            return Ok(PathKind::Partial);
+            return Err(PathError::Empty);
         }
 
         let end_pos = self
@@ -549,6 +549,7 @@ impl<T: VertexDataProvider> Graph<T> {
 #[cfg(test)]
 mod test {
     use crate::rand::Rng;
+    use crate::utils::astar::PathError;
     use crate::{
         core::{algebra::Vector3, rand},
         utils::astar::{Graph, GraphVertex, PathKind},
@@ -560,7 +561,9 @@ mod test {
         let mut pathfinder = Graph::<GraphVertex>::new();
 
         let mut path = Vec::new();
-        assert!(pathfinder.build_positional_path(0, 0, &mut path).is_ok());
+        assert!(pathfinder
+            .build_positional_path(0, 0, &mut path)
+            .is_err_and(|e| matches!(e, PathError::Empty)));
         assert!(path.is_empty());
 
         let size = 40;
@@ -576,7 +579,7 @@ mod test {
 
         assert!(pathfinder
             .build_positional_path(100000, 99999, &mut path)
-            .is_err());
+            .is_err_and(|e| matches!(e, PathError::InvalidIndex(_))));
 
         // Link vertices as grid.
         for y in 0..(size - 1) {
@@ -823,13 +826,6 @@ mod test {
             assert!(!path.is_empty());
 
             if path.len() > 1 {
-                // partial path should be along the divide and at the same y height as end point
-                // let best_end = ty * size + ((size / 2) - 1);
-                // assert_eq!(
-                //     *path.first().unwrap(),
-                //     pathfinder.vertex(best_end).unwrap().position
-                // );
-
                 // partial path should be along the divide
                 assert_eq!(path.first().unwrap().x as i32, ((size / 2) - 1) as i32);
                 // start point should be start point
