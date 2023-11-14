@@ -39,6 +39,7 @@ use crate::{
     utils::{uvgen, uvgen::SurfaceDataPatch},
 };
 use fxhash::FxHashMap;
+use fyrox_resource::ResourceStateRef;
 use rayon::prelude::*;
 use std::{
     fmt::{Display, Formatter},
@@ -360,14 +361,17 @@ impl LightmapInputData {
                 let global_transform = mesh.global_transform();
                 'surface_loop: for surface in mesh.surfaces() {
                     // Check material for compatibility.
-                    let material = surface.material().lock();
-                    if !material
-                        .properties()
-                        .get(&ImmutableString::new("lightmapTexture"))
-                        .map(|v| matches!(v, PropertyValue::Sampler { .. }))
-                        .unwrap_or_default()
-                    {
-                        continue 'surface_loop;
+
+                    let material_state = surface.material().state();
+                    if let ResourceStateRef::Ok(material) = material_state.get() {
+                        if !material
+                            .properties()
+                            .get(&ImmutableString::new("lightmapTexture"))
+                            .map(|v| matches!(v, PropertyValue::Sampler { .. }))
+                            .unwrap_or_default()
+                        {
+                            continue 'surface_loop;
+                        }
                     }
 
                     // Gather unique "list" of surface data to generate UVs for.

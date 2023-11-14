@@ -42,7 +42,7 @@ use fyrox::{
     },
     material::{
         shader::{Shader, ShaderResource},
-        SharedMaterial,
+        MaterialResource,
     },
     renderer::framework::state::PolygonFillMode,
     resource::{
@@ -140,7 +140,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(MaterialPropertyEditorDefinition {
         sender: Mutex::new(sender.clone()),
     });
-    container.insert(InheritablePropertyEditorDefinition::<SharedMaterial>::new());
+    container.insert(InheritablePropertyEditorDefinition::<MaterialResource>::new());
 
     container.register_inheritable_vec_collection::<Handle<Node>>();
     container.insert(NodeHandlePropertyEditorDefinition::new(sender.clone()));

@@ -14,7 +14,7 @@ use fyrox::{
     engine::{executor::Executor, GraphicsContextParams},
     event::{ElementState, Event, WindowEvent},
     event_loop::EventLoop,
-    material::{Material, PropertyValue, SharedMaterial},
+    material::{Material, MaterialResource, PropertyValue},
     plugin::{Plugin, PluginConstructor, PluginContext},
     resource::texture::Texture,
     scene::{
@@ -58,7 +58,7 @@ impl SceneLoader {
                 },
             )
             .unwrap();
-        let material = SharedMaterial::new(material);
+        let material = MaterialResource::new(material);
 
         // Add some sprites.
         for y in 0..10 {

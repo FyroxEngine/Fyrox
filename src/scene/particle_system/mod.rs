@@ -14,7 +14,7 @@ use crate::{
         visitor::prelude::*,
         TypeUuidProvider,
     },
-    material::{shader::SamplerFallback, Material, PropertyValue, SharedMaterial},
+    material::{shader::SamplerFallback, Material, MaterialResource, PropertyValue},
     rand::{prelude::StdRng, Error, RngCore, SeedableRng},
     renderer::{self, batch::RenderContext},
     resource::texture::TextureResource,
@@ -142,7 +142,7 @@ impl Visit for ParticleSystemRng {
 /// #         color_gradient::{ColorGradient, GradientPoint},
 /// #         sstorage::ImmutableString,
 /// #     },
-/// #     material::{Material, PropertyValue, SharedMaterial},
+/// #     material::{Material, PropertyValue, MaterialResource},
 /// #     resource::texture::Texture,
 /// #     scene::{
 /// #         base::BaseBuilder,
@@ -201,7 +201,7 @@ impl Visit for ParticleSystemRng {
 ///     )
 ///     .with_radius(0.01)
 ///     .build()])
-///     .with_material(SharedMaterial::new(material))
+///     .with_material(MaterialResource::new(material))
 ///     .build(graph);
 /// }
 /// ```
@@ -213,7 +213,7 @@ pub struct ParticleSystem {
     pub emitters: InheritableVariable<Vec<Emitter>>,
 
     #[reflect(setter = "set_material")]
-    material: InheritableVariable<SharedMaterial>,
+    material: InheritableVariable<MaterialResource>,
 
     #[reflect(setter = "set_acceleration")]
     acceleration: InheritableVariable<Vector3<f32>>,
@@ -260,7 +260,7 @@ impl Visit for ParticleSystem {
                     },
                 )
                 .unwrap();
-            self.material = SharedMaterial::new(material).into();
+            self.material = MaterialResource::new_ok(material).into();
         } else {
             self.material.visit(name, &mut region)?;
         }
@@ -271,7 +271,7 @@ impl Visit for ParticleSystem {
             .is_ok()
         {
             self.material
-                .lock()
+                .data_ref()
                 .set_property(
                     &ImmutableString::new("softBoundarySharpnessFactor"),
                     PropertyValue::Float(soft_boundary_sharpness_factor),
@@ -355,17 +355,17 @@ impl ParticleSystem {
     }
 
     /// Sets the new material for the particle system.
-    pub fn set_material(&mut self, material: SharedMaterial) -> SharedMaterial {
+    pub fn set_material(&mut self, material: MaterialResource) -> MaterialResource {
         self.material.set_value_and_mark_modified(material)
     }
 
     /// Returns current material used by particle system.
-    pub fn texture(&self) -> SharedMaterial {
+    pub fn texture(&self) -> MaterialResource {
         (*self.material).clone()
     }
 
     /// Returns current material used by particle system by ref.
-    pub fn texture_ref(&self) -> &SharedMaterial {
+    pub fn texture_ref(&self) -> &MaterialResource {
         &self.material
     }
 
@@ -576,7 +576,7 @@ impl NodeTrait for ParticleSystem {
 pub struct ParticleSystemBuilder {
     base_builder: BaseBuilder,
     emitters: Vec<Emitter>,
-    material: SharedMaterial,
+    material: MaterialResource,
     acceleration: Vector3<f32>,
     particles: Vec<Particle>,
     color_over_lifetime: ColorGradient,
@@ -590,7 +590,7 @@ impl ParticleSystemBuilder {
         Self {
             base_builder,
             emitters: Default::default(),
-            material: SharedMaterial::new(Material::standard_particle_system()),
+            material: MaterialResource::new_ok(Material::standard_particle_system()),
             particles: Default::default(),
             acceleration: Vector3::new(0.0, -9.81, 0.0),
             color_over_lifetime: Default::default(),
@@ -606,7 +606,7 @@ impl ParticleSystemBuilder {
     }
 
     /// Sets desired material for particle system.
-    pub fn with_material(mut self, material: SharedMaterial) -> Self {
+    pub fn with_material(mut self, material: MaterialResource) -> Self {
         self.material = material;
         self
     }

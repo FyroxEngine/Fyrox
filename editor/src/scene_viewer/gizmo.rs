@@ -7,7 +7,7 @@ use fyrox::{
         sstorage::ImmutableString,
     },
     engine::Engine,
-    material::{Material, PropertyValue, SharedMaterial},
+    material::{Material, MaterialResource, PropertyValue},
     resource::texture::{TextureResource, TextureResourceExtension},
     scene::{
         base::BaseBuilder,
@@ -64,7 +64,7 @@ fn make_cone(transform: Matrix4<f32>, color: Color, graph: &mut Graph) -> Handle
         .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
             SurfaceData::make_cone(16, 0.3, 1.0, &transform),
         ))
-        .with_material(SharedMaterial::new(material))
+        .with_material(MaterialResource::new(material))
         .build()])
         .build(graph)
 }

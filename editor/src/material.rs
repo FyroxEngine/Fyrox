@@ -39,7 +39,7 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
-    material::{shader::Shader, PropertyValue, SharedMaterial},
+    material::{shader::Shader, MaterialResource, PropertyValue},
     resource::texture::Texture,
     scene::{
         base::BaseBuilder,
@@ -87,7 +87,7 @@ pub struct MaterialEditor {
     properties_panel: Handle<UiNode>,
     properties: BiDirHashMap<ImmutableString, Handle<UiNode>>,
     preview: PreviewPanel,
-    material: Option<SharedMaterial>,
+    material: Option<MaterialResource>,
     shader: Handle<UiNode>,
     texture_context_menu: TextureContextMenu,
 }
@@ -323,7 +323,7 @@ impl MaterialEditor {
         }
     }
 
-    pub fn set_material(&mut self, material: Option<SharedMaterial>, engine: &mut Engine) {
+    pub fn set_material(&mut self, material: Option<MaterialResource>, engine: &mut Engine) {
         self.material = material;
 
         if let Some(material) = self.material.clone() {

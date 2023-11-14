@@ -26,6 +26,7 @@ use crate::{
     scene::graph::Graph,
 };
 use fyrox_core::math::Matrix4Ext;
+use fyrox_resource::ResourceStateRef;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct SpotShadowMapRenderer {
@@ -164,66 +165,68 @@ impl SpotShadowMapRenderer {
         let camera_side = inv_view.side();
 
         for batch in batches.batches.iter() {
-            let material = batch.material.lock();
-            let geometry = geom_cache.get(state, &batch.data, batch.time_to_live);
-            let blend_shapes_storage = batch
-                .data
-                .lock()
-                .blend_shapes_container
-                .as_ref()
-                .and_then(|c| c.blend_shape_storage.clone());
+            let material_state = batch.material.state();
+            if let ResourceStateRef::Ok(material) = material_state.get() {
+                let geometry = geom_cache.get(state, &batch.data, batch.time_to_live);
+                let blend_shapes_storage = batch
+                    .data
+                    .lock()
+                    .blend_shapes_container
+                    .as_ref()
+                    .and_then(|c| c.blend_shape_storage.clone());
 
-            if let Some(render_pass) = shader_cache
-                .get(state, material.shader())
-                .and_then(|shader_set| shader_set.render_passes.get(&SPOT_SHADOW_PASS_NAME))
-            {
-                for instance in batch.instances.iter() {
-                    statistics += framebuffer.draw(
-                        geometry,
-                        state,
-                        viewport,
-                        &render_pass.program,
-                        &DrawParameters {
-                            cull_face: Some(CullFace::Back),
-                            color_write: ColorMask::all(false),
-                            depth_write: true,
-                            stencil_test: None,
-                            depth_test: true,
-                            blend: None,
-                            stencil_op: Default::default(),
-                        },
-                        instance.element_range,
-                        |mut program_binding| {
-                            apply_material(MaterialContext {
-                                material: &material,
-                                program_binding: &mut program_binding,
-                                texture_cache,
-                                matrix_storage,
-                                world_matrix: &instance.world_transform,
-                                view_projection_matrix: &light_view_projection,
-                                wvp_matrix: &(light_view_projection * instance.world_transform),
-                                bone_matrices: &instance.bone_matrices,
-                                use_skeletal_animation: batch.is_skinned,
-                                camera_position: &Default::default(),
-                                camera_up_vector: &camera_up,
-                                camera_side_vector: &camera_side,
-                                z_near,
-                                use_pom: false,
-                                light_position: &Default::default(),
-                                blend_shapes_storage: blend_shapes_storage.as_ref(),
-                                blend_shapes_weights: &instance.blend_shapes_weights,
-                                normal_dummy: normal_dummy.clone(),
-                                white_dummy: white_dummy.clone(),
-                                black_dummy: black_dummy.clone(),
-                                volume_dummy: volume_dummy.clone(),
-                                persistent_identifier: instance.persistent_identifier,
-                                light_data: None,            // TODO
-                                ambient_light: Color::WHITE, // TODO
-                                scene_depth: None,
-                                z_far,
-                            });
-                        },
-                    )?;
+                if let Some(render_pass) = shader_cache
+                    .get(state, material.shader())
+                    .and_then(|shader_set| shader_set.render_passes.get(&SPOT_SHADOW_PASS_NAME))
+                {
+                    for instance in batch.instances.iter() {
+                        statistics += framebuffer.draw(
+                            geometry,
+                            state,
+                            viewport,
+                            &render_pass.program,
+                            &DrawParameters {
+                                cull_face: Some(CullFace::Back),
+                                color_write: ColorMask::all(false),
+                                depth_write: true,
+                                stencil_test: None,
+                                depth_test: true,
+                                blend: None,
+                                stencil_op: Default::default(),
+                            },
+                            instance.element_range,
+                            |mut program_binding| {
+                                apply_material(MaterialContext {
+                                    material: &material,
+                                    program_binding: &mut program_binding,
+                                    texture_cache,
+                                    matrix_storage,
+                                    world_matrix: &instance.world_transform,
+                                    view_projection_matrix: &light_view_projection,
+                                    wvp_matrix: &(light_view_projection * instance.world_transform),
+                                    bone_matrices: &instance.bone_matrices,
+                                    use_skeletal_animation: batch.is_skinned,
+                                    camera_position: &Default::default(),
+                                    camera_up_vector: &camera_up,
+                                    camera_side_vector: &camera_side,
+                                    z_near,
+                                    use_pom: false,
+                                    light_position: &Default::default(),
+                                    blend_shapes_storage: blend_shapes_storage.as_ref(),
+                                    blend_shapes_weights: &instance.blend_shapes_weights,
+                                    normal_dummy: normal_dummy.clone(),
+                                    white_dummy: white_dummy.clone(),
+                                    black_dummy: black_dummy.clone(),
+                                    volume_dummy: volume_dummy.clone(),
+                                    persistent_identifier: instance.persistent_identifier,
+                                    light_data: None,            // TODO
+                                    ambient_light: Color::WHITE, // TODO
+                                    scene_depth: None,
+                                    z_far,
+                                });
+                            },
+                        )?;
+                    }
                 }
             }
         }

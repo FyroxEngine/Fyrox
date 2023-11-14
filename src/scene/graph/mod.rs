@@ -36,7 +36,7 @@ use crate::{
         variable::try_inherit_properties,
         visitor::{Visit, VisitResult, Visitor},
     },
-    material::{shader::SamplerFallback, PropertyValue, SharedMaterial},
+    material::{shader::SamplerFallback, MaterialResource, PropertyValue},
     resource::model::{ModelResource, ModelResourceExtension, NodeMapping},
     scene::mesh::buffer::{
         VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage, VertexWriteTrait,
@@ -62,6 +62,7 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_core::variable;
+use fyrox_resource::ResourceStateRefMut;
 use rapier3d::geometry::ColliderHandle;
 use std::{
     any::Any,
@@ -950,7 +951,7 @@ impl Graph {
                                         node_reflect,
                                         resource_node_reflect,
                                         // Do not try to inspect materials, because it most likely cause a deadlock.
-                                        &[std::any::TypeId::of::<SharedMaterial>()],
+                                        &[std::any::TypeId::of::<MaterialResource>()],
                                     ));
                                 })
                             })
@@ -1203,7 +1204,7 @@ impl Graph {
         let mut materials = FxHashSet::default();
         for node in self.linear_iter_mut() {
             (node as &mut dyn Reflect).enumerate_fields_recursively(&mut |_, _, v| {
-                v.downcast_ref::<SharedMaterial>(&mut |material| {
+                v.downcast_ref::<MaterialResource>(&mut |material| {
                     if let Some(material) = material {
                         materials.insert(material.clone());
                     }
@@ -1212,7 +1213,10 @@ impl Graph {
         }
 
         for material in materials {
-            material.lock().sync_to_shader(resource_manager);
+            let mut material_state = material.state();
+            if let ResourceStateRefMut::Ok(material) = material_state.get_mut() {
+                material.sync_to_shader(resource_manager);
+            }
         }
 
         self.apply_lightmap();
@@ -1233,20 +1237,23 @@ impl Graph {
                     // This unwrap() call must never panic in normal conditions, because texture wrapped in Option
                     // only to implement Default trait to be serializable.
                     let texture = entry.texture.clone().unwrap();
-                    if let Err(e) = surface.material().lock().set_property(
-                        &ImmutableString::new("lightmapTexture"),
-                        PropertyValue::Sampler {
-                            value: Some(texture),
-                            fallback: SamplerFallback::Black,
-                        },
-                    ) {
-                        Log::writeln(
-                            MessageKind::Error,
-                            format!(
-                                "Failed to apply light map texture to material. Reason {:?}",
-                                e
-                            ),
-                        )
+                    let mut material_state = surface.material().state();
+                    if let ResourceStateRefMut::Ok(material) = material_state.get_mut() {
+                        if let Err(e) = material.set_property(
+                            &ImmutableString::new("lightmapTexture"),
+                            PropertyValue::Sampler {
+                                value: Some(texture),
+                                fallback: SamplerFallback::Black,
+                            },
+                        ) {
+                            Log::writeln(
+                                MessageKind::Error,
+                                format!(
+                                    "Failed to apply light map texture to material. Reason {:?}",
+                                    e
+                                ),
+                            )
+                        }
                     }
                 }
             }
@@ -1331,20 +1338,23 @@ impl Graph {
             for (&handle, entries) in lightmap.map.iter_mut() {
                 if let Some(mesh) = self.pool[handle].cast_mut::<Mesh>() {
                     for (entry, surface) in entries.iter_mut().zip(mesh.surfaces_mut()) {
-                        if let Err(e) = surface.material().lock().set_property(
-                            &ImmutableString::new("lightmapTexture"),
-                            PropertyValue::Sampler {
-                                value: entry.texture.clone(),
-                                fallback: SamplerFallback::Black,
-                            },
-                        ) {
-                            Log::writeln(
-                                MessageKind::Error,
-                                format!(
+                        let mut material_state = surface.material().state();
+                        if let ResourceStateRefMut::Ok(material) = material_state.get_mut() {
+                            if let Err(e) = material.set_property(
+                                &ImmutableString::new("lightmapTexture"),
+                                PropertyValue::Sampler {
+                                    value: entry.texture.clone(),
+                                    fallback: SamplerFallback::Black,
+                                },
+                            ) {
+                                Log::writeln(
+                                    MessageKind::Error,
+                                    format!(
                                     "Failed to apply light map texture to material. Reason {:?}",
                                     e
                                 ),
-                            )
+                                )
+                            }
                         }
                     }
                 }

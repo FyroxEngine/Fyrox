@@ -5,25 +5,27 @@
 #![warn(missing_docs)]
 
 use crate::{
-    asset::{manager::ResourceManager, ResourceStateRef},
+    asset::{manager::ResourceManager, Resource, ResourceData, ResourceStateRef},
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,
         log::Log,
-        parking_lot::{Mutex, MutexGuard},
         reflect::prelude::*,
         sstorage::ImmutableString,
+        uuid::{uuid, Uuid},
         visitor::prelude::*,
+        TypeUuidProvider,
     },
     material::shader::{PropertyKind, SamplerFallback, ShaderResource, ShaderResourceExtension},
     resource::texture::{Texture, TextureResource},
 };
 use fxhash::FxHashMap;
 use std::{
+    any::Any,
+    borrow::Cow,
     fmt::{Display, Formatter},
-    hash::{Hash, Hasher},
     ops::Deref,
-    sync::Arc,
+    path::{Path, PathBuf},
 };
 
 pub mod shader;
@@ -387,10 +389,50 @@ impl Default for PropertyValue {
 /// As you can see it is only a bit more hard that with the standard shader. The main difference here is
 /// that we using resource manager to get shader instance and the we just use the instance to create
 /// material instance. Then we populate properties as usual.
-#[derive(Default, Debug, Visit, Clone, Reflect)]
+#[derive(Debug, Visit, Clone, Reflect)]
 pub struct Material {
+    #[visit(optional)]
+    path: PathBuf,
     shader: ShaderResource,
     properties: FxHashMap<ImmutableString, PropertyValue>,
+}
+
+impl Default for Material {
+    fn default() -> Self {
+        Material::standard()
+    }
+}
+
+impl TypeUuidProvider for Material {
+    fn type_uuid() -> Uuid {
+        uuid!("0e54fe44-0c58-4108-a681-d6eefc88c234")
+    }
+}
+
+impl ResourceData for Material {
+    fn path(&self) -> Cow<Path> {
+        Cow::Borrowed(&self.path)
+    }
+
+    fn set_path(&mut self, path: PathBuf) {
+        self.path = path;
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn type_uuid(&self) -> Uuid {
+        <Self as TypeUuidProvider>::type_uuid()
+    }
+
+    fn is_procedural(&self) -> bool {
+        false
+    }
 }
 
 /// A set of possible errors that can occur when working with materials.
@@ -540,6 +582,7 @@ impl Material {
         drop(data);
 
         Self {
+            path: Default::default(),
             shader,
             properties: property_values,
         }
@@ -767,61 +810,21 @@ impl Material {
 /// Shared material is also tells a renderer that this material can be used for efficient rendering -
 /// the renderer will be able to optimize rendering when it knows that multiple objects share the
 /// same material.
-#[derive(Reflect, Clone, Debug)]
-pub struct SharedMaterial(Arc<Mutex<Material>>);
+pub type MaterialResource = Resource<Material>;
 
-impl Default for SharedMaterial {
-    fn default() -> Self {
-        Self::new(Material::standard())
-    }
+pub trait MaterialResourceExtension {
+    fn deep_copy(&self) -> MaterialResource;
 }
 
-impl PartialEq for SharedMaterial {
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
-    }
-}
-
-impl Eq for SharedMaterial {}
-
-impl Hash for SharedMaterial {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        let ptr_num = &*self.0 as *const _ as u64;
-        ptr_num.hash(state);
-    }
-}
-
-impl Visit for SharedMaterial {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.0.visit(name, visitor)
-    }
-}
-
-impl SharedMaterial {
-    /// Creates new shared material from a material instance.
-    pub fn new(material: Material) -> Self {
-        Self(Arc::new(Mutex::new(material)))
-    }
-
-    /// Provides access to inner material.
-    pub fn lock(&self) -> MutexGuard<'_, Material> {
-        self.0.lock()
-    }
-
-    /// Returns unique id of the material. The id is not stable across multiple runs of an application!
-    pub fn key(&self) -> u64 {
-        &*self.0 as *const _ as u64
-    }
-
-    /// Returns total use count of the material.
-    pub fn use_count(&self) -> usize {
-        Arc::strong_count(&self.0)
-    }
-
-    /// Creates a deep copy of shared material, making "unique" clone of the underlying material.
-    /// It is useful when you need to create unique version of a material and set its properties
-    /// to some specific values and assign it to an object.
-    pub fn deep_copy(&self) -> Self {
-        Self::new(self.0.lock().clone())
+impl MaterialResourceExtension for MaterialResource {
+    fn deep_copy(&self) -> MaterialResource {
+        let material_state = self.state();
+        match material_state.get() {
+            ResourceStateRef::Pending { path, .. } => MaterialResource::new_pending(path.clone()),
+            ResourceStateRef::LoadError { path, error, .. } => {
+                MaterialResource::new_load_error(path.clone(), error.clone())
+            }
+            ResourceStateRef::Ok(material) => MaterialResource::new_ok(material.clone()),
+        }
     }
 }
