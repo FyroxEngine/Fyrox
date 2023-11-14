@@ -112,7 +112,9 @@ impl Visit for GraphVertex {
 
 impl VertexDataProvider for GraphVertex {}
 
-/// See module docs.
+/// A collection of GraphVertices for pathfinding.
+///
+/// See module docs
 #[derive(Clone, Debug, Visit, PartialEq)]
 pub struct Graph<T>
 where
@@ -120,15 +122,28 @@ where
 {
     /// Vertices of the graph.
     pub vertices: Vec<T>,
+    /// The maximum iterations A* pathfinding will attempt before giving up and returning its best path.
+    ///
+    /// **Default:** 1000
+    ///
+    /// # Notes
+    /// A* is inefficent when its desired destination is isolated or it must backtrack a substantial distance before it may reach the goal.
+    /// Higher max iteration numbers will be required for huge graphs and graphs with many obstacles.
+    /// Whereas, lower max iterations may be desired for smaller simple graphs.
+    ///
+    /// **Negative numbers** disable max iterations
+    pub max_search_iterations: i32,
 }
 
 /// Shows path status.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum PathKind {
-    /// There is direct path from begin to end.
+    /// The path is direct path from begin to end.
     Full,
-    /// No direct path, only partial to closest reachable vertex to destination. Can
-    /// happen if there are isolated "islands" of graph vertices with no links between
+    /// The path is not a direct path from begin to end. Instead, it is a partial path ending  closest reachable vertex to destination.
+    ///
+    /// # Notes
+    /// Can happen if there are isolated "islands" of graph vertices with no links between
     /// them and you trying to find path from one "island" to other.
     Partial,
 }
@@ -160,6 +175,17 @@ pub enum PathError {
     /// There is a vertex that has itself as neighbour.
     CyclicReferenceFound(usize),
 
+    /// path vector is still valid and partial, but pathfinder hit its maximum search iterations and gave up.
+    ///
+    /// # Notes
+    ///
+    /// This most often means the desired destination is isolated, but a full path may exist. If a full path does exist you can:
+    /// - increase or disable max search iterations for this graph (at the cost of time).
+    /// - use a pathfinding algorithm that is better in these situations.
+    ///
+    /// See `Graph<T>.max_search_iterations` for more
+    HitMaxSearchIterations(i32),
+
     /// Graph was empty.
     Empty,
 }
@@ -172,6 +198,12 @@ impl Display for PathError {
             }
             PathError::CyclicReferenceFound(v) => {
                 write!(f, "Cyclical reference was found {v}.")
+            }
+            PathError::HitMaxSearchIterations(v) => {
+                write!(
+                    f,
+                    "Maximum search iterations ({v}) hit, returning with partial path."
+                )
             }
             PathError::Empty => {
                 write!(f, "Graph was empty")
@@ -255,6 +287,7 @@ impl<T: VertexDataProvider> Graph<T> {
     pub fn new() -> Self {
         Self {
             vertices: Default::default(),
+            max_search_iterations: 1000i32,
         }
     }
 
@@ -374,12 +407,16 @@ impl<T: VertexDataProvider> Graph<T> {
 
     /// Tries to build path of vertex indices from begin point to end point. Returns path kind:
     ///
-    /// - Full: there are direct path from begin to end.
-    /// - Partial: there are not direct path from begin to end, but it is closest.
+    /// - Full: Path vector is a direct path from begin to end.
+    /// - Partial: Path vector is a path that ends closest to desired end, because pathfinder could not find full path.
+    ///
+    /// *See `PathKind`*
     ///
     /// # Notes
     ///
     /// This implimentation is fast and allows for multiple searches in parallel, but does not attempt to find the optimal route
+    ///
+    /// **See `Graph<T>.max_search_iterations`** to change the maximum amount of search iterations
 
     pub fn build_indexed_path(
         &self,
@@ -418,8 +455,9 @@ impl<T: VertexDataProvider> Graph<T> {
         let mut best_path = PartialPath::default();
 
         // search loop
-        // TODO: don't hard code max search iterations
-        for _ in 0..1000 {
+        let mut search_iteration = 0i32;
+
+        while self.max_search_iterations < 0 || search_iteration < self.max_search_iterations {
             // breakes loop if heap is empty
             if search_heap.is_empty() {
                 break;
@@ -429,6 +467,10 @@ impl<T: VertexDataProvider> Graph<T> {
             let current_path = search_heap.pop().unwrap();
 
             let current_index = *current_path.vertices.last().unwrap();
+            let current_vertex = self
+                .vertices
+                .get(current_index)
+                .ok_or(PathError::InvalidIndex(current_index))?;
 
             // updates best path
             if current_path > best_path {
@@ -439,11 +481,6 @@ impl<T: VertexDataProvider> Graph<T> {
                     break;
                 }
             }
-
-            let current_vertex = self
-                .vertices
-                .get(current_index)
-                .ok_or(PathError::InvalidIndex(current_index))?;
 
             // evaluates path scores one level deeper and adds the paths to the heap
             for i in current_vertex.neighbours.iter() {
@@ -480,6 +517,8 @@ impl<T: VertexDataProvider> Graph<T> {
 
             //marks vertex as searched
             searched_vertices[current_index] = true;
+
+            search_iteration += 1;
         }
 
         // sets path to the best path of indices
@@ -488,19 +527,27 @@ impl<T: VertexDataProvider> Graph<T> {
 
         if *path.first().unwrap() == to {
             Ok(PathKind::Full)
+        } else if search_iteration == self.max_search_iterations - 1 {
+            Err(PathError::HitMaxSearchIterations(
+                self.max_search_iterations,
+            ))
         } else {
             Ok(PathKind::Partial)
         }
     }
 
-    /// Tries to build path of Vector3's from begin point to end point. Returns path kind:
+    /// Tries to build path of Vector3's from begin point to end point. eturns path kind:
     ///
-    /// - Full: there are direct path from begin to end.
-    /// - Partial: there are not direct path from begin to end, but it is closest.
+    /// - Full: Path vector is a direct path from begin to end.
+    /// - Partial: Path vector is a path that ends closest to desired end, because pathfinder could not find full path.
+    ///
+    /// *See `PathKind`*
     ///
     /// # Notes
     ///
     /// This implimentation is fast and allows for multiple searches in parallel, but does not attempt to find the optimal route
+    ///
+    /// **See `Graph<T>.max_search_iterations`** to change the maximum amount of search iterations
     pub fn build_positional_path(
         &self,
         from: usize,
@@ -527,14 +574,18 @@ impl<T: VertexDataProvider> Graph<T> {
 
     /// **Depreciated** *use **`Graph<T>.build_positional_path()`** instead*
     ///
-    /// Tries to build path from begin point to end point. Returns path kind:
+    /// eturns path kind:
     ///
-    /// - Full: there are direct path from begin to end.
-    /// - Partial: there are not direct path from begin to end, but it is closest.
+    /// - Full: Path vector is a direct path from begin to end.
+    /// - Partial: Path vector is a path that ends closest to desired end, because pathfinder could not find full path.
+    ///
+    /// *See `PathKind`*
     ///
     /// # Notes
     ///
-    /// calls `Graph<T>.build_positional_path()`
+    /// This implimentation is fast and allows for multiple searches in parallel, but does not attempt to find the optimal route
+    ///
+    /// **See `Graph<T>.max_search_iterations`** to change the maximum amount of search iterations
     #[deprecated = "name is too ambiguous use build_positional_path instead"]
     pub fn build(
         &self,
@@ -821,8 +872,10 @@ mod test {
 
             let path_result = pathfinder.build_positional_path(from, to, &mut path);
 
-            assert!(path_result.is_ok());
-            assert_eq!(path_result.unwrap(), PathKind::Partial);
+            let is_result_expected = path_result.as_ref().is_ok_and(|k| k.eq(&PathKind::Partial))
+                || path_result.is_err_and(|e| matches!(e, PathError::HitMaxSearchIterations(_)));
+
+            assert!(is_result_expected);
             assert!(!path.is_empty());
 
             if path.len() > 1 {
