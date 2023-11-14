@@ -29,7 +29,6 @@ mod light;
 mod light_volume;
 mod shadow;
 mod skybox_shader;
-mod sprite_renderer;
 mod ssao;
 
 use crate::{
@@ -74,7 +73,6 @@ use crate::{
         gbuffer::{GBuffer, GBufferRenderContext},
         hdr::HighDynamicRangeRenderer,
         light::{DeferredLightRenderer, DeferredRendererContext, LightingStatistics},
-        sprite_renderer::{SpriteRenderContext, SpriteRenderer},
         storage::MatrixStorageCache,
         ui_renderer::{UiRenderContext, UiRenderer},
     },
@@ -703,7 +701,6 @@ pub struct Renderer {
     scene_render_passes: Vec<Rc<RefCell<dyn SceneRenderPass>>>,
     deferred_light_renderer: DeferredLightRenderer,
     flat_shader: FlatShader,
-    sprite_renderer: SpriteRenderer,
     /// Dummy white one pixel texture which will be used as stub when rendering
     /// something without texture specified.
     pub white_dummy: Rc<RefCell<GpuTexture>>,
@@ -1244,7 +1241,6 @@ impl Renderer {
             frame_size,
             deferred_light_renderer: DeferredLightRenderer::new(&mut state, frame_size, &settings)?,
             flat_shader: FlatShader::new(&mut state)?,
-            sprite_renderer: SpriteRenderer::new(&mut state)?,
             white_dummy: Rc::new(RefCell::new(GpuTexture::new(
                 &mut state,
                 GpuTextureKind::Rectangle {
@@ -1763,16 +1759,6 @@ impl Renderer {
                 self.statistics.geometry += pass_stats;
 
                 let depth = scene_associated_data.gbuffer.depth();
-
-                self.statistics += self.sprite_renderer.render(SpriteRenderContext {
-                    state,
-                    framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
-                    graph,
-                    camera,
-                    white_dummy: self.white_dummy.clone(),
-                    viewport,
-                    textures: &mut self.texture_cache,
-                })?;
 
                 self.statistics += self.forward_renderer.render(ForwardRenderContext {
                     state,

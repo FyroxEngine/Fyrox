@@ -272,6 +272,9 @@ pub const STANDARD_PARTICLE_SYSTEM_SHADER_NAME: &str = "StandardParticleSystem";
 pub const STANDARD_PARTICLE_SYSTEM_SHADER_SRC: &str =
     include_str!("standard/standard_particle_system.shader");
 
+/// A source code of the standard sprite shader.
+pub const STANDARD_SPRITE_SHADER_SRC: &str = include_str!("standard/standard_sprite.shader");
+
 /// A name of the standard two-sides shader.
 pub const STANDARD_TWOSIDES_SHADER_NAME: &str = "StandardTwoSides";
 
@@ -281,23 +284,28 @@ pub const STANDARD_TWOSIDES_SHADER_SRC: &str = include_str!("standard/standard-t
 /// A name of the standard terrain shader.
 pub const STANDARD_TERRAIN_SHADER_NAME: &str = "StandardTerrain";
 
+/// A name of the standard sprite shader.
+pub const STANDARD_SPRITE_SHADER_NAME: &str = "StandardSprite";
+
 /// A source code of the standard terrain shader.
 pub const STANDARD_TERRAIN_SHADER_SRC: &str = include_str!("standard/terrain.shader");
 
 /// A list of names of standard shaders.
-pub const STANDARD_SHADER_NAMES: [&str; 5] = [
+pub const STANDARD_SHADER_NAMES: [&str; 6] = [
     STANDARD_SHADER_NAME,
     STANDARD_2D_SHADER_NAME,
     STANDARD_PARTICLE_SYSTEM_SHADER_NAME,
+    STANDARD_SPRITE_SHADER_NAME,
     STANDARD_TWOSIDES_SHADER_NAME,
     STANDARD_TERRAIN_SHADER_NAME,
 ];
 
 /// A list of source code of standard shaders.
-pub const STANDARD_SHADER_SOURCES: [&str; 5] = [
+pub const STANDARD_SHADER_SOURCES: [&str; 6] = [
     STANDARD_SHADER_SRC,
     STANDARD_2D_SHADER_SRC,
     STANDARD_PARTICLE_SYSTEM_SHADER_SRC,
+    STANDARD_SPRITE_SHADER_SRC,
     STANDARD_TWOSIDES_SHADER_SRC,
     STANDARD_TERRAIN_SHADER_SRC,
 ];
@@ -625,6 +633,9 @@ pub trait ShaderResourceExtension: Sized {
     /// Returns an instance of standard particle system shader.
     fn standard_particle_system() -> Self;
 
+    /// Returns an instance of standard sprite shader.
+    fn standard_sprite() -> Self;
+
     /// Returns an instance of standard terrain shader.
     fn standard_terrain() -> Self;
 
@@ -657,6 +668,11 @@ impl ShaderResourceExtension for ShaderResource {
         STANDARD_PARTICLE_SYSTEM.clone()
     }
 
+    /// Returns an instance of standard sprite shader.
+    fn standard_sprite() -> Self {
+        STANDARD_SPRITE.clone()
+    }
+
     /// Returns an instance of standard terrain shader.
     fn standard_terrain() -> Self {
         STANDARD_TERRAIN.clone()
@@ -673,6 +689,7 @@ impl ShaderResourceExtension for ShaderResource {
             Self::standard(),
             Self::standard_2d(),
             Self::standard_particle_system(),
+            Self::standard_sprite(),
             Self::standard_terrain(),
             Self::standard_twosides(),
         ]
@@ -704,6 +721,12 @@ lazy_static! {
             STANDARD_PARTICLE_SYSTEM_SHADER_NAME
         )
         .unwrap(),
+    );
+}
+
+lazy_static! {
+    static ref STANDARD_SPRITE: ShaderResource = ShaderResource::new_ok(
+        Shader::from_str(STANDARD_SPRITE_SHADER_SRC, STANDARD_SPRITE_SHADER_NAME).unwrap(),
     );
 }
 
