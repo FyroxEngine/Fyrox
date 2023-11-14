@@ -812,7 +812,9 @@ impl Material {
 /// same material.
 pub type MaterialResource = Resource<Material>;
 
+/// Extension methods for material resource.
 pub trait MaterialResourceExtension {
+    /// Creates a deep copy of the material resource.
     fn deep_copy(&self) -> MaterialResource;
 }
 

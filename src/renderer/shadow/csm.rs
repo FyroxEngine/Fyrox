@@ -297,7 +297,7 @@ impl CsmRenderer {
                                 instance.element_range,
                                 |mut program_binding| {
                                     apply_material(MaterialContext {
-                                        material: &material,
+                                        material,
                                         program_binding: &mut program_binding,
                                         texture_cache,
                                         matrix_storage,

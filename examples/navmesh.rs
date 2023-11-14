@@ -77,7 +77,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
         .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
             SurfaceData::make_sphere(10, 10, 0.1, &Matrix4::identity()),
         ))
-        .with_material(MaterialResource::new(cursor_material))
+        .with_material(MaterialResource::new_ok(cursor_material))
         .build()])
         .build(&mut scene.graph);
 
@@ -99,7 +99,7 @@ async fn create_scene(resource_manager: ResourceManager) -> GameScene {
     .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
         SurfaceData::make_sphere(10, 10, 0.2, &Matrix4::identity()),
     ))
-    .with_material(MaterialResource::new(agent_material))
+    .with_material(MaterialResource::new_ok(agent_material))
     .build()])
     .build(&mut scene.graph);
 

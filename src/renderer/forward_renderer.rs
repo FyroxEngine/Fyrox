@@ -188,7 +188,7 @@ impl ForwardRenderer {
                             instance.element_range,
                             |mut program_binding| {
                                 apply_material(MaterialContext {
-                                    material: &material,
+                                    material,
                                     program_binding: &mut program_binding,
                                     texture_cache,
                                     world_matrix: &instance.world_transform,
