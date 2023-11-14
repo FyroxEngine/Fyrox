@@ -1,5 +1,6 @@
 use crate::message::MessageSender;
 use crate::{Message, MessageDirection};
+use fyrox::material::MaterialResourceExtension;
 use fyrox::{
     asset::core::pool::Handle,
     core::parking_lot::Mutex,
@@ -117,7 +118,13 @@ pub struct MaterialFieldEditorBuilder {
 }
 
 fn make_name(material: &MaterialResource) -> String {
-    let name = material.lock().shader().data_ref().definition.name.clone();
+    let name = material
+        .data_ref()
+        .shader()
+        .data_ref()
+        .definition
+        .name
+        .clone();
     format!("{} - {} uses", name, material.use_count())
 }
 

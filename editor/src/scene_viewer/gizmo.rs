@@ -64,7 +64,7 @@ fn make_cone(transform: Matrix4<f32>, color: Color, graph: &mut Graph) -> Handle
         .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
             SurfaceData::make_cone(16, 0.3, 1.0, &transform),
         ))
-        .with_material(MaterialResource::new(material))
+        .with_material(MaterialResource::new_ok(material))
         .build()])
         .build(graph)
 }
@@ -275,7 +275,7 @@ impl SceneGizmo {
         fn set_color(node: Handle<Node>, graph: &Graph, color: Color) {
             graph[node].as_mesh().surfaces()[0]
                 .material()
-                .lock()
+                .data_ref()
                 .set_property(
                     &ImmutableString::new("diffuseColor"),
                     PropertyValue::Color(color),

@@ -40,7 +40,7 @@ impl Command for SetMeshTextureCommand {
                 .iter()
                 .map(|s| {
                     s.material()
-                        .lock()
+                        .data_ref()
                         .property_ref(&ImmutableString::new("diffuseTexture"))
                         .and_then(|p| {
                             if let PropertyValue::Sampler { value, .. } = p {
@@ -54,7 +54,7 @@ impl Command for SetMeshTextureCommand {
             for surface in mesh.surfaces_mut() {
                 surface
                     .material()
-                    .lock()
+                    .data_ref()
                     .set_property(
                         &ImmutableString::new("diffuseTexture"),
                         PropertyValue::Sampler {
@@ -75,7 +75,7 @@ impl Command for SetMeshTextureCommand {
             let mesh: &mut Mesh = context.scene.graph[self.node].as_mesh_mut();
             let new_value = mesh.surfaces_mut()[0]
                 .material()
-                .lock()
+                .data_ref()
                 .property_ref(&ImmutableString::new("diffuseTexture"))
                 .and_then(|p| {
                     if let PropertyValue::Sampler { value, .. } = p {
@@ -89,7 +89,7 @@ impl Command for SetMeshTextureCommand {
             for (surface, old_texture) in mesh.surfaces_mut().iter_mut().zip(set) {
                 surface
                     .material()
-                    .lock()
+                    .data_ref()
                     .set_property(
                         &ImmutableString::new("diffuseTexture"),
                         PropertyValue::Sampler {

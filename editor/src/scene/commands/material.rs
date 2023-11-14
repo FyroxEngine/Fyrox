@@ -21,7 +21,7 @@ impl SetMaterialPropertyValueCommand {
     }
 
     fn swap(&mut self) {
-        let mut material = self.material.lock();
+        let mut material = self.material.data_ref();
 
         let old_value = material.property_ref(&self.name).unwrap().clone();
 
@@ -73,7 +73,7 @@ impl SetMaterialShaderCommand {
                 unreachable!()
             }
             SetMaterialShaderCommandState::NonExecuted { new_shader } => {
-                let mut material = self.material.lock();
+                let mut material = self.material.data_ref();
 
                 let old_material = std::mem::replace(
                     &mut *material,
@@ -83,14 +83,14 @@ impl SetMaterialShaderCommand {
                 self.state = SetMaterialShaderCommandState::Executed { old_material };
             }
             SetMaterialShaderCommandState::Executed { old_material } => {
-                let mut material = self.material.lock();
+                let mut material = self.material.data_ref();
 
                 let new_material = std::mem::replace(&mut *material, old_material);
 
                 self.state = SetMaterialShaderCommandState::Reverted { new_material };
             }
             SetMaterialShaderCommandState::Reverted { new_material } => {
-                let mut material = self.material.lock();
+                let mut material = self.material.data_ref();
 
                 let old_material = std::mem::replace(&mut *material, new_material);
 

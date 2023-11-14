@@ -187,14 +187,14 @@ pub fn make_color_material(color: Color) -> MaterialResource {
             PropertyValue::Color(color),
         )
         .unwrap();
-    MaterialResource::new(material)
+    MaterialResource::new_ok(material)
 }
 
 pub fn set_mesh_diffuse_color(mesh: &mut Mesh, color: Color) {
     for surface in mesh.surfaces() {
         surface
             .material()
-            .lock()
+            .data_ref()
             .set_property(
                 &ImmutableString::new("diffuseColor"),
                 PropertyValue::Color(color),
@@ -211,7 +211,7 @@ pub fn create_terrain_layer_material() -> MaterialResource {
             PropertyValue::Vector2(Vector2::new(10.0, 10.0)),
         )
         .unwrap();
-    MaterialResource::new(material)
+    MaterialResource::new_ok(material)
 }
 
 #[derive(Debug)]

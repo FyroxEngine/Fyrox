@@ -518,7 +518,7 @@ impl AssetBrowser {
                             fallback: Default::default(),
                         },
                     ));
-                    let material = MaterialResource::new(material);
+                    let material = MaterialResource::new_ok(material);
 
                     let graph = &mut engine.scenes[self.preview.scene()].graph;
                     let quad = MeshBuilder::new(BaseBuilder::new())
