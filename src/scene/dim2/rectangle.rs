@@ -190,7 +190,7 @@ impl Visit for Rectangle {
 
         self.base.visit("Base", &mut region)?;
         self.color.visit("Color", &mut region)?;
-        let _ = self.uv_rect.visit("Material", &mut region);
+        let _ = self.uv_rect.visit("UvRect", &mut region);
 
         Ok(())
     }
