@@ -186,7 +186,7 @@ impl Visit for Sprite {
         self.rotation.visit("Rotation", &mut region)?;
 
         // Backward compatibility.
-        let _ = self.uv_rect.visit("Material", &mut region);
+        let _ = self.uv_rect.visit("UvRect", &mut region);
 
         Ok(())
     }
