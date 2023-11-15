@@ -2462,8 +2462,19 @@ impl Editor {
     }
 
     pub fn is_active(&self) -> bool {
-        !self.update_loop_state.is_suspended()
-            && (self.focused || !self.settings.general.suspend_unfocused_editor)
+        #[cfg(any(target_os = "windows", target_os = "macos"))]
+        {
+            !self.update_loop_state.is_suspended()
+                && (self.focused || !self.settings.general.suspend_unfocused_editor)
+        }
+
+        // Linux is "special" for now, because of Wayland.
+        // Wayland connection dies when the editor enters energy-saving mode.
+        // TODO: https://github.com/FyroxEngine/Fyrox/issues/567
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+        {
+            true
+        }
     }
 
     pub fn run(mut self, event_loop: EventLoop<()>) {
@@ -2597,7 +2608,7 @@ impl Editor {
                     for_each_plugin!(self.plugins => on_exit(&mut self));
                 }
                 _ => {
-                    if !self.update_loop_state.is_suspended() && self.is_active() {
+                    if self.is_active() {
                         if self.is_suspended {
                             for_each_plugin!(self.plugins => on_resumed(&mut self));
                             self.is_suspended = false;
