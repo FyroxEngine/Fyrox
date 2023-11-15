@@ -448,7 +448,6 @@ pub enum MaterialError {
         /// Name of the property.
         property_name: String,
     },
-
     /// Attempt to set a value of wrong type to a property.
     TypeMismatch {
         /// Name of the property.
@@ -458,7 +457,7 @@ pub enum MaterialError {
         /// Given property value.
         given: PropertyValue,
     },
-
+    /// Unable to read data source.
     Visit(VisitError),
 }
 
@@ -611,14 +610,22 @@ impl Material {
         }
     }
 
+    /// Loads a material from file.
     pub async fn from_file<P>(path: P, io: &dyn ResourceIo) -> Result<Self, MaterialError>
     where
         P: AsRef<Path>,
     {
         let content = io.load_file(path.as_ref()).await?;
         let mut visitor = Visitor::load_from_memory(&content)?;
-        let mut material = Material::default();
+        let mut material = Material {
+            path: path.as_ref().to_owned(),
+            is_procedural: false,
+            shader: Default::default(),
+            properties: Default::default(),
+        };
         material.visit("Material", &mut visitor)?;
+        // This could be changed during deserialization, we must keep the flag `false`.
+        material.is_procedural = false;
         Ok(material)
     }
 
