@@ -14,6 +14,7 @@ use crate::{
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
+    material,
     material::{Material, MaterialResource},
     resource::texture::{TextureKind, TexturePixelKind, TextureResource, TextureResourceExtension},
     scene::{
@@ -1286,10 +1287,19 @@ impl Visit for Surface {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        self.data.visit("Data", &mut region)?;
-        self.material.visit("Material", &mut region)?;
-        self.bones.visit("Bones", &mut region)?;
+        // Backward compatibility.
+        if region.is_reading() {
+            if let Some(material) = material::visit_old_material(&mut region) {
+                self.material = material.into();
+            } else {
+                self.material.visit("Material", &mut region)?;
+            }
+        } else {
+            self.material.visit("Material", &mut region)?;
+        }
 
+        self.data.visit("Data", &mut region)?;
+        self.bones.visit("Bones", &mut region)?;
         let _ = self.unique_material.visit("UniqueMaterial", &mut region); // Backward compatibility.
 
         Ok(())

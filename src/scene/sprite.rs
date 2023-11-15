@@ -6,19 +6,17 @@ use crate::{
     core::{
         algebra::{Vector2, Vector3},
         color::Color,
-        log::Log,
         math::{aabb::AxisAlignedBoundingBox, Rect, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
-        sstorage::ImmutableString,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
         TypeUuidProvider,
     },
-    material::{shader::SamplerFallback, Material, MaterialResource, PropertyValue},
+    material,
+    material::{Material, MaterialResource},
     renderer::{self, batch::RenderContext},
-    resource::texture::TextureResource,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -161,18 +159,10 @@ impl Visit for Sprite {
         let mut region = visitor.enter_region(name)?;
 
         if region.is_reading() {
-            let mut texture: InheritableVariable<Option<TextureResource>> = Default::default();
-            if texture.visit("Texture", &mut region).is_ok() {
-                // Backward compatibility.
-                let mut material = Material::standard_sprite();
-                Log::verify(material.set_property(
-                    &ImmutableString::new("diffuseTexture"),
-                    PropertyValue::Sampler {
-                        value: (*texture).clone(),
-                        fallback: SamplerFallback::White,
-                    },
-                ));
-                self.material = MaterialResource::new_ok(material).into();
+            if let Some(material) =
+                material::visit_old_texture_as_material(&mut region, Material::standard_sprite)
+            {
+                self.material = material.into();
             } else {
                 self.material.visit("Material", &mut region)?;
             }

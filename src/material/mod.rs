@@ -5,29 +5,30 @@
 #![warn(missing_docs)]
 
 use crate::{
-    asset::{manager::ResourceManager, Resource, ResourceData, ResourceStateRef},
+    asset::{io::ResourceIo, manager::ResourceManager, Resource, ResourceData, ResourceStateRef},
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,
+        io::FileLoadError,
         log::Log,
+        parking_lot::Mutex,
         reflect::prelude::*,
         sstorage::ImmutableString,
         uuid::{uuid, Uuid},
-        visitor::prelude::*,
+        visitor::{prelude::*, RegionGuard},
         TypeUuidProvider,
     },
     material::shader::{PropertyKind, SamplerFallback, ShaderResource, ShaderResourceExtension},
     resource::texture::{Texture, TextureResource},
 };
 use fxhash::FxHashMap;
-use fyrox_core::io::FileLoadError;
-use fyrox_resource::io::ResourceIo;
 use std::{
     any::Any,
     borrow::Cow,
     fmt::{Display, Formatter},
     ops::Deref,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 pub mod loader;
@@ -870,4 +871,38 @@ impl MaterialResourceExtension for MaterialResource {
             ResourceStateRef::Ok(material) => MaterialResource::new_ok(material.clone()),
         }
     }
+}
+
+pub(crate) fn visit_old_material(region: &mut RegionGuard) -> Option<MaterialResource> {
+    let mut old_material = Arc::new(Mutex::new(Material::default()));
+    if let Ok(mut inner) = region.enter_region("Material") {
+        if old_material.visit("Value", &mut inner).is_ok() {
+            return Some(MaterialResource::new_ok(old_material.lock().clone()));
+        }
+    }
+    None
+}
+
+pub(crate) fn visit_old_texture_as_material<F>(
+    region: &mut RegionGuard,
+    make_default_material: F,
+) -> Option<MaterialResource>
+where
+    F: FnOnce() -> Material,
+{
+    let mut old_texture: Option<TextureResource> = None;
+    if let Ok(mut inner) = region.enter_region("Texture") {
+        if old_texture.visit("Value", &mut inner).is_ok() {
+            let mut material = make_default_material();
+            Log::verify(material.set_property(
+                &ImmutableString::new("diffuseTexture"),
+                PropertyValue::Sampler {
+                    value: old_texture,
+                    fallback: SamplerFallback::White,
+                },
+            ));
+            return Some(MaterialResource::new_ok(material));
+        }
+    }
+    None
 }
