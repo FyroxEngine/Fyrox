@@ -6,19 +6,17 @@ use crate::{
     core::{
         algebra::{Vector2, Vector3},
         color::Color,
-        log::Log,
         math::{aabb::AxisAlignedBoundingBox, Rect, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
-        sstorage::ImmutableString,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
         TypeUuidProvider,
     },
-    material::{shader::SamplerFallback, Material, PropertyValue, SharedMaterial},
+    material,
+    material::{Material, MaterialResource},
     renderer::{self, batch::RenderContext},
-    resource::texture::TextureResource,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -111,7 +109,7 @@ impl VertexTrait for SpriteVertex {
 /// # use fyrox::{
 /// #     asset::manager::ResourceManager,
 /// #     core::pool::Handle,
-/// #     material::{Material, SharedMaterial},
+/// #     material::{Material, MaterialResource},
 /// #     resource::texture::Texture,
 /// #     scene::{base::BaseBuilder, graph::Graph, node::Node, sprite::SpriteBuilder},
 /// # };
@@ -127,7 +125,7 @@ impl VertexTrait for SpriteVertex {
 ///         .unwrap();
 ///
 ///     SpriteBuilder::new(BaseBuilder::new())
-///         .with_material(SharedMaterial::new(material))
+///         .with_material(MaterialResource::new_ok(material))
 ///         .build(graph)
 /// }
 /// ```
@@ -143,7 +141,7 @@ pub struct Sprite {
     #[reflect(setter = "set_uv_rect")]
     uv_rect: InheritableVariable<Rect<f32>>,
 
-    material: InheritableVariable<SharedMaterial>,
+    material: InheritableVariable<MaterialResource>,
 
     #[reflect(setter = "set_color")]
     color: InheritableVariable<Color>,
@@ -161,18 +159,10 @@ impl Visit for Sprite {
         let mut region = visitor.enter_region(name)?;
 
         if region.is_reading() {
-            let mut texture: InheritableVariable<Option<TextureResource>> = Default::default();
-            if texture.visit("Texture", &mut region).is_ok() {
-                // Backward compatibility.
-                let mut material = Material::standard_sprite();
-                Log::verify(material.set_property(
-                    &ImmutableString::new("diffuseTexture"),
-                    PropertyValue::Sampler {
-                        value: (*texture).clone(),
-                        fallback: SamplerFallback::White,
-                    },
-                ));
-                self.material = SharedMaterial::new(material).into();
+            if let Some(material) =
+                material::visit_old_texture_as_material(&mut region, Material::standard_sprite)
+            {
+                self.material = material.into();
             } else {
                 self.material.visit("Material", &mut region)?;
             }
@@ -186,7 +176,7 @@ impl Visit for Sprite {
         self.rotation.visit("Rotation", &mut region)?;
 
         // Backward compatibility.
-        let _ = self.uv_rect.visit("Material", &mut region);
+        let _ = self.uv_rect.visit("UvRect", &mut region);
 
         Ok(())
     }
@@ -253,12 +243,12 @@ impl Sprite {
     }
 
     /// Returns a reference to the current material used by the sprite.
-    pub fn material(&self) -> &InheritableVariable<SharedMaterial> {
+    pub fn material(&self) -> &InheritableVariable<MaterialResource> {
         &self.material
     }
 
     /// Returns a reference to the current material used by the sprite.
-    pub fn material_mut(&mut self) -> &mut InheritableVariable<SharedMaterial> {
+    pub fn material_mut(&mut self) -> &mut InheritableVariable<MaterialResource> {
         &mut self.material
     }
 
@@ -359,7 +349,7 @@ impl NodeTrait for Sprite {
 pub struct SpriteBuilder {
     base_builder: BaseBuilder,
     uv_rect: Rect<f32>,
-    material: SharedMaterial,
+    material: MaterialResource,
     color: Color,
     size: f32,
     rotation: f32,
@@ -370,7 +360,7 @@ impl SpriteBuilder {
     pub fn new(base_builder: BaseBuilder) -> Self {
         Self {
             base_builder,
-            material: SharedMaterial::new(Material::standard_sprite()),
+            material: MaterialResource::new_ok(Material::standard_sprite()),
             uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
             color: Color::WHITE,
             size: 0.2,
@@ -386,7 +376,7 @@ impl SpriteBuilder {
     }
 
     /// Sets the desired material of the sprite.
-    pub fn with_material(mut self, material: SharedMaterial) -> Self {
+    pub fn with_material(mut self, material: MaterialResource) -> Self {
         self.material = material;
         self
     }

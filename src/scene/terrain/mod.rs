@@ -1,5 +1,6 @@
 //! Everything related to terrains. See [`Terrain`] docs for more info.
 
+use crate::material::MaterialResourceExtension;
 use crate::renderer::batch::PersistentIdentifier;
 use crate::{
     asset::{Resource, ResourceStateRef},
@@ -16,7 +17,7 @@ use crate::{
         visitor::{prelude::*, PodVecView},
         TypeUuidProvider,
     },
-    material::{Material, PropertyValue, SharedMaterial},
+    material::{Material, MaterialResource, PropertyValue},
     renderer::{
         self,
         batch::{RenderContext, SurfaceInstanceData},
@@ -36,6 +37,7 @@ use crate::{
     },
     utils::{self},
 };
+use fyrox_resource::ResourceStateRefMut;
 use half::f16;
 use image::{imageops::FilterType, ImageBuffer, Luma};
 use std::{
@@ -57,7 +59,7 @@ pub const VERSION: u8 = 1;
 #[derive(Debug, Clone, Visit, Reflect, PartialEq)]
 pub struct Layer {
     /// Material of the layer.
-    pub material: SharedMaterial,
+    pub material: MaterialResource,
 
     /// Name of the mask sampler property in the material.
     pub mask_property_name: String,
@@ -74,7 +76,7 @@ pub struct Layer {
 impl Default for Layer {
     fn default() -> Self {
         Self {
-            material: SharedMaterial::new(Material::standard_terrain()),
+            material: MaterialResource::new_ok(Material::standard_terrain()),
             mask_property_name: "maskTexture".to_string(),
             height_map_property_name: "heightMapTexture".to_string(),
             node_uv_offsets_property_name: "nodeUvOffsets".to_string(),
@@ -654,7 +656,7 @@ impl Default for Terrain {
 
 #[derive(Visit)]
 struct OldLayer {
-    pub material: SharedMaterial,
+    pub material: MaterialResource,
     pub mask_property_name: String,
     pub chunk_masks: Vec<TextureResource>,
 }
@@ -662,7 +664,7 @@ struct OldLayer {
 impl Default for OldLayer {
     fn default() -> Self {
         Self {
-            material: SharedMaterial::new(Material::standard_terrain()),
+            material: MaterialResource::new_ok(Material::standard_terrain()),
             mask_property_name: "maskTexture".to_string(),
             chunk_masks: Default::default(),
         }
@@ -737,12 +739,16 @@ impl Visit for Terrain {
                     // so here we must re-create the material and put every property from the old material
                     // to the new.
                     let mut new_material = Material::standard_terrain();
-                    for (name, value) in layer.material.lock().properties() {
-                        Log::verify(new_material.set_property(name, value.clone()));
+
+                    let mut material_state = layer.material.state();
+                    if let ResourceStateRefMut::Ok(material) = material_state.get_mut() {
+                        for (name, value) in material.properties() {
+                            Log::verify(new_material.set_property(name, value.clone()));
+                        }
                     }
 
                     self.layers.push(Layer {
-                        material: SharedMaterial::new(new_material),
+                        material: MaterialResource::new_ok(new_material),
                         mask_property_name: layer.mask_property_name,
                         ..Default::default()
                     });
@@ -1476,7 +1482,7 @@ impl NodeTrait for Terrain {
                     &mut selection,
                 );
 
-                let mut material = (*layer.material.lock()).clone();
+                let mut material = layer.material.deep_copy().data_ref().clone();
 
                 Log::verify_message(
                     material.set_property(
@@ -1515,7 +1521,7 @@ impl NodeTrait for Terrain {
                         "Unable to set node uv offsets for terrain material.",
                     );
 
-                    let material = SharedMaterial::new(material.clone());
+                    let material = MaterialResource::new_ok(material.clone());
 
                     let node_transform = chunk_transform
                         * Matrix4::new_translation(&Vector3::new(

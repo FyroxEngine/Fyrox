@@ -119,7 +119,7 @@ use fyrox::{
     },
     material::{
         shader::{ShaderResource, ShaderResourceExtension},
-        Material, PropertyValue, SharedMaterial,
+        Material, MaterialResource, PropertyValue,
     },
     plugin::PluginConstructor,
     resource::texture::{
@@ -179,7 +179,7 @@ lazy_static! {
     };
 }
 
-pub fn make_color_material(color: Color) -> SharedMaterial {
+pub fn make_color_material(color: Color) -> MaterialResource {
     let mut material = Material::from_shader(GIZMO_SHADER.clone(), None);
     material
         .set_property(
@@ -187,14 +187,14 @@ pub fn make_color_material(color: Color) -> SharedMaterial {
             PropertyValue::Color(color),
         )
         .unwrap();
-    SharedMaterial::new(material)
+    MaterialResource::new_ok(material)
 }
 
 pub fn set_mesh_diffuse_color(mesh: &mut Mesh, color: Color) {
     for surface in mesh.surfaces() {
         surface
             .material()
-            .lock()
+            .data_ref()
             .set_property(
                 &ImmutableString::new("diffuseColor"),
                 PropertyValue::Color(color),
@@ -203,7 +203,7 @@ pub fn set_mesh_diffuse_color(mesh: &mut Mesh, color: Color) {
     }
 }
 
-pub fn create_terrain_layer_material() -> SharedMaterial {
+pub fn create_terrain_layer_material() -> MaterialResource {
     let mut material = Material::standard_terrain();
     material
         .set_property(
@@ -211,7 +211,7 @@ pub fn create_terrain_layer_material() -> SharedMaterial {
             PropertyValue::Vector2(Vector2::new(10.0, 10.0)),
         )
         .unwrap();
-    SharedMaterial::new(material)
+    MaterialResource::new_ok(material)
 }
 
 #[derive(Debug)]
@@ -2032,7 +2032,7 @@ impl Editor {
         }
     }
 
-    fn open_material_editor(&mut self, material: SharedMaterial) {
+    fn open_material_editor(&mut self, material: MaterialResource) {
         let engine = &mut self.engine;
 
         self.material_editor.set_material(Some(material), engine);

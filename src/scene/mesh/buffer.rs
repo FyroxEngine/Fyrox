@@ -7,7 +7,7 @@ use crate::{
         byteorder::{ByteOrder, LittleEndian},
         futures::io::Error,
         math::TriangleDefinition,
-        visitor::prelude::*,
+        visitor::{prelude::*, PodVecView},
     },
     utils::{array_as_u8_slice, value_as_u8_slice},
 };
@@ -190,7 +190,13 @@ struct BytesStorage {
 
 impl Visit for BytesStorage {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.bytes.visit(name, visitor)?;
+        let mut bytes_adapter = PodVecView::from_pod_vec(&mut self.bytes);
+        if bytes_adapter.visit(name, visitor).is_err() {
+            let mut bytes = Vec::<u8>::new();
+            bytes.visit(name, visitor)?;
+            self.bytes = bytes;
+        }
+
         if visitor.is_reading() {
             self.layout = Layout::array::<u8>(self.bytes.len()).unwrap();
         }

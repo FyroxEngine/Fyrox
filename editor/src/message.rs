@@ -8,7 +8,7 @@ use fyrox::{
         pool::{ErasedHandle, Handle},
     },
     gui::UiNode,
-    material::SharedMaterial,
+    material::MaterialResource,
     scene::{camera::Projection, node::Node, Scene},
 };
 use std::{any::TypeId, path::PathBuf, sync::mpsc::Sender};
@@ -39,7 +39,7 @@ pub enum Message {
     OpenSettings,
     OpenAnimationEditor,
     OpenAbsmEditor,
-    OpenMaterialEditor(SharedMaterial),
+    OpenMaterialEditor(MaterialResource),
     OpenNodeRemovalDialog,
     ShowInAssetBrowser(PathBuf),
     SetWorldViewerFilter(String),

@@ -47,7 +47,7 @@ use fyrox::{
         BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
         UserInterface, VerticalAlignment, BRUSH_DARK,
     },
-    material::{Material, PropertyValue, SharedMaterial},
+    material::{Material, MaterialResource, PropertyValue},
     resource::texture::Texture,
     scene::{
         base::BaseBuilder,
@@ -518,7 +518,7 @@ impl AssetBrowser {
                             fallback: Default::default(),
                         },
                     ));
-                    let material = SharedMaterial::new(material);
+                    let material = MaterialResource::new_ok(material);
 
                     let graph = &mut engine.scenes[self.preview.scene()].graph;
                     let quad = MeshBuilder::new(BaseBuilder::new())

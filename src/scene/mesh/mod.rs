@@ -393,7 +393,7 @@ impl NodeTrait for Mesh {
                 surface.material(),
                 self.render_path(),
                 self.decal_layer_index(),
-                surface.material().key(),
+                surface.material().key() as u64,
                 SurfaceInstanceData {
                     world_transform: world,
                     bone_matrices: surface

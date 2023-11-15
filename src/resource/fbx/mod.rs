@@ -294,7 +294,7 @@ async fn create_surfaces(
             let mut surface = Surface::new(SurfaceSharedData::new(surface_data));
             surface.vertex_weights = data.skin_data;
             let material = fbx_scene.get(material_handle).as_material()?;
-            if let Err(e) = surface.material().lock().set_property(
+            if let Err(e) = surface.material().data_ref().set_property(
                 &ImmutableString::new("diffuseColor"),
                 PropertyValue::Color(material.diffuse_color),
             ) {
@@ -394,7 +394,7 @@ async fn create_surfaces(
                         };
 
                         if let Some((property_name, usage)) = name_usage {
-                            if let Err(e) = surface.material().lock().set_property(
+                            if let Err(e) = surface.material().data_ref().set_property(
                                 &ImmutableString::new(property_name),
                                 PropertyValue::Sampler {
                                     value: Some(texture),

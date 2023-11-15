@@ -1,6 +1,7 @@
 //! Surface is a set of triangles with a single material. Such arrangement makes GPU rendering very efficient.
 //! See [`Surface`] docs for more info and usage examples.
 
+use crate::material::MaterialResourceExtension;
 use crate::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
@@ -13,7 +14,8 @@ use crate::{
         variable::InheritableVariable,
         visitor::{Visit, VisitResult, Visitor},
     },
-    material::{Material, SharedMaterial},
+    material,
+    material::{Material, MaterialResource},
     resource::texture::{TextureKind, TexturePixelKind, TextureResource, TextureResourceExtension},
     scene::{
         mesh::{
@@ -1241,7 +1243,7 @@ impl SurfaceSharedData {
 pub struct Surface {
     pub(crate) data: InheritableVariable<SurfaceSharedData>,
 
-    pub(crate) material: InheritableVariable<SharedMaterial>,
+    pub(crate) material: InheritableVariable<MaterialResource>,
 
     /// Array of handles to scene nodes which are used as bones.
     pub bones: InheritableVariable<Vec<Handle<Node>>>,
@@ -1285,10 +1287,19 @@ impl Visit for Surface {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        self.data.visit("Data", &mut region)?;
-        self.material.visit("Material", &mut region)?;
-        self.bones.visit("Bones", &mut region)?;
+        // Backward compatibility.
+        if region.is_reading() {
+            if let Some(material) = material::visit_old_material(&mut region) {
+                self.material = material.into();
+            } else {
+                self.material.visit("Material", &mut region)?;
+            }
+        } else {
+            self.material.visit("Material", &mut region)?;
+        }
 
+        self.data.visit("Data", &mut region)?;
+        self.bones.visit("Bones", &mut region)?;
         let _ = self.unique_material.visit("UniqueMaterial", &mut region); // Backward compatibility.
 
         Ok(())
@@ -1299,7 +1310,7 @@ impl Default for Surface {
     fn default() -> Self {
         Self {
             data: SurfaceSharedData::new(SurfaceData::make_cube(Matrix4::identity())).into(),
-            material: SharedMaterial::new(Material::standard()).into(),
+            material: MaterialResource::new_ok(Material::standard()).into(),
             vertex_weights: Default::default(),
             bones: Default::default(),
             unique_material: Default::default(),
@@ -1319,7 +1330,7 @@ impl Surface {
 
     /// Calculates material id.
     pub fn material_id(&self) -> u64 {
-        self.material.key()
+        self.material.key() as u64
     }
 
     /// Calculates batch id.
@@ -1343,12 +1354,12 @@ impl Surface {
     }
 
     /// Returns current material of the surface.
-    pub fn material(&self) -> &SharedMaterial {
+    pub fn material(&self) -> &MaterialResource {
         &self.material
     }
 
     /// Sets new material for the surface.
-    pub fn set_material(&mut self, material: SharedMaterial) {
+    pub fn set_material(&mut self, material: MaterialResource) {
         self.material.set_value_and_mark_modified(material);
     }
 
@@ -1372,7 +1383,7 @@ impl Surface {
 /// Surface builder allows you to create surfaces in declarative manner.
 pub struct SurfaceBuilder {
     data: SurfaceSharedData,
-    material: Option<SharedMaterial>,
+    material: Option<MaterialResource>,
     bones: Vec<Handle<Node>>,
     unique_material: bool,
 }
@@ -1389,7 +1400,7 @@ impl SurfaceBuilder {
     }
 
     /// Sets desired diffuse texture.
-    pub fn with_material(mut self, material: SharedMaterial) -> Self {
+    pub fn with_material(mut self, material: MaterialResource) -> Self {
         self.material = Some(material);
         self
     }
@@ -1412,7 +1423,7 @@ impl SurfaceBuilder {
             data: self.data.into(),
             material: self
                 .material
-                .unwrap_or_else(|| SharedMaterial::new(Material::standard()))
+                .unwrap_or_else(|| MaterialResource::new_ok(Material::standard()))
                 .into(),
             vertex_weights: Default::default(),
             bones: self.bones.into(),

@@ -39,7 +39,7 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
-    material::{shader::Shader, PropertyValue, SharedMaterial},
+    material::{shader::Shader, MaterialResource, PropertyValue},
     resource::texture::Texture,
     scene::{
         base::BaseBuilder,
@@ -87,7 +87,7 @@ pub struct MaterialEditor {
     properties_panel: Handle<UiNode>,
     properties: BiDirHashMap<ImmutableString, Handle<UiNode>>,
     preview: PreviewPanel,
-    material: Option<SharedMaterial>,
+    material: Option<MaterialResource>,
     shader: Handle<UiNode>,
     texture_context_menu: TextureContextMenu,
 }
@@ -323,7 +323,7 @@ impl MaterialEditor {
         }
     }
 
-    pub fn set_material(&mut self, material: Option<SharedMaterial>, engine: &mut Engine) {
+    pub fn set_material(&mut self, material: Option<MaterialResource>, engine: &mut Engine) {
         self.material = material;
 
         if let Some(material) = self.material.clone() {
@@ -340,7 +340,7 @@ impl MaterialEditor {
 
     pub fn sync_to_model(&mut self, ui: &mut UserInterface) {
         if let Some(material) = self.material.as_ref() {
-            let material = material.lock();
+            let material = material.data_ref();
 
             // Remove properties from ui.
             for name in self
@@ -645,7 +645,7 @@ impl MaterialEditor {
                     if message.direction() == MessageDirection::FromWidget {
                         // NumericUpDown is used for Float, Int, UInt properties, so we have to check
                         // the actual property "type" to create suitable value from f32.
-                        match material.lock().property_ref(property_name).unwrap() {
+                        match material.data_ref().property_ref(property_name).unwrap() {
                             PropertyValue::Float(_) => Some(PropertyValue::Float(*value)),
                             PropertyValue::Int(_) => Some(PropertyValue::Int(*value as i32)),
                             PropertyValue::UInt(_) => Some(PropertyValue::UInt(*value as u32)),

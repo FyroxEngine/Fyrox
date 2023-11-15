@@ -7,7 +7,7 @@ use crate::{
         pool::Handle,
         sstorage::ImmutableString,
     },
-    material::SharedMaterial,
+    material::MaterialResource,
     renderer::{cache::geometry::TimeToLive, framework::geometry_buffer::ElementRange},
     scene::{
         graph::Graph,
@@ -119,7 +119,7 @@ pub struct RenderDataBatch {
     /// A set of instances.
     pub instances: Vec<SurfaceInstanceData>,
     /// A material that is shared across all instances.
-    pub material: SharedMaterial,
+    pub material: MaterialResource,
     /// Whether the batch is using GPU skinning or not.
     pub is_skinned: bool,
     /// A render path of the batch.
@@ -239,7 +239,7 @@ impl RenderDataBatchStorage {
         &mut self,
         vertices: impl Iterator<Item = T>,
         local_triangles: impl Iterator<Item = TriangleDefinition>,
-        material: &SharedMaterial,
+        material: &MaterialResource,
         render_path: RenderPath,
         decal_layer_index: u8,
         sort_index: u64,
@@ -249,7 +249,7 @@ impl RenderDataBatchStorage {
         T: VertexTrait,
     {
         let mut hasher = FxHasher::default();
-        hasher.write_u64(material.key());
+        hasher.write_u64(material.key() as u64);
         TypeId::of::<T>().hash(&mut hasher);
         hasher.write_u8(if is_skinned { 1 } else { 0 });
         hasher.write_u8(decal_layer_index);
@@ -320,7 +320,7 @@ impl RenderDataBatchStorage {
     pub fn push(
         &mut self,
         data: &SurfaceSharedData,
-        material: &SharedMaterial,
+        material: &MaterialResource,
         render_path: RenderPath,
         decal_layer_index: u8,
         sort_index: u64,
@@ -329,7 +329,7 @@ impl RenderDataBatchStorage {
         let is_skinned = !instance_data.bone_matrices.is_empty();
 
         let mut hasher = FxHasher::default();
-        hasher.write_u64(material.key());
+        hasher.write_u64(material.key() as u64);
         hasher.write_u64(data.key());
         hasher.write_u8(if is_skinned { 1 } else { 0 });
         hasher.write_u8(decal_layer_index);

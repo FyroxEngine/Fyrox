@@ -5,27 +5,33 @@
 #![warn(missing_docs)]
 
 use crate::{
-    asset::{manager::ResourceManager, ResourceStateRef},
+    asset::{io::ResourceIo, manager::ResourceManager, Resource, ResourceData, ResourceStateRef},
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,
+        io::FileLoadError,
         log::Log,
-        parking_lot::{Mutex, MutexGuard},
+        parking_lot::Mutex,
         reflect::prelude::*,
         sstorage::ImmutableString,
-        visitor::prelude::*,
+        uuid::{uuid, Uuid},
+        visitor::{prelude::*, RegionGuard},
+        TypeUuidProvider,
     },
     material::shader::{PropertyKind, SamplerFallback, ShaderResource, ShaderResourceExtension},
     resource::texture::{Texture, TextureResource},
 };
 use fxhash::FxHashMap;
 use std::{
+    any::Any,
+    borrow::Cow,
     fmt::{Display, Formatter},
-    hash::{Hash, Hasher},
     ops::Deref,
+    path::{Path, PathBuf},
     sync::Arc,
 };
 
+pub mod loader;
 pub mod shader;
 
 /// A value of a property that will be used for rendering with a shader.
@@ -387,21 +393,62 @@ impl Default for PropertyValue {
 /// As you can see it is only a bit more hard that with the standard shader. The main difference here is
 /// that we using resource manager to get shader instance and the we just use the instance to create
 /// material instance. Then we populate properties as usual.
-#[derive(Default, Debug, Visit, Clone, Reflect)]
+#[derive(Debug, Visit, Clone, Reflect)]
 pub struct Material {
+    #[visit(optional)]
+    path: PathBuf,
+    #[visit(optional)]
+    is_procedural: bool,
     shader: ShaderResource,
     properties: FxHashMap<ImmutableString, PropertyValue>,
 }
 
+impl Default for Material {
+    fn default() -> Self {
+        Material::standard()
+    }
+}
+
+impl TypeUuidProvider for Material {
+    fn type_uuid() -> Uuid {
+        uuid!("0e54fe44-0c58-4108-a681-d6eefc88c234")
+    }
+}
+
+impl ResourceData for Material {
+    fn path(&self) -> Cow<Path> {
+        Cow::Borrowed(&self.path)
+    }
+
+    fn set_path(&mut self, path: PathBuf) {
+        self.path = path;
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn type_uuid(&self) -> Uuid {
+        <Self as TypeUuidProvider>::type_uuid()
+    }
+
+    fn is_procedural(&self) -> bool {
+        self.is_procedural
+    }
+}
+
 /// A set of possible errors that can occur when working with materials.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum MaterialError {
     /// A property is missing.
     NoSuchProperty {
         /// Name of the property.
         property_name: String,
     },
-
     /// Attempt to set a value of wrong type to a property.
     TypeMismatch {
         /// Name of the property.
@@ -411,6 +458,20 @@ pub enum MaterialError {
         /// Given property value.
         given: PropertyValue,
     },
+    /// Unable to read data source.
+    Visit(VisitError),
+}
+
+impl From<VisitError> for MaterialError {
+    fn from(value: VisitError) -> Self {
+        Self::Visit(value)
+    }
+}
+
+impl From<FileLoadError> for MaterialError {
+    fn from(value: FileLoadError) -> Self {
+        Self::Visit(VisitError::FileLoadError(value))
+    }
 }
 
 impl Display for MaterialError {
@@ -429,6 +490,9 @@ impl Display for MaterialError {
                     "Attempt to set a value of wrong type \
                 to {property_name} property. Expected: {expected:?}, given {given:?}"
                 )
+            }
+            MaterialError::Visit(e) => {
+                write!(f, "Failed to visit data source. Reason: {:?}", e)
             }
         }
     }
@@ -540,9 +604,30 @@ impl Material {
         drop(data);
 
         Self {
+            path: Default::default(),
             shader,
+            is_procedural: true,
             properties: property_values,
         }
+    }
+
+    /// Loads a material from file.
+    pub async fn from_file<P>(path: P, io: &dyn ResourceIo) -> Result<Self, MaterialError>
+    where
+        P: AsRef<Path>,
+    {
+        let content = io.load_file(path.as_ref()).await?;
+        let mut visitor = Visitor::load_from_memory(&content)?;
+        let mut material = Material {
+            path: path.as_ref().to_owned(),
+            is_procedural: false,
+            shader: Default::default(),
+            properties: Default::default(),
+        };
+        material.visit("Material", &mut visitor)?;
+        // This could be changed during deserialization, we must keep the flag `false`.
+        material.is_procedural = false;
+        Ok(material)
     }
 
     /// Searches for a property with given name.
@@ -767,61 +852,57 @@ impl Material {
 /// Shared material is also tells a renderer that this material can be used for efficient rendering -
 /// the renderer will be able to optimize rendering when it knows that multiple objects share the
 /// same material.
-#[derive(Reflect, Clone, Debug)]
-pub struct SharedMaterial(Arc<Mutex<Material>>);
+pub type MaterialResource = Resource<Material>;
 
-impl Default for SharedMaterial {
-    fn default() -> Self {
-        Self::new(Material::standard())
+/// Extension methods for material resource.
+pub trait MaterialResourceExtension {
+    /// Creates a deep copy of the material resource.
+    fn deep_copy(&self) -> MaterialResource;
+}
+
+impl MaterialResourceExtension for MaterialResource {
+    fn deep_copy(&self) -> MaterialResource {
+        let material_state = self.state();
+        match material_state.get() {
+            ResourceStateRef::Pending { path, .. } => MaterialResource::new_pending(path.clone()),
+            ResourceStateRef::LoadError { path, error, .. } => {
+                MaterialResource::new_load_error(path.clone(), error.clone())
+            }
+            ResourceStateRef::Ok(material) => MaterialResource::new_ok(material.clone()),
+        }
     }
 }
 
-impl PartialEq for SharedMaterial {
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.0, &other.0)
+pub(crate) fn visit_old_material(region: &mut RegionGuard) -> Option<MaterialResource> {
+    let mut old_material = Arc::new(Mutex::new(Material::default()));
+    if let Ok(mut inner) = region.enter_region("Material") {
+        if old_material.visit("Value", &mut inner).is_ok() {
+            return Some(MaterialResource::new_ok(old_material.lock().clone()));
+        }
     }
+    None
 }
 
-impl Eq for SharedMaterial {}
-
-impl Hash for SharedMaterial {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        let ptr_num = &*self.0 as *const _ as u64;
-        ptr_num.hash(state);
+pub(crate) fn visit_old_texture_as_material<F>(
+    region: &mut RegionGuard,
+    make_default_material: F,
+) -> Option<MaterialResource>
+where
+    F: FnOnce() -> Material,
+{
+    let mut old_texture: Option<TextureResource> = None;
+    if let Ok(mut inner) = region.enter_region("Texture") {
+        if old_texture.visit("Value", &mut inner).is_ok() {
+            let mut material = make_default_material();
+            Log::verify(material.set_property(
+                &ImmutableString::new("diffuseTexture"),
+                PropertyValue::Sampler {
+                    value: old_texture,
+                    fallback: SamplerFallback::White,
+                },
+            ));
+            return Some(MaterialResource::new_ok(material));
+        }
     }
-}
-
-impl Visit for SharedMaterial {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.0.visit(name, visitor)
-    }
-}
-
-impl SharedMaterial {
-    /// Creates new shared material from a material instance.
-    pub fn new(material: Material) -> Self {
-        Self(Arc::new(Mutex::new(material)))
-    }
-
-    /// Provides access to inner material.
-    pub fn lock(&self) -> MutexGuard<'_, Material> {
-        self.0.lock()
-    }
-
-    /// Returns unique id of the material. The id is not stable across multiple runs of an application!
-    pub fn key(&self) -> u64 {
-        &*self.0 as *const _ as u64
-    }
-
-    /// Returns total use count of the material.
-    pub fn use_count(&self) -> usize {
-        Arc::strong_count(&self.0)
-    }
-
-    /// Creates a deep copy of shared material, making "unique" clone of the underlying material.
-    /// It is useful when you need to create unique version of a material and set its properties
-    /// to some specific values and assign it to an object.
-    pub fn deep_copy(&self) -> Self {
-        Self::new(self.0.lock().clone())
-    }
+    None
 }

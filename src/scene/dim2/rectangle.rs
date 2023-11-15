@@ -7,19 +7,16 @@ use crate::{
     core::{
         algebra::{Point3, Vector2, Vector3},
         color::Color,
-        log::Log,
         math::{aabb::AxisAlignedBoundingBox, Rect, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
-        sstorage::ImmutableString,
         uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
         TypeUuidProvider,
     },
-    material::{shader::SamplerFallback, Material, PropertyValue, SharedMaterial},
+    material::{self, Material, MaterialResource},
     renderer::{self, batch::RenderContext},
-    resource::texture::TextureResource,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -123,7 +120,7 @@ impl Hash for RectangleVertex {
 /// #
 /// fn set_texture(rect: &mut Rectangle, texture: Option<TextureResource>) {
 ///     rect.material()
-///         .lock()
+///         .data_ref()
 ///         .set_property(
 ///             &ImmutableString::new("diffuseTexture"),
 ///             PropertyValue::Sampler {
@@ -161,7 +158,7 @@ pub struct Rectangle {
     #[reflect(setter = "set_uv_rect")]
     uv_rect: InheritableVariable<Rect<f32>>,
 
-    material: InheritableVariable<SharedMaterial>,
+    material: InheritableVariable<MaterialResource>,
 }
 
 impl Visit for Rectangle {
@@ -169,18 +166,10 @@ impl Visit for Rectangle {
         let mut region = visitor.enter_region(name)?;
 
         if region.is_reading() {
-            let mut texture: InheritableVariable<Option<TextureResource>> = Default::default();
-            if texture.visit("Texture", &mut region).is_ok() {
-                // Backward compatibility.
-                let mut material = Material::standard_2d();
-                Log::verify(material.set_property(
-                    &ImmutableString::new("diffuseTexture"),
-                    PropertyValue::Sampler {
-                        value: (*texture).clone(),
-                        fallback: SamplerFallback::White,
-                    },
-                ));
-                self.material = SharedMaterial::new(material).into();
+            if let Some(material) =
+                material::visit_old_texture_as_material(&mut region, Material::standard_2d)
+            {
+                self.material = material.into();
             } else {
                 self.material.visit("Material", &mut region)?;
             }
@@ -190,7 +179,7 @@ impl Visit for Rectangle {
 
         self.base.visit("Base", &mut region)?;
         self.color.visit("Color", &mut region)?;
-        let _ = self.uv_rect.visit("Material", &mut region);
+        let _ = self.uv_rect.visit("UvRect", &mut region);
 
         Ok(())
     }
@@ -202,7 +191,7 @@ impl Default for Rectangle {
             base: Default::default(),
             color: Default::default(),
             uv_rect: InheritableVariable::new_modified(Rect::new(0.0, 0.0, 1.0, 1.0)),
-            material: InheritableVariable::new_modified(SharedMaterial::new(
+            material: InheritableVariable::new_modified(MaterialResource::new_ok(
                 Material::standard_2d(),
             )),
         }
@@ -236,12 +225,12 @@ impl Rectangle {
     }
 
     /// Returns a reference to the current material used by the rectangle.
-    pub fn material(&self) -> &InheritableVariable<SharedMaterial> {
+    pub fn material(&self) -> &InheritableVariable<MaterialResource> {
         &self.material
     }
 
     /// Returns a reference to the current material used by the rectangle.
-    pub fn material_mut(&mut self) -> &mut InheritableVariable<SharedMaterial> {
+    pub fn material_mut(&mut self) -> &mut InheritableVariable<MaterialResource> {
         &mut self.material
     }
 
@@ -351,7 +340,7 @@ pub struct RectangleBuilder {
     base_builder: BaseBuilder,
     color: Color,
     uv_rect: Rect<f32>,
-    material: SharedMaterial,
+    material: MaterialResource,
 }
 
 impl RectangleBuilder {
@@ -361,7 +350,7 @@ impl RectangleBuilder {
             base_builder,
             color: Color::WHITE,
             uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
-            material: SharedMaterial::new(Material::standard_2d()),
+            material: MaterialResource::new_ok(Material::standard_2d()),
         }
     }
 
@@ -379,7 +368,7 @@ impl RectangleBuilder {
     }
 
     /// Sets the desired material of the rectangle.
-    pub fn with_material(mut self, material: SharedMaterial) -> Self {
+    pub fn with_material(mut self, material: MaterialResource) -> Self {
         self.material = material;
         self
     }

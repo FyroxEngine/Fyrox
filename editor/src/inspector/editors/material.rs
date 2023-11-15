@@ -1,5 +1,6 @@
 use crate::message::MessageSender;
 use crate::{Message, MessageDirection};
+use fyrox::material::MaterialResourceExtension;
 use fyrox::{
     asset::core::pool::Handle,
     core::parking_lot::Mutex,
@@ -21,7 +22,7 @@ use fyrox::{
         widget::{Widget, WidgetBuilder},
         BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
-    material::SharedMaterial,
+    material::MaterialResource,
 };
 use std::{
     any::{Any, TypeId},
@@ -31,11 +32,11 @@ use std::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MaterialFieldMessage {
-    Material(SharedMaterial),
+    Material(MaterialResource),
 }
 
 impl MaterialFieldMessage {
-    define_constructor!(MaterialFieldMessage:Material => fn material(SharedMaterial), layout: false);
+    define_constructor!(MaterialFieldMessage:Material => fn material(MaterialResource), layout: false);
 }
 
 #[derive(Clone, Visit, Reflect)]
@@ -47,7 +48,7 @@ pub struct MaterialFieldEditor {
     text: Handle<UiNode>,
     edit: Handle<UiNode>,
     make_unique: Handle<UiNode>,
-    material: SharedMaterial,
+    material: MaterialResource,
 }
 
 impl Debug for MaterialFieldEditor {
@@ -116,8 +117,14 @@ pub struct MaterialFieldEditorBuilder {
     widget_builder: WidgetBuilder,
 }
 
-fn make_name(material: &SharedMaterial) -> String {
-    let name = material.lock().shader().data_ref().definition.name.clone();
+fn make_name(material: &MaterialResource) -> String {
+    let name = material
+        .data_ref()
+        .shader()
+        .data_ref()
+        .definition
+        .name
+        .clone();
     format!("{} - {} uses", name, material.use_count())
 }
 
@@ -130,7 +137,7 @@ impl MaterialFieldEditorBuilder {
         self,
         ctx: &mut BuildContext,
         sender: MessageSender,
-        material: SharedMaterial,
+        material: MaterialResource,
     ) -> Handle<UiNode> {
         let edit;
         let text;
@@ -212,14 +219,14 @@ pub struct MaterialPropertyEditorDefinition {
 
 impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
     fn value_type_id(&self) -> TypeId {
-        TypeId::of::<SharedMaterial>()
+        TypeId::of::<MaterialResource>()
     }
 
     fn create_instance(
         &self,
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
-        let value = ctx.property_info.cast_value::<SharedMaterial>()?;
+        let value = ctx.property_info.cast_value::<MaterialResource>()?;
         Ok(PropertyEditorInstance::Simple {
             editor: MaterialFieldEditorBuilder::new(WidgetBuilder::new()).build(
                 ctx.build_context,
@@ -233,7 +240,7 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
         &self,
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
-        let value = ctx.property_info.cast_value::<SharedMaterial>()?;
+        let value = ctx.property_info.cast_value::<MaterialResource>()?;
         Ok(Some(MaterialFieldMessage::material(
             ctx.instance,
             MessageDirection::ToWidget,

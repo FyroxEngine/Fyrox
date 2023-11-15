@@ -1,18 +1,18 @@
 use crate::{command::Command, scene::commands::SceneContext};
 use fyrox::{
     core::sstorage::ImmutableString,
-    material::{shader::ShaderResource, Material, PropertyValue, SharedMaterial},
+    material::{shader::ShaderResource, Material, MaterialResource, PropertyValue},
 };
 
 #[derive(Debug)]
 pub struct SetMaterialPropertyValueCommand {
-    material: SharedMaterial,
+    material: MaterialResource,
     name: ImmutableString,
     value: PropertyValue,
 }
 
 impl SetMaterialPropertyValueCommand {
-    pub fn new(material: SharedMaterial, name: ImmutableString, value: PropertyValue) -> Self {
+    pub fn new(material: MaterialResource, name: ImmutableString, value: PropertyValue) -> Self {
         Self {
             material,
             name,
@@ -21,7 +21,7 @@ impl SetMaterialPropertyValueCommand {
     }
 
     fn swap(&mut self) {
-        let mut material = self.material.lock();
+        let mut material = self.material.data_ref();
 
         let old_value = material.property_ref(&self.name).unwrap().clone();
 
@@ -55,12 +55,12 @@ enum SetMaterialShaderCommandState {
 
 #[derive(Debug)]
 pub struct SetMaterialShaderCommand {
-    material: SharedMaterial,
+    material: MaterialResource,
     state: SetMaterialShaderCommandState,
 }
 
 impl SetMaterialShaderCommand {
-    pub fn new(material: SharedMaterial, shader: ShaderResource) -> Self {
+    pub fn new(material: MaterialResource, shader: ShaderResource) -> Self {
         Self {
             material,
             state: SetMaterialShaderCommandState::NonExecuted { new_shader: shader },
@@ -73,7 +73,7 @@ impl SetMaterialShaderCommand {
                 unreachable!()
             }
             SetMaterialShaderCommandState::NonExecuted { new_shader } => {
-                let mut material = self.material.lock();
+                let mut material = self.material.data_ref();
 
                 let old_material = std::mem::replace(
                     &mut *material,
@@ -83,14 +83,14 @@ impl SetMaterialShaderCommand {
                 self.state = SetMaterialShaderCommandState::Executed { old_material };
             }
             SetMaterialShaderCommandState::Executed { old_material } => {
-                let mut material = self.material.lock();
+                let mut material = self.material.data_ref();
 
                 let new_material = std::mem::replace(&mut *material, old_material);
 
                 self.state = SetMaterialShaderCommandState::Reverted { new_material };
             }
             SetMaterialShaderCommandState::Reverted { new_material } => {
-                let mut material = self.material.lock();
+                let mut material = self.material.data_ref();
 
                 let old_material = std::mem::replace(&mut *material, new_material);
 
