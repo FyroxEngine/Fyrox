@@ -201,7 +201,7 @@ impl Visit for ParticleSystemRng {
 ///     )
 ///     .with_radius(0.01)
 ///     .build()])
-///     .with_material(MaterialResource::new(material))
+///     .with_material(MaterialResource::new_ok(material))
 ///     .build(graph);
 /// }
 /// ```

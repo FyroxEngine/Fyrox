@@ -123,7 +123,7 @@ impl Hash for RectangleVertex {
 /// #
 /// fn set_texture(rect: &mut Rectangle, texture: Option<TextureResource>) {
 ///     rect.material()
-///         .lock()
+///         .data_ref()
 ///         .set_property(
 ///             &ImmutableString::new("diffuseTexture"),
 ///             PropertyValue::Sampler {
