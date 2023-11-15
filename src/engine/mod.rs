@@ -6,34 +6,38 @@
 pub mod error;
 pub mod executor;
 
-use crate::resource::model::NodeMapping;
-use crate::scene::graph::NodePool;
-use crate::scene::SceneLoader;
 use crate::{
     asset::{
         event::ResourceEvent,
         manager::{ResourceManager, ResourceWaitContext},
         ResourceStateRef,
     },
-    core::{algebra::Vector2, futures::executor::block_on, instant, log::Log, pool::Handle},
+    core::{
+        algebra::Vector2, futures::executor::block_on, instant, log::Log, pool::Handle,
+        reflect::Reflect, variable::try_inherit_properties, visitor::VisitError,
+    },
     engine::error::EngineError,
     event::Event,
     gui::UserInterface,
-    material::shader::{loader::ShaderLoader, Shader, ShaderResource, ShaderResourceExtension},
+    material::{
+        loader::MaterialLoader,
+        shader::{loader::ShaderLoader, Shader, ShaderResource, ShaderResourceExtension},
+        Material,
+    },
     plugin::{Plugin, PluginConstructor, PluginContext, PluginRegistrationContext},
     renderer::{framework::error::FrameworkError, framework::state::GlKind, Renderer},
     resource::{
         curve::{loader::CurveLoader, CurveResourceState},
-        model::{loader::ModelLoader, Model, ModelResource},
+        model::{loader::ModelLoader, Model, ModelResource, NodeMapping},
         texture::{loader::TextureLoader, Texture, TextureKind},
     },
     scene::{
         base::NodeScriptMessage,
         camera::SkyBoxKind,
-        graph::GraphUpdateSwitches,
+        graph::{GraphUpdateSwitches, NodePool},
         node::{constructor::NodeConstructorContainer, Node},
         sound::SoundEngine,
-        Scene, SceneContainer,
+        Scene, SceneContainer, SceneLoader,
     },
     script::{
         constructor::ScriptConstructorContainer, RoutingStrategy, Script, ScriptContext,
@@ -43,9 +47,6 @@ use crate::{
     window::{Window, WindowBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_core::reflect::Reflect;
-use fyrox_core::variable::try_inherit_properties;
-use fyrox_core::visitor::VisitError;
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
@@ -1032,6 +1033,7 @@ pub(crate) fn initialize_resource_manager_loaders(
     state.constructors_container.add::<CurveResourceState>();
     state.constructors_container.add::<SoundBuffer>();
     state.constructors_container.add::<HrirSphereResourceData>();
+    state.constructors_container.add::<Material>();
 
     let loaders = &mut state.loaders;
     loaders.set(model_loader);
@@ -1044,6 +1046,7 @@ pub(crate) fn initialize_resource_manager_loaders(
     loaders.set(ShaderLoader);
     loaders.set(CurveLoader);
     loaders.set(HrirSphereLoader);
+    loaders.set(MaterialLoader);
 }
 
 impl Engine {

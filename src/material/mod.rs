@@ -20,6 +20,8 @@ use crate::{
     resource::texture::{Texture, TextureResource},
 };
 use fxhash::FxHashMap;
+use fyrox_core::io::FileLoadError;
+use fyrox_resource::io::ResourceIo;
 use std::{
     any::Any,
     borrow::Cow,
@@ -28,6 +30,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+pub mod loader;
 pub mod shader;
 
 /// A value of a property that will be used for rendering with a shader.
@@ -393,6 +396,8 @@ impl Default for PropertyValue {
 pub struct Material {
     #[visit(optional)]
     path: PathBuf,
+    #[visit(optional)]
+    is_procedural: bool,
     shader: ShaderResource,
     properties: FxHashMap<ImmutableString, PropertyValue>,
 }
@@ -431,12 +436,12 @@ impl ResourceData for Material {
     }
 
     fn is_procedural(&self) -> bool {
-        false
+        self.is_procedural
     }
 }
 
 /// A set of possible errors that can occur when working with materials.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum MaterialError {
     /// A property is missing.
     NoSuchProperty {
@@ -453,6 +458,20 @@ pub enum MaterialError {
         /// Given property value.
         given: PropertyValue,
     },
+
+    Visit(VisitError),
+}
+
+impl From<VisitError> for MaterialError {
+    fn from(value: VisitError) -> Self {
+        Self::Visit(value)
+    }
+}
+
+impl From<FileLoadError> for MaterialError {
+    fn from(value: FileLoadError) -> Self {
+        Self::Visit(VisitError::FileLoadError(value))
+    }
 }
 
 impl Display for MaterialError {
@@ -471,6 +490,9 @@ impl Display for MaterialError {
                     "Attempt to set a value of wrong type \
                 to {property_name} property. Expected: {expected:?}, given {given:?}"
                 )
+            }
+            MaterialError::Visit(e) => {
+                write!(f, "Failed to visit data source. Reason: {:?}", e)
             }
         }
     }
@@ -584,8 +606,20 @@ impl Material {
         Self {
             path: Default::default(),
             shader,
+            is_procedural: true,
             properties: property_values,
         }
+    }
+
+    pub async fn from_file<P>(path: P, io: &dyn ResourceIo) -> Result<Self, MaterialError>
+    where
+        P: AsRef<Path>,
+    {
+        let content = io.load_file(path.as_ref()).await?;
+        let mut visitor = Visitor::load_from_memory(&content)?;
+        let mut material = Material::default();
+        material.visit("Material", &mut visitor)?;
+        Ok(material)
     }
 
     /// Searches for a property with given name.
