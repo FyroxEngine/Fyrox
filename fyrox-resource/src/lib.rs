@@ -16,6 +16,7 @@ use crate::{
     untyped::UntypedResource,
 };
 use fxhash::FxHashSet;
+use std::error::Error;
 use std::{
     any::Any,
     borrow::Cow,
@@ -75,6 +76,17 @@ pub trait ResourceData: 'static + Debug + Visit + Send + Reflect {
 
     /// Returns true if the resource data was generated procedurally, not taken from a file.
     fn is_procedural(&self) -> bool;
+
+    /// Saves the resource data a file at the specified path. By default, this method returns an
+    /// error that tells that saving functionality is not implemented. This method is free to
+    /// decide how the resource data is saved. This is needed, because there are multiple formats
+    /// that defines various kinds of resources. For example, a rectangular texture could be saved
+    /// into a whole bunch of formats, such as png, bmp, tga, jpg etc, but in the engine it is single
+    /// Texture resource. In any case, produced file should be compatible with a respective resource
+    /// loader.
+    fn save(&mut self, #[allow(unused_variables)] path: &Path) -> Result<(), Box<dyn Error>> {
+        Err("Saving is not supported!".to_string().into())
+    }
 }
 
 /// A trait for resource load error.
