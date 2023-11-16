@@ -9,12 +9,25 @@ use crate::{
 use fxhash::FxHashMap;
 
 /// A simple type alias for boxed resource constructor.
-pub type ResourceDataConstructor = Box<dyn FnMut() -> Box<dyn ResourceData> + Send>;
+pub struct ResourceDataConstructor {
+    /// Type name of the resource, produced by this constructor.
+    pub type_name: String,
+    /// Boxed callback, that is able to produce a resource in the default state.
+    pub callback: Box<dyn FnMut() -> Box<dyn ResourceData> + Send>,
+}
+
+impl ResourceDataConstructor {
+    /// Creates a new resource instance in the default state.
+    pub fn create_instance(&mut self) -> Box<dyn ResourceData> {
+        (self.callback)()
+    }
+}
 
 /// A special container that is able to create resources by their type UUID.
 #[derive(Default)]
 pub struct ResourceConstructorContainer {
-    map: Mutex<FxHashMap<Uuid, ResourceDataConstructor>>,
+    /// Map of `Type UUID -> Constructor`
+    pub map: Mutex<FxHashMap<Uuid, ResourceDataConstructor>>,
 }
 
 impl ResourceConstructorContainer {
@@ -31,7 +44,10 @@ impl ResourceConstructorContainer {
     {
         let previous = self.map.lock().insert(
             <T as TypeUuidProvider>::type_uuid(),
-            Box::new(|| Box::<T>::default()),
+            ResourceDataConstructor {
+                callback: Box::new(|| Box::<T>::default()),
+                type_name: std::any::type_name::<T>().to_owned(),
+            },
         );
 
         assert!(previous.is_none());
@@ -50,7 +66,10 @@ impl ResourceConstructorContainer {
     /// Makes an attempt to create a resource data using provided type UUID. It may fail if there is no
     /// resource data constructor for specified type UUID.
     pub fn try_create(&self, type_uuid: &Uuid) -> Option<Box<dyn ResourceData>> {
-        self.map.lock().get_mut(type_uuid).map(|c| (c)())
+        self.map
+            .lock()
+            .get_mut(type_uuid)
+            .map(|c| c.create_instance())
     }
 
     /// Returns total amount of constructors.
@@ -124,7 +143,13 @@ mod test {
 
         assert!(c.is_empty());
 
-        c.add_custom(Uuid::default(), Box::new(|| Box::new(Stub {})));
+        c.add_custom(
+            Uuid::default(),
+            ResourceDataConstructor {
+                callback: Box::new(|| Box::<Stub>::default()),
+                type_name: std::any::type_name::<Stub>().to_owned(),
+            },
+        );
         assert_eq!(c.len(), 1);
 
         c.remove(Uuid::default());
