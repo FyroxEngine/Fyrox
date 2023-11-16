@@ -1920,6 +1920,7 @@ impl Engine {
                     self.user_interface.get_drawing_context(),
                     &ctx.gl_surface,
                     &ctx.gl_context,
+                    &ctx.window,
                 )?;
             }
             #[cfg(target_arch = "wasm32")]
