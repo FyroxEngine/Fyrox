@@ -97,7 +97,7 @@ use fyrox::{
     dpi::{PhysicalPosition, PhysicalSize},
     engine::{Engine, EngineInitParams, GraphicsContextParams, SerializationContext},
     event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
+    event_loop::{EventLoop, EventLoopWindowTarget},
     fxhash::FxHashMap,
     gui::{
         brush::Brush,
@@ -2462,19 +2462,8 @@ impl Editor {
     }
 
     pub fn is_active(&self) -> bool {
-        #[cfg(any(target_os = "windows", target_os = "macos"))]
-        {
-            !self.update_loop_state.is_suspended()
-                && (self.focused || !self.settings.general.suspend_unfocused_editor)
-        }
-
-        // Linux is "special" for now, because of Wayland.
-        // Wayland connection dies when the editor enters energy-saving mode.
-        // TODO: https://github.com/FyroxEngine/Fyrox/issues/567
-        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-        {
-            true
-        }
+        !self.update_loop_state.is_suspended()
+            && (self.focused || !self.settings.general.suspend_unfocused_editor)
     }
 
     pub fn run(mut self, event_loop: EventLoop<()>) {
@@ -2596,7 +2585,12 @@ impl Editor {
                         _ => (),
                     }
 
-                    self.update_loop_state.request_update_in_current_frame();
+                    // Any action in the window, other than a redraw request forces the editor to
+                    // do another update pass which then pushes a redraw request to the event
+                    // queue. This check prevents infinite loop of this kind.
+                    if !matches!(event, WindowEvent::RedrawRequested) {
+                        self.update_loop_state.request_update_in_current_frame();
+                    }
 
                     if let Some(os_event) = translate_event(event) {
                         self.engine.user_interface.process_os_event(&os_event);
@@ -2613,15 +2607,9 @@ impl Editor {
                             for_each_plugin!(self.plugins => on_resumed(&mut self));
                             self.is_suspended = false;
                         }
-
-                        window_target.set_control_flow(ControlFlow::Poll);
-                    } else {
-                        if !self.is_suspended {
-                            for_each_plugin!(self.plugins => on_suspended(&mut self));
-                            self.is_suspended = true;
-                        }
-
-                        window_target.set_control_flow(ControlFlow::Wait);
+                    } else if !self.is_suspended {
+                        for_each_plugin!(self.plugins => on_suspended(&mut self));
+                        self.is_suspended = true;
                     }
                 }
             })
