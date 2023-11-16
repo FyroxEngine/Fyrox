@@ -127,7 +127,8 @@ where
     /// **Default:** 1000
     ///
     /// # Notes
-    /// A* is inefficent when its desired destination is isolated or it must backtrack a substantial distance before it may reach the goal.
+    ///
+    /// A* is inefficient when its desired destination is isolated or it must backtrack a substantial distance before it may reach the goal.
     /// Higher max iteration numbers will be required for huge graphs and graphs with many obstacles.
     /// Whereas, lower max iterations may be desired for smaller simple graphs.
     ///
@@ -138,13 +139,15 @@ where
 /// Shows path status.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum PathKind {
-    /// The path is direct path from begin to end.
+    /// The path is a direct path from beginning to end.
     Full,
-    /// The path is not a direct path from begin to end. Instead, it is a partial path ending  closest reachable vertex to destination.
+    /// The path is not a direct path from beginning to end.
+    /// Instead, it is a partial path ending at the closest reachable vertex to the desired destination.
     ///
     /// # Notes
+    ///
     /// Can happen if there are isolated "islands" of graph vertices with no links between
-    /// them and you trying to find path from one "island" to other.
+    /// them and you trying to find a path from one "island" to another.
     Partial,
 }
 
@@ -168,14 +171,14 @@ impl PositionProvider for VertexData {
 /// kinds of errors.
 #[derive(Clone, Debug)]
 pub enum PathError {
-    /// Out-of-bounds vertex index has found, it can be either index of begin/end
+    /// Out-of-bounds vertex index was found, it can be either the index of begin/end
     /// points, or some index of neighbour vertices in list of neighbours in vertex.
     InvalidIndex(usize),
 
     /// There is a vertex that has itself as neighbour.
     CyclicReferenceFound(usize),
 
-    /// path vector is still valid and partial, but pathfinder hit its maximum search iterations and gave up.
+    /// Path vector is still valid and partial, but pathfinder hit its maximum search iterations and gave up.
     ///
     /// # Notes
     ///
@@ -213,7 +216,7 @@ impl Display for PathError {
 }
 
 #[derive(Clone)]
-/// A partially complete path containing the indexes to its vertices and its A* scores
+/// A partially complete path containing the indices of graph vertices and its A* scores
 pub struct PartialPath {
     vertices: Vec<usize>,
     g_score: f32,
@@ -231,7 +234,7 @@ impl Default for PartialPath {
 }
 
 impl Ord for PartialPath {
-    /// only compairs f-value and heuristic
+    /// Only compairs f-value and heuristic
     fn cmp(&self, other: &Self) -> Ordering {
         (self.f_score.total_cmp(&other.f_score))
             .then((self.f_score - self.g_score).total_cmp(&(other.f_score - other.g_score)))
@@ -240,14 +243,14 @@ impl Ord for PartialPath {
 }
 
 impl PartialOrd for PartialPath {
-    /// only compairs f-value and heuristic
+    /// Only compairs f-value and heuristic
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl PartialEq for PartialPath {
-    /// only determaines if values are equal not equal composition
+    /// Only determaines if scores are equal, does not evaluate vertices
     fn eq(&self, other: &Self) -> bool {
         self.f_score == other.f_score && self.g_score == other.g_score
     }
@@ -256,17 +259,16 @@ impl PartialEq for PartialPath {
 impl Eq for PartialPath {}
 
 impl PartialPath {
-    /// creates a new partial path from the starting vertex index
+    /// Creates a new partial path from the starting vertex index
     pub fn new(start: usize) -> Self {
         Self {
             vertices: vec![start],
             g_score: 0f32,
             f_score: f32::MAX,
-            //f_score: f32::MAX / 10f32,
         }
     }
 
-    /// returns a clone with the new vertex added to the end and updates scores to given new scores
+    /// Returns a clone with the new vertex added to the end and updates scores to given new scores
     pub fn clone_and_add(
         &self,
         new_vertex: usize,
@@ -278,12 +280,12 @@ impl PartialPath {
         clone.g_score = new_g_score;
         clone.f_score = new_f_score;
 
-        return clone;
+        clone
     }
 }
 
 impl<T: VertexDataProvider> Graph<T> {
-    /// Creates new empty path finder.
+    /// Creates new empty graph.
     pub fn new() -> Self {
         Self {
             vertices: Default::default(),
@@ -405,16 +407,16 @@ impl<T: VertexDataProvider> Graph<T> {
         }
     }
 
-    /// Tries to build path of vertex indices from begin point to end point. Returns path kind:
+    /// Tries to build path of vertex indices from beginning point to endpoint. Returns path kind:
     ///
-    /// - Full: Path vector is a direct path from begin to end.
-    /// - Partial: Path vector is a path that ends closest to desired end, because pathfinder could not find full path.
+    /// - Full: Path vector is a direct path from beginning to end.
+    /// - Partial: Path vector is a path that ends closest to the desired end, because pathfinder could not find a full path.
     ///
     /// *See `PathKind`*
     ///
     /// # Notes
     ///
-    /// This implimentation is fast and allows for multiple searches in parallel, but does not attempt to find the optimal route
+    /// This implementation is fast and allows for multiple searches in parallel, but does not attempt to find the optimal route
     ///
     /// **See `Graph<T>.max_search_iterations`** to change the maximum amount of search iterations
 
@@ -436,7 +438,7 @@ impl<T: VertexDataProvider> Graph<T> {
             .ok_or(PathError::InvalidIndex(to))?
             .position;
 
-        //returns one point if the goal is the current postion
+        // returns one point if the goal is the current postion
         if from == to {
             path.push(to);
             return Ok(PathKind::Full);
@@ -515,7 +517,7 @@ impl<T: VertexDataProvider> Graph<T> {
                 ));
             }
 
-            //marks vertex as searched
+            // marks vertex as searched
             searched_vertices[current_index] = true;
 
             search_iteration += 1;
@@ -536,16 +538,16 @@ impl<T: VertexDataProvider> Graph<T> {
         }
     }
 
-    /// Tries to build path of Vector3's from begin point to end point. eturns path kind:
+    /// Tries to build path of Vector3's from beginning point to endpoint. Returns path kind:
     ///
-    /// - Full: Path vector is a direct path from begin to end.
-    /// - Partial: Path vector is a path that ends closest to desired end, because pathfinder could not find full path.
+    /// - Full: Path vector is a direct path from beginning to end.
+    /// - Partial: Path vector is a path that ends closest to the desired end, because pathfinder could not find a full path.
     ///
     /// *See `PathKind`*
     ///
     /// # Notes
     ///
-    /// This implimentation is fast and allows for multiple searches in parallel, but does not attempt to find the optimal route
+    /// This implementation is fast and allows for multiple searches in parallel, but does not attempt to find the optimal route
     ///
     /// **See `Graph<T>.max_search_iterations`** to change the maximum amount of search iterations
     pub fn build_positional_path(
@@ -569,21 +571,21 @@ impl<T: VertexDataProvider> Graph<T> {
             path.push(vertex.position);
         }
 
-        return Ok(path_kind);
+        Ok(path_kind)
     }
 
-    /// **Depreciated** *use **`Graph<T>.build_positional_path()`** instead*
+    /// **Deprecated** *use **`Graph<T>.build_positional_path()`** instead*
     ///
-    /// eturns path kind:
+    /// Tries to build path of Vector3's from beginning point to endpoint. Returns path kind:
     ///
-    /// - Full: Path vector is a direct path from begin to end.
-    /// - Partial: Path vector is a path that ends closest to desired end, because pathfinder could not find full path.
+    /// - Full: Path vector is a direct path from beginning to end.
+    /// - Partial: Path vector is a path that ends closest to the desired end, because pathfinder could not find a full path.
     ///
     /// *See `PathKind`*
     ///
     /// # Notes
     ///
-    /// This implimentation is fast and allows for multiple searches in parallel, but does not attempt to find the optimal route
+    /// This implementation is fast and allows for multiple searches in parallel, but does not attempt to find the optimal route
     ///
     /// **See `Graph<T>.max_search_iterations`** to change the maximum amount of search iterations
     #[deprecated = "name is too ambiguous use build_positional_path instead"]
