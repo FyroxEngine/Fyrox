@@ -2585,7 +2585,12 @@ impl Editor {
                         _ => (),
                     }
 
-                    self.update_loop_state.request_update_in_current_frame();
+                    // Any action in the window, other than a redraw request forces the editor to
+                    // do another update pass which then pushes a redraw request to the event
+                    // queue. This check prevents infinite loop of this kind.
+                    if !matches!(event, WindowEvent::RedrawRequested) {
+                        self.update_loop_state.request_update_in_current_frame();
+                    }
 
                     if let Some(os_event) = translate_event(event) {
                         self.engine.user_interface.process_os_event(&os_event);
