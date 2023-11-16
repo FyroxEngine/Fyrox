@@ -19,17 +19,6 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-/// State a of path vertex.
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum PathVertexState {
-    /// A vertex wasn't visited and yet to be processed.
-    NonVisited,
-    /// A vertex is inside an open set (to be visited).
-    Open,
-    /// A vertex is inside an closed set (was visited).
-    Closed,
-}
-
 /// Graph vertex that contains position in world and list of indices of neighbour
 /// vertices.
 #[derive(Clone, Debug, Visit, PartialEq)]
