@@ -98,6 +98,7 @@ use std::{
     sync::mpsc::Receiver,
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+use winit::window::Window;
 
 lazy_static! {
     static ref GBUFFER_PASS_NAME: ImmutableString = ImmutableString::new("GBuffer");
@@ -1930,9 +1931,11 @@ impl Renderer {
         drawing_context: &DrawingContext,
         surface: &Surface<WindowSurface>,
         context: &PossiblyCurrentContext,
+        window: &Window,
     ) -> Result<(), FrameworkError> {
         self.render_frame(scenes, drawing_context)?;
         self.statistics.end_frame();
+        window.pre_present_notify();
         surface.swap_buffers(context)?;
         self.statistics.finalize();
         self.statistics.pipeline = self.state.pipeline_statistics();
