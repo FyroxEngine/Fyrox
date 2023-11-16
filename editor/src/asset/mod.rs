@@ -10,20 +10,21 @@ use crate::{
         },
         item::AssetItemBuilder,
     },
-    gui::AssetItemMessage,
+    gui::{make_dropdown_list_option, AssetItemMessage},
     message::MessageSender,
     preview::PreviewPanel,
     utils::window_content,
     AssetItem, AssetKind, Message, Mode,
 };
 use fyrox::{
-    asset::manager::ResourceManager,
+    asset::{manager::ResourceManager, state::ResourceState, untyped::UntypedResource},
     core::{
         algebra::{UnitQuaternion, Vector3},
         color::Color,
         futures::executor::block_on,
         log::Log,
         make_relative_path,
+        parking_lot::lock_api::Mutex,
         pool::Handle,
         scope_profile,
         sstorage::ImmutableString,
@@ -32,17 +33,22 @@ use fyrox::{
     gui::{
         border::BorderBuilder,
         brush::Brush,
+        button::{ButtonBuilder, ButtonMessage},
         copypasta::ClipboardProvider,
         file_browser::{FileBrowserBuilder, FileBrowserMessage, Filter},
         grid::{Column, GridBuilder, Row},
+        list_view::{ListViewBuilder, ListViewMessage},
         menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
         message::{MessageDirection, UiMessage},
         popup::{Placement, PopupBuilder, PopupMessage},
         scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
         searchbar::{SearchBarBuilder, SearchBarMessage},
         stack_panel::StackPanelBuilder,
+        text::TextMessage,
+        text_box::TextBoxBuilder,
+        utils::make_simple_tooltip,
         widget::{WidgetBuilder, WidgetMessage},
-        window::{WindowBuilder, WindowTitle},
+        window::{WindowBuilder, WindowMessage, WindowTitle},
         wrap_panel::WrapPanelBuilder,
         BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
         UserInterface, VerticalAlignment, BRUSH_DARK,
@@ -62,6 +68,7 @@ use std::{
     ffi::OsStr,
     path::{Path, PathBuf},
     process::Command,
+    sync::Arc,
 };
 
 mod dependency;
@@ -215,12 +222,177 @@ impl ContextMenu {
     }
 }
 
+struct ResourceCreator {
+    window: Handle<UiNode>,
+    resource_constructors_list: Handle<UiNode>,
+    ok: Handle<UiNode>,
+    cancel: Handle<UiNode>,
+    name: Handle<UiNode>,
+    selected: Option<usize>,
+    name_str: String,
+}
+
+impl ResourceCreator {
+    pub fn new(ctx: &mut BuildContext, resource_manager: &ResourceManager) -> Self {
+        let items = resource_manager
+            .state()
+            .constructors_container
+            .map
+            .lock()
+            .values()
+            .map(|constructor| make_dropdown_list_option(ctx, &constructor.type_name))
+            .collect();
+
+        let name_str = String::from("unnamed_resource");
+        let name;
+        let ok;
+        let cancel;
+        let resource_constructors_list;
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+            .with_title(WindowTitle::text("Resource Creator"))
+            .open(false)
+            .with_content(
+                GridBuilder::new(
+                    WidgetBuilder::new()
+                        .with_child({
+                            name = TextBoxBuilder::new(
+                                WidgetBuilder::new().on_row(0).with_height(22.0),
+                            )
+                            .with_text(&name_str)
+                            .build(ctx);
+                            name
+                        })
+                        .with_child({
+                            resource_constructors_list =
+                                ListViewBuilder::new(WidgetBuilder::new().on_row(1))
+                                    .with_items(items)
+                                    .build(ctx);
+                            resource_constructors_list
+                        })
+                        .with_child(
+                            StackPanelBuilder::new(
+                                WidgetBuilder::new()
+                                    .with_horizontal_alignment(HorizontalAlignment::Right)
+                                    .on_row(2)
+                                    .with_child({
+                                        ok = ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_enabled(false)
+                                                .with_width(100.0)
+                                                .with_height(22.0),
+                                        )
+                                        .with_text("OK")
+                                        .build(ctx);
+                                        ok
+                                    })
+                                    .with_child({
+                                        cancel = ButtonBuilder::new(
+                                            WidgetBuilder::new()
+                                                .with_width(100.0)
+                                                .with_height(22.0),
+                                        )
+                                        .with_text("Cancel")
+                                        .build(ctx);
+                                        cancel
+                                    }),
+                            )
+                            .with_orientation(Orientation::Horizontal)
+                            .build(ctx),
+                        ),
+                )
+                .add_row(Row::auto())
+                .add_row(Row::stretch())
+                .add_row(Row::auto())
+                .add_column(Column::stretch())
+                .build(ctx),
+            )
+            .build(ctx);
+
+        Self {
+            window,
+            resource_constructors_list,
+            ok,
+            cancel,
+            name,
+            selected: None,
+            name_str,
+        }
+    }
+
+    fn open(&self, ui: &UserInterface) {
+        ui.send_message(WindowMessage::open_modal(
+            self.window,
+            MessageDirection::ToWidget,
+            true,
+        ));
+    }
+
+    fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        engine: &mut Engine,
+        sender: MessageSender,
+        base_path: &Path,
+    ) {
+        if let Some(ListViewMessage::SelectionChanged(Some(index))) = message.data() {
+            if message.destination() == self.resource_constructors_list
+                && message.direction() == MessageDirection::FromWidget
+            {
+                self.selected = Some(*index);
+                engine.user_interface.send_message(WidgetMessage::enabled(
+                    self.ok,
+                    MessageDirection::ToWidget,
+                    true,
+                ));
+            }
+        } else if let Some(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.ok {
+                let mut instance = engine
+                    .resource_manager
+                    .state()
+                    .constructors_container
+                    .map
+                    .lock()
+                    .values_mut()
+                    .nth(self.selected.unwrap())
+                    .unwrap()
+                    .create_instance();
+
+                let path = base_path.join(&self.name_str);
+                Log::verify(instance.save(&path));
+
+                let resource = UntypedResource(Arc::new(Mutex::new(ResourceState::Ok(instance))));
+                resource.set_path(path.clone());
+
+                engine
+                    .resource_manager
+                    .register(resource, path, |_, _| true)
+                    .unwrap();
+
+                sender.send(Message::ForceSync);
+            }
+
+            if message.destination() == self.ok || message.destination() == self.cancel {
+                engine.user_interface.send_message(WindowMessage::close(
+                    self.window,
+                    MessageDirection::ToWidget,
+                ));
+            }
+        } else if let Some(TextMessage::Text(text)) = message.data() {
+            if message.destination() == self.name {
+                self.name_str = text.clone();
+            }
+        }
+    }
+}
+
 pub struct AssetBrowser {
     pub window: Handle<UiNode>,
     content_panel: Handle<UiNode>,
     folder_browser: Handle<UiNode>,
     scroll_panel: Handle<UiNode>,
     search_bar: Handle<UiNode>,
+    add_resource: Handle<UiNode>,
     preview: PreviewPanel,
     items: Vec<Handle<UiNode>>,
     item_to_select: Option<PathBuf>,
@@ -228,6 +400,7 @@ pub struct AssetBrowser {
     context_menu: ContextMenu,
     selected_path: PathBuf,
     dependency_viewer: DependencyViewer,
+    resource_creator: Option<ResourceCreator>,
 }
 
 fn is_supported_resource(ext: &OsStr, resource_manager: &ResourceManager) -> bool {
@@ -250,6 +423,7 @@ impl AssetBrowser {
         let folder_browser;
         let search_bar;
         let scroll_panel;
+        let add_resource;
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("AssetBrowser"))
             .can_minimize(false)
             .with_title(WindowTitle::text("Asset Browser"))
@@ -276,15 +450,40 @@ impl AssetBrowser {
                             GridBuilder::new(
                                 WidgetBuilder::new()
                                     .on_column(1)
-                                    .with_child({
-                                        search_bar = SearchBarBuilder::new(
+                                    .with_child(
+                                        GridBuilder::new(
                                             WidgetBuilder::new()
-                                                .with_height(22.0)
-                                                .with_margin(Thickness::uniform(1.0)),
+                                                .with_child({
+                                                    add_resource = ButtonBuilder::new(
+                                                        WidgetBuilder::new()
+                                                            .with_height(20.0)
+                                                            .with_width(20.0)
+                                                            .with_margin(Thickness::uniform(1.0))
+                                                            .with_tooltip(make_simple_tooltip(
+                                                                ctx,
+                                                                "Add New Resource",
+                                                            )),
+                                                    )
+                                                    .with_text("+")
+                                                    .build(ctx);
+                                                    add_resource
+                                                })
+                                                .with_child({
+                                                    search_bar = SearchBarBuilder::new(
+                                                        WidgetBuilder::new()
+                                                            .on_column(1)
+                                                            .with_height(22.0)
+                                                            .with_margin(Thickness::uniform(1.0)),
+                                                    )
+                                                    .build(ctx);
+                                                    search_bar
+                                                }),
                                         )
-                                        .build(ctx);
-                                        search_bar
-                                    })
+                                        .add_column(Column::auto())
+                                        .add_column(Column::stretch())
+                                        .add_row(Row::auto())
+                                        .build(ctx),
+                                    )
                                     .with_child({
                                         scroll_panel = ScrollViewerBuilder::new(
                                             WidgetBuilder::new().on_row(1),
@@ -357,6 +556,8 @@ impl AssetBrowser {
             inspector,
             context_menu,
             selected_path: Default::default(),
+            add_resource,
+            resource_creator: None,
         }
     }
 
@@ -478,6 +679,14 @@ impl AssetBrowser {
             .handle_ui_message(message, &sender, engine);
         self.dependency_viewer
             .handle_ui_message(message, &mut engine.user_interface);
+        if let Some(resource_creator) = self.resource_creator.as_mut() {
+            resource_creator.handle_ui_message(
+                message,
+                engine,
+                sender.clone(),
+                &self.selected_path,
+            );
+        }
 
         let ui = &mut engine.user_interface;
 
@@ -622,6 +831,28 @@ impl AssetBrowser {
                             .open(&resource, &mut engine.user_interface);
                     }
                 }
+            }
+        } else if let Some(WindowMessage::Close) = message.data() {
+            if let Some(resource_creator) = self.resource_creator.as_ref() {
+                if message.destination() == resource_creator.window {
+                    engine.user_interface.send_message(WidgetMessage::remove(
+                        resource_creator.window,
+                        MessageDirection::ToWidget,
+                    ));
+
+                    self.resource_creator = None;
+                }
+            }
+        } else if let Some(ButtonMessage::Click) = message.data() {
+            if message.destination() == self.add_resource {
+                let resource_creator = ResourceCreator::new(
+                    &mut engine.user_interface.build_ctx(),
+                    &engine.resource_manager,
+                );
+
+                resource_creator.open(&engine.user_interface);
+
+                self.resource_creator = Some(resource_creator);
             }
         }
     }
