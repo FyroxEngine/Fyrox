@@ -29,6 +29,7 @@ use base64::Engine;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use fxhash::FxHashMap;
 use std::any::TypeId;
+use std::error::Error;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -565,6 +566,8 @@ pub enum VisitError {
     PoisonedMutex,
     FileLoadError(FileLoadError),
 }
+
+impl Error for VisitError {}
 
 impl Display for VisitError {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
