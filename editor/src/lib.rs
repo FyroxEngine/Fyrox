@@ -2607,11 +2607,9 @@ impl Editor {
                             for_each_plugin!(self.plugins => on_resumed(&mut self));
                             self.is_suspended = false;
                         }
-                    } else {
-                        if !self.is_suspended {
-                            for_each_plugin!(self.plugins => on_suspended(&mut self));
-                            self.is_suspended = true;
-                        }
+                    } else if !self.is_suspended {
+                        for_each_plugin!(self.plugins => on_suspended(&mut self));
+                        self.is_suspended = true;
                     }
                 }
             })
