@@ -22,6 +22,7 @@ use crate::{
     resource::texture::{Texture, TextureResource},
 };
 use fxhash::FxHashMap;
+use std::error::Error;
 use std::{
     any::Any,
     borrow::Cow,
@@ -438,6 +439,13 @@ impl ResourceData for Material {
 
     fn is_procedural(&self) -> bool {
         self.is_procedural
+    }
+
+    fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
+        let mut visitor = Visitor::new();
+        self.visit("Material", &mut visitor)?;
+        visitor.save_binary(path)?;
+        Ok(())
     }
 }
 
