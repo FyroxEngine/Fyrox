@@ -1,10 +1,10 @@
-use crate::message::MessageSender;
-use crate::{Message, MessageDirection};
-use fyrox::material::MaterialResourceExtension;
+use crate::{
+    asset::item::AssetItem, inspector::EditorEnvironment, message::MessageSender, Message,
+    MessageDirection,
+};
 use fyrox::{
-    asset::core::pool::Handle,
-    core::parking_lot::Mutex,
-    core::{reflect::prelude::*, visitor::prelude::*},
+    asset::{core::pool::Handle, manager::ResourceManager},
+    core::{make_relative_path, parking_lot::Mutex, reflect::prelude::*, visitor::prelude::*},
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         define_constructor,
@@ -19,10 +19,10 @@ use fyrox::{
         message::UiMessage,
         text::{TextBuilder, TextMessage},
         utils::make_simple_tooltip,
-        widget::{Widget, WidgetBuilder},
+        widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
-    material::MaterialResource,
+    material::{Material, MaterialResource, MaterialResourceExtension},
 };
 use std::{
     any::{Any, TypeId},
@@ -49,6 +49,9 @@ pub struct MaterialFieldEditor {
     edit: Handle<UiNode>,
     make_unique: Handle<UiNode>,
     material: MaterialResource,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    resource_manager: ResourceManager,
 }
 
 impl Debug for MaterialFieldEditor {
@@ -109,6 +112,27 @@ impl Control for MaterialFieldEditor {
 
                 ui.send_message(message.reverse());
             }
+        } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
+            if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
+                let path = if self
+                    .resource_manager
+                    .state()
+                    .built_in_resources
+                    .contains_key(&item.path)
+                {
+                    Ok(item.path.clone())
+                } else {
+                    make_relative_path(&item.path)
+                };
+
+                if let Ok(path) = path {
+                    ui.send_message(MaterialFieldMessage::material(
+                        self.handle(),
+                        MessageDirection::ToWidget,
+                        self.resource_manager.request::<Material, _>(path),
+                    ));
+                }
+            }
         }
     }
 }
@@ -118,14 +142,11 @@ pub struct MaterialFieldEditorBuilder {
 }
 
 fn make_name(material: &MaterialResource) -> String {
-    let name = material
-        .data_ref()
-        .shader()
-        .data_ref()
-        .definition
-        .name
-        .clone();
-    format!("{} - {} uses", name, material.use_count())
+    format!(
+        "{} - {} uses",
+        material.path().to_string_lossy(),
+        material.use_count()
+    )
 }
 
 impl MaterialFieldEditorBuilder {
@@ -138,6 +159,7 @@ impl MaterialFieldEditorBuilder {
         ctx: &mut BuildContext,
         sender: MessageSender,
         material: MaterialResource,
+        resource_manager: ResourceManager,
     ) -> Handle<UiNode> {
         let edit;
         let text;
@@ -148,6 +170,7 @@ impl MaterialFieldEditorBuilder {
         let editor = MaterialFieldEditor {
             widget: self
                 .widget_builder
+                .with_allow_drop(true)
                 .with_child(
                     GridBuilder::new(
                         WidgetBuilder::new()
@@ -206,6 +229,7 @@ impl MaterialFieldEditorBuilder {
             material,
             text,
             make_unique,
+            resource_manager,
         };
 
         ctx.add_node(UiNode::new(editor))
@@ -227,13 +251,18 @@ impl PropertyEditorDefinition for MaterialPropertyEditorDefinition {
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
         let value = ctx.property_info.cast_value::<MaterialResource>()?;
-        Ok(PropertyEditorInstance::Simple {
-            editor: MaterialFieldEditorBuilder::new(WidgetBuilder::new()).build(
-                ctx.build_context,
-                self.sender.lock().clone(),
-                value.clone(),
-            ),
-        })
+        if let Some(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
+            Ok(PropertyEditorInstance::Simple {
+                editor: MaterialFieldEditorBuilder::new(WidgetBuilder::new()).build(
+                    ctx.build_context,
+                    self.sender.lock().clone(),
+                    value.clone(),
+                    environment.resource_manager.clone(),
+                ),
+            })
+        } else {
+            Err(InspectorError::Custom("No environment!".to_string()))
+        }
     }
 
     fn create_message(
