@@ -379,11 +379,11 @@ impl ResourceCreator {
                     .map(|c| c.create_instance())
                 {
                     let path = base_path.join(&self.name_str);
+                    instance.set_path(path.clone());
                     match instance.save(&path) {
                         Ok(_) => {
                             let resource =
                                 UntypedResource(Arc::new(Mutex::new(ResourceState::Ok(instance))));
-                            resource.set_path(path.clone());
 
                             drop(constructors);
                             drop(resource_manager_state);
