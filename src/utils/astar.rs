@@ -11,21 +11,13 @@ use crate::core::{
     math::{self, PositionProvider},
     visitor::prelude::*,
 };
+
 use std::{
+    cmp::Ordering,
+    collections::BinaryHeap,
     fmt::{Display, Formatter},
     ops::{Deref, DerefMut},
 };
-
-/// State a of path vertex.
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum PathVertexState {
-    /// A vertex wasn't visited and yet to be processed.
-    NonVisited,
-    /// A vertex is inside an open set (to be visited).
-    Open,
-    /// A vertex is inside an closed set (was visited).
-    Closed,
-}
 
 /// Graph vertex that contains position in world and list of indices of neighbour
 /// vertices.
@@ -35,32 +27,16 @@ pub struct VertexData {
     pub position: Vector3<f32>,
     /// A set of indices of neighbour vertices.
     pub neighbours: Vec<u32>,
-    /// Current state of the vertex.
-    #[visit(skip)]
-    pub state: PathVertexState,
     /// Penalty can be interpreted as measure, how harder is to travel to this vertex.
     #[visit(skip)]
     pub g_penalty: f32,
-    /// Path cost of the vertex.
-    #[visit(skip)]
-    pub g_score: f32,
-    /// A numeric metric, of how effective would be moving to neighbour in finding the optimal path.
-    #[visit(skip)]
-    pub f_score: f32,
-    /// An index of a vertex that is previous (relative to this) in the path.
-    #[visit(skip)]
-    pub parent: Option<usize>,
 }
 
 impl Default for VertexData {
     fn default() -> Self {
         Self {
             position: Default::default(),
-            parent: None,
             g_penalty: 1f32,
-            g_score: f32::MAX,
-            f_score: f32::MAX,
-            state: PathVertexState::NonVisited,
             neighbours: Default::default(),
         }
     }
@@ -71,21 +47,9 @@ impl VertexData {
     pub fn new(position: Vector3<f32>) -> Self {
         Self {
             position,
-            parent: None,
             g_penalty: 1f32,
-            g_score: f32::MAX,
-            f_score: f32::MAX,
-            state: PathVertexState::NonVisited,
             neighbours: Default::default(),
         }
-    }
-
-    fn clear(&mut self) {
-        self.g_penalty = 1f32;
-        self.g_score = f32::MAX;
-        self.f_score = f32::MAX;
-        self.state = PathVertexState::NonVisited;
-        self.parent = None;
     }
 }
 
@@ -137,7 +101,9 @@ impl Visit for GraphVertex {
 
 impl VertexDataProvider for GraphVertex {}
 
-/// See module docs.
+/// A collection of GraphVertices for pathfinding.
+///
+/// See module docs
 #[derive(Clone, Debug, Visit, PartialEq)]
 pub struct Graph<T>
 where
@@ -145,16 +111,32 @@ where
 {
     /// Vertices of the graph.
     pub vertices: Vec<T>,
+    /// The maximum iterations A* pathfinding will attempt before giving up and returning its best path.
+    ///
+    /// **Default:** 1000
+    ///
+    /// # Notes
+    ///
+    /// A* is inefficient when its desired destination is isolated or it must backtrack a substantial distance before it may reach the goal.
+    /// Higher max iteration numbers will be required for huge graphs and graphs with many obstacles.
+    /// Whereas, lower max iterations may be desired for smaller simple graphs.
+    ///
+    /// **Negative numbers** disable max iterations
+    pub max_search_iterations: i32,
 }
 
 /// Shows path status.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum PathKind {
-    /// There is direct path from begin to end.
+    /// The path is a direct path from beginning to end.
     Full,
-    /// No direct path, only partial to closest reachable vertex to destination. Can
-    /// happen if there are isolated "islands" of graph vertices with no links between
-    /// them and you trying to find path from one "island" to other.
+    /// The path is not a direct path from beginning to end.
+    /// Instead, it is a partial path ending at the closest reachable vertex to the desired destination.
+    ///
+    /// # Notes
+    ///
+    /// Can happen if there are isolated "islands" of graph vertices with no links between
+    /// them and you trying to find a path from one "island" to another.
     Partial,
 }
 
@@ -178,12 +160,23 @@ impl PositionProvider for VertexData {
 /// kinds of errors.
 #[derive(Clone, Debug)]
 pub enum PathError {
-    /// Out-of-bounds vertex index has found, it can be either index of begin/end
+    /// Out-of-bounds vertex index was found, it can be either the index of begin/end
     /// points, or some index of neighbour vertices in list of neighbours in vertex.
     InvalidIndex(usize),
 
     /// There is a vertex that has itself as neighbour.
     CyclicReferenceFound(usize),
+
+    /// Path vector is still valid and partial, but pathfinder hit its maximum search iterations and gave up.
+    ///
+    /// # Notes
+    ///
+    /// This most often means the desired destination is isolated, but a full path may exist. If a full path does exist you can:
+    /// - increase or disable max search iterations for this graph (at the cost of time).
+    /// - use a pathfinding algorithm that is better in these situations.
+    ///
+    /// See `Graph<T>.max_search_iterations` for more
+    HitMaxSearchIterations(i32),
 
     /// Graph was empty.
     Empty,
@@ -198,6 +191,12 @@ impl Display for PathError {
             PathError::CyclicReferenceFound(v) => {
                 write!(f, "Cyclical reference was found {v}.")
             }
+            PathError::HitMaxSearchIterations(v) => {
+                write!(
+                    f,
+                    "Maximum search iterations ({v}) hit, returning with partial path."
+                )
+            }
             PathError::Empty => {
                 write!(f, "Graph was empty")
             }
@@ -205,11 +204,81 @@ impl Display for PathError {
     }
 }
 
+#[derive(Clone)]
+/// A partially complete path containing the indices of graph vertices and its A* scores
+pub struct PartialPath {
+    vertices: Vec<usize>,
+    g_score: f32,
+    f_score: f32,
+}
+
+impl Default for PartialPath {
+    fn default() -> Self {
+        Self {
+            vertices: Vec::new(),
+            g_score: f32::MAX,
+            f_score: f32::MAX,
+        }
+    }
+}
+
+impl Ord for PartialPath {
+    /// Only compairs f-value and heuristic
+    fn cmp(&self, other: &Self) -> Ordering {
+        (self.f_score.total_cmp(&other.f_score))
+            .then((self.f_score - self.g_score).total_cmp(&(other.f_score - other.g_score)))
+            .reverse()
+    }
+}
+
+impl PartialOrd for PartialPath {
+    /// Only compairs f-value and heuristic
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for PartialPath {
+    /// Only determaines if scores are equal, does not evaluate vertices
+    fn eq(&self, other: &Self) -> bool {
+        self.f_score == other.f_score && self.g_score == other.g_score
+    }
+}
+
+impl Eq for PartialPath {}
+
+impl PartialPath {
+    /// Creates a new partial path from the starting vertex index
+    pub fn new(start: usize) -> Self {
+        Self {
+            vertices: vec![start],
+            g_score: 0f32,
+            f_score: f32::MAX,
+        }
+    }
+
+    /// Returns a clone with the new vertex added to the end and updates scores to given new scores
+    pub fn clone_and_add(
+        &self,
+        new_vertex: usize,
+        new_g_score: f32,
+        new_f_score: f32,
+    ) -> PartialPath {
+        let mut clone = self.clone();
+        clone.vertices.push(new_vertex);
+        clone.g_score = new_g_score;
+        clone.f_score = new_f_score;
+
+        clone
+    }
+}
+
 impl<T: VertexDataProvider> Graph<T> {
-    /// Creates new empty path finder.
+    /// Creates new empty graph.
     pub fn new() -> Self {
         Self {
             vertices: Default::default(),
+            max_search_iterations: 1000i32,
         }
     }
 
@@ -262,7 +331,7 @@ impl<T: VertexDataProvider> Graph<T> {
         &self.vertices
     }
 
-    /// Returns reference to the array of vertices.
+    /// Returns mutable reference to the array of vertices.
     pub fn vertices_mut(&mut self) -> &mut [T] {
         &mut self.vertices
     }
@@ -327,49 +396,29 @@ impl<T: VertexDataProvider> Graph<T> {
         }
     }
 
-    /// Tries to build path from begin point to end point. Returns path kind:
+    /// Tries to build path of vertex indices from beginning point to endpoint. Returns path kind:
     ///
-    /// - Full: there are direct path from begin to end.
-    /// - Partial: there are not direct path from begin to end, but it is closest.
-    /// - Empty: no path available - in most cases indicates some error in input params.
+    /// - Full: Path vector is a direct path from beginning to end.
+    /// - Partial: Path vector is a path that ends closest to the desired end, because pathfinder could not find a full path.
+    ///
+    /// *See `PathKind`*
     ///
     /// # Notes
     ///
-    /// This is more or less naive implementation, it most certainly will be slower than specialized solutions.
-    pub fn build(
-        &mut self,
+    /// This implementation is fast and allows for multiple searches in parallel, but does not attempt to find the optimal route
+    ///
+    /// **See `Graph<T>.max_search_iterations`** to change the maximum amount of search iterations
+
+    pub fn build_indexed_path(
+        &self,
         from: usize,
         to: usize,
-        path: &mut Vec<Vector3<f32>>,
+        path: &mut Vec<usize>,
     ) -> Result<PathKind, PathError> {
         path.clear();
-        self.build_and_convert(from, to, |_, v| path.push(v.position))
-    }
 
-    /// Tries to build path from begin point to end point. Returns path kind:
-    ///
-    /// - Full: there are direct path from begin to end.
-    /// - Partial: there are not direct path from begin to end, but it is closest.
-    /// - Empty: no path available - in most cases indicates some error in input params.
-    ///
-    /// # Notes
-    ///
-    /// This is more or less naive implementation, it most certainly will be slower than specialized solutions.
-    pub fn build_and_convert<F>(
-        &mut self,
-        from: usize,
-        to: usize,
-        func: F,
-    ) -> Result<PathKind, PathError>
-    where
-        F: FnMut(usize, &T),
-    {
         if self.vertices.is_empty() {
-            return Ok(PathKind::Partial);
-        }
-
-        for vertex in self.vertices.iter_mut() {
-            vertex.clear();
+            return Err(PathError::Empty);
         }
 
         let end_pos = self
@@ -378,120 +427,185 @@ impl<T: VertexDataProvider> Graph<T> {
             .ok_or(PathError::InvalidIndex(to))?
             .position;
 
-        // Put start vertex in open set.
-        let start = self
-            .vertices
-            .get_mut(from)
-            .ok_or(PathError::InvalidIndex(from))?;
-        start.state = PathVertexState::Open;
-        start.g_score = 0.0;
-        start.f_score = heuristic(start.position, end_pos);
+        // returns one point if the goal is the current postion
+        if from == to {
+            path.push(to);
+            return Ok(PathKind::Full);
+        }
 
-        let mut open_set_size = 1;
-        while open_set_size > 0 {
-            let mut current_index = 0;
-            let mut lowest_f_score = f32::MAX;
-            for (i, vertex) in self.vertices.iter().enumerate() {
-                if vertex.state == PathVertexState::Open && vertex.f_score < lowest_f_score {
-                    current_index = i;
-                    lowest_f_score = vertex.f_score;
+        // keeps track of which vertices we've searched
+        let mut searched_vertices = vec![false; self.vertices.len()];
+
+        // creates heap for searching
+        let mut search_heap: BinaryHeap<PartialPath> = BinaryHeap::new();
+
+        // creates first partial path and adds it to heap
+        search_heap.push(PartialPath::new(from));
+
+        // stores best path found
+        let mut best_path = PartialPath::default();
+
+        // search loop
+        let mut search_iteration = 0i32;
+
+        while self.max_search_iterations < 0 || search_iteration < self.max_search_iterations {
+            // breakes loop if heap is empty
+            if search_heap.is_empty() {
+                break;
+            }
+
+            // pops best partial path off the heap to use for this iteration
+            let current_path = search_heap.pop().unwrap();
+
+            let current_index = *current_path.vertices.last().unwrap();
+            let current_vertex = self
+                .vertices
+                .get(current_index)
+                .ok_or(PathError::InvalidIndex(current_index))?;
+
+            // updates best path
+            if current_path > best_path {
+                best_path = current_path.clone();
+
+                // breaks if end is found
+                if current_index == to {
+                    break;
                 }
             }
 
-            if current_index == to {
-                self.reconstruct_path(current_index, func);
-                return Ok(PathKind::Full);
-            }
+            // evaluates path scores one level deeper and adds the paths to the heap
+            for i in current_vertex.neighbours.iter() {
+                let neighbour_index = *i as usize;
 
-            open_set_size -= 1;
-
-            // Take second mutable reference to vertices array, we'll enforce borrowing rules
-            // at runtime. It will *never* give two mutable references to same path vertex.
-            let unsafe_vertices: &mut Vec<T> = unsafe { &mut *(&mut self.vertices as *mut _) };
-
-            let current_vertex = self
-                .vertices
-                .get_mut(current_index)
-                .ok_or(PathError::InvalidIndex(current_index))?;
-
-            current_vertex.state = PathVertexState::Closed;
-
-            for neighbour_index in current_vertex.neighbours.iter() {
-                // Make sure that borrowing rules are not violated.
-                if *neighbour_index as usize == current_index {
+                // this error is thrown for the users sake
+                // it shouldn't actually cause an issue because the next line would skip it
+                if neighbour_index == current_index {
                     return Err(PathError::CyclicReferenceFound(current_index));
                 }
 
-                // Safely get mutable reference to neighbour
-                let neighbour = unsafe_vertices
-                    .get_mut(*neighbour_index as usize)
-                    .ok_or(PathError::InvalidIndex(*neighbour_index as usize))?;
+                // avoids going in circles
+                if searched_vertices[neighbour_index] {
+                    continue;
+                }
 
-                let g_score = current_vertex.g_score
+                let neighbour = self
+                    .vertices
+                    .get(neighbour_index)
+                    .ok_or(PathError::InvalidIndex(neighbour_index))?;
+
+                let neighbour_g_score = current_path.g_score
                     + ((current_vertex.position - neighbour.position).norm_squared()
                         * neighbour.g_penalty);
-                if g_score < neighbour.g_score {
-                    neighbour.parent = Some(current_index);
-                    neighbour.g_score = g_score;
-                    neighbour.f_score = g_score + heuristic(neighbour.position, end_pos);
 
-                    if neighbour.state != PathVertexState::Open {
-                        neighbour.state = PathVertexState::Open;
-                        open_set_size += 1;
-                    }
-                }
+                let neighbour_f_score = neighbour_g_score + heuristic(neighbour.position, end_pos);
+
+                search_heap.push(current_path.clone_and_add(
+                    neighbour_index,
+                    neighbour_g_score,
+                    neighbour_f_score,
+                ));
             }
+
+            // marks vertex as searched
+            searched_vertices[current_index] = true;
+
+            search_iteration += 1;
         }
 
-        // No direct path found, then there is probably partial path exists.
-        // Look for vertex with least f_score and use it as starting point to
-        // reconstruct partial path.
-        let mut closest_index = 0;
-        for (i, vertex) in self.vertices.iter().enumerate() {
-            let closest_vertex = self
-                .vertices
-                .get(closest_index)
-                .ok_or(PathError::InvalidIndex(closest_index))?;
-            if vertex.f_score < closest_vertex.f_score {
-                closest_index = i;
-            }
+        // sets path to the best path of indices
+        path.clone_from(&best_path.vertices);
+        path.reverse();
+
+        if *path.first().unwrap() == to {
+            Ok(PathKind::Full)
+        } else if search_iteration == self.max_search_iterations - 1 {
+            Err(PathError::HitMaxSearchIterations(
+                self.max_search_iterations,
+            ))
+        } else {
+            Ok(PathKind::Partial)
         }
-
-        self.reconstruct_path(closest_index, func);
-
-        Ok(PathKind::Partial)
     }
 
-    fn reconstruct_path<F>(&self, mut current: usize, mut func: F)
-    where
-        F: FnMut(usize, &T),
-    {
-        while let Some(vertex) = self.vertices.get(current) {
-            func(current, vertex);
-            if let Some(parent) = vertex.parent {
-                current = parent;
-            } else {
-                break;
-            }
+    /// Tries to build path of Vector3's from beginning point to endpoint. Returns path kind:
+    ///
+    /// - Full: Path vector is a direct path from beginning to end.
+    /// - Partial: Path vector is a path that ends closest to the desired end, because pathfinder could not find a full path.
+    ///
+    /// *See `PathKind`*
+    ///
+    /// # Notes
+    ///
+    /// This implementation is fast and allows for multiple searches in parallel, but does not attempt to find the optimal route
+    ///
+    /// **See `Graph<T>.max_search_iterations`** to change the maximum amount of search iterations
+    pub fn build_positional_path(
+        &self,
+        from: usize,
+        to: usize,
+        path: &mut Vec<Vector3<f32>>,
+    ) -> Result<PathKind, PathError> {
+        path.clear();
+
+        let mut indices: Vec<usize> = Vec::new();
+        let path_kind = self.build_indexed_path(from, to, &mut indices)?;
+
+        // converts from indicies to positions
+        for index in indices.iter() {
+            let vertex = self
+                .vertices
+                .get(*index)
+                .ok_or(PathError::InvalidIndex(*index))?;
+
+            path.push(vertex.position);
         }
+
+        Ok(path_kind)
+    }
+
+    /// **Deprecated** *use **`Graph<T>.build_positional_path()`** instead*
+    ///
+    /// Tries to build path of Vector3's from beginning point to endpoint. Returns path kind:
+    ///
+    /// - Full: Path vector is a direct path from beginning to end.
+    /// - Partial: Path vector is a path that ends closest to the desired end, because pathfinder could not find a full path.
+    ///
+    /// *See `PathKind`*
+    ///
+    /// # Notes
+    ///
+    /// This implementation is fast and allows for multiple searches in parallel, but does not attempt to find the optimal route
+    ///
+    /// **See `Graph<T>.max_search_iterations`** to change the maximum amount of search iterations
+    #[deprecated = "name is too ambiguous use build_positional_path instead"]
+    pub fn build(
+        &self,
+        from: usize,
+        to: usize,
+        path: &mut Vec<Vector3<f32>>,
+    ) -> Result<PathKind, PathError> {
+        self.build_positional_path(from, to, path)
     }
 }
 
 #[cfg(test)]
 mod test {
     use crate::rand::Rng;
-    use crate::utils::astar::GraphVertex;
+    use crate::utils::astar::PathError;
     use crate::{
         core::{algebra::Vector3, rand},
-        utils::astar::Graph,
+        utils::astar::{Graph, GraphVertex, PathKind},
     };
+    use std::time::Instant;
 
     #[test]
     fn astar_random_points() {
         let mut pathfinder = Graph::<GraphVertex>::new();
 
         let mut path = Vec::new();
-        assert!(pathfinder.build(0, 0, &mut path).is_ok());
+        assert!(pathfinder
+            .build_positional_path(0, 0, &mut path)
+            .is_err_and(|e| matches!(e, PathError::Empty)));
         assert!(path.is_empty());
 
         let size = 40;
@@ -505,7 +619,9 @@ mod test {
         }
         pathfinder.set_vertices(vertices);
 
-        assert!(pathfinder.build(100000, 99999, &mut path).is_err());
+        assert!(pathfinder
+            .build_positional_path(100000, 99999, &mut path)
+            .is_err_and(|e| matches!(e, PathError::InvalidIndex(_))));
 
         // Link vertices as grid.
         for y in 0..(size - 1) {
@@ -527,7 +643,9 @@ mod test {
             let from = sy * size + sx;
             let to = ty * size + tx;
 
-            assert!(pathfinder.build(from, to, &mut path).is_ok());
+            assert!(pathfinder
+                .build_positional_path(from, to, &mut path)
+                .is_ok());
             assert!(!path.is_empty());
 
             if path.len() > 1 {
@@ -607,5 +725,252 @@ mod test {
         assert_eq!(pathfinder.vertex(1).unwrap().neighbours, vec![2, 3]);
         assert_eq!(pathfinder.vertex(2).unwrap().neighbours, vec![1, 3]);
         assert_eq!(pathfinder.vertex(3).unwrap().neighbours, vec![2, 1]);
+    }
+
+    #[ignore = "takes multiple seconds to run"]
+    #[test]
+    /// Tests A*'s speed when finding a direct path with no obsticles
+    fn astar_complete_grid_benchmark() {
+        let start_time = Instant::now();
+        let mut path = Vec::new();
+
+        println!();
+        for size in [10, 40, 100, 500] {
+            println!("benchmarking grid size of: {}^2", size);
+            let setup_start_time = Instant::now();
+
+            let mut pathfinder = Graph::new();
+
+            // Create vertices.
+            let mut vertices = Vec::new();
+            for y in 0..size {
+                for x in 0..size {
+                    vertices.push(GraphVertex::new(Vector3::new(x as f32, y as f32, 0.0)));
+                }
+            }
+            pathfinder.set_vertices(vertices);
+
+            // Link vertices as grid.
+            for y in 0..(size - 1) {
+                for x in 0..(size - 1) {
+                    pathfinder.link_bidirect(y * size + x, y * size + x + 1);
+                    pathfinder.link_bidirect(y * size + x, (y + 1) * size + x);
+                }
+            }
+
+            let setup_complete_time = Instant::now();
+            println!(
+                "setup in: {:?}",
+                setup_complete_time.duration_since(setup_start_time)
+            );
+
+            for _ in 0..1000 {
+                let sx = rand::thread_rng().gen_range(0..(size - 1));
+                let sy = rand::thread_rng().gen_range(0..(size - 1));
+
+                let tx = rand::thread_rng().gen_range(0..(size - 1));
+                let ty = rand::thread_rng().gen_range(0..(size - 1));
+
+                let from = sy * size + sx;
+                let to = ty * size + tx;
+
+                assert!(pathfinder
+                    .build_positional_path(from, to, &mut path)
+                    .is_ok());
+                assert!(!path.is_empty());
+
+                if path.len() > 1 {
+                    assert_eq!(
+                        *path.first().unwrap(),
+                        pathfinder.vertex(to).unwrap().position
+                    );
+                    assert_eq!(
+                        *path.last().unwrap(),
+                        pathfinder.vertex(from).unwrap().position
+                    );
+                } else {
+                    let point = *path.first().unwrap();
+                    assert_eq!(point, pathfinder.vertex(to).unwrap().position);
+                    assert_eq!(point, pathfinder.vertex(from).unwrap().position);
+                }
+
+                for pair in path.chunks(2) {
+                    if pair.len() == 2 {
+                        let a = pair[0];
+                        let b = pair[1];
+
+                        assert!(a.metric_distance(&b) <= 2.0f32.sqrt());
+                    }
+                }
+            }
+            println!("paths found in: {:?}", setup_complete_time.elapsed());
+            println!(
+                "Current size complete in: {:?}\n",
+                setup_start_time.elapsed()
+            );
+        }
+        println!("Total time: {:?}\n", start_time.elapsed());
+    }
+
+    #[ignore = "takes multiple seconds to run"]
+    #[test]
+    /// Tests A*'s speed when finding partial paths (no direct path available)
+    fn astar_island_benchmark() {
+        let start_time = Instant::now();
+
+        let size = 100;
+        let mut path = Vec::new();
+        let mut pathfinder = Graph::new();
+
+        // Create vertices.
+        let mut vertices = Vec::new();
+        for y in 0..size {
+            for x in 0..size {
+                vertices.push(GraphVertex::new(Vector3::new(x as f32, y as f32, 0.0)));
+            }
+        }
+        pathfinder.set_vertices(vertices);
+
+        // Link vertices as grid.
+        // seperates grids half way down the y-axis
+        for y in 0..(size - 1) {
+            for x in 0..(size - 1) {
+                if x != ((size / 2) - 1) {
+                    pathfinder.link_bidirect(y * size + x, y * size + x + 1);
+                }
+                pathfinder.link_bidirect(y * size + x, (y + 1) * size + x);
+            }
+        }
+
+        let setup_complete_time = Instant::now();
+
+        println!(
+            "\nsetup in: {:?}",
+            setup_complete_time.duration_since(start_time)
+        );
+
+        for _ in 0..1000 {
+            // generates a random start point on the left half of the grid
+            let sx = rand::thread_rng().gen_range(0..((size / 2) - 1));
+            let sy = rand::thread_rng().gen_range(0..(size - 1));
+
+            // generates a random end point on the right half of the grid
+            let tx = rand::thread_rng().gen_range((size / 2)..(size - 1));
+            let ty = rand::thread_rng().gen_range(0..(size - 1));
+
+            let from = sy * size + sx;
+            let to = ty * size + tx;
+
+            let path_result = pathfinder.build_positional_path(from, to, &mut path);
+
+            let is_result_expected = path_result.as_ref().is_ok_and(|k| k.eq(&PathKind::Partial))
+                || path_result.is_err_and(|e| matches!(e, PathError::HitMaxSearchIterations(_)));
+
+            assert!(is_result_expected);
+            assert!(!path.is_empty());
+
+            if path.len() > 1 {
+                // partial path should be along the divide
+                assert_eq!(path.first().unwrap().x as i32, ((size / 2) - 1) as i32);
+                // start point should be start point
+                assert_eq!(
+                    *path.last().unwrap(),
+                    pathfinder.vertex(from).unwrap().position
+                );
+            } else {
+                let point = *path.first().unwrap();
+                assert_eq!(point, pathfinder.vertex(to).unwrap().position);
+                assert_eq!(point, pathfinder.vertex(from).unwrap().position);
+            }
+
+            for pair in path.chunks(2) {
+                if pair.len() == 2 {
+                    let a = pair[0];
+                    let b = pair[1];
+
+                    assert!(a.metric_distance(&b) <= 2.0f32.sqrt());
+                }
+            }
+        }
+
+        println!("paths found in: {:?}", setup_complete_time.elapsed());
+        println!("Total time: {:?}\n", start_time.elapsed());
+    }
+
+    #[ignore = "takes multiple seconds to run"]
+    #[test]
+    /// Tests A*'s speed when when finding indirect paths (major obstacle in the way)
+    fn astar_backwards_travel_benchmark() {
+        let start_time = Instant::now();
+
+        let size = 100;
+        let mut path = Vec::new();
+        let mut pathfinder = Graph::new();
+
+        // Create vertices.
+        let mut vertices = Vec::new();
+        for y in 0..size {
+            for x in 0..size {
+                vertices.push(GraphVertex::new(Vector3::new(x as f32, y as f32, 0.0)));
+            }
+        }
+        pathfinder.set_vertices(vertices);
+
+        // Link vertices as grid.
+        // seperates grid diagonally down the xy plane leaving only one connection in the corner
+        for y in 0..(size - 1) {
+            for x in (0..(size - 1)).rev() {
+                if y == 0 || x != y {
+                    pathfinder.link_bidirect(y * size + x, y * size + x + 1);
+                    pathfinder.link_bidirect(y * size + x, (y + 1) * size + x);
+                }
+            }
+        }
+
+        let setup_complete_time = Instant::now();
+
+        println!(
+            "\nsetup in: {:?}",
+            setup_complete_time.duration_since(start_time)
+        );
+
+        for _ in 0..1000 {
+            // a point on the center right edge
+            let from = (size / 2) * size + (size - 1);
+            // a point on the center top edge
+            let to = (size - 1) * size + (size / 2);
+
+            assert!(pathfinder
+                .build_positional_path(from, to, &mut path)
+                .is_ok());
+            assert!(!path.is_empty());
+
+            if path.len() > 1 {
+                assert_eq!(
+                    *path.first().unwrap(),
+                    pathfinder.vertex(to).unwrap().position
+                );
+                assert_eq!(
+                    *path.last().unwrap(),
+                    pathfinder.vertex(from).unwrap().position
+                );
+            } else {
+                let point = *path.first().unwrap();
+                assert_eq!(point, pathfinder.vertex(to).unwrap().position);
+                assert_eq!(point, pathfinder.vertex(from).unwrap().position);
+            }
+
+            for pair in path.chunks(2) {
+                if pair.len() == 2 {
+                    let a = pair[0];
+                    let b = pair[1];
+
+                    assert!(a.metric_distance(&b) <= 2.0f32.sqrt());
+                }
+            }
+        }
+
+        println!("paths found in: {:?}", setup_complete_time.elapsed());
+        println!("Total time: {:?}\n", start_time.elapsed());
     }
 }
