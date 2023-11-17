@@ -709,10 +709,6 @@ impl NavmeshAgent {
                     dest_triangle,
                     &mut path_triangle_indices,
                 )?;
-                // let path_kind =
-                //     graph.build_and_convert(src_triangle, dest_triangle, |idx, _| {
-                //         path_triangle_indices.push(idx);
-                //     })?;
 
                 path_triangle_indices.reverse();
 
