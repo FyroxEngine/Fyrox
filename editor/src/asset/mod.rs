@@ -344,6 +344,30 @@ impl ResourceCreator {
                     MessageDirection::ToWidget,
                     true,
                 ));
+
+                // Propose extension for the resource.
+                let resource_manager_state = engine.resource_manager.state();
+                let constructors = resource_manager_state.constructors_container.map.lock();
+                if let Some(data_type_uuid) =
+                    constructors.keys().nth(self.selected.unwrap_or_default())
+                {
+                    if let Some(loader) = resource_manager_state
+                        .loaders
+                        .iter()
+                        .find(|loader| &loader.data_type_uuid() == data_type_uuid)
+                    {
+                        if let Some(first) = loader.extensions().first() {
+                            let mut path = PathBuf::from(&self.name_str);
+                            path.set_extension(first);
+
+                            engine.user_interface.send_message(TextMessage::text(
+                                self.name,
+                                MessageDirection::ToWidget,
+                                path.to_string_lossy().to_string(),
+                            ));
+                        }
+                    }
+                }
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.ok {
@@ -360,6 +384,9 @@ impl ResourceCreator {
                             let resource =
                                 UntypedResource(Arc::new(Mutex::new(ResourceState::Ok(instance))));
                             resource.set_path(path.clone());
+
+                            drop(constructors);
+                            drop(resource_manager_state);
 
                             Log::verify(engine.resource_manager.register(
                                 resource,
@@ -381,7 +408,9 @@ impl ResourceCreator {
                 ));
             }
         } else if let Some(TextMessage::Text(text)) = message.data() {
-            if message.destination() == self.name {
+            if message.destination() == self.name
+                && message.direction() == MessageDirection::FromWidget
+            {
                 self.name_str = text.clone();
             }
         }
