@@ -11,7 +11,6 @@ use crate::{
         visitor::prelude::*,
         TypeUuidProvider,
     },
-    manager::ResourceManager,
     state::ResourceState,
     untyped::UntypedResource,
 };
@@ -32,7 +31,6 @@ use std::{
 };
 
 pub use fyrox_core as core;
-use fyrox_core::log::Log;
 
 pub mod constructor;
 pub mod entry;
@@ -238,35 +236,6 @@ where
         let mut region = visitor.enter_region(name)?;
 
         self.state.visit("State", &mut region)?;
-
-        if region.is_reading() {
-            // Try to restore the shallow handle.
-            let resource_manager = region
-                .blackboard
-                .get::<ResourceManager>()
-                .expect("Resource manager must be available when deserializing resources!");
-
-            let path = self.state.as_ref().unwrap().path();
-
-            // There might be a built-in resource, in this case we must restore the "reference" to it.
-            let state = resource_manager.state();
-            if let Some(built_in_resource) = state.built_in_resources.get(&path) {
-                if built_in_resource.type_uuid() == self.state.as_ref().unwrap().type_uuid() {
-                    self.state = Some(built_in_resource.clone());
-                } else {
-                    Log::err(format!(
-                        "Built in resource {:?} has changed its type and cannot be restored!",
-                        path
-                    ));
-                }
-            } else {
-                drop(state);
-                let is_procedural = self.state.as_ref().unwrap().is_procedural();
-                if !is_procedural {
-                    self.state = Some(resource_manager.request_untyped(path));
-                }
-            }
-        }
 
         Ok(())
     }
