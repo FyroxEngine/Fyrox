@@ -347,29 +347,31 @@ impl ResourceCreator {
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.ok {
-                let mut instance = engine
-                    .resource_manager
-                    .state()
-                    .constructors_container
-                    .map
-                    .lock()
+                let resource_manager_state = engine.resource_manager.state();
+                let mut constructors = resource_manager_state.constructors_container.map.lock();
+                if let Some(mut instance) = constructors
                     .values_mut()
-                    .nth(self.selected.unwrap())
-                    .unwrap()
-                    .create_instance();
+                    .nth(self.selected.unwrap_or_default())
+                    .map(|c| c.create_instance())
+                {
+                    let path = base_path.join(&self.name_str);
+                    match instance.save(&path) {
+                        Ok(_) => {
+                            let resource =
+                                UntypedResource(Arc::new(Mutex::new(ResourceState::Ok(instance))));
+                            resource.set_path(path.clone());
 
-                let path = base_path.join(&self.name_str);
-                Log::verify(instance.save(&path));
+                            Log::verify(engine.resource_manager.register(
+                                resource,
+                                path,
+                                |_, _| true,
+                            ));
 
-                let resource = UntypedResource(Arc::new(Mutex::new(ResourceState::Ok(instance))));
-                resource.set_path(path.clone());
-
-                engine
-                    .resource_manager
-                    .register(resource, path, |_, _| true)
-                    .unwrap();
-
-                sender.send(Message::ForceSync);
+                            sender.send(Message::ForceSync);
+                        }
+                        Err(e) => Log::err(format!("Unable to create a resource. Reason: {:?}", e)),
+                    }
+                }
             }
 
             if message.destination() == self.ok || message.destination() == self.cancel {
