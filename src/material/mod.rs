@@ -394,14 +394,28 @@ impl Default for PropertyValue {
 /// As you can see it is only a bit more hard that with the standard shader. The main difference here is
 /// that we using resource manager to get shader instance and the we just use the instance to create
 /// material instance. Then we populate properties as usual.
-#[derive(Debug, Visit, Clone, Reflect)]
+#[derive(Debug, Clone, Reflect)]
 pub struct Material {
-    #[visit(optional)]
     path: PathBuf,
-    #[visit(optional)]
     is_procedural: bool,
     shader: ShaderResource,
     properties: FxHashMap<ImmutableString, PropertyValue>,
+}
+
+impl Visit for Material {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+
+        let _ = self.path.visit("Path", &mut region);
+        let _ = self.is_procedural.visit("IsProcedural", &mut region);
+
+        if self.is_procedural {
+            self.shader.visit("Shader", &mut region)?;
+            self.properties.visit("Properties", &mut region)?;
+        }
+
+        Ok(())
+    }
 }
 
 impl Default for Material {
@@ -443,8 +457,10 @@ impl ResourceData for Material {
 
     fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
         let mut visitor = Visitor::new();
+        let old = std::mem::replace(&mut self.is_procedural, true);
         self.visit("Material", &mut visitor)?;
         visitor.save_binary(path)?;
+        self.is_procedural = old;
         Ok(())
     }
 }
@@ -620,21 +636,27 @@ impl Material {
     }
 
     /// Loads a material from file.
-    pub async fn from_file<P>(path: P, io: &dyn ResourceIo) -> Result<Self, MaterialError>
+    pub async fn from_file<P>(
+        path: P,
+        io: &dyn ResourceIo,
+        resource_manager: ResourceManager,
+    ) -> Result<Self, MaterialError>
     where
         P: AsRef<Path>,
     {
         let content = io.load_file(path.as_ref()).await?;
-        let mut visitor = Visitor::load_from_memory(&content)?;
+
         let mut material = Material {
             path: path.as_ref().to_owned(),
-            is_procedural: false,
-            shader: Default::default(),
-            properties: Default::default(),
+            ..Default::default()
         };
+
+        let mut visitor = Visitor::load_from_memory(&content)?;
+        visitor.blackboard.register(Arc::new(resource_manager));
         material.visit("Material", &mut visitor)?;
         // This could be changed during deserialization, we must keep the flag `false`.
         material.is_procedural = false;
+
         Ok(material)
     }
 

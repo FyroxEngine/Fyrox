@@ -1046,7 +1046,9 @@ pub(crate) fn initialize_resource_manager_loaders(
     loaders.set(ShaderLoader);
     loaders.set(CurveLoader);
     loaders.set(HrirSphereLoader);
-    loaders.set(MaterialLoader);
+    loaders.set(MaterialLoader {
+        resource_manager: resource_manager.clone(),
+    });
 }
 
 impl Engine {

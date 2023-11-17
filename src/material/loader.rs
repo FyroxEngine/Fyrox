@@ -5,6 +5,7 @@ use crate::{
         event::ResourceEventBroadcaster,
         io::ResourceIo,
         loader::{BoxedLoaderFuture, ResourceLoader},
+        manager::ResourceManager,
         untyped::UntypedResource,
     },
     core::{log::Log, uuid::Uuid, TypeUuidProvider},
@@ -13,7 +14,10 @@ use crate::{
 use std::sync::Arc;
 
 /// Default implementation for material loading.
-pub struct MaterialLoader;
+pub struct MaterialLoader {
+    /// Resource manager that will be used to load internal shader resources of materials.
+    pub resource_manager: ResourceManager,
+}
 
 impl ResourceLoader for MaterialLoader {
     fn extensions(&self) -> &[&str] {
@@ -31,10 +35,11 @@ impl ResourceLoader for MaterialLoader {
         reload: bool,
         io: Arc<dyn ResourceIo>,
     ) -> BoxedLoaderFuture {
+        let resource_manager = self.resource_manager.clone();
         Box::pin(async move {
             let path = material.path().to_path_buf();
 
-            match Material::from_file(&path, io.as_ref()).await {
+            match Material::from_file(&path, io.as_ref(), resource_manager).await {
                 Ok(shader_state) => {
                     Log::info(format!("Material {:?} is loaded!", path));
 
