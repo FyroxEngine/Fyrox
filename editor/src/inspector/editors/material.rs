@@ -4,10 +4,15 @@ use crate::{
 };
 use fyrox::{
     asset::{core::pool::Handle, manager::ResourceManager},
-    core::{make_relative_path, parking_lot::Mutex, reflect::prelude::*, visitor::prelude::*},
+    core::{
+        color::Color, make_relative_path, parking_lot::Mutex, reflect::prelude::*,
+        visitor::prelude::*,
+    },
     gui::{
+        brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
         define_constructor,
+        draw::{CommandTexture, Draw, DrawingContext},
         grid::{Column, GridBuilder, Row},
         inspector::{
             editors::{
@@ -81,6 +86,18 @@ impl Control for MaterialFieldEditor {
         } else {
             None
         }
+    }
+
+    fn draw(&self, drawing_context: &mut DrawingContext) {
+        // Emit transparent geometry for the field to be able to catch mouse events without precise
+        // pointing.
+        drawing_context.push_rect_filled(&self.bounding_rect(), None);
+        drawing_context.commit(
+            self.clip_bounds(),
+            Brush::Solid(Color::TRANSPARENT),
+            CommandTexture::None,
+            None,
+        );
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
