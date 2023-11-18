@@ -215,16 +215,6 @@ pub enum ResourceStateRefMut<'a, T> {
     Ok(&'a mut T),
 }
 
-impl Default for ResourceState {
-    fn default() -> Self {
-        Self::LoadError {
-            error: None,
-            path: Default::default(),
-            type_uuid: Default::default(),
-        }
-    }
-}
-
 /// A resource of particular data type. It is a typed wrapper around [`UntypedResource`] which
 /// does type checks at runtime.
 ///
@@ -439,6 +429,7 @@ where
 {
     #[inline]
     fn from(untyped: UntypedResource) -> Self {
+        assert_eq!(untyped.type_uuid(), <T as TypeUuidProvider>::type_uuid());
         Self {
             untyped,
             phantom: Default::default(),

@@ -92,6 +92,16 @@ pub enum ResourceState {
     Ok(Box<dyn ResourceData>),
 }
 
+impl Default for ResourceState {
+    fn default() -> Self {
+        Self::LoadError {
+            error: None,
+            path: Default::default(),
+            type_uuid: Default::default(),
+        }
+    }
+}
+
 impl Drop for ResourceState {
     fn drop(&mut self) {
         if let ResourceState::Pending { wakers, .. } = self {
