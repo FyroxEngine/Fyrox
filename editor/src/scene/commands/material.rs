@@ -103,6 +103,13 @@ impl SetMaterialShaderCommand {
                 self.state = SetMaterialShaderCommandState::Executed { old_material };
             }
         }
+
+        let mut material = self.material.data_ref();
+
+        if !material.is_procedural() {
+            let path = material.path().to_path_buf();
+            Log::verify(material.save(&path));
+        }
     }
 }
 
