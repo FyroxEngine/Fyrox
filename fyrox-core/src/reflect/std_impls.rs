@@ -280,7 +280,7 @@ impl<T: ?Sized + Reflect> Reflect for Box<T> {
 }
 
 macro_rules! impl_reflect_inner_mutability {
-    ($self:ident, $acquire_lock_guard:block) => {
+    ($self:ident, $acquire_lock_guard:block, $into_inner:block) => {
         fn type_name(&$self) -> &'static str {
             std::any::type_name::<T>()
         }
@@ -295,9 +295,8 @@ macro_rules! impl_reflect_inner_mutability {
         }
 
         fn into_any($self: Box<Self>) -> Box<dyn Any> {
-            // Clone the inner value and box it.
-            let guard = $acquire_lock_guard;
-            Box::new(guard.clone())
+            let inner = $into_inner;
+            Box::new(inner)
         }
 
         fn as_any(&$self, func: &mut dyn FnMut(&dyn Any)) {
@@ -403,27 +402,39 @@ macro_rules! impl_reflect_inner_mutability {
     };
 }
 
-impl<T: Reflect + Clone> Reflect for Mutex<T> {
-    impl_reflect_inner_mutability!(self, { self.lock() });
+impl<T: Reflect> Reflect for Mutex<T> {
+    impl_reflect_inner_mutability!(self, { self.lock() }, { self.into_inner() });
 }
 
 #[allow(clippy::mut_mutex_lock)]
-impl<T: Reflect + Clone> Reflect for std::sync::Mutex<T> {
-    impl_reflect_inner_mutability!(self, { self.lock().unwrap() });
+impl<T: Reflect> Reflect for std::sync::Mutex<T> {
+    impl_reflect_inner_mutability!(self, { self.lock().unwrap() }, { self.into_inner() });
 }
 
-impl<T: Reflect + Clone> Reflect for Arc<Mutex<T>> {
-    impl_reflect_inner_mutability!(self, { self.lock() });
+impl<T: Reflect> Reflect for Arc<Mutex<T>> {
+    impl_reflect_inner_mutability!(self, { self.lock() }, {
+        Arc::into_inner(*self)
+            .expect("Value cannot be shared!")
+            .into_inner()
+    });
 }
 
-impl<T: Reflect + Clone> Reflect for Arc<std::sync::Mutex<T>> {
-    impl_reflect_inner_mutability!(self, { self.lock().unwrap() });
+impl<T: Reflect> Reflect for Arc<std::sync::Mutex<T>> {
+    impl_reflect_inner_mutability!(self, { self.lock().unwrap() }, {
+        Arc::into_inner(*self)
+            .expect("Value cannot be shared!")
+            .into_inner()
+    });
 }
 
-impl<T: Reflect + Clone> Reflect for RefCell<T> {
-    impl_reflect_inner_mutability!(self, { self.borrow_mut() });
+impl<T: Reflect> Reflect for RefCell<T> {
+    impl_reflect_inner_mutability!(self, { self.borrow_mut() }, { self.into_inner() });
 }
 
-impl<T: Reflect + Clone> Reflect for Rc<RefCell<T>> {
-    impl_reflect_inner_mutability!(self, { self.borrow_mut() });
+impl<T: Reflect> Reflect for Rc<RefCell<T>> {
+    impl_reflect_inner_mutability!(self, { self.borrow_mut() }, {
+        Rc::into_inner(*self)
+            .expect("Value cannot be shared!")
+            .into_inner()
+    });
 }
