@@ -4,6 +4,7 @@ use crate::{
     core::{
         curve::Curve,
         log::Log,
+        reflect::prelude::*,
         uuid::Uuid,
         visitor::{prelude::*, RegionGuard},
     },
@@ -11,6 +12,7 @@ use crate::{
     ResourceData, ResourceLoadError, CURVE_RESOURCE_UUID, MODEL_RESOURCE_UUID,
     SHADER_RESOURCE_UUID, SOUND_BUFFER_RESOURCE_UUID, TEXTURE_RESOURCE_UUID,
 };
+use std::ops::{Deref, DerefMut};
 use std::{
     borrow::Cow,
     ffi::OsStr,
@@ -57,6 +59,35 @@ fn guess_uuid(region: &mut RegionGuard) -> Uuid {
     Default::default()
 }
 
+#[doc(hidden)]
+#[derive(Reflect, Debug, Default)]
+#[reflect(hide_all)]
+pub struct WakersList(Vec<Waker>);
+
+impl Deref for WakersList {
+    type Target = Vec<Waker>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for WakersList {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+#[derive(Reflect, Debug, Clone, Default)]
+#[reflect(hide_all)]
+pub struct LoadError(pub Option<Arc<dyn ResourceLoadError>>);
+
+impl LoadError {
+    pub fn new<T: ResourceLoadError>(value: T) -> Self {
+        Self(Some(Arc::new(value)))
+    }
+}
+
 /// Resource could be in three possible states:
 /// 1. Pending - it is loading.
 /// 2. LoadError - an error has occurred during the load.
@@ -68,14 +99,14 @@ fn guess_uuid(region: &mut RegionGuard) -> Uuid {
 /// possible, use all available power of the CPU. To achieve that each resource
 /// ideally should be loaded on separate core of the CPU, but since this is
 /// asynchronous, we must have the ability to track the state of the resource.
-#[derive(Debug)]
+#[derive(Debug, Reflect)]
 pub enum ResourceState {
     /// Resource is loading from external resource or in the queue to load.
     Pending {
-        /// A path to load resource from.
+        /// A path to load resource from.        
         path: PathBuf,
         /// List of wakers to wake future when resource is fully loaded.
-        wakers: Vec<Waker>,
+        wakers: WakersList,
         /// Unique type id of the resource.
         type_uuid: Uuid,
     },
@@ -84,7 +115,7 @@ pub enum ResourceState {
         /// A path at which it was impossible to load the resource.
         path: PathBuf,
         /// An error. This wrapped in Option only to be Default_ed.
-        error: Option<Arc<dyn ResourceLoadError>>,
+        error: LoadError,
         /// Unique type id of the resource.
         type_uuid: Uuid,
     },
@@ -95,7 +126,7 @@ pub enum ResourceState {
 impl Default for ResourceState {
     fn default() -> Self {
         Self::LoadError {
-            error: None,
+            error: Default::default(),
             path: Default::default(),
             type_uuid: Default::default(),
         }
@@ -153,7 +184,7 @@ impl Visit for ResourceState {
 
                     *self = Self::LoadError {
                         path,
-                        error: None,
+                        error: Default::default(),
                         type_uuid,
                     };
 
@@ -223,11 +254,7 @@ impl ResourceState {
 
     /// Creates new resource in error state.
     #[inline]
-    pub fn new_load_error(
-        path: PathBuf,
-        error: Option<Arc<dyn ResourceLoadError>>,
-        type_uuid: Uuid,
-    ) -> Self {
+    pub fn new_load_error(path: PathBuf, error: LoadError, type_uuid: Uuid) -> Self {
         Self::LoadError {
             path,
             error,
@@ -311,7 +338,7 @@ impl ResourceState {
 
         *self = state;
 
-        for waker in wakers {
+        for waker in wakers.0 {
             waker.wake();
         }
     }
@@ -333,7 +360,7 @@ impl ResourceState {
 
         self.commit(ResourceState::LoadError {
             path,
-            error: Some(Arc::new(error)),
+            error: LoadError::new(error),
             type_uuid,
         })
     }

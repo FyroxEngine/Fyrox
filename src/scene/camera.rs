@@ -4,7 +4,7 @@ use crate::resource::texture::{
     CompressionOptions, TextureImportOptions, TextureMinificationFilter,
 };
 use crate::{
-    asset::{ResourceLoadError, ResourceStateRef},
+    asset::ResourceStateRef,
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         color::Color,
@@ -27,11 +27,11 @@ use crate::{
         node::{Node, NodeTrait, UpdateContext},
     },
 };
+use fyrox_resource::state::LoadError;
 use lazy_static::lazy_static;
 use std::{
     fmt::{Display, Formatter},
     ops::{Deref, DerefMut},
-    sync::Arc,
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -728,7 +728,7 @@ pub enum ColorGradingLutCreationError {
     InvalidPixelFormat(TexturePixelKind),
 
     /// Texture error.
-    Texture(Option<Arc<dyn ResourceLoadError>>),
+    Texture(LoadError),
 }
 
 impl Display for ColorGradingLutCreationError {

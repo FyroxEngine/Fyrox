@@ -420,13 +420,12 @@ impl NodeTrait for Sound {
                 match state.get() {
                     ResourceStateRef::Pending { .. } | ResourceStateRef::Ok(_) => Ok(()),
                     ResourceStateRef::LoadError { error, .. } => {
-                        match error {
+                        match &error.0 {
                             None => Err("Sound buffer is failed to load, the reason is unknown!"
                                 .to_string()),
-                            Some(err) => Err(format!(
-                                "Sound buffer is failed to load. Reason: {:?}",
-                                *err
-                            )),
+                            Some(err) => {
+                                Err(format!("Sound buffer is failed to load. Reason: {:?}", err))
+                            }
                         }
                     }
                 }

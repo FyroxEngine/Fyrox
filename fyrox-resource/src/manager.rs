@@ -1,5 +1,6 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
+use crate::state::LoadError;
 use crate::{
     constructor::ResourceConstructorContainer,
     core::{
@@ -447,10 +448,10 @@ impl ResourceManagerState {
                 } else {
                     UntypedResource::new_load_error(
                         path.as_ref().to_owned(),
-                        Some(Arc::new(format!(
+                        LoadError::new(format!(
                             "There's no resource loader for {} resource!",
                             path.as_ref().display()
-                        ))),
+                        )),
                         Default::default(),
                     )
                 }

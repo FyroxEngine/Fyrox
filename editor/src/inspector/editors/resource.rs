@@ -2,8 +2,9 @@ use crate::{
     asset::item::AssetItem, inspector::EditorEnvironment, load_image, message::MessageSender,
     Message,
 };
+use fyrox::asset::state::LoadError;
 use fyrox::{
-    asset::{manager::ResourceManager, Resource, ResourceLoadError, TypedResourceData},
+    asset::{manager::ResourceManager, Resource, TypedResourceData},
     core::{
         color::Color, make_relative_path, pool::Handle, reflect::prelude::*, visitor::prelude::*,
     },
@@ -33,7 +34,6 @@ use std::{
     ops::{Deref, DerefMut},
     path::Path,
     rc::Rc,
-    sync::Arc,
 };
 
 fn resource_path<T>(resource: &Option<Resource<T>>) -> String
@@ -74,12 +74,8 @@ where
     define_constructor!(ResourceFieldMessage:Value => fn value(Option<Resource<T>>), layout: false);
 }
 
-pub type ResourceLoaderCallback<T> = Rc<
-    dyn Fn(
-        &ResourceManager,
-        &Path,
-    ) -> Option<Result<Resource<T>, Option<Arc<dyn ResourceLoadError>>>>,
->;
+pub type ResourceLoaderCallback<T> =
+    Rc<dyn Fn(&ResourceManager, &Path) -> Option<Result<Resource<T>, LoadError>>>;
 
 #[derive(Visit, Reflect)]
 pub struct ResourceField<T>

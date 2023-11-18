@@ -26,10 +26,10 @@ use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     pin::Pin,
-    sync::Arc,
     task::{Context, Poll},
 };
 
+use crate::state::LoadError;
 pub use fyrox_core as core;
 
 pub mod constructor;
@@ -184,7 +184,7 @@ where
         /// A path at which it was impossible to load the resource.
         path: &'a PathBuf,
         /// An error.
-        error: &'a Option<Arc<dyn ResourceLoadError>>,
+        error: &'a LoadError,
         /// Actual resource type id.
         type_uuid: Uuid,
     },
@@ -207,7 +207,7 @@ pub enum ResourceStateRefMut<'a, T> {
         /// A path at which it was impossible to load the resource.
         path: &'a mut PathBuf,
         /// An error.
-        error: &'a mut Option<Arc<dyn ResourceLoadError>>,
+        error: &'a mut LoadError,
         /// Actual resource type id.
         type_uuid: Uuid,
     },
@@ -298,7 +298,7 @@ where
 
     /// Creates new resource in error state.
     #[inline]
-    pub fn new_load_error(path: PathBuf, error: Option<Arc<dyn ResourceLoadError>>) -> Self {
+    pub fn new_load_error(path: PathBuf, error: LoadError) -> Self {
         Self {
             untyped: UntypedResource::new_load_error(
                 path,
@@ -452,7 +452,7 @@ impl<T> Future for Resource<T>
 where
     T: TypedResourceData,
 {
-    type Output = Result<Self, Option<Arc<dyn ResourceLoadError>>>;
+    type Output = Result<Self, LoadError>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let mut inner = self.untyped.clone();

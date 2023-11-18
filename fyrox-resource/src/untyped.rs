@@ -1,5 +1,6 @@
 //! A module for untyped resources. See [`UntypedResource`] docs for more info.
 
+use crate::state::LoadError;
 use crate::{
     core::{
         log::Log, parking_lot::Mutex, reflect::prelude::*, uuid::Uuid, visitor::prelude::*,
@@ -33,7 +34,6 @@ use std::{
 /// `Option`, that in some cases could lead to convoluted code with lots of `unwrap`s and state
 /// assumptions.
 #[derive(Clone, Reflect)]
-#[reflect(hide_all)]
 pub struct UntypedResource(pub Arc<Mutex<ResourceState>>);
 
 impl Visit for UntypedResource {
@@ -77,7 +77,7 @@ impl Default for UntypedResource {
     fn default() -> Self {
         Self(Arc::new(Mutex::new(ResourceState::new_load_error(
             Default::default(),
-            Some(Arc::new("Default resource state of unknown type.")),
+            LoadError::new("Default resource state of unknown type."),
             Default::default(),
         ))))
     }
@@ -118,11 +118,7 @@ impl UntypedResource {
     }
 
     /// Creates new untyped resource in error state.
-    pub fn new_load_error(
-        path: PathBuf,
-        error: Option<Arc<dyn ResourceLoadError>>,
-        type_uuid: Uuid,
-    ) -> Self {
+    pub fn new_load_error(path: PathBuf, error: LoadError, type_uuid: Uuid) -> Self {
         Self(Arc::new(Mutex::new(ResourceState::new_load_error(
             path, error, type_uuid,
         ))))
@@ -218,7 +214,7 @@ impl UntypedResource {
 }
 
 impl Future for UntypedResource {
-    type Output = Result<Self, Option<Arc<dyn ResourceLoadError>>>;
+    type Output = Result<Self, LoadError>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let state = self.0.clone();
