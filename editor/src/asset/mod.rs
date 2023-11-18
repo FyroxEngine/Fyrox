@@ -327,13 +327,16 @@ impl ResourceCreator {
         ));
     }
 
+    #[must_use]
     fn handle_ui_message(
         &mut self,
         message: &UiMessage,
         engine: &mut Engine,
         sender: MessageSender,
         base_path: &Path,
-    ) {
+    ) -> bool {
+        let mut asset_added = false;
+
         if let Some(ListViewMessage::SelectionChanged(Some(index))) = message.data() {
             if message.destination() == self.resource_constructors_list
                 && message.direction() == MessageDirection::FromWidget
@@ -395,6 +398,8 @@ impl ResourceCreator {
                             ));
 
                             sender.send(Message::ForceSync);
+
+                            asset_added = true;
                         }
                         Err(e) => Log::err(format!("Unable to create a resource. Reason: {:?}", e)),
                     }
@@ -414,6 +419,8 @@ impl ResourceCreator {
                 self.name_str = text.clone();
             }
         }
+
+        asset_added
     }
 }
 
@@ -642,7 +649,10 @@ impl AssetBrowser {
         resource_manager: &ResourceManager,
     ) {
         self.selected_path = path.to_path_buf();
+        self.refresh(ui, resource_manager);
+    }
 
+    fn refresh(&mut self, ui: &mut UserInterface, resource_manager: &ResourceManager) {
         let item_to_select = self.item_to_select.take();
         let mut handle_to_select = Handle::NONE;
 
@@ -650,7 +660,7 @@ impl AssetBrowser {
         self.clear_assets(ui);
 
         // Get all supported assets from folder and generate previews for them.
-        if let Ok(dir_iter) = std::fs::read_dir(path) {
+        if let Ok(dir_iter) = std::fs::read_dir(&self.selected_path) {
             for entry in dir_iter.flatten() {
                 if let Ok(entry_path) = make_relative_path(entry.path()) {
                     if !entry_path.is_dir()
@@ -670,7 +680,7 @@ impl AssetBrowser {
             }
         }
 
-        if let Ok(path) = path.canonicalize() {
+        if let Ok(path) = self.selected_path.canonicalize() {
             if let Ok(working_dir) = std::env::current_dir().and_then(|dir| dir.canonicalize()) {
                 if path == working_dir {
                     let state = resource_manager.state();
@@ -711,12 +721,15 @@ impl AssetBrowser {
         self.dependency_viewer
             .handle_ui_message(message, &mut engine.user_interface);
         if let Some(resource_creator) = self.resource_creator.as_mut() {
-            resource_creator.handle_ui_message(
+            let asset_added = resource_creator.handle_ui_message(
                 message,
                 engine,
                 sender.clone(),
                 &self.selected_path,
             );
+            if asset_added {
+                self.refresh(&mut engine.user_interface, &engine.resource_manager);
+            }
         }
 
         let ui = &mut engine.user_interface;
