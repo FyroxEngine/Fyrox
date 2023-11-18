@@ -38,6 +38,7 @@ use crate::{
     },
 };
 use fyrox_core::variable::mark_inheritable_properties_non_modified;
+use fyrox_resource::untyped::UntypedResource;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -441,7 +442,7 @@ impl Node {
     }
 
     pub(crate) fn mark_inheritable_variables_as_modified(&mut self) {
-        variable::mark_inheritable_properties_modified(self)
+        variable::mark_inheritable_properties_modified(self, &[TypeId::of::<UntypedResource>()])
     }
 
     pub(crate) fn set_inheritance_data(
@@ -458,7 +459,9 @@ impl Node {
 
         // Reset inheritable properties, so property inheritance system will take properties
         // from parent objects on resolve stage.
-        self.as_reflect_mut(&mut mark_inheritable_properties_non_modified);
+        self.as_reflect_mut(&mut |reflect| {
+            mark_inheritable_properties_non_modified(reflect, &[TypeId::of::<UntypedResource>()])
+        });
 
         // Fill original handles to instances.
         self.original_handle_in_resource = original_handle;

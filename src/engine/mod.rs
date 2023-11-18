@@ -47,6 +47,7 @@ use crate::{
     window::{Window, WindowBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_resource::untyped::UntypedResource;
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
@@ -1532,16 +1533,19 @@ impl Engine {
 
                             // Reset modified flags in every inheritable property of the scene.
                             // Except nodes, they're inherited in a separate place.
-                            (&mut scene as &mut dyn Reflect).apply_recursively_mut(&mut |object| {
-                                let type_id = (*object).type_id();
-                                if type_id != TypeId::of::<NodePool>() {
-                                    object.as_inheritable_variable_mut(&mut |variable| {
-                                        if let Some(variable) = variable {
-                                            variable.reset_modified_flag();
-                                        }
-                                    });
-                                }
-                            })
+                            (&mut scene as &mut dyn Reflect).apply_recursively_mut(
+                                &mut |object| {
+                                    let type_id = (*object).type_id();
+                                    if type_id != TypeId::of::<NodePool>() {
+                                        object.as_inheritable_variable_mut(&mut |variable| {
+                                            if let Some(variable) = variable {
+                                                variable.reset_modified_flag();
+                                            }
+                                        });
+                                    }
+                                },
+                                &[TypeId::of::<UntypedResource>()],
+                            )
                         } else {
                             // Take scene data from the source scene.
                             if let Some(source_asset) =
@@ -1552,7 +1556,7 @@ impl Engine {
                                 Log::verify(try_inherit_properties(
                                     &mut scene,
                                     source_scene_ref,
-                                    &[TypeId::of::<NodePool>()],
+                                    &[TypeId::of::<NodePool>(), TypeId::of::<UntypedResource>()],
                                 ));
                             }
                         }

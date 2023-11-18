@@ -383,6 +383,7 @@ where
     fn try_inherit(
         &mut self,
         parent: &dyn ReflectInheritableVariable,
+        ignored_types: &[TypeId],
     ) -> Result<Option<Box<dyn Reflect>>, InheritError> {
         let mut result: Result<Option<Box<dyn Reflect>>, InheritError> = Ok(None);
 
@@ -394,7 +395,10 @@ where
                     if !self.is_modified() {
                         let mut parent_value_clone = parent_value.clone();
 
-                        mark_inheritable_properties_non_modified(&mut parent_value_clone);
+                        mark_inheritable_properties_non_modified(
+                            &mut parent_value_clone,
+                            ignored_types,
+                        );
 
                         result = Ok(Some(Box::new(std::mem::replace(
                             &mut self.value,
@@ -518,7 +522,8 @@ pub fn try_inherit_properties(
         if let Some(inheritable_child) = inheritable_child {
             parent.as_inheritable_variable(&mut |inheritable_parent| {
                 if let Some(inheritable_parent) = inheritable_parent {
-                    if let Err(e) = inheritable_child.try_inherit(inheritable_parent) {
+                    if let Err(e) = inheritable_child.try_inherit(inheritable_parent, ignored_types)
+                    {
                         result = Some(Err(e));
                     }
 
@@ -587,25 +592,42 @@ pub fn try_inherit_properties(
     result.unwrap_or(Ok(()))
 }
 
-pub fn do_with_inheritable_variables<F>(root: &mut dyn Reflect, func: &mut F)
-where
+pub fn do_with_inheritable_variables<F>(
+    root: &mut dyn Reflect,
+    func: &mut F,
+    ignored_types: &[TypeId],
+) where
     F: FnMut(&mut dyn ReflectInheritableVariable),
 {
-    root.apply_recursively_mut(&mut |object| {
-        object.as_inheritable_variable_mut(&mut |variable| {
-            if let Some(variable) = variable {
-                func(variable);
-            }
-        });
-    })
+    root.apply_recursively_mut(
+        &mut |object| {
+            object.as_inheritable_variable_mut(&mut |variable| {
+                if let Some(variable) = variable {
+                    func(variable);
+                }
+            });
+        },
+        ignored_types,
+    )
 }
 
-pub fn mark_inheritable_properties_non_modified(object: &mut dyn Reflect) {
-    do_with_inheritable_variables(object, &mut |variable| variable.reset_modified_flag());
+pub fn mark_inheritable_properties_non_modified(
+    object: &mut dyn Reflect,
+    ignored_types: &[TypeId],
+) {
+    do_with_inheritable_variables(
+        object,
+        &mut |variable| variable.reset_modified_flag(),
+        ignored_types,
+    );
 }
 
-pub fn mark_inheritable_properties_modified(object: &mut dyn Reflect) {
-    do_with_inheritable_variables(object, &mut |variable| variable.mark_modified());
+pub fn mark_inheritable_properties_modified(object: &mut dyn Reflect, ignored_types: &[TypeId]) {
+    do_with_inheritable_variables(
+        object,
+        &mut |variable| variable.mark_modified(),
+        ignored_types,
+    );
 }
 
 #[cfg(test)]

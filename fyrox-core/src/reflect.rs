@@ -306,6 +306,7 @@ pub trait ReflectInheritableVariable: Reflect + Debug {
     fn try_inherit(
         &mut self,
         parent: &dyn ReflectInheritableVariable,
+        ignored_types: &[TypeId],
     ) -> Result<Option<Box<dyn Reflect>>, InheritError>;
 
     /// Resets modified flag from the variable.
@@ -765,11 +766,11 @@ impl dyn Reflect {
         }
     }
 
-    pub fn enumerate_fields_recursively<F>(&self, func: &mut F)
+    pub fn enumerate_fields_recursively<F>(&self, func: &mut F, ignored_types: &[TypeId])
     where
         F: FnMut(&str, Option<&FieldInfo>, &dyn Reflect),
     {
-        self.enumerate_fields_recursively_internal("", None, func)
+        self.enumerate_fields_recursively_internal("", None, func, ignored_types)
     }
 
     fn enumerate_fields_recursively_internal<F>(
@@ -777,9 +778,14 @@ impl dyn Reflect {
         path: &str,
         field_info: Option<&FieldInfo>,
         func: &mut F,
+        ignored_types: &[TypeId],
     ) where
         F: FnMut(&str, Option<&FieldInfo>, &dyn Reflect),
     {
+        if ignored_types.contains(&self.type_id()) {
+            return;
+        }
+
         func(path, field_info, self);
 
         let mut done = false;
@@ -789,7 +795,7 @@ impl dyn Reflect {
                 // Inner variable might also contain inheritable variables, so continue iterating.
                 variable
                     .inner_value_ref()
-                    .enumerate_fields_recursively_internal(path, field_info, func);
+                    .enumerate_fields_recursively_internal(path, field_info, func, ignored_types);
 
                 done = true;
             }
@@ -805,7 +811,12 @@ impl dyn Reflect {
                     if let Some(item) = array.reflect_index(i) {
                         let item_path = format!("{path}[{i}]");
 
-                        item.enumerate_fields_recursively_internal(&item_path, field_info, func);
+                        item.enumerate_fields_recursively_internal(
+                            &item_path,
+                            field_info,
+                            func,
+                            ignored_types,
+                        );
                     }
                 }
 
@@ -841,7 +852,12 @@ impl dyn Reflect {
 
                         let item_path = format!("{}[{}]", path, key_str);
 
-                        value.enumerate_fields_recursively_internal(&item_path, field_info, func);
+                        value.enumerate_fields_recursively_internal(
+                            &item_path,
+                            field_info,
+                            func,
+                            ignored_types,
+                        );
                     }
                 }
 
@@ -867,6 +883,7 @@ impl dyn Reflect {
                     field_path,
                     Some(&field),
                     func,
+                    ignored_types,
                 );
             }
         })
@@ -932,10 +949,14 @@ impl dyn Reflect {
         })
     }
 
-    pub fn apply_recursively_mut<F>(&mut self, func: &mut F)
+    pub fn apply_recursively_mut<F>(&mut self, func: &mut F, ignored_types: &[TypeId])
     where
         F: FnMut(&mut dyn Reflect),
     {
+        if ignored_types.contains(&(*self).type_id()) {
+            return;
+        }
+
         func(self);
 
         let mut done = false;
@@ -943,7 +964,9 @@ impl dyn Reflect {
         self.as_inheritable_variable_mut(&mut |variable| {
             if let Some(variable) = variable {
                 // Inner variable might also contain inheritable variables, so continue iterating.
-                variable.inner_value_mut().apply_recursively_mut(func);
+                variable
+                    .inner_value_mut()
+                    .apply_recursively_mut(func, ignored_types);
 
                 done = true;
             }
@@ -957,7 +980,7 @@ impl dyn Reflect {
             if let Some(array) = array {
                 for i in 0..array.reflect_len() {
                     if let Some(item) = array.reflect_index_mut(i) {
-                        item.apply_recursively_mut(func);
+                        item.apply_recursively_mut(func, ignored_types);
                     }
                 }
 
@@ -973,7 +996,7 @@ impl dyn Reflect {
             if let Some(hash_map) = hash_map {
                 for i in 0..hash_map.reflect_len() {
                     if let Some(item) = hash_map.reflect_get_nth_value_mut(i) {
-                        item.apply_recursively_mut(func);
+                        item.apply_recursively_mut(func, ignored_types);
                     }
                 }
 
@@ -987,7 +1010,7 @@ impl dyn Reflect {
 
         self.fields_mut(&mut |fields| {
             for field in fields {
-                field.apply_recursively_mut(func);
+                field.apply_recursively_mut(func, ignored_types);
             }
         })
     }

@@ -8,6 +8,7 @@ use crate::{
     },
     Engine, Message,
 };
+use fyrox::asset::untyped::UntypedResource;
 use fyrox::core::variable::mark_inheritable_properties_non_modified;
 use fyrox::{
     asset::manager::ResourceManager,
@@ -15,6 +16,7 @@ use fyrox::{
     engine::SerializationContext,
     scene::{graph::SubGraph, node::Node, Scene},
 };
+use std::any::TypeId;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -380,7 +382,10 @@ impl RevertSceneNodePropertyCommand {
 fn reset_property_modified_flag(entity: &mut dyn Reflect, path: &str) {
     entity.as_reflect_mut(&mut |entity| {
         entity.resolve_path_mut(path, &mut |result| {
-            mark_inheritable_properties_non_modified(result.unwrap());
+            mark_inheritable_properties_non_modified(
+                result.unwrap(),
+                &[TypeId::of::<UntypedResource>()],
+            );
         })
     })
 }

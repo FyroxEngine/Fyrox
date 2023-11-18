@@ -13,6 +13,7 @@ use crate::{
     settings::Settings,
     utils, Engine, Message, MessageDirection, PasteCommand,
 };
+use fyrox::asset::untyped::UntypedResource;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle, reflect::Reflect, scope_profile},
     gui::{
@@ -26,6 +27,7 @@ use fyrox::{
         BuildContext, RcUiNodeHandle, UiNode,
     },
 };
+use std::any::TypeId;
 use std::path::PathBuf;
 
 pub struct ItemContextMenu {
@@ -250,6 +252,7 @@ impl ItemContextMenu {
                                         }
                                     });
                                 },
+                                &[TypeId::of::<UntypedResource>()],
                             )
                         }
                     }

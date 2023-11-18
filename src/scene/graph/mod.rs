@@ -62,8 +62,10 @@ use crate::{
 };
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_core::variable;
+use fyrox_resource::untyped::UntypedResource;
 use fyrox_resource::ResourceStateRefMut;
 use rapier3d::geometry::ColliderHandle;
+use std::any::TypeId;
 use std::{
     any::Any,
     fmt::Debug,
@@ -193,7 +195,10 @@ pub struct SubGraph {
 fn remap_handles(old_new_mapping: &NodeHandleMap, dest_graph: &mut Graph) {
     // Iterate over instantiated nodes and remap handles.
     for (_, &new_node_handle) in old_new_mapping.inner().iter() {
-        old_new_mapping.remap_handles(&mut dest_graph.pool[new_node_handle]);
+        old_new_mapping.remap_handles(
+            &mut dest_graph.pool[new_node_handle],
+            &[TypeId::of::<UntypedResource>()],
+        );
     }
 }
 
@@ -939,6 +944,7 @@ impl Graph {
                                 let mut resource_node_clone = resource_node.clone_box();
                                 variable::mark_inheritable_properties_non_modified(
                                     &mut resource_node_clone as &mut dyn Reflect,
+                                    &[TypeId::of::<UntypedResource>()],
                                 );
                                 **resource_node_clone = base;
                                 *node = resource_node_clone;
@@ -950,8 +956,8 @@ impl Graph {
                                     Log::verify(try_inherit_properties(
                                         node_reflect,
                                         resource_node_reflect,
-                                        // Do not try to inspect materials, because it most likely cause a deadlock.
-                                        &[std::any::TypeId::of::<MaterialResource>()],
+                                        // Do not try to inspect resources, because it most likely cause a deadlock.
+                                        &[std::any::TypeId::of::<UntypedResource>()],
                                     ));
                                 })
                             })
@@ -1010,7 +1016,10 @@ impl Graph {
             // Lastly, remap handles. We can't do this in single pass because there could
             // be cross references.
             for (_, handle) in old_new_mapping.map.iter() {
-                old_new_mapping.remap_inheritable_handles(&mut self.pool[*handle]);
+                old_new_mapping.remap_inheritable_handles(
+                    &mut self.pool[*handle],
+                    &[TypeId::of::<UntypedResource>()],
+                );
             }
         }
     }
@@ -1203,13 +1212,16 @@ impl Graph {
         // Sync materials with shaders.
         let mut materials = FxHashSet::default();
         for node in self.linear_iter_mut() {
-            (node as &mut dyn Reflect).enumerate_fields_recursively(&mut |_, _, v| {
-                v.downcast_ref::<MaterialResource>(&mut |material| {
-                    if let Some(material) = material {
-                        materials.insert(material.clone());
-                    }
-                })
-            });
+            (node as &mut dyn Reflect).enumerate_fields_recursively(
+                &mut |_, _, v| {
+                    v.downcast_ref::<MaterialResource>(&mut |material| {
+                        if let Some(material) = material {
+                            materials.insert(material.clone());
+                        }
+                    })
+                },
+                &[TypeId::of::<UntypedResource>()],
+            );
         }
 
         for material in materials {

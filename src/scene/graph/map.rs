@@ -7,6 +7,7 @@ use crate::{
     scene::node::Node,
 };
 use fxhash::FxHashMap;
+use std::any::TypeId;
 use std::ops::{Deref, DerefMut};
 
 /// A `OriginalHandle -> CopyHandle` map. It is used to map handles to nodes after copying.
@@ -96,12 +97,21 @@ impl NodeHandleMap {
     /// Tries to remap handles to nodes in a given entity using reflection. It finds all supported fields recursively
     /// (`Handle<Node>`, `Vec<Handle<Node>>`, `InheritableVariable<Handle<Node>>`, `InheritableVariable<Vec<Handle<Node>>>`)
     /// and automatically maps old handles to new.
-    pub fn remap_handles(&self, node: &mut Node) {
+    pub fn remap_handles(&self, node: &mut Node, ignored_types: &[TypeId]) {
         let name = node.name_owned();
-        node.as_reflect_mut(&mut |node| self.remap_handles_internal(node, &name));
+        node.as_reflect_mut(&mut |node| self.remap_handles_internal(node, &name, ignored_types));
     }
 
-    fn remap_handles_internal(&self, entity: &mut dyn Reflect, node_name: &str) {
+    fn remap_handles_internal(
+        &self,
+        entity: &mut dyn Reflect,
+        node_name: &str,
+        ignored_types: &[TypeId],
+    ) {
+        if ignored_types.contains(&(*entity).type_id()) {
+            return;
+        }
+
         let mut mapped = false;
 
         entity.downcast_mut::<Handle<Node>>(&mut |handle| {
@@ -141,7 +151,11 @@ impl NodeHandleMap {
         entity.as_inheritable_variable_mut(&mut |inheritable| {
             if let Some(inheritable) = inheritable {
                 // In case of inheritable variable we must take inner value and do not mark variables as modified.
-                self.remap_handles_internal(inheritable.inner_value_mut(), node_name);
+                self.remap_handles_internal(
+                    inheritable.inner_value_mut(),
+                    node_name,
+                    ignored_types,
+                );
 
                 mapped = true;
             }
@@ -157,7 +171,7 @@ impl NodeHandleMap {
                 for i in 0..array.reflect_len() {
                     // Sparse arrays (like Pool) could have empty entries.
                     if let Some(item) = array.reflect_index_mut(i) {
-                        self.remap_handles_internal(item, node_name);
+                        self.remap_handles_internal(item, node_name, ignored_types);
                     }
                 }
                 mapped = true;
@@ -171,15 +185,17 @@ impl NodeHandleMap {
         // Continue remapping recursively for every compound field.
         entity.fields_mut(&mut |fields| {
             for field in fields {
-                field.as_reflect_mut(&mut |field| self.remap_handles_internal(field, node_name))
+                field.as_reflect_mut(&mut |field| {
+                    self.remap_handles_internal(field, node_name, ignored_types)
+                })
             }
         })
     }
 
-    pub(crate) fn remap_inheritable_handles(&self, node: &mut Node) {
+    pub(crate) fn remap_inheritable_handles(&self, node: &mut Node, ignored_types: &[TypeId]) {
         let name = node.name_owned();
         node.as_reflect_mut(&mut |node| {
-            self.remap_inheritable_handles_internal(node, &name, false)
+            self.remap_inheritable_handles_internal(node, &name, false, ignored_types)
         });
     }
 
@@ -188,7 +204,12 @@ impl NodeHandleMap {
         entity: &mut dyn Reflect,
         node_name: &str,
         do_map: bool,
+        ignored_types: &[TypeId],
     ) {
+        if ignored_types.contains(&(*entity).type_id()) {
+            return;
+        }
+
         let mut mapped = false;
 
         entity.as_inheritable_variable_mut(&mut |result| {
@@ -201,6 +222,7 @@ impl NodeHandleMap {
                         // Raise mapping flag, any handle in inner value will be mapped. The flag is propagated
                         // to unlimited depth.
                         true,
+                        ignored_types,
                     );
                 }
                 mapped = true;
@@ -254,10 +276,12 @@ impl NodeHandleMap {
                     // Sparse arrays (like Pool) could have empty entries.
                     if let Some(item) = array.reflect_index_mut(i) {
                         self.remap_inheritable_handles_internal(
-                            item, node_name,
+                            item,
+                            node_name,
                             // Propagate mapping flag - it means that we're inside inheritable variable. In this
                             // case we will map handles.
                             do_map,
+                            ignored_types,
                         );
                     }
                 }
@@ -273,10 +297,12 @@ impl NodeHandleMap {
         entity.fields_mut(&mut |fields| {
             for field in fields {
                 self.remap_inheritable_handles_internal(
-                    field, node_name,
+                    field,
+                    node_name,
                     // Propagate mapping flag - it means that we're inside inheritable variable. In this
                     // case we will map handles.
                     do_map,
+                    ignored_types,
                 );
             }
         })
