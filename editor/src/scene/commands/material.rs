@@ -1,6 +1,7 @@
 use crate::{command::Command, scene::commands::SceneContext};
 use fyrox::{
-    core::sstorage::ImmutableString,
+    asset::ResourceData,
+    core::{log::Log, sstorage::ImmutableString},
     material::{shader::ShaderResource, Material, MaterialResource, PropertyValue},
 };
 
@@ -28,6 +29,11 @@ impl SetMaterialPropertyValueCommand {
         material
             .set_property(&self.name, std::mem::replace(&mut self.value, old_value))
             .unwrap();
+
+        if !material.is_procedural() {
+            let path = material.path().to_path_buf();
+            Log::verify(material.save(&path));
+        }
     }
 }
 
