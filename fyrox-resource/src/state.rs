@@ -12,10 +12,10 @@ use crate::{
     ResourceData, ResourceLoadError, CURVE_RESOURCE_UUID, MODEL_RESOURCE_UUID,
     SHADER_RESOURCE_UUID, SOUND_BUFFER_RESOURCE_UUID, TEXTURE_RESOURCE_UUID,
 };
-use std::ops::{Deref, DerefMut};
 use std::{
     borrow::Cow,
     ffi::OsStr,
+    ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::Arc,
     task::Waker,
@@ -78,11 +78,13 @@ impl DerefMut for WakersList {
     }
 }
 
+/// Arbitrary loading error, that could be optionally be empty.  
 #[derive(Reflect, Debug, Clone, Default)]
 #[reflect(hide_all)]
 pub struct LoadError(pub Option<Arc<dyn ResourceLoadError>>);
 
 impl LoadError {
+    /// Creates new loading error from a value of the given type.
     pub fn new<T: ResourceLoadError>(value: T) -> Self {
         Self(Some(Arc::new(value)))
     }
