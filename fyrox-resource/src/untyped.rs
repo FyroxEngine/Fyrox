@@ -7,7 +7,7 @@ use crate::{
     },
     manager::ResourceManager,
     state::ResourceState,
-    Resource, ResourceData, ResourceLoadError,
+    Resource, ResourceData, ResourceLoadError, TypedResourceData,
 };
 use std::{
     fmt::{Debug, Formatter},
@@ -187,7 +187,7 @@ impl UntypedResource {
     /// Tries to cast untyped resource to a particular type.
     pub fn try_cast<T>(&self) -> Option<Resource<T>>
     where
-        T: ResourceData + TypeUuidProvider,
+        T: TypedResourceData,
     {
         if self.type_uuid() == <T as TypeUuidProvider>::type_uuid() {
             Some(Resource {

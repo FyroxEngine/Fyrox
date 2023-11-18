@@ -3,9 +3,10 @@ use crate::{
     Message,
 };
 use fyrox::{
-    asset::{manager::ResourceManager, Resource, ResourceData, ResourceLoadError},
-    core::{color::Color, make_relative_path, pool::Handle, TypeUuidProvider},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    asset::{manager::ResourceManager, Resource, ResourceLoadError, TypedResourceData},
+    core::{
+        color::Color, make_relative_path, pool::Handle, reflect::prelude::*, visitor::prelude::*,
+    },
     gui::{
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
@@ -37,7 +38,7 @@ use std::{
 
 fn resource_path<T>(resource: &Option<Resource<T>>) -> String
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     resource
         .as_ref()
@@ -48,14 +49,14 @@ where
 #[derive(Debug)]
 pub enum ResourceFieldMessage<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     Value(Option<Resource<T>>),
 }
 
 impl<T> PartialEq for ResourceFieldMessage<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
@@ -68,7 +69,7 @@ where
 
 impl<T> ResourceFieldMessage<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     define_constructor!(ResourceFieldMessage:Value => fn value(Option<Resource<T>>), layout: false);
 }
@@ -83,7 +84,7 @@ pub type ResourceLoaderCallback<T> = Rc<
 #[derive(Visit, Reflect)]
 pub struct ResourceField<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     widget: Widget,
     name: Handle<UiNode>,
@@ -104,7 +105,7 @@ where
 
 impl<T> Debug for ResourceField<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "ResourceField")
@@ -113,7 +114,7 @@ where
 
 impl<T> Clone for ResourceField<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     fn clone(&self) -> Self {
         Self {
@@ -130,7 +131,7 @@ where
 
 impl<T> Deref for ResourceField<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     type Target = Widget;
 
@@ -141,7 +142,7 @@ where
 
 impl<T> DerefMut for ResourceField<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
@@ -150,7 +151,7 @@ where
 
 impl<T> Control for ResourceField<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
         if type_id == TypeId::of::<Self>() {
@@ -230,7 +231,7 @@ where
 
 pub struct ResourceFieldBuilder<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     widget_builder: WidgetBuilder,
     resource: Option<Resource<T>>,
@@ -240,7 +241,7 @@ where
 
 impl<T> ResourceFieldBuilder<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     pub fn new(
         widget_builder: WidgetBuilder,
@@ -331,7 +332,7 @@ where
 
 pub struct ResourceFieldPropertyEditorDefinition<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     loader: ResourceLoaderCallback<T>,
     sender: MessageSender,
@@ -339,7 +340,7 @@ where
 
 impl<T> ResourceFieldPropertyEditorDefinition<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     pub fn new(loader: ResourceLoaderCallback<T>, sender: MessageSender) -> Self {
         Self { loader, sender }
@@ -348,7 +349,7 @@ where
 
 impl<T> Debug for ResourceFieldPropertyEditorDefinition<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "ResourceFieldPropertyEditorDefinition")
@@ -357,7 +358,7 @@ where
 
 impl<T> PropertyEditorDefinition for ResourceFieldPropertyEditorDefinition<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     fn value_type_id(&self) -> TypeId {
         TypeId::of::<Option<Resource<T>>>()

@@ -87,6 +87,14 @@ pub trait ResourceData: 'static + Debug + Visit + Send + Reflect {
     }
 }
 
+/// Extension trait for a resource data of a particular type, which adds additional functionality,
+/// such as: a way to get default state of the data (`Default` impl), a way to get data's type uuid.
+/// The trait has automatic implementation for any type that implements
+/// ` ResourceData + Default + TypeUuidProvider` traits.
+pub trait TypedResourceData: ResourceData + Default + TypeUuidProvider {}
+
+impl<T> TypedResourceData for T where T: ResourceData + Default + TypeUuidProvider {}
+
 /// A trait for resource load error.
 pub trait ResourceLoadError: 'static + Debug + Send + Sync {}
 
@@ -95,7 +103,7 @@ impl<T> ResourceLoadError for T where T: 'static + Debug + Send + Sync {}
 /// Provides typed access to a resource state.
 pub struct ResourceStateGuard<'a, T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     guard: MutexGuard<'a, ResourceState>,
     phantom: PhantomData<T>,
@@ -103,7 +111,7 @@ where
 
 impl<'a, T> ResourceStateGuard<'a, T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     /// Fetches the actual state of the resource.
     pub fn get(&self) -> ResourceStateRef<'_, T> {
@@ -162,7 +170,7 @@ where
 #[derive(Debug)]
 pub enum ResourceStateRef<'a, T>
 where
-    T: ResourceData,
+    T: TypedResourceData,
 {
     /// Resource is loading from external resource or in the queue to load.
     Pending {
@@ -222,12 +230,11 @@ impl Default for ResourceState {
 ///
 /// ## Default State
 ///
-/// Default state of the resource matches the default state of [`UntypedResource`], which is
-/// [`ResourceState::LoadError`].
+/// Default state of the resource will be [`ResourceState::Ok`] with [`T::default`].
 #[derive(Debug, Reflect)]
 pub struct Resource<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     untyped: UntypedResource,
     #[reflect(hidden)]
@@ -236,7 +243,7 @@ where
 
 impl<T> Visit for Resource<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
@@ -259,18 +266,18 @@ where
 
 impl<T> PartialEq for Resource<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     fn eq(&self, other: &Self) -> bool {
         self.untyped == other.untyped
     }
 }
 
-impl<T> Eq for Resource<T> where T: ResourceData + TypeUuidProvider {}
+impl<T> Eq for Resource<T> where T: TypedResourceData {}
 
 impl<T> Hash for Resource<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.untyped.hash(state)
@@ -279,7 +286,7 @@ where
 
 impl<T> Resource<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     /// Creates new resource in pending state.
     #[inline]
@@ -402,12 +409,12 @@ where
 
 impl<T> Default for Resource<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     #[inline]
     fn default() -> Self {
         Self {
-            untyped: Default::default(),
+            untyped: UntypedResource::new_ok(T::default()),
             phantom: Default::default(),
         }
     }
@@ -415,7 +422,7 @@ where
 
 impl<T> Clone for Resource<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     #[inline]
     fn clone(&self) -> Self {
@@ -428,7 +435,7 @@ where
 
 impl<T> From<UntypedResource> for Resource<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     #[inline]
     fn from(untyped: UntypedResource) -> Self {
@@ -442,7 +449,7 @@ where
 #[allow(clippy::from_over_into)]
 impl<T> Into<UntypedResource> for Resource<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     #[inline]
     fn into(self) -> UntypedResource {
@@ -452,7 +459,7 @@ where
 
 impl<T> Future for Resource<T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     type Output = Result<Self, Option<Arc<dyn ResourceLoadError>>>;
 
@@ -467,7 +474,7 @@ where
 #[doc(hidden)]
 pub struct ResourceDataRef<'a, T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     guard: MutexGuard<'a, ResourceState>,
     phantom: PhantomData<T>,
@@ -475,7 +482,7 @@ where
 
 impl<'a, T> Debug for ResourceDataRef<'a, T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match *self.guard {
@@ -500,7 +507,7 @@ where
 
 impl<'a, T> Deref for ResourceDataRef<'a, T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     type Target = T;
 
@@ -527,7 +534,7 @@ where
 
 impl<'a, T> DerefMut for ResourceDataRef<'a, T>
 where
-    T: ResourceData + TypeUuidProvider,
+    T: TypedResourceData,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         match *self.guard {

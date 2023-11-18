@@ -16,7 +16,7 @@ use crate::{
     loader::{ResourceLoader, ResourceLoadersContainer},
     state::ResourceState,
     task::TaskPool,
-    Resource, ResourceData, UntypedResource,
+    Resource, ResourceData, TypedResourceData, UntypedResource,
 };
 use fxhash::FxHashMap;
 use std::{
@@ -158,7 +158,7 @@ impl ResourceManager {
     pub fn request<T, P>(&self, path: P) -> Resource<T>
     where
         P: AsRef<Path>,
-        T: ResourceData + TypeUuidProvider,
+        T: TypedResourceData,
     {
         let untyped = self.state().request(path);
         let actual_type_uuid = untyped.type_uuid();
@@ -178,7 +178,7 @@ impl ResourceManager {
     pub fn try_request<T, P>(&self, path: P) -> Option<Resource<T>>
     where
         P: AsRef<Path>,
-        T: ResourceData + TypeUuidProvider,
+        T: TypedResourceData,
     {
         let untyped = self.state().request(path);
         let actual_type_uuid = untyped.type_uuid();
