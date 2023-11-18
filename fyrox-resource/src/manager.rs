@@ -1,31 +1,29 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
-use crate::io::{FsResourceIo, ResourceIo};
-use crate::loader::ResourceLoader;
 use crate::{
     constructor::ResourceConstructorContainer,
+    core::{
+        futures::future::join_all,
+        log::Log,
+        make_relative_path, notify,
+        parking_lot::{Mutex, MutexGuard},
+        watcher::FileSystemWatcher,
+        TypeUuidProvider,
+    },
     entry::{TimedEntry, DEFAULT_RESOURCE_LIFETIME},
     event::{ResourceEvent, ResourceEventBroadcaster},
-    loader::ResourceLoadersContainer,
+    io::{FsResourceIo, ResourceIo},
+    loader::{ResourceLoader, ResourceLoadersContainer},
     state::ResourceState,
     task::TaskPool,
     Resource, ResourceData, UntypedResource,
 };
 use fxhash::FxHashMap;
-use fyrox_core::{
-    futures::future::join_all,
-    log::Log,
-    make_relative_path, notify,
-    parking_lot::{Mutex, MutexGuard},
-    watcher::FileSystemWatcher,
-    TypeUuidProvider,
-};
 use std::{
     ffi::OsStr,
     fmt::{Debug, Display, Formatter},
     marker::PhantomData,
-    path::Path,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::Arc,
 };
 
@@ -166,7 +164,7 @@ impl ResourceManager {
         let actual_type_uuid = untyped.type_uuid();
         assert_eq!(actual_type_uuid, <T as TypeUuidProvider>::type_uuid());
         Resource {
-            state: Some(untyped),
+            untyped,
             phantom: PhantomData::<T>,
         }
     }
@@ -186,7 +184,7 @@ impl ResourceManager {
         let actual_type_uuid = untyped.type_uuid();
         if actual_type_uuid == <T as TypeUuidProvider>::type_uuid() {
             Some(Resource {
-                state: Some(untyped),
+                untyped,
                 phantom: PhantomData::<T>,
             })
         } else {
@@ -853,15 +851,15 @@ mod test {
     #[test]
     fn resource_manager_request() {
         let manager = ResourceManager::new();
-        let resource = UntypedResource::new_ok(Stub {});
-        let res = manager.register(resource.clone(), PathBuf::from("foo.txt"), |_, __| true);
+        let untyped = UntypedResource::new_ok(Stub {});
+        let res = manager.register(untyped.clone(), PathBuf::from("foo.txt"), |_, __| true);
         assert!(res.is_ok());
 
         let res: Resource<Stub> = manager.request(Path::new("test.txt"));
         assert_eq!(
             res,
             Resource {
-                state: Some(resource),
+                untyped,
                 phantom: PhantomData::<Stub>
             }
         );

@@ -20,10 +20,18 @@ use std::{
     task::{Context, Poll},
 };
 
-/// Untyped resource is a universal way of storing arbitrary resource types. Internally it wraps [`ResourceState`]
-/// in a `Arc<Mutex<>` so the untyped resource becomes shareable. In most of the cases you don't need to deal with
-/// untyped resources, use typed [`Resource`] wrapper instead. Untyped resource could be useful in cases when you
-/// need to collect a set resources of different types in a single collection and do something with them.
+/// Untyped resource is a universal way of storing arbitrary resource types. Internally it wraps
+/// [`ResourceState`] in a `Arc<Mutex<>` so the untyped resource becomes shareable. In most of the
+/// cases you don't need to deal with untyped resources, use typed [`Resource`] wrapper instead.
+/// Untyped resource could be useful in cases when you need to collect a set resources of different
+/// types in a single collection and do something with them.
+///
+/// ## Default state
+///
+/// Default state of every untyped resource is [`ResourceState::LoadError`] with a warning message,
+/// that the resource is in default state. This is a trade-off to prevent wrapping internals into
+/// `Option`, that in some cases could lead to convoluted code with lots of `unwrap`s and state
+/// assumptions.
 #[derive(Clone, Reflect)]
 #[reflect(hide_all)]
 pub struct UntypedResource(pub Arc<Mutex<ResourceState>>);
@@ -67,8 +75,9 @@ impl Visit for UntypedResource {
 
 impl Default for UntypedResource {
     fn default() -> Self {
-        Self(Arc::new(Mutex::new(ResourceState::new_pending(
+        Self(Arc::new(Mutex::new(ResourceState::new_load_error(
             Default::default(),
+            Some(Arc::new("Default resource state of unknown type.")),
             Default::default(),
         ))))
     }
@@ -182,7 +191,7 @@ impl UntypedResource {
     {
         if self.type_uuid() == <T as TypeUuidProvider>::type_uuid() {
             Some(Resource {
-                state: Some(self.clone()),
+                untyped: self.clone(),
                 phantom: PhantomData::<T>,
             })
         } else {

@@ -15,10 +15,10 @@ use crate::{
     untyped::UntypedResource,
 };
 use fxhash::FxHashSet;
-use std::error::Error;
 use std::{
     any::Any,
     borrow::Cow,
+    error::Error,
     fmt::{Debug, Formatter},
     future::Future,
     hash::{Hash, Hasher},
@@ -217,13 +217,19 @@ impl Default for ResourceState {
     }
 }
 
-/// A resource of particular data type.
+/// A resource of particular data type. It is a typed wrapper around [`UntypedResource`] which
+/// does type checks at runtime.
+///
+/// ## Default State
+///
+/// Default state of the resource matches the default state of [`UntypedResource`], which is
+/// [`ResourceState::LoadError`].
 #[derive(Debug, Reflect)]
 pub struct Resource<T>
 where
     T: ResourceData + TypeUuidProvider,
 {
-    state: Option<UntypedResource>,
+    untyped: UntypedResource,
     #[reflect(hidden)]
     phantom: PhantomData<T>,
 }
@@ -235,7 +241,17 @@ where
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        self.state.visit("State", &mut region)?;
+        // Backward compatibility.
+        if region.is_reading() {
+            let mut old_option_wrapper: Option<UntypedResource> = None;
+            if old_option_wrapper.visit("State", &mut region).is_ok() {
+                self.untyped = old_option_wrapper.unwrap();
+            } else {
+                self.untyped.visit("State", &mut region)?;
+            }
+        } else {
+            self.untyped.visit("State", &mut region)?;
+        }
 
         Ok(())
     }
@@ -246,11 +262,7 @@ where
     T: ResourceData + TypeUuidProvider,
 {
     fn eq(&self, other: &Self) -> bool {
-        match (&self.state, &other.state) {
-            (Some(a), Some(b)) => a == b,
-            (None, None) => true,
-            _ => false,
-        }
+        self.untyped == other.untyped
     }
 }
 
@@ -261,7 +273,7 @@ where
     T: ResourceData + TypeUuidProvider,
 {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.state.hash(state)
+        self.untyped.hash(state)
     }
 }
 
@@ -273,10 +285,7 @@ where
     #[inline]
     pub fn new_pending(path: PathBuf) -> Self {
         Self {
-            state: Some(UntypedResource::new_pending(
-                path,
-                <T as TypeUuidProvider>::type_uuid(),
-            )),
+            untyped: UntypedResource::new_pending(path, <T as TypeUuidProvider>::type_uuid()),
             phantom: PhantomData,
         }
     }
@@ -285,7 +294,7 @@ where
     #[inline]
     pub fn new_ok(data: T) -> Self {
         Self {
-            state: Some(UntypedResource::new_ok(data)),
+            untyped: UntypedResource::new_ok(data),
             phantom: PhantomData,
         }
     }
@@ -294,11 +303,11 @@ where
     #[inline]
     pub fn new_load_error(path: PathBuf, error: Option<Arc<dyn ResourceLoadError>>) -> Self {
         Self {
-            state: Some(UntypedResource::new_load_error(
+            untyped: UntypedResource::new_load_error(
                 path,
                 error,
                 <T as TypeUuidProvider>::type_uuid(),
-            )),
+            ),
             phantom: PhantomData,
         }
     }
@@ -306,7 +315,7 @@ where
     /// Converts self to internal value.
     #[inline]
     pub fn into_untyped(self) -> UntypedResource {
-        self.state.unwrap()
+        self.untyped
     }
 
     /// Locks internal mutex provides access to the state.
@@ -321,19 +330,14 @@ where
     /// Tries to lock internal mutex provides access to the state.
     #[inline]
     pub fn try_acquire_state(&self) -> Option<ResourceStateGuard<'_, T>> {
-        self.state
-            .as_ref()
-            .unwrap()
-            .0
-            .try_lock()
-            .map(|guard| ResourceStateGuard {
-                guard,
-                phantom: Default::default(),
-            })
+        self.untyped.0.try_lock().map(|guard| ResourceStateGuard {
+            guard,
+            phantom: Default::default(),
+        })
     }
 
     fn state_inner(&self) -> MutexGuard<'_, ResourceState> {
-        self.state.as_ref().unwrap().0.lock()
+        self.untyped.0.lock()
     }
 
     /// Returns true if the resource is still loading.
@@ -357,25 +361,25 @@ where
     /// Returns exact amount of users of the resource.
     #[inline]
     pub fn use_count(&self) -> usize {
-        self.state.as_ref().unwrap().use_count()
+        self.untyped.use_count()
     }
 
     /// Returns a pointer as numeric value which can be used as a hash.
     #[inline]
     pub fn key(&self) -> usize {
-        self.state.as_ref().unwrap().key()
+        self.untyped.key()
     }
 
     /// Returns path of the resource.
     #[inline]
     pub fn path(&self) -> PathBuf {
-        self.state.as_ref().unwrap().0.lock().path().to_path_buf()
+        self.untyped.0.lock().path().to_path_buf()
     }
 
     /// Sets a new path of the resource.
     #[inline]
     pub fn set_path(&mut self, new_path: PathBuf) {
-        self.state.as_ref().unwrap().set_path(new_path);
+        self.untyped.set_path(new_path);
     }
 
     /// Allows you to obtain reference to the resource data.
@@ -403,7 +407,7 @@ where
     #[inline]
     fn default() -> Self {
         Self {
-            state: None,
+            untyped: Default::default(),
             phantom: Default::default(),
         }
     }
@@ -416,7 +420,7 @@ where
     #[inline]
     fn clone(&self) -> Self {
         Self {
-            state: self.state.clone(),
+            untyped: self.untyped.clone(),
             phantom: Default::default(),
         }
     }
@@ -427,9 +431,9 @@ where
     T: ResourceData + TypeUuidProvider,
 {
     #[inline]
-    fn from(state: UntypedResource) -> Self {
+    fn from(untyped: UntypedResource) -> Self {
         Self {
-            state: Some(state),
+            untyped,
             phantom: Default::default(),
         }
     }
@@ -442,7 +446,7 @@ where
 {
     #[inline]
     fn into(self) -> UntypedResource {
-        self.state.unwrap()
+        self.untyped
     }
 }
 
@@ -453,7 +457,7 @@ where
     type Output = Result<Self, Option<Arc<dyn ResourceLoadError>>>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let mut inner = self.state.as_ref().unwrap().clone();
+        let mut inner = self.untyped.clone();
         Pin::new(&mut inner)
             .poll(cx)
             .map(|r| r.map(|_| self.clone()))
