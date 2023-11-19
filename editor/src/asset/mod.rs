@@ -206,10 +206,12 @@ impl ContextMenu {
                     if item.path.extension().map_or(false, |ext| ext == "rgs") {
                         sender.send(Message::LoadScene(item.path.clone()));
                     } else if item.path.extension().map_or(false, |ext| ext == "material") {
-                        if let Ok(material) =
-                            block_on(engine.resource_manager.request::<Material, _>(&item.path))
-                        {
-                            sender.send(Message::OpenMaterialEditor(material));
+                        if let Ok(path) = make_relative_path(&item.path) {
+                            if let Ok(material) =
+                                block_on(engine.resource_manager.request::<Material, _>(path))
+                            {
+                                sender.send(Message::OpenMaterialEditor(material));
+                            }
                         }
                     } else {
                         open_in_explorer(&item.path)
