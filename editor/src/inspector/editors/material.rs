@@ -111,7 +111,7 @@ impl Control for MaterialFieldEditor {
                 ui.send_message(MaterialFieldMessage::material(
                     self.handle,
                     MessageDirection::ToWidget,
-                    self.material.deep_copy(),
+                    self.material.deep_copy_as_procedural(),
                 ));
             }
         } else if let Some(MaterialFieldMessage::Material(material)) = message.data() {

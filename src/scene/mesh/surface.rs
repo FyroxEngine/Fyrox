@@ -1271,7 +1271,7 @@ impl Clone for Surface {
             data: self.data.clone(),
             material: if *self.unique_material {
                 // Create unique instance.
-                self.material.deep_copy().into()
+                self.material.deep_copy_as_procedural().into()
             } else {
                 // Share the material.
                 self.material.clone()

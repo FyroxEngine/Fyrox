@@ -22,6 +22,7 @@ use crate::{
     resource::texture::{Texture, TextureResource},
 };
 use fxhash::FxHashMap;
+use fyrox_resource::ResourceStateRefMut;
 use std::error::Error;
 use std::{
     any::Any,
@@ -888,6 +889,16 @@ pub type MaterialResource = Resource<Material>;
 pub trait MaterialResourceExtension {
     /// Creates a deep copy of the material resource.
     fn deep_copy(&self) -> MaterialResource;
+
+    /// Creates a deep copy of the material resource and marks it as procedural.
+    fn deep_copy_as_procedural(&self) -> MaterialResource {
+        let material = self.deep_copy();
+        if let ResourceStateRefMut::Ok(material_data) = material.state().get_mut() {
+            material_data.path.clear();
+            material_data.is_procedural = true;
+        }
+        material
+    }
 }
 
 impl MaterialResourceExtension for MaterialResource {
