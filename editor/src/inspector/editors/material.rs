@@ -3,10 +3,10 @@ use crate::{
     MessageDirection,
 };
 use fyrox::{
-    asset::{core::pool::Handle, manager::ResourceManager},
+    asset::{core::pool::Handle, manager::ResourceManager, ResourceData, ResourceStateRef},
     core::{
-        color::Color, make_relative_path, parking_lot::Mutex, reflect::prelude::*,
-        visitor::prelude::*,
+        color::Color, futures::executor::block_on, make_relative_path, parking_lot::Mutex,
+        reflect::prelude::*, visitor::prelude::*,
     },
     gui::{
         brush::Brush,
@@ -143,11 +143,15 @@ impl Control for MaterialFieldEditor {
                 };
 
                 if let Ok(path) = path {
-                    ui.send_message(MaterialFieldMessage::material(
-                        self.handle(),
-                        MessageDirection::ToWidget,
-                        self.resource_manager.request::<Material, _>(path),
-                    ));
+                    if let Ok(material) =
+                        block_on(self.resource_manager.request::<Material, _>(path))
+                    {
+                        ui.send_message(MaterialFieldMessage::material(
+                            self.handle(),
+                            MessageDirection::ToWidget,
+                            material,
+                        ));
+                    }
                 }
             }
         }
@@ -159,11 +163,26 @@ pub struct MaterialFieldEditorBuilder {
 }
 
 fn make_name(material: &MaterialResource) -> String {
-    format!(
-        "{} - {} uses",
-        material.path().to_string_lossy(),
-        material.use_count()
-    )
+    let state = material.state();
+    match state.get() {
+        ResourceStateRef::Ok(material_data) => {
+            if material_data.is_procedural() {
+                format!("Embedded - {} uses", material.use_count())
+            } else {
+                format!(
+                    "{} - {} uses",
+                    material_data.path().to_string_lossy().as_ref(),
+                    material.use_count()
+                )
+            }
+        }
+        ResourceStateRef::LoadError { error, .. } => {
+            format!("Loading failed: {:?}", error)
+        }
+        ResourceStateRef::Pending { path, .. } => {
+            format!("Loading {}", path.display())
+        }
+    }
 }
 
 impl MaterialFieldEditorBuilder {
