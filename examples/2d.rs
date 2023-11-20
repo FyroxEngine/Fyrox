@@ -53,7 +53,7 @@ impl SceneLoader {
             .set_property(
                 &ImmutableString::new("diffuseTexture"),
                 PropertyValue::Sampler {
-                    value: Some(resource_manager.request::<Texture, _>("examples/Crate.png")),
+                    value: Some(resource_manager.request::<Texture>("examples/Crate.png")),
                     fallback: Default::default(),
                 },
             )

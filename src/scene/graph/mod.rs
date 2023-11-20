@@ -2297,8 +2297,7 @@ mod test {
         // Create root resource instance in a derived resource. This creates a derived asset.
         {
             let resource_manager = make_resource_manager();
-            let root_asset =
-                block_on(resource_manager.request::<Model, _>(root_asset_path)).unwrap();
+            let root_asset = block_on(resource_manager.request::<Model>(root_asset_path)).unwrap();
 
             let mut derived = Scene::new();
             root_asset.instantiate(&mut derived);
@@ -2341,7 +2340,7 @@ mod test {
         {
             let resource_manager = make_resource_manager();
             let derived_asset =
-                block_on(resource_manager.request::<Model, _>(derived_asset_path)).unwrap();
+                block_on(resource_manager.request::<Model>(derived_asset_path)).unwrap();
 
             let derived_data = derived_asset.data_ref();
             let derived_scene = derived_data.get_scene();

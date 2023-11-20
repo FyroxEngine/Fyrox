@@ -187,7 +187,7 @@ impl PropertyValue {
             } => PropertyValue::Sampler {
                 value: default
                     .as_ref()
-                    .and_then(|path| resource_manager.map(|rm| rm.request::<Texture, _>(path))),
+                    .and_then(|path| resource_manager.map(|rm| rm.request::<Texture>(path))),
                 fallback: *usage,
             },
             PropertyKind::FloatArray(value) => PropertyValue::FloatArray(value.clone()),
@@ -349,7 +349,7 @@ impl Default for PropertyValue {
 ///     material.set_property(
 ///         &ImmutableString::new("diffuseTexture"),
 ///         PropertyValue::Sampler {
-///             value: Some(resource_manager.request::<Texture, _>("Brick_DiffuseTexture.jpg")),
+///             value: Some(resource_manager.request::<Texture>("Brick_DiffuseTexture.jpg")),
 ///             fallback: SamplerFallback::White
 ///         })
 ///         .unwrap();
@@ -377,7 +377,7 @@ impl Default for PropertyValue {
 /// use fyrox::material::shader::Shader;
 ///
 /// async fn create_grass_material(resource_manager: ResourceManager) -> Material {
-///     let shader = resource_manager.request::<Shader, _>("my_grass_shader.ron").await.unwrap();
+///     let shader = resource_manager.request::<Shader>("my_grass_shader.ron").await.unwrap();
 ///
 ///     // Here we assume that the material really has the properties defined below.
 ///     let mut material = Material::from_shader(shader, Some(resource_manager));
@@ -544,7 +544,7 @@ impl Material {
     ///     material.set_property(
     ///         &ImmutableString::new("diffuseTexture"),
     ///         PropertyValue::Sampler {
-    ///             value: Some(resource_manager.request::<Texture, _>("Brick_DiffuseTexture.jpg")),
+    ///             value: Some(resource_manager.request::<Texture>("Brick_DiffuseTexture.jpg")),
     ///             fallback: SamplerFallback::White
     ///         })
     ///         .unwrap();
@@ -600,7 +600,7 @@ impl Material {
     /// use fyrox::material::shader::Shader;
     ///
     /// async fn create_grass_material(resource_manager: ResourceManager) -> Material {
-    ///     let shader = resource_manager.request::<Shader, _>("my_grass_shader.ron").await.unwrap();
+    ///     let shader = resource_manager.request::<Shader>("my_grass_shader.ron").await.unwrap();
     ///
     ///     // Here we assume that the material really has the properties defined below.
     ///     let mut material = Material::from_shader(shader, Some(resource_manager));

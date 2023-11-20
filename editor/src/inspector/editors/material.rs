@@ -143,8 +143,7 @@ impl Control for MaterialFieldEditor {
                 };
 
                 if let Ok(path) = path {
-                    if let Ok(material) =
-                        block_on(self.resource_manager.request::<Material, _>(path))
+                    if let Ok(material) = block_on(self.resource_manager.request::<Material>(path))
                     {
                         ui.send_message(MaterialFieldMessage::material(
                             self.handle(),

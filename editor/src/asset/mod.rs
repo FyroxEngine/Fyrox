@@ -208,7 +208,7 @@ impl ContextMenu {
                     } else if item.path.extension().map_or(false, |ext| ext == "material") {
                         if let Ok(path) = make_relative_path(&item.path) {
                             if let Ok(material) =
-                                block_on(engine.resource_manager.request::<Material, _>(path))
+                                block_on(engine.resource_manager.request::<Material>(path))
                             {
                                 sender.send(Message::OpenMaterialEditor(material));
                             }
@@ -775,7 +775,7 @@ impl AssetBrowser {
                     Log::verify(material.set_property(
                         &ImmutableString::new("diffuseTexture"),
                         PropertyValue::Sampler {
-                            value: Some(engine.resource_manager.request::<Texture, _>(&path)),
+                            value: Some(engine.resource_manager.request::<Texture>(&path)),
                             fallback: Default::default(),
                         },
                     ));
@@ -806,7 +806,7 @@ impl AssetBrowser {
                 AssetKind::Sound => {
                     let path = item.path.clone();
                     if let Ok(buffer) =
-                        block_on(engine.resource_manager.request::<SoundBuffer, _>(&path))
+                        block_on(engine.resource_manager.request::<SoundBuffer>(&path))
                     {
                         let graph = &mut engine.scenes[self.preview.scene()].graph;
                         let sound = SoundBuilder::new(BaseBuilder::new())

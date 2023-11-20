@@ -1051,7 +1051,7 @@ impl Toolbar {
             }
         } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
             if message.destination() == self.import_file_selector {
-                match block_on(resource_manager.request::<Model, _>(path)) {
+                match block_on(resource_manager.request::<Model>(path)) {
                     Ok(model) => {
                         let mut animations = model
                             .retarget_animations_directly(self.selected_import_root, &scene.graph);

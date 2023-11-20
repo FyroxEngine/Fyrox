@@ -311,7 +311,11 @@ mod test {
 
     #[test]
     fn untyped_resource_new_load_error() {
-        let r = UntypedResource::new_load_error(PathBuf::from("/foo"), None, Uuid::default());
+        let r = UntypedResource::new_load_error(
+            PathBuf::from("/foo"),
+            Default::default(),
+            Uuid::default(),
+        );
 
         assert_eq!(r.0.lock().type_uuid(), Uuid::default());
         assert_eq!(r.0.lock().path(), PathBuf::from("/foo"));
@@ -330,7 +334,7 @@ mod test {
     fn untyped_resource_is_loading() {
         assert!(UntypedResource(Arc::new(Mutex::new(ResourceState::Pending {
             path: PathBuf::from("/foo"),
-            wakers: Vec::new(),
+            wakers: Default::default(),
             type_uuid: Uuid::default()
         })))
         .is_loading());
@@ -338,7 +342,7 @@ mod test {
         assert!(
             !UntypedResource(Arc::new(Mutex::new(ResourceState::LoadError {
                 path: PathBuf::from("/foo"),
-                error: None,
+                error: Default::default(),
                 type_uuid: Uuid::default()
             })))
             .is_loading()
@@ -365,7 +369,7 @@ mod test {
         assert_eq!(
             UntypedResource(Arc::new(Mutex::new(ResourceState::Pending {
                 path: path.clone(),
-                wakers: Vec::new(),
+                wakers: Default::default(),
                 type_uuid: Uuid::default()
             })))
             .path(),
@@ -375,7 +379,7 @@ mod test {
         assert_eq!(
             UntypedResource(Arc::new(Mutex::new(ResourceState::LoadError {
                 path: path.clone(),
-                error: None,
+                error: Default::default(),
                 type_uuid: Uuid::default()
             })))
             .path(),
@@ -455,7 +459,7 @@ mod test {
 
         let mut r = UntypedResource(Arc::new(Mutex::new(ResourceState::LoadError {
             path: path.clone(),
-            error: None,
+            error: Default::default(),
             type_uuid: Uuid::default(),
         })));
         assert!(Pin::new(&mut r).poll(&mut cx).is_ready());

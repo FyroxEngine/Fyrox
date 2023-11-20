@@ -353,7 +353,7 @@ impl PreviewPanel {
 
     pub async fn load_model(&mut self, model: &Path, engine: &mut Engine) -> bool {
         self.clear(engine);
-        if let Ok(model) = engine.resource_manager.request::<Model, _>(model).await {
+        if let Ok(model) = engine.resource_manager.request::<Model>(model).await {
             let scene = &mut engine.scenes[self.scene];
             self.model = model.instantiate(scene);
 

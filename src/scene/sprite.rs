@@ -120,7 +120,7 @@ impl VertexTrait for SpriteVertex {
 ///     material
 ///         .set_texture(
 ///             &"smoke.png".into(),
-///             Some(resource_manager.request::<Texture, _>("smoke.png")),
+///             Some(resource_manager.request::<Texture>("smoke.png")),
 ///         )
 ///         .unwrap();
 ///

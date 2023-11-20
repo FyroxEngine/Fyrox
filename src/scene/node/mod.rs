@@ -681,7 +681,7 @@ mod test {
             Arc::new(serialization_context),
         );
 
-        let root_asset = block_on(resource_manager.request::<Model, _>(root_asset_path)).unwrap();
+        let root_asset = block_on(resource_manager.request::<Model>(root_asset_path)).unwrap();
 
         // Create root resource instance in a derived resource.
         {
@@ -712,7 +712,7 @@ mod test {
         // Reload the derived asset and check its content.
         {
             let derived_asset =
-                block_on(resource_manager.request::<Model, _>(derived_asset_path)).unwrap();
+                block_on(resource_manager.request::<Model>(derived_asset_path)).unwrap();
 
             let derived_data = derived_asset.data_ref();
             let derived_scene = derived_data.get_scene();

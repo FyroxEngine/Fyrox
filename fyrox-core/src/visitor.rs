@@ -2108,7 +2108,7 @@ mod test {
         );
         assert_eq!(
             FieldKind::Uuid(Uuid::default()).as_string(),
-            "00000000-0000-0000-0000-000000000000".to_string()
+            "<uuid = 00000000-0000-0000-0000-000000000000".to_string()
         );
 
         assert_eq!(

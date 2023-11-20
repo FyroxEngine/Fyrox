@@ -1200,9 +1200,12 @@ mod test {
         };
 
         let mut names = Vec::new();
-        (&foo as &dyn Reflect).enumerate_fields_recursively(&mut |path, _, _| {
-            names.push(path.to_string());
-        });
+        (&foo as &dyn Reflect).enumerate_fields_recursively(
+            &mut |path, _, _| {
+                names.push(path.to_string());
+            },
+            &[],
+        );
 
         assert_eq!(names[0], "");
         assert_eq!(names[1], "bar");

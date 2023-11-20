@@ -437,7 +437,7 @@ mod test {
     fn resource_state_new_load_error() {
         let path = PathBuf::from("foo.txt");
         let type_uuid = Uuid::default();
-        let state = ResourceState::new_load_error(path.clone(), None, type_uuid);
+        let state = ResourceState::new_load_error(path.clone(), Default::default(), type_uuid);
 
         assert!(matches!(
             state,
@@ -484,7 +484,7 @@ mod test {
         // from LoadError
         let path = PathBuf::from("foo.txt");
         let type_uuid = Uuid::default();
-        let mut state = ResourceState::new_load_error(path.clone(), None, type_uuid);
+        let mut state = ResourceState::new_load_error(path.clone(), Default::default(), type_uuid);
         state.switch_to_pending_state();
 
         assert!(matches!(
@@ -525,8 +525,11 @@ mod test {
         assert!(state.visit("name", &mut visitor).is_ok());
 
         // Visit LoadError
-        let mut state =
-            ResourceState::new_load_error(PathBuf::from("foo.txt"), None, Uuid::default());
+        let mut state = ResourceState::new_load_error(
+            PathBuf::from("foo.txt"),
+            Default::default(),
+            Uuid::default(),
+        );
         let mut visitor = Visitor::default();
 
         assert!(state.visit("name", &mut visitor).is_ok());

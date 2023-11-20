@@ -354,8 +354,7 @@ async fn create_surfaces(
                     };
 
                     if let Some(texture_path) = texture_path {
-                        let texture =
-                            resource_manager.request::<Texture, _>(texture_path.as_path());
+                        let texture = resource_manager.request::<Texture>(texture_path.as_path());
 
                         // Make up your mind, Autodesk and Blender.
                         // Handle all possible combinations of links to auto-import materials.

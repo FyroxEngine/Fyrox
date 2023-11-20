@@ -482,11 +482,9 @@ impl CurveEditorWindow {
             }
         } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
             if message.destination() == self.load_file_selector {
-                if let Ok(curve) = block_on(
-                    engine
-                        .resource_manager
-                        .request::<CurveResourceState, _>(path),
-                ) {
+                if let Ok(curve) =
+                    block_on(engine.resource_manager.request::<CurveResourceState>(path))
+                {
                     self.path = path.clone();
                     self.set_curve(curve, ui);
                 }

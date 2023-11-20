@@ -789,7 +789,7 @@ impl ColorGradingLut {
     /// use fyrox::resource::texture::Texture;
     ///
     /// async fn create_lut(resource_manager: ResourceManager) -> ColorGradingLut {
-    ///     ColorGradingLut::new(resource_manager.request::<Texture, _>(
+    ///     ColorGradingLut::new(resource_manager.request::<Texture>(
     ///         "your_lut.jpg",
     ///     ))
     ///     .await

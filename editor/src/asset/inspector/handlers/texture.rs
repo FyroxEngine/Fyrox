@@ -31,7 +31,7 @@ impl ImportOptionsHandler for TextureImportOptionsHandler {
         self.options
             .save(&append_extension(&self.resource_path, "options"));
 
-        let texture = resource_manager.request::<Texture, _>(&self.resource_path);
+        let texture = resource_manager.request::<Texture>(&self.resource_path);
         resource_manager
             .state()
             .reload_resource(texture.into_untyped());

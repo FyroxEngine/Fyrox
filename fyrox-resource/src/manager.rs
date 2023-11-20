@@ -156,9 +156,8 @@ impl ResourceManager {
     ///
     /// This method will panic, if type UUID of `T` does not match the actual type UUID of the resource. If this
     /// is undesirable, use [`Self::try_request`] instead.
-    pub fn request<T, P>(&self, path: P) -> Resource<T>
+    pub fn request<T>(&self, path: impl AsRef<Path>) -> Resource<T>
     where
-        P: AsRef<Path>,
         T: TypedResourceData,
     {
         let untyped = self.state().request(path);
@@ -633,7 +632,7 @@ mod test {
         let cx = ResourceWaitContext {
             resources: vec![
                 UntypedResource::new_pending(path.clone(), type_uuid),
-                UntypedResource::new_load_error(path.clone(), None, type_uuid),
+                UntypedResource::new_load_error(path.clone(), Default::default(), type_uuid),
             ],
         };
         assert!(!cx.is_all_loaded());
@@ -678,7 +677,7 @@ mod test {
         state.push(UntypedResource::new_pending(path.clone(), type_uuid));
         state.push(UntypedResource::new_load_error(
             path.clone(),
-            None,
+            Default::default(),
             type_uuid,
         ));
         state.push(UntypedResource::new_ok(Stub {}));
@@ -700,7 +699,7 @@ mod test {
         state.push(UntypedResource::new_pending(path.clone(), type_uuid));
         state.push(UntypedResource::new_load_error(
             path.clone(),
-            None,
+            Default::default(),
             type_uuid,
         ));
         state.push(UntypedResource::new_ok(Stub {}));
@@ -731,7 +730,7 @@ mod test {
         let path = PathBuf::from("test.txt");
         let type_uuid = Uuid::default();
         let r1 = UntypedResource::new_pending(path.clone(), type_uuid);
-        let r2 = UntypedResource::new_load_error(path.clone(), None, type_uuid);
+        let r2 = UntypedResource::new_load_error(path.clone(), Default::default(), type_uuid);
         let r3 = UntypedResource::new_ok(Stub {});
         state.push(r1.clone());
         state.push(r2.clone());
@@ -761,7 +760,7 @@ mod test {
         let path = PathBuf::from("test.txt");
         let type_uuid = Uuid::default();
 
-        let resource = UntypedResource::new_load_error(path.clone(), None, type_uuid);
+        let resource = UntypedResource::new_load_error(path.clone(), Default::default(), type_uuid);
         state.push(resource.clone());
 
         let res = state.request(path);
@@ -805,8 +804,11 @@ mod test {
         let mut state = ResourceManagerState::new();
         state.loaders.set(Stub {});
 
-        let resource =
-            UntypedResource::new_load_error(PathBuf::from("test.txt"), None, Uuid::default());
+        let resource = UntypedResource::new_load_error(
+            PathBuf::from("test.txt"),
+            Default::default(),
+            Uuid::default(),
+        );
         state.push(resource.clone());
 
         assert!(!state.try_reload_resource_from_path(Path::new("foo.txt")));

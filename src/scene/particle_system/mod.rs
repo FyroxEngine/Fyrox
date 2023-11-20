@@ -164,7 +164,7 @@ impl Visit for ParticleSystemRng {
 ///             PropertyValue::Sampler {
 ///                 value: Some(
 ///                     resource_manager
-///                         .request::<Texture, _>(Path::new("data/particles/smoke_04.tga")),
+///                         .request::<Texture>(Path::new("data/particles/smoke_04.tga")),
 ///                 ),
 ///                 fallback: Default::default(),
 ///             },

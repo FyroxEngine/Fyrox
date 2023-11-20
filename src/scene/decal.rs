@@ -79,7 +79,7 @@ use std::ops::{Deref, DerefMut};
 ///                         .with_local_scale(Vector3::new(2.0, 2.0, 2.0))
 ///                         .build()
 ///         ))
-///         .with_diffuse_texture(resource_manager.request::<Texture, _>("bullet_hole.png"))
+///         .with_diffuse_texture(resource_manager.request::<Texture>("bullet_hole.png"))
 ///         .build(graph)
 /// }
 /// ```
