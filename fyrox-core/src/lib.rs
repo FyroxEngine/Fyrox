@@ -94,34 +94,17 @@ macro_rules! define_is_as {
     };
 }
 
-/// Utility function that replaces back slashes \ to forward /
-/// It replaces slashes only on windows!
+/// Utility function that replaces back slashes \ to forward /. Internally, it converts the input
+/// path to string (lossy - see [`Path::to_string_lossy`]) and replaces the slashes in the string.
+/// Finally, it converts the string to the PathBuf and returns it. This method is intended to be
+/// used only for paths, that does not contain non-unicode characters.
 pub fn replace_slashes<P: AsRef<Path>>(path: P) -> PathBuf {
-    #[cfg(target_os = "windows")]
-    {
-        if path.as_ref().is_absolute() {
-            // Absolute Windows paths are incompatible with other operating systems so
-            // don't bother here and return existing path as owned.
-            path.as_ref().to_owned()
-        } else {
-            // Replace all \ to /. This is needed because on macos or linux \ is a valid symbol in
-            // file name, and not separator (except linux which understand both variants).
-            let mut os_str = std::ffi::OsString::new();
-            let count = path.as_ref().components().count();
-            for (i, component) in path.as_ref().components().enumerate() {
-                os_str.push(component.as_os_str());
-                if i != count - 1 {
-                    os_str.push("/");
-                }
-            }
-            PathBuf::from(os_str)
-        }
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        path.as_ref().to_owned()
-    }
+    PathBuf::from(
+        path.as_ref()
+            .to_string_lossy()
+            .to_string()
+            .replace('\\', "/"),
+    )
 }
 
 /// Appends specified extension to the path.
