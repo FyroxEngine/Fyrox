@@ -21,7 +21,6 @@ use fyrox_resource::{
 };
 use std::{
     any::Any,
-    borrow::Cow,
     fmt::Debug,
     io::{Cursor, Read, Seek, SeekFrom},
     ops::{Deref, DerefMut},
@@ -246,8 +245,8 @@ impl DerefMut for SoundBuffer {
 }
 
 impl ResourceData for SoundBuffer {
-    fn path(&self) -> Cow<Path> {
-        Cow::from(&self.external_source_path)
+    fn path(&self) -> &Path {
+        &self.external_source_path
     }
 
     fn set_path(&mut self, path: PathBuf) {

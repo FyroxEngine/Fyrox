@@ -245,7 +245,6 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::{
     any::Any,
-    borrow::Cow,
     fmt::{Display, Formatter},
     io::Cursor,
     path::{Path, PathBuf},
@@ -555,8 +554,8 @@ impl Shader {
 }
 
 impl ResourceData for Shader {
-    fn path(&self) -> Cow<Path> {
-        Cow::from(&self.path)
+    fn path(&self) -> &Path {
+        &self.path
     }
 
     fn set_path(&mut self, path: PathBuf) {

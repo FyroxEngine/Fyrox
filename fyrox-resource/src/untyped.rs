@@ -253,8 +253,8 @@ mod test {
     struct Stub {}
 
     impl ResourceData for Stub {
-        fn path(&self) -> std::borrow::Cow<std::path::Path> {
-            std::borrow::Cow::Borrowed(Path::new(""))
+        fn path(&self) -> &std::path::Path {
+            Path::new("")
         }
 
         fn set_path(&mut self, _path: std::path::PathBuf) {

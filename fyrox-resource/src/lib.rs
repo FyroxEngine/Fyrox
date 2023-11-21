@@ -17,7 +17,6 @@ use crate::{
 use fxhash::FxHashSet;
 use std::{
     any::Any,
-    borrow::Cow,
     error::Error,
     fmt::{Debug, Formatter},
     future::Future,
@@ -58,7 +57,7 @@ pub const CURVE_RESOURCE_UUID: Uuid = uuid!("f28b949f-28a2-4b68-9089-59c234f58b6
 /// A trait for resource data.
 pub trait ResourceData: 'static + Debug + Visit + Send + Reflect {
     /// Returns path of resource data.
-    fn path(&self) -> Cow<Path>;
+    fn path(&self) -> &Path;
 
     /// Sets new path to resource data.
     fn set_path(&mut self, path: PathBuf);

@@ -96,7 +96,7 @@ mod test {
     struct Stub {}
 
     impl ResourceData for Stub {
-        fn path(&self) -> std::borrow::Cow<std::path::Path> {
+        fn path(&self) -> &std::path::Path {
             unimplemented!()
         }
 

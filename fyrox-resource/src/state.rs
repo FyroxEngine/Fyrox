@@ -13,7 +13,6 @@ use crate::{
     SHADER_RESOURCE_UUID, SOUND_BUFFER_RESOURCE_UUID, TEXTURE_RESOURCE_UUID,
 };
 use std::{
-    borrow::Cow,
     ffi::OsStr,
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
@@ -318,10 +317,10 @@ impl ResourceState {
 
     /// Returns a path to the resource source.
     #[inline]
-    pub fn path(&self) -> Cow<Path> {
+    pub fn path(&self) -> &Path {
         match self {
-            Self::Pending { path, .. } => Cow::Borrowed(path.as_path()),
-            Self::LoadError { path, .. } => Cow::Borrowed(path.as_path()),
+            Self::Pending { path, .. } => path,
+            Self::LoadError { path, .. } => path,
             Self::Ok(details) => details.path(),
         }
     }
@@ -382,8 +381,8 @@ mod test {
     struct Stub {}
 
     impl ResourceData for Stub {
-        fn path(&self) -> std::borrow::Cow<std::path::Path> {
-            std::borrow::Cow::Borrowed(Path::new(""))
+        fn path(&self) -> &std::path::Path {
+            Path::new("")
         }
 
         fn set_path(&mut self, _path: std::path::PathBuf) {

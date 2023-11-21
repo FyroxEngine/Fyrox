@@ -46,7 +46,6 @@ use fyrox_resource::io::ResourceIo;
 use serde::{Deserialize, Serialize};
 use std::{
     any::Any,
-    borrow::Cow,
     fmt::{Display, Formatter},
     path::{Path, PathBuf},
     sync::Arc,
@@ -285,8 +284,8 @@ impl ModelResourceExtension for ModelResource {
 }
 
 impl ResourceData for Model {
-    fn path(&self) -> Cow<Path> {
-        Cow::Borrowed(&self.path)
+    fn path(&self) -> &Path {
+        &self.path
     }
 
     fn set_path(&mut self, path: PathBuf) {

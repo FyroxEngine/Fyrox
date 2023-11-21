@@ -75,7 +75,6 @@ use fyrox_resource::{
 use hrtf::HrirSphere;
 use std::{
     any::Any,
-    borrow::Cow,
     fmt::Debug,
     fmt::Formatter,
     path::{Path, PathBuf},
@@ -219,8 +218,8 @@ impl TypeUuidProvider for HrirSphereResourceData {
 }
 
 impl ResourceData for HrirSphereResourceData {
-    fn path(&self) -> Cow<Path> {
-        Cow::Borrowed(&self.path)
+    fn path(&self) -> &Path {
+        &self.path
     }
 
     fn set_path(&mut self, path: PathBuf) {

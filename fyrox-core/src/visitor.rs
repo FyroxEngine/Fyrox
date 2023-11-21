@@ -373,7 +373,7 @@ impl FieldKind {
                 out
             }
             Self::Uuid(uuid) => {
-                format!("<uuid = {}", uuid.to_string())
+                format!("<uuid = {}", uuid)
             }
             Self::UnitComplex(data) => {
                 format!("<complex = {}; {}>, ", data.re, data.im)

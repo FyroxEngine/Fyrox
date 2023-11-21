@@ -26,7 +26,6 @@ use fyrox_resource::ResourceStateRefMut;
 use std::error::Error;
 use std::{
     any::Any,
-    borrow::Cow,
     fmt::{Display, Formatter},
     ops::Deref,
     path::{Path, PathBuf},
@@ -432,8 +431,8 @@ impl TypeUuidProvider for Material {
 }
 
 impl ResourceData for Material {
-    fn path(&self) -> Cow<Path> {
-        Cow::Borrowed(&self.path)
+    fn path(&self) -> &Path {
+        &self.path
     }
 
     fn set_path(&mut self, path: PathBuf) {

@@ -41,7 +41,6 @@ use image::{ColorType, DynamicImage, ImageError, ImageFormat, Pixel};
 use serde::{Deserialize, Serialize};
 use std::{
     any::Any,
-    borrow::Cow,
     fmt::{Debug, Display, Formatter},
     hash::{Hash, Hasher},
     io::Cursor,
@@ -264,8 +263,8 @@ impl TypeUuidProvider for Texture {
 }
 
 impl ResourceData for Texture {
-    fn path(&self) -> Cow<Path> {
-        Cow::Borrowed(&self.path)
+    fn path(&self) -> &Path {
+        &self.path
     }
 
     fn set_path(&mut self, path: PathBuf) {
