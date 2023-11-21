@@ -645,17 +645,18 @@ impl Material {
         P: AsRef<Path>,
     {
         let content = io.load_file(path.as_ref()).await?;
-
         let mut material = Material {
-            path: path.as_ref().to_owned(),
-            ..Default::default()
+            path: Default::default(),
+            is_procedural: false,
+            shader: Default::default(),
+            properties: Default::default(),
         };
-
         let mut visitor = Visitor::load_from_memory(&content)?;
         visitor.blackboard.register(Arc::new(resource_manager));
         material.visit("Material", &mut visitor)?;
         // This could be changed during deserialization, we must keep the flag `false`.
         material.is_procedural = false;
+        material.path = path.as_ref().to_owned();
 
         Ok(material)
     }
