@@ -13,7 +13,7 @@ use fyrox::{
     asset::{manager::ResourceManager, state::ResourceState, untyped::UntypedResource},
     core::{
         color::Color, futures::executor::block_on, log::Log, make_relative_path,
-        parking_lot::lock_api::Mutex, pool::Handle, scope_profile, uuid::Uuid,
+        parking_lot::lock_api::Mutex, pool::Handle, scope_profile,
     },
     engine::Engine,
     gui::{
@@ -607,14 +607,12 @@ impl AssetBrowser {
         resource_manager: &ResourceManager,
         resource_path: &Path,
     ) -> Option<SharedTexture> {
-        if let Some(extension) = resource_path.extension() {
-            if let Some(uuid) = find_uuid_for_preview(resource_manager, extension) {
-                return self
-                    .preview_generators
-                    .map
-                    .get(&uuid)
-                    .and_then(|gen| gen.icon(resource_path, resource_manager));
-            }
+        if let Ok(resource) = block_on(resource_manager.request_untyped(resource_path)) {
+            return self
+                .preview_generators
+                .map
+                .get(&resource.type_uuid())
+                .and_then(|gen| gen.icon(&resource, resource_manager));
         }
         None
     }
@@ -692,9 +690,14 @@ impl AssetBrowser {
         if let Ok(path) = self.selected_path.canonicalize() {
             if let Ok(working_dir) = std::env::current_dir().and_then(|dir| dir.canonicalize()) {
                 if path == working_dir {
-                    let state = resource_manager.state();
-                    for (path, _) in state.built_in_resources.iter() {
-                        self.add_asset(path, ui, resource_manager);
+                    let built_in_resources = resource_manager
+                        .state()
+                        .built_in_resources
+                        .keys()
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    for path in built_in_resources {
+                        self.add_asset(&path, ui, resource_manager);
                     }
                 }
             }
@@ -767,17 +770,17 @@ impl AssetBrowser {
                 &engine.resource_manager,
             );
 
-            if let Some(extension) = asset_path.extension() {
-                if let Some(uuid) = find_uuid_for_preview(&engine.resource_manager, extension) {
-                    if let Some(preview_generator) = self.preview_generators.map.get_mut(&uuid) {
-                        let preview_scene = &mut engine.scenes[self.preview.scene()];
-                        let preview = preview_generator.generate(
-                            &asset_path,
-                            &engine.resource_manager,
-                            preview_scene,
-                        );
-                        self.preview.set_model(preview, engine);
-                    }
+            if let Ok(resource) = block_on(engine.resource_manager.request_untyped(asset_path)) {
+                if let Some(preview_generator) =
+                    self.preview_generators.map.get_mut(&resource.type_uuid())
+                {
+                    let preview_scene = &mut engine.scenes[self.preview.scene()];
+                    let preview = preview_generator.generate(
+                        &resource,
+                        &engine.resource_manager,
+                        preview_scene,
+                    );
+                    self.preview.set_model(preview, engine);
                 }
             }
         } else if let Some(FileBrowserMessage::Path(path)) = message.data::<FileBrowserMessage>() {
@@ -884,14 +887,4 @@ impl AssetBrowser {
             mode.is_edit(),
         ));
     }
-}
-
-fn find_uuid_for_preview(resource_manager: &ResourceManager, extension: &OsStr) -> Option<Uuid> {
-    let rm_state = resource_manager.state();
-    for loader in rm_state.loaders.iter() {
-        if loader.extensions().iter().any(|ext| *ext == extension) {
-            return Some(loader.data_type_uuid());
-        }
-    }
-    None
 }

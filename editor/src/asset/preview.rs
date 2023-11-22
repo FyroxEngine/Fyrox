@@ -1,9 +1,8 @@
 use crate::load_image;
 use fyrox::{
-    asset::manager::ResourceManager,
+    asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector3},
-        futures::executor::block_on,
         log::Log,
         pool::Handle,
         sstorage::ImmutableString,
@@ -29,7 +28,6 @@ use fyrox::{
     },
     utils::into_gui_texture,
 };
-use std::path::Path;
 
 #[derive(Default)]
 pub struct AssetPreviewGeneratorsCollection {
@@ -58,14 +56,14 @@ impl AssetPreviewGeneratorsCollection {
 pub trait AssetPreview: 'static {
     fn generate(
         &mut self,
-        resource_path: &Path,
+        resource: &UntypedResource,
         resource_manager: &ResourceManager,
         scene: &mut Scene,
     ) -> Handle<Node>;
 
     fn icon(
         &self,
-        resource_path: &Path,
+        resource: &UntypedResource,
         resource_manager: &ResourceManager,
     ) -> Option<SharedTexture>;
 }
@@ -75,40 +73,42 @@ pub struct TexturePreview;
 impl AssetPreview for TexturePreview {
     fn generate(
         &mut self,
-        resource_path: &Path,
-        resource_manager: &ResourceManager,
+        resource: &UntypedResource,
+        _resource_manager: &ResourceManager,
         scene: &mut Scene,
     ) -> Handle<Node> {
-        let mut material = Material::standard_two_sides();
-        Log::verify(material.set_property(
-            &ImmutableString::new("diffuseTexture"),
-            PropertyValue::Sampler {
-                value: Some(resource_manager.request::<Texture>(resource_path)),
-                fallback: Default::default(),
-            },
-        ));
-        let material = MaterialResource::new_ok(material);
+        if let Some(texture) = resource.try_cast::<Texture>() {
+            let mut material = Material::standard_two_sides();
+            Log::verify(material.set_property(
+                &ImmutableString::new("diffuseTexture"),
+                PropertyValue::Sampler {
+                    value: Some(texture),
+                    fallback: Default::default(),
+                },
+            ));
+            let material = MaterialResource::new_ok(material);
 
-        MeshBuilder::new(BaseBuilder::new())
-            .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
-                SurfaceData::make_quad(
-                    &UnitQuaternion::from_axis_angle(&Vector3::z_axis(), 180.0f32.to_radians())
-                        .to_homogeneous(),
-                ),
-            ))
-            .with_material(material)
-            .build()])
-            .build(&mut scene.graph)
+            MeshBuilder::new(BaseBuilder::new())
+                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+                    SurfaceData::make_quad(
+                        &UnitQuaternion::from_axis_angle(&Vector3::z_axis(), 180.0f32.to_radians())
+                            .to_homogeneous(),
+                    ),
+                ))
+                .with_material(material)
+                .build()])
+                .build(&mut scene.graph)
+        } else {
+            Handle::NONE
+        }
     }
 
     fn icon(
         &self,
-        resource_path: &Path,
-        resource_manager: &ResourceManager,
+        resource: &UntypedResource,
+        _resource_manager: &ResourceManager,
     ) -> Option<SharedTexture> {
-        Some(into_gui_texture(
-            resource_manager.request::<Texture>(resource_path),
-        ))
+        resource.try_cast::<Texture>().map(into_gui_texture)
     }
 }
 
@@ -117,11 +117,11 @@ pub struct SoundPreview;
 impl AssetPreview for SoundPreview {
     fn generate(
         &mut self,
-        resource_path: &Path,
-        resource_manager: &ResourceManager,
+        resource: &UntypedResource,
+        _resource_manager: &ResourceManager,
         scene: &mut Scene,
     ) -> Handle<Node> {
-        if let Ok(buffer) = block_on(resource_manager.request::<SoundBuffer>(resource_path)) {
+        if let Some(buffer) = resource.try_cast::<SoundBuffer>() {
             SoundBuilder::new(BaseBuilder::new())
                 .with_buffer(Some(buffer))
                 .with_status(Status::Playing)
@@ -133,7 +133,7 @@ impl AssetPreview for SoundPreview {
 
     fn icon(
         &self,
-        _resource_path: &Path,
+        _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<SharedTexture> {
         load_image(include_bytes!("../../resources/embed/model.png"))
@@ -145,11 +145,11 @@ pub struct ModelPreview;
 impl AssetPreview for ModelPreview {
     fn generate(
         &mut self,
-        resource_path: &Path,
-        resource_manager: &ResourceManager,
+        resource: &UntypedResource,
+        _resource_manager: &ResourceManager,
         scene: &mut Scene,
     ) -> Handle<Node> {
-        if let Ok(model) = block_on(resource_manager.request::<Model>(resource_path)) {
+        if let Some(model) = resource.try_cast::<Model>() {
             model.instantiate(scene)
         } else {
             Handle::NONE
@@ -158,7 +158,7 @@ impl AssetPreview for ModelPreview {
 
     fn icon(
         &self,
-        _resource_path: &Path,
+        _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<SharedTexture> {
         load_image(include_bytes!("../../resources/embed/sound.png"))
@@ -170,11 +170,11 @@ pub struct ShaderPreview;
 impl AssetPreview for ShaderPreview {
     fn generate(
         &mut self,
-        resource_path: &Path,
+        resource: &UntypedResource,
         resource_manager: &ResourceManager,
         scene: &mut Scene,
     ) -> Handle<Node> {
-        if let Ok(shader) = block_on(resource_manager.request::<Shader>(resource_path)) {
+        if let Some(shader) = resource.try_cast::<Shader>() {
             let material = MaterialResource::new_ok(Material::from_shader(
                 shader,
                 Some(resource_manager.clone()),
@@ -194,7 +194,7 @@ impl AssetPreview for ShaderPreview {
 
     fn icon(
         &self,
-        _resource_path: &Path,
+        _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<SharedTexture> {
         load_image(include_bytes!("../../resources/embed/shader.png"))
