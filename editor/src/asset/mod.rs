@@ -1,15 +1,5 @@
 use crate::{
-    asset::{
-        dependency::DependencyViewer,
-        inspector::{
-            handlers::{
-                model::ModelImportOptionsHandler, sound::SoundBufferImportOptionsHandler,
-                texture::TextureImportOptionsHandler,
-            },
-            AssetInspector,
-        },
-        item::AssetItemBuilder,
-    },
+    asset::{dependency::DependencyViewer, inspector::AssetInspector, item::AssetItemBuilder},
     gui::{make_dropdown_list_option, AssetItemMessage},
     message::MessageSender,
     preview::PreviewPanel,
@@ -752,6 +742,17 @@ impl AssetBrowser {
                 ))
             }
 
+            self.inspector.inspect_resource_import_options(
+                &ui.node(message.destination())
+                    .cast::<AssetItem>()
+                    .expect("Must be AssetItem")
+                    .path
+                    .clone(),
+                ui,
+                sender,
+                &engine.resource_manager,
+            );
+
             let item = ui
                 .node(message.destination())
                 .cast::<AssetItem>()
@@ -762,12 +763,6 @@ impl AssetBrowser {
                 AssetKind::Model => {
                     let path = item.path.clone();
                     block_on(self.preview.load_model(&path, engine));
-
-                    self.inspector.inspect_resource_import_options(
-                        ModelImportOptionsHandler::new(&path),
-                        &mut engine.user_interface,
-                        sender,
-                    )
                 }
                 AssetKind::Texture => {
                     let path = item.path.clone();
@@ -796,12 +791,6 @@ impl AssetBrowser {
                         .build()])
                         .build(graph);
                     self.preview.set_model(quad, engine);
-
-                    self.inspector.inspect_resource_import_options(
-                        TextureImportOptionsHandler::new(&path),
-                        &mut engine.user_interface,
-                        sender,
-                    )
                 }
                 AssetKind::Sound => {
                     let path = item.path.clone();
@@ -815,12 +804,6 @@ impl AssetBrowser {
                             .build(graph);
                         self.preview.set_model(sound, engine);
                     }
-
-                    self.inspector.inspect_resource_import_options(
-                        SoundBufferImportOptionsHandler::new(&path),
-                        &mut engine.user_interface,
-                        sender,
-                    )
                 }
                 AssetKind::Shader => {
                     Log::warn("Implement me!");

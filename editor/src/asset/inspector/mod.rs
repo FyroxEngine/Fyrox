@@ -1,15 +1,17 @@
-use crate::message::MessageSender;
 use crate::{
-    asset::inspector::handlers::ImportOptionsHandler,
-    inspector::editors::make_property_editors_container, MSG_SYNC_FLAG,
+    inspector::editors::make_property_editors_container, message::MessageSender, MSG_SYNC_FLAG,
 };
+use fyrox::core::reflect::Reflect;
 use fyrox::{
-    core::pool::Handle,
+    asset::{manager::ResourceManager, options::BaseImportOptions},
+    core::{append_extension, futures::executor::block_on, log::Log, pool::Handle},
     engine::Engine,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
-        inspector::{Inspector, InspectorBuilder, InspectorContext, InspectorMessage},
+        inspector::{
+            Inspector, InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction,
+        },
         message::{MessageDirection, UiMessage},
         scroll_viewer::ScrollViewerBuilder,
         stack_panel::StackPanelBuilder,
@@ -17,16 +19,23 @@ use fyrox::{
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
 };
-use std::rc::Rc;
+use std::ffi::OsStr;
+use std::{
+    path::{Path, PathBuf},
+    rc::Rc,
+};
 
-pub mod handlers;
+struct Context {
+    resource_path: PathBuf,
+    import_options: Box<dyn BaseImportOptions>,
+}
 
 pub struct AssetInspector {
     pub container: Handle<UiNode>,
     inspector: Handle<UiNode>,
     apply: Handle<UiNode>,
     revert: Handle<UiNode>,
-    handler: Option<Box<dyn ImportOptionsHandler>>,
+    context: Option<Context>,
 }
 
 impl AssetInspector {
@@ -87,67 +96,145 @@ impl AssetInspector {
             inspector,
             apply,
             revert,
-            handler: None,
+            context: None,
         }
     }
 
-    pub fn inspect_resource_import_options<H>(
+    pub fn inspect_resource_import_options(
         &mut self,
-        handler: H,
+        path: &Path,
         ui: &mut UserInterface,
         sender: MessageSender,
-    ) where
-        H: ImportOptionsHandler + 'static,
-    {
-        let context = InspectorContext::from_object(
-            handler.value(),
-            &mut ui.build_ctx(),
-            Rc::new(make_property_editors_container(sender)),
-            None,
-            MSG_SYNC_FLAG,
-            0,
-            true,
-            Default::default(),
-        );
-        ui.send_message(InspectorMessage::context(
-            self.inspector,
-            MessageDirection::ToWidget,
-            context,
-        ));
+        resource_manager: &ResourceManager,
+    ) {
+        if let Some(import_options) = load_import_options_or_default(path, resource_manager) {
+            import_options.as_reflect(&mut |reflect| {
+                let context = InspectorContext::from_object(
+                    reflect,
+                    &mut ui.build_ctx(),
+                    Rc::new(make_property_editors_container(sender.clone())),
+                    None,
+                    MSG_SYNC_FLAG,
+                    0,
+                    true,
+                    Default::default(),
+                );
+                ui.send_message(InspectorMessage::context(
+                    self.inspector,
+                    MessageDirection::ToWidget,
+                    context,
+                ));
+            });
 
-        self.handler = Some(Box::new(handler));
+            self.context = Some(Context {
+                import_options,
+                resource_path: path.to_owned(),
+            });
+        }
     }
 
     pub fn handle_ui_message(&mut self, message: &UiMessage, engine: &mut Engine) {
-        if let Some(handler) = self.handler.as_mut() {
-            if let Some(ButtonMessage::Click) = message.data() {
-                if message.destination() == self.revert {
-                    handler.revert();
-                    let context = engine
-                        .user_interface
-                        .node(self.inspector)
-                        .cast::<Inspector>()
-                        .expect("Must be inspector")
-                        .context()
-                        .clone();
-                    context
-                        .sync(
-                            handler.value(),
-                            &mut engine.user_interface,
-                            0,
-                            true,
-                            Default::default(),
-                        )
-                        .unwrap();
-                } else if message.destination() == self.apply {
-                    handler.apply(engine.resource_manager.clone());
-                }
-            } else if let Some(InspectorMessage::PropertyChanged(property_changed)) = message.data()
-            {
-                if message.destination == self.inspector {
-                    handler.handle_property_changed(property_changed)
+        if let Some(context) = self.context.as_mut() {
+            if let Some(extension) = context.resource_path.extension() {
+                let default_import_options =
+                    default_import_options(extension, &engine.resource_manager);
+
+                if let Some(ButtonMessage::Click) = message.data() {
+                    if message.destination() == self.revert {
+                        if let Some(default_import_options) = default_import_options {
+                            context.import_options = default_import_options;
+
+                            context.import_options.as_reflect(&mut |reflect| {
+                                let inspector_context = engine
+                                    .user_interface
+                                    .node(self.inspector)
+                                    .cast::<Inspector>()
+                                    .expect("Must be inspector")
+                                    .context()
+                                    .clone();
+                                inspector_context
+                                    .sync(
+                                        reflect,
+                                        &mut engine.user_interface,
+                                        0,
+                                        true,
+                                        Default::default(),
+                                    )
+                                    .unwrap();
+                            });
+                        }
+                    } else if message.destination() == self.apply {
+                        context
+                            .import_options
+                            .save(&append_extension(&context.resource_path, "options"));
+
+                        if let Ok(resource) = block_on(
+                            engine
+                                .resource_manager
+                                .request_untyped(&context.resource_path),
+                        ) {
+                            engine.resource_manager.state().reload_resource(resource);
+                        }
+                    }
+                } else if let Some(InspectorMessage::PropertyChanged(property_changed)) =
+                    message.data()
+                {
+                    if message.destination == self.inspector {
+                        context.import_options.as_reflect_mut(&mut |reflect| {
+                            PropertyAction::from_field_kind(&property_changed.value).apply(
+                                &property_changed.path(),
+                                reflect,
+                                &mut |result| {
+                                    Log::verify(result);
+                                },
+                            );
+                        });
+                    }
                 }
             }
         }
     }
+}
+
+fn default_import_options(
+    extension: &OsStr,
+    resource_manager: &ResourceManager,
+) -> Option<Box<dyn BaseImportOptions>> {
+    let rm_state = resource_manager.state();
+    for loader in rm_state.loaders.iter() {
+        if loader
+            .extensions()
+            .iter()
+            .any(|loader_ext| *loader_ext == extension)
+        {
+            return loader.default_import_options();
+        }
+    }
+    None
+}
+
+fn load_import_options_or_default(
+    resource_path: &Path,
+    resource_manager: &ResourceManager,
+) -> Option<Box<dyn BaseImportOptions>> {
+    if let Some(extension) = resource_path.extension() {
+        let rm_state = resource_manager.state();
+        for loader in rm_state.loaders.iter() {
+            if loader
+                .extensions()
+                .iter()
+                .any(|loader_ext| *loader_ext == extension)
+            {
+                return if let Some(import_options) = block_on(loader.try_load_import_settings(
+                    resource_path.to_owned(),
+                    rm_state.resource_io.clone(),
+                )) {
+                    Some(import_options)
+                } else {
+                    loader.default_import_options()
+                };
+            }
+        }
+    }
+    None
 }
