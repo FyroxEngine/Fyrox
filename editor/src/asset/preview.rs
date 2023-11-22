@@ -41,6 +41,7 @@ impl AssetPreviewGeneratorsCollection {
         this.add(Model::type_uuid(), ModelPreview);
         this.add(SoundBuffer::type_uuid(), SoundPreview);
         this.add(Shader::type_uuid(), ShaderPreview);
+        this.add(Material::type_uuid(), MaterialPreview);
         this
     }
 
@@ -198,5 +199,36 @@ impl AssetPreview for ShaderPreview {
         _resource_manager: &ResourceManager,
     ) -> Option<SharedTexture> {
         load_image(include_bytes!("../../resources/embed/shader.png"))
+    }
+}
+
+pub struct MaterialPreview;
+
+impl AssetPreview for MaterialPreview {
+    fn generate(
+        &mut self,
+        resource: &UntypedResource,
+        _resource_manager: &ResourceManager,
+        scene: &mut Scene,
+    ) -> Handle<Node> {
+        if let Some(material) = resource.try_cast::<Material>() {
+            MeshBuilder::new(BaseBuilder::new())
+                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+                    SurfaceData::make_sphere(32, 32, 1.0, &Matrix4::identity()),
+                ))
+                .with_material(material)
+                .build()])
+                .build(&mut scene.graph)
+        } else {
+            Handle::NONE
+        }
+    }
+
+    fn icon(
+        &self,
+        _resource: &UntypedResource,
+        _resource_manager: &ResourceManager,
+    ) -> Option<SharedTexture> {
+        load_image(include_bytes!("../../resources/embed/material.png"))
     }
 }
