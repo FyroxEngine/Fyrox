@@ -1,17 +1,17 @@
 //! Sound buffer loader.
 
-use std::sync::Arc;
-
 use crate::buffer::{DataSource, SoundBuffer, SoundBufferResourceLoadError};
 use fyrox_core::{log::Log, reflect::prelude::*, uuid::Uuid, TypeUuidProvider};
+use fyrox_resource::options::BaseImportOptions;
 use fyrox_resource::{
     event::ResourceEventBroadcaster,
     io::ResourceIo,
-    loader::{BoxedLoaderFuture, ResourceLoader},
-    options::{try_get_import_settings, ImportOptions},
+    loader::{BoxedImportOptionsLoaderFuture, BoxedLoaderFuture, ResourceLoader},
+    options::{try_get_import_settings, try_get_import_settings_opaque, ImportOptions},
     untyped::UntypedResource,
 };
 use serde::{Deserialize, Serialize};
+use std::{path::PathBuf, sync::Arc};
 
 /// Defines sound buffer resource import options.
 #[derive(Clone, Deserialize, Serialize, Default, Debug, Reflect)]
@@ -87,5 +87,19 @@ impl ResourceLoader for SoundBufferLoader {
                 }
             }
         })
+    }
+
+    fn try_load_import_settings(
+        &self,
+        resource_path: PathBuf,
+        io: Arc<dyn ResourceIo>,
+    ) -> BoxedImportOptionsLoaderFuture {
+        Box::pin(async move {
+            try_get_import_settings_opaque::<SoundBufferImportOptions>(&resource_path, &*io).await
+        })
+    }
+
+    fn default_import_options(&self) -> Option<Box<dyn BaseImportOptions>> {
+        Some(Box::<SoundBufferImportOptions>::default())
     }
 }

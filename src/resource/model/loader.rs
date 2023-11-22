@@ -1,20 +1,20 @@
 //! Model loader.
 
-use fyrox_resource::io::ResourceIo;
-
 use crate::{
     asset::{
         event::ResourceEventBroadcaster,
-        loader::{BoxedLoaderFuture, ResourceLoader},
+        io::ResourceIo,
+        loader::{BoxedImportOptionsLoaderFuture, BoxedLoaderFuture, ResourceLoader},
         manager::ResourceManager,
-        options::try_get_import_settings,
+        options::{try_get_import_settings, try_get_import_settings_opaque},
         untyped::UntypedResource,
     },
     core::{log::Log, uuid::Uuid, TypeUuidProvider},
     engine::SerializationContext,
     resource::model::{Model, ModelImportOptions},
 };
-use std::sync::Arc;
+use fyrox_resource::options::BaseImportOptions;
+use std::{path::PathBuf, sync::Arc};
 
 /// Default implementation for model loading.
 pub struct ModelLoader {
@@ -81,5 +81,19 @@ impl ResourceLoader for ModelLoader {
                 }
             }
         })
+    }
+
+    fn try_load_import_settings(
+        &self,
+        resource_path: PathBuf,
+        io: Arc<dyn ResourceIo>,
+    ) -> BoxedImportOptionsLoaderFuture {
+        Box::pin(async move {
+            try_get_import_settings_opaque::<ModelImportOptions>(&resource_path, &*io).await
+        })
+    }
+
+    fn default_import_options(&self) -> Option<Box<dyn BaseImportOptions>> {
+        Some(Box::<ModelImportOptions>::default())
     }
 }

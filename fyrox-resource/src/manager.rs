@@ -60,7 +60,7 @@ pub struct ResourceManagerState {
     /// A set of built-in resources, that will be used to resolve references on deserialization.
     pub built_in_resources: FxHashMap<PathBuf, UntypedResource>,
     /// The resource acccess interface
-    resource_io: Arc<dyn ResourceIo>,
+    pub resource_io: Arc<dyn ResourceIo>,
 
     resources: Vec<TimedEntry<UntypedResource>>,
     task_pool: Arc<TaskPool>,

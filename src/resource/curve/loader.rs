@@ -1,18 +1,16 @@
 //! Curve loader.
 
-use std::sync::Arc;
-
-use fyrox_resource::io::ResourceIo;
-
 use crate::{
     asset::{
         event::ResourceEventBroadcaster,
+        io::ResourceIo,
         loader::{BoxedLoaderFuture, ResourceLoader},
         untyped::UntypedResource,
     },
     core::{log::Log, uuid::Uuid, TypeUuidProvider},
     resource::curve::CurveResourceState,
 };
+use std::sync::Arc;
 
 /// Default implementation for curve loading.
 pub struct CurveLoader;

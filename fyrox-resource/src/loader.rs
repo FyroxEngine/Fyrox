@@ -1,8 +1,10 @@
 //! Resource loader. It manages resource loading.
 
-use crate::{event::ResourceEventBroadcaster, io::ResourceIo, UntypedResource};
-use fyrox_core::uuid::Uuid;
-use std::{any::Any, future::Future, pin::Pin, sync::Arc};
+use crate::{
+    core::uuid::Uuid, event::ResourceEventBroadcaster, io::ResourceIo, options::BaseImportOptions,
+    UntypedResource,
+};
+use std::{any::Any, future::Future, path::PathBuf, pin::Pin, sync::Arc};
 
 #[cfg(target_arch = "wasm32")]
 #[doc(hidden)]
@@ -60,6 +62,20 @@ pub trait ResourceLoader: ResourceLoaderTypeTrait {
         reload: bool,
         io: Arc<dyn ResourceIo>,
     ) -> BoxedLoaderFuture;
+
+    /// Tries to load import settings for a resource.
+    fn try_load_import_settings(
+        &self,
+        #[allow(unused_variables)] resource_path: PathBuf,
+        #[allow(unused_variables)] io: Arc<dyn ResourceIo>,
+    ) -> BoxedImportOptionsLoaderFuture {
+        Box::pin(async move { None })
+    }
+
+    /// Returns default import options for the resource.
+    fn default_import_options(&self) -> Option<Box<dyn BaseImportOptions>> {
+        None
+    }
 }
 
 /// Future type for resource loading. See 'ResourceLoader'.
@@ -69,6 +85,10 @@ pub type BoxedLoaderFuture = Pin<Box<dyn Future<Output = ()>>>;
 /// Future type for resource loading. See 'ResourceLoader'.
 #[cfg(not(target_arch = "wasm32"))]
 pub type BoxedLoaderFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
+
+/// Future type for resource import options loading.
+pub type BoxedImportOptionsLoaderFuture =
+    Pin<Box<dyn Future<Output = Option<Box<dyn BaseImportOptions>>>>>;
 
 /// Container for resource loaders.
 #[derive(Default)]

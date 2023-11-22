@@ -1,14 +1,13 @@
 //! Curve resource holds a [`Curve`]
 
 use crate::{
-    asset::{options::ImportOptions, Resource, ResourceData, CURVE_RESOURCE_UUID},
+    asset::{Resource, ResourceData, CURVE_RESOURCE_UUID},
     core::{
         curve::Curve, io::FileLoadError, reflect::prelude::*, uuid::Uuid, visitor::prelude::*,
         TypeUuidProvider,
     },
 };
 use fyrox_resource::io::ResourceIo;
-use serde::{Deserialize, Serialize};
 use std::{
     any::Any,
     fmt::{Display, Formatter},
@@ -112,9 +111,3 @@ impl CurveResourceState {
 
 /// Type alias for curve resources.
 pub type CurveResource = Resource<CurveResourceState>;
-
-/// Import options for curve resource.
-#[derive(Serialize, Deserialize, Default, Clone)]
-pub struct CurveImportOptions {}
-
-impl ImportOptions for CurveImportOptions {}

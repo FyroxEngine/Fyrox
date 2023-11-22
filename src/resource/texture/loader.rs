@@ -1,19 +1,18 @@
 //! Texture loader.
 
-use std::sync::Arc;
-
-use fyrox_resource::io::ResourceIo;
-
 use crate::{
     asset::{
         event::ResourceEventBroadcaster,
-        loader::{BoxedLoaderFuture, ResourceLoader},
-        options::try_get_import_settings,
+        io::ResourceIo,
+        loader::{BoxedImportOptionsLoaderFuture, BoxedLoaderFuture, ResourceLoader},
+        options::{try_get_import_settings, try_get_import_settings_opaque},
         untyped::UntypedResource,
     },
     core::{instant, log::Log, uuid::Uuid, TypeUuidProvider},
     resource::texture::{Texture, TextureImportOptions},
 };
+use fyrox_resource::options::BaseImportOptions;
+use std::{path::PathBuf, sync::Arc};
 
 /// Default implementation for texture loading.
 pub struct TextureLoader {
@@ -72,5 +71,19 @@ impl ResourceLoader for TextureLoader {
                 }
             }
         })
+    }
+
+    fn try_load_import_settings(
+        &self,
+        resource_path: PathBuf,
+        io: Arc<dyn ResourceIo>,
+    ) -> BoxedImportOptionsLoaderFuture {
+        Box::pin(async move {
+            try_get_import_settings_opaque::<TextureImportOptions>(&resource_path, &*io).await
+        })
+    }
+
+    fn default_import_options(&self) -> Option<Box<dyn BaseImportOptions>> {
+        Some(Box::<TextureImportOptions>::default())
     }
 }

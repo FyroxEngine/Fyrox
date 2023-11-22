@@ -229,7 +229,7 @@
 //! is enough.
 
 use crate::{
-    asset::{io::ResourceIo, options::ImportOptions, Resource, ResourceData, SHADER_RESOURCE_UUID},
+    asset::{io::ResourceIo, Resource, ResourceData, SHADER_RESOURCE_UUID},
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         io::FileLoadError,
@@ -242,7 +242,7 @@ use crate::{
     lazy_static::lazy_static,
     renderer::framework::framebuffer::DrawParameters,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::{
     any::Any,
     fmt::{Display, Formatter},
@@ -694,12 +694,6 @@ impl ShaderResourceExtension for ShaderResource {
         ]
     }
 }
-
-/// Import options for shader resource.
-#[derive(Serialize, Deserialize, Clone, Default)]
-pub struct ShaderImportOptions {}
-
-impl ImportOptions for ShaderImportOptions {}
 
 lazy_static! {
     static ref STANDARD: ShaderResource = ShaderResource::new_ok(
