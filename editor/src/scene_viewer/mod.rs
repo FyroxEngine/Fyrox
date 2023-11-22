@@ -3,11 +3,12 @@ use crate::{
     camera::PickingOptions, gui::make_dropdown_list_option,
     gui::make_dropdown_list_option_with_height, load_image, message::MessageSender,
     send_sync_message, settings::keys::KeyBindings, utils::enable_widget, AddModelCommand,
-    AssetItem, AssetKind, BuildProfile, ChangeSelectionCommand, CommandGroup, DropdownListBuilder,
+    AssetItem, BuildProfile, ChangeSelectionCommand, CommandGroup, DropdownListBuilder,
     EditorScene, GraphSelection, InteractionMode, InteractionModeKind, Message, Mode,
     SaveSceneConfirmationDialogAction, SceneCommand, SceneContainer, Selection,
     SetMeshTextureCommand, Settings,
 };
+use fyrox::core::futures::executor::block_on;
 use fyrox::{
     asset::ResourceStateRef,
     core::{
@@ -698,40 +699,35 @@ impl SceneViewer {
                                         // Make sure all resources loaded with relative paths only.
                                         // This will make scenes portable.
                                         if let Ok(relative_path) = make_relative_path(&item.path) {
-                                            if let AssetKind::Model = item.kind {
-                                                // No model was loaded yet, do it.
-                                                if let Ok(model) =
-                                                    fyrox::core::futures::executor::block_on(
-                                                        engine
-                                                            .resource_manager
-                                                            .request::<Model>(relative_path),
-                                                    )
-                                                {
-                                                    let scene =
-                                                        &mut engine.scenes[editor_scene.scene];
+                                            // No model was loaded yet, do it.
+                                            if let Ok(model) =
+                                                fyrox::core::futures::executor::block_on(
+                                                    engine
+                                                        .resource_manager
+                                                        .request::<Model>(relative_path),
+                                                )
+                                            {
+                                                let scene = &mut engine.scenes[editor_scene.scene];
 
-                                                    // Instantiate the model.
-                                                    let instance = model.instantiate(scene);
+                                                // Instantiate the model.
+                                                let instance = model.instantiate(scene);
 
-                                                    scene.graph.link_nodes(
-                                                        instance,
-                                                        editor_scene.scene_content_root,
-                                                    );
+                                                scene.graph.link_nodes(
+                                                    instance,
+                                                    editor_scene.scene_content_root,
+                                                );
 
-                                                    scene.graph[instance]
-                                                        .local_transform_mut()
-                                                        .set_scale(
-                                                            settings.model.instantiation_scale,
-                                                        );
+                                                scene.graph[instance]
+                                                    .local_transform_mut()
+                                                    .set_scale(settings.model.instantiation_scale);
 
-                                                    let nodes = scene
-                                                        .graph
-                                                        .traverse_handle_iter(instance)
-                                                        .collect::<FxHashSet<Handle<Node>>>();
+                                                let nodes = scene
+                                                    .graph
+                                                    .traverse_handle_iter(instance)
+                                                    .collect::<FxHashSet<Handle<Node>>>();
 
-                                                    self.preview_instance =
-                                                        Some(PreviewInstance { instance, nodes });
-                                                }
+                                                self.preview_instance =
+                                                    Some(PreviewInstance { instance, nodes });
                                             }
                                         }
                                     }
@@ -1215,62 +1211,52 @@ impl SceneViewer {
             // Make sure all resources loaded with relative paths only.
             // This will make scenes portable.
             if let Ok(relative_path) = make_relative_path(&item.path) {
-                match item.kind {
-                    AssetKind::Model => {
-                        if let Some(preview) = self.preview_instance.take() {
-                            let scene = &mut engine.scenes[editor_scene.scene];
+                if let Some(preview) = self.preview_instance.take() {
+                    let scene = &mut engine.scenes[editor_scene.scene];
 
-                            // Immediately after extract if from the scene to subgraph. This is required to not violate
-                            // the rule of one place of execution, only commands allowed to modify the scene.
-                            let sub_graph = scene.graph.take_reserve_sub_graph(preview.instance);
+                    // Immediately after extract if from the scene to subgraph. This is required to not violate
+                    // the rule of one place of execution, only commands allowed to modify the scene.
+                    let sub_graph = scene.graph.take_reserve_sub_graph(preview.instance);
 
-                            let group = vec![
-                                SceneCommand::new(AddModelCommand::new(sub_graph)),
-                                // We also want to select newly instantiated model.
-                                SceneCommand::new(ChangeSelectionCommand::new(
-                                    Selection::Graph(GraphSelection::single_or_empty(
-                                        preview.instance,
-                                    )),
-                                    editor_scene.selection.clone(),
-                                )),
-                            ];
+                    let group = vec![
+                        SceneCommand::new(AddModelCommand::new(sub_graph)),
+                        // We also want to select newly instantiated model.
+                        SceneCommand::new(ChangeSelectionCommand::new(
+                            Selection::Graph(GraphSelection::single_or_empty(preview.instance)),
+                            editor_scene.selection.clone(),
+                        )),
+                    ];
 
-                            self.sender.do_scene_command(CommandGroup::from(group));
-                        }
-                    }
-                    AssetKind::Texture => {
-                        let cursor_pos = engine.user_interface.cursor_position();
-                        let rel_pos = cursor_pos - screen_bounds.position;
-                        let graph = &engine.scenes[editor_scene.scene].graph;
-                        if let Some(result) = editor_scene.camera_controller.pick(PickingOptions {
-                            cursor_pos: rel_pos,
-                            graph,
-                            editor_objects_root: editor_scene.editor_objects_root,
-                            scene_content_root: editor_scene.scene_content_root,
-                            screen_size: frame_size,
-                            editor_only: false,
-                            filter: |_, _| true,
-                            ignore_back_faces: settings.selection.ignore_back_faces,
-                            use_picking_loop: true,
-                            only_meshes: false,
-                        }) {
-                            let tex = engine.resource_manager.request::<Texture>(relative_path);
-                            let texture = tex.clone();
-                            let texture = texture.state();
-                            if let ResourceStateRef::Ok(_) = texture.get() {
-                                let node =
-                                    &mut engine.scenes[editor_scene.scene].graph[result.node];
+                    self.sender.do_scene_command(CommandGroup::from(group));
+                } else if let Ok(tex) =
+                    block_on(engine.resource_manager.request::<Texture>(relative_path))
+                {
+                    let cursor_pos = engine.user_interface.cursor_position();
+                    let rel_pos = cursor_pos - screen_bounds.position;
+                    let graph = &engine.scenes[editor_scene.scene].graph;
+                    if let Some(result) = editor_scene.camera_controller.pick(PickingOptions {
+                        cursor_pos: rel_pos,
+                        graph,
+                        editor_objects_root: editor_scene.editor_objects_root,
+                        scene_content_root: editor_scene.scene_content_root,
+                        screen_size: frame_size,
+                        editor_only: false,
+                        filter: |_, _| true,
+                        ignore_back_faces: settings.selection.ignore_back_faces,
+                        use_picking_loop: true,
+                        only_meshes: false,
+                    }) {
+                        let texture = tex.clone();
+                        let texture = texture.state();
+                        if let ResourceStateRef::Ok(_) = texture.get() {
+                            let node = &mut engine.scenes[editor_scene.scene].graph[result.node];
 
-                                if node.is_mesh() {
-                                    self.sender.do_scene_command(SetMeshTextureCommand::new(
-                                        result.node,
-                                        tex,
-                                    ));
-                                }
+                            if node.is_mesh() {
+                                self.sender
+                                    .do_scene_command(SetMeshTextureCommand::new(result.node, tex));
                             }
                         }
                     }
-                    _ => {}
                 }
             }
         }

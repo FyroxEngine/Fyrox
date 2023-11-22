@@ -1,12 +1,12 @@
-use crate::{gui::AssetItemMessage, load_image};
+use crate::gui::AssetItemMessage;
 use fyrox::{
-    asset::manager::ResourceManager,
-    core::{algebra::Vector2, color::Color, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*,
+    },
     gui::{
         border::BorderBuilder,
         brush::Brush,
-        draw::{CommandTexture, Draw, DrawingContext},
+        draw::{CommandTexture, Draw, DrawingContext, SharedTexture},
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
@@ -16,8 +16,6 @@ use fyrox::{
         BuildContext, Control, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode,
         UserInterface, BRUSH_DARKER, BRUSH_DARKEST,
     },
-    resource::texture::Texture,
-    utils::into_gui_texture,
 };
 use std::{
     any::{Any, TypeId},
@@ -30,18 +28,8 @@ use std::{
 pub struct AssetItem {
     widget: Widget,
     pub path: PathBuf,
-    pub kind: AssetKind,
     preview: Handle<UiNode>,
     selected: bool,
-}
-
-#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, Visit, Reflect)]
-pub enum AssetKind {
-    Unknown,
-    Model,
-    Texture,
-    Sound,
-    Shader,
 }
 
 impl Deref for AssetItem {
@@ -126,6 +114,7 @@ impl Control for AssetItem {
 pub struct AssetItemBuilder {
     widget_builder: WidgetBuilder,
     path: Option<PathBuf>,
+    icon: Option<SharedTexture>,
 }
 
 fn make_tooltip(ctx: &mut BuildContext, text: &str) -> RcUiNodeHandle {
@@ -155,6 +144,7 @@ impl AssetItemBuilder {
         Self {
             widget_builder,
             path: None,
+            icon: None,
         }
     }
 
@@ -163,34 +153,13 @@ impl AssetItemBuilder {
         self
     }
 
-    pub fn build(
-        self,
-        ctx: &mut BuildContext,
-        resource_manager: ResourceManager,
-    ) -> Handle<UiNode> {
+    pub fn with_icon(mut self, icon: Option<SharedTexture>) -> Self {
+        self.icon = icon;
+        self
+    }
+
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let path = self.path.unwrap_or_default();
-        let mut kind = AssetKind::Unknown;
-        let texture =
-            path.extension()
-                .and_then(|ext| match ext.to_string_lossy().to_lowercase().as_ref() {
-                    "jpg" | "tga" | "png" | "bmp" | "tif" | "tiff" => {
-                        kind = AssetKind::Texture;
-                        Some(into_gui_texture(resource_manager.request::<Texture>(&path)))
-                    }
-                    "fbx" | "rgs" => {
-                        kind = AssetKind::Model;
-                        load_image(include_bytes!("../../resources/embed/model.png"))
-                    }
-                    "ogg" | "wav" => {
-                        kind = AssetKind::Sound;
-                        load_image(include_bytes!("../../resources/embed/sound.png"))
-                    }
-                    "shader" => {
-                        kind = AssetKind::Shader;
-                        load_image(include_bytes!("../../resources/embed/shader.png"))
-                    }
-                    _ => None,
-                });
 
         let preview = ImageBuilder::new(
             WidgetBuilder::new()
@@ -198,7 +167,7 @@ impl AssetItemBuilder {
                 .with_width(60.0)
                 .with_height(60.0),
         )
-        .with_opt_texture(texture)
+        .with_opt_texture(self.icon)
         .build(ctx);
 
         let item = AssetItem {
@@ -231,7 +200,6 @@ impl AssetItemBuilder {
                 )
                 .build(),
             path,
-            kind,
             preview,
             selected: false,
         };

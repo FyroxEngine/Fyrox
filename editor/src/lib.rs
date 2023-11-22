@@ -40,7 +40,7 @@ pub mod world;
 use crate::{
     absm::AbsmEditor,
     animation::AnimationEditor,
-    asset::{item::AssetItem, item::AssetKind, AssetBrowser},
+    asset::{item::AssetItem, AssetBrowser},
     audio::{preview::AudioPreviewPanel, AudioPanel},
     build::BuildWindow,
     camera::panel::CameraPreviewControlPanel,

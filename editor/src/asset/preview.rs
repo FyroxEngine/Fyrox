@@ -1,3 +1,4 @@
+use crate::load_image;
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
@@ -10,6 +11,7 @@ use fyrox::{
         TypeUuidProvider,
     },
     fxhash::FxHashMap,
+    gui::draw::SharedTexture,
     material::{Material, MaterialResource, PropertyValue},
     resource::{
         model::{Model, ModelResourceExtension},
@@ -25,6 +27,7 @@ use fyrox::{
         sound::{SoundBuffer, SoundBuilder, Status},
         Scene,
     },
+    utils::into_gui_texture,
 };
 use std::path::Path;
 
@@ -58,6 +61,12 @@ pub trait AssetPreview: 'static {
         resource_manager: &ResourceManager,
         scene: &mut Scene,
     ) -> Handle<Node>;
+
+    fn icon(
+        &self,
+        resource_path: &Path,
+        resource_manager: &ResourceManager,
+    ) -> Option<SharedTexture>;
 }
 
 pub struct TexturePreview;
@@ -90,6 +99,16 @@ impl AssetPreview for TexturePreview {
             .build()])
             .build(&mut scene.graph)
     }
+
+    fn icon(
+        &self,
+        resource_path: &Path,
+        resource_manager: &ResourceManager,
+    ) -> Option<SharedTexture> {
+        Some(into_gui_texture(
+            resource_manager.request::<Texture>(resource_path),
+        ))
+    }
 }
 
 pub struct SoundPreview;
@@ -110,6 +129,14 @@ impl AssetPreview for SoundPreview {
             Handle::NONE
         }
     }
+
+    fn icon(
+        &self,
+        _resource_path: &Path,
+        _resource_manager: &ResourceManager,
+    ) -> Option<SharedTexture> {
+        load_image(include_bytes!("../../resources/embed/model.png"))
+    }
 }
 
 pub struct ModelPreview;
@@ -126,5 +153,13 @@ impl AssetPreview for ModelPreview {
         } else {
             Handle::NONE
         }
+    }
+
+    fn icon(
+        &self,
+        _resource_path: &Path,
+        _resource_manager: &ResourceManager,
+    ) -> Option<SharedTexture> {
+        load_image(include_bytes!("../../resources/embed/sound.png"))
     }
 }

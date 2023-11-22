@@ -21,6 +21,7 @@ use fyrox::{
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
         copypasta::ClipboardProvider,
+        draw::SharedTexture,
         file_browser::{FileBrowserBuilder, FileBrowserMessage, Filter},
         grid::{Column, GridBuilder, Row},
         list_view::{ListViewBuilder, ListViewMessage},
@@ -601,17 +602,37 @@ impl AssetBrowser {
         ));
     }
 
+    fn find_icon_for_asset(
+        &self,
+        resource_manager: &ResourceManager,
+        resource_path: &Path,
+    ) -> Option<SharedTexture> {
+        if let Some(extension) = resource_path.extension() {
+            if let Some(uuid) = find_uuid_for_preview(resource_manager, extension) {
+                return self
+                    .preview_generators
+                    .map
+                    .get(&uuid)
+                    .and_then(|gen| gen.icon(resource_path, resource_manager));
+            }
+        }
+        None
+    }
+
     fn add_asset(
         &mut self,
         path: &Path,
         ui: &mut UserInterface,
         resource_manager: &ResourceManager,
     ) -> Handle<UiNode> {
+        let icon = self.find_icon_for_asset(resource_manager, path);
+
         let asset_item = AssetItemBuilder::new(
             WidgetBuilder::new().with_context_menu(self.context_menu.menu.clone()),
         )
         .with_path(path)
-        .build(&mut ui.build_ctx(), resource_manager.clone());
+        .with_icon(icon)
+        .build(&mut ui.build_ctx());
 
         self.items.push(asset_item);
 
