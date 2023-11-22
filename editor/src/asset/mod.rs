@@ -1,23 +1,19 @@
 use crate::{
-    asset::{dependency::DependencyViewer, inspector::AssetInspector, item::AssetItemBuilder},
+    asset::{
+        dependency::DependencyViewer, inspector::AssetInspector, item::AssetItemBuilder,
+        preview::AssetPreviewGeneratorsCollection,
+    },
     gui::{make_dropdown_list_option, AssetItemMessage},
     message::MessageSender,
     preview::PreviewPanel,
     utils::window_content,
-    AssetItem, AssetKind, Message, Mode,
+    AssetItem, Message, Mode,
 };
 use fyrox::{
     asset::{manager::ResourceManager, state::ResourceState, untyped::UntypedResource},
     core::{
-        algebra::{UnitQuaternion, Vector3},
-        color::Color,
-        futures::executor::block_on,
-        log::Log,
-        make_relative_path,
-        parking_lot::lock_api::Mutex,
-        pool::Handle,
-        scope_profile,
-        sstorage::ImmutableString,
+        color::Color, futures::executor::block_on, log::Log, make_relative_path,
+        parking_lot::lock_api::Mutex, pool::Handle, scope_profile, uuid::Uuid,
     },
     engine::Engine,
     gui::{
@@ -43,16 +39,7 @@ use fyrox::{
         BuildContext, HorizontalAlignment, Orientation, RcUiNodeHandle, Thickness, UiNode,
         UserInterface, VerticalAlignment, BRUSH_DARK,
     },
-    material::{Material, MaterialResource, PropertyValue},
-    resource::texture::Texture,
-    scene::{
-        base::BaseBuilder,
-        mesh::{
-            surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
-            MeshBuilder,
-        },
-        sound::{SoundBuffer, SoundBuilder, Status},
-    },
+    material::Material,
 };
 use std::{
     ffi::OsStr,
@@ -64,6 +51,7 @@ use std::{
 mod dependency;
 mod inspector;
 pub mod item;
+pub mod preview;
 
 struct ContextMenu {
     menu: RcUiNodeHandle,
@@ -437,6 +425,7 @@ pub struct AssetBrowser {
     selected_path: PathBuf,
     dependency_viewer: DependencyViewer,
     resource_creator: Option<ResourceCreator>,
+    pub preview_generators: AssetPreviewGeneratorsCollection,
 }
 
 fn is_supported_resource(ext: &OsStr, resource_manager: &ResourceManager) -> bool {
@@ -594,6 +583,7 @@ impl AssetBrowser {
             selected_path: Default::default(),
             add_resource,
             resource_creator: None,
+            preview_generators: AssetPreviewGeneratorsCollection::new(),
         }
     }
 
@@ -742,71 +732,31 @@ impl AssetBrowser {
                 ))
             }
 
+            let asset_path = ui
+                .node(message.destination())
+                .cast::<AssetItem>()
+                .expect("Must be AssetItem")
+                .path
+                .clone();
+
             self.inspector.inspect_resource_import_options(
-                &ui.node(message.destination())
-                    .cast::<AssetItem>()
-                    .expect("Must be AssetItem")
-                    .path
-                    .clone(),
+                &asset_path,
                 ui,
                 sender,
                 &engine.resource_manager,
             );
 
-            let item = ui
-                .node(message.destination())
-                .cast::<AssetItem>()
-                .expect("Must be AssetItem");
-
-            match item.kind {
-                AssetKind::Unknown => {}
-                AssetKind::Model => {
-                    let path = item.path.clone();
-                    block_on(self.preview.load_model(&path, engine));
-                }
-                AssetKind::Texture => {
-                    let path = item.path.clone();
-                    let mut material = Material::standard_two_sides();
-                    Log::verify(material.set_property(
-                        &ImmutableString::new("diffuseTexture"),
-                        PropertyValue::Sampler {
-                            value: Some(engine.resource_manager.request::<Texture>(&path)),
-                            fallback: Default::default(),
-                        },
-                    ));
-                    let material = MaterialResource::new_ok(material);
-
-                    let graph = &mut engine.scenes[self.preview.scene()].graph;
-                    let quad = MeshBuilder::new(BaseBuilder::new())
-                        .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
-                            SurfaceData::make_quad(
-                                &UnitQuaternion::from_axis_angle(
-                                    &Vector3::z_axis(),
-                                    180.0f32.to_radians(),
-                                )
-                                .to_homogeneous(),
-                            ),
-                        ))
-                        .with_material(material)
-                        .build()])
-                        .build(graph);
-                    self.preview.set_model(quad, engine);
-                }
-                AssetKind::Sound => {
-                    let path = item.path.clone();
-                    if let Ok(buffer) =
-                        block_on(engine.resource_manager.request::<SoundBuffer>(&path))
-                    {
-                        let graph = &mut engine.scenes[self.preview.scene()].graph;
-                        let sound = SoundBuilder::new(BaseBuilder::new())
-                            .with_buffer(Some(buffer))
-                            .with_status(Status::Playing)
-                            .build(graph);
-                        self.preview.set_model(sound, engine);
+            if let Some(extension) = asset_path.extension() {
+                if let Some(uuid) = find_uuid_for_preview(&engine.resource_manager, extension) {
+                    if let Some(preview_generator) = self.preview_generators.map.get_mut(&uuid) {
+                        let preview_scene = &mut engine.scenes[self.preview.scene()];
+                        let preview = preview_generator.generate(
+                            &asset_path,
+                            &engine.resource_manager,
+                            preview_scene,
+                        );
+                        self.preview.set_model(preview, engine);
                     }
-                }
-                AssetKind::Shader => {
-                    Log::warn("Implement me!");
                 }
             }
         } else if let Some(FileBrowserMessage::Path(path)) = message.data::<FileBrowserMessage>() {
@@ -913,4 +863,14 @@ impl AssetBrowser {
             mode.is_edit(),
         ));
     }
+}
+
+fn find_uuid_for_preview(resource_manager: &ResourceManager, extension: &OsStr) -> Option<Uuid> {
+    let rm_state = resource_manager.state();
+    for loader in rm_state.loaders.iter() {
+        if loader.extensions().iter().any(|ext| *ext == extension) {
+            return Some(loader.data_type_uuid());
+        }
+    }
+    None
 }
