@@ -2,7 +2,7 @@ use crate::load_image;
 use fyrox::{
     asset::manager::ResourceManager,
     core::{
-        algebra::{UnitQuaternion, Vector3},
+        algebra::{Matrix4, UnitQuaternion, Vector3},
         futures::executor::block_on,
         log::Log,
         pool::Handle,
@@ -12,7 +12,7 @@ use fyrox::{
     },
     fxhash::FxHashMap,
     gui::draw::SharedTexture,
-    material::{Material, MaterialResource, PropertyValue},
+    material::{shader::Shader, Material, MaterialResource, PropertyValue},
     resource::{
         model::{Model, ModelResourceExtension},
         texture::Texture,
@@ -42,6 +42,7 @@ impl AssetPreviewGeneratorsCollection {
         this.add(Texture::type_uuid(), TexturePreview);
         this.add(Model::type_uuid(), ModelPreview);
         this.add(SoundBuffer::type_uuid(), SoundPreview);
+        this.add(Shader::type_uuid(), ShaderPreview);
         this
     }
 
@@ -161,5 +162,41 @@ impl AssetPreview for ModelPreview {
         _resource_manager: &ResourceManager,
     ) -> Option<SharedTexture> {
         load_image(include_bytes!("../../resources/embed/sound.png"))
+    }
+}
+
+pub struct ShaderPreview;
+
+impl AssetPreview for ShaderPreview {
+    fn generate(
+        &mut self,
+        resource_path: &Path,
+        resource_manager: &ResourceManager,
+        scene: &mut Scene,
+    ) -> Handle<Node> {
+        if let Ok(shader) = block_on(resource_manager.request::<Shader>(resource_path)) {
+            let material = MaterialResource::new_ok(Material::from_shader(
+                shader,
+                Some(resource_manager.clone()),
+            ));
+
+            MeshBuilder::new(BaseBuilder::new())
+                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
+                    SurfaceData::make_sphere(32, 32, 1.0, &Matrix4::identity()),
+                ))
+                .with_material(material)
+                .build()])
+                .build(&mut scene.graph)
+        } else {
+            Handle::NONE
+        }
+    }
+
+    fn icon(
+        &self,
+        _resource_path: &Path,
+        _resource_manager: &ResourceManager,
+    ) -> Option<SharedTexture> {
+        load_image(include_bytes!("../../resources/embed/shader.png"))
     }
 }
