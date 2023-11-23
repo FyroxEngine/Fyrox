@@ -21,7 +21,6 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use std::{
-    ffi::OsStr,
     fmt::{Debug, Display, Formatter},
     marker::PhantomData,
     path::{Path, PathBuf},
@@ -459,13 +458,9 @@ impl ResourceManagerState {
 
     fn find_loader(&self, path: &Path) -> Option<&dyn ResourceLoader> {
         path.extension().and_then(|extension| {
-            let ext_lowercase = extension.to_ascii_lowercase();
-            self.loaders.iter().find(|loader| {
-                loader
-                    .extensions()
-                    .iter()
-                    .any(|ext| OsStr::new(ext) == ext_lowercase.as_os_str())
-            })
+            self.loaders
+                .iter()
+                .find(|loader| loader.supports_extension(&extension.to_string_lossy()))
         })
     }
 
