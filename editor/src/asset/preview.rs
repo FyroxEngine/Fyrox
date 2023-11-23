@@ -20,7 +20,7 @@ use fyrox::{
         base::BaseBuilder,
         mesh::{
             surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
-            MeshBuilder,
+            MeshBuilder, RenderPath,
         },
         node::Node,
         sound::{SoundBuffer, SoundBuilder, Status},
@@ -79,6 +79,13 @@ impl AssetPreview for TexturePreview {
         scene: &mut Scene,
     ) -> Handle<Node> {
         if let Some(texture) = resource.try_cast::<Texture>() {
+            let scale = if let Some(size) = texture.data_ref().kind().rectangle_size() {
+                let aspect_ratio = size.x as f32 / size.y as f32;
+                Vector3::new(aspect_ratio, 1.0, 1.0)
+            } else {
+                Vector3::repeat(1.0)
+            };
+
             let mut material = Material::standard_two_sides();
             Log::verify(material.set_property(
                 &ImmutableString::new("diffuseTexture"),
@@ -92,12 +99,17 @@ impl AssetPreview for TexturePreview {
             MeshBuilder::new(BaseBuilder::new())
                 .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
                     SurfaceData::make_quad(
-                        &UnitQuaternion::from_axis_angle(&Vector3::z_axis(), 180.0f32.to_radians())
-                            .to_homogeneous(),
+                        &(UnitQuaternion::from_axis_angle(
+                            &Vector3::z_axis(),
+                            180.0f32.to_radians(),
+                        )
+                        .to_homogeneous()
+                            * Matrix4::new_nonuniform_scaling(&scale)),
                     ),
                 ))
                 .with_material(material)
                 .build()])
+                .with_render_path(RenderPath::Forward)
                 .build(&mut scene.graph)
         } else {
             Handle::NONE
