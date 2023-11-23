@@ -185,9 +185,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
         .register_inheritable_vec_collection::<fyrox::animation::spritesheet::signal::Signal>();
 
     container.insert(ResourceFieldPropertyEditorDefinition::<Model>::new(
-        Rc::new(|resource_manager, path| {
-            resource_manager.try_request::<Model, _>(path).map(block_on)
-        }),
+        Rc::new(|resource_manager, path| resource_manager.try_request::<Model>(path).map(block_on)),
         sender.clone(),
     ));
     container.insert(InheritablePropertyEditorDefinition::<Option<ModelResource>>::new());
@@ -196,7 +194,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(ResourceFieldPropertyEditorDefinition::<SoundBuffer>::new(
         Rc::new(|resource_manager, path| {
             resource_manager
-                .try_request::<SoundBuffer, _>(path)
+                .try_request::<SoundBuffer>(path)
                 .map(block_on)
         }),
         sender.clone(),
@@ -210,7 +208,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
         ResourceFieldPropertyEditorDefinition::<CurveResourceState>::new(
             Rc::new(|resource_manager, path| {
                 resource_manager
-                    .try_request::<CurveResourceState, _>(path)
+                    .try_request::<CurveResourceState>(path)
                     .map(block_on)
             }),
             sender.clone(),
@@ -221,9 +219,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
 
     container.insert(ResourceFieldPropertyEditorDefinition::<Shader>::new(
         Rc::new(|resource_manager, path| {
-            resource_manager
-                .try_request::<Shader, _>(path)
-                .map(block_on)
+            resource_manager.try_request::<Shader>(path).map(block_on)
         }),
         sender,
     ));

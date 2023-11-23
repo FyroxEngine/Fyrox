@@ -273,7 +273,7 @@ impl MaterialEditor {
                                             WidgetBuilder::new().on_column(1),
                                             Rc::new(|resource_manager, path| {
                                                 resource_manager
-                                                    .try_request::<Shader, _>(path)
+                                                    .try_request::<Shader>(path)
                                                     .map(block_on)
                                             }),
                                             sender,

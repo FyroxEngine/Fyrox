@@ -164,18 +164,17 @@ impl AudioPanel {
                                         renderer
                                     })
                                     .with_child({
-                                        hrir_resource = ResourceFieldBuilder::<
-                                            HrirSphereResourceData,
-                                        >::new(
-                                            WidgetBuilder::new(),
-                                            Rc::new(|resource_manager, path| {
-                                                resource_manager
-                                                    .try_request::<HrirSphereResourceData, _>(path)
-                                                    .map(block_on)
-                                            }),
-                                            sender,
-                                        )
-                                        .build(ctx, engine.resource_manager.clone());
+                                        hrir_resource =
+                                            ResourceFieldBuilder::<HrirSphereResourceData>::new(
+                                                WidgetBuilder::new(),
+                                                Rc::new(|resource_manager, path| {
+                                                    resource_manager
+                                                        .try_request::<HrirSphereResourceData>(path)
+                                                        .map(block_on)
+                                                }),
+                                                sender,
+                                            )
+                                            .build(ctx, engine.resource_manager.clone());
                                         hrir_resource
                                     }),
                             )

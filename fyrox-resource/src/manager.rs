@@ -175,9 +175,8 @@ impl ResourceManager {
     /// ## Panic
     ///
     /// This method does not panic.
-    pub fn try_request<T, P>(&self, path: P) -> Option<Resource<T>>
+    pub fn try_request<T>(&self, path: impl AsRef<Path>) -> Option<Resource<T>>
     where
-        P: AsRef<Path>,
         T: TypedResourceData,
     {
         let untyped = self.state().request(path);
