@@ -115,12 +115,12 @@ macro_rules! define_two_args_node {
                 Ok(Box::new(this))
             }
 
-            fn fields(&self, func: &mut dyn FnMut(Vec<&dyn Reflect>)) {
-                func(vec![&self.lhs, &self.rhs])
+            fn fields(&self, func: &mut dyn FnMut(&[&dyn Reflect])) {
+                func(&[&self.lhs, &self.rhs])
             }
 
-           fn fields_mut(&mut self, func: &mut dyn FnMut(Vec<&mut dyn Reflect>)) {
-                func(vec![&mut self.lhs, &mut self.rhs])
+           fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [&mut dyn Reflect])) {
+                func(&mut [&mut self.lhs, &mut self.rhs])
             }
 
             fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {
@@ -237,12 +237,12 @@ impl Reflect for NotNode {
         Ok(Box::new(this))
     }
 
-    fn fields(&self, func: &mut dyn FnMut(Vec<&dyn Reflect>)) {
-        func(vec![&self.lhs])
+    fn fields(&self, func: &mut dyn FnMut(&[&dyn Reflect])) {
+        func(&[&self.lhs])
     }
 
-    fn fields_mut(&mut self, func: &mut dyn FnMut(Vec<&mut dyn Reflect>)) {
-        func(vec![&mut self.lhs])
+    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [&mut dyn Reflect])) {
+        func(&mut [&mut self.lhs])
     }
 
     fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {

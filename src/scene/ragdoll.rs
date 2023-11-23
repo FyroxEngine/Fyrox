@@ -119,16 +119,12 @@ impl Reflect for Limb {
         Ok(Box::new(this))
     }
 
-    fn fields(&self, func: &mut dyn FnMut(Vec<&dyn Reflect>)) {
-        func(vec![&self.bone, &self.physical_bone, &self.children])
+    fn fields(&self, func: &mut dyn FnMut(&[&dyn Reflect])) {
+        func(&[&self.bone, &self.physical_bone, &self.children])
     }
 
-    fn fields_mut(&mut self, func: &mut dyn FnMut(Vec<&mut dyn Reflect>)) {
-        func(vec![
-            &mut self.bone,
-            &mut self.physical_bone,
-            &mut self.children,
-        ])
+    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [&mut dyn Reflect])) {
+        func(&mut [&mut self.bone, &mut self.physical_bone, &mut self.children])
     }
 
     fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {

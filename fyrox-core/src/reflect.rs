@@ -198,12 +198,12 @@ pub trait Reflect: Any + Debug {
         });
     }
 
-    fn fields(&self, func: &mut dyn FnMut(Vec<&dyn Reflect>)) {
-        func(vec![])
+    fn fields(&self, func: &mut dyn FnMut(&[&dyn Reflect])) {
+        func(&[])
     }
 
-    fn fields_mut(&mut self, func: &mut dyn FnMut(Vec<&mut dyn Reflect>)) {
-        func(vec![])
+    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [&mut dyn Reflect])) {
+        func(&mut [])
     }
 
     fn field(
@@ -1010,7 +1010,7 @@ impl dyn Reflect {
 
         self.fields_mut(&mut |fields| {
             for field in fields {
-                field.apply_recursively_mut(func, ignored_types);
+                (*field).apply_recursively_mut(func, ignored_types);
             }
         })
     }

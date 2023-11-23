@@ -615,7 +615,7 @@ pub fn collect_used_resources(
 
     entity.fields(&mut |fields| {
         for field in fields {
-            collect_used_resources(field, resources_collection);
+            collect_used_resources(*field, resources_collection);
         }
     })
 }

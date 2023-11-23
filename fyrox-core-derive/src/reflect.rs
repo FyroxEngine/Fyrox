@@ -18,8 +18,8 @@ pub fn impl_reflect(ty_args: &args::TypeArgs) -> TokenStream2 {
             ty_args,
             quote!(None),
             quote!(None),
-            quote!(vec![]),
-            quote!(vec![]),
+            quote!(func(&[])),
+            quote!(func(&mut [])),
             None,
             quote!(vec![]),
         );
@@ -175,19 +175,19 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, field_args: &args::Fields) -> T
     };
 
     let fields_body = quote! {
-        vec! [
+        func(&[
             #(
                 #fields as &dyn Reflect,
             )*
-        ]
+        ])
     };
 
     let fields_mut_body = quote! {
-        vec! [
+        func(&mut [
             #(
                 #field_muts as &mut dyn Reflect,
             )*
-        ]
+        ])
     };
 
     let set_field_body = self::struct_set_field_body(ty_args);
@@ -316,11 +316,11 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
             };
 
             fields_list.push(quote! {
-                #matcher => vec![ #fields_list_raw ],
+                #matcher => func(&[ #fields_list_raw ]),
             });
 
             fields_list_mut.push(quote! {
-                #matcher => vec![ #fields_mut_list_raw ],
+                #matcher => func(&mut [ #fields_mut_list_raw ]),
             });
 
             fields_info.push(quote! {
@@ -336,8 +336,8 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
             ty_args,
             quote!(None),
             quote!(None),
-            quote!(vec![]),
-            quote!(vec![]),
+            quote!(&[]),
+            quote!(&mut []),
             None,
             quote!(vec![]),
         )
@@ -365,7 +365,7 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
                 #(
                     #fields_list
                 )*
-                _ => vec![]
+                _ => func(&[])
             }
         };
 
@@ -374,7 +374,7 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
                 #(
                     #fields_list_mut
                 )*
-                _ => vec![]
+                _ => func(&mut [])
             }
         };
 
@@ -472,14 +472,12 @@ fn gen_impl(
                 func(self as &mut dyn Reflect)
             }
 
-            fn fields(&self, func: &mut dyn FnMut(Vec<&dyn Reflect>)) {
-                let value = {#fields};
-                func(value)
+            fn fields(&self, func: &mut dyn FnMut(&[&dyn Reflect])) {
+                #fields
             }
 
-            fn fields_mut(&mut self, func: &mut dyn FnMut(Vec<&mut dyn Reflect>)) {
-                let value = {#fields_mut};
-                func(value)
+            fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [&mut dyn Reflect])) {
+                #fields_mut
             }
 
             fn field(&self, name: &str, func: &mut dyn FnMut(Option<&dyn Reflect>)) {

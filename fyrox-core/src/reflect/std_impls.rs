@@ -334,12 +334,12 @@ macro_rules! impl_reflect_inner_mutability {
             guard.set_field(field, value, func)
         }
 
-        fn fields(&$self, func: &mut dyn FnMut(Vec<&dyn Reflect>)) {
+        fn fields(&$self, func: &mut dyn FnMut(&[&dyn Reflect])) {
             let guard = $acquire_lock_guard;
             guard.fields(func)
         }
 
-        fn fields_mut(&mut $self, func: &mut dyn FnMut(Vec<&mut dyn Reflect>)) {
+        fn fields_mut(&mut $self, func: &mut dyn FnMut(&mut [&mut dyn Reflect])) {
             let mut guard = $acquire_lock_guard;
             guard.fields_mut(func)
         }

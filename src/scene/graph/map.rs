@@ -297,7 +297,7 @@ impl NodeHandleMap {
         entity.fields_mut(&mut |fields| {
             for field in fields {
                 self.remap_inheritable_handles_internal(
-                    field,
+                    *field,
                     node_name,
                     // Propagate mapping flag - it means that we're inside inheritable variable. In this
                     // case we will map handles.

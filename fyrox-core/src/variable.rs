@@ -323,11 +323,11 @@ where
         self.value.set_field(field, value, func)
     }
 
-    fn fields(&self, func: &mut dyn FnMut(Vec<&dyn Reflect>)) {
+    fn fields(&self, func: &mut dyn FnMut(&[&dyn Reflect])) {
         self.value.fields(func)
     }
 
-    fn fields_mut(&mut self, func: &mut dyn FnMut(Vec<&mut dyn Reflect>)) {
+    fn fields_mut(&mut self, func: &mut dyn FnMut(&mut [&mut dyn Reflect])) {
         self.value.fields_mut(func)
     }
 
@@ -570,13 +570,13 @@ pub fn try_inherit_properties(
     }
 
     if result.is_none() {
-        child.fields_mut(&mut |mut child_fields| {
+        child.fields_mut(&mut |child_fields| {
             parent.fields(&mut |parent_fields| {
                 for (child_field, parent_field) in child_fields.iter_mut().zip(parent_fields) {
                     // Look into inner properties recursively and try to inherit them. This is mandatory step, because inner
                     // fields may also be InheritableVariable<T>.
                     if let Err(e) =
-                        try_inherit_properties(*child_field, parent_field, ignored_types)
+                        try_inherit_properties(*child_field, *parent_field, ignored_types)
                     {
                         result = Some(Err(e));
                     }
