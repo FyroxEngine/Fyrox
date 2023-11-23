@@ -152,7 +152,7 @@ impl AssetPreview for SoundPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<SharedTexture> {
-        load_image(include_bytes!("../../resources/embed/model.png"))
+        load_image(include_bytes!("../../resources/embed/sound.png"))
     }
 }
 
@@ -177,7 +177,7 @@ impl AssetPreview for ModelPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<SharedTexture> {
-        load_image(include_bytes!("../../resources/embed/sound.png"))
+        load_image(include_bytes!("../../resources/embed/model.png"))
     }
 }
 
