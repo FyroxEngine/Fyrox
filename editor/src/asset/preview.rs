@@ -13,6 +13,7 @@ use fyrox::{
     gui::draw::SharedTexture,
     material::{shader::Shader, Material, MaterialResource, PropertyValue},
     resource::{
+        curve::CurveResourceState,
         model::{Model, ModelResourceExtension},
         texture::Texture,
     },
@@ -23,7 +24,7 @@ use fyrox::{
             MeshBuilder, RenderPath,
         },
         node::Node,
-        sound::{SoundBuffer, SoundBuilder, Status},
+        sound::{HrirSphereResourceData, SoundBuffer, SoundBuilder, Status},
         Scene,
     },
     utils::into_gui_texture,
@@ -42,6 +43,8 @@ impl AssetPreviewGeneratorsCollection {
         this.add(SoundBuffer::type_uuid(), SoundPreview);
         this.add(Shader::type_uuid(), ShaderPreview);
         this.add(Material::type_uuid(), MaterialPreview);
+        this.add(HrirSphereResourceData::type_uuid(), HrirPreview);
+        this.add(CurveResourceState::type_uuid(), CurvePreview);
         this
     }
 
@@ -242,5 +245,47 @@ impl AssetPreview for MaterialPreview {
         _resource_manager: &ResourceManager,
     ) -> Option<SharedTexture> {
         load_image(include_bytes!("../../resources/embed/material.png"))
+    }
+}
+
+pub struct HrirPreview;
+
+impl AssetPreview for HrirPreview {
+    fn generate(
+        &mut self,
+        _resource: &UntypedResource,
+        _resource_manager: &ResourceManager,
+        _scene: &mut Scene,
+    ) -> Handle<Node> {
+        Handle::NONE
+    }
+
+    fn icon(
+        &self,
+        _resource: &UntypedResource,
+        _resource_manager: &ResourceManager,
+    ) -> Option<SharedTexture> {
+        load_image(include_bytes!("../../resources/embed/hrir.png"))
+    }
+}
+
+pub struct CurvePreview;
+
+impl AssetPreview for CurvePreview {
+    fn generate(
+        &mut self,
+        _resource: &UntypedResource,
+        _resource_manager: &ResourceManager,
+        _scene: &mut Scene,
+    ) -> Handle<Node> {
+        Handle::NONE
+    }
+
+    fn icon(
+        &self,
+        _resource: &UntypedResource,
+        _resource_manager: &ResourceManager,
+    ) -> Option<SharedTexture> {
+        load_image(include_bytes!("../../resources/embed/curve.png"))
     }
 }
