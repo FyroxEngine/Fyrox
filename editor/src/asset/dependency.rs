@@ -1,9 +1,10 @@
 use fyrox::{
     asset::{
         graph::{ResourceDependencyGraph, ResourceGraphNode},
+        state::ResourceState,
         untyped::UntypedResource,
     },
-    core::{log::Log, pool::Handle},
+    core::{log::Log, pool::Handle, reflect::Reflect},
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         copypasta::ClipboardProvider,
@@ -16,6 +17,7 @@ use fyrox::{
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        VerticalAlignment,
     },
 };
 
@@ -34,12 +36,33 @@ fn build_tree_recursively(node: &ResourceGraphNode, ctx: &mut BuildContext) -> H
         .map(|c| build_tree_recursively(c, ctx))
         .collect();
 
+    let mut procedural = false;
+    let data_type = if let ResourceState::Ok(data) = &*node.resource.0.lock() {
+        procedural = data.is_procedural();
+        data.type_name().to_string()
+    } else {
+        "Unknown".to_string()
+    };
+
+    let path = node.resource.path().to_string_lossy().to_string();
+    let name = if path.is_empty() || procedural {
+        if path.is_empty() {
+            "Embedded".to_string()
+        } else {
+            format!("Embedded (id: {})", path)
+        }
+    } else {
+        path
+    };
+
     TreeBuilder::new(WidgetBuilder::new())
         .with_items(children)
         .with_content(
-            TextBuilder::new(WidgetBuilder::new())
-                .with_text(node.resource.path().to_string_lossy())
-                .build(ctx),
+            TextBuilder::new(
+                WidgetBuilder::new().with_vertical_alignment(VerticalAlignment::Center),
+            )
+            .with_text(format!("{name} ({data_type})"))
+            .build(ctx),
         )
         .build(ctx)
 }
