@@ -234,7 +234,7 @@ fn sync_array_of_arrays<'a, T, I, B>(
 
 impl MaterialEditor {
     pub fn new(engine: &mut Engine, sender: MessageSender) -> Self {
-        let mut preview = PreviewPanel::new(engine, 300, 400);
+        let mut preview = PreviewPanel::new(engine, 350, 400);
 
         let graph = &mut engine.scenes[preview.scene()].graph;
         let sphere = MeshBuilder::new(BaseBuilder::new())
@@ -250,7 +250,7 @@ impl MaterialEditor {
         let panel;
         let properties_panel;
         let shader;
-        let window = WindowBuilder::new(WidgetBuilder::new().with_width(300.0))
+        let window = WindowBuilder::new(WidgetBuilder::new().with_width(350.0))
             .open(false)
             .with_title(WindowTitle::text("Material Editor"))
             .with_content(
