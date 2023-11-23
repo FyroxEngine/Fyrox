@@ -700,12 +700,10 @@ impl SceneViewer {
                                         // This will make scenes portable.
                                         if let Ok(relative_path) = make_relative_path(&item.path) {
                                             // No model was loaded yet, do it.
-                                            if let Ok(model) =
-                                                fyrox::core::futures::executor::block_on(
-                                                    engine
-                                                        .resource_manager
-                                                        .request::<Model>(relative_path),
-                                                )
+                                            if let Some(model) = engine
+                                                .resource_manager
+                                                .try_request::<Model>(relative_path)
+                                                .and_then(|m| block_on(m).ok())
                                             {
                                                 let scene = &mut engine.scenes[editor_scene.scene];
 
@@ -1228,8 +1226,10 @@ impl SceneViewer {
                     ];
 
                     self.sender.do_scene_command(CommandGroup::from(group));
-                } else if let Ok(tex) =
-                    block_on(engine.resource_manager.request::<Texture>(relative_path))
+                } else if let Some(tex) = engine
+                    .resource_manager
+                    .try_request::<Texture>(relative_path)
+                    .and_then(|t| block_on(t).ok())
                 {
                     let cursor_pos = engine.user_interface.cursor_position();
                     let rel_pos = cursor_pos - screen_bounds.position;
