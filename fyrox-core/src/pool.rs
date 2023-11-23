@@ -118,8 +118,8 @@ where
         ""
     }
 
-    fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
-        func(vec![])
+    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
+        func(&[])
     }
 
     fn into_any(self: Box<Self>) -> Box<dyn Any> {

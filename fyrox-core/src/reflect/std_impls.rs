@@ -289,7 +289,7 @@ macro_rules! impl_reflect_inner_mutability {
             ""
         }
 
-        fn fields_info(&$self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
+        fn fields_info(&$self, func: &mut dyn FnMut(&[FieldInfo])) {
             let guard = $acquire_lock_guard;
             guard.fields_info(func)
         }

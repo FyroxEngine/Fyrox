@@ -284,7 +284,7 @@ where
         self.value.doc()
     }
 
-    fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
+    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
         self.value.fields_info(func)
     }
 

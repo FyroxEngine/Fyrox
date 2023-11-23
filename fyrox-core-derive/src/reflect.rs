@@ -21,7 +21,7 @@ pub fn impl_reflect(ty_args: &args::TypeArgs) -> TokenStream2 {
             quote!(func(&[])),
             quote!(func(&mut [])),
             None,
-            quote!(vec![]),
+            quote!(func(&[])),
         );
     }
 
@@ -41,9 +41,6 @@ pub fn gen_fields_metadata_body(
     field_getters: &[TokenStream2],
     field_args: &ast::Fields<args::FieldArgs>,
 ) -> TokenStream2 {
-    // `inspect` function body, consisting of a sequence of quotes
-    let mut quotes = Vec::new();
-
     let props = field_args
         .fields
         .iter()
@@ -54,15 +51,8 @@ pub fn gen_fields_metadata_body(
             self::quote_field_prop(&prop.value, i, field_getter, field)
         });
 
-    quotes.push(quote! {
-        let mut props = Vec::new();
-        #(props.push(#props);)*
-    });
-
-    // concatenate the quotes
     quote! {
-        #(#quotes)*
-        props
+        #(#props,)*
     }
 }
 
@@ -198,7 +188,9 @@ fn impl_reflect_struct(ty_args: &args::TypeArgs, field_args: &args::Fields) -> T
         fields_body,
         fields_mut_body,
         set_field_body,
-        metadata,
+        quote! {
+            func(&[#metadata])
+        },
     )
 }
 
@@ -324,7 +316,7 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
             });
 
             fields_info.push(quote! {
-                #matcher => { #metadata },
+                #matcher => func(&[#metadata]),
             });
 
             (fields, field_muts)
@@ -336,10 +328,10 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
             ty_args,
             quote!(None),
             quote!(None),
-            quote!(&[]),
-            quote!(&mut []),
+            quote!(func(&[])),
+            quote!(func(&mut [])),
             None,
-            quote!(vec![]),
+            quote!(func(&[])),
         )
     } else {
         let field_body = quote! {
@@ -383,7 +375,7 @@ fn impl_reflect_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs
                 #(
                     #fields_info
                 )*
-                _ => vec![]
+                _ => func(&[])
             }
         };
 
@@ -436,9 +428,8 @@ fn gen_impl(
                 #doc
             }
 
-            fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
-                let value = {#metadata};
-                func(value)
+            fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
+                #metadata
             }
 
             fn into_any(self: Box<Self>) -> Box<dyn ::core::any::Any> {

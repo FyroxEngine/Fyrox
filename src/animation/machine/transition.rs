@@ -51,8 +51,8 @@ macro_rules! define_two_args_node {
                 ""
             }
 
-            fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
-                func(vec![
+            fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
+                func(&[
                     FieldInfo {
                         owner_type_id: TypeId::of::<Self>(),
                         name: "Lhs",
@@ -193,8 +193,8 @@ impl Reflect for NotNode {
         ""
     }
 
-    fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
-        func(vec![FieldInfo {
+    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
+        func(&[FieldInfo {
             owner_type_id: TypeId::of::<Self>(),
             name: "Lhs",
             display_name: "Lhs",

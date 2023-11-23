@@ -165,7 +165,7 @@ pub trait Reflect: Any + Debug {
 
     fn doc(&self) -> &'static str;
 
-    fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>));
+    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo]));
 
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 
@@ -1058,8 +1058,8 @@ macro_rules! blank_reflect {
             ""
         }
 
-        fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
-            func(vec![])
+        fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
+            func(&[])
         }
 
         fn into_any(self: Box<Self>) -> Box<dyn Any> {
@@ -1108,7 +1108,7 @@ macro_rules! delegate_reflect {
             self.deref().doc()
         }
 
-        fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
+        fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
             self.deref().fields_info(func)
         }
 

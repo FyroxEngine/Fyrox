@@ -442,7 +442,7 @@ impl Reflect for Script {
         self.instance.doc()
     }
 
-    fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
+    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
         self.instance.fields_info(func)
     }
 

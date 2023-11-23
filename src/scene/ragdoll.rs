@@ -41,8 +41,8 @@ impl Reflect for Limb {
         ""
     }
 
-    fn fields_info(&self, func: &mut dyn FnMut(Vec<FieldInfo>)) {
-        func(vec![
+    fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
+        func(&[
             FieldInfo {
                 owner_type_id: TypeId::of::<Self>(),
                 name: "Bone",
