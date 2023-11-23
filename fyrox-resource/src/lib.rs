@@ -555,7 +555,32 @@ pub fn collect_used_resources(
     entity: &dyn Reflect,
     resources_collection: &mut FxHashSet<UntypedResource>,
 ) {
-    let mut finished = false;
+    #[inline(always)]
+    fn type_is<T: Reflect>(entity: &dyn Reflect) -> bool {
+        let mut types_match = false;
+        entity.downcast_ref::<T>(&mut |v| {
+            types_match = v.is_some();
+        });
+        types_match
+    }
+
+    // Skip potentially large chunks of numeric data, that definitely cannot contain any resources.
+    // TODO: This is a brute-force solution which does not include all potential types with plain
+    // data.
+    let mut finished = type_is::<Vec<u8>>(entity)
+        || type_is::<Vec<u16>>(entity)
+        || type_is::<Vec<u32>>(entity)
+        || type_is::<Vec<u64>>(entity)
+        || type_is::<Vec<i8>>(entity)
+        || type_is::<Vec<i16>>(entity)
+        || type_is::<Vec<i32>>(entity)
+        || type_is::<Vec<i64>>(entity)
+        || type_is::<Vec<f32>>(entity)
+        || type_is::<Vec<f64>>(entity);
+
+    if finished {
+        return;
+    }
 
     entity.downcast_ref::<UntypedResource>(&mut |v| {
         if let Some(resource) = v {
