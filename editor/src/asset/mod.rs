@@ -430,12 +430,11 @@ pub struct AssetBrowser {
 }
 
 fn is_supported_resource(ext: &OsStr, resource_manager: &ResourceManager) -> bool {
-    resource_manager.state().loaders.iter().any(|loader| {
-        loader
-            .extensions()
-            .iter()
-            .any(|loader_ext| OsStr::new(loader_ext) == ext)
-    })
+    resource_manager
+        .state()
+        .loaders
+        .iter()
+        .any(|loader| loader.supports_extension(&ext.to_string_lossy()))
 }
 
 impl AssetBrowser {
