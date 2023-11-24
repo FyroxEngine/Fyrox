@@ -26,6 +26,13 @@ pub trait ResourceIo: Send + Sync + 'static {
         path: &'a Path,
     ) -> ResourceIoFuture<'a, Result<Vec<u8>, FileLoadError>>;
 
+    /// Attempts to move a file at the given `source` path to the given `dest` path.
+    fn move_file<'a>(
+        &'a self,
+        source: &'a Path,
+        dest: &'a Path,
+    ) -> ResourceIoFuture<'a, Result<(), FileLoadError>>;
+
     /// Provides an iterator over the paths present in the provided
     /// path, this should only provide paths immediately within the directory
     ///
@@ -101,6 +108,17 @@ impl ResourceIo for FsResourceIo {
         path: &'a Path,
     ) -> ResourceIoFuture<'a, Result<Vec<u8>, FileLoadError>> {
         Box::pin(fyrox_core::io::load_file(path))
+    }
+
+    fn move_file<'a>(
+        &'a self,
+        source: &'a Path,
+        dest: &'a Path,
+    ) -> ResourceIoFuture<'a, Result<(), FileLoadError>> {
+        Box::pin(async move {
+            std::fs::rename(source, dest)?;
+            Ok(())
+        })
     }
 
     /// wasm should fallback to the default no-op impl as im not sure if they
