@@ -44,6 +44,7 @@ use crate::{
 };
 use fyrox_resource::io::ResourceIo;
 use serde::{Deserialize, Serialize};
+use std::error::Error;
 use std::{
     any::Any,
     fmt::{Display, Formatter},
@@ -307,6 +308,13 @@ impl ResourceData for Model {
     fn is_procedural(&self) -> bool {
         // TODO: Add support for procedural models in the future.
         false
+    }
+
+    fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
+        let mut visitor = Visitor::new();
+        self.scene.save("Scene", &mut visitor)?;
+        visitor.save_binary(path)?;
+        Ok(())
     }
 }
 
