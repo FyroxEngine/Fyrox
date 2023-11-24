@@ -13,7 +13,7 @@ use fyrox::{
     asset::{manager::ResourceManager, state::ResourceState, untyped::UntypedResource},
     core::{
         color::Color, futures::executor::block_on, log::Log, make_relative_path,
-        parking_lot::lock_api::Mutex, pool::Handle, scope_profile,
+        parking_lot::lock_api::Mutex, pool::Handle, scope_profile, TypeUuidProvider,
     },
     engine::Engine,
     gui::{
@@ -41,6 +41,8 @@ use fyrox::{
         UserInterface, VerticalAlignment, BRUSH_DARK,
     },
     material::Material,
+    resource::texture::Texture,
+    scene::sound::SoundBuffer,
 };
 use std::{
     ffi::OsStr,
@@ -782,16 +784,47 @@ impl AssetBrowser {
                     self.preview.set_model(preview, engine);
                 }
             }
-        } else if let Some(FileBrowserMessage::Path(path)) = message.data::<FileBrowserMessage>() {
+        } else if let Some(msg) = message.data::<FileBrowserMessage>() {
             if message.destination() == self.folder_browser
                 && message.direction() == MessageDirection::FromWidget
             {
-                ui.send_message(SearchBarMessage::text(
-                    self.search_bar,
-                    MessageDirection::ToWidget,
-                    Default::default(),
-                ));
-                self.set_path(path, ui, &engine.resource_manager);
+                match msg {
+                    FileBrowserMessage::Path(path) => {
+                        ui.send_message(SearchBarMessage::text(
+                            self.search_bar,
+                            MessageDirection::ToWidget,
+                            Default::default(),
+                        ));
+                        self.set_path(path, ui, &engine.resource_manager);
+                    }
+                    FileBrowserMessage::Drop { dropped, path, .. } => {
+                        if let Ok(relative_path) = make_relative_path(path) {
+                            if let Some(item) = ui
+                                .try_get_node(*dropped)
+                                .and_then(|n| n.cast::<AssetItem>())
+                            {
+                                if let Ok(resource) =
+                                    block_on(engine.resource_manager.request_untyped(&item.path))
+                                {
+                                    if let Some(file_name) = resource.path().file_name() {
+                                        let new_full_path = relative_path.join(file_name);
+                                        Log::verify(block_on(
+                                            engine.resource_manager.move_resource(
+                                                resource,
+                                                new_full_path,
+                                                "./",
+                                                &[Texture::type_uuid(), SoundBuffer::type_uuid()],
+                                            ),
+                                        ));
+
+                                        self.refresh(ui, &engine.resource_manager);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => (),
+                }
             }
         } else if let Some(SearchBarMessage::Text(search_text)) = message.data() {
             if message.destination() == self.search_bar
