@@ -14,7 +14,7 @@ use crate::{
     text::{TextBuilder, TextMessage},
     text_box::{TextBoxBuilder, TextCommitMode},
     tree::{Tree, TreeBuilder, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
-    widget::{Widget, WidgetBuilder},
+    widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, RcUiNodeHandle, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
@@ -53,6 +53,11 @@ pub enum FileBrowserMessage {
     Add(PathBuf),
     Remove(PathBuf),
     Rescan,
+    Drop {
+        dropped: Handle<UiNode>,
+        path_item: Handle<UiNode>,
+        path: PathBuf,
+    },
 }
 
 impl FileBrowserMessage {
@@ -62,6 +67,7 @@ impl FileBrowserMessage {
     define_constructor!(FileBrowserMessage:Add => fn add(PathBuf), layout: false);
     define_constructor!(FileBrowserMessage:Remove => fn remove(PathBuf), layout: false);
     define_constructor!(FileBrowserMessage:Rescan => fn rescan(), layout: false);
+    define_constructor!(FileBrowserMessage:Drop => fn drop(dropped: Handle<UiNode>, path_item: Handle<UiNode>, path: PathBuf), layout: false);
 }
 
 #[derive(Clone)]
@@ -324,7 +330,7 @@ impl Control for FileBrowser {
                             ))
                         }
                     }
-                    FileBrowserMessage::Rescan => (),
+                    FileBrowserMessage::Rescan | FileBrowserMessage::Drop { .. } => (),
                 }
             }
         } else if let Some(TextMessage::Text(txt)) = message.data::<TextMessage>() {
@@ -382,6 +388,20 @@ impl Control for FileBrowser {
                     MessageDirection::ToWidget,
                     vec![],
                 ));
+            }
+        } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
+            if !message.handled() {
+                if let Some(path) = ui.node(message.destination()).user_data_ref::<PathBuf>() {
+                    ui.send_message(FileBrowserMessage::drop(
+                        self.handle,
+                        MessageDirection::FromWidget,
+                        *dropped,
+                        message.destination(),
+                        path.clone(),
+                    ));
+
+                    message.set_handled(true);
+                }
             }
         } else if let Some(TreeRootMessage::Selected(selection)) = message.data::<TreeRootMessage>()
         {
