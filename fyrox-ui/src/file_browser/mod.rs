@@ -57,6 +57,8 @@ pub enum FileBrowserMessage {
         dropped: Handle<UiNode>,
         path_item: Handle<UiNode>,
         path: PathBuf,
+        /// Could be empty if a dropped widget is not a file browser item.
+        dropped_path: PathBuf,
     },
 }
 
@@ -67,7 +69,13 @@ impl FileBrowserMessage {
     define_constructor!(FileBrowserMessage:Add => fn add(PathBuf), layout: false);
     define_constructor!(FileBrowserMessage:Remove => fn remove(PathBuf), layout: false);
     define_constructor!(FileBrowserMessage:Rescan => fn rescan(), layout: false);
-    define_constructor!(FileBrowserMessage:Drop => fn drop(dropped: Handle<UiNode>, path_item: Handle<UiNode>, path: PathBuf), layout: false);
+    define_constructor!(FileBrowserMessage:Drop => fn drop(
+        dropped: Handle<UiNode>,
+        path_item: Handle<UiNode>,
+        path: PathBuf,
+        dropped_path: PathBuf),
+        layout: false
+    );
 }
 
 #[derive(Clone)]
@@ -398,6 +406,10 @@ impl Control for FileBrowser {
                         *dropped,
                         message.destination(),
                         path.clone(),
+                        ui.node(*dropped)
+                            .user_data_ref::<PathBuf>()
+                            .cloned()
+                            .unwrap_or_default(),
                     ));
 
                     message.set_handled(true);
