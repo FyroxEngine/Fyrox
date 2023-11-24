@@ -1,13 +1,14 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
-use crate::state::LoadError;
 use crate::{
     constructor::ResourceConstructorContainer,
     core::{
         futures::future::join_all,
+        io::FileLoadError,
         log::Log,
         make_relative_path, notify,
         parking_lot::{Mutex, MutexGuard},
+        uuid::Uuid,
         watcher::FileSystemWatcher,
         TypeUuidProvider,
     },
@@ -15,11 +16,12 @@ use crate::{
     event::{ResourceEvent, ResourceEventBroadcaster},
     io::{FsResourceIo, ResourceIo},
     loader::{ResourceLoader, ResourceLoadersContainer},
-    state::ResourceState,
+    state::{LoadError, ResourceState},
     task::TaskPool,
     Resource, ResourceData, TypedResourceData, UntypedResource,
 };
 use fxhash::FxHashMap;
+use rayon::prelude::*;
 use std::{
     fmt::{Debug, Display, Formatter},
     marker::PhantomData,
@@ -229,6 +231,68 @@ impl ResourceManager {
                 _ => Err(ResourceRegistrationError::InvalidState),
             }
         }
+    }
+
+    /// Attempts to move a resource from its current location to the new path.
+    pub async fn move_resource(
+        &self,
+        resource: UntypedResource,
+        new_path: impl AsRef<Path>,
+        working_directory: impl AsRef<Path>,
+        ignored_dep_resource_types: &[Uuid],
+    ) -> Result<(), FileLoadError> {
+        let new_path = new_path.as_ref().to_owned();
+        let io = self.state().resource_io.clone();
+        let existing_path = resource.path();
+        // Move the file first.
+        io.move_file(&existing_path, &new_path).await?;
+        // Then collect all resources referencing the moved resource.
+        let resources = io
+            .walk_directory(working_directory.as_ref())
+            .await?
+            .map(|p| self.request_untyped(p))
+            .collect::<Vec<_>>();
+        // Filter out all faulty resources.
+        let resources_to_fix = join_all(resources)
+            .await
+            .into_iter()
+            .filter_map(|r| r.ok())
+            .filter(|r| r != &resource && !ignored_dep_resource_types.contains(&r.type_uuid()))
+            .collect::<Vec<_>>();
+        // Fix references to the moved resource in all other resources in parallel.
+        resources_to_fix.par_iter().for_each(|loaded_resource| {
+            let mut guard = loaded_resource.0.lock();
+            if let ResourceState::Ok(data) = &mut *guard {
+                (&mut **data).as_reflect_mut(&mut |reflect| {
+                    reflect.apply_recursively_mut(
+                        &mut |field| {
+                            field.downcast_mut::<UntypedResource>(&mut |resource_field| {
+                                if let Some(resource_field) = resource_field {
+                                    if resource_field.path() == existing_path {
+                                        resource_field.set_path(new_path.clone());
+                                    }
+                                }
+                            })
+                        },
+                        &[],
+                    )
+                });
+                // Save the resource back.
+                let loaded_resource_path = data.path().to_owned();
+                match data.save(&loaded_resource_path) {
+                    Ok(_) => Log::info(format!(
+                        "Resource {} was saved successfully!",
+                        data.path().display()
+                    )),
+                    Err(err) => Log::err(format!(
+                        "Unable to save {} resource. Reason: {:?}",
+                        data.path().display(),
+                        err
+                    )),
+                };
+            }
+        });
+        Ok(())
     }
 
     /// Reloads all loaded resources. Normally it should never be called, because it is **very** heavy
