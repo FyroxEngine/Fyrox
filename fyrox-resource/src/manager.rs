@@ -8,7 +8,6 @@ use crate::{
         log::Log,
         make_relative_path, notify,
         parking_lot::{Mutex, MutexGuard},
-        uuid::Uuid,
         watcher::FileSystemWatcher,
         TypeUuidProvider,
     },
@@ -239,7 +238,7 @@ impl ResourceManager {
         resource: UntypedResource,
         new_path: impl AsRef<Path>,
         working_directory: impl AsRef<Path>,
-        ignored_dep_resource_types: &[Uuid],
+        mut filter: impl FnMut(&UntypedResource) -> bool,
     ) -> Result<(), FileLoadError> {
         let new_path = new_path.as_ref().to_owned();
         let io = self.state().resource_io.clone();
@@ -257,12 +256,13 @@ impl ResourceManager {
             .await
             .into_iter()
             .filter_map(|r| r.ok())
-            .filter(|r| r != &resource && !ignored_dep_resource_types.contains(&r.type_uuid()))
+            .filter(|r| r != &resource && filter(r))
             .collect::<Vec<_>>();
         // Fix references to the moved resource in all other resources in parallel.
         resources_to_fix.par_iter().for_each(|loaded_resource| {
             let mut guard = loaded_resource.0.lock();
             if let ResourceState::Ok(data) = &mut *guard {
+                let mut modified = false;
                 (&mut **data).as_reflect_mut(&mut |reflect| {
                     reflect.apply_recursively_mut(
                         &mut |field| {
@@ -270,6 +270,7 @@ impl ResourceManager {
                                 if let Some(resource_field) = resource_field {
                                     if resource_field.path() == existing_path {
                                         resource_field.set_path(new_path.clone());
+                                        modified = true;
                                     }
                                 }
                             })
@@ -277,19 +278,21 @@ impl ResourceManager {
                         &[],
                     )
                 });
-                // Save the resource back.
-                let loaded_resource_path = data.path().to_owned();
-                match data.save(&loaded_resource_path) {
-                    Ok(_) => Log::info(format!(
-                        "Resource {} was saved successfully!",
-                        data.path().display()
-                    )),
-                    Err(err) => Log::err(format!(
-                        "Unable to save {} resource. Reason: {:?}",
-                        data.path().display(),
-                        err
-                    )),
-                };
+                if modified {
+                    // Save the resource back.
+                    let loaded_resource_path = data.path().to_owned();
+                    match data.save(&loaded_resource_path) {
+                        Ok(_) => Log::info(format!(
+                            "Resource {} was saved successfully!",
+                            data.path().display()
+                        )),
+                        Err(err) => Log::err(format!(
+                            "Unable to save {} resource. Reason: {:?}",
+                            data.path().display(),
+                            err
+                        )),
+                    };
+                }
             }
         });
         Ok(())

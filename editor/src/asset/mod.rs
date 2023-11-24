@@ -41,7 +41,7 @@ use fyrox::{
         UserInterface, VerticalAlignment, BRUSH_DARK,
     },
     material::Material,
-    resource::texture::Texture,
+    resource::{model::Model, texture::Texture},
     scene::sound::SoundBuffer,
 };
 use std::{
@@ -798,30 +798,7 @@ impl AssetBrowser {
                         self.set_path(path, ui, &engine.resource_manager);
                     }
                     FileBrowserMessage::Drop { dropped, path, .. } => {
-                        if let Ok(relative_path) = make_relative_path(path) {
-                            if let Some(item) = ui
-                                .try_get_node(*dropped)
-                                .and_then(|n| n.cast::<AssetItem>())
-                            {
-                                if let Ok(resource) =
-                                    block_on(engine.resource_manager.request_untyped(&item.path))
-                                {
-                                    if let Some(file_name) = resource.path().file_name() {
-                                        let new_full_path = relative_path.join(file_name);
-                                        Log::verify(block_on(
-                                            engine.resource_manager.move_resource(
-                                                resource,
-                                                new_full_path,
-                                                "./",
-                                                &[Texture::type_uuid(), SoundBuffer::type_uuid()],
-                                            ),
-                                        ));
-
-                                        self.refresh(ui, &engine.resource_manager);
-                                    }
-                                }
-                            }
-                        }
+                        self.on_file_browser_drop(*dropped, path, ui, &engine.resource_manager);
                     }
                     _ => (),
                 }
@@ -918,5 +895,58 @@ impl AssetBrowser {
             MessageDirection::ToWidget,
             mode.is_edit(),
         ));
+    }
+
+    fn on_file_browser_drop(
+        &mut self,
+        dropped: Handle<UiNode>,
+        path: &Path,
+        ui: &mut UserInterface,
+        resource_manager: &ResourceManager,
+    ) {
+        fn filter(res: &UntypedResource) -> bool {
+            if [Texture::type_uuid(), SoundBuffer::type_uuid()].contains(&res.type_uuid()) {
+                return false;
+            };
+
+            // The engine cannot write FBX resources, so we must filter out these and warn the user
+            // that resource references cannot be automatically fixed.
+            if let Some(model) = res.try_cast::<Model>() {
+                if let Some(ext) = model
+                    .path()
+                    .extension()
+                    .map(|ext| ext.to_string_lossy().to_lowercase())
+                {
+                    if ext == "fbx" {
+                        Log::warn(format!(
+                            "Resource {} cannot be scanned for \
+                        references, because FBX cannot be exported.",
+                            model.path().display()
+                        ));
+                        return false;
+                    }
+                }
+            }
+
+            true
+        }
+
+        if let Ok(relative_path) = make_relative_path(path) {
+            if let Some(item) = ui.try_get_node(dropped).and_then(|n| n.cast::<AssetItem>()) {
+                if let Ok(resource) = block_on(resource_manager.request_untyped(&item.path)) {
+                    if let Some(file_name) = resource.path().file_name() {
+                        let new_full_path = relative_path.join(file_name);
+                        Log::verify(block_on(resource_manager.move_resource(
+                            resource,
+                            new_full_path,
+                            "./",
+                            filter,
+                        )));
+
+                        self.refresh(ui, resource_manager);
+                    }
+                }
+            }
+        }
     }
 }
