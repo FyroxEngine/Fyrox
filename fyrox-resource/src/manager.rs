@@ -270,10 +270,10 @@ impl ResourceManager {
             let mut guard = loaded_resource.0.lock();
             if let ResourceState::Ok(data) = &mut *guard {
                 let mut modified = false;
-                (**data).as_reflect_mut(&mut |reflect| {
-                    reflect.apply_recursively_mut(
+                (**data).as_reflect(&mut |reflect| {
+                    reflect.apply_recursively(
                         &mut |field| {
-                            field.downcast_mut::<UntypedResource>(&mut |resource_field| {
+                            field.downcast_ref::<UntypedResource>(&mut |resource_field| {
                                 if let Some(resource_field) = resource_field {
                                     if resource_field.path() == existing_path {
                                         resource_field.set_path(new_path.clone());
