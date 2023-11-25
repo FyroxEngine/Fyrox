@@ -43,6 +43,7 @@ use fyrox::{
     material::Material,
     resource::{model::Model, texture::Texture},
     scene::sound::SoundBuffer,
+    walkdir,
 };
 use std::{
     ffi::OsStr,
@@ -797,8 +798,19 @@ impl AssetBrowser {
                         ));
                         self.set_path(path, ui, &engine.resource_manager);
                     }
-                    FileBrowserMessage::Drop { dropped, path, .. } => {
-                        self.on_file_browser_drop(*dropped, path, ui, &engine.resource_manager);
+                    FileBrowserMessage::Drop {
+                        dropped,
+                        path,
+                        dropped_path,
+                        ..
+                    } => {
+                        self.on_file_browser_drop(
+                            *dropped,
+                            path,
+                            dropped_path,
+                            ui,
+                            &engine.resource_manager,
+                        );
                     }
                     _ => (),
                 }
@@ -900,7 +912,8 @@ impl AssetBrowser {
     fn on_file_browser_drop(
         &mut self,
         dropped: Handle<UiNode>,
-        path: &Path,
+        target_dir: &Path,
+        dropped_path: &Path,
         ui: &mut UserInterface,
         resource_manager: &ResourceManager,
     ) {
@@ -931,8 +944,8 @@ impl AssetBrowser {
             true
         }
 
-        if let Ok(relative_path) = make_relative_path(path) {
-            if let Some(item) = ui.try_get_node(dropped).and_then(|n| n.cast::<AssetItem>()) {
+        if let Some(item) = ui.try_get_node(dropped).and_then(|n| n.cast::<AssetItem>()) {
+            if let Ok(relative_path) = make_relative_path(target_dir) {
                 if let Ok(resource) = block_on(resource_manager.request_untyped(&item.path)) {
                     if let Some(file_name) = resource.path().file_name() {
                         let new_full_path = relative_path.join(file_name);
@@ -947,6 +960,56 @@ impl AssetBrowser {
                     }
                 }
             }
+        } else if dropped_path != Path::new("") {
+            // At this point we have a folder dropped on some other folder. In this case
+            // we need to move all the assets from the dropped folder to a new subfolder (with the same
+            // name as the dropped folder) of the other folder first. After that we can move the rest
+            // of the files and finally delete the dropped folder.
+            let mut what_where_stack = vec![(dropped_path.to_path_buf(), target_dir.to_path_buf())];
+            while let Some((src_dir, target_dir)) = what_where_stack.pop() {
+                if let Some(src_dir_name) = src_dir.file_name() {
+                    let target_sub_dir = target_dir.join(src_dir_name);
+                    if !target_sub_dir.exists() {
+                        Log::verify(std::fs::create_dir(&target_sub_dir));
+                    }
+
+                    if target_sub_dir.exists() {
+                        for entry in walkdir::WalkDir::new(&src_dir)
+                            .max_depth(1)
+                            .into_iter()
+                            .filter_map(|e| e.ok())
+                        {
+                            if entry.path().is_file() {
+                                if let Ok(target_sub_dir_normalized) =
+                                    make_relative_path(&target_sub_dir)
+                                {
+                                    if let Ok(resource) =
+                                        block_on(resource_manager.request_untyped(entry.path()))
+                                    {
+                                        if let Some(file_name) = resource.path().file_name() {
+                                            let new_full_path =
+                                                target_sub_dir_normalized.join(file_name);
+                                            Log::verify(block_on(resource_manager.move_resource(
+                                                resource,
+                                                new_full_path,
+                                                "./",
+                                                filter,
+                                            )));
+                                        }
+                                    }
+                                }
+                            } else if entry.path().is_dir() && entry.path() != src_dir {
+                                // Sub-folders will be processed after all assets from current dir
+                                // were moved.
+                                what_where_stack
+                                    .push((entry.path().to_path_buf(), target_sub_dir.clone()));
+                            }
+                        }
+                    }
+                }
+            }
+
+            self.refresh(ui, resource_manager);
         }
     }
 }
