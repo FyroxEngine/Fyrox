@@ -37,6 +37,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fs::File,
+    io::Write,
     ops::{Deref, DerefMut},
     path::PathBuf,
     rc::Rc,
@@ -165,9 +166,11 @@ impl SettingsData {
     }
 
     fn save(&mut self) -> Result<(), SettingsError> {
-        let file = File::create(Self::full_path())?;
+        let mut file = File::create(Self::full_path())?;
         self.recent.deduplicate_and_refresh();
-        ron::ser::to_writer_pretty(file, self, PrettyConfig::default())?;
+
+        file.write_all(ron::ser::to_string_pretty(self, PrettyConfig::default())?.as_bytes())?;
+
         Log::info("Settings were successfully saved!");
         Ok(())
     }
