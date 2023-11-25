@@ -315,8 +315,6 @@ impl SettingsWindow {
     ) {
         scope_profile!();
 
-        let mut need_save = false;
-
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.ok {
                 engine.user_interface.send_message(WindowMessage::close(
@@ -325,42 +323,29 @@ impl SettingsWindow {
                 ));
             } else if message.destination() == self.default {
                 **settings = Default::default();
-                need_save = true;
+
                 self.sync_to_model(&mut engine.user_interface, settings, sender);
             }
         } else if let Some(InspectorMessage::PropertyChanged(property_changed)) = message.data() {
             if message.destination() == self.inspector {
                 settings.handle_property_changed(property_changed);
-                need_save = true;
             }
         }
 
         let graphics_context = engine.graphics_context.as_initialized_mut();
 
-        if need_save {
-            if settings.graphics.quality != graphics_context.renderer.get_quality_settings() {
-                if let Err(e) = graphics_context
-                    .renderer
-                    .set_quality_settings(&settings.graphics.quality)
-                {
-                    Log::err(format!(
-                        "An error occurred at attempt to set new graphics settings: {:?}",
-                        e
-                    ));
-                } else {
-                    Log::info("New graphics quality settings were successfully set!");
-                }
+        if settings.graphics.quality != graphics_context.renderer.get_quality_settings() {
+            if let Err(e) = graphics_context
+                .renderer
+                .set_quality_settings(&settings.graphics.quality)
+            {
+                Log::err(format!(
+                    "An error occurred at attempt to set new graphics settings: {:?}",
+                    e
+                ));
+            } else {
+                Log::info("New graphics quality settings were successfully set!");
             }
-
-            // Save config
-            match settings.save() {
-                Ok(_) => {
-                    Log::info("Settings were successfully saved!");
-                }
-                Err(e) => {
-                    Log::err(format!("Unable to save settings! Reason: {:?}!", e));
-                }
-            };
         }
     }
 }
