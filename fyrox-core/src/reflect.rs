@@ -889,10 +889,14 @@ impl dyn Reflect {
         })
     }
 
-    pub fn apply_recursively<F>(&self, func: &mut F)
+    pub fn apply_recursively<F>(&self, func: &mut F, ignored_types: &[TypeId])
     where
         F: FnMut(&dyn Reflect),
     {
+        if ignored_types.contains(&(*self).type_id()) {
+            return;
+        }
+
         func(self);
 
         let mut done = false;
@@ -900,7 +904,9 @@ impl dyn Reflect {
         self.as_inheritable_variable(&mut |variable| {
             if let Some(variable) = variable {
                 // Inner variable might also contain inheritable variables, so continue iterating.
-                variable.inner_value_ref().apply_recursively(func);
+                variable
+                    .inner_value_ref()
+                    .apply_recursively(func, ignored_types);
 
                 done = true;
             }
@@ -914,7 +920,7 @@ impl dyn Reflect {
             if let Some(array) = array {
                 for i in 0..array.reflect_len() {
                     if let Some(item) = array.reflect_index(i) {
-                        item.apply_recursively(func);
+                        item.apply_recursively(func, ignored_types);
                     }
                 }
 
@@ -930,7 +936,7 @@ impl dyn Reflect {
             if let Some(hash_map) = hash_map {
                 for i in 0..hash_map.reflect_len() {
                     if let Some(item) = hash_map.reflect_get_nth_value_ref(i) {
-                        item.apply_recursively(func);
+                        item.apply_recursively(func, ignored_types);
                     }
                 }
 
@@ -944,7 +950,7 @@ impl dyn Reflect {
 
         self.fields(&mut |fields| {
             for field in fields {
-                field.apply_recursively(func);
+                field.apply_recursively(func, ignored_types);
             }
         })
     }

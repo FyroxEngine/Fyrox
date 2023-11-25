@@ -367,15 +367,18 @@ impl Graph {
     pub fn find_references_to(&self, target: Handle<Node>) -> Vec<Handle<Node>> {
         let mut references = Vec::new();
         for (node_handle, node) in self.pair_iter() {
-            (node as &dyn Reflect).apply_recursively(&mut |object| {
-                object.as_any(&mut |any| {
-                    if let Some(handle) = any.downcast_ref::<Handle<Node>>() {
-                        if *handle == target {
-                            references.push(node_handle);
+            (node as &dyn Reflect).apply_recursively(
+                &mut |object| {
+                    object.as_any(&mut |any| {
+                        if let Some(handle) = any.downcast_ref::<Handle<Node>>() {
+                            if *handle == target {
+                                references.push(node_handle);
+                            }
                         }
-                    }
-                })
-            });
+                    })
+                },
+                &[],
+            );
         }
         references
     }
