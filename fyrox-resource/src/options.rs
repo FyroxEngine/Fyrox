@@ -8,6 +8,9 @@ use ron::ser::PrettyConfig;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{any::Any, fs::File, path::Path};
 
+/// Extension of import options file.
+pub const OPTIONS_EXTENSION: &str = "options";
+
 /// Base type-agnostic trait for resource import options. This trait has automatic implementation
 /// for everything that implements [`ImportOptions`] trait.
 pub trait BaseImportOptions: Reflect {
@@ -57,7 +60,7 @@ pub async fn try_get_import_settings<T>(resource_path: &Path, io: &dyn ResourceI
 where
     T: ImportOptions,
 {
-    let settings_path = append_extension(resource_path, "options");
+    let settings_path = append_extension(resource_path, OPTIONS_EXTENSION);
 
     match io.load_file(settings_path.as_ref()).await {
         Ok(bytes) => match ron::de::from_bytes::<T>(&bytes) {

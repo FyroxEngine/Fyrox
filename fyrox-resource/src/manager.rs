@@ -3,6 +3,7 @@
 use crate::{
     constructor::ResourceConstructorContainer,
     core::{
+        append_extension,
         futures::future::join_all,
         io::FileLoadError,
         log::Log,
@@ -15,6 +16,7 @@ use crate::{
     event::{ResourceEvent, ResourceEventBroadcaster},
     io::{FsResourceIo, ResourceIo},
     loader::{ResourceLoader, ResourceLoadersContainer},
+    options::OPTIONS_EXTENSION,
     state::{LoadError, ResourceState},
     task::TaskPool,
     Resource, ResourceData, TypedResourceData, UntypedResource,
@@ -243,8 +245,13 @@ impl ResourceManager {
         let new_path = new_path.as_ref().to_owned();
         let io = self.state().resource_io.clone();
         let existing_path = resource.path();
-        // Move the file first.
+        // Move the file first with its optional import options.
         io.move_file(&existing_path, &new_path).await?;
+        let options_path = append_extension(&existing_path, OPTIONS_EXTENSION);
+        if io.exists(&options_path).await {
+            let new_options_path = append_extension(&new_path, OPTIONS_EXTENSION);
+            io.move_file(&options_path, &new_options_path).await?;
+        }
         // Then collect all resources referencing the moved resource.
         let resources = io
             .walk_directory(working_directory.as_ref())
