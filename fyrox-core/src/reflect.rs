@@ -881,7 +881,7 @@ impl dyn Reflect {
 
                 field.reflect_value.enumerate_fields_recursively_internal(
                     field_path,
-                    Some(&field),
+                    Some(field),
                     func,
                     ignored_types,
                 );

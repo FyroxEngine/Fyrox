@@ -671,9 +671,7 @@ impl InspectorContext {
 
         let mut editors = Vec::new();
         object.fields_info(&mut |fields_info| {
-            for (i, (field_text, info)) in
-                fields_text.iter().zip(fields_info.into_iter()).enumerate()
-            {
+            for (i, (field_text, info)) in fields_text.iter().zip(fields_info.iter()).enumerate() {
                 if !filter.pass(info.reflect_value) {
                     continue;
                 }
@@ -690,7 +688,7 @@ impl InspectorContext {
                 {
                     let editor = match definition.create_instance(PropertyEditorBuildContext {
                         build_context: ctx,
-                        property_info: &info,
+                        property_info: info,
                         environment: environment.clone(),
                         definition_container: definition_container.clone(),
                         sync_flag,
@@ -825,7 +823,7 @@ impl InspectorContext {
                             sync_flag: self.sync_flag,
                             instance: property_editor.property_editor,
                             ui,
-                            property_info: &info,
+                            property_info: info,
                             definition_container: self.property_definitions.clone(),
                             layer_index,
                             environment: self.environment.clone(),

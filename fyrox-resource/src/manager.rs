@@ -263,7 +263,7 @@ impl ResourceManager {
             let mut guard = loaded_resource.0.lock();
             if let ResourceState::Ok(data) = &mut *guard {
                 let mut modified = false;
-                (&mut **data).as_reflect_mut(&mut |reflect| {
+                (**data).as_reflect_mut(&mut |reflect| {
                     reflect.apply_recursively_mut(
                         &mut |field| {
                             field.downcast_mut::<UntypedResource>(&mut |resource_field| {
