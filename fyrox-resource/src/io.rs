@@ -33,6 +33,16 @@ pub trait ResourceIo: Send + Sync + 'static {
         dest: &'a Path,
     ) -> ResourceIoFuture<'a, Result<(), FileLoadError>>;
 
+    /// Tries to convert the path to its canonical form (normalize it in other terms). This method
+    /// should guarantee correct behaviour for relative paths. Symlinks aren't mandatory to
+    /// follow.
+    fn canonicalize_path<'a>(
+        &'a self,
+        path: &'a Path,
+    ) -> ResourceIoFuture<'a, Result<PathBuf, FileLoadError>> {
+        Box::pin(ready(Ok(path.to_owned())))
+    }
+
     /// Provides an iterator over the paths present in the provided
     /// path, this should only provide paths immediately within the directory
     ///
@@ -119,6 +129,13 @@ impl ResourceIo for FsResourceIo {
             std::fs::rename(source, dest)?;
             Ok(())
         })
+    }
+
+    fn canonicalize_path<'a>(
+        &'a self,
+        path: &'a Path,
+    ) -> ResourceIoFuture<'a, Result<PathBuf, FileLoadError>> {
+        Box::pin(async move { Ok(std::fs::canonicalize(path)?) })
     }
 
     /// wasm should fallback to the default no-op impl as im not sure if they
