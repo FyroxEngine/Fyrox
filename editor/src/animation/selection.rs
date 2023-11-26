@@ -26,4 +26,14 @@ impl AnimationSelection {
     pub fn len(&self) -> usize {
         self.entities.len()
     }
+
+    pub fn first_selected_track(&self) -> Option<Uuid> {
+        self.entities.iter().find_map(|e| {
+            if let SelectedEntity::Track(id) = e {
+                Some(*id)
+            } else {
+                None
+            }
+        })
+    }
 }

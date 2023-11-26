@@ -3,7 +3,8 @@
 use crate::{
     animation::{
         command::{
-            AddTrackCommand, RemoveTrackCommand, SetTrackEnabledCommand, SetTrackTargetCommand,
+            AddTrackCommand, RemoveTrackCommand, SetTrackBindingCommand, SetTrackEnabledCommand,
+            SetTrackTargetCommand,
         },
         selection::{AnimationSelection, SelectedEntity},
     },
@@ -14,7 +15,8 @@ use crate::{
     scene::{
         commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
         property::{
-            object_to_property_tree, PropertySelectorMessage, PropertySelectorWindowBuilder,
+            object_to_property_tree, PropertyDescriptorData, PropertySelectorMessage,
+            PropertySelectorWindowBuilder,
         },
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
         EditorScene, Selection,
@@ -84,7 +86,9 @@ struct TrackContextMenu {
     menu: RcUiNodeHandle,
     remove_track: Handle<UiNode>,
     set_target: Handle<UiNode>,
+    rebind: Handle<UiNode>,
     target_node_selector: Handle<UiNode>,
+    property_rebinding_selector: Handle<UiNode>,
     duplicate: Handle<UiNode>,
 }
 
@@ -92,6 +96,7 @@ impl TrackContextMenu {
     fn new(ctx: &mut BuildContext) -> Self {
         let remove_track;
         let set_target;
+        let rebind;
         let duplicate;
         let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
             .with_content(
@@ -104,6 +109,10 @@ impl TrackContextMenu {
                         .with_child({
                             set_target = create_menu_item("Set Target...", vec![], ctx);
                             set_target
+                        })
+                        .with_child({
+                            rebind = create_menu_item("Rebind...", vec![], ctx);
+                            rebind
                         })
                         .with_child({
                             duplicate = create_menu_item("Duplicate", vec![], ctx);
@@ -119,7 +128,9 @@ impl TrackContextMenu {
             menu,
             remove_track,
             set_target,
+            rebind,
             target_node_selector: Default::default(),
+            property_rebinding_selector: Default::default(),
             duplicate,
         }
     }
@@ -817,6 +828,7 @@ impl TrackList {
             if message.destination() == self.node_selector
                 || message.destination() == self.property_selector
                 || message.destination() == self.context_menu.target_node_selector
+                || message.destination() == self.context_menu.property_rebinding_selector
             {
                 ui.send_message(WidgetMessage::remove(
                     message.destination(),
@@ -830,45 +842,8 @@ impl TrackList {
 
                     match self.property_binding_mode {
                         PropertyBindingMode::Generic => {
-                            let mut descriptors = Vec::new();
-                            scene.graph[*first].as_reflect(&mut |node| {
-                                descriptors = object_to_property_tree("", node);
-                            });
-
-                            self.property_selector = PropertySelectorWindowBuilder::new(
-                                WindowBuilder::new(
-                                    WidgetBuilder::new().with_width(300.0).with_height(400.0),
-                                )
-                                .with_title(WindowTitle::text(
-                                    "Select a Numeric Property To Animate",
-                                ))
-                                .open(false),
-                            )
-                            .with_allowed_types(Some(FxHashSet::from_iter(define_allowed_types! {
-                                f32, f64, u64, i64, u32, i32, u16, i16, u8, i8, bool,
-
-                                Vector2<f32>, Vector2<f64>, Vector2<u64>, Vector2<i64>,
-                                Vector2<u32>, Vector2<i32>,
-                                Vector2<i16>, Vector2<u16>, Vector2<i8>, Vector2<u8>,
-
-                                Vector3<f32>, Vector3<f64>, Vector3<u64>, Vector3<i64>,
-                                Vector3<u32>, Vector3<i32>,
-                                Vector3<i16>, Vector3<u16>, Vector3<i8>, Vector3<u8>,
-
-                                Vector4<f32>, Vector4<f64>, Vector4<u64>, Vector4<i64>,
-                                Vector4<u32>, Vector4<i32>,
-                                Vector4<i16>, Vector4<u16>, Vector4<i8>, Vector4<u8>,
-
-                                UnitQuaternion<f32>
-                            })))
-                            .with_property_descriptors(descriptors)
-                            .build(&mut ui.build_ctx());
-
-                            ui.send_message(WindowMessage::open_modal(
-                                self.property_selector,
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
+                            self.property_selector =
+                                Self::open_property_selector(&scene.graph, *first, ui);
                         }
                         PropertyBindingMode::Position => {
                             sender.do_scene_command(AddTrackCommand::new(
@@ -955,6 +930,12 @@ impl TrackList {
                     }
                 } else {
                     Log::err("Invalid node handle!");
+                }
+            } else if message.destination() == self.context_menu.property_rebinding_selector
+                && message.direction() == MessageDirection::FromWidget
+            {
+                if let Some(entry) = selected_properties.first() {
+                    self.rebind_property(entry, &scene.graph, &editor_scene.selection, sender);
                 }
             }
         } else if let Some(TreeRootMessage::Selected(selection)) = message.data() {
@@ -1046,6 +1027,8 @@ impl TrackList {
                     MessageDirection::ToWidget,
                     true,
                 ));
+            } else if message.destination() == self.context_menu.rebind {
+                self.on_rebind_clicked(&scene.graph, &editor_scene.selection, ui);
             } else if message.destination() == self.context_menu.duplicate {
                 if let Selection::Animation(ref selection) = editor_scene.selection {
                     if let Some(animation_player) = scene
@@ -1119,6 +1102,149 @@ impl TrackList {
                 }
             }
         }
+    }
+
+    fn open_property_selector(
+        graph: &Graph,
+        node: Handle<Node>,
+        ui: &mut UserInterface,
+    ) -> Handle<UiNode> {
+        let mut descriptors = Vec::new();
+        graph[node].as_reflect(&mut |node| {
+            descriptors = object_to_property_tree("", node);
+        });
+
+        let property_selector = PropertySelectorWindowBuilder::new(
+            WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
+                .with_title(WindowTitle::text("Select a Numeric Property To Animate"))
+                .open(false),
+        )
+        .with_allowed_types(Some(FxHashSet::from_iter(define_allowed_types! {
+            f32, f64, u64, i64, u32, i32, u16, i16, u8, i8, bool,
+
+            Vector2<f32>, Vector2<f64>, Vector2<u64>, Vector2<i64>,
+            Vector2<u32>, Vector2<i32>,
+            Vector2<i16>, Vector2<u16>, Vector2<i8>, Vector2<u8>,
+
+            Vector3<f32>, Vector3<f64>, Vector3<u64>, Vector3<i64>,
+            Vector3<u32>, Vector3<i32>,
+            Vector3<i16>, Vector3<u16>, Vector3<i8>, Vector3<u8>,
+
+            Vector4<f32>, Vector4<f64>, Vector4<u64>, Vector4<i64>,
+            Vector4<u32>, Vector4<i32>,
+            Vector4<i16>, Vector4<u16>, Vector4<i8>, Vector4<u8>,
+
+            UnitQuaternion<f32>
+        })))
+        .with_property_descriptors(descriptors)
+        .build(&mut ui.build_ctx());
+
+        ui.send_message(WindowMessage::open_modal(
+            property_selector,
+            MessageDirection::ToWidget,
+            true,
+        ));
+
+        property_selector
+    }
+
+    fn on_rebind_clicked(
+        &mut self,
+        graph: &Graph,
+        editor_selection: &Selection,
+        ui: &mut UserInterface,
+    ) {
+        let Selection::Animation(ref selection) = editor_selection else {
+            return;
+        };
+
+        let Some(animation_player) = graph
+            .try_get(selection.animation_player)
+            .and_then(|n| n.query_component_ref::<AnimationPlayer>())
+        else {
+            return;
+        };
+
+        let Some(animation) = animation_player.animations().try_get(selection.animation) else {
+            return;
+        };
+
+        let Some(first_selected_track) = selection.first_selected_track() else {
+            return;
+        };
+
+        if let Some(track) = animation
+            .tracks()
+            .iter()
+            .find(|t| t.id() == first_selected_track)
+        {
+            self.context_menu.property_rebinding_selector =
+                Self::open_property_selector(graph, track.target(), ui);
+        }
+    }
+
+    fn rebind_property(
+        &self,
+        desc: &PropertyDescriptorData,
+        graph: &Graph,
+        editor_selection: &Selection,
+        sender: &MessageSender,
+    ) {
+        let Selection::Animation(ref selection) = editor_selection else {
+            return;
+        };
+
+        let Some(animation_player) = graph
+            .try_get(selection.animation_player)
+            .and_then(|n| n.query_component_ref::<AnimationPlayer>())
+        else {
+            return;
+        };
+
+        let Some(animation) = animation_player.animations().try_get(selection.animation) else {
+            return;
+        };
+
+        let Some(first_selected_track) = selection.first_selected_track() else {
+            return;
+        };
+
+        let Some(track) = animation
+            .tracks()
+            .iter()
+            .find(|t| t.id() == first_selected_track)
+        else {
+            return;
+        };
+
+        let Some(node) = graph.try_get(track.target()) else {
+            Log::err("Invalid node handle!");
+            return;
+        };
+
+        node.resolve_path(&desc.path, &mut |result| match result {
+            Ok(property) => {
+                let mut property_type = TypeId::of::<u32>();
+                property.as_any(&mut |any| property_type = any.type_id());
+
+                let types = type_id_to_supported_type(property_type);
+
+                if let Some((_, actual_value_type)) = types {
+                    sender.do_scene_command(SetTrackBindingCommand {
+                        animation_player_handle: selection.animation_player,
+                        animation_handle: selection.animation,
+                        track: first_selected_track,
+                        binding: ValueBinding::Property {
+                            name: desc.path.clone(),
+                            value_type: actual_value_type,
+                        },
+                    });
+                }
+            }
+            Err(e) => {
+                Log::err(format!("Invalid property path {:?}. Error: {:?}!", desc, e));
+            }
+        })
     }
 
     pub fn clear(&mut self, ui: &UserInterface) {

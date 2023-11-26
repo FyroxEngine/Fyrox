@@ -4,7 +4,9 @@ use crate::{
     scene::{commands::SceneContext, Selection},
 };
 use fyrox::{
-    animation::{track::Track, Animation, AnimationSignal, RootMotionSettings},
+    animation::{
+        track::Track, value::ValueBinding, Animation, AnimationSignal, RootMotionSettings,
+    },
     core::{
         curve::Curve,
         log::Log,
@@ -612,6 +614,42 @@ impl SetTrackTargetCommand {
 impl Command for SetTrackTargetCommand {
     fn name(&mut self, _context: &SceneContext) -> String {
         "Set Track Target".to_string()
+    }
+
+    fn execute(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut SceneContext) {
+        self.swap(context)
+    }
+}
+
+#[derive(Debug)]
+pub struct SetTrackBindingCommand {
+    pub animation_player_handle: Handle<Node>,
+    pub animation_handle: Handle<Animation>,
+    pub track: Uuid,
+    pub binding: ValueBinding,
+}
+
+impl SetTrackBindingCommand {
+    fn swap(&mut self, context: &mut SceneContext) {
+        let track = fetch_animation(self.animation_player_handle, self.animation_handle, context)
+            .tracks_mut()
+            .iter_mut()
+            .find(|t| t.id() == self.track)
+            .unwrap();
+
+        let old = track.binding().clone();
+        track.set_binding(self.binding.clone());
+        self.binding = old;
+    }
+}
+
+impl Command for SetTrackBindingCommand {
+    fn name(&mut self, _context: &SceneContext) -> String {
+        "Set Track Binding".to_string()
     }
 
     fn execute(&mut self, context: &mut SceneContext) {
