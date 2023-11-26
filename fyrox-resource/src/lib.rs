@@ -219,7 +219,7 @@ pub enum ResourceStateRefMut<'a, T> {
 ///
 /// ## Default State
 ///
-/// Default state of the resource will be [`ResourceState::Ok`] with [`T::default`].
+/// Default state of the resource will be [`ResourceState::Ok`] with `T::default`.
 #[derive(Debug, Reflect)]
 pub struct Resource<T>
 where

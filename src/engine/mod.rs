@@ -66,12 +66,14 @@ use glutin::{
 use glutin_winit::{DisplayBuilder, GlWindow};
 #[cfg(not(target_arch = "wasm32"))]
 use raw_window_handle::HasRawWindowHandle;
+
+#[cfg(not(target_arch = "wasm32"))]
+use std::{ffi::CString, num::NonZeroU32};
+
 use std::{
     any::TypeId,
     collections::{HashSet, VecDeque},
-    ffi::CString,
     fmt::{Display, Formatter},
-    num::NonZeroU32,
     ops::Deref,
     path::{Path, PathBuf},
     sync::{

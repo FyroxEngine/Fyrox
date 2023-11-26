@@ -98,6 +98,7 @@ use std::{
     sync::mpsc::Receiver,
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+#[cfg(not(target_arch = "wasm32"))]
 use winit::window::Window;
 
 lazy_static! {
