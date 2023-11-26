@@ -1,6 +1,7 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
 use crate::{
+    collect_used_resources,
     constructor::ResourceConstructorContainer,
     core::{
         append_extension,
@@ -21,7 +22,7 @@ use crate::{
     task::TaskPool,
     Resource, ResourceData, TypedResourceData, UntypedResource,
 };
-use fxhash::FxHashMap;
+use fxhash::{FxHashMap, FxHashSet};
 use rayon::prelude::*;
 use std::{
     fmt::{Debug, Display, Formatter},
@@ -245,14 +246,10 @@ impl ResourceManager {
         let new_path = new_path.as_ref().to_owned();
         let io = self.state().resource_io.clone();
         let existing_path = resource.path();
-        // Move the file first with its optional import options.
-        io.move_file(&existing_path, &new_path).await?;
-        let options_path = append_extension(&existing_path, OPTIONS_EXTENSION);
-        if io.exists(&options_path).await {
-            let new_options_path = append_extension(&new_path, OPTIONS_EXTENSION);
-            io.move_file(&options_path, &new_options_path).await?;
-        }
-        // Then collect all resources referencing the moved resource.
+
+        let canonical_existing_path = io.canonicalize_path(&existing_path).await?;
+
+        // Collect all resources referencing the resource.
         let resources = io
             .walk_directory(working_directory.as_ref())
             .await?
@@ -265,27 +262,49 @@ impl ResourceManager {
             .filter_map(|r| r.ok())
             .filter(|r| r != &resource && filter(r))
             .collect::<Vec<_>>();
-        // Fix references to the moved resource in all other resources in parallel.
-        resources_to_fix.par_iter().for_each(|loaded_resource| {
-            let mut guard = loaded_resource.0.lock();
-            if let ResourceState::Ok(data) = &mut *guard {
-                let mut modified = false;
-                (**data).as_reflect(&mut |reflect| {
-                    reflect.apply_recursively(
-                        &mut |field| {
-                            field.downcast_ref::<UntypedResource>(&mut |resource_field| {
-                                if let Some(resource_field) = resource_field {
-                                    if resource_field.path() == existing_path {
-                                        resource_field.set_path(new_path.clone());
-                                        modified = true;
-                                    }
-                                }
-                            })
-                        },
-                        &[],
-                    )
-                });
-                if modified {
+
+        // Do the heavy work in parallel.
+        let mut pairs = resources_to_fix
+            .par_iter()
+            .filter_map(|loaded_resource| {
+                let mut guard = loaded_resource.0.lock();
+                if let ResourceState::Ok(data) = &mut *guard {
+                    let mut used_resources = FxHashSet::default();
+                    (**data).as_reflect(&mut |reflect| {
+                        collect_used_resources(reflect, &mut used_resources);
+                    });
+                    Some((loaded_resource, used_resources))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+
+        // Filter out all resources that does not have references to the moved resource.
+        for (_, used_resources) in pairs.iter_mut() {
+            let mut used_resources_with_references = FxHashSet::default();
+            for resource in used_resources.iter() {
+                if let Ok(canonical_resource_path) = io.canonicalize_path(&resource.path()).await {
+                    // We compare the canonical paths here to check for the same file, not for the
+                    // same path. Remember that there could be any number of paths leading to the
+                    // same file (i.e. "foo/bar/baz.txt" and "foo/bar/../bar/baz.txt" leads to the
+                    // same file, but the paths are different).
+                    if canonical_resource_path == canonical_existing_path {
+                        used_resources_with_references.insert(resource.clone());
+                    }
+                }
+            }
+            *used_resources = used_resources_with_references;
+        }
+
+        for (loaded_resource, used_resources) in pairs {
+            if !used_resources.is_empty() {
+                for resource in used_resources {
+                    resource.set_path(new_path.clone());
+                }
+
+                let mut guard = loaded_resource.0.lock();
+                if let ResourceState::Ok(data) = &mut *guard {
                     // Save the resource back.
                     let loaded_resource_path = data.path().to_owned();
                     match data.save(&loaded_resource_path) {
@@ -301,7 +320,16 @@ impl ResourceManager {
                     };
                 }
             }
-        });
+        }
+
+        // Move the file with its optional import options.
+        io.move_file(&existing_path, &new_path).await?;
+        let options_path = append_extension(&existing_path, OPTIONS_EXTENSION);
+        if io.exists(&options_path).await {
+            let new_options_path = append_extension(&new_path, OPTIONS_EXTENSION);
+            io.move_file(&options_path, &new_options_path).await?;
+        }
+
         Ok(())
     }
 
