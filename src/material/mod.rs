@@ -410,7 +410,17 @@ impl Visit for Material {
         let _ = self.is_procedural.visit("IsProcedural", &mut region);
 
         if self.is_procedural {
-            self.shader.visit("Shader", &mut region)?;
+            let mut shader = if region.is_reading() {
+                // It is very important to give a proper default state to the shader resource
+                // here. Its standard default is set to shared "Standard" shader. If it is left
+                // as is, deserialization will modify the "Standard" shader and this will lead
+                // to "amazing" results and hours of debugging.
+                ShaderResource::default()
+            } else {
+                self.shader.clone()
+            };
+            shader.visit("Shader", &mut region)?;
+            self.shader = shader;
             self.properties.visit("Properties", &mut region)?;
         }
 
