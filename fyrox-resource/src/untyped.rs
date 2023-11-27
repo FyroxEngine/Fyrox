@@ -1,13 +1,11 @@
 //! A module for untyped resources. See [`UntypedResource`] docs for more info.
 
-use crate::state::LoadError;
 use crate::{
     core::{
-        log::Log, parking_lot::Mutex, reflect::prelude::*, uuid::Uuid, visitor::prelude::*,
-        TypeUuidProvider,
+        parking_lot::Mutex, reflect::prelude::*, uuid::Uuid, visitor::prelude::*, TypeUuidProvider,
     },
     manager::ResourceManager,
-    state::ResourceState,
+    state::{LoadError, ResourceState},
     Resource, ResourceData, ResourceLoadError, TypedResourceData,
 };
 use std::{
@@ -48,24 +46,9 @@ impl Visit for UntypedResource {
                 .expect("Resource manager must be available when deserializing resources!");
 
             let path = self.path();
-
-            // There might be a built-in resource, in this case we must restore the "reference" to it.
-            let state = resource_manager.state();
-            if let Some(built_in_resource) = state.built_in_resources.get(&path) {
-                if built_in_resource.type_uuid() == self.type_uuid() {
-                    self.0 = built_in_resource.clone().0;
-                } else {
-                    Log::err(format!(
-                        "Built in resource {:?} has changed its type and cannot be restored!",
-                        path
-                    ));
-                }
-            } else {
-                drop(state);
-                let is_procedural = self.is_procedural();
-                if !is_procedural {
-                    self.0 = resource_manager.request_untyped(path).0;
-                }
+            let is_procedural = self.is_procedural();
+            if !is_procedural {
+                self.0 = resource_manager.request_untyped(path).0;
             }
         }
 
