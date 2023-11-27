@@ -203,8 +203,9 @@ impl Visit for TextureKind {
     }
 }
 
+/// Data storage of a texture.
 #[derive(Default, Clone, Reflect)]
-struct TextureBytes(Vec<u8>);
+pub struct TextureBytes(Vec<u8>);
 
 impl Visit for TextureBytes {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {

@@ -157,11 +157,22 @@ impl PropertyDescriptor {
     }
 }
 
-pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<PropertyDescriptor> {
+pub fn object_to_property_tree<F>(
+    parent_path: &str,
+    object: &dyn Reflect,
+    filter: &mut F,
+) -> Vec<PropertyDescriptor>
+where
+    F: FnMut(&FieldInfo) -> bool,
+{
     let mut descriptors = Vec::new();
 
     object.fields_info(&mut |fields_info| {
         for field_info in fields_info.iter() {
+            if !filter(field_info) {
+                continue;
+            }
+
             let field_ref = field_info.reflect_value;
 
             let path = if parent_path.is_empty() {
@@ -192,7 +203,7 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
                             type_name: item.type_name().to_owned(),
                             type_id: item.type_id(),
                             read_only: field_info.read_only,
-                            children_properties: object_to_property_tree(&item_path, item),
+                            children_properties: object_to_property_tree(&item_path, item, filter),
                         })
                     }
 
@@ -246,7 +257,9 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
                                 type_name: value.type_name().to_owned(),
                                 type_id: value.type_id(),
                                 read_only: field_info.read_only,
-                                children_properties: object_to_property_tree(&item_path, value),
+                                children_properties: object_to_property_tree(
+                                    &item_path, value, filter,
+                                ),
                             })
                         }
 
@@ -266,7 +279,7 @@ pub fn object_to_property_tree(parent_path: &str, object: &dyn Reflect) -> Vec<P
                     type_name: field_info.type_name.to_owned(),
                     type_id: field_info.value.type_id(),
                     read_only: field_info.read_only,
-                    children_properties: object_to_property_tree(&path, field_ref),
+                    children_properties: object_to_property_tree(&path, field_ref, filter),
                     path: path.clone(),
                 })
             }

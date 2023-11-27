@@ -23,6 +23,7 @@ use crate::{
     },
     send_sync_message, utils,
 };
+use fyrox::resource::texture::TextureBytes;
 use fyrox::{
     animation::{
         container::{TrackDataContainer, TrackValueKind},
@@ -1107,7 +1108,10 @@ impl TrackList {
     ) -> Handle<UiNode> {
         let mut descriptors = Vec::new();
         graph[node].as_reflect(&mut |node| {
-            descriptors = object_to_property_tree("", node);
+            descriptors = object_to_property_tree("", node, &mut |field: &FieldInfo| {
+                let type_id = field.reflect_value.type_id();
+                type_id != TypeId::of::<TextureBytes>()
+            });
         });
 
         let property_selector = PropertySelectorWindowBuilder::new(
