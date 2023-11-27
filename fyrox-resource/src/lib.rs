@@ -72,7 +72,7 @@ pub trait ResourceData: 'static + Debug + Visit + Send + Reflect {
     fn type_uuid(&self) -> Uuid;
 
     /// Returns true if the resource data was generated procedurally, not taken from a file.
-    fn is_procedural(&self) -> bool;
+    fn is_embedded(&self) -> bool;
 
     /// Saves the resource data a file at the specified path. By default, this method returns an
     /// error that tells that saving functionality is not implemented. This method is free to

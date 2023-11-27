@@ -690,7 +690,7 @@ mod test {
             <Self as TypeUuidProvider>::type_uuid()
         }
 
-        fn is_procedural(&self) -> bool {
+        fn is_embedded(&self) -> bool {
             unimplemented!()
         }
     }

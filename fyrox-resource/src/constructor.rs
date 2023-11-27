@@ -116,7 +116,7 @@ mod test {
             unimplemented!()
         }
 
-        fn is_procedural(&self) -> bool {
+        fn is_embedded(&self) -> bool {
             unimplemented!()
         }
     }

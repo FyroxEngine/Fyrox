@@ -322,7 +322,7 @@ pub struct Shader {
     /// Shader definition contains description of properties and render passes.
     pub definition: ShaderDefinition,
 
-    is_procedural: bool,
+    is_embedded: bool,
 
     #[reflect(hidden)]
     pub(crate) cache_index: AtomicIndex,
@@ -339,14 +339,14 @@ impl Visit for Shader {
         let mut region = visitor.enter_region(name)?;
 
         self.path.visit("Path", &mut region)?;
-        let _ = self.is_procedural.visit("IsProcedural", &mut region);
+        let _ = self.is_embedded.visit("IsProcedural", &mut region);
 
         drop(region);
 
         if visitor.is_reading() {
             for path in STANDARD_SHADER_NAMES.iter() {
                 if self.path == Path::new(path) {
-                    self.is_procedural = false;
+                    self.is_embedded = false;
                     break;
                 }
             }
@@ -537,7 +537,7 @@ impl Shader {
         Ok(Self {
             path: path.as_ref().to_owned(),
             definition: ShaderDefinition::from_buf(content)?,
-            is_procedural: false,
+            is_embedded: false,
             cache_index: Default::default(),
         })
     }
@@ -545,13 +545,13 @@ impl Shader {
     pub(crate) fn from_str<P: AsRef<Path>>(
         str: &str,
         path: P,
-        is_procedural: bool,
+        is_embedded: bool,
     ) -> Result<Self, ShaderError> {
         Ok(Self {
             path: path.as_ref().to_owned(),
             definition: ShaderDefinition::from_str(str)?,
             cache_index: Default::default(),
-            is_procedural,
+            is_embedded,
         })
     }
 }
@@ -577,8 +577,8 @@ impl ResourceData for Shader {
         <Self as TypeUuidProvider>::type_uuid()
     }
 
-    fn is_procedural(&self) -> bool {
-        self.is_procedural
+    fn is_embedded(&self) -> bool {
+        self.is_embedded
     }
 }
 
@@ -624,11 +624,8 @@ pub type ShaderResource = Resource<Shader>;
 pub trait ShaderResourceExtension: Sized {
     /// Creates new shader from given string. Input string must have the format defined in
     /// examples for [`ShaderResource`].
-    fn from_str<P: AsRef<Path>>(
-        str: &str,
-        path: P,
-        is_procedural: bool,
-    ) -> Result<Self, ShaderError>;
+    fn from_str<P: AsRef<Path>>(str: &str, path: P, is_embedded: bool)
+        -> Result<Self, ShaderError>;
 
     /// Returns an instance of standard shader.
     fn standard() -> Self;
@@ -658,12 +655,12 @@ impl ShaderResourceExtension for ShaderResource {
     fn from_str<P: AsRef<Path>>(
         str: &str,
         path: P,
-        is_procedural: bool,
+        is_embedded: bool,
     ) -> Result<Self, ShaderError> {
         Ok(Resource::new_ok(Shader::from_str(
             str,
             path.as_ref(),
-            is_procedural,
+            is_embedded,
         )?))
     }
 

@@ -401,7 +401,7 @@ mod test {
             Uuid::default()
         }
 
-        fn is_procedural(&self) -> bool {
+        fn is_embedded(&self) -> bool {
             unimplemented!()
         }
     }

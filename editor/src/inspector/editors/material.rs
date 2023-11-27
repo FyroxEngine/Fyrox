@@ -111,7 +111,7 @@ impl Control for MaterialFieldEditor {
                 ui.send_message(MaterialFieldMessage::material(
                     self.handle,
                     MessageDirection::ToWidget,
-                    self.material.deep_copy_as_procedural(),
+                    self.material.deep_copy_as_embedded(),
                 ));
             }
         } else if let Some(MaterialFieldMessage::Material(material)) = message.data() {
@@ -165,7 +165,7 @@ fn make_name(material: &MaterialResource) -> String {
     let state = material.state();
     match state.get() {
         ResourceStateRef::Ok(material_data) => {
-            if material_data.is_procedural() {
+            if material_data.is_embedded() {
                 format!("Embedded - {} uses", material.use_count())
             } else {
                 format!(

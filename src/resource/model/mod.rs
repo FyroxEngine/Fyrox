@@ -305,8 +305,8 @@ impl ResourceData for Model {
         <Self as TypeUuidProvider>::type_uuid()
     }
 
-    fn is_procedural(&self) -> bool {
-        // TODO: Add support for procedural models in the future.
+    fn is_embedded(&self) -> bool {
+        // TODO: Add support for embedded models in the future.
         false
     }
 

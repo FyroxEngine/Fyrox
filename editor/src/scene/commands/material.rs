@@ -30,7 +30,7 @@ impl SetMaterialPropertyValueCommand {
             .set_property(&self.name, std::mem::replace(&mut self.value, old_value))
             .unwrap();
 
-        if !material.is_procedural() {
+        if !material.is_embedded() {
             let path = material.path().to_path_buf();
             Log::verify(material.save(&path));
         }
@@ -106,7 +106,7 @@ impl SetMaterialShaderCommand {
 
         let mut material = self.material.data_ref();
 
-        if !material.is_procedural() {
+        if !material.is_embedded() {
             let path = material.path().to_path_buf();
             Log::verify(material.save(&path));
         }

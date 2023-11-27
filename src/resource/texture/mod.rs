@@ -252,7 +252,7 @@ pub struct Texture {
     t_wrap_mode: TextureWrapMode,
     mip_count: u32,
     anisotropy: f32,
-    serialize_content: bool,
+    is_embedded: bool,
     data_hash: u64,
     is_render_target: bool,
 }
@@ -284,8 +284,8 @@ impl ResourceData for Texture {
         <Self as TypeUuidProvider>::type_uuid()
     }
 
-    fn is_procedural(&self) -> bool {
-        self.serialize_content
+    fn is_embedded(&self) -> bool {
+        self.is_embedded
     }
 }
 
@@ -310,11 +310,9 @@ impl Visit for Texture {
         self.t_wrap_mode.visit("TWrapMode", &mut region)?;
         self.mip_count.visit("MipCount", &mut region)?;
         self.kind.visit("Kind", &mut region)?;
-        let _ = self
-            .serialize_content
-            .visit("SerializeContent", &mut region);
+        let _ = self.is_embedded.visit("SerializeContent", &mut region);
 
-        if self.serialize_content {
+        if self.is_embedded {
             let mut bytes_view = PodVecView::from_pod_vec(&mut self.bytes);
             bytes_view.visit("Data", &mut region)?;
         }
@@ -342,7 +340,7 @@ impl Default for Texture {
             t_wrap_mode: TextureWrapMode::Repeat,
             mip_count: 1,
             anisotropy: 16.0,
-            serialize_content: false,
+            is_embedded: false,
             data_hash: 0,
             is_render_target: false,
         }
@@ -590,7 +588,7 @@ impl TextureResourceExtension for TextureResource {
             t_wrap_mode: TextureWrapMode::Repeat,
             mip_count: 1,
             anisotropy: 1.0,
-            serialize_content: false,
+            is_embedded: false,
             data_hash: 0,
             is_render_target: true,
         })
@@ -1343,7 +1341,7 @@ impl Texture {
                         height: dds.header.height,
                     }
                 },
-                serialize_content: false,
+                is_embedded: false,
                 is_render_target: false,
             })
         } else {
@@ -1471,7 +1469,7 @@ impl Texture {
                 s_wrap_mode: import_options.s_wrap_mode,
                 t_wrap_mode: import_options.t_wrap_mode,
                 anisotropy: import_options.anisotropy,
-                serialize_content: false,
+                is_embedded: false,
                 is_render_target: false,
             })
         }
@@ -1503,7 +1501,7 @@ impl Texture {
         kind: TextureKind,
         pixel_kind: TexturePixelKind,
         bytes: Vec<u8>,
-        serialize_content: bool,
+        is_embedded: bool,
     ) -> Option<Self> {
         if bytes_in_mip_level(kind, pixel_kind, 0) != bytes.len() as u32 {
             None
@@ -1514,7 +1512,7 @@ impl Texture {
                 data_hash: data_hash(&bytes),
                 bytes: bytes.into(),
                 pixel_kind,
-                serialize_content,
+                is_embedded,
                 ..Default::default()
             })
         }
@@ -1643,8 +1641,8 @@ impl Texture {
     /// Content of procedural textures is saved during serialization and they never resolved
     /// on deserialization. Resolving here means a process of getting correct texture instance
     /// by its path.
-    pub fn is_procedural(&self) -> bool {
-        self.serialize_content
+    pub fn is_embedded(&self) -> bool {
+        self.is_embedded
     }
 
     /// Returns true if the texture is used as render target.
@@ -1716,11 +1714,6 @@ impl Texture {
     /// texture and automatically calculates hash of the data in its destructor.
     pub fn modify(&mut self) -> TextureDataRefMut<'_> {
         TextureDataRefMut { texture: self }
-    }
-
-    /// Returns `true` if the texture is serializing its content, `false` - otherwise.
-    pub fn is_serializing_content(&self) -> bool {
-        self.serialize_content
     }
 }
 

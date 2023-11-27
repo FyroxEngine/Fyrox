@@ -39,7 +39,7 @@ impl Visit for UntypedResource {
         self.0.visit(name, visitor)?;
 
         // Try to restore the shallow handle on deserialization for external resources.
-        if visitor.is_reading() && !self.is_procedural() {
+        if visitor.is_reading() && !self.is_embedded() {
             let resource_manager = visitor
                 .blackboard
                 .get::<ResourceManager>()
@@ -116,9 +116,9 @@ impl UntypedResource {
 
     /// Returns true if the resource is procedural (its data is generated at runtime, not stored in an external
     /// file).
-    pub fn is_procedural(&self) -> bool {
+    pub fn is_embedded(&self) -> bool {
         match *self.0.lock() {
-            ResourceState::Ok(ref data) => data.is_procedural(),
+            ResourceState::Ok(ref data) => data.is_embedded(),
             // Procedural resources must always be in Ok state.
             _ => false,
         }
@@ -253,7 +253,7 @@ mod test {
             Uuid::default()
         }
 
-        fn is_procedural(&self) -> bool {
+        fn is_embedded(&self) -> bool {
             unimplemented!()
         }
     }

@@ -83,8 +83,8 @@ impl ResourceData for CurveResourceState {
         <Self as TypeUuidProvider>::type_uuid()
     }
 
-    fn is_procedural(&self) -> bool {
-        // TODO: Add support for procedural curves in the future.
+    fn is_embedded(&self) -> bool {
+        // TODO: Add support for embedded curves in the future.
         false
     }
 }

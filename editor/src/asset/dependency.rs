@@ -36,16 +36,16 @@ fn build_tree_recursively(node: &ResourceGraphNode, ctx: &mut BuildContext) -> H
         .map(|c| build_tree_recursively(c, ctx))
         .collect();
 
-    let mut procedural = false;
+    let mut embedded = false;
     let data_type = if let ResourceState::Ok(data) = &*node.resource.0.lock() {
-        procedural = data.is_procedural();
+        embedded = data.is_embedded();
         data.type_name().to_string()
     } else {
         "Unknown".to_string()
     };
 
     let path = node.resource.path().to_string_lossy().to_string();
-    let name = if path.is_empty() || procedural {
+    let name = if path.is_empty() || embedded {
         if path.is_empty() {
             "Embedded".to_string()
         } else {

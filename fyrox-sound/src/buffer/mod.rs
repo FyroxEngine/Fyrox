@@ -265,7 +265,7 @@ impl ResourceData for SoundBuffer {
         SOUND_BUFFER_RESOURCE_UUID
     }
 
-    fn is_procedural(&self) -> bool {
-        self.is_procedural
+    fn is_embedded(&self) -> bool {
+        self.is_embedded
     }
 }

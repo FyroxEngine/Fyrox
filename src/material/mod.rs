@@ -397,7 +397,7 @@ impl Default for PropertyValue {
 #[derive(Debug, Clone, Reflect)]
 pub struct Material {
     path: PathBuf,
-    is_procedural: bool,
+    is_embedded: bool,
     shader: ShaderResource,
     properties: FxHashMap<ImmutableString, PropertyValue>,
 }
@@ -407,9 +407,9 @@ impl Visit for Material {
         let mut region = visitor.enter_region(name)?;
 
         let _ = self.path.visit("Path", &mut region);
-        let _ = self.is_procedural.visit("IsProcedural", &mut region);
+        let _ = self.is_embedded.visit("IsProcedural", &mut region);
 
-        if self.is_procedural {
+        if self.is_embedded {
             let mut shader = if region.is_reading() {
                 // It is very important to give a proper default state to the shader resource
                 // here. Its standard default is set to shared "Standard" shader. If it is left
@@ -461,16 +461,16 @@ impl ResourceData for Material {
         <Self as TypeUuidProvider>::type_uuid()
     }
 
-    fn is_procedural(&self) -> bool {
-        self.is_procedural
+    fn is_embedded(&self) -> bool {
+        self.is_embedded
     }
 
     fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
         let mut visitor = Visitor::new();
-        let old = std::mem::replace(&mut self.is_procedural, true);
+        let old = std::mem::replace(&mut self.is_embedded, true);
         self.visit("Material", &mut visitor)?;
         visitor.save_binary(path)?;
-        self.is_procedural = old;
+        self.is_embedded = old;
         Ok(())
     }
 }
@@ -640,7 +640,7 @@ impl Material {
         Self {
             path: Default::default(),
             shader,
-            is_procedural: true,
+            is_embedded: true,
             properties: property_values,
         }
     }
@@ -657,7 +657,7 @@ impl Material {
         let content = io.load_file(path.as_ref()).await?;
         let mut material = Material {
             path: Default::default(),
-            is_procedural: false,
+            is_embedded: false,
             shader: Default::default(),
             properties: Default::default(),
         };
@@ -665,7 +665,7 @@ impl Material {
         visitor.blackboard.register(Arc::new(resource_manager));
         material.visit("Material", &mut visitor)?;
         // This could be changed during deserialization, we must keep the flag `false`.
-        material.is_procedural = false;
+        material.is_embedded = false;
         material.path = path.as_ref().to_owned();
 
         Ok(material)
@@ -901,11 +901,11 @@ pub trait MaterialResourceExtension {
     fn deep_copy(&self) -> MaterialResource;
 
     /// Creates a deep copy of the material resource and marks it as procedural.
-    fn deep_copy_as_procedural(&self) -> MaterialResource {
+    fn deep_copy_as_embedded(&self) -> MaterialResource {
         let material = self.deep_copy();
         if let ResourceStateRefMut::Ok(material_data) = material.state().get_mut() {
             material_data.path.clear();
-            material_data.is_procedural = true;
+            material_data.is_embedded = true;
         }
         material
     }

@@ -198,7 +198,7 @@ pub struct SurfaceData {
     pub blend_shapes_container: Option<BlendShapesContainer>,
     // If true - indicates that surface was generated and does not have reference
     // resource. Procedural data will be serialized.
-    is_procedural: bool,
+    is_embedded: bool,
     pub(crate) cache_entry: AtomicIndex,
 }
 
@@ -206,16 +206,12 @@ impl SurfaceData {
     /// Creates new data source using given vertices and indices. `is_procedural` flags affects serialization - when it
     /// is `true` the content of the vertex and triangle buffers will be serialized. It is useful if you need to save
     /// surfaces with procedural content.
-    pub fn new(
-        vertex_buffer: VertexBuffer,
-        triangles: TriangleBuffer,
-        is_procedural: bool,
-    ) -> Self {
+    pub fn new(vertex_buffer: VertexBuffer, triangles: TriangleBuffer, is_embedded: bool) -> Self {
         Self {
             vertex_buffer,
             geometry_buffer: triangles,
             blend_shapes_container: None,
-            is_procedural,
+            is_embedded,
             cache_entry: AtomicIndex::unassigned(),
         }
     }
@@ -251,7 +247,7 @@ impl SurfaceData {
 
     /// Converts raw mesh into "renderable" mesh. It is useful to build procedural meshes. See [`RawMesh`] docs for more
     /// info.
-    pub fn from_raw_mesh<T>(raw: RawMesh<T>, is_procedural: bool) -> Self
+    pub fn from_raw_mesh<T>(raw: RawMesh<T>, is_embedded: bool) -> Self
     where
         T: VertexTrait,
     {
@@ -259,7 +255,7 @@ impl SurfaceData {
             vertex_buffer: VertexBuffer::new(raw.vertices.len(), raw.vertices).unwrap(),
             geometry_buffer: TriangleBuffer::new(raw.triangles),
             blend_shapes_container: Default::default(),
-            is_procedural,
+            is_embedded,
             cache_entry: AtomicIndex::unassigned(),
         }
     }
@@ -1012,13 +1008,8 @@ impl SurfaceData {
 
     /// Marks surface's content as procedural (created from code) or not. Content of procedural surfaces will
     /// be serialized. It is useful if you need to save procedural surfaces to disk or some other storage.
-    pub fn set_procedural(&mut self, procedural: bool) {
-        self.is_procedural = procedural;
-    }
-
-    /// Returns `true` if surface's content was created from code (procedural), `false` - otherwise.
-    pub fn is_procedural(&self) -> bool {
-        self.is_procedural
+    pub fn set_embedded(&mut self, is_embedded: bool) {
+        self.is_embedded = is_embedded;
     }
 }
 
@@ -1026,9 +1017,9 @@ impl Visit for SurfaceData {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        self.is_procedural.visit("IsProcedural", &mut region)?;
+        self.is_embedded.visit("IsProcedural", &mut region)?;
 
-        if self.is_procedural {
+        if self.is_embedded {
             self.vertex_buffer.visit("VertexBuffer", &mut region)?;
             self.geometry_buffer.visit("GeometryBuffer", &mut region)?
         }
@@ -1271,7 +1262,7 @@ impl Clone for Surface {
             data: self.data.clone(),
             material: if *self.unique_material {
                 // Create unique instance.
-                self.material.deep_copy_as_procedural().into()
+                self.material.deep_copy_as_embedded().into()
             } else {
                 // Share the material.
                 self.material.clone()

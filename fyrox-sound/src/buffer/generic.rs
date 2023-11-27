@@ -44,7 +44,8 @@ pub struct GenericBuffer {
     #[visit(skip)]
     pub(crate) channel_duration_in_samples: usize,
     #[visit(optional)]
-    pub(crate) is_procedural: bool,
+    #[visit(rename = "IsProcedural")]
+    pub(crate) is_embedded: bool,
 }
 
 impl GenericBuffer {
@@ -78,13 +79,13 @@ impl GenericBuffer {
                         channel_count,
                         sample_rate,
                         external_source_path: Default::default(),
-                        is_procedural: true,
+                        is_embedded: true,
                     })
                 }
             }
             DataSource::RawStreaming(_) => Err(source),
             _ => {
-                let (external_source_path, is_procedural) =
+                let (external_source_path, is_embedded) =
                     if let DataSource::File { path, .. } = &source {
                         (path.clone(), false)
                     } else {
@@ -120,7 +121,7 @@ impl GenericBuffer {
                     channel_duration_in_samples: decoder.channel_duration_in_samples(),
                     samples: decoder.into_samples(),
                     external_source_path,
-                    is_procedural,
+                    is_embedded,
                 })
             }
         }
