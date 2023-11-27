@@ -1,3 +1,0 @@
-- embed - for stuff like icons and fonts that are embeded into binary
-- lib - stuff needed in programm library. For example, debug config.
-- etc - for everything that doesn't fit into this categories. for example, icons for system launchpad.

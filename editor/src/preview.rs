@@ -200,7 +200,7 @@ impl PreviewPanel {
                                                         .with_margin(Thickness::uniform(2.0)),
                                                 )
                                                 .with_opt_texture(load_image(include_bytes!(
-                                                    "../resources/embed/fit.png"
+                                                    "../resources/fit.png"
                                                 )))
                                                 .build(ctx),
                                             )

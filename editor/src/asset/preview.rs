@@ -152,7 +152,7 @@ impl AssetPreview for SoundPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<SharedTexture> {
-        load_image(include_bytes!("../../resources/embed/sound.png"))
+        load_image(include_bytes!("../../resources/sound.png"))
     }
 }
 
@@ -177,7 +177,7 @@ impl AssetPreview for ModelPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<SharedTexture> {
-        load_image(include_bytes!("../../resources/embed/model.png"))
+        load_image(include_bytes!("../../resources/model.png"))
     }
 }
 
@@ -213,7 +213,7 @@ impl AssetPreview for ShaderPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<SharedTexture> {
-        load_image(include_bytes!("../../resources/embed/shader.png"))
+        load_image(include_bytes!("../../resources/shader.png"))
     }
 }
 
@@ -244,7 +244,7 @@ impl AssetPreview for MaterialPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<SharedTexture> {
-        load_image(include_bytes!("../../resources/embed/material.png"))
+        load_image(include_bytes!("../../resources/material.png"))
     }
 }
 
@@ -265,7 +265,7 @@ impl AssetPreview for HrirPreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<SharedTexture> {
-        load_image(include_bytes!("../../resources/embed/hrir.png"))
+        load_image(include_bytes!("../../resources/hrir.png"))
     }
 }
 
@@ -286,6 +286,6 @@ impl AssetPreview for CurvePreview {
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
     ) -> Option<SharedTexture> {
-        load_image(include_bytes!("../../resources/embed/curve.png"))
+        load_image(include_bytes!("../../resources/curve.png"))
     }
 }

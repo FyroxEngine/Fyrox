@@ -31,8 +31,8 @@ struct OverlayShader {
 
 impl OverlayShader {
     pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
-        let fragment_source = include_str!("../resources/embed/shaders/overlay_fs.glsl");
-        let vertex_source = include_str!("../resources/embed/shaders/overlay_vs.glsl");
+        let fragment_source = include_str!("../resources/shaders/overlay_fs.glsl");
+        let vertex_source = include_str!("../resources/shaders/overlay_vs.glsl");
         let program =
             GpuProgram::from_source(state, "OverlayShader", vertex_source, fragment_source)?;
         Ok(Self {
@@ -69,14 +69,14 @@ impl OverlayRenderPass {
             ),
             shader: OverlayShader::new(state).unwrap(),
             sound_icon: TextureResource::load_from_memory(
-                include_bytes!("../resources/embed/sound_source.png"),
+                include_bytes!("../resources/sound_source.png"),
                 TextureImportOptions::default()
                     .with_compression(CompressionOptions::NoCompression)
                     .with_minification_filter(TextureMinificationFilter::Linear),
             )
             .unwrap(),
             light_icon: TextureResource::load_from_memory(
-                include_bytes!("../resources/embed/light_source.png"),
+                include_bytes!("../resources/light_source.png"),
                 TextureImportOptions::default()
                     .with_compression(CompressionOptions::NoCompression)
                     .with_minification_filter(TextureMinificationFilter::Linear),

@@ -517,7 +517,7 @@ impl Toolbar {
                                 .with_height(16.0),
                         )
                         .with_opt_texture(load_image(include_bytes!(
-                            "../../resources/embed/collapse.png"
+                            "../../resources/collapse.png"
                         )))
                         .build(ctx),
                     )
@@ -538,9 +538,7 @@ impl Toolbar {
                                 .with_width(16.0)
                                 .with_height(16.0),
                         )
-                        .with_opt_texture(load_image(include_bytes!(
-                            "../../resources/embed/expand.png"
-                        )))
+                        .with_opt_texture(load_image(include_bytes!("../../resources/expand.png")))
                         .build(ctx),
                     )
                     .build(ctx);
@@ -642,7 +640,7 @@ impl TrackList {
                                     22.0,
                                     22.0,
                                     load_image(include_bytes!(
-                                        "../../resources/embed/property_track.png"
+                                        "../../resources/property_track.png"
                                     )),
                                     "Add Property Track.\n\
                                     Create generic property binding to a numeric property.",
@@ -655,7 +653,7 @@ impl TrackList {
                                     22.0,
                                     22.0,
                                     load_image(include_bytes!(
-                                        "../../resources/embed/position_track.png"
+                                        "../../resources/position_track.png"
                                     )),
                                     "Add Position Track.\n\
                                     Creates a binding to a local position of a node. \
@@ -669,9 +667,7 @@ impl TrackList {
                                     ctx,
                                     22.0,
                                     22.0,
-                                    load_image(include_bytes!(
-                                        "../../resources/embed/scaling_track.png"
-                                    )),
+                                    load_image(include_bytes!("../../resources/scaling_track.png")),
                                     "Add Scale Track.\n\
                                     Creates a binding to a local scale of a node. \
                                     Such binding is much more performant than generic \
@@ -685,7 +681,7 @@ impl TrackList {
                                     22.0,
                                     22.0,
                                     load_image(include_bytes!(
-                                        "../../resources/embed/rotation_track.png"
+                                        "../../resources/rotation_track.png"
                                     )),
                                     "Add Rotation Track.\n\
                                     Creates a binding to a local rotation of a node. \

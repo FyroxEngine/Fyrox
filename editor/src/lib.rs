@@ -172,7 +172,7 @@ pub fn load_image(data: &[u8]) -> Option<draw::SharedTexture> {
 lazy_static! {
     static ref GIZMO_SHADER: ShaderResource = {
         ShaderResource::from_str(
-            include_str!("../resources/embed/shaders/gizmo.shader",),
+            include_str!("../resources/shaders/gizmo.shader",),
             PathBuf::default(),
         )
         .unwrap()
@@ -769,7 +769,7 @@ impl Editor {
         let graphics_context = engine.graphics_context.as_initialized_mut();
 
         if let Ok(icon_img) = TextureResource::load_from_memory(
-            include_bytes!("../resources/embed/icon.png"),
+            include_bytes!("../resources/icon.png"),
             TextureImportOptions::default()
                 .with_compression(CompressionOptions::NoCompression)
                 .with_minification_filter(TextureMinificationFilter::Linear),
@@ -807,7 +807,7 @@ impl Editor {
 
         engine.user_interface.default_font.set(
             Font::from_memory(
-                include_bytes!("../resources/embed/arial.ttf").as_slice(),
+                include_bytes!("../resources/arial.ttf").as_slice(),
                 14.0,
                 Font::default_char_set(),
             )

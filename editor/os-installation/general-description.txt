@@ -1,5 +1,0 @@
-A scene editor for Fyrox game engine.
-
-Fyrox is a feature rich game engine made in rust, which allows
-you to build shooters, platfomers, sandboxes and more
-in advanced 3D and 2D!

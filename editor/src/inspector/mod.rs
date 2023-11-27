@@ -185,9 +185,7 @@ impl Inspector {
                                             ctx,
                                             18.0,
                                             18.0,
-                                            load_image(include_bytes!(
-                                                "../../resources/embed/doc.png"
-                                            )),
+                                            load_image(include_bytes!("../../resources/doc.png")),
                                             "Open Documentation",
                                         );
                                         ctx[docs_button].set_column(1);

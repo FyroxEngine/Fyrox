@@ -279,7 +279,7 @@ where
                                         .with_margin(Thickness::uniform(1.0)),
                                 )
                                 .with_opt_texture(load_image(include_bytes!(
-                                    "../../../resources/embed/sound_source.png"
+                                    "../../../resources/sound_source.png"
                                 )))
                                 .build(ctx),
                             )

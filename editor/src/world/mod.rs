@@ -84,17 +84,17 @@ fn make_graph_node_item(
     is_expanded: bool,
 ) -> Handle<UiNode> {
     let icon = if node.is_point_light() || node.is_directional_light() || node.is_spot_light() {
-        load_image(include_bytes!("../../resources/embed/light.png"))
+        load_image(include_bytes!("../../resources/light.png"))
     } else if node.is_joint() || node.is_joint2d() {
-        load_image(include_bytes!("../../resources/embed/joint.png"))
+        load_image(include_bytes!("../../resources/joint.png"))
     } else if node.is_rigid_body() || node.is_rigid_body2d() {
-        load_image(include_bytes!("../../resources/embed/rigid_body.png"))
+        load_image(include_bytes!("../../resources/rigid_body.png"))
     } else if node.is_collider() || node.is_collider2d() {
-        load_image(include_bytes!("../../resources/embed/collider.png"))
+        load_image(include_bytes!("../../resources/collider.png"))
     } else if node.is_sound() {
-        load_image(include_bytes!("../../resources/embed/sound_source.png"))
+        load_image(include_bytes!("../../resources/sound_source.png"))
     } else {
-        load_image(include_bytes!("../../resources/embed/cube.png"))
+        load_image(include_bytes!("../../resources/cube.png"))
     };
 
     SceneItemBuilder::new(
@@ -209,7 +209,7 @@ impl WorldViewer {
                                             size,
                                             size,
                                             load_image(include_bytes!(
-                                                "../../resources/embed/collapse.png"
+                                                "../../resources/collapse.png"
                                             )),
                                             "Collapse Everything",
                                         );
@@ -221,7 +221,7 @@ impl WorldViewer {
                                             size,
                                             size,
                                             load_image(include_bytes!(
-                                                "../../resources/embed/expand.png"
+                                                "../../resources/expand.png"
                                             )),
                                             "Expand Everything",
                                         );
@@ -233,7 +233,7 @@ impl WorldViewer {
                                             size,
                                             size,
                                             load_image(include_bytes!(
-                                                "../../resources/embed/locate.png"
+                                                "../../resources/locate.png"
                                             )),
                                             "Locate Selection",
                                         );

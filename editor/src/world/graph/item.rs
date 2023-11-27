@@ -156,7 +156,7 @@ impl Control for SceneItem {
                                 .on_column(2),
                         )
                         .with_opt_texture(load_image(include_bytes!(
-                            "../../../resources/embed/warning.png"
+                            "../../../resources/warning.png"
                         )))
                         .build(&mut ui.build_ctx());
 

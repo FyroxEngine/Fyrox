@@ -319,7 +319,7 @@ impl HandlePropertyEditorBuilder {
                             .on_column(1),
                     )
                     .with_content(make_icon(
-                        include_bytes!("../../../resources/embed/pick.png"),
+                        include_bytes!("../../../resources/pick.png"),
                         Color::opaque(0, 180, 0),
                         ctx,
                     ))
@@ -335,7 +335,7 @@ impl HandlePropertyEditorBuilder {
                             .on_column(2),
                     )
                     .with_content(make_icon(
-                        include_bytes!("../../../resources/embed/locate.png"),
+                        include_bytes!("../../../resources/locate.png"),
                         Color::opaque(180, 180, 180),
                         ctx,
                     ))
@@ -351,7 +351,7 @@ impl HandlePropertyEditorBuilder {
                             .on_column(3),
                     )
                     .with_content(make_icon(
-                        include_bytes!("../../../resources/embed/select_in_wv.png"),
+                        include_bytes!("../../../resources/select_in_wv.png"),
                         Color::opaque(180, 180, 180),
                         ctx,
                     ))
@@ -367,7 +367,7 @@ impl HandlePropertyEditorBuilder {
                             .on_column(4),
                     )
                     .with_content(make_icon(
-                        include_bytes!("../../../resources/embed/cross.png"),
+                        include_bytes!("../../../resources/cross.png"),
                         Color::opaque(180, 0, 0),
                         ctx,
                     ))

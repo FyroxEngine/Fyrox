@@ -188,7 +188,7 @@ impl SceneViewer {
                 .with_child({
                     select_mode = make_interaction_mode_button(
                         ctx,
-                        include_bytes!("../../resources/embed/select.png"),
+                        include_bytes!("../../resources/select.png"),
                         select_mode_tooltip,
                         true,
                     );
@@ -197,7 +197,7 @@ impl SceneViewer {
                 .with_child({
                     move_mode = make_interaction_mode_button(
                         ctx,
-                        include_bytes!("../../resources/embed/move_arrow.png"),
+                        include_bytes!("../../resources/move_arrow.png"),
                         move_mode_tooltip,
                         false,
                     );
@@ -206,7 +206,7 @@ impl SceneViewer {
                 .with_child({
                     rotate_mode = make_interaction_mode_button(
                         ctx,
-                        include_bytes!("../../resources/embed/rotate_arrow.png"),
+                        include_bytes!("../../resources/rotate_arrow.png"),
                         rotate_mode_tooltip,
                         false,
                     );
@@ -215,7 +215,7 @@ impl SceneViewer {
                 .with_child({
                     scale_mode = make_interaction_mode_button(
                         ctx,
-                        include_bytes!("../../resources/embed/scale_arrow.png"),
+                        include_bytes!("../../resources/scale_arrow.png"),
                         scale_mode_tooltip,
                         false,
                     );
@@ -224,7 +224,7 @@ impl SceneViewer {
                 .with_child({
                     navmesh_mode = make_interaction_mode_button(
                         ctx,
-                        include_bytes!("../../resources/embed/navmesh.png"),
+                        include_bytes!("../../resources/navmesh.png"),
                         navmesh_mode_tooltip,
                         false,
                     );
@@ -233,7 +233,7 @@ impl SceneViewer {
                 .with_child({
                     terrain_mode = make_interaction_mode_button(
                         ctx,
-                        include_bytes!("../../resources/embed/terrain.png"),
+                        include_bytes!("../../resources/terrain.png"),
                         terrain_mode_tooltip,
                         false,
                     );
@@ -321,7 +321,7 @@ impl SceneViewer {
                                             ))),
                                     )
                                     .with_opt_texture(load_image(include_bytes!(
-                                        "../../resources/embed/play.png"
+                                        "../../resources/play.png"
                                     )))
                                     .build(ctx),
                                 )
@@ -346,7 +346,7 @@ impl SceneViewer {
                                             ))),
                                     )
                                     .with_opt_texture(load_image(include_bytes!(
-                                        "../../resources/embed/stop.png"
+                                        "../../resources/stop.png"
                                     )))
                                     .build(ctx),
                                 )

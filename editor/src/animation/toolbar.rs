@@ -446,7 +446,7 @@ impl Toolbar {
                                             .with_background(BRUSH_BRIGHT),
                                     )
                                     .with_opt_texture(load_image(include_bytes!(
-                                        "../../resources/embed/import.png"
+                                        "../../resources/import.png"
                                     )))
                                     .build(ctx),
                                 )
@@ -476,7 +476,7 @@ impl Toolbar {
                                             .with_background(BRUSH_BRIGHT),
                                     )
                                     .with_opt_texture(load_image(include_bytes!(
-                                        "../../resources/embed/reimport.png"
+                                        "../../resources/reimport.png"
                                     )))
                                     .build(ctx),
                                 )
@@ -505,7 +505,7 @@ impl Toolbar {
                                             .with_background(BRUSH_BRIGHT),
                                     )
                                     .with_opt_texture(load_image(include_bytes!(
-                                        "../../resources/embed/rename.png"
+                                        "../../resources/rename.png"
                                     )))
                                     .build(ctx),
                                 )
@@ -560,7 +560,7 @@ impl Toolbar {
                                             .with_background(BRUSH_BRIGHT),
                                     )
                                     .with_opt_texture(load_image(include_bytes!(
-                                        "../../resources/embed/copy.png"
+                                        "../../resources/copy.png"
                                     )))
                                     .build(ctx),
                                 )
@@ -616,7 +616,7 @@ impl Toolbar {
                                         .with_background(BRUSH_BRIGHT),
                                 )
                                 .with_opt_texture(load_image(include_bytes!(
-                                    "../../resources/embed/speed.png"
+                                    "../../resources/speed.png"
                                 )))
                                 .build(ctx),
                             )
@@ -645,7 +645,7 @@ impl Toolbar {
                                         .with_background(BRUSH_BRIGHT),
                                 )
                                 .with_opt_texture(load_image(include_bytes!(
-                                    "../../resources/embed/time.png"
+                                    "../../resources/time.png"
                                 )))
                                 .build(ctx),
                             )

@@ -1,1 +1,0 @@
-A scene editor for Fyrox game engine
