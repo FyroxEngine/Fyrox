@@ -174,6 +174,7 @@ lazy_static! {
         ShaderResource::from_str(
             include_str!("../resources/shaders/gizmo.shader",),
             PathBuf::default(),
+            false,
         )
         .unwrap()
     };

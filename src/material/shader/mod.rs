@@ -344,10 +344,9 @@ impl Visit for Shader {
         drop(region);
 
         if visitor.is_reading() {
-            for (path, src) in STANDARD_SHADER_NAMES.iter().zip(STANDARD_SHADER_SOURCES) {
+            for path in STANDARD_SHADER_NAMES.iter() {
                 if self.path == Path::new(path) {
-                    self.definition = ShaderDefinition::from_str(src).unwrap();
-                    self.is_procedural = true;
+                    self.is_procedural = false;
                     break;
                 }
             }
@@ -543,12 +542,16 @@ impl Shader {
         })
     }
 
-    pub(crate) fn from_str<P: AsRef<Path>>(str: &str, path: P) -> Result<Self, ShaderError> {
+    pub(crate) fn from_str<P: AsRef<Path>>(
+        str: &str,
+        path: P,
+        is_procedural: bool,
+    ) -> Result<Self, ShaderError> {
         Ok(Self {
             path: path.as_ref().to_owned(),
             definition: ShaderDefinition::from_str(str)?,
             cache_index: Default::default(),
-            is_procedural: true,
+            is_procedural,
         })
     }
 }
@@ -621,7 +624,11 @@ pub type ShaderResource = Resource<Shader>;
 pub trait ShaderResourceExtension: Sized {
     /// Creates new shader from given string. Input string must have the format defined in
     /// examples for [`ShaderResource`].
-    fn from_str<P: AsRef<Path>>(str: &str, path: P) -> Result<Self, ShaderError>;
+    fn from_str<P: AsRef<Path>>(
+        str: &str,
+        path: P,
+        is_procedural: bool,
+    ) -> Result<Self, ShaderError>;
 
     /// Returns an instance of standard shader.
     fn standard() -> Self;
@@ -648,8 +655,16 @@ pub trait ShaderResourceExtension: Sized {
 impl ShaderResourceExtension for ShaderResource {
     /// Creates new shader from given string. Input string must have the format defined in
     /// examples for [`ShaderResource`].
-    fn from_str<P: AsRef<Path>>(str: &str, path: P) -> Result<Self, ShaderError> {
-        Ok(Resource::new_ok(Shader::from_str(str, path.as_ref())?))
+    fn from_str<P: AsRef<Path>>(
+        str: &str,
+        path: P,
+        is_procedural: bool,
+    ) -> Result<Self, ShaderError> {
+        Ok(Resource::new_ok(Shader::from_str(
+            str,
+            path.as_ref(),
+            is_procedural,
+        )?))
     }
 
     /// Returns an instance of standard shader.
@@ -697,13 +712,13 @@ impl ShaderResourceExtension for ShaderResource {
 
 lazy_static! {
     static ref STANDARD: ShaderResource = ShaderResource::new_ok(
-        Shader::from_str(STANDARD_SHADER_SRC, STANDARD_SHADER_NAME).unwrap(),
+        Shader::from_str(STANDARD_SHADER_SRC, STANDARD_SHADER_NAME, false).unwrap(),
     );
 }
 
 lazy_static! {
     static ref STANDARD_2D: ShaderResource = ShaderResource::new_ok(
-        Shader::from_str(STANDARD_2D_SHADER_SRC, STANDARD_2D_SHADER_NAME).unwrap(),
+        Shader::from_str(STANDARD_2D_SHADER_SRC, STANDARD_2D_SHADER_NAME, false).unwrap(),
     );
 }
 
@@ -711,7 +726,8 @@ lazy_static! {
     static ref STANDARD_PARTICLE_SYSTEM: ShaderResource = ShaderResource::new_ok(
         Shader::from_str(
             STANDARD_PARTICLE_SYSTEM_SHADER_SRC,
-            STANDARD_PARTICLE_SYSTEM_SHADER_NAME
+            STANDARD_PARTICLE_SYSTEM_SHADER_NAME,
+            false
         )
         .unwrap(),
     );
@@ -719,19 +735,34 @@ lazy_static! {
 
 lazy_static! {
     static ref STANDARD_SPRITE: ShaderResource = ShaderResource::new_ok(
-        Shader::from_str(STANDARD_SPRITE_SHADER_SRC, STANDARD_SPRITE_SHADER_NAME).unwrap(),
+        Shader::from_str(
+            STANDARD_SPRITE_SHADER_SRC,
+            STANDARD_SPRITE_SHADER_NAME,
+            false
+        )
+        .unwrap(),
     );
 }
 
 lazy_static! {
     static ref STANDARD_TERRAIN: ShaderResource = ShaderResource::new_ok(
-        Shader::from_str(STANDARD_TERRAIN_SHADER_SRC, STANDARD_TERRAIN_SHADER_NAME).unwrap(),
+        Shader::from_str(
+            STANDARD_TERRAIN_SHADER_SRC,
+            STANDARD_TERRAIN_SHADER_NAME,
+            false
+        )
+        .unwrap(),
     );
 }
 
 lazy_static! {
     static ref STANDARD_TWOSIDES: ShaderResource = ShaderResource::new_ok(
-        Shader::from_str(STANDARD_TWOSIDES_SHADER_SRC, STANDARD_TWOSIDES_SHADER_NAME).unwrap(),
+        Shader::from_str(
+            STANDARD_TWOSIDES_SHADER_SRC,
+            STANDARD_TWOSIDES_SHADER_NAME,
+            false
+        )
+        .unwrap(),
     );
 }
 
