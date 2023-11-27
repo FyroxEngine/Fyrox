@@ -38,18 +38,15 @@ impl Visit for UntypedResource {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         self.0.visit(name, visitor)?;
 
-        if visitor.is_reading() {
-            // Try to restore the shallow handle.
+        // Try to restore the shallow handle on deserialization for external resources.
+        if visitor.is_reading() && !self.is_procedural() {
             let resource_manager = visitor
                 .blackboard
                 .get::<ResourceManager>()
                 .expect("Resource manager must be available when deserializing resources!");
 
             let path = self.path();
-            let is_procedural = self.is_procedural();
-            if !is_procedural {
-                self.0 = resource_manager.request_untyped(path).0;
-            }
+            self.0 = resource_manager.request_untyped(path).0;
         }
 
         Ok(())
