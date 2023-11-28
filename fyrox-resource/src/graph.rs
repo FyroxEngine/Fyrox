@@ -45,7 +45,7 @@ impl ResourceGraphNode {
         *out += &format!(
             "{}{}\n",
             String::from('\t').repeat(level),
-            self.resource.path().to_string_lossy()
+            self.resource.kind()
         );
 
         for child in self.children.iter() {

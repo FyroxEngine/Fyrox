@@ -65,11 +65,11 @@ use fyrox_core::{
     visitor::{Visit, VisitResult, Visitor},
     TypeUuidProvider,
 };
+use fyrox_resource::untyped::ResourceKind;
 use fyrox_resource::{
-    event::ResourceEventBroadcaster,
     io::ResourceIo,
-    loader::{BoxedLoaderFuture, ResourceLoader},
-    untyped::UntypedResource,
+    loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
+    state::LoadError,
     Resource, ResourceData,
 };
 use hrtf::HrirSphere;
@@ -225,45 +225,14 @@ impl ResourceLoader for HrirSphereLoader {
         <HrirSphereResourceData as TypeUuidProvider>::type_uuid()
     }
 
-    fn load(
-        &self,
-        hrir_sphere: UntypedResource,
-        event_broadcaster: ResourceEventBroadcaster,
-        reload: bool,
-        io: Arc<dyn ResourceIo>,
-    ) -> BoxedLoaderFuture {
+    fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
         Box::pin(async move {
-            let path = hrir_sphere.path().to_path_buf();
-
-            match io.file_reader(&path).await {
-                Ok(reader) => match HrirSphere::new(reader, context::SAMPLE_RATE) {
-                    Ok(sphere) => {
-                        Log::info(format!("HRIR sphere {:?} is loaded!", path));
-
-                        hrir_sphere.commit_ok(HrirSphereResourceData {
-                            hrir_sphere: Some(sphere),
-                        });
-
-                        event_broadcaster.broadcast_loaded_or_reloaded(hrir_sphere, reload);
-                    }
-                    Err(error) => {
-                        Log::err(format!(
-                            "Unable to load HRIR sphere from {:?}! Reason {:?}",
-                            path, error
-                        ));
-
-                        hrir_sphere.commit_error(error);
-                    }
-                },
-                Err(error) => {
-                    Log::err(format!(
-                        "Unable to load HRIR sphere from {:?}! Reason {:?}",
-                        path, error
-                    ));
-
-                    hrir_sphere.commit_error(error);
-                }
-            }
+            let reader = io.file_reader(&path).await.map_err(|e| LoadError::new(e))?;
+            let hrir_sphere =
+                HrirSphere::new(reader, context::SAMPLE_RATE).map_err(|e| LoadError::new(e))?;
+            Ok(LoaderPayload::new(HrirSphereResourceData {
+                hrir_sphere: Some(hrir_sphere),
+            }))
         })
     }
 }
@@ -275,17 +244,16 @@ pub type HrirSphereResource = Resource<HrirSphereResourceData>;
 pub trait HrirSphereResourceExt {
     /// Creates a new HRIR sphere resource directly from pre-loaded HRIR sphere. It could be used if you
     /// do not use a resource manager, but want to load HRIR spheres manually.
-    fn from_hrir_sphere(hrir_sphere: HrirSphere, path: PathBuf, is_embedded: bool) -> Self;
+    fn from_hrir_sphere(hrir_sphere: HrirSphere, kind: ResourceKind) -> Self;
 }
 
 impl HrirSphereResourceExt for HrirSphereResource {
-    fn from_hrir_sphere(hrir_sphere: HrirSphere, path: PathBuf, is_embedded: bool) -> Self {
+    fn from_hrir_sphere(hrir_sphere: HrirSphere, kind: ResourceKind) -> Self {
         Resource::new_ok(
-            path,
+            kind,
             HrirSphereResourceData {
                 hrir_sphere: Some(hrir_sphere),
             },
-            is_embedded,
         )
     }
 }

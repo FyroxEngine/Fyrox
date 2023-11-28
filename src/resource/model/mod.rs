@@ -211,7 +211,7 @@ impl ModelResourceExtension for ModelResource {
         let mut retargetted_animations = Vec::new();
 
         let mut header = self.state();
-        let self_path = header.path().to_owned();
+        let self_kind = header.kind().clone();
         if let Some(model) = header.data() {
             for src_node_ref in model.scene.graph.linear_iter() {
                 if let Some(src_player) = src_node_ref.query_component_ref::<AnimationPlayer>() {
@@ -236,7 +236,7 @@ impl ModelResourceExtension for ModelResource {
                                         MessageKind::Error,
                                         format!(
                                             "Failed to retarget animation {:?} for node {}",
-                                            self_path,
+                                            self_kind,
                                             ref_node.name()
                                         ),
                                     );

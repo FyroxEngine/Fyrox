@@ -277,9 +277,8 @@ impl UiRenderer {
                         ) {
                             font.texture =
                                 Some(SharedTexture(Arc::new(Mutex::new(ResourceHeader {
-                                    path: Default::default(),
+                                    kind: Default::default(),
                                     type_uuid: details.type_uuid(),
-                                    is_embedded: true,
                                     state: ResourceState::new_ok(details),
                                 }))));
                         }

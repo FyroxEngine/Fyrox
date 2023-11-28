@@ -199,21 +199,17 @@ pub trait SoundBufferResourceExtension {
 impl SoundBufferResourceExtension for SoundBufferResource {
     fn new_streaming(data_source: DataSource) -> Result<Resource<SoundBuffer>, DataSource> {
         let path = data_source.path_owned();
-        let is_embedded = path.is_none();
         Ok(Resource::new_ok(
-            path.unwrap_or_default(),
+            path.into(),
             SoundBuffer::Streaming(StreamingBuffer::new(data_source)?),
-            is_embedded,
         ))
     }
 
     fn new_generic(data_source: DataSource) -> Result<Resource<SoundBuffer>, DataSource> {
         let path = data_source.path_owned();
-        let is_embedded = path.is_none();
         Ok(Resource::new_ok(
-            path.unwrap_or_default(),
+            path.into(),
             SoundBuffer::Generic(GenericBuffer::new(data_source)?),
-            is_embedded,
         ))
     }
 }

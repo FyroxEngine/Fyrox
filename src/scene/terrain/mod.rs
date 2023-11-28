@@ -37,6 +37,7 @@ use crate::{
     },
     utils::{self},
 };
+use fyrox_resource::untyped::ResourceKind;
 use half::f16;
 use image::{imageops::FilterType, ImageBuffer, Luma};
 use std::{
@@ -75,11 +76,7 @@ pub struct Layer {
 impl Default for Layer {
     fn default() -> Self {
         Self {
-            material: MaterialResource::new_ok(
-                Default::default(),
-                Material::standard_terrain(),
-                true,
-            ),
+            material: MaterialResource::new_ok(Default::default(), Material::standard_terrain()),
             mask_property_name: "maskTexture".to_string(),
             height_map_property_name: "heightMapTexture".to_string(),
             node_uv_offsets_property_name: "nodeUvOffsets".to_string(),
@@ -113,7 +110,7 @@ fn make_height_map_texture_internal(
     data.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
     data.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
 
-    Some(Resource::new_ok(Default::default(), data, true))
+    Some(Resource::new_ok(Default::default(), data))
 }
 
 fn make_height_map_texture(height_map: Vec<f32>, size: Vector2<u32>) -> TextureResource {
@@ -665,11 +662,7 @@ struct OldLayer {
 impl Default for OldLayer {
     fn default() -> Self {
         Self {
-            material: MaterialResource::new_ok(
-                Default::default(),
-                Material::standard_terrain(),
-                true,
-            ),
+            material: MaterialResource::new_ok(Default::default(), Material::standard_terrain()),
             mask_property_name: "maskTexture".to_string(),
             chunk_masks: Default::default(),
         }
@@ -753,7 +746,7 @@ impl Visit for Terrain {
                     }
 
                     self.layers.push(Layer {
-                        material: MaterialResource::new_ok(Default::default(), new_material, true),
+                        material: MaterialResource::new_ok(Default::default(), new_material),
                         mask_property_name: layer.mask_property_name,
                         ..Default::default()
                     });
@@ -1329,7 +1322,7 @@ impl Terrain {
                     },
                     data.pixel_kind(),
                     new_mask,
-                    true,
+                    ResourceKind::Embedded,
                 )
                 .unwrap();
 
@@ -1526,8 +1519,7 @@ impl NodeTrait for Terrain {
                         "Unable to set node uv offsets for terrain material.",
                     );
 
-                    let material =
-                        MaterialResource::new_ok(Default::default(), material.clone(), true);
+                    let material = MaterialResource::new_ok(Default::default(), material.clone());
 
                     let node_transform = chunk_transform
                         * Matrix4::new_translation(&Vector3::new(
@@ -1685,8 +1677,7 @@ fn create_layer_mask(width: u32, height: u32, value: u8) -> TextureResource {
         TextureKind::Rectangle { width, height },
         TexturePixelKind::R8,
         vec![value; (width * height) as usize],
-        // Content of mask will be explicitly serialized.
-        true,
+        ResourceKind::Embedded,
     )
     .unwrap();
 

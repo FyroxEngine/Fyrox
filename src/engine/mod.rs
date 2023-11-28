@@ -46,7 +46,7 @@ use crate::{
     window::{Window, WindowBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_resource::untyped::UntypedResource;
+use fyrox_resource::untyped::{ResourceKind, UntypedResource};
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
@@ -868,7 +868,7 @@ impl ResourceGraphVertex {
     pub fn resolve(&self, resource_manager: &ResourceManager) {
         Log::info(format!(
             "Resolving {} resource from dependency graph...",
-            self.resource.path().display()
+            self.resource.kind()
         ));
 
         // Wait until resource is fully loaded, then resolve.
@@ -1020,13 +1020,14 @@ pub(crate) fn initialize_resource_manager_loaders(
     for shader in ShaderResource::standard_shaders() {
         state
             .built_in_resources
-            .insert(shader.path(), shader.into_untyped());
+            .insert(shader.kind().path_owned().unwrap(), shader.into_untyped());
     }
 
     for texture in SkyBoxKind::built_in_skybox_textures() {
-        state
-            .built_in_resources
-            .insert(texture.path(), texture.clone().into_untyped());
+        state.built_in_resources.insert(
+            texture.kind().path_owned().unwrap(),
+            texture.clone().into_untyped(),
+        );
     }
 
     state.constructors_container.add::<Texture>();
@@ -1508,7 +1509,7 @@ impl Engine {
                             // Create a resource, that will point to the scene we've loaded the
                             // scene from and force scene nodes to inherit data from them.
                             let model = ModelResource::new_ok(
-                                request.path.clone(),
+                                ResourceKind::External(request.path.clone()),
                                 Model {
                                     mapping: NodeMapping::UseHandles,
                                     // We have to create a full copy of the scene, because otherwise
@@ -1522,7 +1523,6 @@ impl Engine {
                                         )
                                         .0,
                                 },
-                                false,
                             );
 
                             Log::verify(self.resource_manager.register(
@@ -1896,7 +1896,7 @@ impl Engine {
                 if let Some(model) = resource.try_cast::<Model>() {
                     Log::info(format!(
                         "A model resource {} was reloaded, propagating changes...",
-                        model.path().display()
+                        model.kind()
                     ));
 
                     // Build resource dependency graph and resolve it first.

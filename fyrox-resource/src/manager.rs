@@ -1,5 +1,6 @@
 //! Resource manager controls loading and lifetime of resource in the engine.
 
+use crate::untyped::ResourceKind;
 use crate::{
     collect_used_resources,
     constructor::ResourceConstructorContainer,
@@ -219,8 +220,7 @@ impl ResourceManager {
             Err(ResourceRegistrationError::AlreadyRegistered)
         } else {
             let mut header = resource.0.lock();
-            header.path = path.as_ref().to_path_buf();
-            header.is_embedded = false;
+            header.kind.make_external(path.as_ref().to_path_buf());
             if let ResourceState::Ok(ref mut data) = header.state {
                 if !on_register(&mut **data, path.as_ref()) {
                     Err(ResourceRegistrationError::UnableToRegister)
@@ -245,7 +245,10 @@ impl ResourceManager {
     ) -> Result<(), FileLoadError> {
         let new_path = new_path.as_ref().to_owned();
         let io = self.state().resource_io.clone();
-        let existing_path = resource.path();
+        let existing_path = resource
+            .kind()
+            .into_path()
+            .ok_or_else(|| FileLoadError::Custom("Cannot move embedded resource!".to_string()))?;
 
         let canonical_existing_path = io.canonicalize_path(&existing_path).await?;
 
@@ -284,13 +287,16 @@ impl ResourceManager {
         for (_, used_resources) in pairs.iter_mut() {
             let mut used_resources_with_references = FxHashSet::default();
             for resource in used_resources.iter() {
-                if let Ok(canonical_resource_path) = io.canonicalize_path(&resource.path()).await {
-                    // We compare the canonical paths here to check for the same file, not for the
-                    // same path. Remember that there could be any number of paths leading to the
-                    // same file (i.e. "foo/bar/baz.txt" and "foo/bar/../bar/baz.txt" leads to the
-                    // same file, but the paths are different).
-                    if canonical_resource_path == canonical_existing_path {
-                        used_resources_with_references.insert(resource.clone());
+                // Filter out embedded resources.
+                if let Some(path) = resource.kind().into_path() {
+                    if let Ok(canonical_resource_path) = io.canonicalize_path(&path).await {
+                        // We compare the canonical paths here to check for the same file, not for the
+                        // same path. Remember that there could be any number of paths leading to the
+                        // same file (i.e. "foo/bar/baz.txt" and "foo/bar/../bar/baz.txt" leads to the
+                        // same file, but the paths are different).
+                        if canonical_resource_path == canonical_existing_path {
+                            used_resources_with_references.insert(resource.clone());
+                        }
                     }
                 }
             }
@@ -300,24 +306,24 @@ impl ResourceManager {
         for (loaded_resource, used_resources) in pairs {
             if !used_resources.is_empty() {
                 for resource in used_resources {
-                    resource.set_path(new_path.clone());
+                    resource.set_kind(ResourceKind::External(new_path.clone()));
                 }
 
                 let mut header = loaded_resource.0.lock();
-                let loaded_resource_path = header.path.clone();
-                if let ResourceState::Ok(ref mut data) = header.state {
-                    // Save the resource back.
-                    match data.save(&loaded_resource_path) {
-                        Ok(_) => Log::info(format!(
-                            "Resource {} was saved successfully!",
-                            header.path.display()
-                        )),
-                        Err(err) => Log::err(format!(
-                            "Unable to save {} resource. Reason: {:?}",
-                            header.path.display(),
-                            err
-                        )),
-                    };
+                if let Some(loaded_resource_path) = header.kind.path_owned() {
+                    if let ResourceState::Ok(ref mut data) = header.state {
+                        // Save the resource back.
+                        match data.save(&loaded_resource_path) {
+                            Ok(_) => Log::info(format!(
+                                "Resource {} was saved successfully!",
+                                header.kind
+                            )),
+                            Err(err) => Log::err(format!(
+                                "Unable to save {} resource. Reason: {:?}",
+                                header.kind, err
+                            )),
+                        };
+                    }
                 }
             }
         }
@@ -404,15 +410,15 @@ impl ResourceManagerState {
             if resource.value.use_count() <= 1 {
                 resource.time_to_live -= dt;
                 if resource.time_to_live <= 0.0 {
-                    let path = resource.0.lock().path.clone();
+                    if let Some(path) = resource.0.lock().kind.path_owned() {
+                        Log::info(format!(
+                            "Resource {} destroyed because it is not used anymore!",
+                            path.display()
+                        ));
 
-                    Log::info(format!(
-                        "Resource {} destroyed because it is not used anymore!",
-                        path.display()
-                    ));
-
-                    self.event_broadcaster
-                        .broadcast(ResourceEvent::Removed(path));
+                        self.event_broadcaster
+                            .broadcast(ResourceEvent::Removed(path));
+                    }
 
                     false
                 } else {
@@ -466,8 +472,10 @@ impl ResourceManagerState {
     /// O(n)
     pub fn find<P: AsRef<Path>>(&self, path: P) -> Option<&UntypedResource> {
         for resource in self.resources.iter() {
-            if resource.0.lock().path == path.as_ref() {
-                return Some(&resource.value);
+            if let Some(resource_path) = resource.0.lock().kind.path() {
+                if resource_path == path.as_ref() {
+                    return Some(&resource.value);
+                }
             }
         }
         None
@@ -533,28 +541,18 @@ impl ResourceManagerState {
         match self.find(path.as_ref()) {
             Some(existing) => existing.clone(),
             None => {
+                let path = path.as_ref().to_owned();
+                let kind = ResourceKind::External(path.clone());
+
                 if let Some(loader) = self.find_loader(path.as_ref()) {
-                    let resource = UntypedResource::new_pending(
-                        path.as_ref().to_owned(),
-                        loader.data_type_uuid(),
-                        false,
-                    );
-
-                    self.spawn_loading_task(loader, resource.clone(), false);
-
+                    let resource = UntypedResource::new_pending(kind, loader.data_type_uuid());
+                    self.spawn_loading_task(path, resource.clone(), loader, false);
                     self.push(resource.clone());
-
                     resource
                 } else {
-                    UntypedResource::new_load_error(
-                        path.as_ref().to_owned(),
-                        LoadError::new(format!(
-                            "There's no resource loader for {} resource!",
-                            path.as_ref().display()
-                        )),
-                        Default::default(),
-                        false,
-                    )
+                    let err =
+                        LoadError::new(format!("There's no resource loader for {kind} resource!",));
+                    UntypedResource::new_load_error(kind, err, Default::default())
                 }
             }
         }
@@ -570,16 +568,44 @@ impl ResourceManagerState {
 
     fn spawn_loading_task(
         &self,
-        loader: &dyn ResourceLoader,
+        path: PathBuf,
         resource: UntypedResource,
+        loader: &dyn ResourceLoader,
         reload: bool,
     ) {
-        self.task_pool.spawn_task(loader.load(
-            resource,
-            self.event_broadcaster.clone(),
-            reload,
-            self.resource_io.clone(),
-        ));
+        let event_broadcaster = self.event_broadcaster.clone();
+        let loader_future = loader.load(path.clone(), self.resource_io.clone());
+        self.task_pool.spawn_task(async move {
+            match loader_future.await {
+                Ok(data) => {
+                    let data = data.0;
+
+                    Log::info(format!(
+                        "Resource {} was loaded successfully!",
+                        path.display()
+                    ));
+
+                    // Separate scope to keep mutex locking time at minimum.
+                    {
+                        let mut mutex_guard = resource.0.lock();
+                        assert_eq!(mutex_guard.type_uuid, data.type_uuid());
+                        assert!(mutex_guard.kind.is_external());
+                        mutex_guard.state.commit(ResourceState::Ok(data));
+                    }
+
+                    event_broadcaster.broadcast_loaded_or_reloaded(resource, reload);
+                }
+                Err(error) => {
+                    Log::info(format!(
+                        "Resource {} failed to load. Reason: {:?}",
+                        path.display(),
+                        error
+                    ));
+
+                    resource.commit_error(error);
+                }
+            }
+        });
     }
 
     /// Reloads a single resource.
@@ -587,19 +613,22 @@ impl ResourceManagerState {
         let mut header = resource.0.lock();
 
         if !header.state.is_loading() {
-            let path = header.path.clone();
-            if let Some(loader) = self.find_loader(&path) {
-                header.state.switch_to_pending_state();
-                drop(header);
+            if let Some(path) = header.kind.path_owned() {
+                if let Some(loader) = self.find_loader(&path) {
+                    header.state.switch_to_pending_state();
+                    drop(header);
 
-                self.spawn_loading_task(loader, resource, true);
+                    self.spawn_loading_task(path, resource, loader, true);
+                } else {
+                    let msg = format!(
+                        "There's no resource loader for {} resource!",
+                        path.display()
+                    );
+                    Log::err(&msg);
+                    resource.commit_error(msg)
+                }
             } else {
-                let msg = format!(
-                    "There's no resource loader for {} resource!",
-                    path.display()
-                );
-                Log::err(&msg);
-                resource.commit_error(msg)
+                Log::err("Cannot reload embedded resource.")
             }
         }
     }
@@ -644,7 +673,11 @@ impl ResourceManagerState {
     /// Forgets that a resource at the given path was ever loaded, thus making it possible to reload it
     /// again as a new instance.
     pub fn unregister(&mut self, path: &Path) {
-        if let Some(position) = self.resources.iter().position(|r| r.path() == path) {
+        if let Some(position) = self
+            .resources
+            .iter()
+            .position(|r| r.kind().path() == Some(path))
+        {
             self.resources.remove(position);
         }
     }

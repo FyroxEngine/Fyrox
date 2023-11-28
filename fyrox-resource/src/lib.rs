@@ -23,13 +23,13 @@ use std::{
     hash::{Hash, Hasher},
     marker::PhantomData,
     ops::{Deref, DerefMut},
-    path::{Path, PathBuf},
+    path::Path,
     pin::Pin,
     task::{Context, Poll},
 };
 
 use crate::state::LoadError;
-use crate::untyped::ResourceHeader;
+use crate::untyped::{ResourceHeader, ResourceKind};
 pub use fyrox_core as core;
 
 pub mod constructor;
@@ -104,12 +104,8 @@ impl<'a, T> ResourceHeaderGuard<'a, T>
 where
     T: TypedResourceData,
 {
-    pub fn is_embedded(&self) -> bool {
-        self.guard.is_embedded
-    }
-
-    pub fn path(&self) -> &Path {
-        &self.guard.path
+    pub fn kind(&self) -> &ResourceKind {
+        &self.guard.kind
     }
 
     pub fn data(&mut self) -> Option<&mut T> {
@@ -186,35 +182,30 @@ where
 {
     /// Creates new resource in pending state.
     #[inline]
-    pub fn new_pending(path: PathBuf, is_embedded: bool) -> Self {
+    pub fn new_pending(kind: ResourceKind) -> Self {
         Self {
-            untyped: UntypedResource::new_pending(
-                path,
-                <T as TypeUuidProvider>::type_uuid(),
-                is_embedded,
-            ),
+            untyped: UntypedResource::new_pending(kind, <T as TypeUuidProvider>::type_uuid()),
             phantom: PhantomData,
         }
     }
 
     /// Creates new resource in ok state (fully loaded).
     #[inline]
-    pub fn new_ok(path: PathBuf, data: T, is_embedded: bool) -> Self {
+    pub fn new_ok(kind: ResourceKind, data: T) -> Self {
         Self {
-            untyped: UntypedResource::new_ok(path, is_embedded, data),
+            untyped: UntypedResource::new_ok(kind, data),
             phantom: PhantomData,
         }
     }
 
     /// Creates new resource in error state.
     #[inline]
-    pub fn new_load_error(path: PathBuf, error: LoadError, is_embedded: bool) -> Self {
+    pub fn new_load_error(kind: ResourceKind, error: LoadError) -> Self {
         Self {
             untyped: UntypedResource::new_load_error(
-                path,
+                kind,
                 error,
                 <T as TypeUuidProvider>::type_uuid(),
-                is_embedded,
             ),
             phantom: PhantomData,
         }
@@ -280,16 +271,16 @@ where
         self.untyped.key()
     }
 
-    /// Returns path of the resource.
+    /// Returns kind of the resource.
     #[inline]
-    pub fn path(&self) -> PathBuf {
-        self.untyped.path()
+    pub fn kind(&self) -> ResourceKind {
+        self.untyped.kind()
     }
 
-    /// Sets a new path of the resource.
+    /// Sets a new kind of the resource.
     #[inline]
-    pub fn set_path(&mut self, new_path: PathBuf) {
-        self.untyped.set_path(new_path);
+    pub fn set_path(&mut self, new_kind: ResourceKind) {
+        self.untyped.set_kind(new_kind);
     }
 
     /// Allows you to obtain reference to the resource data.
@@ -317,7 +308,7 @@ where
     #[inline]
     fn default() -> Self {
         Self {
-            untyped: UntypedResource::new_ok(Default::default(), false, T::default()),
+            untyped: UntypedResource::new_ok(Default::default(), T::default()),
             phantom: Default::default(),
         }
     }
@@ -394,14 +385,14 @@ where
                 write!(
                     f,
                     "Attempt to get reference to resource data while it is not loaded! Path is {}",
-                    self.guard.path.display()
+                    self.guard.kind
                 )
             }
             ResourceState::LoadError { .. } => {
                 write!(
                     f,
                     "Attempt to get reference to resource data which failed to load! Path is {}",
-                    self.guard.path.display()
+                    self.guard.kind
                 )
             }
             ResourceState::Ok(ref data) => data.fmt(f),
@@ -420,13 +411,13 @@ where
             ResourceState::Pending { .. } => {
                 panic!(
                     "Attempt to get reference to resource data while it is not loaded! Path is {}",
-                    self.guard.path.display()
+                    self.guard.kind
                 )
             }
             ResourceState::LoadError { .. } => {
                 panic!(
                     "Attempt to get reference to resource data which failed to load! Path is {}",
-                    self.guard.path.display()
+                    self.guard.kind
                 )
             }
             ResourceState::Ok(ref data) => ResourceData::as_any(&**data)
@@ -446,13 +437,13 @@ where
             ResourceState::Pending { .. } => {
                 panic!(
                     "Attempt to get reference to resource data while it is not loaded! Path is {}",
-                    header.path.display()
+                    header.kind
                 )
             }
             ResourceState::LoadError { .. } => {
                 panic!(
                     "Attempt to get reference to resource data which failed to load! Path is {}",
-                    header.path.display()
+                    header.kind
                 )
             }
             ResourceState::Ok(ref mut data) => ResourceData::as_any_mut(&mut **data)

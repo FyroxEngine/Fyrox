@@ -161,7 +161,7 @@ impl TextureCache {
 
                             Log::writeln(
                                 MessageKind::Error,
-                                format!("Failed to create GPU texture from {:?} engine texture. Reason: {:?}", texture_resource.path(), e),
+                                format!("Failed to create GPU texture from {} engine texture. Reason: {:?}", texture_resource.kind(), e),
                             );
                             return None;
                         }

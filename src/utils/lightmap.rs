@@ -508,7 +508,7 @@ impl Lightmap {
 
             let lightmap = generate_lightmap(instance, &instances, &lights, texels_per_unit);
             map.entry(instance.owner).or_default().push(LightmapEntry {
-                texture: Some(TextureResource::new_ok(Default::default(), lightmap, false)),
+                texture: Some(TextureResource::new_ok(Default::default(), lightmap)),
                 lights: lights.iter().map(|light| light.handle()).collect(),
             });
 

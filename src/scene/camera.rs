@@ -27,6 +27,7 @@ use crate::{
     },
 };
 use fyrox_resource::state::LoadError;
+use fyrox_resource::untyped::ResourceKind;
 use lazy_static::lazy_static;
 use std::{
     fmt::{Display, Formatter},
@@ -859,7 +860,7 @@ impl ColorGradingLut {
                     },
                     TexturePixelKind::RGB8,
                     lut_bytes,
-                    false,
+                    ResourceKind::Embedded,
                 )
                 .unwrap();
 
@@ -911,9 +912,8 @@ pub enum SkyBoxKind {
 
 fn load_texture(data: &[u8], id: &str) -> TextureResource {
     TextureResource::load_from_memory(
-        id.into(),
+        ResourceKind::External(id.into()),
         data,
-        false,
         TextureImportOptions::default()
             .with_compression(CompressionOptions::NoCompression)
             .with_minification_filter(TextureMinificationFilter::Linear),
@@ -1388,7 +1388,7 @@ impl SkyBox {
                 TextureKind::Cube { width, height },
                 pixel_kind,
                 data,
-                false,
+                ResourceKind::Embedded,
             )
             .ok_or(SkyBoxError::UnableToBuildCubeMap)?,
         );

@@ -242,6 +242,7 @@ use crate::{
     lazy_static::lazy_static,
     renderer::framework::framebuffer::DrawParameters,
 };
+use fyrox_resource::untyped::ResourceKind;
 use serde::Deserialize;
 use std::{
     any::Any,
@@ -580,8 +581,7 @@ pub type ShaderResource = Resource<Shader>;
 pub trait ShaderResourceExtension: Sized {
     /// Creates new shader from given string. Input string must have the format defined in
     /// examples for [`ShaderResource`].
-    fn from_str<P: AsRef<Path>>(str: &str, path: P, is_embedded: bool)
-        -> Result<Self, ShaderError>;
+    fn from_str(str: &str, kind: ResourceKind) -> Result<Self, ShaderError>;
 
     /// Returns an instance of standard shader.
     fn standard() -> Self;
@@ -606,51 +606,34 @@ pub trait ShaderResourceExtension: Sized {
 }
 
 impl ShaderResourceExtension for ShaderResource {
-    /// Creates new shader from given string. Input string must have the format defined in
-    /// examples for [`ShaderResource`].
-    fn from_str<P: AsRef<Path>>(
-        str: &str,
-        path: P,
-        is_embedded: bool,
-    ) -> Result<Self, ShaderError> {
-        Ok(Resource::new_ok(
-            path.as_ref().to_owned(),
-            Shader::from_str(str)?,
-            is_embedded,
-        ))
+    fn from_str(str: &str, kind: ResourceKind) -> Result<Self, ShaderError> {
+        Ok(Resource::new_ok(kind, Shader::from_str(str)?))
     }
 
-    /// Returns an instance of standard shader.
     fn standard() -> Self {
         STANDARD.clone()
     }
 
-    /// Returns an instance of standard 2D shader.
     fn standard_2d() -> Self {
         STANDARD_2D.clone()
     }
 
-    /// Returns an instance of standard particle system shader.
     fn standard_particle_system() -> Self {
         STANDARD_PARTICLE_SYSTEM.clone()
     }
 
-    /// Returns an instance of standard sprite shader.
     fn standard_sprite() -> Self {
         STANDARD_SPRITE.clone()
     }
 
-    /// Returns an instance of standard terrain shader.
     fn standard_terrain() -> Self {
         STANDARD_TERRAIN.clone()
     }
 
-    /// Returns an instance of standard two-sides terrain shader.
     fn standard_twosides() -> Self {
         STANDARD_TWOSIDES.clone()
     }
 
-    /// Returns a list of standard shader.
     fn standard_shaders() -> Vec<ShaderResource> {
         vec![
             Self::standard(),
@@ -667,7 +650,6 @@ lazy_static! {
     static ref STANDARD: ShaderResource = ShaderResource::new_ok(
         STANDARD_SHADER_NAME.into(),
         Shader::from_str(STANDARD_SHADER_SRC).unwrap(),
-        false
     );
 }
 
@@ -675,7 +657,6 @@ lazy_static! {
     static ref STANDARD_2D: ShaderResource = ShaderResource::new_ok(
         STANDARD_2D_SHADER_NAME.into(),
         Shader::from_str(STANDARD_2D_SHADER_SRC).unwrap(),
-        false
     );
 }
 
@@ -683,7 +664,6 @@ lazy_static! {
     static ref STANDARD_PARTICLE_SYSTEM: ShaderResource = ShaderResource::new_ok(
         STANDARD_PARTICLE_SYSTEM_SHADER_NAME.into(),
         Shader::from_str(STANDARD_PARTICLE_SYSTEM_SHADER_SRC).unwrap(),
-        false
     );
 }
 
@@ -691,7 +671,6 @@ lazy_static! {
     static ref STANDARD_SPRITE: ShaderResource = ShaderResource::new_ok(
         STANDARD_SPRITE_SHADER_NAME.into(),
         Shader::from_str(STANDARD_SPRITE_SHADER_SRC).unwrap(),
-        false
     );
 }
 
@@ -699,7 +678,6 @@ lazy_static! {
     static ref STANDARD_TERRAIN: ShaderResource = ShaderResource::new_ok(
         STANDARD_TERRAIN_SHADER_NAME.into(),
         Shader::from_str(STANDARD_TERRAIN_SHADER_SRC).unwrap(),
-        false
     );
 }
 
@@ -707,7 +685,6 @@ lazy_static! {
     static ref STANDARD_TWOSIDES: ShaderResource = ShaderResource::new_ok(
         STANDARD_TWOSIDES_SHADER_NAME.into(),
         Shader::from_str(STANDARD_TWOSIDES_SHADER_SRC).unwrap(),
-        false
     );
 }
 

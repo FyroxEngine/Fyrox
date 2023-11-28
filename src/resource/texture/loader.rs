@@ -2,16 +2,16 @@
 
 use crate::{
     asset::{
-        event::ResourceEventBroadcaster,
         io::ResourceIo,
-        loader::{BoxedImportOptionsLoaderFuture, BoxedLoaderFuture, ResourceLoader},
-        options::{try_get_import_settings, try_get_import_settings_opaque},
-        untyped::UntypedResource,
+        loader::{
+            BoxedImportOptionsLoaderFuture, BoxedLoaderFuture, LoaderPayload, ResourceLoader,
+        },
+        options::{try_get_import_settings, try_get_import_settings_opaque, BaseImportOptions},
+        state::LoadError,
     },
-    core::{instant, log::Log, uuid::Uuid, TypeUuidProvider},
+    core::{uuid::Uuid, TypeUuidProvider},
     resource::texture::{Texture, TextureImportOptions},
 };
-use fyrox_resource::options::BaseImportOptions;
 use std::{path::PathBuf, sync::Arc};
 
 /// Default implementation for texture loading.
@@ -31,45 +31,20 @@ impl ResourceLoader for TextureLoader {
         Texture::type_uuid()
     }
 
-    fn load(
-        &self,
-        texture: UntypedResource,
-        event_broadcaster: ResourceEventBroadcaster,
-        reload: bool,
-        io: Arc<dyn ResourceIo>,
-    ) -> BoxedLoaderFuture {
+    fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
         let default_import_options = self.default_import_options.clone();
         Box::pin(async move {
             let io = io.as_ref();
-
-            let path = texture.path().to_path_buf();
 
             let import_options = try_get_import_settings(&path, io)
                 .await
                 .unwrap_or(default_import_options);
 
-            let time = instant::Instant::now();
-            match Texture::load_from_file(&path, io, import_options).await {
-                Ok(raw_texture) => {
-                    Log::info(format!(
-                        "Texture {:?} is loaded in {:?}!",
-                        path,
-                        time.elapsed()
-                    ));
+            let raw_texture = Texture::load_from_file(&path, io, import_options)
+                .await
+                .map_err(|e| LoadError::new(e))?;
 
-                    texture.commit_ok(raw_texture);
-
-                    event_broadcaster.broadcast_loaded_or_reloaded(texture, reload);
-                }
-                Err(error) => {
-                    Log::err(format!(
-                        "Unable to load texture {:?}! Reason {:?}",
-                        &path, &error
-                    ));
-
-                    texture.commit_error(error);
-                }
-            }
+            Ok(LoaderPayload::new(raw_texture))
         })
     }
 

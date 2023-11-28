@@ -37,9 +37,9 @@ use fast_image_resize as fr;
 use fxhash::FxHasher;
 use fyrox_core::num_traits::Bounded;
 use fyrox_resource::io::ResourceIo;
+use fyrox_resource::untyped::ResourceKind;
 use image::{ColorType, DynamicImage, ImageError, ImageFormat, Pixel};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 use std::{
     any::Any,
     fmt::{Debug, Display, Formatter},
@@ -576,9 +576,8 @@ pub trait TextureResourceExtension: Sized {
     ///
     /// Main use cases for this method are: procedural textures, icons for GUI.
     fn load_from_memory(
-        path: PathBuf,
+        kind: ResourceKind,
         data: &[u8],
-        is_embedded: bool,
         import_options: TextureImportOptions,
     ) -> Result<Self, TextureError>;
 
@@ -588,7 +587,7 @@ pub trait TextureResourceExtension: Sized {
         kind: TextureKind,
         pixel_kind: TexturePixelKind,
         bytes: Vec<u8>,
-        serialize_content: bool,
+        resource_kind: ResourceKind,
     ) -> Option<Self>;
 
     /// Creates a deep clone of the texture. Unlike [`TextureResource::clone`], this method clones the actual texture data,
@@ -614,20 +613,17 @@ impl TextureResourceExtension for TextureResource {
                 data_hash: 0,
                 is_render_target: true,
             },
-            false,
         )
     }
 
     fn load_from_memory(
-        path: PathBuf,
+        kind: ResourceKind,
         data: &[u8],
-        is_embedded: bool,
         import_options: TextureImportOptions,
     ) -> Result<Self, TextureError> {
         Ok(Resource::new_ok(
-            path,
+            kind,
             Texture::load_from_memory(data, import_options)?,
-            is_embedded,
         ))
     }
 
@@ -635,21 +631,16 @@ impl TextureResourceExtension for TextureResource {
         kind: TextureKind,
         pixel_kind: TexturePixelKind,
         bytes: Vec<u8>,
-        serialize_content: bool,
+        resource_kind: ResourceKind,
     ) -> Option<Self> {
         Some(Resource::new_ok(
-            Default::default(),
+            resource_kind,
             Texture::from_bytes(kind, pixel_kind, bytes)?,
-            serialize_content,
         ))
     }
 
     fn deep_clone(&self) -> Self {
-        Resource::new_ok(
-            self.header().path.clone(),
-            self.data_ref().clone(),
-            self.header().is_embedded,
-        )
+        Resource::new_ok(self.header().kind.clone(), self.data_ref().clone())
     }
 }
 

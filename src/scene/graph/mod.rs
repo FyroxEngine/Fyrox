@@ -885,7 +885,7 @@ impl Graph {
         for node in self.pool.iter_mut() {
             if let Some(model) = node.resource() {
                 let mut header = model.state();
-                let model_path = header.path().to_path_buf();
+                let model_kind = header.kind().clone();
                 if let Some(data) = header.data() {
                     let resource_graph = &data.get_scene().graph;
 
@@ -936,7 +936,7 @@ impl Graph {
                                         node.name(),
                                         node.self_handle.index(),
                                         node.self_handle.generation(),
-                                        model_path.display()
+                                        model_kind
                                     ));
                                 }
                             })
@@ -1047,7 +1047,7 @@ impl Graph {
             let mut nodes_to_delete = Vec::new();
             for node in self.traverse_iter(instance_root) {
                 if let Some(resource) = node.resource() {
-                    let path = resource.path();
+                    let kind = resource.kind().clone();
                     if let Some(model) = resource.state().data() {
                         if !model
                             .scene
@@ -1062,7 +1062,7 @@ impl Graph {
                                 node.name(),
                                 node.self_handle.index(),
                                 node.self_handle.generation(),
-                                path.display()
+                                kind
                             ))
                         }
                     } else {
@@ -1072,7 +1072,7 @@ impl Graph {
                             node.name(),
                             node.self_handle.index(),
                             node.self_handle.generation(),
-                            path.display()
+                            kind
                         ))
                     }
                 }
@@ -1086,7 +1086,7 @@ impl Graph {
 
             // Step 2. Look for missing nodes and create appropriate instances for them.
             let mut model = resource.state();
-            let model_path = model.path().to_owned();
+            let model_kind = model.kind().clone();
             if let Some(data) = model.data() {
                 let resource_graph = &data.get_scene().graph;
 
@@ -1099,7 +1099,7 @@ impl Graph {
                         format!(
                             "There is an instance of resource {} \
                     but original node {} cannot be found!",
-                            model_path.display(),
+                            model_kind,
                             instance.name()
                         ),
                     );

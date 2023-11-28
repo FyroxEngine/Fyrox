@@ -260,7 +260,7 @@ impl Visit for ParticleSystem {
                     },
                 )
                 .unwrap();
-            self.material = MaterialResource::new_ok(Default::default(), material, true).into();
+            self.material = MaterialResource::new_ok(Default::default(), material).into();
         } else {
             self.material.visit(name, &mut region)?;
         }
@@ -593,7 +593,6 @@ impl ParticleSystemBuilder {
             material: MaterialResource::new_ok(
                 Default::default(),
                 Material::standard_particle_system(),
-                true,
             ),
             particles: Default::default(),
             acceleration: Vector3::new(0.0, -9.81, 0.0),

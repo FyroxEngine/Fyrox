@@ -194,7 +194,6 @@ impl Default for Rectangle {
             material: InheritableVariable::new_modified(MaterialResource::new_ok(
                 Default::default(),
                 Material::standard_2d(),
-                true,
             )),
         }
     }
@@ -352,7 +351,7 @@ impl RectangleBuilder {
             base_builder,
             color: Color::WHITE,
             uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
-            material: MaterialResource::new_ok(Default::default(), Material::standard_2d(), true),
+            material: MaterialResource::new_ok(Default::default(), Material::standard_2d()),
         }
     }
 

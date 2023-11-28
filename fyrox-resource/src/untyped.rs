@@ -14,6 +14,8 @@ use crate::{
 use fyrox_core::curve::Curve;
 use fyrox_core::visitor::RegionGuard;
 use std::ffi::OsStr;
+use std::fmt::Display;
+use std::path::Path;
 use std::{
     fmt::{Debug, Formatter},
     future::Future,
@@ -63,11 +65,88 @@ fn guess_uuid(region: &mut RegionGuard) -> Uuid {
     Default::default()
 }
 
+#[derive(Default, Reflect, Debug, Visit, Clone, PartialEq, Hash)]
+pub enum ResourceKind {
+    #[default]
+    Embedded,
+    External(PathBuf),
+}
+
+impl From<Option<PathBuf>> for ResourceKind {
+    fn from(value: Option<PathBuf>) -> Self {
+        match value {
+            None => Self::Embedded,
+            Some(path) => Self::External(path),
+        }
+    }
+}
+
+impl<'a> From<&'a str> for ResourceKind {
+    fn from(value: &'a str) -> Self {
+        Self::External(value.into())
+    }
+}
+
+impl ResourceKind {
+    #[inline]
+    pub fn make_external(&mut self, path: PathBuf) {
+        *self = ResourceKind::External(path);
+    }
+
+    #[inline]
+    pub fn make_embedded(&mut self) {
+        *self = ResourceKind::Embedded;
+    }
+
+    #[inline]
+    pub fn is_embedded(&self) -> bool {
+        matches!(self, Self::Embedded)
+    }
+
+    #[inline]
+    pub fn is_external(&self) -> bool {
+        !self.is_embedded()
+    }
+
+    #[inline]
+    pub fn path(&self) -> Option<&Path> {
+        match self {
+            ResourceKind::Embedded => None,
+            ResourceKind::External(path) => Some(path),
+        }
+    }
+
+    #[inline]
+    pub fn path_owned(&self) -> Option<PathBuf> {
+        self.path().map(|p| p.to_path_buf())
+    }
+
+    #[inline]
+    pub fn into_path(self) -> Option<PathBuf> {
+        match self {
+            ResourceKind::Embedded => None,
+            ResourceKind::External(path) => Some(path),
+        }
+    }
+}
+
+impl Display for ResourceKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ResourceKind::Embedded => {
+                write!(f, "Embedded")
+            }
+            ResourceKind::External(path) => {
+                write!(f, "External ({})", path.display())
+            }
+        }
+    }
+}
+
 #[derive(Reflect, Debug)]
 pub struct ResourceHeader {
-    pub path: PathBuf,
     pub type_uuid: Uuid,
-    pub is_embedded: bool,
+    pub kind: ResourceKind,
     pub state: ResourceState,
 }
 
@@ -107,11 +186,11 @@ impl Visit for ResourceHeader {
                                 let mut sound_region = details_region.enter_region("0")?;
                                 let mut path = PathBuf::new();
                                 path.visit("Path", &mut sound_region).unwrap();
-                                self.path = path;
+                                self.kind.make_external(path);
                             } else {
                                 let mut path = PathBuf::new();
                                 path.visit("Path", &mut details_region).unwrap();
-                                self.path = path;
+                                self.kind.make_external(path);
                             }
                         }
 
@@ -135,9 +214,8 @@ impl Visit for ResourceHeader {
             }
         }
 
-        self.path.visit("Path", &mut region)?;
+        self.kind.visit("Kind", &mut region)?;
         self.type_uuid.visit("TypeUuid", &mut region)?;
-        self.is_embedded.visit("IsEmbedded", &mut region)?;
         self.state.visit("State", &mut region)?;
 
         Ok(())
@@ -170,7 +248,7 @@ impl Visit for UntypedResource {
                 .get::<ResourceManager>()
                 .expect("Resource manager must be available when deserializing resources!");
 
-            let path = self.path();
+            let path = self.kind().path_owned().unwrap();
             self.0 = resource_manager.request_untyped(path).0;
         }
 
@@ -181,9 +259,8 @@ impl Visit for UntypedResource {
 impl Default for UntypedResource {
     fn default() -> Self {
         Self(Arc::new(Mutex::new(ResourceHeader {
-            path: Default::default(),
+            kind: Default::default(),
             type_uuid: Default::default(),
-            is_embedded: false,
             state: ResourceState::new_load_error(LoadError::new(
                 "Default resource state of unknown type.",
             )),
@@ -213,40 +290,32 @@ impl Hash for UntypedResource {
 
 impl UntypedResource {
     /// Creates new untyped resource in pending state using the given path and type uuid.
-    pub fn new_pending(path: PathBuf, type_uuid: Uuid, is_embedded: bool) -> Self {
+    pub fn new_pending(kind: ResourceKind, type_uuid: Uuid) -> Self {
         Self(Arc::new(Mutex::new(ResourceHeader {
-            path,
+            kind,
             type_uuid,
-            is_embedded,
             state: ResourceState::new_pending(),
         })))
     }
 
     /// Creates new untyped resource in ok (fully loaded) state using the given data of any type, that
     /// implements [`ResourceData`] trait.
-    pub fn new_ok<T>(path: PathBuf, is_embedded: bool, data: T) -> Self
+    pub fn new_ok<T>(kind: ResourceKind, data: T) -> Self
     where
         T: ResourceData,
     {
         Self(Arc::new(Mutex::new(ResourceHeader {
-            path,
+            kind,
             type_uuid: data.type_uuid(),
-            is_embedded,
             state: ResourceState::new_ok(data),
         })))
     }
 
     /// Creates new untyped resource in error state.
-    pub fn new_load_error(
-        path: PathBuf,
-        error: LoadError,
-        type_uuid: Uuid,
-        is_embedded: bool,
-    ) -> Self {
+    pub fn new_load_error(kind: ResourceKind, error: LoadError, type_uuid: Uuid) -> Self {
         Self(Arc::new(Mutex::new(ResourceHeader {
-            path,
+            kind,
             type_uuid,
-            is_embedded,
             state: ResourceState::new_load_error(error),
         })))
     }
@@ -264,7 +333,7 @@ impl UntypedResource {
     /// Returns true if the resource is procedural (its data is generated at runtime, not stored in an external
     /// file).
     pub fn is_embedded(&self) -> bool {
-        self.0.lock().is_embedded
+        self.0.lock().kind.is_embedded()
     }
 
     /// Returns exact amount of users of the resource.
@@ -280,13 +349,13 @@ impl UntypedResource {
     }
 
     /// Returns path of the untyped resource.
-    pub fn path(&self) -> PathBuf {
-        self.0.lock().path.clone()
+    pub fn kind(&self) -> ResourceKind {
+        self.0.lock().kind.clone()
     }
 
     /// Set a new path for the untyped resource.
-    pub fn set_path(&self, new_path: PathBuf) {
-        self.0.lock().path = new_path;
+    pub fn set_kind(&self, new_kind: ResourceKind) {
+        self.0.lock().kind = new_kind;
     }
 
     /// Tries to cast untyped resource to a particular type.

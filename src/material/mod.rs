@@ -796,7 +796,7 @@ impl Material {
     /// properties. This method has limited usage, that is mostly related to shader hot reloading. Returns `true`
     /// if the syncing was successful, `false` - if the shader resource is not loaded.
     pub fn sync_to_shader(&mut self, resource_manager: &ResourceManager) -> bool {
-        let shader_path = self.shader.path();
+        let shader_kind = self.shader.kind().clone();
         if let Some(shader) = self.shader.state().data() {
             if shader.definition.properties.len() > self.properties.len() {
                 // Some property was added to the shader, but missing in the material.
@@ -815,8 +815,7 @@ impl Material {
                         Log::info(format!(
                             "Added {} property to the material instance, since it exists in the \
                             shader {}, but not in the material instance.",
-                            name,
-                            shader_path.display()
+                            name, shader_kind
                         ));
                     }
                 }
@@ -834,8 +833,7 @@ impl Material {
                         Log::info(format!(
                             "Removing {} property from the material instance, since it does \
                         not exists in the shader {}.",
-                            property_name,
-                            shader_path.display()
+                            property_name, shader_kind
                         ));
                     }
                 }
@@ -875,8 +873,7 @@ pub trait MaterialResourceExtension {
     fn deep_copy_as_embedded(&self) -> MaterialResource {
         let material = self.deep_copy();
         let mut header = material.header();
-        header.path.clear();
-        header.is_embedded = true;
+        header.kind.make_embedded();
         drop(header);
         material
     }
@@ -885,20 +882,18 @@ pub trait MaterialResourceExtension {
 impl MaterialResourceExtension for MaterialResource {
     fn deep_copy(&self) -> MaterialResource {
         let material_state = self.header();
-        let path = material_state.path.clone();
-        let is_embedded = material_state.is_embedded;
+        let kind = material_state.kind.clone();
         match material_state.state {
-            ResourceState::Pending { .. } => MaterialResource::new_pending(path, is_embedded),
+            ResourceState::Pending { .. } => MaterialResource::new_pending(kind),
             ResourceState::LoadError { ref error } => {
-                MaterialResource::new_load_error(path.clone(), error.clone(), is_embedded)
+                MaterialResource::new_load_error(kind.clone(), error.clone())
             }
             ResourceState::Ok(ref material) => MaterialResource::new_ok(
-                path,
+                kind,
                 ResourceData::as_any(&**material)
                     .downcast_ref::<Material>()
                     .unwrap()
                     .clone(),
-                is_embedded,
             ),
         }
     }
@@ -911,7 +906,6 @@ pub(crate) fn visit_old_material(region: &mut RegionGuard) -> Option<MaterialRes
             return Some(MaterialResource::new_ok(
                 Default::default(),
                 old_material.lock().clone(),
-                true,
             ));
         }
     }
@@ -936,7 +930,7 @@ where
                     fallback: SamplerFallback::White,
                 },
             ));
-            return Some(MaterialResource::new_ok(Default::default(), material, true));
+            return Some(MaterialResource::new_ok(Default::default(), material));
         }
     }
     None
