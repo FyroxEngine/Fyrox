@@ -69,14 +69,18 @@ impl OverlayRenderPass {
             ),
             shader: OverlayShader::new(state).unwrap(),
             sound_icon: TextureResource::load_from_memory(
+                "../resources/sound_source.png".into(),
                 include_bytes!("../resources/sound_source.png"),
+                true,
                 TextureImportOptions::default()
                     .with_compression(CompressionOptions::NoCompression)
                     .with_minification_filter(TextureMinificationFilter::Linear),
             )
             .unwrap(),
             light_icon: TextureResource::load_from_memory(
+                "../resources/light_source.png".into(),
                 include_bytes!("../resources/light_source.png"),
+                true,
                 TextureImportOptions::default()
                     .with_compression(CompressionOptions::NoCompression)
                     .with_minification_filter(TextureMinificationFilter::Linear),

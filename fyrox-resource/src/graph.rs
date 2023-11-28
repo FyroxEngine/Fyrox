@@ -20,8 +20,8 @@ impl ResourceGraphNode {
         // Look for dependent resources.
         let mut dependent_resources = FxHashSet::default();
 
-        let resource_state = resource.0.lock();
-        if let ResourceState::Ok(resource_data) = &*resource_state {
+        let header = resource.0.lock();
+        if let ResourceState::Ok(ref resource_data) = header.state {
             (**resource_data).as_reflect(&mut |entity| {
                 collect_used_resources(entity, &mut dependent_resources);
             });

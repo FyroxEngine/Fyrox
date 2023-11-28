@@ -70,16 +70,10 @@ use fyrox_resource::{
     io::ResourceIo,
     loader::{BoxedLoaderFuture, ResourceLoader},
     untyped::UntypedResource,
-    Resource, ResourceData, ResourceStateRef,
+    Resource, ResourceData,
 };
 use hrtf::HrirSphere;
-use std::{
-    any::Any,
-    fmt::Debug,
-    fmt::Formatter,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{any::Any, fmt::Debug, fmt::Formatter, path::PathBuf, sync::Arc};
 
 /// See module docs.
 #[derive(Clone, Debug, Default, Reflect)]
@@ -138,8 +132,8 @@ impl HrtfRenderer {
         // This is a poor-man's async support for crippled OSes such as WebAssembly.
         if self.processor.is_none() {
             if let Some(resource) = self.hrir_resource.as_ref() {
-                let state = resource.state();
-                if let ResourceStateRef::Ok(hrir) = state.get() {
+                let mut header = resource.state();
+                if let Some(hrir) = header.data() {
                     self.processor = Some(hrtf::HrtfProcessor::new(
                         hrir.hrir_sphere.clone().unwrap(),
                         SoundContext::HRTF_INTERPOLATION_STEPS,
@@ -186,28 +180,16 @@ impl HrtfRenderer {
 
 /// Wrapper for [`HrirSphere`] to be able to use it in the resource manager, that will handle async resource
 /// loading automatically.
-#[derive(Reflect, Default)]
+#[derive(Reflect, Default, Visit)]
 pub struct HrirSphereResourceData {
-    path: PathBuf,
     #[reflect(hidden)]
+    #[visit(skip)]
     hrir_sphere: Option<HrirSphere>,
 }
 
 impl Debug for HrirSphereResourceData {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("HrirSphereResourceData")
-            .field("Path", &self.path.to_string_lossy().to_string())
-            .finish()
-    }
-}
-
-impl Visit for HrirSphereResourceData {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut guard = visitor.enter_region(name)?;
-
-        self.path.visit("Path", &mut guard)?;
-
-        Ok(())
+        f.debug_struct("HrirSphereResourceData").finish()
     }
 }
 
@@ -218,14 +200,6 @@ impl TypeUuidProvider for HrirSphereResourceData {
 }
 
 impl ResourceData for HrirSphereResourceData {
-    fn path(&self) -> &Path {
-        &self.path
-    }
-
-    fn set_path(&mut self, path: PathBuf) {
-        self.path = path;
-    }
-
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -236,10 +210,6 @@ impl ResourceData for HrirSphereResourceData {
 
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
-    }
-
-    fn is_embedded(&self) -> bool {
-        false
     }
 }
 
@@ -272,7 +242,6 @@ impl ResourceLoader for HrirSphereLoader {
 
                         hrir_sphere.commit_ok(HrirSphereResourceData {
                             hrir_sphere: Some(sphere),
-                            path,
                         });
 
                         event_broadcaster.broadcast_loaded_or_reloaded(hrir_sphere, reload);
@@ -306,14 +275,17 @@ pub type HrirSphereResource = Resource<HrirSphereResourceData>;
 pub trait HrirSphereResourceExt {
     /// Creates a new HRIR sphere resource directly from pre-loaded HRIR sphere. It could be used if you
     /// do not use a resource manager, but want to load HRIR spheres manually.
-    fn from_hrir_sphere(hrir_sphere: HrirSphere, path: PathBuf) -> Self;
+    fn from_hrir_sphere(hrir_sphere: HrirSphere, path: PathBuf, is_embedded: bool) -> Self;
 }
 
 impl HrirSphereResourceExt for HrirSphereResource {
-    fn from_hrir_sphere(hrir_sphere: HrirSphere, path: PathBuf) -> Self {
-        Resource::new_ok(HrirSphereResourceData {
-            hrir_sphere: Some(hrir_sphere),
+    fn from_hrir_sphere(hrir_sphere: HrirSphere, path: PathBuf, is_embedded: bool) -> Self {
+        Resource::new_ok(
             path,
-        })
+            HrirSphereResourceData {
+                hrir_sphere: Some(hrir_sphere),
+            },
+            is_embedded,
+        )
     }
 }

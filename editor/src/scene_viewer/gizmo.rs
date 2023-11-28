@@ -64,7 +64,7 @@ fn make_cone(transform: Matrix4<f32>, color: Color, graph: &mut Graph) -> Handle
         .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
             SurfaceData::make_cone(16, 0.3, 1.0, &transform),
         ))
-        .with_material(MaterialResource::new_ok(material))
+        .with_material(MaterialResource::new_ok(Default::default(), material, true))
         .build()])
         .build(graph)
 }

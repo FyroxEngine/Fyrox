@@ -23,7 +23,7 @@
 //! is used in skinning (animating 3d model by set of bones).
 
 use crate::{
-    asset::{manager::ResourceManager, ResourceStateRef},
+    asset::manager::ResourceManager,
     core::{
         algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
         instant,
@@ -63,7 +63,6 @@ use crate::{
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_core::variable;
 use fyrox_resource::untyped::UntypedResource;
-use fyrox_resource::ResourceStateRefMut;
 use rapier3d::geometry::ColliderHandle;
 use std::any::TypeId;
 use std::{
@@ -885,96 +884,91 @@ impl Graph {
         // if needed.
         for node in self.pool.iter_mut() {
             if let Some(model) = node.resource() {
-                let model = model.state();
-                match model.get() {
-                    ResourceStateRef::Ok(data) => {
-                        let resource_graph = &data.get_scene().graph;
+                let mut header = model.state();
+                let model_path = header.path().to_path_buf();
+                if let Some(data) = header.data() {
+                    let resource_graph = &data.get_scene().graph;
 
-                        let resource_node = match data.mapping {
-                            NodeMapping::UseNames => {
-                                // For some models we can resolve it only by names of nodes, but this is not
-                                // reliable way of doing this, because some editors allow nodes to have same
-                                // names for objects, but here we'll assume that modellers will not create
-                                // models with duplicated names and user of the engine reads log messages.
-                                resource_graph
-                                    .pair_iter()
-                                    .find_map(|(handle, resource_node)| {
-                                        if resource_node.name() == node.name() {
-                                            Some((resource_node, handle))
-                                        } else {
-                                            None
-                                        }
-                                    })
-                            }
-                            NodeMapping::UseHandles => {
-                                // Use original handle directly.
-                                resource_graph
-                                    .pool
-                                    .try_borrow(node.original_handle_in_resource)
-                                    .map(|resource_node| {
-                                        (resource_node, node.original_handle_in_resource)
-                                    })
-                            }
-                        };
-
-                        if let Some((resource_node, original)) = resource_node {
-                            node.original_handle_in_resource = original;
-                            node.inv_bind_pose_transform = resource_node.inv_bind_pose_transform();
-
-                            // Check if the actual node types (this and parent's) are equal, and if not - copy the
-                            // node and replace its base.
-                            let mut types_match = true;
-                            node.as_reflect(&mut |node_reflect| {
-                                resource_node.as_reflect(&mut |resource_node_reflect| {
-                                    types_match =
-                                        node_reflect.type_id() == resource_node_reflect.type_id();
-
-                                    if !types_match {
-                                        Log::warn(format!(
-                                            "Node {}({}:{}) instance \
-                                        have different type than in the respective parent \
-                                        asset {}. The type will be fixed.",
-                                            node.name(),
-                                            node.self_handle.index(),
-                                            node.self_handle.generation(),
-                                            data.path.display()
-                                        ));
+                    let resource_node = match data.mapping {
+                        NodeMapping::UseNames => {
+                            // For some models we can resolve it only by names of nodes, but this is not
+                            // reliable way of doing this, because some editors allow nodes to have same
+                            // names for objects, but here we'll assume that modellers will not create
+                            // models with duplicated names and user of the engine reads log messages.
+                            resource_graph
+                                .pair_iter()
+                                .find_map(|(handle, resource_node)| {
+                                    if resource_node.name() == node.name() {
+                                        Some((resource_node, handle))
+                                    } else {
+                                        None
                                     }
                                 })
-                            });
-                            if !types_match {
-                                let base = (**node).clone();
-                                let mut resource_node_clone = resource_node.clone_box();
-                                variable::mark_inheritable_properties_non_modified(
-                                    &mut resource_node_clone as &mut dyn Reflect,
-                                    &[TypeId::of::<UntypedResource>()],
-                                );
-                                **resource_node_clone = base;
-                                *node = resource_node_clone;
-                            }
-
-                            // Then try to inherit properties.
-                            node.as_reflect_mut(&mut |node_reflect| {
-                                resource_node.as_reflect(&mut |resource_node_reflect| {
-                                    Log::verify(try_inherit_properties(
-                                        node_reflect,
-                                        resource_node_reflect,
-                                        // Do not try to inspect resources, because it most likely cause a deadlock.
-                                        &[std::any::TypeId::of::<UntypedResource>()],
-                                    ));
-                                })
-                            })
-                        } else {
-                            Log::warn(format!(
-                                "Unable to find original handle for node {}. The node will be removed!",
-                                node.name(),
-                            ))
                         }
+                        NodeMapping::UseHandles => {
+                            // Use original handle directly.
+                            resource_graph
+                                .pool
+                                .try_borrow(node.original_handle_in_resource)
+                                .map(|resource_node| {
+                                    (resource_node, node.original_handle_in_resource)
+                                })
+                        }
+                    };
+
+                    if let Some((resource_node, original)) = resource_node {
+                        node.original_handle_in_resource = original;
+                        node.inv_bind_pose_transform = resource_node.inv_bind_pose_transform();
+
+                        // Check if the actual node types (this and parent's) are equal, and if not - copy the
+                        // node and replace its base.
+                        let mut types_match = true;
+                        node.as_reflect(&mut |node_reflect| {
+                            resource_node.as_reflect(&mut |resource_node_reflect| {
+                                types_match =
+                                    node_reflect.type_id() == resource_node_reflect.type_id();
+
+                                if !types_match {
+                                    Log::warn(format!(
+                                        "Node {}({}:{}) instance \
+                                        have different type than in the respective parent \
+                                        asset {}. The type will be fixed.",
+                                        node.name(),
+                                        node.self_handle.index(),
+                                        node.self_handle.generation(),
+                                        model_path.display()
+                                    ));
+                                }
+                            })
+                        });
+                        if !types_match {
+                            let base = (**node).clone();
+                            let mut resource_node_clone = resource_node.clone_box();
+                            variable::mark_inheritable_properties_non_modified(
+                                &mut resource_node_clone as &mut dyn Reflect,
+                                &[TypeId::of::<UntypedResource>()],
+                            );
+                            **resource_node_clone = base;
+                            *node = resource_node_clone;
+                        }
+
+                        // Then try to inherit properties.
+                        node.as_reflect_mut(&mut |node_reflect| {
+                            resource_node.as_reflect(&mut |resource_node_reflect| {
+                                Log::verify(try_inherit_properties(
+                                    node_reflect,
+                                    resource_node_reflect,
+                                    // Do not try to inspect resources, because it most likely cause a deadlock.
+                                    &[std::any::TypeId::of::<UntypedResource>()],
+                                ));
+                            })
+                        })
+                    } else {
+                        Log::warn(format!(
+                            "Unable to find original handle for node {}. The node will be removed!",
+                            node.name(),
+                        ))
                     }
-                    ResourceStateRef::Pending { .. } => {
-                        panic!("resources must be awaited before doing resolve!")
-                    }
-                    _ => {}
                 }
             }
         }
@@ -1054,7 +1048,7 @@ impl Graph {
             for node in self.traverse_iter(instance_root) {
                 if let Some(resource) = node.resource() {
                     let path = resource.path();
-                    if let ResourceStateRef::Ok(model) = resource.state().get() {
+                    if let Some(model) = resource.state().data() {
                         if !model
                             .scene
                             .graph
@@ -1091,8 +1085,9 @@ impl Graph {
             }
 
             // Step 2. Look for missing nodes and create appropriate instances for them.
-            let model = resource.state();
-            if let ResourceStateRef::Ok(data) = model.get() {
+            let mut model = resource.state();
+            let model_path = model.path().to_owned();
+            if let Some(data) = model.data() {
                 let resource_graph = &data.get_scene().graph;
 
                 let resource_instance_root = self.pool[instance_root].original_handle_in_resource;
@@ -1104,7 +1099,7 @@ impl Graph {
                         format!(
                             "There is an instance of resource {} \
                     but original node {} cannot be found!",
-                            data.path.display(),
+                            model_path.display(),
                             instance.name()
                         ),
                     );
@@ -1229,7 +1224,7 @@ impl Graph {
 
         for material in materials {
             let mut material_state = material.state();
-            if let ResourceStateRefMut::Ok(material) = material_state.get_mut() {
+            if let Some(material) = material_state.data() {
                 material.sync_to_shader(resource_manager);
             }
         }
@@ -1253,7 +1248,7 @@ impl Graph {
                     // only to implement Default trait to be serializable.
                     let texture = entry.texture.clone().unwrap();
                     let mut material_state = surface.material().state();
-                    if let ResourceStateRefMut::Ok(material) = material_state.get_mut() {
+                    if let Some(material) = material_state.data() {
                         if let Err(e) = material.set_property(
                             &ImmutableString::new("lightmapTexture"),
                             PropertyValue::Sampler {
@@ -1354,7 +1349,7 @@ impl Graph {
                 if let Some(mesh) = self.pool[handle].cast_mut::<Mesh>() {
                     for (entry, surface) in entries.iter_mut().zip(mesh.surfaces_mut()) {
                         let mut material_state = surface.material().state();
-                        if let ResourceStateRefMut::Ok(material) = material_state.get_mut() {
+                        if let Some(material) = material_state.data() {
                             if let Err(e) = material.set_property(
                                 &ImmutableString::new("lightmapTexture"),
                                 PropertyValue::Sampler {

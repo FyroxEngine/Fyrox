@@ -27,7 +27,6 @@ use crate::{
 };
 use fyrox_core::color::Color;
 use fyrox_core::math::Matrix4Ext;
-use fyrox_resource::ResourceStateRef;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct Cascade {
@@ -262,8 +261,8 @@ impl CsmRenderer {
             framebuffer.clear(state, viewport, None, Some(1.0), None);
 
             for batch in batches.batches.iter() {
-                let material_state = batch.material.state();
-                if let ResourceStateRef::Ok(material) = material_state.get() {
+                let mut material_state = batch.material.state();
+                if let Some(material) = material_state.data() {
                     let geometry = geom_cache.get(state, &batch.data, batch.time_to_live);
                     let blend_shapes_storage = batch
                         .data

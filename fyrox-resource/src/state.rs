@@ -1,62 +1,16 @@
 //! A module that handles resource states.
 
 use crate::{
-    core::{
-        curve::Curve,
-        log::Log,
-        reflect::prelude::*,
-        uuid::Uuid,
-        visitor::{prelude::*, RegionGuard},
-    },
+    core::{log::Log, reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
     manager::ResourceManager,
-    ResourceData, ResourceLoadError, CURVE_RESOURCE_UUID, MODEL_RESOURCE_UUID,
-    SHADER_RESOURCE_UUID, SOUND_BUFFER_RESOURCE_UUID, TEXTURE_RESOURCE_UUID,
+    ResourceData, ResourceLoadError,
 };
 use std::{
-    ffi::OsStr,
     ops::{Deref, DerefMut},
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::Arc,
     task::Waker,
 };
-
-// Heuristic function to guess resource uuid based on inner content of a resource.
-fn guess_uuid(region: &mut RegionGuard) -> Uuid {
-    assert!(region.is_reading());
-
-    let mut region = region.enter_region("Details").unwrap();
-
-    let mut mip_count = 0u32;
-    if mip_count.visit("MipCount", &mut region).is_ok() {
-        return TEXTURE_RESOURCE_UUID;
-    }
-
-    let mut curve = Curve::default();
-    if curve.visit("Curve", &mut region).is_ok() {
-        return CURVE_RESOURCE_UUID;
-    }
-
-    let mut id = 0u32;
-    if id.visit("Id", &mut region).is_ok() {
-        return SOUND_BUFFER_RESOURCE_UUID;
-    }
-
-    let mut path = PathBuf::new();
-    if path.visit("Path", &mut region).is_ok() {
-        let ext = path.extension().unwrap_or_default().to_ascii_lowercase();
-        if ext == OsStr::new("rgs") || ext == OsStr::new("fbx") {
-            return MODEL_RESOURCE_UUID;
-        } else if ext == OsStr::new("shader")
-            || path == OsStr::new("Standard")
-            || path == OsStr::new("StandardTwoSides")
-            || path == OsStr::new("StandardTerrain")
-        {
-            return SHADER_RESOURCE_UUID;
-        }
-    }
-
-    Default::default()
-}
 
 #[doc(hidden)]
 #[derive(Reflect, Debug, Default)]
@@ -104,21 +58,13 @@ impl LoadError {
 pub enum ResourceState {
     /// Resource is loading from external resource or in the queue to load.
     Pending {
-        /// A path to load resource from.        
-        path: PathBuf,
         /// List of wakers to wake future when resource is fully loaded.
         wakers: WakersList,
-        /// Unique type id of the resource.
-        type_uuid: Uuid,
     },
     /// An error has occurred during the load.
     LoadError {
-        /// A path at which it was impossible to load the resource.
-        path: PathBuf,
         /// An error. This wrapped in Option only to be Default_ed.
         error: LoadError,
-        /// Unique type id of the resource.
-        type_uuid: Uuid,
     },
     /// Actual resource data when it is fully loaded.
     Ok(Box<dyn ResourceData>),
@@ -128,8 +74,6 @@ impl Default for ResourceState {
     fn default() -> Self {
         Self::LoadError {
             error: Default::default(),
-            path: Default::default(),
-            type_uuid: Default::default(),
         }
     }
 }
@@ -144,100 +88,35 @@ impl Drop for ResourceState {
 
 impl Visit for ResourceState {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut region = visitor.enter_region(name)?;
+        if visitor.is_reading() {
+            let mut type_uuid = Uuid::default();
+            type_uuid.visit("TypeUuid", visitor)?;
 
-        let mut id = self.id();
-        id.visit("Id", &mut region)?;
-
-        match id {
-            0 => {
-                if region.is_reading() {
-                    let mut path = PathBuf::new();
-                    path.visit("Path", &mut region)?;
-
-                    let mut type_uuid = Uuid::default();
-                    let _ = type_uuid.visit("TypeUuid", &mut region);
-
-                    *self = Self::Pending {
-                        path,
-                        wakers: Default::default(),
-                        type_uuid,
-                    };
-
-                    Ok(())
-                } else if let Self::Pending {
-                    path, type_uuid, ..
-                } = self
-                {
-                    let _ = type_uuid.visit("TypeUuid", &mut region);
-                    path.visit("Path", &mut region)
-                } else {
-                    Err(VisitError::User("Enum variant mismatch!".to_string()))
-                }
-            }
-            1 => {
-                if region.is_reading() {
-                    let mut path = PathBuf::new();
-                    path.visit("Path", &mut region)?;
-
-                    let mut type_uuid = Uuid::default();
-                    let _ = type_uuid.visit("TypeUuid", &mut region);
-
-                    *self = Self::LoadError {
-                        path,
-                        error: Default::default(),
-                        type_uuid,
-                    };
-
-                    Ok(())
-                } else if let Self::LoadError {
-                    path, type_uuid, ..
-                } = self
-                {
-                    let _ = type_uuid.visit("TypeUuid", &mut region);
-                    path.visit("Path", &mut region)
-                } else {
-                    Err(VisitError::User("Enum variant mismatch!".to_string()))
-                }
-            }
-            2 => {
-                if region.is_reading() {
-                    let mut type_uuid = Uuid::default();
-                    if type_uuid.visit("TypeUuid", &mut region).is_err() {
-                        // We might be reading the old version, try to guess an actual type uuid by
-                        // the inner content of the resource data.
-                        type_uuid = guess_uuid(&mut region);
-                    }
-
-                    let resource_manager = region.blackboard.get::<ResourceManager>().expect(
-                        "Resource data constructor container must be \
+            let resource_manager = visitor.blackboard.get::<ResourceManager>().expect(
+                "Resource data constructor container must be \
                 provided when serializing resources!",
-                    );
-                    let resource_manager_state = resource_manager.state();
+            );
+            let resource_manager_state = resource_manager.state();
 
-                    if let Some(mut instance) = resource_manager_state
-                        .constructors_container
-                        .try_create(&type_uuid)
-                    {
-                        drop(resource_manager_state);
-                        instance.visit("Details", &mut region)?;
-                        *self = Self::Ok(instance);
-                        Ok(())
-                    } else {
-                        Err(VisitError::User(format!(
-                            "There's no constructor registered for type {type_uuid}!"
-                        )))
-                    }
-                } else if let Self::Ok(instance) = self {
-                    let mut type_uuid = instance.type_uuid();
-                    type_uuid.visit("TypeUuid", &mut region)?;
-                    instance.visit("Details", &mut region)?;
-                    Ok(())
-                } else {
-                    Err(VisitError::User("Enum variant mismatch!".to_string()))
-                }
+            if let Some(mut instance) = resource_manager_state
+                .constructors_container
+                .try_create(&type_uuid)
+            {
+                drop(resource_manager_state);
+                instance.visit(name, visitor)?;
+                *self = Self::Ok(instance);
+                Ok(())
+            } else {
+                Err(VisitError::User(format!(
+                    "There's no constructor registered for type {type_uuid}!"
+                )))
             }
-            _ => Err(VisitError::User(format!("Invalid resource state id {id}!"))),
+        } else if let Self::Ok(instance) = self {
+            instance.visit(name, visitor)?;
+            Ok(())
+        } else {
+            // Do not save other variants, because they're needed only for runtime purposes.
+            Ok(())
         }
     }
 }
@@ -245,22 +124,16 @@ impl Visit for ResourceState {
 impl ResourceState {
     /// Creates new resource in pending state.
     #[inline]
-    pub fn new_pending(path: PathBuf, type_uuid: Uuid) -> Self {
+    pub fn new_pending() -> Self {
         Self::Pending {
-            path,
             wakers: Default::default(),
-            type_uuid,
         }
     }
 
     /// Creates new resource in error state.
     #[inline]
-    pub fn new_load_error(path: PathBuf, error: LoadError, type_uuid: Uuid) -> Self {
-        Self::LoadError {
-            path,
-            error,
-            type_uuid,
-        }
+    pub fn new_load_error(error: LoadError) -> Self {
+        Self::LoadError { error }
     }
 
     /// Creates new resource in ok (resource with data) state.
@@ -276,53 +149,9 @@ impl ResourceState {
 
     /// Switches the internal state of the resource to [`ResourceState::Pending`].
     pub fn switch_to_pending_state(&mut self) {
-        match self {
-            ResourceState::LoadError {
-                path, type_uuid, ..
-            } => {
-                *self = ResourceState::Pending {
-                    path: std::mem::take(path),
-                    wakers: Default::default(),
-                    type_uuid: *type_uuid,
-                }
-            }
-            ResourceState::Ok(data) => {
-                *self = ResourceState::Pending {
-                    path: data.path().to_path_buf(),
-                    wakers: Default::default(),
-                    type_uuid: data.type_uuid(),
-                }
-            }
-            _ => (),
-        }
-    }
-
-    /// Returns unique type id of the resource.
-    pub fn type_uuid(&self) -> Uuid {
-        match self {
-            ResourceState::Pending { type_uuid, .. } => *type_uuid,
-            ResourceState::LoadError { type_uuid, .. } => *type_uuid,
-            ResourceState::Ok(data) => data.type_uuid(),
-        }
-    }
-
-    #[inline]
-    fn id(&self) -> u32 {
-        match self {
-            Self::Pending { .. } => 0,
-            Self::LoadError { .. } => 1,
-            Self::Ok(_) => 2,
-        }
-    }
-
-    /// Returns a path to the resource source.
-    #[inline]
-    pub fn path(&self) -> &Path {
-        match self {
-            Self::Pending { path, .. } => path,
-            Self::LoadError { path, .. } => path,
-            Self::Ok(details) => details.path(),
-        }
+        *self = ResourceState::Pending {
+            wakers: Default::default(),
+        };
     }
 
     /// Changes ResourceState::Pending state to ResourceState::Ok(data) with given `data`.
@@ -331,7 +160,7 @@ impl ResourceState {
     pub fn commit(&mut self, state: ResourceState) {
         assert!(!matches!(state, ResourceState::Pending { .. }));
 
-        let wakers = if let ResourceState::Pending { ref mut wakers, .. } = self {
+        let wakers = if let ResourceState::Pending { ref mut wakers } = self {
             std::mem::take(wakers)
         } else {
             unreachable!()
@@ -351,8 +180,6 @@ impl ResourceState {
 
     /// Changes internal state to [`ResourceState::LoadError`].
     pub fn commit_error<E: ResourceLoadError>(&mut self, path: PathBuf, error: E) {
-        let type_uuid = self.type_uuid();
-
         Log::err(format!(
             "An error occurred while loading {} resource. Reason: {:?}",
             path.display(),
@@ -360,9 +187,7 @@ impl ResourceState {
         ));
 
         self.commit(ResourceState::LoadError {
-            path,
             error: LoadError::new(error),
-            type_uuid,
         })
     }
 }

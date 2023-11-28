@@ -1,17 +1,16 @@
 //! Curve resource holds a [`Curve`]
 
 use crate::{
-    asset::{Resource, ResourceData, CURVE_RESOURCE_UUID},
+    asset::{io::ResourceIo, Resource, ResourceData, CURVE_RESOURCE_UUID},
     core::{
         curve::Curve, io::FileLoadError, reflect::prelude::*, uuid::Uuid, visitor::prelude::*,
         TypeUuidProvider,
     },
 };
-use fyrox_resource::io::ResourceIo;
 use std::{
     any::Any,
     fmt::{Display, Formatter},
-    path::{Path, PathBuf},
+    path::Path,
 };
 
 pub mod loader;
@@ -57,20 +56,11 @@ impl From<VisitError> for CurveResourceError {
 /// State of the [`CurveResource`]
 #[derive(Debug, Visit, Default, Reflect)]
 pub struct CurveResourceState {
-    pub(crate) path: PathBuf,
     /// Actual curve.
     pub curve: Curve,
 }
 
 impl ResourceData for CurveResourceState {
-    fn path(&self) -> &Path {
-        &self.path
-    }
-
-    fn set_path(&mut self, path: PathBuf) {
-        self.path = path;
-    }
-
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -81,11 +71,6 @@ impl ResourceData for CurveResourceState {
 
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
-    }
-
-    fn is_embedded(&self) -> bool {
-        // TODO: Add support for embedded curves in the future.
-        false
     }
 }
 
@@ -102,10 +87,7 @@ impl CurveResourceState {
         let mut visitor = Visitor::load_from_memory(&bytes)?;
         let mut curve = Curve::default();
         curve.visit("Curve", &mut visitor)?;
-        Ok(Self {
-            curve,
-            path: path.to_path_buf(),
-        })
+        Ok(Self { curve })
     }
 }
 

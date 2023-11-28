@@ -360,7 +360,11 @@ impl SpriteBuilder {
     pub fn new(base_builder: BaseBuilder) -> Self {
         Self {
             base_builder,
-            material: MaterialResource::new_ok(Material::standard_sprite()),
+            material: MaterialResource::new_ok(
+                Default::default(),
+                Material::standard_sprite(),
+                true,
+            ),
             uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
             color: Color::WHITE,
             size: 0.2,

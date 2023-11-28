@@ -2,8 +2,9 @@ use crate::{
     asset::item::AssetItem, inspector::EditorEnvironment, message::MessageSender, Message,
     MessageDirection,
 };
+use fyrox::asset::state::ResourceState;
 use fyrox::{
-    asset::{core::pool::Handle, manager::ResourceManager, ResourceData, ResourceStateRef},
+    asset::{core::pool::Handle, manager::ResourceManager},
     core::{
         color::Color, futures::executor::block_on, make_relative_path, parking_lot::Mutex,
         reflect::prelude::*, visitor::prelude::*,
@@ -162,24 +163,24 @@ pub struct MaterialFieldEditorBuilder {
 }
 
 fn make_name(material: &MaterialResource) -> String {
-    let state = material.state();
-    match state.get() {
-        ResourceStateRef::Ok(material_data) => {
-            if material_data.is_embedded() {
+    let header = material.header();
+    match header.state {
+        ResourceState::Ok(_) => {
+            if header.is_embedded {
                 format!("Embedded - {} uses", material.use_count())
             } else {
                 format!(
                     "{} - {} uses",
-                    material_data.path().to_string_lossy().as_ref(),
+                    header.path.to_string_lossy().as_ref(),
                     material.use_count()
                 )
             }
         }
-        ResourceStateRef::LoadError { error, .. } => {
+        ResourceState::LoadError { ref error, .. } => {
             format!("Loading failed: {:?}", error)
         }
-        ResourceStateRef::Pending { path, .. } => {
-            format!("Loading {}", path.display())
+        ResourceState::Pending { .. } => {
+            format!("Loading {}", header.path.display())
         }
     }
 }

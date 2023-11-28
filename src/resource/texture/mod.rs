@@ -39,6 +39,7 @@ use fyrox_core::num_traits::Bounded;
 use fyrox_resource::io::ResourceIo;
 use image::{ColorType, DynamicImage, ImageError, ImageFormat, Pixel};
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::{
     any::Any,
     fmt::{Debug, Display, Formatter},
@@ -46,7 +47,7 @@ use std::{
     io::Cursor,
     num::NonZeroU32,
     ops::{Deref, DerefMut, Shr},
-    path::{Path, PathBuf},
+    path::Path,
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -242,7 +243,6 @@ impl DerefMut for TextureBytes {
 /// Actual texture data.
 #[derive(Debug, Clone, Reflect)]
 pub struct Texture {
-    path: PathBuf,
     kind: TextureKind,
     bytes: TextureBytes,
     pixel_kind: TexturePixelKind,
@@ -252,7 +252,6 @@ pub struct Texture {
     t_wrap_mode: TextureWrapMode,
     mip_count: u32,
     anisotropy: f32,
-    is_embedded: bool,
     data_hash: u64,
     is_render_target: bool,
 }
@@ -264,14 +263,6 @@ impl TypeUuidProvider for Texture {
 }
 
 impl ResourceData for Texture {
-    fn path(&self) -> &Path {
-        &self.path
-    }
-
-    fn set_path(&mut self, path: PathBuf) {
-        self.path = path;
-    }
-
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -284,8 +275,45 @@ impl ResourceData for Texture {
         <Self as TypeUuidProvider>::type_uuid()
     }
 
-    fn is_embedded(&self) -> bool {
-        self.is_embedded
+    fn save(&mut self, path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+        let color_type = match self.pixel_kind {
+            TexturePixelKind::R8 => ColorType::L8,
+            TexturePixelKind::Luminance8 => ColorType::L8,
+            TexturePixelKind::RGB8 => ColorType::Rgb8,
+            TexturePixelKind::RGBA8 => ColorType::Rgba8,
+            TexturePixelKind::RG8 => ColorType::La8,
+            TexturePixelKind::LuminanceAlpha8 => ColorType::La8,
+            TexturePixelKind::R16 => ColorType::L16,
+            TexturePixelKind::Luminance16 => ColorType::L16,
+            TexturePixelKind::RG16 => ColorType::La16,
+            TexturePixelKind::LuminanceAlpha16 => ColorType::La16,
+            TexturePixelKind::RGB16 => ColorType::Rgb16,
+            TexturePixelKind::RGBA16 => ColorType::Rgba16,
+            TexturePixelKind::RGB32F => ColorType::Rgb32F,
+            TexturePixelKind::RGBA32F => ColorType::Rgba32F,
+            TexturePixelKind::DXT1RGB
+            | TexturePixelKind::DXT1RGBA
+            | TexturePixelKind::DXT3RGBA
+            | TexturePixelKind::DXT5RGBA
+            | TexturePixelKind::R8RGTC
+            | TexturePixelKind::RG8RGTC
+            | TexturePixelKind::BGR8
+            | TexturePixelKind::BGRA8
+            | TexturePixelKind::RGB16F
+            | TexturePixelKind::R32F
+            | TexturePixelKind::R16F => return Err(Box::new(TextureError::UnsupportedFormat)),
+        };
+        if let TextureKind::Rectangle { width, height } = self.kind {
+            Ok(image::save_buffer(
+                path,
+                self.bytes.as_ref(),
+                width,
+                height,
+                color_type,
+            )?)
+        } else {
+            Err(Box::new(TextureError::UnsupportedFormat))
+        }
     }
 }
 
@@ -299,8 +327,6 @@ impl Visit for Texture {
             self.pixel_kind = TexturePixelKind::new(kind)?;
         }
 
-        self.path.visit("Path", &mut region)?;
-
         self.minification_filter
             .visit("MinificationFilter", &mut region)?;
         self.magnification_filter
@@ -310,12 +336,8 @@ impl Visit for Texture {
         self.t_wrap_mode.visit("TWrapMode", &mut region)?;
         self.mip_count.visit("MipCount", &mut region)?;
         self.kind.visit("Kind", &mut region)?;
-        let _ = self.is_embedded.visit("SerializeContent", &mut region);
-
-        if self.is_embedded {
-            let mut bytes_view = PodVecView::from_pod_vec(&mut self.bytes);
-            bytes_view.visit("Data", &mut region)?;
-        }
+        let mut bytes_view = PodVecView::from_pod_vec(&mut self.bytes);
+        let _ = bytes_view.visit("Data", &mut region);
 
         Ok(())
     }
@@ -327,7 +349,6 @@ impl Default for Texture {
     /// [TextureImportOptions](../engine/resource_manager/struct.TextureImportOptions.html) for more info.
     fn default() -> Self {
         Self {
-            path: PathBuf::new(),
             kind: TextureKind::Rectangle {
                 width: 0,
                 height: 0,
@@ -340,7 +361,6 @@ impl Default for Texture {
             t_wrap_mode: TextureWrapMode::Repeat,
             mip_count: 1,
             anisotropy: 16.0,
-            is_embedded: false,
             data_hash: 0,
             is_render_target: false,
         }
@@ -556,7 +576,9 @@ pub trait TextureResourceExtension: Sized {
     ///
     /// Main use cases for this method are: procedural textures, icons for GUI.
     fn load_from_memory(
+        path: PathBuf,
         data: &[u8],
+        is_embedded: bool,
         import_options: TextureImportOptions,
     ) -> Result<Self, TextureError>;
 
@@ -576,32 +598,37 @@ pub trait TextureResourceExtension: Sized {
 
 impl TextureResourceExtension for TextureResource {
     fn new_render_target(width: u32, height: u32) -> Self {
-        Resource::new_ok(Texture {
-            path: Default::default(),
-            // Render target will automatically set width and height before rendering.
-            kind: TextureKind::Rectangle { width, height },
-            bytes: Default::default(),
-            pixel_kind: TexturePixelKind::RGBA8,
-            minification_filter: TextureMinificationFilter::Linear,
-            magnification_filter: TextureMagnificationFilter::Linear,
-            s_wrap_mode: TextureWrapMode::Repeat,
-            t_wrap_mode: TextureWrapMode::Repeat,
-            mip_count: 1,
-            anisotropy: 1.0,
-            is_embedded: false,
-            data_hash: 0,
-            is_render_target: true,
-        })
+        Resource::new_ok(
+            Default::default(),
+            Texture {
+                // Render target will automatically set width and height before rendering.
+                kind: TextureKind::Rectangle { width, height },
+                bytes: Default::default(),
+                pixel_kind: TexturePixelKind::RGBA8,
+                minification_filter: TextureMinificationFilter::Linear,
+                magnification_filter: TextureMagnificationFilter::Linear,
+                s_wrap_mode: TextureWrapMode::Repeat,
+                t_wrap_mode: TextureWrapMode::Repeat,
+                mip_count: 1,
+                anisotropy: 1.0,
+                data_hash: 0,
+                is_render_target: true,
+            },
+            false,
+        )
     }
 
     fn load_from_memory(
+        path: PathBuf,
         data: &[u8],
+        is_embedded: bool,
         import_options: TextureImportOptions,
     ) -> Result<Self, TextureError> {
-        Ok(Resource::new_ok(Texture::load_from_memory(
-            data,
-            import_options,
-        )?))
+        Ok(Resource::new_ok(
+            path,
+            Texture::load_from_memory(data, import_options)?,
+            is_embedded,
+        ))
     }
 
     fn from_bytes(
@@ -610,16 +637,19 @@ impl TextureResourceExtension for TextureResource {
         bytes: Vec<u8>,
         serialize_content: bool,
     ) -> Option<Self> {
-        Some(Resource::new_ok(Texture::from_bytes(
-            kind,
-            pixel_kind,
-            bytes,
+        Some(Resource::new_ok(
+            Default::default(),
+            Texture::from_bytes(kind, pixel_kind, bytes)?,
             serialize_content,
-        )?))
+        ))
     }
 
     fn deep_clone(&self) -> Self {
-        Resource::new_ok(self.data_ref().clone())
+        Resource::new_ok(
+            self.header().path.clone(),
+            self.data_ref().clone(),
+            self.header().is_embedded,
+        )
     }
 }
 
@@ -970,6 +1000,8 @@ impl Display for TextureError {
     }
 }
 
+impl std::error::Error for TextureError {}
+
 impl From<FileLoadError> for TextureError {
     fn from(v: FileLoadError) -> Self {
         Self::FileLoadError(v)
@@ -1314,7 +1346,6 @@ impl Texture {
             };
 
             Ok(Self {
-                path: Default::default(),
                 pixel_kind,
                 data_hash: data_hash(&bytes),
                 minification_filter: import_options.minification_filter,
@@ -1341,7 +1372,6 @@ impl Texture {
                         height: dds.header.height,
                     }
                 },
-                is_embedded: false,
                 is_render_target: false,
             })
         } else {
@@ -1458,7 +1488,6 @@ impl Texture {
             }
 
             Ok(Self {
-                path: Default::default(),
                 pixel_kind: final_pixel_kind,
                 kind: TextureKind::Rectangle { width, height },
                 data_hash: data_hash(&bytes),
@@ -1469,7 +1498,6 @@ impl Texture {
                 s_wrap_mode: import_options.s_wrap_mode,
                 t_wrap_mode: import_options.t_wrap_mode,
                 anisotropy: import_options.anisotropy,
-                is_embedded: false,
                 is_render_target: false,
             })
         }
@@ -1487,9 +1515,7 @@ impl Texture {
         import_options: TextureImportOptions,
     ) -> Result<Self, TextureError> {
         let data = io.load_file(path.as_ref()).await?;
-        let mut texture = Self::load_from_memory(&data, import_options)?;
-        texture.path = path.as_ref().to_path_buf();
-        Ok(texture)
+        Self::load_from_memory(&data, import_options)
     }
 
     /// Creates new texture instance from given parameters.
@@ -1501,18 +1527,15 @@ impl Texture {
         kind: TextureKind,
         pixel_kind: TexturePixelKind,
         bytes: Vec<u8>,
-        is_embedded: bool,
     ) -> Option<Self> {
         if bytes_in_mip_level(kind, pixel_kind, 0) != bytes.len() as u32 {
             None
         } else {
             Some(Self {
-                path: Default::default(),
                 kind,
                 data_hash: data_hash(&bytes),
                 bytes: bytes.into(),
                 pixel_kind,
-                is_embedded,
                 ..Default::default()
             })
         }
@@ -1634,17 +1657,6 @@ impl Texture {
         None
     }
 
-    /// Returns true if the texture is procedural, false - otherwise.
-    ///
-    /// # Notes
-    ///
-    /// Content of procedural textures is saved during serialization and they never resolved
-    /// on deserialization. Resolving here means a process of getting correct texture instance
-    /// by its path.
-    pub fn is_embedded(&self) -> bool {
-        self.is_embedded
-    }
-
     /// Returns true if the texture is used as render target.
     pub fn is_render_target(&self) -> bool {
         self.is_render_target
@@ -1661,53 +1673,6 @@ impl Texture {
     /// Returns current anisotropy level.
     pub fn anisotropy_level(&self) -> f32 {
         self.anisotropy
-    }
-
-    /// Sets new path to source file.
-    pub fn set_path<P: AsRef<Path>>(&mut self, path: P) {
-        self.path = path.as_ref().to_owned();
-    }
-
-    /// Tries to save internal buffer into source file.
-    pub fn save(&self) -> Result<(), TextureError> {
-        let color_type = match self.pixel_kind {
-            TexturePixelKind::R8 => ColorType::L8,
-            TexturePixelKind::Luminance8 => ColorType::L8,
-            TexturePixelKind::RGB8 => ColorType::Rgb8,
-            TexturePixelKind::RGBA8 => ColorType::Rgba8,
-            TexturePixelKind::RG8 => ColorType::La8,
-            TexturePixelKind::LuminanceAlpha8 => ColorType::La8,
-            TexturePixelKind::R16 => ColorType::L16,
-            TexturePixelKind::Luminance16 => ColorType::L16,
-            TexturePixelKind::RG16 => ColorType::La16,
-            TexturePixelKind::LuminanceAlpha16 => ColorType::La16,
-            TexturePixelKind::RGB16 => ColorType::Rgb16,
-            TexturePixelKind::RGBA16 => ColorType::Rgba16,
-            TexturePixelKind::RGB32F => ColorType::Rgb32F,
-            TexturePixelKind::RGBA32F => ColorType::Rgba32F,
-            TexturePixelKind::DXT1RGB
-            | TexturePixelKind::DXT1RGBA
-            | TexturePixelKind::DXT3RGBA
-            | TexturePixelKind::DXT5RGBA
-            | TexturePixelKind::R8RGTC
-            | TexturePixelKind::RG8RGTC
-            | TexturePixelKind::BGR8
-            | TexturePixelKind::BGRA8
-            | TexturePixelKind::RGB16F
-            | TexturePixelKind::R32F
-            | TexturePixelKind::R16F => return Err(TextureError::UnsupportedFormat),
-        };
-        if let TextureKind::Rectangle { width, height } = self.kind {
-            Ok(image::save_buffer(
-                &self.path,
-                self.bytes.as_ref(),
-                width,
-                height,
-                color_type,
-            )?)
-        } else {
-            Err(TextureError::UnsupportedFormat)
-        }
     }
 
     /// Returns a special reference holder that provides mutable access to content of the

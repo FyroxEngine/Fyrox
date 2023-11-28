@@ -1,10 +1,10 @@
+use fyrox::asset::state::ResourceState;
 use fyrox::{
     asset::{
         graph::{ResourceDependencyGraph, ResourceGraphNode},
-        state::ResourceState,
         untyped::UntypedResource,
     },
-    core::{log::Log, pool::Handle, reflect::Reflect},
+    core::{log::Log, pool::Handle},
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         copypasta::ClipboardProvider,
@@ -36,9 +36,8 @@ fn build_tree_recursively(node: &ResourceGraphNode, ctx: &mut BuildContext) -> H
         .map(|c| build_tree_recursively(c, ctx))
         .collect();
 
-    let mut embedded = false;
-    let data_type = if let ResourceState::Ok(data) = &*node.resource.0.lock() {
-        embedded = data.is_embedded();
+    let embedded = node.resource.is_embedded();
+    let data_type = if let ResourceState::Ok(ref data) = node.resource.0.lock().state {
         data.type_name().to_string()
     } else {
         "Unknown".to_string()

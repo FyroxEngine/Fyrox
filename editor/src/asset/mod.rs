@@ -9,6 +9,7 @@ use crate::{
     utils::window_content,
     AssetItem, Message, Mode,
 };
+use fyrox::asset::untyped::ResourceHeader;
 use fyrox::{
     asset::{manager::ResourceManager, state::ResourceState, untyped::UntypedResource},
     core::{
@@ -372,11 +373,14 @@ impl ResourceCreator {
                     .map(|c| c.create_instance())
                 {
                     let path = base_path.join(&self.name_str);
-                    instance.set_path(path.clone());
                     match instance.save(&path) {
                         Ok(_) => {
-                            let resource =
-                                UntypedResource(Arc::new(Mutex::new(ResourceState::Ok(instance))));
+                            let resource = UntypedResource(Arc::new(Mutex::new(ResourceHeader {
+                                path: path.clone(),
+                                type_uuid: instance.type_uuid(),
+                                is_embedded: false,
+                                state: ResourceState::Ok(instance),
+                            })));
 
                             drop(constructors);
                             drop(resource_manager_state);

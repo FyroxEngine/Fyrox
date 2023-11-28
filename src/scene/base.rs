@@ -3,7 +3,6 @@
 //! For more info see [`Base`]
 
 use crate::{
-    asset::ResourceStateRef,
     core::{
         algebra::{Matrix4, Vector3},
         log::Log,
@@ -859,8 +858,8 @@ impl Base {
     #[inline]
     pub fn root_resource(&self) -> Option<ModelResource> {
         if let Some(resource) = self.resource.as_ref() {
-            let state = resource.state();
-            if let ResourceStateRef::Ok(model) = state.get() {
+            let mut state = resource.state();
+            if let Some(model) = state.data() {
                 if let Some(ancestor_node) = model
                     .get_scene()
                     .graph

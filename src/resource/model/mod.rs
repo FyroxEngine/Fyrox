@@ -65,7 +65,6 @@ pub(crate) enum NodeMapping {
 /// See module docs.
 #[derive(Debug, Visit, Reflect)]
 pub struct Model {
-    pub(crate) path: PathBuf,
     #[visit(skip)]
     pub(crate) mapping: NodeMapping,
     #[visit(skip)]
@@ -211,40 +210,42 @@ impl ModelResourceExtension for ModelResource {
     fn retarget_animations_directly(&self, root: Handle<Node>, graph: &Graph) -> Vec<Animation> {
         let mut retargetted_animations = Vec::new();
 
-        let data = self.data_ref();
+        let mut header = self.state();
+        let self_path = header.path().to_owned();
+        if let Some(model) = header.data() {
+            for src_node_ref in model.scene.graph.linear_iter() {
+                if let Some(src_player) = src_node_ref.query_component_ref::<AnimationPlayer>() {
+                    for src_anim in src_player.animations().iter() {
+                        let mut anim_copy = src_anim.clone();
 
-        for src_node_ref in data.scene.graph.linear_iter() {
-            if let Some(src_player) = src_node_ref.query_component_ref::<AnimationPlayer>() {
-                for src_anim in src_player.animations().iter() {
-                    let mut anim_copy = src_anim.clone();
-
-                    // Remap animation track nodes from resource to instance. This is required
-                    // because we've made a plain copy and it has tracks with node handles mapped
-                    // to nodes of internal scene.
-                    for (i, ref_track) in src_anim.tracks().iter().enumerate() {
-                        let ref_node = &data.scene.graph[ref_track.target()];
-                        let track = &mut anim_copy.tracks_mut()[i];
-                        // Find instantiated node that corresponds to node in resource
-                        match graph.find_by_name(root, ref_node.name()) {
-                            Some((instance_node, _)) => {
-                                // One-to-one track mapping so there is [i] indexing.
-                                track.set_target(instance_node);
-                            }
-                            None => {
-                                track.set_target(Handle::NONE);
-                                Log::writeln(
-                                    MessageKind::Error,
-                                    format!(
-                                        "Failed to retarget animation {:?} for node {}",
-                                        data.path(),
-                                        ref_node.name()
-                                    ),
-                                );
+                        // Remap animation track nodes from resource to instance. This is required
+                        // because we've made a plain copy and it has tracks with node handles mapped
+                        // to nodes of internal scene.
+                        for (i, ref_track) in src_anim.tracks().iter().enumerate() {
+                            let ref_node = &model.scene.graph[ref_track.target()];
+                            let track = &mut anim_copy.tracks_mut()[i];
+                            // Find instantiated node that corresponds to node in resource
+                            match graph.find_by_name(root, ref_node.name()) {
+                                Some((instance_node, _)) => {
+                                    // One-to-one track mapping so there is [i] indexing.
+                                    track.set_target(instance_node);
+                                }
+                                None => {
+                                    track.set_target(Handle::NONE);
+                                    Log::writeln(
+                                        MessageKind::Error,
+                                        format!(
+                                            "Failed to retarget animation {:?} for node {}",
+                                            self_path,
+                                            ref_node.name()
+                                        ),
+                                    );
+                                }
                             }
                         }
-                    }
 
-                    retargetted_animations.push(anim_copy);
+                        retargetted_animations.push(anim_copy);
+                    }
                 }
             }
         }
@@ -285,14 +286,6 @@ impl ModelResourceExtension for ModelResource {
 }
 
 impl ResourceData for Model {
-    fn path(&self) -> &Path {
-        &self.path
-    }
-
-    fn set_path(&mut self, path: PathBuf) {
-        self.path = path;
-    }
-
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -303,11 +296,6 @@ impl ResourceData for Model {
 
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
-    }
-
-    fn is_embedded(&self) -> bool {
-        // TODO: Add support for embedded models in the future.
-        false
     }
 
     fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
@@ -321,7 +309,6 @@ impl ResourceData for Model {
 impl Default for Model {
     fn default() -> Self {
         Self {
-            path: PathBuf::new(),
             mapping: NodeMapping::UseNames,
             scene: Scene::new(),
         }
@@ -521,11 +508,7 @@ impl Model {
             }
         };
 
-        Ok(Self {
-            path: path.as_ref().to_owned(),
-            scene,
-            mapping,
-        })
+        Ok(Self { scene, mapping })
     }
 
     /// Returns shared reference to internal scene, there is no way to obtain

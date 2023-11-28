@@ -3,7 +3,6 @@ use crate::{
     send_sync_message, Message,
 };
 use fyrox::{
-    asset::ResourceStateRef,
     core::pool::Handle,
     engine::Engine,
     gui::{
@@ -214,9 +213,8 @@ impl AudioPreviewPanel {
                 if let Some(sound) = scene.graph.try_get_of_type::<Sound>(node_handle) {
                     if !set {
                         if let Some(buffer) = sound.buffer() {
-                            let state = buffer.state();
-
-                            if let ResourceStateRef::Ok(buffer) = state.get() {
+                            let mut state = buffer.state();
+                            if let Some(buffer) = state.data() {
                                 let duration_secs = buffer.duration().as_secs_f32();
 
                                 send_sync_message(

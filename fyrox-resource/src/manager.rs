@@ -44,7 +44,7 @@ impl ResourceWaitContext {
     pub fn is_all_loaded(&self) -> bool {
         let mut loaded_count = 0;
         for resource in self.resources.iter() {
-            if !matches!(*resource.0.lock(), ResourceState::Pending { .. }) {
+            if !matches!(resource.0.lock().state, ResourceState::Pending { .. }) {
                 loaded_count += 1;
             }
         }
@@ -212,25 +212,25 @@ impl ResourceManager {
     ) -> Result<(), ResourceRegistrationError>
     where
         P: AsRef<Path>,
-        F: FnMut(&dyn ResourceData, &Path) -> bool,
+        F: FnMut(&mut dyn ResourceData, &Path) -> bool,
     {
         let mut state = self.state();
         if state.find(path.as_ref()).is_some() {
             Err(ResourceRegistrationError::AlreadyRegistered)
         } else {
-            let mut texture_state = resource.0.lock();
-            match &mut *texture_state {
-                ResourceState::Ok(data) => {
-                    data.set_path(path.as_ref().to_path_buf());
-                    if !on_register(&**data, path.as_ref()) {
-                        Err(ResourceRegistrationError::UnableToRegister)
-                    } else {
-                        std::mem::drop(texture_state);
-                        state.push(resource);
-                        Ok(())
-                    }
+            let mut header = resource.0.lock();
+            header.path = path.as_ref().to_path_buf();
+            header.is_embedded = false;
+            if let ResourceState::Ok(ref mut data) = header.state {
+                if !on_register(&mut **data, path.as_ref()) {
+                    Err(ResourceRegistrationError::UnableToRegister)
+                } else {
+                    drop(header);
+                    state.push(resource);
+                    Ok(())
                 }
-                _ => Err(ResourceRegistrationError::InvalidState),
+            } else {
+                Err(ResourceRegistrationError::InvalidState)
             }
         }
     }
@@ -268,7 +268,7 @@ impl ResourceManager {
             .par_iter()
             .filter_map(|loaded_resource| {
                 let mut guard = loaded_resource.0.lock();
-                if let ResourceState::Ok(data) = &mut *guard {
+                if let ResourceState::Ok(ref mut data) = guard.state {
                     let mut used_resources = FxHashSet::default();
                     (**data).as_reflect(&mut |reflect| {
                         collect_used_resources(reflect, &mut used_resources);
@@ -303,18 +303,18 @@ impl ResourceManager {
                     resource.set_path(new_path.clone());
                 }
 
-                let mut guard = loaded_resource.0.lock();
-                if let ResourceState::Ok(data) = &mut *guard {
+                let mut header = loaded_resource.0.lock();
+                let loaded_resource_path = header.path.clone();
+                if let ResourceState::Ok(ref mut data) = header.state {
                     // Save the resource back.
-                    let loaded_resource_path = data.path().to_owned();
                     match data.save(&loaded_resource_path) {
                         Ok(_) => Log::info(format!(
                             "Resource {} was saved successfully!",
-                            data.path().display()
+                            header.path.display()
                         )),
                         Err(err) => Log::err(format!(
                             "Unable to save {} resource. Reason: {:?}",
-                            data.path().display(),
+                            header.path.display(),
                             err
                         )),
                     };
@@ -404,7 +404,7 @@ impl ResourceManagerState {
             if resource.value.use_count() <= 1 {
                 resource.time_to_live -= dt;
                 if resource.time_to_live <= 0.0 {
-                    let path = resource.0.lock().path().to_path_buf();
+                    let path = resource.0.lock().path.clone();
 
                     Log::info(format!(
                         "Resource {} destroyed because it is not used anymore!",
@@ -466,7 +466,7 @@ impl ResourceManagerState {
     /// O(n)
     pub fn find<P: AsRef<Path>>(&self, path: P) -> Option<&UntypedResource> {
         for resource in self.resources.iter() {
-            if resource.0.lock().path() == path.as_ref() {
+            if resource.0.lock().path == path.as_ref() {
                 return Some(&resource.value);
             }
         }
@@ -497,7 +497,7 @@ impl ResourceManagerState {
     /// Returns total amount of resources that still loading.
     pub fn count_pending_resources(&self) -> usize {
         self.resources.iter().fold(0, |counter, resource| {
-            if let ResourceState::Pending { .. } = *resource.0.lock() {
+            if let ResourceState::Pending { .. } = resource.0.lock().state {
                 counter + 1
             } else {
                 counter
@@ -508,7 +508,7 @@ impl ResourceManagerState {
     /// Returns total amount of completely loaded resources.
     pub fn count_loaded_resources(&self) -> usize {
         self.resources.iter().fold(0, |counter, resource| {
-            if let ResourceState::Ok(_) = *resource.0.lock() {
+            if let ResourceState::Ok(_) = resource.0.lock().state {
                 counter + 1
             } else {
                 counter
@@ -537,6 +537,7 @@ impl ResourceManagerState {
                     let resource = UntypedResource::new_pending(
                         path.as_ref().to_owned(),
                         loader.data_type_uuid(),
+                        false,
                     );
 
                     self.spawn_loading_task(loader, resource.clone(), false);
@@ -552,6 +553,7 @@ impl ResourceManagerState {
                             path.as_ref().display()
                         )),
                         Default::default(),
+                        false,
                     )
                 }
             }
@@ -582,13 +584,13 @@ impl ResourceManagerState {
 
     /// Reloads a single resource.
     pub fn reload_resource(&mut self, resource: UntypedResource) {
-        let mut state = resource.0.lock();
+        let mut header = resource.0.lock();
 
-        if !state.is_loading() {
-            let path = state.path().to_path_buf();
+        if !header.state.is_loading() {
+            let path = header.path.clone();
             if let Some(loader) = self.find_loader(&path) {
-                state.switch_to_pending_state();
-                drop(state);
+                header.state.switch_to_pending_state();
+                drop(header);
 
                 self.spawn_loading_task(loader, resource, true);
             } else {

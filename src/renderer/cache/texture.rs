@@ -1,5 +1,5 @@
 use crate::{
-    asset::{entry::DEFAULT_RESOURCE_LIFETIME, ResourceStateRef},
+    asset::entry::DEFAULT_RESOURCE_LIFETIME,
     core::{
         log::{Log, MessageKind},
         scope_profile,
@@ -31,9 +31,9 @@ impl TextureCache {
         texture: &TextureResource,
     ) -> Result<(), FrameworkError> {
         let key = texture.key();
-        let texture = texture.state();
+        let mut texture = texture.state();
 
-        if let ResourceStateRef::Ok(texture) = texture.get() {
+        if let Some(texture) = texture.data() {
             let gpu_texture = GpuTexture::new(
                 state,
                 texture.kind().into(),
@@ -74,9 +74,9 @@ impl TextureCache {
 
         let key = texture_resource.key();
 
-        let texture_data_guard = texture_resource.state();
+        let mut texture_data_guard = texture_resource.state();
 
-        if let ResourceStateRef::Ok(texture) = texture_data_guard.get() {
+        if let Some(texture) = texture_data_guard.data() {
             let entry = match self.map.entry(key) {
                 Entry::Occupied(e) => {
                     let entry = e.into_mut();

@@ -10,7 +10,6 @@ use crate::{
     asset::{
         event::ResourceEvent,
         manager::{ResourceManager, ResourceWaitContext},
-        ResourceStateRef,
     },
     core::{
         algebra::Vector2, futures::executor::block_on, instant, log::Log, pool::Handle,
@@ -840,8 +839,8 @@ impl ResourceGraphVertex {
         let mut dependent_resources = HashSet::new();
         for resource in resource_manager.state().iter() {
             if let Some(other_model) = resource.try_cast::<Model>() {
-                let state = other_model.state();
-                if let ResourceStateRef::Ok(model_data) = state.get() {
+                let mut state = other_model.state();
+                if let Some(model_data) = state.data() {
                     if model_data
                         .get_scene()
                         .graph
@@ -1508,20 +1507,23 @@ impl Engine {
                         if request.options.derived {
                             // Create a resource, that will point to the scene we've loaded the
                             // scene from and force scene nodes to inherit data from them.
-                            let model = ModelResource::new_ok(Model {
-                                path: request.path.clone(),
-                                mapping: NodeMapping::UseHandles,
-                                // We have to create a full copy of the scene, because otherwise
-                                // some methods (`Base::root_resource` in particular) won't work
-                                // correctly.
-                                scene: scene
-                                    .clone(
-                                        scene.graph.get_root(),
-                                        &mut |_, _| true,
-                                        &mut |_, _, _| {},
-                                    )
-                                    .0,
-                            });
+                            let model = ModelResource::new_ok(
+                                request.path.clone(),
+                                Model {
+                                    mapping: NodeMapping::UseHandles,
+                                    // We have to create a full copy of the scene, because otherwise
+                                    // some methods (`Base::root_resource` in particular) won't work
+                                    // correctly.
+                                    scene: scene
+                                        .clone(
+                                            scene.graph.get_root(),
+                                            &mut |_, _| true,
+                                            &mut |_, _, _| {},
+                                        )
+                                        .0,
+                                },
+                                false,
+                            );
 
                             Log::verify(self.resource_manager.register(
                                 model.clone().into_untyped(),

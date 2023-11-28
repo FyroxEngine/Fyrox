@@ -1,13 +1,19 @@
 //! A module for untyped resources. See [`UntypedResource`] docs for more info.
 
+#![allow(missing_docs)]
+
 use crate::{
     core::{
         parking_lot::Mutex, reflect::prelude::*, uuid::Uuid, visitor::prelude::*, TypeUuidProvider,
     },
     manager::ResourceManager,
     state::{LoadError, ResourceState},
-    Resource, ResourceData, ResourceLoadError, TypedResourceData,
+    Resource, ResourceData, ResourceLoadError, TypedResourceData, CURVE_RESOURCE_UUID,
+    MODEL_RESOURCE_UUID, SHADER_RESOURCE_UUID, SOUND_BUFFER_RESOURCE_UUID, TEXTURE_RESOURCE_UUID,
 };
+use fyrox_core::curve::Curve;
+use fyrox_core::visitor::RegionGuard;
+use std::ffi::OsStr;
 use std::{
     fmt::{Debug, Formatter},
     future::Future,
@@ -18,6 +24,127 @@ use std::{
     sync::Arc,
     task::{Context, Poll},
 };
+
+// Heuristic function to guess resource uuid based on inner content of a resource.
+fn guess_uuid(region: &mut RegionGuard) -> Uuid {
+    assert!(region.is_reading());
+
+    let mut region = region.enter_region("Details").unwrap();
+
+    let mut mip_count = 0u32;
+    if mip_count.visit("MipCount", &mut region).is_ok() {
+        return TEXTURE_RESOURCE_UUID;
+    }
+
+    let mut curve = Curve::default();
+    if curve.visit("Curve", &mut region).is_ok() {
+        return CURVE_RESOURCE_UUID;
+    }
+
+    let mut id = 0u32;
+    if id.visit("Id", &mut region).is_ok() {
+        return SOUND_BUFFER_RESOURCE_UUID;
+    }
+
+    let mut path = PathBuf::new();
+    if path.visit("Path", &mut region).is_ok() {
+        let ext = path.extension().unwrap_or_default().to_ascii_lowercase();
+        if ext == OsStr::new("rgs") || ext == OsStr::new("fbx") {
+            return MODEL_RESOURCE_UUID;
+        } else if ext == OsStr::new("shader")
+            || path == OsStr::new("Standard")
+            || path == OsStr::new("StandardTwoSides")
+            || path == OsStr::new("StandardTerrain")
+        {
+            return SHADER_RESOURCE_UUID;
+        }
+    }
+
+    Default::default()
+}
+
+#[derive(Reflect, Debug)]
+pub struct ResourceHeader {
+    pub path: PathBuf,
+    pub type_uuid: Uuid,
+    pub is_embedded: bool,
+    pub state: ResourceState,
+}
+
+impl Visit for ResourceHeader {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+
+        if region.is_reading() {
+            let mut id: u32 = 0;
+
+            if id.visit("Id", &mut region).is_ok() {
+                // Reading old version, convert it to the new.
+
+                let mut type_uuid = Uuid::default();
+                if type_uuid.visit("TypeUuid", &mut region).is_err() {
+                    // We might be reading the old version, try to guess an actual type uuid by
+                    // the inner content of the resource data.
+                    type_uuid = guess_uuid(&mut region);
+                };
+
+                dbg!(type_uuid);
+
+                // We're interested only in embedded resources.
+                if id == 2 {
+                    let resource_manager = region.blackboard.get::<ResourceManager>().expect(
+                        "Resource data constructor container must be \
+                provided when serializing resources!",
+                    );
+                    let resource_manager_state = resource_manager.state();
+
+                    if let Some(mut instance) = resource_manager_state
+                        .constructors_container
+                        .try_create(&type_uuid)
+                    {
+                        drop(resource_manager_state);
+
+                        if let Ok(mut details_region) = region.enter_region("Details") {
+                            if type_uuid == SOUND_BUFFER_RESOURCE_UUID {
+                                let mut sound_region = details_region.enter_region("0")?;
+                                let mut path = PathBuf::new();
+                                path.visit("Path", &mut sound_region).unwrap();
+                                self.path = path;
+                            } else {
+                                let mut path = PathBuf::new();
+                                path.visit("Path", &mut details_region).unwrap();
+                                self.path = path;
+                            }
+                        }
+
+                        instance.visit("Details", &mut region)?;
+
+                        self.state = ResourceState::Ok(instance);
+
+                        return Ok(());
+                    } else {
+                        return Err(VisitError::User(format!(
+                            "There's no constructor registered for type {type_uuid}!"
+                        )));
+                    }
+                } else {
+                    self.state = ResourceState::LoadError {
+                        error: LoadError::new("Old resource"),
+                    };
+                }
+
+                return Ok(());
+            }
+        }
+
+        self.path.visit("Path", &mut region)?;
+        self.type_uuid.visit("TypeUuid", &mut region)?;
+        self.is_embedded.visit("IsEmbedded", &mut region)?;
+        self.state.visit("State", &mut region)?;
+
+        Ok(())
+    }
+}
 
 /// Untyped resource is a universal way of storing arbitrary resource types. Internally it wraps
 /// [`ResourceState`] in a `Arc<Mutex<>` so the untyped resource becomes shareable. In most of the
@@ -32,7 +159,7 @@ use std::{
 /// `Option`, that in some cases could lead to convoluted code with lots of `unwrap`s and state
 /// assumptions.
 #[derive(Clone, Reflect)]
-pub struct UntypedResource(pub Arc<Mutex<ResourceState>>);
+pub struct UntypedResource(pub Arc<Mutex<ResourceHeader>>);
 
 impl Visit for UntypedResource {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
@@ -55,11 +182,14 @@ impl Visit for UntypedResource {
 
 impl Default for UntypedResource {
     fn default() -> Self {
-        Self(Arc::new(Mutex::new(ResourceState::new_load_error(
-            Default::default(),
-            LoadError::new("Default resource state of unknown type."),
-            Default::default(),
-        ))))
+        Self(Arc::new(Mutex::new(ResourceHeader {
+            path: Default::default(),
+            type_uuid: Default::default(),
+            is_embedded: false,
+            state: ResourceState::new_load_error(LoadError::new(
+                "Default resource state of unknown type.",
+            )),
+        })))
     }
 }
 
@@ -85,43 +215,58 @@ impl Hash for UntypedResource {
 
 impl UntypedResource {
     /// Creates new untyped resource in pending state using the given path and type uuid.
-    pub fn new_pending(path: PathBuf, type_uuid: Uuid) -> Self {
-        Self(Arc::new(Mutex::new(ResourceState::new_pending(
-            path, type_uuid,
-        ))))
+    pub fn new_pending(path: PathBuf, type_uuid: Uuid, is_embedded: bool) -> Self {
+        Self(Arc::new(Mutex::new(ResourceHeader {
+            path,
+            type_uuid,
+            is_embedded,
+            state: ResourceState::new_pending(),
+        })))
     }
 
     /// Creates new untyped resource in ok (fully loaded) state using the given data of any type, that
     /// implements [`ResourceData`] trait.
-    pub fn new_ok<T: ResourceData>(data: T) -> Self {
-        Self(Arc::new(Mutex::new(ResourceState::new_ok(data))))
+    pub fn new_ok<T>(path: PathBuf, is_embedded: bool, data: T) -> Self
+    where
+        T: ResourceData,
+    {
+        Self(Arc::new(Mutex::new(ResourceHeader {
+            path,
+            type_uuid: data.type_uuid(),
+            is_embedded,
+            state: ResourceState::new_ok(data),
+        })))
     }
 
     /// Creates new untyped resource in error state.
-    pub fn new_load_error(path: PathBuf, error: LoadError, type_uuid: Uuid) -> Self {
-        Self(Arc::new(Mutex::new(ResourceState::new_load_error(
-            path, error, type_uuid,
-        ))))
+    pub fn new_load_error(
+        path: PathBuf,
+        error: LoadError,
+        type_uuid: Uuid,
+        is_embedded: bool,
+    ) -> Self {
+        Self(Arc::new(Mutex::new(ResourceHeader {
+            path,
+            type_uuid,
+            is_embedded,
+            state: ResourceState::new_load_error(error),
+        })))
     }
 
     /// Returns actual unique type id of underlying resource data.
     pub fn type_uuid(&self) -> Uuid {
-        self.0.lock().type_uuid()
+        self.0.lock().type_uuid
     }
 
     /// Returns true if the resource is still loading.
     pub fn is_loading(&self) -> bool {
-        matches!(*self.0.lock(), ResourceState::Pending { .. })
+        matches!(self.0.lock().state, ResourceState::Pending { .. })
     }
 
     /// Returns true if the resource is procedural (its data is generated at runtime, not stored in an external
     /// file).
     pub fn is_embedded(&self) -> bool {
-        match *self.0.lock() {
-            ResourceState::Ok(ref data) => data.is_embedded(),
-            // Procedural resources must always be in Ok state.
-            _ => false,
-        }
+        self.0.lock().is_embedded
     }
 
     /// Returns exact amount of users of the resource.
@@ -138,26 +283,12 @@ impl UntypedResource {
 
     /// Returns path of the untyped resource.
     pub fn path(&self) -> PathBuf {
-        match &*self.0.lock() {
-            ResourceState::Pending { path, .. } => path.clone(),
-            ResourceState::LoadError { path, .. } => path.clone(),
-            ResourceState::Ok(data) => data.path().to_path_buf(),
-        }
+        self.0.lock().path.clone()
     }
 
     /// Set a new path for the untyped resource.
     pub fn set_path(&self, new_path: PathBuf) {
-        match &mut *self.0.lock() {
-            ResourceState::Pending { path, .. } => {
-                *path = new_path;
-            }
-            ResourceState::LoadError { path, .. } => {
-                *path = new_path;
-            }
-            ResourceState::Ok(data) => {
-                data.set_path(new_path);
-            }
-        }
+        self.0.lock().path = new_path;
     }
 
     /// Tries to cast untyped resource to a particular type.
@@ -179,17 +310,19 @@ impl UntypedResource {
     /// Additionally it wakes all futures.
     #[inline]
     pub fn commit(&self, state: ResourceState) {
-        self.0.lock().commit(state);
+        self.0.lock().state.commit(state);
     }
 
     /// Changes internal state to [`ResourceState::Ok`]
     pub fn commit_ok<T: ResourceData>(&self, data: T) {
-        self.0.lock().commit_ok(data);
+        let mut guard = self.0.lock();
+        guard.type_uuid = data.type_uuid();
+        guard.state.commit_ok(data);
     }
 
     /// Changes internal state to [`ResourceState::LoadError`].
     pub fn commit_error<E: ResourceLoadError>(&self, path: PathBuf, error: E) {
-        self.0.lock().commit_error(path, error);
+        self.0.lock().state.commit_error(path, error);
     }
 }
 
@@ -199,7 +332,7 @@ impl Future for UntypedResource {
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let state = self.0.clone();
         let mut guard = state.lock();
-        match *guard {
+        match guard.state {
             ResourceState::Pending { ref mut wakers, .. } => {
                 // Collect wakers, so we'll be able to wake task when worker thread finish loading.
                 let cx_waker = cx.waker();

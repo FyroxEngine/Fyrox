@@ -12,6 +12,15 @@ pub struct SetMaterialPropertyValueCommand {
     value: PropertyValue,
 }
 
+fn try_save(material: &MaterialResource) {
+    let header = material.header();
+    if !header.is_embedded {
+        let path = header.path.to_path_buf();
+        drop(header);
+        Log::verify(material.data_ref().save(&path));
+    }
+}
+
 impl SetMaterialPropertyValueCommand {
     pub fn new(material: MaterialResource, name: ImmutableString, value: PropertyValue) -> Self {
         Self {
@@ -30,10 +39,8 @@ impl SetMaterialPropertyValueCommand {
             .set_property(&self.name, std::mem::replace(&mut self.value, old_value))
             .unwrap();
 
-        if !material.is_embedded() {
-            let path = material.path().to_path_buf();
-            Log::verify(material.save(&path));
-        }
+        drop(material);
+        try_save(&self.material);
     }
 }
 
@@ -104,12 +111,7 @@ impl SetMaterialShaderCommand {
             }
         }
 
-        let mut material = self.material.data_ref();
-
-        if !material.is_embedded() {
-            let path = material.path().to_path_buf();
-            Log::verify(material.save(&path));
-        }
+        try_save(&self.material);
     }
 }
 

@@ -5,7 +5,7 @@
 #![warn(missing_docs)]
 
 use crate::{
-    asset::{io::ResourceIo, manager::ResourceManager, Resource, ResourceData, ResourceStateRef},
+    asset::{io::ResourceIo, manager::ResourceManager, Resource, ResourceData},
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         color::Color,
@@ -22,13 +22,13 @@ use crate::{
     resource::texture::{Texture, TextureResource},
 };
 use fxhash::FxHashMap;
-use fyrox_resource::ResourceStateRefMut;
+use fyrox_resource::state::ResourceState;
 use std::error::Error;
 use std::{
     any::Any,
     fmt::{Display, Formatter},
     ops::Deref,
-    path::{Path, PathBuf},
+    path::Path,
     sync::Arc,
 };
 
@@ -396,8 +396,6 @@ impl Default for PropertyValue {
 /// material instance. Then we populate properties as usual.
 #[derive(Debug, Clone, Reflect)]
 pub struct Material {
-    path: PathBuf,
-    is_embedded: bool,
     shader: ShaderResource,
     properties: FxHashMap<ImmutableString, PropertyValue>,
 }
@@ -406,23 +404,18 @@ impl Visit for Material {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
-        let _ = self.path.visit("Path", &mut region);
-        let _ = self.is_embedded.visit("IsProcedural", &mut region);
-
-        if self.is_embedded {
-            let mut shader = if region.is_reading() {
-                // It is very important to give a proper default state to the shader resource
-                // here. Its standard default is set to shared "Standard" shader. If it is left
-                // as is, deserialization will modify the "Standard" shader and this will lead
-                // to "amazing" results and hours of debugging.
-                ShaderResource::default()
-            } else {
-                self.shader.clone()
-            };
-            shader.visit("Shader", &mut region)?;
-            self.shader = shader;
-            self.properties.visit("Properties", &mut region)?;
-        }
+        let mut shader = if region.is_reading() {
+            // It is very important to give a proper default state to the shader resource
+            // here. Its standard default is set to shared "Standard" shader. If it is left
+            // as is, deserialization will modify the "Standard" shader and this will lead
+            // to "amazing" results and hours of debugging.
+            ShaderResource::default()
+        } else {
+            self.shader.clone()
+        };
+        shader.visit("Shader", &mut region)?;
+        self.shader = shader;
+        self.properties.visit("Properties", &mut region)?;
 
         Ok(())
     }
@@ -441,14 +434,6 @@ impl TypeUuidProvider for Material {
 }
 
 impl ResourceData for Material {
-    fn path(&self) -> &Path {
-        &self.path
-    }
-
-    fn set_path(&mut self, path: PathBuf) {
-        self.path = path;
-    }
-
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -461,16 +446,10 @@ impl ResourceData for Material {
         <Self as TypeUuidProvider>::type_uuid()
     }
 
-    fn is_embedded(&self) -> bool {
-        self.is_embedded
-    }
-
     fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
         let mut visitor = Visitor::new();
-        let old = std::mem::replace(&mut self.is_embedded, true);
         self.visit("Material", &mut visitor)?;
         visitor.save_binary(path)?;
-        self.is_embedded = old;
         Ok(())
     }
 }
@@ -638,9 +617,7 @@ impl Material {
         drop(data);
 
         Self {
-            path: Default::default(),
             shader,
-            is_embedded: true,
             properties: property_values,
         }
     }
@@ -656,18 +633,12 @@ impl Material {
     {
         let content = io.load_file(path.as_ref()).await?;
         let mut material = Material {
-            path: Default::default(),
-            is_embedded: false,
             shader: Default::default(),
             properties: Default::default(),
         };
         let mut visitor = Visitor::load_from_memory(&content)?;
         visitor.blackboard.register(Arc::new(resource_manager));
         material.visit("Material", &mut visitor)?;
-        // This could be changed during deserialization, we must keep the flag `false`.
-        material.is_embedded = false;
-        material.path = path.as_ref().to_owned();
-
         Ok(material)
     }
 
@@ -826,7 +797,7 @@ impl Material {
     /// if the syncing was successful, `false` - if the shader resource is not loaded.
     pub fn sync_to_shader(&mut self, resource_manager: &ResourceManager) -> bool {
         let shader_path = self.shader.path();
-        if let ResourceStateRef::Ok(shader) = self.shader.state().get() {
+        if let Some(shader) = self.shader.state().data() {
             if shader.definition.properties.len() > self.properties.len() {
                 // Some property was added to the shader, but missing in the material.
                 for property_definition in shader.definition.properties.iter() {
@@ -903,23 +874,32 @@ pub trait MaterialResourceExtension {
     /// Creates a deep copy of the material resource and marks it as procedural.
     fn deep_copy_as_embedded(&self) -> MaterialResource {
         let material = self.deep_copy();
-        if let ResourceStateRefMut::Ok(material_data) = material.state().get_mut() {
-            material_data.path.clear();
-            material_data.is_embedded = true;
-        }
+        let mut header = material.header();
+        header.path.clear();
+        header.is_embedded = true;
+        drop(header);
         material
     }
 }
 
 impl MaterialResourceExtension for MaterialResource {
     fn deep_copy(&self) -> MaterialResource {
-        let material_state = self.state();
-        match material_state.get() {
-            ResourceStateRef::Pending { path, .. } => MaterialResource::new_pending(path.clone()),
-            ResourceStateRef::LoadError { path, error, .. } => {
-                MaterialResource::new_load_error(path.clone(), error.clone())
+        let material_state = self.header();
+        let path = material_state.path.clone();
+        let is_embedded = material_state.is_embedded;
+        match material_state.state {
+            ResourceState::Pending { .. } => MaterialResource::new_pending(path, is_embedded),
+            ResourceState::LoadError { ref error } => {
+                MaterialResource::new_load_error(path.clone(), error.clone(), is_embedded)
             }
-            ResourceStateRef::Ok(material) => MaterialResource::new_ok(material.clone()),
+            ResourceState::Ok(ref material) => MaterialResource::new_ok(
+                path,
+                ResourceData::as_any(&**material)
+                    .downcast_ref::<Material>()
+                    .unwrap()
+                    .clone(),
+                is_embedded,
+            ),
         }
     }
 }
@@ -928,7 +908,11 @@ pub(crate) fn visit_old_material(region: &mut RegionGuard) -> Option<MaterialRes
     let mut old_material = Arc::new(Mutex::new(Material::default()));
     if let Ok(mut inner) = region.enter_region("Material") {
         if old_material.visit("Value", &mut inner).is_ok() {
-            return Some(MaterialResource::new_ok(old_material.lock().clone()));
+            return Some(MaterialResource::new_ok(
+                Default::default(),
+                old_material.lock().clone(),
+                true,
+            ));
         }
     }
     None
@@ -952,7 +936,7 @@ where
                     fallback: SamplerFallback::White,
                 },
             ));
-            return Some(MaterialResource::new_ok(material));
+            return Some(MaterialResource::new_ok(Default::default(), material, true));
         }
     }
     None
