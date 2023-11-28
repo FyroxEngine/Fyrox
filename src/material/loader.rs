@@ -53,7 +53,7 @@ impl ResourceLoader for MaterialLoader {
                         path, error
                     ));
 
-                    material.commit_error(path, error);
+                    material.commit_error(error);
                 }
             }
         })

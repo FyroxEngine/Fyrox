@@ -67,7 +67,7 @@ impl ResourceLoader for TextureLoader {
                         &path, &error
                     ));
 
-                    texture.commit_error(path, error);
+                    texture.commit_error(error);
                 }
             }
         })

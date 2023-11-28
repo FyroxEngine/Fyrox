@@ -34,7 +34,7 @@ fn main() {
     context
         .state()
         .set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(
-            HrirSphereResource::from_hrir_sphere(hrir_sphere, hrir_path),
+            HrirSphereResource::from_hrir_sphere(hrir_sphere, hrir_path, true),
         )));
 
     {

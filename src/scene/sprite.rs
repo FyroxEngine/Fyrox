@@ -125,7 +125,7 @@ impl VertexTrait for SpriteVertex {
 ///         .unwrap();
 ///
 ///     SpriteBuilder::new(BaseBuilder::new())
-///         .with_material(MaterialResource::new_ok(material))
+///         .with_material(MaterialResource::new_ok(Default::default(), material, true))
 ///         .build(graph)
 /// }
 /// ```

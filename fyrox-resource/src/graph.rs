@@ -116,10 +116,12 @@ mod test {
         let mut node = ResourceGraphNode::new(&UntypedResource::new_pending(
             PathBuf::from("/foo"),
             Uuid::default(),
+            true,
         ));
         let node2 = ResourceGraphNode::new(&UntypedResource::new_pending(
             PathBuf::from("/bar"),
             Uuid::default(),
+            true,
         ));
         node.children.push(node2);
         node.pretty_print(1, &mut s);
@@ -152,6 +154,7 @@ mod test {
         let mut graph = ResourceDependencyGraph::new(&UntypedResource::new_pending(
             PathBuf::from("/foo"),
             Uuid::default(),
+            true,
         ));
         graph
             .root
@@ -159,6 +162,7 @@ mod test {
             .push(ResourceGraphNode::new(&UntypedResource::new_pending(
                 PathBuf::from("/bar"),
                 Uuid::default(),
+                true,
             )));
 
         let s = graph.pretty_print();
@@ -170,6 +174,7 @@ mod test {
         let mut graph = ResourceDependencyGraph::new(&UntypedResource::new_pending(
             PathBuf::from("/foo"),
             Uuid::default(),
+            true,
         ));
         graph
             .root
@@ -177,6 +182,7 @@ mod test {
             .push(ResourceGraphNode::new(&UntypedResource::new_pending(
                 PathBuf::from("/bar"),
                 Uuid::default(),
+                true,
             )));
 
         let mut uuids = Vec::new();

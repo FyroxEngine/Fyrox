@@ -58,7 +58,7 @@ impl SceneLoader {
                 },
             )
             .unwrap();
-        let material = MaterialResource::new_ok(material);
+        let material = MaterialResource::new_ok(Default::default(), material, true);
 
         // Add some sprites.
         for y in 0..10 {

@@ -47,7 +47,7 @@ impl ResourceLoader for CurveLoader {
                         path, error
                     ));
 
-                    curve.commit_error(path, error);
+                    curve.commit_error(error);
                 }
             }
         })

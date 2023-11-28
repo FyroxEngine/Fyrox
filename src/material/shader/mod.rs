@@ -760,7 +760,7 @@ mod test {
             )
             "#;
 
-        let shader = ShaderResource::from_str(code, "test").unwrap();
+        let shader = ShaderResource::from_str(code, "test", true).unwrap();
         let data = shader.data_ref();
 
         let reference_definition = ShaderDefinition {

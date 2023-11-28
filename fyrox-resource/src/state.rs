@@ -1,13 +1,12 @@
 //! A module that handles resource states.
 
 use crate::{
-    core::{log::Log, reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
+    core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
     manager::ResourceManager,
     ResourceData, ResourceLoadError,
 };
 use std::{
     ops::{Deref, DerefMut},
-    path::PathBuf,
     sync::Arc,
     task::Waker,
 };
@@ -179,13 +178,7 @@ impl ResourceState {
     }
 
     /// Changes internal state to [`ResourceState::LoadError`].
-    pub fn commit_error<E: ResourceLoadError>(&mut self, path: PathBuf, error: E) {
-        Log::err(format!(
-            "An error occurred while loading {} resource. Reason: {:?}",
-            path.display(),
-            error
-        ));
-
+    pub fn commit_error<E: ResourceLoadError>(&mut self, error: E) {
         self.commit(ResourceState::LoadError {
             error: LoadError::new(error),
         })
@@ -206,28 +199,16 @@ mod test {
     struct Stub {}
 
     impl ResourceData for Stub {
-        fn path(&self) -> &std::path::Path {
-            Path::new("")
-        }
-
-        fn set_path(&mut self, _path: std::path::PathBuf) {
-            unimplemented!()
-        }
-
         fn as_any(&self) -> &dyn std::any::Any {
-            unimplemented!()
+            self
         }
 
         fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-            unimplemented!()
+            self
         }
 
         fn type_uuid(&self) -> Uuid {
             Uuid::default()
-        }
-
-        fn is_embedded(&self) -> bool {
-            unimplemented!()
         }
     }
 
@@ -239,52 +220,24 @@ mod test {
 
     #[test]
     fn resource_state_new_pending() {
-        let path = PathBuf::from("foo.txt");
-        let type_uuid = Uuid::default();
-        let state = ResourceState::new_pending(path.clone(), type_uuid);
+        let state = ResourceState::new_pending();
 
-        assert!(matches!(
-            state,
-            ResourceState::Pending {
-                path: _,
-                wakers: _,
-                type_uuid: _
-            }
-        ));
-        assert_eq!(state.path(), path);
-        assert_eq!(state.type_uuid(), type_uuid);
-        assert_eq!(state.id(), 0);
+        assert!(matches!(state, ResourceState::Pending { wakers: _ }));
         assert!(state.is_loading());
     }
 
     #[test]
     fn resource_state_new_load_error() {
-        let path = PathBuf::from("foo.txt");
-        let type_uuid = Uuid::default();
-        let state = ResourceState::new_load_error(path.clone(), Default::default(), type_uuid);
+        let state = ResourceState::new_load_error(Default::default());
 
-        assert!(matches!(
-            state,
-            ResourceState::LoadError {
-                path: _,
-                error: _,
-                type_uuid: _
-            }
-        ));
-        assert_eq!(state.path(), path);
-        assert_eq!(state.type_uuid(), type_uuid);
-        assert_eq!(state.id(), 1);
+        assert!(matches!(state, ResourceState::LoadError { error: _ }));
         assert!(!state.is_loading());
     }
 
     #[test]
     fn resource_state_new_ok() {
         let state = ResourceState::new_ok(Stub {});
-
         assert!(matches!(state, ResourceState::Ok(_)));
-        assert_eq!(state.path(), Path::new(""));
-        assert_eq!(state.type_uuid(), Uuid::default());
-        assert_eq!(state.id(), 2);
         assert!(!state.is_loading());
     }
 
@@ -294,66 +247,31 @@ mod test {
         let mut state = ResourceState::new_ok(Stub {});
         state.switch_to_pending_state();
 
-        assert!(matches!(
-            state,
-            ResourceState::Pending {
-                path: _,
-                wakers: _,
-                type_uuid: _
-            }
-        ));
-        assert_eq!(state.path(), Path::new(""));
-        assert_eq!(state.type_uuid(), Uuid::default());
+        assert!(matches!(state, ResourceState::Pending { wakers: _ }));
 
         // from LoadError
-        let path = PathBuf::from("foo.txt");
-        let type_uuid = Uuid::default();
-        let mut state = ResourceState::new_load_error(path.clone(), Default::default(), type_uuid);
+        let mut state = ResourceState::new_load_error(Default::default());
         state.switch_to_pending_state();
 
-        assert!(matches!(
-            state,
-            ResourceState::Pending {
-                path: _,
-                wakers: _,
-                type_uuid: _
-            }
-        ));
-        assert_eq!(state.path(), path);
-        assert_eq!(state.type_uuid(), type_uuid);
+        assert!(matches!(state, ResourceState::Pending { wakers: _ }));
 
         // from Pending
-        let path = PathBuf::from("foo.txt");
-        let type_uuid = Uuid::default();
-        let mut state = ResourceState::new_pending(path.clone(), type_uuid);
+        let mut state = ResourceState::new_pending();
         state.switch_to_pending_state();
 
-        assert!(matches!(
-            state,
-            ResourceState::Pending {
-                path: _,
-                wakers: _,
-                type_uuid: _
-            }
-        ));
-        assert_eq!(state.path(), path);
-        assert_eq!(state.type_uuid(), type_uuid);
+        assert!(matches!(state, ResourceState::Pending { wakers: _ }));
     }
 
     #[test]
     fn visit_for_resource_state() {
         // Visit Pending
-        let mut state = ResourceState::new_pending(PathBuf::from("foo.txt"), Uuid::default());
+        let mut state = ResourceState::new_pending();
         let mut visitor = Visitor::default();
 
         assert!(state.visit("name", &mut visitor).is_ok());
 
         // Visit LoadError
-        let mut state = ResourceState::new_load_error(
-            PathBuf::from("foo.txt"),
-            Default::default(),
-            Uuid::default(),
-        );
+        let mut state = ResourceState::new_load_error(Default::default());
         let mut visitor = Visitor::default();
 
         assert!(state.visit("name", &mut visitor).is_ok());
@@ -363,39 +281,5 @@ mod test {
         let mut visitor = Visitor::default();
 
         assert!(state.visit("name", &mut visitor).is_ok());
-    }
-
-    #[test]
-    fn stub_path() {
-        let s = Stub {};
-        assert_eq!(s.path(), std::borrow::Cow::Borrowed(Path::new("")));
-    }
-
-    #[test]
-    #[should_panic]
-    fn stub_set_path() {
-        let mut s = Stub {};
-        s.set_path(PathBuf::new());
-    }
-
-    #[test]
-    #[should_panic]
-    fn stub_set_as_any() {
-        let s = Stub {};
-        ResourceData::as_any(&s);
-    }
-
-    #[test]
-    #[should_panic]
-    fn stub_set_as_any_mut() {
-        let mut s = Stub {};
-        ResourceData::as_any_mut(&mut s);
-        s.type_uuid();
-    }
-
-    #[test]
-    fn stub_set_type_uuid() {
-        let s = Stub {};
-        assert_eq!(s.type_uuid(), Uuid::default());
     }
 }

@@ -88,8 +88,6 @@ impl Visit for ResourceHeader {
                     type_uuid = guess_uuid(&mut region);
                 };
 
-                dbg!(type_uuid);
-
                 // We're interested only in embedded resources.
                 if id == 2 {
                     let resource_manager = region.blackboard.get::<ResourceManager>().expect(
@@ -321,8 +319,8 @@ impl UntypedResource {
     }
 
     /// Changes internal state to [`ResourceState::LoadError`].
-    pub fn commit_error<E: ResourceLoadError>(&self, path: PathBuf, error: E) {
-        self.0.lock().state.commit_error(path, error);
+    pub fn commit_error<E: ResourceLoadError>(&self, error: E) {
+        self.0.lock().state.commit_error(error);
     }
 }
 
@@ -355,10 +353,7 @@ mod test {
 
     use futures::task::noop_waker;
     use fyrox_core::futures;
-    use std::{
-        path::Path,
-        task::{self},
-    };
+    use std::task::{self};
 
     use super::*;
 
@@ -366,28 +361,16 @@ mod test {
     struct Stub {}
 
     impl ResourceData for Stub {
-        fn path(&self) -> &std::path::Path {
-            Path::new("")
-        }
-
-        fn set_path(&mut self, _path: std::path::PathBuf) {
-            unimplemented!()
-        }
-
         fn as_any(&self) -> &dyn std::any::Any {
-            unimplemented!()
+            self
         }
 
         fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-            unimplemented!()
+            self
         }
 
         fn type_uuid(&self) -> Uuid {
             Uuid::default()
-        }
-
-        fn is_embedded(&self) -> bool {
-            unimplemented!()
         }
     }
 
@@ -416,10 +399,10 @@ mod test {
 
     #[test]
     fn untyped_resource_new_pending() {
-        let r = UntypedResource::new_pending(PathBuf::from("/foo"), Uuid::default());
+        let r = UntypedResource::new_pending(PathBuf::from("/foo"), Uuid::default(), true);
 
-        assert_eq!(r.0.lock().type_uuid(), Uuid::default());
-        assert_eq!(r.0.lock().path(), PathBuf::from("/foo"));
+        assert_eq!(r.0.lock().type_uuid, Uuid::default());
+        assert_eq!(r.0.lock().path, PathBuf::from("/foo"));
     }
 
     #[test]
@@ -428,43 +411,11 @@ mod test {
             PathBuf::from("/foo"),
             Default::default(),
             Uuid::default(),
+            true,
         );
 
-        assert_eq!(r.0.lock().type_uuid(), Uuid::default());
-        assert_eq!(r.0.lock().path(), PathBuf::from("/foo"));
-    }
-
-    #[test]
-    fn untyped_resource_new_ok() {
-        let s = Stub {};
-        let r = UntypedResource::new_ok(s);
-
-        assert_eq!(r.0.lock().type_uuid(), s.type_uuid());
-        assert_eq!(r.0.lock().path(), s.path());
-    }
-
-    #[test]
-    fn untyped_resource_is_loading() {
-        assert!(UntypedResource(Arc::new(Mutex::new(ResourceState::Pending {
-            path: PathBuf::from("/foo"),
-            wakers: Default::default(),
-            type_uuid: Uuid::default()
-        })))
-        .is_loading());
-
-        assert!(
-            !UntypedResource(Arc::new(Mutex::new(ResourceState::LoadError {
-                path: PathBuf::from("/foo"),
-                error: Default::default(),
-                type_uuid: Uuid::default()
-            })))
-            .is_loading()
-        );
-
-        assert!(
-            !UntypedResource(Arc::new(Mutex::new(ResourceState::Ok(Box::new(Stub {})))))
-                .is_loading()
-        );
+        assert_eq!(r.0.lock().type_uuid, Uuid::default());
+        assert_eq!(r.0.lock().path, PathBuf::from("/foo"));
     }
 
     #[test]
@@ -475,42 +426,12 @@ mod test {
     }
 
     #[test]
-    fn untyped_resource_path() {
-        let path = PathBuf::from("/foo");
-        let stub = Stub {};
-
-        assert_eq!(
-            UntypedResource(Arc::new(Mutex::new(ResourceState::Pending {
-                path: path.clone(),
-                wakers: Default::default(),
-                type_uuid: Uuid::default()
-            })))
-            .path(),
-            path
-        );
-
-        assert_eq!(
-            UntypedResource(Arc::new(Mutex::new(ResourceState::LoadError {
-                path: path.clone(),
-                error: Default::default(),
-                type_uuid: Uuid::default()
-            })))
-            .path(),
-            path
-        );
-
-        assert_eq!(
-            UntypedResource(Arc::new(Mutex::new(ResourceState::Ok(Box::new(stub))))).path(),
-            stub.path(),
-        );
-    }
-
-    #[test]
     fn untyped_resource_try_cast() {
         let r = UntypedResource::default();
         let r2 = UntypedResource::new_pending(
             PathBuf::from("/foo"),
             Uuid::from_u128(0xa1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8u128),
+            true,
         );
 
         assert!(r.try_cast::<Stub>().is_some());
@@ -522,13 +443,11 @@ mod test {
         let path = PathBuf::from("/foo");
         let stub = Stub {};
 
-        let r = UntypedResource::new_pending(path.clone(), Default::default());
-        assert_eq!(r.0.lock().path(), path);
-        assert_ne!(r.0.lock().path(), stub.path());
+        let r = UntypedResource::new_pending(path.clone(), Default::default(), true);
+        assert_eq!(r.0.lock().path, path);
 
         r.commit(ResourceState::Ok(Box::new(stub)));
-        assert_ne!(r.0.lock().path(), path);
-        assert_eq!(r.0.lock().path(), stub.path());
+        assert_eq!(r.0.lock().path, path);
     }
 
     #[test]
@@ -536,13 +455,11 @@ mod test {
         let path = PathBuf::from("/foo");
         let stub = Stub {};
 
-        let r = UntypedResource::new_pending(path.clone(), Default::default());
-        assert_eq!(r.0.lock().path(), path);
-        assert_ne!(r.0.lock().path(), stub.path());
+        let r = UntypedResource::new_pending(path.clone(), Default::default(), true);
+        assert_eq!(r.0.lock().path, path);
 
         r.commit_ok(stub);
-        assert_ne!(r.0.lock().path(), path);
-        assert_eq!(r.0.lock().path(), stub.path());
+        assert_eq!(r.0.lock().path, path);
     }
 
     #[test]
@@ -550,13 +467,9 @@ mod test {
         let path = PathBuf::from("/foo");
         let path2 = PathBuf::from("/bar");
 
-        let r = UntypedResource::new_pending(path.clone(), Default::default());
-        assert_eq!(r.0.lock().path(), path);
-        assert_ne!(r.0.lock().path(), path2);
-
-        r.commit_error(path2.clone(), "error");
-        assert_ne!(r.0.lock().path(), path);
-        assert_eq!(r.0.lock().path(), path2);
+        let r = UntypedResource::new_pending(path.clone(), Default::default(), true);
+        assert_eq!(r.0.lock().path, path);
+        assert_ne!(r.0.lock().path, path2);
     }
 
     #[test]
@@ -567,48 +480,22 @@ mod test {
         let waker = noop_waker();
         let mut cx = task::Context::from_waker(&waker);
 
-        let mut r = UntypedResource(Arc::new(Mutex::new(ResourceState::Ok(Box::new(stub)))));
-        assert!(Pin::new(&mut r).poll(&mut cx).is_ready());
-
-        let mut r = UntypedResource(Arc::new(Mutex::new(ResourceState::LoadError {
+        let mut r = UntypedResource(Arc::new(Mutex::new(ResourceHeader {
             path: path.clone(),
-            error: Default::default(),
             type_uuid: Uuid::default(),
+            is_embedded: true,
+            state: ResourceState::Ok(Box::new(stub)),
         })));
         assert!(Pin::new(&mut r).poll(&mut cx).is_ready());
-    }
 
-    #[test]
-    fn stub_path() {
-        let s = Stub {};
-        assert_eq!(s.path(), std::borrow::Cow::Borrowed(Path::new("")));
-    }
-
-    #[test]
-    #[should_panic]
-    fn stub_set_path() {
-        let mut s = Stub {};
-        s.set_path(PathBuf::new());
-    }
-
-    #[test]
-    #[should_panic]
-    fn stub_set_as_any() {
-        let s = Stub {};
-        ResourceData::as_any(&s);
-    }
-
-    #[test]
-    #[should_panic]
-    fn stub_set_as_any_mut() {
-        let mut s = Stub {};
-        ResourceData::as_any_mut(&mut s);
-        s.type_uuid();
-    }
-
-    #[test]
-    fn stub_set_type_uuid() {
-        let s = Stub {};
-        assert_eq!(s.type_uuid(), Uuid::default());
+        let mut r = UntypedResource(Arc::new(Mutex::new(ResourceHeader {
+            path: path.clone(),
+            type_uuid: Uuid::default(),
+            is_embedded: true,
+            state: ResourceState::LoadError {
+                error: Default::default(),
+            },
+        })));
+        assert!(Pin::new(&mut r).poll(&mut cx).is_ready());
     }
 }

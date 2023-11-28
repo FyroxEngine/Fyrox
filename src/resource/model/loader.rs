@@ -77,7 +77,7 @@ impl ResourceLoader for ModelLoader {
                         path, error
                     ));
 
-                    model.commit_error(path, error);
+                    model.commit_error(error);
                 }
             }
         })

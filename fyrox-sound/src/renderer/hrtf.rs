@@ -31,7 +31,7 @@
 //!     let hrir_path = PathBuf::from("examples/data/IRC_1002_C.bin");
 //!     let hrir_sphere = HrirSphere::from_file(&hrir_path, context::SAMPLE_RATE).unwrap();
 //!
-//!     context.state().set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(HrirSphereResource::from_hrir_sphere(hrir_sphere, hrir_path))));
+//!     context.state().set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(HrirSphereResource::from_hrir_sphere(hrir_sphere, hrir_path, true))));
 //! }
 //! ```
 //!
@@ -252,7 +252,7 @@ impl ResourceLoader for HrirSphereLoader {
                             path, error
                         ));
 
-                        hrir_sphere.commit_error(path, error);
+                        hrir_sphere.commit_error(error);
                     }
                 },
                 Err(error) => {
@@ -261,7 +261,7 @@ impl ResourceLoader for HrirSphereLoader {
                         path, error
                     ));
 
-                    hrir_sphere.commit_error(path, error);
+                    hrir_sphere.commit_error(error);
                 }
             }
         })

@@ -71,10 +71,7 @@ impl ResourceLoader for SoundBufferLoader {
                             Log::info(format!("Sound buffer {:?} is loaded!", path));
                         }
                         Err(_) => {
-                            resource.commit_error(
-                                path.clone(),
-                                SoundBufferResourceLoadError::UnsupportedFormat,
-                            );
+                            resource.commit_error(SoundBufferResourceLoadError::UnsupportedFormat);
 
                             Log::info(format!("Unable to load sound buffer from {:?}!", path));
                         }
@@ -83,7 +80,7 @@ impl ResourceLoader for SoundBufferLoader {
                 Err(e) => {
                     Log::err(format!("Invalid data source for sound buffer: {:?}", e));
 
-                    resource.commit_error(path.clone(), SoundBufferResourceLoadError::Io(e));
+                    resource.commit_error(SoundBufferResourceLoadError::Io(e));
                 }
             }
         })

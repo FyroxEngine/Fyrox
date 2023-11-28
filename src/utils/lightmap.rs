@@ -979,6 +979,8 @@ mod test {
         },
         utils::lightmap::{Lightmap, LightmapInputData},
     };
+    use fyrox_resource::ResourceData;
+    use std::path::Path;
 
     #[test]
     fn test_generate_lightmap() {
@@ -1022,8 +1024,7 @@ mod test {
         for entry_set in lightmap.map.values() {
             for entry in entry_set {
                 let mut data = entry.texture.as_ref().unwrap().data_ref();
-                data.set_path(format!("{}.png", counter));
-                data.save().unwrap();
+                data.save(Path::new(&format!("{}.png", counter))).unwrap();
                 counter += 1;
             }
         }

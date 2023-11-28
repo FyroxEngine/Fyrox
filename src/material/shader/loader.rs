@@ -45,7 +45,7 @@ impl ResourceLoader for ShaderLoader {
                         path, error
                     ));
 
-                    shader.commit_error(path, error);
+                    shader.commit_error(error);
                 }
             }
         })
