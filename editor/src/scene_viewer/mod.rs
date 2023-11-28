@@ -1247,7 +1247,7 @@ impl SceneViewer {
                     }) {
                         let texture = tex.clone();
                         let mut texture = texture.state();
-                        if let Some(_) = texture.data() {
+                        if texture.data().is_some() {
                             let node = &mut engine.scenes[editor_scene.scene].graph[result.node];
 
                             if node.is_mesh() {
