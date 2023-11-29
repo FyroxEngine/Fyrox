@@ -27,7 +27,7 @@ impl ResourceLoader for ShaderLoader {
         Box::pin(async move {
             let shader_state = Shader::from_file(&path, io.as_ref())
                 .await
-                .map_err(|e| LoadError::new(e))?;
+                .map_err(LoadError::new)?;
             Ok(LoaderPayload::new(shader_state))
         })
     }

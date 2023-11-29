@@ -32,7 +32,7 @@ impl ResourceLoader for MaterialLoader {
         Box::pin(async move {
             let material = Material::from_file(&path, io.as_ref(), resource_manager)
                 .await
-                .map_err(|e| LoadError::new(e))?;
+                .map_err(LoadError::new)?;
             Ok(LoaderPayload::new(material))
         })
     }

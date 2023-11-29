@@ -49,7 +49,7 @@ impl ResourceLoader for SoundBufferLoader {
 
             let source = DataSource::from_file(&path, io)
                 .await
-                .map_err(|e| LoadError::new(e))?;
+                .map_err(LoadError::new)?;
 
             let result = if import_options.stream {
                 SoundBuffer::raw_streaming(source)

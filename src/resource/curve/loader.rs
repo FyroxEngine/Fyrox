@@ -27,7 +27,7 @@ impl ResourceLoader for CurveLoader {
         Box::pin(async move {
             let curve_state = CurveResourceState::from_file(&path, io.as_ref())
                 .await
-                .map_err(|e| LoadError::new(e))?;
+                .map_err(LoadError::new)?;
             Ok(LoaderPayload::new(curve_state))
         })
     }

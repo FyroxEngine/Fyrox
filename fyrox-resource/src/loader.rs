@@ -209,13 +209,7 @@ mod test {
             Default::default()
         }
 
-        fn load(
-            &self,
-            _resource: UntypedResource,
-            _event_broadcaster: ResourceEventBroadcaster,
-            _reload: bool,
-            _io: Arc<dyn ResourceIo>,
-        ) -> BoxedLoaderFuture {
+        fn load(&self, _path: PathBuf, _io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
             todo!()
         }
     }

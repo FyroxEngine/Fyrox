@@ -687,7 +687,7 @@ impl ResourceManagerState {
 mod test {
     use std::{fs::File, time::Duration};
 
-    use crate::loader::{BoxedLoaderFuture, ResourceLoader};
+    use crate::loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader};
 
     use super::*;
 
@@ -730,17 +730,8 @@ mod test {
             <Stub as TypeUuidProvider>::type_uuid()
         }
 
-        fn load(
-            &self,
-            resource: UntypedResource,
-            event_broadcaster: ResourceEventBroadcaster,
-            reload: bool,
-            _io: Arc<dyn ResourceIo>,
-        ) -> BoxedLoaderFuture {
-            Box::pin(async move {
-                resource.commit_ok(Stub::default());
-                event_broadcaster.broadcast_loaded_or_reloaded(resource, reload);
-            })
+        fn load(&self, _path: PathBuf, _io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
+            Box::pin(async move { Ok(LoaderPayload::new(Stub::default())) })
         }
     }
 
@@ -753,8 +744,8 @@ mod test {
 
         let cx = ResourceWaitContext {
             resources: vec![
-                UntypedResource::new_pending(path.clone(), type_uuid, true),
-                UntypedResource::new_load_error(path.clone(), Default::default(), type_uuid, true),
+                UntypedResource::new_pending(path.clone().into(), type_uuid),
+                UntypedResource::new_load_error(path.clone().into(), Default::default(), type_uuid),
             ],
         };
         assert!(!cx.is_all_loaded());
@@ -796,14 +787,13 @@ mod test {
 
         let path = PathBuf::from("test.txt");
         let type_uuid = Uuid::default();
-        state.push(UntypedResource::new_pending(path.clone(), type_uuid, true));
+        state.push(UntypedResource::new_pending(path.clone().into(), type_uuid));
         state.push(UntypedResource::new_load_error(
-            path.clone(),
+            path.clone().into(),
             Default::default(),
             type_uuid,
-            true,
         ));
-        state.push(UntypedResource::new_ok(Default::default(), true, Stub {}));
+        state.push(UntypedResource::new_ok(Default::default(), Stub {}));
 
         assert_eq!(state.count_loaded_resources(), 1);
         assert_eq!(state.count_pending_resources(), 1);
@@ -819,14 +809,13 @@ mod test {
 
         let path = PathBuf::from("test.txt");
         let type_uuid = Uuid::default();
-        state.push(UntypedResource::new_pending(path.clone(), type_uuid, true));
+        state.push(UntypedResource::new_pending(path.clone().into(), type_uuid));
         state.push(UntypedResource::new_load_error(
-            path.clone(),
+            path.clone().into(),
             Default::default(),
             type_uuid,
-            true,
         ));
-        state.push(UntypedResource::new_ok(Default::default(), true, Stub {}));
+        state.push(UntypedResource::new_ok(Default::default(), Stub {}));
 
         assert_eq!(state.loading_progress(), 33);
     }
@@ -839,7 +828,7 @@ mod test {
 
         let path = PathBuf::from("test.txt");
         let type_uuid = Uuid::default();
-        let resource = UntypedResource::new_pending(path.clone(), type_uuid, true);
+        let resource = UntypedResource::new_pending(path.clone().into(), type_uuid);
         state.push(resource.clone());
 
         assert_eq!(state.find(path), Some(&resource));
@@ -853,9 +842,10 @@ mod test {
 
         let path = PathBuf::from("test.txt");
         let type_uuid = Uuid::default();
-        let r1 = UntypedResource::new_pending(path.clone(), type_uuid, true);
-        let r2 = UntypedResource::new_load_error(path.clone(), Default::default(), type_uuid, true);
-        let r3 = UntypedResource::new_ok(Default::default(), true, Stub {});
+        let r1 = UntypedResource::new_pending(path.clone().into(), type_uuid);
+        let r2 =
+            UntypedResource::new_load_error(path.clone().into(), Default::default(), type_uuid);
+        let r3 = UntypedResource::new_ok(Default::default(), Stub {});
         state.push(r1.clone());
         state.push(r2.clone());
         state.push(r3.clone());
@@ -869,9 +859,8 @@ mod test {
         let mut state = ResourceManagerState::new();
 
         state.push(UntypedResource::new_pending(
-            PathBuf::from("test.txt"),
+            PathBuf::from("test.txt").into(),
             Uuid::default(),
-            true,
         ));
         assert_eq!(state.len(), 1);
 
@@ -886,7 +875,7 @@ mod test {
         let type_uuid = Uuid::default();
 
         let resource =
-            UntypedResource::new_load_error(path.clone(), Default::default(), type_uuid, true);
+            UntypedResource::new_load_error(path.clone().into(), Default::default(), type_uuid);
         state.push(resource.clone());
 
         let res = state.request(path);
@@ -895,7 +884,7 @@ mod test {
         let path = PathBuf::from("foo.txt");
         let res = state.request(path.clone());
 
-        assert_eq!(res.path(), path.clone());
+        assert_eq!(res.kind(), ResourceKind::External(path.clone()));
         assert_eq!(res.type_uuid(), type_uuid);
         assert!(!res.is_loading());
     }
@@ -906,10 +895,9 @@ mod test {
         state.loaders.set(Stub {});
 
         let resource = UntypedResource::new_load_error(
-            PathBuf::from("test.txt"),
+            PathBuf::from("test.txt").into(),
             Default::default(),
             Uuid::default(),
-            true,
         );
         state.push(resource.clone());
 
@@ -923,7 +911,7 @@ mod test {
     fn resource_manager_state_get_wait_context() {
         let mut state = ResourceManagerState::new();
 
-        let resource = UntypedResource::new_ok(Default::default(), true, Stub {});
+        let resource = UntypedResource::new_ok(Default::default(), Stub {});
         state.push(resource.clone());
         let cx = state.get_wait_context();
 
@@ -944,11 +932,11 @@ mod test {
         let path = PathBuf::from("test.txt");
         let type_uuid = Uuid::default();
 
-        let resource = UntypedResource::new_pending(path.clone(), type_uuid, true);
+        let resource = UntypedResource::new_pending(path.clone().into(), type_uuid);
         let res = manager.register(resource.clone(), path.clone(), |_, __| true);
         assert!(res.is_err());
 
-        let resource = UntypedResource::new_ok(Default::default(), true, Stub {});
+        let resource = UntypedResource::new_ok(Default::default(), Stub {});
         let res = manager.register(resource.clone(), path.clone(), |_, __| true);
         assert!(res.is_ok());
     }
@@ -956,7 +944,7 @@ mod test {
     #[test]
     fn resource_manager_request() {
         let manager = ResourceManager::new();
-        let untyped = UntypedResource::new_ok(Default::default(), true, Stub {});
+        let untyped = UntypedResource::new_ok(Default::default(), Stub {});
         let res = manager.register(untyped.clone(), PathBuf::from("foo.txt"), |_, __| true);
         assert!(res.is_ok());
 
@@ -973,7 +961,7 @@ mod test {
     #[test]
     fn resource_manager_request_untyped() {
         let manager = ResourceManager::new();
-        let resource = UntypedResource::new_ok(Default::default(), true, Stub {});
+        let resource = UntypedResource::new_ok(Default::default(), Stub {});
         let res = manager.register(resource.clone(), PathBuf::from("foo.txt"), |_, __| true);
         assert!(res.is_ok());
 

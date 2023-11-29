@@ -81,6 +81,12 @@ impl From<Option<PathBuf>> for ResourceKind {
     }
 }
 
+impl From<PathBuf> for ResourceKind {
+    fn from(value: PathBuf) -> Self {
+        Self::External(value)
+    }
+}
+
 impl<'a> From<&'a str> for ResourceKind {
     fn from(value: &'a str) -> Self {
         Self::External(value.into())
@@ -468,23 +474,28 @@ mod test {
 
     #[test]
     fn untyped_resource_new_pending() {
-        let r = UntypedResource::new_pending(PathBuf::from("/foo"), Uuid::default(), true);
+        let r = UntypedResource::new_pending(PathBuf::from("/foo").into(), Uuid::default());
 
         assert_eq!(r.0.lock().type_uuid, Uuid::default());
-        assert_eq!(r.0.lock().path, PathBuf::from("/foo"));
+        assert_eq!(
+            r.0.lock().kind,
+            ResourceKind::External(PathBuf::from("/foo"))
+        );
     }
 
     #[test]
     fn untyped_resource_new_load_error() {
         let r = UntypedResource::new_load_error(
-            PathBuf::from("/foo"),
+            PathBuf::from("/foo").into(),
             Default::default(),
             Uuid::default(),
-            true,
         );
 
         assert_eq!(r.0.lock().type_uuid, Uuid::default());
-        assert_eq!(r.0.lock().path, PathBuf::from("/foo"));
+        assert_eq!(
+            r.0.lock().kind,
+            ResourceKind::External(PathBuf::from("/foo"))
+        );
     }
 
     #[test]
@@ -498,9 +509,8 @@ mod test {
     fn untyped_resource_try_cast() {
         let r = UntypedResource::default();
         let r2 = UntypedResource::new_pending(
-            PathBuf::from("/foo"),
+            PathBuf::from("/foo").into(),
             Uuid::from_u128(0xa1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8u128),
-            true,
         );
 
         assert!(r.try_cast::<Stub>().is_some());
@@ -512,11 +522,11 @@ mod test {
         let path = PathBuf::from("/foo");
         let stub = Stub {};
 
-        let r = UntypedResource::new_pending(path.clone(), Default::default(), true);
-        assert_eq!(r.0.lock().path, path);
+        let r = UntypedResource::new_pending(path.clone().into(), Default::default());
+        assert_eq!(r.0.lock().kind, ResourceKind::External(path.clone()));
 
         r.commit(ResourceState::Ok(Box::new(stub)));
-        assert_eq!(r.0.lock().path, path);
+        assert_eq!(r.0.lock().kind, ResourceKind::External(path));
     }
 
     #[test]
@@ -524,11 +534,11 @@ mod test {
         let path = PathBuf::from("/foo");
         let stub = Stub {};
 
-        let r = UntypedResource::new_pending(path.clone(), Default::default(), true);
-        assert_eq!(r.0.lock().path, path);
+        let r = UntypedResource::new_pending(path.clone().into(), Default::default());
+        assert_eq!(r.0.lock().kind, ResourceKind::External(path.clone()));
 
         r.commit_ok(stub);
-        assert_eq!(r.0.lock().path, path);
+        assert_eq!(r.0.lock().kind, ResourceKind::External(path));
     }
 
     #[test]
@@ -536,9 +546,9 @@ mod test {
         let path = PathBuf::from("/foo");
         let path2 = PathBuf::from("/bar");
 
-        let r = UntypedResource::new_pending(path.clone(), Default::default(), true);
-        assert_eq!(r.0.lock().path, path);
-        assert_ne!(r.0.lock().path, path2);
+        let r = UntypedResource::new_pending(path.clone().into(), Default::default());
+        assert_eq!(r.0.lock().kind, ResourceKind::External(path));
+        assert_ne!(r.0.lock().kind, ResourceKind::External(path2));
     }
 
     #[test]
@@ -550,17 +560,15 @@ mod test {
         let mut cx = task::Context::from_waker(&waker);
 
         let mut r = UntypedResource(Arc::new(Mutex::new(ResourceHeader {
-            path: path.clone(),
+            kind: path.clone().into(),
             type_uuid: Uuid::default(),
-            is_embedded: true,
             state: ResourceState::Ok(Box::new(stub)),
         })));
         assert!(Pin::new(&mut r).poll(&mut cx).is_ready());
 
         let mut r = UntypedResource(Arc::new(Mutex::new(ResourceHeader {
-            path: path.clone(),
+            kind: path.clone().into(),
             type_uuid: Uuid::default(),
-            is_embedded: true,
             state: ResourceState::LoadError {
                 error: Default::default(),
             },

@@ -1735,7 +1735,7 @@ pub mod test {
             },
             TexturePixelKind::RGBA8,
             vec![1, 1, 1, 1],
-            false,
+            Default::default(),
         )
         .unwrap()
     }

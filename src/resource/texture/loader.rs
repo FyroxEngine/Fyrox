@@ -42,7 +42,7 @@ impl ResourceLoader for TextureLoader {
 
             let raw_texture = Texture::load_from_file(&path, io, import_options)
                 .await
-                .map_err(|e| LoadError::new(e))?;
+                .map_err(LoadError::new)?;
 
             Ok(LoaderPayload::new(raw_texture))
         })

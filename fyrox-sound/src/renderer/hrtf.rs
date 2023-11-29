@@ -31,7 +31,7 @@
 //!     let hrir_path = PathBuf::from("examples/data/IRC_1002_C.bin");
 //!     let hrir_sphere = HrirSphere::from_file(&hrir_path, context::SAMPLE_RATE).unwrap();
 //!
-//!     context.state().set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(HrirSphereResource::from_hrir_sphere(hrir_sphere, hrir_path, true))));
+//!     context.state().set_renderer(Renderer::HrtfRenderer(HrtfRenderer::new(HrirSphereResource::from_hrir_sphere(hrir_sphere, hrir_path.into()))));
 //! }
 //! ```
 //!
@@ -227,9 +227,9 @@ impl ResourceLoader for HrirSphereLoader {
 
     fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
         Box::pin(async move {
-            let reader = io.file_reader(&path).await.map_err(|e| LoadError::new(e))?;
+            let reader = io.file_reader(&path).await.map_err(LoadError::new)?;
             let hrir_sphere =
-                HrirSphere::new(reader, context::SAMPLE_RATE).map_err(|e| LoadError::new(e))?;
+                HrirSphere::new(reader, context::SAMPLE_RATE).map_err(LoadError::new)?;
             Ok(LoaderPayload::new(HrirSphereResourceData {
                 hrir_sphere: Some(hrir_sphere),
             }))

@@ -56,7 +56,7 @@ impl ResourceLoader for ModelLoader {
                 import_options,
             )
             .await
-            .map_err(|e| LoadError::new(e))?;
+            .map_err(LoadError::new)?;
 
             Ok(LoaderPayload::new(model))
         })
