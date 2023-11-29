@@ -10,10 +10,7 @@
 #![forbid(unsafe_code)]
 
 use crate::{
-    asset::{
-        manager::{ResourceManager, ResourceRegistrationError},
-        ResourceData,
-    },
+    asset::manager::{ResourceManager, ResourceRegistrationError},
     core::{
         algebra::{Matrix3, Matrix4, Point3, Vector2, Vector3, Vector4},
         arrayvec::ArrayVec,
@@ -39,7 +36,6 @@ use crate::{
     utils::{uvgen, uvgen::SurfaceDataPatch},
 };
 use fxhash::FxHashMap;
-use fyrox_resource::ResourceStateRef;
 use rayon::prelude::*;
 use std::{
     fmt::{Display, Formatter},
@@ -362,8 +358,8 @@ impl LightmapInputData {
                 'surface_loop: for surface in mesh.surfaces() {
                     // Check material for compatibility.
 
-                    let material_state = surface.material().state();
-                    if let ResourceStateRef::Ok(material) = material_state.get() {
+                    let mut material_state = surface.material().state();
+                    if let Some(material) = material_state.data() {
                         if !material
                             .properties()
                             .get(&ImmutableString::new("lightmapTexture"))
@@ -512,7 +508,7 @@ impl Lightmap {
 
             let lightmap = generate_lightmap(instance, &instances, &lights, texels_per_unit);
             map.entry(instance.owner).or_default().push(LightmapEntry {
-                texture: Some(TextureResource::new_ok(lightmap)),
+                texture: Some(TextureResource::new_ok(Default::default(), lightmap)),
                 lights: lights.iter().map(|light| light.handle()).collect(),
             });
 
@@ -541,13 +537,7 @@ impl Lightmap {
                 resource_manager.register(
                     texture.into_untyped(),
                     base_path.as_ref().join(file_path),
-                    |texture, _| {
-                        ResourceData::as_any(texture)
-                            .downcast_ref::<Texture>()
-                            .unwrap()
-                            .save()
-                            .is_ok()
-                    },
+                    |texture, path| texture.save(path).is_ok(),
                 )?;
             }
         }
@@ -968,9 +958,6 @@ fn generate_lightmap(
         },
         TexturePixelKind::RGB8,
         bytes,
-        // Do not serialize content because lightmap is saved as a series of images in
-        // a common format.
-        false,
     )
     .unwrap()
 }
@@ -992,6 +979,8 @@ mod test {
         },
         utils::lightmap::{Lightmap, LightmapInputData},
     };
+    use fyrox_resource::ResourceData;
+    use std::path::Path;
 
     #[test]
     fn test_generate_lightmap() {
@@ -1035,8 +1024,7 @@ mod test {
         for entry_set in lightmap.map.values() {
             for entry in entry_set {
                 let mut data = entry.texture.as_ref().unwrap().data_ref();
-                data.set_path(format!("{}.png", counter));
-                data.save().unwrap();
+                data.save(Path::new(&format!("{}.png", counter))).unwrap();
                 counter += 1;
             }
         }

@@ -42,7 +42,7 @@ where
 {
     resource
         .as_ref()
-        .map(|m| m.path().to_string_lossy().to_string())
+        .map(|m| m.kind().to_string())
         .unwrap_or_else(|| "None".to_string())
 }
 
@@ -217,8 +217,9 @@ where
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.locate {
                 if let Some(resource) = self.resource.as_ref() {
-                    self.sender
-                        .send(Message::ShowInAssetBrowser(resource.path()));
+                    if let Some(path) = resource.kind().into_path() {
+                        self.sender.send(Message::ShowInAssetBrowser(path));
+                    }
                 }
             }
         }

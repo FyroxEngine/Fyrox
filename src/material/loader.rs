@@ -2,16 +2,15 @@
 
 use crate::{
     asset::{
-        event::ResourceEventBroadcaster,
         io::ResourceIo,
-        loader::{BoxedLoaderFuture, ResourceLoader},
+        loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
         manager::ResourceManager,
-        untyped::UntypedResource,
     },
-    core::{log::Log, uuid::Uuid, TypeUuidProvider},
+    core::{uuid::Uuid, TypeUuidProvider},
     material::Material,
 };
-use std::sync::Arc;
+use fyrox_resource::state::LoadError;
+use std::{path::PathBuf, sync::Arc};
 
 /// Default implementation for material loading.
 pub struct MaterialLoader {
@@ -28,34 +27,13 @@ impl ResourceLoader for MaterialLoader {
         Material::type_uuid()
     }
 
-    fn load(
-        &self,
-        material: UntypedResource,
-        event_broadcaster: ResourceEventBroadcaster,
-        reload: bool,
-        io: Arc<dyn ResourceIo>,
-    ) -> BoxedLoaderFuture {
+    fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
         let resource_manager = self.resource_manager.clone();
         Box::pin(async move {
-            let path = material.path().to_path_buf();
-
-            match Material::from_file(&path, io.as_ref(), resource_manager).await {
-                Ok(shader_state) => {
-                    Log::info(format!("Material {:?} is loaded!", path));
-
-                    material.commit_ok(shader_state);
-
-                    event_broadcaster.broadcast_loaded_or_reloaded(material, reload);
-                }
-                Err(error) => {
-                    Log::err(format!(
-                        "Unable to load material from {:?}! Reason {:?}",
-                        path, error
-                    ));
-
-                    material.commit_error(path, error);
-                }
-            }
+            let material = Material::from_file(&path, io.as_ref(), resource_manager)
+                .await
+                .map_err(LoadError::new)?;
+            Ok(LoaderPayload::new(material))
         })
     }
 }

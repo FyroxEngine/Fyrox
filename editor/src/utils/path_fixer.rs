@@ -2,6 +2,7 @@
 //! moved a resource in a file system, but a scene has old path.
 
 use crate::{make_scene_file_filter, Message};
+use fyrox::asset::untyped::ResourceKind;
 use fyrox::{
     asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
@@ -220,7 +221,7 @@ impl PathFixer {
     fn fix_path(&mut self, index: usize, new_path: PathBuf, ui: &UserInterface) {
         let text = new_path.to_string_lossy().to_string();
 
-        self.orphaned_scene_resources[index].set_path(new_path);
+        self.orphaned_scene_resources[index].set_kind(ResourceKind::External(new_path));
 
         let item = ui
             .node(self.resources_list)
@@ -284,7 +285,7 @@ impl PathFixer {
                                 // Turn hash map into vec to be able to index it.
                                 self.orphaned_scene_resources = scene_resources
                                     .into_iter()
-                                    .filter(|r| !r.path().exists())
+                                    .filter(|r| !r.kind().path().map_or(false, |p| p.exists()))
                                     .collect::<Vec<_>>();
 
                                 let ctx = &mut ui.build_ctx();
@@ -302,7 +303,7 @@ impl PathFixer {
                                                 .with_vertical_text_alignment(
                                                     VerticalAlignment::Center,
                                                 )
-                                                .with_text(r.path().to_string_lossy())
+                                                .with_text(r.kind().to_string())
                                                 .build(ctx),
                                             ),
                                         ))
@@ -395,39 +396,43 @@ impl PathFixer {
             } else if message.destination() == self.fix {
                 if let Some(selection) = self.selection {
                     // Try to find a resource by its file name.
-                    let mut resource_path = self.orphaned_scene_resources[selection].path();
-
-                    if let Some(file_name) = resource_path.file_name() {
-                        let candidates = find_file(file_name.as_ref());
-                        // Skip ambiguous file paths.
-                        if candidates.len() == 1 {
-                            resource_path = candidates.first().unwrap().clone();
+                    if let Some(mut resource_path) =
+                        self.orphaned_scene_resources[selection].kind().into_path()
+                    {
+                        if let Some(file_name) = resource_path.file_name() {
+                            let candidates = find_file(file_name.as_ref());
+                            // Skip ambiguous file paths.
+                            if candidates.len() == 1 {
+                                resource_path = candidates.first().unwrap().clone();
+                            }
                         }
+
+                        // Pop parts of the path one by one until existing found.
+                        while !resource_path.exists() {
+                            resource_path.pop();
+                        }
+
+                        // Set it as a path for the selector to reduce amount of clicks needed.
+                        ui.send_message(FileSelectorMessage::path(
+                            self.new_path_selector,
+                            MessageDirection::ToWidget,
+                            resource_path,
+                        ));
+
+                        ui.send_message(WindowMessage::open_modal(
+                            self.new_path_selector,
+                            MessageDirection::ToWidget,
+                            true,
+                        ));
                     }
-
-                    // Pop parts of the path one by one until existing found.
-                    while !resource_path.exists() {
-                        resource_path.pop();
-                    }
-
-                    // Set it as a path for the selector to reduce amount of clicks needed.
-                    ui.send_message(FileSelectorMessage::path(
-                        self.new_path_selector,
-                        MessageDirection::ToWidget,
-                        resource_path,
-                    ));
-
-                    ui.send_message(WindowMessage::open_modal(
-                        self.new_path_selector,
-                        MessageDirection::ToWidget,
-                        true,
-                    ));
                 }
             } else if message.destination() == self.auto_fix {
                 for (i, orphaned_resource) in
                     self.orphaned_scene_resources.clone().iter().enumerate()
                 {
-                    if let Some(file_name) = orphaned_resource.path().file_name() {
+                    if let Some(file_name) =
+                        orphaned_resource.kind().path().and_then(|p| p.file_name())
+                    {
                         let candidates = find_file(file_name.as_ref());
                         // Skip ambiguous file paths.
                         if candidates.len() == 1 {
@@ -449,7 +454,7 @@ impl PathFixer {
                         MessageDirection::ToWidget,
                         format!(
                             "Resource: {}",
-                            self.orphaned_scene_resources[*selection].path().display()
+                            self.orphaned_scene_resources[*selection].kind()
                         ),
                     ))
                 } else {

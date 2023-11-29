@@ -2,15 +2,14 @@
 
 use crate::{
     asset::{
-        event::ResourceEventBroadcaster,
         io::ResourceIo,
-        loader::{BoxedLoaderFuture, ResourceLoader},
-        untyped::UntypedResource,
+        loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader},
     },
-    core::{log::Log, uuid::Uuid, TypeUuidProvider},
+    core::{uuid::Uuid, TypeUuidProvider},
     resource::curve::CurveResourceState,
 };
-use std::sync::Arc;
+use fyrox_resource::state::LoadError;
+use std::{path::PathBuf, sync::Arc};
 
 /// Default implementation for curve loading.
 pub struct CurveLoader;
@@ -24,32 +23,12 @@ impl ResourceLoader for CurveLoader {
         CurveResourceState::type_uuid()
     }
 
-    fn load(
-        &self,
-        curve: UntypedResource,
-        event_broadcaster: ResourceEventBroadcaster,
-        reload: bool,
-        io: Arc<dyn ResourceIo>,
-    ) -> BoxedLoaderFuture {
+    fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
         Box::pin(async move {
-            let path = curve.path();
-            match CurveResourceState::from_file(&path, io.as_ref()).await {
-                Ok(curve_state) => {
-                    Log::info(format!("Curve {:?} is loaded!", path));
-
-                    curve.commit_ok(curve_state);
-
-                    event_broadcaster.broadcast_loaded_or_reloaded(curve, reload);
-                }
-                Err(error) => {
-                    Log::err(format!(
-                        "Unable to load curve from {:?}! Reason {:?}",
-                        path, error
-                    ));
-
-                    curve.commit_error(path, error);
-                }
-            }
+            let curve_state = CurveResourceState::from_file(&path, io.as_ref())
+                .await
+                .map_err(LoadError::new)?;
+            Ok(LoaderPayload::new(curve_state))
         })
     }
 }

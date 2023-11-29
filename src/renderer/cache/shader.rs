@@ -13,7 +13,6 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_resource::entry::DEFAULT_RESOURCE_LIFETIME;
-use fyrox_resource::ResourceStateRef;
 
 pub struct RenderPassData {
     pub program: GpuProgram,
@@ -68,8 +67,8 @@ pub struct ShaderCache {
 
 impl ShaderCache {
     pub fn remove(&mut self, shader: &ShaderResource) {
-        let state = shader.state();
-        if let ResourceStateRef::Ok(shader_state) = state.get() {
+        let mut state = shader.state();
+        if let Some(shader_state) = state.data() {
             self.buffer.free(&shader_state.cache_index);
         }
     }
@@ -82,9 +81,9 @@ impl ShaderCache {
         scope_profile!();
 
         let key = shader.key();
-        let shader_state = shader.state();
+        let mut shader_state = shader.state();
 
-        if let ResourceStateRef::Ok(shader_state) = shader_state.get() {
+        if let Some(shader_state) = shader_state.data() {
             if self.buffer.is_index_valid(&shader_state.cache_index) {
                 let entry = self.buffer.get_mut(&shader_state.cache_index).unwrap();
 

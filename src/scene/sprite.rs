@@ -125,7 +125,7 @@ impl VertexTrait for SpriteVertex {
 ///         .unwrap();
 ///
 ///     SpriteBuilder::new(BaseBuilder::new())
-///         .with_material(MaterialResource::new_ok(material))
+///         .with_material(MaterialResource::new_ok(Default::default(), material))
 ///         .build(graph)
 /// }
 /// ```
@@ -360,7 +360,7 @@ impl SpriteBuilder {
     pub fn new(base_builder: BaseBuilder) -> Self {
         Self {
             base_builder,
-            material: MaterialResource::new_ok(Material::standard_sprite()),
+            material: MaterialResource::new_ok(Default::default(), Material::standard_sprite()),
             uv_rect: Rect::new(0.0, 0.0, 1.0, 1.0),
             color: Color::WHITE,
             size: 0.2,

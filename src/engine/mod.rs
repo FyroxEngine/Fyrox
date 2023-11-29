@@ -10,7 +10,6 @@ use crate::{
     asset::{
         event::ResourceEvent,
         manager::{ResourceManager, ResourceWaitContext},
-        ResourceStateRef,
     },
     core::{
         algebra::Vector2, futures::executor::block_on, instant, log::Log, pool::Handle,
@@ -47,7 +46,7 @@ use crate::{
     window::{Window, WindowBuilder},
 };
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_resource::untyped::UntypedResource;
+use fyrox_resource::untyped::{ResourceKind, UntypedResource};
 use fyrox_sound::{
     buffer::{loader::SoundBufferLoader, SoundBuffer},
     renderer::hrtf::{HrirSphereLoader, HrirSphereResourceData},
@@ -840,8 +839,8 @@ impl ResourceGraphVertex {
         let mut dependent_resources = HashSet::new();
         for resource in resource_manager.state().iter() {
             if let Some(other_model) = resource.try_cast::<Model>() {
-                let state = other_model.state();
-                if let ResourceStateRef::Ok(model_data) = state.get() {
+                let mut state = other_model.state();
+                if let Some(model_data) = state.data() {
                     if model_data
                         .get_scene()
                         .graph
@@ -869,7 +868,7 @@ impl ResourceGraphVertex {
     pub fn resolve(&self, resource_manager: &ResourceManager) {
         Log::info(format!(
             "Resolving {} resource from dependency graph...",
-            self.resource.path().display()
+            self.resource.kind()
         ));
 
         // Wait until resource is fully loaded, then resolve.
@@ -1021,13 +1020,14 @@ pub(crate) fn initialize_resource_manager_loaders(
     for shader in ShaderResource::standard_shaders() {
         state
             .built_in_resources
-            .insert(shader.path(), shader.into_untyped());
+            .insert(shader.kind().path_owned().unwrap(), shader.into_untyped());
     }
 
     for texture in SkyBoxKind::built_in_skybox_textures() {
-        state
-            .built_in_resources
-            .insert(texture.path(), texture.clone().into_untyped());
+        state.built_in_resources.insert(
+            texture.kind().path_owned().unwrap(),
+            texture.clone().into_untyped(),
+        );
     }
 
     state.constructors_container.add::<Texture>();
@@ -1508,20 +1508,22 @@ impl Engine {
                         if request.options.derived {
                             // Create a resource, that will point to the scene we've loaded the
                             // scene from and force scene nodes to inherit data from them.
-                            let model = ModelResource::new_ok(Model {
-                                path: request.path.clone(),
-                                mapping: NodeMapping::UseHandles,
-                                // We have to create a full copy of the scene, because otherwise
-                                // some methods (`Base::root_resource` in particular) won't work
-                                // correctly.
-                                scene: scene
-                                    .clone(
-                                        scene.graph.get_root(),
-                                        &mut |_, _| true,
-                                        &mut |_, _, _| {},
-                                    )
-                                    .0,
-                            });
+                            let model = ModelResource::new_ok(
+                                ResourceKind::External(request.path.clone()),
+                                Model {
+                                    mapping: NodeMapping::UseHandles,
+                                    // We have to create a full copy of the scene, because otherwise
+                                    // some methods (`Base::root_resource` in particular) won't work
+                                    // correctly.
+                                    scene: scene
+                                        .clone(
+                                            scene.graph.get_root(),
+                                            &mut |_, _| true,
+                                            &mut |_, _, _| {},
+                                        )
+                                        .0,
+                                },
+                            );
 
                             Log::verify(self.resource_manager.register(
                                 model.clone().into_untyped(),
@@ -1894,7 +1896,7 @@ impl Engine {
                 if let Some(model) = resource.try_cast::<Model>() {
                     Log::info(format!(
                         "A model resource {} was reloaded, propagating changes...",
-                        model.path().display()
+                        model.kind()
                     ));
 
                     // Build resource dependency graph and resolve it first.

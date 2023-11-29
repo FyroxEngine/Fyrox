@@ -97,7 +97,7 @@ impl AssetPreview for TexturePreview {
                     fallback: Default::default(),
                 },
             ));
-            let material = MaterialResource::new_ok(material);
+            let material = MaterialResource::new_ok(Default::default(), material);
 
             MeshBuilder::new(BaseBuilder::new())
                 .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
@@ -191,10 +191,10 @@ impl AssetPreview for ShaderPreview {
         scene: &mut Scene,
     ) -> Handle<Node> {
         if let Some(shader) = resource.try_cast::<Shader>() {
-            let material = MaterialResource::new_ok(Material::from_shader(
-                shader,
-                Some(resource_manager.clone()),
-            ));
+            let material = MaterialResource::new_ok(
+                Default::default(),
+                Material::from_shader(shader, Some(resource_manager.clone())),
+            );
 
             MeshBuilder::new(BaseBuilder::new())
                 .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(

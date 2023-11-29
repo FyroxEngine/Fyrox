@@ -33,6 +33,7 @@ use crate::{
     },
 };
 use fxhash::{FxHashMap, FxHasher};
+use fyrox_resource::untyped::ResourceKind;
 use half::f16;
 use std::{hash::Hasher, sync::Arc};
 
@@ -177,7 +178,7 @@ impl BlendShapesContainer {
                     },
                     TexturePixelKind::RGB16F,
                     bytes,
-                    false,
+                    ResourceKind::Embedded,
                 )
                 .unwrap(),
             ),
@@ -1301,7 +1302,7 @@ impl Default for Surface {
     fn default() -> Self {
         Self {
             data: SurfaceSharedData::new(SurfaceData::make_cube(Matrix4::identity())).into(),
-            material: MaterialResource::new_ok(Material::standard()).into(),
+            material: MaterialResource::new_ok(Default::default(), Material::standard()).into(),
             vertex_weights: Default::default(),
             bones: Default::default(),
             unique_material: Default::default(),
@@ -1414,7 +1415,9 @@ impl SurfaceBuilder {
             data: self.data.into(),
             material: self
                 .material
-                .unwrap_or_else(|| MaterialResource::new_ok(Material::standard()))
+                .unwrap_or_else(|| {
+                    MaterialResource::new_ok(Default::default(), Material::standard())
+                })
                 .into(),
             vertex_weights: Default::default(),
             bones: self.bones.into(),

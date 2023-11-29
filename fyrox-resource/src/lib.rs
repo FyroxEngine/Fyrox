@@ -1,7 +1,7 @@
 //! Resource management
 
 #![forbid(unsafe_code)]
-#![warn(missing_docs)]
+#![allow(missing_docs)]
 
 use crate::{
     core::{
@@ -23,12 +23,13 @@ use std::{
     hash::{Hash, Hasher},
     marker::PhantomData,
     ops::{Deref, DerefMut},
-    path::{Path, PathBuf},
+    path::Path,
     pin::Pin,
     task::{Context, Poll},
 };
 
 use crate::state::LoadError;
+use crate::untyped::{ResourceHeader, ResourceKind};
 pub use fyrox_core as core;
 
 pub mod constructor;
@@ -56,12 +57,6 @@ pub const CURVE_RESOURCE_UUID: Uuid = uuid!("f28b949f-28a2-4b68-9089-59c234f58b6
 
 /// A trait for resource data.
 pub trait ResourceData: 'static + Debug + Visit + Send + Reflect {
-    /// Returns path of resource data.
-    fn path(&self) -> &Path;
-
-    /// Sets new path to resource data.
-    fn set_path(&mut self, path: PathBuf);
-
     /// Returns `self` as `&dyn Any`. It is useful to implement downcasting to a particular type.
     fn as_any(&self) -> &dyn Any;
 
@@ -70,9 +65,6 @@ pub trait ResourceData: 'static + Debug + Visit + Send + Reflect {
 
     /// Returns unique data type id.
     fn type_uuid(&self) -> Uuid;
-
-    /// Returns true if the resource data was generated procedurally, not taken from a file.
-    fn is_embedded(&self) -> bool;
 
     /// Saves the resource data a file at the specified path. By default, this method returns an
     /// error that tells that saving functionality is not implemented. This method is free to
@@ -100,118 +92,29 @@ pub trait ResourceLoadError: 'static + Debug + Send + Sync {}
 impl<T> ResourceLoadError for T where T: 'static + Debug + Send + Sync {}
 
 /// Provides typed access to a resource state.
-pub struct ResourceStateGuard<'a, T>
+pub struct ResourceHeaderGuard<'a, T>
 where
     T: TypedResourceData,
 {
-    guard: MutexGuard<'a, ResourceState>,
+    guard: MutexGuard<'a, ResourceHeader>,
     phantom: PhantomData<T>,
 }
 
-impl<'a, T> ResourceStateGuard<'a, T>
+impl<'a, T> ResourceHeaderGuard<'a, T>
 where
     T: TypedResourceData,
 {
-    /// Fetches the actual state of the resource.
-    pub fn get(&self) -> ResourceStateRef<'_, T> {
-        match &*self.guard {
-            ResourceState::Pending {
-                path, type_uuid, ..
-            } => ResourceStateRef::Pending {
-                path,
-                type_uuid: *type_uuid,
-            },
-            ResourceState::LoadError {
-                path,
-                error,
-                type_uuid,
-            } => ResourceStateRef::LoadError {
-                path,
-                error,
-                type_uuid: *type_uuid,
-            },
-            ResourceState::Ok(data) => ResourceStateRef::Ok(
-                ResourceData::as_any(&**data)
-                    .downcast_ref()
-                    .expect("Type mismatch!"),
-            ),
-        }
+    pub fn kind(&self) -> &ResourceKind {
+        &self.guard.kind
     }
 
-    /// Fetches the actual state of the resource.
-    pub fn get_mut(&mut self) -> ResourceStateRefMut<'_, T> {
-        match &mut *self.guard {
-            ResourceState::Pending {
-                path, type_uuid, ..
-            } => ResourceStateRefMut::Pending {
-                path,
-                type_uuid: *type_uuid,
-            },
-            ResourceState::LoadError {
-                path,
-                error,
-                type_uuid,
-            } => ResourceStateRefMut::LoadError {
-                path,
-                error,
-                type_uuid: *type_uuid,
-            },
-            ResourceState::Ok(data) => ResourceStateRefMut::Ok(
-                ResourceData::as_any_mut(&mut **data)
-                    .downcast_mut()
-                    .expect("Type mismatch!"),
-            ),
+    pub fn data(&mut self) -> Option<&mut T> {
+        if let ResourceState::Ok(ref mut data) = self.guard.state {
+            ResourceData::as_any_mut(&mut **data).downcast_mut::<T>()
+        } else {
+            None
         }
     }
-}
-
-/// Provides typed access to a resource state.
-#[derive(Debug)]
-pub enum ResourceStateRef<'a, T>
-where
-    T: TypedResourceData,
-{
-    /// Resource is loading from external resource or in the queue to load.
-    Pending {
-        /// A path to load resource from.
-        path: &'a PathBuf,
-        /// Actual resource type id.
-        type_uuid: Uuid,
-    },
-    /// An error has occurred during the load.
-    LoadError {
-        /// A path at which it was impossible to load the resource.
-        path: &'a PathBuf,
-        /// An error.
-        error: &'a LoadError,
-        /// Actual resource type id.
-        type_uuid: Uuid,
-    },
-    /// Actual resource data when it is fully loaded.
-    Ok(&'a T),
-}
-
-/// Provides typed access to a resource state.
-#[derive(Debug)]
-pub enum ResourceStateRefMut<'a, T> {
-    /// Resource is loading from external resource or in the queue to load.
-    Pending {
-        /// A path to load resource from.
-        path: &'a mut PathBuf,
-        /// Actual resource type id.
-        type_uuid: Uuid,
-    },
-    /// An error has occurred during the load.
-    LoadError {
-        /// A path at which it was impossible to load the resource.
-        path: &'a mut PathBuf,
-        /// An error.
-        error: &'a mut LoadError,
-        /// Actual resource type id.
-        type_uuid: Uuid,
-    },
-    /// Actual resource data when it is fully loaded.
-    Ok(&'a mut T),
 }
 
 /// A resource of particular data type. It is a typed wrapper around [`UntypedResource`] which
@@ -279,28 +182,28 @@ where
 {
     /// Creates new resource in pending state.
     #[inline]
-    pub fn new_pending(path: PathBuf) -> Self {
+    pub fn new_pending(kind: ResourceKind) -> Self {
         Self {
-            untyped: UntypedResource::new_pending(path, <T as TypeUuidProvider>::type_uuid()),
+            untyped: UntypedResource::new_pending(kind, <T as TypeUuidProvider>::type_uuid()),
             phantom: PhantomData,
         }
     }
 
     /// Creates new resource in ok state (fully loaded).
     #[inline]
-    pub fn new_ok(data: T) -> Self {
+    pub fn new_ok(kind: ResourceKind, data: T) -> Self {
         Self {
-            untyped: UntypedResource::new_ok(data),
+            untyped: UntypedResource::new_ok(kind, data),
             phantom: PhantomData,
         }
     }
 
     /// Creates new resource in error state.
     #[inline]
-    pub fn new_load_error(path: PathBuf, error: LoadError) -> Self {
+    pub fn new_load_error(kind: ResourceKind, error: LoadError) -> Self {
         Self {
             untyped: UntypedResource::new_load_error(
-                path,
+                kind,
                 error,
                 <T as TypeUuidProvider>::type_uuid(),
             ),
@@ -316,42 +219,44 @@ where
 
     /// Locks internal mutex provides access to the state.
     #[inline]
-    pub fn state(&self) -> ResourceStateGuard<'_, T> {
-        ResourceStateGuard {
-            guard: self.state_inner(),
+    pub fn state(&self) -> ResourceHeaderGuard<'_, T> {
+        let guard = self.untyped.0.lock();
+        ResourceHeaderGuard {
+            guard,
             phantom: Default::default(),
         }
     }
 
     /// Tries to lock internal mutex provides access to the state.
     #[inline]
-    pub fn try_acquire_state(&self) -> Option<ResourceStateGuard<'_, T>> {
-        self.untyped.0.try_lock().map(|guard| ResourceStateGuard {
+    pub fn try_acquire_state(&self) -> Option<ResourceHeaderGuard<'_, T>> {
+        self.untyped.0.try_lock().map(|guard| ResourceHeaderGuard {
             guard,
             phantom: Default::default(),
         })
     }
 
-    fn state_inner(&self) -> MutexGuard<'_, ResourceState> {
+    #[inline]
+    pub fn header(&self) -> MutexGuard<'_, ResourceHeader> {
         self.untyped.0.lock()
     }
 
     /// Returns true if the resource is still loading.
     #[inline]
     pub fn is_loading(&self) -> bool {
-        matches!(*self.state_inner(), ResourceState::Pending { .. })
+        matches!(self.untyped.0.lock().state, ResourceState::Pending { .. })
     }
 
     /// Returns true if the resource is fully loaded and ready for use.
     #[inline]
     pub fn is_ok(&self) -> bool {
-        matches!(*self.state_inner(), ResourceState::Ok(_))
+        matches!(self.untyped.0.lock().state, ResourceState::Ok(_))
     }
 
     /// Returns true if the resource is failed to load.
     #[inline]
     pub fn is_failed_to_load(&self) -> bool {
-        matches!(*self.state_inner(), ResourceState::LoadError { .. })
+        matches!(self.untyped.0.lock().state, ResourceState::LoadError { .. })
     }
 
     /// Returns exact amount of users of the resource.
@@ -366,16 +271,16 @@ where
         self.untyped.key()
     }
 
-    /// Returns path of the resource.
+    /// Returns kind of the resource.
     #[inline]
-    pub fn path(&self) -> PathBuf {
-        self.untyped.0.lock().path().to_path_buf()
+    pub fn kind(&self) -> ResourceKind {
+        self.untyped.kind()
     }
 
-    /// Sets a new path of the resource.
+    /// Sets a new kind of the resource.
     #[inline]
-    pub fn set_path(&mut self, new_path: PathBuf) {
-        self.untyped.set_path(new_path);
+    pub fn set_path(&mut self, new_kind: ResourceKind) {
+        self.untyped.set_kind(new_kind);
     }
 
     /// Allows you to obtain reference to the resource data.
@@ -390,7 +295,7 @@ where
     #[inline]
     pub fn data_ref(&self) -> ResourceDataRef<'_, T> {
         ResourceDataRef {
-            guard: self.state_inner(),
+            guard: self.untyped.0.lock(),
             phantom: Default::default(),
         }
     }
@@ -403,7 +308,7 @@ where
     #[inline]
     fn default() -> Self {
         Self {
-            untyped: UntypedResource::new_ok(T::default()),
+            untyped: UntypedResource::new_ok(Default::default(), T::default()),
             phantom: Default::default(),
         }
     }
@@ -466,7 +371,7 @@ pub struct ResourceDataRef<'a, T>
 where
     T: TypedResourceData,
 {
-    guard: MutexGuard<'a, ResourceState>,
+    guard: MutexGuard<'a, ResourceHeader>,
     phantom: PhantomData<T>,
 }
 
@@ -475,19 +380,19 @@ where
     T: TypedResourceData,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match *self.guard {
-            ResourceState::Pending { ref path, .. } => {
+        match self.guard.state {
+            ResourceState::Pending { .. } => {
                 write!(
                     f,
                     "Attempt to get reference to resource data while it is not loaded! Path is {}",
-                    path.display()
+                    self.guard.kind
                 )
             }
-            ResourceState::LoadError { ref path, .. } => {
+            ResourceState::LoadError { .. } => {
                 write!(
                     f,
                     "Attempt to get reference to resource data which failed to load! Path is {}",
-                    path.display()
+                    self.guard.kind
                 )
             }
             ResourceState::Ok(ref data) => data.fmt(f),
@@ -502,17 +407,17 @@ where
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        match *self.guard {
-            ResourceState::Pending { ref path, .. } => {
+        match self.guard.state {
+            ResourceState::Pending { .. } => {
                 panic!(
                     "Attempt to get reference to resource data while it is not loaded! Path is {}",
-                    path.display()
+                    self.guard.kind
                 )
             }
-            ResourceState::LoadError { ref path, .. } => {
+            ResourceState::LoadError { .. } => {
                 panic!(
                     "Attempt to get reference to resource data which failed to load! Path is {}",
-                    path.display()
+                    self.guard.kind
                 )
             }
             ResourceState::Ok(ref data) => ResourceData::as_any(&**data)
@@ -527,17 +432,18 @@ where
     T: TypedResourceData,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        match *self.guard {
-            ResourceState::Pending { ref path, .. } => {
+        let header = &mut *self.guard;
+        match header.state {
+            ResourceState::Pending { .. } => {
                 panic!(
                     "Attempt to get reference to resource data while it is not loaded! Path is {}",
-                    path.display()
+                    header.kind
                 )
             }
-            ResourceState::LoadError { ref path, .. } => {
+            ResourceState::LoadError { .. } => {
                 panic!(
                     "Attempt to get reference to resource data which failed to load! Path is {}",
-                    path.display()
+                    header.kind
                 )
             }
             ResourceState::Ok(ref mut data) => ResourceData::as_any_mut(&mut **data)

@@ -2,9 +2,9 @@ use crate::{
     define_command_stack, send_sync_message, utils::create_file_selector, MessageBoxButtons,
     MessageBoxMessage, MSG_SYNC_FLAG,
 };
-use fyrox::asset::ResourceStateRefMut;
+use fyrox::asset::untyped::ResourceKind;
 use fyrox::{
-    asset::{Resource, ResourceData},
+    asset::Resource,
     core::{
         color::Color, curve::Curve, futures::executor::block_on, pool::Handle, visitor::prelude::*,
         visitor::Visitor,
@@ -312,7 +312,7 @@ impl CurveEditorWindow {
 
     fn save(&self) {
         if let Some(curve_resource) = self.curve_resource.as_ref() {
-            if let ResourceStateRefMut::Ok(state) = curve_resource.state().get_mut() {
+            if let Some(state) = curve_resource.state().data() {
                 let mut visitor = Visitor::new();
                 state.curve.visit("Curve", &mut visitor).unwrap();
                 visitor.save_binary(&self.path).unwrap();
@@ -340,12 +340,13 @@ impl CurveEditorWindow {
 
     fn sync_title(&self, ui: &UserInterface) {
         let title = if let Some(curve_resource) = self.curve_resource.as_ref() {
-            let path = curve_resource.data_ref().path().to_path_buf();
+            let kind = curve_resource.header().kind.clone();
 
-            if path == PathBuf::default() {
-                "Curve Editor - Unnamed Curve".to_string()
-            } else {
-                format!("Curve Editor - {}", path.display())
+            match kind {
+                ResourceKind::Embedded => "Curve Editor - Unnamed Curve".to_string(),
+                ResourceKind::External(path) => {
+                    format!("Curve Editor - {}", path.display())
+                }
             }
         } else {
             "Curve Editor".to_string()
@@ -472,7 +473,10 @@ impl CurveEditorWindow {
             } else if message.destination() == self.menu.file.new {
                 self.path = Default::default();
 
-                self.set_curve(Resource::new_ok(CurveResourceState::default()), ui);
+                self.set_curve(
+                    Resource::new_ok(Default::default(), CurveResourceState::default()),
+                    ui,
+                );
             } else if message.destination() == self.menu.file.save {
                 if self.path == PathBuf::default() {
                     self.open_save_file_dialog(ui);

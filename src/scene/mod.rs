@@ -322,7 +322,7 @@ impl SceneLoader {
         if let Some(path) = self.path {
             let exclusion_list = used_resources
                 .iter()
-                .filter(|res| res.path() == path)
+                .filter(|res| res.kind().path() == Some(&path))
                 .cloned()
                 .collect::<Vec<_>>();
 

@@ -10,7 +10,6 @@ use crate::{
 };
 use fyrox::core::futures::executor::block_on;
 use fyrox::{
-    asset::ResourceStateRef,
     core::{
         algebra::{Vector2, Vector3},
         color::Color,
@@ -1247,8 +1246,8 @@ impl SceneViewer {
                         only_meshes: false,
                     }) {
                         let texture = tex.clone();
-                        let texture = texture.state();
-                        if let ResourceStateRef::Ok(_) = texture.get() {
+                        let mut texture = texture.state();
+                        if texture.data().is_some() {
                             let node = &mut engine.scenes[editor_scene.scene].graph[result.node];
 
                             if node.is_mesh() {

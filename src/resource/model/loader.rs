@@ -2,18 +2,18 @@
 
 use crate::{
     asset::{
-        event::ResourceEventBroadcaster,
         io::ResourceIo,
-        loader::{BoxedImportOptionsLoaderFuture, BoxedLoaderFuture, ResourceLoader},
+        loader::{
+            BoxedImportOptionsLoaderFuture, BoxedLoaderFuture, LoaderPayload, ResourceLoader,
+        },
         manager::ResourceManager,
-        options::{try_get_import_settings, try_get_import_settings_opaque},
-        untyped::UntypedResource,
+        options::{try_get_import_settings, try_get_import_settings_opaque, BaseImportOptions},
     },
-    core::{log::Log, uuid::Uuid, TypeUuidProvider},
+    core::{uuid::Uuid, TypeUuidProvider},
     engine::SerializationContext,
     resource::model::{Model, ModelImportOptions},
 };
-use fyrox_resource::options::BaseImportOptions;
+use fyrox_resource::state::LoadError;
 use std::{path::PathBuf, sync::Arc};
 
 /// Default implementation for model loading.
@@ -36,50 +36,29 @@ impl ResourceLoader for ModelLoader {
         Model::type_uuid()
     }
 
-    fn load(
-        &self,
-        model: UntypedResource,
-        event_broadcaster: ResourceEventBroadcaster,
-        reload: bool,
-        io: Arc<dyn ResourceIo>,
-    ) -> BoxedLoaderFuture {
+    fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
         let resource_manager = self.resource_manager.clone();
         let node_constructors = self.serialization_context.clone();
         let default_import_options = self.default_import_options.clone();
 
         Box::pin(async move {
             let io = io.as_ref();
-            let path = model.path().to_path_buf();
 
             let import_options = try_get_import_settings(&path, io)
                 .await
                 .unwrap_or(default_import_options);
 
-            match Model::load(
-                &path,
+            let model = Model::load(
+                path,
                 io,
                 node_constructors,
                 resource_manager,
                 import_options,
             )
             .await
-            {
-                Ok(raw_model) => {
-                    Log::info(format!("Model {:?} is loaded!", path));
+            .map_err(LoadError::new)?;
 
-                    model.commit_ok(raw_model);
-
-                    event_broadcaster.broadcast_loaded_or_reloaded(model, reload);
-                }
-                Err(error) => {
-                    Log::err(format!(
-                        "Unable to load model from {:?}! Reason {:?}",
-                        path, error
-                    ));
-
-                    model.commit_error(path, error);
-                }
-            }
+            Ok(LoaderPayload::new(model))
         })
     }
 

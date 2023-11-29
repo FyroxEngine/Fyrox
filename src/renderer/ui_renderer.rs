@@ -33,6 +33,8 @@ use crate::{
     },
     resource::texture::{Texture, TextureKind, TexturePixelKind},
 };
+use fyrox_resource::untyped::ResourceHeader;
+use fyrox_resource::ResourceData;
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 struct UiShader {
@@ -272,11 +274,13 @@ impl UiRenderer {
                             },
                             TexturePixelKind::R8,
                             font.atlas_pixels().to_vec(),
-                            false,
                         ) {
-                            font.texture = Some(SharedTexture(Arc::new(Mutex::new(
-                                ResourceState::new_ok(details),
-                            ))));
+                            font.texture =
+                                Some(SharedTexture(Arc::new(Mutex::new(ResourceHeader {
+                                    kind: Default::default(),
+                                    type_uuid: details.type_uuid(),
+                                    state: ResourceState::new_ok(details),
+                                }))));
                         }
                     }
                     let tex = UntypedResource(
@@ -284,7 +288,7 @@ impl UiRenderer {
                             .clone()
                             .unwrap()
                             .0
-                            .downcast::<Mutex<ResourceState>>()
+                            .downcast::<Mutex<ResourceHeader>>()
                             .unwrap(),
                     );
                     if let Some(texture) =
@@ -295,7 +299,7 @@ impl UiRenderer {
                     is_font_texture = true;
                 }
                 CommandTexture::Texture(texture) => {
-                    if let Ok(texture) = texture.clone().0.downcast::<Mutex<ResourceState>>() {
+                    if let Ok(texture) = texture.clone().0.downcast::<Mutex<ResourceHeader>>() {
                         let resource = UntypedResource(texture).try_cast::<Texture>().unwrap();
                         if let Some(texture) = texture_cache.get(state, &resource) {
                             diffuse_texture = texture;

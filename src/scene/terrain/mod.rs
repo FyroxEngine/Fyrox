@@ -3,7 +3,7 @@
 use crate::material::MaterialResourceExtension;
 use crate::renderer::batch::PersistentIdentifier;
 use crate::{
-    asset::{Resource, ResourceStateRef},
+    asset::Resource,
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         arrayvec::ArrayVec,
@@ -37,7 +37,7 @@ use crate::{
     },
     utils::{self},
 };
-use fyrox_resource::ResourceStateRefMut;
+use fyrox_resource::untyped::ResourceKind;
 use half::f16;
 use image::{imageops::FilterType, ImageBuffer, Luma};
 use std::{
@@ -76,7 +76,7 @@ pub struct Layer {
 impl Default for Layer {
     fn default() -> Self {
         Self {
-            material: MaterialResource::new_ok(Material::standard_terrain()),
+            material: MaterialResource::new_ok(Default::default(), Material::standard_terrain()),
             mask_property_name: "maskTexture".to_string(),
             height_map_property_name: "heightMapTexture".to_string(),
             node_uv_offsets_property_name: "nodeUvOffsets".to_string(),
@@ -105,13 +105,12 @@ fn make_height_map_texture_internal(
         },
         TexturePixelKind::R32F,
         utils::transmute_vec_as_bytes(height_map),
-        true,
     )?;
 
     data.set_t_wrap_mode(TextureWrapMode::ClampToEdge);
     data.set_s_wrap_mode(TextureWrapMode::ClampToEdge);
 
-    Some(Resource::new_ok(data))
+    Some(Resource::new_ok(Default::default(), data))
 }
 
 fn make_height_map_texture(height_map: Vec<f32>, size: Vector2<u32>) -> TextureResource {
@@ -265,9 +264,8 @@ impl Chunk {
         height_map: Option<TextureResource>,
     ) -> Option<TextureResource> {
         if let Some(new_height_map) = height_map {
-            let state = new_height_map.state();
-
-            if let ResourceStateRef::Ok(new_height_map_texture) = state.get() {
+            let mut state = new_height_map.state();
+            if let Some(new_height_map_texture) = state.data() {
                 if let TextureKind::Rectangle { width, height } = new_height_map_texture.kind() {
                     if width == self.height_map_size.x && height == self.height_map_size.y {
                         fn convert<T, C>(texture: &Texture, mut mapper: C) -> Option<Vec<f32>>
@@ -664,7 +662,7 @@ struct OldLayer {
 impl Default for OldLayer {
     fn default() -> Self {
         Self {
-            material: MaterialResource::new_ok(Material::standard_terrain()),
+            material: MaterialResource::new_ok(Default::default(), Material::standard_terrain()),
             mask_property_name: "maskTexture".to_string(),
             chunk_masks: Default::default(),
         }
@@ -741,14 +739,14 @@ impl Visit for Terrain {
                     let mut new_material = Material::standard_terrain();
 
                     let mut material_state = layer.material.state();
-                    if let ResourceStateRefMut::Ok(material) = material_state.get_mut() {
+                    if let Some(material) = material_state.data() {
                         for (name, value) in material.properties() {
                             Log::verify(new_material.set_property(name, value.clone()));
                         }
                     }
 
                     self.layers.push(Layer {
-                        material: MaterialResource::new_ok(new_material),
+                        material: MaterialResource::new_ok(Default::default(), new_material),
                         mask_property_name: layer.mask_property_name,
                         ..Default::default()
                     });
@@ -1324,7 +1322,7 @@ impl Terrain {
                     },
                     data.pixel_kind(),
                     new_mask,
-                    true,
+                    ResourceKind::Embedded,
                 )
                 .unwrap();
 
@@ -1521,7 +1519,7 @@ impl NodeTrait for Terrain {
                         "Unable to set node uv offsets for terrain material.",
                     );
 
-                    let material = MaterialResource::new_ok(material.clone());
+                    let material = MaterialResource::new_ok(Default::default(), material.clone());
 
                     let node_transform = chunk_transform
                         * Matrix4::new_translation(&Vector3::new(
@@ -1679,8 +1677,7 @@ fn create_layer_mask(width: u32, height: u32, value: u8) -> TextureResource {
         TextureKind::Rectangle { width, height },
         TexturePixelKind::R8,
         vec![value; (width * height) as usize],
-        // Content of mask will be explicitly serialized.
-        true,
+        ResourceKind::Embedded,
     )
     .unwrap();
 

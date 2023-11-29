@@ -628,8 +628,8 @@ impl MaterialEditor {
                         .clone()
                         .and_then(|t| {
                             t.0.downcast::<Mutex<UntypedResource>>()
-                                .map(|t| t.lock().path())
                                 .ok()
+                                .and_then(|t| t.lock().kind().into_path())
                         });
 
                     if let Some(path) = path {

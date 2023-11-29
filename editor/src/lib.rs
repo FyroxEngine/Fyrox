@@ -160,6 +160,7 @@ pub fn send_sync_message(ui: &UserInterface, mut msg: UiMessage) {
 pub fn load_image(data: &[u8]) -> Option<draw::SharedTexture> {
     Some(into_gui_texture(
         TextureResource::load_from_memory(
+            Default::default(),
             data,
             TextureImportOptions::default()
                 .with_compression(CompressionOptions::NoCompression)
@@ -173,8 +174,7 @@ lazy_static! {
     static ref GIZMO_SHADER: ShaderResource = {
         ShaderResource::from_str(
             include_str!("../resources/shaders/gizmo.shader",),
-            PathBuf::default(),
-            false,
+            Default::default(),
         )
         .unwrap()
     };
@@ -188,7 +188,7 @@ pub fn make_color_material(color: Color) -> MaterialResource {
             PropertyValue::Color(color),
         )
         .unwrap();
-    MaterialResource::new_ok(material)
+    MaterialResource::new_ok(Default::default(), material)
 }
 
 pub fn set_mesh_diffuse_color(mesh: &mut Mesh, color: Color) {
@@ -212,7 +212,7 @@ pub fn create_terrain_layer_material() -> MaterialResource {
             PropertyValue::Vector2(Vector2::new(10.0, 10.0)),
         )
         .unwrap();
-    MaterialResource::new_ok(material)
+    MaterialResource::new_ok(Default::default(), material)
 }
 
 #[derive(Debug)]
@@ -770,6 +770,7 @@ impl Editor {
         let graphics_context = engine.graphics_context.as_initialized_mut();
 
         if let Ok(icon_img) = TextureResource::load_from_memory(
+            "../resources/icon.png".into(),
             include_bytes!("../resources/icon.png"),
             TextureImportOptions::default()
                 .with_compression(CompressionOptions::NoCompression)

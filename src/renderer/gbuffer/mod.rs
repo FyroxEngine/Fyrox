@@ -46,7 +46,6 @@ use crate::{
     },
 };
 use fyrox_core::math::Matrix4Ext;
-use fyrox_resource::ResourceStateRef;
 use std::{cell::RefCell, rc::Rc};
 
 mod decal;
@@ -309,8 +308,8 @@ impl GBuffer {
             .iter()
             .filter(|b| b.render_path == RenderPath::Deferred)
         {
-            let material_state = batch.material.state();
-            if let ResourceStateRef::Ok(material) = material_state.get() {
+            let mut material_state = batch.material.state();
+            if let Some(material) = material_state.data() {
                 let geometry = geom_cache.get(state, &batch.data, batch.time_to_live);
                 let blend_shapes_storage = batch
                     .data

@@ -242,6 +242,7 @@ use crate::{
     lazy_static::lazy_static,
     renderer::framework::framebuffer::DrawParameters,
 };
+use fyrox_resource::untyped::ResourceKind;
 use serde::Deserialize;
 use std::{
     any::Any,
@@ -315,44 +316,20 @@ pub const STANDARD_SHADER_SOURCES: [&str; 6] = [
 ///
 /// Usually you don't need to access internals of the shader, but there sometimes could be a need to
 /// read shader definition, to get supported passes and properties.
-#[derive(Default, Debug, Reflect)]
+#[derive(Default, Debug, Reflect, Visit)]
 pub struct Shader {
-    path: PathBuf,
-
     /// Shader definition contains description of properties and render passes.
+    #[visit(optional)]
     pub definition: ShaderDefinition,
 
-    is_embedded: bool,
-
     #[reflect(hidden)]
+    #[visit(skip)]
     pub(crate) cache_index: AtomicIndex,
 }
 
 impl TypeUuidProvider for Shader {
     fn type_uuid() -> Uuid {
         SHADER_RESOURCE_UUID
-    }
-}
-
-impl Visit for Shader {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut region = visitor.enter_region(name)?;
-
-        self.path.visit("Path", &mut region)?;
-        let _ = self.is_embedded.visit("IsProcedural", &mut region);
-
-        drop(region);
-
-        if visitor.is_reading() {
-            for path in STANDARD_SHADER_NAMES.iter() {
-                if self.path == Path::new(path) {
-                    self.is_embedded = false;
-                    break;
-                }
-            }
-        }
-
-        Ok(())
     }
 }
 
@@ -388,7 +365,7 @@ impl Default for SamplerFallback {
 }
 
 /// Shader property with default value.
-#[derive(Deserialize, Debug, PartialEq, Reflect)]
+#[derive(Deserialize, Debug, PartialEq, Reflect, Visit)]
 pub enum PropertyKind {
     /// Real number.
     Float(f32),
@@ -486,7 +463,7 @@ impl Default for PropertyKind {
 }
 
 /// Shader property definition.
-#[derive(Default, Deserialize, Debug, PartialEq, Reflect)]
+#[derive(Default, Deserialize, Debug, PartialEq, Reflect, Visit)]
 pub struct PropertyDefinition {
     /// A name of the property.
     pub name: String,
@@ -495,7 +472,7 @@ pub struct PropertyDefinition {
 }
 
 /// A render pass definition. See [`ShaderResource`] docs for more info about render passes.
-#[derive(Default, Deserialize, Debug, PartialEq, Eq, Reflect)]
+#[derive(Default, Deserialize, Debug, PartialEq, Eq, Reflect, Visit)]
 pub struct RenderPassDefinition {
     /// A name of render pass.
     pub name: String,
@@ -508,7 +485,7 @@ pub struct RenderPassDefinition {
 }
 
 /// A definition of the shader.
-#[derive(Default, Deserialize, Debug, PartialEq, Reflect)]
+#[derive(Default, Deserialize, Debug, PartialEq, Reflect, Visit)]
 pub struct ShaderDefinition {
     /// A name of the shader.
     pub name: String,
@@ -535,36 +512,20 @@ impl Shader {
     ) -> Result<Self, ShaderError> {
         let content = io.load_file(path.as_ref()).await?;
         Ok(Self {
-            path: path.as_ref().to_owned(),
             definition: ShaderDefinition::from_buf(content)?,
-            is_embedded: false,
             cache_index: Default::default(),
         })
     }
 
-    pub(crate) fn from_str<P: AsRef<Path>>(
-        str: &str,
-        path: P,
-        is_embedded: bool,
-    ) -> Result<Self, ShaderError> {
+    pub(crate) fn from_str(str: &str) -> Result<Self, ShaderError> {
         Ok(Self {
-            path: path.as_ref().to_owned(),
             definition: ShaderDefinition::from_str(str)?,
             cache_index: Default::default(),
-            is_embedded,
         })
     }
 }
 
 impl ResourceData for Shader {
-    fn path(&self) -> &Path {
-        &self.path
-    }
-
-    fn set_path(&mut self, path: PathBuf) {
-        self.path = path;
-    }
-
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -575,10 +536,6 @@ impl ResourceData for Shader {
 
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
-    }
-
-    fn is_embedded(&self) -> bool {
-        self.is_embedded
     }
 }
 
@@ -624,8 +581,7 @@ pub type ShaderResource = Resource<Shader>;
 pub trait ShaderResourceExtension: Sized {
     /// Creates new shader from given string. Input string must have the format defined in
     /// examples for [`ShaderResource`].
-    fn from_str<P: AsRef<Path>>(str: &str, path: P, is_embedded: bool)
-        -> Result<Self, ShaderError>;
+    fn from_str(str: &str, kind: ResourceKind) -> Result<Self, ShaderError>;
 
     /// Returns an instance of standard shader.
     fn standard() -> Self;
@@ -650,51 +606,34 @@ pub trait ShaderResourceExtension: Sized {
 }
 
 impl ShaderResourceExtension for ShaderResource {
-    /// Creates new shader from given string. Input string must have the format defined in
-    /// examples for [`ShaderResource`].
-    fn from_str<P: AsRef<Path>>(
-        str: &str,
-        path: P,
-        is_embedded: bool,
-    ) -> Result<Self, ShaderError> {
-        Ok(Resource::new_ok(Shader::from_str(
-            str,
-            path.as_ref(),
-            is_embedded,
-        )?))
+    fn from_str(str: &str, kind: ResourceKind) -> Result<Self, ShaderError> {
+        Ok(Resource::new_ok(kind, Shader::from_str(str)?))
     }
 
-    /// Returns an instance of standard shader.
     fn standard() -> Self {
         STANDARD.clone()
     }
 
-    /// Returns an instance of standard 2D shader.
     fn standard_2d() -> Self {
         STANDARD_2D.clone()
     }
 
-    /// Returns an instance of standard particle system shader.
     fn standard_particle_system() -> Self {
         STANDARD_PARTICLE_SYSTEM.clone()
     }
 
-    /// Returns an instance of standard sprite shader.
     fn standard_sprite() -> Self {
         STANDARD_SPRITE.clone()
     }
 
-    /// Returns an instance of standard terrain shader.
     fn standard_terrain() -> Self {
         STANDARD_TERRAIN.clone()
     }
 
-    /// Returns an instance of standard two-sides terrain shader.
     fn standard_twosides() -> Self {
         STANDARD_TWOSIDES.clone()
     }
 
-    /// Returns a list of standard shader.
     fn standard_shaders() -> Vec<ShaderResource> {
         vec![
             Self::standard(),
@@ -709,57 +648,43 @@ impl ShaderResourceExtension for ShaderResource {
 
 lazy_static! {
     static ref STANDARD: ShaderResource = ShaderResource::new_ok(
-        Shader::from_str(STANDARD_SHADER_SRC, STANDARD_SHADER_NAME, false).unwrap(),
+        STANDARD_SHADER_NAME.into(),
+        Shader::from_str(STANDARD_SHADER_SRC).unwrap(),
     );
 }
 
 lazy_static! {
     static ref STANDARD_2D: ShaderResource = ShaderResource::new_ok(
-        Shader::from_str(STANDARD_2D_SHADER_SRC, STANDARD_2D_SHADER_NAME, false).unwrap(),
+        STANDARD_2D_SHADER_NAME.into(),
+        Shader::from_str(STANDARD_2D_SHADER_SRC).unwrap(),
     );
 }
 
 lazy_static! {
     static ref STANDARD_PARTICLE_SYSTEM: ShaderResource = ShaderResource::new_ok(
-        Shader::from_str(
-            STANDARD_PARTICLE_SYSTEM_SHADER_SRC,
-            STANDARD_PARTICLE_SYSTEM_SHADER_NAME,
-            false
-        )
-        .unwrap(),
+        STANDARD_PARTICLE_SYSTEM_SHADER_NAME.into(),
+        Shader::from_str(STANDARD_PARTICLE_SYSTEM_SHADER_SRC).unwrap(),
     );
 }
 
 lazy_static! {
     static ref STANDARD_SPRITE: ShaderResource = ShaderResource::new_ok(
-        Shader::from_str(
-            STANDARD_SPRITE_SHADER_SRC,
-            STANDARD_SPRITE_SHADER_NAME,
-            false
-        )
-        .unwrap(),
+        STANDARD_SPRITE_SHADER_NAME.into(),
+        Shader::from_str(STANDARD_SPRITE_SHADER_SRC).unwrap(),
     );
 }
 
 lazy_static! {
     static ref STANDARD_TERRAIN: ShaderResource = ShaderResource::new_ok(
-        Shader::from_str(
-            STANDARD_TERRAIN_SHADER_SRC,
-            STANDARD_TERRAIN_SHADER_NAME,
-            false
-        )
-        .unwrap(),
+        STANDARD_TERRAIN_SHADER_NAME.into(),
+        Shader::from_str(STANDARD_TERRAIN_SHADER_SRC).unwrap(),
     );
 }
 
 lazy_static! {
     static ref STANDARD_TWOSIDES: ShaderResource = ShaderResource::new_ok(
-        Shader::from_str(
-            STANDARD_TWOSIDES_SHADER_SRC,
-            STANDARD_TWOSIDES_SHADER_NAME,
-            false
-        )
-        .unwrap(),
+        STANDARD_TWOSIDES_SHADER_NAME.into(),
+        Shader::from_str(STANDARD_TWOSIDES_SHADER_SRC).unwrap(),
     );
 }
 
@@ -812,7 +737,7 @@ mod test {
             )
             "#;
 
-        let shader = ShaderResource::from_str(code, "test").unwrap();
+        let shader = ShaderResource::from_str(code, "test".into()).unwrap();
         let data = shader.data_ref();
 
         let reference_definition = ShaderDefinition {

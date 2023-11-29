@@ -201,7 +201,7 @@ impl Visit for ParticleSystemRng {
 ///     )
 ///     .with_radius(0.01)
 ///     .build()])
-///     .with_material(MaterialResource::new_ok(material))
+///     .with_material(MaterialResource::new_ok(Default::default(), material))
 ///     .build(graph);
 /// }
 /// ```
@@ -260,7 +260,7 @@ impl Visit for ParticleSystem {
                     },
                 )
                 .unwrap();
-            self.material = MaterialResource::new_ok(material).into();
+            self.material = MaterialResource::new_ok(Default::default(), material).into();
         } else {
             self.material.visit(name, &mut region)?;
         }
@@ -590,7 +590,10 @@ impl ParticleSystemBuilder {
         Self {
             base_builder,
             emitters: Default::default(),
-            material: MaterialResource::new_ok(Material::standard_particle_system()),
+            material: MaterialResource::new_ok(
+                Default::default(),
+                Material::standard_particle_system(),
+            ),
             particles: Default::default(),
             acceleration: Vector3::new(0.0, -9.81, 0.0),
             color_over_lifetime: Default::default(),

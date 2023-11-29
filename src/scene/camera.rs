@@ -4,7 +4,6 @@ use crate::resource::texture::{
     CompressionOptions, TextureImportOptions, TextureMinificationFilter,
 };
 use crate::{
-    asset::ResourceStateRef,
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3, Vector4},
         color::Color,
@@ -28,6 +27,7 @@ use crate::{
     },
 };
 use fyrox_resource::state::LoadError;
+use fyrox_resource::untyped::ResourceKind;
 use lazy_static::lazy_static;
 use std::{
     fmt::{Display, Formatter},
@@ -860,7 +860,7 @@ impl ColorGradingLut {
                     },
                     TexturePixelKind::RGB8,
                     lut_bytes,
-                    false,
+                    ResourceKind::Embedded,
                 )
                 .unwrap();
 
@@ -911,16 +911,15 @@ pub enum SkyBoxKind {
 }
 
 fn load_texture(data: &[u8], id: &str) -> TextureResource {
-    let texture = TextureResource::load_from_memory(
+    TextureResource::load_from_memory(
+        ResourceKind::External(id.into()),
         data,
         TextureImportOptions::default()
             .with_compression(CompressionOptions::NoCompression)
             .with_minification_filter(TextureMinificationFilter::Linear),
     )
     .ok()
-    .unwrap();
-    texture.data_ref().set_path(id);
-    texture
+    .unwrap()
 }
 
 lazy_static! {
@@ -1301,7 +1300,7 @@ impl SkyBox {
 
         for (index, texture) in self.textures().iter().enumerate() {
             if let Some(texture) = texture {
-                if let ResourceStateRef::Ok(texture) = texture.state().get() {
+                if let Some(texture) = texture.state().data() {
                     if let TextureKind::Rectangle { width, height } = texture.kind() {
                         if width != height {
                             return Err(SkyBoxError::NonSquareTexture {
@@ -1389,7 +1388,7 @@ impl SkyBox {
                 TextureKind::Cube { width, height },
                 pixel_kind,
                 data,
-                false,
+                ResourceKind::Embedded,
             )
             .ok_or(SkyBoxError::UnableToBuildCubeMap)?,
         );

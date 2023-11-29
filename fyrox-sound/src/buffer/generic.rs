@@ -25,7 +25,7 @@
 
 use crate::{buffer::DataSource, decoder::Decoder};
 use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
-use std::{path::Path, path::PathBuf, time::Duration};
+use std::time::Duration;
 
 /// Generic sound buffer that contains decoded samples and allows random access.
 #[derive(Debug, Default, Visit, Reflect)]
@@ -39,13 +39,8 @@ pub struct GenericBuffer {
     pub(crate) channel_count: usize,
     #[visit(skip)]
     pub(crate) sample_rate: usize,
-    #[visit(rename = "Path")]
-    pub(crate) external_source_path: PathBuf,
     #[visit(skip)]
     pub(crate) channel_duration_in_samples: usize,
-    #[visit(optional)]
-    #[visit(rename = "IsProcedural")]
-    pub(crate) is_embedded: bool,
 }
 
 impl GenericBuffer {
@@ -78,20 +73,11 @@ impl GenericBuffer {
                         samples,
                         channel_count,
                         sample_rate,
-                        external_source_path: Default::default(),
-                        is_embedded: true,
                     })
                 }
             }
             DataSource::RawStreaming(_) => Err(source),
             _ => {
-                let (external_source_path, is_embedded) =
-                    if let DataSource::File { path, .. } = &source {
-                        (path.clone(), false)
-                    } else {
-                        (Default::default(), true)
-                    };
-
                 // Store cursor to handle errors.
                 let (is_memory, external_cursor) = if let DataSource::Memory(cursor) = &source {
                     (true, cursor.clone())
@@ -120,24 +106,9 @@ impl GenericBuffer {
                     channel_count: decoder.get_channel_count(),
                     channel_duration_in_samples: decoder.channel_duration_in_samples(),
                     samples: decoder.into_samples(),
-                    external_source_path,
-                    is_embedded,
                 })
             }
         }
-    }
-
-    /// In case if buffer was created from file, this method returns file name. Can be useful for
-    /// serialization needs where you just need to know which file needs to be reloaded from disk
-    /// when you loading a saved game.
-    #[inline]
-    pub fn external_data_path(&self) -> &Path {
-        &self.external_source_path
-    }
-
-    /// Sets new path for external data source.
-    pub fn set_external_data_path(&mut self, path: PathBuf) -> PathBuf {
-        std::mem::replace(&mut self.external_source_path, path)
     }
 
     /// Checks if buffer is empty or not.

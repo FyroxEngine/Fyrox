@@ -1,8 +1,7 @@
 //! Resource loader. It manages resource loading.
 
 use crate::{
-    core::uuid::Uuid, event::ResourceEventBroadcaster, io::ResourceIo, options::BaseImportOptions,
-    UntypedResource,
+    core::uuid::Uuid, io::ResourceIo, options::BaseImportOptions, state::LoadError, ResourceData,
 };
 use std::{any::Any, future::Future, path::PathBuf, pin::Pin, sync::Arc};
 
@@ -63,13 +62,7 @@ pub trait ResourceLoader: ResourceLoaderTypeTrait {
     fn data_type_uuid(&self) -> Uuid;
 
     /// Loads or reloads a resource.
-    fn load(
-        &self,
-        resource: UntypedResource,
-        event_broadcaster: ResourceEventBroadcaster,
-        reload: bool,
-        io: Arc<dyn ResourceIo>,
-    ) -> BoxedLoaderFuture;
+    fn load(&self, path: PathBuf, io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture;
 
     /// Tries to load import settings for a resource.
     fn try_load_import_settings(
@@ -86,13 +79,21 @@ pub trait ResourceLoader: ResourceLoaderTypeTrait {
     }
 }
 
+pub struct LoaderPayload(pub(crate) Box<dyn ResourceData>);
+
+impl LoaderPayload {
+    pub fn new<T: ResourceData>(data: T) -> Self {
+        Self(Box::new(data))
+    }
+}
+
 /// Future type for resource loading. See 'ResourceLoader'.
 #[cfg(target_arch = "wasm32")]
-pub type BoxedLoaderFuture = Pin<Box<dyn Future<Output = ()>>>;
+pub type BoxedLoaderFuture = Pin<Box<dyn Future<Output = Result<LoaderPayload, LoadError>>>>;
 
 /// Future type for resource loading. See 'ResourceLoader'.
 #[cfg(not(target_arch = "wasm32"))]
-pub type BoxedLoaderFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
+pub type BoxedLoaderFuture = Pin<Box<dyn Future<Output = Result<LoaderPayload, LoadError>> + Send>>;
 
 /// Future type for resource import options loading.
 pub type BoxedImportOptionsLoaderFuture =
@@ -208,13 +209,7 @@ mod test {
             Default::default()
         }
 
-        fn load(
-            &self,
-            _resource: UntypedResource,
-            _event_broadcaster: ResourceEventBroadcaster,
-            _reload: bool,
-            _io: Arc<dyn ResourceIo>,
-        ) -> BoxedLoaderFuture {
+        fn load(&self, _path: PathBuf, _io: Arc<dyn ResourceIo>) -> BoxedLoaderFuture {
             todo!()
         }
     }

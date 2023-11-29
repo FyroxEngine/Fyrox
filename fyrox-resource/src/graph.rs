@@ -20,8 +20,8 @@ impl ResourceGraphNode {
         // Look for dependent resources.
         let mut dependent_resources = FxHashSet::default();
 
-        let resource_state = resource.0.lock();
-        if let ResourceState::Ok(resource_data) = &*resource_state {
+        let header = resource.0.lock();
+        if let ResourceState::Ok(ref resource_data) = header.state {
             (**resource_data).as_reflect(&mut |entity| {
                 collect_used_resources(entity, &mut dependent_resources);
             });
@@ -45,7 +45,7 @@ impl ResourceGraphNode {
         *out += &format!(
             "{}{}\n",
             String::from('\t').repeat(level),
-            self.resource.path().to_string_lossy()
+            self.resource.kind()
         );
 
         for child in self.children.iter() {
@@ -114,17 +114,17 @@ mod test {
     fn resource_graph_node_pretty_print() {
         let mut s = String::new();
         let mut node = ResourceGraphNode::new(&UntypedResource::new_pending(
-            PathBuf::from("/foo"),
+            PathBuf::from("/foo").into(),
             Uuid::default(),
         ));
         let node2 = ResourceGraphNode::new(&UntypedResource::new_pending(
-            PathBuf::from("/bar"),
+            PathBuf::from("/bar").into(),
             Uuid::default(),
         ));
         node.children.push(node2);
         node.pretty_print(1, &mut s);
 
-        assert_eq!(s, "\t/foo\n\t\t/bar\n".to_string());
+        assert_eq!(s, "\tExternal (/foo)\n\t\tExternal (/bar)\n".to_string());
     }
 
     #[test]
@@ -150,32 +150,32 @@ mod test {
     #[test]
     fn resource_dependency_pretty_print() {
         let mut graph = ResourceDependencyGraph::new(&UntypedResource::new_pending(
-            PathBuf::from("/foo"),
+            PathBuf::from("/foo").into(),
             Uuid::default(),
         ));
         graph
             .root
             .children
             .push(ResourceGraphNode::new(&UntypedResource::new_pending(
-                PathBuf::from("/bar"),
+                PathBuf::from("/bar").into(),
                 Uuid::default(),
             )));
 
         let s = graph.pretty_print();
-        assert_eq!(s, "/foo\n\t/bar\n".to_string());
+        assert_eq!(s, "External (/foo)\n\tExternal (/bar)\n".to_string());
     }
 
     #[test]
     fn resource_dependency_for_each() {
         let mut graph = ResourceDependencyGraph::new(&UntypedResource::new_pending(
-            PathBuf::from("/foo"),
+            PathBuf::from("/foo").into(),
             Uuid::default(),
         ));
         graph
             .root
             .children
             .push(ResourceGraphNode::new(&UntypedResource::new_pending(
-                PathBuf::from("/bar"),
+                PathBuf::from("/bar").into(),
                 Uuid::default(),
             )));
 

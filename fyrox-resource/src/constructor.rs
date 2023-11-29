@@ -85,8 +85,6 @@ impl ResourceConstructorContainer {
 
 #[cfg(test)]
 mod test {
-    use std::path::PathBuf;
-
     use fyrox_core::reflect::prelude::*;
     use fyrox_core::visitor::{Visit, VisitResult, Visitor};
 
@@ -96,28 +94,16 @@ mod test {
     struct Stub {}
 
     impl ResourceData for Stub {
-        fn path(&self) -> &std::path::Path {
-            unimplemented!()
-        }
-
-        fn set_path(&mut self, _path: std::path::PathBuf) {
-            unimplemented!()
-        }
-
         fn as_any(&self) -> &dyn std::any::Any {
-            unimplemented!()
+            self
         }
 
         fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-            unimplemented!()
+            self
         }
 
         fn type_uuid(&self) -> Uuid {
-            unimplemented!()
-        }
-
-        fn is_embedded(&self) -> bool {
-            unimplemented!()
+            Uuid::default()
         }
     }
 
@@ -163,41 +149,5 @@ mod test {
 
         let res = c.try_create(&Uuid::default());
         assert!(res.is_some());
-    }
-
-    #[test]
-    #[should_panic]
-    fn stub_path() {
-        let s = Stub {};
-        s.path();
-    }
-
-    #[test]
-    #[should_panic]
-    fn stub_set_path() {
-        let mut s = Stub {};
-        s.set_path(PathBuf::new());
-    }
-
-    #[test]
-    #[should_panic]
-    fn stub_set_as_any() {
-        let s = Stub {};
-        ResourceData::as_any(&s);
-    }
-
-    #[test]
-    #[should_panic]
-    fn stub_set_as_any_mut() {
-        let mut s = Stub {};
-        ResourceData::as_any_mut(&mut s);
-        s.type_uuid();
-    }
-
-    #[test]
-    #[should_panic]
-    fn stub_set_type_uuid() {
-        let s = Stub {};
-        s.type_uuid();
     }
 }

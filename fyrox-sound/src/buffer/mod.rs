@@ -117,6 +117,22 @@ impl DataSource {
     pub fn from_memory(data: Vec<u8>) -> Self {
         DataSource::Memory(Cursor::new(data))
     }
+
+    /// Tries to get a path to external data source.
+    pub fn path(&self) -> Option<&Path> {
+        match self {
+            DataSource::File { path, .. } => Some(path),
+            _ => None,
+        }
+    }
+
+    /// Tries to get a path to external data source.
+    pub fn path_owned(&self) -> Option<PathBuf> {
+        match self {
+            DataSource::File { path, .. } => Some(path.clone()),
+            _ => None,
+        }
+    }
 }
 
 impl Read for DataSource {
@@ -182,15 +198,19 @@ pub trait SoundBufferResourceExtension {
 
 impl SoundBufferResourceExtension for SoundBufferResource {
     fn new_streaming(data_source: DataSource) -> Result<Resource<SoundBuffer>, DataSource> {
-        Ok(Resource::new_ok(SoundBuffer::Streaming(
-            StreamingBuffer::new(data_source)?,
-        )))
+        let path = data_source.path_owned();
+        Ok(Resource::new_ok(
+            path.into(),
+            SoundBuffer::Streaming(StreamingBuffer::new(data_source)?),
+        ))
     }
 
     fn new_generic(data_source: DataSource) -> Result<Resource<SoundBuffer>, DataSource> {
-        Ok(Resource::new_ok(SoundBuffer::Generic(GenericBuffer::new(
-            data_source,
-        )?)))
+        let path = data_source.path_owned();
+        Ok(Resource::new_ok(
+            path.into(),
+            SoundBuffer::Generic(GenericBuffer::new(data_source)?),
+        ))
     }
 }
 
@@ -245,14 +265,6 @@ impl DerefMut for SoundBuffer {
 }
 
 impl ResourceData for SoundBuffer {
-    fn path(&self) -> &Path {
-        &self.external_source_path
-    }
-
-    fn set_path(&mut self, path: PathBuf) {
-        self.external_source_path = path;
-    }
-
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -263,9 +275,5 @@ impl ResourceData for SoundBuffer {
 
     fn type_uuid(&self) -> Uuid {
         SOUND_BUFFER_RESOURCE_UUID
-    }
-
-    fn is_embedded(&self) -> bool {
-        self.is_embedded
     }
 }
