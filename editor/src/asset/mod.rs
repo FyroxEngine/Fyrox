@@ -9,7 +9,7 @@ use crate::{
     utils::window_content,
     AssetItem, Message, Mode,
 };
-use fyrox::asset::untyped::ResourceHeader;
+use fyrox::asset::untyped::{ResourceHeader, ResourceKind};
 use fyrox::{
     asset::{manager::ResourceManager, state::ResourceState, untyped::UntypedResource},
     core::{
@@ -376,9 +376,8 @@ impl ResourceCreator {
                     match instance.save(&path) {
                         Ok(_) => {
                             let resource = UntypedResource(Arc::new(Mutex::new(ResourceHeader {
-                                path: path.clone(),
+                                kind: ResourceKind::External(path.clone()),
                                 type_uuid: instance.type_uuid(),
-                                is_embedded: false,
                                 state: ResourceState::Ok(instance),
                             })));
 
@@ -929,16 +928,16 @@ impl AssetBrowser {
             // The engine cannot write FBX resources, so we must filter out these and warn the user
             // that resource references cannot be automatically fixed.
             if let Some(model) = res.try_cast::<Model>() {
-                if let Some(ext) = model
-                    .path()
-                    .extension()
-                    .map(|ext| ext.to_string_lossy().to_lowercase())
-                {
+                let kind = model.kind();
+                if let Some(ext) = kind.path().and_then(|path| {
+                    path.extension()
+                        .map(|ext| ext.to_string_lossy().to_lowercase())
+                }) {
                     if ext == "fbx" {
                         Log::warn(format!(
                             "Resource {} cannot be scanned for \
                         references, because FBX cannot be exported.",
-                            model.path().display()
+                            kind
                         ));
                         return false;
                     }
@@ -951,16 +950,18 @@ impl AssetBrowser {
         if let Some(item) = ui.try_get_node(dropped).and_then(|n| n.cast::<AssetItem>()) {
             if let Ok(relative_path) = make_relative_path(target_dir) {
                 if let Ok(resource) = block_on(resource_manager.request_untyped(&item.path)) {
-                    if let Some(file_name) = resource.path().file_name() {
-                        let new_full_path = relative_path.join(file_name);
-                        Log::verify(block_on(resource_manager.move_resource(
-                            resource,
-                            new_full_path,
-                            "./",
-                            filter,
-                        )));
+                    if let Some(path) = resource.kind().path_owned() {
+                        if let Some(file_name) = path.file_name() {
+                            let new_full_path = relative_path.join(file_name);
+                            Log::verify(block_on(resource_manager.move_resource(
+                                resource,
+                                new_full_path,
+                                "./",
+                                filter,
+                            )));
 
-                        self.refresh(ui, resource_manager);
+                            self.refresh(ui, resource_manager);
+                        }
                     }
                 }
             }
@@ -990,15 +991,19 @@ impl AssetBrowser {
                                     if let Ok(resource) =
                                         block_on(resource_manager.request_untyped(entry.path()))
                                     {
-                                        if let Some(file_name) = resource.path().file_name() {
-                                            let new_full_path =
-                                                target_sub_dir_normalized.join(file_name);
-                                            Log::verify(block_on(resource_manager.move_resource(
-                                                resource,
-                                                new_full_path,
-                                                "./",
-                                                filter,
-                                            )));
+                                        if let Some(path) = resource.kind().path_owned() {
+                                            if let Some(file_name) = path.file_name() {
+                                                let new_full_path =
+                                                    target_sub_dir_normalized.join(file_name);
+                                                Log::verify(block_on(
+                                                    resource_manager.move_resource(
+                                                        resource,
+                                                        new_full_path,
+                                                        "./",
+                                                        filter,
+                                                    ),
+                                                ));
+                                            }
                                         }
                                     }
                                 }

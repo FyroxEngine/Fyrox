@@ -2,6 +2,7 @@ use crate::{
     define_command_stack, send_sync_message, utils::create_file_selector, MessageBoxButtons,
     MessageBoxMessage, MSG_SYNC_FLAG,
 };
+use fyrox::asset::untyped::ResourceKind;
 use fyrox::{
     asset::Resource,
     core::{
@@ -339,12 +340,13 @@ impl CurveEditorWindow {
 
     fn sync_title(&self, ui: &UserInterface) {
         let title = if let Some(curve_resource) = self.curve_resource.as_ref() {
-            let path = curve_resource.header().path.clone();
+            let kind = curve_resource.header().kind.clone();
 
-            if path == PathBuf::default() {
-                "Curve Editor - Unnamed Curve".to_string()
-            } else {
-                format!("Curve Editor - {}", path.display())
+            match kind {
+                ResourceKind::Embedded => "Curve Editor - Unnamed Curve".to_string(),
+                ResourceKind::External(path) => {
+                    format!("Curve Editor - {}", path.display())
+                }
             }
         } else {
             "Curve Editor".to_string()
@@ -472,7 +474,7 @@ impl CurveEditorWindow {
                 self.path = Default::default();
 
                 self.set_curve(
-                    Resource::new_ok(Default::default(), CurveResourceState::default(), false),
+                    Resource::new_ok(Default::default(), CurveResourceState::default()),
                     ui,
                 );
             } else if message.destination() == self.menu.file.save {

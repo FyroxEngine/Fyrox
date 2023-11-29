@@ -36,23 +36,13 @@ fn build_tree_recursively(node: &ResourceGraphNode, ctx: &mut BuildContext) -> H
         .map(|c| build_tree_recursively(c, ctx))
         .collect();
 
-    let embedded = node.resource.is_embedded();
     let data_type = if let ResourceState::Ok(ref data) = node.resource.0.lock().state {
         data.type_name().to_string()
     } else {
         "Unknown".to_string()
     };
 
-    let path = node.resource.path().to_string_lossy().to_string();
-    let name = if path.is_empty() || embedded {
-        if path.is_empty() {
-            "Embedded".to_string()
-        } else {
-            format!("Embedded (id: {})", path)
-        }
-    } else {
-        path
-    };
+    let name = node.resource.kind().to_string();
 
     TreeBuilder::new(WidgetBuilder::new())
         .with_items(children)

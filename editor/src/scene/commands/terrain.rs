@@ -129,7 +129,7 @@ impl ModifyTerrainHeightCommand {
                 },
                 TexturePixelKind::R32F,
                 utils::transmute_vec_as_bytes(new.clone()),
-                true,
+                Default::default(),
             )
             .unwrap();
 

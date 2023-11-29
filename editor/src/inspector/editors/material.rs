@@ -166,21 +166,13 @@ fn make_name(material: &MaterialResource) -> String {
     let header = material.header();
     match header.state {
         ResourceState::Ok(_) => {
-            if header.is_embedded {
-                format!("Embedded - {} uses", material.use_count())
-            } else {
-                format!(
-                    "{} - {} uses",
-                    header.path.to_string_lossy().as_ref(),
-                    material.use_count()
-                )
-            }
+            format!("{} - {} uses", header.kind, material.use_count())
         }
         ResourceState::LoadError { ref error, .. } => {
             format!("Loading failed: {:?}", error)
         }
         ResourceState::Pending { .. } => {
-            format!("Loading {}", header.path.display())
+            format!("Loading {}", header.kind)
         }
     }
 }

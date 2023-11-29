@@ -14,8 +14,7 @@ pub struct SetMaterialPropertyValueCommand {
 
 fn try_save(material: &MaterialResource) {
     let header = material.header();
-    if !header.is_embedded {
-        let path = header.path.to_path_buf();
+    if let Some(path) = header.kind.path_owned() {
         drop(header);
         Log::verify(material.data_ref().save(&path));
     }
