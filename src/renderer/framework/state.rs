@@ -3,7 +3,7 @@ use crate::{
     renderer::framework::framebuffer::{CullFace, DrawParameters},
 };
 use glow::{Framebuffer, HasContext};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -47,6 +47,7 @@ impl Display for PipelineStatistics {
     Ord,
     Hash,
     Visit,
+    Serialize,
     Deserialize,
     Debug,
     Reflect,
@@ -95,6 +96,7 @@ impl Default for CompareFunc {
     PartialEq,
     Eq,
     Ord,
+    Serialize,
     Deserialize,
     Visit,
     Debug,
@@ -132,7 +134,9 @@ impl Default for BlendFactor {
     }
 }
 
-#[derive(Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord, Deserialize, Visit, Debug, Reflect)]
+#[derive(
+    Copy, Clone, Hash, PartialOrd, PartialEq, Eq, Ord, Serialize, Deserialize, Visit, Debug, Reflect,
+)]
 #[repr(u32)]
 pub enum BlendMode {
     Add = glow::FUNC_ADD,
@@ -149,14 +153,28 @@ impl Default for BlendMode {
 }
 
 #[derive(
-    Copy, Clone, Default, PartialOrd, PartialEq, Ord, Eq, Hash, Deserialize, Visit, Debug, Reflect,
+    Copy,
+    Clone,
+    Default,
+    PartialOrd,
+    PartialEq,
+    Ord,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    Visit,
+    Debug,
+    Reflect,
 )]
 pub struct BlendEquation {
     rgb: BlendMode,
     alpha: BlendMode,
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Deserialize, Visit, Debug, Reflect)]
+#[derive(
+    Copy, Clone, PartialOrd, PartialEq, Ord, Eq, Hash, Serialize, Deserialize, Visit, Debug, Reflect,
+)]
 pub struct BlendFunc {
     pub sfactor: BlendFactor,
     pub dfactor: BlendFactor,
@@ -262,7 +280,9 @@ impl Default for TextureUnit {
     }
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit, Eq, Reflect)]
+#[derive(
+    Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Serialize, Deserialize, Visit, Eq, Reflect,
+)]
 pub struct ColorMask {
     pub red: bool,
     pub green: bool,
@@ -292,7 +312,9 @@ impl ColorMask {
     }
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit, Eq, Reflect)]
+#[derive(
+    Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Serialize, Deserialize, Visit, Eq, Reflect,
+)]
 pub struct StencilFunc {
     pub func: CompareFunc,
     pub ref_value: u32,
@@ -316,6 +338,7 @@ impl Default for StencilFunc {
     PartialEq,
     Hash,
     Debug,
+    Serialize,
     Deserialize,
     Visit,
     Eq,
@@ -363,7 +386,9 @@ impl Default for StencilAction {
     }
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit, Eq, Reflect)]
+#[derive(
+    Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Serialize, Deserialize, Visit, Eq, Reflect,
+)]
 pub struct StencilOp {
     pub fail: StencilAction,
     pub zfail: StencilAction,

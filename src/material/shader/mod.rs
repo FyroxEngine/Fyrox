@@ -229,7 +229,7 @@
 //! is enough.
 
 use crate::{
-    asset::{io::ResourceIo, Resource, ResourceData, SHADER_RESOURCE_UUID},
+    asset::{io::ResourceIo, untyped::ResourceKind, Resource, ResourceData, SHADER_RESOURCE_UUID},
     core::{
         algebra::{Matrix2, Matrix3, Matrix4, Vector2, Vector3, Vector4},
         io::FileLoadError,
@@ -242,12 +242,14 @@ use crate::{
     lazy_static::lazy_static,
     renderer::framework::framebuffer::DrawParameters,
 };
-use fyrox_resource::untyped::ResourceKind;
-use serde::Deserialize;
+use ron::ser::PrettyConfig;
+use serde::{Deserialize, Serialize};
 use std::{
     any::Any,
+    error::Error,
     fmt::{Display, Formatter},
-    io::Cursor,
+    fs::File,
+    io::{Cursor, Write},
     path::{Path, PathBuf},
 };
 
@@ -348,7 +350,7 @@ impl TypeUuidProvider for Shader {
 ///
 /// Fallback value is also helpful to catch missing textures, you'll definitely know the texture is
 /// missing by very specific value in the fallback texture.
-#[derive(Deserialize, Debug, PartialEq, Clone, Copy, Visit, Eq, Reflect)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy, Visit, Eq, Reflect)]
 pub enum SamplerFallback {
     /// A 1x1px white texture.
     White,
@@ -365,7 +367,7 @@ impl Default for SamplerFallback {
 }
 
 /// Shader property with default value.
-#[derive(Deserialize, Debug, PartialEq, Reflect, Visit)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Reflect, Visit)]
 pub enum PropertyKind {
     /// Real number.
     Float(f32),
@@ -463,7 +465,7 @@ impl Default for PropertyKind {
 }
 
 /// Shader property definition.
-#[derive(Default, Deserialize, Debug, PartialEq, Reflect, Visit)]
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Reflect, Visit)]
 pub struct PropertyDefinition {
     /// A name of the property.
     pub name: String,
@@ -472,7 +474,7 @@ pub struct PropertyDefinition {
 }
 
 /// A render pass definition. See [`ShaderResource`] docs for more info about render passes.
-#[derive(Default, Deserialize, Debug, PartialEq, Eq, Reflect, Visit)]
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Eq, Reflect, Visit)]
 pub struct RenderPassDefinition {
     /// A name of render pass.
     pub name: String,
@@ -485,7 +487,7 @@ pub struct RenderPassDefinition {
 }
 
 /// A definition of the shader.
-#[derive(Default, Deserialize, Debug, PartialEq, Reflect, Visit)]
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Reflect, Visit)]
 pub struct ShaderDefinition {
     /// A name of the shader.
     pub name: String,
@@ -536,6 +538,14 @@ impl ResourceData for Shader {
 
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
+    }
+
+    fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
+        let mut file = File::create(path)?;
+        file.write_all(
+            ron::ser::to_string_pretty(&self.definition, PrettyConfig::default())?.as_bytes(),
+        )?;
+        Ok(())
     }
 }
 

@@ -9,7 +9,7 @@ use crate::{
     },
 };
 use glow::HasContext;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Eq)]
@@ -31,7 +31,9 @@ pub struct FrameBuffer {
     color_attachments: Vec<Attachment>,
 }
 
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Deserialize, Visit, Eq, Reflect)]
+#[derive(
+    Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Serialize, Deserialize, Visit, Eq, Reflect,
+)]
 #[repr(u32)]
 pub enum CullFace {
     Back = glow::BACK,
@@ -44,13 +46,13 @@ impl Default for CullFace {
     }
 }
 
-#[derive(Deserialize, Default, Visit, Debug, PartialEq, Clone, Eq, Reflect)]
+#[derive(Serialize, Deserialize, Default, Visit, Debug, PartialEq, Clone, Eq, Reflect)]
 pub struct BlendParameters {
     pub func: BlendFunc,
     pub equation: BlendEquation,
 }
 
-#[derive(Deserialize, Visit, Debug, PartialEq, Clone, Eq, Reflect)]
+#[derive(Serialize, Deserialize, Visit, Debug, PartialEq, Clone, Eq, Reflect)]
 pub struct DrawParameters {
     pub cull_face: Option<CullFace>,
     pub color_write: ColorMask,
