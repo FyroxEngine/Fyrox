@@ -7,6 +7,7 @@ use crate::{
         TypeUuidProvider,
     },
 };
+use std::error::Error;
 use std::{
     any::Any,
     fmt::{Display, Formatter},
@@ -71,6 +72,15 @@ impl ResourceData for CurveResourceState {
 
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
+    }
+
+    fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
+        // TODO: Add saving.
+        Err("Saving is not supported!".to_string().into())
+    }
+
+    fn can_be_saved(&self) -> bool {
+        false
     }
 }
 

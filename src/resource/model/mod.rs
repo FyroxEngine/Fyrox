@@ -304,6 +304,10 @@ impl ResourceData for Model {
         visitor.save_binary(path)?;
         Ok(())
     }
+
+    fn can_be_saved(&self) -> bool {
+        true
+    }
 }
 
 impl Default for Model {

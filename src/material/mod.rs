@@ -452,6 +452,10 @@ impl ResourceData for Material {
         visitor.save_binary(path)?;
         Ok(())
     }
+
+    fn can_be_saved(&self) -> bool {
+        true
+    }
 }
 
 /// A set of possible errors that can occur when working with materials.

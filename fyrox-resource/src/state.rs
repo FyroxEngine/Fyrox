@@ -187,11 +187,12 @@ impl ResourceState {
 
 #[cfg(test)]
 mod test {
-
     use fyrox_core::{
         reflect::{FieldInfo, Reflect},
         TypeUuidProvider,
     };
+    use std::error::Error;
+    use std::path::Path;
 
     use super::*;
 
@@ -209,6 +210,14 @@ mod test {
 
         fn type_uuid(&self) -> Uuid {
             Uuid::default()
+        }
+
+        fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
+            Err("Saving is not supported!".to_string().into())
+        }
+
+        fn can_be_saved(&self) -> bool {
+            false
         }
     }
 

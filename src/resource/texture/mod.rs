@@ -315,6 +315,10 @@ impl ResourceData for Texture {
             Err(Box::new(TextureError::UnsupportedFormat))
         }
     }
+
+    fn can_be_saved(&self) -> bool {
+        true
+    }
 }
 
 impl Visit for Texture {

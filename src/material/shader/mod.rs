@@ -547,6 +547,10 @@ impl ResourceData for Shader {
         )?;
         Ok(())
     }
+
+    fn can_be_saved(&self) -> bool {
+        true
+    }
 }
 
 /// A set of possible error variants that can occur during shader loading.

@@ -73,6 +73,8 @@ use fyrox_resource::{
     Resource, ResourceData,
 };
 use hrtf::HrirSphere;
+use std::error::Error;
+use std::path::Path;
 use std::{any::Any, fmt::Debug, fmt::Formatter, path::PathBuf, sync::Arc};
 
 /// See module docs.
@@ -210,6 +212,14 @@ impl ResourceData for HrirSphereResourceData {
 
     fn type_uuid(&self) -> Uuid {
         <Self as TypeUuidProvider>::type_uuid()
+    }
+
+    fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
+        Err("Saving is not supported!".to_string().into())
+    }
+
+    fn can_be_saved(&self) -> bool {
+        false
     }
 }
 

@@ -685,6 +685,7 @@ impl ResourceManagerState {
 
 #[cfg(test)]
 mod test {
+    use std::error::Error;
     use std::{fs::File, time::Duration};
 
     use crate::loader::{BoxedLoaderFuture, LoaderPayload, ResourceLoader};
@@ -718,6 +719,14 @@ mod test {
 
         fn type_uuid(&self) -> Uuid {
             <Self as TypeUuidProvider>::type_uuid()
+        }
+
+        fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
+            Err("Saving is not supported!".to_string().into())
+        }
+
+        fn can_be_saved(&self) -> bool {
+            false
         }
     }
 

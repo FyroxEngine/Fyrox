@@ -19,6 +19,7 @@ use fyrox_resource::{
     io::{FileReader, ResourceIo},
     Resource, ResourceData, SOUND_BUFFER_RESOURCE_UUID,
 };
+use std::error::Error;
 use std::{
     any::Any,
     fmt::Debug,
@@ -275,5 +276,13 @@ impl ResourceData for SoundBuffer {
 
     fn type_uuid(&self) -> Uuid {
         SOUND_BUFFER_RESOURCE_UUID
+    }
+
+    fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
+        Err("Saving is not supported!".to_string().into())
+    }
+
+    fn can_be_saved(&self) -> bool {
+        false
     }
 }

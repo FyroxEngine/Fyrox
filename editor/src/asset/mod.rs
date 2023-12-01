@@ -9,9 +9,12 @@ use crate::{
     utils::window_content,
     AssetItem, Message, Mode,
 };
-use fyrox::asset::untyped::{ResourceHeader, ResourceKind};
 use fyrox::{
-    asset::{manager::ResourceManager, state::ResourceState, untyped::UntypedResource},
+    asset::{
+        manager::ResourceManager,
+        state::ResourceState,
+        untyped::{ResourceHeader, ResourceKind, UntypedResource},
+    },
     core::{
         color::Color, futures::executor::block_on, log::Log, make_relative_path,
         parking_lot::lock_api::Mutex, pool::Handle, scope_profile, TypeUuidProvider,
@@ -230,8 +233,15 @@ impl ResourceCreator {
             .constructors_container
             .map
             .lock()
-            .values()
-            .map(|constructor| make_dropdown_list_option(ctx, &constructor.type_name))
+            .values_mut()
+            .filter_map(|constructor| {
+                let instance = (constructor.callback)();
+                if instance.can_be_saved() {
+                    Some(make_dropdown_list_option(ctx, &constructor.type_name))
+                } else {
+                    None
+                }
+            })
             .collect();
 
         let name_str = String::from("unnamed_resource");
