@@ -33,6 +33,9 @@ pub enum WindowMessage {
         center: bool,
     },
 
+    /// Opens a window at the given local coordinates.
+    OpenAt { position: Vector2<f32> },
+
     /// Opens window in modal mode. Modal mode does **not** blocks current thread, instead
     /// it just restricts mouse and keyboard events only to window so other content is not
     /// clickable/type-able. Closing a window removes that restriction.
@@ -82,6 +85,10 @@ impl WindowMessage {
     define_constructor!(
         /// Creates [`WindowMessage::Open`] message.
         WindowMessage:Open => fn open(center: bool), layout: false
+    );
+    define_constructor!(
+        /// Creates [`WindowMessage::OpenAt`] message.
+        WindowMessage:OpenAt => fn open_at(position: Vector2<f32>), layout: false
     );
     define_constructor!(
         /// Creates [`WindowMessage::OpenModal`] message.
@@ -553,6 +560,24 @@ impl Control for Window {
                                     MessageDirection::ToWidget,
                                 ));
                             }
+                        }
+                    }
+                    &WindowMessage::OpenAt { position } => {
+                        if !self.visibility() {
+                            ui.send_message(WidgetMessage::visibility(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                true,
+                            ));
+                            ui.send_message(WidgetMessage::topmost(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                            ));
+                            ui.send_message(WidgetMessage::desired_position(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                position,
+                            ));
                         }
                     }
                     &WindowMessage::OpenModal { center } => {
