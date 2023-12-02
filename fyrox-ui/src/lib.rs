@@ -1661,6 +1661,63 @@ impl UserInterface {
                                 ));
                             }
                         }
+                        WidgetMessage::Align {
+                            horizontal_alignment,
+                            vertical_alignment,
+                            margin,
+                        } => {
+                            if self.nodes.is_valid_handle(message.destination()) {
+                                let node = self.node(message.destination());
+                                let mut position = node.actual_local_position();
+                                let size = node.actual_initial_size();
+                                let parent = node.parent();
+                                let parent_size = if parent.is_some() {
+                                    self.node(parent).actual_initial_size()
+                                } else {
+                                    self.screen_size
+                                };
+
+                                match horizontal_alignment {
+                                    HorizontalAlignment::Stretch => {
+                                        // Do nothing.
+                                    }
+                                    HorizontalAlignment::Left => {
+                                        position.x = margin.left;
+                                    }
+                                    HorizontalAlignment::Center => {
+                                        position.x =
+                                            (parent_size.x + size.x + margin.left + margin.right)
+                                                * 0.5;
+                                    }
+                                    HorizontalAlignment::Right => {
+                                        position.x = parent_size.x - size.x - margin.right;
+                                    }
+                                }
+
+                                match vertical_alignment {
+                                    VerticalAlignment::Stretch => {
+                                        // Do nothing.
+                                    }
+                                    VerticalAlignment::Top => {
+                                        position.y = margin.top;
+                                    }
+                                    VerticalAlignment::Center => {
+                                        position.y =
+                                            (parent_size.y + size.y + margin.top + margin.bottom)
+                                                * 0.5;
+                                    }
+                                    VerticalAlignment::Bottom => {
+                                        position.y = parent_size.y - size.y - margin.bottom;
+                                    }
+                                }
+
+                                self.send_message(WidgetMessage::desired_position(
+                                    message.destination(),
+                                    MessageDirection::ToWidget,
+                                    position,
+                                ));
+                            }
+                        }
                         WidgetMessage::MouseDown { button, .. } => {
                             if *button == MouseButton::Right {
                                 if let Some(picked) = self.nodes.try_borrow(self.picked_node) {

@@ -259,6 +259,17 @@ pub enum WidgetMessage {
     /// Direction: **From/To UI**
     DesiredPosition(Vector2<f32>),
 
+    /// Aligns the widget in its parent's bounds using the given options. It can be used only if the
+    /// widget is a child of a container, that supports arbitrary positions (such as Canvas).
+    Align {
+        /// Horizontal alignment of the widget.
+        horizontal_alignment: HorizontalAlignment,
+        /// Vertical alignment of the widget.
+        vertical_alignment: VerticalAlignment,
+        /// Margins for each side.
+        margin: Thickness,
+    },
+
     /// A request to enable or disable widget. Disabled widget won't receive mouse events and may look differently (it is defined
     /// by internal styling).
     ///
@@ -419,6 +430,15 @@ impl WidgetMessage {
     define_constructor!(
         /// Creates [`WidgetMessage::AdjustPositionToFit`] message.
         WidgetMessage:AdjustPositionToFit => fn adjust_position_to_fit(), layout: true
+    );
+
+    define_constructor!(
+        /// Creates [`WidgetMessage::Align`] message.
+        WidgetMessage:Align => fn align(
+            horizontal_alignment: HorizontalAlignment,
+            vertical_alignment: VerticalAlignment,
+            margin: Thickness),
+        layout: true
     );
 
     define_constructor!(
