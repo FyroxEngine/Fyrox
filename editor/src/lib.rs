@@ -605,6 +605,7 @@ impl SceneContainer {
                     &editor_scene,
                     engine,
                     message_sender,
+                    scene_viewer.frame(),
                 )),
             ],
             editor_scene,

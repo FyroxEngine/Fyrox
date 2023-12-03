@@ -9,6 +9,7 @@ use crate::{
     settings::Settings,
     MSG_SYNC_FLAG,
 };
+use fyrox::gui::{HorizontalAlignment, Thickness, VerticalAlignment};
 use fyrox::{
     core::{
         algebra::{Matrix4, Vector2, Vector3},
@@ -54,6 +55,7 @@ pub struct TerrainInteractionMode {
     brush_gizmo: BrushGizmo,
     brush: Brush,
     brush_panel: BrushPanel,
+    scene_viewer_frame: Handle<UiNode>,
 }
 
 impl TerrainInteractionMode {
@@ -61,6 +63,7 @@ impl TerrainInteractionMode {
         editor_scene: &EditorScene,
         engine: &mut Engine,
         message_sender: MessageSender,
+        scene_viewer_frame: Handle<UiNode>,
     ) -> Self {
         let brush = Brush {
             center: Default::default(),
@@ -78,6 +81,7 @@ impl TerrainInteractionMode {
             message_sender,
             brush,
             masks: Default::default(),
+            scene_viewer_frame,
         }
     }
 }
@@ -302,11 +306,17 @@ impl InteractionMode for TerrainInteractionMode {
         self.brush_panel
             .sync_to_model(&mut engine.user_interface, &self.brush);
 
-        engine.user_interface.send_message(WindowMessage::open(
-            self.brush_panel.window,
-            MessageDirection::ToWidget,
-            false,
-        ));
+        engine
+            .user_interface
+            .send_message(WindowMessage::open_and_align(
+                self.brush_panel.window,
+                MessageDirection::ToWidget,
+                self.scene_viewer_frame,
+                HorizontalAlignment::Right,
+                VerticalAlignment::Top,
+                Thickness::top_right(5.0),
+                false,
+            ));
     }
 
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
