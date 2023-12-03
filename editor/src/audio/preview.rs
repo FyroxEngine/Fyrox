@@ -2,6 +2,7 @@ use crate::{
     scene::{EditorScene, Selection},
     send_sync_message, Message,
 };
+use fyrox::gui::HorizontalAlignment;
 use fyrox::{
     core::pool::Handle,
     engine::Engine,
@@ -31,10 +32,11 @@ pub struct AudioPreviewPanel {
     rewind: Handle<UiNode>,
     time: Handle<UiNode>,
     sounds_state: Vec<(Handle<Node>, Node)>,
+    scene_viewer_frame: Handle<UiNode>,
 }
 
 impl AudioPreviewPanel {
-    pub fn new(ctx: &mut BuildContext) -> Self {
+    pub fn new(scene_viewer_frame: Handle<UiNode>, ctx: &mut BuildContext) -> Self {
         let preview;
         let play;
         let pause;
@@ -163,6 +165,7 @@ impl AudioPreviewPanel {
             rewind,
             time,
             sounds_state: vec![],
+            scene_viewer_frame,
         }
     }
 
@@ -186,11 +189,17 @@ impl AudioPreviewPanel {
                     .iter()
                     .any(|n| scene.graph.try_get_of_type::<Sound>(*n).is_some());
                 if any_sound_selected {
-                    engine.user_interface.send_message(WindowMessage::open(
-                        self.window,
-                        MessageDirection::ToWidget,
-                        false,
-                    ));
+                    engine
+                        .user_interface
+                        .send_message(WindowMessage::open_and_align(
+                            self.window,
+                            MessageDirection::ToWidget,
+                            self.scene_viewer_frame,
+                            HorizontalAlignment::Right,
+                            VerticalAlignment::Top,
+                            Thickness::top_right(5.0),
+                            false,
+                        ));
                 } else {
                     engine.user_interface.send_message(WindowMessage::close(
                         self.window,

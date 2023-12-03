@@ -2,7 +2,7 @@ use crate::{
     scene::{EditorScene, Selection},
     send_sync_message, Message,
 };
-use fyrox::gui::Thickness;
+use fyrox::gui::{HorizontalAlignment, Thickness};
 use fyrox::{
     core::pool::Handle,
     engine::Engine,
@@ -22,10 +22,11 @@ pub struct CameraPreviewControlPanel {
     pub window: Handle<UiNode>,
     preview: Handle<UiNode>,
     cameras_state: Vec<(Handle<Node>, Node)>,
+    scene_viewer_frame: Handle<UiNode>,
 }
 
 impl CameraPreviewControlPanel {
-    pub fn new(ctx: &mut BuildContext) -> Self {
+    pub fn new(scene_viewer_frame: Handle<UiNode>, ctx: &mut BuildContext) -> Self {
         let preview;
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("CameraPanel"))
             .with_title(WindowTitle::text("Camera Preview"))
@@ -57,6 +58,7 @@ impl CameraPreviewControlPanel {
             window,
             cameras_state: Default::default(),
             preview,
+            scene_viewer_frame,
         }
     }
 
@@ -80,11 +82,17 @@ impl CameraPreviewControlPanel {
                     .iter()
                     .any(|n| scene.graph.try_get_of_type::<Camera>(*n).is_some());
                 if any_camera {
-                    engine.user_interface.send_message(WindowMessage::open(
-                        self.window,
-                        MessageDirection::ToWidget,
-                        false,
-                    ));
+                    engine
+                        .user_interface
+                        .send_message(WindowMessage::open_and_align(
+                            self.window,
+                            MessageDirection::ToWidget,
+                            self.scene_viewer_frame,
+                            HorizontalAlignment::Right,
+                            VerticalAlignment::Top,
+                            Thickness::top_right(5.0),
+                            false,
+                        ));
                 } else {
                     engine.user_interface.send_message(WindowMessage::close(
                         self.window,

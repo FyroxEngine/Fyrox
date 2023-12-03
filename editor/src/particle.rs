@@ -2,6 +2,7 @@ use crate::{
     scene::{EditorScene, Selection},
     send_sync_message, Message, FIXED_TIMESTEP,
 };
+use fyrox::gui::HorizontalAlignment;
 use fyrox::{
     core::pool::Handle,
     engine::Engine,
@@ -30,10 +31,11 @@ pub struct ParticleSystemPreviewControlPanel {
     set_time: Handle<UiNode>,
     particle_systems_state: Vec<(Handle<Node>, Node)>,
     desired_playback_time: f32,
+    scene_viewer_frame: Handle<UiNode>,
 }
 
 impl ParticleSystemPreviewControlPanel {
-    pub fn new(ctx: &mut BuildContext) -> Self {
+    pub fn new(scene_viewer_frame: Handle<UiNode>, ctx: &mut BuildContext) -> Self {
         let preview;
         let play;
         let pause;
@@ -191,6 +193,7 @@ impl ParticleSystemPreviewControlPanel {
             particle_systems_state: Default::default(),
             set_time,
             desired_playback_time: 0.0,
+            scene_viewer_frame,
         }
     }
 
@@ -214,11 +217,17 @@ impl ParticleSystemPreviewControlPanel {
                     .iter()
                     .any(|n| scene.graph.try_get_of_type::<ParticleSystem>(*n).is_some());
                 if any_particle_system_selected {
-                    engine.user_interface.send_message(WindowMessage::open(
-                        self.window,
-                        MessageDirection::ToWidget,
-                        false,
-                    ));
+                    engine
+                        .user_interface
+                        .send_message(WindowMessage::open_and_align(
+                            self.window,
+                            MessageDirection::ToWidget,
+                            self.scene_viewer_frame,
+                            HorizontalAlignment::Right,
+                            VerticalAlignment::Top,
+                            Thickness::top_right(5.0),
+                            false,
+                        ));
                 } else {
                     engine.user_interface.send_message(WindowMessage::close(
                         self.window,

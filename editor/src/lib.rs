@@ -849,9 +849,10 @@ impl Editor {
         let inspector = Inspector::new(ctx, message_sender.clone());
         let animation_editor = AnimationEditor::new(ctx);
         let absm_editor = AbsmEditor::new(ctx, message_sender.clone());
-        let particle_system_control_panel = ParticleSystemPreviewControlPanel::new(ctx);
-        let camera_control_panel = CameraPreviewControlPanel::new(ctx);
-        let audio_preview_panel = AudioPreviewPanel::new(ctx);
+        let particle_system_control_panel =
+            ParticleSystemPreviewControlPanel::new(scene_viewer.frame(), ctx);
+        let camera_control_panel = CameraPreviewControlPanel::new(scene_viewer.frame(), ctx);
+        let audio_preview_panel = AudioPreviewPanel::new(scene_viewer.frame(), ctx);
         let doc_window = DocWindow::new(ctx);
         let node_removal_dialog = NodeRemovalDialog::new(ctx);
         let ragdoll_wizard = RagdollWizard::new(ctx, message_sender.clone());
