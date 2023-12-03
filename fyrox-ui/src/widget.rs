@@ -259,9 +259,11 @@ pub enum WidgetMessage {
     /// Direction: **From/To UI**
     DesiredPosition(Vector2<f32>),
 
-    /// Aligns the widget in its parent's bounds using the given options. It can be used only if the
+    /// Aligns the widget in the specified widget's bounds using the given options. It can be used only if the
     /// widget is a child of a container, that supports arbitrary positions (such as Canvas).
     Align {
+        /// A handle of a node to which the sender of this message should be aligned to.
+        relative_to: Handle<UiNode>,
         /// Horizontal alignment of the widget.
         horizontal_alignment: HorizontalAlignment,
         /// Vertical alignment of the widget.
@@ -435,6 +437,7 @@ impl WidgetMessage {
     define_constructor!(
         /// Creates [`WidgetMessage::Align`] message.
         WidgetMessage:Align => fn align(
+            relative_to: Handle<UiNode>,
             horizontal_alignment: HorizontalAlignment,
             vertical_alignment: VerticalAlignment,
             margin: Thickness),

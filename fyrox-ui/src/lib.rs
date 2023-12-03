@@ -1662,35 +1662,42 @@ impl UserInterface {
                             }
                         }
                         WidgetMessage::Align {
+                            relative_to,
                             horizontal_alignment,
                             vertical_alignment,
                             margin,
                         } => {
-                            if self.nodes.is_valid_handle(message.destination()) {
-                                let node = self.node(message.destination());
-                                let mut position = node.actual_local_position();
-                                let size = node.actual_initial_size();
-                                let parent = node.parent();
-                                let parent_size = if parent.is_some() {
-                                    self.node(parent).actual_initial_size()
-                                } else {
-                                    self.screen_size
-                                };
+                            if let (Some(node), Some(relative_node)) = (
+                                self.try_get_node(message.destination()),
+                                self.try_get_node(*relative_to),
+                            ) {
+                                // Calculate new anchor point in screen coordinate system.
+                                let relative_node_screen_size = relative_node.screen_bounds().size;
+                                let relative_node_screen_position = relative_node.screen_position();
+                                let node_screen_size = node.screen_bounds().size;
 
+                                let mut screen_anchor_point = Vector2::default();
                                 match horizontal_alignment {
                                     HorizontalAlignment::Stretch => {
                                         // Do nothing.
                                     }
                                     HorizontalAlignment::Left => {
-                                        position.x = margin.left;
+                                        screen_anchor_point.x =
+                                            relative_node_screen_position.x + margin.left;
                                     }
                                     HorizontalAlignment::Center => {
-                                        position.x =
-                                            (parent_size.x + size.x + margin.left + margin.right)
+                                        screen_anchor_point.x = relative_node_screen_position.x
+                                            + (relative_node_screen_size.x
+                                                + node_screen_size.x
+                                                + margin.left
+                                                + margin.right)
                                                 * 0.5;
                                     }
                                     HorizontalAlignment::Right => {
-                                        position.x = parent_size.x - size.x - margin.right;
+                                        screen_anchor_point.x = relative_node_screen_position.x
+                                            + relative_node_screen_size.x
+                                            - node_screen_size.x
+                                            - margin.right;
                                     }
                                 }
 
@@ -1699,23 +1706,36 @@ impl UserInterface {
                                         // Do nothing.
                                     }
                                     VerticalAlignment::Top => {
-                                        position.y = margin.top;
+                                        screen_anchor_point.y =
+                                            relative_node_screen_position.y + margin.top;
                                     }
                                     VerticalAlignment::Center => {
-                                        position.y =
-                                            (parent_size.y + size.y + margin.top + margin.bottom)
+                                        screen_anchor_point.y = relative_node_screen_position.y
+                                            + (relative_node_screen_size.y
+                                                + node_screen_size.y
+                                                + margin.top
+                                                + margin.bottom)
                                                 * 0.5;
                                     }
                                     VerticalAlignment::Bottom => {
-                                        position.y = parent_size.y - size.y - margin.bottom;
+                                        screen_anchor_point.y = relative_node_screen_position.y
+                                            + (relative_node_screen_size.y
+                                                - node_screen_size.y
+                                                - margin.bottom);
                                     }
                                 }
 
-                                self.send_message(WidgetMessage::desired_position(
-                                    message.destination(),
-                                    MessageDirection::ToWidget,
-                                    position,
-                                ));
+                                if let Some(parent) = self.try_get_node(node.parent()) {
+                                    // Transform screen anchor point into the local coordinate system
+                                    // of the parent node.
+                                    let local_anchor_point =
+                                        parent.screen_to_local(screen_anchor_point);
+                                    self.send_message(WidgetMessage::desired_position(
+                                        message.destination(),
+                                        MessageDirection::ToWidget,
+                                        local_anchor_point,
+                                    ));
+                                }
                             }
                         }
                         WidgetMessage::MouseDown { button, .. } => {
