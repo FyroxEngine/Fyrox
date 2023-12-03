@@ -36,6 +36,20 @@ pub enum WindowMessage {
     /// Opens a window at the given local coordinates.
     OpenAt { position: Vector2<f32> },
 
+    /// Opens a window (optionally modal) and aligns it relative the to the given node.
+    OpenAndAlign {
+        /// A handle of a node to which the sender of this message should be aligned to.
+        relative_to: Handle<UiNode>,
+        /// Horizontal alignment of the widget.
+        horizontal_alignment: HorizontalAlignment,
+        /// Vertical alignment of the widget.
+        vertical_alignment: VerticalAlignment,
+        /// Margins for each side.
+        margin: Thickness,
+        /// Should the window be opened in modal mode or not.
+        modal: bool,
+    },
+
     /// Opens window in modal mode. Modal mode does **not** blocks current thread, instead
     /// it just restricts mouse and keyboard events only to window so other content is not
     /// clickable/type-able. Closing a window removes that restriction.
@@ -89,6 +103,16 @@ impl WindowMessage {
     define_constructor!(
         /// Creates [`WindowMessage::OpenAt`] message.
         WindowMessage:OpenAt => fn open_at(position: Vector2<f32>), layout: false
+    );
+    define_constructor!(
+        /// Creates [`WindowMessage::OpenAndAlign`] message.
+        WindowMessage:OpenAndAlign => fn open_and_align(
+            relative_to: Handle<UiNode>,
+            horizontal_alignment: HorizontalAlignment,
+            vertical_alignment: VerticalAlignment,
+            margin: Thickness,
+            modal: bool
+        ), layout: false
     );
     define_constructor!(
         /// Creates [`WindowMessage::OpenModal`] message.
@@ -578,6 +602,39 @@ impl Control for Window {
                                 MessageDirection::ToWidget,
                                 position,
                             ));
+                        }
+                    }
+                    &WindowMessage::OpenAndAlign {
+                        relative_to,
+                        horizontal_alignment,
+                        vertical_alignment,
+                        margin,
+                        modal,
+                    } => {
+                        if !self.visibility() {
+                            ui.send_message(WidgetMessage::visibility(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                true,
+                            ));
+                            ui.send_message(WidgetMessage::topmost(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                            ));
+                            ui.send_message(WidgetMessage::align(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                relative_to,
+                                horizontal_alignment,
+                                vertical_alignment,
+                                margin,
+                            ));
+                            if modal {
+                                ui.push_picking_restriction(RestrictionEntry {
+                                    handle: self.handle(),
+                                    stop: true,
+                                });
+                            }
                         }
                     }
                     &WindowMessage::OpenModal { center } => {
