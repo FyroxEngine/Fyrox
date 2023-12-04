@@ -1,3 +1,4 @@
+use crate::world::WorldViewerItemContextMenu;
 use crate::{
     make_save_file_selector,
     menu::{create::CreateEntityMenu, create_menu_item, create_menu_item_shortcut},
@@ -30,8 +31,8 @@ use fyrox::{
 use std::any::TypeId;
 use std::path::PathBuf;
 
-pub struct ItemContextMenu {
-    pub menu: RcUiNodeHandle,
+pub struct SceneNodeContextMenu {
+    menu: RcUiNodeHandle,
     delete_selection: Handle<UiNode>,
     copy_selection: Handle<UiNode>,
     create_entity_menu: CreateEntityMenu,
@@ -43,6 +44,12 @@ pub struct ItemContextMenu {
     make_root: Handle<UiNode>,
     open_asset: Handle<UiNode>,
     reset_inheritable_properties: Handle<UiNode>,
+}
+
+impl WorldViewerItemContextMenu for SceneNodeContextMenu {
+    fn menu(&self) -> RcUiNodeHandle {
+        self.menu.clone()
+    }
 }
 
 fn resource_path_of_first_selected_node(
@@ -60,7 +67,7 @@ fn resource_path_of_first_selected_node(
     None
 }
 
-impl ItemContextMenu {
+impl SceneNodeContextMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let delete_selection;
         let copy_selection;

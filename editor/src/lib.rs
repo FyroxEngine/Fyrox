@@ -77,9 +77,11 @@ use crate::{
     },
     scene_viewer::SceneViewer,
     settings::Settings,
-    utils::ragdoll::RagdollWizard,
-    utils::{doc::DocWindow, path_fixer::PathFixer},
-    world::{graph::selection::GraphSelection, WorldViewer},
+    utils::{doc::DocWindow, path_fixer::PathFixer, ragdoll::RagdollWizard},
+    world::{
+        graph::menu::SceneNodeContextMenu, graph::selection::GraphSelection,
+        graph::EditorSceneWrapper, WorldViewer,
+    },
 };
 use fyrox::{
     asset::{io::FsResourceIo, manager::ResourceManager},
@@ -714,6 +716,7 @@ pub struct Editor {
     pub update_loop_state: UpdateLoopState,
     pub is_suspended: bool,
     pub ragdoll_wizard: RagdollWizard,
+    pub scene_node_context_menu: Rc<RefCell<SceneNodeContextMenu>>,
 }
 
 impl Editor {
@@ -843,7 +846,13 @@ impl Editor {
 
         let ctx = &mut engine.user_interface.build_ctx();
         let navmesh_panel = NavmeshPanel::new(ctx, message_sender.clone());
-        let world_outliner = WorldViewer::new(ctx, message_sender.clone(), &settings);
+        let scene_node_context_menu = Rc::new(RefCell::new(SceneNodeContextMenu::new(ctx)));
+        let world_outliner = WorldViewer::new(
+            ctx,
+            message_sender.clone(),
+            &settings,
+            scene_node_context_menu.clone(),
+        );
         let command_stack_viewer = CommandStackViewer::new(ctx, message_sender.clone());
         let log = LogPanel::new(ctx, log_message_receiver);
         let inspector = Inspector::new(ctx, message_sender.clone());
@@ -1088,6 +1097,7 @@ impl Editor {
             update_loop_state: UpdateLoopState::default(),
             is_suspended: false,
             ragdoll_wizard,
+            scene_node_context_menu,
         };
 
         if let Some(data) = startup_data {
@@ -1427,8 +1437,24 @@ impl Editor {
                 );
             }
 
-            self.world_viewer
-                .handle_ui_message(message, editor_scene, engine, &mut self.settings);
+            self.scene_node_context_menu.borrow_mut().handle_ui_message(
+                message,
+                editor_scene,
+                engine,
+                &self.message_sender,
+                &self.settings,
+            );
+            self.world_viewer.handle_ui_message(
+                message,
+                &EditorSceneWrapper {
+                    editor_scene,
+                    graph: &engine.scenes[editor_scene.scene].graph,
+                    scene: &engine.scenes[editor_scene.scene],
+                    sender: &self.message_sender,
+                },
+                engine,
+                &mut self.settings,
+            );
 
             self.light_panel
                 .handle_ui_message(message, editor_scene, engine);
@@ -1622,8 +1648,17 @@ impl Editor {
             self.absm_editor.sync_to_model(editor_scene, engine);
             self.scene_settings.sync_to_model(editor_scene, engine);
             self.inspector.sync_to_model(editor_scene, engine);
-            self.world_viewer
-                .sync_to_model(editor_scene, engine, &self.settings);
+            let sender = &self.message_sender;
+            self.world_viewer.sync_to_model(
+                &EditorSceneWrapper {
+                    editor_scene,
+                    graph: &engine.scenes[editor_scene.scene].graph,
+                    scene: &engine.scenes[editor_scene.scene],
+                    sender,
+                },
+                &mut engine.user_interface,
+                &self.settings,
+            );
             self.material_editor
                 .sync_to_model(&mut engine.user_interface);
             self.audio_panel.sync_to_model(editor_scene, engine);
@@ -1646,9 +1681,17 @@ impl Editor {
     }
 
     fn post_update(&mut self) {
-        if let Some(scene) = self.scenes.current_editor_scene_mut() {
-            self.world_viewer
-                .post_update(scene, &mut self.engine, &self.settings);
+        if let Some(editor_scene) = self.scenes.current_editor_scene_mut() {
+            self.world_viewer.post_update(
+                &EditorSceneWrapper {
+                    editor_scene,
+                    graph: &self.engine.scenes[editor_scene.scene].graph,
+                    scene: &self.engine.scenes[editor_scene.scene],
+                    sender: &self.message_sender,
+                },
+                &mut self.engine.user_interface,
+                &self.settings,
+            );
         }
 
         for_each_plugin!(self.plugins => on_post_update(self));
@@ -2247,14 +2290,19 @@ impl Editor {
                         if let Some(editor_scene) = self.scenes.current_editor_scene_ref() {
                             self.world_viewer.set_filter(
                                 filter,
-                                editor_scene,
+                                &EditorSceneWrapper {
+                                    editor_scene,
+                                    graph: &self.engine.scenes[editor_scene.scene].graph,
+                                    scene: &self.engine.scenes[editor_scene.scene],
+                                    sender: &self.message_sender,
+                                },
                                 &self.engine.user_interface,
                             );
                         }
                     }
-                    Message::LocateObject { type_id, handle } => self
+                    Message::LocateObject { handle } => self
                         .world_viewer
-                        .try_locate_object(type_id, handle, &self.engine),
+                        .try_locate_object(handle, &self.engine.user_interface),
                     Message::SelectObject { type_id, handle } => {
                         self.select_object(type_id, handle);
                     }

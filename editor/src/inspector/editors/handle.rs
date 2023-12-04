@@ -192,14 +192,13 @@ impl Control for HandlePropertyEditor {
                     ui.send_message(HandlePropertyEditorMessage::value(
                         self.handle(),
                         MessageDirection::ToWidget,
-                        item.entity_handle,
+                        item.entity_handle.into(),
                     ))
                 }
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination == self.locate {
                 self.sender.send(Message::LocateObject {
-                    type_id: TypeId::of::<Node>(),
                     handle: self.value.into(),
                 });
             } else if message.destination == self.select {

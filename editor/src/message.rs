@@ -44,7 +44,6 @@ pub enum Message {
     ShowInAssetBrowser(PathBuf),
     SetWorldViewerFilter(String),
     LocateObject {
-        type_id: TypeId,
         handle: ErasedHandle,
     },
     SelectObject {

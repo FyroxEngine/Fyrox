@@ -1,7 +1,5 @@
-use fyrox::{
-    core::{algebra::Vector3, pool::Handle},
-    scene::node::Node,
-};
+use fyrox::core::algebra::Vector3;
+use fyrox::core::pool::ErasedHandle;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -36,5 +34,5 @@ impl Default for NodeInfo {
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Default)]
 pub struct SceneSettings {
     pub camera_settings: SceneCameraSettings,
-    pub node_infos: HashMap<Handle<Node>, NodeInfo>,
+    pub node_infos: HashMap<ErasedHandle, NodeInfo>,
 }
