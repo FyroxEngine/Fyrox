@@ -225,6 +225,12 @@ pub struct ErasedHandle {
     generation: u32,
 }
 
+impl Display for ErasedHandle {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.index, self.generation)
+    }
+}
+
 impl Default for ErasedHandle {
     fn default() -> Self {
         Self::none()
