@@ -212,7 +212,9 @@ impl<T> Display for Handle<T> {
 }
 
 /// Type-erased handle.
-#[derive(Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Hash, Reflect, Visit)]
+#[derive(
+    Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Hash, Reflect, Visit, Serialize, Deserialize,
+)]
 pub struct ErasedHandle {
     /// Index of object in pool.
     #[reflect(read_only)]
