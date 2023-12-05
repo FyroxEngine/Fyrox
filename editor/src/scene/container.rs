@@ -25,6 +25,8 @@ pub struct PreviewInstance {
 }
 
 pub struct EditorSceneEntry {
+    pub has_unsaved_changes: bool,
+    pub path: Option<PathBuf>,
     pub editor_scene: EditorScene,
     pub command_stack: CommandStack,
     pub interaction_modes: InteractionModeContainer,
@@ -61,10 +63,32 @@ impl EditorSceneEntry {
         }
     }
 
+    pub fn need_save(&self) -> bool {
+        self.has_unsaved_changes || self.path.is_none()
+    }
+
     pub fn before_drop(&mut self, engine: &mut Engine) {
         for (_, mut interaction_mode) in self.interaction_modes.map.drain() {
             interaction_mode.on_drop(engine);
         }
+    }
+
+    pub fn name(&self) -> String {
+        self.path
+            .as_ref()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| String::from("Unnamed Scene"))
+    }
+
+    pub fn save(
+        &mut self,
+        path: PathBuf,
+        settings: &Settings,
+        engine: &mut Engine,
+    ) -> Result<String, String> {
+        let result = self.editor_scene.save(&path, settings, engine);
+        self.path = Some(path);
+        result
     }
 }
 
@@ -96,14 +120,11 @@ impl SceneContainer {
     }
 
     pub fn first_unsaved_scene(&self) -> Option<&EditorSceneEntry> {
-        self.entries.iter().find(|s| s.editor_scene.need_save())
+        self.entries.iter().find(|s| s.need_save())
     }
 
     pub fn unsaved_scene_count(&self) -> usize {
-        self.entries
-            .iter()
-            .filter(|s| s.editor_scene.need_save())
-            .count()
+        self.entries.iter().filter(|s| s.need_save()).count()
     }
 
     pub fn len(&self) -> usize {
@@ -162,7 +183,7 @@ impl SceneContainer {
     ) {
         self.current_scene = Some(self.entries.len());
 
-        let editor_scene = EditorScene::from_native_scene(scene, engine, path, settings);
+        let editor_scene = EditorScene::from_native_scene(scene, engine, path.as_deref(), settings);
         let mut interaction_modes = InteractionModeContainer::default();
         interaction_modes.add(SelectInteractionMode::new(
             scene_viewer.frame(),
@@ -197,6 +218,7 @@ impl SceneContainer {
         ));
 
         let mut entry = EditorSceneEntry {
+            has_unsaved_changes: false,
             interaction_modes,
             editor_scene,
             command_stack: CommandStack::new(false),
@@ -206,6 +228,7 @@ impl SceneContainer {
             click_mouse_pos: None,
             sender: message_sender,
             id: Uuid::new_v4(),
+            path,
         };
 
         entry.set_interaction_mode(engine, Some(MoveInteractionMode::type_uuid()));

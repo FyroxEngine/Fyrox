@@ -30,10 +30,10 @@ use fyrox::{
         Scene,
     },
 };
+use std::path::Path;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
-    path::PathBuf,
 };
 
 pub mod panel;
@@ -272,7 +272,7 @@ impl CameraController {
     fn on_interaction_ended(
         &self,
         settings: &mut Settings,
-        scene_path: Option<&PathBuf>,
+        scene_path: Option<&Path>,
         graph: &Graph,
     ) {
         if let Some(path) = scene_path {
@@ -432,7 +432,7 @@ impl CameraController {
         &mut self,
         graph: &mut Graph,
         settings: &mut Settings,
-        scene_path: Option<&PathBuf>,
+        scene_path: Option<&Path>,
         dt: f32,
     ) {
         let camera = graph[self.camera].as_camera_mut();

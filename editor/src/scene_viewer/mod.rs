@@ -429,7 +429,7 @@ impl SceneViewer {
                 match msg {
                     TabControlMessage::CloseTab(tab_index) => {
                         if let Some(entry) = scenes.try_get(*tab_index) {
-                            if entry.editor_scene.need_save() {
+                            if entry.need_save() {
                                 self.sender.send(Message::OpenSaveSceneConfirmationDialog {
                                     id: entry.id,
                                     action: SaveSceneConfirmationDialogAction::CloseScene(entry.id),
@@ -583,7 +583,7 @@ impl SceneViewer {
                                 right: 4.0,
                                 bottom: 2.0,
                             }))
-                            .with_text(entry.editor_scene.name())
+                            .with_text(entry.name())
                             .build(&mut engine.user_interface.build_ctx());
 
                         send_sync_message(
@@ -630,12 +630,8 @@ impl SceneViewer {
                     MessageDirection::ToWidget,
                     format!(
                         "{}{}",
-                        scene.editor_scene.name(),
-                        if scene.editor_scene.need_save() {
-                            "*"
-                        } else {
-                            ""
-                        }
+                        scene.name(),
+                        if scene.need_save() { "*" } else { "" }
                     ),
                 ));
             }
@@ -651,14 +647,14 @@ impl SceneViewer {
         );
 
         // Then sync to the current scene.
-        if let Some(editor_scene) = scenes.current_editor_scene_ref() {
-            let scene = &engine.scenes[editor_scene.scene];
+        if let Some(entry) = scenes.current_scene_entry_ref() {
+            let scene = &engine.scenes[entry.editor_scene.scene];
 
             self.set_title(
                 &engine.user_interface,
                 format!(
                     "Scene Preview - {}",
-                    editor_scene
+                    entry
                         .path
                         .as_ref()
                         .map_or("Unnamed Scene".to_string(), |p| p
@@ -672,7 +668,7 @@ impl SceneViewer {
                 scene.rendering_options.render_target.clone(),
             );
 
-            if let Selection::Graph(ref selection) = editor_scene.selection {
+            if let Selection::Graph(ref selection) = entry.editor_scene.selection {
                 if let Some((_, position)) = selection.global_rotation_position(&scene.graph) {
                     engine.user_interface.send_message(Vec3EditorMessage::value(
                         self.global_position_display,

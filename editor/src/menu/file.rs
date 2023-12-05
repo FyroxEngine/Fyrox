@@ -215,7 +215,7 @@ impl FileMenu {
         } else if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.save {
                 if let Some(editor_scene) = entry {
-                    if let Some(scene_path) = editor_scene.editor_scene.path.as_ref() {
+                    if let Some(scene_path) = editor_scene.path.as_ref() {
                         sender.send(Message::SaveScene {
                             id: editor_scene.id,
                             path: scene_path.clone(),
@@ -257,7 +257,7 @@ impl FileMenu {
                 self.open_load_file_selector(&mut engine.user_interface);
             } else if message.destination() == self.close_scene {
                 if let Some(entry) = entry.as_ref() {
-                    if entry.editor_scene.need_save() {
+                    if entry.need_save() {
                         sender.send(Message::OpenSaveSceneConfirmationDialog {
                             id: entry.id,
                             action: SaveSceneConfirmationDialogAction::CloseScene(entry.id),

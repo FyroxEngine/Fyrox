@@ -24,7 +24,7 @@ use fyrox::{
 };
 use std::fs::File;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::Path;
 
 pub mod clipboard;
 pub mod dialog;
@@ -38,8 +38,6 @@ pub mod container;
 pub mod controller;
 
 pub struct EditorScene {
-    pub has_unsaved_changes: bool,
-    pub path: Option<PathBuf>,
     pub scene: Handle<Scene>,
     // Handle to a root for all editor nodes.
     pub editor_objects_root: Handle<Node>,
@@ -55,7 +53,7 @@ impl EditorScene {
     pub fn from_native_scene(
         mut scene: Scene,
         engine: &mut Engine,
-        path: Option<PathBuf>,
+        path: Option<&Path>,
         settings: &Settings,
     ) -> Self {
         let scene_content_root = scene.graph.get_root();
@@ -69,7 +67,7 @@ impl EditorScene {
             &mut scene.graph,
             editor_objects_root,
             path.as_ref()
-                .and_then(|p| settings.scene_settings.get(p).map(|s| &s.camera_settings)),
+                .and_then(|p| settings.scene_settings.get(*p).map(|s| &s.camera_settings)),
         );
 
         // Freeze physics simulation in while editing scene by setting time step to zero.
@@ -77,14 +75,12 @@ impl EditorScene {
         scene.graph.physics2d.integration_parameters.dt = Some(0.0);
 
         EditorScene {
-            path,
             editor_objects_root,
             scene_content_root,
             camera_controller,
             scene: engine.scenes.add(scene),
             selection: Default::default(),
             clipboard: Default::default(),
-            has_unsaved_changes: false,
             preview_camera: Default::default(),
             graph_switches: GraphUpdateSwitches {
                 physics2d: true,
@@ -112,21 +108,10 @@ impl EditorScene {
         pure_scene
     }
 
-    pub fn need_save(&self) -> bool {
-        self.has_unsaved_changes || self.path.is_none()
-    }
-
-    pub fn name(&self) -> String {
-        self.path
-            .as_ref()
-            .map(|p| p.to_string_lossy().to_string())
-            .unwrap_or_else(|| String::from("Unnamed Scene"))
-    }
-
     #[allow(clippy::redundant_clone)] // false positive
     pub fn save(
         &mut self,
-        path: PathBuf,
+        path: &Path,
         settings: &Settings,
         engine: &mut Engine,
     ) -> Result<String, String> {
@@ -135,13 +120,11 @@ impl EditorScene {
         let mut reason = "Scene is not saved, because validation failed:\n".to_owned();
 
         if valid {
-            self.path = Some(path.clone());
-
             let mut pure_scene = self.make_purified_scene(engine);
 
             let mut visitor = Visitor::new();
             pure_scene.save("Scene", &mut visitor).unwrap();
-            if let Err(e) = visitor.save_binary(&path) {
+            if let Err(e) = visitor.save_binary(path) {
                 Err(format!("Failed to save scene! Reason: {}", e))
             } else {
                 if settings.debugging.save_scene_in_text_form {
@@ -163,7 +146,13 @@ impl EditorScene {
         }
     }
 
-    pub fn update(&mut self, engine: &mut Engine, dt: f32, settings: &mut Settings) {
+    pub fn update(
+        &mut self,
+        engine: &mut Engine,
+        dt: f32,
+        path: Option<&Path>,
+        settings: &mut Settings,
+    ) {
         self.draw_auxiliary_geometry(engine, settings);
 
         let scene = &mut engine.scenes[self.scene];
@@ -179,7 +168,7 @@ impl EditorScene {
         camera.projection_mut().set_z_far(settings.graphics.z_far);
 
         self.camera_controller
-            .update(&mut scene.graph, settings, self.path.as_ref(), dt);
+            .update(&mut scene.graph, settings, path, dt);
     }
 
     pub fn draw_auxiliary_geometry(&mut self, engine: &mut Engine, settings: &Settings) {

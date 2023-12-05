@@ -337,7 +337,7 @@ impl SaveSceneConfirmationDialog {
                 Some(format!(
                     "There are unsaved changes in the {} scene. \
                 Do you wish to save them before continue?",
-                    entry.editor_scene.name(),
+                    entry.name(),
                 )),
             ));
         }
@@ -369,7 +369,7 @@ impl SaveSceneConfirmationDialog {
                     },
                     MessageBoxResult::Yes => {
                         if let Some(entry) = scenes.entry_by_scene_id(self.id) {
-                            if let Some(path) = entry.editor_scene.path.clone() {
+                            if let Some(path) = entry.path.clone() {
                                 // If the scene was already saved into some file - save it
                                 // immediately and perform the requested action.
                                 sender.send(Message::SaveScene { id: self.id, path });
@@ -1064,7 +1064,7 @@ impl Editor {
                     sender.send(Message::OpenLoadSceneDialog);
                 } else if hot_key == key_bindings.save_scene {
                     if let Some(entry) = self.scenes.current_scene_entry_ref() {
-                        if let Some(path) = entry.editor_scene.path.as_ref() {
+                        if let Some(path) = entry.path.as_ref() {
                             self.message_sender.send(Message::SaveScene {
                                 id: entry.id,
                                 path: path.clone(),
@@ -1265,6 +1265,7 @@ impl Editor {
                     graph: &engine.scenes[editor_scene.scene].graph,
                     scene: &engine.scenes[editor_scene.scene],
                     sender: &self.message_sender,
+                    path: current_scene_entry.path.as_deref(),
                 },
                 engine,
                 &mut self.settings,
@@ -1295,9 +1296,8 @@ impl Editor {
                     }
                     MessageBoxResult::Yes => {
                         if let Some(first_unsaved) = self.scenes.first_unsaved_scene() {
-                            let editor_scene = &first_unsaved.editor_scene;
-                            if editor_scene.need_save() {
-                                if let Some(path) = editor_scene.path.as_ref() {
+                            if first_unsaved.need_save() {
+                                if let Some(path) = first_unsaved.path.as_ref() {
                                     self.message_sender.send(Message::SaveScene {
                                         id: first_unsaved.id,
                                         path: path.clone(),
@@ -1332,7 +1332,7 @@ impl Editor {
 
     fn set_play_mode(&mut self) {
         if let Some(entry) = self.scenes.current_scene_entry_ref() {
-            if let Some(path) = entry.editor_scene.path.as_ref().cloned() {
+            if let Some(path) = entry.path.as_ref().cloned() {
                 self.save_scene(entry.id, path.clone());
 
                 let mut process = std::process::Command::new("cargo");
@@ -1380,8 +1380,8 @@ impl Editor {
 
     fn set_build_mode(&mut self) {
         if let Mode::Edit = self.mode {
-            if let Some(scene) = self.scenes.current_editor_scene_ref() {
-                if scene.path.is_some() {
+            if let Some(entry) = self.scenes.current_scene_entry_ref() {
+                if entry.path.is_some() {
                     let mut process = std::process::Command::new("cargo");
                     process
                         .stderr(Stdio::piped())
@@ -1469,6 +1469,7 @@ impl Editor {
                     graph: &engine.scenes[editor_scene.scene].graph,
                     scene: &engine.scenes[editor_scene.scene],
                     sender,
+                    path: current_scene_entry.path.as_deref(),
                 },
                 &mut engine.user_interface,
                 &self.settings,
@@ -1495,13 +1496,14 @@ impl Editor {
     }
 
     fn post_update(&mut self) {
-        if let Some(editor_scene) = self.scenes.current_editor_scene_mut() {
+        if let Some(entry) = self.scenes.current_scene_entry_ref() {
             self.world_viewer.post_update(
                 &EditorSceneWrapper {
-                    editor_scene,
-                    graph: &self.engine.scenes[editor_scene.scene].graph,
-                    scene: &self.engine.scenes[editor_scene.scene],
+                    editor_scene: &entry.editor_scene,
+                    graph: &self.engine.scenes[entry.editor_scene.scene].graph,
+                    scene: &self.engine.scenes[entry.editor_scene.scene],
                     sender: &self.message_sender,
+                    path: entry.path.as_deref(),
                 },
                 &mut self.engine.user_interface,
                 &self.settings,
@@ -1557,7 +1559,7 @@ impl Editor {
                 },
             );
 
-            editor_scene.has_unsaved_changes = true;
+            current_scene_entry.has_unsaved_changes = true;
 
             true
         } else {
@@ -1578,7 +1580,7 @@ impl Editor {
                 serialization_context: engine.serialization_context.clone(),
             });
 
-            editor_scene.has_unsaved_changes = true;
+            current_scene_entry.has_unsaved_changes = true;
 
             true
         } else {
@@ -1599,7 +1601,7 @@ impl Editor {
                 serialization_context: engine.serialization_context.clone(),
             });
 
-            editor_scene.has_unsaved_changes = true;
+            current_scene_entry.has_unsaved_changes = true;
 
             true
         } else {
@@ -1681,8 +1683,6 @@ impl Editor {
 
         let engine = &mut self.engine;
         if let Some(entry) = self.scenes.entry_by_scene_id_mut(id) {
-            let editor_scene = &mut entry.editor_scene;
-
             if !self.settings.recent.scenes.contains(&path) {
                 self.settings.recent.scenes.push(path.clone());
                 self.menu
@@ -1690,7 +1690,7 @@ impl Editor {
                     .update_recent_files_list(&mut engine.user_interface, &self.settings);
             }
 
-            match editor_scene.save(path.clone(), &self.settings, engine) {
+            match entry.save(path.clone(), &self.settings, engine) {
                 Ok(message) => {
                     self.scene_viewer.set_title(
                         &engine.user_interface,
@@ -1698,7 +1698,7 @@ impl Editor {
                     );
                     Log::info(message);
 
-                    editor_scene.has_unsaved_changes = false;
+                    entry.has_unsaved_changes = false;
                 }
                 Err(message) => {
                     Log::err(message.clone());
@@ -1717,12 +1717,7 @@ impl Editor {
 
     fn load_scene(&mut self, scene_path: PathBuf) {
         for entry in self.scenes.entries.iter() {
-            if entry
-                .editor_scene
-                .path
-                .as_ref()
-                .map_or(false, |p| p == &scene_path)
-            {
+            if entry.path.as_ref().map_or(false, |p| p == &scene_path) {
                 self.set_current_scene(entry.id);
                 return;
             }
@@ -1761,7 +1756,7 @@ impl Editor {
                 Some(format!(
                     "There are unsaved changes in the {} scene. \
                     Do you wish to save them before exit?",
-                    first_unsaved.editor_scene.name()
+                    first_unsaved.name()
                 )),
             ));
         } else {
@@ -2104,14 +2099,15 @@ impl Editor {
                             .locate_path(&self.engine.user_interface, path);
                     }
                     Message::SetWorldViewerFilter(filter) => {
-                        if let Some(editor_scene) = self.scenes.current_editor_scene_ref() {
+                        if let Some(entry) = self.scenes.current_scene_entry_ref() {
                             self.world_viewer.set_filter(
                                 filter,
                                 &EditorSceneWrapper {
-                                    editor_scene,
-                                    graph: &self.engine.scenes[editor_scene.scene].graph,
-                                    scene: &self.engine.scenes[editor_scene.scene],
+                                    editor_scene: &entry.editor_scene,
+                                    graph: &self.engine.scenes[entry.editor_scene.scene].graph,
+                                    scene: &self.engine.scenes[entry.editor_scene.scene],
                                     sender: &self.message_sender,
+                                    path: entry.path.as_deref(),
                                 },
                                 &self.engine.user_interface,
                             );
@@ -2232,7 +2228,12 @@ impl Editor {
         if let Some(editor_scene_entry) = self.scenes.current_scene_entry_mut() {
             let editor_scene = &mut editor_scene_entry.editor_scene;
 
-            editor_scene.update(&mut self.engine, dt, &mut self.settings);
+            editor_scene.update(
+                &mut self.engine,
+                dt,
+                editor_scene_entry.path.as_deref(),
+                &mut self.settings,
+            );
 
             self.absm_editor.update(editor_scene, &mut self.engine);
 

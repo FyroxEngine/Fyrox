@@ -23,6 +23,7 @@ pub struct EditorSceneWrapper<'a> {
     pub editor_scene: &'a EditorScene,
     pub graph: &'a Graph,
     pub scene: &'a Scene,
+    pub path: Option<&'a Path>,
     pub sender: &'a MessageSender,
 }
 
@@ -32,7 +33,7 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
     }
 
     fn path(&self) -> Option<&Path> {
-        self.editor_scene.path.as_deref()
+        self.path
     }
 
     fn children_of(&self, node: ErasedHandle) -> Vec<ErasedHandle> {
