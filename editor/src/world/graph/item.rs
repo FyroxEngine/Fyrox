@@ -127,7 +127,7 @@ impl Control for SceneItem {
 
         if let Some(SceneItemMessage::Name(name)) = message.data() {
             if message.destination() == self.handle() {
-                self.name_value = make_node_name(name, self.entity_handle.into());
+                self.name_value = make_node_name(name, self.entity_handle);
 
                 ui.send_message(TextMessage::text(
                     self.text_name,

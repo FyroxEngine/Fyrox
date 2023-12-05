@@ -1,30 +1,35 @@
-use crate::scene_viewer::gizmo::{SceneGizmo, SceneGizmoAction};
 use crate::{
-    camera::PickingOptions, gui::make_dropdown_list_option,
-    gui::make_dropdown_list_option_with_height, load_image, message::MessageSender,
-    send_sync_message, settings::keys::KeyBindings, utils::enable_widget, AddModelCommand,
-    AssetItem, BuildProfile, ChangeSelectionCommand, CommandGroup, DropdownListBuilder,
-    EditorScene, GraphSelection, InteractionMode, InteractionModeKind, Message, Mode,
-    SaveSceneConfirmationDialogAction, SceneCommand, SceneContainer, Selection,
+    camera::PickingOptions,
+    gui::{make_dropdown_list_option, make_dropdown_list_option_with_height},
+    load_image,
+    message::MessageSender,
+    scene_viewer::gizmo::{SceneGizmo, SceneGizmoAction},
+    send_sync_message,
+    settings::keys::KeyBindings,
+    utils::enable_widget,
+    AddModelCommand, AssetItem, BuildProfile, ChangeSelectionCommand, CommandGroup,
+    DropdownListBuilder, EditorScene, EditorSceneEntry, GraphSelection, InteractionMode, Message,
+    Mode, SaveSceneConfirmationDialogAction, SceneCommand, SceneContainer, Selection,
     SetMeshTextureCommand, Settings,
 };
-use fyrox::core::futures::executor::block_on;
 use fyrox::{
     core::{
         algebra::{Vector2, Vector3},
         color::Color,
+        futures::executor::block_on,
         make_relative_path,
         math::{plane::Plane, Rect},
         pool::Handle,
+        uuid::Uuid,
     },
     engine::Engine,
-    fxhash::FxHashSet,
+    fxhash::{FxHashMap, FxHashSet},
     gui::{
         border::BorderBuilder,
         brush::Brush,
         button::{Button, ButtonBuilder, ButtonMessage},
         canvas::CanvasBuilder,
-        decorator::{DecoratorBuilder, DecoratorMessage},
+        decorator::DecoratorMessage,
         dropdown_list::DropdownListMessage,
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
@@ -39,9 +44,8 @@ use fyrox::{
         vec::{Vec3EditorBuilder, Vec3EditorMessage},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-        VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_DARKER, BRUSH_DARKEST, BRUSH_LIGHT,
-        BRUSH_LIGHTER, BRUSH_LIGHTEST,
+        HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
+        BRUSH_DARKEST,
     },
     resource::{
         model::{Model, ModelResourceExtension},
@@ -69,13 +73,7 @@ pub struct SceneViewer {
     pub last_mouse_pos: Option<Vector2<f32>>,
     pub click_mouse_pos: Option<Vector2<f32>>,
     selection_frame: Handle<UiNode>,
-    // Side bar stuff
-    select_mode: Handle<UiNode>,
-    move_mode: Handle<UiNode>,
-    rotate_mode: Handle<UiNode>,
-    scale_mode: Handle<UiNode>,
-    navmesh_mode: Handle<UiNode>,
-    terrain_mode: Handle<UiNode>,
+    interaction_modes: FxHashMap<Uuid, Handle<UiNode>>,
     camera_projection: Handle<UiNode>,
     play: Handle<UiNode>,
     stop: Handle<UiNode>,
@@ -91,88 +89,13 @@ pub struct SceneViewer {
     scene_gizmo_image: Handle<UiNode>,
 }
 
-fn make_interaction_mode_button(
-    ctx: &mut BuildContext,
-    image: &[u8],
-    tooltip: &str,
-    selected: bool,
-) -> Handle<UiNode> {
-    ButtonBuilder::new(
-        WidgetBuilder::new()
-            .with_tooltip(make_simple_tooltip(ctx, tooltip))
-            .with_margin(Thickness {
-                left: 1.0,
-                top: 0.0,
-                right: 1.0,
-                bottom: 1.0,
-            }),
-    )
-    .with_back(
-        DecoratorBuilder::new(
-            BorderBuilder::new(WidgetBuilder::new().with_foreground(BRUSH_DARKER))
-                .with_stroke_thickness(Thickness::uniform(1.0)),
-        )
-        .with_normal_brush(BRUSH_LIGHT)
-        .with_hover_brush(BRUSH_LIGHTER)
-        .with_pressed_brush(BRUSH_LIGHTEST)
-        .with_selected_brush(BRUSH_BRIGHT_BLUE)
-        .with_selected(selected)
-        .build(ctx),
-    )
-    .with_content(
-        ImageBuilder::new(
-            WidgetBuilder::new()
-                .with_background(Brush::Solid(Color::opaque(220, 220, 220)))
-                .with_margin(Thickness::uniform(2.0))
-                .with_width(23.0)
-                .with_height(23.0),
-        )
-        .with_opt_texture(load_image(image))
-        .build(ctx),
-    )
-    .build(ctx)
-}
-
 impl SceneViewer {
     pub fn new(engine: &mut Engine, sender: MessageSender) -> Self {
         let scene_gizmo = SceneGizmo::new(engine);
 
         let ctx = &mut engine.user_interface.build_ctx();
 
-        let select_mode_tooltip = "Select Object(s) - Shortcut: [1]\n\nSelection interaction mode \
-        allows you to select an object by a single left mouse button click or multiple objects using either \
-        frame selection (click and drag) or by holding Ctrl+Click";
-
-        let move_mode_tooltip =
-            "Move Object(s) - Shortcut: [2]\n\nMovement interaction mode allows you to move selected \
-        objects. Keep in mind that movement always works in local coordinates!\n\n\
-        This also allows you to select an object or add an object to current selection using Ctrl+Click";
-
-        let rotate_mode_tooltip =
-            "Rotate Object(s) - Shortcut: [3]\n\nRotation interaction mode allows you to rotate selected \
-        objects. Keep in mind that rotation always works in local coordinates!\n\n\
-        This also allows you to select an object or add an object to current selection using Ctrl+Click";
-
-        let scale_mode_tooltip =
-            "Scale Object(s) - Shortcut: [4]\n\nScaling interaction mode allows you to scale selected \
-        objects. Keep in mind that scaling always works in local coordinates!\n\n\
-        This also allows you to select an object or add an object to current selection using Ctrl+Click";
-
-        let navmesh_mode_tooltip =
-            "Edit Navmesh\n\nNavmesh edit mode allows you to modify selected \
-        navigational mesh.";
-
-        let terrain_mode_tooltip =
-            "Edit Terrain\n\nTerrain edit mode allows you to modify selected \
-        terrain.";
-
         let frame;
-        let select_mode;
-        let move_mode;
-        let rotate_mode;
-        let scale_mode;
-        let navmesh_mode;
-        let terrain_mode;
         let selection_frame;
         let camera_projection;
         let play;
@@ -183,61 +106,7 @@ impl SceneViewer {
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))
                 .with_vertical_alignment(VerticalAlignment::Top)
-                .with_horizontal_alignment(HorizontalAlignment::Left)
-                .with_child({
-                    select_mode = make_interaction_mode_button(
-                        ctx,
-                        include_bytes!("../../resources/select.png"),
-                        select_mode_tooltip,
-                        true,
-                    );
-                    select_mode
-                })
-                .with_child({
-                    move_mode = make_interaction_mode_button(
-                        ctx,
-                        include_bytes!("../../resources/move_arrow.png"),
-                        move_mode_tooltip,
-                        false,
-                    );
-                    move_mode
-                })
-                .with_child({
-                    rotate_mode = make_interaction_mode_button(
-                        ctx,
-                        include_bytes!("../../resources/rotate_arrow.png"),
-                        rotate_mode_tooltip,
-                        false,
-                    );
-                    rotate_mode
-                })
-                .with_child({
-                    scale_mode = make_interaction_mode_button(
-                        ctx,
-                        include_bytes!("../../resources/scale_arrow.png"),
-                        scale_mode_tooltip,
-                        false,
-                    );
-                    scale_mode
-                })
-                .with_child({
-                    navmesh_mode = make_interaction_mode_button(
-                        ctx,
-                        include_bytes!("../../resources/navmesh.png"),
-                        navmesh_mode_tooltip,
-                        false,
-                    );
-                    navmesh_mode
-                })
-                .with_child({
-                    terrain_mode = make_interaction_mode_button(
-                        ctx,
-                        include_bytes!("../../resources/terrain.png"),
-                        terrain_mode_tooltip,
-                        false,
-                    );
-                    terrain_mode
-                }),
+                .with_horizontal_alignment(HorizontalAlignment::Left),
         )
         .build(ctx);
 
@@ -454,13 +323,8 @@ impl SceneViewer {
             window,
             frame,
             last_mouse_pos: None,
-            move_mode,
-            rotate_mode,
-            scale_mode,
+            interaction_modes: Default::default(),
             selection_frame,
-            select_mode,
-            navmesh_mode,
-            terrain_mode,
             camera_projection,
             click_mouse_pos: None,
             play,
@@ -493,35 +357,48 @@ impl SceneViewer {
 
     pub fn handle_message(&mut self, message: &Message, engine: &mut Engine) {
         if let Message::SetInteractionMode(mode) = message {
-            let active_button = match mode {
-                InteractionModeKind::Select => self.select_mode,
-                InteractionModeKind::Move => self.move_mode,
-                InteractionModeKind::Scale => self.scale_mode,
-                InteractionModeKind::Rotate => self.rotate_mode,
-                InteractionModeKind::Navmesh => self.navmesh_mode,
-                InteractionModeKind::Terrain => self.terrain_mode,
-            };
+            if let Some(&active_button) = self.interaction_modes.get(mode) {
+                for &mode_button in self.interaction_modes.values() {
+                    let decorator = engine
+                        .user_interface
+                        .node(mode_button)
+                        .query_component::<Button>()
+                        .unwrap()
+                        .decorator;
 
-            for mode_button in [
-                self.select_mode,
-                self.move_mode,
-                self.scale_mode,
-                self.rotate_mode,
-                self.navmesh_mode,
-                self.terrain_mode,
-            ] {
-                let decorator = engine
-                    .user_interface
-                    .node(mode_button)
-                    .query_component::<Button>()
-                    .unwrap()
-                    .decorator;
+                    engine.user_interface.send_message(DecoratorMessage::select(
+                        decorator,
+                        MessageDirection::ToWidget,
+                        mode_button == active_button,
+                    ));
+                }
+            }
+        }
+    }
 
-                engine.user_interface.send_message(DecoratorMessage::select(
-                    decorator,
+    pub fn on_current_scene_changed(
+        &mut self,
+        new_scene: Option<&mut EditorSceneEntry>,
+        ui: &mut UserInterface,
+    ) {
+        // Remove interaction mode buttons first.
+        for (_, button) in self.interaction_modes.drain() {
+            ui.send_message(WidgetMessage::remove(button, MessageDirection::ToWidget));
+        }
+
+        // Create new buttons for each mode.
+        if let Some(scene_entry) = new_scene {
+            for (id, mode) in scene_entry.interaction_modes.map.iter_mut() {
+                let button = mode.make_button(
+                    &mut ui.build_ctx(),
+                    scene_entry.current_interaction_mode.unwrap_or_default() == *id,
+                );
+                ui.send_message(WidgetMessage::link(
+                    button,
                     MessageDirection::ToWidget,
-                    mode_button == active_button,
+                    self.interaction_mode_panel,
                 ));
+                self.interaction_modes.insert(*id, button);
             }
         }
     }
@@ -537,36 +414,20 @@ impl SceneViewer {
         let ui = &engine.user_interface;
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
-            if message.destination() == self.scale_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Scale));
-            } else if message.destination() == self.rotate_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Rotate));
-            } else if message.destination() == self.move_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Move));
-            } else if message.destination() == self.select_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Select));
-            } else if message.destination() == self.navmesh_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Navmesh));
-            } else if message.destination() == self.terrain_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Terrain));
-            } else if message.destination() == self.play {
-                self.sender.send(Message::SwitchToBuildMode);
-            } else if message.destination() == self.stop {
-                self.sender.send(Message::SwitchToEditMode);
+            for (mode_id, mode_button) in self.interaction_modes.iter() {
+                if message.destination() == *mode_button {
+                    self.sender.send(Message::SetInteractionMode(*mode_id));
+                }
             }
         } else if let Some(WidgetMessage::MouseDown { button, .. }) =
             message.data::<WidgetMessage>()
         {
-            if ui.is_node_child_of(message.destination(), self.move_mode)
-                && *button == MouseButton::Right
-            {
-                self.sender.send(Message::OpenSettings);
+            for &mode_button in self.interaction_modes.values() {
+                if ui.is_node_child_of(message.destination(), mode_button)
+                    && *button == MouseButton::Right
+                {
+                    self.sender.send(Message::OpenSettings);
+                }
             }
         } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
             if message.direction == MessageDirection::FromWidget {
@@ -625,7 +486,7 @@ impl SceneViewer {
             let editor_scene = &mut entry.editor_scene;
             let interaction_mode = entry
                 .current_interaction_mode
-                .and_then(|i| entry.interaction_modes.get_mut(i as usize));
+                .and_then(|uuid| entry.interaction_modes.map.get_mut(&uuid));
 
             if let (Some(msg), Mode::Edit) = (message.data::<WidgetMessage>(), mode) {
                 if message.destination() == self.frame() {

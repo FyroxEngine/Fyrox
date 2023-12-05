@@ -1,7 +1,8 @@
 use crate::{
     camera::PickingOptions,
     interaction::{
-        calculate_gizmo_distance_scaling, gizmo::rotate_gizmo::RotationGizmo, InteractionMode,
+        calculate_gizmo_distance_scaling, gizmo::rotate_gizmo::RotationGizmo,
+        make_interaction_mode_button, InteractionMode,
     },
     message::MessageSender,
     scene::{
@@ -12,9 +13,15 @@ use crate::{
     world::graph::selection::GraphSelection,
     Engine,
 };
-use fyrox::core::{
-    algebra::{UnitQuaternion, Vector2},
-    math::round_to_step,
+use fyrox::core::TypeUuidProvider;
+use fyrox::{
+    core::{
+        algebra::{UnitQuaternion, Vector2},
+        math::round_to_step,
+        pool::Handle,
+        uuid::{uuid, Uuid},
+    },
+    gui::{BuildContext, UiNode},
 };
 
 pub struct RotateInteractionMode {
@@ -36,6 +43,12 @@ impl RotateInteractionMode {
             interacting: false,
             message_sender,
         }
+    }
+}
+
+impl TypeUuidProvider for RotateInteractionMode {
+    fn type_uuid() -> Uuid {
+        uuid!("37f20364-feb5-4731-8c19-c3df922818d6")
     }
 }
 
@@ -226,5 +239,23 @@ impl InteractionMode for RotateInteractionMode {
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
         self.rotation_gizmo.set_visible(graph, false);
+    }
+
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
+        let rotate_mode_tooltip =
+            "Rotate Object(s) - Shortcut: [3]\n\nRotation interaction mode allows you to rotate selected \
+        objects. Keep in mind that rotation always works in local coordinates!\n\n\
+        This also allows you to select an object or add an object to current selection using Ctrl+Click";
+
+        make_interaction_mode_button(
+            ctx,
+            include_bytes!("../../resources/rotate_arrow.png"),
+            rotate_mode_tooltip,
+            selected,
+        )
+    }
+
+    fn uuid(&self) -> Uuid {
+        Self::type_uuid()
     }
 }

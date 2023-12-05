@@ -32,7 +32,7 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
     }
 
     fn path(&self) -> Option<&Path> {
-        self.editor_scene.path.as_ref().map(|p| p.as_path())
+        self.editor_scene.path.as_deref()
     }
 
     fn children_of(&self, node: ErasedHandle) -> Vec<ErasedHandle> {

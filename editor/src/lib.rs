@@ -55,7 +55,7 @@ use crate::{
         scale_mode::ScaleInteractionMode,
         select_mode::SelectInteractionMode,
         terrain::TerrainInteractionMode,
-        InteractionMode, InteractionModeKind,
+        InteractionMode,
     },
     light::LightPanel,
     log::LogPanel,
@@ -83,6 +83,8 @@ use crate::{
         graph::EditorSceneWrapper, WorldViewer,
     },
 };
+use fyrox::core::uuid::Uuid;
+use fyrox::core::TypeUuidProvider;
 use fyrox::{
     asset::{io::FsResourceIo, manager::ResourceManager},
     core::{
@@ -149,6 +151,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::interaction::InteractionModeContainer;
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -441,16 +444,19 @@ impl SaveSceneConfirmationDialog {
 pub struct EditorSceneEntry {
     pub editor_scene: EditorScene,
     pub command_stack: CommandStack,
-    pub interaction_modes: Vec<Box<dyn InteractionMode>>,
-    pub current_interaction_mode: Option<InteractionModeKind>,
+    pub interaction_modes: InteractionModeContainer,
+    pub current_interaction_mode: Option<Uuid>,
 }
 
 impl EditorSceneEntry {
-    fn set_interaction_mode(&mut self, engine: &mut Engine, mode: Option<InteractionModeKind>) {
+    fn set_interaction_mode(&mut self, engine: &mut Engine, mode: Option<Uuid>) {
         if self.current_interaction_mode != mode {
             // Deactivate current first.
             if let Some(current_mode) = self.current_interaction_mode {
-                self.interaction_modes[current_mode as usize]
+                self.interaction_modes
+                    .map
+                    .get_mut(&current_mode)
+                    .unwrap()
                     .deactivate(&self.editor_scene, engine);
             }
 
@@ -458,13 +464,17 @@ impl EditorSceneEntry {
 
             // Activate new.
             if let Some(current_mode) = self.current_interaction_mode {
-                self.interaction_modes[current_mode as usize].activate(&self.editor_scene, engine);
+                self.interaction_modes
+                    .map
+                    .get_mut(&current_mode)
+                    .unwrap()
+                    .activate(&self.editor_scene, engine);
             }
         }
     }
 
     fn on_drop(&mut self, engine: &mut Engine) {
-        for mut interaction_mode in self.interaction_modes.drain(..) {
+        for (_, mut interaction_mode) in self.interaction_modes.map.drain() {
             interaction_mode.on_drop(engine);
         }
     }
@@ -575,47 +585,47 @@ impl SceneContainer {
         self.current_scene = Some(self.scenes.len());
 
         let editor_scene = EditorScene::from_native_scene(scene, engine, path, settings);
+        let mut interaction_modes = InteractionModeContainer::default();
+        interaction_modes.add(SelectInteractionMode::new(
+            scene_viewer.frame(),
+            scene_viewer.selection_frame(),
+            message_sender.clone(),
+        ));
+        interaction_modes.add(MoveInteractionMode::new(
+            &editor_scene,
+            engine,
+            message_sender.clone(),
+        ));
+        interaction_modes.add(ScaleInteractionMode::new(
+            &editor_scene,
+            engine,
+            message_sender.clone(),
+        ));
+        interaction_modes.add(RotateInteractionMode::new(
+            &editor_scene,
+            engine,
+            message_sender.clone(),
+        ));
+        interaction_modes.add(EditNavmeshMode::new(
+            &editor_scene,
+            engine,
+            message_sender.clone(),
+        ));
+        interaction_modes.add(TerrainInteractionMode::new(
+            &editor_scene,
+            engine,
+            message_sender,
+            scene_viewer.frame(),
+        ));
 
         let mut entry = EditorSceneEntry {
-            interaction_modes: vec![
-                Box::new(SelectInteractionMode::new(
-                    scene_viewer.frame(),
-                    scene_viewer.selection_frame(),
-                    message_sender.clone(),
-                )),
-                Box::new(MoveInteractionMode::new(
-                    &editor_scene,
-                    engine,
-                    message_sender.clone(),
-                )),
-                Box::new(ScaleInteractionMode::new(
-                    &editor_scene,
-                    engine,
-                    message_sender.clone(),
-                )),
-                Box::new(RotateInteractionMode::new(
-                    &editor_scene,
-                    engine,
-                    message_sender.clone(),
-                )),
-                Box::new(EditNavmeshMode::new(
-                    &editor_scene,
-                    engine,
-                    message_sender.clone(),
-                )),
-                Box::new(TerrainInteractionMode::new(
-                    &editor_scene,
-                    engine,
-                    message_sender,
-                    scene_viewer.frame(),
-                )),
-            ],
+            interaction_modes,
             editor_scene,
             command_stack: CommandStack::new(false),
             current_interaction_mode: None,
         };
 
-        entry.set_interaction_mode(engine, Some(InteractionModeKind::Move));
+        entry.set_interaction_mode(engine, Some(MoveInteractionMode::type_uuid()));
 
         self.scenes.push(entry);
     }
@@ -1223,7 +1233,11 @@ impl Editor {
             let mut processed = false;
             if let Some(scene) = self.scenes.current_scene_entry_mut() {
                 if let Some(current_interaction_mode) = scene.current_interaction_mode {
-                    processed |= scene.interaction_modes[current_interaction_mode as usize]
+                    processed |= scene
+                        .interaction_modes
+                        .map
+                        .get_mut(&current_interaction_mode)
+                        .unwrap()
                         .on_hot_key(&hot_key, &mut scene.editor_scene, engine, &self.settings);
                 }
             }
@@ -1236,17 +1250,25 @@ impl Editor {
                 } else if hot_key == key_bindings.undo {
                     sender.send(Message::UndoSceneCommand);
                 } else if hot_key == key_bindings.enable_select_mode {
-                    sender.send(Message::SetInteractionMode(InteractionModeKind::Select));
+                    sender.send(Message::SetInteractionMode(
+                        SelectInteractionMode::type_uuid(),
+                    ));
                 } else if hot_key == key_bindings.enable_move_mode {
-                    sender.send(Message::SetInteractionMode(InteractionModeKind::Move));
+                    sender.send(Message::SetInteractionMode(MoveInteractionMode::type_uuid()));
                 } else if hot_key == key_bindings.enable_rotate_mode {
-                    sender.send(Message::SetInteractionMode(InteractionModeKind::Rotate));
+                    sender.send(Message::SetInteractionMode(
+                        RotateInteractionMode::type_uuid(),
+                    ));
                 } else if hot_key == key_bindings.enable_scale_mode {
-                    sender.send(Message::SetInteractionMode(InteractionModeKind::Scale));
+                    sender.send(Message::SetInteractionMode(
+                        ScaleInteractionMode::type_uuid(),
+                    ));
                 } else if hot_key == key_bindings.enable_navmesh_mode {
-                    sender.send(Message::SetInteractionMode(InteractionModeKind::Navmesh));
+                    sender.send(Message::SetInteractionMode(EditNavmeshMode::type_uuid()));
                 } else if hot_key == key_bindings.enable_terrain_mode {
-                    sender.send(Message::SetInteractionMode(InteractionModeKind::Terrain));
+                    sender.send(Message::SetInteractionMode(
+                        TerrainInteractionMode::type_uuid(),
+                    ));
                 } else if hot_key == key_bindings.load_scene {
                     sender.send(Message::OpenLoadSceneDialog);
                 } else if hot_key == key_bindings.save_scene {
@@ -1430,11 +1452,12 @@ impl Editor {
                 .handle_ui_message(message, editor_scene, engine, &self.message_sender);
 
             if let Some(current_im) = current_scene_entry.current_interaction_mode {
-                current_scene_entry.interaction_modes[current_im as usize].handle_ui_message(
-                    message,
-                    editor_scene,
-                    engine,
-                );
+                current_scene_entry
+                    .interaction_modes
+                    .map
+                    .get_mut(&current_im)
+                    .unwrap()
+                    .handle_ui_message(message, editor_scene, engine);
             }
 
             self.scene_node_context_menu.borrow_mut().handle_ui_message(
@@ -1995,6 +2018,10 @@ impl Editor {
 
         self.world_viewer.sync_selection = true;
 
+        self.scene_viewer.on_current_scene_changed(
+            self.scenes.current_scene_entry_mut(),
+            &mut self.engine.user_interface,
+        );
         self.sync_to_model();
         self.poll_ui_messages();
     }
@@ -2420,11 +2447,12 @@ impl Editor {
             self.absm_editor.update(editor_scene, &mut self.engine);
 
             if let Some(mode) = editor_scene_entry.current_interaction_mode {
-                editor_scene_entry.interaction_modes[mode as usize].update(
-                    editor_scene,
-                    &mut self.engine,
-                    &self.settings,
-                );
+                editor_scene_entry
+                    .interaction_modes
+                    .map
+                    .get_mut(&mode)
+                    .unwrap()
+                    .update(editor_scene, &mut self.engine, &self.settings);
             }
         }
 

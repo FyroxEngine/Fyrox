@@ -1,11 +1,12 @@
 use crate::{
-    command::Command, interaction::InteractionModeKind, scene::commands::SceneCommand,
-    scene::Selection, BuildProfile, SaveSceneConfirmationDialogAction,
+    command::Command, scene::commands::SceneCommand, scene::Selection, BuildProfile,
+    SaveSceneConfirmationDialogAction,
 };
 use fyrox::{
     core::{
         log::Log,
         pool::{ErasedHandle, Handle},
+        uuid::Uuid,
     },
     gui::UiNode,
     material::MaterialResource,
@@ -28,7 +29,7 @@ pub enum Message {
     },
     LoadScene(PathBuf),
     CloseScene(Handle<Scene>),
-    SetInteractionMode(InteractionModeKind),
+    SetInteractionMode(Uuid),
     Configure {
         working_directory: PathBuf,
     },

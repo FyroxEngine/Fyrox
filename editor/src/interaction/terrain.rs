@@ -1,3 +1,4 @@
+use crate::interaction::make_interaction_mode_button;
 use crate::{
     interaction::InteractionMode,
     make_color_material,
@@ -9,6 +10,8 @@ use crate::{
     settings::Settings,
     MSG_SYNC_FLAG,
 };
+use fyrox::core::uuid::{uuid, Uuid};
+use fyrox::core::TypeUuidProvider;
 use fyrox::gui::{HorizontalAlignment, Thickness, VerticalAlignment};
 use fyrox::{
     core::{
@@ -131,6 +134,12 @@ fn copy_layer_masks(terrain: &Terrain, layer: usize) -> Vec<Vec<u8>> {
     }
 
     masks
+}
+
+impl TypeUuidProvider for TerrainInteractionMode {
+    fn type_uuid() -> Uuid {
+        uuid!("bc19eff3-3e3a-49c0-9a9d-17d36fccc34e")
+    }
 }
 
 impl InteractionMode for TerrainInteractionMode {
@@ -432,6 +441,23 @@ impl InteractionMode for TerrainInteractionMode {
         }
 
         processed
+    }
+
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
+        let terrain_mode_tooltip =
+            "Edit Terrain\n\nTerrain edit mode allows you to modify selected \
+        terrain.";
+
+        make_interaction_mode_button(
+            ctx,
+            include_bytes!("../../resources/terrain.png"),
+            terrain_mode_tooltip,
+            selected,
+        )
+    }
+
+    fn uuid(&self) -> Uuid {
+        Self::type_uuid()
     }
 }
 

@@ -1,3 +1,4 @@
+use crate::interaction::make_interaction_mode_button;
 use crate::message::MessageSender;
 use crate::{
     camera::{CameraController, PickingOptions},
@@ -13,6 +14,9 @@ use crate::{
     world::graph::selection::GraphSelection,
     Engine, Message,
 };
+use fyrox::core::uuid::{uuid, Uuid};
+use fyrox::core::TypeUuidProvider;
+use fyrox::gui::{BuildContext, UiNode};
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -275,6 +279,12 @@ impl MoveInteractionMode {
     }
 }
 
+impl TypeUuidProvider for MoveInteractionMode {
+    fn type_uuid() -> Uuid {
+        uuid!("067c67e2-865b-4112-8d60-133ee1e1883a")
+    }
+}
+
 impl InteractionMode for MoveInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
@@ -449,5 +459,23 @@ impl InteractionMode for MoveInteractionMode {
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
         self.move_gizmo.set_visible(graph, false);
+    }
+
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
+        let move_mode_tooltip =
+            "Move Object(s) - Shortcut: [2]\n\nMovement interaction mode allows you to move selected \
+        objects. Keep in mind that movement always works in local coordinates!\n\n\
+        This also allows you to select an object or add an object to current selection using Ctrl+Click";
+
+        make_interaction_mode_button(
+            ctx,
+            include_bytes!("../../resources/move_arrow.png"),
+            move_mode_tooltip,
+            selected,
+        )
+    }
+
+    fn uuid(&self) -> Uuid {
+        Self::type_uuid()
     }
 }

@@ -1,3 +1,4 @@
+use crate::interaction::make_interaction_mode_button;
 use crate::message::MessageSender;
 use crate::{
     camera::PickingOptions,
@@ -22,6 +23,8 @@ use crate::{
     utils::window_content,
     Mode,
 };
+use fyrox::core::uuid::{uuid, Uuid};
+use fyrox::core::TypeUuidProvider;
 use fyrox::{
     core::{
         algebra::{Vector2, Vector3},
@@ -195,6 +198,12 @@ impl EditNavmeshMode {
             drag_context: None,
             plane_kind: PlaneKind::X,
         }
+    }
+}
+
+impl TypeUuidProvider for EditNavmeshMode {
+    fn type_uuid() -> Uuid {
+        uuid!("a8ed875d-0932-400d-b5b0-e0dcfb78c6c1")
     }
 }
 
@@ -584,5 +593,22 @@ impl InteractionMode for EditNavmeshMode {
         } else {
             false
         }
+    }
+
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
+        let navmesh_mode_tooltip =
+            "Edit Navmesh\n\nNavmesh edit mode allows you to modify selected \
+        navigational mesh.";
+
+        make_interaction_mode_button(
+            ctx,
+            include_bytes!("../../../resources/navmesh.png"),
+            navmesh_mode_tooltip,
+            selected,
+        )
+    }
+
+    fn uuid(&self) -> Uuid {
+        Self::type_uuid()
     }
 }

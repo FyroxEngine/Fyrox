@@ -1,13 +1,26 @@
-use crate::{scene::EditorScene, settings::Settings, Engine};
-use fyrox::gui::key::HotKey;
-use fyrox::scene::camera::Projection;
+use crate::{load_image, scene::EditorScene, settings::Settings, Engine};
+use fyrox::fxhash::FxHashMap;
 use fyrox::{
     core::{
         algebra::{Vector2, Vector3},
+        color::Color,
         pool::Handle,
+        uuid::Uuid,
     },
-    gui::message::{KeyCode, UiMessage},
-    scene::{graph::Graph, node::Node},
+    gui::{
+        border::BorderBuilder,
+        brush::Brush,
+        button::ButtonBuilder,
+        decorator::DecoratorBuilder,
+        image::ImageBuilder,
+        key::HotKey,
+        message::{KeyCode, UiMessage},
+        utils::make_simple_tooltip,
+        widget::WidgetBuilder,
+        BuildContext, Thickness, UiNode, BRUSH_BRIGHT_BLUE, BRUSH_DARKER, BRUSH_LIGHT,
+        BRUSH_LIGHTER, BRUSH_LIGHTEST,
+    },
+    scene::{camera::Projection, graph::Graph, node::Node},
 };
 use std::any::Any;
 
@@ -20,13 +33,16 @@ pub mod scale_mode;
 pub mod select_mode;
 pub mod terrain;
 
-pub trait BaseInteractionMode {
+pub trait BaseInteractionMode: 'static {
     fn as_any(&self) -> &dyn Any;
 
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
-impl<T: 'static> BaseInteractionMode for T {
+impl<T> BaseInteractionMode for T
+where
+    T: 'static,
+{
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -123,6 +139,52 @@ pub trait InteractionMode: BaseInteractionMode {
     ) -> bool {
         false
     }
+
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode>;
+
+    fn uuid(&self) -> Uuid;
+}
+
+pub fn make_interaction_mode_button(
+    ctx: &mut BuildContext,
+    image: &[u8],
+    tooltip: &str,
+    selected: bool,
+) -> Handle<UiNode> {
+    ButtonBuilder::new(
+        WidgetBuilder::new()
+            .with_tooltip(make_simple_tooltip(ctx, tooltip))
+            .with_margin(Thickness {
+                left: 1.0,
+                top: 0.0,
+                right: 1.0,
+                bottom: 1.0,
+            }),
+    )
+    .with_back(
+        DecoratorBuilder::new(
+            BorderBuilder::new(WidgetBuilder::new().with_foreground(BRUSH_DARKER))
+                .with_stroke_thickness(Thickness::uniform(1.0)),
+        )
+        .with_normal_brush(BRUSH_LIGHT)
+        .with_hover_brush(BRUSH_LIGHTER)
+        .with_pressed_brush(BRUSH_LIGHTEST)
+        .with_selected_brush(BRUSH_BRIGHT_BLUE)
+        .with_selected(selected)
+        .build(ctx),
+    )
+    .with_content(
+        ImageBuilder::new(
+            WidgetBuilder::new()
+                .with_background(Brush::Solid(Color::opaque(220, 220, 220)))
+                .with_margin(Thickness::uniform(2.0))
+                .with_width(23.0)
+                .with_height(23.0),
+        )
+        .with_opt_texture(load_image(image))
+        .build(ctx),
+    )
+    .build(ctx)
 }
 
 pub fn calculate_gizmo_distance_scaling(
@@ -147,14 +209,13 @@ fn distance_scale_factor(fov: f32) -> f32 {
     fov.tan() * 0.1
 }
 
-/// Helper enum to be able to access interaction modes in array directly.
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Eq)]
-#[repr(usize)]
-pub enum InteractionModeKind {
-    Select = 0,
-    Move = 1,
-    Scale = 2,
-    Rotate = 3,
-    Navmesh = 4,
-    Terrain = 5,
+#[derive(Default)]
+pub struct InteractionModeContainer {
+    pub map: FxHashMap<Uuid, Box<dyn InteractionMode>>,
+}
+
+impl InteractionModeContainer {
+    pub fn add<T: InteractionMode>(&mut self, mode: T) {
+        self.map.insert(mode.uuid(), Box::new(mode));
+    }
 }

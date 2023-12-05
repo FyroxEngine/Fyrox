@@ -1,3 +1,4 @@
+use crate::interaction::make_interaction_mode_button;
 use crate::{
     interaction::InteractionMode,
     message::MessageSender,
@@ -6,6 +7,9 @@ use crate::{
     world::graph::selection::GraphSelection,
     Engine,
 };
+use fyrox::core::uuid::{uuid, Uuid};
+use fyrox::core::TypeUuidProvider;
+use fyrox::gui::BuildContext;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle},
     gui::{message::MessageDirection, widget::WidgetMessage, UiNode},
@@ -33,6 +37,12 @@ impl SelectInteractionMode {
             stack: Vec::new(),
             click_pos: Vector2::default(),
         }
+    }
+}
+
+impl TypeUuidProvider for SelectInteractionMode {
+    fn type_uuid() -> Uuid {
+        uuid!("bab9ce8c-d679-4c49-beb9-f5a8482e0678")
     }
 }
 
@@ -182,4 +192,21 @@ impl InteractionMode for SelectInteractionMode {
     }
 
     fn deactivate(&mut self, _editor_scene: &EditorScene, _engine: &mut Engine) {}
+
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
+        let select_mode_tooltip = "Select Object(s) - Shortcut: [1]\n\nSelection interaction mode \
+        allows you to select an object by a single left mouse button click or multiple objects using either \
+        frame selection (click and drag) or by holding Ctrl+Click";
+
+        make_interaction_mode_button(
+            ctx,
+            include_bytes!("../../resources/select.png"),
+            select_mode_tooltip,
+            selected,
+        )
+    }
+
+    fn uuid(&self) -> Uuid {
+        Self::type_uuid()
+    }
 }

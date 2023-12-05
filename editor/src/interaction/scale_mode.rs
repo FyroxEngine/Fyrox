@@ -1,7 +1,8 @@
 use crate::{
     camera::PickingOptions,
     interaction::{
-        calculate_gizmo_distance_scaling, gizmo::scale_gizmo::ScaleGizmo, InteractionMode,
+        calculate_gizmo_distance_scaling, gizmo::scale_gizmo::ScaleGizmo,
+        make_interaction_mode_button, InteractionMode,
     },
     message::MessageSender,
     scene::{
@@ -12,7 +13,15 @@ use crate::{
     world::graph::selection::GraphSelection,
     Engine,
 };
-use fyrox::core::algebra::{Vector2, Vector3};
+use fyrox::{
+    core::{
+        algebra::{Vector2, Vector3},
+        pool::Handle,
+        uuid::{uuid, Uuid},
+        TypeUuidProvider,
+    },
+    gui::{BuildContext, UiNode},
+};
 
 pub struct ScaleInteractionMode {
     initial_scales: Vec<Vector3<f32>>,
@@ -33,6 +42,12 @@ impl ScaleInteractionMode {
             interacting: false,
             message_sender,
         }
+    }
+}
+
+impl TypeUuidProvider for ScaleInteractionMode {
+    fn type_uuid() -> Uuid {
+        uuid!("64b4da1a-5d0f-49e1-9f48-011165cd1ec5")
     }
 }
 
@@ -206,5 +221,23 @@ impl InteractionMode for ScaleInteractionMode {
     fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
         let graph = &mut engine.scenes[editor_scene.scene].graph;
         self.scale_gizmo.set_visible(graph, false);
+    }
+
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
+        let scale_mode_tooltip =
+            "Scale Object(s) - Shortcut: [4]\n\nScaling interaction mode allows you to scale selected \
+        objects. Keep in mind that scaling always works in local coordinates!\n\n\
+        This also allows you to select an object or add an object to current selection using Ctrl+Click";
+
+        make_interaction_mode_button(
+            ctx,
+            include_bytes!("../../resources/scale_arrow.png"),
+            scale_mode_tooltip,
+            selected,
+        )
+    }
+
+    fn uuid(&self) -> Uuid {
+        Self::type_uuid()
     }
 }
