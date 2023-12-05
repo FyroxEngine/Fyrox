@@ -442,7 +442,7 @@ impl Command for SetGraphRootCommand {
     #[allow(clippy::unnecessary_to_owned)] // false positive
     fn execute(&mut self, context: &mut SceneContext) {
         let graph = &mut context.scene.graph;
-        let prev_root = context.editor_scene.scene_content_root;
+        let prev_root = *context.scene_content_root;
         self.revert_list
             .push((self.root, graph[self.root].parent()));
         graph.link_nodes(self.root, graph.get_root());
@@ -453,13 +453,13 @@ impl Command for SetGraphRootCommand {
         graph.link_nodes(prev_root, self.root);
         self.revert_list.push((prev_root, graph.get_root()));
 
-        self.root = std::mem::replace(&mut context.editor_scene.scene_content_root, self.root);
+        self.root = std::mem::replace(context.scene_content_root, self.root);
     }
 
     fn revert(&mut self, context: &mut SceneContext) {
         for (child, parent) in self.revert_list.drain(..) {
             context.scene.graph.link_nodes(child, parent);
         }
-        self.root = std::mem::replace(&mut context.editor_scene.scene_content_root, self.root);
+        self.root = std::mem::replace(context.scene_content_root, self.root);
     }
 }

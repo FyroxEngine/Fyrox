@@ -1,4 +1,5 @@
 use crate::message::MessageSender;
+use crate::scene::clipboard::Clipboard;
 use crate::{
     command::Command,
     define_universal_commands,
@@ -45,8 +46,9 @@ macro_rules! get_set_swap {
 
 pub struct SceneContext<'a> {
     pub selection: &'a mut Selection,
-    pub editor_scene: &'a mut EditorScene,
     pub scene: &'a mut Scene,
+    pub scene_content_root: &'a mut Handle<Node>,
+    pub clipboard: &'a mut Clipboard,
     pub message_sender: MessageSender,
     pub resource_manager: ResourceManager,
     pub serialization_context: Arc<SerializationContext>,
@@ -293,10 +295,7 @@ impl Command for PasteCommand {
     fn execute(&mut self, context: &mut SceneContext) {
         match std::mem::replace(&mut self.state, PasteCommandState::Undefined) {
             PasteCommandState::NonExecuted => {
-                let paste_result = context
-                    .editor_scene
-                    .clipboard
-                    .paste(&mut context.scene.graph);
+                let paste_result = context.clipboard.paste(&mut context.scene.graph);
 
                 for &handle in paste_result.root_nodes.iter() {
                     context.scene.graph.link_nodes(handle, self.parent);
