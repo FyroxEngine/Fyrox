@@ -2,8 +2,9 @@ use crate::{
     make_save_file_selector, make_scene_file_filter,
     menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
     message::MessageSender,
+    scene::container::EditorSceneEntry,
     settings::{recent::RecentFiles, Settings, SettingsWindow},
-    EditorSceneEntry, Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
+    Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
 };
 use fyrox::{
     core::pool::Handle,

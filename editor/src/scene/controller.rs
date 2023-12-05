@@ -6,11 +6,11 @@ use crate::{
             graph::AddModelCommand, mesh::SetMeshTextureCommand, ChangeSelectionCommand,
             CommandGroup, SceneCommand,
         },
+        container::{EditorSceneEntry, PreviewInstance},
         Selection,
     },
     settings::{keys::KeyBindings, Settings},
     world::graph::selection::GraphSelection,
-    EditorSceneEntry, PreviewInstance,
 };
 use fyrox::{
     core::{

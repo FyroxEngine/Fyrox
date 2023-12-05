@@ -1,12 +1,12 @@
-use crate::scene::controller::SceneController;
 use crate::{
     gui::{make_dropdown_list_option, make_dropdown_list_option_with_height},
     load_image,
     message::MessageSender,
+    scene::{container::EditorSceneEntry, controller::SceneController},
     scene_viewer::gizmo::{SceneGizmo, SceneGizmoAction},
     send_sync_message,
     utils::enable_widget,
-    BuildProfile, DropdownListBuilder, EditorScene, EditorSceneEntry, Message, Mode,
+    BuildProfile, DropdownListBuilder, EditorScene, Message, Mode,
     SaveSceneConfirmationDialogAction, SceneContainer, Selection, Settings,
 };
 use fyrox::{

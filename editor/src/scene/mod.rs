@@ -34,6 +34,7 @@ pub mod settings;
 
 #[macro_use]
 pub mod commands;
+pub mod container;
 pub mod controller;
 
 pub struct EditorScene {

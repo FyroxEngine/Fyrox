@@ -5,11 +5,11 @@ use crate::{
         utils::UtilsMenu, view::ViewMenu,
     },
     message::MessageSender,
-    scene::EditorScene,
+    scene::{container::EditorSceneEntry, EditorScene},
     send_sync_message,
     settings::Settings,
     utils::ragdoll::RagdollWizard,
-    AbsmEditor, CurveEditorWindow, EditorSceneEntry, Engine, Mode, SceneSettingsWindow,
+    AbsmEditor, CurveEditorWindow, Engine, Mode, SceneSettingsWindow,
 };
 use fyrox::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
