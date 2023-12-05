@@ -20,6 +20,7 @@ use crate::{
     world::graph::selection::GraphSelection,
     Settings,
 };
+use fyrox::resource::texture::{TextureKind, TextureResourceExtension};
 use fyrox::{
     core::{
         algebra::{Vector2, Vector3},
@@ -699,11 +700,31 @@ impl SceneController for EditorScene {
         dt: f32,
         path: Option<&Path>,
         settings: &mut Settings,
-        _screen_bounds: Rect<f32>,
-    ) {
+        screen_bounds: Rect<f32>,
+    ) -> Option<TextureResource> {
         self.draw_auxiliary_geometry(editor_selection, engine, settings);
 
         let scene = &mut engine.scenes[self.scene];
+
+        // Create new render target if preview frame has changed its size.
+        let mut new_render_target = None;
+        if let TextureKind::Rectangle { width, height } = scene
+            .rendering_options
+            .render_target
+            .clone()
+            .unwrap()
+            .data_ref()
+            .kind()
+        {
+            let frame_size = screen_bounds.size;
+            if width != frame_size.x as u32 || height != frame_size.y as u32 {
+                scene.rendering_options.render_target = Some(TextureResource::new_render_target(
+                    frame_size.x as u32,
+                    frame_size.y as u32,
+                ));
+                new_render_target = scene.rendering_options.render_target.clone();
+            }
+        }
 
         let node_overrides = self.graph_switches.node_overrides.as_mut().unwrap();
         for handle in scene.graph.traverse_handle_iter(self.editor_objects_root) {
@@ -717,6 +738,8 @@ impl SceneController for EditorScene {
 
         self.camera_controller
             .update(&mut scene.graph, settings, path, dt);
+
+        new_render_target
     }
 
     fn is_interacting(&self) -> bool {

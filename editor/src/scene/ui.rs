@@ -6,6 +6,7 @@ use crate::{
     scene::Selection,
     settings::{keys::KeyBindings, Settings},
 };
+use fyrox::resource::texture::TextureKind;
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -171,10 +172,25 @@ impl SceneController for UiScene {
         path: Option<&Path>,
         settings: &mut Settings,
         screen_bounds: Rect<f32>,
-    ) {
+    ) -> Option<TextureResource> {
         self.ui.update(screen_bounds.size, dt);
 
+        // Create new render target if preview frame has changed its size.
+        let mut new_render_target = None;
+        if let TextureKind::Rectangle { width, height } =
+            self.render_target.clone().data_ref().kind()
+        {
+            let frame_size = screen_bounds.size;
+            if width != frame_size.x as u32 || height != frame_size.y as u32 {
+                self.render_target =
+                    TextureResource::new_render_target(frame_size.x as u32, frame_size.y as u32);
+                new_render_target = Some(self.render_target.clone());
+            }
+        }
+
         while let Some(message) = self.ui.poll_message() {}
+
+        new_render_target
     }
 
     fn is_interacting(&self) -> bool {

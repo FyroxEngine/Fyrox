@@ -110,7 +110,7 @@ pub trait SceneController: 'static {
         path: Option<&Path>,
         settings: &mut Settings,
         screen_bounds: Rect<f32>,
-    );
+    ) -> Option<TextureResource>;
 
     fn is_interacting(&self) -> bool;
 

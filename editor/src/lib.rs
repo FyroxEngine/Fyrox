@@ -1591,39 +1591,6 @@ impl Editor {
         for_each_plugin!(self.plugins => on_post_update(self));
     }
 
-    fn handle_resize(&mut self) {
-        let engine = &mut self.engine;
-        if let Some(controller) = self.scenes.current_scene_controller_ref() {
-            // TODO
-            if let Some(editor_scene) = controller.downcast_ref::<EditorScene>() {
-                let scene = &mut engine.scenes[editor_scene.scene];
-
-                // Create new render target if preview frame has changed its size.
-                if let TextureKind::Rectangle { width, height } = scene
-                    .rendering_options
-                    .render_target
-                    .clone()
-                    .unwrap()
-                    .data_ref()
-                    .kind()
-                {
-                    let frame_size = self.scene_viewer.frame_bounds(&engine.user_interface).size;
-                    if width != frame_size.x as u32 || height != frame_size.y as u32 {
-                        scene.rendering_options.render_target =
-                            Some(TextureResource::new_render_target(
-                                frame_size.x as u32,
-                                frame_size.y as u32,
-                            ));
-                        self.scene_viewer.set_render_target(
-                            &engine.user_interface,
-                            scene.rendering_options.render_target.clone(),
-                        );
-                    }
-                }
-            }
-        }
-    }
-
     fn do_scene_command(&mut self, command: SceneCommand) -> bool {
         let engine = &mut self.engine;
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
@@ -2339,20 +2306,21 @@ impl Editor {
             }
         }
 
-        self.handle_resize();
-
         if let Some(entry) = self.scenes.current_scene_entry_mut() {
             let controller = &mut entry.controller;
 
             let screen_bounds = self.scene_viewer.frame_bounds(&self.engine.user_interface);
-            controller.update(
+            if let Some(new_render_target) = controller.update(
                 &entry.selection,
                 &mut self.engine,
                 dt,
                 entry.path.as_deref(),
                 &mut self.settings,
                 screen_bounds,
-            );
+            ) {
+                self.scene_viewer
+                    .set_render_target(&self.engine.user_interface, Some(new_render_target));
+            }
 
             // TODO
             if let Some(editor_scene) = controller.downcast_ref::<EditorScene>() {
