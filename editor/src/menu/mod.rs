@@ -143,7 +143,7 @@ impl Menu {
         self.file_menu.open_save_file_selector(ui)
     }
 
-    pub fn sync_to_model(&mut self, editor_scene: Option<&EditorScene>, ui: &mut UserInterface) {
+    pub fn sync_to_model(&mut self, has_active_scene: bool, ui: &mut UserInterface) {
         scope_profile!();
 
         for &widget in [
@@ -158,7 +158,7 @@ impl Menu {
         {
             send_sync_message(
                 ui,
-                WidgetMessage::enabled(widget, MessageDirection::ToWidget, editor_scene.is_some()),
+                WidgetMessage::enabled(widget, MessageDirection::ToWidget, has_active_scene),
             );
         }
     }
@@ -171,15 +171,17 @@ impl Menu {
                 message,
                 &self.message_sender,
                 &entry.selection,
-                &mut entry.editor_scene,
+                &mut *entry.controller,
                 ctx.engine,
             );
 
-            self.create_entity_menu.handle_ui_message(
-                message,
-                &self.message_sender,
-                entry.editor_scene.scene_content_root,
-            );
+            if let Some(editor_scene) = entry.controller.downcast_mut::<EditorScene>() {
+                self.create_entity_menu.handle_ui_message(
+                    message,
+                    &self.message_sender,
+                    editor_scene.scene_content_root,
+                );
+            }
         }
 
         self.utils_menu

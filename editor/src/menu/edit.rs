@@ -1,3 +1,4 @@
+use crate::scene::controller::SceneController;
 use crate::{
     menu::{create_menu_item_shortcut, create_root_menu_item},
     message::MessageSender,
@@ -65,21 +66,25 @@ impl EditMenu {
         message: &UiMessage,
         sender: &MessageSender,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
     ) {
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.copy {
                 if let Selection::Graph(selection) = editor_selection {
-                    editor_scene.clipboard.fill_from_selection(
-                        selection,
-                        editor_scene.scene,
-                        engine,
-                    );
+                    if let Some(editor_scene) = controller.downcast_mut::<EditorScene>() {
+                        editor_scene.clipboard.fill_from_selection(
+                            selection,
+                            editor_scene.scene,
+                            engine,
+                        );
+                    }
                 }
             } else if message.destination() == self.paste {
-                if !editor_scene.clipboard.is_empty() {
-                    sender.do_scene_command(PasteCommand::new(editor_scene.scene_content_root));
+                if let Some(editor_scene) = controller.downcast_mut::<EditorScene>() {
+                    if !editor_scene.clipboard.is_empty() {
+                        sender.do_scene_command(PasteCommand::new(editor_scene.scene_content_root));
+                    }
                 }
             } else if message.destination() == self.undo {
                 sender.send(Message::UndoSceneCommand);

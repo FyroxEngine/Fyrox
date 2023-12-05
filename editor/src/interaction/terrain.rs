@@ -1,4 +1,5 @@
 use crate::interaction::make_interaction_mode_button;
+use crate::scene::controller::SceneController;
 use crate::{
     interaction::InteractionMode,
     make_color_material,
@@ -146,12 +147,16 @@ impl InteractionMode for TerrainInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
+        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+            return;
+        };
+
         if let Selection::Graph(selection) = editor_selection {
             if selection.is_single_selection() {
                 let graph = &mut engine.scenes[editor_scene.scene].graph;
@@ -194,12 +199,16 @@ impl InteractionMode for TerrainInteractionMode {
     fn on_left_mouse_button_up(
         &mut self,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         _mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
+        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+            return;
+        };
+
         if let Selection::Graph(selection) = editor_selection {
             if selection.is_single_selection() {
                 let graph = &mut engine.scenes[editor_scene.scene].graph;
@@ -248,11 +257,15 @@ impl InteractionMode for TerrainInteractionMode {
         _mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
+        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+            return;
+        };
+
         if let Selection::Graph(selection) = editor_selection {
             if selection.is_single_selection() {
                 let graph = &mut engine.scenes[editor_scene.scene].graph;
@@ -310,7 +323,11 @@ impl InteractionMode for TerrainInteractionMode {
         }
     }
 
-    fn activate(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
+    fn activate(&mut self, controller: &dyn SceneController, engine: &mut Engine) {
+        let Some(editor_scene) = controller.downcast_ref::<EditorScene>() else {
+            return;
+        };
+
         self.brush_gizmo
             .set_visible(&mut engine.scenes[editor_scene.scene].graph, true);
 
@@ -330,7 +347,11 @@ impl InteractionMode for TerrainInteractionMode {
             ));
     }
 
-    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
+    fn deactivate(&mut self, controller: &dyn SceneController, engine: &mut Engine) {
+        let Some(editor_scene) = controller.downcast_ref::<EditorScene>() else {
+            return;
+        };
+
         self.brush_gizmo
             .set_visible(&mut engine.scenes[editor_scene.scene].graph, false);
 
@@ -344,7 +365,7 @@ impl InteractionMode for TerrainInteractionMode {
         &mut self,
         message: &UiMessage,
         editor_selection: &Selection,
-        _editor_scene: &mut EditorScene,
+        _controller: &mut dyn SceneController,
         _engine: &mut Engine,
     ) {
         if let Selection::Graph(selection) = editor_selection {
@@ -364,7 +385,7 @@ impl InteractionMode for TerrainInteractionMode {
     fn on_hot_key(
         &mut self,
         hotkey: &HotKey,
-        _editor_scene: &mut EditorScene,
+        _controller: &mut dyn SceneController,
         engine: &mut Engine,
         settings: &Settings,
     ) -> bool {

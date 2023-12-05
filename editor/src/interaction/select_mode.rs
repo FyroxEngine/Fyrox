@@ -1,4 +1,5 @@
 use crate::interaction::make_interaction_mode_button;
+use crate::scene::controller::SceneController;
 use crate::{
     interaction::InteractionMode,
     message::MessageSender,
@@ -50,7 +51,7 @@ impl InteractionMode for SelectInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         _editor_selection: &Selection,
-        _editor_scene: &mut EditorScene,
+        _controller: &mut dyn SceneController,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
@@ -83,12 +84,16 @@ impl InteractionMode for SelectInteractionMode {
     fn on_left_mouse_button_up(
         &mut self,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         _mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
+        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+            return;
+        };
+
         let scene = &engine.scenes[editor_scene.scene];
         let camera = scene.graph[editor_scene.camera_controller.camera].as_camera();
         let preview_screen_bounds = engine.user_interface.node(self.preview).screen_bounds();
@@ -148,7 +153,7 @@ impl InteractionMode for SelectInteractionMode {
         _mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
         _editor_selection: &Selection,
-        _editor_scene: &mut EditorScene,
+        _controller: &mut dyn SceneController,
         engine: &mut Engine,
         _frame_size: Vector2<f32>,
         _settings: &Settings,
@@ -189,13 +194,13 @@ impl InteractionMode for SelectInteractionMode {
     fn update(
         &mut self,
         _editor_selection: &Selection,
-        _editor_scene: &mut EditorScene,
+        _controller: &mut dyn SceneController,
         _engine: &mut Engine,
         _settings: &Settings,
     ) {
     }
 
-    fn deactivate(&mut self, _editor_scene: &EditorScene, _engine: &mut Engine) {}
+    fn deactivate(&mut self, _controller: &dyn SceneController, _engine: &mut Engine) {}
 
     fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
         let select_mode_tooltip = "Select Object(s) - Shortcut: [1]\n\nSelection interaction mode \

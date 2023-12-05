@@ -1,3 +1,5 @@
+use crate::scene::controller::SceneController;
+use crate::settings::keys::KeyBindings;
 use crate::{
     interaction::{
         move_mode::MoveInteractionMode, navmesh::EditNavmeshMode,
@@ -10,27 +12,24 @@ use crate::{
     scene_viewer::SceneViewer,
     settings::Settings,
 };
+use fyrox::core::math::Rect;
+use fyrox::gui::message::{KeyCode, MouseButton};
+use fyrox::gui::UiNode;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle, uuid::Uuid, TypeUuidProvider},
     engine::Engine,
-    fxhash::FxHashSet,
-    scene::{node::Node, Scene},
+    scene::Scene,
 };
 use std::path::PathBuf;
-
-pub struct PreviewInstance {
-    pub instance: Handle<Node>,
-    pub nodes: FxHashSet<Handle<Node>>,
-}
 
 pub struct EditorSceneEntry {
     pub has_unsaved_changes: bool,
     pub path: Option<PathBuf>,
     pub selection: Selection,
-    pub editor_scene: EditorScene,
+    pub controller: Box<dyn SceneController>,
     pub interaction_modes: InteractionModeContainer,
     pub current_interaction_mode: Option<Uuid>,
-    pub preview_instance: Option<PreviewInstance>,
+
     pub last_mouse_pos: Option<Vector2<f32>>,
     pub click_mouse_pos: Option<Vector2<f32>>,
     pub sender: MessageSender,
@@ -46,7 +45,7 @@ impl EditorSceneEntry {
                     .map
                     .get_mut(&current_mode)
                     .unwrap()
-                    .deactivate(&self.editor_scene, engine);
+                    .deactivate(&*self.controller, engine);
             }
 
             self.current_interaction_mode = mode;
@@ -57,7 +56,7 @@ impl EditorSceneEntry {
                     .map
                     .get_mut(&current_mode)
                     .unwrap()
-                    .activate(&self.editor_scene, engine);
+                    .activate(&*self.controller, engine);
             }
         }
     }
@@ -85,9 +84,176 @@ impl EditorSceneEntry {
         settings: &Settings,
         engine: &mut Engine,
     ) -> Result<String, String> {
-        let result = self.editor_scene.save(&path, settings, engine);
+        let result = self.controller.save(&path, settings, engine);
         self.path = Some(path);
         result
+    }
+
+    #[must_use]
+    pub fn on_key_up(
+        &mut self,
+        key: KeyCode,
+        engine: &mut Engine,
+        key_bindings: &KeyBindings,
+    ) -> bool {
+        if self.controller.on_key_up(key, engine, key_bindings) {
+            return true;
+        }
+
+        if let Some(interaction_mode) = self
+            .current_interaction_mode
+            .and_then(|id| self.interaction_modes.map.get_mut(&id))
+        {
+            if interaction_mode.on_key_up(key, &mut *self.controller, engine) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    #[must_use]
+    pub fn on_key_down(
+        &mut self,
+        key: KeyCode,
+        engine: &mut Engine,
+        key_bindings: &KeyBindings,
+    ) -> bool {
+        if self.controller.on_key_down(key, engine, key_bindings) {
+            return true;
+        }
+
+        if let Some(interaction_mode) = self
+            .current_interaction_mode
+            .and_then(|id| self.interaction_modes.map.get_mut(&id))
+        {
+            if interaction_mode.on_key_down(key, &self.selection, &mut *self.controller, engine) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    pub fn on_mouse_move(
+        &mut self,
+        pos: Vector2<f32>,
+        screen_bounds: Rect<f32>,
+        engine: &mut Engine,
+        settings: &Settings,
+    ) {
+        let last_pos = *self.last_mouse_pos.get_or_insert(pos);
+        let mouse_offset = pos - last_pos;
+        let rel_pos = pos - screen_bounds.position;
+
+        if let Some(interaction_mode) = self
+            .current_interaction_mode
+            .and_then(|id| self.interaction_modes.map.get_mut(&id))
+        {
+            interaction_mode.on_mouse_move(
+                mouse_offset,
+                rel_pos,
+                &self.selection,
+                &mut *self.controller,
+                engine,
+                screen_bounds.size,
+                settings,
+            );
+        }
+
+        self.last_mouse_pos = Some(pos);
+
+        self.controller
+            .on_mouse_move(pos, mouse_offset, screen_bounds, engine, settings)
+    }
+
+    pub fn on_mouse_up(
+        &mut self,
+        button: MouseButton,
+        pos: Vector2<f32>,
+        screen_bounds: Rect<f32>,
+        engine: &mut Engine,
+        settings: &Settings,
+    ) {
+        if button == MouseButton::Left {
+            if let Some(interaction_mode) = self
+                .current_interaction_mode
+                .and_then(|id| self.interaction_modes.map.get_mut(&id))
+            {
+                let rel_pos = pos - screen_bounds.position;
+                interaction_mode.on_left_mouse_button_up(
+                    &self.selection,
+                    &mut *self.controller,
+                    engine,
+                    rel_pos,
+                    screen_bounds.size,
+                    settings,
+                );
+            }
+        }
+
+        self.controller
+            .on_mouse_up(button, pos, screen_bounds, engine, settings)
+    }
+
+    pub fn on_mouse_down(
+        &mut self,
+        button: MouseButton,
+        pos: Vector2<f32>,
+        screen_bounds: Rect<f32>,
+        engine: &mut Engine,
+        settings: &Settings,
+    ) {
+        if button == MouseButton::Left {
+            if let Some(interaction_mode) = self
+                .current_interaction_mode
+                .and_then(|id| self.interaction_modes.map.get_mut(&id))
+            {
+                let rel_pos = pos - screen_bounds.position;
+
+                interaction_mode.on_left_mouse_button_down(
+                    &self.selection,
+                    &mut *self.controller,
+                    engine,
+                    rel_pos,
+                    screen_bounds.size,
+                    settings,
+                );
+            }
+        }
+
+        self.controller
+            .on_mouse_down(button, pos, screen_bounds, engine, settings)
+    }
+
+    pub fn on_mouse_wheel(&mut self, amount: f32, engine: &mut Engine, settings: &Settings) {
+        self.controller.on_mouse_wheel(amount, engine, settings)
+    }
+
+    pub fn on_mouse_leave(&mut self, engine: &mut Engine, settings: &Settings) {
+        self.controller.on_mouse_leave(engine, settings)
+    }
+
+    pub fn on_drag_over(
+        &mut self,
+        handle: Handle<UiNode>,
+        screen_bounds: Rect<f32>,
+        engine: &mut Engine,
+        settings: &Settings,
+    ) {
+        self.controller
+            .on_drag_over(handle, screen_bounds, engine, settings)
+    }
+
+    pub fn on_drop(
+        &mut self,
+        handle: Handle<UiNode>,
+        screen_bounds: Rect<f32>,
+        engine: &mut Engine,
+        settings: &Settings,
+    ) {
+        self.controller
+            .on_drop(handle, screen_bounds, engine, settings, &self.selection)
     }
 }
 
@@ -110,12 +276,13 @@ impl SceneContainer {
         self.current_scene.and_then(|i| self.entries.get_mut(i))
     }
 
-    pub fn current_editor_scene_ref(&self) -> Option<&EditorScene> {
-        self.current_scene_entry_ref().map(|e| &e.editor_scene)
+    pub fn current_scene_controller_ref(&self) -> Option<&dyn SceneController> {
+        self.current_scene_entry_ref().map(|e| &*e.controller)
     }
 
-    pub fn current_editor_scene_mut(&mut self) -> Option<&mut EditorScene> {
-        self.current_scene_entry_mut().map(|e| &mut e.editor_scene)
+    pub fn current_scene_controller_mut(&mut self) -> Option<&mut dyn SceneController> {
+        self.current_scene_entry_mut()
+            .map(move |e| &mut *e.controller)
     }
 
     pub fn first_unsaved_scene(&self) -> Option<&EditorSceneEntry> {
@@ -182,7 +349,14 @@ impl SceneContainer {
     ) {
         self.current_scene = Some(self.entries.len());
 
-        let editor_scene = EditorScene::from_native_scene(scene, engine, path.as_deref(), settings);
+        let editor_scene = EditorScene::from_native_scene(
+            scene,
+            engine,
+            path.as_deref(),
+            settings,
+            message_sender.clone(),
+        );
+
         let mut interaction_modes = InteractionModeContainer::default();
         interaction_modes.add(SelectInteractionMode::new(
             scene_viewer.frame(),
@@ -219,10 +393,8 @@ impl SceneContainer {
         let mut entry = EditorSceneEntry {
             has_unsaved_changes: false,
             interaction_modes,
-            editor_scene,
-
+            controller: Box::new(editor_scene),
             current_interaction_mode: None,
-            preview_instance: None,
             last_mouse_pos: None,
             click_mouse_pos: None,
             sender: message_sender,

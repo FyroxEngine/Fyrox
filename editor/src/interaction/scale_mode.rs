@@ -1,3 +1,4 @@
+use crate::scene::controller::SceneController;
 use crate::{
     camera::PickingOptions,
     interaction::{
@@ -55,12 +56,16 @@ impl InteractionMode for ScaleInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
+        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+            return;
+        };
+
         if let Selection::Graph(selection) = editor_selection {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
 
@@ -94,12 +99,16 @@ impl InteractionMode for ScaleInteractionMode {
     fn on_left_mouse_button_up(
         &mut self,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
+        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+            return;
+        };
+
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
         self.scale_gizmo.reset_state(graph);
@@ -171,11 +180,15 @@ impl InteractionMode for ScaleInteractionMode {
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
+        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+            return;
+        };
+
         if let Selection::Graph(selection) = editor_selection {
             if self.interacting {
                 let scale_delta = self.scale_gizmo.calculate_scale_delta(
@@ -202,10 +215,14 @@ impl InteractionMode for ScaleInteractionMode {
     fn update(
         &mut self,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         _settings: &Settings,
     ) {
+        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+            return;
+        };
+
         if let Selection::Graph(selection) = editor_selection {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
             if editor_selection.is_empty() || editor_scene.preview_camera.is_some() {
@@ -222,7 +239,11 @@ impl InteractionMode for ScaleInteractionMode {
         }
     }
 
-    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
+    fn deactivate(&mut self, controller: &dyn SceneController, engine: &mut Engine) {
+        let Some(editor_scene) = controller.downcast_ref::<EditorScene>() else {
+            return;
+        };
+
         let graph = &mut engine.scenes[editor_scene.scene].graph;
         self.scale_gizmo.set_visible(graph, false);
     }

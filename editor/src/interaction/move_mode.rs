@@ -1,5 +1,6 @@
 use crate::interaction::make_interaction_mode_button;
 use crate::message::MessageSender;
+use crate::scene::controller::SceneController;
 use crate::{
     camera::{CameraController, PickingOptions},
     interaction::{
@@ -289,12 +290,16 @@ impl InteractionMode for MoveInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
+        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+            return;
+        };
+
         let scene = &mut engine.scenes[editor_scene.scene];
         let graph = &mut scene.graph;
 
@@ -333,12 +338,16 @@ impl InteractionMode for MoveInteractionMode {
     fn on_left_mouse_button_up(
         &mut self,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
+        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+            return;
+        };
+
         let scene = &mut engine.scenes[editor_scene.scene];
 
         self.move_gizmo.reset_state(&mut scene.graph);
@@ -418,11 +427,15 @@ impl InteractionMode for MoveInteractionMode {
         _mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
         _editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
+        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+            return;
+        };
+
         if let Some(move_context) = self.move_context.as_mut() {
             let scene = &mut engine.scenes[editor_scene.scene];
             let graph = &mut scene.graph;
@@ -440,10 +453,14 @@ impl InteractionMode for MoveInteractionMode {
     fn update(
         &mut self,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         _settings: &Settings,
     ) {
+        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+            return;
+        };
+
         let scene = &mut engine.scenes[editor_scene.scene];
         let graph = &mut scene.graph;
         if editor_selection.is_empty() || editor_scene.preview_camera.is_some() {
@@ -460,7 +477,11 @@ impl InteractionMode for MoveInteractionMode {
         }
     }
 
-    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
+    fn deactivate(&mut self, controller: &dyn SceneController, engine: &mut Engine) {
+        let Some(editor_scene) = controller.downcast_ref::<EditorScene>() else {
+            return;
+        };
+
         let graph = &mut engine.scenes[editor_scene.scene].graph;
         self.move_gizmo.set_visible(graph, false);
     }

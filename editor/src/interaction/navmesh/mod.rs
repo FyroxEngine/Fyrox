@@ -1,5 +1,6 @@
 use crate::interaction::make_interaction_mode_button;
 use crate::message::MessageSender;
+use crate::scene::controller::SceneController;
 use crate::{
     camera::PickingOptions,
     interaction::{
@@ -216,12 +217,16 @@ impl InteractionMode for EditNavmeshMode {
     fn on_left_mouse_button_down(
         &mut self,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
+        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+            return;
+        };
+
         let scene = &mut engine.scenes[editor_scene.scene];
         let camera: &Camera = scene.graph[editor_scene.camera_controller.camera].as_camera();
         let ray = camera.make_ray(mouse_pos, frame_size);
@@ -322,12 +327,16 @@ impl InteractionMode for EditNavmeshMode {
     fn on_left_mouse_button_up(
         &mut self,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         _mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
+        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+            return;
+        };
+
         let graph = &mut engine.scenes[editor_scene.scene].graph;
 
         self.move_gizmo.reset_state(graph);
@@ -379,11 +388,15 @@ impl InteractionMode for EditNavmeshMode {
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
+        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+            return;
+        };
+
         if self.drag_context.is_none() {
             return;
         }
@@ -453,10 +466,14 @@ impl InteractionMode for EditNavmeshMode {
     fn update(
         &mut self,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         settings: &Settings,
     ) {
+        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+            return;
+        };
+
         let scene = &mut engine.scenes[editor_scene.scene];
         self.move_gizmo.set_visible(&mut scene.graph, false);
 
@@ -534,7 +551,11 @@ impl InteractionMode for EditNavmeshMode {
         }
     }
 
-    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
+    fn deactivate(&mut self, controller: &dyn SceneController, engine: &mut Engine) {
+        let Some(editor_scene) = controller.downcast_ref::<EditorScene>() else {
+            return;
+        };
+
         let scene = &mut engine.scenes[editor_scene.scene];
         self.move_gizmo.set_visible(&mut scene.graph, false);
     }
@@ -543,9 +564,13 @@ impl InteractionMode for EditNavmeshMode {
         &mut self,
         key: KeyCode,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
     ) -> bool {
+        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+            return false;
+        };
+
         let scene = &mut engine.scenes[editor_scene.scene];
 
         if let Some(selection) = fetch_selection(editor_selection) {

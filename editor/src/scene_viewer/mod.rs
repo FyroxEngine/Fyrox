@@ -2,7 +2,7 @@ use crate::{
     gui::{make_dropdown_list_option, make_dropdown_list_option_with_height},
     load_image,
     message::MessageSender,
-    scene::{container::EditorSceneEntry, controller::SceneController},
+    scene::container::EditorSceneEntry,
     scene_viewer::gizmo::{SceneGizmo, SceneGizmoAction},
     send_sync_message,
     utils::enable_widget,
@@ -450,7 +450,6 @@ impl SceneViewer {
         }
 
         if let Some(entry) = scenes.current_scene_entry_mut() {
-            let editor_scene = &mut entry.editor_scene;
             if let (Some(msg), Mode::Edit) = (message.data::<WidgetMessage>(), mode) {
                 if message.destination() == self.frame() {
                     let screen_bounds = self.frame_bounds(&engine.user_interface);
@@ -493,59 +492,64 @@ impl SceneViewer {
                         _ => {}
                     }
                 } else if message.destination() == self.scene_gizmo_image {
-                    match *msg {
-                        WidgetMessage::MouseDown { button, pos, .. } => {
-                            if button == MouseButton::Left {
-                                let rel_pos = pos
-                                    - engine
-                                        .user_interface
-                                        .node(self.scene_gizmo_image)
-                                        .screen_position();
-                                if let Some(action) = self.scene_gizmo.on_click(rel_pos, engine) {
-                                    match action {
-                                        SceneGizmoAction::Rotate(rotation) => {
-                                            editor_scene.camera_controller.pitch = rotation.pitch;
-                                            editor_scene.camera_controller.yaw = rotation.yaw;
-                                        }
-                                        SceneGizmoAction::SwitchProjection => {
-                                            let graph = &engine.scenes[editor_scene.scene].graph;
-                                            match graph[editor_scene.camera_controller.camera]
-                                                .as_camera()
-                                                .projection()
-                                            {
-                                                Projection::Perspective(_) => {
-                                                    ui.send_message(
-                                                        DropdownListMessage::selection(
-                                                            self.camera_projection,
-                                                            MessageDirection::ToWidget,
-                                                            Some(1),
-                                                        ),
-                                                    );
-                                                }
-                                                Projection::Orthographic(_) => {
-                                                    ui.send_message(
-                                                        DropdownListMessage::selection(
-                                                            self.camera_projection,
-                                                            MessageDirection::ToWidget,
-                                                            Some(0),
-                                                        ),
-                                                    );
+                    if let Some(editor_scene) = entry.controller.downcast_mut::<EditorScene>() {
+                        match *msg {
+                            WidgetMessage::MouseDown { button, pos, .. } => {
+                                if button == MouseButton::Left {
+                                    let rel_pos = pos
+                                        - engine
+                                            .user_interface
+                                            .node(self.scene_gizmo_image)
+                                            .screen_position();
+                                    if let Some(action) = self.scene_gizmo.on_click(rel_pos, engine)
+                                    {
+                                        match action {
+                                            SceneGizmoAction::Rotate(rotation) => {
+                                                editor_scene.camera_controller.pitch =
+                                                    rotation.pitch;
+                                                editor_scene.camera_controller.yaw = rotation.yaw;
+                                            }
+                                            SceneGizmoAction::SwitchProjection => {
+                                                let graph =
+                                                    &engine.scenes[editor_scene.scene].graph;
+                                                match graph[editor_scene.camera_controller.camera]
+                                                    .as_camera()
+                                                    .projection()
+                                                {
+                                                    Projection::Perspective(_) => {
+                                                        ui.send_message(
+                                                            DropdownListMessage::selection(
+                                                                self.camera_projection,
+                                                                MessageDirection::ToWidget,
+                                                                Some(1),
+                                                            ),
+                                                        );
+                                                    }
+                                                    Projection::Orthographic(_) => {
+                                                        ui.send_message(
+                                                            DropdownListMessage::selection(
+                                                                self.camera_projection,
+                                                                MessageDirection::ToWidget,
+                                                                Some(0),
+                                                            ),
+                                                        );
+                                                    }
                                                 }
                                             }
                                         }
                                     }
                                 }
                             }
+                            WidgetMessage::MouseMove { pos, .. } => {
+                                let rel_pos = pos
+                                    - engine
+                                        .user_interface
+                                        .node(self.scene_gizmo_image)
+                                        .screen_position();
+                                self.scene_gizmo.on_mouse_move(rel_pos, engine);
+                            }
+                            _ => (),
                         }
-                        WidgetMessage::MouseMove { pos, .. } => {
-                            let rel_pos = pos
-                                - engine
-                                    .user_interface
-                                    .node(self.scene_gizmo_image)
-                                    .screen_position();
-                            self.scene_gizmo.on_mouse_move(rel_pos, engine);
-                        }
-                        _ => (),
                     }
                 }
             }
@@ -648,8 +652,6 @@ impl SceneViewer {
 
         // Then sync to the current scene.
         if let Some(entry) = scenes.current_scene_entry_ref() {
-            let scene = &engine.scenes[entry.editor_scene.scene];
-
             self.set_title(
                 &engine.user_interface,
                 format!(
@@ -665,10 +667,14 @@ impl SceneViewer {
 
             self.set_render_target(
                 &engine.user_interface,
-                scene.rendering_options.render_target.clone(),
+                entry.controller.render_target(engine),
             );
 
-            if let Selection::Graph(ref selection) = entry.selection {
+            if let (Some(editor_scene), Selection::Graph(selection)) = (
+                entry.controller.downcast_ref::<EditorScene>(),
+                &entry.selection,
+            ) {
+                let scene = &engine.scenes[editor_scene.scene];
                 if let Some((_, position)) = selection.global_rotation_position(&scene.graph) {
                     engine.user_interface.send_message(Vec3EditorMessage::value(
                         self.global_position_display,
@@ -684,7 +690,7 @@ impl SceneViewer {
             WidgetMessage::visibility(
                 self.no_scene_reminder,
                 MessageDirection::ToWidget,
-                scenes.current_editor_scene_ref().is_none(),
+                scenes.current_scene_controller_ref().is_none(),
             ),
         );
     }

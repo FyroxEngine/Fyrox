@@ -1,5 +1,6 @@
+use crate::scene::controller::SceneController;
 use crate::scene::Selection;
-use crate::{load_image, scene::EditorScene, settings::Settings, Engine};
+use crate::{load_image, settings::Settings, Engine};
 use fyrox::fxhash::FxHashMap;
 use fyrox::{
     core::{
@@ -57,7 +58,7 @@ pub trait InteractionMode: BaseInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
@@ -67,7 +68,7 @@ pub trait InteractionMode: BaseInteractionMode {
     fn on_left_mouse_button_up(
         &mut self,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
@@ -79,7 +80,7 @@ pub trait InteractionMode: BaseInteractionMode {
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         frame_size: Vector2<f32>,
         settings: &Settings,
@@ -88,7 +89,7 @@ pub trait InteractionMode: BaseInteractionMode {
     fn update(
         &mut self,
         #[allow(unused_variables)] editor_selection: &Selection,
-        #[allow(unused_variables)] editor_scene: &mut EditorScene,
+        #[allow(unused_variables)] controller: &mut dyn SceneController,
         #[allow(unused_variables)] engine: &mut Engine,
         #[allow(unused_variables)] settings: &Settings,
     ) {
@@ -96,12 +97,12 @@ pub trait InteractionMode: BaseInteractionMode {
 
     fn activate(
         &mut self,
-        #[allow(unused_variables)] editor_scene: &EditorScene,
+        #[allow(unused_variables)] controller: &dyn SceneController,
         #[allow(unused_variables)] engine: &mut Engine,
     ) {
     }
 
-    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut Engine);
+    fn deactivate(&mut self, controller: &dyn SceneController, engine: &mut Engine);
 
     /// Should return `true` if the `key` was handled in any way, otherwise you may mess up
     /// keyboard message routing. Return `false` if the `key` is unhandled.
@@ -109,7 +110,7 @@ pub trait InteractionMode: BaseInteractionMode {
         &mut self,
         #[allow(unused_variables)] key: KeyCode,
         #[allow(unused_variables)] editor_selection: &Selection,
-        #[allow(unused_variables)] editor_scene: &mut EditorScene,
+        #[allow(unused_variables)] controller: &mut dyn SceneController,
         #[allow(unused_variables)] engine: &mut Engine,
     ) -> bool {
         false
@@ -120,7 +121,7 @@ pub trait InteractionMode: BaseInteractionMode {
     fn on_key_up(
         &mut self,
         #[allow(unused_variables)] key: KeyCode,
-        #[allow(unused_variables)] editor_scene: &mut EditorScene,
+        #[allow(unused_variables)] controller: &mut dyn SceneController,
         #[allow(unused_variables)] engine: &mut Engine,
     ) -> bool {
         false
@@ -130,7 +131,7 @@ pub trait InteractionMode: BaseInteractionMode {
         &mut self,
         #[allow(unused_variables)] message: &UiMessage,
         #[allow(unused_variables)] editor_selection: &Selection,
-        #[allow(unused_variables)] editor_scene: &mut EditorScene,
+        #[allow(unused_variables)] controller: &mut dyn SceneController,
         #[allow(unused_variables)] engine: &mut Engine,
     ) {
     }
@@ -140,7 +141,7 @@ pub trait InteractionMode: BaseInteractionMode {
     fn on_hot_key(
         &mut self,
         #[allow(unused_variables)] hotkey: &HotKey,
-        #[allow(unused_variables)] editor_scene: &mut EditorScene,
+        #[allow(unused_variables)] controller: &mut dyn SceneController,
         #[allow(unused_variables)] engine: &mut Engine,
         #[allow(unused_variables)] settings: &Settings,
     ) -> bool {

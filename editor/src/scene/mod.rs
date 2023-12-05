@@ -1,17 +1,49 @@
+use crate::command::Command;
 use crate::{
-    absm::selection::AbsmSelection, animation::selection::AnimationSelection,
-    audio::AudioBusSelection, camera::CameraController, command::CommandStack,
-    interaction::navmesh::selection::NavmeshSelection, scene::clipboard::Clipboard,
-    world::graph::selection::GraphSelection, Settings,
+    absm::selection::AbsmSelection,
+    animation::selection::AnimationSelection,
+    asset::item::AssetItem,
+    audio::AudioBusSelection,
+    camera::{CameraController, PickingOptions},
+    command::CommandStack,
+    interaction::navmesh::selection::NavmeshSelection,
+    message::MessageSender,
+    scene::{
+        clipboard::Clipboard,
+        commands::{
+            graph::AddModelCommand, mesh::SetMeshTextureCommand, ChangeSelectionCommand,
+            CommandGroup, SceneCommand, SceneContext,
+        },
+        controller::SceneController,
+    },
+    settings::keys::KeyBindings,
+    world::graph::selection::GraphSelection,
+    Settings,
 };
 use fyrox::{
     core::{
-        color::Color, log::Log, math::aabb::AxisAlignedBoundingBox, pool::Handle, visitor::Visitor,
+        algebra::{Vector2, Vector3},
+        color::Color,
+        futures::executor::block_on,
+        log::Log,
+        make_relative_path,
+        math::{aabb::AxisAlignedBoundingBox, plane::Plane, Rect},
+        pool::Handle,
+        visitor::Visitor,
     },
     engine::Engine,
+    fxhash::FxHashSet,
+    gui::{
+        message::{KeyCode, MouseButton},
+        UiNode,
+    },
+    resource::{
+        model::{Model, ModelResourceExtension},
+        texture::{Texture, TextureResource},
+    },
     scene::{
         base::BaseBuilder,
-        camera::Camera,
+        camera::{Camera, Projection},
         debug::{Line, SceneDrawingContext},
         graph::{Graph, GraphUpdateSwitches},
         light::{point::PointLight, spot::SpotLight},
@@ -23,7 +55,7 @@ use fyrox::{
         Scene,
     },
 };
-use std::{fs::File, io::Write, path::Path};
+use std::{any::Any, fs::File, io::Write, path::Path};
 
 pub mod clipboard;
 pub mod dialog;
@@ -36,6 +68,11 @@ pub mod commands;
 pub mod container;
 pub mod controller;
 
+pub struct PreviewInstance {
+    pub instance: Handle<Node>,
+    pub nodes: FxHashSet<Handle<Node>>,
+}
+
 pub struct EditorScene {
     pub scene: Handle<Scene>,
     // Handle to a root for all editor nodes.
@@ -46,6 +83,9 @@ pub struct EditorScene {
     pub preview_camera: Handle<Node>,
     pub graph_switches: GraphUpdateSwitches,
     pub command_stack: CommandStack,
+    pub preview_instance: Option<PreviewInstance>,
+    pub sender: MessageSender,
+    pub camera_state: Vec<(Handle<Node>, bool)>,
 }
 
 impl EditorScene {
@@ -54,6 +94,7 @@ impl EditorScene {
         engine: &mut Engine,
         path: Option<&Path>,
         settings: &Settings,
+        sender: MessageSender,
     ) -> Self {
         let scene_content_root = scene.graph.get_root();
 
@@ -78,6 +119,7 @@ impl EditorScene {
             scene_content_root,
             camera_controller,
             command_stack: CommandStack::new(false),
+            preview_instance: None,
             scene: engine.scenes.add(scene),
             clipboard: Default::default(),
             preview_camera: Default::default(),
@@ -91,6 +133,8 @@ impl EditorScene {
                 node_overrides: Some(Default::default()),
                 paused: false,
             },
+            sender,
+            camera_state: Default::default(),
         }
     }
 
@@ -143,32 +187,6 @@ impl EditorScene {
 
             Err(reason)
         }
-    }
-
-    pub fn update(
-        &mut self,
-        editor_selection: &Selection,
-        engine: &mut Engine,
-        dt: f32,
-        path: Option<&Path>,
-        settings: &mut Settings,
-    ) {
-        self.draw_auxiliary_geometry(editor_selection, engine, settings);
-
-        let scene = &mut engine.scenes[self.scene];
-
-        let node_overrides = self.graph_switches.node_overrides.as_mut().unwrap();
-        for handle in scene.graph.traverse_handle_iter(self.editor_objects_root) {
-            node_overrides.insert(handle);
-        }
-
-        let camera = scene.graph[self.camera_controller.camera].as_camera_mut();
-
-        camera.projection_mut().set_z_near(settings.graphics.z_near);
-        camera.projection_mut().set_z_far(settings.graphics.z_far);
-
-        self.camera_controller
-            .update(&mut scene.graph, settings, path, dt);
     }
 
     pub fn draw_auxiliary_geometry(
@@ -317,6 +335,394 @@ impl EditorScene {
             }
         }
         false
+    }
+}
+
+impl SceneController for EditorScene {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    #[must_use]
+    fn on_key_up(
+        &mut self,
+        key: KeyCode,
+        _engine: &mut Engine,
+        key_bindings: &KeyBindings,
+    ) -> bool {
+        if self.camera_controller.on_key_up(key_bindings, key) {
+            return true;
+        }
+
+        false
+    }
+
+    #[must_use]
+    fn on_key_down(
+        &mut self,
+        key: KeyCode,
+        _engine: &mut Engine,
+        key_bindings: &KeyBindings,
+    ) -> bool {
+        if self.camera_controller.on_key_down(key_bindings, key) {
+            return true;
+        }
+
+        false
+    }
+
+    fn on_mouse_move(
+        &mut self,
+        _pos: Vector2<f32>,
+        offset: Vector2<f32>,
+        _screen_bounds: Rect<f32>,
+        _engine: &mut Engine,
+        settings: &Settings,
+    ) {
+        self.camera_controller
+            .on_mouse_move(offset, &settings.camera);
+    }
+
+    fn on_mouse_up(
+        &mut self,
+        button: MouseButton,
+        _pos: Vector2<f32>,
+        _screen_bounds: Rect<f32>,
+        engine: &mut Engine,
+        _settings: &Settings,
+    ) {
+        self.camera_controller
+            .on_mouse_button_up(button, &mut engine.scenes[self.scene].graph);
+    }
+
+    fn on_mouse_down(
+        &mut self,
+        button: MouseButton,
+        _pos: Vector2<f32>,
+        _screen_bounds: Rect<f32>,
+        engine: &mut Engine,
+        _settings: &Settings,
+    ) {
+        self.camera_controller.on_mouse_button_down(
+            button,
+            engine.user_interface.keyboard_modifiers(),
+            &mut engine.scenes[self.scene].graph,
+        );
+    }
+
+    fn on_mouse_wheel(&mut self, amount: f32, engine: &mut Engine, settings: &Settings) {
+        self.camera_controller.on_mouse_wheel(
+            amount * settings.camera.zoom_speed,
+            &mut engine.scenes[self.scene].graph,
+            settings,
+        );
+    }
+
+    fn on_mouse_leave(&mut self, engine: &mut Engine, _settings: &Settings) {
+        if let Some(preview) = self.preview_instance.take() {
+            let scene = &mut engine.scenes[self.scene];
+
+            scene.graph.remove_node(preview.instance);
+        }
+    }
+
+    fn on_drag_over(
+        &mut self,
+        handle: Handle<UiNode>,
+        screen_bounds: Rect<f32>,
+        engine: &mut Engine,
+        settings: &Settings,
+    ) {
+        match self.preview_instance.as_ref() {
+            None => {
+                if let Some(item) = engine.user_interface.node(handle).cast::<AssetItem>() {
+                    // Make sure all resources loaded with relative paths only.
+                    // This will make scenes portable.
+                    if let Ok(relative_path) = make_relative_path(&item.path) {
+                        // No model was loaded yet, do it.
+                        if let Some(model) = engine
+                            .resource_manager
+                            .try_request::<Model>(relative_path)
+                            .and_then(|m| block_on(m).ok())
+                        {
+                            let scene = &mut engine.scenes[self.scene];
+
+                            // Instantiate the model.
+                            let instance = model.instantiate(scene);
+
+                            scene.graph.link_nodes(instance, self.scene_content_root);
+
+                            scene.graph[instance]
+                                .local_transform_mut()
+                                .set_scale(settings.model.instantiation_scale);
+
+                            let nodes = scene
+                                .graph
+                                .traverse_handle_iter(instance)
+                                .collect::<FxHashSet<Handle<Node>>>();
+
+                            self.preview_instance = Some(PreviewInstance { instance, nodes });
+                        }
+                    }
+                }
+            }
+            Some(preview) => {
+                let frame_size = screen_bounds.size;
+                let cursor_pos = engine.user_interface.cursor_position();
+                let rel_pos = cursor_pos - screen_bounds.position;
+                let graph = &mut engine.scenes[self.scene].graph;
+
+                let position = if let Some(result) = self.camera_controller.pick(PickingOptions {
+                    cursor_pos: rel_pos,
+                    graph,
+                    editor_objects_root: self.editor_objects_root,
+                    scene_content_root: self.scene_content_root,
+                    screen_size: frame_size,
+                    editor_only: false,
+                    filter: |handle, _| !preview.nodes.contains(&handle),
+                    ignore_back_faces: settings.selection.ignore_back_faces,
+                    // We need info only about closest intersection.
+                    use_picking_loop: false,
+                    only_meshes: false,
+                }) {
+                    Some(result.position)
+                } else {
+                    // In case of empty space, check intersection with oXZ plane (3D) or oXY (2D).
+                    let camera = graph[self.camera_controller.camera]
+                        .query_component_ref::<Camera>()
+                        .unwrap();
+
+                    let normal = match camera.projection() {
+                        Projection::Perspective(_) => Vector3::new(0.0, 1.0, 0.0),
+                        Projection::Orthographic(_) => Vector3::new(0.0, 0.0, 1.0),
+                    };
+
+                    let plane = Plane::from_normal_and_point(&normal, &Default::default())
+                        .unwrap_or_default();
+
+                    let ray = camera.make_ray(rel_pos, frame_size);
+
+                    ray.plane_intersection_point(&plane)
+                };
+
+                if let Some(position) = position {
+                    graph[preview.instance].local_transform_mut().set_position(
+                        settings
+                            .move_mode_settings
+                            .try_snap_vector_to_grid(position),
+                    );
+                }
+            }
+        }
+    }
+
+    fn on_drop(
+        &mut self,
+        handle: Handle<UiNode>,
+        screen_bounds: Rect<f32>,
+        engine: &mut Engine,
+        settings: &Settings,
+        editor_selection: &Selection,
+    ) {
+        if handle.is_none() {
+            return;
+        }
+
+        let frame_size = screen_bounds.size;
+
+        if let Some(item) = engine.user_interface.node(handle).cast::<AssetItem>() {
+            // Make sure all resources loaded with relative paths only.
+            // This will make scenes portable.
+            if let Ok(relative_path) = make_relative_path(&item.path) {
+                if let Some(preview) = self.preview_instance.take() {
+                    let scene = &mut engine.scenes[self.scene];
+
+                    // Immediately after extract if from the scene to subgraph. This is required to not violate
+                    // the rule of one place of execution, only commands allowed to modify the scene.
+                    let sub_graph = scene.graph.take_reserve_sub_graph(preview.instance);
+
+                    let group = vec![
+                        SceneCommand::new(AddModelCommand::new(sub_graph)),
+                        // We also want to select newly instantiated model.
+                        SceneCommand::new(ChangeSelectionCommand::new(
+                            Selection::Graph(GraphSelection::single_or_empty(preview.instance)),
+                            editor_selection.clone(),
+                        )),
+                    ];
+
+                    self.sender.do_scene_command(CommandGroup::from(group));
+                } else if let Some(tex) = engine
+                    .resource_manager
+                    .try_request::<Texture>(relative_path)
+                    .and_then(|t| block_on(t).ok())
+                {
+                    let cursor_pos = engine.user_interface.cursor_position();
+                    let rel_pos = cursor_pos - screen_bounds.position;
+                    let graph = &engine.scenes[self.scene].graph;
+                    if let Some(result) = self.camera_controller.pick(PickingOptions {
+                        cursor_pos: rel_pos,
+                        graph,
+                        editor_objects_root: self.editor_objects_root,
+                        scene_content_root: self.scene_content_root,
+                        screen_size: frame_size,
+                        editor_only: false,
+                        filter: |_, _| true,
+                        ignore_back_faces: settings.selection.ignore_back_faces,
+                        use_picking_loop: true,
+                        only_meshes: false,
+                    }) {
+                        let texture = tex.clone();
+                        let mut texture = texture.state();
+                        if texture.data().is_some() {
+                            let node = &mut engine.scenes[self.scene].graph[result.node];
+
+                            if node.is_mesh() {
+                                self.sender
+                                    .do_scene_command(SetMeshTextureCommand::new(result.node, tex));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn render_target(&self, engine: &Engine) -> Option<TextureResource> {
+        engine.scenes[self.scene]
+            .rendering_options
+            .render_target
+            .clone()
+    }
+
+    fn save(
+        &mut self,
+        path: &Path,
+        settings: &Settings,
+        engine: &mut Engine,
+    ) -> Result<String, String> {
+        self.save(path, settings, engine)
+    }
+
+    fn do_command(
+        &mut self,
+        command: Box<dyn Command>,
+        selection: &mut Selection,
+        engine: &mut Engine,
+    ) {
+        self.command_stack.do_command(
+            command,
+            SceneContext {
+                selection,
+                scene: &mut engine.scenes[self.scene],
+                message_sender: self.sender.clone(),
+                scene_content_root: &mut self.scene_content_root,
+                clipboard: &mut self.clipboard,
+                resource_manager: engine.resource_manager.clone(),
+                serialization_context: engine.serialization_context.clone(),
+            },
+        );
+    }
+
+    fn undo(&mut self, selection: &mut Selection, engine: &mut Engine) {
+        self.command_stack.undo(SceneContext {
+            selection,
+            scene: &mut engine.scenes[self.scene],
+            message_sender: self.sender.clone(),
+            scene_content_root: &mut self.scene_content_root,
+            clipboard: &mut self.clipboard,
+            resource_manager: engine.resource_manager.clone(),
+            serialization_context: engine.serialization_context.clone(),
+        });
+    }
+
+    fn redo(&mut self, selection: &mut Selection, engine: &mut Engine) {
+        self.command_stack.redo(SceneContext {
+            selection,
+            scene: &mut engine.scenes[self.scene],
+            message_sender: self.sender.clone(),
+            scene_content_root: &mut self.scene_content_root,
+            clipboard: &mut self.clipboard,
+            resource_manager: engine.resource_manager.clone(),
+            serialization_context: engine.serialization_context.clone(),
+        });
+    }
+
+    fn clear_command_stack(&mut self, selection: &mut Selection, engine: &mut Engine) {
+        self.command_stack.clear(SceneContext {
+            selection,
+            scene: &mut engine.scenes[self.scene],
+            message_sender: self.sender.clone(),
+            scene_content_root: &mut self.scene_content_root,
+            clipboard: &mut self.clipboard,
+            resource_manager: engine.resource_manager.clone(),
+            serialization_context: engine.serialization_context.clone(),
+        });
+    }
+
+    fn on_before_render(&mut self, engine: &mut Engine) {
+        // Temporarily disable cameras in currently edited scene. This is needed to prevent any
+        // scene camera to interfere with the editor camera.
+        let scene = &mut engine.scenes[self.scene];
+        let has_preview_camera = scene.graph.is_valid_handle(self.preview_camera);
+        for (handle, camera) in scene.graph.pair_iter_mut().filter_map(|(h, n)| {
+            if has_preview_camera && h != self.preview_camera
+                || !has_preview_camera && h != self.camera_controller.camera
+            {
+                n.cast_mut::<Camera>().map(|c| (h, c))
+            } else {
+                None
+            }
+        }) {
+            self.camera_state.push((handle, camera.is_enabled()));
+            camera.set_enabled(false);
+        }
+    }
+
+    fn on_after_render(&mut self, engine: &mut Engine) {
+        // Revert state of the cameras.
+        for (handle, enabled) in self.camera_state.drain(..) {
+            engine.scenes[self.scene].graph[handle]
+                .as_camera_mut()
+                .set_enabled(enabled);
+        }
+    }
+
+    fn update(
+        &mut self,
+        editor_selection: &Selection,
+        engine: &mut Engine,
+        dt: f32,
+        path: Option<&Path>,
+        settings: &mut Settings,
+    ) {
+        self.draw_auxiliary_geometry(editor_selection, engine, settings);
+
+        let scene = &mut engine.scenes[self.scene];
+
+        let node_overrides = self.graph_switches.node_overrides.as_mut().unwrap();
+        for handle in scene.graph.traverse_handle_iter(self.editor_objects_root) {
+            node_overrides.insert(handle);
+        }
+
+        let camera = scene.graph[self.camera_controller.camera].as_camera_mut();
+
+        camera.projection_mut().set_z_near(settings.graphics.z_near);
+        camera.projection_mut().set_z_far(settings.graphics.z_far);
+
+        self.camera_controller
+            .update(&mut scene.graph, settings, path, dt);
+    }
+
+    fn is_interacting(&self) -> bool {
+        self.camera_controller.is_interacting()
+    }
+
+    fn on_destroy(&mut self, engine: &mut Engine) {
+        engine.scenes.remove(self.scene);
     }
 }
 
