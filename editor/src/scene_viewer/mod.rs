@@ -37,7 +37,7 @@ use fyrox::{
         BRUSH_DARKEST,
     },
     resource::texture::TextureResource,
-    scene::{camera::Projection, Scene},
+    scene::camera::Projection,
     utils::into_gui_texture,
 };
 use std::cmp::Ordering;
@@ -431,21 +431,17 @@ impl SceneViewer {
                         if let Some(entry) = scenes.try_get(*tab_index) {
                             if entry.editor_scene.need_save() {
                                 self.sender.send(Message::OpenSaveSceneConfirmationDialog {
-                                    scene: entry.editor_scene.scene,
-                                    action: SaveSceneConfirmationDialogAction::CloseScene(
-                                        entry.editor_scene.scene,
-                                    ),
+                                    id: entry.id,
+                                    action: SaveSceneConfirmationDialogAction::CloseScene(entry.id),
                                 });
                             } else {
-                                self.sender
-                                    .send(Message::CloseScene(entry.editor_scene.scene));
+                                self.sender.send(Message::CloseScene(entry.id));
                             }
                         }
                     }
                     TabControlMessage::ActiveTab(Some(active_tab)) => {
                         if let Some(entry) = scenes.try_get(*active_tab) {
-                            self.sender
-                                .send(Message::SetCurrentScene(entry.editor_scene.scene));
+                            self.sender.send(Message::SetCurrentScene(entry.id));
                         }
                     }
                     _ => (),
@@ -558,12 +554,12 @@ impl SceneViewer {
 
     pub fn sync_to_model(&self, scenes: &SceneContainer, engine: &mut Engine) {
         // Sync tabs first.
-        fn fetch_tab_scene_handle(tab: &Tab) -> Handle<Scene> {
+        fn fetch_tab_id(tab: &Tab) -> Uuid {
             tab.user_data
                 .as_ref()
                 .unwrap()
                 .0
-                .downcast_ref::<Handle<Scene>>()
+                .downcast_ref::<Uuid>()
                 .cloned()
                 .unwrap()
         }
@@ -579,10 +575,7 @@ impl SceneViewer {
             Ordering::Less => {
                 // Some scenes were added.
                 for entry in scenes.iter() {
-                    if tabs
-                        .iter()
-                        .all(|tab| fetch_tab_scene_handle(tab) != entry.editor_scene.scene)
-                    {
+                    if tabs.iter().all(|tab| fetch_tab_id(tab) != entry.id) {
                         let header =
                             TextBuilder::new(WidgetBuilder::new().with_margin(Thickness {
                                 left: 4.0,
@@ -602,7 +595,7 @@ impl SceneViewer {
                                     header,
                                     content: Default::default(),
                                     can_be_closed: true,
-                                    user_data: Some(TabUserData::new(entry.editor_scene.scene)),
+                                    user_data: Some(TabUserData::new(entry.id)),
                                 },
                             ),
                         );
@@ -615,8 +608,8 @@ impl SceneViewer {
             Ordering::Greater => {
                 // Some scenes were removed.
                 for (tab_index, tab) in tabs.iter().enumerate() {
-                    let tab_scene = fetch_tab_scene_handle(tab);
-                    if scenes.iter().all(|s| tab_scene != s.editor_scene.scene) {
+                    let tab_scene = fetch_tab_id(tab);
+                    if scenes.iter().all(|s| tab_scene != s.id) {
                         send_sync_message(
                             &engine.user_interface,
                             TabControlMessage::remove_tab(
@@ -631,7 +624,7 @@ impl SceneViewer {
         }
 
         for tab in tabs.iter() {
-            if let Some(scene) = scenes.entry_by_scene_handle(fetch_tab_scene_handle(tab)) {
+            if let Some(scene) = scenes.entry_by_scene_id(fetch_tab_id(tab)) {
                 engine.user_interface.send_message(TextMessage::text(
                     tab.header_content,
                     MessageDirection::ToWidget,

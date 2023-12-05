@@ -10,7 +10,7 @@ use fyrox::{
     },
     gui::UiNode,
     material::MaterialResource,
-    scene::{camera::Projection, node::Node, Scene},
+    scene::{camera::Projection, node::Node},
 };
 use std::{any::TypeId, path::PathBuf, sync::mpsc::Sender};
 
@@ -24,11 +24,11 @@ pub enum Message {
         old_selection: Selection,
     },
     SaveScene {
-        scene: Handle<Scene>,
+        id: Uuid,
         path: PathBuf,
     },
     LoadScene(PathBuf),
-    CloseScene(Handle<Scene>),
+    CloseScene(Uuid),
     SetInteractionMode(Uuid),
     Configure {
         working_directory: PathBuf,
@@ -51,7 +51,7 @@ pub enum Message {
         type_id: TypeId,
         handle: ErasedHandle,
     },
-    SetCurrentScene(Handle<Scene>),
+    SetCurrentScene(Uuid),
     FocusObject(Handle<Node>),
     SetEditorCameraProjection(Projection),
     SwitchToBuildMode,
@@ -60,7 +60,7 @@ pub enum Message {
     OpenLoadSceneDialog,
     OpenSaveSceneDialog,
     OpenSaveSceneConfirmationDialog {
-        scene: Handle<Scene>,
+        id: Uuid,
         action: SaveSceneConfirmationDialogAction,
     },
     SetBuildProfile(BuildProfile),

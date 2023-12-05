@@ -2,9 +2,8 @@ use crate::{
     make_save_file_selector, make_scene_file_filter,
     menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
     message::MessageSender,
-    scene::EditorScene,
     settings::{recent::RecentFiles, Settings, SettingsWindow},
-    Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
+    EditorSceneEntry, Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
 };
 use fyrox::{
     core::pool::Handle,
@@ -193,7 +192,7 @@ impl FileMenu {
         &mut self,
         message: &UiMessage,
         sender: &MessageSender,
-        editor_scene: &Option<&mut EditorScene>,
+        entry: Option<&mut EditorSceneEntry>,
         engine: &mut Engine,
         settings: &mut Settings,
         panels: &Panels,
@@ -203,9 +202,9 @@ impl FileMenu {
 
         if let Some(FileSelectorMessage::Commit(path)) = message.data::<FileSelectorMessage>() {
             if message.destination() == self.save_file_selector {
-                if let Some(editor_scene) = editor_scene {
+                if let Some(editor_scene) = entry {
                     sender.send(Message::SaveScene {
-                        scene: editor_scene.scene,
+                        id: editor_scene.id,
                         path: path.to_owned(),
                     });
                 }
@@ -214,10 +213,10 @@ impl FileMenu {
             }
         } else if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.save {
-                if let Some(editor_scene) = editor_scene {
-                    if let Some(scene_path) = editor_scene.path.as_ref() {
+                if let Some(editor_scene) = entry {
+                    if let Some(scene_path) = editor_scene.editor_scene.path.as_ref() {
                         sender.send(Message::SaveScene {
-                            scene: editor_scene.scene,
+                            id: editor_scene.id,
                             path: scene_path.clone(),
                         });
                     } else {
@@ -256,16 +255,14 @@ impl FileMenu {
             } else if message.destination() == self.load {
                 self.open_load_file_selector(&mut engine.user_interface);
             } else if message.destination() == self.close_scene {
-                if let Some(editor_scene) = editor_scene.as_ref() {
-                    if editor_scene.need_save() {
+                if let Some(entry) = entry.as_ref() {
+                    if entry.editor_scene.need_save() {
                         sender.send(Message::OpenSaveSceneConfirmationDialog {
-                            scene: editor_scene.scene,
-                            action: SaveSceneConfirmationDialogAction::CloseScene(
-                                editor_scene.scene,
-                            ),
+                            id: entry.id,
+                            action: SaveSceneConfirmationDialogAction::CloseScene(entry.id),
                         });
                     } else {
-                        sender.send(Message::CloseScene(editor_scene.scene));
+                        sender.send(Message::CloseScene(entry.id));
                     }
                 }
             } else if message.destination() == self.exit {
@@ -273,7 +270,7 @@ impl FileMenu {
             } else if message.destination() == self.new_scene {
                 sender.send(Message::NewScene);
             } else if message.destination() == self.configure {
-                if editor_scene.is_none() {
+                if entry.is_none() {
                     engine
                         .user_interface
                         .send_message(WindowMessage::open_modal(

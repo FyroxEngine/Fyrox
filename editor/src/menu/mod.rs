@@ -9,7 +9,7 @@ use crate::{
     send_sync_message,
     settings::Settings,
     utils::ragdoll::RagdollWizard,
-    AbsmEditor, CurveEditorWindow, Engine, Mode, SceneSettingsWindow,
+    AbsmEditor, CurveEditorWindow, EditorSceneEntry, Engine, Mode, SceneSettingsWindow,
 };
 use fyrox::{
     core::{algebra::Vector2, pool::Handle, scope_profile},
@@ -63,7 +63,7 @@ pub struct Panels<'b> {
 
 pub struct MenuContext<'a, 'b> {
     pub engine: &'a mut Engine,
-    pub editor_scene: Option<&'b mut EditorScene>,
+    pub editor_scene: Option<&'b mut EditorSceneEntry>,
     pub panels: Panels<'b>,
     pub settings: &'b mut Settings,
 }
@@ -166,14 +166,18 @@ impl Menu {
     pub fn handle_ui_message(&mut self, message: &UiMessage, mut ctx: MenuContext) {
         scope_profile!();
 
-        if let Some(scene) = ctx.editor_scene.as_mut() {
-            self.edit_menu
-                .handle_ui_message(message, &self.message_sender, scene, ctx.engine);
+        if let Some(entry) = ctx.editor_scene.as_mut() {
+            self.edit_menu.handle_ui_message(
+                message,
+                &self.message_sender,
+                &mut entry.editor_scene,
+                ctx.engine,
+            );
 
             self.create_entity_menu.handle_ui_message(
                 message,
                 &self.message_sender,
-                scene.scene_content_root,
+                entry.editor_scene.scene_content_root,
             );
         }
 
@@ -182,7 +186,7 @@ impl Menu {
         self.file_menu.handle_ui_message(
             message,
             &self.message_sender,
-            &ctx.editor_scene,
+            ctx.editor_scene,
             ctx.engine,
             ctx.settings,
             &ctx.panels,

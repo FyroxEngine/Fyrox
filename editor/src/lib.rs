@@ -292,13 +292,13 @@ pub enum SaveSceneConfirmationDialogAction {
     /// Immediately creates new scene.
     MakeNewScene,
     /// Closes the specified scene.
-    CloseScene(Handle<Scene>),
+    CloseScene(Uuid),
 }
 
 pub struct SaveSceneConfirmationDialog {
     save_message_box: Handle<UiNode>,
     action: SaveSceneConfirmationDialogAction,
-    scene: Handle<Scene>,
+    id: Uuid,
 }
 
 impl SaveSceneConfirmationDialog {
@@ -316,21 +316,21 @@ impl SaveSceneConfirmationDialog {
         Self {
             save_message_box,
             action: SaveSceneConfirmationDialogAction::None,
-            scene: Default::default(),
+            id: Default::default(),
         }
     }
 
     pub fn open(
         &mut self,
         ui: &UserInterface,
-        scene: Handle<Scene>,
+        id: Uuid,
         scenes: &SceneContainer,
         action: SaveSceneConfirmationDialogAction,
     ) {
-        self.scene = scene;
+        self.id = id;
         self.action = action;
 
-        if let Some(entry) = scenes.entry_by_scene_handle(self.scene) {
+        if let Some(entry) = scenes.entry_by_scene_id(self.id) {
             ui.send_message(MessageBoxMessage::open(
                 self.save_message_box,
                 MessageDirection::ToWidget,
@@ -369,14 +369,11 @@ impl SaveSceneConfirmationDialog {
                         }
                     },
                     MessageBoxResult::Yes => {
-                        if let Some(entry) = scenes.entry_by_scene_handle(self.scene) {
+                        if let Some(entry) = scenes.entry_by_scene_id(self.id) {
                             if let Some(path) = entry.editor_scene.path.clone() {
                                 // If the scene was already saved into some file - save it
                                 // immediately and perform the requested action.
-                                sender.send(Message::SaveScene {
-                                    scene: self.scene,
-                                    path,
-                                });
+                                sender.send(Message::SaveScene { id: self.id, path });
 
                                 match self.action {
                                     SaveSceneConfirmationDialogAction::None => {}
@@ -417,9 +414,9 @@ impl SaveSceneConfirmationDialog {
     }
 
     fn handle_message(&mut self, message: &Message, sender: &MessageSender) {
-        if let Message::SaveScene { scene, .. } = message {
-            if *scene == self.scene {
-                self.scene = Handle::NONE;
+        if let Message::SaveScene { id: scene, .. } = message {
+            if *scene == self.id {
+                self.id = Default::default();
 
                 match std::mem::replace(&mut self.action, SaveSceneConfirmationDialogAction::None) {
                     SaveSceneConfirmationDialogAction::None => {}
@@ -455,6 +452,7 @@ pub struct EditorSceneEntry {
     pub last_mouse_pos: Option<Vector2<f32>>,
     pub click_mouse_pos: Option<Vector2<f32>>,
     pub sender: MessageSender,
+    pub id: Uuid,
 }
 
 impl EditorSceneEntry {
@@ -491,7 +489,7 @@ impl EditorSceneEntry {
 
 #[derive(Default)]
 pub struct SceneContainer {
-    scenes: Vec<EditorSceneEntry>,
+    entries: Vec<EditorSceneEntry>,
     current_scene: Option<usize>,
 }
 
@@ -501,11 +499,11 @@ impl SceneContainer {
     }
 
     pub fn current_scene_entry_ref(&self) -> Option<&EditorSceneEntry> {
-        self.current_scene.and_then(|i| self.scenes.get(i))
+        self.current_scene.and_then(|i| self.entries.get(i))
     }
 
     pub fn current_scene_entry_mut(&mut self) -> Option<&mut EditorSceneEntry> {
-        self.current_scene.and_then(|i| self.scenes.get_mut(i))
+        self.current_scene.and_then(|i| self.entries.get_mut(i))
     }
 
     pub fn current_editor_scene_ref(&self) -> Option<&EditorScene> {
@@ -517,69 +515,59 @@ impl SceneContainer {
     }
 
     pub fn first_unsaved_scene(&self) -> Option<&EditorSceneEntry> {
-        self.scenes.iter().find(|s| s.editor_scene.need_save())
+        self.entries.iter().find(|s| s.editor_scene.need_save())
     }
 
     pub fn unsaved_scene_count(&self) -> usize {
-        self.scenes
+        self.entries
             .iter()
             .filter(|s| s.editor_scene.need_save())
             .count()
     }
 
     pub fn len(&self) -> usize {
-        self.scenes.len()
+        self.entries.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.scenes.is_empty()
+        self.entries.is_empty()
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &EditorSceneEntry> {
-        self.scenes.iter()
+        self.entries.iter()
     }
 
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut EditorSceneEntry> {
-        self.scenes.iter_mut()
+        self.entries.iter_mut()
     }
 
     pub fn try_get(&self, index: usize) -> Option<&EditorSceneEntry> {
-        self.scenes.get(index)
+        self.entries.get(index)
     }
 
     pub fn try_get_mut(&mut self, index: usize) -> Option<&mut EditorSceneEntry> {
-        self.scenes.get_mut(index)
+        self.entries.get_mut(index)
     }
 
     pub fn current_scene_index(&self) -> Option<usize> {
         self.current_scene
     }
 
-    pub fn set_current_scene(&mut self, scene: Handle<Scene>) -> bool {
-        if let Some(index) = self
-            .scenes
-            .iter()
-            .position(|e| e.editor_scene.scene == scene)
-        {
+    pub fn set_current_scene(&mut self, id: Uuid) -> bool {
+        if let Some(index) = self.entries.iter().position(|e| e.id == id) {
             self.current_scene = Some(index);
-
             true
         } else {
             false
         }
     }
 
-    pub fn entry_by_scene_handle(&self, handle: Handle<Scene>) -> Option<&EditorSceneEntry> {
-        self.scenes.iter().find(|e| e.editor_scene.scene == handle)
+    pub fn entry_by_scene_id(&self, id: Uuid) -> Option<&EditorSceneEntry> {
+        self.entries.iter().find(|e| e.id == id)
     }
 
-    pub fn entry_by_scene_handle_mut(
-        &mut self,
-        handle: Handle<Scene>,
-    ) -> Option<&mut EditorSceneEntry> {
-        self.scenes
-            .iter_mut()
-            .find(|e| e.editor_scene.scene == handle)
+    pub fn entry_by_scene_id_mut(&mut self, id: Uuid) -> Option<&mut EditorSceneEntry> {
+        self.entries.iter_mut().find(|e| e.id == id)
     }
 
     pub fn add_scene_and_select(
@@ -591,7 +579,7 @@ impl SceneContainer {
         message_sender: MessageSender,
         scene_viewer: &SceneViewer,
     ) {
-        self.current_scene = Some(self.scenes.len());
+        self.current_scene = Some(self.entries.len());
 
         let editor_scene = EditorScene::from_native_scene(scene, engine, path, settings);
         let mut interaction_modes = InteractionModeContainer::default();
@@ -636,20 +624,21 @@ impl SceneContainer {
             last_mouse_pos: None,
             click_mouse_pos: None,
             sender: message_sender,
+            id: Uuid::new_v4(),
         };
 
         entry.set_interaction_mode(engine, Some(MoveInteractionMode::type_uuid()));
 
-        self.scenes.push(entry);
+        self.entries.push(entry);
     }
 
-    pub fn take_scene(&mut self, scene: Handle<Scene>) -> Option<EditorSceneEntry> {
+    pub fn take_scene(&mut self, id: Uuid) -> Option<EditorSceneEntry> {
         let scene = self
-            .scenes
+            .entries
             .iter()
-            .position(|e| e.editor_scene.scene == scene)
-            .map(|i| self.scenes.remove(i));
-        self.current_scene = if self.scenes.is_empty() {
+            .position(|e| e.id == id)
+            .map(|i| self.entries.remove(i));
+        self.current_scene = if self.entries.is_empty() {
             None
         } else {
             // TODO: Maybe set it to the previous one?
@@ -1288,7 +1277,7 @@ impl Editor {
                     if let Some(entry) = self.scenes.current_scene_entry_ref() {
                         if let Some(path) = entry.editor_scene.path.as_ref() {
                             self.message_sender.send(Message::SaveScene {
-                                scene: entry.editor_scene.scene,
+                                id: entry.id,
                                 path: path.clone(),
                             });
                         } else {
@@ -1323,8 +1312,8 @@ impl Editor {
                 } else if hot_key == key_bindings.new_scene {
                     sender.send(Message::NewScene);
                 } else if hot_key == key_bindings.close_scene {
-                    if let Some(editor_scene) = self.scenes.current_editor_scene_ref() {
-                        sender.send(Message::CloseScene(editor_scene.scene));
+                    if let Some(entry) = self.scenes.current_scene_entry_ref() {
+                        sender.send(Message::CloseScene(entry.id));
                     }
                 } else if hot_key == key_bindings.remove_selection {
                     if let Some(editor_scene) = self.scenes.current_editor_scene_mut() {
@@ -1372,14 +1361,14 @@ impl Editor {
         self.save_scene_dialog
             .handle_ui_message(message, &self.message_sender, &self.scenes);
 
-        let mut current_scene_entry = self.scenes.current_scene_entry_mut();
+        let current_scene_entry = self.scenes.current_scene_entry_mut();
 
         self.configurator.handle_ui_message(message, engine);
         self.menu.handle_ui_message(
             message,
             MenuContext {
                 engine,
-                editor_scene: current_scene_entry.as_mut().map(|e| &mut e.editor_scene),
+                editor_scene: current_scene_entry,
                 panels: Panels {
                     inspector_window: self.inspector.window,
                     world_outliner_window: self.world_viewer.window,
@@ -1501,7 +1490,7 @@ impl Editor {
             if let Some(FileSelectorMessage::Commit(path)) = message.data::<FileSelectorMessage>() {
                 if message.destination() == self.save_file_selector {
                     self.message_sender.send(Message::SaveScene {
-                        scene: editor_scene.scene,
+                        id: current_scene_entry.id,
                         path: path.clone(),
                     });
                     self.message_sender.send(Message::Exit { force: true });
@@ -1521,12 +1510,12 @@ impl Editor {
                             if editor_scene.need_save() {
                                 if let Some(path) = editor_scene.path.as_ref() {
                                     self.message_sender.send(Message::SaveScene {
-                                        scene: editor_scene.scene,
+                                        id: first_unsaved.id,
                                         path: path.clone(),
                                     });
 
                                     self.message_sender
-                                        .send(Message::CloseScene(editor_scene.scene));
+                                        .send(Message::CloseScene(first_unsaved.id));
 
                                     self.message_sender.send(Message::Exit {
                                         force: self.scenes.unsaved_scene_count() == 1,
@@ -1553,9 +1542,9 @@ impl Editor {
     }
 
     fn set_play_mode(&mut self) {
-        if let Some(editor_scene) = self.scenes.current_editor_scene_ref() {
-            if let Some(path) = editor_scene.path.as_ref().cloned() {
-                self.save_scene(editor_scene.scene, path.clone());
+        if let Some(entry) = self.scenes.current_scene_entry_ref() {
+            if let Some(path) = entry.editor_scene.path.as_ref().cloned() {
+                self.save_scene(entry.id, path.clone());
 
                 let mut process = std::process::Command::new("cargo");
 
@@ -1898,11 +1887,11 @@ impl Editor {
             || stays_active
     }
 
-    fn save_scene(&mut self, scene: Handle<Scene>, path: PathBuf) {
+    fn save_scene(&mut self, id: Uuid, path: PathBuf) {
         self.try_leave_preview_mode();
 
         let engine = &mut self.engine;
-        if let Some(entry) = self.scenes.entry_by_scene_handle_mut(scene) {
+        if let Some(entry) = self.scenes.entry_by_scene_id_mut(id) {
             let editor_scene = &mut entry.editor_scene;
 
             if !self.settings.recent.scenes.contains(&path) {
@@ -1938,14 +1927,14 @@ impl Editor {
     }
 
     fn load_scene(&mut self, scene_path: PathBuf) {
-        for scene in self.scenes.scenes.iter() {
-            if scene
+        for entry in self.scenes.entries.iter() {
+            if entry
                 .editor_scene
                 .path
                 .as_ref()
                 .map_or(false, |p| p == &scene_path)
             {
-                self.set_current_scene(scene.editor_scene.scene);
+                self.set_current_scene(entry.id);
                 return;
             }
         }
@@ -1991,11 +1980,11 @@ impl Editor {
         }
     }
 
-    fn close_scene(&mut self, scene: Handle<Scene>) -> bool {
+    fn close_scene(&mut self, id: Uuid) -> bool {
         self.try_leave_preview_mode();
 
         let engine = &mut self.engine;
-        if let Some(mut editor_scene_entry) = self.scenes.take_scene(scene) {
+        if let Some(mut editor_scene_entry) = self.scenes.take_scene(id) {
             engine.scenes.remove(editor_scene_entry.editor_scene.scene);
 
             // Preview frame has scene frame texture assigned, it must be cleared explicitly,
@@ -2016,9 +2005,8 @@ impl Editor {
         }
     }
 
-    fn set_current_scene(&mut self, scene: Handle<Scene>) {
-        assert!(self.scenes.set_current_scene(scene));
-
+    fn set_current_scene(&mut self, id: Uuid) {
+        assert!(self.scenes.set_current_scene(id));
         self.on_scene_changed();
     }
 
@@ -2282,7 +2270,7 @@ impl Editor {
                     Message::SelectionChanged { .. } => {
                         self.world_viewer.sync_selection = true;
                     }
-                    Message::SaveScene { scene, path } => self.save_scene(scene, path),
+                    Message::SaveScene { id: scene, path } => self.save_scene(scene, path),
                     Message::LoadScene(scene_path) => {
                         self.load_scene(scene_path);
                         needs_sync = true;
@@ -2374,10 +2362,10 @@ impl Editor {
                         self.menu
                             .open_save_file_selector(&mut self.engine.user_interface);
                     }
-                    Message::OpenSaveSceneConfirmationDialog { scene, action } => {
+                    Message::OpenSaveSceneConfirmationDialog { id, action } => {
                         self.save_scene_dialog.open(
                             &self.engine.user_interface,
-                            scene,
+                            id,
                             &self.scenes,
                             action,
                         );
@@ -2730,7 +2718,7 @@ fn update(editor: &mut Editor, window_target: &EventLoopWindowTarget<()>) {
 
         let mut switches = FxHashMap::default();
 
-        for other_editor_scene_entry in editor.scenes.scenes.iter() {
+        for other_editor_scene_entry in editor.scenes.entries.iter() {
             if let Some(current_editor_scene) = editor.scenes.current_editor_scene_ref() {
                 switches.insert(
                     current_editor_scene.scene,
