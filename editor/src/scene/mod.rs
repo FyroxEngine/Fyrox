@@ -67,6 +67,7 @@ pub mod settings;
 pub mod commands;
 pub mod container;
 pub mod controller;
+pub mod ui;
 
 pub struct PreviewInstance {
     pub instance: Handle<Node>,
@@ -698,6 +699,7 @@ impl SceneController for EditorScene {
         dt: f32,
         path: Option<&Path>,
         settings: &mut Settings,
+        _screen_bounds: Rect<f32>,
     ) {
         self.draw_auxiliary_geometry(editor_selection, engine, settings);
 

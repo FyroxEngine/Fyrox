@@ -1,4 +1,5 @@
 use crate::scene::controller::SceneController;
+use crate::scene::ui::UiScene;
 use crate::settings::keys::KeyBindings;
 use crate::{
     interaction::{
@@ -404,6 +405,29 @@ impl SceneContainer {
         };
 
         entry.set_interaction_mode(engine, Some(MoveInteractionMode::type_uuid()));
+
+        self.entries.push(entry);
+    }
+
+    pub fn add_ui_scene_and_select(
+        &mut self,
+        path: Option<PathBuf>,
+        message_sender: MessageSender,
+    ) {
+        self.current_scene = Some(self.entries.len());
+
+        let entry = EditorSceneEntry {
+            has_unsaved_changes: false,
+            interaction_modes: InteractionModeContainer::default(),
+            controller: Box::new(UiScene::new()),
+            current_interaction_mode: None,
+            last_mouse_pos: None,
+            click_mouse_pos: None,
+            sender: message_sender,
+            id: Uuid::new_v4(),
+            path,
+            selection: Default::default(),
+        };
 
         self.entries.push(entry);
     }

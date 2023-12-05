@@ -22,6 +22,7 @@ use fyrox::{
 pub struct FileMenu {
     pub menu: Handle<UiNode>,
     new_scene: Handle<UiNode>,
+    new_ui_scene: Handle<UiNode>,
     pub save: Handle<UiNode>,
     pub save_as: Handle<UiNode>,
     load: Handle<UiNode>,
@@ -52,6 +53,7 @@ fn make_recent_files_items(
 impl FileMenu {
     pub fn new(engine: &mut Engine, settings: &Settings) -> Self {
         let new_scene;
+        let new_ui_scene;
         let save;
         let save_as;
         let close_scene;
@@ -81,6 +83,10 @@ impl FileMenu {
                 {
                     new_scene = create_menu_item_shortcut("New Scene", "Ctrl+N", vec![], ctx);
                     new_scene
+                },
+                {
+                    new_ui_scene = create_menu_item("New UI Scene", vec![], ctx);
+                    new_ui_scene
                 },
                 {
                     save = create_menu_item_shortcut("Save Scene", "Ctrl+S", vec![], ctx);
@@ -139,6 +145,7 @@ impl FileMenu {
             load_file_selector,
             menu,
             new_scene,
+            new_ui_scene,
             save,
             save_as,
             close_scene,
@@ -270,6 +277,8 @@ impl FileMenu {
                 sender.send(Message::Exit { force: false });
             } else if message.destination() == self.new_scene {
                 sender.send(Message::NewScene);
+            } else if message.destination() == self.new_ui_scene {
+                sender.send(Message::NewUiScene);
             } else if message.destination() == self.configure {
                 if entry.is_none() {
                     engine

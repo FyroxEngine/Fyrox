@@ -69,6 +69,7 @@ use crate::{
             make_delete_selection_command, ChangeSelectionCommand, CommandGroup, PasteCommand,
             SceneCommand, SceneContext,
         },
+        container::SceneContainer,
         dialog::NodeRemovalDialog,
         selector::HierarchyNode,
         settings::SceneSettingsWindow,
@@ -82,8 +83,6 @@ use crate::{
         graph::EditorSceneWrapper, WorldViewer,
     },
 };
-use fyrox::core::uuid::Uuid;
-use fyrox::core::TypeUuidProvider;
 use fyrox::{
     asset::{io::FsResourceIo, manager::ResourceManager},
     core::{
@@ -94,8 +93,10 @@ use fyrox::{
         pool::{ErasedHandle, Handle},
         scope_profile,
         sstorage::ImmutableString,
+        uuid::Uuid,
         visitor::Visitor,
         watcher::FileSystemWatcher,
+        TypeUuidProvider,
     },
     dpi::{PhysicalPosition, PhysicalSize},
     engine::{Engine, EngineInitParams, GraphicsContextParams, SerializationContext},
@@ -148,7 +149,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::scene::container::SceneContainer;
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -1873,6 +1873,18 @@ impl Editor {
         self.add_scene(scene, None);
     }
 
+    fn create_new_ui_scene(&mut self) {
+        self.try_leave_preview_mode();
+
+        self.sync_to_model();
+        self.poll_ui_messages();
+
+        self.scenes
+            .add_ui_scene_and_select(None, self.message_sender.clone());
+
+        self.on_scene_changed();
+    }
+
     fn configure(&mut self, working_directory: PathBuf) {
         assert!(self.scenes.is_empty());
 
@@ -2146,6 +2158,10 @@ impl Editor {
                         self.create_new_scene();
                         needs_sync = true;
                     }
+                    Message::NewUiScene => {
+                        self.create_new_ui_scene();
+                        needs_sync = true;
+                    }
                     Message::SetCurrentScene(scene) => {
                         self.set_current_scene(scene);
                         needs_sync = true;
@@ -2328,12 +2344,14 @@ impl Editor {
         if let Some(entry) = self.scenes.current_scene_entry_mut() {
             let controller = &mut entry.controller;
 
+            let screen_bounds = self.scene_viewer.frame_bounds(&self.engine.user_interface);
             controller.update(
                 &entry.selection,
                 &mut self.engine,
                 dt,
                 entry.path.as_deref(),
                 &mut self.settings,
+                screen_bounds,
             );
 
             // TODO

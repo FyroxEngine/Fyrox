@@ -109,6 +109,7 @@ pub trait SceneController: 'static {
         dt: f32,
         path: Option<&Path>,
         settings: &mut Settings,
+        screen_bounds: Rect<f32>,
     );
 
     fn is_interacting(&self) -> bool;

@@ -34,6 +34,7 @@ pub enum Message {
         working_directory: PathBuf,
     },
     NewScene,
+    NewUiScene,
     Exit {
         force: bool,
     },
