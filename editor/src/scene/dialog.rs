@@ -1,3 +1,4 @@
+use crate::scene::Selection;
 use crate::{
     message::MessageSender,
     scene::{
@@ -122,7 +123,12 @@ impl NodeRemovalDialog {
         }
     }
 
-    pub fn open(&mut self, editor_scene: &EditorScene, engine: &Engine) {
+    pub fn open(
+        &mut self,
+        editor_selection: &Selection,
+        editor_scene: &EditorScene,
+        engine: &Engine,
+    ) {
         let ui = &engine.user_interface;
         let graph = &engine.scenes[editor_scene.scene].graph;
 
@@ -134,7 +140,7 @@ impl NodeRemovalDialog {
 
         let mut text = String::new();
 
-        let selection = selection_to_delete(editor_scene);
+        let selection = selection_to_delete(editor_selection, editor_scene);
         for root in selection.nodes.iter() {
             for node_handle in graph.traverse_handle_iter(*root) {
                 let node = &graph[node_handle];
@@ -162,6 +168,7 @@ impl NodeRemovalDialog {
 
     pub fn handle_ui_message(
         &mut self,
+        editor_selection: &Selection,
         editor_scene: &EditorScene,
         message: &UiMessage,
         engine: &Engine,
@@ -176,6 +183,7 @@ impl NodeRemovalDialog {
                 ));
 
                 sender.send(Message::DoSceneCommand(make_delete_selection_command(
+                    editor_selection,
                     editor_scene,
                     engine,
                 )));

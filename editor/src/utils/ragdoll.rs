@@ -454,6 +454,7 @@ impl RagdollPreset {
     pub fn create_and_send_command(
         &self,
         graph: &mut Graph,
+        editor_selection: &Selection,
         editor_scene: &EditorScene,
         sender: &MessageSender,
     ) {
@@ -975,7 +976,7 @@ impl RagdollPreset {
             // We also want to select newly instantiated model.
             SceneCommand::new(ChangeSelectionCommand::new(
                 Selection::Graph(GraphSelection::single_or_empty(ragdoll)),
-                editor_scene.selection.clone(),
+                editor_selection.clone(),
             )),
         ];
 
@@ -1112,6 +1113,7 @@ impl RagdollWizard {
         message: &UiMessage,
         ui: &mut UserInterface,
         graph: &mut Graph,
+        editor_selection: &Selection,
         editor_scene: &EditorScene,
         sender: &MessageSender,
     ) {
@@ -1130,7 +1132,7 @@ impl RagdollWizard {
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.ok {
                 self.preset
-                    .create_and_send_command(graph, editor_scene, sender);
+                    .create_and_send_command(graph, editor_selection, editor_scene, sender);
 
                 ui.send_message(WindowMessage::close(
                     self.window,

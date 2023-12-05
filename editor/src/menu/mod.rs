@@ -170,6 +170,7 @@ impl Menu {
             self.edit_menu.handle_ui_message(
                 message,
                 &self.message_sender,
+                &entry.selection,
                 &mut entry.editor_scene,
                 ctx.engine,
             );

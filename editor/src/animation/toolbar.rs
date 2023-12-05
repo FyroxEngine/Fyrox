@@ -838,6 +838,7 @@ impl Toolbar {
         ui: &mut UserInterface,
         animation_player_handle: Handle<Node>,
         animation_player: &AnimationPlayer,
+        editor_selection: &Selection,
         editor_scene: &EditorScene,
         selection: &AnimationSelection,
     ) -> ToolbarAction {
@@ -867,7 +868,7 @@ impl Toolbar {
                         animation: *animation,
                         entities: vec![],
                     }),
-                    editor_scene.selection.clone(),
+                    editor_selection.clone(),
                 ));
                 return ToolbarAction::SelectAnimation(*animation);
             }
@@ -899,7 +900,7 @@ impl Toolbar {
                                 animation: Default::default(),
                                 entities: vec![],
                             }),
-                            editor_scene.selection.clone(),
+                            editor_selection.clone(),
                         )),
                         SceneCommand::new(RemoveAnimationCommand::new(
                             animation_player_handle,
@@ -1003,6 +1004,7 @@ impl Toolbar {
         ui: &UserInterface,
         animation_player_handle: Handle<Node>,
         scene: &Scene,
+        editor_selection: &Selection,
         editor_scene: &EditorScene,
         resource_manager: &ResourceManager,
     ) {
@@ -1086,8 +1088,7 @@ impl Toolbar {
                                 sender.do_scene_command(group);
                             }
                             ImportMode::Reimport => {
-                                if let Selection::Animation(ref selection) = editor_scene.selection
-                                {
+                                if let Selection::Animation(ref selection) = editor_selection {
                                     if animations.len() > 1 {
                                         Log::warn("More than one animation found! Only first will be used");
                                     }

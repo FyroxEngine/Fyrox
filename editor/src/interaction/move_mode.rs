@@ -288,6 +288,7 @@ impl TypeUuidProvider for MoveInteractionMode {
 impl InteractionMode for MoveInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
@@ -314,7 +315,7 @@ impl InteractionMode for MoveInteractionMode {
             only_meshes: false,
         }) {
             if let Some(plane_kind) = self.move_gizmo.handle_pick(result.node, graph) {
-                if let Selection::Graph(selection) = &editor_scene.selection {
+                if let Selection::Graph(selection) = editor_selection {
                     self.move_context = Some(MoveContext::from_graph_selection(
                         selection,
                         scene,
@@ -331,6 +332,7 @@ impl InteractionMode for MoveInteractionMode {
 
     fn on_left_mouse_button_up(
         &mut self,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
@@ -389,7 +391,7 @@ impl InteractionMode for MoveInteractionMode {
                 })
                 .map(|result| {
                     if let (Selection::Graph(selection), true) = (
-                        &editor_scene.selection,
+                        editor_selection,
                         engine.user_interface.keyboard_modifiers().control,
                     ) {
                         let mut selection = selection.clone();
@@ -401,11 +403,11 @@ impl InteractionMode for MoveInteractionMode {
                 })
                 .unwrap_or_else(|| Selection::Graph(GraphSelection::default()));
 
-            if new_selection != editor_scene.selection {
+            if &new_selection != editor_selection {
                 self.message_sender
                     .do_scene_command(ChangeSelectionCommand::new(
                         new_selection,
-                        editor_scene.selection.clone(),
+                        editor_selection.clone(),
                     ));
             }
         }
@@ -415,6 +417,7 @@ impl InteractionMode for MoveInteractionMode {
         &mut self,
         _mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
+        _editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         frame_size: Vector2<f32>,
@@ -436,13 +439,14 @@ impl InteractionMode for MoveInteractionMode {
 
     fn update(
         &mut self,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         _settings: &Settings,
     ) {
         let scene = &mut engine.scenes[editor_scene.scene];
         let graph = &mut scene.graph;
-        if editor_scene.selection.is_empty() || editor_scene.preview_camera.is_some() {
+        if editor_selection.is_empty() || editor_scene.preview_camera.is_some() {
             self.move_gizmo.set_visible(graph, false);
         } else {
             let scale = calculate_gizmo_distance_scaling(
@@ -452,7 +456,7 @@ impl InteractionMode for MoveInteractionMode {
             );
             self.move_gizmo.set_visible(graph, true);
             self.move_gizmo
-                .sync_transform(scene, &editor_scene.selection, scale);
+                .sync_transform(scene, editor_selection, scale);
         }
     }
 

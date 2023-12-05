@@ -84,13 +84,13 @@ impl Command for AddNavmeshEdgeCommand {
         }
 
         if self.select {
-            std::mem::swap(&mut context.editor_scene.selection, &mut self.new_selection);
+            std::mem::swap(context.selection, &mut self.new_selection);
         }
     }
 
     fn revert(&mut self, context: &mut SceneContext) {
         if self.select {
-            std::mem::swap(&mut context.editor_scene.selection, &mut self.new_selection);
+            std::mem::swap(context.selection, &mut self.new_selection);
         }
 
         let navmesh = fetch_navmesh(context, self.navmesh_node);

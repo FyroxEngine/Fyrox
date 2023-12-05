@@ -1,3 +1,4 @@
+use crate::scene::Selection;
 use crate::{load_image, scene::EditorScene, settings::Settings, Engine};
 use fyrox::fxhash::FxHashMap;
 use fyrox::{
@@ -55,6 +56,7 @@ where
 pub trait InteractionMode: BaseInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
@@ -64,6 +66,7 @@ pub trait InteractionMode: BaseInteractionMode {
 
     fn on_left_mouse_button_up(
         &mut self,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
@@ -75,6 +78,7 @@ pub trait InteractionMode: BaseInteractionMode {
         &mut self,
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         frame_size: Vector2<f32>,
@@ -83,6 +87,7 @@ pub trait InteractionMode: BaseInteractionMode {
 
     fn update(
         &mut self,
+        #[allow(unused_variables)] editor_selection: &Selection,
         #[allow(unused_variables)] editor_scene: &mut EditorScene,
         #[allow(unused_variables)] engine: &mut Engine,
         #[allow(unused_variables)] settings: &Settings,
@@ -103,6 +108,7 @@ pub trait InteractionMode: BaseInteractionMode {
     fn on_key_down(
         &mut self,
         #[allow(unused_variables)] key: KeyCode,
+        #[allow(unused_variables)] editor_selection: &Selection,
         #[allow(unused_variables)] editor_scene: &mut EditorScene,
         #[allow(unused_variables)] engine: &mut Engine,
     ) -> bool {
@@ -123,6 +129,7 @@ pub trait InteractionMode: BaseInteractionMode {
     fn handle_ui_message(
         &mut self,
         #[allow(unused_variables)] message: &UiMessage,
+        #[allow(unused_variables)] editor_selection: &Selection,
         #[allow(unused_variables)] editor_scene: &mut EditorScene,
         #[allow(unused_variables)] engine: &mut Engine,
     ) {

@@ -19,7 +19,7 @@ use crate::{
     },
     scene::{
         commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
-        EditorScene, Selection,
+        Selection,
     },
     send_sync_message,
 };
@@ -243,7 +243,7 @@ impl StateViewer {
         absm_node_handle: Handle<Node>,
         absm_node: &AnimationBlendingStateMachine,
         layer_index: usize,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
     ) {
         let machine = absm_node.machine();
 
@@ -291,10 +291,10 @@ impl StateViewer {
                                         .collect::<Vec<_>>(),
                                 });
 
-                                if !selection.is_empty() && selection != editor_scene.selection {
+                                if !selection.is_empty() && &selection != editor_selection {
                                     sender.do_scene_command(ChangeSelectionCommand::new(
                                         selection,
-                                        editor_scene.selection.clone(),
+                                        editor_selection.clone(),
                                     ));
                                 }
                             }
@@ -354,7 +354,7 @@ impl StateViewer {
                 layer,
                 sender,
                 ui,
-                editor_scene,
+                editor_selection,
                 absm_node_handle,
                 layer_index,
             );
@@ -381,12 +381,12 @@ impl StateViewer {
         &mut self,
         ui: &mut UserInterface,
         machine_layer: &MachineLayer,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
         absm_node: &AnimationBlendingStateMachine,
         graph: &Graph,
     ) {
         if let Some(parent_state_ref) = machine_layer.states().try_borrow(self.state) {
-            let current_selection = fetch_selection(&editor_scene.selection);
+            let current_selection = fetch_selection(editor_selection);
 
             let mut views = Vec::new();
             if current_selection.layer != self.last_selection.layer

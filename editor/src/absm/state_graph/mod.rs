@@ -12,7 +12,7 @@ use crate::{
     },
     scene::{
         commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
-        EditorScene, Selection,
+        Selection,
     },
     send_sync_message,
 };
@@ -136,7 +136,7 @@ impl StateGraphViewer {
         absm_node_handle: Handle<Node>,
         absm_node: &AnimationBlendingStateMachine,
         layer_index: usize,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
     ) {
         if message.destination() == self.canvas {
             if let Some(msg) = message.data::<AbsmCanvasMessage>() {
@@ -201,10 +201,10 @@ impl StateGraphViewer {
                                     .collect::<Vec<_>>(),
                             });
 
-                            if !selection.is_empty() && selection != editor_scene.selection {
+                            if !selection.is_empty() && &selection != editor_selection {
                                 sender.do_scene_command(ChangeSelectionCommand::new(
                                     selection,
-                                    editor_scene.selection.clone(),
+                                    editor_selection.clone(),
                                 ));
                             }
                         }
@@ -242,7 +242,7 @@ impl StateGraphViewer {
             absm_node_handle,
             absm_node,
             layer_index,
-            editor_scene,
+            editor_selection,
         );
         self.canvas_context_menu.handle_ui_message(
             sender,
@@ -257,7 +257,7 @@ impl StateGraphViewer {
             sender,
             absm_node_handle,
             layer_index,
-            editor_scene,
+            editor_selection,
         );
     }
 
@@ -265,14 +265,14 @@ impl StateGraphViewer {
         &mut self,
         machine_layer: &MachineLayer,
         ui: &mut UserInterface,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
     ) {
         let canvas = ui
             .node(self.canvas)
             .cast::<AbsmCanvas>()
             .expect("Must be AbsmCanvas!");
 
-        let current_selection = fetch_selection(&editor_scene.selection);
+        let current_selection = fetch_selection(editor_selection);
 
         let mut states = Vec::new();
         let mut transitions = Vec::new();

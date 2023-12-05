@@ -668,7 +668,7 @@ impl SceneViewer {
                 scene.rendering_options.render_target.clone(),
             );
 
-            if let Selection::Graph(ref selection) = entry.editor_scene.selection {
+            if let Selection::Graph(ref selection) = entry.selection {
                 if let Some((_, position)) = selection.global_rotation_position(&scene.graph) {
                     engine.user_interface.send_message(Vec3EditorMessage::value(
                         self.global_position_display,

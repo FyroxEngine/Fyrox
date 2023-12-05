@@ -200,6 +200,7 @@ impl ParticleSystemPreviewControlPanel {
     pub fn handle_message(
         &mut self,
         message: &Message,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
     ) {
@@ -211,7 +212,7 @@ impl ParticleSystemPreviewControlPanel {
 
         if let Message::SelectionChanged { .. } = message {
             let scene = &engine.scenes[editor_scene.scene];
-            if let Selection::Graph(ref selection) = editor_scene.selection {
+            if let Selection::Graph(ref selection) = editor_selection {
                 let any_particle_system_selected = selection
                     .nodes
                     .iter()
@@ -238,13 +239,18 @@ impl ParticleSystemPreviewControlPanel {
         }
     }
 
-    fn enter_preview_mode(&mut self, editor_scene: &mut EditorScene, engine: &mut Engine) {
+    fn enter_preview_mode(
+        &mut self,
+        editor_selection: &Selection,
+        editor_scene: &mut EditorScene,
+        engine: &mut Engine,
+    ) {
         assert!(self.particle_systems_state.is_empty());
 
         let scene = &engine.scenes[editor_scene.scene];
         let node_overrides = editor_scene.graph_switches.node_overrides.as_mut().unwrap();
 
-        if let Selection::Graph(ref new_graph_selection) = editor_scene.selection {
+        if let Selection::Graph(ref new_graph_selection) = editor_selection {
             // Enable particle systems from new selection.
             for &node_handle in &new_graph_selection.nodes {
                 if scene
@@ -284,10 +290,11 @@ impl ParticleSystemPreviewControlPanel {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
     ) {
-        if let Selection::Graph(ref selection) = editor_scene.selection {
+        if let Selection::Graph(ref selection) = editor_selection {
             if let Some(ButtonMessage::Click) = message.data() {
                 let scene = &mut engine.scenes[editor_scene.scene];
 
@@ -314,7 +321,7 @@ impl ParticleSystemPreviewControlPanel {
                     && message.direction() == MessageDirection::FromWidget
                 {
                     if *value {
-                        self.enter_preview_mode(editor_scene, engine);
+                        self.enter_preview_mode(editor_selection, editor_scene, engine);
                     } else {
                         self.leave_preview_mode(editor_scene, engine);
                     }

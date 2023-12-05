@@ -20,6 +20,7 @@ pub mod menu;
 pub mod selection;
 
 pub struct EditorSceneWrapper<'a> {
+    pub selection: &'a Selection,
     pub editor_scene: &'a EditorScene,
     pub graph: &'a Graph,
     pub scene: &'a Scene,
@@ -99,7 +100,7 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
     }
 
     fn selection(&self) -> Vec<ErasedHandle> {
-        if let Selection::Graph(ref graph_selection) = self.editor_scene.selection {
+        if let Selection::Graph(ref graph_selection) = self.selection {
             graph_selection
                 .nodes
                 .iter()
@@ -114,7 +115,7 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
         let child: Handle<Node> = child.into();
         let parent: Handle<Node> = parent.into();
 
-        if let Selection::Graph(ref selection) = self.editor_scene.selection {
+        if let Selection::Graph(ref selection) = self.selection {
             if selection.nodes.contains(&child) {
                 let mut commands = Vec::new();
 
@@ -168,10 +169,10 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
             }
         }
 
-        if new_selection != self.editor_scene.selection {
+        if &new_selection != self.selection {
             self.sender.do_scene_command(ChangeSelectionCommand::new(
                 new_selection,
-                self.editor_scene.selection.clone(),
+                self.selection.clone(),
             ));
         }
     }

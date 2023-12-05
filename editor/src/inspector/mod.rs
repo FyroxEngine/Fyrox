@@ -245,12 +245,17 @@ impl Inspector {
         }
     }
 
-    pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
+    pub fn sync_to_model(
+        &mut self,
+        editor_selection: &Selection,
+        editor_scene: &EditorScene,
+        engine: &mut Engine,
+    ) {
         let scene = &engine.scenes[editor_scene.scene];
 
         if self.needs_sync {
-            if editor_scene.selection.is_single_selection() {
-                match &editor_scene.selection {
+            if editor_selection.is_single_selection() {
+                match editor_selection {
                     Selection::Graph(selection) => {
                         if let Some(node) = scene.graph.try_get(selection.nodes()[0]) {
                             node.as_reflect(&mut |node| {
@@ -401,6 +406,7 @@ impl Inspector {
     pub fn handle_message(
         &mut self,
         message: &Message,
+        editor_selection: &Selection,
         editor_scene: &EditorScene,
         engine: &mut Engine,
         sender: &MessageSender,
@@ -413,11 +419,11 @@ impl Inspector {
                 .send_message(WidgetMessage::visibility(
                     self.warning_text,
                     MessageDirection::ToWidget,
-                    editor_scene.selection.len() > 1,
+                    editor_selection.len() > 1,
                 ));
 
-            if !editor_scene.selection.is_empty() {
-                match &editor_scene.selection {
+            if !editor_selection.is_empty() {
+                match &editor_selection {
                     Selection::Graph(selection) => {
                         if let Some(node) = scene.graph.try_get(selection.nodes()[0]) {
                             node.as_reflect(&mut |node| {
@@ -427,7 +433,7 @@ impl Inspector {
                                     engine.resource_manager.clone(),
                                     engine.serialization_context.clone(),
                                     &scene.graph,
-                                    &editor_scene.selection,
+                                    editor_selection,
                                     sender,
                                 )
                             })
@@ -444,7 +450,7 @@ impl Inspector {
                                 engine.resource_manager.clone(),
                                 engine.serialization_context.clone(),
                                 &scene.graph,
-                                &editor_scene.selection,
+                                editor_selection,
                                 sender,
                             )
                         }
@@ -467,7 +473,7 @@ impl Inspector {
                                         engine.resource_manager.clone(),
                                         engine.serialization_context.clone(),
                                         &scene.graph,
-                                        &editor_scene.selection,
+                                        editor_selection,
                                         sender,
                                     )
                                 }
@@ -493,7 +499,7 @@ impl Inspector {
                                                     engine.resource_manager.clone(),
                                                     engine.serialization_context.clone(),
                                                     &scene.graph,
-                                                    &editor_scene.selection,
+                                                    editor_selection,
                                                     sender,
                                                 ),
                                             SelectedEntity::State(state) => self.change_context(
@@ -502,7 +508,7 @@ impl Inspector {
                                                 engine.resource_manager.clone(),
                                                 engine.serialization_context.clone(),
                                                 &scene.graph,
-                                                &editor_scene.selection,
+                                                editor_selection,
                                                 sender,
                                             ),
                                             SelectedEntity::PoseNode(pose) => self.change_context(
@@ -511,7 +517,7 @@ impl Inspector {
                                                 engine.resource_manager.clone(),
                                                 engine.serialization_context.clone(),
                                                 &scene.graph,
-                                                &editor_scene.selection,
+                                                editor_selection,
                                                 sender,
                                             ),
                                         }
@@ -547,6 +553,7 @@ impl Inspector {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
+        editor_selection: &Selection,
         editor_scene: &EditorScene,
         engine: &mut Engine,
         sender: &MessageSender,
@@ -559,7 +566,7 @@ impl Inspector {
             if let Some(InspectorMessage::PropertyChanged(args)) =
                 message.data::<InspectorMessage>()
             {
-                let group = match &editor_scene.selection {
+                let group = match editor_selection {
                     Selection::Graph(selection) => selection
                         .nodes
                         .iter()
@@ -667,7 +674,7 @@ impl Inspector {
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.docs_button {
-                let entity = match &editor_scene.selection {
+                let entity = match editor_selection {
                     Selection::None => None,
                     Selection::Graph(graph_selection) => graph_selection
                         .nodes

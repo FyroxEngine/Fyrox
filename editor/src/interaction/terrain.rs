@@ -145,13 +145,14 @@ impl TypeUuidProvider for TerrainInteractionMode {
 impl InteractionMode for TerrainInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        if let Selection::Graph(selection) = &editor_scene.selection {
+        if let Selection::Graph(selection) = editor_selection {
             if selection.is_single_selection() {
                 let graph = &mut engine.scenes[editor_scene.scene].graph;
                 let handle = selection.nodes()[0];
@@ -192,13 +193,14 @@ impl InteractionMode for TerrainInteractionMode {
 
     fn on_left_mouse_button_up(
         &mut self,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         _mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        if let Selection::Graph(selection) = &editor_scene.selection {
+        if let Selection::Graph(selection) = editor_selection {
             if selection.is_single_selection() {
                 let graph = &mut engine.scenes[editor_scene.scene].graph;
                 let handle = selection.nodes()[0];
@@ -245,12 +247,13 @@ impl InteractionMode for TerrainInteractionMode {
         &mut self,
         _mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        if let Selection::Graph(selection) = &editor_scene.selection {
+        if let Selection::Graph(selection) = editor_selection {
             if selection.is_single_selection() {
                 let graph = &mut engine.scenes[editor_scene.scene].graph;
                 let handle = selection.nodes()[0];
@@ -340,10 +343,11 @@ impl InteractionMode for TerrainInteractionMode {
     fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        editor_scene: &mut EditorScene,
+        editor_selection: &Selection,
+        _editor_scene: &mut EditorScene,
         _engine: &mut Engine,
     ) {
-        if let Selection::Graph(selection) = &editor_scene.selection {
+        if let Selection::Graph(selection) = editor_selection {
             if selection.is_single_selection() {
                 self.brush_panel.handle_ui_message(message, &mut self.brush);
             }

@@ -65,6 +65,7 @@ impl CameraPreviewControlPanel {
     pub fn handle_message(
         &mut self,
         message: &Message,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
     ) {
@@ -76,7 +77,7 @@ impl CameraPreviewControlPanel {
 
         if let Message::SelectionChanged { .. } = message {
             let scene = &engine.scenes[editor_scene.scene];
-            if let Selection::Graph(ref selection) = editor_scene.selection {
+            if let Selection::Graph(ref selection) = editor_selection {
                 let any_camera = selection
                     .nodes
                     .iter()
@@ -103,13 +104,18 @@ impl CameraPreviewControlPanel {
         }
     }
 
-    fn enter_preview_mode(&mut self, editor_scene: &mut EditorScene, engine: &mut Engine) {
+    fn enter_preview_mode(
+        &mut self,
+        editor_selection: &Selection,
+        editor_scene: &mut EditorScene,
+        engine: &mut Engine,
+    ) {
         assert!(self.cameras_state.is_empty());
 
         let scene = &engine.scenes[editor_scene.scene];
         let node_overrides = editor_scene.graph_switches.node_overrides.as_mut().unwrap();
 
-        if let Selection::Graph(ref new_graph_selection) = editor_scene.selection {
+        if let Selection::Graph(ref new_graph_selection) = editor_selection {
             // Enable cameras from new selection.
             for &node_handle in &new_graph_selection.nodes {
                 if scene.graph.try_get_of_type::<Camera>(node_handle).is_some() {
@@ -149,6 +155,7 @@ impl CameraPreviewControlPanel {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
     ) {
@@ -157,7 +164,7 @@ impl CameraPreviewControlPanel {
                 && message.direction() == MessageDirection::FromWidget
             {
                 if *value {
-                    self.enter_preview_mode(editor_scene, engine);
+                    self.enter_preview_mode(editor_selection, editor_scene, engine);
                 } else {
                     self.leave_preview_mode(editor_scene, engine);
                 }

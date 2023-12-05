@@ -49,6 +49,7 @@ impl TypeUuidProvider for SelectInteractionMode {
 impl InteractionMode for SelectInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
+        _editor_selection: &Selection,
         _editor_scene: &mut EditorScene,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
@@ -81,6 +82,7 @@ impl InteractionMode for SelectInteractionMode {
 
     fn on_left_mouse_button_up(
         &mut self,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         _mouse_pos: Vector2<f32>,
@@ -125,11 +127,11 @@ impl InteractionMode for SelectInteractionMode {
 
         let new_selection = Selection::Graph(graph_selection);
 
-        if new_selection != editor_scene.selection {
+        if &new_selection != editor_selection {
             self.message_sender
                 .do_scene_command(ChangeSelectionCommand::new(
                     new_selection,
-                    editor_scene.selection.clone(),
+                    editor_selection.clone(),
                 ));
         }
         engine
@@ -145,6 +147,7 @@ impl InteractionMode for SelectInteractionMode {
         &mut self,
         _mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
+        _editor_selection: &Selection,
         _editor_scene: &mut EditorScene,
         engine: &mut Engine,
         _frame_size: Vector2<f32>,
@@ -185,6 +188,7 @@ impl InteractionMode for SelectInteractionMode {
 
     fn update(
         &mut self,
+        _editor_selection: &Selection,
         _editor_scene: &mut EditorScene,
         _engine: &mut Engine,
         _settings: &Settings,

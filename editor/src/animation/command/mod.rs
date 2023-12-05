@@ -186,7 +186,7 @@ impl Command for AddAnimationCommand {
                     .add(animation);
 
                 let old_selection = std::mem::replace(
-                    &mut context.editor_scene.selection,
+                    context.selection,
                     Selection::Animation(AnimationSelection {
                         animation_player,
                         animation: handle,
@@ -210,8 +210,7 @@ impl Command for AddAnimationCommand {
                     .animations_mut()
                     .put_back(ticket, animation);
 
-                let old_selection =
-                    std::mem::replace(&mut context.editor_scene.selection, selection);
+                let old_selection = std::mem::replace(context.selection, selection);
 
                 *self = Self::Executed {
                     animation_player,
@@ -234,8 +233,7 @@ impl Command for AddAnimationCommand {
                     .animations_mut()
                     .take_reserve(animation);
 
-                let old_selection =
-                    std::mem::replace(&mut context.editor_scene.selection, selection);
+                let old_selection = std::mem::replace(context.selection, selection);
 
                 *self = Self::Reverted {
                     animation_player,

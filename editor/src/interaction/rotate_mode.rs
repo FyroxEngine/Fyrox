@@ -55,6 +55,7 @@ impl TypeUuidProvider for RotateInteractionMode {
 impl InteractionMode for RotateInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
@@ -85,7 +86,7 @@ impl InteractionMode for RotateInteractionMode {
                 .handle_pick(result.node, editor_scene, engine)
             {
                 let graph = &mut engine.scenes[editor_scene.scene].graph;
-                if let Selection::Graph(selection) = &editor_scene.selection {
+                if let Selection::Graph(selection) = editor_selection {
                     self.interacting = true;
                     self.initial_rotations = selection.local_rotations(graph);
                 }
@@ -95,6 +96,7 @@ impl InteractionMode for RotateInteractionMode {
 
     fn on_left_mouse_button_up(
         &mut self,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
@@ -106,7 +108,7 @@ impl InteractionMode for RotateInteractionMode {
         self.rotation_gizmo.reset_state(graph);
 
         if self.interacting {
-            if let Selection::Graph(selection) = &editor_scene.selection {
+            if let Selection::Graph(selection) = editor_selection {
                 if !selection.is_empty() {
                     self.interacting = false;
                     let current_rotation = selection.local_rotations(graph);
@@ -147,7 +149,7 @@ impl InteractionMode for RotateInteractionMode {
                 })
                 .map(|result| {
                     if let (Selection::Graph(selection), true) = (
-                        &editor_scene.selection,
+                        editor_selection,
                         engine.user_interface.keyboard_modifiers().control,
                     ) {
                         let mut selection = selection.clone();
@@ -159,11 +161,11 @@ impl InteractionMode for RotateInteractionMode {
                 })
                 .unwrap_or_else(|| Selection::Graph(GraphSelection::default()));
 
-            if new_selection != editor_scene.selection {
+            if &new_selection != editor_selection {
                 self.message_sender
                     .do_scene_command(ChangeSelectionCommand::new(
                         new_selection,
-                        editor_scene.selection.clone(),
+                        editor_selection.clone(),
                     ));
             }
         }
@@ -173,12 +175,13 @@ impl InteractionMode for RotateInteractionMode {
         &mut self,
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
-        if let Selection::Graph(selection) = &editor_scene.selection {
+        if let Selection::Graph(selection) = editor_selection {
             if self.interacting {
                 let rotation_delta = self.rotation_gizmo.calculate_rotation_delta(
                     editor_scene,
@@ -216,13 +219,14 @@ impl InteractionMode for RotateInteractionMode {
 
     fn update(
         &mut self,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         _settings: &Settings,
     ) {
-        if let Selection::Graph(selection) = &editor_scene.selection {
+        if let Selection::Graph(selection) = editor_selection {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
-            if editor_scene.selection.is_empty() || editor_scene.preview_camera.is_some() {
+            if editor_selection.is_empty() || editor_scene.preview_camera.is_some() {
                 self.rotation_gizmo.set_visible(graph, false);
             } else {
                 let scale = calculate_gizmo_distance_scaling(

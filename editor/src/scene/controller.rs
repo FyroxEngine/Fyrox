@@ -135,7 +135,7 @@ impl SceneController for EditorSceneEntry {
             .current_interaction_mode
             .and_then(|id| self.interaction_modes.map.get_mut(&id))
         {
-            if interaction_mode.on_key_down(key, &mut self.editor_scene, engine) {
+            if interaction_mode.on_key_down(key, &self.selection, &mut self.editor_scene, engine) {
                 return true;
             }
         }
@@ -164,6 +164,7 @@ impl SceneController for EditorSceneEntry {
             interaction_mode.on_mouse_move(
                 mouse_offset,
                 rel_pos,
+                &self.selection,
                 &mut self.editor_scene,
                 engine,
                 screen_bounds.size,
@@ -190,6 +191,7 @@ impl SceneController for EditorSceneEntry {
             {
                 let rel_pos = pos - screen_bounds.position;
                 interaction_mode.on_left_mouse_button_up(
+                    &self.selection,
                     &mut self.editor_scene,
                     engine,
                     rel_pos,
@@ -222,6 +224,7 @@ impl SceneController for EditorSceneEntry {
                 self.click_mouse_pos = Some(rel_pos);
 
                 interaction_mode.on_left_mouse_button_down(
+                    &self.selection,
                     &mut self.editor_scene,
                     engine,
                     rel_pos,
@@ -376,7 +379,7 @@ impl SceneController for EditorSceneEntry {
                         // We also want to select newly instantiated model.
                         SceneCommand::new(ChangeSelectionCommand::new(
                             Selection::Graph(GraphSelection::single_or_empty(preview.instance)),
-                            self.editor_scene.selection.clone(),
+                            self.selection.clone(),
                         )),
                     ];
 

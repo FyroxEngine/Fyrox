@@ -54,13 +54,14 @@ impl TypeUuidProvider for ScaleInteractionMode {
 impl InteractionMode for ScaleInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
-        if let Selection::Graph(selection) = &editor_scene.selection {
+        if let Selection::Graph(selection) = editor_selection {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
 
             // Pick gizmo nodes.
@@ -92,6 +93,7 @@ impl InteractionMode for ScaleInteractionMode {
 
     fn on_left_mouse_button_up(
         &mut self,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
@@ -103,7 +105,7 @@ impl InteractionMode for ScaleInteractionMode {
         self.scale_gizmo.reset_state(graph);
 
         if self.interacting {
-            if let Selection::Graph(selection) = &editor_scene.selection {
+            if let Selection::Graph(selection) = editor_selection {
                 if !selection.is_empty() {
                     self.interacting = false;
                     let current_scales = selection.local_scales(graph);
@@ -142,7 +144,7 @@ impl InteractionMode for ScaleInteractionMode {
                 })
                 .map(|result| {
                     if let (Selection::Graph(selection), true) = (
-                        &editor_scene.selection,
+                        editor_selection,
                         engine.user_interface.keyboard_modifiers().control,
                     ) {
                         let mut selection = selection.clone();
@@ -154,11 +156,11 @@ impl InteractionMode for ScaleInteractionMode {
                 })
                 .unwrap_or_else(|| Selection::Graph(GraphSelection::default()));
 
-            if new_selection != editor_scene.selection {
+            if &new_selection != editor_selection {
                 self.message_sender
                     .do_scene_command(ChangeSelectionCommand::new(
                         new_selection,
-                        editor_scene.selection.clone(),
+                        editor_selection.clone(),
                     ));
             }
         }
@@ -168,12 +170,13 @@ impl InteractionMode for ScaleInteractionMode {
         &mut self,
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        if let Selection::Graph(selection) = &editor_scene.selection {
+        if let Selection::Graph(selection) = editor_selection {
             if self.interacting {
                 let scale_delta = self.scale_gizmo.calculate_scale_delta(
                     editor_scene,
@@ -198,13 +201,14 @@ impl InteractionMode for ScaleInteractionMode {
 
     fn update(
         &mut self,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         _settings: &Settings,
     ) {
-        if let Selection::Graph(selection) = &editor_scene.selection {
+        if let Selection::Graph(selection) = editor_selection {
             let graph = &mut engine.scenes[editor_scene.scene].graph;
-            if editor_scene.selection.is_empty() || editor_scene.preview_camera.is_some() {
+            if editor_selection.is_empty() || editor_scene.preview_camera.is_some() {
                 self.scale_gizmo.set_visible(graph, false);
             } else {
                 let scale = calculate_gizmo_distance_scaling(

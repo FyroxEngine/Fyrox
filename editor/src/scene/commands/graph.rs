@@ -357,7 +357,7 @@ impl Command for AddNodeCommand {
 
         if self.select_added {
             self.prev_selection = std::mem::replace(
-                &mut context.editor_scene.selection,
+                context.selection,
                 Selection::Graph(GraphSelection::single_or_empty(self.handle)),
             );
             context.message_sender.send(Message::SelectionChanged {
@@ -375,10 +375,7 @@ impl Command for AddNodeCommand {
         self.node = Some(node);
 
         if self.select_added {
-            std::mem::swap(
-                &mut context.editor_scene.selection,
-                &mut self.prev_selection,
-            );
+            std::mem::swap(context.selection, &mut self.prev_selection);
             context.message_sender.send(Message::SelectionChanged {
                 old_selection: self.prev_selection.clone(),
             });

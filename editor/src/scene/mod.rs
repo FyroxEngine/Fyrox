@@ -42,7 +42,6 @@ pub struct EditorScene {
     // Handle to a root for all editor nodes.
     pub editor_objects_root: Handle<Node>,
     pub scene_content_root: Handle<Node>,
-    pub selection: Selection,
     pub clipboard: Clipboard,
     pub camera_controller: CameraController,
     pub preview_camera: Handle<Node>,
@@ -79,7 +78,6 @@ impl EditorScene {
             scene_content_root,
             camera_controller,
             scene: engine.scenes.add(scene),
-            selection: Default::default(),
             clipboard: Default::default(),
             preview_camera: Default::default(),
             graph_switches: GraphUpdateSwitches {
@@ -148,12 +146,13 @@ impl EditorScene {
 
     pub fn update(
         &mut self,
+        editor_selection: &Selection,
         engine: &mut Engine,
         dt: f32,
         path: Option<&Path>,
         settings: &mut Settings,
     ) {
-        self.draw_auxiliary_geometry(engine, settings);
+        self.draw_auxiliary_geometry(editor_selection, engine, settings);
 
         let scene = &mut engine.scenes[self.scene];
 
@@ -171,13 +170,18 @@ impl EditorScene {
             .update(&mut scene.graph, settings, path, dt);
     }
 
-    pub fn draw_auxiliary_geometry(&mut self, engine: &mut Engine, settings: &Settings) {
+    pub fn draw_auxiliary_geometry(
+        &mut self,
+        editor_selection: &Selection,
+        engine: &mut Engine,
+        settings: &Settings,
+    ) {
         let debug_settings = &settings.debugging;
         let scene = &mut engine.scenes[self.scene];
 
         scene.drawing_context.clear_lines();
 
-        if let Selection::Graph(selection) = &self.selection {
+        if let Selection::Graph(selection) = editor_selection {
             for &node in selection.nodes() {
                 let node = &scene.graph[node];
                 scene.drawing_context.draw_oob(
@@ -197,6 +201,7 @@ impl EditorScene {
             node: Handle<Node>,
             graph: &Graph,
             ctx: &mut SceneDrawingContext,
+            editor_selection: &Selection,
             editor_scene: &EditorScene,
             settings: &Settings,
         ) {
@@ -235,12 +240,11 @@ impl EditorScene {
                 }
             } else if let Some(navmesh) = node.query_component_ref::<NavigationalMesh>() {
                 if settings.navmesh.draw_all {
-                    let selection =
-                        if let Selection::Navmesh(ref selection) = editor_scene.selection {
-                            Some(selection)
-                        } else {
-                            None
-                        };
+                    let selection = if let Selection::Navmesh(ref selection) = editor_selection {
+                        Some(selection)
+                    } else {
+                        None
+                    };
 
                     for (index, vertex) in navmesh.navmesh_ref().vertices().iter().enumerate() {
                         ctx.draw_sphere(
@@ -279,7 +283,7 @@ impl EditorScene {
             }
 
             for &child in node.children() {
-                draw_recursively(child, graph, ctx, editor_scene, settings)
+                draw_recursively(child, graph, ctx, editor_selection, editor_scene, settings)
             }
         }
 
@@ -288,14 +292,19 @@ impl EditorScene {
             self.scene_content_root,
             &scene.graph,
             &mut scene.drawing_context,
+            editor_selection,
             self,
             settings,
         );
     }
 
     /// Checks whether the current graph selection has references to the nodes outside of the selection.
-    pub fn is_current_selection_has_external_refs(&self, graph: &Graph) -> bool {
-        if let Selection::Graph(selection) = &self.selection {
+    pub fn is_current_selection_has_external_refs(
+        &self,
+        editor_selection: &Selection,
+        graph: &Graph,
+    ) -> bool {
+        if let Selection::Graph(selection) = editor_selection {
             for node in selection.nodes() {
                 for descendant in graph.traverse_handle_iter(*node) {
                     for reference in graph.find_references_to(descendant) {

@@ -13,7 +13,7 @@ use crate::{
     message::MessageSender,
     scene::{
         commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
-        EditorScene, Selection,
+        Selection,
     },
 };
 use fyrox::{
@@ -201,7 +201,7 @@ impl NodeContextMenu {
         absm_node_handle: Handle<Node>,
         absm_node: &AnimationBlendingStateMachine,
         layer_index: usize,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
     ) {
         let machine = absm_node.machine();
         if let Some(MenuItemMessage::Click) = message.data() {
@@ -216,7 +216,7 @@ impl NodeContextMenu {
                     },
                 ))
             } else if message.destination == self.remove {
-                if let Selection::Absm(ref selection) = editor_scene.selection {
+                if let Selection::Absm(ref selection) = editor_selection {
                     let states_to_remove = selection
                         .entities
                         .iter()
@@ -250,7 +250,7 @@ impl NodeContextMenu {
 
                     let mut group = vec![SceneCommand::new(ChangeSelectionCommand::new(
                         Selection::Absm(new_selection),
-                        editor_scene.selection.clone(),
+                        editor_selection.clone(),
                     ))];
 
                     group.extend(transitions_to_remove.map(|transition| {
@@ -347,11 +347,11 @@ impl TransitionContextMenu {
         sender: &MessageSender,
         absm_node_handle: Handle<Node>,
         layer_index: usize,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination == self.remove {
-                if let Selection::Absm(ref selection) = editor_scene.selection {
+                if let Selection::Absm(ref selection) = editor_selection {
                     let mut new_selection = selection.clone();
                     new_selection.entities.clear();
 
@@ -363,7 +363,7 @@ impl TransitionContextMenu {
                     let group = vec![
                         SceneCommand::new(ChangeSelectionCommand::new(
                             Selection::Absm(new_selection),
-                            editor_scene.selection.clone(),
+                            editor_selection.clone(),
                         )),
                         SceneCommand::new(DeleteTransitionCommand::new(
                             absm_node_handle,

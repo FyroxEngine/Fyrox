@@ -1,3 +1,4 @@
+use crate::scene::Selection;
 use crate::{
     command::CommandStack,
     interaction::{
@@ -27,6 +28,7 @@ pub struct PreviewInstance {
 pub struct EditorSceneEntry {
     pub has_unsaved_changes: bool,
     pub path: Option<PathBuf>,
+    pub selection: Selection,
     pub editor_scene: EditorScene,
     pub command_stack: CommandStack,
     pub interaction_modes: InteractionModeContainer,
@@ -229,6 +231,7 @@ impl SceneContainer {
             sender: message_sender,
             id: Uuid::new_v4(),
             path,
+            selection: Default::default(),
         };
 
         entry.set_interaction_mode(engine, Some(MoveInteractionMode::type_uuid()));

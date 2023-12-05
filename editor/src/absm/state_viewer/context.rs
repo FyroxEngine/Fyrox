@@ -15,7 +15,7 @@ use crate::{
     message::MessageSender,
     scene::{
         commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
-        EditorScene, Selection,
+        Selection,
     },
 };
 use fyrox::{
@@ -224,19 +224,19 @@ impl NodeContextMenu {
         machine_layer: &MachineLayer,
         sender: &MessageSender,
         ui: &UserInterface,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
         absm_node_handle: Handle<Node>,
         layer_index: usize,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.remove {
-                if let Selection::Absm(ref selection) = editor_scene.selection {
+                if let Selection::Absm(ref selection) = editor_selection {
                     let mut new_selection = selection.clone();
                     new_selection.entities.clear();
 
                     let mut group = vec![SceneCommand::new(ChangeSelectionCommand::new(
                         Selection::Absm(new_selection),
-                        editor_scene.selection.clone(),
+                        editor_selection.clone(),
                     ))];
 
                     group.extend(selection.entities.iter().filter_map(|entry| {

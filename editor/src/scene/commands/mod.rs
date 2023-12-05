@@ -44,6 +44,7 @@ macro_rules! get_set_swap {
 }
 
 pub struct SceneContext<'a> {
+    pub selection: &'a mut Selection,
     pub editor_scene: &'a mut EditorScene,
     pub scene: &'a mut Scene,
     pub message_sender: MessageSender,
@@ -138,9 +139,12 @@ impl Command for CommandGroup {
     }
 }
 
-pub fn selection_to_delete(editor_scene: &EditorScene) -> GraphSelection {
+pub fn selection_to_delete(
+    editor_selection: &Selection,
+    editor_scene: &EditorScene,
+) -> GraphSelection {
     // Graph's root is non-deletable.
-    let mut selection = if let Selection::Graph(selection) = &editor_scene.selection {
+    let mut selection = if let Selection::Graph(selection) = editor_selection {
         selection.clone()
     } else {
         Default::default()
@@ -159,8 +163,12 @@ pub fn selection_to_delete(editor_scene: &EditorScene) -> GraphSelection {
 /// Creates scene command (command group) which removes current selection in editor's scene.
 /// This is **not** trivial because each node has multiple connections inside engine and
 /// in editor's data model, so we have to thoroughly build command using simple commands.
-pub fn make_delete_selection_command(editor_scene: &EditorScene, engine: &Engine) -> SceneCommand {
-    let selection = selection_to_delete(editor_scene);
+pub fn make_delete_selection_command(
+    editor_selection: &Selection,
+    editor_scene: &EditorScene,
+    engine: &Engine,
+) -> SceneCommand {
+    let selection = selection_to_delete(editor_selection, editor_scene);
 
     let graph = &engine.scenes[editor_scene.scene].graph;
 
@@ -228,8 +236,8 @@ impl Command for ChangeSelectionCommand {
     fn execute(&mut self, context: &mut SceneContext) {
         let old_selection = self.old_selection.clone();
         let new_selection = self.swap();
-        if new_selection != context.editor_scene.selection {
-            context.editor_scene.selection = new_selection;
+        if &new_selection != context.selection {
+            *context.selection = new_selection;
             context
                 .message_sender
                 .send(Message::SelectionChanged { old_selection });
@@ -239,8 +247,8 @@ impl Command for ChangeSelectionCommand {
     fn revert(&mut self, context: &mut SceneContext) {
         let old_selection = self.old_selection.clone();
         let new_selection = self.swap();
-        if new_selection != context.editor_scene.selection {
-            context.editor_scene.selection = new_selection;
+        if &new_selection != context.selection {
+            *context.selection = new_selection;
             context
                 .message_sender
                 .send(Message::SelectionChanged { old_selection });
@@ -296,7 +304,7 @@ impl Command for PasteCommand {
 
                 let mut selection =
                     Selection::Graph(GraphSelection::from_list(paste_result.root_nodes.clone()));
-                std::mem::swap(&mut context.editor_scene.selection, &mut selection);
+                std::mem::swap(context.selection, &mut selection);
 
                 self.state = PasteCommandState::Executed {
                     paste_result,
@@ -321,7 +329,7 @@ impl Command for PasteCommand {
                     context.scene.graph.link_nodes(handle, self.parent);
                 }
 
-                std::mem::swap(&mut context.editor_scene.selection, &mut selection);
+                std::mem::swap(context.selection, &mut selection);
                 self.state = PasteCommandState::Executed {
                     paste_result,
                     last_selection: selection,
@@ -342,7 +350,7 @@ impl Command for PasteCommand {
                 subgraphs.push(context.scene.graph.take_reserve_sub_graph(root_node));
             }
 
-            std::mem::swap(&mut context.editor_scene.selection, &mut last_selection);
+            std::mem::swap(context.selection, &mut last_selection);
 
             self.state = PasteCommandState::Reverted {
                 subgraphs,

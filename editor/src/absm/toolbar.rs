@@ -164,12 +164,13 @@ impl Toolbar {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
+        editor_selection: &Selection,
         editor_scene: &EditorScene,
         sender: &MessageSender,
         graph: &Graph,
         ui: &mut UserInterface,
     ) -> ToolbarAction {
-        let selection = fetch_selection(&editor_scene.selection);
+        let selection = fetch_selection(editor_selection);
 
         if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
             if message.destination() == self.preview
@@ -190,7 +191,7 @@ impl Toolbar {
                 new_selection.entities.clear();
                 sender.do_scene_command(ChangeSelectionCommand::new(
                     Selection::Absm(new_selection),
-                    editor_scene.selection.clone(),
+                    editor_selection.clone(),
                 ));
             }
         } else if let Some(TextMessage::Text(text)) = message.data() {
@@ -307,7 +308,7 @@ impl Toolbar {
                                 },
                                 entities: vec![],
                             }),
-                            editor_scene.selection.clone(),
+                            editor_selection.clone(),
                         )));
 
                         commands.push(SceneCommand::new(RemoveLayerCommand::new(

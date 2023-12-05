@@ -244,7 +244,7 @@ impl AudioPanel {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
         sender: &MessageSender,
         engine: &Engine,
     ) {
@@ -254,10 +254,10 @@ impl AudioPanel {
                     "AudioBus".to_string(),
                 )))
             } else if message.destination() == self.remove_bus {
-                if let Selection::AudioBus(ref selection) = editor_scene.selection {
+                if let Selection::AudioBus(ref selection) = editor_selection {
                     let mut commands = vec![SceneCommand::new(ChangeSelectionCommand::new(
                         Selection::None,
-                        editor_scene.selection.clone(),
+                        editor_selection.clone(),
                     ))];
 
                     for &bus in &selection.buses {
@@ -285,7 +285,7 @@ impl AudioPanel {
                     Selection::AudioBus(AudioBusSelection {
                         buses: vec![effect],
                     }),
-                    editor_scene.selection.clone(),
+                    editor_selection.clone(),
                 ))
             }
         } else if let Some(AudioBusViewMessage::ChangeParent(new_parent)) = message.data() {
@@ -336,7 +336,12 @@ impl AudioPanel {
         }
     }
 
-    pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
+    pub fn sync_to_model(
+        &mut self,
+        editor_selection: &Selection,
+        editor_scene: &EditorScene,
+        engine: &mut Engine,
+    ) {
         let context_state = engine.scenes[editor_scene.scene]
             .graph
             .sound_context
@@ -406,7 +411,7 @@ impl AudioPanel {
         let mut selection_index = None;
         let mut is_primary_bus_selected = false;
 
-        if let Selection::AudioBus(ref selection) = editor_scene.selection {
+        if let Selection::AudioBus(ref selection) = editor_selection {
             for (index, item) in items.into_iter().enumerate() {
                 let bus_handle = item_bus(item, ui);
 

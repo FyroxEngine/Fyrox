@@ -64,12 +64,13 @@ impl EditMenu {
         &mut self,
         message: &UiMessage,
         sender: &MessageSender,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
     ) {
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.copy {
-                if let Selection::Graph(selection) = &editor_scene.selection {
+                if let Selection::Graph(selection) = editor_selection {
                     editor_scene.clipboard.fill_from_selection(
                         selection,
                         editor_scene.scene,

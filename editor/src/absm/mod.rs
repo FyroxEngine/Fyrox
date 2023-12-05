@@ -237,9 +237,14 @@ impl AbsmEditor {
         self.parameter_panel.sync_to_model(ui, absm_node);
     }
 
-    pub fn try_leave_preview_mode(&mut self, editor_scene: &mut EditorScene, engine: &mut Engine) {
+    pub fn try_leave_preview_mode(
+        &mut self,
+        editor_selection: &Selection,
+        editor_scene: &mut EditorScene,
+        engine: &mut Engine,
+    ) {
         if self.preview_mode_data.is_some() {
-            let selection = fetch_selection(&editor_scene.selection);
+            let selection = fetch_selection(editor_selection);
 
             let scene = &mut engine.scenes[editor_scene.scene];
 
@@ -269,6 +274,7 @@ impl AbsmEditor {
     pub fn handle_message(
         &mut self,
         message: &Message,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
     ) {
@@ -276,14 +282,19 @@ impl AbsmEditor {
         if let Message::DoSceneCommand(_) | Message::UndoSceneCommand | Message::RedoSceneCommand =
             message
         {
-            self.try_leave_preview_mode(editor_scene, engine);
+            self.try_leave_preview_mode(editor_selection, editor_scene, engine);
         }
     }
 
-    pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
+    pub fn sync_to_model(
+        &mut self,
+        editor_selection: &Selection,
+        editor_scene: &EditorScene,
+        engine: &mut Engine,
+    ) {
         let prev_absm = self.prev_absm;
 
-        let selection = fetch_selection(&editor_scene.selection);
+        let selection = fetch_selection(editor_selection);
 
         let ui = &mut engine.user_interface;
         let scene = &engine.scenes[editor_scene.scene];
@@ -305,11 +316,11 @@ impl AbsmEditor {
                 let machine = absm_node.machine();
                 if let Some(layer) = machine.layers().get(layer_index) {
                     self.state_graph_viewer
-                        .sync_to_model(layer, ui, editor_scene);
+                        .sync_to_model(layer, ui, editor_selection);
                     self.state_viewer.sync_to_model(
                         ui,
                         layer,
-                        editor_scene,
+                        editor_selection,
                         absm_node,
                         &scene.graph,
                     );
@@ -340,13 +351,23 @@ impl AbsmEditor {
         ));
     }
 
-    pub fn update(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
-        self.handle_machine_events(editor_scene, engine);
+    pub fn update(
+        &mut self,
+        editor_selection: &Selection,
+        editor_scene: &EditorScene,
+        engine: &mut Engine,
+    ) {
+        self.handle_machine_events(editor_selection, editor_scene, engine);
     }
 
-    pub fn handle_machine_events(&self, editor_scene: &EditorScene, engine: &mut Engine) {
+    pub fn handle_machine_events(
+        &self,
+        editor_selection: &Selection,
+        editor_scene: &EditorScene,
+        engine: &mut Engine,
+    ) {
         let scene = &mut engine.scenes[editor_scene.scene];
-        let selection = fetch_selection(&editor_scene.selection);
+        let selection = fetch_selection(editor_selection);
 
         if let Some(absm) = scene
             .graph
@@ -380,11 +401,12 @@ impl AbsmEditor {
         message: &UiMessage,
         engine: &mut Engine,
         sender: &MessageSender,
+        editor_selection: &Selection,
         editor_scene: &mut EditorScene,
     ) {
         let scene = &mut engine.scenes[editor_scene.scene];
         let ui = &mut engine.user_interface;
-        let selection = fetch_selection(&editor_scene.selection);
+        let selection = fetch_selection(editor_selection);
 
         if let Some(absm_node) = scene
             .graph
@@ -399,7 +421,7 @@ impl AbsmEditor {
                     selection.absm_node_handle,
                     absm_node,
                     layer_index,
-                    editor_scene,
+                    editor_selection,
                 );
                 self.state_graph_viewer.handle_ui_message(
                     message,
@@ -408,7 +430,7 @@ impl AbsmEditor {
                     selection.absm_node_handle,
                     absm_node,
                     layer_index,
-                    editor_scene,
+                    editor_selection,
                 );
                 self.blend_space_editor.handle_ui_message(
                     &selection,
@@ -427,9 +449,14 @@ impl AbsmEditor {
                 self.preview_mode_data.is_some(),
             );
 
-            let action =
-                self.toolbar
-                    .handle_ui_message(message, editor_scene, sender, &scene.graph, ui);
+            let action = self.toolbar.handle_ui_message(
+                message,
+                editor_selection,
+                editor_scene,
+                sender,
+                &scene.graph,
+                ui,
+            );
 
             let absm_node = scene
                 .graph
