@@ -34,6 +34,7 @@ pub mod settings;
 
 #[macro_use]
 pub mod commands;
+pub mod controller;
 
 pub struct EditorScene {
     pub has_unsaved_changes: bool,

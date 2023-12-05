@@ -55,7 +55,6 @@ use crate::{
         scale_mode::ScaleInteractionMode,
         select_mode::SelectInteractionMode,
         terrain::TerrainInteractionMode,
-        InteractionMode,
     },
     light::LightPanel,
     log::LogPanel,
@@ -67,8 +66,8 @@ use crate::{
     plugin::EditorPlugin,
     scene::{
         commands::{
-            graph::AddModelCommand, make_delete_selection_command, mesh::SetMeshTextureCommand,
-            ChangeSelectionCommand, CommandGroup, PasteCommand, SceneCommand, SceneContext,
+            make_delete_selection_command, ChangeSelectionCommand, CommandGroup, PasteCommand,
+            SceneCommand, SceneContext,
         },
         dialog::NodeRemovalDialog,
         selector::HierarchyNode,
@@ -85,6 +84,7 @@ use crate::{
 };
 use fyrox::core::uuid::Uuid;
 use fyrox::core::TypeUuidProvider;
+use fyrox::fxhash::FxHashSet;
 use fyrox::{
     asset::{io::FsResourceIo, manager::ResourceManager},
     core::{
@@ -441,11 +441,20 @@ impl SaveSceneConfirmationDialog {
     }
 }
 
+pub struct PreviewInstance {
+    instance: Handle<Node>,
+    nodes: FxHashSet<Handle<Node>>,
+}
+
 pub struct EditorSceneEntry {
     pub editor_scene: EditorScene,
     pub command_stack: CommandStack,
     pub interaction_modes: InteractionModeContainer,
     pub current_interaction_mode: Option<Uuid>,
+    pub preview_instance: Option<PreviewInstance>,
+    pub last_mouse_pos: Option<Vector2<f32>>,
+    pub click_mouse_pos: Option<Vector2<f32>>,
+    pub sender: MessageSender,
 }
 
 impl EditorSceneEntry {
@@ -473,7 +482,7 @@ impl EditorSceneEntry {
         }
     }
 
-    fn on_drop(&mut self, engine: &mut Engine) {
+    fn before_drop(&mut self, engine: &mut Engine) {
         for (_, mut interaction_mode) in self.interaction_modes.map.drain() {
             interaction_mode.on_drop(engine);
         }
@@ -614,7 +623,7 @@ impl SceneContainer {
         interaction_modes.add(TerrainInteractionMode::new(
             &editor_scene,
             engine,
-            message_sender,
+            message_sender.clone(),
             scene_viewer.frame(),
         ));
 
@@ -623,6 +632,10 @@ impl SceneContainer {
             editor_scene,
             command_stack: CommandStack::new(false),
             current_interaction_mode: None,
+            preview_instance: None,
+            last_mouse_pos: None,
+            click_mouse_pos: None,
+            sender: message_sender,
         };
 
         entry.set_interaction_mode(engine, Some(MoveInteractionMode::type_uuid()));
@@ -1993,7 +2006,7 @@ impl Editor {
             self.scene_viewer
                 .set_title(&engine.user_interface, "Scene Preview".to_string());
 
-            editor_scene_entry.on_drop(engine);
+            editor_scene_entry.before_drop(engine);
 
             self.on_scene_changed();
 
