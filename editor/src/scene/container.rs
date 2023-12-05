@@ -1,6 +1,4 @@
-use crate::scene::Selection;
 use crate::{
-    command::CommandStack,
     interaction::{
         move_mode::MoveInteractionMode, navmesh::EditNavmeshMode,
         rotate_mode::RotateInteractionMode, scale_mode::ScaleInteractionMode,
@@ -8,7 +6,7 @@ use crate::{
         InteractionModeContainer,
     },
     message::MessageSender,
-    scene::EditorScene,
+    scene::{EditorScene, Selection},
     scene_viewer::SceneViewer,
     settings::Settings,
 };
@@ -30,7 +28,6 @@ pub struct EditorSceneEntry {
     pub path: Option<PathBuf>,
     pub selection: Selection,
     pub editor_scene: EditorScene,
-    pub command_stack: CommandStack,
     pub interaction_modes: InteractionModeContainer,
     pub current_interaction_mode: Option<Uuid>,
     pub preview_instance: Option<PreviewInstance>,
@@ -223,7 +220,7 @@ impl SceneContainer {
             has_unsaved_changes: false,
             interaction_modes,
             editor_scene,
-            command_stack: CommandStack::new(false),
+
             current_interaction_mode: None,
             preview_instance: None,
             last_mouse_pos: None,

@@ -1530,7 +1530,7 @@ impl Editor {
             self.navmesh_panel
                 .sync_to_model(engine, &current_scene_entry.selection, editor_scene);
             self.command_stack_viewer.sync_to_model(
-                &mut current_scene_entry.command_stack,
+                &mut editor_scene.command_stack,
                 &SceneContext {
                     selection: &mut current_scene_entry.selection,
                     scene: &mut engine.scenes[editor_scene.scene],
@@ -1602,7 +1602,7 @@ impl Editor {
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
             let editor_scene = &mut current_scene_entry.editor_scene;
 
-            current_scene_entry.command_stack.do_command(
+            editor_scene.command_stack.do_command(
                 command.into_inner(),
                 SceneContext {
                     selection: &mut current_scene_entry.selection,
@@ -1628,7 +1628,7 @@ impl Editor {
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
             let editor_scene = &mut current_scene_entry.editor_scene;
 
-            current_scene_entry.command_stack.undo(SceneContext {
+            editor_scene.command_stack.undo(SceneContext {
                 selection: &mut current_scene_entry.selection,
                 scene: &mut engine.scenes[editor_scene.scene],
                 message_sender: self.message_sender.clone(),
@@ -1651,7 +1651,7 @@ impl Editor {
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
             let editor_scene = &mut current_scene_entry.editor_scene;
 
-            current_scene_entry.command_stack.redo(SceneContext {
+            editor_scene.command_stack.redo(SceneContext {
                 selection: &mut current_scene_entry.selection,
                 scene: &mut engine.scenes[editor_scene.scene],
                 message_sender: self.message_sender.clone(),
@@ -1674,7 +1674,7 @@ impl Editor {
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
             let editor_scene = &mut current_scene_entry.editor_scene;
 
-            current_scene_entry.command_stack.clear(SceneContext {
+            editor_scene.command_stack.clear(SceneContext {
                 selection: &mut current_scene_entry.selection,
                 scene: &mut engine.scenes[editor_scene.scene],
                 message_sender: self.message_sender.clone(),

@@ -1,12 +1,13 @@
 use crate::{
     absm::selection::AbsmSelection, animation::selection::AnimationSelection,
-    audio::AudioBusSelection, camera::CameraController,
+    audio::AudioBusSelection, camera::CameraController, command::CommandStack,
     interaction::navmesh::selection::NavmeshSelection, scene::clipboard::Clipboard,
     world::graph::selection::GraphSelection, Settings,
 };
-use fyrox::core::log::Log;
 use fyrox::{
-    core::{color::Color, math::aabb::AxisAlignedBoundingBox, pool::Handle, visitor::Visitor},
+    core::{
+        color::Color, log::Log, math::aabb::AxisAlignedBoundingBox, pool::Handle, visitor::Visitor,
+    },
     engine::Engine,
     scene::{
         base::BaseBuilder,
@@ -22,9 +23,7 @@ use fyrox::{
         Scene,
     },
 };
-use std::fs::File;
-use std::io::Write;
-use std::path::Path;
+use std::{fs::File, io::Write, path::Path};
 
 pub mod clipboard;
 pub mod dialog;
@@ -46,6 +45,7 @@ pub struct EditorScene {
     pub camera_controller: CameraController,
     pub preview_camera: Handle<Node>,
     pub graph_switches: GraphUpdateSwitches,
+    pub command_stack: CommandStack,
 }
 
 impl EditorScene {
@@ -77,6 +77,7 @@ impl EditorScene {
             editor_objects_root,
             scene_content_root,
             camera_controller,
+            command_stack: CommandStack::new(false),
             scene: engine.scenes.add(scene),
             clipboard: Default::default(),
             preview_camera: Default::default(),
