@@ -12,13 +12,9 @@ use crate::{
     world::graph::selection::GraphSelection,
     Engine,
 };
-use fyrox::{
-    core::{
-        algebra::{UnitQuaternion, Vector2},
-        math::round_to_step,
-        pool::Handle,
-    },
-    scene::node::Node,
+use fyrox::core::{
+    algebra::{UnitQuaternion, Vector2},
+    math::round_to_step,
 };
 
 pub struct RotateInteractionMode {
@@ -164,7 +160,6 @@ impl InteractionMode for RotateInteractionMode {
         &mut self,
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
-        camera: Handle<Node>,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         frame_size: Vector2<f32>,
@@ -174,7 +169,7 @@ impl InteractionMode for RotateInteractionMode {
             if self.interacting {
                 let rotation_delta = self.rotation_gizmo.calculate_rotation_delta(
                     editor_scene,
-                    camera,
+                    editor_scene.camera_controller.camera,
                     mouse_offset,
                     mouse_position,
                     engine,
@@ -209,7 +204,6 @@ impl InteractionMode for RotateInteractionMode {
     fn update(
         &mut self,
         editor_scene: &mut EditorScene,
-        camera: Handle<Node>,
         engine: &mut Engine,
         _settings: &Settings,
     ) {
@@ -218,8 +212,11 @@ impl InteractionMode for RotateInteractionMode {
             if editor_scene.selection.is_empty() || editor_scene.preview_camera.is_some() {
                 self.rotation_gizmo.set_visible(graph, false);
             } else {
-                let scale =
-                    calculate_gizmo_distance_scaling(graph, camera, self.rotation_gizmo.origin);
+                let scale = calculate_gizmo_distance_scaling(
+                    graph,
+                    editor_scene.camera_controller.camera,
+                    self.rotation_gizmo.origin,
+                );
                 self.rotation_gizmo.sync_transform(graph, selection, scale);
                 self.rotation_gizmo.set_visible(graph, true);
             }

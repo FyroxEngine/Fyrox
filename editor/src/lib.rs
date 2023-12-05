@@ -2422,7 +2422,6 @@ impl Editor {
             if let Some(mode) = editor_scene_entry.current_interaction_mode {
                 editor_scene_entry.interaction_modes[mode as usize].update(
                     editor_scene,
-                    editor_scene.camera_controller.camera,
                     &mut self.engine,
                     &self.settings,
                 );

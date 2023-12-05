@@ -405,7 +405,6 @@ impl InteractionMode for MoveInteractionMode {
         &mut self,
         _mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
-        _camera: Handle<Node>,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         frame_size: Vector2<f32>,
@@ -428,7 +427,6 @@ impl InteractionMode for MoveInteractionMode {
     fn update(
         &mut self,
         editor_scene: &mut EditorScene,
-        camera: Handle<Node>,
         engine: &mut Engine,
         _settings: &Settings,
     ) {
@@ -437,7 +435,11 @@ impl InteractionMode for MoveInteractionMode {
         if editor_scene.selection.is_empty() || editor_scene.preview_camera.is_some() {
             self.move_gizmo.set_visible(graph, false);
         } else {
-            let scale = calculate_gizmo_distance_scaling(graph, camera, self.move_gizmo.origin);
+            let scale = calculate_gizmo_distance_scaling(
+                graph,
+                editor_scene.camera_controller.camera,
+                self.move_gizmo.origin,
+            );
             self.move_gizmo.set_visible(graph, true);
             self.move_gizmo
                 .sync_transform(scene, &editor_scene.selection, scale);

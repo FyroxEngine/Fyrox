@@ -40,7 +40,7 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Orientation, Thickness, UiNode, UserInterface,
     },
-    scene::{camera::Camera, navmesh::NavigationalMesh, node::Node},
+    scene::{camera::Camera, navmesh::NavigationalMesh},
 };
 use std::collections::HashMap;
 
@@ -362,7 +362,6 @@ impl InteractionMode for EditNavmeshMode {
         &mut self,
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
-        camera: Handle<Node>,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         frame_size: Vector2<f32>,
@@ -374,7 +373,7 @@ impl InteractionMode for EditNavmeshMode {
 
         let offset = self.move_gizmo.calculate_offset(
             editor_scene,
-            camera,
+            editor_scene.camera_controller.camera,
             mouse_offset,
             mouse_position,
             engine,
@@ -434,17 +433,15 @@ impl InteractionMode for EditNavmeshMode {
         }
     }
 
-    fn update(
-        &mut self,
-        editor_scene: &mut EditorScene,
-        camera: Handle<Node>,
-        engine: &mut Engine,
-        settings: &Settings,
-    ) {
+    fn update(&mut self, editor_scene: &mut EditorScene, engine: &mut Engine, settings: &Settings) {
         let scene = &mut engine.scenes[editor_scene.scene];
         self.move_gizmo.set_visible(&mut scene.graph, false);
 
-        let scale = calculate_gizmo_distance_scaling(&scene.graph, camera, self.move_gizmo.origin);
+        let scale = calculate_gizmo_distance_scaling(
+            &scene.graph,
+            editor_scene.camera_controller.camera,
+            self.move_gizmo.origin,
+        );
 
         if let Some(selection) = fetch_selection(&editor_scene.selection) {
             if let Some(navmesh) = scene

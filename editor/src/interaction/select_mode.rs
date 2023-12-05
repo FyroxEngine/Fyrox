@@ -135,7 +135,6 @@ impl InteractionMode for SelectInteractionMode {
         &mut self,
         _mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
-        _camera: Handle<Node>,
         _editor_scene: &mut EditorScene,
         engine: &mut Engine,
         _frame_size: Vector2<f32>,
@@ -177,7 +176,6 @@ impl InteractionMode for SelectInteractionMode {
     fn update(
         &mut self,
         _editor_scene: &mut EditorScene,
-        _camera: Handle<Node>,
         _engine: &mut Engine,
         _settings: &Settings,
     ) {

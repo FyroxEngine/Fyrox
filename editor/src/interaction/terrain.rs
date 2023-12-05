@@ -236,7 +236,6 @@ impl InteractionMode for TerrainInteractionMode {
         &mut self,
         _mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
-        camera: Handle<Node>,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         frame_size: Vector2<f32>,
@@ -247,7 +246,7 @@ impl InteractionMode for TerrainInteractionMode {
                 let graph = &mut engine.scenes[editor_scene.scene].graph;
                 let handle = selection.nodes()[0];
 
-                let camera = &graph[camera];
+                let camera = &graph[editor_scene.camera_controller.camera];
                 if let Some(camera) = camera.cast::<Camera>() {
                     let ray = camera.make_ray(mouse_position, frame_size);
                     if let Some(terrain) = graph[handle].cast_mut::<Terrain>() {

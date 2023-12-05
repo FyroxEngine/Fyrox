@@ -1111,7 +1111,6 @@ impl SceneViewer {
             interaction_mode.on_mouse_move(
                 mouse_offset,
                 rel_pos,
-                editor_scene.camera_controller.camera,
                 editor_scene,
                 engine,
                 screen_bounds.size,

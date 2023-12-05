@@ -12,13 +12,7 @@ use crate::{
     world::graph::selection::GraphSelection,
     Engine,
 };
-use fyrox::{
-    core::{
-        algebra::{Vector2, Vector3},
-        pool::Handle,
-    },
-    scene::node::Node,
-};
+use fyrox::core::algebra::{Vector2, Vector3};
 
 pub struct ScaleInteractionMode {
     initial_scales: Vec<Vector3<f32>>,
@@ -159,7 +153,6 @@ impl InteractionMode for ScaleInteractionMode {
         &mut self,
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
-        camera: Handle<Node>,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         frame_size: Vector2<f32>,
@@ -169,7 +162,7 @@ impl InteractionMode for ScaleInteractionMode {
             if self.interacting {
                 let scale_delta = self.scale_gizmo.calculate_scale_delta(
                     editor_scene,
-                    camera,
+                    editor_scene.camera_controller.camera,
                     mouse_offset,
                     mouse_position,
                     engine,
@@ -191,7 +184,6 @@ impl InteractionMode for ScaleInteractionMode {
     fn update(
         &mut self,
         editor_scene: &mut EditorScene,
-        camera: Handle<Node>,
         engine: &mut Engine,
         _settings: &Settings,
     ) {
@@ -200,8 +192,11 @@ impl InteractionMode for ScaleInteractionMode {
             if editor_scene.selection.is_empty() || editor_scene.preview_camera.is_some() {
                 self.scale_gizmo.set_visible(graph, false);
             } else {
-                let scale =
-                    calculate_gizmo_distance_scaling(graph, camera, self.scale_gizmo.origin);
+                let scale = calculate_gizmo_distance_scaling(
+                    graph,
+                    editor_scene.camera_controller.camera,
+                    self.scale_gizmo.origin,
+                );
                 self.scale_gizmo.sync_transform(graph, selection, scale);
                 self.scale_gizmo.set_visible(graph, true);
             }

@@ -59,7 +59,6 @@ pub trait InteractionMode: BaseInteractionMode {
         &mut self,
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
-        camera: Handle<Node>,
         editor_scene: &mut EditorScene,
         engine: &mut Engine,
         frame_size: Vector2<f32>,
@@ -69,7 +68,6 @@ pub trait InteractionMode: BaseInteractionMode {
     fn update(
         &mut self,
         #[allow(unused_variables)] editor_scene: &mut EditorScene,
-        #[allow(unused_variables)] camera: Handle<Node>,
         #[allow(unused_variables)] engine: &mut Engine,
         #[allow(unused_variables)] settings: &Settings,
     ) {
