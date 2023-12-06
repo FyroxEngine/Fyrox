@@ -1,3 +1,5 @@
+use crate::inspector::editors::handle::HandlePropertyEditorMessage;
+use crate::scene::selector::HierarchyNode;
 use crate::{
     absm::selection::AbsmSelection,
     animation::selection::AnimationSelection,
@@ -19,6 +21,7 @@ use crate::{
     world::graph::selection::GraphSelection,
     Message, Settings,
 };
+use fyrox::gui::message::MessageDirection;
 use fyrox::{
     core::{
         algebra::{Vector2, Vector3},
@@ -27,7 +30,7 @@ use fyrox::{
         log::Log,
         make_relative_path,
         math::{aabb::AxisAlignedBoundingBox, plane::Plane, Rect},
-        pool::Handle,
+        pool::{ErasedHandle, Handle},
         visitor::Visitor,
     },
     engine::Engine,
@@ -54,7 +57,12 @@ use fyrox::{
         Scene,
     },
 };
-use std::{any::Any, fs::File, io::Write, path::Path};
+use std::{
+    any::{Any, TypeId},
+    fs::File,
+    io::Write,
+    path::Path,
+};
 
 pub mod clipboard;
 pub mod dialog;
@@ -372,6 +380,36 @@ impl EditorScene {
             }
         } else {
             Log::warn("Unable to selection to prefab, because selection is not scene selection!");
+        }
+    }
+
+    fn select_object(
+        &mut self,
+        type_id: TypeId,
+        handle: ErasedHandle,
+        engine: &Engine,
+        selection: &Selection,
+    ) {
+        let new_selection = if type_id == TypeId::of::<Node>() {
+            if engine.scenes[self.scene]
+                .graph
+                .is_valid_handle(handle.into())
+            {
+                Some(Selection::Graph(GraphSelection::single_or_empty(
+                    handle.into(),
+                )))
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        if let Some(new_selection) = new_selection {
+            self.sender.do_scene_command(ChangeSelectionCommand::new(
+                new_selection,
+                selection.clone(),
+            ))
         }
     }
 }
@@ -795,6 +833,47 @@ impl SceneController for EditorScene {
         match message {
             Message::SaveSelectionAsPrefab(path) => {
                 self.try_save_selection_as_prefab(path, selection, engine);
+                false
+            }
+            Message::SetEditorCameraProjection(projection) => {
+                self.camera_controller
+                    .set_projection(&mut engine.scenes[self.scene].graph, projection.clone());
+
+                false
+            }
+            Message::SelectObject { type_id, handle } => {
+                self.select_object(*type_id, *handle, engine, selection);
+                false
+            }
+            Message::FocusObject(handle) => {
+                let scene = &mut engine.scenes[self.scene];
+                self.camera_controller.fit_object(scene, *handle);
+                false
+            }
+            Message::SyncNodeHandleName { view, handle } => {
+                let scene = &engine.scenes[self.scene];
+                engine
+                    .user_interface
+                    .send_message(HandlePropertyEditorMessage::name(
+                        *view,
+                        MessageDirection::ToWidget,
+                        scene.graph.try_get(*handle).map(|n| n.name_owned()),
+                    ));
+                false
+            }
+            Message::ProvideSceneHierarchy { view } => {
+                let scene = &engine.scenes[self.scene];
+                engine
+                    .user_interface
+                    .send_message(HandlePropertyEditorMessage::hierarchy(
+                        *view,
+                        MessageDirection::ToWidget,
+                        HierarchyNode::from_scene_node(
+                            self.scene_content_root,
+                            Handle::NONE,
+                            &scene.graph,
+                        ),
+                    ));
                 false
             }
             _ => false,

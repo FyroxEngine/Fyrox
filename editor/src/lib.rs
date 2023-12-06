@@ -47,7 +47,7 @@ use crate::{
     command::{panel::CommandStackViewer, Command},
     configurator::Configurator,
     curve_editor::CurveEditorWindow,
-    inspector::{editors::handle::HandlePropertyEditorMessage, Inspector},
+    inspector::Inspector,
     interaction::{
         move_mode::MoveInteractionMode,
         navmesh::{EditNavmeshMode, NavmeshPanel},
@@ -71,17 +71,13 @@ use crate::{
         },
         container::SceneContainer,
         dialog::NodeRemovalDialog,
-        selector::HierarchyNode,
         settings::SceneSettingsWindow,
         EditorScene, Selection,
     },
     scene_viewer::SceneViewer,
     settings::Settings,
     utils::{doc::DocWindow, path_fixer::PathFixer, ragdoll::RagdollWizard},
-    world::{
-        graph::menu::SceneNodeContextMenu, graph::selection::GraphSelection,
-        graph::EditorSceneWrapper, WorldViewer,
-    },
+    world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
 use fyrox::{
     asset::{io::FsResourceIo, manager::ResourceManager},
@@ -90,7 +86,7 @@ use fyrox::{
         color::Color,
         futures::executor::block_on,
         log::{Log, MessageKind},
-        pool::{ErasedHandle, Handle},
+        pool::Handle,
         scope_profile,
         sstorage::ImmutableString,
         uuid::Uuid,
@@ -129,12 +125,11 @@ use fyrox::{
         CompressionOptions, TextureImportOptions, TextureKind, TextureMinificationFilter,
         TextureResource, TextureResourceExtension,
     },
-    scene::{graph::GraphUpdateSwitches, mesh::Mesh, node::Node, Scene, SceneLoader},
+    scene::{graph::GraphUpdateSwitches, mesh::Mesh, Scene, SceneLoader},
     utils::{into_gui_texture, translate_cursor_icon, translate_event},
     window::{Icon, WindowAttributes},
 };
 use std::{
-    any::TypeId,
     cell::RefCell,
     io::{BufRead, BufReader},
     path::{Path, PathBuf},
@@ -1905,38 +1900,6 @@ impl Editor {
         ));
     }
 
-    fn select_object(&mut self, type_id: TypeId, handle: ErasedHandle) {
-        if let Some(entry) = self.scenes.current_scene_entry_ref() {
-            let new_selection = if type_id == TypeId::of::<Node>() {
-                // TODO
-                if let Some(editor_scene) = entry.controller.downcast_ref::<EditorScene>() {
-                    if self.engine.scenes[editor_scene.scene]
-                        .graph
-                        .is_valid_handle(handle.into())
-                    {
-                        Some(Selection::Graph(GraphSelection::single_or_empty(
-                            handle.into(),
-                        )))
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-
-            if let Some(new_selection) = new_selection {
-                self.message_sender
-                    .do_scene_command(ChangeSelectionCommand::new(
-                        new_selection,
-                        entry.selection.clone(),
-                    ))
-            }
-        }
-    }
-
     fn open_material_editor(&mut self, material: MaterialResource) {
         let engine = &mut self.engine;
 
@@ -2179,29 +2142,6 @@ impl Editor {
                     Message::LocateObject { handle } => self
                         .world_viewer
                         .try_locate_object(handle, &self.engine.user_interface),
-                    Message::SelectObject { type_id, handle } => {
-                        self.select_object(type_id, handle);
-                    }
-                    Message::FocusObject(handle) => {
-                        if let Some(controller) = self.scenes.current_scene_controller_mut() {
-                            // TODO
-                            if let Some(editor_scene) = controller.downcast_mut::<EditorScene>() {
-                                let scene = &mut self.engine.scenes[editor_scene.scene];
-                                editor_scene.camera_controller.fit_object(scene, handle);
-                            }
-                        }
-                    }
-                    Message::SetEditorCameraProjection(projection) => {
-                        if let Some(controller) = self.scenes.current_scene_controller_ref() {
-                            // TODO
-                            if let Some(editor_scene) = controller.downcast_ref::<EditorScene>() {
-                                editor_scene.camera_controller.set_projection(
-                                    &mut self.engine.scenes[editor_scene.scene].graph,
-                                    projection,
-                                );
-                            }
-                        }
-                    }
                     Message::SwitchMode => match self.mode {
                         Mode::Edit => self.set_build_mode(),
                         _ => self.set_editor_mode(),
@@ -2227,21 +2167,6 @@ impl Editor {
                     Message::SetBuildProfile(profile) => {
                         self.build_profile = profile;
                     }
-                    Message::SyncNodeHandleName { view, handle } => {
-                        if let Some(controller) = self.scenes.current_scene_controller_ref() {
-                            // TODO
-                            if let Some(editor_scene) = controller.downcast_ref::<EditorScene>() {
-                                let scene = &self.engine.scenes[editor_scene.scene];
-                                self.engine.user_interface.send_message(
-                                    HandlePropertyEditorMessage::name(
-                                        view,
-                                        MessageDirection::ToWidget,
-                                        scene.graph.try_get(handle).map(|n| n.name_owned()),
-                                    ),
-                                );
-                            }
-                        }
-                    }
                     Message::ForceSync => {
                         needs_sync = true;
                     }
@@ -2257,25 +2182,6 @@ impl Editor {
                     }
                     Message::LoadLayout => {
                         self.load_layout();
-                    }
-                    Message::ProvideSceneHierarchy { view } => {
-                        if let Some(controller) = self.scenes.current_scene_controller_ref() {
-                            // TODO
-                            if let Some(editor_scene) = controller.downcast_ref::<EditorScene>() {
-                                let scene = &self.engine.scenes[editor_scene.scene];
-                                self.engine.user_interface.send_message(
-                                    HandlePropertyEditorMessage::hierarchy(
-                                        view,
-                                        MessageDirection::ToWidget,
-                                        HierarchyNode::from_scene_node(
-                                            editor_scene.scene_content_root,
-                                            Handle::NONE,
-                                            &scene.graph,
-                                        ),
-                                    ),
-                                );
-                            }
-                        }
                     }
                     _ => (),
                 }
