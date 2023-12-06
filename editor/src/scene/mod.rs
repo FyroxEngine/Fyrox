@@ -1,11 +1,10 @@
-use crate::command::Command;
 use crate::{
     absm::selection::AbsmSelection,
     animation::selection::AnimationSelection,
     asset::item::AssetItem,
     audio::AudioBusSelection,
     camera::{CameraController, PickingOptions},
-    command::CommandStack,
+    command::{Command, CommandStack},
     interaction::navmesh::selection::NavmeshSelection,
     message::MessageSender,
     scene::{
@@ -18,9 +17,8 @@ use crate::{
     },
     settings::keys::KeyBindings,
     world::graph::selection::GraphSelection,
-    Settings,
+    Message, Settings,
 };
-use fyrox::resource::texture::{TextureKind, TextureResourceExtension};
 use fyrox::{
     core::{
         algebra::{Vector2, Vector3},
@@ -40,7 +38,7 @@ use fyrox::{
     },
     resource::{
         model::{Model, ModelResourceExtension},
-        texture::{Texture, TextureResource},
+        texture::{Texture, TextureKind, TextureResource, TextureResourceExtension},
     },
     scene::{
         base::BaseBuilder,
@@ -337,6 +335,44 @@ impl EditorScene {
             }
         }
         false
+    }
+
+    fn try_save_selection_as_prefab(&self, path: &Path, selection: &Selection, engine: &Engine) {
+        let source_scene = &engine.scenes[self.scene];
+        let mut dest_scene = Scene::new();
+        if let Selection::Graph(ref graph_selection) = selection {
+            for root_node in graph_selection.root_nodes(&source_scene.graph) {
+                source_scene.graph.copy_node(
+                    root_node,
+                    &mut dest_scene.graph,
+                    &mut |_, _| true,
+                    &mut |_, _, _| {},
+                );
+            }
+
+            let mut visitor = Visitor::new();
+            match dest_scene.save("Scene", &mut visitor) {
+                Err(e) => Log::err(format!(
+                    "Failed to save selection as prefab! Reason: {:?}",
+                    e
+                )),
+                Ok(_) => {
+                    if let Err(e) = visitor.save_binary(path) {
+                        Log::err(format!(
+                            "Failed to save selection as prefab! Reason: {:?}",
+                            e
+                        ));
+                    } else {
+                        Log::info(format!(
+                            "Selection was successfully saved as prefab to {:?}!",
+                            path
+                        ))
+                    }
+                }
+            }
+        } else {
+            Log::warn("Unable to selection to prefab, because selection is not scene selection!");
+        }
     }
 }
 
@@ -748,6 +784,21 @@ impl SceneController for EditorScene {
 
     fn on_destroy(&mut self, engine: &mut Engine) {
         engine.scenes.remove(self.scene);
+    }
+
+    fn on_message(
+        &mut self,
+        message: &Message,
+        selection: &Selection,
+        engine: &mut Engine,
+    ) -> bool {
+        match message {
+            Message::SaveSelectionAsPrefab(path) => {
+                self.try_save_selection_as_prefab(path, selection, engine);
+                false
+            }
+            _ => false,
+        }
     }
 }
 

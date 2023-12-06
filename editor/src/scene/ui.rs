@@ -5,6 +5,7 @@ use crate::{
     scene::{controller::SceneController, Selection},
     settings::{keys::KeyBindings, Settings},
     world::WorldViewerDataProvider,
+    Message,
 };
 use fyrox::{
     core::{
@@ -31,6 +32,12 @@ use std::{any::Any, path::Path};
 pub struct UiScene {
     pub ui: UserInterface,
     pub render_target: TextureResource,
+}
+
+impl Default for UiScene {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl UiScene {
@@ -210,6 +217,15 @@ impl SceneController for UiScene {
     }
 
     fn on_destroy(&mut self, engine: &mut Engine) {}
+
+    fn on_message(
+        &mut self,
+        message: &Message,
+        selection: &Selection,
+        engine: &mut Engine,
+    ) -> bool {
+        false
+    }
 }
 
 pub struct UiSceneWrapper<'a> {
@@ -223,7 +239,7 @@ impl<'a> WorldViewerDataProvider for UiSceneWrapper<'a> {
     }
 
     fn path(&self) -> Option<&Path> {
-        self.path.clone()
+        self.path
     }
 
     fn children_of(&self, node: ErasedHandle) -> Vec<ErasedHandle> {

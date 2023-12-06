@@ -2,6 +2,7 @@ use crate::command::Command;
 use crate::{
     scene::Selection,
     settings::{keys::KeyBindings, Settings},
+    Message,
 };
 use fyrox::{
     core::{algebra::Vector2, math::Rect, pool::Handle},
@@ -115,6 +116,9 @@ pub trait SceneController: 'static {
     fn is_interacting(&self) -> bool;
 
     fn on_destroy(&mut self, engine: &mut Engine);
+
+    fn on_message(&mut self, message: &Message, selection: &Selection, engine: &mut Engine)
+        -> bool;
 }
 
 impl dyn SceneController {
