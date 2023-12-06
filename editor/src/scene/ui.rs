@@ -6,10 +6,10 @@ use crate::{
     scene::Selection,
     settings::{keys::KeyBindings, Settings},
 };
-use fyrox::resource::texture::TextureKind;
 use fyrox::{
     core::{
         algebra::Vector2,
+        color::Color,
         log::Log,
         math::Rect,
         pool::Handle,
@@ -19,10 +19,11 @@ use fyrox::{
     gui::{
         button::ButtonBuilder,
         message::{KeyCode, MouseButton},
+        text::TextBuilder,
         widget::WidgetBuilder,
         UiNode, UserInterface,
     },
-    resource::texture::{TextureResource, TextureResourceExtension},
+    resource::texture::{TextureKind, TextureResource, TextureResourceExtension},
 };
 use std::{any::Any, path::Path};
 
@@ -35,8 +36,18 @@ impl UiScene {
     pub fn new() -> Self {
         let mut ui = UserInterface::new(Vector2::new(200.0, 200.0));
 
-        ButtonBuilder::new(WidgetBuilder::new().with_width(160.0).with_height(32.0))
-            .with_text("Click Me!")
+        // Create test content.
+        ButtonBuilder::new(
+            WidgetBuilder::new()
+                .with_width(160.0)
+                .with_height(32.0)
+                .with_desired_position(Vector2::new(20.0, 20.0)),
+        )
+        .with_text("Click Me!")
+        .build(&mut ui.build_ctx());
+
+        TextBuilder::new(WidgetBuilder::new().with_desired_position(Vector2::new(300.0, 300.0)))
+            .with_text("This is some text.")
             .build(&mut ui.build_ctx());
 
         Self {
@@ -158,7 +169,7 @@ impl SceneController for UiScene {
                 .graphics_context
                 .as_initialized_mut()
                 .renderer
-                .render_ui_to_texture(self.render_target.clone(), &mut self.ui),
+                .render_ui_to_texture(self.render_target.clone(), &mut self.ui, Color::DARK_GRAY),
         );
     }
 
