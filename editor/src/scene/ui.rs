@@ -2,9 +2,9 @@
 
 use crate::{
     command::Command,
-    scene::controller::SceneController,
-    scene::Selection,
+    scene::{controller::SceneController, Selection},
     settings::{keys::KeyBindings, Settings},
+    world::WorldViewerDataProvider,
 };
 use fyrox::{
     core::{
@@ -12,12 +12,13 @@ use fyrox::{
         color::Color,
         log::Log,
         math::Rect,
-        pool::Handle,
+        pool::{ErasedHandle, Handle},
         visitor::{Visit, Visitor},
     },
     engine::Engine,
     gui::{
         button::ButtonBuilder,
+        draw::SharedTexture,
         message::{KeyCode, MouseButton},
         text::TextBuilder,
         widget::WidgetBuilder,
@@ -28,8 +29,8 @@ use fyrox::{
 use std::{any::Any, path::Path};
 
 pub struct UiScene {
-    ui: UserInterface,
-    render_target: TextureResource,
+    pub ui: UserInterface,
+    pub render_target: TextureResource,
 }
 
 impl UiScene {
@@ -209,4 +210,76 @@ impl SceneController for UiScene {
     }
 
     fn on_destroy(&mut self, engine: &mut Engine) {}
+}
+
+pub struct UiSceneWrapper<'a> {
+    pub ui: &'a UserInterface,
+    pub path: Option<&'a Path>,
+}
+
+impl<'a> WorldViewerDataProvider for UiSceneWrapper<'a> {
+    fn root_node(&self) -> ErasedHandle {
+        self.ui.root().into()
+    }
+
+    fn path(&self) -> Option<&Path> {
+        self.path.clone()
+    }
+
+    fn children_of(&self, node: ErasedHandle) -> Vec<ErasedHandle> {
+        self.ui
+            .try_get_node(node.into())
+            .map(|n| n.children.iter().map(|c| (*c).into()).collect::<Vec<_>>())
+            .unwrap_or_default()
+    }
+
+    fn child_count_of(&self, node: ErasedHandle) -> usize {
+        self.ui
+            .try_get_node(node.into())
+            .map(|n| n.children.len())
+            .unwrap_or_default()
+    }
+
+    fn is_node_has_child(&self, node: ErasedHandle, child: ErasedHandle) -> bool {
+        self.ui
+            .try_get_node(node.into())
+            .map_or(false, |n| n.children().iter().any(|c| *c == child.into()))
+    }
+
+    fn parent_of(&self, node: ErasedHandle) -> ErasedHandle {
+        self.ui
+            .try_get_node(node.into())
+            .map(|n| n.parent().into())
+            .unwrap_or_default()
+    }
+
+    fn name_of(&self, node: ErasedHandle) -> Option<&str> {
+        self.ui.try_get_node(node.into()).map(|n| n.name())
+    }
+
+    fn is_valid_handle(&self, node: ErasedHandle) -> bool {
+        self.ui.try_get_node(node.into()).is_some()
+    }
+
+    fn icon_of(&self, node: ErasedHandle) -> Option<SharedTexture> {
+        // TODO
+        None
+    }
+
+    fn is_instance(&self, node: ErasedHandle) -> bool {
+        false
+    }
+
+    fn selection(&self) -> Vec<ErasedHandle> {
+        // TODO
+        Default::default()
+    }
+
+    fn on_drop(&self, child: ErasedHandle, parent: ErasedHandle) {}
+
+    fn validate(&self) -> Vec<(ErasedHandle, Result<(), String>)> {
+        Default::default()
+    }
+
+    fn on_selection_changed(&self, _new_selection: &[ErasedHandle]) {}
 }

@@ -149,6 +149,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::scene::ui::{UiScene, UiSceneWrapper};
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -1313,7 +1314,6 @@ impl Editor {
                     &EditorSceneWrapper {
                         selection: &current_scene_entry.selection,
                         editor_scene,
-                        graph: &engine.scenes[editor_scene.scene].graph,
                         scene: &engine.scenes[editor_scene.scene],
                         sender: &self.message_sender,
                         path: current_scene_entry.path.as_deref(),
@@ -1529,7 +1529,6 @@ impl Editor {
                     &EditorSceneWrapper {
                         selection: &current_scene_entry.selection,
                         editor_scene,
-                        graph: &engine.scenes[editor_scene.scene].graph,
                         scene: &engine.scenes[editor_scene.scene],
                         sender,
                         path: current_scene_entry.path.as_deref(),
@@ -1562,6 +1561,17 @@ impl Editor {
                     },
                     &mut engine.user_interface,
                 )
+            } else if let Some(editor_scene) =
+                current_scene_entry.controller.downcast_mut::<UiScene>()
+            {
+                self.world_viewer.sync_to_model(
+                    &UiSceneWrapper {
+                        ui: &editor_scene.ui,
+                        path: current_scene_entry.path.as_deref(),
+                    },
+                    &mut engine.user_interface,
+                    &self.settings,
+                );
             }
         } else {
             self.inspector.clear(&engine.user_interface);
@@ -1577,7 +1587,6 @@ impl Editor {
                     &EditorSceneWrapper {
                         selection: &entry.selection,
                         editor_scene,
-                        graph: &self.engine.scenes[editor_scene.scene].graph,
                         scene: &self.engine.scenes[editor_scene.scene],
                         sender: &self.message_sender,
                         path: entry.path.as_deref(),
@@ -2174,7 +2183,6 @@ impl Editor {
                                     &EditorSceneWrapper {
                                         selection: &entry.selection,
                                         editor_scene,
-                                        graph: &self.engine.scenes[editor_scene.scene].graph,
                                         scene: &self.engine.scenes[editor_scene.scene],
                                         sender: &self.message_sender,
                                         path: entry.path.as_deref(),
