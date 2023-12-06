@@ -1315,6 +1315,18 @@ impl Editor {
 
                 self.light_panel
                     .handle_ui_message(message, game_scene, engine);
+            } else if let Some(game_scene) =
+                current_scene_entry.controller.downcast_mut::<UiScene>()
+            {
+                self.world_viewer.handle_ui_message(
+                    message,
+                    &UiSceneWrapper {
+                        ui: &game_scene.ui,
+                        path: current_scene_entry.path.as_deref(),
+                    },
+                    engine,
+                    &mut self.settings,
+                );
             }
 
             self.material_editor
@@ -1565,7 +1577,6 @@ impl Editor {
 
     fn post_update(&mut self) {
         if let Some(entry) = self.scenes.current_scene_entry_ref() {
-            // TODO
             if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
                 self.world_viewer.post_update(
                     &EditorSceneWrapper {
@@ -1573,6 +1584,15 @@ impl Editor {
                         game_scene,
                         scene: &self.engine.scenes[game_scene.scene],
                         sender: &self.message_sender,
+                        path: entry.path.as_deref(),
+                    },
+                    &mut self.engine.user_interface,
+                    &self.settings,
+                );
+            } else if let Some(game_scene) = entry.controller.downcast_ref::<UiScene>() {
+                self.world_viewer.post_update(
+                    &UiSceneWrapper {
+                        ui: &game_scene.ui,
                         path: entry.path.as_deref(),
                     },
                     &mut self.engine.user_interface,
