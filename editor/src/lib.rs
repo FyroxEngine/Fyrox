@@ -2172,26 +2172,6 @@ impl Editor {
                         self.asset_browser
                             .locate_path(&self.engine.user_interface, path);
                     }
-                    Message::SetWorldViewerFilter(filter) => {
-                        if let Some(entry) = self.scenes.current_scene_entry_ref() {
-                            // TODO
-                            if let Some(editor_scene) =
-                                entry.controller.downcast_ref::<EditorScene>()
-                            {
-                                self.world_viewer.set_filter(
-                                    filter,
-                                    &EditorSceneWrapper {
-                                        selection: &entry.selection,
-                                        editor_scene,
-                                        scene: &self.engine.scenes[editor_scene.scene],
-                                        sender: &self.message_sender,
-                                        path: entry.path.as_deref(),
-                                    },
-                                    &self.engine.user_interface,
-                                );
-                            }
-                        }
-                    }
                     Message::LocateObject { handle } => self
                         .world_viewer
                         .try_locate_object(handle, &self.engine.user_interface),

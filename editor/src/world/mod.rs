@@ -5,7 +5,7 @@ use crate::{
     send_sync_message,
     utils::window_content,
     world::graph::item::{SceneItem, SceneItemBuilder, SceneItemMessage},
-    Message, Mode, Settings,
+    Mode, Settings,
 };
 use fyrox::{
     core::{
@@ -672,8 +672,7 @@ impl WorldViewer {
             if message.destination() == self.search_bar
                 && message.direction == MessageDirection::FromWidget
             {
-                self.sender
-                    .send(Message::SetWorldViewerFilter(text.clone()));
+                self.set_filter(text.clone(), data_provider, &engine.user_interface);
             }
         } else if let Some(TreeMessage::Expand { expand, .. }) = message.data() {
             if let Some(scene_view_item) = engine

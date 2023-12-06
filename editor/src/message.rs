@@ -44,7 +44,6 @@ pub enum Message {
     OpenMaterialEditor(MaterialResource),
     OpenNodeRemovalDialog,
     ShowInAssetBrowser(PathBuf),
-    SetWorldViewerFilter(String),
     LocateObject {
         handle: ErasedHandle,
     },
