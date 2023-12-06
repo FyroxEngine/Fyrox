@@ -1453,6 +1453,7 @@ impl Renderer {
         &mut self,
         render_target: TextureResource,
         ui: &mut UserInterface,
+        clear_color: Color,
     ) -> Result<(), FrameworkError> {
         let new_width = ui.screen_size().x as usize;
         let new_height = ui.screen_size().y as usize;
@@ -1482,7 +1483,7 @@ impl Renderer {
         frame_buffer.clear(
             &mut self.state,
             viewport,
-            Some(Color::TRANSPARENT),
+            Some(clear_color),
             Some(0.0),
             Some(0),
         );
