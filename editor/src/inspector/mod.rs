@@ -13,7 +13,7 @@ use crate::{
         editors::make_property_editors_container, handlers::node::SceneNodePropertyChangedHandler,
     },
     load_image,
-    scene::{commands::effect::make_set_audio_bus_property_command, EditorScene, Selection},
+    scene::{commands::effect::make_set_audio_bus_property_command, GameScene, Selection},
     send_sync_message,
     utils::window_content,
     Brush, CommandGroup, Engine, Message, Mode, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
@@ -248,10 +248,10 @@ impl Inspector {
     pub fn sync_to_model(
         &mut self,
         editor_selection: &Selection,
-        editor_scene: &EditorScene,
+        game_scene: &GameScene,
         engine: &mut Engine,
     ) {
-        let scene = &engine.scenes[editor_scene.scene];
+        let scene = &engine.scenes[game_scene.scene];
 
         if self.needs_sync {
             if editor_selection.is_single_selection() {
@@ -407,12 +407,12 @@ impl Inspector {
         &mut self,
         message: &Message,
         editor_selection: &Selection,
-        editor_scene: &EditorScene,
+        game_scene: &GameScene,
         engine: &mut Engine,
         sender: &MessageSender,
     ) {
         if let Message::SelectionChanged { .. } = message {
-            let scene = &engine.scenes[editor_scene.scene];
+            let scene = &engine.scenes[game_scene.scene];
 
             engine
                 .user_interface
@@ -554,11 +554,11 @@ impl Inspector {
         &mut self,
         message: &UiMessage,
         editor_selection: &Selection,
-        editor_scene: &EditorScene,
+        game_scene: &GameScene,
         engine: &mut Engine,
         sender: &MessageSender,
     ) {
-        let scene = &mut engine.scenes[editor_scene.scene];
+        let scene = &mut engine.scenes[game_scene.scene];
 
         if message.destination() == self.inspector
             && message.direction() == MessageDirection::FromWidget

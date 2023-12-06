@@ -210,9 +210,9 @@ impl FileMenu {
 
         if let Some(FileSelectorMessage::Commit(path)) = message.data::<FileSelectorMessage>() {
             if message.destination() == self.save_file_selector {
-                if let Some(editor_scene) = entry {
+                if let Some(game_scene) = entry {
                     sender.send(Message::SaveScene {
-                        id: editor_scene.id,
+                        id: game_scene.id,
                         path: path.to_owned(),
                     });
                 }
@@ -221,10 +221,10 @@ impl FileMenu {
             }
         } else if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.save {
-                if let Some(editor_scene) = entry {
-                    if let Some(scene_path) = editor_scene.path.as_ref() {
+                if let Some(game_scene) = entry {
+                    if let Some(scene_path) = game_scene.path.as_ref() {
                         sender.send(Message::SaveScene {
-                            id: editor_scene.id,
+                            id: game_scene.id,
                             path: scene_path.clone(),
                         });
                     } else {

@@ -1,6 +1,6 @@
 use crate::{
     inspector::editors::make_property_editors_container, message::MessageSender,
-    scene::settings::command::make_set_scene_property_command, EditorScene, Message,
+    scene::settings::command::make_set_scene_property_command, GameScene, Message,
     MessageDirection, MSG_SYNC_FLAG,
 };
 use fyrox::{
@@ -81,9 +81,9 @@ impl SceneSettingsWindow {
         ));
     }
 
-    pub fn sync_to_model(&self, editor_scene: &EditorScene, engine: &mut Engine) {
+    pub fn sync_to_model(&self, game_scene: &GameScene, engine: &mut Engine) {
         let ui = &mut engine.user_interface;
-        let scene = &engine.scenes[editor_scene.scene];
+        let scene = &engine.scenes[game_scene.scene];
 
         let context = InspectorContext::from_object(
             scene,

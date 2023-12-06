@@ -9,7 +9,7 @@ use crate::{
         InteractionModeContainer,
     },
     message::MessageSender,
-    scene::{EditorScene, Selection},
+    scene::{GameScene, Selection},
     scene_viewer::SceneViewer,
     settings::Settings,
 };
@@ -350,7 +350,7 @@ impl SceneContainer {
     ) {
         self.current_scene = Some(self.entries.len());
 
-        let editor_scene = EditorScene::from_native_scene(
+        let game_scene = GameScene::from_native_scene(
             scene,
             engine,
             path.as_deref(),
@@ -365,27 +365,27 @@ impl SceneContainer {
             message_sender.clone(),
         ));
         interaction_modes.add(MoveInteractionMode::new(
-            &editor_scene,
+            &game_scene,
             engine,
             message_sender.clone(),
         ));
         interaction_modes.add(ScaleInteractionMode::new(
-            &editor_scene,
+            &game_scene,
             engine,
             message_sender.clone(),
         ));
         interaction_modes.add(RotateInteractionMode::new(
-            &editor_scene,
+            &game_scene,
             engine,
             message_sender.clone(),
         ));
         interaction_modes.add(EditNavmeshMode::new(
-            &editor_scene,
+            &game_scene,
             engine,
             message_sender.clone(),
         ));
         interaction_modes.add(TerrainInteractionMode::new(
-            &editor_scene,
+            &game_scene,
             engine,
             message_sender.clone(),
             scene_viewer.frame(),
@@ -394,7 +394,7 @@ impl SceneContainer {
         let mut entry = EditorSceneEntry {
             has_unsaved_changes: false,
             interaction_modes,
-            controller: Box::new(editor_scene),
+            controller: Box::new(game_scene),
             current_interaction_mode: None,
             last_mouse_pos: None,
             click_mouse_pos: None,

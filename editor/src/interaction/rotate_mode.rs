@@ -8,7 +8,7 @@ use crate::{
     message::MessageSender,
     scene::{
         commands::{graph::RotateNodeCommand, ChangeSelectionCommand, CommandGroup, SceneCommand},
-        EditorScene, Selection,
+        GameScene, Selection,
     },
     settings::Settings,
     world::graph::selection::GraphSelection,
@@ -33,14 +33,10 @@ pub struct RotateInteractionMode {
 }
 
 impl RotateInteractionMode {
-    pub fn new(
-        editor_scene: &EditorScene,
-        engine: &mut Engine,
-        message_sender: MessageSender,
-    ) -> Self {
+    pub fn new(game_scene: &GameScene, engine: &mut Engine, message_sender: MessageSender) -> Self {
         Self {
             initial_rotations: Default::default(),
-            rotation_gizmo: RotationGizmo::new(editor_scene, engine),
+            rotation_gizmo: RotationGizmo::new(game_scene, engine),
             interacting: false,
             message_sender,
         }
@@ -63,20 +59,20 @@ impl InteractionMode for RotateInteractionMode {
         frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
-        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
         };
 
-        let graph = &mut engine.scenes[editor_scene.scene].graph;
+        let graph = &mut engine.scenes[game_scene.scene].graph;
 
         // Pick gizmo nodes.
-        let camera = editor_scene.camera_controller.camera;
-        let camera_pivot = editor_scene.camera_controller.pivot;
-        if let Some(result) = editor_scene.camera_controller.pick(PickingOptions {
+        let camera = game_scene.camera_controller.camera;
+        let camera_pivot = game_scene.camera_controller.pivot;
+        if let Some(result) = game_scene.camera_controller.pick(PickingOptions {
             cursor_pos: mouse_pos,
             graph,
-            editor_objects_root: editor_scene.editor_objects_root,
-            scene_content_root: editor_scene.scene_content_root,
+            editor_objects_root: game_scene.editor_objects_root,
+            scene_content_root: game_scene.scene_content_root,
             screen_size: frame_size,
             editor_only: true,
             filter: |handle, _| {
@@ -88,9 +84,9 @@ impl InteractionMode for RotateInteractionMode {
         }) {
             if self
                 .rotation_gizmo
-                .handle_pick(result.node, editor_scene, engine)
+                .handle_pick(result.node, game_scene, engine)
             {
-                let graph = &mut engine.scenes[editor_scene.scene].graph;
+                let graph = &mut engine.scenes[game_scene.scene].graph;
                 if let Selection::Graph(selection) = editor_selection {
                     self.interacting = true;
                     self.initial_rotations = selection.local_rotations(graph);
@@ -108,11 +104,11 @@ impl InteractionMode for RotateInteractionMode {
         frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
-        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
         };
 
-        let graph = &mut engine.scenes[editor_scene.scene].graph;
+        let graph = &mut engine.scenes[game_scene.scene].graph;
 
         self.rotation_gizmo.reset_state(graph);
 
@@ -142,13 +138,13 @@ impl InteractionMode for RotateInteractionMode {
                 }
             }
         } else {
-            let new_selection = editor_scene
+            let new_selection = game_scene
                 .camera_controller
                 .pick(PickingOptions {
                     cursor_pos: mouse_pos,
                     graph,
-                    editor_objects_root: editor_scene.editor_objects_root,
-                    scene_content_root: editor_scene.scene_content_root,
+                    editor_objects_root: game_scene.editor_objects_root,
+                    scene_content_root: game_scene.scene_content_root,
                     screen_size: frame_size,
                     editor_only: false,
                     filter: |_, _| true,
@@ -190,15 +186,15 @@ impl InteractionMode for RotateInteractionMode {
         frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
-        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
         };
 
         if let Selection::Graph(selection) = editor_selection {
             if self.interacting {
                 let rotation_delta = self.rotation_gizmo.calculate_rotation_delta(
-                    editor_scene,
-                    editor_scene.camera_controller.camera,
+                    game_scene,
+                    game_scene.camera_controller.camera,
                     mouse_offset,
                     mouse_position,
                     engine,
@@ -206,7 +202,7 @@ impl InteractionMode for RotateInteractionMode {
                 );
                 for &node in selection.nodes().iter() {
                     let transform =
-                        engine.scenes[editor_scene.scene].graph[node].local_transform_mut();
+                        engine.scenes[game_scene.scene].graph[node].local_transform_mut();
                     let rotation = **transform.rotation();
                     let final_rotation = rotation * rotation_delta;
                     let (mut roll, mut pitch, mut yaw) = final_rotation.euler_angles();
@@ -237,18 +233,18 @@ impl InteractionMode for RotateInteractionMode {
         engine: &mut Engine,
         _settings: &Settings,
     ) {
-        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
         };
 
         if let Selection::Graph(selection) = editor_selection {
-            let graph = &mut engine.scenes[editor_scene.scene].graph;
-            if editor_selection.is_empty() || editor_scene.preview_camera.is_some() {
+            let graph = &mut engine.scenes[game_scene.scene].graph;
+            if editor_selection.is_empty() || game_scene.preview_camera.is_some() {
                 self.rotation_gizmo.set_visible(graph, false);
             } else {
                 let scale = calculate_gizmo_distance_scaling(
                     graph,
-                    editor_scene.camera_controller.camera,
+                    game_scene.camera_controller.camera,
                     self.rotation_gizmo.origin,
                 );
                 self.rotation_gizmo.sync_transform(graph, selection, scale);
@@ -258,11 +254,11 @@ impl InteractionMode for RotateInteractionMode {
     }
 
     fn deactivate(&mut self, controller: &dyn SceneController, engine: &mut Engine) {
-        let Some(editor_scene) = controller.downcast_ref::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_ref::<GameScene>() else {
             return;
         };
 
-        let graph = &mut engine.scenes[editor_scene.scene].graph;
+        let graph = &mut engine.scenes[game_scene.scene].graph;
         self.rotation_gizmo.set_visible(graph, false);
     }
 

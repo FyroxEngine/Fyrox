@@ -3,7 +3,7 @@ use crate::scene::controller::SceneController;
 use crate::{
     interaction::InteractionMode,
     message::MessageSender,
-    scene::{commands::ChangeSelectionCommand, EditorScene, Selection},
+    scene::{commands::ChangeSelectionCommand, GameScene, Selection},
     settings::Settings,
     world::graph::selection::GraphSelection,
     Engine,
@@ -90,12 +90,12 @@ impl InteractionMode for SelectInteractionMode {
         frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
         };
 
-        let scene = &engine.scenes[editor_scene.scene];
-        let camera = scene.graph[editor_scene.camera_controller.camera].as_camera();
+        let scene = &engine.scenes[game_scene.scene];
+        let camera = scene.graph[game_scene.camera_controller.camera].as_camera();
         let preview_screen_bounds = engine.user_interface.node(self.preview).screen_bounds();
         let frame_screen_bounds = engine
             .user_interface
@@ -107,7 +107,7 @@ impl InteractionMode for SelectInteractionMode {
         let mut graph_selection = GraphSelection::default();
         while let Some(handle) = self.stack.pop() {
             let node = &scene.graph[handle];
-            if handle == editor_scene.editor_objects_root {
+            if handle == game_scene.editor_objects_root {
                 continue;
             }
             if handle == scene.graph.get_root() {

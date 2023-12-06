@@ -19,7 +19,7 @@ use crate::{
             PropertySelectorWindowBuilder,
         },
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
-        EditorScene, Selection,
+        GameScene, Selection,
     },
     send_sync_message, utils,
 };
@@ -727,7 +727,7 @@ impl TrackList {
         &mut self,
         message: &UiMessage,
         editor_selection: &Selection,
-        editor_scene: &EditorScene,
+        game_scene: &GameScene,
         sender: &MessageSender,
         animation_player: Handle<Node>,
         animation: Handle<Animation>,
@@ -745,8 +745,8 @@ impl TrackList {
                         .with_title(WindowTitle::text("Select a Node To Animate")),
                 )
                 .with_hierarchy(HierarchyNode::from_scene_node(
-                    editor_scene.scene_content_root,
-                    editor_scene.editor_objects_root,
+                    game_scene.scene_content_root,
+                    game_scene.editor_objects_root,
                     &scene.graph,
                 ))
                 .build(&mut ui.build_ctx());
@@ -1014,8 +1014,8 @@ impl TrackList {
                         .with_title(WindowTitle::text("Select a New Target Node")),
                 )
                 .with_hierarchy(HierarchyNode::from_scene_node(
-                    editor_scene.scene_content_root,
-                    editor_scene.editor_objects_root,
+                    game_scene.scene_content_root,
+                    game_scene.editor_objects_root,
                     &scene.graph,
                 ))
                 .build(&mut ui.build_ctx());

@@ -9,7 +9,7 @@ use crate::{
             make_delete_selection_command, CommandGroup, RevertSceneNodePropertyCommand,
             SceneCommand,
         },
-        EditorScene, Selection,
+        GameScene, Selection,
     },
     settings::Settings,
     utils, Engine, Message, MessageDirection, PasteCommand,
@@ -54,12 +54,12 @@ impl WorldViewerItemContextMenu for SceneNodeContextMenu {
 
 fn resource_path_of_first_selected_node(
     editor_selection: &Selection,
-    editor_scene: &EditorScene,
+    game_scene: &GameScene,
     engine: &Engine,
 ) -> Option<PathBuf> {
     if let Selection::Graph(graph_selection) = editor_selection {
         if let Some(first) = graph_selection.nodes.first() {
-            let scene = &engine.scenes[editor_scene.scene];
+            let scene = &engine.scenes[game_scene.scene];
             if let Some(resource) = scene.graph.try_get(*first).and_then(|n| n.resource()) {
                 return resource.kind().into_path();
             }
@@ -161,7 +161,7 @@ impl SceneNodeContextMenu {
         &mut self,
         message: &UiMessage,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        game_scene: &mut GameScene,
         engine: &Engine,
         sender: &MessageSender,
         settings: &Settings,
@@ -185,31 +185,31 @@ impl SceneNodeContextMenu {
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.delete_selection {
                 if settings.general.show_node_removal_dialog
-                    && editor_scene.is_current_selection_has_external_refs(
+                    && game_scene.is_current_selection_has_external_refs(
                         editor_selection,
-                        &engine.scenes[editor_scene.scene].graph,
+                        &engine.scenes[game_scene.scene].graph,
                     )
                 {
                     sender.send(Message::OpenNodeRemovalDialog);
                 } else {
                     sender.send(Message::DoSceneCommand(make_delete_selection_command(
                         editor_selection,
-                        editor_scene,
+                        game_scene,
                         engine,
                     )));
                 }
             } else if message.destination() == self.copy_selection {
                 if let Selection::Graph(graph_selection) = editor_selection {
-                    editor_scene.clipboard.fill_from_selection(
+                    game_scene.clipboard.fill_from_selection(
                         graph_selection,
-                        editor_scene.scene,
+                        game_scene.scene,
                         engine,
                     );
                 }
             } else if message.destination() == self.paste {
                 if let Selection::Graph(graph_selection) = editor_selection {
                     if let Some(first) = graph_selection.nodes.first() {
-                        if !editor_scene.clipboard.is_empty() {
+                        if !game_scene.clipboard.is_empty() {
                             sender.do_scene_command(PasteCommand::new(*first));
                         }
                     }
@@ -240,7 +240,7 @@ impl SceneNodeContextMenu {
                 }
             } else if message.destination() == self.open_asset {
                 if let Some(path) =
-                    resource_path_of_first_selected_node(editor_selection, editor_scene, engine)
+                    resource_path_of_first_selected_node(editor_selection, game_scene, engine)
                 {
                     if utils::is_native_scene(&path) {
                         sender.send(Message::LoadScene(path));
@@ -248,7 +248,7 @@ impl SceneNodeContextMenu {
                 }
             } else if message.destination() == self.reset_inheritable_properties {
                 if let Selection::Graph(graph_selection) = editor_selection {
-                    let scene = &engine.scenes[editor_scene.scene];
+                    let scene = &engine.scenes[game_scene.scene];
                     let mut commands = Vec::new();
                     for node_handle in graph_selection.nodes.iter() {
                         if let Some(node) = scene.graph.try_get(*node_handle) {
@@ -280,13 +280,13 @@ impl SceneNodeContextMenu {
                 engine.user_interface.send_message(WidgetMessage::enabled(
                     self.paste,
                     MessageDirection::ToWidget,
-                    !editor_scene.clipboard.is_empty(),
+                    !game_scene.clipboard.is_empty(),
                 ));
 
                 engine.user_interface.send_message(WidgetMessage::enabled(
                     self.open_asset,
                     MessageDirection::ToWidget,
-                    resource_path_of_first_selected_node(editor_selection, editor_scene, engine)
+                    resource_path_of_first_selected_node(editor_selection, game_scene, engine)
                         .map_or(false, |p| utils::is_native_scene(&p)),
                 ));
             }

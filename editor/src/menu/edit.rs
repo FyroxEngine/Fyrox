@@ -2,7 +2,7 @@ use crate::scene::controller::SceneController;
 use crate::{
     menu::{create_menu_item_shortcut, create_root_menu_item},
     message::MessageSender,
-    scene::{commands::PasteCommand, EditorScene, Selection},
+    scene::{commands::PasteCommand, GameScene, Selection},
     Engine, Message, Mode,
 };
 use fyrox::{
@@ -72,18 +72,18 @@ impl EditMenu {
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.copy {
                 if let Selection::Graph(selection) = editor_selection {
-                    if let Some(editor_scene) = controller.downcast_mut::<EditorScene>() {
-                        editor_scene.clipboard.fill_from_selection(
+                    if let Some(game_scene) = controller.downcast_mut::<GameScene>() {
+                        game_scene.clipboard.fill_from_selection(
                             selection,
-                            editor_scene.scene,
+                            game_scene.scene,
                             engine,
                         );
                     }
                 }
             } else if message.destination() == self.paste {
-                if let Some(editor_scene) = controller.downcast_mut::<EditorScene>() {
-                    if !editor_scene.clipboard.is_empty() {
-                        sender.do_scene_command(PasteCommand::new(editor_scene.scene_content_root));
+                if let Some(game_scene) = controller.downcast_mut::<GameScene>() {
+                    if !game_scene.clipboard.is_empty() {
+                        sender.do_scene_command(PasteCommand::new(game_scene.scene_content_root));
                     }
                 }
             } else if message.destination() == self.undo {

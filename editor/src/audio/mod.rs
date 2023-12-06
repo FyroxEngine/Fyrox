@@ -11,7 +11,7 @@ use crate::{
     },
     send_sync_message,
     utils::window_content,
-    ChangeSelectionCommand, EditorScene, GridBuilder, MessageDirection, Mode, SceneCommand,
+    ChangeSelectionCommand, GameScene, GridBuilder, MessageDirection, Mode, SceneCommand,
     Selection, UserInterface,
 };
 use fyrox::{
@@ -339,13 +339,10 @@ impl AudioPanel {
     pub fn sync_to_model(
         &mut self,
         editor_selection: &Selection,
-        editor_scene: &EditorScene,
+        game_scene: &GameScene,
         engine: &mut Engine,
     ) {
-        let context_state = engine.scenes[editor_scene.scene]
-            .graph
-            .sound_context
-            .state();
+        let context_state = engine.scenes[game_scene.scene].graph.sound_context.state();
         let ui = &mut engine.user_interface;
 
         let items = ui

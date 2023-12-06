@@ -14,7 +14,7 @@ use crate::{
     scene::{
         commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
-        EditorScene, Selection,
+        GameScene, Selection,
     },
     send_sync_message,
 };
@@ -191,7 +191,7 @@ impl RootMotionDropdownArea {
         sender: &MessageSender,
         ui: &mut UserInterface,
         animation_player: &AnimationPlayer,
-        editor_scene: &EditorScene,
+        game_scene: &GameScene,
         selection: &AnimationSelection,
     ) {
         let send_command = |settings: Option<RootMotionSettings>| {
@@ -253,8 +253,8 @@ impl RootMotionDropdownArea {
                             self.node_selector,
                             MessageDirection::ToWidget,
                             HierarchyNode::from_scene_node(
-                                editor_scene.scene_content_root,
-                                editor_scene.editor_objects_root,
+                                game_scene.scene_content_root,
+                                game_scene.editor_objects_root,
                                 &scene.graph,
                             ),
                         ));
@@ -839,7 +839,7 @@ impl Toolbar {
         animation_player_handle: Handle<Node>,
         animation_player: &AnimationPlayer,
         editor_selection: &Selection,
-        editor_scene: &EditorScene,
+        game_scene: &GameScene,
         selection: &AnimationSelection,
     ) -> ToolbarAction {
         self.root_motion_dropdown_area.handle_ui_message(
@@ -848,7 +848,7 @@ impl Toolbar {
             sender,
             ui,
             animation_player,
-            editor_scene,
+            game_scene,
             selection,
         );
 
@@ -1005,7 +1005,7 @@ impl Toolbar {
         animation_player_handle: Handle<Node>,
         scene: &Scene,
         editor_selection: &Selection,
-        editor_scene: &EditorScene,
+        game_scene: &GameScene,
         resource_manager: &ResourceManager,
     ) {
         if let Some(ButtonMessage::Click) = message.data() {
@@ -1014,8 +1014,8 @@ impl Toolbar {
                     self.node_selector,
                     MessageDirection::ToWidget,
                     HierarchyNode::from_scene_node(
-                        editor_scene.scene_content_root,
-                        editor_scene.editor_objects_root,
+                        game_scene.scene_content_root,
+                        game_scene.editor_objects_root,
                         &scene.graph,
                     ),
                 ));

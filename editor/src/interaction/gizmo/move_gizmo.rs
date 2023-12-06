@@ -1,7 +1,7 @@
 use crate::{
     interaction::plane::PlaneKind,
     make_color_material,
-    scene::{EditorScene, Selection},
+    scene::{GameScene, Selection},
     set_mesh_diffuse_color, Engine,
 };
 use fyrox::{
@@ -139,8 +139,8 @@ fn create_quad_plane(
 }
 
 impl MoveGizmo {
-    pub fn new(editor_scene: &EditorScene, engine: &mut Engine) -> Self {
-        let scene = &mut engine.scenes[editor_scene.scene];
+    pub fn new(game_scene: &GameScene, engine: &mut Engine) -> Self {
+        let scene = &mut engine.scenes[game_scene.scene];
         let graph = &mut scene.graph;
 
         let origin = PivotBuilder::new(
@@ -150,7 +150,7 @@ impl MoveGizmo {
         )
         .build(graph);
 
-        graph.link_nodes(origin, editor_scene.editor_objects_root);
+        graph.link_nodes(origin, game_scene.editor_objects_root);
 
         let smart_dot = make_smart_dot(graph);
         graph.link_nodes(smart_dot, origin);
@@ -289,7 +289,7 @@ impl MoveGizmo {
 
     pub fn calculate_offset(
         &self,
-        editor_scene: &EditorScene,
+        game_scene: &GameScene,
         camera: Handle<Node>,
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
@@ -297,7 +297,7 @@ impl MoveGizmo {
         frame_size: Vector2<f32>,
         plane_kind: PlaneKind,
     ) -> Vector3<f32> {
-        let scene = &engine.scenes[editor_scene.scene];
+        let scene = &engine.scenes[game_scene.scene];
         let graph = &scene.graph;
         let node_global_transform = graph[self.origin].global_transform();
         let node_local_transform = graph[self.origin].local_transform().matrix();

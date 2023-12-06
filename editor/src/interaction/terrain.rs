@@ -6,7 +6,7 @@ use crate::{
     message::MessageSender,
     scene::{
         commands::terrain::{ModifyTerrainHeightCommand, ModifyTerrainLayerMaskCommand},
-        EditorScene, Selection,
+        GameScene, Selection,
     },
     settings::Settings,
     MSG_SYNC_FLAG,
@@ -64,7 +64,7 @@ pub struct TerrainInteractionMode {
 
 impl TerrainInteractionMode {
     pub fn new(
-        editor_scene: &EditorScene,
+        game_scene: &GameScene,
         engine: &mut Engine,
         message_sender: MessageSender,
         scene_viewer_frame: Handle<UiNode>,
@@ -80,7 +80,7 @@ impl TerrainInteractionMode {
         Self {
             brush_panel,
             heightmaps: Default::default(),
-            brush_gizmo: BrushGizmo::new(editor_scene, engine),
+            brush_gizmo: BrushGizmo::new(game_scene, engine),
             interacting: false,
             message_sender,
             brush,
@@ -95,8 +95,8 @@ pub struct BrushGizmo {
 }
 
 impl BrushGizmo {
-    pub fn new(editor_scene: &EditorScene, engine: &mut Engine) -> Self {
-        let scene = &mut engine.scenes[editor_scene.scene];
+    pub fn new(game_scene: &GameScene, engine: &mut Engine) -> Self {
+        let scene = &mut engine.scenes[game_scene.scene];
         let graph = &mut scene.graph;
 
         let brush = MeshBuilder::new(
@@ -114,7 +114,7 @@ impl BrushGizmo {
         .build()])
         .build(graph);
 
-        graph.link_nodes(brush, editor_scene.editor_objects_root);
+        graph.link_nodes(brush, game_scene.editor_objects_root);
 
         Self { brush }
     }
@@ -153,18 +153,18 @@ impl InteractionMode for TerrainInteractionMode {
         frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
         };
 
         if let Selection::Graph(selection) = editor_selection {
             if selection.is_single_selection() {
-                let graph = &mut engine.scenes[editor_scene.scene].graph;
+                let graph = &mut engine.scenes[game_scene.scene].graph;
                 let handle = selection.nodes()[0];
                 if let Some(terrain) = &graph[handle].cast::<Terrain>() {
                     // Pick height value at the point of interaction.
                     if let BrushMode::FlattenHeightMap { height } = &mut self.brush.mode {
-                        let camera = &graph[editor_scene.camera_controller.camera];
+                        let camera = &graph[game_scene.camera_controller.camera];
                         if let Some(camera) = camera.cast::<Camera>() {
                             let ray = camera.make_ray(mouse_pos, frame_size);
 
@@ -205,13 +205,13 @@ impl InteractionMode for TerrainInteractionMode {
         _frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
         };
 
         if let Selection::Graph(selection) = editor_selection {
             if selection.is_single_selection() {
-                let graph = &mut engine.scenes[editor_scene.scene].graph;
+                let graph = &mut engine.scenes[game_scene.scene].graph;
                 let handle = selection.nodes()[0];
 
                 if let Some(terrain) = &graph[handle].cast::<Terrain>() {
@@ -262,16 +262,16 @@ impl InteractionMode for TerrainInteractionMode {
         frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
         };
 
         if let Selection::Graph(selection) = editor_selection {
             if selection.is_single_selection() {
-                let graph = &mut engine.scenes[editor_scene.scene].graph;
+                let graph = &mut engine.scenes[game_scene.scene].graph;
                 let handle = selection.nodes()[0];
 
-                let camera = &graph[editor_scene.camera_controller.camera];
+                let camera = &graph[game_scene.camera_controller.camera];
                 if let Some(camera) = camera.cast::<Camera>() {
                     let ray = camera.make_ray(mouse_position, frame_size);
                     if let Some(terrain) = graph[handle].cast_mut::<Terrain>() {
@@ -324,12 +324,12 @@ impl InteractionMode for TerrainInteractionMode {
     }
 
     fn activate(&mut self, controller: &dyn SceneController, engine: &mut Engine) {
-        let Some(editor_scene) = controller.downcast_ref::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_ref::<GameScene>() else {
             return;
         };
 
         self.brush_gizmo
-            .set_visible(&mut engine.scenes[editor_scene.scene].graph, true);
+            .set_visible(&mut engine.scenes[game_scene.scene].graph, true);
 
         self.brush_panel
             .sync_to_model(&mut engine.user_interface, &self.brush);
@@ -348,12 +348,12 @@ impl InteractionMode for TerrainInteractionMode {
     }
 
     fn deactivate(&mut self, controller: &dyn SceneController, engine: &mut Engine) {
-        let Some(editor_scene) = controller.downcast_ref::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_ref::<GameScene>() else {
             return;
         };
 
         self.brush_gizmo
-            .set_visible(&mut engine.scenes[editor_scene.scene].graph, false);
+            .set_visible(&mut engine.scenes[game_scene.scene].graph, false);
 
         engine.user_interface.send_message(WindowMessage::close(
             self.brush_panel.window,

@@ -5,7 +5,7 @@ use crate::{
         utils::UtilsMenu, view::ViewMenu,
     },
     message::MessageSender,
-    scene::{container::EditorSceneEntry, EditorScene},
+    scene::{container::EditorSceneEntry, GameScene},
     send_sync_message,
     settings::Settings,
     utils::ragdoll::RagdollWizard,
@@ -63,7 +63,7 @@ pub struct Panels<'b> {
 
 pub struct MenuContext<'a, 'b> {
     pub engine: &'a mut Engine,
-    pub editor_scene: Option<&'b mut EditorSceneEntry>,
+    pub game_scene: Option<&'b mut EditorSceneEntry>,
     pub panels: Panels<'b>,
     pub settings: &'b mut Settings,
 }
@@ -166,7 +166,7 @@ impl Menu {
     pub fn handle_ui_message(&mut self, message: &UiMessage, mut ctx: MenuContext) {
         scope_profile!();
 
-        if let Some(entry) = ctx.editor_scene.as_mut() {
+        if let Some(entry) = ctx.game_scene.as_mut() {
             self.edit_menu.handle_ui_message(
                 message,
                 &self.message_sender,
@@ -175,11 +175,11 @@ impl Menu {
                 ctx.engine,
             );
 
-            if let Some(editor_scene) = entry.controller.downcast_mut::<EditorScene>() {
+            if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
                 self.create_entity_menu.handle_ui_message(
                     message,
                     &self.message_sender,
-                    editor_scene.scene_content_root,
+                    game_scene.scene_content_root,
                 );
             }
         }
@@ -189,7 +189,7 @@ impl Menu {
         self.file_menu.handle_ui_message(
             message,
             &self.message_sender,
-            ctx.editor_scene,
+            ctx.game_scene,
             ctx.engine,
             ctx.settings,
             &ctx.panels,

@@ -10,7 +10,7 @@ use crate::{
     scene::{
         commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
-        EditorScene, Selection,
+        GameScene, Selection,
     },
     send_sync_message,
 };
@@ -165,7 +165,7 @@ impl Toolbar {
         &mut self,
         message: &UiMessage,
         editor_selection: &Selection,
-        editor_scene: &EditorScene,
+        game_scene: &GameScene,
         sender: &MessageSender,
         graph: &Graph,
         ui: &mut UserInterface,
@@ -258,7 +258,7 @@ impl Toolbar {
                     for local_root in local_roots {
                         root.children.push(HierarchyNode::from_scene_node(
                             local_root,
-                            editor_scene.editor_objects_root,
+                            game_scene.editor_objects_root,
                             graph,
                         ));
                     }

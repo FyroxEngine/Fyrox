@@ -11,7 +11,7 @@ use crate::{
         toolbar::{Toolbar, ToolbarAction},
         track::TrackList,
     },
-    scene::{commands::ChangeSelectionCommand, EditorScene, Selection},
+    scene::{commands::ChangeSelectionCommand, GameScene, Selection},
     send_sync_message, Message,
 };
 use fyrox::{
@@ -182,13 +182,13 @@ impl AnimationEditor {
         &mut self,
         message: &UiMessage,
         editor_selection: &Selection,
-        editor_scene: &mut EditorScene,
+        game_scene: &mut GameScene,
         engine: &mut Engine,
         sender: &MessageSender,
     ) {
         let selection = fetch_selection(editor_selection);
 
-        let scene = &mut engine.scenes[editor_scene.scene];
+        let scene = &mut engine.scenes[game_scene.scene];
 
         if let Some(animation_player) = scene
             .graph
@@ -202,7 +202,7 @@ impl AnimationEditor {
                 selection.animation_player,
                 animation_player,
                 editor_selection,
-                editor_scene,
+                game_scene,
                 &selection,
             );
 
@@ -322,8 +322,7 @@ impl AnimationEditor {
             match toolbar_action {
                 ToolbarAction::None => {}
                 ToolbarAction::EnterPreviewMode => {
-                    let node_overrides =
-                        editor_scene.graph_switches.node_overrides.as_mut().unwrap();
+                    let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
                     assert!(node_overrides.insert(selection.animation_player));
 
                     let animation_player_node =
@@ -372,7 +371,7 @@ impl AnimationEditor {
                         self.leave_preview_mode(
                             scene,
                             &engine.user_interface,
-                            editor_scene.graph_switches.node_overrides.as_mut().unwrap(),
+                            game_scene.graph_switches.node_overrides.as_mut().unwrap(),
                         );
                     }
                 }
@@ -425,7 +424,7 @@ impl AnimationEditor {
             self.track_list.handle_ui_message(
                 message,
                 editor_selection,
-                editor_scene,
+                game_scene,
                 sender,
                 selection.animation_player,
                 selection.animation,
@@ -441,7 +440,7 @@ impl AnimationEditor {
             selection.animation_player,
             scene,
             editor_selection,
-            editor_scene,
+            game_scene,
             &engine.resource_manager,
         );
     }
@@ -497,14 +496,14 @@ impl AnimationEditor {
         }
     }
 
-    pub fn try_leave_preview_mode(&mut self, editor_scene: &mut EditorScene, engine: &mut Engine) {
+    pub fn try_leave_preview_mode(&mut self, game_scene: &mut GameScene, engine: &mut Engine) {
         if self.preview_mode_data.is_some() {
-            let scene = &mut engine.scenes[editor_scene.scene];
+            let scene = &mut engine.scenes[game_scene.scene];
 
             self.leave_preview_mode(
                 scene,
                 &engine.user_interface,
-                editor_scene.graph_switches.node_overrides.as_mut().unwrap(),
+                game_scene.graph_switches.node_overrides.as_mut().unwrap(),
             );
         }
     }
@@ -516,14 +515,14 @@ impl AnimationEditor {
     pub fn handle_message(
         &mut self,
         message: &Message,
-        editor_scene: &mut EditorScene,
+        game_scene: &mut GameScene,
         engine: &mut Engine,
     ) {
         // Leave preview mode before execution of any scene command.
         if let Message::DoSceneCommand(_) | Message::UndoSceneCommand | Message::RedoSceneCommand =
             message
         {
-            self.try_leave_preview_mode(editor_scene, engine);
+            self.try_leave_preview_mode(game_scene, engine);
         }
     }
 
@@ -535,12 +534,12 @@ impl AnimationEditor {
     pub fn update(
         &mut self,
         editor_selection: &Selection,
-        editor_scene: &EditorScene,
+        game_scene: &GameScene,
         engine: &Engine,
     ) {
         let selection = fetch_selection(editor_selection);
 
-        let scene = &engine.scenes[editor_scene.scene];
+        let scene = &engine.scenes[game_scene.scene];
 
         if let Some(animation_player) = scene
             .graph
@@ -560,12 +559,12 @@ impl AnimationEditor {
     pub fn sync_to_model(
         &mut self,
         editor_selection: &Selection,
-        editor_scene: &EditorScene,
+        game_scene: &GameScene,
         engine: &mut Engine,
     ) {
         let selection = fetch_selection(editor_selection);
 
-        let scene = &engine.scenes[editor_scene.scene];
+        let scene = &engine.scenes[game_scene.scene];
 
         let mut is_animation_player_selected = false;
         let mut is_animation_selected = false;

@@ -18,7 +18,7 @@ use crate::{
             },
             ChangeSelectionCommand, CommandGroup, SceneCommand,
         },
-        EditorScene, Selection,
+        GameScene, Selection,
     },
     settings::Settings,
     utils::window_content,
@@ -135,11 +135,11 @@ impl NavmeshPanel {
         &mut self,
         engine: &Engine,
         editor_selection: &Selection,
-        editor_scene: &EditorScene,
+        game_scene: &GameScene,
     ) {
         let mut navmesh_selected = false;
 
-        let graph = &engine.scenes[editor_scene.scene].graph;
+        let graph = &engine.scenes[game_scene.scene].graph;
         if let Some(selection) = fetch_selection(editor_selection) {
             navmesh_selected = graph
                 .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())
@@ -193,13 +193,9 @@ pub struct EditNavmeshMode {
 }
 
 impl EditNavmeshMode {
-    pub fn new(
-        editor_scene: &EditorScene,
-        engine: &mut Engine,
-        message_sender: MessageSender,
-    ) -> Self {
+    pub fn new(game_scene: &GameScene, engine: &mut Engine, message_sender: MessageSender) -> Self {
         Self {
-            move_gizmo: MoveGizmo::new(editor_scene, engine),
+            move_gizmo: MoveGizmo::new(game_scene, engine),
             message_sender,
             drag_context: None,
             plane_kind: PlaneKind::X,
@@ -223,24 +219,24 @@ impl InteractionMode for EditNavmeshMode {
         frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
-        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
         };
 
-        let scene = &mut engine.scenes[editor_scene.scene];
-        let camera: &Camera = scene.graph[editor_scene.camera_controller.camera].as_camera();
+        let scene = &mut engine.scenes[game_scene.scene];
+        let camera: &Camera = scene.graph[game_scene.camera_controller.camera].as_camera();
         let ray = camera.make_ray(mouse_pos, frame_size);
 
-        let camera = editor_scene.camera_controller.camera;
-        let camera_pivot = editor_scene.camera_controller.pivot;
+        let camera = game_scene.camera_controller.camera;
+        let camera_pivot = game_scene.camera_controller.pivot;
         let gizmo_origin = self.move_gizmo.origin;
-        let editor_node = editor_scene
+        let editor_node = game_scene
             .camera_controller
             .pick(PickingOptions {
                 cursor_pos: mouse_pos,
                 graph: &scene.graph,
-                editor_objects_root: editor_scene.editor_objects_root,
-                scene_content_root: editor_scene.scene_content_root,
+                editor_objects_root: game_scene.editor_objects_root,
+                scene_content_root: game_scene.scene_content_root,
                 screen_size: frame_size,
                 editor_only: true,
                 filter: |handle, _| {
@@ -254,7 +250,7 @@ impl InteractionMode for EditNavmeshMode {
             .unwrap_or_default();
 
         if let Some(selection) = fetch_selection(editor_selection) {
-            let graph = &mut engine.scenes[editor_scene.scene].graph;
+            let graph = &mut engine.scenes[game_scene.scene].graph;
 
             if let Some(plane_kind) = self.move_gizmo.handle_pick(editor_node, graph) {
                 if let Some(navmesh) = graph
@@ -333,11 +329,11 @@ impl InteractionMode for EditNavmeshMode {
         _frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
         };
 
-        let graph = &mut engine.scenes[editor_scene.scene].graph;
+        let graph = &mut engine.scenes[game_scene.scene].graph;
 
         self.move_gizmo.reset_state(graph);
 
@@ -393,7 +389,7 @@ impl InteractionMode for EditNavmeshMode {
         frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
         };
 
@@ -402,8 +398,8 @@ impl InteractionMode for EditNavmeshMode {
         }
 
         let offset = self.move_gizmo.calculate_offset(
-            editor_scene,
-            editor_scene.camera_controller.camera,
+            game_scene,
+            game_scene.camera_controller.camera,
             mouse_offset,
             mouse_position,
             engine,
@@ -411,7 +407,7 @@ impl InteractionMode for EditNavmeshMode {
             self.plane_kind,
         );
 
-        let graph = &mut engine.scenes[editor_scene.scene].graph;
+        let graph = &mut engine.scenes[game_scene.scene].graph;
 
         if let Some(selection) = fetch_selection(editor_selection) {
             if let Some(navmesh) = graph
@@ -470,16 +466,16 @@ impl InteractionMode for EditNavmeshMode {
         engine: &mut Engine,
         settings: &Settings,
     ) {
-        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
         };
 
-        let scene = &mut engine.scenes[editor_scene.scene];
+        let scene = &mut engine.scenes[game_scene.scene];
         self.move_gizmo.set_visible(&mut scene.graph, false);
 
         let scale = calculate_gizmo_distance_scaling(
             &scene.graph,
-            editor_scene.camera_controller.camera,
+            game_scene.camera_controller.camera,
             self.move_gizmo.origin,
         );
 
@@ -552,11 +548,11 @@ impl InteractionMode for EditNavmeshMode {
     }
 
     fn deactivate(&mut self, controller: &dyn SceneController, engine: &mut Engine) {
-        let Some(editor_scene) = controller.downcast_ref::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_ref::<GameScene>() else {
             return;
         };
 
-        let scene = &mut engine.scenes[editor_scene.scene];
+        let scene = &mut engine.scenes[game_scene.scene];
         self.move_gizmo.set_visible(&mut scene.graph, false);
     }
 
@@ -567,11 +563,11 @@ impl InteractionMode for EditNavmeshMode {
         controller: &mut dyn SceneController,
         engine: &mut Engine,
     ) -> bool {
-        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return false;
         };
 
-        let scene = &mut engine.scenes[editor_scene.scene];
+        let scene = &mut engine.scenes[game_scene.scene];
 
         if let Some(selection) = fetch_selection(editor_selection) {
             return match key {

@@ -1,4 +1,4 @@
-use crate::scene::EditorScene;
+use crate::scene::GameScene;
 use fyrox::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
@@ -206,12 +206,12 @@ impl SceneGizmo {
         }
     }
 
-    pub fn sync_rotations(&self, editor_scene: &EditorScene, engine: &mut Engine) {
-        let graph = &engine.scenes[editor_scene.scene].graph;
-        let hinge_rotation = **graph[editor_scene.camera_controller.camera_hinge]
+    pub fn sync_rotations(&self, game_scene: &GameScene, engine: &mut Engine) {
+        let graph = &engine.scenes[game_scene.scene].graph;
+        let hinge_rotation = **graph[game_scene.camera_controller.camera_hinge]
             .local_transform()
             .rotation();
-        let pivot_rotation = **graph[editor_scene.camera_controller.pivot]
+        let pivot_rotation = **graph[game_scene.camera_controller.pivot]
             .local_transform()
             .rotation();
 

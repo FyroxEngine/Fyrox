@@ -4,7 +4,7 @@ use crate::{
     command::Command,
     define_universal_commands,
     scene::{
-        clipboard::DeepCloneResult, commands::graph::DeleteSubGraphCommand, EditorScene,
+        clipboard::DeepCloneResult, commands::graph::DeleteSubGraphCommand, GameScene,
         GraphSelection, Selection,
     },
     Engine, Message,
@@ -141,10 +141,7 @@ impl Command for CommandGroup {
     }
 }
 
-pub fn selection_to_delete(
-    editor_selection: &Selection,
-    editor_scene: &EditorScene,
-) -> GraphSelection {
+pub fn selection_to_delete(editor_selection: &Selection, game_scene: &GameScene) -> GraphSelection {
     // Graph's root is non-deletable.
     let mut selection = if let Selection::Graph(selection) = editor_selection {
         selection.clone()
@@ -154,7 +151,7 @@ pub fn selection_to_delete(
     if let Some(root_position) = selection
         .nodes
         .iter()
-        .position(|&n| n == editor_scene.scene_content_root)
+        .position(|&n| n == game_scene.scene_content_root)
     {
         selection.nodes.remove(root_position);
     }
@@ -167,12 +164,12 @@ pub fn selection_to_delete(
 /// in editor's data model, so we have to thoroughly build command using simple commands.
 pub fn make_delete_selection_command(
     editor_selection: &Selection,
-    editor_scene: &EditorScene,
+    game_scene: &GameScene,
     engine: &Engine,
 ) -> SceneCommand {
-    let selection = selection_to_delete(editor_selection, editor_scene);
+    let selection = selection_to_delete(editor_selection, game_scene);
 
-    let graph = &engine.scenes[editor_scene.scene].graph;
+    let graph = &engine.scenes[game_scene.scene].graph;
 
     // Change selection first.
     let mut command_group = CommandGroup::from(vec![SceneCommand::new(

@@ -6,8 +6,8 @@ use crate::{
     scene_viewer::gizmo::{SceneGizmo, SceneGizmoAction},
     send_sync_message,
     utils::enable_widget,
-    BuildProfile, DropdownListBuilder, EditorScene, Message, Mode,
-    SaveSceneConfirmationDialogAction, SceneContainer, Selection, Settings,
+    BuildProfile, DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
+    SceneContainer, Selection, Settings,
 };
 use fyrox::{
     core::{color::Color, math::Rect, pool::Handle, uuid::Uuid},
@@ -492,7 +492,7 @@ impl SceneViewer {
                         _ => {}
                     }
                 } else if message.destination() == self.scene_gizmo_image {
-                    if let Some(editor_scene) = entry.controller.downcast_mut::<EditorScene>() {
+                    if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
                         match *msg {
                             WidgetMessage::MouseDown { button, pos, .. } => {
                                 if button == MouseButton::Left {
@@ -505,14 +505,12 @@ impl SceneViewer {
                                     {
                                         match action {
                                             SceneGizmoAction::Rotate(rotation) => {
-                                                editor_scene.camera_controller.pitch =
-                                                    rotation.pitch;
-                                                editor_scene.camera_controller.yaw = rotation.yaw;
+                                                game_scene.camera_controller.pitch = rotation.pitch;
+                                                game_scene.camera_controller.yaw = rotation.yaw;
                                             }
                                             SceneGizmoAction::SwitchProjection => {
-                                                let graph =
-                                                    &engine.scenes[editor_scene.scene].graph;
-                                                match graph[editor_scene.camera_controller.camera]
+                                                let graph = &engine.scenes[game_scene.scene].graph;
+                                                match graph[game_scene.camera_controller.camera]
                                                     .as_camera()
                                                     .projection()
                                                 {
@@ -670,11 +668,11 @@ impl SceneViewer {
                 entry.controller.render_target(engine),
             );
 
-            if let (Some(editor_scene), Selection::Graph(selection)) = (
-                entry.controller.downcast_ref::<EditorScene>(),
+            if let (Some(game_scene), Selection::Graph(selection)) = (
+                entry.controller.downcast_ref::<GameScene>(),
                 &entry.selection,
             ) {
-                let scene = &engine.scenes[editor_scene.scene];
+                let scene = &engine.scenes[game_scene.scene];
                 if let Some((_, position)) = selection.global_rotation_position(&scene.graph) {
                     engine.user_interface.send_message(Vec3EditorMessage::value(
                         self.global_position_display,
@@ -742,7 +740,7 @@ impl SceneViewer {
         ui.node(self.frame).screen_bounds()
     }
 
-    pub fn update(&self, editor_scene: &EditorScene, engine: &mut Engine) {
-        self.scene_gizmo.sync_rotations(editor_scene, engine);
+    pub fn update(&self, game_scene: &GameScene, engine: &mut Engine) {
+        self.scene_gizmo.sync_rotations(game_scene, engine);
     }
 }

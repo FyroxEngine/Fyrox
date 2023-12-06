@@ -81,7 +81,7 @@ pub struct PreviewInstance {
     pub nodes: FxHashSet<Handle<Node>>,
 }
 
-pub struct EditorScene {
+pub struct GameScene {
     pub scene: Handle<Scene>,
     // Handle to a root for all editor nodes.
     pub editor_objects_root: Handle<Node>,
@@ -96,7 +96,7 @@ pub struct EditorScene {
     pub camera_state: Vec<(Handle<Node>, bool)>,
 }
 
-impl EditorScene {
+impl GameScene {
     pub fn from_native_scene(
         mut scene: Scene,
         engine: &mut Engine,
@@ -122,7 +122,7 @@ impl EditorScene {
         scene.graph.physics.integration_parameters.dt = Some(0.0);
         scene.graph.physics2d.integration_parameters.dt = Some(0.0);
 
-        EditorScene {
+        GameScene {
             editor_objects_root,
             scene_content_root,
             camera_controller,
@@ -229,11 +229,11 @@ impl EditorScene {
             graph: &Graph,
             ctx: &mut SceneDrawingContext,
             editor_selection: &Selection,
-            editor_scene: &EditorScene,
+            game_scene: &GameScene,
             settings: &Settings,
         ) {
             // Ignore editor nodes.
-            if node == editor_scene.editor_objects_root {
+            if node == game_scene.editor_objects_root {
                 return;
             }
 
@@ -310,7 +310,7 @@ impl EditorScene {
             }
 
             for &child in node.children() {
-                draw_recursively(child, graph, ctx, editor_selection, editor_scene, settings)
+                draw_recursively(child, graph, ctx, editor_selection, game_scene, settings)
             }
         }
 
@@ -414,7 +414,7 @@ impl EditorScene {
     }
 }
 
-impl SceneController for EditorScene {
+impl SceneController for GameScene {
     fn as_any(&self) -> &dyn Any {
         self
     }

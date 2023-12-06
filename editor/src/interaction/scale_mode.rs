@@ -8,7 +8,7 @@ use crate::{
     message::MessageSender,
     scene::{
         commands::{graph::ScaleNodeCommand, ChangeSelectionCommand, CommandGroup, SceneCommand},
-        EditorScene, Selection,
+        GameScene, Selection,
     },
     settings::Settings,
     world::graph::selection::GraphSelection,
@@ -32,14 +32,10 @@ pub struct ScaleInteractionMode {
 }
 
 impl ScaleInteractionMode {
-    pub fn new(
-        editor_scene: &EditorScene,
-        engine: &mut Engine,
-        message_sender: MessageSender,
-    ) -> Self {
+    pub fn new(game_scene: &GameScene, engine: &mut Engine, message_sender: MessageSender) -> Self {
         Self {
             initial_scales: Default::default(),
-            scale_gizmo: ScaleGizmo::new(editor_scene, engine),
+            scale_gizmo: ScaleGizmo::new(game_scene, engine),
             interacting: false,
             message_sender,
         }
@@ -62,21 +58,21 @@ impl InteractionMode for ScaleInteractionMode {
         frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
-        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
         };
 
         if let Selection::Graph(selection) = editor_selection {
-            let graph = &mut engine.scenes[editor_scene.scene].graph;
+            let graph = &mut engine.scenes[game_scene.scene].graph;
 
             // Pick gizmo nodes.
-            let camera = editor_scene.camera_controller.camera;
-            let camera_pivot = editor_scene.camera_controller.pivot;
-            if let Some(result) = editor_scene.camera_controller.pick(PickingOptions {
+            let camera = game_scene.camera_controller.camera;
+            let camera_pivot = game_scene.camera_controller.pivot;
+            if let Some(result) = game_scene.camera_controller.pick(PickingOptions {
                 cursor_pos: mouse_pos,
                 graph,
-                editor_objects_root: editor_scene.editor_objects_root,
-                scene_content_root: editor_scene.scene_content_root,
+                editor_objects_root: game_scene.editor_objects_root,
+                scene_content_root: game_scene.scene_content_root,
                 screen_size: frame_size,
                 editor_only: true,
                 filter: |handle, _| handle != camera && handle != camera_pivot,
@@ -86,9 +82,9 @@ impl InteractionMode for ScaleInteractionMode {
             }) {
                 if self
                     .scale_gizmo
-                    .handle_pick(result.node, editor_scene, engine)
+                    .handle_pick(result.node, game_scene, engine)
                 {
-                    let graph = &mut engine.scenes[editor_scene.scene].graph;
+                    let graph = &mut engine.scenes[game_scene.scene].graph;
                     self.interacting = true;
                     self.initial_scales = selection.local_scales(graph);
                 }
@@ -105,11 +101,11 @@ impl InteractionMode for ScaleInteractionMode {
         frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
-        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
         };
 
-        let graph = &mut engine.scenes[editor_scene.scene].graph;
+        let graph = &mut engine.scenes[game_scene.scene].graph;
 
         self.scale_gizmo.reset_state(graph);
 
@@ -137,13 +133,13 @@ impl InteractionMode for ScaleInteractionMode {
                 }
             }
         } else {
-            let new_selection = editor_scene
+            let new_selection = game_scene
                 .camera_controller
                 .pick(PickingOptions {
                     cursor_pos: mouse_pos,
                     graph,
-                    editor_objects_root: editor_scene.editor_objects_root,
-                    scene_content_root: editor_scene.scene_content_root,
+                    editor_objects_root: game_scene.editor_objects_root,
+                    scene_content_root: game_scene.scene_content_root,
                     screen_size: frame_size,
                     editor_only: false,
                     filter: |_, _| true,
@@ -185,15 +181,15 @@ impl InteractionMode for ScaleInteractionMode {
         frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
         };
 
         if let Selection::Graph(selection) = editor_selection {
             if self.interacting {
                 let scale_delta = self.scale_gizmo.calculate_scale_delta(
-                    editor_scene,
-                    editor_scene.camera_controller.camera,
+                    game_scene,
+                    game_scene.camera_controller.camera,
                     mouse_offset,
                     mouse_position,
                     engine,
@@ -201,7 +197,7 @@ impl InteractionMode for ScaleInteractionMode {
                 );
                 for &node in selection.nodes().iter() {
                     let transform =
-                        engine.scenes[editor_scene.scene].graph[node].local_transform_mut();
+                        engine.scenes[game_scene.scene].graph[node].local_transform_mut();
                     let initial_scale = transform.scale();
                     let sx = (initial_scale.x * (1.0 + scale_delta.x)).max(std::f32::EPSILON);
                     let sy = (initial_scale.y * (1.0 + scale_delta.y)).max(std::f32::EPSILON);
@@ -219,18 +215,18 @@ impl InteractionMode for ScaleInteractionMode {
         engine: &mut Engine,
         _settings: &Settings,
     ) {
-        let Some(editor_scene) = controller.downcast_mut::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
         };
 
         if let Selection::Graph(selection) = editor_selection {
-            let graph = &mut engine.scenes[editor_scene.scene].graph;
-            if editor_selection.is_empty() || editor_scene.preview_camera.is_some() {
+            let graph = &mut engine.scenes[game_scene.scene].graph;
+            if editor_selection.is_empty() || game_scene.preview_camera.is_some() {
                 self.scale_gizmo.set_visible(graph, false);
             } else {
                 let scale = calculate_gizmo_distance_scaling(
                     graph,
-                    editor_scene.camera_controller.camera,
+                    game_scene.camera_controller.camera,
                     self.scale_gizmo.origin,
                 );
                 self.scale_gizmo.sync_transform(graph, selection, scale);
@@ -240,11 +236,11 @@ impl InteractionMode for ScaleInteractionMode {
     }
 
     fn deactivate(&mut self, controller: &dyn SceneController, engine: &mut Engine) {
-        let Some(editor_scene) = controller.downcast_ref::<EditorScene>() else {
+        let Some(game_scene) = controller.downcast_ref::<GameScene>() else {
             return;
         };
 
-        let graph = &mut engine.scenes[editor_scene.scene].graph;
+        let graph = &mut engine.scenes[game_scene.scene].graph;
         self.scale_gizmo.set_visible(graph, false);
     }
 

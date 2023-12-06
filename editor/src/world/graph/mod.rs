@@ -3,7 +3,7 @@ use crate::{
     message::MessageSender,
     scene::{
         commands::{graph::LinkNodesCommand, ChangeSelectionCommand, CommandGroup, SceneCommand},
-        EditorScene, Selection,
+        GameScene, Selection,
     },
     world::graph::selection::GraphSelection,
     world::WorldViewerDataProvider,
@@ -21,7 +21,7 @@ pub mod selection;
 
 pub struct EditorSceneWrapper<'a> {
     pub selection: &'a Selection,
-    pub editor_scene: &'a EditorScene,
+    pub game_scene: &'a GameScene,
     pub scene: &'a Scene,
     pub path: Option<&'a Path>,
     pub sender: &'a MessageSender,
@@ -29,7 +29,7 @@ pub struct EditorSceneWrapper<'a> {
 
 impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
     fn root_node(&self) -> ErasedHandle {
-        self.editor_scene.scene_content_root.into()
+        self.game_scene.scene_content_root.into()
     }
 
     fn path(&self) -> Option<&Path> {
