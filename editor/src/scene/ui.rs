@@ -235,6 +235,8 @@ impl SceneController for UiScene {
 pub struct UiSceneWrapper<'a> {
     pub ui: &'a UserInterface,
     pub path: Option<&'a Path>,
+    pub selection: &'a Selection,
+    pub sender: &'a MessageSender,
 }
 
 impl<'a> WorldViewerDataProvider for UiSceneWrapper<'a> {
@@ -291,8 +293,15 @@ impl<'a> WorldViewerDataProvider for UiSceneWrapper<'a> {
     }
 
     fn selection(&self) -> Vec<ErasedHandle> {
-        // TODO
-        Default::default()
+        if let Selection::Ui(ref selection) = self.selection {
+            selection
+                .widgets
+                .iter()
+                .map(|h| ErasedHandle::from(*h))
+                .collect::<Vec<_>>()
+        } else {
+            Default::default()
+        }
     }
 
     fn on_drop(&self, child: ErasedHandle, parent: ErasedHandle) {}
@@ -301,7 +310,28 @@ impl<'a> WorldViewerDataProvider for UiSceneWrapper<'a> {
         Default::default()
     }
 
-    fn on_selection_changed(&self, _new_selection: &[ErasedHandle]) {}
+    fn on_selection_changed(&self, selection: &[ErasedHandle]) {
+        let mut new_selection = Selection::None;
+        for &selected_item in selection {
+            match new_selection {
+                Selection::None => {
+                    new_selection =
+                        Selection::Ui(UiSelection::single_or_empty(selected_item.into()));
+                }
+                Selection::Ui(ref mut selection) => {
+                    selection.insert_or_exclude(selected_item.into())
+                }
+                _ => (),
+            }
+        }
+
+        if &new_selection != self.selection {
+            self.sender.do_scene_command(ChangeSelectionCommand::new(
+                new_selection,
+                self.selection.clone(),
+            ));
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -310,6 +340,19 @@ pub struct UiSelection {
 }
 
 impl UiSelection {
+    /// Creates new selection as single if node handle is not none, and empty if it is.
+    pub fn single_or_empty(node: Handle<UiNode>) -> Self {
+        if node.is_none() {
+            Self {
+                widgets: Default::default(),
+            }
+        } else {
+            Self {
+                widgets: vec![node],
+            }
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.widgets.is_empty()
     }

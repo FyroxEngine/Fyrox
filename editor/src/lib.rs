@@ -1323,6 +1323,8 @@ impl Editor {
                     &UiSceneWrapper {
                         ui: &game_scene.ui,
                         path: current_scene_entry.path.as_deref(),
+                        selection: &current_scene_entry.selection,
+                        sender: &self.message_sender,
                     },
                     engine,
                     &mut self.settings,
@@ -1564,6 +1566,8 @@ impl Editor {
                     &UiSceneWrapper {
                         ui: &game_scene.ui,
                         path: current_scene_entry.path.as_deref(),
+                        selection: &current_scene_entry.selection,
+                        sender: &self.message_sender,
                     },
                     &mut engine.user_interface,
                     &self.settings,
@@ -1594,6 +1598,8 @@ impl Editor {
                     &UiSceneWrapper {
                         ui: &game_scene.ui,
                         path: entry.path.as_deref(),
+                        selection: &entry.selection,
+                        sender: &self.message_sender,
                     },
                     &mut self.engine.user_interface,
                     &self.settings,
