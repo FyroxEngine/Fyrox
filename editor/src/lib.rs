@@ -1859,8 +1859,12 @@ impl Editor {
         self.sync_to_model();
         self.poll_ui_messages();
 
-        self.scenes
-            .add_ui_scene_and_select(None, self.message_sender.clone());
+        self.scenes.add_ui_scene_and_select(
+            None,
+            self.message_sender.clone(),
+            &self.scene_viewer,
+            &mut self.engine,
+        );
 
         self.on_scene_changed();
     }

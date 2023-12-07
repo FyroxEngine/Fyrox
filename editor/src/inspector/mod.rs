@@ -706,6 +706,10 @@ impl Inspector {
                             .doc()
                             .to_string(),
                     ),
+                    Selection::Ui(_ui) => {
+                        // TODO
+                        None
+                    }
                 };
 
                 if let Some(doc) = entity {

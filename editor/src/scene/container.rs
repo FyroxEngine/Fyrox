@@ -1,5 +1,5 @@
 use crate::scene::controller::SceneController;
-use crate::scene::ui::UiScene;
+use crate::scene::ui::{UiScene, UiSelectInteractionMode};
 use crate::settings::keys::KeyBindings;
 use crate::{
     interaction::{
@@ -413,12 +413,21 @@ impl SceneContainer {
         &mut self,
         path: Option<PathBuf>,
         message_sender: MessageSender,
+        scene_viewer: &SceneViewer,
+        engine: &mut Engine,
     ) {
         self.current_scene = Some(self.entries.len());
 
-        let entry = EditorSceneEntry {
+        let mut interaction_modes = InteractionModeContainer::default();
+        interaction_modes.add(UiSelectInteractionMode::new(
+            scene_viewer.frame(),
+            scene_viewer.selection_frame(),
+            message_sender.clone(),
+        ));
+
+        let mut entry = EditorSceneEntry {
             has_unsaved_changes: false,
-            interaction_modes: InteractionModeContainer::default(),
+            interaction_modes,
             controller: Box::new(UiScene::new()),
             current_interaction_mode: None,
             last_mouse_pos: None,
@@ -428,6 +437,8 @@ impl SceneContainer {
             path,
             selection: Default::default(),
         };
+
+        entry.set_interaction_mode(engine, Some(UiSelectInteractionMode::type_uuid()));
 
         self.entries.push(entry);
     }

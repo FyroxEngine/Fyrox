@@ -213,6 +213,7 @@ impl ChangeSelectionCommand {
                 Selection::AudioBus(_) => "Change Selection: Audio Bus",
                 Selection::Absm(_) => "Change Selection: Absm",
                 Selection::Animation(_) => "Change Selection: Animation",
+                Selection::Ui(_) => "Change Selection: Ui",
             }
             .to_owned(),
             new_selection,

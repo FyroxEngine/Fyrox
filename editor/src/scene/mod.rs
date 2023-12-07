@@ -1,5 +1,6 @@
 use crate::inspector::editors::handle::HandlePropertyEditorMessage;
 use crate::scene::selector::HierarchyNode;
+use crate::scene::ui::UiSelection;
 use crate::{
     absm::selection::AbsmSelection,
     animation::selection::AnimationSelection,
@@ -889,6 +890,7 @@ pub enum Selection {
     AudioBus(AudioBusSelection),
     Absm(AbsmSelection),
     Animation(AnimationSelection),
+    Ui(UiSelection),
 }
 
 impl Default for Selection {
@@ -906,6 +908,7 @@ impl Selection {
             Selection::AudioBus(effect) => effect.is_empty(),
             Selection::Absm(absm) => absm.is_empty(),
             Selection::Animation(animation) => animation.is_empty(),
+            Selection::Ui(ui) => ui.is_empty(),
         }
     }
 
@@ -917,6 +920,7 @@ impl Selection {
             Selection::AudioBus(effect) => effect.len(),
             Selection::Absm(absm) => absm.len(),
             Selection::Animation(animation) => animation.len(),
+            Selection::Ui(ui) => ui.len(),
         }
     }
 
