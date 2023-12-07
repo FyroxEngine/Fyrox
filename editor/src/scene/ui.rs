@@ -1,10 +1,10 @@
 #![allow(unused_variables)] // TODO
 
 use crate::{
-    command::Command,
+    define_command_stack,
     interaction::{make_interaction_mode_button, InteractionMode},
     message::MessageSender,
-    scene::{commands::ChangeSelectionCommand, controller::SceneController, Selection},
+    scene::{controller::SceneController, Selection},
     settings::{keys::KeyBindings, Settings},
     world::WorldViewerDataProvider,
     Message,
@@ -31,21 +31,19 @@ use fyrox::{
     },
     resource::texture::{TextureKind, TextureResource, TextureResourceExtension},
 };
+use std::fmt::Debug;
+use std::ops::{Deref, DerefMut};
 use std::{any::Any, path::Path};
 
 pub struct UiScene {
     pub ui: UserInterface,
     pub render_target: TextureResource,
-}
-
-impl Default for UiScene {
-    fn default() -> Self {
-        Self::new()
-    }
+    pub command_stack: UiCommandStack,
+    pub message_sender: MessageSender,
 }
 
 impl UiScene {
-    pub fn new() -> Self {
+    pub fn new(message_sender: MessageSender) -> Self {
         let mut ui = UserInterface::new(Vector2::new(200.0, 200.0));
 
         // Create test content.
@@ -65,7 +63,24 @@ impl UiScene {
         Self {
             ui,
             render_target: TextureResource::new_render_target(200, 200),
+            command_stack: UiCommandStack::new(false),
+            message_sender,
         }
+    }
+
+    pub fn do_command(
+        &mut self,
+        command: Box<dyn UiCommand>,
+        selection: &mut Selection,
+        engine: &mut Engine,
+    ) {
+        self.command_stack.do_command(
+            command,
+            UiSceneContext {
+                selection,
+                message_sender: &self.message_sender,
+            },
+        );
     }
 }
 
@@ -161,19 +176,26 @@ impl SceneController for UiScene {
         Ok("".to_string())
     }
 
-    fn do_command(
-        &mut self,
-        command: Box<dyn Command>,
-        selection: &mut Selection,
-        engine: &mut Engine,
-    ) {
+    fn undo(&mut self, selection: &mut Selection, engine: &mut Engine) {
+        self.command_stack.undo(UiSceneContext {
+            selection,
+            message_sender: &self.message_sender,
+        });
     }
 
-    fn undo(&mut self, selection: &mut Selection, engine: &mut Engine) {}
+    fn redo(&mut self, selection: &mut Selection, engine: &mut Engine) {
+        self.command_stack.redo(UiSceneContext {
+            selection,
+            message_sender: &self.message_sender,
+        });
+    }
 
-    fn redo(&mut self, selection: &mut Selection, engine: &mut Engine) {}
-
-    fn clear_command_stack(&mut self, selection: &mut Selection, engine: &mut Engine) {}
+    fn clear_command_stack(&mut self, selection: &mut Selection, engine: &mut Engine) {
+        self.command_stack.clear(UiSceneContext {
+            selection,
+            message_sender: &self.message_sender,
+        });
+    }
 
     fn on_before_render(&mut self, engine: &mut Engine) {
         Log::verify(
@@ -326,10 +348,11 @@ impl<'a> WorldViewerDataProvider for UiSceneWrapper<'a> {
         }
 
         if &new_selection != self.selection {
-            self.sender.do_scene_command(ChangeSelectionCommand::new(
-                new_selection,
-                self.selection.clone(),
-            ));
+            self.sender
+                .do_ui_scene_command(ChangeUiSelectionCommand::new(
+                    new_selection,
+                    self.selection.clone(),
+                ));
         }
     }
 }
@@ -475,7 +498,7 @@ impl InteractionMode for UiSelectInteractionMode {
 
         if &new_selection != editor_selection {
             self.message_sender
-                .do_scene_command(ChangeSelectionCommand::new(
+                .do_ui_scene_command(ChangeUiSelectionCommand::new(
                     new_selection,
                     editor_selection.clone(),
                 ));
@@ -558,5 +581,85 @@ impl InteractionMode for UiSelectInteractionMode {
 
     fn uuid(&self) -> Uuid {
         Self::type_uuid()
+    }
+}
+
+pub struct UiSceneContext<'a> {
+    selection: &'a mut Selection,
+    message_sender: &'a MessageSender,
+}
+
+#[derive(Debug)]
+pub struct UiSceneCommand(pub Box<dyn UiCommand>);
+
+impl Deref for UiSceneCommand {
+    type Target = dyn UiCommand;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
+
+impl DerefMut for UiSceneCommand {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut *self.0
+    }
+}
+
+impl UiSceneCommand {
+    pub fn new<C: UiCommand>(cmd: C) -> Self {
+        Self(Box::new(cmd))
+    }
+
+    pub fn into_inner(self) -> Box<dyn UiCommand> {
+        self.0
+    }
+}
+
+define_command_stack!(UiCommand, UiCommandStack, UiSceneContext);
+
+#[derive(Debug)]
+pub struct ChangeUiSelectionCommand {
+    new_selection: Selection,
+    old_selection: Selection,
+}
+
+impl ChangeUiSelectionCommand {
+    pub fn new(new_selection: Selection, old_selection: Selection) -> Self {
+        Self {
+            new_selection,
+            old_selection,
+        }
+    }
+
+    fn swap(&mut self) -> Selection {
+        let selection = self.new_selection.clone();
+        std::mem::swap(&mut self.new_selection, &mut self.old_selection);
+        selection
+    }
+
+    fn exec(&mut self, context: &mut UiSceneContext) {
+        let old_selection = self.old_selection.clone();
+        let new_selection = self.swap();
+        if &new_selection != context.selection {
+            *context.selection = new_selection;
+            context
+                .message_sender
+                .send(Message::SelectionChanged { old_selection });
+        }
+    }
+}
+
+impl UiCommand for ChangeUiSelectionCommand {
+    fn name(&mut self, _context: &UiSceneContext) -> String {
+        "Change Selection".to_string()
+    }
+
+    fn execute(&mut self, context: &mut UiSceneContext) {
+        self.exec(context);
+    }
+
+    fn revert(&mut self, context: &mut UiSceneContext) {
+        self.exec(context);
     }
 }

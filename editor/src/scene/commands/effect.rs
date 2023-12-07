@@ -1,4 +1,7 @@
-use crate::{define_universal_commands, scene::commands::SceneCommand, Command, SceneContext};
+use crate::{
+    define_universal_commands, scene::commands::GameSceneCommand, GameSceneCommandTrait,
+    GameSceneContext,
+};
 use fyrox::{
     core::{
         pool::{Handle, Ticket},
@@ -9,9 +12,9 @@ use fyrox::{
 
 define_universal_commands!(
     make_set_audio_bus_property_command,
-    Command,
-    SceneCommand,
-    SceneContext,
+    GameSceneCommandTrait,
+    GameSceneCommand,
+    GameSceneContext,
     Handle<AudioBus>,
     ctx,
     handle,
@@ -44,12 +47,12 @@ impl AddAudioBusCommand {
     }
 }
 
-impl Command for AddAudioBusCommand {
-    fn name(&mut self, _: &SceneContext) -> String {
+impl GameSceneCommandTrait for AddAudioBusCommand {
+    fn name(&mut self, _: &GameSceneContext) -> String {
         "Add Effect".to_owned()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         let mut state = context.scene.graph.sound_context.state();
         let parent = state.bus_graph_ref().primary_bus_handle();
         self.handle = state
@@ -57,7 +60,7 @@ impl Command for AddAudioBusCommand {
             .add_bus(self.bus.take().unwrap(), parent);
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         let (ticket, effect) = context
             .scene
             .graph
@@ -70,7 +73,7 @@ impl Command for AddAudioBusCommand {
         self.ticket = Some(ticket);
     }
 
-    fn finalize(&mut self, context: &mut SceneContext) {
+    fn finalize(&mut self, context: &mut GameSceneContext) {
         if let Some(ticket) = self.ticket.take() {
             context
                 .scene
@@ -100,12 +103,12 @@ impl RemoveAudioBusCommand {
     }
 }
 
-impl Command for RemoveAudioBusCommand {
-    fn name(&mut self, _: &SceneContext) -> String {
+impl GameSceneCommandTrait for RemoveAudioBusCommand {
+    fn name(&mut self, _: &GameSceneContext) -> String {
         "Remove Effect".to_owned()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         let (ticket, effect) = context
             .scene
             .graph
@@ -118,7 +121,7 @@ impl Command for RemoveAudioBusCommand {
         self.ticket = Some(ticket);
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         let mut state = context.scene.graph.sound_context.state();
         let parent = state.bus_graph_ref().primary_bus_handle();
         self.handle = state
@@ -126,7 +129,7 @@ impl Command for RemoveAudioBusCommand {
             .add_bus(self.bus.take().unwrap(), parent);
     }
 
-    fn finalize(&mut self, context: &mut SceneContext) {
+    fn finalize(&mut self, context: &mut GameSceneContext) {
         if let Some(ticket) = self.ticket.take() {
             context
                 .scene
@@ -146,7 +149,7 @@ pub struct LinkAudioBuses {
 }
 
 impl LinkAudioBuses {
-    fn swap(&mut self, context: &mut SceneContext) {
+    fn swap(&mut self, context: &mut GameSceneContext) {
         let mut state = context.scene.graph.sound_context.state();
         let graph = state.bus_graph_mut();
         let old_parent = graph.try_get_bus_ref(self.child).unwrap().parent();
@@ -155,16 +158,16 @@ impl LinkAudioBuses {
     }
 }
 
-impl Command for LinkAudioBuses {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for LinkAudioBuses {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Link Audio Buses".to_string()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         self.swap(context)
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         self.swap(context)
     }
 }

@@ -519,8 +519,9 @@ impl AnimationEditor {
         engine: &mut Engine,
     ) {
         // Leave preview mode before execution of any scene command.
-        if let Message::DoSceneCommand(_) | Message::UndoSceneCommand | Message::RedoSceneCommand =
-            message
+        if let Message::DoGameSceneCommand(_)
+        | Message::UndoCurrentSceneCommand
+        | Message::RedoCurrentSceneCommand = message
         {
             self.try_leave_preview_mode(game_scene, engine);
         }

@@ -12,7 +12,7 @@ use crate::{
     gui::make_dropdown_list_option_universal,
     load_image,
     scene::{
-        commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
+        commands::{ChangeSelectionCommand, CommandGroup, GameSceneCommand},
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
         GameScene, Selection,
     },
@@ -894,7 +894,7 @@ impl Toolbar {
                     .is_some()
                 {
                     let group = vec![
-                        SceneCommand::new(ChangeSelectionCommand::new(
+                        GameSceneCommand::new(ChangeSelectionCommand::new(
                             Selection::Animation(AnimationSelection {
                                 animation_player: animation_player_handle,
                                 animation: Default::default(),
@@ -902,7 +902,7 @@ impl Toolbar {
                             }),
                             editor_selection.clone(),
                         )),
-                        SceneCommand::new(RemoveAnimationCommand::new(
+                        GameSceneCommand::new(RemoveAnimationCommand::new(
                             animation_player_handle,
                             selection.animation,
                         )),
@@ -1077,7 +1077,7 @@ impl Toolbar {
                                     animations
                                         .into_iter()
                                         .map(|a| {
-                                            SceneCommand::new(AddAnimationCommand::new(
+                                            GameSceneCommand::new(AddAnimationCommand::new(
                                                 animation_player_handle,
                                                 a,
                                             ))

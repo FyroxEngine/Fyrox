@@ -1,6 +1,8 @@
+use crate::scene::ui::UiCommand;
 use crate::{
-    command::Command, scene::commands::SceneCommand, scene::Selection, BuildProfile,
-    SaveSceneConfirmationDialogAction,
+    command::GameSceneCommandTrait,
+    scene::{commands::GameSceneCommand, ui::UiSceneCommand, Selection},
+    BuildProfile, SaveSceneConfirmationDialogAction,
 };
 use fyrox::{
     core::{
@@ -16,10 +18,11 @@ use std::{any::TypeId, path::PathBuf, sync::mpsc::Sender};
 
 #[derive(Debug)]
 pub enum Message {
-    DoSceneCommand(SceneCommand),
-    UndoSceneCommand,
-    RedoSceneCommand,
-    ClearSceneCommandStack,
+    DoGameSceneCommand(GameSceneCommand),
+    DoUiSceneCommand(UiSceneCommand),
+    UndoCurrentSceneCommand,
+    RedoCurrentSceneCommand,
+    ClearCurrentSceneCommandStack,
     SelectionChanged {
         old_selection: Selection,
     },
@@ -84,9 +87,16 @@ pub struct MessageSender(pub Sender<Message>);
 impl MessageSender {
     pub fn do_scene_command<C>(&self, cmd: C)
     where
-        C: Command,
+        C: GameSceneCommandTrait,
     {
-        self.send(Message::DoSceneCommand(SceneCommand::new(cmd)))
+        self.send(Message::DoGameSceneCommand(GameSceneCommand::new(cmd)))
+    }
+
+    pub fn do_ui_scene_command<C>(&self, cmd: C)
+    where
+        C: UiCommand,
+    {
+        self.send(Message::DoUiSceneCommand(UiSceneCommand::new(cmd)))
     }
 
     pub fn send(&self, message: Message) {

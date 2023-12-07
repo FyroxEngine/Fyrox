@@ -204,8 +204,9 @@ impl ParticleSystemPreviewControlPanel {
         game_scene: &mut GameScene,
         engine: &mut Engine,
     ) {
-        if let Message::DoSceneCommand(_) | Message::UndoSceneCommand | Message::RedoSceneCommand =
-            message
+        if let Message::DoGameSceneCommand(_)
+        | Message::UndoCurrentSceneCommand
+        | Message::RedoCurrentSceneCommand = message
         {
             self.leave_preview_mode(game_scene, engine);
         }

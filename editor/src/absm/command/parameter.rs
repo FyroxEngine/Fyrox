@@ -1,8 +1,8 @@
 use crate::{
     absm::command::fetch_machine,
-    command::Command,
+    command::GameSceneCommandTrait,
     define_universal_commands,
-    scene::commands::{SceneCommand, SceneContext},
+    scene::commands::{GameSceneCommand, GameSceneContext},
 };
 use fyrox::{
     core::{pool::Handle, reflect::prelude::*},
@@ -11,9 +11,9 @@ use fyrox::{
 
 define_universal_commands!(
     make_set_parameters_property_command,
-    Command,
-    SceneCommand,
-    SceneContext,
+    GameSceneCommandTrait,
+    GameSceneCommand,
+    GameSceneContext,
     (),
     ctx,
     handle,

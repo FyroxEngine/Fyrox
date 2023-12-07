@@ -14,7 +14,7 @@ use crate::{
     menu::create_menu_item,
     message::MessageSender,
     scene::{
-        commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
+        commands::{ChangeSelectionCommand, CommandGroup, GameSceneCommand},
         Selection,
     },
 };
@@ -234,14 +234,14 @@ impl NodeContextMenu {
                     let mut new_selection = selection.clone();
                     new_selection.entities.clear();
 
-                    let mut group = vec![SceneCommand::new(ChangeSelectionCommand::new(
+                    let mut group = vec![GameSceneCommand::new(ChangeSelectionCommand::new(
                         Selection::Absm(new_selection),
                         editor_selection.clone(),
                     ))];
 
                     group.extend(selection.entities.iter().filter_map(|entry| {
                         if let SelectedEntity::PoseNode(pose_node) = entry {
-                            Some(SceneCommand::new(DeletePoseNodeCommand::new(
+                            Some(GameSceneCommand::new(DeletePoseNodeCommand::new(
                                 absm_node_handle,
                                 layer_index,
                                 *pose_node,

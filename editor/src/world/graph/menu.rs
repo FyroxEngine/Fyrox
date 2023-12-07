@@ -6,8 +6,8 @@ use crate::{
     scene::{
         commands::{
             graph::{AddNodeCommand, ReplaceNodeCommand, SetGraphRootCommand},
-            make_delete_selection_command, CommandGroup, RevertSceneNodePropertyCommand,
-            SceneCommand,
+            make_delete_selection_command, CommandGroup, GameSceneCommand,
+            RevertSceneNodePropertyCommand,
         },
         GameScene, Selection,
     },
@@ -192,7 +192,7 @@ impl SceneNodeContextMenu {
                 {
                     sender.send(Message::OpenNodeRemovalDialog);
                 } else {
-                    sender.send(Message::DoSceneCommand(make_delete_selection_command(
+                    sender.send(Message::DoGameSceneCommand(make_delete_selection_command(
                         editor_selection,
                         game_scene,
                         engine,
@@ -256,7 +256,7 @@ impl SceneNodeContextMenu {
                                 &mut |path, _, val| {
                                     val.as_inheritable_variable(&mut |inheritable| {
                                         if inheritable.is_some() {
-                                            commands.push(SceneCommand::new(
+                                            commands.push(GameSceneCommand::new(
                                                 RevertSceneNodePropertyCommand::new(
                                                     path.to_string(),
                                                     *node_handle,

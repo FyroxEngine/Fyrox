@@ -1,7 +1,7 @@
 use crate::message::MessageSender;
 use crate::scene::clipboard::Clipboard;
 use crate::{
-    command::Command,
+    command::GameSceneCommandTrait,
     define_universal_commands,
     scene::{
         clipboard::DeepCloneResult, commands::graph::DeleteSubGraphCommand, GameScene,
@@ -44,7 +44,7 @@ macro_rules! get_set_swap {
     };
 }
 
-pub struct SceneContext<'a> {
+pub struct GameSceneContext<'a> {
     pub selection: &'a mut Selection,
     pub scene: &'a mut Scene,
     pub scene_content_root: &'a mut Handle<Node>,
@@ -55,40 +55,40 @@ pub struct SceneContext<'a> {
 }
 
 #[derive(Debug)]
-pub struct SceneCommand(pub Box<dyn Command>);
+pub struct GameSceneCommand(pub Box<dyn GameSceneCommandTrait>);
 
-impl Deref for SceneCommand {
-    type Target = dyn Command;
+impl Deref for GameSceneCommand {
+    type Target = dyn GameSceneCommandTrait;
 
     fn deref(&self) -> &Self::Target {
         &*self.0
     }
 }
 
-impl DerefMut for SceneCommand {
+impl DerefMut for GameSceneCommand {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut *self.0
     }
 }
 
-impl SceneCommand {
-    pub fn new<C: Command>(cmd: C) -> Self {
+impl GameSceneCommand {
+    pub fn new<C: GameSceneCommandTrait>(cmd: C) -> Self {
         Self(Box::new(cmd))
     }
 
-    pub fn into_inner(self) -> Box<dyn Command> {
+    pub fn into_inner(self) -> Box<dyn GameSceneCommandTrait> {
         self.0
     }
 }
 
 #[derive(Debug)]
 pub struct CommandGroup {
-    commands: Vec<SceneCommand>,
+    commands: Vec<GameSceneCommand>,
     custom_name: String,
 }
 
-impl From<Vec<SceneCommand>> for CommandGroup {
-    fn from(commands: Vec<SceneCommand>) -> Self {
+impl From<Vec<GameSceneCommand>> for CommandGroup {
+    fn from(commands: Vec<GameSceneCommand>) -> Self {
         Self {
             commands,
             custom_name: Default::default(),
@@ -97,7 +97,7 @@ impl From<Vec<SceneCommand>> for CommandGroup {
 }
 
 impl CommandGroup {
-    pub fn push(&mut self, command: SceneCommand) {
+    pub fn push(&mut self, command: GameSceneCommand) {
         self.commands.push(command)
     }
 
@@ -107,8 +107,8 @@ impl CommandGroup {
     }
 }
 
-impl Command for CommandGroup {
-    fn name(&mut self, context: &SceneContext) -> String {
+impl GameSceneCommandTrait for CommandGroup {
+    fn name(&mut self, context: &GameSceneContext) -> String {
         if self.custom_name.is_empty() {
             let mut name = String::from("Command group: ");
             for cmd in self.commands.iter_mut() {
@@ -121,20 +121,20 @@ impl Command for CommandGroup {
         }
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         for cmd in self.commands.iter_mut() {
             cmd.execute(context);
         }
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         // revert must be done in reverse order.
         for cmd in self.commands.iter_mut().rev() {
             cmd.revert(context);
         }
     }
 
-    fn finalize(&mut self, context: &mut SceneContext) {
+    fn finalize(&mut self, context: &mut GameSceneContext) {
         for mut cmd in self.commands.drain(..) {
             cmd.finalize(context);
         }
@@ -166,13 +166,13 @@ pub fn make_delete_selection_command(
     editor_selection: &Selection,
     game_scene: &GameScene,
     engine: &Engine,
-) -> SceneCommand {
+) -> GameSceneCommand {
     let selection = selection_to_delete(editor_selection, game_scene);
 
     let graph = &engine.scenes[game_scene.scene].graph;
 
     // Change selection first.
-    let mut command_group = CommandGroup::from(vec![SceneCommand::new(
+    let mut command_group = CommandGroup::from(vec![GameSceneCommand::new(
         ChangeSelectionCommand::new(Default::default(), Selection::Graph(selection.clone())),
     )]);
 
@@ -190,32 +190,21 @@ pub fn make_delete_selection_command(
     let root_nodes = selection.root_nodes(graph);
 
     for root_node in root_nodes {
-        command_group.push(SceneCommand::new(DeleteSubGraphCommand::new(root_node)));
+        command_group.push(GameSceneCommand::new(DeleteSubGraphCommand::new(root_node)));
     }
 
-    SceneCommand::new(command_group)
+    GameSceneCommand::new(command_group)
 }
 
 #[derive(Debug)]
 pub struct ChangeSelectionCommand {
     new_selection: Selection,
     old_selection: Selection,
-    cached_name: String,
 }
 
 impl ChangeSelectionCommand {
     pub fn new(new_selection: Selection, old_selection: Selection) -> Self {
         Self {
-            cached_name: match new_selection {
-                Selection::None => "Change Selection: None",
-                Selection::Graph(_) => "Change Selection: Graph",
-                Selection::Navmesh(_) => "Change Selection: Navmesh",
-                Selection::AudioBus(_) => "Change Selection: Audio Bus",
-                Selection::Absm(_) => "Change Selection: Absm",
-                Selection::Animation(_) => "Change Selection: Animation",
-                Selection::Ui(_) => "Change Selection: Ui",
-            }
-            .to_owned(),
             new_selection,
             old_selection,
         }
@@ -226,33 +215,30 @@ impl ChangeSelectionCommand {
         std::mem::swap(&mut self.new_selection, &mut self.old_selection);
         selection
     }
+
+    fn exec(&mut self, context: &mut GameSceneContext) {
+        let old_selection = self.old_selection.clone();
+        let new_selection = self.swap();
+        if &new_selection != context.selection {
+            *context.selection = new_selection;
+            context
+                .message_sender
+                .send(Message::SelectionChanged { old_selection });
+        }
+    }
 }
 
-impl Command for ChangeSelectionCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
-        self.cached_name.clone()
+impl GameSceneCommandTrait for ChangeSelectionCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
+        "Change Selection".to_string()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
-        let old_selection = self.old_selection.clone();
-        let new_selection = self.swap();
-        if &new_selection != context.selection {
-            *context.selection = new_selection;
-            context
-                .message_sender
-                .send(Message::SelectionChanged { old_selection });
-        }
+    fn execute(&mut self, context: &mut GameSceneContext) {
+        self.exec(context);
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
-        let old_selection = self.old_selection.clone();
-        let new_selection = self.swap();
-        if &new_selection != context.selection {
-            *context.selection = new_selection;
-            context
-                .message_sender
-                .send(Message::SelectionChanged { old_selection });
-        }
+    fn revert(&mut self, context: &mut GameSceneContext) {
+        self.exec(context);
     }
 }
 
@@ -285,12 +271,12 @@ impl PasteCommand {
     }
 }
 
-impl Command for PasteCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for PasteCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Paste".to_owned()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         match std::mem::replace(&mut self.state, PasteCommandState::Undefined) {
             PasteCommandState::NonExecuted => {
                 let paste_result = context.clipboard.paste(&mut context.scene.graph);
@@ -336,7 +322,7 @@ impl Command for PasteCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         if let PasteCommandState::Executed {
             paste_result,
             mut last_selection,
@@ -356,7 +342,7 @@ impl Command for PasteCommand {
         }
     }
 
-    fn finalize(&mut self, context: &mut SceneContext) {
+    fn finalize(&mut self, context: &mut GameSceneContext) {
         if let PasteCommandState::Reverted { subgraphs, .. } =
             std::mem::replace(&mut self.state, PasteCommandState::Undefined)
         {
@@ -395,12 +381,12 @@ fn reset_property_modified_flag(entity: &mut dyn Reflect, path: &str) {
     })
 }
 
-impl Command for RevertSceneNodePropertyCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for RevertSceneNodePropertyCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         format!("Revert {} Property", self.path)
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         let child = &mut context.scene.graph[self.handle];
 
         // Revert only if there's parent resource (the node is an instance of some resource).
@@ -479,7 +465,7 @@ impl Command for RevertSceneNodePropertyCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         // If the property was modified, then simply set it to previous value to make it modified again.
         if let Some(old_value) = self.value.take() {
             let mut old_value = Some(old_value);
@@ -499,9 +485,9 @@ impl Command for RevertSceneNodePropertyCommand {
 
 define_universal_commands!(
     make_set_node_property_command,
-    Command,
-    SceneCommand,
-    SceneContext,
+    GameSceneCommandTrait,
+    GameSceneCommand,
+    GameSceneContext,
     Handle<Node>,
     ctx,
     handle,

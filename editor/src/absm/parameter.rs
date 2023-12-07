@@ -148,7 +148,7 @@ impl ParameterPanel {
                         },
                     );
                 } else {
-                    sender.send(Message::DoSceneCommand(
+                    sender.send(Message::DoGameSceneCommand(
                         make_set_parameters_property_command((), args, absm_node_handle).unwrap(),
                     ));
                 }

@@ -428,7 +428,7 @@ impl SceneContainer {
         let mut entry = EditorSceneEntry {
             has_unsaved_changes: false,
             interaction_modes,
-            controller: Box::new(UiScene::new()),
+            controller: Box::new(UiScene::new(message_sender.clone())),
             current_interaction_mode: None,
             last_mouse_pos: None,
             click_mouse_pos: None,

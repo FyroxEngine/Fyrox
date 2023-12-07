@@ -7,7 +7,9 @@ use crate::{
     },
     message::MessageSender,
     scene::{
-        commands::{graph::RotateNodeCommand, ChangeSelectionCommand, CommandGroup, SceneCommand},
+        commands::{
+            graph::RotateNodeCommand, ChangeSelectionCommand, CommandGroup, GameSceneCommand,
+        },
         GameScene, Selection,
     },
     settings::Settings,
@@ -124,13 +126,13 @@ impl InteractionMode for RotateInteractionMode {
                                 .iter()
                                 .zip(self.initial_rotations.iter().zip(current_rotation.iter()))
                                 .map(|(&node, (&old_rotation, &new_rotation))| {
-                                    SceneCommand::new(RotateNodeCommand::new(
+                                    GameSceneCommand::new(RotateNodeCommand::new(
                                         node,
                                         old_rotation,
                                         new_rotation,
                                     ))
                                 })
-                                .collect::<Vec<SceneCommand>>(),
+                                .collect::<Vec<GameSceneCommand>>(),
                         );
                         // Commit changes.
                         self.message_sender.do_scene_command(commands);

@@ -8,7 +8,7 @@ use crate::{
     gui::make_dropdown_list_option,
     load_image,
     scene::{
-        commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
+        commands::{ChangeSelectionCommand, CommandGroup, GameSceneCommand},
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
         GameScene, Selection,
     },
@@ -298,7 +298,7 @@ impl Toolbar {
                     if let Some(layer_index) = selection.layer {
                         let mut commands = Vec::new();
 
-                        commands.push(SceneCommand::new(ChangeSelectionCommand::new(
+                        commands.push(GameSceneCommand::new(ChangeSelectionCommand::new(
                             Selection::Absm(AbsmSelection {
                                 absm_node_handle: selection.absm_node_handle,
                                 layer: if absm_node.machine().layers().len() > 1 {
@@ -311,7 +311,7 @@ impl Toolbar {
                             editor_selection.clone(),
                         )));
 
-                        commands.push(SceneCommand::new(RemoveLayerCommand::new(
+                        commands.push(GameSceneCommand::new(RemoveLayerCommand::new(
                             selection.absm_node_handle,
                             layer_index,
                         )));

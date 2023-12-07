@@ -13,7 +13,7 @@ use crate::{
     menu::create_menu_item,
     message::MessageSender,
     scene::{
-        commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
+        commands::{ChangeSelectionCommand, CommandGroup, GameSceneCommand},
         property::{
             object_to_property_tree, PropertyDescriptorData, PropertySelectorMessage,
             PropertySelectorWindowBuilder,
@@ -873,7 +873,7 @@ impl TrackList {
 
                         for entity in scene_selection.entities.iter() {
                             if let SelectedEntity::Track(id) = entity {
-                                commands.push(SceneCommand::new(SetTrackTargetCommand {
+                                commands.push(GameSceneCommand::new(SetTrackTargetCommand {
                                     animation_player_handle: scene_selection.animation_player,
                                     animation_handle: scene_selection.animation,
                                     track: *id,
@@ -978,7 +978,7 @@ impl TrackList {
                             animation_player.animations().try_get(selection.animation)
                         {
                             let mut commands =
-                                vec![SceneCommand::new(ChangeSelectionCommand::new(
+                                vec![GameSceneCommand::new(ChangeSelectionCommand::new(
                                     Selection::Animation(AnimationSelection {
                                         animation_player: selection.animation_player,
                                         animation: selection.animation,
@@ -996,7 +996,7 @@ impl TrackList {
                                         .position(|t| t.id() == *id)
                                         .unwrap();
 
-                                    commands.push(SceneCommand::new(RemoveTrackCommand::new(
+                                    commands.push(GameSceneCommand::new(RemoveTrackCommand::new(
                                         selection.animation_player,
                                         selection.animation,
                                         index,
@@ -1052,7 +1052,7 @@ impl TrackList {
 
                                         track.set_id(Uuid::new_v4());
 
-                                        Some(SceneCommand::new(AddTrackCommand::new(
+                                        Some(GameSceneCommand::new(AddTrackCommand::new(
                                             selection.animation_player,
                                             selection.animation,
                                             track,

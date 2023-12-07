@@ -1,4 +1,3 @@
-use crate::command::Command;
 use crate::{
     scene::Selection,
     settings::{keys::KeyBindings, Settings},
@@ -85,13 +84,6 @@ pub trait SceneController: 'static {
         settings: &Settings,
         engine: &mut Engine,
     ) -> Result<String, String>;
-
-    fn do_command(
-        &mut self,
-        command: Box<dyn Command>,
-        selection: &mut Selection,
-        engine: &mut Engine,
-    );
 
     fn undo(&mut self, selection: &mut Selection, engine: &mut Engine);
 

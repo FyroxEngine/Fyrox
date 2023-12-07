@@ -1,7 +1,7 @@
 use crate::message::MessageSender;
 use crate::{
-    command::CommandStack, gui::make_image_button_with_tooltip, load_image,
-    scene::commands::SceneContext, send_sync_message, utils::window_content, Message, Mode,
+    command::GameSceneCommandStack, gui::make_image_button_with_tooltip, load_image,
+    scene::commands::GameSceneContext, send_sync_message, utils::window_content, Message, Mode,
 };
 use fyrox::{
     core::{color::Color, pool::Handle, scope_profile},
@@ -112,19 +112,19 @@ impl CommandStackViewer {
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.undo {
-                self.sender.send(Message::UndoSceneCommand);
+                self.sender.send(Message::UndoCurrentSceneCommand);
             } else if message.destination() == self.redo {
-                self.sender.send(Message::RedoSceneCommand);
+                self.sender.send(Message::RedoCurrentSceneCommand);
             } else if message.destination() == self.clear {
-                self.sender.send(Message::ClearSceneCommandStack);
+                self.sender.send(Message::ClearCurrentSceneCommandStack);
             }
         }
     }
 
     pub fn sync_to_model(
         &mut self,
-        command_stack: &mut CommandStack,
-        ctx: &SceneContext,
+        command_stack: &mut GameSceneCommandStack,
+        ctx: &GameSceneContext,
         ui: &mut UserInterface,
     ) {
         scope_profile!();

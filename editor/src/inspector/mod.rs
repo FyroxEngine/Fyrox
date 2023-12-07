@@ -99,7 +99,7 @@ pub struct Inspector {
 #[macro_export]
 macro_rules! make_command {
     ($cmd:ty, $handle:expr, $value:expr) => {
-        Some($crate::scene::commands::SceneCommand::new(<$cmd>::new(
+        Some($crate::scene::commands::GameSceneCommand::new(<$cmd>::new(
             $handle,
             $value.cast_value().cloned()?,
         )))
@@ -667,7 +667,9 @@ impl Inspector {
                         Log::err(format!("Failed to handle a property {}", args.path()))
                     }
                 } else if group.len() == 1 {
-                    sender.send(Message::DoSceneCommand(group.into_iter().next().unwrap()))
+                    sender.send(Message::DoGameSceneCommand(
+                        group.into_iter().next().unwrap(),
+                    ))
                 } else {
                     sender.do_scene_command(CommandGroup::from(group));
                 }

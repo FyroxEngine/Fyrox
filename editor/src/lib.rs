@@ -44,7 +44,7 @@ use crate::{
     audio::{preview::AudioPreviewPanel, AudioPanel},
     build::BuildWindow,
     camera::panel::CameraPreviewControlPanel,
-    command::{panel::CommandStackViewer, Command},
+    command::{panel::CommandStackViewer, GameSceneCommandTrait},
     configurator::Configurator,
     curve_editor::CurveEditorWindow,
     inspector::Inspector,
@@ -66,8 +66,8 @@ use crate::{
     plugin::EditorPlugin,
     scene::{
         commands::{
-            make_delete_selection_command, ChangeSelectionCommand, CommandGroup, PasteCommand,
-            SceneCommand, SceneContext,
+            make_delete_selection_command, ChangeSelectionCommand, CommandGroup, GameSceneCommand,
+            GameSceneContext, PasteCommand,
         },
         container::SceneContainer,
         dialog::NodeRemovalDialog,
@@ -143,7 +143,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::scene::ui::{UiScene, UiSceneWrapper};
+use crate::scene::ui::{UiScene, UiSceneCommand, UiSceneWrapper};
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -1030,9 +1030,9 @@ impl Editor {
                 let key_bindings = &self.settings.key_bindings;
 
                 if hot_key == key_bindings.redo {
-                    sender.send(Message::RedoSceneCommand);
+                    sender.send(Message::RedoCurrentSceneCommand);
                 } else if hot_key == key_bindings.undo {
-                    sender.send(Message::UndoSceneCommand);
+                    sender.send(Message::UndoCurrentSceneCommand);
                 } else if hot_key == key_bindings.enable_select_mode {
                     sender.send(Message::SetInteractionMode(
                         SelectInteractionMode::type_uuid(),
@@ -1117,7 +1117,7 @@ impl Editor {
                                     {
                                         sender.send(Message::OpenNodeRemovalDialog);
                                     } else {
-                                        sender.send(Message::DoSceneCommand(
+                                        sender.send(Message::DoGameSceneCommand(
                                             make_delete_selection_command(
                                                 &entry.selection,
                                                 game_scene,
@@ -1548,7 +1548,7 @@ impl Editor {
                 );
                 self.command_stack_viewer.sync_to_model(
                     &mut game_scene.command_stack,
-                    &SceneContext {
+                    &GameSceneContext {
                         selection: &mut current_scene_entry.selection,
                         scene: &mut engine.scenes[game_scene.scene],
                         message_sender: self.message_sender.clone(),
@@ -1610,14 +1610,16 @@ impl Editor {
         for_each_plugin!(self.plugins => on_post_update(self));
     }
 
-    fn do_scene_command(&mut self, command: SceneCommand) -> bool {
+    fn do_game_scene_command(&mut self, command: GameSceneCommand) -> bool {
         let engine = &mut self.engine;
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
-            current_scene_entry.controller.do_command(
-                command.into_inner(),
-                &mut current_scene_entry.selection,
-                engine,
-            );
+            if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
+                game_scene.do_command(
+                    command.into_inner(),
+                    &mut current_scene_entry.selection,
+                    engine,
+                );
+            }
 
             current_scene_entry.has_unsaved_changes = true;
 
@@ -1627,7 +1629,26 @@ impl Editor {
         }
     }
 
-    fn undo_scene_command(&mut self) -> bool {
+    fn do_ui_scene_command(&mut self, command: UiSceneCommand) -> bool {
+        let engine = &mut self.engine;
+        if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
+            if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>() {
+                ui_scene.do_command(
+                    command.into_inner(),
+                    &mut current_scene_entry.selection,
+                    engine,
+                );
+            }
+
+            current_scene_entry.has_unsaved_changes = true;
+
+            true
+        } else {
+            false
+        }
+    }
+
+    fn undo_current_scene_command(&mut self) -> bool {
         let engine = &mut self.engine;
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
             current_scene_entry
@@ -1640,7 +1661,7 @@ impl Editor {
         }
     }
 
-    fn redo_scene_command(&mut self) -> bool {
+    fn redo_current_scene_command(&mut self) -> bool {
         let engine = &mut self.engine;
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
             current_scene_entry
@@ -1653,7 +1674,7 @@ impl Editor {
         }
     }
 
-    fn clear_scene_command_stack(&mut self) -> bool {
+    fn clear_current_scene_command_stack(&mut self) -> bool {
         let engine = &mut self.engine;
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
             current_scene_entry
@@ -2087,17 +2108,20 @@ impl Editor {
                 self.scene_viewer.handle_message(&message, &mut self.engine);
 
                 match message {
-                    Message::DoSceneCommand(command) => {
-                        needs_sync |= self.do_scene_command(command);
+                    Message::DoGameSceneCommand(command) => {
+                        needs_sync |= self.do_game_scene_command(command);
                     }
-                    Message::UndoSceneCommand => {
-                        needs_sync |= self.undo_scene_command();
+                    Message::DoUiSceneCommand(command) => {
+                        needs_sync |= self.do_ui_scene_command(command);
                     }
-                    Message::RedoSceneCommand => {
-                        needs_sync |= self.redo_scene_command();
+                    Message::UndoCurrentSceneCommand => {
+                        needs_sync |= self.undo_current_scene_command();
                     }
-                    Message::ClearSceneCommandStack => {
-                        needs_sync |= self.clear_scene_command_stack();
+                    Message::RedoCurrentSceneCommand => {
+                        needs_sync |= self.redo_current_scene_command();
+                    }
+                    Message::ClearCurrentSceneCommandStack => {
+                        needs_sync |= self.clear_current_scene_command_stack();
                     }
                     Message::SelectionChanged { .. } => {
                         self.world_viewer.sync_selection = true;

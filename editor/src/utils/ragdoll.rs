@@ -2,7 +2,9 @@ use crate::{
     inspector::editors::make_property_editors_container,
     message::MessageSender,
     scene::{
-        commands::{graph::AddModelCommand, ChangeSelectionCommand, CommandGroup, SceneCommand},
+        commands::{
+            graph::AddModelCommand, ChangeSelectionCommand, CommandGroup, GameSceneCommand,
+        },
         GameScene, Selection,
     },
     world::graph::selection::GraphSelection,
@@ -972,9 +974,9 @@ impl RagdollPreset {
         let sub_graph = graph.take_reserve_sub_graph(ragdoll);
 
         let group = vec![
-            SceneCommand::new(AddModelCommand::new(sub_graph)),
+            GameSceneCommand::new(AddModelCommand::new(sub_graph)),
             // We also want to select newly instantiated model.
-            SceneCommand::new(ChangeSelectionCommand::new(
+            GameSceneCommand::new(ChangeSelectionCommand::new(
                 Selection::Graph(GraphSelection::single_or_empty(ragdoll)),
                 editor_selection.clone(),
             )),

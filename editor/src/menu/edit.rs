@@ -87,9 +87,9 @@ impl EditMenu {
                     }
                 }
             } else if message.destination() == self.undo {
-                sender.send(Message::UndoSceneCommand);
+                sender.send(Message::UndoCurrentSceneCommand);
             } else if message.destination() == self.redo {
-                sender.send(Message::RedoSceneCommand);
+                sender.send(Message::RedoCurrentSceneCommand);
             }
         }
     }

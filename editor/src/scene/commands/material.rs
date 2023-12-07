@@ -1,4 +1,4 @@
-use crate::{command::Command, scene::commands::SceneContext};
+use crate::{command::GameSceneCommandTrait, scene::commands::GameSceneContext};
 use fyrox::{
     asset::ResourceData,
     core::{log::Log, sstorage::ImmutableString},
@@ -43,16 +43,16 @@ impl SetMaterialPropertyValueCommand {
     }
 }
 
-impl Command for SetMaterialPropertyValueCommand {
-    fn name(&mut self, _: &SceneContext) -> String {
+impl GameSceneCommandTrait for SetMaterialPropertyValueCommand {
+    fn name(&mut self, _: &GameSceneContext) -> String {
         format!("Set Material {} Property Value", self.name)
     }
 
-    fn execute(&mut self, _: &mut SceneContext) {
+    fn execute(&mut self, _: &mut GameSceneContext) {
         self.swap();
     }
 
-    fn revert(&mut self, _: &mut SceneContext) {
+    fn revert(&mut self, _: &mut GameSceneContext) {
         self.swap();
     }
 }
@@ -79,7 +79,7 @@ impl SetMaterialShaderCommand {
         }
     }
 
-    fn swap(&mut self, context: &mut SceneContext) {
+    fn swap(&mut self, context: &mut GameSceneContext) {
         match std::mem::replace(&mut self.state, SetMaterialShaderCommandState::Undefined) {
             SetMaterialShaderCommandState::Undefined => {
                 unreachable!()
@@ -114,16 +114,16 @@ impl SetMaterialShaderCommand {
     }
 }
 
-impl Command for SetMaterialShaderCommand {
-    fn name(&mut self, _: &SceneContext) -> String {
+impl GameSceneCommandTrait for SetMaterialShaderCommand {
+    fn name(&mut self, _: &GameSceneContext) -> String {
         "Set Material Shader".to_owned()
     }
 
-    fn execute(&mut self, ctx: &mut SceneContext) {
+    fn execute(&mut self, ctx: &mut GameSceneContext) {
         self.swap(ctx);
     }
 
-    fn revert(&mut self, ctx: &mut SceneContext) {
+    fn revert(&mut self, ctx: &mut GameSceneContext) {
         self.swap(ctx);
     }
 }

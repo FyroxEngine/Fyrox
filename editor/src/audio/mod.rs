@@ -11,7 +11,7 @@ use crate::{
     },
     send_sync_message,
     utils::window_content,
-    ChangeSelectionCommand, GameScene, GridBuilder, MessageDirection, Mode, SceneCommand,
+    ChangeSelectionCommand, GameScene, GameSceneCommand, GridBuilder, MessageDirection, Mode,
     Selection, UserInterface,
 };
 use fyrox::{
@@ -255,13 +255,13 @@ impl AudioPanel {
                 )))
             } else if message.destination() == self.remove_bus {
                 if let Selection::AudioBus(ref selection) = editor_selection {
-                    let mut commands = vec![SceneCommand::new(ChangeSelectionCommand::new(
+                    let mut commands = vec![GameSceneCommand::new(ChangeSelectionCommand::new(
                         Selection::None,
                         editor_selection.clone(),
                     ))];
 
                     for &bus in &selection.buses {
-                        commands.push(SceneCommand::new(RemoveAudioBusCommand::new(bus)));
+                        commands.push(GameSceneCommand::new(RemoveAudioBusCommand::new(bus)));
                     }
 
                     sender.do_scene_command(CommandGroup::from(commands));

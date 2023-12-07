@@ -129,7 +129,7 @@ impl SceneSettingsWindow {
         if let Some(InspectorMessage::PropertyChanged(property_changed)) = message.data() {
             if message.destination() == self.inspector {
                 if let Some(command) = make_set_scene_property_command((), property_changed) {
-                    sender.send(Message::DoSceneCommand(command));
+                    sender.send(Message::DoGameSceneCommand(command));
                 }
             }
         }

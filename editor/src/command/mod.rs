@@ -1,4 +1,4 @@
-use crate::scene::commands::SceneContext;
+use crate::scene::commands::GameSceneContext;
 use std::fmt::Debug;
 
 pub mod panel;
@@ -120,4 +120,8 @@ macro_rules! define_command_stack {
     };
 }
 
-define_command_stack!(Command, CommandStack, SceneContext);
+define_command_stack!(
+    GameSceneCommandTrait,
+    GameSceneCommandStack,
+    GameSceneContext
+);

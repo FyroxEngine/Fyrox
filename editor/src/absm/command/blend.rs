@@ -1,6 +1,7 @@
 use crate::{
-    absm::command::fetch_machine, command::Command, define_push_element_to_collection_command,
-    define_set_collection_element_command, scene::commands::SceneContext,
+    absm::command::fetch_machine, command::GameSceneCommandTrait,
+    define_push_element_to_collection_command, define_set_collection_element_command,
+    scene::commands::GameSceneContext,
 };
 use fyrox::{
     animation::machine::node::{
@@ -82,12 +83,12 @@ pub struct RemoveBlendSpacePointCommand {
     pub point: Option<BlendSpacePoint>,
 }
 
-impl Command for RemoveBlendSpacePointCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for RemoveBlendSpacePointCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Remove Blend Space Point".to_string()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         let machine = fetch_machine(context, self.scene_node_handle);
         if let PoseNode::BlendSpace(ref mut definition) =
             machine.layers_mut()[self.layer_index].nodes_mut()[self.node_handle]
@@ -96,7 +97,7 @@ impl Command for RemoveBlendSpacePointCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         let machine = fetch_machine(context, self.scene_node_handle);
         if let PoseNode::BlendSpace(ref mut definition) =
             machine.layers_mut()[self.layer_index].nodes_mut()[self.node_handle]

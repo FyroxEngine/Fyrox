@@ -2,7 +2,9 @@ use crate::{
     load_image,
     message::MessageSender,
     scene::{
-        commands::{graph::LinkNodesCommand, ChangeSelectionCommand, CommandGroup, SceneCommand},
+        commands::{
+            graph::LinkNodesCommand, ChangeSelectionCommand, CommandGroup, GameSceneCommand,
+        },
         GameScene, Selection,
     },
     world::graph::selection::GraphSelection,
@@ -137,7 +139,7 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
                     }
 
                     if attach {
-                        commands.push(SceneCommand::new(LinkNodesCommand::new(
+                        commands.push(GameSceneCommand::new(LinkNodesCommand::new(
                             node_handle,
                             parent,
                         )));

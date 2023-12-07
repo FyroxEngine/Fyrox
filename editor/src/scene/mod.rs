@@ -7,14 +7,14 @@ use crate::{
     asset::item::AssetItem,
     audio::AudioBusSelection,
     camera::{CameraController, PickingOptions},
-    command::{Command, CommandStack},
+    command::{GameSceneCommandStack, GameSceneCommandTrait},
     interaction::navmesh::selection::NavmeshSelection,
     message::MessageSender,
     scene::{
         clipboard::Clipboard,
         commands::{
             graph::AddModelCommand, mesh::SetMeshTextureCommand, ChangeSelectionCommand,
-            CommandGroup, SceneCommand, SceneContext,
+            CommandGroup, GameSceneCommand, GameSceneContext,
         },
         controller::SceneController,
     },
@@ -91,7 +91,7 @@ pub struct GameScene {
     pub camera_controller: CameraController,
     pub preview_camera: Handle<Node>,
     pub graph_switches: GraphUpdateSwitches,
-    pub command_stack: CommandStack,
+    pub command_stack: GameSceneCommandStack,
     pub preview_instance: Option<PreviewInstance>,
     pub sender: MessageSender,
     pub camera_state: Vec<(Handle<Node>, bool)>,
@@ -127,7 +127,7 @@ impl GameScene {
             editor_objects_root,
             scene_content_root,
             camera_controller,
-            command_stack: CommandStack::new(false),
+            command_stack: GameSceneCommandStack::new(false),
             preview_instance: None,
             scene: engine.scenes.add(scene),
             clipboard: Default::default(),
@@ -413,6 +413,26 @@ impl GameScene {
             ))
         }
     }
+
+    pub fn do_command(
+        &mut self,
+        command: Box<dyn GameSceneCommandTrait>,
+        selection: &mut Selection,
+        engine: &mut Engine,
+    ) {
+        self.command_stack.do_command(
+            command,
+            GameSceneContext {
+                selection,
+                scene: &mut engine.scenes[self.scene],
+                message_sender: self.sender.clone(),
+                scene_content_root: &mut self.scene_content_root,
+                clipboard: &mut self.clipboard,
+                resource_manager: engine.resource_manager.clone(),
+                serialization_context: engine.serialization_context.clone(),
+            },
+        );
+    }
 }
 
 impl SceneController for GameScene {
@@ -623,9 +643,9 @@ impl SceneController for GameScene {
                     let sub_graph = scene.graph.take_reserve_sub_graph(preview.instance);
 
                     let group = vec![
-                        SceneCommand::new(AddModelCommand::new(sub_graph)),
+                        GameSceneCommand::new(AddModelCommand::new(sub_graph)),
                         // We also want to select newly instantiated model.
-                        SceneCommand::new(ChangeSelectionCommand::new(
+                        GameSceneCommand::new(ChangeSelectionCommand::new(
                             Selection::Graph(GraphSelection::single_or_empty(preview.instance)),
                             editor_selection.clone(),
                         )),
@@ -684,28 +704,8 @@ impl SceneController for GameScene {
         self.save(path, settings, engine)
     }
 
-    fn do_command(
-        &mut self,
-        command: Box<dyn Command>,
-        selection: &mut Selection,
-        engine: &mut Engine,
-    ) {
-        self.command_stack.do_command(
-            command,
-            SceneContext {
-                selection,
-                scene: &mut engine.scenes[self.scene],
-                message_sender: self.sender.clone(),
-                scene_content_root: &mut self.scene_content_root,
-                clipboard: &mut self.clipboard,
-                resource_manager: engine.resource_manager.clone(),
-                serialization_context: engine.serialization_context.clone(),
-            },
-        );
-    }
-
     fn undo(&mut self, selection: &mut Selection, engine: &mut Engine) {
-        self.command_stack.undo(SceneContext {
+        self.command_stack.undo(GameSceneContext {
             selection,
             scene: &mut engine.scenes[self.scene],
             message_sender: self.sender.clone(),
@@ -717,7 +717,7 @@ impl SceneController for GameScene {
     }
 
     fn redo(&mut self, selection: &mut Selection, engine: &mut Engine) {
-        self.command_stack.redo(SceneContext {
+        self.command_stack.redo(GameSceneContext {
             selection,
             scene: &mut engine.scenes[self.scene],
             message_sender: self.sender.clone(),
@@ -729,7 +729,7 @@ impl SceneController for GameScene {
     }
 
     fn clear_command_stack(&mut self, selection: &mut Selection, engine: &mut Engine) {
-        self.command_stack.clear(SceneContext {
+        self.command_stack.clear(GameSceneContext {
             selection,
             scene: &mut engine.scenes[self.scene],
             message_sender: self.sender.clone(),

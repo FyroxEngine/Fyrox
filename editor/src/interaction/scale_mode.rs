@@ -7,7 +7,9 @@ use crate::{
     },
     message::MessageSender,
     scene::{
-        commands::{graph::ScaleNodeCommand, ChangeSelectionCommand, CommandGroup, SceneCommand},
+        commands::{
+            graph::ScaleNodeCommand, ChangeSelectionCommand, CommandGroup, GameSceneCommand,
+        },
         GameScene, Selection,
     },
     settings::Settings,
@@ -122,7 +124,7 @@ impl InteractionMode for ScaleInteractionMode {
                                 .iter()
                                 .zip(self.initial_scales.iter().zip(current_scales.iter()))
                                 .map(|(&node, (&old_scale, &new_scale))| {
-                                    SceneCommand::new(ScaleNodeCommand::new(
+                                    GameSceneCommand::new(ScaleNodeCommand::new(
                                         node, old_scale, new_scale,
                                     ))
                                 })

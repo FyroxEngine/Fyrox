@@ -1,8 +1,8 @@
 use crate::{
     animation::command::fetch_animation_player,
-    command::Command,
+    command::GameSceneCommandTrait,
     define_universal_commands,
-    scene::commands::{SceneCommand, SceneContext},
+    scene::commands::{GameSceneCommand, GameSceneContext},
 };
 use fyrox::{
     animation::Animation,
@@ -12,9 +12,9 @@ use fyrox::{
 
 define_universal_commands!(
     make_animation_signal_property_command,
-    Command,
-    SceneCommand,
-    SceneContext,
+    GameSceneCommandTrait,
+    GameSceneCommand,
+    GameSceneContext,
     Uuid,
     ctx,
     handle,

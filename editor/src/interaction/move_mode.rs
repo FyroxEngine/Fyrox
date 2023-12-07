@@ -8,7 +8,9 @@ use crate::{
         InteractionMode,
     },
     scene::{
-        commands::{graph::MoveNodeCommand, ChangeSelectionCommand, CommandGroup, SceneCommand},
+        commands::{
+            graph::MoveNodeCommand, ChangeSelectionCommand, CommandGroup, GameSceneCommand,
+        },
         GameScene, Selection,
     },
     settings::Settings,
@@ -365,7 +367,7 @@ impl InteractionMode for MoveInteractionMode {
                         .objects
                         .iter()
                         .map(|initial_state| {
-                            SceneCommand::new(MoveNodeCommand::new(
+                            GameSceneCommand::new(MoveNodeCommand::new(
                                 initial_state.node,
                                 initial_state.initial_local_position,
                                 **scene.graph[initial_state.node].local_transform().position(),
@@ -376,7 +378,7 @@ impl InteractionMode for MoveInteractionMode {
 
                 // Commit changes.
                 self.message_sender
-                    .send(Message::DoSceneCommand(SceneCommand::new(commands)));
+                    .send(Message::DoGameSceneCommand(GameSceneCommand::new(commands)));
             }
         } else {
             let new_selection = game_scene
