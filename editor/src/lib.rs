@@ -90,6 +90,7 @@ use fyrox::{
         scope_profile,
         sstorage::ImmutableString,
         uuid::Uuid,
+        visitor::{Visit, Visitor},
         watcher::FileSystemWatcher,
         TypeUuidProvider,
     },
@@ -143,6 +144,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::scene::container::EditorSceneEntry;
 use crate::scene::ui::{UiScene, UiSceneCommand, UiSceneWrapper};
 pub use message::Message;
 
@@ -959,25 +961,13 @@ impl Editor {
         }
     }
 
-    fn add_scene(&mut self, mut scene: Scene, path: Option<PathBuf>) {
+    fn add_scene(&mut self, entry: EditorSceneEntry) {
         self.try_leave_preview_mode();
 
         self.sync_to_model();
         self.poll_ui_messages();
 
-        // Setup new one.
-        scene.rendering_options.render_target = Some(TextureResource::new_render_target(0, 0));
-
-        self.scenes.add_scene_and_select(
-            scene,
-            path.clone(),
-            &mut self.engine,
-            &self.settings,
-            self.message_sender.clone(),
-            &self.scene_viewer,
-        );
-
-        if let Some(path) = path.as_ref() {
+        if let Some(path) = entry.path.as_ref() {
             if !self.settings.recent.scenes.contains(path) {
                 self.settings.recent.scenes.push(path.clone());
                 self.menu
@@ -985,6 +975,8 @@ impl Editor {
                     .update_recent_files_list(&mut self.engine.user_interface, &self.settings);
             }
         }
+
+        self.scenes.add_and_select(entry);
 
         self.scene_viewer
             .reset_camera_projection(&self.engine.user_interface);
@@ -1779,23 +1771,66 @@ impl Editor {
             }
         }
 
-        let engine = &mut self.engine;
-        let result = {
-            block_on(SceneLoader::from_file(
-                &scene_path,
-                &FsResourceIo,
-                engine.serialization_context.clone(),
-                engine.resource_manager.clone(),
-            ))
-        };
-        match result {
-            Ok(loader) => {
-                let scene = block_on(loader.0.finish(&engine.resource_manager));
-
-                self.add_scene(scene, Some(scene_path));
-            }
-            Err(e) => {
-                Log::err(e.to_string());
+        if let Some(ext) = scene_path.extension() {
+            if ext == "rgs" {
+                let engine = &mut self.engine;
+                let result = {
+                    block_on(SceneLoader::from_file(
+                        &scene_path,
+                        &FsResourceIo,
+                        engine.serialization_context.clone(),
+                        engine.resource_manager.clone(),
+                    ))
+                };
+                match result {
+                    Ok(loader) => {
+                        let scene = block_on(loader.0.finish(&engine.resource_manager));
+                        let entry = EditorSceneEntry::new_game_scene(
+                            scene,
+                            Some(scene_path),
+                            engine,
+                            &self.settings,
+                            self.message_sender.clone(),
+                            &self.scene_viewer,
+                        );
+                        self.add_scene(entry);
+                    }
+                    Err(e) => {
+                        Log::err(e.to_string());
+                    }
+                }
+            } else if ext == "ui" {
+                match block_on(Visitor::load_binary(&scene_path)) {
+                    Ok(mut visitor) => {
+                        let mut ui = UserInterface::new(Vector2::new(100.0, 100.0));
+                        match ui.visit("Ui", &mut visitor) {
+                            Ok(_) => {
+                                let entry = EditorSceneEntry::new_ui_scene(
+                                    Some(scene_path),
+                                    self.message_sender.clone(),
+                                    &self.scene_viewer,
+                                    &mut self.engine,
+                                );
+                                self.add_scene(entry);
+                            }
+                            Err(e) => {
+                                Log::err(format!(
+                                    "Unable to load UI scene {}. Reason: {:?}",
+                                    scene_path.display(),
+                                    e
+                                ));
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        Log::err(e.to_string());
+                    }
+                }
+            } else {
+                Log::err(format!(
+                    "{} is not a game scene or UI scene!",
+                    scene_path.display()
+                ));
             }
         }
     }
@@ -1868,27 +1903,25 @@ impl Editor {
     }
 
     fn create_new_scene(&mut self) {
-        let mut scene = Scene::new();
-
-        scene.rendering_options.ambient_lighting_color = Color::opaque(200, 200, 200);
-
-        self.add_scene(scene, None);
+        let entry = EditorSceneEntry::new_game_scene(
+            Scene::new(),
+            None,
+            &mut self.engine,
+            &self.settings,
+            self.message_sender.clone(),
+            &self.scene_viewer,
+        );
+        self.add_scene(entry);
     }
 
     fn create_new_ui_scene(&mut self) {
-        self.try_leave_preview_mode();
-
-        self.sync_to_model();
-        self.poll_ui_messages();
-
-        self.scenes.add_ui_scene_and_select(
+        let entry = EditorSceneEntry::new_ui_scene(
             None,
             self.message_sender.clone(),
             &self.scene_viewer,
             &mut self.engine,
         );
-
-        self.on_scene_changed();
+        self.add_scene(entry);
     }
 
     fn configure(&mut self, working_directory: PathBuf) {

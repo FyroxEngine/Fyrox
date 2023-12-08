@@ -1,6 +1,3 @@
-use crate::scene::controller::SceneController;
-use crate::scene::ui::{UiScene, UiSelectInteractionMode};
-use crate::settings::keys::KeyBindings;
 use crate::{
     interaction::{
         move_mode::MoveInteractionMode, navmesh::EditNavmeshMode,
@@ -9,16 +6,21 @@ use crate::{
         InteractionModeContainer,
     },
     message::MessageSender,
-    scene::{GameScene, Selection},
+    scene::{
+        controller::SceneController,
+        ui::{UiScene, UiSelectInteractionMode},
+        GameScene, Selection,
+    },
     scene_viewer::SceneViewer,
-    settings::Settings,
+    settings::{keys::KeyBindings, Settings},
 };
-use fyrox::core::math::Rect;
-use fyrox::gui::message::{KeyCode, MouseButton};
-use fyrox::gui::UiNode;
 use fyrox::{
-    core::{algebra::Vector2, pool::Handle, uuid::Uuid, TypeUuidProvider},
+    core::{algebra::Vector2, math::Rect, pool::Handle, uuid::Uuid, TypeUuidProvider},
     engine::Engine,
+    gui::{
+        message::{KeyCode, MouseButton},
+        UiNode,
+    },
     scene::Scene,
 };
 use std::path::PathBuf;
@@ -38,6 +40,104 @@ pub struct EditorSceneEntry {
 }
 
 impl EditorSceneEntry {
+    pub fn new_game_scene(
+        scene: Scene,
+        path: Option<PathBuf>,
+        engine: &mut Engine,
+        settings: &Settings,
+        message_sender: MessageSender,
+        scene_viewer: &SceneViewer,
+    ) -> Self {
+        let game_scene = GameScene::from_native_scene(
+            scene,
+            engine,
+            path.as_deref(),
+            settings,
+            message_sender.clone(),
+        );
+
+        let mut interaction_modes = InteractionModeContainer::default();
+        interaction_modes.add(SelectInteractionMode::new(
+            scene_viewer.frame(),
+            scene_viewer.selection_frame(),
+            message_sender.clone(),
+        ));
+        interaction_modes.add(MoveInteractionMode::new(
+            &game_scene,
+            engine,
+            message_sender.clone(),
+        ));
+        interaction_modes.add(ScaleInteractionMode::new(
+            &game_scene,
+            engine,
+            message_sender.clone(),
+        ));
+        interaction_modes.add(RotateInteractionMode::new(
+            &game_scene,
+            engine,
+            message_sender.clone(),
+        ));
+        interaction_modes.add(EditNavmeshMode::new(
+            &game_scene,
+            engine,
+            message_sender.clone(),
+        ));
+        interaction_modes.add(TerrainInteractionMode::new(
+            &game_scene,
+            engine,
+            message_sender.clone(),
+            scene_viewer.frame(),
+        ));
+
+        let mut entry = EditorSceneEntry {
+            has_unsaved_changes: false,
+            interaction_modes,
+            controller: Box::new(game_scene),
+            current_interaction_mode: None,
+            last_mouse_pos: None,
+            click_mouse_pos: None,
+            sender: message_sender,
+            id: Uuid::new_v4(),
+            path,
+            selection: Default::default(),
+        };
+
+        entry.set_interaction_mode(engine, Some(MoveInteractionMode::type_uuid()));
+
+        entry
+    }
+
+    pub fn new_ui_scene(
+        path: Option<PathBuf>,
+        message_sender: MessageSender,
+        scene_viewer: &SceneViewer,
+        engine: &mut Engine,
+    ) -> Self {
+        let mut interaction_modes = InteractionModeContainer::default();
+        interaction_modes.add(UiSelectInteractionMode::new(
+            scene_viewer.frame(),
+            scene_viewer.selection_frame(),
+            message_sender.clone(),
+        ));
+
+        let mut entry = EditorSceneEntry {
+            has_unsaved_changes: false,
+            interaction_modes,
+            controller: Box::new(UiScene::new(message_sender.clone())),
+            current_interaction_mode: None,
+            last_mouse_pos: None,
+            click_mouse_pos: None,
+            sender: message_sender,
+            id: Uuid::new_v4(),
+            path,
+            selection: Default::default(),
+        };
+
+        entry.set_interaction_mode(engine, Some(UiSelectInteractionMode::type_uuid()));
+
+        entry
+    }
+
     pub fn set_interaction_mode(&mut self, engine: &mut Engine, mode: Option<Uuid>) {
         if self.current_interaction_mode != mode {
             // Deactivate current first.
@@ -339,107 +439,8 @@ impl SceneContainer {
         self.entries.iter_mut().find(|e| e.id == id)
     }
 
-    pub fn add_scene_and_select(
-        &mut self,
-        scene: Scene,
-        path: Option<PathBuf>,
-        engine: &mut Engine,
-        settings: &Settings,
-        message_sender: MessageSender,
-        scene_viewer: &SceneViewer,
-    ) {
+    pub fn add_and_select(&mut self, entry: EditorSceneEntry) {
         self.current_scene = Some(self.entries.len());
-
-        let game_scene = GameScene::from_native_scene(
-            scene,
-            engine,
-            path.as_deref(),
-            settings,
-            message_sender.clone(),
-        );
-
-        let mut interaction_modes = InteractionModeContainer::default();
-        interaction_modes.add(SelectInteractionMode::new(
-            scene_viewer.frame(),
-            scene_viewer.selection_frame(),
-            message_sender.clone(),
-        ));
-        interaction_modes.add(MoveInteractionMode::new(
-            &game_scene,
-            engine,
-            message_sender.clone(),
-        ));
-        interaction_modes.add(ScaleInteractionMode::new(
-            &game_scene,
-            engine,
-            message_sender.clone(),
-        ));
-        interaction_modes.add(RotateInteractionMode::new(
-            &game_scene,
-            engine,
-            message_sender.clone(),
-        ));
-        interaction_modes.add(EditNavmeshMode::new(
-            &game_scene,
-            engine,
-            message_sender.clone(),
-        ));
-        interaction_modes.add(TerrainInteractionMode::new(
-            &game_scene,
-            engine,
-            message_sender.clone(),
-            scene_viewer.frame(),
-        ));
-
-        let mut entry = EditorSceneEntry {
-            has_unsaved_changes: false,
-            interaction_modes,
-            controller: Box::new(game_scene),
-            current_interaction_mode: None,
-            last_mouse_pos: None,
-            click_mouse_pos: None,
-            sender: message_sender,
-            id: Uuid::new_v4(),
-            path,
-            selection: Default::default(),
-        };
-
-        entry.set_interaction_mode(engine, Some(MoveInteractionMode::type_uuid()));
-
-        self.entries.push(entry);
-    }
-
-    pub fn add_ui_scene_and_select(
-        &mut self,
-        path: Option<PathBuf>,
-        message_sender: MessageSender,
-        scene_viewer: &SceneViewer,
-        engine: &mut Engine,
-    ) {
-        self.current_scene = Some(self.entries.len());
-
-        let mut interaction_modes = InteractionModeContainer::default();
-        interaction_modes.add(UiSelectInteractionMode::new(
-            scene_viewer.frame(),
-            scene_viewer.selection_frame(),
-            message_sender.clone(),
-        ));
-
-        let mut entry = EditorSceneEntry {
-            has_unsaved_changes: false,
-            interaction_modes,
-            controller: Box::new(UiScene::new(message_sender.clone())),
-            current_interaction_mode: None,
-            last_mouse_pos: None,
-            click_mouse_pos: None,
-            sender: message_sender,
-            id: Uuid::new_v4(),
-            path,
-            selection: Default::default(),
-        };
-
-        entry.set_interaction_mode(engine, Some(UiSelectInteractionMode::type_uuid()));
-
         self.entries.push(entry);
     }
 

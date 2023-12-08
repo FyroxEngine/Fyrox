@@ -105,6 +105,8 @@ impl GameScene {
         settings: &Settings,
         sender: MessageSender,
     ) -> Self {
+        scene.rendering_options.render_target = Some(TextureResource::new_render_target(0, 0));
+
         let scene_content_root = scene.graph.get_root();
 
         scene
