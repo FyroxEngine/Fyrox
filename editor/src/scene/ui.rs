@@ -252,6 +252,23 @@ impl SceneController for UiScene {
     ) -> bool {
         false
     }
+
+    fn top_command_index(&self) -> Option<usize> {
+        self.command_stack.top
+    }
+
+    fn command_names(&mut self, selection: &mut Selection, engine: &mut Engine) -> Vec<String> {
+        self.command_stack
+            .commands
+            .iter_mut()
+            .map(|c| {
+                c.name(&UiSceneContext {
+                    selection,
+                    message_sender: &self.message_sender,
+                })
+            })
+            .collect::<Vec<_>>()
+    }
 }
 
 pub struct UiSceneWrapper<'a> {

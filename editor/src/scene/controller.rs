@@ -111,6 +111,10 @@ pub trait SceneController: 'static {
 
     fn on_message(&mut self, message: &Message, selection: &Selection, engine: &mut Engine)
         -> bool;
+
+    fn top_command_index(&self) -> Option<usize>;
+
+    fn command_names(&mut self, selection: &mut Selection, engine: &mut Engine) -> Vec<String>;
 }
 
 impl dyn SceneController {

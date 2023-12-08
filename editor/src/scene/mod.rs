@@ -880,6 +880,28 @@ impl SceneController for GameScene {
             _ => false,
         }
     }
+
+    fn top_command_index(&self) -> Option<usize> {
+        self.command_stack.top
+    }
+
+    fn command_names(&mut self, selection: &mut Selection, engine: &mut Engine) -> Vec<String> {
+        self.command_stack
+            .commands
+            .iter_mut()
+            .map(|c| {
+                c.name(&GameSceneContext {
+                    selection,
+                    scene: &mut engine.scenes[self.scene],
+                    scene_content_root: &mut self.scene_content_root,
+                    clipboard: &mut self.clipboard,
+                    message_sender: self.sender.clone(),
+                    resource_manager: engine.resource_manager.clone(),
+                    serialization_context: engine.serialization_context.clone(),
+                })
+            })
+            .collect::<Vec<_>>()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

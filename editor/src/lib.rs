@@ -1514,6 +1514,14 @@ impl Editor {
         self.scene_viewer.sync_to_model(&self.scenes, engine);
 
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
+            self.command_stack_viewer.sync_to_model(
+                current_scene_entry.controller.top_command_index(),
+                current_scene_entry
+                    .controller
+                    .command_names(&mut current_scene_entry.selection, engine),
+                &mut engine.user_interface,
+            );
+
             if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
                 self.animation_editor.sync_to_model(
                     &current_scene_entry.selection,
@@ -1546,19 +1554,6 @@ impl Editor {
                     &current_scene_entry.selection,
                     game_scene,
                 );
-                self.command_stack_viewer.sync_to_model(
-                    &mut game_scene.command_stack,
-                    &GameSceneContext {
-                        selection: &mut current_scene_entry.selection,
-                        scene: &mut engine.scenes[game_scene.scene],
-                        message_sender: self.message_sender.clone(),
-                        scene_content_root: &mut game_scene.scene_content_root,
-                        clipboard: &mut game_scene.clipboard,
-                        resource_manager: engine.resource_manager.clone(),
-                        serialization_context: engine.serialization_context.clone(),
-                    },
-                    &mut engine.user_interface,
-                )
             } else if let Some(game_scene) =
                 current_scene_entry.controller.downcast_mut::<UiScene>()
             {

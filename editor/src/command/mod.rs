@@ -15,8 +15,8 @@ macro_rules! define_command_stack {
         }
 
         pub struct $command_stack {
-            commands: Vec<Box<dyn $command_trait>>,
-            top: Option<usize>,
+            pub commands: Vec<Box<dyn $command_trait>>,
+            pub top: Option<usize>,
             debug: bool,
         }
 
