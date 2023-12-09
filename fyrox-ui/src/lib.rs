@@ -258,6 +258,8 @@ use crate::{
 use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
+use std::path::Path;
+use std::sync::Arc;
 use std::{
     cell::{Cell, Ref, RefCell, RefMut},
     collections::{btree_set::BTreeSet, hash_map::Entry, VecDeque},
@@ -267,6 +269,7 @@ use std::{
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
 };
 
+use crate::constructor::WidgetConstructorContainer;
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
@@ -717,6 +720,14 @@ fn is_node_enabled(nodes: &Pool<UiNode, WidgetContainer>, handle: Handle<UiNode>
 impl UserInterface {
     pub fn new(screen_size: Vector2<f32>) -> UserInterface {
         let (sender, receiver) = mpsc::channel();
+        Self::new_with_channel(sender, receiver, screen_size)
+    }
+
+    pub fn new_with_channel(
+        sender: Sender<UiMessage>,
+        receiver: Receiver<UiMessage>,
+        screen_size: Vector2<f32>,
+    ) -> UserInterface {
         let (layout_events_sender, layout_events_receiver) = mpsc::channel();
         let default_font = SharedFont::new(FontBuilder::new().build_builtin().unwrap());
         let mut ui = UserInterface {
@@ -2619,6 +2630,28 @@ impl UserInterface {
         *counter += 1;
 
         copy_handle
+    }
+
+    pub fn save(&mut self, path: &Path) -> VisitResult {
+        let mut visitor = Visitor::new();
+        self.visit("Ui", &mut visitor)?;
+        visitor.save_binary(path)
+    }
+
+    pub async fn load_from_file(
+        path: &Path,
+        constructors: Arc<WidgetConstructorContainer>,
+    ) -> Result<Self, VisitError> {
+        let mut visitor = Visitor::load_binary(path).await?;
+        let (sender, receiver) = mpsc::channel();
+        visitor.blackboard.register(constructors);
+        visitor.blackboard.register(Arc::new(sender.clone()));
+        let mut ui = UserInterface::new_with_channel(sender, receiver, Vector2::new(100.0, 100.0));
+        ui.visit("Ui", &mut visitor)?;
+        for widget in ui.nodes.iter_mut() {
+            widget.layout_events_sender = Some(ui.layout_events_sender.clone());
+        }
+        Ok(ui)
     }
 }
 

@@ -349,12 +349,22 @@ mod test {
     use std::path::Path;
 
     use fxhash::FxHashMap;
+    use uuid::uuid;
 
     use crate::{
-        append_extension, hash_combine, make_relative_path,
+        append_extension, combine_uuids, hash_combine, make_relative_path,
         visitor::{Visit, Visitor},
         BiDirHashMap,
     };
+
+    #[test]
+    fn test_combine_uuids() {
+        let a = uuid!("d1a45bd5-5066-4b28-b103-95c59c230e77");
+        let b = uuid!("0a06591a-1c66-4299-ba6f-2b205b795575");
+
+        assert_ne!(combine_uuids(a, b), a);
+        assert_ne!(combine_uuids(a, b), b);
+    }
 
     #[test]
     fn test_append_extension() {

@@ -204,6 +204,8 @@ impl WidgetConstructorContainer {
             .lock()
             .insert(T::type_uuid(), Box::new(|| UiNode::new(T::default())));
 
+        dbg!(T::type_uuid());
+
         assert!(previous.is_none());
     }
 

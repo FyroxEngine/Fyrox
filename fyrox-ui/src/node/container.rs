@@ -26,7 +26,7 @@ fn read_widget(name: &str, visitor: &mut Visitor) -> Result<UiNode, VisitError> 
 
     let serialization_context = region
         .blackboard
-        .get::<Arc<WidgetConstructorContainer>>()
+        .get::<WidgetConstructorContainer>()
         .expect("Visitor environment must contain serialization context!");
 
     let mut widget = serialization_context

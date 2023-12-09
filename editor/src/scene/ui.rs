@@ -17,23 +17,23 @@ use fyrox::{
         math::Rect,
         pool::{ErasedHandle, Handle},
         uuid::{uuid, Uuid},
-        visitor::{Visit, Visitor},
         TypeUuidProvider,
     },
     engine::Engine,
     gui::{
-        button::ButtonBuilder,
         draw::SharedTexture,
         message::{KeyCode, MessageDirection, MouseButton},
-        text::TextBuilder,
-        widget::{WidgetBuilder, WidgetMessage},
+        widget::WidgetMessage,
         BuildContext, UiNode, UserInterface,
     },
     resource::texture::{TextureKind, TextureResource, TextureResourceExtension},
 };
-use std::fmt::Debug;
-use std::ops::{Deref, DerefMut};
-use std::{any::Any, path::Path};
+use std::{
+    any::Any,
+    fmt::Debug,
+    ops::{Deref, DerefMut},
+    path::Path,
+};
 
 pub struct UiScene {
     pub ui: UserInterface,
@@ -43,23 +43,7 @@ pub struct UiScene {
 }
 
 impl UiScene {
-    pub fn new(message_sender: MessageSender) -> Self {
-        let mut ui = UserInterface::new(Vector2::new(200.0, 200.0));
-
-        // Create test content.
-        ButtonBuilder::new(
-            WidgetBuilder::new()
-                .with_width(160.0)
-                .with_height(32.0)
-                .with_desired_position(Vector2::new(20.0, 20.0)),
-        )
-        .with_text("Click Me!")
-        .build(&mut ui.build_ctx());
-
-        TextBuilder::new(WidgetBuilder::new().with_desired_position(Vector2::new(300.0, 300.0)))
-            .with_text("This is some text.")
-            .build(&mut ui.build_ctx());
-
+    pub fn new(ui: UserInterface, message_sender: MessageSender) -> Self {
         Self {
             ui,
             render_target: TextureResource::new_render_target(200, 200),
@@ -169,11 +153,17 @@ impl SceneController for UiScene {
         settings: &Settings,
         engine: &mut Engine,
     ) -> Result<String, String> {
-        let mut visitor = Visitor::new();
-        self.ui.visit("Ui", &mut visitor).unwrap();
-        visitor.save_binary(path).unwrap();
-
-        Ok("".to_string())
+        match self.ui.save(path) {
+            Ok(_) => Ok(format!(
+                "Ui scene was successfully saved to {}",
+                path.display()
+            )),
+            Err(e) => Err(format!(
+                "Unable to save the ui scene to {} file. Reason: {:?}",
+                path.display(),
+                e
+            )),
+        }
     }
 
     fn undo(&mut self, selection: &mut Selection, engine: &mut Engine) {

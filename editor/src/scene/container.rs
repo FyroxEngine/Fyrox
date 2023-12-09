@@ -14,6 +14,7 @@ use crate::{
     scene_viewer::SceneViewer,
     settings::{keys::KeyBindings, Settings},
 };
+use fyrox::gui::UserInterface;
 use fyrox::{
     core::{algebra::Vector2, math::Rect, pool::Handle, uuid::Uuid, TypeUuidProvider},
     engine::Engine,
@@ -108,6 +109,7 @@ impl EditorSceneEntry {
     }
 
     pub fn new_ui_scene(
+        ui: UserInterface,
         path: Option<PathBuf>,
         message_sender: MessageSender,
         scene_viewer: &SceneViewer,
@@ -123,7 +125,7 @@ impl EditorSceneEntry {
         let mut entry = EditorSceneEntry {
             has_unsaved_changes: false,
             interaction_modes,
-            controller: Box::new(UiScene::new(message_sender.clone())),
+            controller: Box::new(UiScene::new(ui, message_sender.clone())),
             current_interaction_mode: None,
             last_mouse_pos: None,
             click_mouse_pos: None,

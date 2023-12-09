@@ -90,7 +90,6 @@ use fyrox::{
         scope_profile,
         sstorage::ImmutableString,
         uuid::Uuid,
-        visitor::{Visit, Visitor},
         watcher::FileSystemWatcher,
         TypeUuidProvider,
     },
@@ -101,6 +100,8 @@ use fyrox::{
     fxhash::FxHashMap,
     gui::{
         brush::Brush,
+        button::ButtonBuilder,
+        constructor::WidgetConstructorContainer,
         dock::{
             DockingManager, DockingManagerBuilder, DockingManagerMessage, TileBuilder, TileContent,
         },
@@ -112,6 +113,7 @@ use fyrox::{
         key::HotKey,
         message::{MessageDirection, UiMessage},
         messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult},
+        text::TextBuilder,
         ttf::Font,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
@@ -513,6 +515,7 @@ pub struct Editor {
     pub is_suspended: bool,
     pub ragdoll_wizard: RagdollWizard,
     pub scene_node_context_menu: Rc<RefCell<SceneNodeContextMenu>>,
+    pub widget_constructors: Arc<WidgetConstructorContainer>,
 }
 
 impl Editor {
@@ -894,6 +897,7 @@ impl Editor {
             is_suspended: false,
             ragdoll_wizard,
             scene_node_context_menu,
+            widget_constructors: Arc::new(WidgetConstructorContainer::new()),
         };
 
         if let Some(data) = startup_data {
@@ -1800,27 +1804,19 @@ impl Editor {
                     }
                 }
             } else if ext == "ui" {
-                match block_on(Visitor::load_binary(&scene_path)) {
-                    Ok(mut visitor) => {
-                        let mut ui = UserInterface::new(Vector2::new(100.0, 100.0));
-                        match ui.visit("Ui", &mut visitor) {
-                            Ok(_) => {
-                                let entry = EditorSceneEntry::new_ui_scene(
-                                    Some(scene_path),
-                                    self.message_sender.clone(),
-                                    &self.scene_viewer,
-                                    &mut self.engine,
-                                );
-                                self.add_scene(entry);
-                            }
-                            Err(e) => {
-                                Log::err(format!(
-                                    "Unable to load UI scene {}. Reason: {:?}",
-                                    scene_path.display(),
-                                    e
-                                ));
-                            }
-                        }
+                match block_on(UserInterface::load_from_file(
+                    &scene_path,
+                    self.widget_constructors.clone(),
+                )) {
+                    Ok(ui) => {
+                        let entry = EditorSceneEntry::new_ui_scene(
+                            ui,
+                            Some(scene_path),
+                            self.message_sender.clone(),
+                            &self.scene_viewer,
+                            &mut self.engine,
+                        );
+                        self.add_scene(entry);
                     }
                     Err(e) => {
                         Log::err(e.to_string());
@@ -1915,7 +1911,24 @@ impl Editor {
     }
 
     fn create_new_ui_scene(&mut self) {
+        let mut ui = UserInterface::new(Vector2::new(200.0, 200.0));
+
+        // Create test content.
+        ButtonBuilder::new(
+            WidgetBuilder::new()
+                .with_width(160.0)
+                .with_height(32.0)
+                .with_desired_position(Vector2::new(20.0, 20.0)),
+        )
+        .with_text("Click Me!")
+        .build(&mut ui.build_ctx());
+
+        TextBuilder::new(WidgetBuilder::new().with_desired_position(Vector2::new(300.0, 300.0)))
+            .with_text("This is some text.")
+            .build(&mut ui.build_ctx());
+
         let entry = EditorSceneEntry::new_ui_scene(
+            ui,
             None,
             self.message_sender.clone(),
             &self.scene_viewer,
