@@ -57,6 +57,7 @@ impl UiNode {
     /// #     any::{Any, TypeId},
     /// #     ops::{Deref, DerefMut},
     /// # };
+    /// # use fyrox_core::uuid_provider;
     /// #
     /// #[derive(Clone, Visit, Reflect, Debug)]
     /// struct MyWidget {
@@ -64,6 +65,8 @@ impl UiNode {
     /// }
     /// #
     /// # define_widget_deref!(MyWidget);
+    /// #
+    /// # uuid_provider!(MyWidget = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd");
     /// #
     /// # impl Control for MyWidget {
     /// #     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
