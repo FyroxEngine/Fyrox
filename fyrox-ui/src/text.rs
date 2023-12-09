@@ -310,7 +310,7 @@ impl TextMessage {
 ///
 /// Please keep in mind, that like any other situation when you "changing" something via messages, you should remember
 /// that the change is **not** immediate.
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct Text {
     /// Base widget of the Text widget.
     pub widget: Widget,

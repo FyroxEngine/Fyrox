@@ -40,7 +40,7 @@ impl DockingManagerMessage {
     );
 }
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct DockingManager {
     pub widget: Widget,
     pub floating_windows: RefCell<Vec<Handle<UiNode>>>,

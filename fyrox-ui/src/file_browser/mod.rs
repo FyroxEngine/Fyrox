@@ -101,13 +101,16 @@ impl Debug for Filter {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Visit, Reflect)]
+#[derive(Default, Clone, PartialEq, Eq, Hash, Debug, Visit, Reflect)]
 pub enum FileBrowserMode {
+    #[default]
     Open,
-    Save { default_file_name: PathBuf },
+    Save {
+        default_file_name: PathBuf,
+    },
 }
 
-#[derive(Clone, Visit, Reflect)]
+#[derive(Default, Clone, Visit, Reflect)]
 pub struct FileBrowser {
     pub widget: Widget,
     pub tree_root: Handle<UiNode>,
@@ -123,7 +126,7 @@ pub struct FileBrowser {
     pub file_name_value: PathBuf,
     #[visit(skip)]
     #[reflect(hidden)]
-    pub fs_receiver: Rc<Receiver<notify::Event>>,
+    pub fs_receiver: Option<Rc<Receiver<notify::Event>>>,
     #[visit(skip)]
     #[reflect(hidden)]
     pub item_context_menu: RcUiNodeHandle,
@@ -466,7 +469,7 @@ impl Control for FileBrowser {
     }
 
     fn update(&mut self, _dt: f32, sender: &Sender<UiMessage>) {
-        if let Ok(event) = self.fs_receiver.try_recv() {
+        if let Ok(event) = self.fs_receiver.as_ref().unwrap().try_recv() {
             if event.need_rescan() {
                 let _ = sender.send(FileBrowserMessage::rescan(
                     self.handle,
@@ -976,7 +979,7 @@ impl FileBrowserBuilder {
         };
         let (fs_sender, fs_receiver) = mpsc::channel();
         let browser = FileBrowser {
-            fs_receiver: Rc::new(fs_receiver),
+            fs_receiver: Some(Rc::new(fs_receiver)),
             widget,
             tree_root,
             path_text,

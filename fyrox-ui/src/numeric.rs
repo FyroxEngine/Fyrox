@@ -240,7 +240,7 @@ pub enum DragContext<T: NumericType> {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct NumericUpDown<T: NumericType> {
     /// Base widget of the [`NumericUpDown`] widget.
     pub widget: Widget,

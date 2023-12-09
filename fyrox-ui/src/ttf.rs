@@ -23,6 +23,7 @@ pub struct FontGlyph {
     pub pixels: Vec<u8>,
 }
 
+#[derive(Default)]
 pub struct Font {
     pub height: f32,
     pub glyphs: Vec<FontGlyph>,
@@ -36,6 +37,12 @@ pub struct Font {
 
 #[derive(Debug, Clone)]
 pub struct SharedFont(pub Arc<Mutex<Font>>);
+
+impl Default for SharedFont {
+    fn default() -> Self {
+        Self(Arc::new(Mutex::new(Font::default())))
+    }
+}
 
 impl SharedFont {
     pub fn new(font: Font) -> Self {

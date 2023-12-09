@@ -7,7 +7,7 @@ use crate::core::{
 };
 use std::cmp::Ordering;
 
-#[derive(Clone, Debug, Visit, Reflect, Default)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct CurveKeyView {
     pub position: Vector2<f32>,
     pub kind: CurveKeyKind,
@@ -24,7 +24,7 @@ impl From<&CurveKey> for CurveKeyView {
     }
 }
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct KeyContainer {
     id: Uuid,
     keys: Vec<CurveKeyView>,

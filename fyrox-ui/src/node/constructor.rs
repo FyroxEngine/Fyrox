@@ -33,6 +33,8 @@ use crate::{
     searchbar::SearchBar,
     stack_panel::StackPanel,
     tab_control::TabControl,
+    text::Text,
+    text_box::TextBox,
     tree::{Tree, TreeRoot},
     uuid::UuidEditor,
     vec::VecEditor,
@@ -185,8 +187,8 @@ impl WidgetConstructorContainer {
         container.add::<VecEditor<f32, 4>>();
         container.add::<VecEditor<f64, 4>>();
 
-        // container.add::<Text>(); TODO
-        // container.add::<TextBox>(); TODO
+        container.add::<Text>();
+        container.add::<TextBox>();
 
         container
     }

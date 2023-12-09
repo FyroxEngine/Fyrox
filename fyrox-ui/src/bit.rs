@@ -74,7 +74,7 @@ impl<T: BitContainer> BitFieldMessage<T> {
     define_constructor!(BitFieldMessage:Value => fn value(T), layout: false);
 }
 
-#[derive(Clone, Reflect, Visit, Debug)]
+#[derive(Default, Clone, Reflect, Visit, Debug)]
 pub struct BitField<T>
 where
     T: BitContainer,

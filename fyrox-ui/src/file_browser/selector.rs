@@ -42,7 +42,7 @@ impl FileSelectorMessage {
 
 /// File selector is a modal window that allows you to select a file (or directory) and commit or
 /// cancel selection.
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct FileSelector {
     pub window: Window,
     pub browser: Handle<UiNode>,
@@ -296,7 +296,7 @@ impl FileSelectorFieldMessage {
     define_constructor!(FileSelectorFieldMessage:Path => fn path(PathBuf), layout: false);
 }
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct FileSelectorField {
     widget: Widget,
     path: PathBuf,

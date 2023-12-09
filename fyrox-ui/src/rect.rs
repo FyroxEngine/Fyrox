@@ -103,7 +103,7 @@ impl<T: NumericType> RectEditorMessage<T> {
 ///     }
 /// }
 /// ```
-#[derive(Debug, Clone, Visit, Reflect)]
+#[derive(Default, Debug, Clone, Visit, Reflect)]
 pub struct RectEditor<T>
 where
     T: NumericType,

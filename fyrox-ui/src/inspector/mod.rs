@@ -420,7 +420,7 @@ pub trait InspectorEnvironment: Any {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct Inspector {
     pub widget: Widget,
     #[reflect(hidden)]

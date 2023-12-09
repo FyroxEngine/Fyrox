@@ -94,6 +94,22 @@ where
     pub step: SVector<T, D>,
 }
 
+impl<T, const D: usize> Default for VecEditor<T, D>
+where
+    T: NumericType,
+{
+    fn default() -> Self {
+        Self {
+            widget: Default::default(),
+            fields: Default::default(),
+            value: SVector::from([T::default(); D]),
+            min: SVector::from([T::default(); D]),
+            max: SVector::from([T::default(); D]),
+            step: SVector::from([T::default(); D]),
+        }
+    }
+}
+
 impl<T, const D: usize> Deref for VecEditor<T, D>
 where
     T: NumericType,

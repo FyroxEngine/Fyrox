@@ -78,7 +78,7 @@ pub struct HighlightZone {
     pub brush: Brush,
 }
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct CurveEditor {
     widget: Widget,
     key_container: KeyContainer,
@@ -129,7 +129,7 @@ pub struct CurveEditor {
 
 crate::define_widget_deref!(CurveEditor);
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 struct ContextMenu {
     #[visit(skip)] // TODO
     #[reflect(hidden)] // TODO

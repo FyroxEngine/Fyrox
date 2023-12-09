@@ -102,7 +102,7 @@ impl ColorFieldMessage {
     define_constructor!(ColorFieldMessage:Color => fn color(Color), layout: false);
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct AlphaBar {
     pub widget: Widget,
     pub orientation: Orientation,
@@ -373,7 +373,7 @@ impl AlphaBarBuilder {
     }
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct HueBar {
     pub widget: Widget,
     pub orientation: Orientation,
@@ -532,7 +532,7 @@ impl HueBarBuilder {
     }
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct SaturationBrightnessField {
     pub widget: Widget,
     pub is_picking: bool,
@@ -740,7 +740,7 @@ impl SaturationBrightnessFieldBuilder {
     }
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct ColorPicker {
     pub widget: Widget,
     pub hue_bar: Handle<UiNode>,
@@ -1177,7 +1177,7 @@ impl ColorPickerBuilder {
     }
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct ColorField {
     pub widget: Widget,
     pub popup: Handle<UiNode>,

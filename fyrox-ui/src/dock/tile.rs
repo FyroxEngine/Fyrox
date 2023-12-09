@@ -36,8 +36,9 @@ impl TileMessage {
         first: bool), layout: false);
 }
 
-#[derive(Debug, PartialEq, Clone, Visit, Reflect)]
+#[derive(Default, Debug, PartialEq, Clone, Visit, Reflect)]
 pub enum TileContent {
+    #[default]
     Empty,
     Window(Handle<UiNode>),
     VerticalTiles {
@@ -62,7 +63,7 @@ impl TileContent {
     }
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct Tile {
     pub widget: Widget,
     pub left_anchor: Handle<UiNode>,
