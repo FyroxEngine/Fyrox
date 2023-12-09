@@ -1,4 +1,5 @@
 use crate::{absm::segment::Segment, utils::fetch_node_screen_center};
+use fyrox::core::uuid_provider;
 use fyrox::{
     core::{
         algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
@@ -49,6 +50,8 @@ pub fn draw_connection(
     );
     drawing_context.commit(clip_bounds, brush, CommandTexture::None, None);
 }
+
+uuid_provider!(Connection = "c802b6fa-a5ef-4464-a097-749c731ffde0");
 
 impl Control for Connection {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

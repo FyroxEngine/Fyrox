@@ -17,6 +17,7 @@ use crate::{
     window::{WindowBuilder, WindowMessage, WindowTitle},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -60,7 +61,7 @@ impl PathEditorMessage {
 ///
 /// To receive the changes, listen to [`PathEditorMessage::Path`] and check for its direction, it should be [`MessageDirection::FromWidget`].
 /// To set a new path value, send [`PathEditorMessage::Path`] message, but with [`MessageDirection::ToWidget`].
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct PathEditor {
     /// Base widget of the editor.
     pub widget: Widget,
@@ -75,6 +76,8 @@ pub struct PathEditor {
 }
 
 crate::define_widget_deref!(PathEditor);
+
+uuid_provider!(PathEditor = "51cfe7ec-ec31-4354-9578-047004b213a1");
 
 impl Control for PathEditor {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

@@ -37,6 +37,7 @@ use crate::{
     },
     utils::{self},
 };
+use fyrox_core::uuid_provider;
 use fyrox_resource::untyped::ResourceKind;
 use half::f16;
 use image::{imageops::FilterType, ImageBuffer, Luma};
@@ -72,6 +73,8 @@ pub struct Layer {
     #[visit(optional)]
     pub node_uv_offsets_property_name: String,
 }
+
+uuid_provider!(Layer = "7439d5fd-43a9-45f0-bd7c-76cf4d2ec22e");
 
 impl Default for Layer {
     fn default() -> Self {
@@ -148,6 +151,8 @@ pub struct Chunk {
     #[reflect(hidden)]
     pub layer_masks: Vec<TextureResource>,
 }
+
+uuid_provider!(Chunk = "ae996754-69c1-49ba-9c17-a7bd4be072a9");
 
 impl Clone for Chunk {
     // Deep cloning.
@@ -1609,6 +1614,8 @@ pub enum BrushShape {
     },
 }
 
+uuid_provider!(BrushShape = "a4dbfba0-077c-4658-9972-38384a8432f9");
+
 impl BrushShape {
     fn contains(&self, brush_center: Vector2<f32>, pixel_position: Vector2<f32>) -> bool {
         match *self {
@@ -1646,6 +1653,8 @@ pub enum BrushMode {
         alpha: f32,
     },
 }
+
+uuid_provider!(BrushMode = "48ad4cac-05f3-485a-b2a3-66812713841f");
 
 /// Brush is used to modify terrain. It supports multiple shapes and modes.
 #[derive(Clone, Reflect, Debug)]

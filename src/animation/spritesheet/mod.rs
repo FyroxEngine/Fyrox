@@ -8,6 +8,7 @@ use crate::{
     core::{algebra::Vector2, math::Rect, reflect::prelude::*, visitor::prelude::*},
     resource::texture::TextureResource,
 };
+use fyrox_core::uuid_provider;
 use std::collections::vec_deque::VecDeque;
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -28,6 +29,8 @@ pub enum Status {
     /// Animation is paused. Playback can be resumed by [`SpriteSheetAnimation::play()`].
     Paused,
 }
+
+uuid_provider!(Status = "74a31122-a7a8-476c-ab87-77e53cf0523c");
 
 impl Default for Status {
     fn default() -> Self {
@@ -145,6 +148,8 @@ pub struct SpriteSheetAnimation {
     #[visit(skip)]
     events: VecDeque<Event>,
 }
+
+uuid_provider!(SpriteSheetAnimation = "1fa13feb-a16d-4539-acde-672aaeb0f62b");
 
 impl Default for SpriteSheetAnimation {
     fn default() -> Self {

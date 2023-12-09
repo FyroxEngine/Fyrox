@@ -1,5 +1,6 @@
 use crate::{load_image, message::MessageSender, utils::make_node_name, Message};
 use fyrox::core::pool::ErasedHandle;
+use fyrox::core::uuid_provider;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle},
     core::{reflect::prelude::*, visitor::prelude::*},
@@ -89,6 +90,8 @@ impl DerefMut for SceneItem {
         &mut self.tree
     }
 }
+
+uuid_provider!(SceneItem = "16f35257-a250-413b-ab51-b1ad086a3a9c");
 
 impl Control for SceneItem {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

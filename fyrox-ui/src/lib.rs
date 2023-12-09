@@ -300,27 +300,44 @@ pub const BRUSH_BRIGHT_BLUE: Brush = Brush::Solid(COLOR_BRIGHT_BLUE);
 pub const BRUSH_TEXT: Brush = Brush::Solid(COLOR_TEXT);
 pub const BRUSH_FOREGROUND: Brush = Brush::Solid(COLOR_FOREGROUND);
 
-impl Default for Thickness {
-    fn default() -> Self {
-        Self::uniform(0.0)
-    }
-}
-
+#[derive(Default)]
 struct RcUiNodeHandleInner {
     handle: Handle<UiNode>,
-    sender: Sender<UiMessage>,
+    sender: Option<Sender<UiMessage>>,
+}
+
+impl Visit for RcUiNodeHandleInner {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.handle.visit(name, visitor)?;
+
+        if visitor.is_reading() {
+            self.sender = Some(
+                visitor
+                    .blackboard
+                    .get::<Sender<UiMessage>>()
+                    .expect("Ui message sender must be provided for correct deserialization!")
+                    .clone(),
+            );
+        }
+
+        Ok(())
+    }
 }
 
 impl Drop for RcUiNodeHandleInner {
     fn drop(&mut self) {
-        let _ = self.sender.send(WidgetMessage::remove(
-            self.handle,
-            MessageDirection::ToWidget,
-        ));
+        let _ = self
+            .sender
+            .as_ref()
+            .expect("Sender must be set!")
+            .send(WidgetMessage::remove(
+                self.handle,
+                MessageDirection::ToWidget,
+            ));
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default, Visit)]
 pub struct RcUiNodeHandle(Rc<RcUiNodeHandleInner>);
 
 impl Debug for RcUiNodeHandle {
@@ -344,7 +361,10 @@ impl PartialEq for RcUiNodeHandle {
 impl RcUiNodeHandle {
     pub fn new(handle: Handle<UiNode>, sender: Sender<UiMessage>) -> Self {
         assert!(handle.is_some());
-        Self(Rc::new(RcUiNodeHandleInner { handle, sender }))
+        Self(Rc::new(RcUiNodeHandleInner {
+            handle,
+            sender: Some(sender),
+        }))
     }
 }
 

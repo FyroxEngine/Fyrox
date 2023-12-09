@@ -6,6 +6,7 @@
 //! for windows.
 
 use crate::core::{reflect::prelude::*, visitor::prelude::*};
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
@@ -46,6 +47,8 @@ pub struct DockingManager {
 }
 
 crate::define_widget_deref!(DockingManager);
+
+uuid_provider!(DockingManager = "b04299f7-3f6b-45f1-89a6-0dce4ad929e1");
 
 impl Control for DockingManager {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

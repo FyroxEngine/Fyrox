@@ -1,3 +1,4 @@
+use fyrox::core::uuid_provider;
 use fyrox::{
     core::pool::Handle,
     core::{reflect::prelude::*, visitor::prelude::*},
@@ -32,6 +33,8 @@ pub struct SurfaceDataPropertyEditor {
 }
 
 define_widget_deref!(SurfaceDataPropertyEditor);
+
+uuid_provider!(SurfaceDataPropertyEditor = "8461a183-4fd4-4f74-a4f4-7fd8e84bf423");
 
 impl Control for SurfaceDataPropertyEditor {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

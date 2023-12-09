@@ -11,6 +11,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
@@ -140,7 +141,7 @@ pub type Row = GridDimension;
 /// You can add any number of rows and columns to a grid widget, and each grid cell does **not** need to have a UI widget
 /// in it to be valid. For example you can add a column and set it to a specific size via strict to provide spacing between
 /// two other columns.
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct Grid {
     /// Base widget of the grid.
     pub widget: Widget,
@@ -315,6 +316,8 @@ fn arrange_dims(dims: &mut [GridDimension], final_size: f32) {
         };
     }
 }
+
+uuid_provider!(Grid = "98ce15e2-bd62-497d-a37b-9b1cb4a1918c");
 
 impl Control for Grid {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

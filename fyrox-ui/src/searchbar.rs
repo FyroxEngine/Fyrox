@@ -20,6 +20,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment, BRUSH_DARKER,
     BRUSH_LIGHT, BRUSH_LIGHTEST,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -74,7 +75,7 @@ impl SearchBarMessage {
 ///     }
 /// }
 /// ```
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct SearchBar {
     /// Base widget of the search bar.
     pub widget: Widget,
@@ -85,6 +86,8 @@ pub struct SearchBar {
 }
 
 define_widget_deref!(SearchBar);
+
+uuid_provider!(SearchBar = "23db1179-0e07-493d-98fd-2b3c0c795215");
 
 impl Control for SearchBar {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

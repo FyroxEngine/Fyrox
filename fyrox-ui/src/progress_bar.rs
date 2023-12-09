@@ -14,6 +14,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, UiNode, UserInterface,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -69,7 +70,7 @@ impl ProgressBarMessage {
 ///     ));
 /// }
 /// ```
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct ProgressBar {
     /// Base widget of the progress bar.
     pub widget: Widget,
@@ -82,6 +83,8 @@ pub struct ProgressBar {
 }
 
 crate::define_widget_deref!(ProgressBar);
+
+uuid_provider!(ProgressBar = "d6ebb853-d945-46bc-86db-4c8b5d5faf8e");
 
 impl Control for ProgressBar {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

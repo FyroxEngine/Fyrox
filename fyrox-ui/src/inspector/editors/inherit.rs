@@ -22,6 +22,7 @@ use crate::{
     Widget, WidgetMessage,
 };
 use fyrox_core::reflect::FieldValue;
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -60,6 +61,8 @@ impl DerefMut for InheritablePropertyEditor {
         &mut self.widget
     }
 }
+
+uuid_provider!(InheritablePropertyEditor = "d5dce72c-a54b-4754-96a3-2e923eaa802f");
 
 impl Control for InheritablePropertyEditor {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

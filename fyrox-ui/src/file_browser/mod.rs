@@ -41,6 +41,7 @@ mod selector;
 
 pub use selector::*;
 
+use fyrox_core::uuid_provider;
 use notify::Watcher;
 #[cfg(not(target_arch = "wasm32"))]
 use sysinfo::{DiskExt, RefreshKind, SystemExt};
@@ -181,6 +182,8 @@ impl FileBrowser {
         }
     }
 }
+
+uuid_provider!(FileBrowser = "b7f4610e-4b0c-4671-9b4a-60bb45268928");
 
 impl Control for FileBrowser {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

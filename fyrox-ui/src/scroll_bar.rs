@@ -20,6 +20,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -117,7 +118,7 @@ impl ScrollBarMessage {
 ///
 /// Scroll bar provides arrows to change the current value using a fixed step value. You can change it using
 /// [`ScrollBarBuilder::with_step`] method.
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct ScrollBar {
     /// Base widget of the scroll bar.
     pub widget: Widget,
@@ -150,6 +151,8 @@ pub struct ScrollBar {
 }
 
 crate::define_widget_deref!(ScrollBar);
+
+uuid_provider!(ScrollBar = "92accc96-b334-424d-97ea-332c4787acf6");
 
 impl Control for ScrollBar {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

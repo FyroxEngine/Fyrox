@@ -1,4 +1,5 @@
 use crate::inspector::editors::spritesheet::window::SpriteSheetFramesEditorWindow;
+use fyrox::core::uuid_provider;
 use fyrox::{
     animation::spritesheet::SpriteSheetFramesContainer,
     core::pool::Handle,
@@ -48,6 +49,8 @@ pub struct SpriteSheetFramesPropertyEditor {
 }
 
 define_widget_deref!(SpriteSheetFramesPropertyEditor);
+
+uuid_provider!(SpriteSheetFramesPropertyEditor = "8994228d-6106-4e41-872c-5191840badcc");
 
 impl Control for SpriteSheetFramesPropertyEditor {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

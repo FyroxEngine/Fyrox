@@ -24,6 +24,7 @@ use crate::{
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fxhash::FxHashSet;
+use fyrox_core::uuid_provider;
 use std::sync::mpsc::Sender;
 use std::{
     any::{Any, TypeId},
@@ -197,6 +198,8 @@ impl Selection {
         Self::Keys { keys }
     }
 }
+
+uuid_provider!(CurveEditor = "5c7b087e-871e-498d-b064-187b604a37d8");
 
 impl Control for CurveEditor {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

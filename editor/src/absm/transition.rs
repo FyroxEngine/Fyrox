@@ -6,6 +6,7 @@ use crate::{
     utils::fetch_node_center,
 };
 use fyrox::animation::machine::Transition;
+use fyrox::core::uuid_provider;
 use fyrox::{
     core::{algebra::Vector2, color::Color, color::Hsv, math::Rect, pool::Handle},
     core::{reflect::prelude::*, visitor::prelude::*},
@@ -89,6 +90,8 @@ pub fn draw_transition(
 
     drawing_context.commit(clip_bounds, brush, CommandTexture::None, None);
 }
+
+uuid_provider!(TransitionView = "01798aee-8fe5-4480-a69d-8e5b95c3cc96");
 
 impl Control for TransitionView {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

@@ -36,6 +36,7 @@ use ddsfile::{Caps2, D3DFormat};
 use fast_image_resize as fr;
 use fxhash::FxHasher;
 use fyrox_core::num_traits::Bounded;
+use fyrox_core::uuid_provider;
 use fyrox_resource::io::ResourceIo;
 use fyrox_resource::untyped::ResourceKind;
 use image::{ColorType, DynamicImage, ImageError, ImageFormat, Pixel};
@@ -402,6 +403,8 @@ pub enum MipFilter {
     Lanczos,
 }
 
+uuid_provider!(MipFilter = "8fa17c0e-6889-4540-b396-97db4dc952aa");
+
 impl MipFilter {
     fn into_filter_type(self) -> fr::FilterType {
         match self {
@@ -677,6 +680,8 @@ pub enum TextureMagnificationFilter {
     Linear = 1,
 }
 
+uuid_provider!(TextureMagnificationFilter = "824f5b6c-8957-42db-9ebc-ef2a5dece5ab");
+
 impl Default for TextureMagnificationFilter {
     fn default() -> Self {
         Self::Linear
@@ -733,6 +738,8 @@ pub enum TextureMinificationFilter {
     /// The final texture value is a weighted average of those two values.
     LinearMipMapLinear = 5,
 }
+
+uuid_provider!(TextureMinificationFilter = "0ec9e072-6d0a-47b2-a9c2-498cac4de22b");
 
 impl TextureMinificationFilter {
     /// Returns true if minification filter is using mip mapping, false - otherwise.
@@ -794,6 +801,8 @@ pub enum TextureWrapMode {
     /// which point the coordinate to be clamped as in ClampToEdge.
     MirrorClampToEdge = 4,
 }
+
+uuid_provider!(TextureWrapMode = "e360d139-4374-4323-a66d-d192809d9d87");
 
 impl Default for TextureWrapMode {
     fn default() -> Self {
@@ -1058,6 +1067,8 @@ pub enum CompressionOptions {
     /// bandwidth.
     Quality = 2,
 }
+
+uuid_provider!(CompressionOptions = "fbdcc081-d0b8-4b62-9925-2de6c013fbf5");
 
 impl Default for CompressionOptions {
     fn default() -> Self {

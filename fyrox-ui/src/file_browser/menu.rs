@@ -16,6 +16,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness, UiNode,
     UserInterface,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     cell::{Cell, RefCell},
@@ -55,6 +56,8 @@ impl DerefMut for ItemContextMenu {
         &mut self.popup.widget
     }
 }
+
+uuid_provider!(ItemContextMenu = "6a9d597f-6a9f-4bad-b569-4cff1a6deff7");
 
 impl Control for ItemContextMenu {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

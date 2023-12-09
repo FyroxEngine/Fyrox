@@ -19,6 +19,7 @@ use crate::{
     BuildContext, Control, NodeHandleMapping, Orientation, UiNode, UserInterface, BRUSH_BRIGHT,
     BRUSH_LIGHT,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -90,7 +91,7 @@ impl Debug for TabUserData {
 }
 
 /// Tab of the [`TabControl`] widget. It stores important tab data, that is widely used at runtime.
-#[derive(Clone, PartialEq, Visit, Reflect, Default, Debug)]
+#[derive(Default, Clone, PartialEq, Visit, Reflect, Debug)]
 pub struct Tab {
     /// A handle of the header button, that is used to switch tabs.
     pub header_button: Handle<UiNode>,
@@ -197,7 +198,7 @@ pub struct Tab {
 /// # }
 ///
 /// ```
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct TabControl {
     /// Base widget of the tab control.
     pub widget: Widget,
@@ -214,6 +215,8 @@ pub struct TabControl {
 }
 
 crate::define_widget_deref!(TabControl);
+
+uuid_provider!(TabControl = "d54cfac3-0afc-464b-838a-158b3a2253f5");
 
 impl Control for TabControl {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

@@ -81,6 +81,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_core::algebra::Vector4;
+use fyrox_core::uuid_provider;
 use glow::HasContext;
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{
@@ -224,6 +225,8 @@ pub enum ShadowMapPrecision {
     /// but could be less performant than `Half`.
     Full,
 }
+
+uuid_provider!(ShadowMapPrecision = "f9b2755b-248e-46ba-bcab-473eac1acdb8");
 
 /// Cascaded-shadow maps settings.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect, Eq)]

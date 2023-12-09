@@ -33,6 +33,7 @@ use crate::{
     },
 };
 use fxhash::{FxHashMap, FxHasher};
+use fyrox_core::uuid_provider;
 use fyrox_resource::untyped::ResourceKind;
 use half::f16;
 use std::{hash::Hasher, sync::Arc};
@@ -47,6 +48,8 @@ pub struct BlendShape {
     #[reflect(read_only)]
     pub name: String,
 }
+
+uuid_provider!(BlendShape = "fea08418-58fe-4fde-991b-36be235432bd");
 
 impl Default for BlendShape {
     fn default() -> Self {
@@ -1256,6 +1259,8 @@ pub struct Surface {
     #[reflect(hidden)]
     pub(crate) vertex_weights: Vec<VertexWeightSet>,
 }
+
+uuid_provider!(Surface = "485caf12-4e7d-4b1a-b6bd-0681fd92f789");
 
 impl Clone for Surface {
     fn clone(&self) -> Self {

@@ -2,6 +2,7 @@ use crate::{
     gui::make_dropdown_list_option, inspector::EditorEnvironment, send_sync_message,
     DropdownListBuilder, MSG_SYNC_FLAG,
 };
+use fyrox::core::uuid_provider;
 use fyrox::gui::inspector::PropertyFilter;
 use fyrox::{
     core::{pool::Handle, uuid::Uuid},
@@ -66,6 +67,8 @@ impl DerefMut for ScriptPropertyEditor {
         &mut self.widget
     }
 }
+
+uuid_provider!(ScriptPropertyEditor = "f43c3bfb-8b39-4cc0-be77-04141a45822e");
 
 impl Control for ScriptPropertyEditor {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

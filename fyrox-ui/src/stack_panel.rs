@@ -11,6 +11,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -93,7 +94,7 @@ impl StackPanelMessage {
 ///     .build(ctx);
 /// # }
 /// ```
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct StackPanel {
     /// Base widget of the stack panel.
     pub widget: Widget,
@@ -102,6 +103,8 @@ pub struct StackPanel {
 }
 
 crate::define_widget_deref!(StackPanel);
+
+uuid_provider!(StackPanel = "d868f554-a2c5-4280-abfc-396d10a0e1ed");
 
 impl Control for StackPanel {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

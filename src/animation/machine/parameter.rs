@@ -2,6 +2,7 @@
 
 use crate::core::{algebra::Vector2, reflect::prelude::*, visitor::prelude::*};
 use fxhash::FxHashMap;
+use fyrox_core::uuid_provider;
 use std::{
     cell::{Cell, RefCell},
     ops::{Deref, DerefMut},
@@ -26,6 +27,8 @@ pub enum Parameter {
     SamplingPoint(Vector2<f32>),
 }
 
+uuid_provider!(Parameter = "ace1b8ea-15ee-444d-97be-1682cd9e4245");
+
 impl Default for Parameter {
     fn default() -> Self {
         Self::Weight(0.0)
@@ -41,6 +44,8 @@ pub enum PoseWeight {
     /// Reference to Weight parameter with given name.
     Parameter(String),
 }
+
+uuid_provider!(PoseWeight = "46af44ea-eae9-4f3e-803c-06306caed23f");
 
 impl PoseWeight {
     /// Calculates the actual pose weight value.
@@ -73,6 +78,8 @@ pub struct ParameterDefinition {
     /// Value of the parameter.
     pub value: Parameter,
 }
+
+uuid_provider!(ParameterDefinition = "6cbba5c9-8daf-4f4c-a920-9716ed233d89");
 
 #[derive(Default, Debug, Clone)]
 struct Wrapper {

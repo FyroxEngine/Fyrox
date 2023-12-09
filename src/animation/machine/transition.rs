@@ -8,6 +8,7 @@ use crate::{
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     utils::NameProvider,
 };
+use fyrox_core::uuid_provider;
 use std::any::{type_name, Any, TypeId};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -300,6 +301,8 @@ pub enum LogicNode {
     /// Returns `true` if the animation has ended, `false` - otherwise.
     IsAnimationEnded(Handle<Animation>),
 }
+
+uuid_provider!(LogicNode = "98a5b767-5560-4ed7-ad40-1625a8868e39");
 
 impl Default for LogicNode {
     fn default() -> Self {

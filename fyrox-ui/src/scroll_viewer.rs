@@ -15,6 +15,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, Orientation, UiNode, UserInterface,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -135,7 +136,7 @@ impl ScrollViewerMessage {
 ///     ))
 /// }
 /// ```
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct ScrollViewer {
     /// Base widget of the scroll viewer.
     pub widget: Widget,
@@ -154,6 +155,8 @@ pub struct ScrollViewer {
 }
 
 crate::define_widget_deref!(ScrollViewer);
+
+uuid_provider!(ScrollViewer = "173e869f-7da0-4ae2-915a-5d545d8150cc");
 
 impl Control for ScrollViewer {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

@@ -29,6 +29,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_core::uuid_provider;
 use rapier3d::{dynamics, prelude::RigidBodyHandle};
 use std::{
     cell::Cell,
@@ -55,6 +56,8 @@ pub enum RigidBodyType {
     /// It also does not have any dynamic, you are able to control the position by changing velocity.
     KinematicVelocityBased = 3,
 }
+
+uuid_provider!(RigidBodyType = "562d2907-1b41-483a-8ca2-12eebaff7f5d");
 
 impl Default for RigidBodyType {
     fn default() -> Self {

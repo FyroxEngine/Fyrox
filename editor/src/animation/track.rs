@@ -23,6 +23,7 @@ use crate::{
     },
     send_sync_message, utils,
 };
+use fyrox::core::uuid_provider;
 use fyrox::resource::texture::TextureBytes;
 use fyrox::{
     animation::{
@@ -272,6 +273,8 @@ impl DerefMut for TrackView {
         &mut self.tree.widget
     }
 }
+
+uuid_provider!(TrackView = "c1e930da-d55d-492e-b87b-16c1adf03319");
 
 impl Control for TrackView {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

@@ -3,10 +3,13 @@
 use crate::{
     check_box::{CheckBoxBuilder, CheckBoxMessage},
     core::{
+        combine_uuids,
         num_traits::{NumCast, One, Zero},
         pool::Handle,
         reflect::prelude::*,
+        uuid::{uuid, Uuid},
         visitor::prelude::*,
+        TypeUuidProvider,
     },
     define_constructor,
     message::UiMessage,
@@ -37,6 +40,7 @@ pub trait BitContainer:
     + Debug
     + Reflect
     + Visit
+    + TypeUuidProvider
     + 'static
 {
 }
@@ -56,6 +60,7 @@ impl<T> BitContainer for T where
         + Debug
         + Reflect
         + Visit
+        + TypeUuidProvider
         + 'static
 {
 }
@@ -112,6 +117,18 @@ fn reset_bit<T: BitContainer>(value: T, index: usize) -> T {
 #[must_use]
 fn is_bit_set<T: BitContainer>(value: T, index: usize) -> bool {
     value & (T::one() << T::from(index).unwrap_or_default()) != T::zero()
+}
+
+impl<T> TypeUuidProvider for BitField<T>
+where
+    T: BitContainer,
+{
+    fn type_uuid() -> Uuid {
+        combine_uuids(
+            uuid!("6c19b266-18be-46d2-bfd3-f1dc9cb3f36c"),
+            T::type_uuid(),
+        )
+    }
 }
 
 impl<T> Control for BitField<T>

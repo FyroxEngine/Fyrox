@@ -1,6 +1,7 @@
 use crate::{
     algebra::{Vector3, Vector4},
     reflect::prelude::*,
+    uuid_provider,
     visitor::{Visit, VisitResult, Visitor},
 };
 use num_traits::Zero;
@@ -15,6 +16,8 @@ pub struct Color {
     pub b: u8,
     pub a: u8,
 }
+
+uuid_provider!(Color = "74e898aa-de19-44bd-8213-3b6d450b1bf8");
 
 impl Default for Color {
     #[inline]

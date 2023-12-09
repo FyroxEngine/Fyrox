@@ -14,6 +14,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -51,7 +52,7 @@ impl UuidEditorMessage {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct UuidEditor {
     widget: Widget,
     value: Uuid,
@@ -60,6 +61,8 @@ pub struct UuidEditor {
 }
 
 define_widget_deref!(UuidEditor);
+
+uuid_provider!(UuidEditor = "667f7f48-2448-42da-91dd-cd743ca7117e");
 
 impl Control for UuidEditor {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

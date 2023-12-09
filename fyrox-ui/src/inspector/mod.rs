@@ -29,6 +29,7 @@ use crate::{
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use copypasta::ClipboardProvider;
+use fyrox_core::uuid_provider;
 use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
@@ -866,6 +867,8 @@ impl InspectorContext {
             .unwrap_or_default()
     }
 }
+
+uuid_provider!(Inspector = "c599c0f5-f749-4033-afed-1a9949c937a1");
 
 impl Control for Inspector {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

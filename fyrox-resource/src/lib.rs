@@ -31,6 +31,7 @@ use std::{
 use crate::state::LoadError;
 use crate::untyped::{ResourceHeader, ResourceKind};
 pub use fyrox_core as core;
+use fyrox_core::combine_uuids;
 
 pub mod constructor;
 pub mod entry;
@@ -133,6 +134,15 @@ where
     untyped: UntypedResource,
     #[reflect(hidden)]
     phantom: PhantomData<T>,
+}
+
+impl<T: TypedResourceData> TypeUuidProvider for Resource<T> {
+    fn type_uuid() -> Uuid {
+        combine_uuids(
+            uuid!("790b1a1c-a997-46c4-ac3b-8565501f0052"),
+            <T as TypeUuidProvider>::type_uuid(),
+        )
+    }
 }
 
 impl<T> Visit for Resource<T>

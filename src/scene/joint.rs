@@ -21,6 +21,7 @@ use crate::{
     },
 };
 use fyrox_core::algebra::{Isometry3, Vector3};
+use fyrox_core::uuid_provider;
 use rapier2d::na::UnitQuaternion;
 use rapier3d::dynamics::ImpulseJointHandle;
 use std::cell::RefCell;
@@ -149,6 +150,8 @@ pub enum JointParams {
     /// See [`RevoluteJoint`] for more info.
     RevoluteJoint(RevoluteJoint),
 }
+
+uuid_provider!(JointParams = "a3e09303-9de4-4123-9492-05e27f29aaa3");
 
 impl Default for JointParams {
     fn default() -> Self {

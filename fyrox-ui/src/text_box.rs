@@ -23,6 +23,7 @@ use crate::{
     BRUSH_DARKER, BRUSH_TEXT,
 };
 use copypasta::ClipboardProvider;
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
@@ -979,6 +980,8 @@ impl TextBox {
         }
     }
 }
+
+uuid_provider!(TextBox = "536276f2-a175-4c05-a376-5a7d8bf0d10b");
 
 impl Control for TextBox {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

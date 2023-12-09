@@ -42,6 +42,7 @@ use crate::{
         Scene, SceneLoader,
     },
 };
+use fyrox_core::uuid_provider;
 use fyrox_resource::io::ResourceIo;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -378,6 +379,8 @@ pub enum MaterialSearchOptions {
     /// the engine won't be able to correctly find materials.
     UsePathDirectly,
 }
+
+uuid_provider!(MaterialSearchOptions = "11634aa0-cf8f-4532-a8cd-c0fa6ef804f1");
 
 impl Default for MaterialSearchOptions {
     fn default() -> Self {

@@ -19,6 +19,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, RcUiNodeHandle, UiNode, UserInterface,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     cell::Cell,
@@ -35,7 +36,7 @@ impl ColorGradientEditorMessage {
     define_constructor!(ColorGradientEditorMessage:Value => fn value(ColorGradient), layout: false);
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct ColorGradientField {
     widget: Widget,
     color_gradient: ColorGradient,
@@ -44,6 +45,8 @@ pub struct ColorGradientField {
 define_widget_deref!(ColorGradientField);
 
 const SYNC_FLAG: u64 = 1;
+
+uuid_provider!(ColorGradientField = "50d00eb7-f30b-4973-8a36-03d6b8f007ec");
 
 impl Control for ColorGradientField {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -151,7 +154,7 @@ impl ColorGradientFieldBuilder {
     }
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct ColorGradientEditor {
     widget: Widget,
     gradient_field: Handle<UiNode>,
@@ -170,6 +173,8 @@ pub struct ColorGradientEditor {
 }
 
 define_widget_deref!(ColorGradientEditor);
+
+uuid_provider!(ColorGradientEditor = "82843d8b-1972-46e6-897c-9619b74059cc");
 
 impl Control for ColorGradientEditor {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -472,14 +477,16 @@ impl ColorPointMessage {
     define_constructor!(ColorPointMessage:Location => fn location(f32), layout: false);
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
-struct ColorPoint {
-    widget: Widget,
-    location: f32,
-    dragging: bool,
+#[derive(Default, Clone, Debug, Visit, Reflect)]
+pub struct ColorPoint {
+    pub widget: Widget,
+    pub location: f32,
+    pub dragging: bool,
 }
 
 define_widget_deref!(ColorPoint);
+
+uuid_provider!(ColorPoint = "a493a603-3451-4005-8c80-559707729e70");
 
 impl Control for ColorPoint {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -613,6 +620,8 @@ struct ColorPointsCanvas {
 }
 
 define_widget_deref!(ColorPointsCanvas);
+
+uuid_provider!(ColorPointsCanvas = "2608955a-4095-4fd1-af71-99bcdf2600f0");
 
 impl Control for ColorPointsCanvas {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

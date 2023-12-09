@@ -17,6 +17,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, RestrictionEntry, Thickness,
     UiNode, UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_LIGHT, BRUSH_LIGHTEST,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
@@ -240,7 +241,7 @@ impl WindowMessage {
 /// to interact with anything else until the modal is dismissed.
 ///
 /// Any window can be set and unset as a modal via the *modal* function.
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct Window {
     /// Base widget of the window.
     pub widget: Widget,
@@ -337,6 +338,8 @@ impl Grip {
 }
 
 crate::define_widget_deref!(Window);
+
+uuid_provider!(Window = "9331bf32-8614-4005-874c-5239e56bb15e");
 
 impl Control for Window {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

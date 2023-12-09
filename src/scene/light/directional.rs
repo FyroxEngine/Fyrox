@@ -26,6 +26,7 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
+use fyrox_core::uuid_provider;
 use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -58,6 +59,8 @@ pub enum FrustumSplitOptions {
         fractions: [f32; CSM_NUM_CASCADES],
     },
 }
+
+uuid_provider!(FrustumSplitOptions = "b2ed128a-b7da-4d34-b027-a0af19c2f563");
 
 impl Default for FrustumSplitOptions {
     fn default() -> Self {

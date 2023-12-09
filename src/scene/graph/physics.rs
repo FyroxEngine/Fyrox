@@ -34,6 +34,7 @@ use crate::{
     utils::raw_mesh::{RawMeshBuilder, RawVertex},
 };
 use fyrox_core::algebra::Translation;
+use fyrox_core::uuid_provider;
 use rapier3d::{
     dynamics::{
         CCDSolver, GenericJoint, GenericJointBuilder, ImpulseJointHandle, ImpulseJointSet,
@@ -123,6 +124,8 @@ pub enum CoefficientCombineRule {
     /// The greatest coefficient is chosen.
     Max,
 }
+
+uuid_provider!(CoefficientCombineRule = "775d5598-c283-4b44-9cc0-2e23dc8936f4");
 
 impl From<rapier3d::dynamics::CoefficientCombineRule> for CoefficientCombineRule {
     fn from(v: rapier3d::dynamics::CoefficientCombineRule) -> Self {

@@ -14,6 +14,7 @@ use crate::{
     rand::{self, seq::IteratorRandom},
     utils::NameProvider,
 };
+use fyrox_core::uuid_provider;
 use std::{
     cell::Ref,
     ops::{Deref, DerefMut},
@@ -23,6 +24,8 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 #[doc(hidden)]
 #[derive(Default, Debug, Visit, Reflect, Clone, PartialEq)]
 pub struct StateActionWrapper(pub StateAction);
+
+uuid_provider!(StateActionWrapper = "d686fac8-5cc1-46b1-82a4-7f4438cc078d");
 
 impl Deref for StateActionWrapper {
     type Target = StateAction;
@@ -63,6 +66,8 @@ pub enum StateAction {
     /// predictable.
     EnableRandomAnimation(Vec<Handle<Animation>>),
 }
+
+uuid_provider!(StateAction = "c50a15cc-0f63-4409-bbe0-74b9d3e94755");
 
 impl StateAction {
     /// Applies the action to the given animation container.

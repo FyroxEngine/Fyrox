@@ -20,6 +20,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_core::uuid_provider;
 use rapier2d::dynamics::ImpulseJointHandle;
 use std::{
     cell::{Cell, RefCell},
@@ -93,6 +94,8 @@ pub enum JointParams {
     /// See [`PrismaticJoint`] for more info.
     PrismaticJoint(PrismaticJoint),
 }
+
+uuid_provider!(JointParams = "e1fa2015-3ea3-47bb-8ad3-d408559c9643");
 
 impl Default for JointParams {
     fn default() -> Self {

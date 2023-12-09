@@ -16,6 +16,12 @@ pub struct Thickness {
     pub bottom: f32,
 }
 
+impl Default for Thickness {
+    fn default() -> Self {
+        Self::uniform(0.0)
+    }
+}
+
 impl Thickness {
     /// Degenerate thickness that has no effect.
     pub fn zero() -> Self {

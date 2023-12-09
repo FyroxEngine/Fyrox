@@ -662,7 +662,7 @@ impl WidgetMessage {
 /// Widget is a base UI element, that is always used to build derived, more complex, widgets. In general, it is a container
 /// for layout information, basic visual appearance, visibility options, parent-child information. It does almost nothing
 /// on its own, instead, the user interface modifies its state accordingly.
-#[derive(Debug, Clone, Reflect, Visit)]
+#[derive(Default, Debug, Clone, Reflect, Visit)]
 pub struct Widget {
     /// Self handle of the widget. It is valid **only**, if the widget is added to the user interface, in other
     /// cases it will most likely be [`Handle::NONE`].

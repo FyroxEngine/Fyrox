@@ -18,6 +18,7 @@ use crate::{
     scene::{node::Node, transform::Transform},
     script::{Script, ScriptTrait},
 };
+use fyrox_core::uuid_provider;
 use std::{any::Any, cell::Cell, sync::mpsc::Sender};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -42,6 +43,8 @@ pub struct LevelOfDetail {
     /// LOD group.
     pub objects: Vec<Handle<Node>>,
 }
+
+uuid_provider!(LevelOfDetail = "576b31a2-2b39-4c79-95dd-26aeaf381d8b");
 
 impl LevelOfDetail {
     /// Creates new level of detail.
@@ -104,6 +107,8 @@ pub struct LodGroup {
     pub levels: Vec<LevelOfDetail>,
 }
 
+uuid_provider!(LodGroup = "8e7b18b1-c1e0-47d7-b952-4394c1d049e5");
+
 /// Mobility defines a group for scene node which has direct impact on performance
 /// and capabilities of nodes.
 #[derive(
@@ -164,6 +169,8 @@ pub enum Mobility {
     Dynamic = 2,
 }
 
+uuid_provider!(Mobility = "57c125ff-e408-4318-9874-f59485e95764");
+
 impl Visit for Mobility {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut id = *self as u32;
@@ -221,6 +228,8 @@ pub enum PropertyValue {
     F64(f64),
 }
 
+uuid_provider!(PropertyValue = "cce94b60-a57e-48ba-b6f4-e5e84788f7f8");
+
 impl Default for PropertyValue {
     fn default() -> Self {
         Self::I8(0)
@@ -235,6 +244,8 @@ pub struct Property {
     /// A value of the property.
     pub value: PropertyValue,
 }
+
+uuid_provider!(Property = "fc87fd21-a5e6-40d5-a79d-19f96b25d6c9");
 
 /// A script message from scene node. It is used for deferred initialization/deinitialization.
 pub enum NodeScriptMessage {

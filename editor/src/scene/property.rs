@@ -1,3 +1,4 @@
+use fyrox::core::uuid_provider;
 use fyrox::{
     core::{
         algebra::Vector2, pool::Handle, reflect::prelude::*, sstorage::ImmutableString,
@@ -301,6 +302,8 @@ pub struct PropertySelector {
 
 define_widget_deref!(PropertySelector);
 
+uuid_provider!(PropertySelector = "8e58e123-48a1-4e18-9e90-fd35a1669bdc");
+
 impl Control for PropertySelector {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
         if type_id == TypeId::of::<Self>() {
@@ -455,6 +458,8 @@ impl DerefMut for PropertySelectorWindow {
         &mut self.window.widget
     }
 }
+
+uuid_provider!(PropertySelectorWindow = "725e4a10-eca6-4345-9833-d54dae2f20f2");
 
 impl Control for PropertySelectorWindow {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

@@ -16,6 +16,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
 };
+use fyrox_core::uuid_provider;
 use std::cmp::Ordering;
 use std::{
     cell::{Cell, Ref, RefCell},
@@ -33,6 +34,8 @@ pub struct BlendPose {
     #[reflect(hidden)]
     pub pose_source: Handle<PoseNode>,
 }
+
+uuid_provider!(BlendPose = "b01d7639-7b39-4eaf-87e6-29fd5221951b");
 
 impl BlendPose {
     /// Creates new instance of blend pose with given weight and animation pose.
@@ -214,6 +217,8 @@ pub struct IndexedBlendInput {
     #[reflect(hidden)]
     pub pose_source: Handle<PoseNode>,
 }
+
+uuid_provider!(IndexedBlendInput = "92fcc992-9a68-4152-8449-657546faa286");
 
 /// A node that switches between given animations using index and smoothly blends from one animation to another
 /// while switching. It is very useful for situations when you need to switch between different animations. For

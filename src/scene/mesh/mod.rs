@@ -29,6 +29,7 @@ use crate::{
         node::{Node, NodeTrait, UpdateContext},
     },
 };
+use fyrox_core::uuid_provider;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -65,6 +66,8 @@ pub enum RenderPath {
     /// of forward rendering is very little. It is ideal for transparent objects like glass.
     Forward = 1,
 }
+
+uuid_provider!(RenderPath = "009bccb6-42e4-4dc6-bb26-6a8a70b3fab9");
 
 impl Default for RenderPath {
     fn default() -> Self {

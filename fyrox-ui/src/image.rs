@@ -14,6 +14,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -152,7 +153,7 @@ impl ImageMessage {
 /// It is useful if you have many custom UI elements packed in a single texture atlas. Drawing using atlases is much more
 /// efficient and faster. This could also be used for animations, when you have multiple frames packed in a single atlas
 /// and changing texture coordinates over the time.
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct Image {
     /// Base widget of the image.
     pub widget: Widget,
@@ -169,6 +170,8 @@ pub struct Image {
 }
 
 crate::define_widget_deref!(Image);
+
+uuid_provider!(Image = "18e18d0f-cb84-4ac1-8050-3480a2ec3de5");
 
 impl Control for Image {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

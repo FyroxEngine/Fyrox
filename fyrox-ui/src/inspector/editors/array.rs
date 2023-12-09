@@ -17,6 +17,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -46,6 +47,8 @@ pub struct ArrayEditor {
 }
 
 crate::define_widget_deref!(ArrayEditor);
+
+uuid_provider!(ArrayEditor = "5c6e4785-8e2d-441f-8478-523900394b93");
 
 impl Control for ArrayEditor {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

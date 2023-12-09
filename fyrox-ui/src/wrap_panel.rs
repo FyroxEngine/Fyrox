@@ -12,6 +12,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
@@ -60,7 +61,7 @@ impl WrapPanelMessage {
 ///
 /// Wrap panel can stack your widgets either in vertical or horizontal direction. Use `.with_orientation` while building
 /// the panel to switch orientation to desired.
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct WrapPanel {
     /// Base widget of the wrap panel.
     pub widget: Widget,
@@ -91,6 +92,8 @@ impl Default for Line {
         }
     }
 }
+
+uuid_provider!(WrapPanel = "f488ab8e-8f8b-473c-a450-5ac33f1afb39");
 
 impl Control for WrapPanel {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

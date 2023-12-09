@@ -1,4 +1,5 @@
 use crate::inspector::editors::spritesheet::SpriteSheetFramesPropertyEditorMessage;
+use fyrox::core::uuid_provider;
 use fyrox::{
     animation::spritesheet::{SpriteSheetAnimation, SpriteSheetFramesContainer},
     core::{algebra::Vector2, color::Color, pool::Handle},
@@ -58,6 +59,8 @@ impl DerefMut for SpriteSheetFramesEditorWindow {
         &mut self.window.widget
     }
 }
+
+uuid_provider!(SpriteSheetFramesEditorWindow = "55607fe0-2996-418d-ad31-a5b96fdfa4b7");
 
 impl Control for SpriteSheetFramesEditorWindow {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

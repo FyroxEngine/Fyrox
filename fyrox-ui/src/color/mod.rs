@@ -20,6 +20,7 @@ use crate::{
     BuildContext, Control, NodeHandleMapping, Orientation, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -229,6 +230,8 @@ pub fn draw_checker_board(
     );
 }
 
+uuid_provider!(AlphaBar = "956d4cae-7953-486b-99da-a9b852c2e144");
+
 impl Control for AlphaBar {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
         if type_id == TypeId::of::<Self>() {
@@ -391,6 +394,8 @@ impl HueBar {
     }
 }
 
+uuid_provider!(HueBar = "af28f977-85e7-4c9e-9a61-7f208844acb5");
+
 impl Control for HueBar {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
         if type_id == TypeId::of::<Self>() {
@@ -550,6 +555,8 @@ impl SaturationBrightnessField {
                 * 100.0
     }
 }
+
+uuid_provider!(SaturationBrightnessField = "ab6bfad5-0c4b-42a5-8da5-fc5687b1afc7");
 
 impl Control for SaturationBrightnessField {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -809,6 +816,8 @@ impl ColorPicker {
         )));
     }
 }
+
+uuid_provider!(ColorPicker = "b7a5d650-5b77-4938-83c1-37f3fe107885");
 
 impl Control for ColorPicker {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -1177,6 +1186,8 @@ pub struct ColorField {
 }
 
 crate::define_widget_deref!(ColorField);
+
+uuid_provider!(ColorField = "68dec1ac-23c6-41df-bc85-499f2a82e908");
 
 impl Control for ColorField {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

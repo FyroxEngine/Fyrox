@@ -321,6 +321,17 @@ uuid_provider!(u64 = "d1a45bd5-5066-4b28-b103-95c59c230e77");
 uuid_provider!(i64 = "35b89368-805f-486d-b3b1-fd3e86b5d645");
 uuid_provider!(f32 = "479e29c6-85fd-4bb8-b311-7b98793b8bf6");
 uuid_provider!(f64 = "dac09d54-d069-47f4-aa0e-aa0057cc2b52");
+uuid_provider!(usize = "620e24e3-fb51-48c6-a885-91d65135c5c9");
+uuid_provider!(isize = "0a06591a-1c66-4299-ba6f-2b205b795575");
+
+impl<T: TypeUuidProvider> TypeUuidProvider for Option<T> {
+    fn type_uuid() -> Uuid {
+        combine_uuids(
+            uuid::uuid!("ffe06d3b-0d07-42cd-886b-5248f6ca7f7d"),
+            T::type_uuid(),
+        )
+    }
+}
 
 #[inline]
 pub fn combine_uuids(a: Uuid, b: Uuid) -> Uuid {

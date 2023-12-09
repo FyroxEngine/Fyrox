@@ -10,6 +10,8 @@ use crate::{
     widget::WidgetBuilder,
     BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface, Widget,
 };
+use fyrox_core::uuid::{uuid, Uuid};
+use fyrox_core::{combine_uuids, TypeUuidProvider};
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -109,6 +111,38 @@ where
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
+    }
+}
+
+// TODO: Is 16 enough?
+const DIM_UUIDS: [Uuid; 16] = [
+    uuid!("11ec6ec2-9780-4dbe-827a-935cb9ec5bb0"),
+    uuid!("af532488-8833-443a-8ece-d8380e5ad148"),
+    uuid!("6738154a-9663-4628-bb9d-f61d453eafcd"),
+    uuid!("448dab8c-b4e6-478e-a704-ea0b0db628aa"),
+    uuid!("67246977-8802-4e72-a19f-6e4f60b6eced"),
+    uuid!("f711a9f8-288a-4a28-b30e-e7bcfdf26ab0"),
+    uuid!("c92ac3ad-5dc5-41dd-abbd-7fb9aacb9a5f"),
+    uuid!("88d9a035-4424-40d2-af62-f701025bd767"),
+    uuid!("dda09036-18d8-40bc-ae9d-1a69f45e2ba0"),
+    uuid!("b6fe9585-6ebc-4b4d-be66-484b4d7b3d5b"),
+    uuid!("03c41033-e8fe-420d-b246-e7c9dcd7c01b"),
+    uuid!("14ea7e95-0f94-4b15-a53c-97d7d2e58d4e"),
+    uuid!("0149f666-33cf-4e39-b4bd-58502994b162"),
+    uuid!("abb9f691-0958-464b-a37d-a3336b4d33f9"),
+    uuid!("6f37cfd5-9bec-40ec-9dbc-e532d43b81b7"),
+    uuid!("fa786077-95b9-4e7c-9268-7d0314c005ba"),
+];
+
+impl<T: NumericType, const D: usize> TypeUuidProvider for VecEditor<T, D> {
+    fn type_uuid() -> Uuid {
+        combine_uuids(
+            combine_uuids(
+                uuid!("0332144f-c70e-456a-812b-f9b89980d2ba"),
+                T::type_uuid(),
+            ),
+            DIM_UUIDS[D],
+        )
     }
 }
 

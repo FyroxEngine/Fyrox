@@ -2,6 +2,7 @@ use crate::{
     core::{color::Color, math::Rect, reflect::prelude::*, visitor::prelude::*},
     renderer::framework::framebuffer::{CullFace, DrawParameters},
 };
+use fyrox_core::uuid_provider;
 use glow::{Framebuffer, HasContext};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
@@ -456,6 +457,8 @@ pub enum PolygonFillMode {
     Line = glow::LINE,
     Fill = glow::FILL,
 }
+
+uuid_provider!(PolygonFillMode = "47aff01a-7daa-427c-874c-87464a7ffe28");
 
 impl Default for PolygonFillMode {
     fn default() -> Self {

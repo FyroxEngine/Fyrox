@@ -9,6 +9,7 @@
 use crate::dsp::DelayLine;
 use fyrox_core::{
     reflect::prelude::*,
+    uuid_provider,
     visitor::{Visit, VisitResult, Visitor},
 };
 
@@ -213,6 +214,8 @@ pub struct Biquad {
     #[reflect(hidden)]
     prev2: f32,
 }
+
+uuid_provider!(Biquad = "4560a1b3-74fc-4b0e-802f-ff1f253bf565");
 
 impl Biquad {
     /// Creates new filter of given kind with specified parameters, where:

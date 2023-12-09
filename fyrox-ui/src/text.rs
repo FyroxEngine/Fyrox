@@ -15,6 +15,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
@@ -320,6 +321,8 @@ pub struct Text {
 }
 
 crate::define_widget_deref!(Text);
+
+uuid_provider!(Text = "22f7f502-7622-4ecb-8c5f-ba436e7ee823");
 
 impl Control for Text {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

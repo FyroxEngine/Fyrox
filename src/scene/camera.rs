@@ -26,6 +26,7 @@ use crate::{
         node::{Node, NodeTrait, UpdateContext},
     },
 };
+use fyrox_core::uuid_provider;
 use fyrox_resource::state::LoadError;
 use fyrox_resource::untyped::ResourceKind;
 use lazy_static::lazy_static;
@@ -169,6 +170,8 @@ pub enum Projection {
     Orthographic(OrthographicProjection),
 }
 
+uuid_provider!(Projection = "0eb5bec0-fc4e-4945-99b6-e6c5392ad971");
+
 impl Projection {
     /// Sets the new value for the near clipping plane.
     #[inline]
@@ -269,6 +272,8 @@ pub enum Exposure {
     /// Specific exposure level. To "disable" any HDR effects use [`std::f32::consts::E`] as a value.
     Manual(f32),
 }
+
+uuid_provider!(Exposure = "0e35ee3d-8baa-4b0c-b3dd-6c31a08c121e");
 
 impl Default for Exposure {
     fn default() -> Self {
@@ -770,6 +775,8 @@ pub struct ColorGradingLut {
     lut: Option<TextureResource>,
 }
 
+uuid_provider!(ColorGradingLut = "bca9c90a-7cde-4960-8814-c132edfc9614");
+
 impl ColorGradingLut {
     /// Creates 3D look-up texture from 2D strip.
     ///
@@ -1233,6 +1240,8 @@ pub struct SkyBox {
     #[visit(skip)]
     pub(crate) cubemap: Option<TextureResource>,
 }
+
+uuid_provider!(SkyBox = "45f359f1-e26f-4ace-81df-097f63474c72");
 
 /// An error that may occur during skybox creation.
 #[derive(Debug)]

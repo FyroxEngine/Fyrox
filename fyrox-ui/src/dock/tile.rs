@@ -11,6 +11,7 @@ use crate::{
     window::{Window, WindowMessage},
     BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     cell::Cell,
@@ -76,6 +77,8 @@ pub struct Tile {
 }
 
 crate::define_widget_deref!(Tile);
+
+uuid_provider!(Tile = "b7f4610e-4b0c-4671-9b4a-60bb45268928");
 
 impl Control for Tile {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

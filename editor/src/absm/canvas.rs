@@ -9,6 +9,7 @@ use crate::{
     },
     utils::fetch_node_screen_center_ui,
 };
+use fyrox::core::uuid_provider;
 use fyrox::{
     core::{
         algebra::{Matrix3, Point2, Vector2},
@@ -302,6 +303,8 @@ impl AbsmCanvas {
         self.sync_connections_ends(Handle::NONE, ui, true);
     }
 }
+
+uuid_provider!(AbsmCanvas = "100b1c33-d017-4fe6-95e7-e1daf310ef27");
 
 impl Control for AbsmCanvas {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
