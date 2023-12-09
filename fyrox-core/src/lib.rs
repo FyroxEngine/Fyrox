@@ -305,7 +305,7 @@ macro_rules! uuid_provider {
     ($type:ty = $uuid:expr) => {
         impl $crate::TypeUuidProvider for $type {
             fn type_uuid() -> $crate::uuid::Uuid {
-                $crate::uuid::uuid!("7a8c337c-0219-466b-92b5-81460fa9c836")
+                $crate::uuid::uuid!($uuid)
             }
         }
     };
