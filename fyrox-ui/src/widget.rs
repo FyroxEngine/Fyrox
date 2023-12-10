@@ -672,30 +672,41 @@ pub struct Widget {
     /// Desired position relative to the parent node. It is just a recommendation for the layout system, actual position
     /// will be stored in the `actual_local_position` field and can be fetched using [`Widget::actual_local_position`]
     /// method.
+    #[reflect(setter = "set_desired_local_position_notify")]
     pub desired_local_position: Vector2<f32>,
     /// Explicit width for the widget, or automatic if [`f32::NAN`] (means the value is undefined). Default is [`f32::NAN`].
+    #[reflect(setter = "set_width_notify")]
     pub width: f32,
     /// Explicit height for the widget, or automatic if [`f32::NAN`] (means the value is undefined). Default is [`f32::NAN`].
+    #[reflect(setter = "set_height_notify")]
     pub height: f32,
     /// Minimum width and height. Default is 0.0 for both axes.
+    #[reflect(setter = "set_min_size_notify")]
     pub min_size: Vector2<f32>,
     /// Maximum width and height. Default is [`f32::INFINITY`] for both axes.
+    #[reflect(setter = "set_max_size_notify")]
     pub max_size: Vector2<f32>,
     /// Background brush of the widget.
     pub background: Brush,
     /// Foreground brush of the widget.
     pub foreground: Brush,
     /// Index of the row to which this widget belongs to. It is valid only in when used in [`crate::grid::Grid`] widget.
+    #[reflect(setter = "set_row_notify")]
     pub row: usize,
     /// Index of the column to which this widget belongs to. It is valid only in when used in [`crate::grid::Grid`] widget.
+    #[reflect(setter = "set_column_notify")]
     pub column: usize,
     /// Vertical alignment of the widget.
+    #[reflect(setter = "set_vertical_alignment_notify")]
     pub vertical_alignment: VerticalAlignment,
     /// Horizontal alignment of the widget.
+    #[reflect(setter = "set_horizontal_alignment_notify")]
     pub horizontal_alignment: HorizontalAlignment,
     /// Margin for every sides of bounding rectangle. See [`Thickness`] docs for more info.
+    #[reflect(setter = "set_margin_notify")]
     pub margin: Thickness,
     /// Current, **local**, visibility state of the widget.
+    #[reflect(setter = "set_visibility_notify")]
     pub visibility: bool,
     /// Current, **global** (including the chain of parent widgets), visibility state of the widget.
     pub global_visibility: bool,
@@ -857,6 +868,11 @@ impl Widget {
         self
     }
 
+    fn set_min_size_notify(&mut self, value: Vector2<f32>) -> Vector2<f32> {
+        self.invalidate_layout();
+        std::mem::replace(&mut self.min_size, value)
+    }
+
     /// Sets the new minimum width of the widget.
     #[inline]
     pub fn set_min_width(&mut self, value: f32) -> &mut Self {
@@ -957,6 +973,11 @@ impl Widget {
         self
     }
 
+    fn set_max_size_notify(&mut self, value: Vector2<f32>) -> Vector2<f32> {
+        self.invalidate_layout();
+        std::mem::replace(&mut self.max_size, value)
+    }
+
     /// Returns current maximum size of the widget.
     #[inline]
     pub fn max_size(&self) -> Vector2<f32> {
@@ -1022,6 +1043,11 @@ impl Widget {
         self
     }
 
+    fn set_width_notify(&mut self, width: f32) -> f32 {
+        self.invalidate_layout();
+        std::mem::replace(&mut self.width, width)
+    }
+
     /// Returns current width of the widget.
     #[inline]
     pub fn width(&self) -> f32 {
@@ -1038,6 +1064,11 @@ impl Widget {
     pub fn set_height(&mut self, height: f32) -> &mut Self {
         self.height = height.clamp(self.min_size.y, self.max_size.y);
         self
+    }
+
+    fn set_height_notify(&mut self, height: f32) -> f32 {
+        self.invalidate_layout();
+        std::mem::replace(&mut self.height, height)
     }
 
     /// Returns current height of the widget.
@@ -1108,6 +1139,11 @@ impl Widget {
         self
     }
 
+    fn set_column_notify(&mut self, column: usize) -> usize {
+        self.invalidate_layout();
+        std::mem::replace(&mut self.column, column)
+    }
+
     /// Returns current column of the widget. Columns are used only by [`crate::grid::Grid`] widget.
     #[inline]
     pub fn column(&self) -> usize {
@@ -1119,6 +1155,11 @@ impl Widget {
     pub fn set_row(&mut self, row: usize) -> &mut Self {
         self.row = row;
         self
+    }
+
+    fn set_row_notify(&mut self, row: usize) -> usize {
+        self.invalidate_layout();
+        std::mem::replace(&mut self.row, row)
     }
 
     /// Returns current row of the widget. Rows are used only by [`crate::grid::Grid`] widget.
@@ -1137,6 +1178,11 @@ impl Widget {
     #[inline]
     pub fn desired_local_position(&self) -> Vector2<f32> {
         self.desired_local_position
+    }
+
+    fn set_desired_local_position_notify(&mut self, position: Vector2<f32>) -> Vector2<f32> {
+        self.invalidate_layout();
+        std::mem::replace(&mut self.desired_local_position, position)
     }
 
     /// Returns current screen-space bounds of the widget.
@@ -1224,56 +1270,47 @@ impl Widget {
                     WidgetMessage::Name(name) => self.name = name.clone(),
                     &WidgetMessage::Width(width) => {
                         if self.width != width {
-                            self.width = width;
-                            self.invalidate_layout();
+                            self.set_width_notify(width);
                         }
                     }
                     &WidgetMessage::Height(height) => {
                         if self.height != height {
-                            self.height = height;
-                            self.invalidate_layout();
+                            self.set_height_notify(height);
                         }
                     }
                     WidgetMessage::VerticalAlignment(vertical_alignment) => {
                         if self.vertical_alignment != *vertical_alignment {
-                            self.vertical_alignment = *vertical_alignment;
-                            self.invalidate_layout();
+                            self.set_vertical_alignment(*vertical_alignment);
                         }
                     }
                     WidgetMessage::HorizontalAlignment(horizontal_alignment) => {
                         if self.horizontal_alignment != *horizontal_alignment {
-                            self.horizontal_alignment = *horizontal_alignment;
-                            self.invalidate_layout();
+                            self.set_horizontal_alignment(*horizontal_alignment);
                         }
                     }
                     WidgetMessage::MaxSize(max_size) => {
                         if self.max_size != *max_size {
-                            self.max_size = *max_size;
-                            self.invalidate_layout();
+                            self.set_max_size_notify(*max_size);
                         }
                     }
                     WidgetMessage::MinSize(min_size) => {
                         if self.min_size != *min_size {
-                            self.min_size = *min_size;
-                            self.invalidate_layout();
+                            self.set_min_size_notify(*min_size);
                         }
                     }
                     &WidgetMessage::Row(row) => {
                         if self.row != row {
-                            self.row = row;
-                            self.invalidate_layout();
+                            self.set_row_notify(row);
                         }
                     }
                     &WidgetMessage::Column(column) => {
                         if self.column != column {
-                            self.column = column;
-                            self.invalidate_layout();
+                            self.set_column_notify(column);
                         }
                     }
                     &WidgetMessage::Margin(margin) => {
                         if self.margin != margin {
-                            self.margin = margin;
-                            self.invalidate_layout();
+                            self.set_margin_notify(margin);
                         }
                     }
                     WidgetMessage::HitTestVisibility(hit_test_visibility) => {
@@ -1284,8 +1321,7 @@ impl Widget {
                     }
                     &WidgetMessage::DesiredPosition(pos) => {
                         if self.desired_local_position != pos {
-                            self.desired_local_position = pos;
-                            self.invalidate_layout();
+                            self.set_desired_local_position_notify(pos);
                         }
                     }
                     &WidgetMessage::Enabled(enabled) => {
@@ -1316,6 +1352,14 @@ impl Widget {
         self
     }
 
+    fn set_vertical_alignment_notify(
+        &mut self,
+        vertical_alignment: VerticalAlignment,
+    ) -> VerticalAlignment {
+        self.invalidate_layout();
+        std::mem::replace(&mut self.vertical_alignment, vertical_alignment)
+    }
+
     /// Returns current vertical alignment of the widget.
     #[inline]
     pub fn vertical_alignment(&self) -> VerticalAlignment {
@@ -1332,6 +1376,14 @@ impl Widget {
         self
     }
 
+    fn set_horizontal_alignment_notify(
+        &mut self,
+        horizontal_alignment: HorizontalAlignment,
+    ) -> HorizontalAlignment {
+        self.invalidate_layout();
+        std::mem::replace(&mut self.horizontal_alignment, horizontal_alignment)
+    }
+
     /// Returns current horizontal alignment of the widget.
     #[inline]
     pub fn horizontal_alignment(&self) -> HorizontalAlignment {
@@ -1343,6 +1395,11 @@ impl Widget {
     pub fn set_margin(&mut self, margin: Thickness) -> &mut Self {
         self.margin = margin;
         self
+    }
+
+    fn set_margin_notify(&mut self, margin: Thickness) -> Thickness {
+        self.invalidate_layout();
+        std::mem::replace(&mut self.margin, margin)
     }
 
     /// Returns current margin of the widget.
@@ -1447,11 +1504,15 @@ impl Widget {
     #[inline]
     pub fn set_visibility(&mut self, visibility: bool) -> &mut Self {
         if self.visibility != visibility {
-            self.visibility = visibility;
-            self.invalidate_layout();
-            self.request_update_visibility();
+            self.set_visibility_notify(visibility);
         }
         self
+    }
+
+    fn set_visibility_notify(&mut self, visibility: bool) -> bool {
+        self.invalidate_layout();
+        self.request_update_visibility();
+        std::mem::replace(&mut self.visibility, visibility)
     }
 
     /// Requests (via event queue, so the request is deferred) the update of the visibility of the widget.
