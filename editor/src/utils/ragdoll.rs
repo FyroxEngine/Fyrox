@@ -2,8 +2,10 @@ use crate::{
     inspector::editors::make_property_editors_container,
     message::MessageSender,
     scene::{
-        commands::{graph::AddModelCommand, ChangeSelectionCommand, CommandGroup, SceneCommand},
-        EditorScene, Selection,
+        commands::{
+            graph::AddModelCommand, ChangeSelectionCommand, CommandGroup, GameSceneCommand,
+        },
+        GameScene, Selection,
     },
     world::graph::selection::GraphSelection,
     MSG_SYNC_FLAG,
@@ -454,7 +456,8 @@ impl RagdollPreset {
     pub fn create_and_send_command(
         &self,
         graph: &mut Graph,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
+        game_scene: &GameScene,
         sender: &MessageSender,
     ) {
         let base_size = self.measure_base_size(graph);
@@ -477,7 +480,7 @@ impl RagdollPreset {
             .with_active(true)
             .build(graph);
 
-        graph.link_nodes(ragdoll, editor_scene.scene_content_root);
+        graph.link_nodes(ragdoll, game_scene.scene_content_root);
 
         let left_up_leg = self.make_oriented_capsule(
             self.left_up_leg,
@@ -971,11 +974,11 @@ impl RagdollPreset {
         let sub_graph = graph.take_reserve_sub_graph(ragdoll);
 
         let group = vec![
-            SceneCommand::new(AddModelCommand::new(sub_graph)),
+            GameSceneCommand::new(AddModelCommand::new(sub_graph)),
             // We also want to select newly instantiated model.
-            SceneCommand::new(ChangeSelectionCommand::new(
+            GameSceneCommand::new(ChangeSelectionCommand::new(
                 Selection::Graph(GraphSelection::single_or_empty(ragdoll)),
-                editor_scene.selection.clone(),
+                editor_selection.clone(),
             )),
         ];
 
@@ -1112,7 +1115,8 @@ impl RagdollWizard {
         message: &UiMessage,
         ui: &mut UserInterface,
         graph: &mut Graph,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
+        game_scene: &GameScene,
         sender: &MessageSender,
     ) {
         if let Some(InspectorMessage::PropertyChanged(args)) = message.data() {
@@ -1130,7 +1134,7 @@ impl RagdollWizard {
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.ok {
                 self.preset
-                    .create_and_send_command(graph, editor_scene, sender);
+                    .create_and_send_command(graph, editor_selection, game_scene, sender);
 
                 ui.send_message(WindowMessage::close(
                     self.window,

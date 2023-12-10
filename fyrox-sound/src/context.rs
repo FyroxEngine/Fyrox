@@ -20,6 +20,7 @@ use crate::{
 use fyrox_core::{
     pool::{Handle, Pool},
     reflect::prelude::*,
+    uuid_provider,
     visitor::prelude::*,
 };
 use std::{
@@ -78,6 +79,8 @@ pub enum DistanceModel {
     ///         `rolloff_factor` - coefficient that defines how fast volume will decay
     ExponentDistance = 3,
 }
+
+uuid_provider!(DistanceModel = "957f3b00-3f89-438c-b1b7-e841e8d75ba9");
 
 impl Default for DistanceModel {
     fn default() -> Self {

@@ -1,4 +1,5 @@
 use crate::gui::make_dropdown_list_option;
+use fyrox::core::uuid_provider;
 use fyrox::{
     core::pool::Handle,
     core::{reflect::prelude::*, visitor::prelude::*},
@@ -49,6 +50,8 @@ pub struct AudioBusView {
 }
 
 define_widget_deref!(AudioBusView);
+
+uuid_provider!(AudioBusView = "5439e3a9-096a-4155-922c-ed57a76a46f3");
 
 impl Control for AudioBusView {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

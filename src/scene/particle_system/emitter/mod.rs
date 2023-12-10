@@ -11,6 +11,7 @@ use crate::{
         Particle, ParticleSystemRng,
     },
 };
+use fyrox_core::uuid_provider;
 use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -35,6 +36,8 @@ pub enum Emitter {
     /// Cylinder emitter.
     Cylinder(CylinderEmitter),
 }
+
+uuid_provider!(Emitter = "4cad87ed-6b2c-411d-8c05-86dc26e463b2");
 
 impl Emitter {
     /// Creates new emitter from given id.

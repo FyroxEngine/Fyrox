@@ -14,6 +14,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -138,7 +139,7 @@ impl ScrollPanelMessage {
 ///     ))
 /// }
 /// ```
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct ScrollPanel {
     /// Base widget of the scroll panel.
     pub widget: Widget,
@@ -151,6 +152,8 @@ pub struct ScrollPanel {
 }
 
 crate::define_widget_deref!(ScrollPanel);
+
+uuid_provider!(ScrollPanel = "1ab4936d-58c8-4cf7-b33c-4b56092f4826");
 
 impl Control for ScrollPanel {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

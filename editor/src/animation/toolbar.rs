@@ -12,9 +12,9 @@ use crate::{
     gui::make_dropdown_list_option_universal,
     load_image,
     scene::{
-        commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
+        commands::{ChangeSelectionCommand, CommandGroup, GameSceneCommand},
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
-        EditorScene, Selection,
+        GameScene, Selection,
     },
     send_sync_message,
 };
@@ -191,7 +191,7 @@ impl RootMotionDropdownArea {
         sender: &MessageSender,
         ui: &mut UserInterface,
         animation_player: &AnimationPlayer,
-        editor_scene: &EditorScene,
+        game_scene: &GameScene,
         selection: &AnimationSelection,
     ) {
         let send_command = |settings: Option<RootMotionSettings>| {
@@ -253,8 +253,8 @@ impl RootMotionDropdownArea {
                             self.node_selector,
                             MessageDirection::ToWidget,
                             HierarchyNode::from_scene_node(
-                                editor_scene.scene_content_root,
-                                editor_scene.editor_objects_root,
+                                game_scene.scene_content_root,
+                                game_scene.editor_objects_root,
                                 &scene.graph,
                             ),
                         ));
@@ -838,7 +838,8 @@ impl Toolbar {
         ui: &mut UserInterface,
         animation_player_handle: Handle<Node>,
         animation_player: &AnimationPlayer,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
+        game_scene: &GameScene,
         selection: &AnimationSelection,
     ) -> ToolbarAction {
         self.root_motion_dropdown_area.handle_ui_message(
@@ -847,7 +848,7 @@ impl Toolbar {
             sender,
             ui,
             animation_player,
-            editor_scene,
+            game_scene,
             selection,
         );
 
@@ -867,7 +868,7 @@ impl Toolbar {
                         animation: *animation,
                         entities: vec![],
                     }),
-                    editor_scene.selection.clone(),
+                    editor_selection.clone(),
                 ));
                 return ToolbarAction::SelectAnimation(*animation);
             }
@@ -893,15 +894,15 @@ impl Toolbar {
                     .is_some()
                 {
                     let group = vec![
-                        SceneCommand::new(ChangeSelectionCommand::new(
+                        GameSceneCommand::new(ChangeSelectionCommand::new(
                             Selection::Animation(AnimationSelection {
                                 animation_player: animation_player_handle,
                                 animation: Default::default(),
                                 entities: vec![],
                             }),
-                            editor_scene.selection.clone(),
+                            editor_selection.clone(),
                         )),
-                        SceneCommand::new(RemoveAnimationCommand::new(
+                        GameSceneCommand::new(RemoveAnimationCommand::new(
                             animation_player_handle,
                             selection.animation,
                         )),
@@ -1003,7 +1004,8 @@ impl Toolbar {
         ui: &UserInterface,
         animation_player_handle: Handle<Node>,
         scene: &Scene,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
+        game_scene: &GameScene,
         resource_manager: &ResourceManager,
     ) {
         if let Some(ButtonMessage::Click) = message.data() {
@@ -1012,8 +1014,8 @@ impl Toolbar {
                     self.node_selector,
                     MessageDirection::ToWidget,
                     HierarchyNode::from_scene_node(
-                        editor_scene.scene_content_root,
-                        editor_scene.editor_objects_root,
+                        game_scene.scene_content_root,
+                        game_scene.editor_objects_root,
                         &scene.graph,
                     ),
                 ));
@@ -1075,7 +1077,7 @@ impl Toolbar {
                                     animations
                                         .into_iter()
                                         .map(|a| {
-                                            SceneCommand::new(AddAnimationCommand::new(
+                                            GameSceneCommand::new(AddAnimationCommand::new(
                                                 animation_player_handle,
                                                 a,
                                             ))
@@ -1086,8 +1088,7 @@ impl Toolbar {
                                 sender.do_scene_command(group);
                             }
                             ImportMode::Reimport => {
-                                if let Selection::Animation(ref selection) = editor_scene.selection
-                                {
+                                if let Selection::Animation(ref selection) = editor_selection {
                                     if animations.len() > 1 {
                                         Log::warn("More than one animation found! Only first will be used");
                                     }

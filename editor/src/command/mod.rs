@@ -1,4 +1,4 @@
-use crate::scene::commands::SceneContext;
+use crate::scene::commands::GameSceneContext;
 use std::fmt::Debug;
 
 pub mod panel;
@@ -15,8 +15,8 @@ macro_rules! define_command_stack {
         }
 
         pub struct $command_stack {
-            commands: Vec<Box<dyn $command_trait>>,
-            top: Option<usize>,
+            pub commands: Vec<Box<dyn $command_trait>>,
+            pub top: Option<usize>,
             debug: bool,
         }
 
@@ -120,4 +120,8 @@ macro_rules! define_command_stack {
     };
 }
 
-define_command_stack!(Command, CommandStack, SceneContext);
+define_command_stack!(
+    GameSceneCommandTrait,
+    GameSceneCommandStack,
+    GameSceneContext
+);

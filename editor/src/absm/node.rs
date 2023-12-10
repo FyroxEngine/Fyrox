@@ -2,6 +2,8 @@ use crate::absm::{
     selectable::{Selectable, SelectableMessage},
     BORDER_COLOR, NORMAL_BACKGROUND, SELECTED_BACKGROUND,
 };
+use fyrox::core::uuid::{uuid, Uuid};
+use fyrox::core::TypeUuidProvider;
 use fyrox::{
     core::{color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     gui::{
@@ -135,6 +137,12 @@ impl AbsmNodeMessage {
     define_constructor!(AbsmNodeMessage:SelectedColor => fn selected_color(Color), layout: false);
     define_constructor!(AbsmNodeMessage:SetActive => fn set_active(bool), layout: false);
     define_constructor!(AbsmNodeMessage:Edit => fn edit(), layout: false);
+}
+
+impl<T: 'static> TypeUuidProvider for AbsmNode<T> {
+    fn type_uuid() -> Uuid {
+        uuid!("15bc1a7e-a385-46e0-a65c-7e9c014b4a1d")
+    }
 }
 
 impl<T> Control for AbsmNode<T>

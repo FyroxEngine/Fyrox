@@ -14,6 +14,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, BRUSH_PRIMARY,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -81,7 +82,7 @@ use std::{
 /// .with_stroke_thickness(Thickness {left: 2.0, right: 2.0, top: 2.0, bottom: 2.0})
 /// .build(&mut ui.build_ctx());
 /// ```
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct Border {
     /// Base widget of the border. See [`Widget`] docs for more info.
     pub widget: Widget,
@@ -104,6 +105,8 @@ impl BorderMessage {
         BorderMessage:StrokeThickness => fn stroke_thickness(Thickness), layout: false
     );
 }
+
+uuid_provider!(Border = "6aba3dc5-831d-481a-bc83-ec10b2b2bf12");
 
 impl Control for Border {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

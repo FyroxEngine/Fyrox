@@ -17,6 +17,7 @@ use crate::{
         visitor::prelude::*,
     },
 };
+use fyrox_core::uuid_provider;
 use spade::{DelaunayTriangulation, Point2, Triangulation};
 use std::cmp::Ordering;
 use std::{
@@ -29,6 +30,7 @@ pub struct BlendSpacePoint {
     pub position: Vector2<f32>,
     pub pose_source: Handle<PoseNode>,
 }
+uuid_provider!(BlendSpacePoint = "d163b4b9-aed6-447f-bb93-b7e539099417");
 
 #[derive(Debug, Visit, Clone, Reflect, PartialEq)]
 pub struct BlendSpace {

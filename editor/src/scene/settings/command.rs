@@ -1,11 +1,11 @@
-use crate::{define_universal_commands, Command, SceneCommand, SceneContext};
+use crate::{define_universal_commands, GameSceneCommand, GameSceneCommandTrait, GameSceneContext};
 use fyrox::core::reflect::prelude::*;
 
 define_universal_commands!(
     make_set_scene_property_command,
-    Command,
-    SceneCommand,
-    SceneContext,
+    GameSceneCommandTrait,
+    GameSceneCommand,
+    GameSceneContext,
     (),
     ctx,
     handle,

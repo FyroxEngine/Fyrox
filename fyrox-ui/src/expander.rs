@@ -14,6 +14,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -134,7 +135,7 @@ impl ExpanderMessage {
 ///
 /// To switch expander state at runtime, send [`ExpanderMessage::Expand`] to your Expander widget instance with
 /// [`MessageDirection::ToWidget`].
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct Expander {
     /// Base widget of the expander.
     pub widget: Widget,
@@ -147,6 +148,8 @@ pub struct Expander {
 }
 
 crate::define_widget_deref!(Expander);
+
+uuid_provider!(Expander = "24976179-b338-4c55-84c3-72d21663efd2");
 
 impl Control for Expander {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

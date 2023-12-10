@@ -2,7 +2,7 @@ use crate::{
     make_save_file_selector, make_scene_file_filter,
     menu::{create_menu_item, create_menu_item_shortcut, create_root_menu_item},
     message::MessageSender,
-    scene::EditorScene,
+    scene::container::EditorSceneEntry,
     settings::{recent::RecentFiles, Settings, SettingsWindow},
     Engine, Message, Mode, Panels, SaveSceneConfirmationDialogAction,
 };
@@ -22,6 +22,7 @@ use fyrox::{
 pub struct FileMenu {
     pub menu: Handle<UiNode>,
     new_scene: Handle<UiNode>,
+    new_ui_scene: Handle<UiNode>,
     pub save: Handle<UiNode>,
     pub save_as: Handle<UiNode>,
     load: Handle<UiNode>,
@@ -52,6 +53,7 @@ fn make_recent_files_items(
 impl FileMenu {
     pub fn new(engine: &mut Engine, settings: &Settings) -> Self {
         let new_scene;
+        let new_ui_scene;
         let save;
         let save_as;
         let close_scene;
@@ -81,6 +83,10 @@ impl FileMenu {
                 {
                     new_scene = create_menu_item_shortcut("New Scene", "Ctrl+N", vec![], ctx);
                     new_scene
+                },
+                {
+                    new_ui_scene = create_menu_item("New UI Scene", vec![], ctx);
+                    new_ui_scene
                 },
                 {
                     save = create_menu_item_shortcut("Save Scene", "Ctrl+S", vec![], ctx);
@@ -139,6 +145,7 @@ impl FileMenu {
             load_file_selector,
             menu,
             new_scene,
+            new_ui_scene,
             save,
             save_as,
             close_scene,
@@ -193,7 +200,7 @@ impl FileMenu {
         &mut self,
         message: &UiMessage,
         sender: &MessageSender,
-        editor_scene: &Option<&mut EditorScene>,
+        entry: Option<&mut EditorSceneEntry>,
         engine: &mut Engine,
         settings: &mut Settings,
         panels: &Panels,
@@ -203,9 +210,9 @@ impl FileMenu {
 
         if let Some(FileSelectorMessage::Commit(path)) = message.data::<FileSelectorMessage>() {
             if message.destination() == self.save_file_selector {
-                if let Some(editor_scene) = editor_scene {
+                if let Some(game_scene) = entry {
                     sender.send(Message::SaveScene {
-                        scene: editor_scene.scene,
+                        id: game_scene.id,
                         path: path.to_owned(),
                     });
                 }
@@ -214,10 +221,10 @@ impl FileMenu {
             }
         } else if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.save {
-                if let Some(editor_scene) = editor_scene {
-                    if let Some(scene_path) = editor_scene.path.as_ref() {
+                if let Some(game_scene) = entry {
+                    if let Some(scene_path) = game_scene.path.as_ref() {
                         sender.send(Message::SaveScene {
-                            scene: editor_scene.scene,
+                            id: game_scene.id,
                             path: scene_path.clone(),
                         });
                     } else {
@@ -256,24 +263,24 @@ impl FileMenu {
             } else if message.destination() == self.load {
                 self.open_load_file_selector(&mut engine.user_interface);
             } else if message.destination() == self.close_scene {
-                if let Some(editor_scene) = editor_scene.as_ref() {
-                    if editor_scene.need_save() {
+                if let Some(entry) = entry.as_ref() {
+                    if entry.need_save() {
                         sender.send(Message::OpenSaveSceneConfirmationDialog {
-                            scene: editor_scene.scene,
-                            action: SaveSceneConfirmationDialogAction::CloseScene(
-                                editor_scene.scene,
-                            ),
+                            id: entry.id,
+                            action: SaveSceneConfirmationDialogAction::CloseScene(entry.id),
                         });
                     } else {
-                        sender.send(Message::CloseScene(editor_scene.scene));
+                        sender.send(Message::CloseScene(entry.id));
                     }
                 }
             } else if message.destination() == self.exit {
                 sender.send(Message::Exit { force: false });
             } else if message.destination() == self.new_scene {
                 sender.send(Message::NewScene);
+            } else if message.destination() == self.new_ui_scene {
+                sender.send(Message::NewUiScene);
             } else if message.destination() == self.configure {
-                if editor_scene.is_none() {
+                if entry.is_none() {
                     engine
                         .user_interface
                         .send_message(WindowMessage::open_modal(

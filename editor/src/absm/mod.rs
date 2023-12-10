@@ -10,7 +10,7 @@ use crate::{
         toolbar::{Toolbar, ToolbarAction},
     },
     message::MessageSender,
-    scene::{EditorScene, Selection},
+    scene::{GameScene, Selection},
     Message,
 };
 use fyrox::{
@@ -237,18 +237,23 @@ impl AbsmEditor {
         self.parameter_panel.sync_to_model(ui, absm_node);
     }
 
-    pub fn try_leave_preview_mode(&mut self, editor_scene: &mut EditorScene, engine: &mut Engine) {
+    pub fn try_leave_preview_mode(
+        &mut self,
+        editor_selection: &Selection,
+        game_scene: &mut GameScene,
+        engine: &mut Engine,
+    ) {
         if self.preview_mode_data.is_some() {
-            let selection = fetch_selection(&editor_scene.selection);
+            let selection = fetch_selection(editor_selection);
 
-            let scene = &mut engine.scenes[editor_scene.scene];
+            let scene = &mut engine.scenes[game_scene.scene];
 
             if let Some(absm) = scene
                 .graph
                 .try_get_mut(selection.absm_node_handle)
                 .and_then(|n| n.query_component_mut::<AnimationBlendingStateMachine>())
             {
-                let node_overrides = editor_scene.graph_switches.node_overrides.as_mut().unwrap();
+                let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
                 assert!(node_overrides.remove(&selection.absm_node_handle));
                 assert!(node_overrides.remove(&absm.animation_player()));
 
@@ -269,24 +274,31 @@ impl AbsmEditor {
     pub fn handle_message(
         &mut self,
         message: &Message,
-        editor_scene: &mut EditorScene,
+        editor_selection: &Selection,
+        game_scene: &mut GameScene,
         engine: &mut Engine,
     ) {
         // Leave preview mode before execution of any scene command.
-        if let Message::DoSceneCommand(_) | Message::UndoSceneCommand | Message::RedoSceneCommand =
-            message
+        if let Message::DoGameSceneCommand(_)
+        | Message::UndoCurrentSceneCommand
+        | Message::RedoCurrentSceneCommand = message
         {
-            self.try_leave_preview_mode(editor_scene, engine);
+            self.try_leave_preview_mode(editor_selection, game_scene, engine);
         }
     }
 
-    pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
+    pub fn sync_to_model(
+        &mut self,
+        editor_selection: &Selection,
+        game_scene: &GameScene,
+        engine: &mut Engine,
+    ) {
         let prev_absm = self.prev_absm;
 
-        let selection = fetch_selection(&editor_scene.selection);
+        let selection = fetch_selection(editor_selection);
 
         let ui = &mut engine.user_interface;
-        let scene = &engine.scenes[editor_scene.scene];
+        let scene = &engine.scenes[game_scene.scene];
 
         let absm_node = scene
             .graph
@@ -305,11 +317,11 @@ impl AbsmEditor {
                 let machine = absm_node.machine();
                 if let Some(layer) = machine.layers().get(layer_index) {
                     self.state_graph_viewer
-                        .sync_to_model(layer, ui, editor_scene);
+                        .sync_to_model(layer, ui, editor_selection);
                     self.state_viewer.sync_to_model(
                         ui,
                         layer,
-                        editor_scene,
+                        editor_selection,
                         absm_node,
                         &scene.graph,
                     );
@@ -340,13 +352,23 @@ impl AbsmEditor {
         ));
     }
 
-    pub fn update(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
-        self.handle_machine_events(editor_scene, engine);
+    pub fn update(
+        &mut self,
+        editor_selection: &Selection,
+        game_scene: &GameScene,
+        engine: &mut Engine,
+    ) {
+        self.handle_machine_events(editor_selection, game_scene, engine);
     }
 
-    pub fn handle_machine_events(&self, editor_scene: &EditorScene, engine: &mut Engine) {
-        let scene = &mut engine.scenes[editor_scene.scene];
-        let selection = fetch_selection(&editor_scene.selection);
+    pub fn handle_machine_events(
+        &self,
+        editor_selection: &Selection,
+        game_scene: &GameScene,
+        engine: &mut Engine,
+    ) {
+        let scene = &mut engine.scenes[game_scene.scene];
+        let selection = fetch_selection(editor_selection);
 
         if let Some(absm) = scene
             .graph
@@ -380,11 +402,12 @@ impl AbsmEditor {
         message: &UiMessage,
         engine: &mut Engine,
         sender: &MessageSender,
-        editor_scene: &mut EditorScene,
+        editor_selection: &Selection,
+        game_scene: &mut GameScene,
     ) {
-        let scene = &mut engine.scenes[editor_scene.scene];
+        let scene = &mut engine.scenes[game_scene.scene];
         let ui = &mut engine.user_interface;
-        let selection = fetch_selection(&editor_scene.selection);
+        let selection = fetch_selection(editor_selection);
 
         if let Some(absm_node) = scene
             .graph
@@ -399,7 +422,7 @@ impl AbsmEditor {
                     selection.absm_node_handle,
                     absm_node,
                     layer_index,
-                    editor_scene,
+                    editor_selection,
                 );
                 self.state_graph_viewer.handle_ui_message(
                     message,
@@ -408,7 +431,7 @@ impl AbsmEditor {
                     selection.absm_node_handle,
                     absm_node,
                     layer_index,
-                    editor_scene,
+                    editor_selection,
                 );
                 self.blend_space_editor.handle_ui_message(
                     &selection,
@@ -427,9 +450,14 @@ impl AbsmEditor {
                 self.preview_mode_data.is_some(),
             );
 
-            let action =
-                self.toolbar
-                    .handle_ui_message(message, editor_scene, sender, &scene.graph, ui);
+            let action = self.toolbar.handle_ui_message(
+                message,
+                editor_selection,
+                game_scene,
+                sender,
+                &scene.graph,
+                ui,
+            );
 
             let absm_node = scene
                 .graph
@@ -440,8 +468,7 @@ impl AbsmEditor {
             match action {
                 ToolbarAction::None => {}
                 ToolbarAction::EnterPreviewMode => {
-                    let node_overrides =
-                        editor_scene.graph_switches.node_overrides.as_mut().unwrap();
+                    let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
                     assert!(node_overrides.insert(selection.absm_node_handle));
                     assert!(node_overrides.insert(absm_node.animation_player()));
 
@@ -473,7 +500,7 @@ impl AbsmEditor {
                 ToolbarAction::LeavePreviewMode => {
                     if self.preview_mode_data.is_some() {
                         let node_overrides =
-                            editor_scene.graph_switches.node_overrides.as_mut().unwrap();
+                            game_scene.graph_switches.node_overrides.as_mut().unwrap();
                         assert!(node_overrides.remove(&selection.absm_node_handle));
                         assert!(node_overrides.remove(&absm_node.animation_player()));
 

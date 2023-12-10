@@ -1,4 +1,5 @@
 use crate::{asset::item::AssetItem, inspector::EditorEnvironment};
+use fyrox::core::uuid_provider;
 use fyrox::{
     asset::manager::ResourceManager,
     core::{algebra::Vector2, make_relative_path, pool::Handle},
@@ -64,6 +65,8 @@ pub enum TextureEditorMessage {
 impl TextureEditorMessage {
     define_constructor!(TextureEditorMessage:Texture => fn texture(Option<TextureResource>), layout: false);
 }
+
+uuid_provider!(TextureEditor = "5db49479-ff89-49b8-a038-0766253d6493");
 
 impl Control for TextureEditor {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

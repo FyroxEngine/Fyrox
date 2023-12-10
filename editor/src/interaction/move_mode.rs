@@ -1,4 +1,6 @@
+use crate::interaction::make_interaction_mode_button;
 use crate::message::MessageSender;
+use crate::scene::controller::SceneController;
 use crate::{
     camera::{CameraController, PickingOptions},
     interaction::{
@@ -6,13 +8,18 @@ use crate::{
         InteractionMode,
     },
     scene::{
-        commands::{graph::MoveNodeCommand, ChangeSelectionCommand, CommandGroup, SceneCommand},
-        EditorScene, Selection,
+        commands::{
+            graph::MoveNodeCommand, ChangeSelectionCommand, CommandGroup, GameSceneCommand,
+        },
+        GameScene, Selection,
     },
     settings::Settings,
     world::graph::selection::GraphSelection,
     Engine, Message,
 };
+use fyrox::core::uuid::{uuid, Uuid};
+use fyrox::core::TypeUuidProvider;
+use fyrox::gui::{BuildContext, UiNode};
 use fyrox::{
     core::{
         algebra::{Matrix4, Point3, Vector2, Vector3},
@@ -145,18 +152,18 @@ impl MoveContext {
     pub fn update(
         &mut self,
         graph: &Graph,
-        editor_scene: &mut EditorScene,
+        game_scene: &mut GameScene,
         settings: &Settings,
         mouse_position: Vector2<f32>,
         frame_size: Vector2<f32>,
     ) {
         match self.plane_kind {
             PlaneKind::SMART => {
-                self.update_smart_move(graph, editor_scene, settings, mouse_position, frame_size);
+                self.update_smart_move(graph, game_scene, settings, mouse_position, frame_size);
             }
             _ => self.update_plane_move(
                 graph,
-                &editor_scene.camera_controller,
+                &game_scene.camera_controller,
                 settings,
                 mouse_position,
                 frame_size,
@@ -167,7 +174,7 @@ impl MoveContext {
     fn update_smart_move(
         &mut self,
         graph: &Graph,
-        editor_scene: &mut EditorScene,
+        game_scene: &mut GameScene,
         settings: &Settings,
         mouse_position: Vector2<f32>,
         frame_size: Vector2<f32>,
@@ -179,24 +186,23 @@ impl MoveContext {
             .flat_map(|node| graph.traverse_handle_iter(node))
             .collect::<FxHashSet<Handle<Node>>>();
 
-        let new_position = if let Some(result) =
-            editor_scene.camera_controller.pick(PickingOptions {
-                cursor_pos: mouse_position,
-                graph,
-                editor_objects_root: editor_scene.editor_objects_root,
-                scene_content_root: editor_scene.scene_content_root,
-                screen_size: frame_size,
-                editor_only: false,
-                filter: |handle, _| !preview_nodes.contains(&handle),
-                ignore_back_faces: settings.selection.ignore_back_faces,
-                // We need info only about closest intersection.
-                use_picking_loop: false,
-                only_meshes: false,
-            }) {
+        let new_position = if let Some(result) = game_scene.camera_controller.pick(PickingOptions {
+            cursor_pos: mouse_position,
+            graph,
+            editor_objects_root: game_scene.editor_objects_root,
+            scene_content_root: game_scene.scene_content_root,
+            screen_size: frame_size,
+            editor_only: false,
+            filter: |handle, _| !preview_nodes.contains(&handle),
+            ignore_back_faces: settings.selection.ignore_back_faces,
+            // We need info only about closest intersection.
+            use_picking_loop: false,
+            only_meshes: false,
+        }) {
             Some(result.position)
         } else {
             // In case of empty space, check intersection with oXZ plane (3D) or oXY (2D).
-            if let Some(camera) = graph[editor_scene.camera_controller.camera].cast::<Camera>() {
+            if let Some(camera) = graph[game_scene.camera_controller.camera].cast::<Camera>() {
                 let normal = match camera.projection() {
                     Projection::Perspective(_) => Vector3::new(0.0, 1.0, 0.0),
                     Projection::Orthographic(_) => Vector3::new(0.0, 0.0, 1.0),
@@ -262,38 +268,45 @@ pub struct MoveInteractionMode {
 }
 
 impl MoveInteractionMode {
-    pub fn new(
-        editor_scene: &EditorScene,
-        engine: &mut Engine,
-        message_sender: MessageSender,
-    ) -> Self {
+    pub fn new(game_scene: &GameScene, engine: &mut Engine, message_sender: MessageSender) -> Self {
         Self {
             move_context: None,
-            move_gizmo: MoveGizmo::new(editor_scene, engine),
+            move_gizmo: MoveGizmo::new(game_scene, engine),
             message_sender,
         }
+    }
+}
+
+impl TypeUuidProvider for MoveInteractionMode {
+    fn type_uuid() -> Uuid {
+        uuid!("067c67e2-865b-4112-8d60-133ee1e1883a")
     }
 }
 
 impl InteractionMode for MoveInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
-        editor_scene: &mut EditorScene,
+        editor_selection: &Selection,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
-        let scene = &mut engine.scenes[editor_scene.scene];
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
+            return;
+        };
+
+        let scene = &mut engine.scenes[game_scene.scene];
         let graph = &mut scene.graph;
 
-        let camera = editor_scene.camera_controller.camera;
-        let camera_pivot = editor_scene.camera_controller.pivot;
-        if let Some(result) = editor_scene.camera_controller.pick(PickingOptions {
+        let camera = game_scene.camera_controller.camera;
+        let camera_pivot = game_scene.camera_controller.pivot;
+        if let Some(result) = game_scene.camera_controller.pick(PickingOptions {
             cursor_pos: mouse_pos,
             graph,
-            editor_objects_root: editor_scene.editor_objects_root,
-            scene_content_root: editor_scene.scene_content_root,
+            editor_objects_root: game_scene.editor_objects_root,
+            scene_content_root: game_scene.scene_content_root,
             screen_size: frame_size,
             editor_only: true,
             filter: |handle, _| {
@@ -304,12 +317,12 @@ impl InteractionMode for MoveInteractionMode {
             only_meshes: false,
         }) {
             if let Some(plane_kind) = self.move_gizmo.handle_pick(result.node, graph) {
-                if let Selection::Graph(selection) = &editor_scene.selection {
+                if let Selection::Graph(selection) = editor_selection {
                     self.move_context = Some(MoveContext::from_graph_selection(
                         selection,
                         scene,
                         &self.move_gizmo,
-                        &editor_scene.camera_controller,
+                        &game_scene.camera_controller,
                         plane_kind,
                         mouse_pos,
                         frame_size,
@@ -321,13 +334,18 @@ impl InteractionMode for MoveInteractionMode {
 
     fn on_left_mouse_button_up(
         &mut self,
-        editor_scene: &mut EditorScene,
+        editor_selection: &Selection,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
-        let scene = &mut engine.scenes[editor_scene.scene];
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
+            return;
+        };
+
+        let scene = &mut engine.scenes[game_scene.scene];
 
         self.move_gizmo.reset_state(&mut scene.graph);
 
@@ -349,7 +367,7 @@ impl InteractionMode for MoveInteractionMode {
                         .objects
                         .iter()
                         .map(|initial_state| {
-                            SceneCommand::new(MoveNodeCommand::new(
+                            GameSceneCommand::new(MoveNodeCommand::new(
                                 initial_state.node,
                                 initial_state.initial_local_position,
                                 **scene.graph[initial_state.node].local_transform().position(),
@@ -360,16 +378,16 @@ impl InteractionMode for MoveInteractionMode {
 
                 // Commit changes.
                 self.message_sender
-                    .send(Message::DoSceneCommand(SceneCommand::new(commands)));
+                    .send(Message::DoGameSceneCommand(GameSceneCommand::new(commands)));
             }
         } else {
-            let new_selection = editor_scene
+            let new_selection = game_scene
                 .camera_controller
                 .pick(PickingOptions {
                     cursor_pos: mouse_pos,
                     graph: &scene.graph,
-                    editor_objects_root: editor_scene.editor_objects_root,
-                    scene_content_root: editor_scene.scene_content_root,
+                    editor_objects_root: game_scene.editor_objects_root,
+                    scene_content_root: game_scene.scene_content_root,
                     screen_size: frame_size,
                     editor_only: false,
                     filter: |_, _| true,
@@ -379,7 +397,7 @@ impl InteractionMode for MoveInteractionMode {
                 })
                 .map(|result| {
                     if let (Selection::Graph(selection), true) = (
-                        &editor_scene.selection,
+                        editor_selection,
                         engine.user_interface.keyboard_modifiers().control,
                     ) {
                         let mut selection = selection.clone();
@@ -391,11 +409,11 @@ impl InteractionMode for MoveInteractionMode {
                 })
                 .unwrap_or_else(|| Selection::Graph(GraphSelection::default()));
 
-            if new_selection != editor_scene.selection {
+            if &new_selection != editor_selection {
                 self.message_sender
                     .do_scene_command(ChangeSelectionCommand::new(
                         new_selection,
-                        editor_scene.selection.clone(),
+                        editor_selection.clone(),
                     ));
             }
         }
@@ -405,17 +423,21 @@ impl InteractionMode for MoveInteractionMode {
         &mut self,
         _mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
-        _camera: Handle<Node>,
-        editor_scene: &mut EditorScene,
+        _editor_selection: &Selection,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
+            return;
+        };
+
         if let Some(move_context) = self.move_context.as_mut() {
-            let scene = &mut engine.scenes[editor_scene.scene];
+            let scene = &mut engine.scenes[game_scene.scene];
             let graph = &mut scene.graph;
 
-            move_context.update(graph, editor_scene, settings, mouse_position, frame_size);
+            move_context.update(graph, game_scene, settings, mouse_position, frame_size);
 
             for entry in move_context.objects.iter() {
                 scene.graph[entry.node]
@@ -427,25 +449,55 @@ impl InteractionMode for MoveInteractionMode {
 
     fn update(
         &mut self,
-        editor_scene: &mut EditorScene,
-        camera: Handle<Node>,
+        editor_selection: &Selection,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         _settings: &Settings,
     ) {
-        let scene = &mut engine.scenes[editor_scene.scene];
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
+            return;
+        };
+
+        let scene = &mut engine.scenes[game_scene.scene];
         let graph = &mut scene.graph;
-        if editor_scene.selection.is_empty() || editor_scene.preview_camera.is_some() {
+        if editor_selection.is_empty() || game_scene.preview_camera.is_some() {
             self.move_gizmo.set_visible(graph, false);
         } else {
-            let scale = calculate_gizmo_distance_scaling(graph, camera, self.move_gizmo.origin);
+            let scale = calculate_gizmo_distance_scaling(
+                graph,
+                game_scene.camera_controller.camera,
+                self.move_gizmo.origin,
+            );
             self.move_gizmo.set_visible(graph, true);
             self.move_gizmo
-                .sync_transform(scene, &editor_scene.selection, scale);
+                .sync_transform(scene, editor_selection, scale);
         }
     }
 
-    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
-        let graph = &mut engine.scenes[editor_scene.scene].graph;
+    fn deactivate(&mut self, controller: &dyn SceneController, engine: &mut Engine) {
+        let Some(game_scene) = controller.downcast_ref::<GameScene>() else {
+            return;
+        };
+
+        let graph = &mut engine.scenes[game_scene.scene].graph;
         self.move_gizmo.set_visible(graph, false);
+    }
+
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
+        let move_mode_tooltip =
+            "Move Object(s) - Shortcut: [2]\n\nMovement interaction mode allows you to move selected \
+        objects. Keep in mind that movement always works in local coordinates!\n\n\
+        This also allows you to select an object or add an object to current selection using Ctrl+Click";
+
+        make_interaction_mode_button(
+            ctx,
+            include_bytes!("../../resources/move_arrow.png"),
+            move_mode_tooltip,
+            selected,
+        )
+    }
+
+    fn uuid(&self) -> Uuid {
+        Self::type_uuid()
     }
 }

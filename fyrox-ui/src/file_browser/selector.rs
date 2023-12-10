@@ -15,6 +15,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness, UiNode,
     UserInterface, VerticalAlignment,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -41,7 +42,7 @@ impl FileSelectorMessage {
 
 /// File selector is a modal window that allows you to select a file (or directory) and commit or
 /// cancel selection.
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct FileSelector {
     pub window: Window,
     pub browser: Handle<UiNode>,
@@ -62,6 +63,8 @@ impl DerefMut for FileSelector {
         &mut self.window
     }
 }
+
+uuid_provider!(FileSelector = "878b2220-03e6-4a50-a97d-3a8e5397b6cb");
 
 // File selector extends Window widget so it delegates most of calls
 // to inner window.
@@ -293,7 +296,7 @@ impl FileSelectorFieldMessage {
     define_constructor!(FileSelectorFieldMessage:Path => fn path(PathBuf), layout: false);
 }
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct FileSelectorField {
     widget: Widget,
     path: PathBuf,
@@ -303,6 +306,8 @@ pub struct FileSelectorField {
 }
 
 define_widget_deref!(FileSelectorField);
+
+uuid_provider!(FileSelectorField = "2dbda730-8a60-4f62-aee8-2ff0ccd15bf2");
 
 impl Control for FileSelectorField {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

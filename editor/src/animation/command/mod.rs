@@ -1,7 +1,7 @@
 use crate::{
     animation::selection::AnimationSelection,
-    command::Command,
-    scene::{commands::SceneContext, Selection},
+    command::GameSceneCommandTrait,
+    scene::{commands::GameSceneContext, Selection},
 };
 use fyrox::{
     animation::{
@@ -24,7 +24,7 @@ pub mod signal;
 
 fn fetch_animation_player<'a>(
     handle: Handle<Node>,
-    context: &'a mut SceneContext,
+    context: &'a mut GameSceneContext,
 ) -> &'a mut AnimationPlayer {
     context.scene.graph[handle]
         .query_component_mut::<AnimationPlayer>()
@@ -48,17 +48,17 @@ impl AddTrackCommand {
     }
 }
 
-impl Command for AddTrackCommand {
-    fn name(&mut self, _: &SceneContext) -> String {
+impl GameSceneCommandTrait for AddTrackCommand {
+    fn name(&mut self, _: &GameSceneContext) -> String {
         "Add Track".to_string()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         fetch_animation_player(self.animation_player, context).animations_mut()[self.animation]
             .add_track(self.track.take().unwrap());
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         self.track = fetch_animation_player(self.animation_player, context).animations_mut()
             [self.animation]
             .pop_track();
@@ -84,19 +84,19 @@ impl RemoveTrackCommand {
     }
 }
 
-impl Command for RemoveTrackCommand {
-    fn name(&mut self, _: &SceneContext) -> String {
+impl GameSceneCommandTrait for RemoveTrackCommand {
+    fn name(&mut self, _: &GameSceneContext) -> String {
         "Remove Track".to_string()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         self.track = Some(
             fetch_animation_player(self.animation_player, context).animations_mut()[self.animation]
                 .remove_track(self.index),
         );
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         fetch_animation_player(self.animation_player, context).animations_mut()[self.animation]
             .insert_track(self.index, self.track.take().unwrap());
     }
@@ -110,7 +110,7 @@ pub struct ReplaceTrackCurveCommand {
 }
 
 impl ReplaceTrackCurveCommand {
-    fn swap(&mut self, context: &mut SceneContext) {
+    fn swap(&mut self, context: &mut GameSceneContext) {
         for track in fetch_animation_player(self.animation_player, context).animations_mut()
             [self.animation]
             .tracks_mut()
@@ -127,16 +127,16 @@ impl ReplaceTrackCurveCommand {
     }
 }
 
-impl Command for ReplaceTrackCurveCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for ReplaceTrackCurveCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Replace Track Curve".to_string()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         self.swap(context)
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         self.swap(context)
     }
 }
@@ -170,12 +170,12 @@ impl AddAnimationCommand {
     }
 }
 
-impl Command for AddAnimationCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for AddAnimationCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Add Animation".to_string()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         match std::mem::replace(self, Self::Unknown) {
             AddAnimationCommand::NonExecuted {
                 animation_player,
@@ -186,7 +186,7 @@ impl Command for AddAnimationCommand {
                     .add(animation);
 
                 let old_selection = std::mem::replace(
-                    &mut context.editor_scene.selection,
+                    context.selection,
                     Selection::Animation(AnimationSelection {
                         animation_player,
                         animation: handle,
@@ -210,8 +210,7 @@ impl Command for AddAnimationCommand {
                     .animations_mut()
                     .put_back(ticket, animation);
 
-                let old_selection =
-                    std::mem::replace(&mut context.editor_scene.selection, selection);
+                let old_selection = std::mem::replace(context.selection, selection);
 
                 *self = Self::Executed {
                     animation_player,
@@ -223,7 +222,7 @@ impl Command for AddAnimationCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         match std::mem::replace(self, Self::Unknown) {
             AddAnimationCommand::Executed {
                 animation_player,
@@ -234,8 +233,7 @@ impl Command for AddAnimationCommand {
                     .animations_mut()
                     .take_reserve(animation);
 
-                let old_selection =
-                    std::mem::replace(&mut context.editor_scene.selection, selection);
+                let old_selection = std::mem::replace(context.selection, selection);
 
                 *self = Self::Reverted {
                     animation_player,
@@ -248,7 +246,7 @@ impl Command for AddAnimationCommand {
         }
     }
 
-    fn finalize(&mut self, context: &mut SceneContext) {
+    fn finalize(&mut self, context: &mut GameSceneContext) {
         if let AddAnimationCommand::Reverted {
             animation_player,
             ticket,
@@ -289,12 +287,12 @@ impl RemoveAnimationCommand {
     }
 }
 
-impl Command for RemoveAnimationCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for RemoveAnimationCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Remove Animation".to_string()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         match std::mem::replace(self, Self::Unknown) {
             RemoveAnimationCommand::NonExecuted {
                 animation_player,
@@ -318,7 +316,7 @@ impl Command for RemoveAnimationCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         match std::mem::replace(self, Self::Unknown) {
             RemoveAnimationCommand::Executed {
                 animation_player,
@@ -338,7 +336,7 @@ impl Command for RemoveAnimationCommand {
         }
     }
 
-    fn finalize(&mut self, context: &mut SceneContext) {
+    fn finalize(&mut self, context: &mut GameSceneContext) {
         if let RemoveAnimationCommand::Executed {
             animation_player,
             ticket,
@@ -360,7 +358,7 @@ pub struct ReplaceAnimationCommand {
 }
 
 impl ReplaceAnimationCommand {
-    fn swap(&mut self, context: &mut SceneContext) {
+    fn swap(&mut self, context: &mut GameSceneContext) {
         std::mem::swap(
             fetch_animation_player(self.animation_player, context)
                 .animations_mut()
@@ -370,16 +368,16 @@ impl ReplaceAnimationCommand {
     }
 }
 
-impl Command for ReplaceAnimationCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for ReplaceAnimationCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Replace Animation".to_string()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         self.swap(context);
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         self.swap(context);
     }
 }
@@ -395,21 +393,21 @@ macro_rules! define_animation_swap_command {
         }
 
         impl $name {
-            fn swap(&mut $self, $context: &mut SceneContext) {
+            fn swap(&mut $self, $context: &mut GameSceneContext) {
                 $swap
             }
         }
 
-        impl Command for $name {
-            fn name(&mut self, _context: &SceneContext) -> String {
+        impl GameSceneCommandTrait for $name {
+            fn name(&mut self, _context: &GameSceneContext) -> String {
                 stringify!($name).to_string()
             }
 
-            fn execute(&mut self, context: &mut SceneContext) {
+            fn execute(&mut self, context: &mut GameSceneContext) {
                 self.swap(context)
             }
 
-            fn revert(&mut self, context: &mut SceneContext) {
+            fn revert(&mut self, context: &mut GameSceneContext) {
                 self.swap(context)
             }
         }
@@ -419,7 +417,7 @@ macro_rules! define_animation_swap_command {
 fn fetch_animation<'a>(
     animation_player: Handle<Node>,
     animation: Handle<Animation>,
-    ctx: &'a mut SceneContext,
+    ctx: &'a mut GameSceneContext,
 ) -> &'a mut Animation {
     fetch_animation_player(animation_player, ctx)
         .animations_mut()
@@ -475,17 +473,17 @@ pub struct AddAnimationSignal {
     pub signal: Option<AnimationSignal>,
 }
 
-impl Command for AddAnimationSignal {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for AddAnimationSignal {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Add Animation Signal".to_string()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         fetch_animation(self.animation_player_handle, self.animation_handle, context)
             .add_signal(self.signal.take().unwrap());
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         self.signal = fetch_animation(self.animation_player_handle, self.animation_handle, context)
             .pop_signal();
     }
@@ -500,7 +498,7 @@ pub struct MoveAnimationSignal {
 }
 
 impl MoveAnimationSignal {
-    fn swap(&mut self, context: &mut SceneContext) {
+    fn swap(&mut self, context: &mut GameSceneContext) {
         std::mem::swap(
             &mut fetch_animation(self.animation_player_handle, self.animation_handle, context)
                 .signals_mut()
@@ -513,16 +511,16 @@ impl MoveAnimationSignal {
     }
 }
 
-impl Command for MoveAnimationSignal {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for MoveAnimationSignal {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Move Animation Signal".to_string()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         self.swap(context)
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         self.swap(context)
     }
 }
@@ -535,18 +533,18 @@ pub struct RemoveAnimationSignal {
     pub signal: Option<AnimationSignal>,
 }
 
-impl Command for RemoveAnimationSignal {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for RemoveAnimationSignal {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Remove Animation".to_string()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         let animation =
             fetch_animation(self.animation_player_handle, self.animation_handle, context);
         self.signal = Some(animation.remove_signal(self.signal_index));
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         let animation =
             fetch_animation(self.animation_player_handle, self.animation_handle, context);
         animation.insert_signal(self.signal_index, self.signal.take().unwrap());
@@ -562,7 +560,7 @@ pub struct SetTrackEnabledCommand {
 }
 
 impl SetTrackEnabledCommand {
-    fn swap(&mut self, context: &mut SceneContext) {
+    fn swap(&mut self, context: &mut GameSceneContext) {
         let track = fetch_animation(self.animation_player_handle, self.animation_handle, context)
             .tracks_mut()
             .iter_mut()
@@ -575,16 +573,16 @@ impl SetTrackEnabledCommand {
     }
 }
 
-impl Command for SetTrackEnabledCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for SetTrackEnabledCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Set Track Enabled".to_string()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         self.swap(context)
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         self.swap(context)
     }
 }
@@ -598,7 +596,7 @@ pub struct SetTrackTargetCommand {
 }
 
 impl SetTrackTargetCommand {
-    fn swap(&mut self, context: &mut SceneContext) {
+    fn swap(&mut self, context: &mut GameSceneContext) {
         let track = fetch_animation(self.animation_player_handle, self.animation_handle, context)
             .tracks_mut()
             .iter_mut()
@@ -611,16 +609,16 @@ impl SetTrackTargetCommand {
     }
 }
 
-impl Command for SetTrackTargetCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for SetTrackTargetCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Set Track Target".to_string()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         self.swap(context)
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         self.swap(context)
     }
 }
@@ -634,7 +632,7 @@ pub struct SetTrackBindingCommand {
 }
 
 impl SetTrackBindingCommand {
-    fn swap(&mut self, context: &mut SceneContext) {
+    fn swap(&mut self, context: &mut GameSceneContext) {
         let track = fetch_animation(self.animation_player_handle, self.animation_handle, context)
             .tracks_mut()
             .iter_mut()
@@ -647,16 +645,16 @@ impl SetTrackBindingCommand {
     }
 }
 
-impl Command for SetTrackBindingCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for SetTrackBindingCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Set Track Binding".to_string()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         self.swap(context)
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         self.swap(context)
     }
 }

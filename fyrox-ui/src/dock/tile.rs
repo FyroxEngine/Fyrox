@@ -11,6 +11,7 @@ use crate::{
     window::{Window, WindowMessage},
     BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     cell::Cell,
@@ -35,8 +36,9 @@ impl TileMessage {
         first: bool), layout: false);
 }
 
-#[derive(Debug, PartialEq, Clone, Visit, Reflect)]
+#[derive(Default, Debug, PartialEq, Clone, Visit, Reflect)]
 pub enum TileContent {
+    #[default]
     Empty,
     Window(Handle<UiNode>),
     VerticalTiles {
@@ -61,7 +63,7 @@ impl TileContent {
     }
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct Tile {
     pub widget: Widget,
     pub left_anchor: Handle<UiNode>,
@@ -76,6 +78,8 @@ pub struct Tile {
 }
 
 crate::define_widget_deref!(Tile);
+
+uuid_provider!(Tile = "8ed17fa9-890e-4dd7-b4f9-a24660882234");
 
 impl Control for Tile {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

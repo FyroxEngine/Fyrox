@@ -13,16 +13,17 @@ use crate::{
     menu::create_menu_item,
     message::MessageSender,
     scene::{
-        commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
+        commands::{ChangeSelectionCommand, CommandGroup, GameSceneCommand},
         property::{
             object_to_property_tree, PropertyDescriptorData, PropertySelectorMessage,
             PropertySelectorWindowBuilder,
         },
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
-        EditorScene, Selection,
+        GameScene, Selection,
     },
     send_sync_message, utils,
 };
+use fyrox::core::uuid_provider;
 use fyrox::resource::texture::TextureBytes;
 use fyrox::{
     animation::{
@@ -272,6 +273,8 @@ impl DerefMut for TrackView {
         &mut self.tree.widget
     }
 }
+
+uuid_provider!(TrackView = "c1e930da-d55d-492e-b87b-16c1adf03319");
 
 impl Control for TrackView {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -726,7 +729,8 @@ impl TrackList {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
+        game_scene: &GameScene,
         sender: &MessageSender,
         animation_player: Handle<Node>,
         animation: Handle<Animation>,
@@ -744,8 +748,8 @@ impl TrackList {
                         .with_title(WindowTitle::text("Select a Node To Animate")),
                 )
                 .with_hierarchy(HierarchyNode::from_scene_node(
-                    editor_scene.scene_content_root,
-                    editor_scene.editor_objects_root,
+                    game_scene.scene_content_root,
+                    game_scene.editor_objects_root,
                     &scene.graph,
                 ))
                 .build(&mut ui.build_ctx());
@@ -799,7 +803,7 @@ impl TrackList {
 
                 if filter_text.is_empty() {
                     // Focus currently selected entity when clearing the filter.
-                    if let Selection::Animation(ref scene_selection) = editor_scene.selection {
+                    if let Selection::Animation(ref scene_selection) = editor_selection {
                         if let Some(first) = scene_selection.entities.first() {
                             let ui_node = match first {
                                 SelectedEntity::Track(id) => {
@@ -866,13 +870,13 @@ impl TrackList {
                     }
                 }
             } else if message.destination() == self.context_menu.target_node_selector {
-                if let Selection::Animation(ref scene_selection) = editor_scene.selection {
+                if let Selection::Animation(ref scene_selection) = editor_selection {
                     if let Some(first) = node_selection.first() {
                         let mut commands = Vec::new();
 
                         for entity in scene_selection.entities.iter() {
                             if let SelectedEntity::Track(id) = entity {
-                                commands.push(SceneCommand::new(SetTrackTargetCommand {
+                                commands.push(GameSceneCommand::new(SetTrackTargetCommand {
                                     animation_player_handle: scene_selection.animation_player,
                                     animation_handle: scene_selection.animation,
                                     track: *id,
@@ -932,7 +936,7 @@ impl TrackList {
                 && message.direction() == MessageDirection::FromWidget
             {
                 if let Some(entry) = selected_properties.first() {
-                    self.rebind_property(entry, &scene.graph, &editor_scene.selection, sender);
+                    self.rebind_property(entry, &scene.graph, editor_selection, sender);
                 }
             }
         } else if let Some(TreeRootMessage::Selected(selection)) = message.data() {
@@ -962,12 +966,12 @@ impl TrackList {
 
                 sender.do_scene_command(ChangeSelectionCommand::new(
                     selection,
-                    editor_scene.selection.clone(),
+                    editor_selection.clone(),
                 ));
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.context_menu.remove_track {
-                if let Selection::Animation(ref selection) = editor_scene.selection {
+                if let Selection::Animation(ref selection) = editor_selection {
                     if let Some(animation_player) = scene
                         .graph
                         .try_get(selection.animation_player)
@@ -977,14 +981,14 @@ impl TrackList {
                             animation_player.animations().try_get(selection.animation)
                         {
                             let mut commands =
-                                vec![SceneCommand::new(ChangeSelectionCommand::new(
+                                vec![GameSceneCommand::new(ChangeSelectionCommand::new(
                                     Selection::Animation(AnimationSelection {
                                         animation_player: selection.animation_player,
                                         animation: selection.animation,
                                         // Just reset inner selection.
                                         entities: vec![],
                                     }),
-                                    editor_scene.selection.clone(),
+                                    editor_selection.clone(),
                                 ))];
 
                             for entity in selection.entities.iter() {
@@ -995,7 +999,7 @@ impl TrackList {
                                         .position(|t| t.id() == *id)
                                         .unwrap();
 
-                                    commands.push(SceneCommand::new(RemoveTrackCommand::new(
+                                    commands.push(GameSceneCommand::new(RemoveTrackCommand::new(
                                         selection.animation_player,
                                         selection.animation,
                                         index,
@@ -1013,8 +1017,8 @@ impl TrackList {
                         .with_title(WindowTitle::text("Select a New Target Node")),
                 )
                 .with_hierarchy(HierarchyNode::from_scene_node(
-                    editor_scene.scene_content_root,
-                    editor_scene.editor_objects_root,
+                    game_scene.scene_content_root,
+                    game_scene.editor_objects_root,
                     &scene.graph,
                 ))
                 .build(&mut ui.build_ctx());
@@ -1025,9 +1029,9 @@ impl TrackList {
                     true,
                 ));
             } else if message.destination() == self.context_menu.rebind {
-                self.on_rebind_clicked(&scene.graph, &editor_scene.selection, ui);
+                self.on_rebind_clicked(&scene.graph, editor_selection, ui);
             } else if message.destination() == self.context_menu.duplicate {
-                if let Selection::Animation(ref selection) = editor_scene.selection {
+                if let Selection::Animation(ref selection) = editor_selection {
                     if let Some(animation_player) = scene
                         .graph
                         .try_get(selection.animation_player)
@@ -1051,7 +1055,7 @@ impl TrackList {
 
                                         track.set_id(Uuid::new_v4());
 
-                                        Some(SceneCommand::new(AddTrackCommand::new(
+                                        Some(GameSceneCommand::new(AddTrackCommand::new(
                                             selection.animation_player,
                                             selection.animation,
                                             track,
@@ -1068,7 +1072,7 @@ impl TrackList {
             }
         } else if let Some(TrackViewMessage::TrackEnabled(enabled)) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
-                if let Selection::Animation(ref selection) = editor_scene.selection {
+                if let Selection::Animation(ref selection) = editor_selection {
                     if let Some(animation_player) = scene
                         .graph
                         .try_get(selection.animation_player)
@@ -1263,7 +1267,7 @@ impl TrackList {
         animation: &Animation,
         animation_handle: Handle<Animation>,
         graph: &Graph,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
         ui: &mut UserInterface,
     ) {
         if self.selected_animation != animation_handle {
@@ -1436,7 +1440,7 @@ impl TrackList {
             }
         }
 
-        if let Selection::Animation(ref selection) = editor_scene.selection {
+        if let Selection::Animation(ref selection) = editor_selection {
             let mut any_track_selected = false;
             let tree_selection = selection
                 .entities

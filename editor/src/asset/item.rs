@@ -1,4 +1,5 @@
 use crate::gui::AssetItemMessage;
+use fyrox::core::uuid_provider;
 use fyrox::{
     core::{
         algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*,
@@ -45,6 +46,8 @@ impl DerefMut for AssetItem {
         &mut self.widget
     }
 }
+
+uuid_provider!(AssetItem = "54f7d9c1-e707-4c8c-a5c9-3fc5cc80b545");
 
 impl Control for AssetItem {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

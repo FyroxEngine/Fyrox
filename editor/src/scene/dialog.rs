@@ -1,8 +1,9 @@
+use crate::scene::Selection;
 use crate::{
     message::MessageSender,
     scene::{
         commands::{make_delete_selection_command, selection_to_delete},
-        EditorScene,
+        GameScene,
     },
     Message,
 };
@@ -122,9 +123,9 @@ impl NodeRemovalDialog {
         }
     }
 
-    pub fn open(&mut self, editor_scene: &EditorScene, engine: &Engine) {
+    pub fn open(&mut self, editor_selection: &Selection, game_scene: &GameScene, engine: &Engine) {
         let ui = &engine.user_interface;
-        let graph = &engine.scenes[editor_scene.scene].graph;
+        let graph = &engine.scenes[game_scene.scene].graph;
 
         ui.send_message(WindowMessage::open_modal(
             self.window,
@@ -134,7 +135,7 @@ impl NodeRemovalDialog {
 
         let mut text = String::new();
 
-        let selection = selection_to_delete(editor_scene);
+        let selection = selection_to_delete(editor_selection, game_scene);
         for root in selection.nodes.iter() {
             for node_handle in graph.traverse_handle_iter(*root) {
                 let node = &graph[node_handle];
@@ -162,7 +163,8 @@ impl NodeRemovalDialog {
 
     pub fn handle_ui_message(
         &mut self,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
+        game_scene: &GameScene,
         message: &UiMessage,
         engine: &Engine,
         sender: &MessageSender,
@@ -175,8 +177,9 @@ impl NodeRemovalDialog {
                     MessageDirection::ToWidget,
                 ));
 
-                sender.send(Message::DoSceneCommand(make_delete_selection_command(
-                    editor_scene,
+                sender.send(Message::DoGameSceneCommand(make_delete_selection_command(
+                    editor_selection,
+                    game_scene,
                     engine,
                 )));
             } else if message.destination() == self.cancel {

@@ -14,6 +14,7 @@ use crate::{
 use fyrox_core::math::lerpf;
 use fyrox_core::{
     reflect::prelude::*,
+    uuid_provider,
     visitor::{Visit, VisitResult, Visitor},
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
@@ -33,6 +34,8 @@ pub enum Renderer {
     /// default renderer.
     HrtfRenderer(HrtfRenderer),
 }
+
+uuid_provider!(Renderer = "13bf8432-987a-4216-b6aa-f5c0e8914a31");
 
 impl Default for Renderer {
     fn default() -> Self {

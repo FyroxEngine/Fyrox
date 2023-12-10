@@ -11,7 +11,7 @@ use crate::{
     },
     send_sync_message,
     utils::window_content,
-    ChangeSelectionCommand, EditorScene, GridBuilder, MessageDirection, Mode, SceneCommand,
+    ChangeSelectionCommand, GameScene, GameSceneCommand, GridBuilder, MessageDirection, Mode,
     Selection, UserInterface,
 };
 use fyrox::{
@@ -244,7 +244,7 @@ impl AudioPanel {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
         sender: &MessageSender,
         engine: &Engine,
     ) {
@@ -254,14 +254,14 @@ impl AudioPanel {
                     "AudioBus".to_string(),
                 )))
             } else if message.destination() == self.remove_bus {
-                if let Selection::AudioBus(ref selection) = editor_scene.selection {
-                    let mut commands = vec![SceneCommand::new(ChangeSelectionCommand::new(
+                if let Selection::AudioBus(ref selection) = editor_selection {
+                    let mut commands = vec![GameSceneCommand::new(ChangeSelectionCommand::new(
                         Selection::None,
-                        editor_scene.selection.clone(),
+                        editor_selection.clone(),
                     ))];
 
                     for &bus in &selection.buses {
-                        commands.push(SceneCommand::new(RemoveAudioBusCommand::new(bus)));
+                        commands.push(GameSceneCommand::new(RemoveAudioBusCommand::new(bus)));
                     }
 
                     sender.do_scene_command(CommandGroup::from(commands));
@@ -285,7 +285,7 @@ impl AudioPanel {
                     Selection::AudioBus(AudioBusSelection {
                         buses: vec![effect],
                     }),
-                    editor_scene.selection.clone(),
+                    editor_selection.clone(),
                 ))
             }
         } else if let Some(AudioBusViewMessage::ChangeParent(new_parent)) = message.data() {
@@ -336,11 +336,13 @@ impl AudioPanel {
         }
     }
 
-    pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
-        let context_state = engine.scenes[editor_scene.scene]
-            .graph
-            .sound_context
-            .state();
+    pub fn sync_to_model(
+        &mut self,
+        editor_selection: &Selection,
+        game_scene: &GameScene,
+        engine: &mut Engine,
+    ) {
+        let context_state = engine.scenes[game_scene.scene].graph.sound_context.state();
         let ui = &mut engine.user_interface;
 
         let items = ui
@@ -406,7 +408,7 @@ impl AudioPanel {
         let mut selection_index = None;
         let mut is_primary_bus_selected = false;
 
-        if let Selection::AudioBus(ref selection) = editor_scene.selection {
+        if let Selection::AudioBus(ref selection) = editor_selection {
             for (index, item) in items.into_iter().enumerate() {
                 let bus_handle = item_bus(item, ui);
 

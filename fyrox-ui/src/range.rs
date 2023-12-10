@@ -14,6 +14,8 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox_core::uuid::{uuid, Uuid};
+use fyrox_core::{combine_uuids, TypeUuidProvider};
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut, Range},
@@ -98,7 +100,7 @@ impl<T: NumericType> RangeEditorMessage<T> {
 ///
 /// Be very careful about the type of the range when sending a message, you need to send a range of exact type, that match the type
 /// of your editor, otherwise the message have no effect. The same applied to fetching.
-#[derive(Debug, Clone, Reflect, Visit)]
+#[derive(Default, Debug, Clone, Reflect, Visit)]
 pub struct RangeEditor<T>
 where
     T: NumericType,
@@ -136,6 +138,18 @@ where
 }
 
 const SYNC_FLAG: u64 = 1;
+
+impl<T> TypeUuidProvider for RangeEditor<T>
+where
+    T: NumericType,
+{
+    fn type_uuid() -> Uuid {
+        combine_uuids(
+            uuid!("0eb2948e-8485-490e-8719-18a0bb6fe275"),
+            T::type_uuid(),
+        )
+    }
+}
 
 impl<T> Control for RangeEditor<T>
 where

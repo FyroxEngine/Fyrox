@@ -1,5 +1,5 @@
 use crate::{
-    make_color_material, scene::EditorScene, set_mesh_diffuse_color,
+    make_color_material, scene::GameScene, set_mesh_diffuse_color,
     world::graph::selection::GraphSelection, Engine,
 };
 use fyrox::{
@@ -91,8 +91,8 @@ fn make_scale_axis(
 }
 
 impl ScaleGizmo {
-    pub fn new(editor_scene: &EditorScene, engine: &mut Engine) -> Self {
-        let scene = &mut engine.scenes[editor_scene.scene];
+    pub fn new(game_scene: &GameScene, engine: &mut Engine) -> Self {
+        let scene = &mut engine.scenes[game_scene.scene];
         let graph = &mut scene.graph;
 
         let origin = MeshBuilder::new(
@@ -111,7 +111,7 @@ impl ScaleGizmo {
         .build()])
         .build(graph);
 
-        graph.link_nodes(origin, editor_scene.editor_objects_root);
+        graph.link_nodes(origin, game_scene.editor_objects_root);
 
         let (x_axis, x_arrow) = make_scale_axis(
             graph,
@@ -187,10 +187,10 @@ impl ScaleGizmo {
     pub fn handle_pick(
         &mut self,
         picked: Handle<Node>,
-        editor_scene: &EditorScene,
+        game_scene: &GameScene,
         engine: &mut Engine,
     ) -> bool {
-        let graph = &mut engine.scenes[editor_scene.scene].graph;
+        let graph = &mut engine.scenes[game_scene.scene].graph;
 
         if picked == self.x_axis || picked == self.x_arrow {
             self.set_mode(ScaleGizmoMode::X, graph);
@@ -212,14 +212,14 @@ impl ScaleGizmo {
 
     pub fn calculate_scale_delta(
         &self,
-        editor_scene: &EditorScene,
+        game_scene: &GameScene,
         camera: Handle<Node>,
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
         engine: &Engine,
         frame_size: Vector2<f32>,
     ) -> Vector3<f32> {
-        let graph = &engine.scenes[editor_scene.scene].graph;
+        let graph = &engine.scenes[game_scene.scene].graph;
         let node_global_transform = graph[self.origin].global_transform();
 
         let camera = &graph[camera].as_camera();

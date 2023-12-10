@@ -1,7 +1,6 @@
-use crate::message::MessageSender;
 use crate::{
-    command::CommandStack, gui::make_image_button_with_tooltip, load_image,
-    scene::commands::SceneContext, send_sync_message, utils::window_content, Message, Mode,
+    gui::make_image_button_with_tooltip, load_image, message::MessageSender, send_sync_message,
+    utils::window_content, Message, Mode,
 };
 use fyrox::{
     core::{color::Color, pool::Handle, scope_profile},
@@ -112,30 +111,28 @@ impl CommandStackViewer {
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.undo {
-                self.sender.send(Message::UndoSceneCommand);
+                self.sender.send(Message::UndoCurrentSceneCommand);
             } else if message.destination() == self.redo {
-                self.sender.send(Message::RedoSceneCommand);
+                self.sender.send(Message::RedoCurrentSceneCommand);
             } else if message.destination() == self.clear {
-                self.sender.send(Message::ClearSceneCommandStack);
+                self.sender.send(Message::ClearCurrentSceneCommandStack);
             }
         }
     }
 
     pub fn sync_to_model(
         &mut self,
-        command_stack: &mut CommandStack,
-        ctx: &SceneContext,
+        top: Option<usize>,
+        command_names: Vec<String>,
         ui: &mut UserInterface,
     ) {
         scope_profile!();
 
-        let top = command_stack.top;
-        let items = command_stack
-            .commands
-            .iter_mut()
+        let items = command_names
+            .into_iter()
             .enumerate()
             .rev() // First command in list is last on stack.
-            .map(|(i, cmd)| {
+            .map(|(i, name)| {
                 let brush = if let Some(top) = top {
                     if (0..=top).contains(&i) {
                         Brush::Solid(Color::opaque(255, 255, 255))
@@ -156,7 +153,7 @@ impl CommandStackViewer {
                         })
                         .with_foreground(brush),
                 )
-                .with_text(cmd.name(ctx))
+                .with_text(name)
                 .build(&mut ui.build_ctx())
             })
             .collect();

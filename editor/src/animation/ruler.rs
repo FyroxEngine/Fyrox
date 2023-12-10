@@ -1,4 +1,5 @@
 use crate::menu::create_menu_item;
+use fyrox::core::uuid_provider;
 use fyrox::gui::RcUiNodeHandle;
 use fyrox::{
     core::{
@@ -187,6 +188,8 @@ impl Ruler {
         self.view_to_local(self.screen_to_local(Vector2::new(x, 0.0)).x)
     }
 }
+
+uuid_provider!(Ruler = "98655c9b-428f-4977-a478-ad3674cc66d4");
 
 impl Control for Ruler {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

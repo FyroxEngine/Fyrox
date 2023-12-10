@@ -19,6 +19,7 @@ use crate::{
     },
     utils::{self, NameProvider},
 };
+use fyrox_core::uuid_provider;
 use std::{
     collections::VecDeque,
     fmt::Debug,
@@ -204,6 +205,8 @@ pub struct Animation {
     #[visit(skip)]
     events: VecDeque<AnimationEvent>,
 }
+
+uuid_provider!(Animation = "aade8e9d-e2cf-401d-a4d1-59c6943645f3");
 
 /// Root motion settings. It allows you to set a node (root) from which the motion will be taken
 /// as well as filter out some unnecessary parts of the motion (i.e. do not extract motion on

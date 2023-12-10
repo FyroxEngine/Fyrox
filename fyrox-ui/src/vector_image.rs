@@ -12,6 +12,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -158,7 +159,7 @@ impl Primitive {
 ///
 /// Keep in mind that all primitives located in local coordinates. The color of the vector image can be changed by
 /// setting a new foreground brush.
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct VectorImage {
     /// Base widget of the image.
     pub widget: Widget,
@@ -167,6 +168,8 @@ pub struct VectorImage {
 }
 
 crate::define_widget_deref!(VectorImage);
+
+uuid_provider!(VectorImage = "7e535b65-0178-414e-b310-e208afc0eeb5");
 
 impl Control for VectorImage {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

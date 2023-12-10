@@ -11,8 +11,8 @@ use crate::{
         NORMAL_BACKGROUND, NORMAL_ROOT_COLOR, SELECTED_BACKGROUND, SELECTED_ROOT_COLOR,
     },
     scene::{
-        commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
-        EditorScene, Selection,
+        commands::{ChangeSelectionCommand, CommandGroup, GameSceneCommand},
+        Selection,
     },
     send_sync_message,
 };
@@ -136,7 +136,7 @@ impl StateGraphViewer {
         absm_node_handle: Handle<Node>,
         absm_node: &AnimationBlendingStateMachine,
         layer_index: usize,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
     ) {
         if message.destination() == self.canvas {
             if let Some(msg) = message.data::<AbsmCanvasMessage>() {
@@ -162,7 +162,7 @@ impl StateGraphViewer {
                                 let state_handle = fetch_state_node_model_handle(e.node, ui);
                                 let new_position = ui.node(e.node).actual_local_position();
 
-                                SceneCommand::new(MoveStateNodeCommand::new(
+                                GameSceneCommand::new(MoveStateNodeCommand::new(
                                     absm_node_handle,
                                     state_handle,
                                     layer_index,
@@ -201,10 +201,10 @@ impl StateGraphViewer {
                                     .collect::<Vec<_>>(),
                             });
 
-                            if !selection.is_empty() && selection != editor_scene.selection {
+                            if !selection.is_empty() && &selection != editor_selection {
                                 sender.do_scene_command(ChangeSelectionCommand::new(
                                     selection,
-                                    editor_scene.selection.clone(),
+                                    editor_selection.clone(),
                                 ));
                             }
                         }
@@ -219,7 +219,7 @@ impl StateGraphViewer {
                                 .iter()
                                 .map(|node| {
                                     let dest_state = fetch_state_node_model_handle(*node, ui);
-                                    SceneCommand::new(AddTransitionCommand::new(
+                                    GameSceneCommand::new(AddTransitionCommand::new(
                                         absm_node_handle,
                                         layer_index,
                                         Transition::new("Transition", source, dest_state, 1.0, ""),
@@ -242,7 +242,7 @@ impl StateGraphViewer {
             absm_node_handle,
             absm_node,
             layer_index,
-            editor_scene,
+            editor_selection,
         );
         self.canvas_context_menu.handle_ui_message(
             sender,
@@ -257,7 +257,7 @@ impl StateGraphViewer {
             sender,
             absm_node_handle,
             layer_index,
-            editor_scene,
+            editor_selection,
         );
     }
 
@@ -265,14 +265,14 @@ impl StateGraphViewer {
         &mut self,
         machine_layer: &MachineLayer,
         ui: &mut UserInterface,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
     ) {
         let canvas = ui
             .node(self.canvas)
             .cast::<AbsmCanvas>()
             .expect("Must be AbsmCanvas!");
 
-        let current_selection = fetch_selection(&editor_scene.selection);
+        let current_selection = fetch_selection(editor_selection);
 
         let mut states = Vec::new();
         let mut transitions = Vec::new();

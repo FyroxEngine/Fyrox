@@ -25,6 +25,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_core::uuid_provider;
 use rapier2d::geometry::ColliderHandle;
 use std::{
     cell::Cell,
@@ -165,6 +166,8 @@ pub enum ColliderShape {
     /// See [`HeightfieldShape`] docs.
     Heightfield(HeightfieldShape),
 }
+
+uuid_provider!(ColliderShape = "4615485f-f8db-4405-b4a5-437e74b3f5b8");
 
 impl Default for ColliderShape {
     fn default() -> Self {

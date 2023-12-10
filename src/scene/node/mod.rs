@@ -37,6 +37,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_core::uuid_provider;
 use fyrox_core::variable::mark_inheritable_properties_non_modified;
 use fyrox_resource::untyped::UntypedResource;
 use std::{
@@ -301,6 +302,8 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
 /// consumption, only disk space usage is reduced.
 #[derive(Debug)]
 pub struct Node(Box<dyn NodeTrait>);
+
+uuid_provider!(Node = "a9bc5231-155c-4564-b0ca-f23972673925");
 
 impl Deref for Node {
     type Target = dyn NodeTrait;

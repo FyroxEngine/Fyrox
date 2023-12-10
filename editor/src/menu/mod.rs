@@ -5,7 +5,7 @@ use crate::{
         utils::UtilsMenu, view::ViewMenu,
     },
     message::MessageSender,
-    scene::EditorScene,
+    scene::{container::EditorSceneEntry, GameScene},
     send_sync_message,
     settings::Settings,
     utils::ragdoll::RagdollWizard,
@@ -63,7 +63,7 @@ pub struct Panels<'b> {
 
 pub struct MenuContext<'a, 'b> {
     pub engine: &'a mut Engine,
-    pub editor_scene: Option<&'b mut EditorScene>,
+    pub game_scene: Option<&'b mut EditorSceneEntry>,
     pub panels: Panels<'b>,
     pub settings: &'b mut Settings,
 }
@@ -143,7 +143,7 @@ impl Menu {
         self.file_menu.open_save_file_selector(ui)
     }
 
-    pub fn sync_to_model(&mut self, editor_scene: Option<&EditorScene>, ui: &mut UserInterface) {
+    pub fn sync_to_model(&mut self, has_active_scene: bool, ui: &mut UserInterface) {
         scope_profile!();
 
         for &widget in [
@@ -158,7 +158,7 @@ impl Menu {
         {
             send_sync_message(
                 ui,
-                WidgetMessage::enabled(widget, MessageDirection::ToWidget, editor_scene.is_some()),
+                WidgetMessage::enabled(widget, MessageDirection::ToWidget, has_active_scene),
             );
         }
     }
@@ -166,15 +166,22 @@ impl Menu {
     pub fn handle_ui_message(&mut self, message: &UiMessage, mut ctx: MenuContext) {
         scope_profile!();
 
-        if let Some(scene) = ctx.editor_scene.as_mut() {
-            self.edit_menu
-                .handle_ui_message(message, &self.message_sender, scene, ctx.engine);
-
-            self.create_entity_menu.handle_ui_message(
+        if let Some(entry) = ctx.game_scene.as_mut() {
+            self.edit_menu.handle_ui_message(
                 message,
                 &self.message_sender,
-                scene.scene_content_root,
+                &entry.selection,
+                &mut *entry.controller,
+                ctx.engine,
             );
+
+            if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
+                self.create_entity_menu.handle_ui_message(
+                    message,
+                    &self.message_sender,
+                    game_scene.scene_content_root,
+                );
+            }
         }
 
         self.utils_menu
@@ -182,7 +189,7 @@ impl Menu {
         self.file_menu.handle_ui_message(
             message,
             &self.message_sender,
-            &ctx.editor_scene,
+            ctx.game_scene,
             ctx.engine,
             ctx.settings,
             &ctx.panels,

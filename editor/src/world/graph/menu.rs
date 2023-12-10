@@ -1,3 +1,4 @@
+use crate::world::WorldViewerItemContextMenu;
 use crate::{
     make_save_file_selector,
     menu::{create::CreateEntityMenu, create_menu_item, create_menu_item_shortcut},
@@ -5,10 +6,10 @@ use crate::{
     scene::{
         commands::{
             graph::{AddNodeCommand, ReplaceNodeCommand, SetGraphRootCommand},
-            make_delete_selection_command, CommandGroup, RevertSceneNodePropertyCommand,
-            SceneCommand,
+            make_delete_selection_command, CommandGroup, GameSceneCommand,
+            RevertSceneNodePropertyCommand,
         },
-        EditorScene, Selection,
+        GameScene, Selection,
     },
     settings::Settings,
     utils, Engine, Message, MessageDirection, PasteCommand,
@@ -30,8 +31,8 @@ use fyrox::{
 use std::any::TypeId;
 use std::path::PathBuf;
 
-pub struct ItemContextMenu {
-    pub menu: RcUiNodeHandle,
+pub struct SceneNodeContextMenu {
+    menu: RcUiNodeHandle,
     delete_selection: Handle<UiNode>,
     copy_selection: Handle<UiNode>,
     create_entity_menu: CreateEntityMenu,
@@ -45,13 +46,20 @@ pub struct ItemContextMenu {
     reset_inheritable_properties: Handle<UiNode>,
 }
 
+impl WorldViewerItemContextMenu for SceneNodeContextMenu {
+    fn menu(&self) -> RcUiNodeHandle {
+        self.menu.clone()
+    }
+}
+
 fn resource_path_of_first_selected_node(
-    editor_scene: &EditorScene,
+    editor_selection: &Selection,
+    game_scene: &GameScene,
     engine: &Engine,
 ) -> Option<PathBuf> {
-    if let Selection::Graph(graph_selection) = &editor_scene.selection {
+    if let Selection::Graph(graph_selection) = editor_selection {
         if let Some(first) = graph_selection.nodes.first() {
-            let scene = &engine.scenes[editor_scene.scene];
+            let scene = &engine.scenes[game_scene.scene];
             if let Some(resource) = scene.graph.try_get(*first).and_then(|n| n.resource()) {
                 return resource.kind().into_path();
             }
@@ -60,7 +68,7 @@ fn resource_path_of_first_selected_node(
     None
 }
 
-impl ItemContextMenu {
+impl SceneNodeContextMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let delete_selection;
         let copy_selection;
@@ -152,14 +160,15 @@ impl ItemContextMenu {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        editor_scene: &mut EditorScene,
+        editor_selection: &Selection,
+        game_scene: &mut GameScene,
         engine: &Engine,
         sender: &MessageSender,
         settings: &Settings,
     ) {
         scope_profile!();
 
-        if let Selection::Graph(graph_selection) = &editor_scene.selection {
+        if let Selection::Graph(graph_selection) = editor_selection {
             if let Some(first) = graph_selection.nodes().first() {
                 if let Some(node) = self.create_entity_menu.handle_ui_message(message) {
                     sender.do_scene_command(AddNodeCommand::new(node, *first, true));
@@ -176,29 +185,31 @@ impl ItemContextMenu {
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.delete_selection {
                 if settings.general.show_node_removal_dialog
-                    && editor_scene.is_current_selection_has_external_refs(
-                        &engine.scenes[editor_scene.scene].graph,
+                    && game_scene.is_current_selection_has_external_refs(
+                        editor_selection,
+                        &engine.scenes[game_scene.scene].graph,
                     )
                 {
                     sender.send(Message::OpenNodeRemovalDialog);
                 } else {
-                    sender.send(Message::DoSceneCommand(make_delete_selection_command(
-                        editor_scene,
+                    sender.send(Message::DoGameSceneCommand(make_delete_selection_command(
+                        editor_selection,
+                        game_scene,
                         engine,
                     )));
                 }
             } else if message.destination() == self.copy_selection {
-                if let Selection::Graph(graph_selection) = &editor_scene.selection {
-                    editor_scene.clipboard.fill_from_selection(
+                if let Selection::Graph(graph_selection) = editor_selection {
+                    game_scene.clipboard.fill_from_selection(
                         graph_selection,
-                        editor_scene.scene,
+                        game_scene.scene,
                         engine,
                     );
                 }
             } else if message.destination() == self.paste {
-                if let Selection::Graph(graph_selection) = &editor_scene.selection {
+                if let Selection::Graph(graph_selection) = editor_selection {
                     if let Some(first) = graph_selection.nodes.first() {
-                        if !editor_scene.clipboard.is_empty() {
+                        if !game_scene.clipboard.is_empty() {
                             sender.do_scene_command(PasteCommand::new(*first));
                         }
                     }
@@ -219,7 +230,7 @@ impl ItemContextMenu {
                         Some(std::env::current_dir().unwrap()),
                     ));
             } else if message.destination() == self.make_root {
-                if let Selection::Graph(graph_selection) = &editor_scene.selection {
+                if let Selection::Graph(graph_selection) = editor_selection {
                     if let Some(first) = graph_selection.nodes.first() {
                         sender.do_scene_command(SetGraphRootCommand {
                             root: *first,
@@ -228,14 +239,16 @@ impl ItemContextMenu {
                     }
                 }
             } else if message.destination() == self.open_asset {
-                if let Some(path) = resource_path_of_first_selected_node(editor_scene, engine) {
+                if let Some(path) =
+                    resource_path_of_first_selected_node(editor_selection, game_scene, engine)
+                {
                     if utils::is_native_scene(&path) {
                         sender.send(Message::LoadScene(path));
                     }
                 }
             } else if message.destination() == self.reset_inheritable_properties {
-                if let Selection::Graph(graph_selection) = &editor_scene.selection {
-                    let scene = &engine.scenes[editor_scene.scene];
+                if let Selection::Graph(graph_selection) = editor_selection {
+                    let scene = &engine.scenes[game_scene.scene];
                     let mut commands = Vec::new();
                     for node_handle in graph_selection.nodes.iter() {
                         if let Some(node) = scene.graph.try_get(*node_handle) {
@@ -243,7 +256,7 @@ impl ItemContextMenu {
                                 &mut |path, _, val| {
                                     val.as_inheritable_variable(&mut |inheritable| {
                                         if inheritable.is_some() {
-                                            commands.push(SceneCommand::new(
+                                            commands.push(GameSceneCommand::new(
                                                 RevertSceneNodePropertyCommand::new(
                                                     path.to_string(),
                                                     *node_handle,
@@ -267,13 +280,13 @@ impl ItemContextMenu {
                 engine.user_interface.send_message(WidgetMessage::enabled(
                     self.paste,
                     MessageDirection::ToWidget,
-                    !editor_scene.clipboard.is_empty(),
+                    !game_scene.clipboard.is_empty(),
                 ));
 
                 engine.user_interface.send_message(WidgetMessage::enabled(
                     self.open_asset,
                     MessageDirection::ToWidget,
-                    resource_path_of_first_selected_node(editor_scene, engine)
+                    resource_path_of_first_selected_node(editor_selection, game_scene, engine)
                         .map_or(false, |p| utils::is_native_scene(&p)),
                 ));
             }

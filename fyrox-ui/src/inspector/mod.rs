@@ -29,6 +29,7 @@ use crate::{
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use copypasta::ClipboardProvider;
+use fyrox_core::uuid_provider;
 use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
@@ -364,57 +365,62 @@ pub trait InspectorEnvironment: Any {
 /// # };
 /// # use std::rc::Rc;
 /// # use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
-/// #
-/// # #[derive(Reflect, Debug, Clone)]
-/// # struct MyObject {
-/// #     foo: String,
-/// #     bar: u32,
-/// #     stuff: MyEnum,
-/// # }
-/// #
-/// # // Enumeration requires a bit more traits to be implemented. It must provide a way to turn
-/// # // enum into a string.
-/// # #[derive(Reflect, Debug, Clone, AsRefStr, EnumString, EnumVariantNames)]
-/// # enum MyEnum {
-/// #     SomeVariant,
-/// #     YetAnotherVariant { baz: f32 },
-/// # }
-/// #
-/// # fn create_inspector(ctx: &mut BuildContext) -> Handle<UiNode> {
-/// #     // Initialize an object first.
-/// #     let my_object = MyObject {
-/// #         foo: "Some string".to_string(),
-/// #         bar: 42,
-/// #         stuff: MyEnum::YetAnotherVariant { baz: 123.321 },
-/// #     };
-/// #
-/// #     // Create a new property editors definition container.
-/// #     let definition_container = PropertyEditorDefinitionContainer::new();
-/// #
-/// #     // Add property editors for our structure and enumeration, so the inspector could use these
-/// #     // property editors to generate visual representation for them.
-/// #     definition_container.insert(InspectablePropertyEditorDefinition::<MyObject>::new());
-/// #     definition_container.insert(EnumPropertyEditorDefinition::<MyEnum>::new());
-/// #
-/// #     // Generate a new inspector context - its visual representation, that will be used
-/// #     // by the inspector.
-/// #     let context = InspectorContext::from_object(
-/// #         &my_object,
-/// #         ctx,
-/// #         Rc::new(definition_container),
-/// #         None,
-/// #         1,
-/// #         0,
-/// #         true,
-/// #         Default::default(),
-/// #     );
-/// #
-/// #     InspectorBuilder::new(WidgetBuilder::new())
-/// #         .with_context(context)
-/// #         .build(ctx)
-/// # }
+/// # use fyrox_core::uuid_provider;
+///
+/// #[derive(Reflect, Debug, Clone)]
+/// struct MyObject {
+///     foo: String,
+///     bar: u32,
+///     stuff: MyEnum,
+/// }
+///
+/// uuid_provider!(MyObject = "391b9424-8fe2-4525-a98e-3c930487fcf1");
+///
+/// // Enumeration requires a bit more traits to be implemented. It must provide a way to turn
+/// // enum into a string.
+/// #[derive(Reflect, Debug, Clone, AsRefStr, EnumString, EnumVariantNames)]
+/// enum MyEnum {
+///     SomeVariant,
+///     YetAnotherVariant { baz: f32 },
+/// }
+///
+/// uuid_provider!(MyEnum = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd");
+///
+/// fn create_inspector(ctx: &mut BuildContext) -> Handle<UiNode> {
+///     // Initialize an object first.
+///     let my_object = MyObject {
+///         foo: "Some string".to_string(),
+///         bar: 42,
+///         stuff: MyEnum::YetAnotherVariant { baz: 123.321 },
+///     };
+///
+///     // Create a new property editors definition container.
+///     let definition_container = PropertyEditorDefinitionContainer::new();
+///
+///     // Add property editors for our structure and enumeration, so the inspector could use these
+///     // property editors to generate visual representation for them.
+///     definition_container.insert(InspectablePropertyEditorDefinition::<MyObject>::new());
+///     definition_container.insert(EnumPropertyEditorDefinition::<MyEnum>::new());
+///
+///     // Generate a new inspector context - its visual representation, that will be used
+///     // by the inspector.
+///     let context = InspectorContext::from_object(
+///         &my_object,
+///         ctx,
+///         Rc::new(definition_container),
+///         None,
+///         1,
+///         0,
+///         true,
+///         Default::default(),
+///     );
+///
+///     InspectorBuilder::new(WidgetBuilder::new())
+///         .with_context(context)
+///         .build(ctx)
+/// }
 /// ```
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct Inspector {
     pub widget: Widget,
     #[reflect(hidden)]
@@ -866,6 +872,8 @@ impl InspectorContext {
             .unwrap_or_default()
     }
 }
+
+uuid_provider!(Inspector = "c599c0f5-f749-4033-afed-1a9949c937a1");
 
 impl Control for Inspector {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

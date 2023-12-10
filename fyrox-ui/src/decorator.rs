@@ -15,6 +15,7 @@ use crate::{
     BuildContext, Control, NodeHandleMapping, UiNode, UserInterface, BRUSH_BRIGHT, BRUSH_DARKER,
     BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -88,7 +89,7 @@ impl DecoratorMessage {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct Decorator {
     /// Base widget of the decorator.
     pub border: Border,
@@ -119,6 +120,8 @@ impl DerefMut for Decorator {
         &mut self.border
     }
 }
+
+uuid_provider!(Decorator = "bb4b60aa-c657-4ed6-8db6-d7f374397c73");
 
 impl Control for Decorator {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

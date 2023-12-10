@@ -4,7 +4,7 @@ use crate::{
         make_set_node_property_command,
         terrain::{AddTerrainLayerCommand, DeleteTerrainLayerCommand},
     },
-    SceneCommand,
+    GameSceneCommand,
 };
 use fyrox::{
     core::pool::Handle,
@@ -21,15 +21,15 @@ impl SceneNodePropertyChangedHandler {
         args: &PropertyChanged,
         handle: Handle<Node>,
         _node: &mut Node,
-    ) -> Option<SceneCommand> {
+    ) -> Option<GameSceneCommand> {
         // Terrain is special and have its own commands for specific properties.
         if args.path() == Terrain::LAYERS && args.owner_type_id == TypeId::of::<Terrain>() {
             match args.value {
                 FieldKind::Collection(ref collection_changed) => match **collection_changed {
                     CollectionChanged::Add(_) => {
-                        Some(SceneCommand::new(AddTerrainLayerCommand::new(handle)))
+                        Some(GameSceneCommand::new(AddTerrainLayerCommand::new(handle)))
                     }
-                    CollectionChanged::Remove(index) => Some(SceneCommand::new(
+                    CollectionChanged::Remove(index) => Some(GameSceneCommand::new(
                         DeleteTerrainLayerCommand::new(handle, index),
                     )),
                     CollectionChanged::ItemChanged { .. } => None,
@@ -48,12 +48,12 @@ impl SceneNodePropertyChangedHandler {
         args: &PropertyChanged,
         handle: Handle<Node>,
         node: &mut Node,
-    ) -> Option<SceneCommand> {
+    ) -> Option<GameSceneCommand> {
         self.try_get_command(args, handle, node).or_else(|| {
             if args.is_inheritable() {
                 // Prevent reverting property value if there's no parent resource.
                 if node.resource().is_some() {
-                    Some(SceneCommand::new(RevertSceneNodePropertyCommand::new(
+                    Some(GameSceneCommand::new(RevertSceneNodePropertyCommand::new(
                         args.path(),
                         handle,
                     )))

@@ -1,6 +1,6 @@
 use crate::{
-    inspector::editors::make_property_editors_container, message::MessageSender,
-    scene::EditorScene, Engine, MSG_SYNC_FLAG,
+    inspector::editors::make_property_editors_container, message::MessageSender, scene::GameScene,
+    Engine, MSG_SYNC_FLAG,
 };
 use fyrox::gui::formatted_text::WrapMode;
 use fyrox::gui::text::TextMessage;
@@ -272,14 +272,14 @@ impl LightPanel {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        editor_scene: &EditorScene,
+        game_scene: &GameScene,
         engine: &mut Engine,
     ) {
         scope_profile!();
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.generate {
-                let scene = &mut engine.scenes[editor_scene.scene];
+                let scene = &mut engine.scenes[game_scene.scene];
 
                 let progress_indicator = ProgressIndicator::new();
                 let cancellation_token = CancellationToken::new();
@@ -294,7 +294,7 @@ impl LightPanel {
 
                 if let Ok(input_data) = LightmapInputData::from_scene(
                     scene,
-                    |handle, _| handle != editor_scene.editor_objects_root,
+                    |handle, _| handle != game_scene.editor_objects_root,
                     cancellation_token.clone(),
                     progress_indicator.clone(),
                 ) {
@@ -357,13 +357,13 @@ impl LightPanel {
         }
     }
 
-    pub fn update(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
+    pub fn update(&mut self, game_scene: &GameScene, engine: &mut Engine) {
         if let Some(progress_window) = self.progress_window.as_ref() {
             progress_window.show_progress(&engine.user_interface);
         }
 
         if let Ok(result) = self.receiver.try_recv() {
-            let scene = &mut engine.scenes[editor_scene.scene];
+            let scene = &mut engine.scenes[game_scene.scene];
             match result {
                 Ok(lightmap) => {
                     if let Err(err) = scene.graph.set_lightmap(lightmap) {

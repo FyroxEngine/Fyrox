@@ -13,6 +13,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_core::uuid_provider;
 use serde::{Deserialize, Serialize};
 use std::{
     any::{Any, TypeId},
@@ -151,7 +152,7 @@ impl HotKeyEditorMessage {
 /// ## Messages
 ///
 /// Use [`HotKeyEditorMessage`] message to alternate the state of a hot key widget, or to listen to its changes.
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct HotKeyEditor {
     widget: Widget,
     text: Handle<UiNode>,
@@ -175,6 +176,8 @@ impl HotKeyEditor {
         ));
     }
 }
+
+uuid_provider!(HotKeyEditor = "7bc49843-1302-4e36-b901-63af5cea6c60");
 
 impl Control for HotKeyEditor {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -374,7 +377,7 @@ impl KeyBindingEditorMessage {
 /// ## Messages
 ///
 /// Use [`KeyBindingEditorMessage`] message to alternate the state of a key binding widget, or to listen to its changes.
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct KeyBindingEditor {
     widget: Widget,
     text: Handle<UiNode>,
@@ -398,6 +401,8 @@ impl KeyBindingEditor {
         ));
     }
 }
+
+uuid_provider!(KeyBindingEditor = "150113ce-f95e-4c76-9ac9-4503e78b960f");
 
 impl Control for KeyBindingEditor {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

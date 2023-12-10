@@ -1,35 +1,29 @@
-use crate::scene_viewer::gizmo::{SceneGizmo, SceneGizmoAction};
 use crate::{
-    camera::PickingOptions, gui::make_dropdown_list_option,
-    gui::make_dropdown_list_option_with_height, load_image, message::MessageSender,
-    send_sync_message, settings::keys::KeyBindings, utils::enable_widget, AddModelCommand,
-    AssetItem, BuildProfile, ChangeSelectionCommand, CommandGroup, DropdownListBuilder,
-    EditorScene, GraphSelection, InteractionMode, InteractionModeKind, Message, Mode,
-    SaveSceneConfirmationDialogAction, SceneCommand, SceneContainer, Selection,
-    SetMeshTextureCommand, Settings,
+    gui::{make_dropdown_list_option, make_dropdown_list_option_with_height},
+    load_image,
+    message::MessageSender,
+    scene::container::EditorSceneEntry,
+    scene_viewer::gizmo::{SceneGizmo, SceneGizmoAction},
+    send_sync_message,
+    utils::enable_widget,
+    BuildProfile, DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
+    SceneContainer, Selection, Settings,
 };
-use fyrox::core::futures::executor::block_on;
 use fyrox::{
-    core::{
-        algebra::{Vector2, Vector3},
-        color::Color,
-        make_relative_path,
-        math::{plane::Plane, Rect},
-        pool::Handle,
-    },
+    core::{color::Color, math::Rect, pool::Handle, uuid::Uuid},
     engine::Engine,
-    fxhash::FxHashSet,
+    fxhash::FxHashMap,
     gui::{
         border::BorderBuilder,
         brush::Brush,
         button::{Button, ButtonBuilder, ButtonMessage},
         canvas::CanvasBuilder,
-        decorator::{DecoratorBuilder, DecoratorMessage},
+        decorator::DecoratorMessage,
         dropdown_list::DropdownListMessage,
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         image::{ImageBuilder, ImageMessage},
-        message::{KeyCode, MessageDirection, MouseButton, UiMessage},
+        message::{MessageDirection, MouseButton, UiMessage},
         stack_panel::StackPanelBuilder,
         tab_control::{
             Tab, TabControl, TabControlBuilder, TabControlMessage, TabDefinition, TabUserData,
@@ -39,43 +33,22 @@ use fyrox::{
         vec::{Vec3EditorBuilder, Vec3EditorMessage},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
-        VerticalAlignment, BRUSH_BRIGHT_BLUE, BRUSH_DARKER, BRUSH_DARKEST, BRUSH_LIGHT,
-        BRUSH_LIGHTER, BRUSH_LIGHTEST,
+        HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
+        BRUSH_DARKEST,
     },
-    resource::{
-        model::{Model, ModelResourceExtension},
-        texture::{Texture, TextureResource},
-    },
-    scene::{
-        camera::{Camera, Projection},
-        node::Node,
-        Scene,
-    },
+    resource::texture::TextureResource,
+    scene::camera::Projection,
     utils::into_gui_texture,
 };
 use std::cmp::Ordering;
 
 mod gizmo;
 
-struct PreviewInstance {
-    instance: Handle<Node>,
-    nodes: FxHashSet<Handle<Node>>,
-}
-
 pub struct SceneViewer {
     frame: Handle<UiNode>,
     window: Handle<UiNode>,
-    pub last_mouse_pos: Option<Vector2<f32>>,
-    pub click_mouse_pos: Option<Vector2<f32>>,
     selection_frame: Handle<UiNode>,
-    // Side bar stuff
-    select_mode: Handle<UiNode>,
-    move_mode: Handle<UiNode>,
-    rotate_mode: Handle<UiNode>,
-    scale_mode: Handle<UiNode>,
-    navmesh_mode: Handle<UiNode>,
-    terrain_mode: Handle<UiNode>,
+    interaction_modes: FxHashMap<Uuid, Handle<UiNode>>,
     camera_projection: Handle<UiNode>,
     play: Handle<UiNode>,
     stop: Handle<UiNode>,
@@ -84,53 +57,10 @@ pub struct SceneViewer {
     interaction_mode_panel: Handle<UiNode>,
     contextual_actions: Handle<UiNode>,
     global_position_display: Handle<UiNode>,
-    preview_instance: Option<PreviewInstance>,
     no_scene_reminder: Handle<UiNode>,
     tab_control: Handle<UiNode>,
     scene_gizmo: SceneGizmo,
     scene_gizmo_image: Handle<UiNode>,
-}
-
-fn make_interaction_mode_button(
-    ctx: &mut BuildContext,
-    image: &[u8],
-    tooltip: &str,
-    selected: bool,
-) -> Handle<UiNode> {
-    ButtonBuilder::new(
-        WidgetBuilder::new()
-            .with_tooltip(make_simple_tooltip(ctx, tooltip))
-            .with_margin(Thickness {
-                left: 1.0,
-                top: 0.0,
-                right: 1.0,
-                bottom: 1.0,
-            }),
-    )
-    .with_back(
-        DecoratorBuilder::new(
-            BorderBuilder::new(WidgetBuilder::new().with_foreground(BRUSH_DARKER))
-                .with_stroke_thickness(Thickness::uniform(1.0)),
-        )
-        .with_normal_brush(BRUSH_LIGHT)
-        .with_hover_brush(BRUSH_LIGHTER)
-        .with_pressed_brush(BRUSH_LIGHTEST)
-        .with_selected_brush(BRUSH_BRIGHT_BLUE)
-        .with_selected(selected)
-        .build(ctx),
-    )
-    .with_content(
-        ImageBuilder::new(
-            WidgetBuilder::new()
-                .with_background(Brush::Solid(Color::opaque(220, 220, 220)))
-                .with_margin(Thickness::uniform(2.0))
-                .with_width(23.0)
-                .with_height(23.0),
-        )
-        .with_opt_texture(load_image(image))
-        .build(ctx),
-    )
-    .build(ctx)
 }
 
 impl SceneViewer {
@@ -139,40 +69,7 @@ impl SceneViewer {
 
         let ctx = &mut engine.user_interface.build_ctx();
 
-        let select_mode_tooltip = "Select Object(s) - Shortcut: [1]\n\nSelection interaction mode \
-        allows you to select an object by a single left mouse button click or multiple objects using either \
-        frame selection (click and drag) or by holding Ctrl+Click";
-
-        let move_mode_tooltip =
-            "Move Object(s) - Shortcut: [2]\n\nMovement interaction mode allows you to move selected \
-        objects. Keep in mind that movement always works in local coordinates!\n\n\
-        This also allows you to select an object or add an object to current selection using Ctrl+Click";
-
-        let rotate_mode_tooltip =
-            "Rotate Object(s) - Shortcut: [3]\n\nRotation interaction mode allows you to rotate selected \
-        objects. Keep in mind that rotation always works in local coordinates!\n\n\
-        This also allows you to select an object or add an object to current selection using Ctrl+Click";
-
-        let scale_mode_tooltip =
-            "Scale Object(s) - Shortcut: [4]\n\nScaling interaction mode allows you to scale selected \
-        objects. Keep in mind that scaling always works in local coordinates!\n\n\
-        This also allows you to select an object or add an object to current selection using Ctrl+Click";
-
-        let navmesh_mode_tooltip =
-            "Edit Navmesh\n\nNavmesh edit mode allows you to modify selected \
-        navigational mesh.";
-
-        let terrain_mode_tooltip =
-            "Edit Terrain\n\nTerrain edit mode allows you to modify selected \
-        terrain.";
-
         let frame;
-        let select_mode;
-        let move_mode;
-        let rotate_mode;
-        let scale_mode;
-        let navmesh_mode;
-        let terrain_mode;
         let selection_frame;
         let camera_projection;
         let play;
@@ -183,61 +80,7 @@ impl SceneViewer {
             WidgetBuilder::new()
                 .with_margin(Thickness::uniform(1.0))
                 .with_vertical_alignment(VerticalAlignment::Top)
-                .with_horizontal_alignment(HorizontalAlignment::Left)
-                .with_child({
-                    select_mode = make_interaction_mode_button(
-                        ctx,
-                        include_bytes!("../../resources/select.png"),
-                        select_mode_tooltip,
-                        true,
-                    );
-                    select_mode
-                })
-                .with_child({
-                    move_mode = make_interaction_mode_button(
-                        ctx,
-                        include_bytes!("../../resources/move_arrow.png"),
-                        move_mode_tooltip,
-                        false,
-                    );
-                    move_mode
-                })
-                .with_child({
-                    rotate_mode = make_interaction_mode_button(
-                        ctx,
-                        include_bytes!("../../resources/rotate_arrow.png"),
-                        rotate_mode_tooltip,
-                        false,
-                    );
-                    rotate_mode
-                })
-                .with_child({
-                    scale_mode = make_interaction_mode_button(
-                        ctx,
-                        include_bytes!("../../resources/scale_arrow.png"),
-                        scale_mode_tooltip,
-                        false,
-                    );
-                    scale_mode
-                })
-                .with_child({
-                    navmesh_mode = make_interaction_mode_button(
-                        ctx,
-                        include_bytes!("../../resources/navmesh.png"),
-                        navmesh_mode_tooltip,
-                        false,
-                    );
-                    navmesh_mode
-                })
-                .with_child({
-                    terrain_mode = make_interaction_mode_button(
-                        ctx,
-                        include_bytes!("../../resources/terrain.png"),
-                        terrain_mode_tooltip,
-                        false,
-                    );
-                    terrain_mode
-                }),
+                .with_horizontal_alignment(HorizontalAlignment::Left),
         )
         .build(ctx);
 
@@ -453,22 +296,14 @@ impl SceneViewer {
             sender,
             window,
             frame,
-            last_mouse_pos: None,
-            move_mode,
-            rotate_mode,
-            scale_mode,
+            interaction_modes: Default::default(),
             selection_frame,
-            select_mode,
-            navmesh_mode,
-            terrain_mode,
             camera_projection,
-            click_mouse_pos: None,
             play,
             interaction_mode_panel,
             contextual_actions,
             global_position_display,
             build_profile,
-            preview_instance: None,
             stop,
             no_scene_reminder,
             tab_control,
@@ -493,35 +328,48 @@ impl SceneViewer {
 
     pub fn handle_message(&mut self, message: &Message, engine: &mut Engine) {
         if let Message::SetInteractionMode(mode) = message {
-            let active_button = match mode {
-                InteractionModeKind::Select => self.select_mode,
-                InteractionModeKind::Move => self.move_mode,
-                InteractionModeKind::Scale => self.scale_mode,
-                InteractionModeKind::Rotate => self.rotate_mode,
-                InteractionModeKind::Navmesh => self.navmesh_mode,
-                InteractionModeKind::Terrain => self.terrain_mode,
-            };
+            if let Some(&active_button) = self.interaction_modes.get(mode) {
+                for &mode_button in self.interaction_modes.values() {
+                    let decorator = engine
+                        .user_interface
+                        .node(mode_button)
+                        .query_component::<Button>()
+                        .unwrap()
+                        .decorator;
 
-            for mode_button in [
-                self.select_mode,
-                self.move_mode,
-                self.scale_mode,
-                self.rotate_mode,
-                self.navmesh_mode,
-                self.terrain_mode,
-            ] {
-                let decorator = engine
-                    .user_interface
-                    .node(mode_button)
-                    .query_component::<Button>()
-                    .unwrap()
-                    .decorator;
+                    engine.user_interface.send_message(DecoratorMessage::select(
+                        decorator,
+                        MessageDirection::ToWidget,
+                        mode_button == active_button,
+                    ));
+                }
+            }
+        }
+    }
 
-                engine.user_interface.send_message(DecoratorMessage::select(
-                    decorator,
+    pub fn on_current_scene_changed(
+        &mut self,
+        new_scene: Option<&mut EditorSceneEntry>,
+        ui: &mut UserInterface,
+    ) {
+        // Remove interaction mode buttons first.
+        for (_, button) in self.interaction_modes.drain() {
+            ui.send_message(WidgetMessage::remove(button, MessageDirection::ToWidget));
+        }
+
+        // Create new buttons for each mode.
+        if let Some(scene_entry) = new_scene {
+            for (id, mode) in scene_entry.interaction_modes.map.iter_mut() {
+                let button = mode.make_button(
+                    &mut ui.build_ctx(),
+                    scene_entry.current_interaction_mode.unwrap_or_default() == *id,
+                );
+                ui.send_message(WidgetMessage::link(
+                    button,
                     MessageDirection::ToWidget,
-                    mode_button == active_button,
+                    self.interaction_mode_panel,
                 ));
+                self.interaction_modes.insert(*id, button);
             }
         }
     }
@@ -537,36 +385,20 @@ impl SceneViewer {
         let ui = &engine.user_interface;
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
-            if message.destination() == self.scale_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Scale));
-            } else if message.destination() == self.rotate_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Rotate));
-            } else if message.destination() == self.move_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Move));
-            } else if message.destination() == self.select_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Select));
-            } else if message.destination() == self.navmesh_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Navmesh));
-            } else if message.destination() == self.terrain_mode {
-                self.sender
-                    .send(Message::SetInteractionMode(InteractionModeKind::Terrain));
-            } else if message.destination() == self.play {
-                self.sender.send(Message::SwitchToBuildMode);
-            } else if message.destination() == self.stop {
-                self.sender.send(Message::SwitchToEditMode);
+            for (mode_id, mode_button) in self.interaction_modes.iter() {
+                if message.destination() == *mode_button {
+                    self.sender.send(Message::SetInteractionMode(*mode_id));
+                }
             }
         } else if let Some(WidgetMessage::MouseDown { button, .. }) =
             message.data::<WidgetMessage>()
         {
-            if ui.is_node_child_of(message.destination(), self.move_mode)
-                && *button == MouseButton::Right
-            {
-                self.sender.send(Message::OpenSettings);
+            for &mode_button in self.interaction_modes.values() {
+                if ui.is_node_child_of(message.destination(), mode_button)
+                    && *button == MouseButton::Right
+                {
+                    self.sender.send(Message::OpenSettings);
+                }
             }
         } else if let Some(DropdownListMessage::SelectionChanged(Some(index))) = message.data() {
             if message.direction == MessageDirection::FromWidget {
@@ -597,23 +429,19 @@ impl SceneViewer {
                 match msg {
                     TabControlMessage::CloseTab(tab_index) => {
                         if let Some(entry) = scenes.try_get(*tab_index) {
-                            if entry.editor_scene.need_save() {
+                            if entry.need_save() {
                                 self.sender.send(Message::OpenSaveSceneConfirmationDialog {
-                                    scene: entry.editor_scene.scene,
-                                    action: SaveSceneConfirmationDialogAction::CloseScene(
-                                        entry.editor_scene.scene,
-                                    ),
+                                    id: entry.id,
+                                    action: SaveSceneConfirmationDialogAction::CloseScene(entry.id),
                                 });
                             } else {
-                                self.sender
-                                    .send(Message::CloseScene(entry.editor_scene.scene));
+                                self.sender.send(Message::CloseScene(entry.id));
                             }
                         }
                     }
                     TabControlMessage::ActiveTab(Some(active_tab)) => {
                         if let Some(entry) = scenes.try_get(*active_tab) {
-                            self.sender
-                                .send(Message::SetCurrentScene(entry.editor_scene.scene));
+                            self.sender.send(Message::SetCurrentScene(entry.id));
                         }
                     }
                     _ => (),
@@ -622,230 +450,104 @@ impl SceneViewer {
         }
 
         if let Some(entry) = scenes.current_scene_entry_mut() {
-            let editor_scene = &mut entry.editor_scene;
-            let interaction_mode = entry
-                .current_interaction_mode
-                .and_then(|i| entry.interaction_modes.get_mut(i as usize));
-
             if let (Some(msg), Mode::Edit) = (message.data::<WidgetMessage>(), mode) {
                 if message.destination() == self.frame() {
+                    let screen_bounds = self.frame_bounds(&engine.user_interface);
                     match *msg {
-                        WidgetMessage::MouseDown { button, pos, .. } => self.on_mouse_down(
-                            button,
-                            pos,
-                            editor_scene,
-                            interaction_mode,
-                            engine,
-                            settings,
-                        ),
-                        WidgetMessage::MouseUp { button, pos, .. } => self.on_mouse_up(
-                            button,
-                            pos,
-                            editor_scene,
-                            interaction_mode,
-                            engine,
-                            settings,
-                        ),
-                        WidgetMessage::MouseWheel { amount, .. } => {
-                            editor_scene.camera_controller.on_mouse_wheel(
-                                amount * settings.camera.zoom_speed,
-                                &mut engine.scenes[editor_scene.scene].graph,
-                                settings,
-                            );
+                        WidgetMessage::MouseDown { button, pos, .. } => {
+                            engine.user_interface.capture_mouse(self.frame());
+
+                            entry.on_mouse_down(button, pos, screen_bounds, engine, settings)
                         }
-                        WidgetMessage::MouseMove { pos, .. } => self.on_mouse_move(
-                            pos,
-                            editor_scene,
-                            interaction_mode,
-                            engine,
-                            settings,
-                        ),
+                        WidgetMessage::MouseUp { button, pos, .. } => {
+                            engine.user_interface.release_mouse_capture();
+
+                            entry.on_mouse_up(button, pos, screen_bounds, engine, settings)
+                        }
+                        WidgetMessage::MouseWheel { amount, .. } => {
+                            entry.on_mouse_wheel(amount, engine, settings);
+                        }
+                        WidgetMessage::MouseMove { pos, .. } => {
+                            entry.on_mouse_move(pos, screen_bounds, engine, settings)
+                        }
                         WidgetMessage::KeyUp(key) => {
-                            if self.on_key_up(
-                                key,
-                                editor_scene,
-                                interaction_mode,
-                                engine,
-                                &settings.key_bindings,
-                            ) {
+                            if entry.on_key_up(key, engine, &settings.key_bindings) {
                                 message.set_handled(true);
                             }
                         }
                         WidgetMessage::KeyDown(key) => {
-                            if self.on_key_down(
-                                key,
-                                editor_scene,
-                                interaction_mode,
-                                engine,
-                                &settings.key_bindings,
-                            ) {
+                            if entry.on_key_down(key, engine, &settings.key_bindings) {
                                 message.set_handled(true);
                             }
                         }
                         WidgetMessage::MouseLeave => {
-                            if let Some(preview) = self.preview_instance.take() {
-                                let scene = &mut engine.scenes[editor_scene.scene];
-
-                                scene.graph.remove_node(preview.instance);
-                            }
+                            entry.on_mouse_leave(engine, settings);
                         }
                         WidgetMessage::DragOver(handle) => {
-                            match self.preview_instance.as_ref() {
-                                None => {
-                                    if let Some(item) =
-                                        engine.user_interface.node(handle).cast::<AssetItem>()
-                                    {
-                                        // Make sure all resources loaded with relative paths only.
-                                        // This will make scenes portable.
-                                        if let Ok(relative_path) = make_relative_path(&item.path) {
-                                            // No model was loaded yet, do it.
-                                            if let Some(model) = engine
-                                                .resource_manager
-                                                .try_request::<Model>(relative_path)
-                                                .and_then(|m| block_on(m).ok())
-                                            {
-                                                let scene = &mut engine.scenes[editor_scene.scene];
-
-                                                // Instantiate the model.
-                                                let instance = model.instantiate(scene);
-
-                                                scene.graph.link_nodes(
-                                                    instance,
-                                                    editor_scene.scene_content_root,
-                                                );
-
-                                                scene.graph[instance]
-                                                    .local_transform_mut()
-                                                    .set_scale(settings.model.instantiation_scale);
-
-                                                let nodes = scene
-                                                    .graph
-                                                    .traverse_handle_iter(instance)
-                                                    .collect::<FxHashSet<Handle<Node>>>();
-
-                                                self.preview_instance =
-                                                    Some(PreviewInstance { instance, nodes });
-                                            }
-                                        }
-                                    }
-                                }
-                                Some(preview) => {
-                                    let screen_bounds = self.frame_bounds(&engine.user_interface);
-                                    let frame_size = screen_bounds.size;
-                                    let cursor_pos = engine.user_interface.cursor_position();
-                                    let rel_pos = cursor_pos - screen_bounds.position;
-                                    let graph = &mut engine.scenes[editor_scene.scene].graph;
-
-                                    let position = if let Some(result) =
-                                        editor_scene.camera_controller.pick(PickingOptions {
-                                            cursor_pos: rel_pos,
-                                            graph,
-                                            editor_objects_root: editor_scene.editor_objects_root,
-                                            scene_content_root: editor_scene.scene_content_root,
-                                            screen_size: frame_size,
-                                            editor_only: false,
-                                            filter: |handle, _| !preview.nodes.contains(&handle),
-                                            ignore_back_faces: settings.selection.ignore_back_faces,
-                                            // We need info only about closest intersection.
-                                            use_picking_loop: false,
-                                            only_meshes: false,
-                                        }) {
-                                        Some(result.position)
-                                    } else {
-                                        // In case of empty space, check intersection with oXZ plane (3D) or oXY (2D).
-                                        let camera = graph[editor_scene.camera_controller.camera]
-                                            .query_component_ref::<Camera>()
-                                            .unwrap();
-
-                                        let normal = match camera.projection() {
-                                            Projection::Perspective(_) => {
-                                                Vector3::new(0.0, 1.0, 0.0)
-                                            }
-                                            Projection::Orthographic(_) => {
-                                                Vector3::new(0.0, 0.0, 1.0)
-                                            }
-                                        };
-
-                                        let plane = Plane::from_normal_and_point(
-                                            &normal,
-                                            &Default::default(),
-                                        )
-                                        .unwrap_or_default();
-
-                                        let ray = camera.make_ray(rel_pos, frame_size);
-
-                                        ray.plane_intersection_point(&plane)
-                                    };
-
-                                    if let Some(position) = position {
-                                        graph[preview.instance].local_transform_mut().set_position(
-                                            settings
-                                                .move_mode_settings
-                                                .try_snap_vector_to_grid(position),
-                                        );
-                                    }
-                                }
-                            }
+                            entry.on_drag_over(handle, screen_bounds, engine, settings);
                         }
                         WidgetMessage::Drop(handle) => {
-                            self.on_drop(handle, engine, editor_scene, settings)
+                            entry.on_drop(handle, screen_bounds, engine, settings);
                         }
                         _ => {}
                     }
                 } else if message.destination() == self.scene_gizmo_image {
-                    match *msg {
-                        WidgetMessage::MouseDown { button, pos, .. } => {
-                            if button == MouseButton::Left {
+                    if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
+                        match *msg {
+                            WidgetMessage::MouseDown { button, pos, .. } => {
+                                if button == MouseButton::Left {
+                                    let rel_pos = pos
+                                        - engine
+                                            .user_interface
+                                            .node(self.scene_gizmo_image)
+                                            .screen_position();
+                                    if let Some(action) = self.scene_gizmo.on_click(rel_pos, engine)
+                                    {
+                                        match action {
+                                            SceneGizmoAction::Rotate(rotation) => {
+                                                game_scene.camera_controller.pitch = rotation.pitch;
+                                                game_scene.camera_controller.yaw = rotation.yaw;
+                                            }
+                                            SceneGizmoAction::SwitchProjection => {
+                                                let graph = &engine.scenes[game_scene.scene].graph;
+                                                match graph[game_scene.camera_controller.camera]
+                                                    .as_camera()
+                                                    .projection()
+                                                {
+                                                    Projection::Perspective(_) => {
+                                                        ui.send_message(
+                                                            DropdownListMessage::selection(
+                                                                self.camera_projection,
+                                                                MessageDirection::ToWidget,
+                                                                Some(1),
+                                                            ),
+                                                        );
+                                                    }
+                                                    Projection::Orthographic(_) => {
+                                                        ui.send_message(
+                                                            DropdownListMessage::selection(
+                                                                self.camera_projection,
+                                                                MessageDirection::ToWidget,
+                                                                Some(0),
+                                                            ),
+                                                        );
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            WidgetMessage::MouseMove { pos, .. } => {
                                 let rel_pos = pos
                                     - engine
                                         .user_interface
                                         .node(self.scene_gizmo_image)
                                         .screen_position();
-                                if let Some(action) = self.scene_gizmo.on_click(rel_pos, engine) {
-                                    match action {
-                                        SceneGizmoAction::Rotate(rotation) => {
-                                            editor_scene.camera_controller.pitch = rotation.pitch;
-                                            editor_scene.camera_controller.yaw = rotation.yaw;
-                                        }
-                                        SceneGizmoAction::SwitchProjection => {
-                                            let graph = &engine.scenes[editor_scene.scene].graph;
-                                            match graph[editor_scene.camera_controller.camera]
-                                                .as_camera()
-                                                .projection()
-                                            {
-                                                Projection::Perspective(_) => {
-                                                    ui.send_message(
-                                                        DropdownListMessage::selection(
-                                                            self.camera_projection,
-                                                            MessageDirection::ToWidget,
-                                                            Some(1),
-                                                        ),
-                                                    );
-                                                }
-                                                Projection::Orthographic(_) => {
-                                                    ui.send_message(
-                                                        DropdownListMessage::selection(
-                                                            self.camera_projection,
-                                                            MessageDirection::ToWidget,
-                                                            Some(0),
-                                                        ),
-                                                    );
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
+                                self.scene_gizmo.on_mouse_move(rel_pos, engine);
                             }
+                            _ => (),
                         }
-                        WidgetMessage::MouseMove { pos, .. } => {
-                            let rel_pos = pos
-                                - engine
-                                    .user_interface
-                                    .node(self.scene_gizmo_image)
-                                    .screen_position();
-                            self.scene_gizmo.on_mouse_move(rel_pos, engine);
-                        }
-                        _ => (),
                     }
                 }
             }
@@ -854,12 +556,12 @@ impl SceneViewer {
 
     pub fn sync_to_model(&self, scenes: &SceneContainer, engine: &mut Engine) {
         // Sync tabs first.
-        fn fetch_tab_scene_handle(tab: &Tab) -> Handle<Scene> {
+        fn fetch_tab_id(tab: &Tab) -> Uuid {
             tab.user_data
                 .as_ref()
                 .unwrap()
                 .0
-                .downcast_ref::<Handle<Scene>>()
+                .downcast_ref::<Uuid>()
                 .cloned()
                 .unwrap()
         }
@@ -875,10 +577,7 @@ impl SceneViewer {
             Ordering::Less => {
                 // Some scenes were added.
                 for entry in scenes.iter() {
-                    if tabs
-                        .iter()
-                        .all(|tab| fetch_tab_scene_handle(tab) != entry.editor_scene.scene)
-                    {
+                    if tabs.iter().all(|tab| fetch_tab_id(tab) != entry.id) {
                         let header =
                             TextBuilder::new(WidgetBuilder::new().with_margin(Thickness {
                                 left: 4.0,
@@ -886,7 +585,7 @@ impl SceneViewer {
                                 right: 4.0,
                                 bottom: 2.0,
                             }))
-                            .with_text(entry.editor_scene.name())
+                            .with_text(entry.name())
                             .build(&mut engine.user_interface.build_ctx());
 
                         send_sync_message(
@@ -898,7 +597,7 @@ impl SceneViewer {
                                     header,
                                     content: Default::default(),
                                     can_be_closed: true,
-                                    user_data: Some(TabUserData::new(entry.editor_scene.scene)),
+                                    user_data: Some(TabUserData::new(entry.id)),
                                 },
                             ),
                         );
@@ -911,8 +610,8 @@ impl SceneViewer {
             Ordering::Greater => {
                 // Some scenes were removed.
                 for (tab_index, tab) in tabs.iter().enumerate() {
-                    let tab_scene = fetch_tab_scene_handle(tab);
-                    if scenes.iter().all(|s| tab_scene != s.editor_scene.scene) {
+                    let tab_scene = fetch_tab_id(tab);
+                    if scenes.iter().all(|s| tab_scene != s.id) {
                         send_sync_message(
                             &engine.user_interface,
                             TabControlMessage::remove_tab(
@@ -927,18 +626,14 @@ impl SceneViewer {
         }
 
         for tab in tabs.iter() {
-            if let Some(scene) = scenes.entry_by_scene_handle(fetch_tab_scene_handle(tab)) {
+            if let Some(scene) = scenes.entry_by_scene_id(fetch_tab_id(tab)) {
                 engine.user_interface.send_message(TextMessage::text(
                     tab.header_content,
                     MessageDirection::ToWidget,
                     format!(
                         "{}{}",
-                        scene.editor_scene.name(),
-                        if scene.editor_scene.need_save() {
-                            "*"
-                        } else {
-                            ""
-                        }
+                        scene.name(),
+                        if scene.need_save() { "*" } else { "" }
                     ),
                 ));
             }
@@ -954,14 +649,12 @@ impl SceneViewer {
         );
 
         // Then sync to the current scene.
-        if let Some(editor_scene) = scenes.current_editor_scene_ref() {
-            let scene = &engine.scenes[editor_scene.scene];
-
+        if let Some(entry) = scenes.current_scene_entry_ref() {
             self.set_title(
                 &engine.user_interface,
                 format!(
                     "Scene Preview - {}",
-                    editor_scene
+                    entry
                         .path
                         .as_ref()
                         .map_or("Unnamed Scene".to_string(), |p| p
@@ -972,10 +665,14 @@ impl SceneViewer {
 
             self.set_render_target(
                 &engine.user_interface,
-                scene.rendering_options.render_target.clone(),
+                entry.controller.render_target(engine),
             );
 
-            if let Selection::Graph(ref selection) = editor_scene.selection {
+            if let (Some(game_scene), Selection::Graph(selection)) = (
+                entry.controller.downcast_ref::<GameScene>(),
+                &entry.selection,
+            ) {
+                let scene = &engine.scenes[game_scene.scene];
                 if let Some((_, position)) = selection.global_rotation_position(&scene.graph) {
                     engine.user_interface.send_message(Vec3EditorMessage::value(
                         self.global_position_display,
@@ -991,7 +688,7 @@ impl SceneViewer {
             WidgetMessage::visibility(
                 self.no_scene_reminder,
                 MessageDirection::ToWidget,
-                scenes.current_editor_scene_ref().is_none(),
+                scenes.current_scene_controller_ref().is_none(),
             ),
         );
     }
@@ -1043,225 +740,7 @@ impl SceneViewer {
         ui.node(self.frame).screen_bounds()
     }
 
-    #[must_use]
-    fn on_key_up(
-        &mut self,
-        key: KeyCode,
-        editor_scene: &mut EditorScene,
-        active_interaction_mode: Option<&mut Box<dyn InteractionMode>>,
-        engine: &mut Engine,
-        key_bindings: &KeyBindings,
-    ) -> bool {
-        if editor_scene.camera_controller.on_key_up(key_bindings, key) {
-            return true;
-        }
-
-        if let Some(interaction_mode) = active_interaction_mode {
-            if interaction_mode.on_key_up(key, editor_scene, engine) {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    #[must_use]
-    fn on_key_down(
-        &mut self,
-        key: KeyCode,
-        editor_scene: &mut EditorScene,
-        active_interaction_mode: Option<&mut Box<dyn InteractionMode>>,
-        engine: &mut Engine,
-        key_bindings: &KeyBindings,
-    ) -> bool {
-        if editor_scene
-            .camera_controller
-            .on_key_down(key_bindings, key)
-        {
-            return true;
-        }
-
-        if let Some(interaction_mode) = active_interaction_mode {
-            if interaction_mode.on_key_down(key, editor_scene, engine) {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    fn on_mouse_move(
-        &mut self,
-        pos: Vector2<f32>,
-        editor_scene: &mut EditorScene,
-        active_interaction_mode: Option<&mut Box<dyn InteractionMode>>,
-        engine: &mut Engine,
-        settings: &Settings,
-    ) {
-        let screen_bounds = self.frame_bounds(&engine.user_interface);
-
-        let last_pos = *self.last_mouse_pos.get_or_insert(pos);
-        let mouse_offset = pos - last_pos;
-        editor_scene
-            .camera_controller
-            .on_mouse_move(mouse_offset, &settings.camera);
-        let rel_pos = pos - screen_bounds.position;
-
-        if let Some(interaction_mode) = active_interaction_mode {
-            interaction_mode.on_mouse_move(
-                mouse_offset,
-                rel_pos,
-                editor_scene.camera_controller.camera,
-                editor_scene,
-                engine,
-                screen_bounds.size,
-                settings,
-            );
-        }
-
-        self.last_mouse_pos = Some(pos);
-    }
-
-    fn on_mouse_up(
-        &mut self,
-        button: MouseButton,
-        pos: Vector2<f32>,
-        editor_scene: &mut EditorScene,
-        active_interaction_mode: Option<&mut Box<dyn InteractionMode>>,
-        engine: &mut Engine,
-        settings: &Settings,
-    ) {
-        engine.user_interface.release_mouse_capture();
-
-        let screen_bounds = self.frame_bounds(&engine.user_interface);
-
-        if button == MouseButton::Left {
-            self.click_mouse_pos = None;
-            if let Some(current_im) = active_interaction_mode {
-                let rel_pos = pos - screen_bounds.position;
-                current_im.on_left_mouse_button_up(
-                    editor_scene,
-                    engine,
-                    rel_pos,
-                    screen_bounds.size,
-                    settings,
-                );
-            }
-        }
-
-        editor_scene
-            .camera_controller
-            .on_mouse_button_up(button, &mut engine.scenes[editor_scene.scene].graph);
-    }
-
-    fn on_mouse_down(
-        &mut self,
-        button: MouseButton,
-        pos: Vector2<f32>,
-        editor_scene: &mut EditorScene,
-        active_interaction_mode: Option<&mut Box<dyn InteractionMode>>,
-        engine: &mut Engine,
-        settings: &Settings,
-    ) {
-        engine.user_interface.capture_mouse(self.frame());
-
-        let screen_bounds = self.frame_bounds(&engine.user_interface);
-
-        if button == MouseButton::Left {
-            if let Some(current_im) = active_interaction_mode {
-                let rel_pos = pos - screen_bounds.position;
-
-                self.click_mouse_pos = Some(rel_pos);
-
-                current_im.on_left_mouse_button_down(
-                    editor_scene,
-                    engine,
-                    rel_pos,
-                    screen_bounds.size,
-                    settings,
-                );
-            }
-        }
-
-        editor_scene.camera_controller.on_mouse_button_down(
-            button,
-            engine.user_interface.keyboard_modifiers(),
-            &mut engine.scenes[editor_scene.scene].graph,
-        );
-    }
-
-    fn on_drop(
-        &mut self,
-        handle: Handle<UiNode>,
-        engine: &mut Engine,
-        editor_scene: &mut EditorScene,
-        settings: &Settings,
-    ) {
-        if handle.is_none() {
-            return;
-        }
-
-        let screen_bounds = self.frame_bounds(&engine.user_interface);
-        let frame_size = screen_bounds.size;
-
-        if let Some(item) = engine.user_interface.node(handle).cast::<AssetItem>() {
-            // Make sure all resources loaded with relative paths only.
-            // This will make scenes portable.
-            if let Ok(relative_path) = make_relative_path(&item.path) {
-                if let Some(preview) = self.preview_instance.take() {
-                    let scene = &mut engine.scenes[editor_scene.scene];
-
-                    // Immediately after extract if from the scene to subgraph. This is required to not violate
-                    // the rule of one place of execution, only commands allowed to modify the scene.
-                    let sub_graph = scene.graph.take_reserve_sub_graph(preview.instance);
-
-                    let group = vec![
-                        SceneCommand::new(AddModelCommand::new(sub_graph)),
-                        // We also want to select newly instantiated model.
-                        SceneCommand::new(ChangeSelectionCommand::new(
-                            Selection::Graph(GraphSelection::single_or_empty(preview.instance)),
-                            editor_scene.selection.clone(),
-                        )),
-                    ];
-
-                    self.sender.do_scene_command(CommandGroup::from(group));
-                } else if let Some(tex) = engine
-                    .resource_manager
-                    .try_request::<Texture>(relative_path)
-                    .and_then(|t| block_on(t).ok())
-                {
-                    let cursor_pos = engine.user_interface.cursor_position();
-                    let rel_pos = cursor_pos - screen_bounds.position;
-                    let graph = &engine.scenes[editor_scene.scene].graph;
-                    if let Some(result) = editor_scene.camera_controller.pick(PickingOptions {
-                        cursor_pos: rel_pos,
-                        graph,
-                        editor_objects_root: editor_scene.editor_objects_root,
-                        scene_content_root: editor_scene.scene_content_root,
-                        screen_size: frame_size,
-                        editor_only: false,
-                        filter: |_, _| true,
-                        ignore_back_faces: settings.selection.ignore_back_faces,
-                        use_picking_loop: true,
-                        only_meshes: false,
-                    }) {
-                        let texture = tex.clone();
-                        let mut texture = texture.state();
-                        if texture.data().is_some() {
-                            let node = &mut engine.scenes[editor_scene.scene].graph[result.node];
-
-                            if node.is_mesh() {
-                                self.sender
-                                    .do_scene_command(SetMeshTextureCommand::new(result.node, tex));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    pub fn update(&self, editor_scene: &EditorScene, engine: &mut Engine) {
-        self.scene_gizmo.sync_rotations(editor_scene, engine);
+    pub fn update(&self, game_scene: &GameScene, engine: &mut Engine) {
+        self.scene_gizmo.sync_rotations(game_scene, engine);
     }
 }

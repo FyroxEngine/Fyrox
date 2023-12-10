@@ -3,6 +3,8 @@ use crate::{
     Message,
 };
 use fyrox::asset::state::LoadError;
+use fyrox::core::uuid::{uuid, Uuid};
+use fyrox::core::TypeUuidProvider;
 use fyrox::{
     asset::{manager::ResourceManager, Resource, TypedResourceData},
     core::{
@@ -142,6 +144,12 @@ where
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
+    }
+}
+
+impl<T: TypedResourceData> TypeUuidProvider for ResourceField<T> {
+    fn type_uuid() -> Uuid {
+        uuid!("5179b3b9-855f-43a6-b23a-831129fee1cf")
     }
 }
 

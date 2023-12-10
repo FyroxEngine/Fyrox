@@ -25,6 +25,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_core::uuid_provider;
 use rapier3d::geometry::{self, ColliderHandle};
 use std::{
     cell::Cell,
@@ -173,6 +174,8 @@ impl Default for TriangleShape {
 #[derive(Default, Clone, Copy, PartialEq, Hash, Debug, Visit, Reflect, Eq)]
 pub struct GeometrySource(pub Handle<Node>);
 
+uuid_provider!(GeometrySource = "6fea7c72-c488-48a1-935f-2752a8a10e9a");
+
 /// Arbitrary triangle mesh shape.
 #[derive(Default, Clone, Debug, Visit, Reflect, PartialEq, Eq)]
 pub struct TrimeshShape {
@@ -197,6 +200,8 @@ pub struct ConvexPolyhedronShape {
 /// A set of bits used for pairwise collision filtering.
 #[derive(Clone, Copy, Default, PartialEq, Debug, Reflect, Eq)]
 pub struct BitMask(pub u32);
+
+uuid_provider!(BitMask = "f2db0c2a-921b-4728-9ce4-2506d95c60fa");
 
 impl Visit for BitMask {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
@@ -359,6 +364,8 @@ pub enum ColliderShape {
     /// See [`ConvexPolyhedronShape`] docs.
     Polyhedron(ConvexPolyhedronShape),
 }
+
+uuid_provider!(ColliderShape = "2e627337-71ea-4b33-a5f1-be697f705a86");
 
 impl Default for ColliderShape {
     fn default() -> Self {

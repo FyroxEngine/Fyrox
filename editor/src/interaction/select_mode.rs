@@ -1,11 +1,16 @@
+use crate::interaction::make_interaction_mode_button;
+use crate::scene::controller::SceneController;
 use crate::{
     interaction::InteractionMode,
     message::MessageSender,
-    scene::{commands::ChangeSelectionCommand, EditorScene, Selection},
+    scene::{commands::ChangeSelectionCommand, GameScene, Selection},
     settings::Settings,
     world::graph::selection::GraphSelection,
     Engine,
 };
+use fyrox::core::uuid::{uuid, Uuid};
+use fyrox::core::TypeUuidProvider;
+use fyrox::gui::BuildContext;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle},
     gui::{message::MessageDirection, widget::WidgetMessage, UiNode},
@@ -36,10 +41,17 @@ impl SelectInteractionMode {
     }
 }
 
+impl TypeUuidProvider for SelectInteractionMode {
+    fn type_uuid() -> Uuid {
+        uuid!("bab9ce8c-d679-4c49-beb9-f5a8482e0678")
+    }
+}
+
 impl InteractionMode for SelectInteractionMode {
     fn on_left_mouse_button_down(
         &mut self,
-        _editor_scene: &mut EditorScene,
+        _editor_selection: &Selection,
+        _controller: &mut dyn SceneController,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
@@ -71,14 +83,19 @@ impl InteractionMode for SelectInteractionMode {
 
     fn on_left_mouse_button_up(
         &mut self,
-        editor_scene: &mut EditorScene,
+        editor_selection: &Selection,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         _mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        let scene = &engine.scenes[editor_scene.scene];
-        let camera = scene.graph[editor_scene.camera_controller.camera].as_camera();
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
+            return;
+        };
+
+        let scene = &engine.scenes[game_scene.scene];
+        let camera = scene.graph[game_scene.camera_controller.camera].as_camera();
         let preview_screen_bounds = engine.user_interface.node(self.preview).screen_bounds();
         let frame_screen_bounds = engine
             .user_interface
@@ -90,7 +107,7 @@ impl InteractionMode for SelectInteractionMode {
         let mut graph_selection = GraphSelection::default();
         while let Some(handle) = self.stack.pop() {
             let node = &scene.graph[handle];
-            if handle == editor_scene.editor_objects_root {
+            if handle == game_scene.editor_objects_root {
                 continue;
             }
             if handle == scene.graph.get_root() {
@@ -115,11 +132,11 @@ impl InteractionMode for SelectInteractionMode {
 
         let new_selection = Selection::Graph(graph_selection);
 
-        if new_selection != editor_scene.selection {
+        if &new_selection != editor_selection {
             self.message_sender
                 .do_scene_command(ChangeSelectionCommand::new(
                     new_selection,
-                    editor_scene.selection.clone(),
+                    editor_selection.clone(),
                 ));
         }
         engine
@@ -135,8 +152,8 @@ impl InteractionMode for SelectInteractionMode {
         &mut self,
         _mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
-        _camera: Handle<Node>,
-        _editor_scene: &mut EditorScene,
+        _editor_selection: &Selection,
+        _controller: &mut dyn SceneController,
         engine: &mut Engine,
         _frame_size: Vector2<f32>,
         _settings: &Settings,
@@ -176,12 +193,29 @@ impl InteractionMode for SelectInteractionMode {
 
     fn update(
         &mut self,
-        _editor_scene: &mut EditorScene,
-        _camera: Handle<Node>,
+        _editor_selection: &Selection,
+        _controller: &mut dyn SceneController,
         _engine: &mut Engine,
         _settings: &Settings,
     ) {
     }
 
-    fn deactivate(&mut self, _editor_scene: &EditorScene, _engine: &mut Engine) {}
+    fn deactivate(&mut self, _controller: &dyn SceneController, _engine: &mut Engine) {}
+
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
+        let select_mode_tooltip = "Select Object(s) - Shortcut: [1]\n\nSelection interaction mode \
+        allows you to select an object by a single left mouse button click or multiple objects using either \
+        frame selection (click and drag) or by holding Ctrl+Click";
+
+        make_interaction_mode_button(
+            ctx,
+            include_bytes!("../../resources/select.png"),
+            select_mode_tooltip,
+            selected,
+        )
+    }
+
+    fn uuid(&self) -> Uuid {
+        Self::type_uuid()
+    }
 }

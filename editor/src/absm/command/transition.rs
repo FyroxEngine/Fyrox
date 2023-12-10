@@ -1,8 +1,8 @@
 use crate::{
     absm::command::fetch_machine,
-    command::Command,
+    command::GameSceneCommandTrait,
     define_universal_commands,
-    scene::commands::{SceneCommand, SceneContext},
+    scene::commands::{GameSceneCommand, GameSceneContext},
 };
 use fyrox::{
     animation::machine::transition::Transition,
@@ -12,9 +12,9 @@ use fyrox::{
 
 define_universal_commands!(
     make_set_transition_property_command,
-    Command,
-    SceneCommand,
-    SceneContext,
+    GameSceneCommandTrait,
+    GameSceneCommand,
+    GameSceneContext,
     Handle<Transition>,
     ctx,
     handle,

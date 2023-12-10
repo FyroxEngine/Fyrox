@@ -1,4 +1,5 @@
 use crate::utils::make_node_name;
+use fyrox::core::uuid_provider;
 use fyrox::gui::scroll_viewer::ScrollViewerMessage;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle},
@@ -142,6 +143,8 @@ fn apply_filter_recursive(node: Handle<UiNode>, filter: &str, ui: &UserInterface
 
     is_any_match
 }
+
+uuid_provider!(NodeSelector = "1d718f90-323c-492d-b057-98d47495900a");
 
 impl Control for NodeSelector {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -354,6 +357,8 @@ impl DerefMut for NodeSelectorWindow {
         &mut self.window.widget
     }
 }
+
+uuid_provider!(NodeSelectorWindow = "5bb00f15-d6ec-4f0e-af7e-9472b0e290b4");
 
 impl Control for NodeSelectorWindow {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

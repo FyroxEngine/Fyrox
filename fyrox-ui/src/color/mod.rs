@@ -20,6 +20,7 @@ use crate::{
     BuildContext, Control, NodeHandleMapping, Orientation, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -101,7 +102,7 @@ impl ColorFieldMessage {
     define_constructor!(ColorFieldMessage:Color => fn color(Color), layout: false);
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct AlphaBar {
     pub widget: Widget,
     pub orientation: Orientation,
@@ -228,6 +229,8 @@ pub fn draw_checker_board(
         None,
     );
 }
+
+uuid_provider!(AlphaBar = "956d4cae-7953-486b-99da-a9b852c2e144");
 
 impl Control for AlphaBar {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -370,7 +373,7 @@ impl AlphaBarBuilder {
     }
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct HueBar {
     pub widget: Widget,
     pub orientation: Orientation,
@@ -390,6 +393,8 @@ impl HueBar {
         k.clamp(0.0, 1.0) * 360.0
     }
 }
+
+uuid_provider!(HueBar = "af28f977-85e7-4c9e-9a61-7f208844acb5");
 
 impl Control for HueBar {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -527,7 +532,7 @@ impl HueBarBuilder {
     }
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct SaturationBrightnessField {
     pub widget: Widget,
     pub is_picking: bool,
@@ -550,6 +555,8 @@ impl SaturationBrightnessField {
                 * 100.0
     }
 }
+
+uuid_provider!(SaturationBrightnessField = "ab6bfad5-0c4b-42a5-8da5-fc5687b1afc7");
 
 impl Control for SaturationBrightnessField {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -733,7 +740,7 @@ impl SaturationBrightnessFieldBuilder {
     }
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct ColorPicker {
     pub widget: Widget,
     pub hue_bar: Handle<UiNode>,
@@ -809,6 +816,8 @@ impl ColorPicker {
         )));
     }
 }
+
+uuid_provider!(ColorPicker = "b7a5d650-5b77-4938-83c1-37f3fe107885");
 
 impl Control for ColorPicker {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -1168,7 +1177,7 @@ impl ColorPickerBuilder {
     }
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct ColorField {
     pub widget: Widget,
     pub popup: Handle<UiNode>,
@@ -1177,6 +1186,8 @@ pub struct ColorField {
 }
 
 crate::define_widget_deref!(ColorField);
+
+uuid_provider!(ColorField = "68dec1ac-23c6-41df-bc85-499f2a82e908");
 
 impl Control for ColorField {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

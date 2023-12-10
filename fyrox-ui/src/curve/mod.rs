@@ -24,6 +24,7 @@ use crate::{
     BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fxhash::FxHashSet;
+use fyrox_core::uuid_provider;
 use std::sync::mpsc::Sender;
 use std::{
     any::{Any, TypeId},
@@ -77,7 +78,7 @@ pub struct HighlightZone {
     pub brush: Brush,
 }
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct CurveEditor {
     widget: Widget,
     key_container: KeyContainer,
@@ -128,7 +129,7 @@ pub struct CurveEditor {
 
 crate::define_widget_deref!(CurveEditor);
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 struct ContextMenu {
     #[visit(skip)] // TODO
     #[reflect(hidden)] // TODO
@@ -197,6 +198,8 @@ impl Selection {
         Self::Keys { keys }
     }
 }
+
+uuid_provider!(CurveEditor = "5c7b087e-871e-498d-b064-187b604a37d8");
 
 impl Control for CurveEditor {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

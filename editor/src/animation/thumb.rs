@@ -2,6 +2,7 @@
 //! It is made as a separate widget to be able to draw it on top of curve editor,
 //! dope sheet and time ruler.
 
+use fyrox::core::uuid_provider;
 use fyrox::{
     core::{
         algebra::{Matrix3, Point2, Vector2},
@@ -56,6 +57,8 @@ impl Thumb {
         self.view_matrix().transform_point(&Point2::new(x, 0.0)).x
     }
 }
+
+uuid_provider!(Thumb = "820ba009-54e0-4050-ba7e-28f1f5b40429");
 
 impl Control for Thumb {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

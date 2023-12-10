@@ -1,3 +1,4 @@
+use fyrox::core::uuid_provider;
 use fyrox::{
     animation::machine::PoseNode,
     core::{algebra::Vector2, color::Color, pool::Handle},
@@ -54,6 +55,8 @@ pub struct Socket {
 define_widget_deref!(Socket);
 
 const RADIUS: f32 = 8.0;
+
+uuid_provider!(Socket = "a6c0473e-7073-4e91-a681-cf88795af52a");
 
 impl Control for Socket {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

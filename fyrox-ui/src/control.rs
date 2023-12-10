@@ -7,6 +7,7 @@ use crate::{
     widget::Widget,
     NodeHandleMapping, UiNode, UserInterface,
 };
+use fyrox_core::TypeUuidProvider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -28,9 +29,14 @@ pub trait BaseControl: 'static {
 
     /// Returns type name of the widget.
     fn type_name(&self) -> &'static str;
+
+    fn id(&self) -> Uuid;
 }
 
-impl<T: Any + Clone + 'static + Control> BaseControl for T {
+impl<T> BaseControl for T
+where
+    T: Any + Clone + 'static + Control + TypeUuidProvider,
+{
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -45,6 +51,10 @@ impl<T: Any + Clone + 'static + Control> BaseControl for T {
 
     fn type_name(&self) -> &'static str {
         std::any::type_name::<T>()
+    }
+
+    fn id(&self) -> Uuid {
+        Self::type_uuid()
     }
 }
 
@@ -68,12 +78,13 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// #     any::{Any, TypeId},
     /// #     ops::{Deref, DerefMut},
     /// # };
+    /// # use fyrox_core::uuid_provider;
     /// #
     /// # #[derive(Clone, Visit, Reflect, Debug)]
     /// # struct MyWidget {
     /// #     widget: Widget,
     /// # }
-    /// #
+    /// # uuid_provider!(MyWidget = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd");
     /// # define_widget_deref!(MyWidget);
     /// #
     /// # impl Control for MyWidget {
@@ -119,6 +130,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// #     any::{Any, TypeId},
     /// #     ops::{Deref, DerefMut},
     /// # };
+    /// # use fyrox_core::uuid_provider;
     /// #
     /// #[derive(Clone, Visit, Reflect, Debug)]
     /// struct MyWidget {
@@ -126,7 +138,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// }
     /// #
     /// # define_widget_deref!(MyWidget);
-    ///
+    /// # uuid_provider!(MyWidget = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd");
     /// impl Control for MyWidget {
     ///     # fn query_component(&self, _type_id: TypeId) -> Option<&dyn Any> {
     ///     #     todo!()
@@ -194,6 +206,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// #     any::{Any, TypeId},
     /// #     ops::{Deref, DerefMut},
     /// # };
+    /// # use fyrox_core::uuid_provider;
     /// #
     /// #[derive(Clone, Visit, Reflect, Debug)]
     /// struct MyWidget {
@@ -201,7 +214,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// }
     /// #
     /// # define_widget_deref!(MyWidget);
-    ///
+    /// # uuid_provider!(MyWidget = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd");
     /// impl Control for MyWidget {
     ///     # fn query_component(&self, _type_id: TypeId) -> Option<&dyn Any> {
     ///     #     todo!()
@@ -256,6 +269,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// #     any::{Any, TypeId},
     /// #     ops::{Deref, DerefMut},
     /// # };
+    /// # use fyrox_core::uuid_provider;
     /// #
     /// #[derive(Clone, Visit, Reflect, Debug)]
     /// struct MyWidget {
@@ -263,12 +277,11 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// }
     /// #
     /// # define_widget_deref!(MyWidget);
-    ///
+    /// # uuid_provider!(MyWidget = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd");
     /// impl Control for MyWidget {
-    ///     # fn query_component(&self, _type_id: TypeId) -> Option<&dyn Any> {
-    ///     #     todo!()
-    ///     # }
-    ///
+    /// # fn query_component(&self, _type_id: TypeId) -> Option<&dyn Any> {
+    /// #     todo!()
+    /// # }
     /// fn draw(&self, drawing_context: &mut DrawingContext) {
     ///     let bounds = self.widget.bounding_rect();
     ///
@@ -356,11 +369,5 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
         #[allow(unused_variables)] ui: &mut UserInterface,
         #[allow(unused_variables)] event: &OsEvent,
     ) {
-    }
-
-    fn id(&self) -> Uuid {
-        // TODO: This must be implemented on per-widget basis, but since there's 60+ widgets it
-        // is hard to implement in one go, so leaving this default invalid impl.
-        Default::default()
     }
 }

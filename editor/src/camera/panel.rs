@@ -1,5 +1,5 @@
 use crate::{
-    scene::{EditorScene, Selection},
+    scene::{GameScene, Selection},
     send_sync_message, Message,
 };
 use fyrox::gui::{HorizontalAlignment, Thickness};
@@ -65,18 +65,20 @@ impl CameraPreviewControlPanel {
     pub fn handle_message(
         &mut self,
         message: &Message,
-        editor_scene: &mut EditorScene,
+        editor_selection: &Selection,
+        game_scene: &mut GameScene,
         engine: &mut Engine,
     ) {
-        if let Message::DoSceneCommand(_) | Message::UndoSceneCommand | Message::RedoSceneCommand =
-            message
+        if let Message::DoGameSceneCommand(_)
+        | Message::UndoCurrentSceneCommand
+        | Message::RedoCurrentSceneCommand = message
         {
-            self.leave_preview_mode(editor_scene, engine);
+            self.leave_preview_mode(game_scene, engine);
         }
 
         if let Message::SelectionChanged { .. } = message {
-            let scene = &engine.scenes[editor_scene.scene];
-            if let Selection::Graph(ref selection) = editor_scene.selection {
+            let scene = &engine.scenes[game_scene.scene];
+            if let Selection::Graph(ref selection) = editor_selection {
                 let any_camera = selection
                     .nodes
                     .iter()
@@ -103,13 +105,18 @@ impl CameraPreviewControlPanel {
         }
     }
 
-    fn enter_preview_mode(&mut self, editor_scene: &mut EditorScene, engine: &mut Engine) {
+    fn enter_preview_mode(
+        &mut self,
+        editor_selection: &Selection,
+        game_scene: &mut GameScene,
+        engine: &mut Engine,
+    ) {
         assert!(self.cameras_state.is_empty());
 
-        let scene = &engine.scenes[editor_scene.scene];
-        let node_overrides = editor_scene.graph_switches.node_overrides.as_mut().unwrap();
+        let scene = &engine.scenes[game_scene.scene];
+        let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
 
-        if let Selection::Graph(ref new_graph_selection) = editor_scene.selection {
+        if let Selection::Graph(ref new_graph_selection) = editor_selection {
             // Enable cameras from new selection.
             for &node_handle in &new_graph_selection.nodes {
                 if scene.graph.try_get_of_type::<Camera>(node_handle).is_some() {
@@ -118,15 +125,15 @@ impl CameraPreviewControlPanel {
 
                     assert!(node_overrides.insert(node_handle));
 
-                    editor_scene.preview_camera = node_handle;
+                    game_scene.preview_camera = node_handle;
                 }
             }
         }
     }
 
-    pub fn leave_preview_mode(&mut self, editor_scene: &mut EditorScene, engine: &mut Engine) {
-        let scene = &mut engine.scenes[editor_scene.scene];
-        let node_overrides = editor_scene.graph_switches.node_overrides.as_mut().unwrap();
+    pub fn leave_preview_mode(&mut self, game_scene: &mut GameScene, engine: &mut Engine) {
+        let scene = &mut engine.scenes[game_scene.scene];
+        let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
 
         for (camera_handle, original) in self.cameras_state.drain(..) {
             scene.graph[camera_handle] = original;
@@ -134,7 +141,7 @@ impl CameraPreviewControlPanel {
             assert!(node_overrides.remove(&camera_handle));
         }
 
-        editor_scene.preview_camera = Handle::NONE;
+        game_scene.preview_camera = Handle::NONE;
 
         send_sync_message(
             &engine.user_interface,
@@ -149,7 +156,8 @@ impl CameraPreviewControlPanel {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        editor_scene: &mut EditorScene,
+        editor_selection: &Selection,
+        game_scene: &mut GameScene,
         engine: &mut Engine,
     ) {
         if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
@@ -157,9 +165,9 @@ impl CameraPreviewControlPanel {
                 && message.direction() == MessageDirection::FromWidget
             {
                 if *value {
-                    self.enter_preview_mode(editor_scene, engine);
+                    self.enter_preview_mode(editor_selection, game_scene, engine);
                 } else {
-                    self.leave_preview_mode(editor_scene, engine);
+                    self.leave_preview_mode(game_scene, engine);
                 }
             }
         }

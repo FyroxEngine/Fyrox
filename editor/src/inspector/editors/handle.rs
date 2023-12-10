@@ -5,6 +5,7 @@ use crate::{
     world::graph::item::SceneItem,
     Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox::core::uuid_provider;
 use fyrox::{
     core::{color::Color, pool::Handle},
     core::{reflect::prelude::*, visitor::prelude::*},
@@ -95,6 +96,8 @@ impl DerefMut for HandlePropertyEditor {
         &mut self.widget
     }
 }
+
+uuid_provider!(HandlePropertyEditor = "3ceca8c1-c365-4f03-a413-062f8f3cd685");
 
 impl Control for HandlePropertyEditor {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -192,14 +195,13 @@ impl Control for HandlePropertyEditor {
                     ui.send_message(HandlePropertyEditorMessage::value(
                         self.handle(),
                         MessageDirection::ToWidget,
-                        item.entity_handle,
+                        item.entity_handle.into(),
                     ))
                 }
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination == self.locate {
                 self.sender.send(Message::LocateObject {
-                    type_id: TypeId::of::<Node>(),
                     handle: self.value.into(),
                 });
             } else if message.destination == self.select {

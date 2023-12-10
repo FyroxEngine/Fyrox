@@ -1,4 +1,4 @@
-use crate::{command::Command, scene::commands::SceneContext};
+use crate::{command::GameSceneCommandTrait, scene::commands::GameSceneContext};
 use fyrox::{
     animation::machine::{LayerMask, Machine, MachineLayer, PoseNode, State, Transition},
     core::{
@@ -48,12 +48,12 @@ macro_rules! define_spawn_command {
             }
         }
 
-        impl Command for $name {
-            fn name(&mut self, _context: &SceneContext) -> String {
+        impl GameSceneCommandTrait for $name {
+            fn name(&mut self, _context: &GameSceneContext) -> String {
                 "Add State".to_string()
             }
 
-            fn execute(&mut self, context: &mut SceneContext) {
+            fn execute(&mut self, context: &mut GameSceneContext) {
                 match std::mem::replace(self, $name::Unknown) {
                     $name::NonExecuted {
                         node_handle,
@@ -86,7 +86,7 @@ macro_rules! define_spawn_command {
                 }
             }
 
-            fn revert(&mut self, context: &mut SceneContext) {
+            fn revert(&mut self, context: &mut GameSceneContext) {
                 match std::mem::replace(self, $name::Unknown) {
                     $name::Executed {
                         node_handle,
@@ -108,7 +108,7 @@ macro_rules! define_spawn_command {
                 }
             }
 
-            fn finalize(&mut self, context: &mut SceneContext) {
+            fn finalize(&mut self, context: &mut GameSceneContext) {
                 if let $name::Reverted {
                     node_handle,
                     layer_index,
@@ -160,19 +160,22 @@ impl AddStateCommand {
     }
 }
 
-fn fetch_machine<'a>(context: &'a mut SceneContext, node_handle: Handle<Node>) -> &'a mut Machine {
+fn fetch_machine<'a>(
+    context: &'a mut GameSceneContext,
+    node_handle: Handle<Node>,
+) -> &'a mut Machine {
     context.scene.graph[node_handle]
         .query_component_mut::<AnimationBlendingStateMachine>()
         .unwrap()
         .machine_mut()
 }
 
-impl Command for AddStateCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for AddStateCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Add State".to_string()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         match std::mem::replace(self, AddStateCommand::Unknown) {
             AddStateCommand::NonExecuted {
                 node_handle,
@@ -227,7 +230,7 @@ impl Command for AddStateCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         match std::mem::replace(self, AddStateCommand::Unknown) {
             AddStateCommand::Executed {
                 node_handle,
@@ -254,7 +257,7 @@ impl Command for AddStateCommand {
         }
     }
 
-    fn finalize(&mut self, context: &mut SceneContext) {
+    fn finalize(&mut self, context: &mut GameSceneContext) {
         if let AddStateCommand::Reverted {
             node_handle,
             layer_index,
@@ -302,12 +305,12 @@ impl AddPoseNodeCommand {
     }
 }
 
-impl Command for AddPoseNodeCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for AddPoseNodeCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Add Pose Node".to_string()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         match std::mem::replace(self, AddPoseNodeCommand::Unknown) {
             AddPoseNodeCommand::NonExecuted {
                 node_handle,
@@ -363,7 +366,7 @@ impl Command for AddPoseNodeCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         match std::mem::replace(self, AddPoseNodeCommand::Unknown) {
             AddPoseNodeCommand::Executed {
                 node_handle,
@@ -388,7 +391,7 @@ impl Command for AddPoseNodeCommand {
         }
     }
 
-    fn finalize(&mut self, context: &mut SceneContext) {
+    fn finalize(&mut self, context: &mut GameSceneContext) {
         if let AddPoseNodeCommand::Reverted {
             node_handle,
             layer_index,
@@ -437,23 +440,23 @@ macro_rules! define_move_command {
                 position
             }
 
-            fn set_position(&self, context: &mut SceneContext, position: Vector2<f32>) {
+            fn set_position(&self, context: &mut GameSceneContext, position: Vector2<f32>) {
                 let machine = fetch_machine(context, self.absm_node_handle);
                 machine.layers_mut()[self.layer_index].$container()[self.node].position = position;
             }
         }
 
-        impl Command for $name {
-            fn name(&mut self, _context: &SceneContext) -> String {
+        impl GameSceneCommandTrait for $name {
+            fn name(&mut self, _context: &GameSceneContext) -> String {
                 "Move Entity".to_owned()
             }
 
-            fn execute(&mut self, context: &mut SceneContext) {
+            fn execute(&mut self, context: &mut GameSceneContext) {
                 let position = self.swap();
                 self.set_position(context, position);
             }
 
-            fn revert(&mut self, context: &mut SceneContext) {
+            fn revert(&mut self, context: &mut GameSceneContext) {
                 let position = self.swap();
                 self.set_position(context, position);
             }
@@ -501,12 +504,12 @@ macro_rules! define_free_command {
             }
         }
 
-        impl Command for $name {
-            fn name(&mut self, _context: &SceneContext) -> String {
+        impl GameSceneCommandTrait for $name {
+            fn name(&mut self, _context: &GameSceneContext) -> String {
                 "Free Entity".to_owned()
             }
 
-            fn execute(&mut self, context: &mut SceneContext) {
+            fn execute(&mut self, context: &mut GameSceneContext) {
                 match std::mem::replace(self, Self::Unknown) {
                     Self::NonExecuted {
                         node_handle,
@@ -533,7 +536,7 @@ macro_rules! define_free_command {
                 }
             }
 
-            fn revert(&mut self, context: &mut SceneContext) {
+            fn revert(&mut self, context: &mut GameSceneContext) {
                 match std::mem::replace(self, Self::Unknown) {
                     Self::Executed {
                         node_handle,
@@ -555,7 +558,7 @@ macro_rules! define_free_command {
                 }
             }
 
-            fn finalize(&mut self, context: &mut SceneContext) {
+            fn finalize(&mut self, context: &mut GameSceneContext) {
                 match std::mem::replace(self, Self::Unknown) {
                     Self::Executed {
                         node_handle,
@@ -601,16 +604,16 @@ macro_rules! define_push_element_to_collection_command {
             }
         }
 
-        impl Command for $name {
-            fn name(&mut self, _context: &SceneContext) -> String {
+        impl GameSceneCommandTrait for $name {
+            fn name(&mut self, _context: &GameSceneContext) -> String {
                 "Push Element To Collection".to_string()
             }
 
-            fn execute(&mut $self, $context: &mut SceneContext) {
+            fn execute(&mut $self, $context: &mut GameSceneContext) {
                 ($get_collection).push($self.value.take().unwrap());
             }
 
-            fn revert(&mut $self, $context: &mut SceneContext) {
+            fn revert(&mut $self, $context: &mut GameSceneContext) {
                 $self.value = Some(($get_collection).pop().unwrap());
             }
         }
@@ -638,17 +641,17 @@ macro_rules! define_remove_collection_element_command {
             }
         }
 
-        impl Command for $name {
-            fn name(&mut self, _context: &SceneContext) -> String {
+        impl GameSceneCommandTrait for $name {
+            fn name(&mut self, _context: &GameSceneContext) -> String {
                 "Remove Collection Element".to_string()
             }
 
-            fn execute(&mut $self, $context: &mut SceneContext) {
+            fn execute(&mut $self, $context: &mut GameSceneContext) {
                 let collection = $get_collection;
                 $self.value = Some(collection.remove($self.index));
             }
 
-            fn revert(&mut $self, $context: &mut SceneContext) {
+            fn revert(&mut $self, $context: &mut GameSceneContext) {
                 let collection = $get_collection;
                 collection.insert($self.index, $self.value.take().unwrap())
             }
@@ -669,24 +672,24 @@ macro_rules! define_set_collection_element_command {
         }
 
         impl $name {
-            pub fn swap(&mut $self, $context: &mut SceneContext) {
+            pub fn swap(&mut $self, $context: &mut GameSceneContext) {
                  $swap_value
             }
         }
 
-        impl Command for $name {
+        impl GameSceneCommandTrait for $name {
             fn name(&mut self,
                 #[allow(unused_variables)]
-                $context: &SceneContext
+                $context: &GameSceneContext
             ) -> String {
                 "Set Collection Element".to_owned()
             }
 
-            fn execute(&mut self, $context: &mut SceneContext) {
+            fn execute(&mut self, $context: &mut GameSceneContext) {
                 self.swap($context);
             }
 
-            fn revert(&mut self, $context: &mut SceneContext) {
+            fn revert(&mut self, $context: &mut GameSceneContext) {
                 self.swap($context);
             }
         }
@@ -701,7 +704,7 @@ pub struct SetMachineEntryStateCommand {
 }
 
 impl SetMachineEntryStateCommand {
-    fn swap(&mut self, context: &mut SceneContext) {
+    fn swap(&mut self, context: &mut GameSceneContext) {
         let machine = fetch_machine(context, self.node_handle);
         let layer = &mut machine.layers_mut()[self.layer];
 
@@ -711,16 +714,16 @@ impl SetMachineEntryStateCommand {
     }
 }
 
-impl Command for SetMachineEntryStateCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for SetMachineEntryStateCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Set Entry State".to_string()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         self.swap(context)
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         self.swap(context)
     }
 }
@@ -739,23 +742,23 @@ macro_rules! define_absm_swap_command {
         }
 
         impl $name {
-            fn swap(&mut $self, $context: &mut SceneContext) {
+            fn swap(&mut $self, $context: &mut GameSceneContext) {
                 let field = $get_field;
 
                 std::mem::swap(field, &mut $self.value);
             }
         }
 
-        impl Command for $name {
-            fn name(&mut self, _context: &SceneContext) -> String {
+        impl GameSceneCommandTrait for $name {
+            fn name(&mut self, _context: &GameSceneContext) -> String {
                 stringify!($name).to_string()
             }
 
-            fn execute(&mut self, context: &mut SceneContext) {
+            fn execute(&mut self, context: &mut GameSceneContext) {
                 self.swap(context)
             }
 
-            fn revert(&mut self, context: &mut SceneContext) {
+            fn revert(&mut self, context: &mut GameSceneContext) {
                 self.swap(context)
             }
         }
@@ -775,7 +778,7 @@ pub struct SetLayerNameCommand {
 }
 
 impl SetLayerNameCommand {
-    fn swap(&mut self, context: &mut SceneContext) {
+    fn swap(&mut self, context: &mut GameSceneContext) {
         let layer =
             &mut fetch_machine(context, self.absm_node_handle).layers_mut()[self.layer_index];
         let prev = layer.name().to_string();
@@ -784,16 +787,16 @@ impl SetLayerNameCommand {
     }
 }
 
-impl Command for SetLayerNameCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for SetLayerNameCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Set Layer Name".to_string()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         self.swap(context)
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         self.swap(context)
     }
 }
@@ -804,16 +807,16 @@ pub struct AddLayerCommand {
     pub layer: Option<MachineLayer>,
 }
 
-impl Command for AddLayerCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for AddLayerCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Add Layer".to_string()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         fetch_machine(context, self.absm_node_handle).add_layer(self.layer.take().unwrap());
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         self.layer = fetch_machine(context, self.absm_node_handle).pop_layer();
     }
 }
@@ -835,17 +838,17 @@ impl RemoveLayerCommand {
     }
 }
 
-impl Command for RemoveLayerCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for RemoveLayerCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         format!("Remove {} Layer", self.layer_index)
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         self.layer =
             Some(fetch_machine(context, self.absm_node_handle).remove_layer(self.layer_index));
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         fetch_machine(context, self.absm_node_handle)
             .insert_layer(self.layer_index, self.layer.take().unwrap());
     }
@@ -859,7 +862,7 @@ pub struct SetLayerMaskCommand {
 }
 
 impl SetLayerMaskCommand {
-    fn swap(&mut self, context: &mut SceneContext) {
+    fn swap(&mut self, context: &mut GameSceneContext) {
         let layer =
             &mut fetch_machine(context, self.absm_node_handle).layers_mut()[self.layer_index];
         let old = layer.mask().clone();
@@ -867,16 +870,16 @@ impl SetLayerMaskCommand {
     }
 }
 
-impl Command for SetLayerMaskCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for SetLayerMaskCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Set Layer Mask".to_string()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         self.swap(context)
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         self.swap(context)
     }
 }

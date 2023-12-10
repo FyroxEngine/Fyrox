@@ -15,6 +15,8 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox_core::uuid::{uuid, Uuid};
+use fyrox_core::{combine_uuids, TypeUuidProvider};
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -101,7 +103,7 @@ impl<T: NumericType> RectEditorMessage<T> {
 ///     }
 /// }
 /// ```
-#[derive(Debug, Clone, Visit, Reflect)]
+#[derive(Default, Debug, Clone, Visit, Reflect)]
 pub struct RectEditor<T>
 where
     T: NumericType,
@@ -133,6 +135,18 @@ where
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
+    }
+}
+
+impl<T> TypeUuidProvider for RectEditor<T>
+where
+    T: NumericType,
+{
+    fn type_uuid() -> Uuid {
+        combine_uuids(
+            uuid!("5a3daf9d-f33b-494b-b111-eb55721dc7ac"),
+            T::type_uuid(),
+        )
     }
 }
 

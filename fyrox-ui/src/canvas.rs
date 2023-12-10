@@ -13,6 +13,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -51,13 +52,15 @@ use std::{
 ///     .build(ctx)
 /// }
 /// ```
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct Canvas {
     /// Base widget of the canvas.
     pub widget: Widget,
 }
 
 crate::define_widget_deref!(Canvas);
+
+uuid_provider!(Canvas = "6b843a36-53da-467b-b85e-2380fe891ca1");
 
 impl Control for Canvas {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

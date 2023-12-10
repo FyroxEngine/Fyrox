@@ -20,6 +20,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, RestrictionEntry,
     Thickness, UiNode, UserInterface,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -152,7 +153,7 @@ pub enum MessageBoxButtons {
 ///
 /// There's no way to change the style of the message box, nor add some widgets to it. If you need custom message box, then you
 /// need to create your own widget. This message box is meant to be used as a standard dialog box for standard situations in UI.
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct MessageBox {
     /// Base window of the message box.
     pub window: Window,
@@ -181,6 +182,8 @@ impl DerefMut for MessageBox {
         &mut self.window
     }
 }
+
+uuid_provider!(MessageBox = "b14c0012-4383-45cf-b9a1-231415d95373");
 
 // Message box extends Window widget so it delegates most of calls
 // to inner window.

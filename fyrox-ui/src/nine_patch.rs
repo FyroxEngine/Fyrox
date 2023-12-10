@@ -1,4 +1,4 @@
-use fyrox_core::scope_profile;
+use fyrox_core::{scope_profile, uuid_provider};
 
 use crate::{
     brush::Brush,
@@ -15,7 +15,7 @@ use std::{
 };
 
 /// Automatically arranges children by rows and columns
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct NinePatch {
     pub widget: Widget,
     #[visit(skip)] // TODO
@@ -34,6 +34,8 @@ pub struct NinePatch {
 }
 
 crate::define_widget_deref!(NinePatch);
+
+uuid_provider!(NinePatch = "c345033e-8c10-4186-b101-43f73b85981d");
 
 impl Control for NinePatch {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

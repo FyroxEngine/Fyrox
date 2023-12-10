@@ -60,9 +60,10 @@ impl TextLine {
 }
 
 /// Wrapping mode for formatted text.
-#[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Eq)]
+#[derive(Default, Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Eq)]
 pub enum WrapMode {
     /// No wrapping needed.
+    #[default]
     NoWrap,
 
     /// Letter-based wrapping.
@@ -94,7 +95,7 @@ impl Character {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Default, Clone, Debug)]
 pub struct FormattedText {
     font: SharedFont,
     text: Vec<Character>,

@@ -1,5 +1,5 @@
 use crate::{
-    make_color_material, scene::EditorScene, set_mesh_diffuse_color,
+    make_color_material, scene::GameScene, set_mesh_diffuse_color,
     world::graph::selection::GraphSelection, Engine,
 };
 use fyrox::{
@@ -67,8 +67,8 @@ fn make_rotation_ribbon(
 }
 
 impl RotationGizmo {
-    pub fn new(editor_scene: &EditorScene, engine: &mut Engine) -> Self {
-        let scene = &mut engine.scenes[editor_scene.scene];
+    pub fn new(game_scene: &GameScene, engine: &mut Engine) -> Self {
+        let scene = &mut engine.scenes[game_scene.scene];
         let graph = &mut scene.graph;
 
         let origin = MeshBuilder::new(
@@ -85,7 +85,7 @@ impl RotationGizmo {
         .build()])
         .build(graph);
 
-        graph.link_nodes(origin, editor_scene.editor_objects_root);
+        graph.link_nodes(origin, game_scene.editor_objects_root);
 
         let x_axis = make_rotation_ribbon(
             graph,
@@ -148,10 +148,10 @@ impl RotationGizmo {
     pub fn handle_pick(
         &mut self,
         picked: Handle<Node>,
-        editor_scene: &EditorScene,
+        game_scene: &GameScene,
         engine: &mut Engine,
     ) -> bool {
-        let graph = &mut engine.scenes[editor_scene.scene].graph;
+        let graph = &mut engine.scenes[game_scene.scene].graph;
 
         if picked == self.x_axis {
             self.set_mode(RotateGizmoMode::Pitch, graph);
@@ -169,14 +169,14 @@ impl RotationGizmo {
 
     pub fn calculate_rotation_delta(
         &self,
-        editor_scene: &EditorScene,
+        game_scene: &GameScene,
         camera: Handle<Node>,
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
         engine: &Engine,
         frame_size: Vector2<f32>,
     ) -> UnitQuaternion<f32> {
-        let graph = &engine.scenes[editor_scene.scene].graph;
+        let graph = &engine.scenes[game_scene.scene].graph;
 
         let camera = &graph[camera].as_camera();
         let transform = graph[self.origin].global_transform();

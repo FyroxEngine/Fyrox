@@ -1,22 +1,12 @@
-use crate::message::MessageSender;
 use crate::{
-    absm::{
-        command::{
-            pose::make_set_pose_property_command, state::make_set_state_property_command,
-            transition::make_set_transition_property_command,
-        },
-        selection::SelectedEntity,
-    },
-    animation::{self, command::signal::make_animation_signal_property_command},
     gui::make_image_button_with_tooltip,
-    inspector::{
-        editors::make_property_editors_container, handlers::node::SceneNodePropertyChangedHandler,
-    },
+    inspector::editors::make_property_editors_container,
     load_image,
-    scene::{commands::effect::make_set_audio_bus_property_command, EditorScene, Selection},
+    message::MessageSender,
+    scene::{controller::SceneController, GameScene, Selection},
     send_sync_message,
     utils::window_content,
-    Brush, CommandGroup, Engine, Message, Mode, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
+    Brush, Engine, Message, Mode, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
 use fyrox::{
     animation::Animation,
@@ -42,16 +32,14 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface,
     },
-    scene::{
-        animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
-        graph::Graph,
-    },
+    scene::animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
 };
 use std::{any::Any, rc::Rc, sync::Arc};
 
 pub mod editors;
 pub mod handlers;
 
+#[derive(Clone)]
 pub struct AnimationDefinition {
     name: String,
     handle: Handle<Animation>,
@@ -90,7 +78,6 @@ pub struct Inspector {
     // got new context - in this case we don't need to sync with model, because
     // inspector is already in correct state.
     needs_sync: bool,
-    node_property_changed_handler: SceneNodePropertyChangedHandler,
     warning_text: Handle<UiNode>,
     type_name_text: Handle<UiNode>,
     docs_button: Handle<UiNode>,
@@ -99,7 +86,7 @@ pub struct Inspector {
 #[macro_export]
 macro_rules! make_command {
     ($cmd:ty, $handle:expr, $value:expr) => {
-        Some($crate::scene::commands::SceneCommand::new(<$cmd>::new(
+        Some($crate::scene::commands::GameSceneCommand::new(<$cmd>::new(
             $handle,
             $value.cast_value().cloned()?,
         )))
@@ -133,6 +120,34 @@ macro_rules! handle_property_changed {
             _ => None
         }
     }
+}
+
+fn fetch_available_animations(
+    selection: &Selection,
+    controller: &dyn SceneController,
+    engine: &Engine,
+) -> Vec<AnimationDefinition> {
+    if let Some(game_scene) = controller.downcast_ref::<GameScene>() {
+        let graph = &engine.scenes[game_scene.scene].graph;
+        if let Selection::Absm(absm_selection) = selection {
+            if let Some(animation_player) = graph
+                .try_get(absm_selection.absm_node_handle)
+                .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())
+                .and_then(|absm| graph.try_get(absm.animation_player()))
+                .and_then(|n| n.query_component_ref::<AnimationPlayer>())
+            {
+                return animation_player
+                    .animations()
+                    .pair_iter()
+                    .map(|(handle, anim)| AnimationDefinition {
+                        name: anim.name().to_string(),
+                        handle,
+                    })
+                    .collect();
+            }
+        }
+    }
+    Default::default()
 }
 
 impl Inspector {
@@ -220,7 +235,6 @@ impl Inspector {
             inspector,
             property_editors,
             needs_sync: true,
-            node_property_changed_handler: SceneNodePropertyChangedHandler,
             warning_text,
             type_name_text,
             docs_button,
@@ -245,87 +259,17 @@ impl Inspector {
         }
     }
 
-    pub fn sync_to_model(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
-        let scene = &engine.scenes[editor_scene.scene];
-
+    pub fn sync_to_model(
+        &mut self,
+        editor_selection: &Selection,
+        controller: &dyn SceneController,
+        engine: &mut Engine,
+    ) {
         if self.needs_sync {
-            if editor_scene.selection.is_single_selection() {
-                match &editor_scene.selection {
-                    Selection::Graph(selection) => {
-                        if let Some(node) = scene.graph.try_get(selection.nodes()[0]) {
-                            node.as_reflect(&mut |node| {
-                                self.sync_to(node, &mut engine.user_interface)
-                            })
-                        }
-                    }
-
-                    Selection::AudioBus(selection) => {
-                        let state = scene.graph.sound_context.state();
-                        if let Some(effect) =
-                            state.bus_graph_ref().try_get_bus_ref(selection.buses[0])
-                        {
-                            self.sync_to(effect as &dyn Reflect, &mut engine.user_interface);
-                        }
-                    }
-                    Selection::Animation(selection) => {
-                        if let Some(animation) = scene
-                            .graph
-                            .try_get_of_type::<AnimationPlayer>(selection.animation_player)
-                            .and_then(|player| player.animations().try_get(selection.animation))
-                        {
-                            if let Some(animation::selection::SelectedEntity::Signal(id)) =
-                                selection.entities.first()
-                            {
-                                if let Some(signal) =
-                                    animation.signals().iter().find(|s| s.id == *id)
-                                {
-                                    self.sync_to(
-                                        signal as &dyn Reflect,
-                                        &mut engine.user_interface,
-                                    );
-                                }
-                            }
-                        }
-                    }
-                    Selection::Absm(selection) => {
-                        if let Some(node) = scene
-                            .graph
-                            .try_get_of_type::<AnimationBlendingStateMachine>(
-                                selection.absm_node_handle,
-                            )
-                        {
-                            if let Some(first) = selection.entities.first() {
-                                let machine = node.machine();
-                                if let Some(layer_index) = selection.layer {
-                                    if let Some(layer) = machine.layers().get(layer_index) {
-                                        match first {
-                                            SelectedEntity::Transition(transition) => {
-                                                self.sync_to(
-                                                    &layer.transitions()[*transition]
-                                                        as &dyn Reflect,
-                                                    &mut engine.user_interface,
-                                                );
-                                            }
-                                            SelectedEntity::State(state) => {
-                                                self.sync_to(
-                                                    &layer.states()[*state] as &dyn Reflect,
-                                                    &mut engine.user_interface,
-                                                );
-                                            }
-                                            SelectedEntity::PoseNode(pose) => {
-                                                self.sync_to(
-                                                    &layer.nodes()[*pose] as &dyn Reflect,
-                                                    &mut engine.user_interface,
-                                                );
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    _ => (),
-                };
+            if editor_selection.is_single_selection() {
+                controller.first_selected_entity(editor_selection, &engine.scenes, &mut |entity| {
+                    self.sync_to(entity, &mut engine.user_interface);
+                });
             }
         } else {
             self.needs_sync = true;
@@ -338,34 +282,13 @@ impl Inspector {
         ui: &mut UserInterface,
         resource_manager: ResourceManager,
         serialization_context: Arc<SerializationContext>,
-        graph: &Graph,
-        selection: &Selection,
+        available_animations: &[AnimationDefinition],
         sender: &MessageSender,
     ) {
         let environment = Rc::new(EditorEnvironment {
             resource_manager,
             serialization_context,
-            available_animations: if let Selection::Absm(absm_selection) = selection {
-                if let Some(animation_player) = graph
-                    .try_get(absm_selection.absm_node_handle)
-                    .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())
-                    .and_then(|absm| graph.try_get(absm.animation_player()))
-                    .and_then(|n| n.query_component_ref::<AnimationPlayer>())
-                {
-                    animation_player
-                        .animations()
-                        .pair_iter()
-                        .map(|(handle, anim)| AnimationDefinition {
-                            name: anim.name().to_string(),
-                            handle,
-                        })
-                        .collect()
-                } else {
-                    Default::default()
-                }
-            } else {
-                Default::default()
-            },
+            available_animations: available_animations.to_vec(),
             sender: sender.clone(),
         });
 
@@ -401,127 +324,33 @@ impl Inspector {
     pub fn handle_message(
         &mut self,
         message: &Message,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
+        controller: &dyn SceneController,
         engine: &mut Engine,
         sender: &MessageSender,
     ) {
         if let Message::SelectionChanged { .. } = message {
-            let scene = &engine.scenes[editor_scene.scene];
-
             engine
                 .user_interface
                 .send_message(WidgetMessage::visibility(
                     self.warning_text,
                     MessageDirection::ToWidget,
-                    editor_scene.selection.len() > 1,
+                    editor_selection.len() > 1,
                 ));
 
-            if !editor_scene.selection.is_empty() {
-                match &editor_scene.selection {
-                    Selection::Graph(selection) => {
-                        if let Some(node) = scene.graph.try_get(selection.nodes()[0]) {
-                            node.as_reflect(&mut |node| {
-                                self.change_context(
-                                    node,
-                                    &mut engine.user_interface,
-                                    engine.resource_manager.clone(),
-                                    engine.serialization_context.clone(),
-                                    &scene.graph,
-                                    &editor_scene.selection,
-                                    sender,
-                                )
-                            })
-                        }
-                    }
-                    Selection::AudioBus(selection) => {
-                        let state = scene.graph.sound_context.state();
-                        if let Some(effect) =
-                            state.bus_graph_ref().try_get_bus_ref(selection.buses[0])
-                        {
-                            self.change_context(
-                                effect as &dyn Reflect,
-                                &mut engine.user_interface,
-                                engine.resource_manager.clone(),
-                                engine.serialization_context.clone(),
-                                &scene.graph,
-                                &editor_scene.selection,
-                                sender,
-                            )
-                        }
-                    }
-                    Selection::Animation(selection) => {
-                        if let Some(animation) = scene
-                            .graph
-                            .try_get_of_type::<AnimationPlayer>(selection.animation_player)
-                            .and_then(|player| player.animations().try_get(selection.animation))
-                        {
-                            if let Some(animation::selection::SelectedEntity::Signal(id)) =
-                                selection.entities.first()
-                            {
-                                if let Some(signal) =
-                                    animation.signals().iter().find(|s| s.id == *id)
-                                {
-                                    self.change_context(
-                                        signal as &dyn Reflect,
-                                        &mut engine.user_interface,
-                                        engine.resource_manager.clone(),
-                                        engine.serialization_context.clone(),
-                                        &scene.graph,
-                                        &editor_scene.selection,
-                                        sender,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    Selection::Absm(selection) => {
-                        if let Some(node) = scene
-                            .graph
-                            .try_get(selection.absm_node_handle)
-                            .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())
-                        {
-                            if let Some(first) = selection.entities.first() {
-                                let machine = node.machine();
-                                if let Some(layer_index) = selection.layer {
-                                    if let Some(layer) = machine.layers().get(layer_index) {
-                                        match first {
-                                            SelectedEntity::Transition(transition) => self
-                                                .change_context(
-                                                    &layer.transitions()[*transition]
-                                                        as &dyn Reflect,
-                                                    &mut engine.user_interface,
-                                                    engine.resource_manager.clone(),
-                                                    engine.serialization_context.clone(),
-                                                    &scene.graph,
-                                                    &editor_scene.selection,
-                                                    sender,
-                                                ),
-                                            SelectedEntity::State(state) => self.change_context(
-                                                &layer.states()[*state] as &dyn Reflect,
-                                                &mut engine.user_interface,
-                                                engine.resource_manager.clone(),
-                                                engine.serialization_context.clone(),
-                                                &scene.graph,
-                                                &editor_scene.selection,
-                                                sender,
-                                            ),
-                                            SelectedEntity::PoseNode(pose) => self.change_context(
-                                                &layer.nodes()[*pose] as &dyn Reflect,
-                                                &mut engine.user_interface,
-                                                engine.resource_manager.clone(),
-                                                engine.serialization_context.clone(),
-                                                &scene.graph,
-                                                &editor_scene.selection,
-                                                sender,
-                                            ),
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    _ => (),
-                };
+            if !editor_selection.is_empty() {
+                let available_animations =
+                    fetch_available_animations(editor_selection, controller, engine);
+                controller.first_selected_entity(editor_selection, &engine.scenes, &mut |entity| {
+                    self.change_context(
+                        entity,
+                        &mut engine.user_interface,
+                        engine.resource_manager.clone(),
+                        engine.serialization_context.clone(),
+                        &available_animations,
+                        sender,
+                    )
+                });
             } else {
                 self.clear(&engine.user_interface);
             }
@@ -547,161 +376,22 @@ impl Inspector {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         sender: &MessageSender,
     ) {
-        let scene = &mut engine.scenes[editor_scene.scene];
-
         if message.destination() == self.inspector
             && message.direction() == MessageDirection::FromWidget
         {
             if let Some(InspectorMessage::PropertyChanged(args)) =
                 message.data::<InspectorMessage>()
             {
-                let group = match &editor_scene.selection {
-                    Selection::Graph(selection) => selection
-                        .nodes
-                        .iter()
-                        .filter_map(|&node_handle| {
-                            if scene.graph.is_valid_handle(node_handle) {
-                                self.node_property_changed_handler.handle(
-                                    args,
-                                    node_handle,
-                                    &mut scene.graph[node_handle],
-                                )
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<Vec<_>>(),
-                    Selection::AudioBus(selection) => selection
-                        .buses
-                        .iter()
-                        .filter_map(|&handle| make_set_audio_bus_property_command(handle, args))
-                        .collect::<Vec<_>>(),
-                    Selection::Animation(selection) => {
-                        if scene
-                            .graph
-                            .try_get_of_type::<AnimationPlayer>(selection.animation_player)
-                            .and_then(|player| player.animations().try_get(selection.animation))
-                            .is_some()
-                        {
-                            selection
-                                .entities
-                                .iter()
-                                .filter_map(|e| {
-                                    if let animation::selection::SelectedEntity::Signal(id) = e {
-                                        make_animation_signal_property_command(
-                                            *id,
-                                            args,
-                                            selection.animation_player,
-                                            selection.animation,
-                                        )
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .collect()
-                        } else {
-                            vec![]
-                        }
-                    }
-                    Selection::Absm(selection) => {
-                        if scene
-                            .graph
-                            .try_get(selection.absm_node_handle)
-                            .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())
-                            .is_some()
-                        {
-                            if let Some(layer_index) = selection.layer {
-                                selection
-                                    .entities
-                                    .iter()
-                                    .filter_map(|ent| match ent {
-                                        SelectedEntity::Transition(transition) => {
-                                            make_set_transition_property_command(
-                                                *transition,
-                                                args,
-                                                selection.absm_node_handle,
-                                                layer_index,
-                                            )
-                                        }
-                                        SelectedEntity::State(state) => {
-                                            make_set_state_property_command(
-                                                *state,
-                                                args,
-                                                selection.absm_node_handle,
-                                                layer_index,
-                                            )
-                                        }
-                                        SelectedEntity::PoseNode(pose) => {
-                                            make_set_pose_property_command(
-                                                *pose,
-                                                args,
-                                                selection.absm_node_handle,
-                                                layer_index,
-                                            )
-                                        }
-                                    })
-                                    .collect()
-                            } else {
-                                vec![]
-                            }
-                        } else {
-                            vec![]
-                        }
-                    }
-                    _ => vec![],
-                };
-
-                if group.is_empty() {
-                    if !args.is_inheritable() {
-                        Log::err(format!("Failed to handle a property {}", args.path()))
-                    }
-                } else if group.len() == 1 {
-                    sender.send(Message::DoSceneCommand(group.into_iter().next().unwrap()))
-                } else {
-                    sender.do_scene_command(CommandGroup::from(group));
-                }
+                controller.on_property_changed(args, editor_selection, engine);
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.docs_button {
-                let entity = match &editor_scene.selection {
-                    Selection::None => None,
-                    Selection::Graph(graph_selection) => graph_selection
-                        .nodes
-                        .first()
-                        .map(|h| scene.graph[*h].doc().to_string()),
-                    Selection::Navmesh(navmesh_selection) => Some(
-                        scene.graph[navmesh_selection.navmesh_node()]
-                            .doc()
-                            .to_string(),
-                    ),
-                    Selection::AudioBus(audio_bus_selection) => {
-                        audio_bus_selection.buses.first().and_then(|h| {
-                            scene
-                                .graph
-                                .sound_context
-                                .state()
-                                .bus_graph_ref()
-                                .try_get_bus_ref(*h)
-                                .map(|bus| bus.doc().to_string())
-                        })
-                    }
-                    Selection::Absm(absm_selection) => Some(
-                        scene.graph[absm_selection.absm_node_handle]
-                            .doc()
-                            .to_string(),
-                    ),
-                    Selection::Animation(animation_selection) => Some(
-                        scene.graph[animation_selection.animation_player]
-                            .doc()
-                            .to_string(),
-                    ),
-                };
-
-                if let Some(doc) = entity {
+                if let Some(doc) = controller.provide_docs(editor_selection, engine) {
                     sender.send(Message::ShowDocumentation(doc));
                 }
             }

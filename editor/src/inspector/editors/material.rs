@@ -3,6 +3,7 @@ use crate::{
     MessageDirection,
 };
 use fyrox::asset::state::ResourceState;
+use fyrox::core::uuid_provider;
 use fyrox::{
     asset::{core::pool::Handle, manager::ResourceManager},
     core::{
@@ -79,6 +80,8 @@ impl DerefMut for MaterialFieldEditor {
         &mut self.widget
     }
 }
+
+uuid_provider!(MaterialFieldEditor = "d3fa0a7c-52d6-4cca-885e-0db8b18542e2");
 
 impl Control for MaterialFieldEditor {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

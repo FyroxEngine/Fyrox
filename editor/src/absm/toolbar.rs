@@ -8,9 +8,9 @@ use crate::{
     gui::make_dropdown_list_option,
     load_image,
     scene::{
-        commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
+        commands::{ChangeSelectionCommand, CommandGroup, GameSceneCommand},
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
-        EditorScene, Selection,
+        GameScene, Selection,
     },
     send_sync_message,
 };
@@ -164,12 +164,13 @@ impl Toolbar {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
+        game_scene: &GameScene,
         sender: &MessageSender,
         graph: &Graph,
         ui: &mut UserInterface,
     ) -> ToolbarAction {
-        let selection = fetch_selection(&editor_scene.selection);
+        let selection = fetch_selection(editor_selection);
 
         if let Some(CheckBoxMessage::Check(Some(value))) = message.data() {
             if message.destination() == self.preview
@@ -190,7 +191,7 @@ impl Toolbar {
                 new_selection.entities.clear();
                 sender.do_scene_command(ChangeSelectionCommand::new(
                     Selection::Absm(new_selection),
-                    editor_scene.selection.clone(),
+                    editor_selection.clone(),
                 ));
             }
         } else if let Some(TextMessage::Text(text)) = message.data() {
@@ -257,7 +258,7 @@ impl Toolbar {
                     for local_root in local_roots {
                         root.children.push(HierarchyNode::from_scene_node(
                             local_root,
-                            editor_scene.editor_objects_root,
+                            game_scene.editor_objects_root,
                             graph,
                         ));
                     }
@@ -297,7 +298,7 @@ impl Toolbar {
                     if let Some(layer_index) = selection.layer {
                         let mut commands = Vec::new();
 
-                        commands.push(SceneCommand::new(ChangeSelectionCommand::new(
+                        commands.push(GameSceneCommand::new(ChangeSelectionCommand::new(
                             Selection::Absm(AbsmSelection {
                                 absm_node_handle: selection.absm_node_handle,
                                 layer: if absm_node.machine().layers().len() > 1 {
@@ -307,10 +308,10 @@ impl Toolbar {
                                 },
                                 entities: vec![],
                             }),
-                            editor_scene.selection.clone(),
+                            editor_selection.clone(),
                         )));
 
-                        commands.push(SceneCommand::new(RemoveLayerCommand::new(
+                        commands.push(GameSceneCommand::new(RemoveLayerCommand::new(
                             selection.absm_node_handle,
                             layer_index,
                         )));

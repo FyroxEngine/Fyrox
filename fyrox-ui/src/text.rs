@@ -15,6 +15,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
@@ -309,7 +310,7 @@ impl TextMessage {
 ///
 /// Please keep in mind, that like any other situation when you "changing" something via messages, you should remember
 /// that the change is **not** immediate.
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct Text {
     /// Base widget of the Text widget.
     pub widget: Widget,
@@ -320,6 +321,8 @@ pub struct Text {
 }
 
 crate::define_widget_deref!(Text);
+
+uuid_provider!(Text = "22f7f502-7622-4ecb-8c5f-ba436e7ee823");
 
 impl Control for Text {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

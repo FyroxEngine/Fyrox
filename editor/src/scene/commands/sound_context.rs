@@ -1,4 +1,4 @@
-use crate::{Command, SceneContext};
+use crate::{GameSceneCommandTrait, GameSceneContext};
 use fyrox::scene::sound::{context::SoundContext, DistanceModel, HrirSphereResource, Renderer};
 
 macro_rules! define_sound_context_command {
@@ -21,16 +21,16 @@ macro_rules! define_sound_context_command {
                 }
             }
 
-            impl Command for $name {
-                fn name(&mut self, _context: &SceneContext) -> String {
+            impl GameSceneCommandTrait for $name {
+                fn name(&mut self, _context: &GameSceneContext) -> String {
                     $human_readable_name.to_owned()
                 }
 
-                fn execute(&mut self, context: &mut SceneContext) {
+                fn execute(&mut self, context: &mut GameSceneContext) {
                     self.swap(&mut context.scene.graph.sound_context);
                 }
 
-                fn revert(&mut self, context: &mut SceneContext) {
+                fn revert(&mut self, context: &mut GameSceneContext) {
                     self.swap(&mut context.scene.graph.sound_context);
                 }
             }
@@ -62,16 +62,16 @@ impl SetHrtfRendererHrirSphereResource {
     }
 }
 
-impl Command for SetHrtfRendererHrirSphereResource {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for SetHrtfRendererHrirSphereResource {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Set Hrtf Renderer Hrir Sphere Resource".to_owned()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         self.swap(&mut context.scene.graph.sound_context);
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         self.swap(&mut context.scene.graph.sound_context);
     }
 }

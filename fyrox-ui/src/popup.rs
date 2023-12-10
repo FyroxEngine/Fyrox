@@ -13,6 +13,7 @@ use crate::{
     BuildContext, Control, NodeHandleMapping, RestrictionEntry, Thickness, UiNode, UserInterface,
     BRUSH_DARKEST, BRUSH_PRIMARY,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -333,6 +334,8 @@ impl Popup {
             .unwrap_or_else(|| ui.screen_size - self.widget.actual_global_size())
     }
 }
+
+uuid_provider!(Popup = "1c641540-59eb-4ccd-a090-2173dab02245");
 
 impl Control for Popup {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

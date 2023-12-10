@@ -19,6 +19,7 @@ use crate::{
         rigidbody::{RigidBody, RigidBodyType},
     },
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{type_name, Any, TypeId},
     ops::{Deref, DerefMut},
@@ -30,6 +31,8 @@ pub struct Limb {
     pub physical_bone: Handle<Node>,
     pub children: Vec<Limb>,
 }
+
+uuid_provider!(Limb = "6d5bc2f7-8acc-4b64-8e4b-65d4551150bf");
 
 // Rust has a compiler bug `overflow evaluating the requirement` that prevents deriving this impl.
 impl Reflect for Limb {

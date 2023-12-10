@@ -15,6 +15,7 @@ use crate::{
     BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface, BRUSH_DARKER,
     BRUSH_LIGHT,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -38,7 +39,7 @@ impl DropdownListMessage {
     define_constructor!(DropdownListMessage:Close => fn close(), layout: false);
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct DropdownList {
     pub widget: Widget,
     pub popup: Handle<UiNode>,
@@ -51,6 +52,8 @@ pub struct DropdownList {
 }
 
 crate::define_widget_deref!(DropdownList);
+
+uuid_provider!(DropdownList = "1da2f69a-c8b4-4ae2-a2ad-4afe61ee2a32");
 
 impl Control for DropdownList {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

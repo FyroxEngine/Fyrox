@@ -22,6 +22,8 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
+use fyrox_core::uuid::{uuid, Uuid};
+use fyrox_core::{combine_uuids, TypeUuidProvider};
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -36,9 +38,9 @@ pub struct Item {
     remove: Handle<UiNode>,
 }
 
-pub trait CollectionItem: Clone + Reflect + Debug + Default + 'static {}
+pub trait CollectionItem: Clone + Reflect + Debug + Default + TypeUuidProvider + 'static {}
 
-impl<T: Clone + Reflect + Debug + Default + 'static> CollectionItem for T {}
+impl<T> CollectionItem for T where T: Clone + Reflect + Debug + Default + TypeUuidProvider + 'static {}
 
 #[derive(Debug, Visit, Reflect)]
 pub struct CollectionEditor<T: CollectionItem> {
@@ -90,6 +92,15 @@ pub enum CollectionEditorMessage {
 impl CollectionEditorMessage {
     define_constructor!(CollectionEditorMessage:Items => fn items(Vec<Item>), layout: false);
     define_constructor!(CollectionEditorMessage:ItemChanged => fn item_changed(index: usize, message: UiMessage), layout: false);
+}
+
+impl<T: CollectionItem> TypeUuidProvider for CollectionEditor<T> {
+    fn type_uuid() -> Uuid {
+        combine_uuids(
+            uuid!("316b0319-f8ee-4b63-9ed9-3f59a857e2bc"),
+            T::type_uuid(),
+        )
+    }
 }
 
 impl<T: CollectionItem> Control for CollectionEditor<T> {

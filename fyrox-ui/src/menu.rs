@@ -22,6 +22,7 @@ use crate::{
     Thickness, UiNode, UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE,
     BRUSH_PRIMARY,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -145,13 +146,15 @@ impl MenuItemMessage {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct Menu {
     widget: Widget,
     active: bool,
 }
 
 crate::define_widget_deref!(Menu);
+
+uuid_provider!(Menu = "582a04f3-a7fd-4e70-bbd1-eb95e2275b75");
 
 impl Control for Menu {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -265,7 +268,7 @@ pub enum MenuItemPlacement {
 
 /// Menu item is a widget with arbitrary content, that has a "floating" panel (popup) for sub-items if the menu item. This was menu items can form
 /// arbitrary hierarchies. See [`Menu`] docs for examples.
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct MenuItem {
     /// Base widget of the menu item.
     pub widget: Widget,
@@ -343,6 +346,8 @@ fn close_menu_chain(from: Handle<UiNode>, ui: &UserInterface) {
         }
     }
 }
+
+uuid_provider!(MenuItem = "72e002c6-6060-4583-b5b7-0c5500244fef");
 
 impl Control for MenuItem {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

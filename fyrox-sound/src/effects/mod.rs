@@ -7,7 +7,7 @@ use crate::{
     },
     effects::reverb::Reverb,
 };
-use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
+use fyrox_core::{reflect::prelude::*, uuid_provider, visitor::prelude::*};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 pub mod filter;
@@ -67,6 +67,8 @@ pub enum Effect {
     /// See [`HighShelfFilterEffect`] docs for more info.
     HighShelfFilter(HighShelfFilterEffect),
 }
+
+uuid_provider!(Effect = "fc52e441-d1ec-4881-937c-9e2e53a6d621");
 
 impl Default for Effect {
     fn default() -> Self {

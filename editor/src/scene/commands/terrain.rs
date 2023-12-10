@@ -1,4 +1,7 @@
-use crate::{command::Command, create_terrain_layer_material, scene::commands::SceneContext};
+use crate::{
+    command::GameSceneCommandTrait, create_terrain_layer_material,
+    scene::commands::GameSceneContext,
+};
 use fyrox::core::log::Log;
 use fyrox::resource::texture::{
     TextureKind, TexturePixelKind, TextureResourceExtension, TextureWrapMode,
@@ -30,17 +33,17 @@ impl AddTerrainLayerCommand {
     }
 }
 
-impl Command for AddTerrainLayerCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for AddTerrainLayerCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Add Terrain Layer".to_owned()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
         terrain.add_layer(self.layer.take().unwrap(), std::mem::take(&mut self.masks));
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
         let (layer, masks) = terrain.pop_layer().unwrap();
         self.layer = Some(layer);
@@ -67,12 +70,12 @@ impl DeleteTerrainLayerCommand {
     }
 }
 
-impl Command for DeleteTerrainLayerCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for DeleteTerrainLayerCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Delete Terrain Layer".to_owned()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         let (layer, masks) = context.scene.graph[self.terrain]
             .as_terrain_mut()
             .remove_layer(self.index);
@@ -81,7 +84,7 @@ impl Command for DeleteTerrainLayerCommand {
         self.masks = masks;
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
         terrain.insert_layer(
             self.layer.take().unwrap(),
@@ -114,7 +117,7 @@ impl ModifyTerrainHeightCommand {
         }
     }
 
-    pub fn swap(&mut self, context: &mut SceneContext) {
+    pub fn swap(&mut self, context: &mut GameSceneContext) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
         let heigth_map_size = terrain.height_map_size();
         for (chunk, (old, new)) in terrain.chunks_mut().iter_mut().zip(
@@ -144,16 +147,16 @@ impl ModifyTerrainHeightCommand {
     }
 }
 
-impl Command for ModifyTerrainHeightCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for ModifyTerrainHeightCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Modify Terrain Height".to_owned()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         self.swap(context);
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         self.swap(context);
     }
 }
@@ -184,7 +187,7 @@ impl ModifyTerrainLayerMaskCommand {
         }
     }
 
-    pub fn swap(&mut self, context: &mut SceneContext) {
+    pub fn swap(&mut self, context: &mut GameSceneContext) {
         let terrain = context.scene.graph[self.terrain].as_terrain_mut();
 
         for (i, chunk) in terrain.chunks_mut().iter_mut().enumerate() {
@@ -209,16 +212,16 @@ impl ModifyTerrainLayerMaskCommand {
     }
 }
 
-impl Command for ModifyTerrainLayerMaskCommand {
-    fn name(&mut self, _context: &SceneContext) -> String {
+impl GameSceneCommandTrait for ModifyTerrainLayerMaskCommand {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
         "Modify Terrain Layer Mask".to_owned()
     }
 
-    fn execute(&mut self, context: &mut SceneContext) {
+    fn execute(&mut self, context: &mut GameSceneContext) {
         self.swap(context);
     }
 
-    fn revert(&mut self, context: &mut SceneContext) {
+    fn revert(&mut self, context: &mut GameSceneContext) {
         self.swap(context);
     }
 }

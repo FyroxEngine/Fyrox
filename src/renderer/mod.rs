@@ -81,6 +81,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_core::algebra::Vector4;
+use fyrox_core::uuid_provider;
 use glow::HasContext;
 #[cfg(not(target_arch = "wasm32"))]
 use glutin::{
@@ -224,6 +225,8 @@ pub enum ShadowMapPrecision {
     /// but could be less performant than `Half`.
     Full,
 }
+
+uuid_provider!(ShadowMapPrecision = "f9b2755b-248e-46ba-bcab-473eac1acdb8");
 
 /// Cascaded-shadow maps settings.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect, Eq)]
@@ -1453,6 +1456,7 @@ impl Renderer {
         &mut self,
         render_target: TextureResource,
         ui: &mut UserInterface,
+        clear_color: Color,
     ) -> Result<(), FrameworkError> {
         let new_width = ui.screen_size().x as usize;
         let new_height = ui.screen_size().y as usize;
@@ -1482,7 +1486,7 @@ impl Renderer {
         frame_buffer.clear(
             &mut self.state,
             viewport,
-            Some(Color::TRANSPARENT),
+            Some(clear_color),
             Some(0.0),
             Some(0),
         );

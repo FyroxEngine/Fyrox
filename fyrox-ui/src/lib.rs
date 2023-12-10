@@ -258,6 +258,8 @@ use crate::{
 use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
+use std::path::Path;
+use std::sync::Arc;
 use std::{
     cell::{Cell, Ref, RefCell, RefMut},
     collections::{btree_set::BTreeSet, hash_map::Entry, VecDeque},
@@ -267,6 +269,7 @@ use std::{
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
 };
 
+use crate::constructor::WidgetConstructorContainer;
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
@@ -300,27 +303,44 @@ pub const BRUSH_BRIGHT_BLUE: Brush = Brush::Solid(COLOR_BRIGHT_BLUE);
 pub const BRUSH_TEXT: Brush = Brush::Solid(COLOR_TEXT);
 pub const BRUSH_FOREGROUND: Brush = Brush::Solid(COLOR_FOREGROUND);
 
-impl Default for Thickness {
-    fn default() -> Self {
-        Self::uniform(0.0)
-    }
-}
-
+#[derive(Default)]
 struct RcUiNodeHandleInner {
     handle: Handle<UiNode>,
-    sender: Sender<UiMessage>,
+    sender: Option<Sender<UiMessage>>,
+}
+
+impl Visit for RcUiNodeHandleInner {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.handle.visit(name, visitor)?;
+
+        if visitor.is_reading() {
+            self.sender = Some(
+                visitor
+                    .blackboard
+                    .get::<Sender<UiMessage>>()
+                    .expect("Ui message sender must be provided for correct deserialization!")
+                    .clone(),
+            );
+        }
+
+        Ok(())
+    }
 }
 
 impl Drop for RcUiNodeHandleInner {
     fn drop(&mut self) {
-        let _ = self.sender.send(WidgetMessage::remove(
-            self.handle,
-            MessageDirection::ToWidget,
-        ));
+        let _ = self
+            .sender
+            .as_ref()
+            .expect("Sender must be set!")
+            .send(WidgetMessage::remove(
+                self.handle,
+                MessageDirection::ToWidget,
+            ));
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default, Visit)]
 pub struct RcUiNodeHandle(Rc<RcUiNodeHandleInner>);
 
 impl Debug for RcUiNodeHandle {
@@ -344,7 +364,10 @@ impl PartialEq for RcUiNodeHandle {
 impl RcUiNodeHandle {
     pub fn new(handle: Handle<UiNode>, sender: Sender<UiMessage>) -> Self {
         assert!(handle.is_some());
-        Self(Rc::new(RcUiNodeHandleInner { handle, sender }))
+        Self(Rc::new(RcUiNodeHandleInner {
+            handle,
+            sender: Some(sender),
+        }))
     }
 }
 
@@ -600,6 +623,7 @@ pub struct UserInterface {
     #[visit(skip)]
     #[reflect(hidden)]
     layout_events_sender: Sender<LayoutEvent>,
+    #[visit(skip)]
     need_update_global_transform: bool,
     #[visit(skip)]
     #[reflect(hidden)]
@@ -697,6 +721,14 @@ fn is_node_enabled(nodes: &Pool<UiNode, WidgetContainer>, handle: Handle<UiNode>
 impl UserInterface {
     pub fn new(screen_size: Vector2<f32>) -> UserInterface {
         let (sender, receiver) = mpsc::channel();
+        Self::new_with_channel(sender, receiver, screen_size)
+    }
+
+    pub fn new_with_channel(
+        sender: Sender<UiMessage>,
+        receiver: Receiver<UiMessage>,
+        screen_size: Vector2<f32>,
+    ) -> UserInterface {
         let (layout_events_sender, layout_events_receiver) = mpsc::channel();
         let default_font = SharedFont::new(FontBuilder::new().build_builtin().unwrap());
         let mut ui = UserInterface {
@@ -2516,6 +2548,16 @@ impl UserInterface {
         self.nodes.try_borrow(node_handle)
     }
 
+    #[inline]
+    pub fn node_mut(&mut self, node_handle: Handle<UiNode>) -> &mut UiNode {
+        self.nodes.borrow_mut(node_handle)
+    }
+
+    #[inline]
+    pub fn try_get_node_mut(&mut self, node_handle: Handle<UiNode>) -> Option<&mut UiNode> {
+        self.nodes.try_borrow_mut(node_handle)
+    }
+
     pub fn copy_node(&mut self, node: Handle<UiNode>) -> Handle<UiNode> {
         let mut map = NodeHandleMapping::default();
 
@@ -2599,6 +2641,31 @@ impl UserInterface {
         *counter += 1;
 
         copy_handle
+    }
+
+    pub fn save(&mut self, path: &Path) -> Result<Visitor, VisitError> {
+        let mut visitor = Visitor::new();
+        self.visit("Ui", &mut visitor)?;
+        visitor.save_binary(path)?;
+        Ok(visitor)
+    }
+
+    #[allow(clippy::arc_with_non_send_sync)]
+    pub async fn load_from_file(
+        path: &Path,
+        constructors: Arc<WidgetConstructorContainer>,
+    ) -> Result<Self, VisitError> {
+        let mut visitor = Visitor::load_binary(path).await?;
+        let (sender, receiver) = mpsc::channel();
+        visitor.blackboard.register(constructors);
+        visitor.blackboard.register(Arc::new(sender.clone()));
+        let mut ui = UserInterface::new_with_channel(sender, receiver, Vector2::new(100.0, 100.0));
+        ui.visit("Ui", &mut visitor)?;
+        for widget in ui.nodes.iter_mut() {
+            widget.layout_events_sender = Some(ui.layout_events_sender.clone());
+            widget.invalidate_layout();
+        }
+        Ok(ui)
     }
 }
 

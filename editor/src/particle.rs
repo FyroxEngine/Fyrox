@@ -1,5 +1,5 @@
 use crate::{
-    scene::{EditorScene, Selection},
+    scene::{GameScene, Selection},
     send_sync_message, Message, FIXED_TIMESTEP,
 };
 use fyrox::gui::HorizontalAlignment;
@@ -200,18 +200,20 @@ impl ParticleSystemPreviewControlPanel {
     pub fn handle_message(
         &mut self,
         message: &Message,
-        editor_scene: &mut EditorScene,
+        editor_selection: &Selection,
+        game_scene: &mut GameScene,
         engine: &mut Engine,
     ) {
-        if let Message::DoSceneCommand(_) | Message::UndoSceneCommand | Message::RedoSceneCommand =
-            message
+        if let Message::DoGameSceneCommand(_)
+        | Message::UndoCurrentSceneCommand
+        | Message::RedoCurrentSceneCommand = message
         {
-            self.leave_preview_mode(editor_scene, engine);
+            self.leave_preview_mode(game_scene, engine);
         }
 
         if let Message::SelectionChanged { .. } = message {
-            let scene = &engine.scenes[editor_scene.scene];
-            if let Selection::Graph(ref selection) = editor_scene.selection {
+            let scene = &engine.scenes[game_scene.scene];
+            if let Selection::Graph(ref selection) = editor_selection {
                 let any_particle_system_selected = selection
                     .nodes
                     .iter()
@@ -238,13 +240,18 @@ impl ParticleSystemPreviewControlPanel {
         }
     }
 
-    fn enter_preview_mode(&mut self, editor_scene: &mut EditorScene, engine: &mut Engine) {
+    fn enter_preview_mode(
+        &mut self,
+        editor_selection: &Selection,
+        game_scene: &mut GameScene,
+        engine: &mut Engine,
+    ) {
         assert!(self.particle_systems_state.is_empty());
 
-        let scene = &engine.scenes[editor_scene.scene];
-        let node_overrides = editor_scene.graph_switches.node_overrides.as_mut().unwrap();
+        let scene = &engine.scenes[game_scene.scene];
+        let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
 
-        if let Selection::Graph(ref new_graph_selection) = editor_scene.selection {
+        if let Selection::Graph(ref new_graph_selection) = editor_selection {
             // Enable particle systems from new selection.
             for &node_handle in &new_graph_selection.nodes {
                 if scene
@@ -261,9 +268,9 @@ impl ParticleSystemPreviewControlPanel {
         }
     }
 
-    pub fn leave_preview_mode(&mut self, editor_scene: &mut EditorScene, engine: &mut Engine) {
-        let scene = &mut engine.scenes[editor_scene.scene];
-        let node_overrides = editor_scene.graph_switches.node_overrides.as_mut().unwrap();
+    pub fn leave_preview_mode(&mut self, game_scene: &mut GameScene, engine: &mut Engine) {
+        let scene = &mut engine.scenes[game_scene.scene];
+        let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
 
         for (particle_system_handle, original) in self.particle_systems_state.drain(..) {
             scene.graph[particle_system_handle] = original;
@@ -284,12 +291,13 @@ impl ParticleSystemPreviewControlPanel {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        editor_scene: &mut EditorScene,
+        editor_selection: &Selection,
+        game_scene: &mut GameScene,
         engine: &mut Engine,
     ) {
-        if let Selection::Graph(ref selection) = editor_scene.selection {
+        if let Selection::Graph(ref selection) = editor_selection {
             if let Some(ButtonMessage::Click) = message.data() {
-                let scene = &mut engine.scenes[editor_scene.scene];
+                let scene = &mut engine.scenes[game_scene.scene];
 
                 for &node in &selection.nodes {
                     if let Some(particle_system) =
@@ -314,9 +322,9 @@ impl ParticleSystemPreviewControlPanel {
                     && message.direction() == MessageDirection::FromWidget
                 {
                     if *value {
-                        self.enter_preview_mode(editor_scene, engine);
+                        self.enter_preview_mode(editor_selection, game_scene, engine);
                     } else {
-                        self.leave_preview_mode(editor_scene, engine);
+                        self.leave_preview_mode(game_scene, engine);
                     }
                 }
             } else if let Some(NumericUpDownMessage::Value(desired_playback_time)) = message.data()

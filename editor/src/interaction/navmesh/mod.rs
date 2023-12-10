@@ -1,4 +1,6 @@
+use crate::interaction::make_interaction_mode_button;
 use crate::message::MessageSender;
+use crate::scene::controller::SceneController;
 use crate::{
     camera::PickingOptions,
     interaction::{
@@ -14,14 +16,16 @@ use crate::{
                 AddNavmeshEdgeCommand, ConnectNavmeshEdgesCommand, DeleteNavmeshVertexCommand,
                 MoveNavmeshVertexCommand,
             },
-            ChangeSelectionCommand, CommandGroup, SceneCommand,
+            ChangeSelectionCommand, CommandGroup, GameSceneCommand,
         },
-        EditorScene, Selection,
+        GameScene, Selection,
     },
     settings::Settings,
     utils::window_content,
     Mode,
 };
+use fyrox::core::uuid::{uuid, Uuid};
+use fyrox::core::TypeUuidProvider;
 use fyrox::{
     core::{
         algebra::{Vector2, Vector3},
@@ -40,7 +44,7 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Orientation, Thickness, UiNode, UserInterface,
     },
-    scene::{camera::Camera, navmesh::NavigationalMesh, node::Node},
+    scene::{camera::Camera, navmesh::NavigationalMesh},
 };
 use std::collections::HashMap;
 
@@ -99,12 +103,12 @@ impl NavmeshPanel {
         }
     }
 
-    pub fn handle_message(&mut self, message: &UiMessage, editor_scene: &EditorScene) {
+    pub fn handle_message(&mut self, message: &UiMessage, editor_selection: &Selection) {
         scope_profile!();
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if message.destination() == self.connect_edges {
-                if let Some(selection) = fetch_selection(&editor_scene.selection) {
+                if let Some(selection) = fetch_selection(editor_selection) {
                     let vertices = selection
                         .entities()
                         .iter()
@@ -127,11 +131,16 @@ impl NavmeshPanel {
         }
     }
 
-    pub fn sync_to_model(&mut self, engine: &Engine, editor_scene: &EditorScene) {
+    pub fn sync_to_model(
+        &mut self,
+        engine: &Engine,
+        editor_selection: &Selection,
+        game_scene: &GameScene,
+    ) {
         let mut navmesh_selected = false;
 
-        let graph = &engine.scenes[editor_scene.scene].graph;
-        if let Some(selection) = fetch_selection(&editor_scene.selection) {
+        let graph = &engine.scenes[game_scene.scene].graph;
+        if let Some(selection) = fetch_selection(editor_selection) {
             navmesh_selected = graph
                 .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())
                 .is_some();
@@ -184,13 +193,9 @@ pub struct EditNavmeshMode {
 }
 
 impl EditNavmeshMode {
-    pub fn new(
-        editor_scene: &EditorScene,
-        engine: &mut Engine,
-        message_sender: MessageSender,
-    ) -> Self {
+    pub fn new(game_scene: &GameScene, engine: &mut Engine, message_sender: MessageSender) -> Self {
         Self {
-            move_gizmo: MoveGizmo::new(editor_scene, engine),
+            move_gizmo: MoveGizmo::new(game_scene, engine),
             message_sender,
             drag_context: None,
             plane_kind: PlaneKind::X,
@@ -198,29 +203,40 @@ impl EditNavmeshMode {
     }
 }
 
+impl TypeUuidProvider for EditNavmeshMode {
+    fn type_uuid() -> Uuid {
+        uuid!("a8ed875d-0932-400d-b5b0-e0dcfb78c6c1")
+    }
+}
+
 impl InteractionMode for EditNavmeshMode {
     fn on_left_mouse_button_down(
         &mut self,
-        editor_scene: &mut EditorScene,
+        editor_selection: &Selection,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
         settings: &Settings,
     ) {
-        let scene = &mut engine.scenes[editor_scene.scene];
-        let camera: &Camera = scene.graph[editor_scene.camera_controller.camera].as_camera();
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
+            return;
+        };
+
+        let scene = &mut engine.scenes[game_scene.scene];
+        let camera: &Camera = scene.graph[game_scene.camera_controller.camera].as_camera();
         let ray = camera.make_ray(mouse_pos, frame_size);
 
-        let camera = editor_scene.camera_controller.camera;
-        let camera_pivot = editor_scene.camera_controller.pivot;
+        let camera = game_scene.camera_controller.camera;
+        let camera_pivot = game_scene.camera_controller.pivot;
         let gizmo_origin = self.move_gizmo.origin;
-        let editor_node = editor_scene
+        let editor_node = game_scene
             .camera_controller
             .pick(PickingOptions {
                 cursor_pos: mouse_pos,
                 graph: &scene.graph,
-                editor_objects_root: editor_scene.editor_objects_root,
-                scene_content_root: editor_scene.scene_content_root,
+                editor_objects_root: game_scene.editor_objects_root,
+                scene_content_root: game_scene.scene_content_root,
                 screen_size: frame_size,
                 editor_only: true,
                 filter: |handle, _| {
@@ -233,8 +249,8 @@ impl InteractionMode for EditNavmeshMode {
             .map(|r| r.node)
             .unwrap_or_default();
 
-        if let Some(selection) = fetch_selection(&editor_scene.selection) {
-            let graph = &mut engine.scenes[editor_scene.scene].graph;
+        if let Some(selection) = fetch_selection(editor_selection) {
+            let graph = &mut engine.scenes[game_scene.scene].graph;
 
             if let Some(plane_kind) = self.move_gizmo.handle_pick(editor_node, graph) {
                 if let Some(navmesh) = graph
@@ -293,11 +309,11 @@ impl InteractionMode for EditNavmeshMode {
 
                 let new_selection = Selection::Navmesh(new_selection);
 
-                if new_selection != editor_scene.selection {
+                if &new_selection != editor_selection {
                     self.message_sender
                         .do_scene_command(ChangeSelectionCommand::new(
                             new_selection,
-                            editor_scene.selection.clone(),
+                            editor_selection.clone(),
                         ));
                 }
             }
@@ -306,17 +322,22 @@ impl InteractionMode for EditNavmeshMode {
 
     fn on_left_mouse_button_up(
         &mut self,
-        editor_scene: &mut EditorScene,
+        editor_selection: &Selection,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         _mouse_pos: Vector2<f32>,
         _frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
-        let graph = &mut engine.scenes[editor_scene.scene].graph;
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
+            return;
+        };
+
+        let graph = &mut engine.scenes[game_scene.scene].graph;
 
         self.move_gizmo.reset_state(graph);
 
-        if let Some(selection) = fetch_selection(&editor_scene.selection) {
+        if let Some(selection) = fetch_selection(editor_selection) {
             if let Some(navmesh) = graph
                 .try_get_of_type::<NavigationalMesh>(selection.navmesh_node())
                 .map(|n| n.navmesh_ref())
@@ -327,12 +348,14 @@ impl InteractionMode for EditNavmeshMode {
                     match drag_context {
                         DragContext::MoveSelection { initial_positions } => {
                             for vertex in selection.unique_vertices().iter() {
-                                commands.push(SceneCommand::new(MoveNavmeshVertexCommand::new(
-                                    selection.navmesh_node(),
-                                    *vertex,
-                                    *initial_positions.get(vertex).unwrap(),
-                                    navmesh.vertices()[*vertex],
-                                )));
+                                commands.push(GameSceneCommand::new(
+                                    MoveNavmeshVertexCommand::new(
+                                        selection.navmesh_node(),
+                                        *vertex,
+                                        *initial_positions.get(vertex).unwrap(),
+                                        navmesh.vertices()[*vertex],
+                                    ),
+                                ));
                             }
                         }
                         DragContext::EdgeDuplication {
@@ -342,7 +365,7 @@ impl InteractionMode for EditNavmeshMode {
                             let va = vertices[0];
                             let vb = vertices[1];
 
-                            commands.push(SceneCommand::new(AddNavmeshEdgeCommand::new(
+                            commands.push(GameSceneCommand::new(AddNavmeshEdgeCommand::new(
                                 selection.navmesh_node(),
                                 (va, vb),
                                 opposite_edge,
@@ -362,19 +385,23 @@ impl InteractionMode for EditNavmeshMode {
         &mut self,
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
-        camera: Handle<Node>,
-        editor_scene: &mut EditorScene,
+        editor_selection: &Selection,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         frame_size: Vector2<f32>,
         _settings: &Settings,
     ) {
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
+            return;
+        };
+
         if self.drag_context.is_none() {
             return;
         }
 
         let offset = self.move_gizmo.calculate_offset(
-            editor_scene,
-            camera,
+            game_scene,
+            game_scene.camera_controller.camera,
             mouse_offset,
             mouse_position,
             engine,
@@ -382,9 +409,9 @@ impl InteractionMode for EditNavmeshMode {
             self.plane_kind,
         );
 
-        let graph = &mut engine.scenes[editor_scene.scene].graph;
+        let graph = &mut engine.scenes[game_scene.scene].graph;
 
-        if let Some(selection) = fetch_selection(&editor_scene.selection) {
+        if let Some(selection) = fetch_selection(editor_selection) {
             if let Some(navmesh) = graph
                 .try_get_mut_of_type::<NavigationalMesh>(selection.navmesh_node())
                 .map(|n| n.navmesh_mut())
@@ -410,7 +437,7 @@ impl InteractionMode for EditNavmeshMode {
                                     Selection::Navmesh(NavmeshSelection::empty(
                                         selection.navmesh_node(),
                                     )),
-                                    editor_scene.selection.clone(),
+                                    editor_selection.clone(),
                                 ));
                         }
                     }
@@ -436,17 +463,25 @@ impl InteractionMode for EditNavmeshMode {
 
     fn update(
         &mut self,
-        editor_scene: &mut EditorScene,
-        camera: Handle<Node>,
+        editor_selection: &Selection,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
         settings: &Settings,
     ) {
-        let scene = &mut engine.scenes[editor_scene.scene];
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
+            return;
+        };
+
+        let scene = &mut engine.scenes[game_scene.scene];
         self.move_gizmo.set_visible(&mut scene.graph, false);
 
-        let scale = calculate_gizmo_distance_scaling(&scene.graph, camera, self.move_gizmo.origin);
+        let scale = calculate_gizmo_distance_scaling(
+            &scene.graph,
+            game_scene.camera_controller.camera,
+            self.move_gizmo.origin,
+        );
 
-        if let Some(selection) = fetch_selection(&editor_scene.selection) {
+        if let Some(selection) = fetch_selection(editor_selection) {
             if let Some(navmesh) = scene
                 .graph
                 .try_get_mut_of_type::<NavigationalMesh>(selection.navmesh_node())
@@ -514,20 +549,29 @@ impl InteractionMode for EditNavmeshMode {
         }
     }
 
-    fn deactivate(&mut self, editor_scene: &EditorScene, engine: &mut Engine) {
-        let scene = &mut engine.scenes[editor_scene.scene];
+    fn deactivate(&mut self, controller: &dyn SceneController, engine: &mut Engine) {
+        let Some(game_scene) = controller.downcast_ref::<GameScene>() else {
+            return;
+        };
+
+        let scene = &mut engine.scenes[game_scene.scene];
         self.move_gizmo.set_visible(&mut scene.graph, false);
     }
 
     fn on_key_down(
         &mut self,
         key: KeyCode,
-        editor_scene: &mut EditorScene,
+        editor_selection: &Selection,
+        controller: &mut dyn SceneController,
         engine: &mut Engine,
     ) -> bool {
-        let scene = &mut engine.scenes[editor_scene.scene];
+        let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
+            return false;
+        };
 
-        if let Some(selection) = fetch_selection(&editor_scene.selection) {
+        let scene = &mut engine.scenes[game_scene.scene];
+
+        if let Some(selection) = fetch_selection(editor_selection) {
             return match key {
                 KeyCode::Delete => {
                     if scene
@@ -540,15 +584,15 @@ impl InteractionMode for EditNavmeshMode {
                         let mut commands = Vec::new();
 
                         for vertex in selection.unique_vertices().iter().rev().cloned() {
-                            commands.push(SceneCommand::new(DeleteNavmeshVertexCommand::new(
+                            commands.push(GameSceneCommand::new(DeleteNavmeshVertexCommand::new(
                                 selection.navmesh_node(),
                                 vertex,
                             )));
                         }
 
-                        commands.push(SceneCommand::new(ChangeSelectionCommand::new(
+                        commands.push(GameSceneCommand::new(ChangeSelectionCommand::new(
                             Selection::Navmesh(NavmeshSelection::empty(selection.navmesh_node())),
-                            editor_scene.selection.clone(),
+                            editor_selection.clone(),
                         )));
 
                         self.message_sender
@@ -576,7 +620,7 @@ impl InteractionMode for EditNavmeshMode {
                         self.message_sender
                             .do_scene_command(ChangeSelectionCommand::new(
                                 Selection::Navmesh(selection),
-                                editor_scene.selection.clone(),
+                                editor_selection.clone(),
                             ));
                     }
 
@@ -587,5 +631,22 @@ impl InteractionMode for EditNavmeshMode {
         } else {
             false
         }
+    }
+
+    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
+        let navmesh_mode_tooltip =
+            "Edit Navmesh\n\nNavmesh edit mode allows you to modify selected \
+        navigational mesh.";
+
+        make_interaction_mode_button(
+            ctx,
+            include_bytes!("../../../resources/navmesh.png"),
+            navmesh_mode_tooltip,
+            selected,
+        )
+    }
+
+    fn uuid(&self) -> Uuid {
+        Self::type_uuid()
     }
 }

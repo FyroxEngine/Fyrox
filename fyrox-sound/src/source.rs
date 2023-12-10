@@ -38,6 +38,7 @@ use crate::{
 use fyrox_core::{
     algebra::Vector3,
     reflect::prelude::*,
+    uuid_provider,
     visitor::{Visit, VisitResult, Visitor},
 };
 use std::time::Duration;
@@ -57,6 +58,8 @@ pub enum Status {
     /// setting `Playing` status.
     Paused = 2,
 }
+
+uuid_provider!(Status = "1980bded-86cd-4eff-a5db-bab729bdb3ad");
 
 /// See module info.
 #[derive(Debug, Clone, Reflect, Visit)]

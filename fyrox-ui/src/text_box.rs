@@ -23,6 +23,7 @@ use crate::{
     BRUSH_DARKER, BRUSH_TEXT,
 };
 use copypasta::ClipboardProvider;
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
@@ -378,7 +379,7 @@ pub type FilterCallback = dyn FnMut(char) -> bool;
 ///
 /// You can change brush of caret by using [`TextBoxBuilder::with_caret_brush`] and also selection brush by using
 /// [`TextBoxBuilder::with_selection_brush`], it could be useful if you don't like default colors.
-#[derive(Clone, Visit, Reflect)]
+#[derive(Default, Clone, Visit, Reflect)]
 pub struct TextBox {
     /// Base widget of the text box.
     pub widget: Widget,
@@ -979,6 +980,8 @@ impl TextBox {
         }
     }
 }
+
+uuid_provider!(TextBox = "536276f2-a175-4c05-a376-5a7d8bf0d10b");
 
 impl Control for TextBox {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

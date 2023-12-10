@@ -24,8 +24,11 @@
 
 use crate::reflect::ReflectArray;
 use crate::{
+    combine_uuids,
     reflect::prelude::*,
+    uuid_provider,
     visitor::{Visit, VisitResult, Visitor},
+    TypeUuidProvider,
 };
 use arrayvec::ArrayVec;
 use serde::{Deserialize, Serialize};
@@ -38,6 +41,7 @@ use std::{
     marker::PhantomData,
     ops::{Index, IndexMut},
 };
+use uuid::Uuid;
 
 const INVALID_GENERATION: u32 = 0;
 
@@ -202,6 +206,15 @@ pub struct Handle<T> {
     type_marker: PhantomData<T>,
 }
 
+impl<T: TypeUuidProvider> TypeUuidProvider for Handle<T> {
+    fn type_uuid() -> Uuid {
+        combine_uuids(
+            uuid::uuid!("30c0668d-7a2c-47e6-8c7b-208fdcc905a1"),
+            T::type_uuid(),
+        )
+    }
+}
+
 unsafe impl<T> Send for Handle<T> {}
 unsafe impl<T> Sync for Handle<T> {}
 
@@ -224,6 +237,8 @@ pub struct ErasedHandle {
     #[reflect(read_only)]
     generation: u32,
 }
+
+uuid_provider!(ErasedHandle = "50131acc-8b3b-40b5-b495-e2c552c94db3");
 
 impl Display for ErasedHandle {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

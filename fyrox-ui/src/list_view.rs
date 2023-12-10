@@ -18,6 +18,7 @@ use crate::{
     BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface, BRUSH_DARK,
     BRUSH_LIGHT,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -214,7 +215,7 @@ impl ListViewMessage {
 ///     ));
 /// }
 /// ```
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct ListView {
     /// Base widget of the list view.
     pub widget: Widget,
@@ -289,13 +290,15 @@ impl ListView {
 }
 
 /// A wrapper for list view items, that is used to add selection functionality to arbitrary items.
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct ListViewItem {
     /// Base widget of the list view item.
     pub widget: Widget,
 }
 
 crate::define_widget_deref!(ListViewItem);
+
+uuid_provider!(ListViewItem = "02f21415-5843-42f5-a3e4-b4a21e7739ad");
 
 impl Control for ListViewItem {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -346,6 +349,8 @@ impl Control for ListViewItem {
         }
     }
 }
+
+uuid_provider!(ListView = "5832a643-5bf9-4d84-8358-b4c45bb440e8");
 
 impl Control for ListView {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

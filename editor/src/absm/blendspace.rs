@@ -10,6 +10,7 @@ use crate::{
     message::MessageSender,
     send_sync_message,
 };
+use fyrox::core::uuid_provider;
 use fyrox::{
     animation::machine::{
         node::blendspace::BlendSpacePoint, Machine, MachineLayer, Parameter, ParameterContainer,
@@ -161,6 +162,8 @@ fn make_points<P: Iterator<Item = Vector2<f32>>>(
         })
         .collect()
 }
+
+uuid_provider!(BlendSpaceField = "854a7c2d-3ccd-4331-95e1-956a3a035bd0");
 
 impl Control for BlendSpaceField {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -553,6 +556,8 @@ struct BlendSpaceFieldPoint {
 }
 
 define_widget_deref!(BlendSpaceFieldPoint);
+
+uuid_provider!(BlendSpaceFieldPoint = "22c215c1-ff23-4a64-9aa7-640b5014a78b");
 
 impl Control for BlendSpaceFieldPoint {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

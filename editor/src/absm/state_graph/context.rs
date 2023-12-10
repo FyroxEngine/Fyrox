@@ -12,8 +12,8 @@ use crate::{
     menu::create_menu_item,
     message::MessageSender,
     scene::{
-        commands::{ChangeSelectionCommand, CommandGroup, SceneCommand},
-        EditorScene, Selection,
+        commands::{ChangeSelectionCommand, CommandGroup, GameSceneCommand},
+        Selection,
     },
 };
 use fyrox::{
@@ -115,7 +115,7 @@ impl CanvasContextMenu {
                             fetch_state_node_model_handle(**source_node, ui),
                             fetch_state_node_model_handle(**dest_node, ui),
                         );
-                        SceneCommand::new(AddTransitionCommand::new(
+                        GameSceneCommand::new(AddTransitionCommand::new(
                             absm_node_handle,
                             layer_index,
                             Transition::new("Transition", source, dest, 1.0, ""),
@@ -201,7 +201,7 @@ impl NodeContextMenu {
         absm_node_handle: Handle<Node>,
         absm_node: &AnimationBlendingStateMachine,
         layer_index: usize,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
     ) {
         let machine = absm_node.machine();
         if let Some(MenuItemMessage::Click) = message.data() {
@@ -216,7 +216,7 @@ impl NodeContextMenu {
                     },
                 ))
             } else if message.destination == self.remove {
-                if let Selection::Absm(ref selection) = editor_scene.selection {
+                if let Selection::Absm(ref selection) = editor_selection {
                     let states_to_remove = selection
                         .entities
                         .iter()
@@ -248,13 +248,13 @@ impl NodeContextMenu {
                     let mut new_selection = selection.clone();
                     new_selection.entities.clear();
 
-                    let mut group = vec![SceneCommand::new(ChangeSelectionCommand::new(
+                    let mut group = vec![GameSceneCommand::new(ChangeSelectionCommand::new(
                         Selection::Absm(new_selection),
-                        editor_scene.selection.clone(),
+                        editor_selection.clone(),
                     ))];
 
                     group.extend(transitions_to_remove.map(|transition| {
-                        SceneCommand::new(DeleteTransitionCommand::new(
+                        GameSceneCommand::new(DeleteTransitionCommand::new(
                             absm_node_handle,
                             layer_index,
                             transition,
@@ -262,7 +262,7 @@ impl NodeContextMenu {
                     }));
 
                     group.extend(states_to_remove.into_iter().map(|state| {
-                        SceneCommand::new(DeleteStateCommand::new(
+                        GameSceneCommand::new(DeleteStateCommand::new(
                             absm_node_handle,
                             layer_index,
                             state,
@@ -347,11 +347,11 @@ impl TransitionContextMenu {
         sender: &MessageSender,
         absm_node_handle: Handle<Node>,
         layer_index: usize,
-        editor_scene: &EditorScene,
+        editor_selection: &Selection,
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination == self.remove {
-                if let Selection::Absm(ref selection) = editor_scene.selection {
+                if let Selection::Absm(ref selection) = editor_selection {
                     let mut new_selection = selection.clone();
                     new_selection.entities.clear();
 
@@ -361,11 +361,11 @@ impl TransitionContextMenu {
                         .unwrap();
 
                     let group = vec![
-                        SceneCommand::new(ChangeSelectionCommand::new(
+                        GameSceneCommand::new(ChangeSelectionCommand::new(
                             Selection::Absm(new_selection),
-                            editor_scene.selection.clone(),
+                            editor_selection.clone(),
                         )),
-                        SceneCommand::new(DeleteTransitionCommand::new(
+                        GameSceneCommand::new(DeleteTransitionCommand::new(
                             absm_node_handle,
                             layer_index,
                             transition_ref.model_handle,

@@ -15,7 +15,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
 };
-use fyrox_core::uuid::{uuid, Uuid};
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -76,7 +76,7 @@ impl ButtonMessage {
 ///     }
 /// }
 /// ```
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct Button {
     /// Base widget of the button.
     pub widget: Widget,
@@ -87,6 +87,8 @@ pub struct Button {
 }
 
 crate::define_widget_deref!(Button);
+
+uuid_provider!(Button = "2abcf12b-2f19-46da-b900-ae8890f7c9c6");
 
 impl Control for Button {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
@@ -162,10 +164,6 @@ impl Control for Button {
                 }
             }
         }
-    }
-
-    fn id(&self) -> Uuid {
-        uuid!("1e4e0ee7-86d2-4e97-a099-1295bd70360a")
     }
 }
 

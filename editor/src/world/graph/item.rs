@@ -1,5 +1,6 @@
 use crate::{load_image, message::MessageSender, utils::make_node_name, Message};
-use fyrox::scene::node::Node;
+use fyrox::core::pool::ErasedHandle;
+use fyrox::core::uuid_provider;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle},
     core::{reflect::prelude::*, visitor::prelude::*},
@@ -42,7 +43,7 @@ pub struct SceneItem {
     text_name: Handle<UiNode>,
     name_value: String,
     grid: Handle<UiNode>,
-    pub entity_handle: Handle<Node>,
+    pub entity_handle: ErasedHandle,
     // Can be unassigned if there's no warning.
     pub warning_icon: Handle<UiNode>,
     #[reflect(hidden)]
@@ -90,6 +91,8 @@ impl DerefMut for SceneItem {
     }
 }
 
+uuid_provider!(SceneItem = "16f35257-a250-413b-ab51-b1ad086a3a9c");
+
 impl Control for SceneItem {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
         self.tree.query_component(type_id).or_else(|| {
@@ -127,7 +130,7 @@ impl Control for SceneItem {
 
         if let Some(SceneItemMessage::Name(name)) = message.data() {
             if message.destination() == self.handle() {
-                self.name_value = make_node_name(name, self.entity_handle.into());
+                self.name_value = make_node_name(name, self.entity_handle);
 
                 ui.send_message(TextMessage::text(
                     self.text_name,
@@ -171,7 +174,8 @@ impl Control for SceneItem {
         } else if let Some(WidgetMessage::DoubleClick { .. }) = message.data() {
             let flag = 0b0010;
             if message.flags & flag != flag {
-                self.sender.send(Message::FocusObject(self.entity_handle));
+                self.sender
+                    .send(Message::FocusObject(self.entity_handle.into()));
                 message.set_handled(true);
                 message.flags |= flag;
             }
@@ -194,7 +198,7 @@ impl Control for SceneItem {
 
 pub struct SceneItemBuilder {
     tree_builder: TreeBuilder,
-    entity_handle: Handle<Node>,
+    entity_handle: ErasedHandle,
     name: String,
     icon: Option<SharedTexture>,
     text_brush: Option<Brush>,
@@ -211,7 +215,7 @@ impl SceneItemBuilder {
         }
     }
 
-    pub fn with_entity_handle(mut self, entity_handle: Handle<Node>) -> Self {
+    pub fn with_entity_handle(mut self, entity_handle: ErasedHandle) -> Self {
         self.entity_handle = entity_handle;
         self
     }

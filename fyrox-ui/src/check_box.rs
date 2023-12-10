@@ -18,6 +18,7 @@ use crate::{
     UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE, BRUSH_DARKEST, BRUSH_LIGHT,
     BRUSH_TEXT,
 };
+use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -129,7 +130,7 @@ impl CheckBoxMessage {
 /// 2) [`CheckBoxBuilder::with_check_mark`] - sets the widget that will be used as checked icon.
 /// 3) [`CheckBoxBuilder::with_uncheck_mark`] - sets the widget that will be used as unchecked icon.
 /// 4) [`CheckBoxBuilder::with_undefined_mark`] - sets the widget that will be used as undefined icon.
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct CheckBox {
     /// Base widget of the check box.
     pub widget: Widget,
@@ -144,6 +145,8 @@ pub struct CheckBox {
 }
 
 crate::define_widget_deref!(CheckBox);
+
+uuid_provider!(CheckBox = "3a866ba8-7682-4ce7-954a-46360f5837dc");
 
 impl Control for CheckBox {
     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {

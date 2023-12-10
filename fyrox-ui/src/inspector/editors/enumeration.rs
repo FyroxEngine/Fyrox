@@ -22,6 +22,8 @@ use crate::{
     VerticalAlignment,
 };
 use fyrox_core::reflect::Reflect;
+use fyrox_core::uuid::{uuid, Uuid};
+use fyrox_core::{combine_uuids, TypeUuidProvider};
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -33,9 +35,9 @@ use strum::VariantNames;
 
 const LOCAL_SYNC_FLAG: u64 = 0xFF;
 
-pub trait InspectableEnum: Debug + Reflect + Clone + 'static {}
+pub trait InspectableEnum: Debug + Reflect + Clone + TypeUuidProvider + 'static {}
 
-impl<T: Debug + Reflect + Clone + 'static> InspectableEnum for T {}
+impl<T: Debug + Reflect + Clone + TypeUuidProvider + 'static> InspectableEnum for T {}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum EnumPropertyEditorMessage {
@@ -110,6 +112,18 @@ impl<T: InspectableEnum> Deref for EnumPropertyEditor<T> {
 impl<T: InspectableEnum> DerefMut for EnumPropertyEditor<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.widget
+    }
+}
+
+impl<T> TypeUuidProvider for EnumPropertyEditor<T>
+where
+    T: InspectableEnum,
+{
+    fn type_uuid() -> Uuid {
+        combine_uuids(
+            uuid!("0dbefddc-70fa-45a9-96f0-8fe25f6c1669"),
+            T::type_uuid(),
+        )
     }
 }
 
