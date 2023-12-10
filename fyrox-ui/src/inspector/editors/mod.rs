@@ -70,7 +70,7 @@ use crate::{
     widget::Widget,
     window::Window,
     wrap_panel::WrapPanel,
-    BuildContext, UiNode, UserInterface,
+    BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fxhash::FxHashMap;
 use std::{
@@ -315,6 +315,8 @@ impl PropertyEditorDefinitionContainer {
 
         // UI
         container.insert(EnumPropertyEditorDefinition::<Brush>::new());
+        container.insert(EnumPropertyEditorDefinition::<VerticalAlignment>::new());
+        container.insert(EnumPropertyEditorDefinition::<HorizontalAlignment>::new());
         container.insert(VecCollectionPropertyEditorDefinition::<GradientPoint>::new());
         reg_inspectables!(
             container,
@@ -420,7 +422,8 @@ impl PropertyEditorDefinitionContainer {
             Window,
             WrapPanel,
             // Structs
-            GradientPoint
+            GradientPoint,
+            Thickness
         );
 
         container

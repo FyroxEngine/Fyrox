@@ -709,10 +709,13 @@ pub struct Widget {
     #[reflect(setter = "set_visibility_notify")]
     pub visibility: bool,
     /// Current, **global** (including the chain of parent widgets), visibility state of the widget.
+    #[reflect(hidden)]
     pub global_visibility: bool,
     /// A set of handles to children nodes of this widget.
+    #[reflect(hidden)]
     pub children: Vec<Handle<UiNode>>,
     /// A handle to the parent node of this widget.
+    #[reflect(hidden)]
     pub parent: Handle<UiNode>,
     /// Indices of drawing commands in the drawing context emitted by this widget. It is used for picking.
     #[reflect(hidden)]
@@ -720,6 +723,7 @@ pub struct Widget {
     pub command_indices: RefCell<Vec<usize>>,
     /// A flag, that indicates that the mouse is directly over the widget. It will be raised only for top-most widget in the
     /// "stack" of widgets.
+    #[reflect(hidden)]
     pub is_mouse_directly_over: bool,
     /// A flag, that defines whether the widget is "visible" for hit testing (picking). Could be useful to prevent some widgets
     /// from any interactions with mouse.
@@ -758,10 +762,13 @@ pub struct Widget {
     pub clip_to_bounds: bool,
     /// Current render transform of the node. It modifies layout information of the widget, as well as it affects visual transform
     /// of the widget.
+    #[reflect(hidden)]
     pub layout_transform: Matrix3<f32>,
     /// Current render transform of the node. It only modifies the widget at drawing stage, layout information remains unmodified.
+    #[reflect(hidden)]
     pub render_transform: Matrix3<f32>,
     /// Current visual transform of the node. It always contains a result of mixing the layout and render transformation matrices.
+    #[reflect(hidden)]
     pub visual_transform: Matrix3<f32>,
     /// A flag, that defines whether the widget will preview UI messages or not. Basically, it defines whether [crate::Control::preview_message]
     /// is called or not.
