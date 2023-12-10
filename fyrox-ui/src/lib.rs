@@ -2649,6 +2649,7 @@ impl UserInterface {
         Ok(visitor)
     }
 
+    #[allow(clippy::arc_with_non_send_sync)]
     pub async fn load_from_file(
         path: &Path,
         constructors: Arc<WidgetConstructorContainer>,
