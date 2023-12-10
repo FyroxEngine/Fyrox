@@ -772,9 +772,11 @@ pub struct Widget {
     pub visual_transform: Matrix3<f32>,
     /// A flag, that defines whether the widget will preview UI messages or not. Basically, it defines whether [crate::Control::preview_message]
     /// is called or not.
+    #[reflect(hidden)]
     pub preview_messages: bool,
     /// A flag, that defines whether the widget will receive any OS events or not. Basically, it defines whether [crate::Control::handle_os_event]
     /// is called or not.
+    #[reflect(hidden)]
     pub handle_os_events: bool,
     /// Internal sender for layout events.
     #[reflect(hidden)]
