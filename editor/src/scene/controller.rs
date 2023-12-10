@@ -3,6 +3,8 @@ use crate::{
     settings::{keys::KeyBindings, Settings},
     Message,
 };
+use fyrox::core::reflect::Reflect;
+use fyrox::scene::SceneContainer;
 use fyrox::{
     core::{algebra::Vector2, math::Rect, pool::Handle},
     engine::Engine,
@@ -115,6 +117,13 @@ pub trait SceneController: 'static {
     fn top_command_index(&self) -> Option<usize>;
 
     fn command_names(&mut self, selection: &mut Selection, engine: &mut Engine) -> Vec<String>;
+
+    fn first_selected_entity(
+        &self,
+        selection: &Selection,
+        scenes: &SceneContainer,
+        callback: &mut dyn FnMut(&dyn Reflect),
+    );
 }
 
 impl dyn SceneController {

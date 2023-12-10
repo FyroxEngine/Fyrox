@@ -1517,6 +1517,11 @@ impl Editor {
                     .command_names(&mut current_scene_entry.selection, engine),
                 &mut engine.user_interface,
             );
+            self.inspector.sync_to_model(
+                &current_scene_entry.selection,
+                &*current_scene_entry.controller,
+                engine,
+            );
 
             if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
                 self.animation_editor.sync_to_model(
@@ -1527,8 +1532,6 @@ impl Editor {
                 self.absm_editor
                     .sync_to_model(&current_scene_entry.selection, game_scene, engine);
                 self.scene_settings.sync_to_model(game_scene, engine);
-                self.inspector
-                    .sync_to_model(&current_scene_entry.selection, game_scene, engine);
                 let sender = &self.message_sender;
                 self.world_viewer.sync_to_model(
                     &EditorSceneWrapper {
@@ -2101,15 +2104,15 @@ impl Editor {
                     .handle_message(&message, &self.message_sender);
 
                 if let Some(entry) = self.scenes.current_scene_entry_mut() {
-                    if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
-                        self.inspector.handle_message(
-                            &message,
-                            &entry.selection,
-                            game_scene,
-                            &mut self.engine,
-                            &self.message_sender,
-                        );
+                    self.inspector.handle_message(
+                        &message,
+                        &entry.selection,
+                        &*entry.controller,
+                        &mut self.engine,
+                        &self.message_sender,
+                    );
 
+                    if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
                         self.particle_system_control_panel.handle_message(
                             &message,
                             &entry.selection,

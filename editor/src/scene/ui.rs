@@ -9,6 +9,8 @@ use crate::{
     world::WorldViewerDataProvider,
     Message,
 };
+use fyrox::core::reflect::Reflect;
+use fyrox::scene::SceneContainer;
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -271,6 +273,21 @@ impl SceneController for UiScene {
                 })
             })
             .collect::<Vec<_>>()
+    }
+
+    fn first_selected_entity(
+        &self,
+        selection: &Selection,
+        scenes: &SceneContainer,
+        callback: &mut dyn FnMut(&dyn Reflect),
+    ) {
+        if let Selection::Ui(selection) = selection {
+            if let Some(first) = selection.widgets.first() {
+                if let Some(node) = self.ui.try_get_node(*first).map(|n| n as &dyn Reflect) {
+                    (callback)(node)
+                }
+            }
+        }
     }
 }
 

@@ -1,8 +1,10 @@
+use crate::absm::selection::SelectedEntity;
 use crate::inspector::editors::handle::HandlePropertyEditorMessage;
 use crate::scene::selector::HierarchyNode;
 use crate::scene::ui::UiSelection;
 use crate::{
     absm::selection::AbsmSelection,
+    animation,
     animation::selection::AnimationSelection,
     asset::item::AssetItem,
     audio::AudioBusSelection,
@@ -22,7 +24,11 @@ use crate::{
     world::graph::selection::GraphSelection,
     Message, Settings,
 };
+use fyrox::core::reflect::Reflect;
 use fyrox::gui::message::MessageDirection;
+use fyrox::scene::animation::absm::AnimationBlendingStateMachine;
+use fyrox::scene::animation::AnimationPlayer;
+use fyrox::scene::SceneContainer;
 use fyrox::{
     core::{
         algebra::{Vector2, Vector3},
@@ -903,6 +909,69 @@ impl SceneController for GameScene {
                 })
             })
             .collect::<Vec<_>>()
+    }
+
+    fn first_selected_entity(
+        &self,
+        selection: &Selection,
+        scenes: &SceneContainer,
+        callback: &mut dyn FnMut(&dyn Reflect),
+    ) {
+        let scene = &scenes[self.scene];
+        match selection {
+            Selection::Graph(selection) => {
+                if let Some(node) = scene.graph.try_get(selection.nodes()[0]) {
+                    (callback)(node as &dyn Reflect);
+                }
+            }
+            Selection::AudioBus(selection) => {
+                let state = scene.graph.sound_context.state();
+                if let Some(effect) = state.bus_graph_ref().try_get_bus_ref(selection.buses[0]) {
+                    (callback)(effect as &dyn Reflect);
+                }
+            }
+            Selection::Animation(selection) => {
+                if let Some(animation) = scene
+                    .graph
+                    .try_get_of_type::<AnimationPlayer>(selection.animation_player)
+                    .and_then(|player| player.animations().try_get(selection.animation))
+                {
+                    if let Some(animation::selection::SelectedEntity::Signal(id)) =
+                        selection.entities.first()
+                    {
+                        if let Some(signal) = animation.signals().iter().find(|s| s.id == *id) {
+                            (callback)(signal as &dyn Reflect);
+                        }
+                    }
+                }
+            }
+            Selection::Absm(selection) => {
+                if let Some(node) = scene
+                    .graph
+                    .try_get_of_type::<AnimationBlendingStateMachine>(selection.absm_node_handle)
+                {
+                    if let Some(first) = selection.entities.first() {
+                        let machine = node.machine();
+                        if let Some(layer_index) = selection.layer {
+                            if let Some(layer) = machine.layers().get(layer_index) {
+                                match first {
+                                    SelectedEntity::Transition(transition) => (callback)(
+                                        &layer.transitions()[*transition] as &dyn Reflect,
+                                    ),
+                                    SelectedEntity::State(state) => {
+                                        (callback)(&layer.states()[*state] as &dyn Reflect)
+                                    }
+                                    SelectedEntity::PoseNode(pose) => {
+                                        (callback)(&layer.nodes()[*pose] as &dyn Reflect)
+                                    }
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+            _ => (),
+        };
     }
 }
 
