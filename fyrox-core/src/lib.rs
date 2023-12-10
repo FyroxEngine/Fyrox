@@ -21,6 +21,7 @@ pub use uuid;
 use crate::visitor::{Visit, VisitResult, Visitor};
 use fxhash::FxHashMap;
 use std::ffi::OsString;
+use std::hash::Hasher;
 use std::{
     borrow::Borrow,
     hash::Hash,
@@ -342,6 +343,35 @@ pub fn combine_uuids(a: Uuid, b: Uuid) -> Uuid {
     }
 
     Uuid::from_bytes(combined_bytes)
+}
+
+/// "Transmutes" array of any sized type to a slice of bytes.
+pub fn array_as_u8_slice<T: Sized>(v: &[T]) -> &'_ [u8] {
+    // SAFETY: It is safe to reinterpret data to read it.
+    unsafe { std::slice::from_raw_parts(v.as_ptr() as *const u8, std::mem::size_of_val(v)) }
+}
+
+/// "Transmutes" value of any sized type to a slice of bytes.
+pub fn value_as_u8_slice<T: Sized>(v: &T) -> &'_ [u8] {
+    // SAFETY: It is safe to reinterpret data to read it.
+    unsafe { std::slice::from_raw_parts(v as *const T as *const u8, std::mem::size_of::<T>()) }
+}
+
+/// Takes a vector of trivially-copyable values and turns it into a vector of bytes.
+pub fn transmute_vec_as_bytes<T: Copy>(vec: Vec<T>) -> Vec<u8> {
+    unsafe {
+        let mut vec = std::mem::ManuallyDrop::new(vec);
+        Vec::from_raw_parts(
+            vec.as_mut_ptr() as *mut u8,
+            vec.len() * std::mem::size_of::<T>(),
+            vec.capacity() * std::mem::size_of::<T>(),
+        )
+    }
+}
+
+/// Performs hashing of a sized value by interpreting it as raw memory.
+pub fn hash_as_bytes<T: Sized, H: Hasher>(value: &T, hasher: &mut H) {
+    hasher.write(value_as_u8_slice(value))
 }
 
 #[cfg(test)]

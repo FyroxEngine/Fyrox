@@ -9,7 +9,7 @@ use crate::{
         math::TriangleDefinition,
         visitor::{prelude::*, PodVecView},
     },
-    utils::{array_as_u8_slice, value_as_u8_slice},
+    core::{array_as_u8_slice, value_as_u8_slice},
 };
 use fxhash::FxHasher;
 use std::{

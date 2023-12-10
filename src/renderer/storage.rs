@@ -12,7 +12,6 @@ use crate::{
             state::PipelineState,
         },
     },
-    utils,
 };
 use fxhash::FxHashMap;
 use std::{cell::RefCell, collections::hash_map::Entry, rc::Rc};
@@ -43,7 +42,7 @@ impl MatrixStorage {
                 MinificationFilter::Nearest,
                 MagnificationFilter::Nearest,
                 1,
-                Some(utils::array_as_u8_slice(&identity)),
+                Some(crate::core::array_as_u8_slice(&identity)),
             )?)),
             matrices: Default::default(),
         })
@@ -88,7 +87,7 @@ impl MatrixStorage {
                     },
                     PixelKind::RGBA32F,
                     1,
-                    Some(utils::array_as_u8_slice(&self.matrices)),
+                    Some(crate::core::array_as_u8_slice(&self.matrices)),
                 )?;
         }
 

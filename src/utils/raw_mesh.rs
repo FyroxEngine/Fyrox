@@ -5,8 +5,8 @@
 //! of RawMeshBuilder.
 
 use crate::{
+    core::hash_as_bytes,
     core::{algebra::Vector3, math::TriangleDefinition},
-    utils::hash_as_bytes,
 };
 use fxhash::{FxBuildHasher, FxHashSet};
 use std::hash::{Hash, Hasher};

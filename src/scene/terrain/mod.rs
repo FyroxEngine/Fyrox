@@ -35,7 +35,6 @@ use crate::{
         node::{Node, NodeTrait},
         terrain::{geometry::TerrainGeometry, quadtree::QuadTree},
     },
-    utils::{self},
 };
 use fyrox_core::uuid_provider;
 use fyrox_resource::untyped::ResourceKind;
@@ -107,7 +106,7 @@ fn make_height_map_texture_internal(
             height: size.y,
         },
         TexturePixelKind::R32F,
-        utils::transmute_vec_as_bytes(height_map),
+        crate::core::transmute_vec_as_bytes(height_map),
     )?;
 
     data.set_t_wrap_mode(TextureWrapMode::ClampToEdge);

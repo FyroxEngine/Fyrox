@@ -22,7 +22,7 @@ use crate::{
 };
 use fyrox_ui::message::CursorIcon;
 use half::f16;
-use std::{any::Any, hash::Hasher, sync::Arc};
+use std::{any::Any, sync::Arc};
 use winit::{event::Touch, keyboard::PhysicalKey};
 
 /// Translates `winit`'s key code to `fyrox-ui`'s key code.
@@ -786,35 +786,6 @@ pub fn into_any_arc<T: Any + Send + Sync>(
 /// Converts engine's optional texture "pointer" to fyrox-ui's.
 pub fn into_gui_texture(this: TextureResource) -> draw::SharedTexture {
     draw::SharedTexture(this.into_untyped().0)
-}
-
-/// "Transmutes" array of any sized type to a slice of bytes.
-pub fn array_as_u8_slice<T: Sized>(v: &[T]) -> &'_ [u8] {
-    // SAFETY: It is safe to reinterpret data to read it.
-    unsafe { std::slice::from_raw_parts(v.as_ptr() as *const u8, std::mem::size_of_val(v)) }
-}
-
-/// "Transmutes" value of any sized type to a slice of bytes.
-pub fn value_as_u8_slice<T: Sized>(v: &T) -> &'_ [u8] {
-    // SAFETY: It is safe to reinterpret data to read it.
-    unsafe { std::slice::from_raw_parts(v as *const T as *const u8, std::mem::size_of::<T>()) }
-}
-
-/// Takes a vector of trivially-copyable values and turns it into a vector of bytes.
-pub fn transmute_vec_as_bytes<T: Copy>(vec: Vec<T>) -> Vec<u8> {
-    unsafe {
-        let mut vec = std::mem::ManuallyDrop::new(vec);
-        Vec::from_raw_parts(
-            vec.as_mut_ptr() as *mut u8,
-            vec.len() * std::mem::size_of::<T>(),
-            vec.capacity() * std::mem::size_of::<T>(),
-        )
-    }
-}
-
-/// Performs hashing of a sized value by interpreting it as raw memory.
-pub fn hash_as_bytes<T: Sized, H: Hasher>(value: &T, hasher: &mut H) {
-    hasher.write(value_as_u8_slice(value))
 }
 
 /// A trait for entities that have name.

@@ -27,10 +27,7 @@ use crate::{
         },
         node::Node,
     },
-    utils::{
-        self,
-        raw_mesh::{RawMesh, RawMeshBuilder},
-    },
+    utils::raw_mesh::{RawMesh, RawMeshBuilder},
 };
 use fxhash::{FxHashMap, FxHasher};
 use fyrox_core::uuid_provider;
@@ -157,7 +154,7 @@ impl BlendShapesContainer {
             }
         }
 
-        let bytes = utils::transmute_vec_as_bytes(vertex_data);
+        let bytes = crate::core::transmute_vec_as_bytes(vertex_data);
 
         assert_eq!(
             bytes.len(),

@@ -1,9 +1,9 @@
 use crate::scene::mesh::surface::SurfaceData;
 use crate::{
+    core::array_as_u8_slice,
     core::{math::TriangleDefinition, scope_profile},
     renderer::framework::{error::FrameworkError, state::PipelineState},
     scene::mesh::buffer::{VertexAttributeDataType, VertexBuffer},
-    utils::array_as_u8_slice,
 };
 use glow::HasContext;
 use std::{cell::Cell, marker::PhantomData, mem::size_of};

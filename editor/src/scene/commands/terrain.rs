@@ -10,7 +10,6 @@ use fyrox::{
     core::pool::Handle,
     resource::texture::TextureResource,
     scene::{node::Node, terrain::Layer},
-    utils,
 };
 
 #[derive(Debug)]
@@ -131,7 +130,7 @@ impl ModifyTerrainHeightCommand {
                     height: heigth_map_size.y,
                 },
                 TexturePixelKind::R32F,
-                utils::transmute_vec_as_bytes(new.clone()),
+                fyrox::core::transmute_vec_as_bytes(new.clone()),
                 Default::default(),
             )
             .unwrap();
