@@ -1,5 +1,9 @@
+use crate::brush::{Brush, GradientPoint};
 use crate::{
-    core::visitor::prelude::*,
+    bit::BitField,
+    border::Border,
+    button::Button,
+    canvas::Canvas,
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
         color::Color,
@@ -9,7 +13,13 @@ use crate::{
         pool::Handle,
         reflect::{FieldInfo, FieldValue, Reflect},
         uuid::Uuid,
+        visitor::prelude::*,
     },
+    decorator::Decorator,
+    dropdown_list::DropdownList,
+    expander::Expander,
+    grid::Grid,
+    image::Image,
     inspector::{
         editors::{
             array::ArrayPropertyEditorDefinition,
@@ -35,7 +45,31 @@ use crate::{
         InspectorEnvironment, InspectorError, PropertyChanged, PropertyFilter,
     },
     key::KeyBinding,
+    key::{HotKeyEditor, KeyBindingEditor},
+    list_view::{ListView, ListViewItem},
+    menu::{Menu, MenuItem},
     message::UiMessage,
+    messagebox::MessageBox,
+    nine_patch::NinePatch,
+    numeric::NumericUpDown,
+    path::PathEditor,
+    popup::Popup,
+    progress_bar::ProgressBar,
+    range::RangeEditor,
+    rect::RectEditor,
+    scroll_bar::ScrollBar,
+    scroll_panel::ScrollPanel,
+    stack_panel::StackPanel,
+    tab_control::TabControl,
+    text::Text,
+    text_box::TextBox,
+    tree::{Tree, TreeRoot},
+    uuid::UuidEditor,
+    vec::VecEditor,
+    vector_image::VectorImage,
+    widget::Widget,
+    window::Window,
+    wrap_panel::WrapPanel,
     BuildContext, UiNode, UserInterface,
 };
 use fxhash::FxHashMap;
@@ -169,6 +203,14 @@ macro_rules! reg_property_editor {
     }
 }
 
+macro_rules! reg_inspectables {
+    ($container:ident, $($ty:ty),*) => {
+        $(
+             $container.insert(InspectablePropertyEditorDefinition::<$ty>::new());
+        )*
+    }
+}
+
 impl PropertyEditorDefinitionContainer {
     pub fn new() -> Self {
         let container = Self::default();
@@ -270,6 +312,116 @@ impl PropertyEditorDefinitionContainer {
         // Curve
         container.insert(CurvePropertyEditorDefinition);
         container.insert(InheritablePropertyEditorDefinition::<Curve>::new());
+
+        // UI
+        container.insert(EnumPropertyEditorDefinition::<Brush>::new());
+        container.insert(VecCollectionPropertyEditorDefinition::<GradientPoint>::new());
+        reg_inspectables!(
+            container,
+            // Widgets
+            Widget,
+            Border,
+            BitField<u8>,
+            BitField<i8>,
+            BitField<u16>,
+            BitField<i16>,
+            BitField<u32>,
+            BitField<i32>,
+            BitField<u64>,
+            BitField<i64>,
+            Button,
+            Canvas,
+            Decorator,
+            DropdownList,
+            Expander,
+            Grid,
+            Image,
+            HotKeyEditor,
+            KeyBindingEditor,
+            ListViewItem,
+            ListView,
+            Menu,
+            MenuItem,
+            MessageBox,
+            NinePatch,
+            NumericUpDown<u8>,
+            NumericUpDown<i8>,
+            NumericUpDown<u16>,
+            NumericUpDown<i16>,
+            NumericUpDown<u32>,
+            NumericUpDown<i32>,
+            NumericUpDown<u64>,
+            NumericUpDown<i64>,
+            NumericUpDown<f32>,
+            NumericUpDown<f64>,
+            PathEditor,
+            Popup,
+            ProgressBar,
+            RangeEditor<u8>,
+            RangeEditor<i8>,
+            RangeEditor<u16>,
+            RangeEditor<i16>,
+            RangeEditor<u32>,
+            RangeEditor<i32>,
+            RangeEditor<u64>,
+            RangeEditor<i64>,
+            RangeEditor<f32>,
+            RangeEditor<f64>,
+            RectEditor<u8>,
+            RectEditor<i8>,
+            RectEditor<u16>,
+            RectEditor<i16>,
+            RectEditor<u32>,
+            RectEditor<i32>,
+            RectEditor<u64>,
+            RectEditor<i64>,
+            RectEditor<f32>,
+            RectEditor<f64>,
+            ScrollBar,
+            ScrollPanel,
+            StackPanel,
+            TabControl,
+            Text,
+            TextBox,
+            Tree,
+            TreeRoot,
+            UuidEditor,
+            VecEditor<u8, 2>,
+            VecEditor<i8, 2>,
+            VecEditor<u16,2>,
+            VecEditor<i16,2>,
+            VecEditor<u32,2>,
+            VecEditor<i32,2>,
+            VecEditor<u64,2>,
+            VecEditor<i64,2>,
+            VecEditor<f32,2>,
+            VecEditor<f64,2>,
+            VecEditor<u8, 3>,
+            VecEditor<i8, 3>,
+            VecEditor<u16,3>,
+            VecEditor<i16,3>,
+            VecEditor<u32,3>,
+            VecEditor<i32,3>,
+            VecEditor<u64,3>,
+            VecEditor<i64,3>,
+            VecEditor<f32,3>,
+            VecEditor<f64,3>,
+            VecEditor<u8, 4>,
+            VecEditor<i8, 4>,
+            VecEditor<u16,4>,
+            VecEditor<i16,4>,
+            VecEditor<u32,4>,
+            VecEditor<i32,4>,
+            VecEditor<u64,4>,
+            VecEditor<i64,4>,
+            VecEditor<f32,4>,
+            VecEditor<f64,4>,
+            VectorImage,
+            Window,
+            WrapPanel,
+            // Structs
+            GradientPoint
+        );
 
         container
     }
