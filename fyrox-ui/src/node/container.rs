@@ -1,8 +1,8 @@
 //! A wrapper for node pool record that allows to define custom visit method to have full
 //! control over instantiation process at deserialization.
 
-use crate::constructor::WidgetConstructorContainer;
 use crate::{
+    constructor::WidgetConstructorContainer,
     core::{
         pool::PayloadContainer,
         reflect::prelude::*,
@@ -11,7 +11,6 @@ use crate::{
     },
     UiNode,
 };
-use std::sync::Arc;
 
 /// A wrapper for widget pool record that allows to define custom visit method to have full
 /// control over instantiation process at deserialization.

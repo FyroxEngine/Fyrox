@@ -2632,10 +2632,11 @@ impl UserInterface {
         copy_handle
     }
 
-    pub fn save(&mut self, path: &Path) -> VisitResult {
+    pub fn save(&mut self, path: &Path) -> Result<Visitor, VisitError> {
         let mut visitor = Visitor::new();
         self.visit("Ui", &mut visitor)?;
-        visitor.save_binary(path)
+        visitor.save_binary(path)?;
+        Ok(visitor)
     }
 
     pub async fn load_from_file(

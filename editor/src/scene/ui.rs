@@ -31,6 +31,8 @@ use fyrox::{
 use std::{
     any::Any,
     fmt::Debug,
+    fs::File,
+    io::Write,
     ops::{Deref, DerefMut},
     path::Path,
 };
@@ -154,10 +156,21 @@ impl SceneController for UiScene {
         engine: &mut Engine,
     ) -> Result<String, String> {
         match self.ui.save(path) {
-            Ok(_) => Ok(format!(
-                "Ui scene was successfully saved to {}",
-                path.display()
-            )),
+            Ok(visitor) => {
+                if settings.debugging.save_scene_in_text_form {
+                    let text = visitor.save_text();
+                    let mut path = path.to_path_buf();
+                    path.set_extension("txt");
+                    if let Ok(mut file) = File::create(path) {
+                        Log::verify(file.write_all(text.as_bytes()));
+                    }
+                }
+
+                Ok(format!(
+                    "Ui scene was successfully saved to {}",
+                    path.display()
+                ))
+            }
             Err(e) => Err(format!(
                 "Unable to save the ui scene to {} file. Reason: {:?}",
                 path.display(),
