@@ -623,6 +623,7 @@ pub struct UserInterface {
     #[visit(skip)]
     #[reflect(hidden)]
     layout_events_sender: Sender<LayoutEvent>,
+    #[visit(skip)]
     need_update_global_transform: bool,
     #[visit(skip)]
     #[reflect(hidden)]
@@ -2662,6 +2663,7 @@ impl UserInterface {
         ui.visit("Ui", &mut visitor)?;
         for widget in ui.nodes.iter_mut() {
             widget.layout_events_sender = Some(ui.layout_events_sender.clone());
+            widget.invalidate_layout();
         }
         Ok(ui)
     }
