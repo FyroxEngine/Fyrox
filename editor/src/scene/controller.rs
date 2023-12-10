@@ -3,16 +3,16 @@ use crate::{
     settings::{keys::KeyBindings, Settings},
     Message,
 };
-use fyrox::core::reflect::Reflect;
-use fyrox::scene::SceneContainer;
 use fyrox::{
-    core::{algebra::Vector2, math::Rect, pool::Handle},
+    core::{algebra::Vector2, math::Rect, pool::Handle, reflect::Reflect},
     engine::Engine,
     gui::{
+        inspector::PropertyChanged,
         message::{KeyCode, MouseButton},
         UiNode,
     },
     resource::texture::TextureResource,
+    scene::SceneContainer,
 };
 use std::{any::Any, path::Path};
 
@@ -124,6 +124,15 @@ pub trait SceneController: 'static {
         scenes: &SceneContainer,
         callback: &mut dyn FnMut(&dyn Reflect),
     );
+
+    fn on_property_changed(
+        &mut self,
+        args: &PropertyChanged,
+        selection: &Selection,
+        engine: &mut Engine,
+    );
+
+    fn provide_docs(&self, selection: &Selection, engine: &Engine) -> Option<String>;
 }
 
 impl dyn SceneController {

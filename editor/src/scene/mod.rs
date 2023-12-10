@@ -1,34 +1,40 @@
-use crate::absm::selection::SelectedEntity;
-use crate::inspector::editors::handle::HandlePropertyEditorMessage;
-use crate::scene::selector::HierarchyNode;
-use crate::scene::ui::UiSelection;
 use crate::{
-    absm::selection::AbsmSelection,
-    animation,
-    animation::selection::AnimationSelection,
+    absm::{
+        command::{
+            pose::make_set_pose_property_command, state::make_set_state_property_command,
+            transition::make_set_transition_property_command,
+        },
+        selection::{AbsmSelection, SelectedEntity},
+    },
+    animation::{
+        self, command::signal::make_animation_signal_property_command,
+        selection::AnimationSelection,
+    },
     asset::item::AssetItem,
     audio::AudioBusSelection,
     camera::{CameraController, PickingOptions},
     command::{GameSceneCommandStack, GameSceneCommandTrait},
+    inspector::{
+        editors::handle::HandlePropertyEditorMessage,
+        handlers::node::SceneNodePropertyChangedHandler,
+    },
     interaction::navmesh::selection::NavmeshSelection,
     message::MessageSender,
     scene::{
         clipboard::Clipboard,
+        commands::effect::make_set_audio_bus_property_command,
         commands::{
             graph::AddModelCommand, mesh::SetMeshTextureCommand, ChangeSelectionCommand,
             CommandGroup, GameSceneCommand, GameSceneContext,
         },
         controller::SceneController,
+        selector::HierarchyNode,
+        ui::UiSelection,
     },
     settings::keys::KeyBindings,
     world::graph::selection::GraphSelection,
     Message, Settings,
 };
-use fyrox::core::reflect::Reflect;
-use fyrox::gui::message::MessageDirection;
-use fyrox::scene::animation::absm::AnimationBlendingStateMachine;
-use fyrox::scene::animation::AnimationPlayer;
-use fyrox::scene::SceneContainer;
 use fyrox::{
     core::{
         algebra::{Vector2, Vector3},
@@ -38,12 +44,14 @@ use fyrox::{
         make_relative_path,
         math::{aabb::AxisAlignedBoundingBox, plane::Plane, Rect},
         pool::{ErasedHandle, Handle},
+        reflect::Reflect,
         visitor::Visitor,
     },
     engine::Engine,
     fxhash::FxHashSet,
     gui::{
-        message::{KeyCode, MouseButton},
+        inspector::PropertyChanged,
+        message::{KeyCode, MessageDirection, MouseButton},
         UiNode,
     },
     resource::{
@@ -51,6 +59,7 @@ use fyrox::{
         texture::{Texture, TextureKind, TextureResource, TextureResourceExtension},
     },
     scene::{
+        animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
         base::BaseBuilder,
         camera::{Camera, Projection},
         debug::{Line, SceneDrawingContext},
@@ -61,7 +70,7 @@ use fyrox::{
         node::Node,
         pivot::PivotBuilder,
         terrain::Terrain,
-        Scene,
+        Scene, SceneContainer,
     },
 };
 use std::{
@@ -101,6 +110,7 @@ pub struct GameScene {
     pub preview_instance: Option<PreviewInstance>,
     pub sender: MessageSender,
     pub camera_state: Vec<(Handle<Node>, bool)>,
+    pub node_property_changed_handler: SceneNodePropertyChangedHandler,
 }
 
 impl GameScene {
@@ -152,6 +162,7 @@ impl GameScene {
             },
             sender,
             camera_state: Default::default(),
+            node_property_changed_handler: SceneNodePropertyChangedHandler,
         }
     }
 
@@ -972,6 +983,157 @@ impl SceneController for GameScene {
             }
             _ => (),
         };
+    }
+
+    fn on_property_changed(
+        &mut self,
+        args: &PropertyChanged,
+        selection: &Selection,
+        engine: &mut Engine,
+    ) {
+        let scene = &mut engine.scenes[self.scene];
+
+        let group = match selection {
+            Selection::Graph(selection) => selection
+                .nodes
+                .iter()
+                .filter_map(|&node_handle| {
+                    if scene.graph.is_valid_handle(node_handle) {
+                        self.node_property_changed_handler.handle(
+                            args,
+                            node_handle,
+                            &mut scene.graph[node_handle],
+                        )
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>(),
+            Selection::AudioBus(selection) => selection
+                .buses
+                .iter()
+                .filter_map(|&handle| make_set_audio_bus_property_command(handle, args))
+                .collect::<Vec<_>>(),
+            Selection::Animation(selection) => {
+                if scene
+                    .graph
+                    .try_get_of_type::<AnimationPlayer>(selection.animation_player)
+                    .and_then(|player| player.animations().try_get(selection.animation))
+                    .is_some()
+                {
+                    selection
+                        .entities
+                        .iter()
+                        .filter_map(|e| {
+                            if let animation::selection::SelectedEntity::Signal(id) = e {
+                                make_animation_signal_property_command(
+                                    *id,
+                                    args,
+                                    selection.animation_player,
+                                    selection.animation,
+                                )
+                            } else {
+                                None
+                            }
+                        })
+                        .collect()
+                } else {
+                    vec![]
+                }
+            }
+            Selection::Absm(selection) => {
+                if scene
+                    .graph
+                    .try_get(selection.absm_node_handle)
+                    .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())
+                    .is_some()
+                {
+                    if let Some(layer_index) = selection.layer {
+                        selection
+                            .entities
+                            .iter()
+                            .filter_map(|ent| match ent {
+                                SelectedEntity::Transition(transition) => {
+                                    make_set_transition_property_command(
+                                        *transition,
+                                        args,
+                                        selection.absm_node_handle,
+                                        layer_index,
+                                    )
+                                }
+                                SelectedEntity::State(state) => make_set_state_property_command(
+                                    *state,
+                                    args,
+                                    selection.absm_node_handle,
+                                    layer_index,
+                                ),
+                                SelectedEntity::PoseNode(pose) => make_set_pose_property_command(
+                                    *pose,
+                                    args,
+                                    selection.absm_node_handle,
+                                    layer_index,
+                                ),
+                            })
+                            .collect()
+                    } else {
+                        vec![]
+                    }
+                } else {
+                    vec![]
+                }
+            }
+            _ => vec![],
+        };
+
+        if group.is_empty() {
+            if !args.is_inheritable() {
+                Log::err(format!("Failed to handle a property {}", args.path()))
+            }
+        } else if group.len() == 1 {
+            self.sender.send(Message::DoGameSceneCommand(
+                group.into_iter().next().unwrap(),
+            ))
+        } else {
+            self.sender.do_scene_command(CommandGroup::from(group));
+        }
+    }
+
+    fn provide_docs(&self, selection: &Selection, engine: &Engine) -> Option<String> {
+        let scene = &engine.scenes[self.scene];
+
+        match selection {
+            Selection::Graph(graph_selection) => graph_selection
+                .nodes
+                .first()
+                .map(|h| scene.graph[*h].doc().to_string()),
+            Selection::Navmesh(navmesh_selection) => Some(
+                scene.graph[navmesh_selection.navmesh_node()]
+                    .doc()
+                    .to_string(),
+            ),
+            Selection::AudioBus(audio_bus_selection) => {
+                audio_bus_selection.buses.first().and_then(|h| {
+                    scene
+                        .graph
+                        .sound_context
+                        .state()
+                        .bus_graph_ref()
+                        .try_get_bus_ref(*h)
+                        .map(|bus| bus.doc().to_string())
+                })
+            }
+            Selection::Absm(absm_selection) => Some(
+                scene.graph[absm_selection.absm_node_handle]
+                    .doc()
+                    .to_string(),
+            ),
+            Selection::Animation(animation_selection) => Some(
+                scene.graph[animation_selection.animation_player]
+                    .doc()
+                    .to_string(),
+            ),
+            _ => None,
+        }
     }
 }
 

@@ -66,7 +66,7 @@ use crate::{
     plugin::EditorPlugin,
     scene::{
         commands::{
-            make_delete_selection_command, ChangeSelectionCommand, CommandGroup, GameSceneCommand,
+            make_delete_selection_command, ChangeSelectionCommand, GameSceneCommand,
             GameSceneContext, PasteCommand,
         },
         container::SceneContainer,
@@ -1206,6 +1206,14 @@ impl Editor {
         let current_scene_entry = self.scenes.current_scene_entry_mut();
 
         if let Some(current_scene_entry) = current_scene_entry {
+            self.inspector.handle_ui_message(
+                message,
+                &current_scene_entry.selection,
+                &mut *current_scene_entry.controller,
+                engine,
+                &self.message_sender,
+            );
+
             if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
                 self.animation_editor.handle_ui_message(
                     message,
@@ -1265,14 +1273,6 @@ impl Editor {
 
                 self.navmesh_panel
                     .handle_message(message, &current_scene_entry.selection);
-
-                self.inspector.handle_ui_message(
-                    message,
-                    &current_scene_entry.selection,
-                    game_scene,
-                    engine,
-                    &self.message_sender,
-                );
 
                 if let Some(current_im) = current_scene_entry.current_interaction_mode {
                     current_scene_entry

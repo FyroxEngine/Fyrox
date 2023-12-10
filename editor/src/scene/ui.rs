@@ -1,7 +1,7 @@
 #![allow(unused_variables)] // TODO
 
 use crate::{
-    define_command_stack,
+    define_command_stack, define_universal_commands,
     interaction::{make_interaction_mode_button, InteractionMode},
     message::MessageSender,
     scene::{controller::SceneController, Selection},
@@ -9,8 +9,6 @@ use crate::{
     world::WorldViewerDataProvider,
     Message,
 };
-use fyrox::core::reflect::Reflect;
-use fyrox::scene::SceneContainer;
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -18,17 +16,20 @@ use fyrox::{
         log::Log,
         math::Rect,
         pool::{ErasedHandle, Handle},
+        reflect::{Reflect, ResolvePath, SetFieldByPathError},
         uuid::{uuid, Uuid},
         TypeUuidProvider,
     },
     engine::Engine,
     gui::{
         draw::SharedTexture,
+        inspector::PropertyChanged,
         message::{KeyCode, MessageDirection, MouseButton},
         widget::WidgetMessage,
         BuildContext, UiNode, UserInterface,
     },
     resource::texture::{TextureKind, TextureResource, TextureResourceExtension},
+    scene::SceneContainer,
 };
 use std::{
     any::Any,
@@ -65,6 +66,7 @@ impl UiScene {
         self.command_stack.do_command(
             command,
             UiSceneContext {
+                ui: &mut self.ui,
                 selection,
                 message_sender: &self.message_sender,
             },
@@ -183,6 +185,7 @@ impl SceneController for UiScene {
 
     fn undo(&mut self, selection: &mut Selection, engine: &mut Engine) {
         self.command_stack.undo(UiSceneContext {
+            ui: &mut self.ui,
             selection,
             message_sender: &self.message_sender,
         });
@@ -190,6 +193,7 @@ impl SceneController for UiScene {
 
     fn redo(&mut self, selection: &mut Selection, engine: &mut Engine) {
         self.command_stack.redo(UiSceneContext {
+            ui: &mut self.ui,
             selection,
             message_sender: &self.message_sender,
         });
@@ -197,6 +201,7 @@ impl SceneController for UiScene {
 
     fn clear_command_stack(&mut self, selection: &mut Selection, engine: &mut Engine) {
         self.command_stack.clear(UiSceneContext {
+            ui: &mut self.ui,
             selection,
             message_sender: &self.message_sender,
         });
@@ -268,6 +273,7 @@ impl SceneController for UiScene {
             .iter_mut()
             .map(|c| {
                 c.name(&UiSceneContext {
+                    ui: &mut self.ui,
                     selection,
                     message_sender: &self.message_sender,
                 })
@@ -287,6 +293,50 @@ impl SceneController for UiScene {
                     (callback)(node)
                 }
             }
+        }
+    }
+
+    fn on_property_changed(
+        &mut self,
+        args: &PropertyChanged,
+        selection: &Selection,
+        engine: &mut Engine,
+    ) {
+        let group = match selection {
+            Selection::Ui(selection) => selection
+                .widgets
+                .iter()
+                .filter_map(|&node_handle| {
+                    if let Some(widget) = self.ui.try_get_node(node_handle) {
+                        make_set_widget_property_command(node_handle, args)
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>(),
+            _ => vec![],
+        };
+
+        if group.is_empty() {
+            if !args.is_inheritable() {
+                Log::err(format!("Failed to handle a property {}", args.path()))
+            }
+        } else if group.len() == 1 {
+            self.message_sender
+                .send(Message::DoUiSceneCommand(group.into_iter().next().unwrap()))
+        } else {
+            self.message_sender
+                .do_ui_scene_command(UiCommandGroup::from(group));
+        }
+    }
+
+    fn provide_docs(&self, selection: &Selection, engine: &Engine) -> Option<String> {
+        match selection {
+            Selection::Ui(selection) => selection
+                .widgets
+                .first()
+                .and_then(|h| self.ui.try_get_node(*h).map(|n| n.doc().to_string())),
+            _ => None,
         }
     }
 }
@@ -622,6 +672,7 @@ impl InteractionMode for UiSelectInteractionMode {
 }
 
 pub struct UiSceneContext<'a> {
+    ui: &'a mut UserInterface,
     selection: &'a mut Selection,
     message_sender: &'a MessageSender,
 }
@@ -650,6 +701,66 @@ impl UiSceneCommand {
 
     pub fn into_inner(self) -> Box<dyn UiCommand> {
         self.0
+    }
+}
+
+#[derive(Debug)]
+pub struct UiCommandGroup {
+    commands: Vec<UiSceneCommand>,
+    custom_name: String,
+}
+
+impl From<Vec<UiSceneCommand>> for UiCommandGroup {
+    fn from(commands: Vec<UiSceneCommand>) -> Self {
+        Self {
+            commands,
+            custom_name: Default::default(),
+        }
+    }
+}
+
+impl UiCommandGroup {
+    pub fn push(&mut self, command: UiSceneCommand) {
+        self.commands.push(command)
+    }
+
+    pub fn with_custom_name<S: AsRef<str>>(mut self, name: S) -> Self {
+        self.custom_name = name.as_ref().to_string();
+        self
+    }
+}
+
+impl UiCommand for UiCommandGroup {
+    fn name(&mut self, context: &UiSceneContext) -> String {
+        if self.custom_name.is_empty() {
+            let mut name = String::from("Command group: ");
+            for cmd in self.commands.iter_mut() {
+                name.push_str(&cmd.name(context));
+                name.push_str(", ");
+            }
+            name
+        } else {
+            self.custom_name.clone()
+        }
+    }
+
+    fn execute(&mut self, context: &mut UiSceneContext) {
+        for cmd in self.commands.iter_mut() {
+            cmd.execute(context);
+        }
+    }
+
+    fn revert(&mut self, context: &mut UiSceneContext) {
+        // revert must be done in reverse order.
+        for cmd in self.commands.iter_mut().rev() {
+            cmd.revert(context);
+        }
+    }
+
+    fn finalize(&mut self, context: &mut UiSceneContext) {
+        for mut cmd in self.commands.drain(..) {
+            cmd.finalize(context);
+        }
     }
 }
 
@@ -700,3 +811,15 @@ impl UiCommand for ChangeUiSelectionCommand {
         self.exec(context);
     }
 }
+
+define_universal_commands!(
+    make_set_widget_property_command,
+    UiCommand,
+    UiSceneCommand,
+    UiSceneContext,
+    Handle<UiNode>,
+    ctx,
+    handle,
+    self,
+    { &mut *ctx.ui.node_mut(self.handle) as &mut dyn Reflect },
+);
