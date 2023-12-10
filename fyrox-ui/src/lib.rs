@@ -2547,6 +2547,16 @@ impl UserInterface {
         self.nodes.try_borrow(node_handle)
     }
 
+    #[inline]
+    pub fn node_mut(&mut self, node_handle: Handle<UiNode>) -> &mut UiNode {
+        self.nodes.borrow_mut(node_handle)
+    }
+
+    #[inline]
+    pub fn try_get_node_mut(&mut self, node_handle: Handle<UiNode>) -> Option<&mut UiNode> {
+        self.nodes.try_borrow_mut(node_handle)
+    }
+
     pub fn copy_node(&mut self, node: Handle<UiNode>) -> Handle<UiNode> {
         let mut map = NodeHandleMapping::default();
 
