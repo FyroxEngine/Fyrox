@@ -73,7 +73,7 @@ impl Atlas {
                     // No space for the character in any of the existing pages, create a new page.
                     if placement_info.is_none() {
                         let mut page = Page {
-                            pixels: Default::default(),
+                            pixels: vec![0; page_size * page_size],
                             texture: None,
                             rect_packer: RectPacker::new(page_size, page_size),
                         };
@@ -83,6 +83,8 @@ impl Atlas {
                         match page.rect_packer.find_free(metrics.width, metrics.height) {
                             Some(bounds) => {
                                 placement_info = Some((page_index, bounds));
+
+                                self.pages.push(page);
                             }
                             None => {
                                 // No free space in the given page size (requested glyph is too big).
@@ -109,8 +111,8 @@ impl Atlas {
 
                     let k = 1.0 / page_size as f32;
 
-                    let bw = placement_rect.w() - border;
-                    let bh = placement_rect.h() - border;
+                    let bw = placement_rect.w().saturating_sub(border);
+                    let bh = placement_rect.h().saturating_sub(border);
                     let bx = placement_rect.x() + border / 2;
                     let by = placement_rect.y() + border / 2;
 
@@ -156,7 +158,7 @@ pub struct Font {
     pub page_size: usize,
 }
 
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone, Default, Debug)]
 pub struct FontHeight(pub f32);
 
 impl From<f32> for FontHeight {
