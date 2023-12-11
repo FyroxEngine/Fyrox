@@ -34,7 +34,7 @@ impl_blank_reflect! {
     f32, f64,
     usize, u8, u16, u32, u64,
     isize, i8, i16, i32, i64,
-    bool,
+    bool, char,
     String,
     std::path::PathBuf,
     Duration, Instant,
