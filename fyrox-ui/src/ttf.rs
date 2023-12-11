@@ -46,6 +46,8 @@ impl Atlas {
         height: FontHeight,
         page_size: usize,
     ) -> Option<&FontGlyph> {
+        let border = 2;
+
         match self.char_map.get(&unicode) {
             Some(glyph_index) => {
                 return self.glyphs.get(*glyph_index);
@@ -66,7 +68,7 @@ impl Atlas {
                             .enumerate()
                             .find_map(|(page_index, page)| {
                                 page.rect_packer
-                                    .find_free(metrics.width, metrics.height)
+                                    .find_free(metrics.width + border, metrics.height + border)
                                     .map(|bounds| (page_index, bounds))
                             });
 
@@ -80,7 +82,10 @@ impl Atlas {
 
                         let page_index = self.pages.len();
 
-                        match page.rect_packer.find_free(metrics.width, metrics.height) {
+                        match page
+                            .rect_packer
+                            .find_free(metrics.width + border, metrics.height + border)
+                        {
                             Some(bounds) => {
                                 placement_info = Some((page_index, bounds));
 
@@ -106,8 +111,6 @@ impl Atlas {
                         bitmap_height: metrics.height,
                         page_index,
                     };
-
-                    let border = 2;
 
                     let k = 1.0 / page_size as f32;
 
