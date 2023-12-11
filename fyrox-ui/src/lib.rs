@@ -252,21 +252,21 @@ use crate::{
         UiMessage,
     },
     popup::{Placement, PopupMessage},
-    ttf::{Font, FontBuilder, SharedFont},
+    ttf::{FontBuilder, SharedFont},
     widget::{Widget, WidgetBuilder, WidgetMessage},
 };
 use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
-use std::sync::Arc;
 use std::{
     cell::{Cell, Ref, RefCell, RefMut},
     collections::{btree_set::BTreeSet, hash_map::Entry, VecDeque},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
+    path::Path,
     rc::Rc,
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
+    sync::Arc,
 };
 
 use crate::constructor::WidgetConstructorContainer;

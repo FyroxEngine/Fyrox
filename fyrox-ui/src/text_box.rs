@@ -418,7 +418,7 @@ pub struct TextBox {
     /// Position of the local "camera" (viewing rectangle) of the text box.
     pub view_position: Vector2<f32>,
     /// A list of custom characters that will be treated as whitespace.
-    pub skip_chars: Vec<u32>,
+    pub skip_chars: Vec<char>,
 }
 
 impl Debug for TextBox {
@@ -618,10 +618,8 @@ impl TextBox {
                     .iter()
                     .enumerate()
                     .skip(i)
-                    .skip_while(|(_, c)| {
-                        !(c.is_whitespace() || self.skip_chars.contains(&c.char_code))
-                    })
-                    .find(|(_, c)| !(c.is_whitespace() || self.skip_chars.contains(&c.char_code)))
+                    .skip_while(|(_, c)| !(c.is_whitespace() || self.skip_chars.contains(*c)))
+                    .find(|(_, c)| !(c.is_whitespace() || self.skip_chars.contains(*c)))
                     .and_then(|(n, _)| self.char_index_to_position(n))
             })
             .unwrap_or_else(|| self.end_position())
@@ -638,10 +636,8 @@ impl TextBox {
                     .enumerate()
                     .rev()
                     .skip(len.saturating_sub(i))
-                    .skip_while(|(_, c)| {
-                        !(c.is_whitespace() || self.skip_chars.contains(&c.char_code))
-                    })
-                    .find(|(_, c)| !(c.is_whitespace() || self.skip_chars.contains(&c.char_code)))
+                    .skip_while(|(_, c)| !(c.is_whitespace() || self.skip_chars.contains(*c)))
+                    .find(|(_, c)| !(c.is_whitespace() || self.skip_chars.contains(*c)))
                     .and_then(|(n, _)| self.char_index_to_position(n + 1))
             })
             .unwrap_or_default()
@@ -697,26 +693,26 @@ impl TextBox {
 
     /// Returns current position the caret in the local coordinates.
     pub fn caret_local_position(&self) -> Vector2<f32> {
-        let text = self.formatted_text.borrow();
+        let formatted_text = self.formatted_text.borrow_mut();
 
-        let font = text.get_font();
+        let font = formatted_text.get_font();
         let mut caret_pos = Vector2::default();
 
-        let font = font.0.lock();
-        if let Some(line) = text.get_lines().get(self.caret_position.line) {
-            let text = text.get_raw_text();
+        let mut font = font.0.lock();
+        if let Some(line) = formatted_text.get_lines().get(self.caret_position.line) {
+            let raw_text = formatted_text.get_raw_text();
             caret_pos += Vector2::new(line.x_offset, line.y_offset);
             for (offset, char_index) in (line.begin..line.end).enumerate() {
                 if offset >= self.caret_position.offset {
                     break;
                 }
-                if let Some(glyph) = text
+                if let Some(glyph) = raw_text
                     .get(char_index)
-                    .and_then(|c| font.glyphs().get(c.glyph_index as usize))
+                    .and_then(|c| font.glyph(*c, formatted_text.height()))
                 {
                     caret_pos.x += glyph.advance;
                 } else {
-                    caret_pos.x += font.height();
+                    caret_pos.x += formatted_text.height();
                 }
             }
         }
@@ -737,7 +733,13 @@ impl TextBox {
         let local_bounds = self.bounding_rect();
         let caret_view_position = self.point_to_view_pos(self.caret_local_position());
         // Move view position to contain the caret + add some spacing.
-        let spacing_step = self.formatted_text.borrow().get_font().0.lock().ascender();
+        let spacing_step = self
+            .formatted_text
+            .borrow()
+            .get_font()
+            .0
+            .lock()
+            .ascender(self.height);
         let spacing = spacing_step * 3.0;
         let top_left_corner = local_bounds.left_top_corner();
         let bottom_right_corner = local_bounds.right_bottom_corner();
@@ -844,22 +846,23 @@ impl TextBox {
             return None;
         }
 
-        let font = self.formatted_text.borrow().get_font();
-        let font = font.0.lock();
-        for (line_index, line) in self.formatted_text.borrow().get_lines().iter().enumerate() {
+        let formatted_text = self.formatted_text.borrow_mut();
+        let font = formatted_text.get_font();
+        let mut font = font.0.lock();
+        for (line_index, line) in formatted_text.get_lines().iter().enumerate() {
             let line_screen_bounds = Rect::new(
                 line.x_offset - self.view_position.x,
                 line.y_offset - self.view_position.y,
                 line.width,
-                font.ascender(),
+                font.ascender(formatted_text.height()),
             );
             if line_screen_bounds.contains(point_to_check) {
                 let mut x = line_screen_bounds.x();
                 // Check each character in line.
                 for (offset, index) in (line.begin..line.end).enumerate() {
-                    let character = self.formatted_text.borrow().get_raw_text()[index];
+                    let character = formatted_text.get_raw_text()[index];
                     let (width, height, advance) =
-                        if let Some(glyph) = font.glyphs().get(character.glyph_index as usize) {
+                        if let Some(glyph) = font.glyph(character, self.height) {
                             (
                                 glyph.bitmap_width as f32,
                                 glyph.bitmap_height as f32,
@@ -867,7 +870,7 @@ impl TextBox {
                             )
                         } else {
                             // Stub
-                            let h = font.height();
+                            let h = formatted_text.height();
                             (h, h, h)
                         };
                     let char_screen_bounds = Rect::new(x, line_screen_bounds.y(), width, height);
@@ -891,11 +894,11 @@ impl TextBox {
 
         // Additionally check each line again, but now check if the cursor is either at left or right side of the cursor.
         // This allows us to set caret at lines by clicking at either ends of it.
-        for (line_index, line) in self.formatted_text.borrow().get_lines().iter().enumerate() {
+        for (line_index, line) in formatted_text.get_lines().iter().enumerate() {
             let line_x_begin = line.x_offset - self.view_position.x;
             let line_x_end = line_x_begin + line.width;
             let line_y_begin = line.y_offset - self.view_position.y;
-            let line_y_end = line_y_begin + font.ascender();
+            let line_y_end = line_y_begin + font.ascender(formatted_text.height());
             if (line_y_begin..line_y_end).contains(&point_to_check.y) {
                 if point_to_check.x < line_x_begin {
                     return Some(Position {
@@ -1095,7 +1098,7 @@ impl Control for TextBox {
                 caret_pos.x,
                 caret_pos.y,
                 2.0,
-                self.formatted_text.borrow().get_font().0.lock().height(),
+                self.formatted_text.borrow().height(),
             );
             drawing_context.push_rect_filled(&caret_bounds, None);
             drawing_context.commit(
@@ -1444,7 +1447,7 @@ impl Control for TextBox {
                                     for (raw_char, input_char) in
                                         raw_text.iter().zip(input_string.chars())
                                     {
-                                        if raw_char.char_code != input_char as u32 {
+                                        if *raw_char != input_char {
                                             return false;
                                         }
                                     }
@@ -1588,7 +1591,7 @@ pub struct TextBoxBuilder {
     shadow_brush: Brush,
     shadow_dilation: f32,
     shadow_offset: Vector2<f32>,
-    skip_chars: Vec<u32>,
+    skip_chars: Vec<char>,
 }
 
 impl TextBoxBuilder {
@@ -1718,7 +1721,7 @@ impl TextBoxBuilder {
     /// which in its turn could be useful for in-game consoles where commands usually separated using
     /// underscores (`like_this_one`).
     pub fn with_skip_chars(mut self, chars: Vec<char>) -> Self {
-        self.skip_chars = chars.into_iter().map(|c| c as u32).collect();
+        self.skip_chars = chars;
         self
     }
 
