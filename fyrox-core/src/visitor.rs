@@ -1863,6 +1863,17 @@ impl Visit for Duration {
     }
 }
 
+impl Visit for char {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut bytes = *self as u32;
+        bytes.visit(name, visitor)?;
+        if visitor.is_reading() {
+            *self = char::from_u32(bytes).unwrap();
+        }
+        Ok(())
+    }
+}
+
 impl<T: Visit> Visit for Range<T> {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
