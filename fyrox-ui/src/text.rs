@@ -465,6 +465,7 @@ pub struct TextBuilder {
     shadow_brush: Brush,
     shadow_dilation: f32,
     shadow_offset: Vector2<f32>,
+    height: f32,
 }
 
 impl TextBuilder {
@@ -481,6 +482,7 @@ impl TextBuilder {
             shadow_brush: Brush::Solid(Color::BLACK),
             shadow_dilation: 1.0,
             shadow_offset: Vector2::new(1.0, 1.0),
+            height: 14.0,
         }
     }
 
@@ -505,6 +507,11 @@ impl TextBuilder {
     /// Sets the desired vertical alignment of the widget.
     pub fn with_vertical_text_alignment(mut self, valign: VerticalAlignment) -> Self {
         self.vertical_text_alignment = valign;
+        self
+    }
+
+    pub fn with_height(mut self, height: f32) -> Self {
+        self.height = height;
         self
     }
 
@@ -569,6 +576,7 @@ impl TextBuilder {
                     .with_shadow_brush(self.shadow_brush)
                     .with_shadow_dilation(self.shadow_dilation)
                     .with_shadow_offset(self.shadow_offset)
+                    .with_height(self.height)
                     .build(),
             ),
         };

@@ -1592,6 +1592,7 @@ pub struct TextBoxBuilder {
     shadow_dilation: f32,
     shadow_offset: Vector2<f32>,
     skip_chars: Vec<char>,
+    height: f32,
 }
 
 impl TextBoxBuilder {
@@ -1616,6 +1617,7 @@ impl TextBoxBuilder {
             shadow_dilation: 1.0,
             shadow_offset: Vector2::new(1.0, 1.0),
             skip_chars: Default::default(),
+            height: 14.0,
         }
     }
 
@@ -1682,6 +1684,11 @@ impl TextBoxBuilder {
     /// Enables or disables editing of the text box.
     pub fn with_editable(mut self, editable: bool) -> Self {
         self.editable = editable;
+        self
+    }
+
+    pub fn with_height(mut self, height: f32) -> Self {
+        self.height = height;
         self
     }
 
@@ -1754,6 +1761,7 @@ impl TextBoxBuilder {
                     .with_shadow_brush(self.shadow_brush)
                     .with_shadow_dilation(self.shadow_dilation)
                     .with_shadow_offset(self.shadow_offset)
+                    .with_height(self.height)
                     .build(),
             ),
             selection_range: None,

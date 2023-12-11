@@ -8,18 +8,9 @@ use std::ops::Range;
 
 #[derive(Debug, Clone)]
 pub struct TextGlyph {
-    bounds: Rect<f32>,
-    tex_coords: [Vector2<f32>; 4],
-}
-
-impl TextGlyph {
-    pub fn get_bounds(&self) -> Rect<f32> {
-        self.bounds
-    }
-
-    pub fn get_tex_coords(&self) -> &[Vector2<f32>; 4] {
-        &self.tex_coords
-    }
+    pub bounds: Rect<f32>,
+    pub tex_coords: [Vector2<f32>; 4],
+    pub atlas_page_index: usize,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -441,6 +432,7 @@ impl FormattedText {
                         let text_glyph = TextGlyph {
                             bounds: rect,
                             tex_coords: glyph.tex_coords,
+                            atlas_page_index: glyph.page_index,
                         };
                         self.glyphs.push(text_glyph);
 
@@ -457,6 +449,7 @@ impl FormattedText {
                         self.glyphs.push(TextGlyph {
                             bounds: rect,
                             tex_coords: [Vector2::default(); 4],
+                            atlas_page_index: 0,
                         });
                         cursor.x += rect.w();
                     }
@@ -508,7 +501,7 @@ impl FormattedTextBuilder {
             shadow_brush: Brush::Solid(Color::BLACK),
             shadow_dilation: 1.0,
             shadow_offset: Vector2::new(1.0, 1.0),
-            height: 16.0,
+            height: 14.0,
         }
     }
 
