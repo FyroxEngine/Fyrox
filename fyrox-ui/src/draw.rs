@@ -1,3 +1,4 @@
+use crate::ttf::FontHeight;
 use crate::{
     brush::Brush,
     core::{
@@ -54,7 +55,11 @@ impl PartialEq for SharedTexture {
 pub enum CommandTexture {
     None,
     Texture(SharedTexture),
-    Font(SharedFont),
+    Font {
+        font: SharedFont,
+        height: FontHeight,
+        page_index: usize,
+    },
 }
 
 /// A set of triangles that will be used for clipping.
@@ -674,52 +679,90 @@ impl DrawingContext {
     ) {
         let font = formatted_text.get_font();
 
-        // Draw shadow, if any.
-        if formatted_text.shadow {
+        #[inline(always)]
+        fn draw(
+            formatted_text: &FormattedText,
+            ctx: &mut DrawingContext,
+            clip_bounds: Rect<f32>,
+            position: Vector2<f32>,
+            dilation: f32,
+            offset: Vector2<f32>,
+            brush: Brush,
+            font: &SharedFont,
+        ) {
+            let Some(mut current_page_index) = formatted_text
+                .get_glyphs()
+                .first()
+                .map(|g| g.atlas_page_index)
+            else {
+                return;
+            };
+
             for element in formatted_text.get_glyphs() {
-                let bounds = element.get_bounds();
+                // If we've switched to another atlas page, commit the text and start a new batch.
+                if current_page_index != element.atlas_page_index {
+                    ctx.commit(
+                        clip_bounds,
+                        brush.clone(),
+                        CommandTexture::Font {
+                            font: font.clone(),
+                            page_index: current_page_index,
+                            height: formatted_text.height().into(),
+                        },
+                        None,
+                    );
+                    current_page_index = element.atlas_page_index;
+                }
+
+                let bounds = element.bounds;
 
                 let final_bounds = Rect::new(
-                    position.x + bounds.x(),
-                    position.y + bounds.y(),
+                    position.x + bounds.x() + offset.x,
+                    position.y + bounds.y() + offset.y,
                     bounds.w(),
                     bounds.h(),
                 )
-                .inflate(
-                    formatted_text.shadow_dilation,
-                    formatted_text.shadow_dilation,
-                )
-                .translate(formatted_text.shadow_offset);
+                .inflate(dilation, dilation);
 
-                self.push_rect_filled(&final_bounds, Some(element.get_tex_coords()));
+                ctx.push_rect_filled(&final_bounds, Some(&element.tex_coords));
             }
 
-            self.commit(
+            // Commit the rest.
+            ctx.commit(
                 clip_bounds,
-                formatted_text.shadow_brush.clone(),
-                CommandTexture::Font(font.clone()),
+                brush,
+                CommandTexture::Font {
+                    font: font.clone(),
+                    page_index: current_page_index,
+                    height: formatted_text.height().into(),
+                },
                 None,
-            )
-        }
-
-        for element in formatted_text.get_glyphs() {
-            let bounds = element.get_bounds();
-
-            let final_bounds = Rect::new(
-                position.x + bounds.x(),
-                position.y + bounds.y(),
-                bounds.w(),
-                bounds.h(),
             );
-
-            self.push_rect_filled(&final_bounds, Some(element.get_tex_coords()));
         }
 
-        self.commit(
+        // Draw shadow, if any.
+        if formatted_text.shadow {
+            draw(
+                formatted_text,
+                self,
+                clip_bounds,
+                position,
+                formatted_text.shadow_dilation,
+                formatted_text.shadow_offset,
+                formatted_text.shadow_brush.clone(),
+                &font,
+            );
+        }
+
+        draw(
+            formatted_text,
+            self,
             clip_bounds,
+            position,
+            0.0,
+            Default::default(),
             formatted_text.brush(),
-            CommandTexture::Font(font),
-            None,
-        )
+            &font,
+        );
     }
 }

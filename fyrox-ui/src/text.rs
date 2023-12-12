@@ -217,15 +217,9 @@ impl TextMessage {
 /// # };
 ///
 /// fn load_font() -> SharedFont {
-///     // Choose desired character set, default is Basic Latin + Latin Supplement.
-///     // Character set is a set of ranges with Unicode code points.
-///     let character_set = Font::default_char_set();
-///
 ///     // Normally `block_on` should be avoided by using async.
 ///     let font = block_on(Font::from_file(
-///         "path/to/your/font.ttf",
-///         24.0,
-///         character_set,
+///         "path/to/your/font.ttf", 512
 ///     ))
 ///     .unwrap();
 ///
@@ -236,6 +230,7 @@ impl TextMessage {
 ///     TextBuilder::new(WidgetBuilder::new())
 ///         .with_font(load_font())
 ///         .with_text(text)
+///         .with_height(20.0)
 ///         .build(&mut ui.build_ctx())
 /// }
 /// ```
@@ -465,6 +460,7 @@ pub struct TextBuilder {
     shadow_brush: Brush,
     shadow_dilation: f32,
     shadow_offset: Vector2<f32>,
+    height: f32,
 }
 
 impl TextBuilder {
@@ -481,6 +477,7 @@ impl TextBuilder {
             shadow_brush: Brush::Solid(Color::BLACK),
             shadow_dilation: 1.0,
             shadow_offset: Vector2::new(1.0, 1.0),
+            height: 14.0,
         }
     }
 
@@ -505,6 +502,12 @@ impl TextBuilder {
     /// Sets the desired vertical alignment of the widget.
     pub fn with_vertical_text_alignment(mut self, valign: VerticalAlignment) -> Self {
         self.vertical_text_alignment = valign;
+        self
+    }
+
+    /// Sets the desired height of the text.
+    pub fn with_height(mut self, height: f32) -> Self {
+        self.height = height;
         self
     }
 
@@ -569,6 +572,7 @@ impl TextBuilder {
                     .with_shadow_brush(self.shadow_brush)
                     .with_shadow_dilation(self.shadow_dilation)
                     .with_shadow_offset(self.shadow_offset)
+                    .with_height(self.height)
                     .build(),
             ),
         };

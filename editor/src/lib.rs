@@ -611,12 +611,7 @@ impl Editor {
         let message_sender = MessageSender(message_sender);
 
         engine.user_interface.default_font.set(
-            Font::from_memory(
-                include_bytes!("../resources/arial.ttf").as_slice(),
-                14.0,
-                Font::default_char_set(),
-            )
-            .unwrap(),
+            Font::from_memory(include_bytes!("../resources/arial.ttf").as_slice(), 1024).unwrap(),
         );
 
         let configurator = Configurator::new(

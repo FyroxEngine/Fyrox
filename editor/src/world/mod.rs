@@ -31,7 +31,6 @@ use fyrox::{
             TreeBuilder, TreeExpansionStrategy, TreeMessage, TreeRoot, TreeRootBuilder,
             TreeRootMessage,
         },
-        ttf::{FontBuilder, SharedFont},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowTitle},
         wrap_panel::WrapPanelBuilder,
@@ -98,7 +97,6 @@ pub struct WorldViewer {
     scroll_view: Handle<UiNode>,
     item_context_menu: Rc<RefCell<dyn WorldViewerItemContextMenu>>,
     node_to_view_map: HashMap<ErasedHandle, Handle<UiNode>>,
-    small_font: SharedFont,
 }
 
 fn make_graph_node_item(
@@ -190,13 +188,6 @@ impl WorldViewer {
         settings: &Settings,
         item_context_menu: Rc<RefCell<dyn WorldViewerItemContextMenu>>,
     ) -> Self {
-        let small_font = SharedFont::new(
-            FontBuilder::new()
-                .with_height(11.0)
-                .build_builtin()
-                .unwrap(),
-        );
-
         let tree_root;
         let node_path;
         let collapse_all;
@@ -328,7 +319,6 @@ impl WorldViewer {
             item_context_menu,
             node_to_view_map: Default::default(),
             filter: Default::default(),
-            small_font,
         }
     }
 
@@ -367,7 +357,7 @@ impl WorldViewer {
                     } else {
                         format!("{} >", name)
                     })
-                    .with_font(self.small_font.clone())
+                    .with_height(11.0)
                     .build(ctx),
             )
             .build(ctx);

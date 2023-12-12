@@ -263,40 +263,51 @@ impl UiRenderer {
             }
 
             match &cmd.texture {
-                CommandTexture::Font(font_arc) => {
+                CommandTexture::Font {
+                    font: font_arc,
+                    page_index,
+                    height,
+                } => {
                     let mut font = font_arc.0.lock();
-                    if font.texture.is_none() {
-                        let size = font.atlas_size() as u32;
-                        if let Some(details) = Texture::from_bytes(
-                            TextureKind::Rectangle {
-                                width: size,
-                                height: size,
-                            },
-                            TexturePixelKind::R8,
-                            font.atlas_pixels().to_vec(),
-                        ) {
-                            font.texture =
-                                Some(SharedTexture(Arc::new(Mutex::new(ResourceHeader {
-                                    kind: Default::default(),
-                                    type_uuid: details.type_uuid(),
-                                    state: ResourceState::new_ok(details),
-                                }))));
-                        }
-                    }
-                    let tex = UntypedResource(
-                        font.texture
-                            .clone()
-                            .unwrap()
-                            .0
-                            .downcast::<Mutex<ResourceHeader>>()
-                            .unwrap(),
-                    );
-                    if let Some(texture) =
-                        texture_cache.get(state, &tex.try_cast::<Texture>().unwrap())
+                    let page_size = font.page_size() as u32;
+                    if let Some(page) = font
+                        .atlases
+                        .get_mut(height)
+                        .and_then(|atlas| atlas.pages.get_mut(*page_index))
                     {
-                        diffuse_texture = texture;
+                        if page.texture.is_none() || page.modified {
+                            if let Some(details) = Texture::from_bytes(
+                                TextureKind::Rectangle {
+                                    width: page_size,
+                                    height: page_size,
+                                },
+                                TexturePixelKind::R8,
+                                page.pixels.clone(),
+                            ) {
+                                page.texture =
+                                    Some(SharedTexture(Arc::new(Mutex::new(ResourceHeader {
+                                        kind: Default::default(),
+                                        type_uuid: details.type_uuid(),
+                                        state: ResourceState::new_ok(details),
+                                    }))));
+                                page.modified = false;
+                            }
+                        }
+                        let tex = UntypedResource(
+                            page.texture
+                                .clone()
+                                .unwrap()
+                                .0
+                                .downcast::<Mutex<ResourceHeader>>()
+                                .unwrap(),
+                        );
+                        if let Some(texture) =
+                            texture_cache.get(state, &tex.try_cast::<Texture>().unwrap())
+                        {
+                            diffuse_texture = texture;
+                        }
+                        is_font_texture = true;
                     }
-                    is_font_texture = true;
                 }
                 CommandTexture::Texture(texture) => {
                     if let Ok(texture) = texture.clone().0.downcast::<Mutex<ResourceHeader>>() {
