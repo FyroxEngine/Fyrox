@@ -1,19 +1,19 @@
 use crate::{
     brush::Brush,
-    core::{algebra::Vector2, color::Color, math::Rect},
+    core::{algebra::Vector2, color::Color, math::Rect, reflect::prelude::*, visitor::prelude::*},
     font::FontResource,
     HorizontalAlignment, VerticalAlignment,
 };
 use std::ops::Range;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TextGlyph {
     pub bounds: Rect<f32>,
     pub tex_coords: [Vector2<f32>; 4],
     pub atlas_page_index: usize,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct TextLine {
     /// Index of starting symbol in text array.
     pub begin: usize,
@@ -51,7 +51,7 @@ impl TextLine {
 }
 
 /// Wrapping mode for formatted text.
-#[derive(Default, Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Eq)]
+#[derive(Default, Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Eq, Visit, Reflect)]
 pub enum WrapMode {
     /// No wrapping needed.
     #[default]
@@ -64,15 +64,19 @@ pub enum WrapMode {
     Word,
 }
 
-#[derive(Default, Clone, Debug)]
+#[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct FormattedText {
     font: FontResource,
     text: Vec<char>,
     // Temporary buffer used to split text on lines. We need it to reduce memory allocations
     // when we changing text too frequently, here we sacrifice some memory in order to get
     // more performance.
+    #[reflect(hidden)]
+    #[visit(skip)]
     lines: Vec<TextLine>,
     // Final glyphs for draw buffer.
+    #[visit(skip)]
+    #[reflect(hidden)]
     glyphs: Vec<TextGlyph>,
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,

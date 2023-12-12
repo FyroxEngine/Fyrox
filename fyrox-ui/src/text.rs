@@ -307,8 +307,6 @@ pub struct Text {
     /// Base widget of the Text widget.
     pub widget: Widget,
     /// [`FormattedText`] instance that is used to layout text and generate drawing commands.
-    #[visit(skip)]
-    #[reflect(hidden)]
     pub formatted_text: RefCell<FormattedText>,
 }
 

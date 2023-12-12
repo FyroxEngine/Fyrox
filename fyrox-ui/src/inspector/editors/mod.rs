@@ -1,4 +1,5 @@
 use crate::brush::{Brush, GradientPoint};
+use crate::formatted_text::FormattedText;
 use crate::{
     bit::BitField,
     border::Border,
@@ -423,7 +424,8 @@ impl PropertyEditorDefinitionContainer {
             WrapPanel,
             // Structs
             GradientPoint,
-            Thickness
+            Thickness,
+            FormattedText
         );
 
         container

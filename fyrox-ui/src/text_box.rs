@@ -377,8 +377,6 @@ pub struct TextBox {
     /// Blinking interval in seconds.
     pub blink_interval: f32,
     /// Formatted text that stores actual text and performs its layout. See [`FormattedText`] docs for more info.
-    #[visit(skip)]
-    #[reflect(hidden)]
     pub formatted_text: RefCell<FormattedText>,
     /// Current selection range.
     pub selection_range: Option<SelectionRange>,
