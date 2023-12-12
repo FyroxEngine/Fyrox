@@ -275,7 +275,7 @@ impl UiRenderer {
                         .get_mut(height)
                         .and_then(|atlas| atlas.pages.get_mut(*page_index))
                     {
-                        if page.texture.is_none() {
+                        if page.texture.is_none() || page.modified {
                             if let Some(details) = Texture::from_bytes(
                                 TextureKind::Rectangle {
                                     width: page_size,
@@ -290,6 +290,7 @@ impl UiRenderer {
                                         type_uuid: details.type_uuid(),
                                         state: ResourceState::new_ok(details),
                                     }))));
+                                page.modified = false;
                             }
                         }
                         let tex = UntypedResource(

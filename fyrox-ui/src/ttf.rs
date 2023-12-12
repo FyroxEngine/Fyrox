@@ -27,6 +27,7 @@ pub struct Page {
     pub pixels: Vec<u8>,
     pub texture: Option<SharedTexture>,
     pub rect_packer: RectPacker<usize>,
+    pub modified: bool,
 }
 
 /// Atlas is a storage for glyphs of a particular size, each atlas could have any number of pages to
@@ -78,6 +79,7 @@ impl Atlas {
                             pixels: vec![0; page_size * page_size],
                             texture: None,
                             rect_packer: RectPacker::new(page_size, page_size),
+                            modified: true,
                         };
 
                         let page_index = self.pages.len();
@@ -101,6 +103,10 @@ impl Atlas {
                     let (page_index, placement_rect) = placement_info?;
                     let page = &mut self.pages[page_index];
                     let glyph_index = self.glyphs.len();
+
+                    // Raise a flag to notify users that the content of the page has changed, and
+                    // it should be re-uploaded to GPU (if needed).
+                    page.modified = true;
 
                     let mut glyph = FontGlyph {
                         left: metrics.xmin as f32,
