@@ -108,13 +108,13 @@ use fyrox::{
         draw,
         dropdown_list::DropdownListBuilder,
         file_browser::{FileBrowserMode, FileSelectorBuilder, FileSelectorMessage, Filter},
+        font::Font,
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         key::HotKey,
         message::{MessageDirection, UiMessage},
         messagebox::{MessageBoxBuilder, MessageBoxButtons, MessageBoxMessage, MessageBoxResult},
         text::TextBuilder,
-        ttf::Font,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, UiNode, UserInterface, VerticalAlignment,
@@ -610,9 +610,13 @@ impl Editor {
         let (message_sender, message_receiver) = mpsc::channel();
         let message_sender = MessageSender(message_sender);
 
-        engine.user_interface.default_font.set(
-            Font::from_memory(include_bytes!("../resources/arial.ttf").as_slice(), 1024).unwrap(),
-        );
+        {
+            let mut font_state = engine.user_interface.default_font.state();
+            let font_state_data = font_state.data().unwrap();
+            *font_state_data =
+                Font::from_memory(include_bytes!("../resources/arial.ttf").as_slice(), 1024)
+                    .unwrap();
+        }
 
         let configurator = Configurator::new(
             message_sender.clone(),

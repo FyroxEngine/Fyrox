@@ -264,49 +264,50 @@ impl UiRenderer {
 
             match &cmd.texture {
                 CommandTexture::Font {
-                    font: font_arc,
+                    font,
                     page_index,
                     height,
                 } => {
-                    let mut font = font_arc.0.lock();
-                    let page_size = font.page_size() as u32;
-                    if let Some(page) = font
-                        .atlases
-                        .get_mut(height)
-                        .and_then(|atlas| atlas.pages.get_mut(*page_index))
-                    {
-                        if page.texture.is_none() || page.modified {
-                            if let Some(details) = Texture::from_bytes(
-                                TextureKind::Rectangle {
-                                    width: page_size,
-                                    height: page_size,
-                                },
-                                TexturePixelKind::R8,
-                                page.pixels.clone(),
-                            ) {
-                                page.texture =
-                                    Some(SharedTexture(Arc::new(Mutex::new(ResourceHeader {
-                                        kind: Default::default(),
-                                        type_uuid: details.type_uuid(),
-                                        state: ResourceState::new_ok(details),
-                                    }))));
-                                page.modified = false;
-                            }
-                        }
-                        let tex = UntypedResource(
-                            page.texture
-                                .clone()
-                                .unwrap()
-                                .0
-                                .downcast::<Mutex<ResourceHeader>>()
-                                .unwrap(),
-                        );
-                        if let Some(texture) =
-                            texture_cache.get(state, &tex.try_cast::<Texture>().unwrap())
+                    if let Some(font) = font.state().data() {
+                        let page_size = font.page_size() as u32;
+                        if let Some(page) = font
+                            .atlases
+                            .get_mut(height)
+                            .and_then(|atlas| atlas.pages.get_mut(*page_index))
                         {
-                            diffuse_texture = texture;
+                            if page.texture.is_none() || page.modified {
+                                if let Some(details) = Texture::from_bytes(
+                                    TextureKind::Rectangle {
+                                        width: page_size,
+                                        height: page_size,
+                                    },
+                                    TexturePixelKind::R8,
+                                    page.pixels.clone(),
+                                ) {
+                                    page.texture =
+                                        Some(SharedTexture(Arc::new(Mutex::new(ResourceHeader {
+                                            kind: Default::default(),
+                                            type_uuid: details.type_uuid(),
+                                            state: ResourceState::new_ok(details),
+                                        }))));
+                                    page.modified = false;
+                                }
+                            }
+                            let tex = UntypedResource(
+                                page.texture
+                                    .clone()
+                                    .unwrap()
+                                    .0
+                                    .downcast::<Mutex<ResourceHeader>>()
+                                    .unwrap(),
+                            );
+                            if let Some(texture) =
+                                texture_cache.get(state, &tex.try_cast::<Texture>().unwrap())
+                            {
+                                diffuse_texture = texture;
+                            }
+                            is_font_texture = true;
                         }
-                        is_font_texture = true;
                     }
                 }
                 CommandTexture::Texture(texture) => {

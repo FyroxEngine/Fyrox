@@ -1,15 +1,23 @@
 use crate::{
-    core::{algebra::Vector2, io, parking_lot::Mutex, rectpack::RectPacker},
+    core::{
+        algebra::Vector2, rectpack::RectPacker, reflect::prelude::*, uuid::Uuid, uuid_provider,
+        visitor::prelude::*, TypeUuidProvider,
+    },
     draw::SharedTexture,
 };
 use fxhash::FxHashMap;
+use fyrox_resource::{io::ResourceIo, Resource, ResourceData};
+use std::fmt::Formatter;
 use std::{
-    fmt::{Debug, Formatter},
+    any::Any,
+    error::Error,
+    fmt::Debug,
     hash::{Hash, Hasher},
     ops::Deref,
     path::Path,
-    sync::Arc,
 };
+
+pub mod loader;
 
 #[derive(Debug)]
 pub struct FontGlyph {
@@ -30,9 +38,19 @@ pub struct Page {
     pub modified: bool,
 }
 
+impl Debug for Page {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Page")
+            .field("Pixels", &self.pixels)
+            .field("Texture", &self.texture)
+            .field("Modified", &self.modified)
+            .finish()
+    }
+}
+
 /// Atlas is a storage for glyphs of a particular size, each atlas could have any number of pages to
 /// store the rasterized glyphs.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Atlas {
     pub glyphs: Vec<FontGlyph>,
     pub char_map: FxHashMap<char, usize>,
@@ -160,11 +178,39 @@ impl Atlas {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Reflect, Visit)]
+#[reflect(hide_all)]
 pub struct Font {
+    #[visit(skip)]
     pub inner: Option<fontdue::Font>,
+    #[visit(skip)]
     pub atlases: FxHashMap<FontHeight, Atlas>,
+    #[visit(skip)]
     pub page_size: usize,
+}
+
+uuid_provider!(Font = "692fec79-103a-483c-bb0b-9fc3a349cb48");
+
+impl ResourceData for Font {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn type_uuid(&self) -> Uuid {
+        <Self as TypeUuidProvider>::type_uuid()
+    }
+
+    fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
+        Ok(())
+    }
+
+    fn can_be_saved(&self) -> bool {
+        false
+    }
 }
 
 #[derive(Copy, Clone, Default, Debug)]
@@ -192,42 +238,7 @@ impl Hash for FontHeight {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct SharedFont(pub Arc<Mutex<Font>>);
-
-impl Default for SharedFont {
-    fn default() -> Self {
-        Self(Arc::new(Mutex::new(Font::default())))
-    }
-}
-
-impl SharedFont {
-    pub fn new(font: Font) -> Self {
-        Self(Arc::new(Mutex::new(font)))
-    }
-
-    pub fn set(&mut self, font: Font) {
-        *self.0.lock() = font;
-    }
-}
-
-impl From<Arc<Mutex<Font>>> for SharedFont {
-    fn from(arc: Arc<Mutex<Font>>) -> Self {
-        SharedFont(arc)
-    }
-}
-
-impl PartialEq for SharedFont {
-    fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(self.0.deref(), other.0.deref())
-    }
-}
-
-impl Debug for Font {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Font")
-    }
-}
+pub type FontResource = Resource<Font>;
 
 impl Font {
     pub fn from_memory(
@@ -245,8 +256,9 @@ impl Font {
     pub async fn from_file<P: AsRef<Path>>(
         path: P,
         page_size: usize,
+        io: &dyn ResourceIo,
     ) -> Result<Self, &'static str> {
-        if let Ok(file_content) = io::load_file(path).await {
+        if let Ok(file_content) = io.load_file(path.as_ref()).await {
             Self::from_memory(file_content, page_size)
         } else {
             Err("Unable to read file")
@@ -323,8 +335,12 @@ impl FontBuilder {
     }
 
     /// Creates a new font from the data at the specified path.
-    pub async fn build_from_file(self, path: impl AsRef<Path>) -> Result<Font, &'static str> {
-        Font::from_file(path, self.page_size).await
+    pub async fn build_from_file(
+        self,
+        path: impl AsRef<Path>,
+        io: &dyn ResourceIo,
+    ) -> Result<Font, &'static str> {
+        Font::from_file(path, self.page_size, io).await
     }
 
     /// Creates a new font from bytes in memory.

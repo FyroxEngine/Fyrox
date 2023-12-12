@@ -2,7 +2,7 @@
 //! more info.
 
 use crate::{
-    core::pool::Handle, message::UiMessage, ttf::SharedFont, RestrictionEntry, UiNode,
+    core::pool::Handle, font::FontResource, message::UiMessage, RestrictionEntry, UiNode,
     UserInterface,
 };
 use std::{
@@ -94,7 +94,7 @@ impl<'a> From<&'a mut UserInterface> for BuildContext<'a> {
 
 impl<'a> BuildContext<'a> {
     /// Returns default font instance used by the UI.
-    pub fn default_font(&self) -> SharedFont {
+    pub fn default_font(&self) -> FontResource {
         self.ui.default_font.clone()
     }
 

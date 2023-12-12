@@ -197,6 +197,7 @@ pub mod draw;
 pub mod dropdown_list;
 pub mod expander;
 pub mod file_browser;
+pub mod font;
 pub mod formatted_text;
 pub mod grid;
 pub mod image;
@@ -224,7 +225,6 @@ pub mod text;
 pub mod text_box;
 mod thickness;
 pub mod tree;
-pub mod ttf;
 pub mod utils;
 pub mod uuid;
 pub mod vec;
@@ -247,12 +247,12 @@ use crate::{
         visitor::prelude::*,
     },
     draw::{CommandTexture, Draw, DrawingContext},
+    font::{FontBuilder, FontResource},
     message::{
         ButtonState, CursorIcon, KeyboardModifiers, MessageDirection, MouseButton, OsEvent,
         UiMessage,
     },
     popup::{Placement, PopupMessage},
-    ttf::{FontBuilder, SharedFont},
     widget::{Widget, WidgetBuilder, WidgetMessage},
 };
 use copypasta::ClipboardContext;
@@ -273,6 +273,7 @@ use crate::constructor::WidgetConstructorContainer;
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
+use fyrox_resource::untyped::ResourceKind;
 pub use node::*;
 pub use thickness::*;
 
@@ -627,7 +628,7 @@ pub struct UserInterface {
     need_update_global_transform: bool,
     #[visit(skip)]
     #[reflect(hidden)]
-    pub default_font: SharedFont,
+    pub default_font: FontResource,
     #[visit(skip)]
     #[reflect(hidden)]
     double_click_entries: FxHashMap<MouseButton, DoubleClickEntry>,
@@ -730,7 +731,10 @@ impl UserInterface {
         screen_size: Vector2<f32>,
     ) -> UserInterface {
         let (layout_events_sender, layout_events_receiver) = mpsc::channel();
-        let default_font = SharedFont::new(FontBuilder::new().build_builtin().unwrap());
+        let default_font = FontResource::new_ok(
+            ResourceKind::Embedded,
+            FontBuilder::new().build_builtin().unwrap(),
+        );
         let mut ui = UserInterface {
             screen_size,
             sender,

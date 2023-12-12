@@ -9,9 +9,9 @@ use crate::{
     core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     draw::DrawingContext,
+    font::FontResource,
     formatted_text::{FormattedText, FormattedTextBuilder, WrapMode},
     message::{MessageDirection, UiMessage},
-    ttf::SharedFont,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
 };
@@ -31,7 +31,7 @@ pub enum TextMessage {
     /// examples.
     Wrap(WrapMode),
     /// Used to set new font of the widget.  See [Text](Text#fonts-and_colors) for usage examples.
-    Font(SharedFont),
+    Font(FontResource),
     /// Used to set new vertical alignment of the widget. See [Text](Text#text-alignment-and-word-wrapping) for usage
     /// examples.
     VerticalAlignment(VerticalAlignment),
@@ -46,6 +46,8 @@ pub enum TextMessage {
     ShadowBrush(Brush),
     /// Used to set how much the shadows will be offset from the widget. See [Text](Text#shadows) for usage examples.
     ShadowOffset(Vector2<f32>),
+    /// Used to set font height of the widget.
+    Height(f32),
 }
 
 impl TextMessage {
@@ -61,7 +63,7 @@ impl TextMessage {
 
     define_constructor!(
         /// Creates new [`TextMessage::Font`] message.
-        TextMessage:Font => fn font(SharedFont), layout: false
+        TextMessage:Font => fn font(FontResource), layout: false
     );
 
     define_constructor!(
@@ -92,6 +94,11 @@ impl TextMessage {
     define_constructor!(
         /// Creates new [`TextMessage::ShadowOffset`] message.
         TextMessage:ShadowOffset => fn shadow_offset(Vector2<f32>), layout: false
+    );
+
+    define_constructor!(
+        /// Creates new [`TextMessage::Height`] message.
+        TextMessage:Height => fn height(f32), layout: false
     );
 }
 
@@ -208,40 +215,30 @@ impl TextMessage {
 /// By default, text is created with default font, however it is possible to set any custom font:
 ///
 /// ```rust
+/// # use fyrox_resource::manager::ResourceManager;
 /// # use fyrox_ui::{
 /// #     core::{futures::executor::block_on, pool::Handle},
 /// #     text::TextBuilder,
-/// #     ttf::{Font, SharedFont},
+/// #     font::{Font, FontResource},
 /// #     widget::WidgetBuilder,
 /// #     UiNode, UserInterface,
 /// # };
 ///
-/// fn load_font() -> SharedFont {
-///     // Normally `block_on` should be avoided by using async.
-///     let font = block_on(Font::from_file(
-///         "path/to/your/font.ttf", 512
-///     ))
-///     .unwrap();
-///
-///     SharedFont::new(font)
-/// }
-///
-/// fn create_text(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
+/// fn create_text(ui: &mut UserInterface, resource_manager: &ResourceManager, text: &str) -> Handle<UiNode> {
 ///     TextBuilder::new(WidgetBuilder::new())
-///         .with_font(load_font())
+///         .with_font(resource_manager.request::<Font>("path/to/your/font.ttf"))
 ///         .with_text(text)
 ///         .with_height(20.0)
 ///         .build(&mut ui.build_ctx())
 /// }
 /// ```
 ///
-/// Please refer to [`crate::ttf::Font`] chapter to learn more about fonts.
+/// Please refer to [`crate::font::Font`] chapter to learn more about fonts.
 ///
 /// ### Font size
 ///
-/// There is no way to change font size without changing the entire font used by Text, it is known issue and there is
-/// [tracking issue](https://github.com/FyroxEngine/Fyrox/issues/74) for that. Check [`crate::ttf::Font`] docs to learn how
-/// to create fonts.
+/// Use [`TextBuilder::with_height`] or send [`TextMessage::height`] to your Text widget instance
+/// to set the font size of it.
 ///
 /// ## Shadows
 ///
@@ -415,6 +412,13 @@ impl Control for Text {
                             self.invalidate_layout();
                         }
                     }
+                    &TextMessage::Height(height) => {
+                        if text_ref.height() != height {
+                            text_ref.set_height(height);
+                            drop(text_ref);
+                            self.invalidate_layout();
+                        }
+                    }
                 }
             }
         }
@@ -433,7 +437,7 @@ impl Text {
     }
 
     /// Returns current font of the widget.
-    pub fn font(&self) -> SharedFont {
+    pub fn font(&self) -> FontResource {
         self.formatted_text.borrow().get_font()
     }
 
@@ -452,7 +456,7 @@ impl Text {
 pub struct TextBuilder {
     widget_builder: WidgetBuilder,
     text: Option<String>,
-    font: Option<SharedFont>,
+    font: Option<FontResource>,
     vertical_text_alignment: VerticalAlignment,
     horizontal_text_alignment: HorizontalAlignment,
     wrap: WrapMode,
@@ -488,13 +492,13 @@ impl TextBuilder {
     }
 
     /// Sets the desired font of the widget.
-    pub fn with_font(mut self, font: SharedFont) -> Self {
+    pub fn with_font(mut self, font: FontResource) -> Self {
         self.font = Some(font);
         self
     }
 
     /// Sets the desired font of the widget using font wrapped in [`Option`].
-    pub fn with_opt_font(mut self, font: Option<SharedFont>) -> Self {
+    pub fn with_opt_font(mut self, font: Option<FontResource>) -> Self {
         self.font = font;
         self
     }

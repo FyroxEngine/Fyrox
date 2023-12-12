@@ -1,7 +1,7 @@
 use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect},
-    ttf::SharedFont,
+    font::FontResource,
     HorizontalAlignment, VerticalAlignment,
 };
 use std::ops::Range;
@@ -66,7 +66,7 @@ pub enum WrapMode {
 
 #[derive(Default, Clone, Debug)]
 pub struct FormattedText {
-    font: SharedFont,
+    font: FontResource,
     text: Vec<char>,
     // Temporary buffer used to split text on lines. We need it to reduce memory allocations
     // when we changing text too frequently, here we sacrifice some memory in order to get
@@ -98,11 +98,11 @@ impl FormattedText {
         &self.glyphs
     }
 
-    pub fn get_font(&self) -> SharedFont {
+    pub fn get_font(&self) -> FontResource {
         self.font.clone()
     }
 
-    pub fn set_font(&mut self, font: SharedFont) -> &mut Self {
+    pub fn set_font(&mut self, font: FontResource) -> &mut Self {
         self.font = font;
         self
     }
@@ -165,11 +165,12 @@ impl FormattedText {
 
     pub fn get_range_width<T: IntoIterator<Item = usize>>(&self, range: T) -> f32 {
         let mut width = 0.0;
-        let mut font = self.font.0.lock();
-        for index in range {
-            // We can't trust the range values, check to prevent panic.
-            if let Some(glyph) = self.text.get(index) {
-                width += font.glyph_advance(*glyph, self.height);
+        if let Some(font) = self.font.state().data() {
+            for index in range {
+                // We can't trust the range values, check to prevent panic.
+                if let Some(glyph) = self.text.get(index) {
+                    width += font.glyph_advance(*glyph, self.height);
+                }
             }
         }
         width
@@ -220,13 +221,9 @@ impl FormattedText {
     }
 
     pub fn insert_str(&mut self, str: &str, position: usize) -> &mut Self {
-        let font = self.font.0.lock();
-
         for (i, code) in str.chars().enumerate() {
             self.text.insert(position + i, code);
         }
-
-        drop(font);
 
         self
     }
@@ -242,7 +239,10 @@ impl FormattedText {
     }
 
     pub fn build(&mut self) -> Vector2<f32> {
-        let mut font = self.font.0.lock();
+        let mut font_state = self.font.state();
+        let Some(font) = font_state.data() else {
+            return Default::default();
+        };
 
         let masked_text;
         let text = if let Some(mask_char) = self.mask_char {
@@ -470,7 +470,7 @@ impl FormattedText {
 }
 
 pub struct FormattedTextBuilder {
-    font: SharedFont,
+    font: FontResource,
     brush: Brush,
     constraint: Vector2<f32>,
     text: String,
@@ -487,7 +487,7 @@ pub struct FormattedTextBuilder {
 
 impl FormattedTextBuilder {
     /// Creates new formatted text builder with default parameters.
-    pub fn new(font: SharedFont) -> FormattedTextBuilder {
+    pub fn new(font: FontResource) -> FormattedTextBuilder {
         FormattedTextBuilder {
             font,
             text: "".to_owned(),
@@ -571,7 +571,6 @@ impl FormattedTextBuilder {
     }
 
     pub fn build(self) -> FormattedText {
-        let font = self.font.0.lock();
         FormattedText {
             text: self.text.chars().collect(),
             lines: Vec::new(),
@@ -585,10 +584,7 @@ impl FormattedTextBuilder {
             height: self.height,
             shadow: self.shadow,
             shadow_brush: self.shadow_brush,
-            font: {
-                drop(font);
-                self.font
-            },
+            font: self.font,
             shadow_dilation: self.shadow_dilation,
             shadow_offset: self.shadow_offset,
         }

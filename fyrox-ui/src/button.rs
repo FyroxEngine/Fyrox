@@ -8,9 +8,9 @@ use crate::{
     core::{reflect::prelude::*, visitor::prelude::*},
     decorator::DecoratorBuilder,
     define_constructor,
+    font::FontResource,
     message::{MessageDirection, UiMessage},
     text::TextBuilder,
-    ttf::SharedFont,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
@@ -178,7 +178,7 @@ pub enum ButtonContent {
         /// Text of the button.
         text: String,
         /// Optional font of the button. If [`None`], the default font will be used.
-        font: Option<SharedFont>,
+        font: Option<FontResource>,
     },
     /// Arbitrary widget handle. It could be any widget handle, for example a handle of [`crate::image::Image`]
     /// widget.
@@ -195,7 +195,7 @@ impl ButtonContent {
     }
 
     /// Creates [`ButtonContent::Text`] with custom font.
-    pub fn text_with_font<S: AsRef<str>>(s: S, font: SharedFont) -> Self {
+    pub fn text_with_font<S: AsRef<str>>(s: S, font: FontResource) -> Self {
         Self::Text {
             text: s.as_ref().to_owned(),
             font: Some(font),
@@ -244,7 +244,7 @@ impl ButtonBuilder {
     }
 
     /// Sets the content of the button to be [`ButtonContent::Text`] (text with a custom font).
-    pub fn with_text_and_font(mut self, text: &str, font: SharedFont) -> Self {
+    pub fn with_text_and_font(mut self, text: &str, font: FontResource) -> Self {
         self.content = Some(ButtonContent::text_with_font(text, font));
         self
     }

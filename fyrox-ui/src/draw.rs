@@ -1,4 +1,4 @@
-use crate::ttf::FontHeight;
+use crate::font::FontHeight;
 use crate::{
     brush::Brush,
     core::{
@@ -6,8 +6,8 @@ use crate::{
         color::Color,
         math::{self, Rect, TriangleDefinition},
     },
+    font::FontResource,
     formatted_text::FormattedText,
-    ttf::SharedFont,
     Thickness,
 };
 use std::{any::Any, ops::Range, sync::Arc};
@@ -56,7 +56,7 @@ pub enum CommandTexture {
     None,
     Texture(SharedTexture),
     Font {
-        font: SharedFont,
+        font: FontResource,
         height: FontHeight,
         page_index: usize,
     },
@@ -688,7 +688,7 @@ impl DrawingContext {
             dilation: f32,
             offset: Vector2<f32>,
             brush: Brush,
-            font: &SharedFont,
+            font: &FontResource,
         ) {
             let Some(mut current_page_index) = formatted_text
                 .get_glyphs()

@@ -14,10 +14,10 @@ use crate::{
     core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
+    font::FontResource,
     formatted_text::{FormattedText, FormattedTextBuilder, WrapMode},
     message::{CursorIcon, KeyCode, MessageDirection, MouseButton, UiMessage},
     text::TextMessage,
-    ttf::SharedFont,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, HorizontalAlignment, UiNode, UserInterface, VerticalAlignment,
     BRUSH_DARKER, BRUSH_TEXT,
@@ -241,40 +241,30 @@ pub type FilterCallback = dyn FnMut(char) -> bool;
 /// By default, text is created with default font, however it is possible to set any custom font:
 ///
 /// ```rust,no_run
+/// # use fyrox_resource::manager::ResourceManager;
 /// # use fyrox_ui::{
 /// #     core::{futures::executor::block_on, pool::Handle},
 /// #     text_box::TextBoxBuilder,
-/// #     ttf::{Font, SharedFont},
+/// #     font::{Font},
 /// #     widget::WidgetBuilder,
 /// #     UiNode, UserInterface,
 /// # };
 ///
-/// fn load_font() -> SharedFont {
-///     // Normally `block_on` should be avoided.
-///     let font = block_on(Font::from_file(
-///         "path/to/your/font.ttf", 512
-///     ))
-///     .unwrap();
-///
-///     SharedFont::new(font)
-/// }
-///
-/// fn create_text(ui: &mut UserInterface, text: &str) -> Handle<UiNode> {
+/// fn create_text(ui: &mut UserInterface, resource_manager: &ResourceManager, text: &str) -> Handle<UiNode> {
 ///     TextBoxBuilder::new(WidgetBuilder::new())
-///         .with_font(load_font())
+///         .with_font(resource_manager.request::<Font>("path/to/your/font.ttf"))
 ///         .with_text(text)
 ///         .with_height(20.0)
 ///         .build(&mut ui.build_ctx())
 /// }
 /// ```
 ///
-/// Please refer to [`SharedFont`] to learn more about fonts.
+/// Please refer to [`FontResource`] to learn more about fonts.
 ///
 /// ### Font size
 ///
-/// There is no way to change font size without changing the entire font used by Text, it is known issue and there is
-/// [tracking issue](https://github.com/FyroxEngine/Fyrox/issues/74) for that. Check [Font](font.md) chapter to learn how
-/// to create fonts.
+/// Use [`TextBoxBuilder::with_height`] or send [`TextMessage::height`] to your TextBox widget instance
+/// to set the font size of it.
 ///
 /// ## Messages
 ///
@@ -693,21 +683,22 @@ impl TextBox {
         let font = formatted_text.get_font();
         let mut caret_pos = Vector2::default();
 
-        let mut font = font.0.lock();
-        if let Some(line) = formatted_text.get_lines().get(self.caret_position.line) {
-            let raw_text = formatted_text.get_raw_text();
-            caret_pos += Vector2::new(line.x_offset, line.y_offset);
-            for (offset, char_index) in (line.begin..line.end).enumerate() {
-                if offset >= self.caret_position.offset {
-                    break;
-                }
-                if let Some(glyph) = raw_text
-                    .get(char_index)
-                    .and_then(|c| font.glyph(*c, formatted_text.height()))
-                {
-                    caret_pos.x += glyph.advance;
-                } else {
-                    caret_pos.x += formatted_text.height();
+        if let Some(font) = font.state().data() {
+            if let Some(line) = formatted_text.get_lines().get(self.caret_position.line) {
+                let raw_text = formatted_text.get_raw_text();
+                caret_pos += Vector2::new(line.x_offset, line.y_offset);
+                for (offset, char_index) in (line.begin..line.end).enumerate() {
+                    if offset >= self.caret_position.offset {
+                        break;
+                    }
+                    if let Some(glyph) = raw_text
+                        .get(char_index)
+                        .and_then(|c| font.glyph(*c, formatted_text.height()))
+                    {
+                        caret_pos.x += glyph.advance;
+                    } else {
+                        caret_pos.x += formatted_text.height();
+                    }
                 }
             }
         }
@@ -732,9 +723,10 @@ impl TextBox {
             .formatted_text
             .borrow()
             .get_font()
-            .0
-            .lock()
-            .ascender(self.height);
+            .state()
+            .data()
+            .map(|font| font.ascender(self.height))
+            .unwrap_or_default();
         let spacing = spacing_step * 3.0;
         let top_left_corner = local_bounds.left_top_corner();
         let bottom_right_corner = local_bounds.right_bottom_corner();
@@ -843,68 +835,70 @@ impl TextBox {
 
         let formatted_text = self.formatted_text.borrow_mut();
         let font = formatted_text.get_font();
-        let mut font = font.0.lock();
-        for (line_index, line) in formatted_text.get_lines().iter().enumerate() {
-            let line_screen_bounds = Rect::new(
-                line.x_offset - self.view_position.x,
-                line.y_offset - self.view_position.y,
-                line.width,
-                font.ascender(formatted_text.height()),
-            );
-            if line_screen_bounds.contains(point_to_check) {
-                let mut x = line_screen_bounds.x();
-                // Check each character in line.
-                for (offset, index) in (line.begin..line.end).enumerate() {
-                    let character = formatted_text.get_raw_text()[index];
-                    let (width, height, advance) =
-                        if let Some(glyph) = font.glyph(character, self.height) {
-                            (
-                                glyph.bitmap_width as f32,
-                                glyph.bitmap_height as f32,
-                                glyph.advance,
-                            )
-                        } else {
-                            // Stub
-                            let h = formatted_text.height();
-                            (h, h, h)
-                        };
-                    let char_screen_bounds = Rect::new(x, line_screen_bounds.y(), width, height);
-                    if char_screen_bounds.contains(point_to_check) {
-                        let char_bounds_center_x =
-                            char_screen_bounds.x() + char_screen_bounds.w() * 0.5;
-
-                        return Some(Position {
-                            line: line_index,
-                            offset: if point_to_check.x <= char_bounds_center_x {
-                                offset
+        if let Some(font) = font.state().data() {
+            for (line_index, line) in formatted_text.get_lines().iter().enumerate() {
+                let line_screen_bounds = Rect::new(
+                    line.x_offset - self.view_position.x,
+                    line.y_offset - self.view_position.y,
+                    line.width,
+                    font.ascender(formatted_text.height()),
+                );
+                if line_screen_bounds.contains(point_to_check) {
+                    let mut x = line_screen_bounds.x();
+                    // Check each character in line.
+                    for (offset, index) in (line.begin..line.end).enumerate() {
+                        let character = formatted_text.get_raw_text()[index];
+                        let (width, height, advance) =
+                            if let Some(glyph) = font.glyph(character, self.height) {
+                                (
+                                    glyph.bitmap_width as f32,
+                                    glyph.bitmap_height as f32,
+                                    glyph.advance,
+                                )
                             } else {
-                                (offset + 1).min(line.len())
-                            },
-                        });
+                                // Stub
+                                let h = formatted_text.height();
+                                (h, h, h)
+                            };
+                        let char_screen_bounds =
+                            Rect::new(x, line_screen_bounds.y(), width, height);
+                        if char_screen_bounds.contains(point_to_check) {
+                            let char_bounds_center_x =
+                                char_screen_bounds.x() + char_screen_bounds.w() * 0.5;
+
+                            return Some(Position {
+                                line: line_index,
+                                offset: if point_to_check.x <= char_bounds_center_x {
+                                    offset
+                                } else {
+                                    (offset + 1).min(line.len())
+                                },
+                            });
+                        }
+                        x += advance;
                     }
-                    x += advance;
                 }
             }
-        }
 
-        // Additionally check each line again, but now check if the cursor is either at left or right side of the cursor.
-        // This allows us to set caret at lines by clicking at either ends of it.
-        for (line_index, line) in formatted_text.get_lines().iter().enumerate() {
-            let line_x_begin = line.x_offset - self.view_position.x;
-            let line_x_end = line_x_begin + line.width;
-            let line_y_begin = line.y_offset - self.view_position.y;
-            let line_y_end = line_y_begin + font.ascender(formatted_text.height());
-            if (line_y_begin..line_y_end).contains(&point_to_check.y) {
-                if point_to_check.x < line_x_begin {
-                    return Some(Position {
-                        line: line_index,
-                        offset: 0,
-                    });
-                } else if point_to_check.x > line_x_end {
-                    return Some(Position {
-                        line: line_index,
-                        offset: line.len(),
-                    });
+            // Additionally check each line again, but now check if the cursor is either at left or right side of the cursor.
+            // This allows us to set caret at lines by clicking at either ends of it.
+            for (line_index, line) in formatted_text.get_lines().iter().enumerate() {
+                let line_x_begin = line.x_offset - self.view_position.x;
+                let line_x_end = line_x_begin + line.width;
+                let line_y_begin = line.y_offset - self.view_position.y;
+                let line_y_end = line_y_begin + font.ascender(formatted_text.height());
+                if (line_y_begin..line_y_end).contains(&point_to_check.y) {
+                    if point_to_check.x < line_x_begin {
+                        return Some(Position {
+                            line: line_index,
+                            offset: 0,
+                        });
+                    } else if point_to_check.x > line_x_end {
+                        return Some(Position {
+                            line: line_index,
+                            offset: line.len(),
+                        });
+                    }
                 }
             }
         }
@@ -923,7 +917,7 @@ impl TextBox {
     }
 
     /// Returns current font of text box.
-    pub fn font(&self) -> SharedFont {
+    pub fn font(&self) -> FontResource {
         self.formatted_text.borrow().get_font()
     }
 
@@ -1525,6 +1519,14 @@ impl Control for TextBox {
                                 ui.send_message(message.reverse());
                             }
                         }
+                        &TextMessage::Height(height) => {
+                            if text.height() != height {
+                                text.set_height(height);
+                                drop(text);
+                                self.invalidate_layout();
+                                ui.send_message(message.reverse());
+                            }
+                        }
                     }
                 }
             } else if let Some(msg) = message.data::<TextBoxMessage>() {
@@ -1570,7 +1572,7 @@ impl Control for TextBox {
 /// Text box builder creates new [`TextBox`] instances and adds them to the user interface.
 pub struct TextBoxBuilder {
     widget_builder: WidgetBuilder,
-    font: Option<SharedFont>,
+    font: Option<FontResource>,
     text: String,
     caret_brush: Brush,
     selection_brush: Brush,
@@ -1617,7 +1619,7 @@ impl TextBoxBuilder {
     }
 
     /// Sets the desired font of the text box.
-    pub fn with_font(mut self, font: SharedFont) -> Self {
+    pub fn with_font(mut self, font: FontResource) -> Self {
         self.font = Some(font);
         self
     }

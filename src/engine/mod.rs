@@ -69,6 +69,7 @@ use raw_window_handle::HasRawWindowHandle;
 #[cfg(not(target_arch = "wasm32"))]
 use std::{ffi::CString, num::NonZeroU32};
 
+use fyrox_ui::{font::loader::FontLoader, font::Font};
 use std::{
     any::TypeId,
     collections::{HashSet, VecDeque},
@@ -1037,6 +1038,7 @@ pub(crate) fn initialize_resource_manager_loaders(
     state.constructors_container.add::<SoundBuffer>();
     state.constructors_container.add::<HrirSphereResourceData>();
     state.constructors_container.add::<Material>();
+    state.constructors_container.add::<Font>();
 
     let loaders = &mut state.loaders;
     loaders.set(model_loader);
@@ -1052,6 +1054,7 @@ pub(crate) fn initialize_resource_manager_loaders(
     loaders.set(MaterialLoader {
         resource_manager: resource_manager.clone(),
     });
+    loaders.set(FontLoader::default());
 }
 
 impl Engine {
