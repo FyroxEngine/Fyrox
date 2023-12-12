@@ -31,7 +31,6 @@ use fyrox::{
             TreeBuilder, TreeExpansionStrategy, TreeMessage, TreeRoot, TreeRootBuilder,
             TreeRootMessage,
         },
-        ttf::{FontBuilder, SharedFont},
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowTitle},
         wrap_panel::WrapPanelBuilder,

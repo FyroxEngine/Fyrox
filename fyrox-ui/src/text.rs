@@ -510,6 +510,7 @@ impl TextBuilder {
         self
     }
 
+    /// Sets the desired height of the text.
     pub fn with_height(mut self, height: f32) -> Self {
         self.height = height;
         self
