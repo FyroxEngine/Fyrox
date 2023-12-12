@@ -250,15 +250,9 @@ pub type FilterCallback = dyn FnMut(char) -> bool;
 /// # };
 ///
 /// fn load_font() -> SharedFont {
-///     // Choose desired character set, default is Basic Latin + Latin Supplement.
-///     // Character set is a set of ranges with Unicode code points.
-///     let character_set = Font::default_char_set();
-///
 ///     // Normally `block_on` should be avoided.
 ///     let font = block_on(Font::from_file(
-///         "path/to/your/font.ttf",
-///         24.0,
-///         character_set,
+///         "path/to/your/font.ttf", 512
 ///     ))
 ///     .unwrap();
 ///
@@ -269,6 +263,7 @@ pub type FilterCallback = dyn FnMut(char) -> bool;
 ///     TextBoxBuilder::new(WidgetBuilder::new())
 ///         .with_font(load_font())
 ///         .with_text(text)
+///         .with_height(20.0)
 ///         .build(&mut ui.build_ctx())
 /// }
 /// ```
