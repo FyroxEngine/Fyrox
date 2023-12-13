@@ -4,7 +4,9 @@ use crate::{
     font::FontResource,
     HorizontalAlignment, VerticalAlignment,
 };
+use fyrox_core::uuid_provider;
 use std::ops::Range;
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 #[derive(Debug, Clone, Default)]
 pub struct TextGlyph {
@@ -51,7 +53,21 @@ impl TextLine {
 }
 
 /// Wrapping mode for formatted text.
-#[derive(Default, Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Eq, Visit, Reflect)]
+#[derive(
+    Default,
+    Copy,
+    Clone,
+    PartialOrd,
+    PartialEq,
+    Hash,
+    Debug,
+    Eq,
+    Visit,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
 pub enum WrapMode {
     /// No wrapping needed.
     #[default]
@@ -63,6 +79,8 @@ pub enum WrapMode {
     /// Word-based wrapping.
     Word,
 }
+
+uuid_provider!(WrapMode = "f1290ceb-3fee-461f-a1e9-f9450bd06805");
 
 #[derive(Default, Clone, Debug, Visit, Reflect)]
 pub struct FormattedText {
@@ -81,6 +99,8 @@ pub struct FormattedText {
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
     brush: Brush,
+    #[visit(skip)]
+    #[reflect(hidden)]
     constraint: Vector2<f32>,
     wrap: WrapMode,
     mask_char: Option<char>,

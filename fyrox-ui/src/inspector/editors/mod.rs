@@ -1,10 +1,7 @@
-use crate::brush::{Brush, GradientPoint};
-use crate::formatted_text::FormattedText;
-use crate::inspector::editors::refcell::RefCellPropertyEditorDefinition;
-use crate::inspector::editors::utf32::Utf32StringPropertyEditorDefinition;
 use crate::{
     bit::BitField,
     border::Border,
+    brush::{Brush, GradientPoint},
     button::Button,
     canvas::Canvas,
     core::{
@@ -21,6 +18,7 @@ use crate::{
     decorator::Decorator,
     dropdown_list::DropdownList,
     expander::Expander,
+    formatted_text::{FormattedText, WrapMode},
     grid::Grid,
     image::Image,
     inspector::{
@@ -38,7 +36,9 @@ use crate::{
             quat::QuatPropertyEditorDefinition,
             range::RangePropertyEditorDefinition,
             rect::RectPropertyEditorDefinition,
+            refcell::RefCellPropertyEditorDefinition,
             string::StringPropertyEditorDefinition,
+            utf32::Utf32StringPropertyEditorDefinition,
             uuid::UuidPropertyEditorDefinition,
             vec::{
                 Vec2PropertyEditorDefinition, Vec3PropertyEditorDefinition,
@@ -51,6 +51,7 @@ use crate::{
     key::{HotKeyEditor, KeyBindingEditor},
     list_view::{ListView, ListViewItem},
     menu::{Menu, MenuItem},
+    message::CursorIcon,
     message::UiMessage,
     messagebox::MessageBox,
     nine_patch::NinePatch,
@@ -322,6 +323,9 @@ impl PropertyEditorDefinitionContainer {
         container.insert(EnumPropertyEditorDefinition::<Brush>::new());
         container.insert(EnumPropertyEditorDefinition::<VerticalAlignment>::new());
         container.insert(EnumPropertyEditorDefinition::<HorizontalAlignment>::new());
+        container.insert(EnumPropertyEditorDefinition::<WrapMode>::new());
+        container.insert(EnumPropertyEditorDefinition::<CursorIcon>::new());
+        container.insert(EnumPropertyEditorDefinition::<CursorIcon>::new_optional());
         container.insert(VecCollectionPropertyEditorDefinition::<GradientPoint>::new());
         container.insert(RefCellPropertyEditorDefinition::<FormattedText>::new());
         container.insert(Utf32StringPropertyEditorDefinition);

@@ -7,6 +7,7 @@ use crate::{
     core::{algebra::Vector2, pool::Handle, reflect::prelude::*, visitor::prelude::*},
     UiNode,
 };
+use fyrox_core::uuid_provider;
 use serde::{Deserialize, Serialize};
 use std::{any::Any, cell::Cell, fmt::Debug, rc::Rc};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
@@ -1029,7 +1030,20 @@ pub enum KeyCode {
 }
 
 /// A fixed set of cursor icons that available on most OSes.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Default, Visit, Reflect)]
+#[derive(
+    Debug,
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Default,
+    Visit,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
 pub enum CursorIcon {
     /// The platform-dependent default cursor. Often rendered as arrow.
     #[default]
@@ -1158,3 +1172,5 @@ pub enum CursorIcon {
     /// magnifying glass with a "-" in the center of the glass.
     ZoomOut,
 }
+
+uuid_provider!(CursorIcon = "da7f3a5f-9d26-460a-8e46-38da25f8a8db");
