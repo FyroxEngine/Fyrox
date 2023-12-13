@@ -1,5 +1,6 @@
 use crate::brush::{Brush, GradientPoint};
 use crate::formatted_text::FormattedText;
+use crate::inspector::editors::refcell::RefCellPropertyEditorDefinition;
 use crate::{
     bit::BitField,
     border::Border,
@@ -99,6 +100,7 @@ pub mod path;
 pub mod quat;
 pub mod range;
 pub mod rect;
+pub mod refcell;
 pub mod string;
 pub mod uuid;
 pub mod vec;
