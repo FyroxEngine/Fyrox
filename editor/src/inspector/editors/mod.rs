@@ -4,6 +4,7 @@ use crate::{
             AnimationContainerPropertyEditorDefinition, AnimationPropertyEditorDefinition,
             MachinePropertyEditorDefinition,
         },
+        font::FontPropertyEditorDefinition,
         handle::NodeHandlePropertyEditorDefinition,
         material::MaterialPropertyEditorDefinition,
         resource::ResourceFieldPropertyEditorDefinition,
@@ -14,8 +15,6 @@ use crate::{
     },
     message::MessageSender,
 };
-use fyrox::gui::inspector::editors::path::PathPropertyEditorDefinition;
-use fyrox::scene::ragdoll::Limb;
 use fyrox::{
     animation::{
         machine::{
@@ -38,7 +37,8 @@ use fyrox::{
     gui::inspector::editors::{
         bit::BitFieldPropertyEditorDefinition, collection::VecCollectionPropertyEditorDefinition,
         enumeration::EnumPropertyEditorDefinition, inherit::InheritablePropertyEditorDefinition,
-        inspectable::InspectablePropertyEditorDefinition, PropertyEditorDefinitionContainer,
+        inspectable::InspectablePropertyEditorDefinition, path::PathPropertyEditorDefinition,
+        PropertyEditorDefinitionContainer,
     },
     material::{
         shader::{Shader, ShaderResource},
@@ -83,6 +83,7 @@ use fyrox::{
             },
             ParticleSystemRng,
         },
+        ragdoll::Limb,
         rigidbody::RigidBodyType,
         sound::{
             self,
@@ -101,6 +102,7 @@ use fyrox::{
 use std::rc::Rc;
 
 pub mod animation;
+pub mod font;
 pub mod handle;
 pub mod material;
 pub mod resource;
@@ -132,6 +134,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     let container = PropertyEditorDefinitionContainer::new();
 
     container.insert(TexturePropertyEditorDefinition);
+    container.insert(FontPropertyEditorDefinition);
     container.insert(InheritablePropertyEditorDefinition::<Option<TextureResource>>::new());
     container.register_inheritable_vec_collection::<Option<TextureResource>>();
 
