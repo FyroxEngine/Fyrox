@@ -7,6 +7,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_resource::{io::ResourceIo, Resource, ResourceData};
+use lazy_static::lazy_static;
 use std::fmt::Formatter;
 use std::{
     any::Any,
@@ -240,6 +241,13 @@ impl Hash for FontHeight {
 
 pub type FontResource = Resource<Font>;
 
+lazy_static! {
+    pub static ref BUILT_IN_FONT: FontResource = FontResource::new_ok(
+        "__BUILT_IN_FONT__".into(),
+        Font::from_memory(include_bytes!("./built_in_font.ttf").to_vec(), 1024).unwrap(),
+    );
+}
+
 impl Font {
     pub fn from_memory(
         data: impl Deref<Target = [u8]>,
@@ -346,11 +354,5 @@ impl FontBuilder {
     /// Creates a new font from bytes in memory.
     pub fn build_from_memory(self, data: impl Deref<Target = [u8]>) -> Result<Font, &'static str> {
         Font::from_memory(data, self.page_size)
-    }
-
-    /// Creates a new font using the built-in font face.
-    pub fn build_builtin(self) -> Result<Font, &'static str> {
-        let font_bytes = include_bytes!("./built_in_font.ttf").to_vec();
-        self.build_from_memory(font_bytes)
     }
 }

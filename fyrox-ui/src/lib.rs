@@ -236,6 +236,7 @@ pub mod wrap_panel;
 use crate::{
     brush::Brush,
     canvas::Canvas,
+    constructor::WidgetConstructorContainer,
     container::WidgetContainer,
     core::{
         algebra::{Matrix3, Vector2},
@@ -247,7 +248,8 @@ use crate::{
         visitor::prelude::*,
     },
     draw::{CommandTexture, Draw, DrawingContext},
-    font::{FontBuilder, FontResource},
+    font::FontResource,
+    font::BUILT_IN_FONT,
     message::{
         ButtonState, CursorIcon, KeyboardModifiers, MessageDirection, MouseButton, OsEvent,
         UiMessage,
@@ -257,6 +259,7 @@ use crate::{
 };
 use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_resource::manager::ResourceManager;
 use serde::{Deserialize, Serialize};
 use std::{
     cell::{Cell, Ref, RefCell, RefMut},
@@ -269,11 +272,9 @@ use std::{
     sync::Arc,
 };
 
-use crate::constructor::WidgetConstructorContainer;
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
-use fyrox_resource::untyped::ResourceKind;
 pub use node::*;
 pub use thickness::*;
 
@@ -731,10 +732,6 @@ impl UserInterface {
         screen_size: Vector2<f32>,
     ) -> UserInterface {
         let (layout_events_sender, layout_events_receiver) = mpsc::channel();
-        let default_font = FontResource::new_ok(
-            ResourceKind::Embedded,
-            FontBuilder::new().build_builtin().unwrap(),
-        );
         let mut ui = UserInterface {
             screen_size,
             sender,
@@ -761,7 +758,7 @@ impl UserInterface {
             layout_events_receiver,
             layout_events_sender,
             need_update_global_transform: Default::default(),
-            default_font,
+            default_font: BUILT_IN_FONT.clone(),
             double_click_entries: Default::default(),
             double_click_time_slice: 0.5, // 500 ms is standard in most operating systems.
         };
@@ -2658,11 +2655,13 @@ impl UserInterface {
     pub async fn load_from_file(
         path: &Path,
         constructors: Arc<WidgetConstructorContainer>,
+        resource_manager: ResourceManager,
     ) -> Result<Self, VisitError> {
         let mut visitor = Visitor::load_binary(path).await?;
         let (sender, receiver) = mpsc::channel();
         visitor.blackboard.register(constructors);
         visitor.blackboard.register(Arc::new(sender.clone()));
+        visitor.blackboard.register(Arc::new(resource_manager));
         let mut ui = UserInterface::new_with_channel(sender, receiver, Vector2::new(100.0, 100.0));
         ui.visit("Ui", &mut visitor)?;
         for widget in ui.nodes.iter_mut() {

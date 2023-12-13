@@ -1809,6 +1809,7 @@ impl Editor {
                 match block_on(UserInterface::load_from_file(
                     &scene_path,
                     self.widget_constructors.clone(),
+                    self.engine.resource_manager.clone(),
                 )) {
                     Ok(ui) => {
                         let entry = EditorSceneEntry::new_ui_scene(

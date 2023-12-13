@@ -69,6 +69,7 @@ use raw_window_handle::HasRawWindowHandle;
 #[cfg(not(target_arch = "wasm32"))]
 use std::{ffi::CString, num::NonZeroU32};
 
+use fyrox_ui::font::BUILT_IN_FONT;
 use fyrox_ui::{font::loader::FontLoader, font::Font};
 use std::{
     any::TypeId,
@@ -1030,6 +1031,11 @@ pub(crate) fn initialize_resource_manager_loaders(
             texture.clone().into_untyped(),
         );
     }
+
+    state.built_in_resources.insert(
+        BUILT_IN_FONT.kind().path_owned().unwrap(),
+        BUILT_IN_FONT.clone().into_untyped(),
+    );
 
     state.constructors_container.add::<Texture>();
     state.constructors_container.add::<Shader>();
