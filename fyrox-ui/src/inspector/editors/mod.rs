@@ -1,6 +1,7 @@
 use crate::brush::{Brush, GradientPoint};
 use crate::formatted_text::FormattedText;
 use crate::inspector::editors::refcell::RefCellPropertyEditorDefinition;
+use crate::inspector::editors::utf32::Utf32StringPropertyEditorDefinition;
 use crate::{
     bit::BitField,
     border::Border,
@@ -102,6 +103,7 @@ pub mod range;
 pub mod rect;
 pub mod refcell;
 pub mod string;
+pub mod utf32;
 pub mod uuid;
 pub mod vec;
 
@@ -321,6 +323,8 @@ impl PropertyEditorDefinitionContainer {
         container.insert(EnumPropertyEditorDefinition::<VerticalAlignment>::new());
         container.insert(EnumPropertyEditorDefinition::<HorizontalAlignment>::new());
         container.insert(VecCollectionPropertyEditorDefinition::<GradientPoint>::new());
+        container.insert(RefCellPropertyEditorDefinition::<FormattedText>::new());
+        container.insert(Utf32StringPropertyEditorDefinition);
         reg_inspectables!(
             container,
             // Widgets
