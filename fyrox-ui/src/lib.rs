@@ -721,6 +721,15 @@ fn is_node_enabled(nodes: &Pool<UiNode, WidgetContainer>, handle: Handle<UiNode>
     enabled
 }
 
+#[derive(Debug)]
+pub struct SubGraph {
+    pub root: (Ticket<UiNode>, UiNode),
+
+    pub descendants: Vec<(Ticket<UiNode>, UiNode)>,
+
+    pub parent: Handle<UiNode>,
+}
+
 impl UserInterface {
     pub fn new(screen_size: Vector2<f32>) -> UserInterface {
         let (sender, receiver) = mpsc::channel();
@@ -2461,6 +2470,56 @@ impl UserInterface {
     pub fn forget_ticket(&mut self, ticket: Ticket<UiNode>, node: UiNode) -> UiNode {
         self.nodes.forget_ticket(ticket);
         node
+    }
+
+    /// Extracts sub-graph starting from the given widget. All handles to extracted widgets
+    /// becomes reserved and will be marked as "occupied", an attempt to borrow a widget
+    /// at such handle will result in panic!. Please note that root widget will be
+    /// detached from its parent!
+    #[inline]
+    pub fn take_reserve_sub_graph(&mut self, root: Handle<UiNode>) -> SubGraph {
+        // Take out descendants first.
+        let mut descendants = Vec::new();
+        let root_ref = &mut self.nodes[root];
+        let mut stack = root_ref.children().to_vec();
+        let parent = root_ref.parent;
+        while let Some(handle) = stack.pop() {
+            stack.extend_from_slice(self.nodes[handle].children());
+            descendants.push(self.nodes.take_reserve(handle));
+        }
+
+        SubGraph {
+            // Root must be extracted with detachment from its parent (if any).
+            root: self.take_reserve(root),
+            descendants,
+            parent,
+        }
+    }
+
+    /// Puts previously extracted sub-graph into the user interface. Handles to widgets will become valid
+    /// again. After that you probably want to re-link returned handle with its previous parent.
+    #[inline]
+    pub fn put_sub_graph_back(&mut self, sub_graph: SubGraph) -> Handle<UiNode> {
+        for (ticket, node) in sub_graph.descendants {
+            self.nodes.put_back(ticket, node);
+        }
+
+        let (ticket, node) = sub_graph.root;
+        let root_handle = self.put_back(ticket, node);
+
+        self.link_nodes(root_handle, sub_graph.parent, false);
+
+        root_handle
+    }
+
+    /// Forgets the entire sub-graph making handles to widgets invalid.
+    #[inline]
+    pub fn forget_sub_graph(&mut self, sub_graph: SubGraph) {
+        for (ticket, _) in sub_graph.descendants {
+            self.nodes.forget_ticket(ticket);
+        }
+        let (ticket, _) = sub_graph.root;
+        self.nodes.forget_ticket(ticket);
     }
 
     pub fn push_picking_restriction(&mut self, restriction: RestrictionEntry) {
