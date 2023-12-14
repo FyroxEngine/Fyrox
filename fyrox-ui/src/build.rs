@@ -113,7 +113,7 @@ impl<'a> BuildContext<'a> {
     /// Links the child widget with the parent widget. Child widget's position and size will be restricted by
     /// the new parent. When a widget is linked to other widget, its coordinates become relative to it parent.
     pub fn link(&mut self, child: Handle<UiNode>, parent: Handle<UiNode>) {
-        self.ui.link_nodes_internal(child, parent, false)
+        self.ui.link_nodes(child, parent, false)
     }
 
     /// Copies a widget, adds it to the UI, links it to the root node of the UI and returns the handle to it.
