@@ -73,12 +73,7 @@ use fyrox::{
         Scene, SceneContainer,
     },
 };
-use std::{
-    any::{Any, TypeId},
-    fs::File,
-    io::Write,
-    path::Path,
-};
+use std::{any::Any, fs::File, io::Write, path::Path};
 
 pub mod clipboard;
 pub mod dialog;
@@ -402,31 +397,13 @@ impl GameScene {
         }
     }
 
-    fn select_object(
-        &mut self,
-        type_id: TypeId,
-        handle: ErasedHandle,
-        engine: &Engine,
-        selection: &Selection,
-    ) {
-        let new_selection = if type_id == TypeId::of::<Node>() {
-            if engine.scenes[self.scene]
-                .graph
-                .is_valid_handle(handle.into())
-            {
-                Some(Selection::Graph(GraphSelection::single_or_empty(
-                    handle.into(),
-                )))
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-
-        if let Some(new_selection) = new_selection {
+    fn select_object(&mut self, handle: ErasedHandle, engine: &Engine, selection: &Selection) {
+        if engine.scenes[self.scene]
+            .graph
+            .is_valid_handle(handle.into())
+        {
             self.sender.do_scene_command(ChangeSelectionCommand::new(
-                new_selection,
+                Selection::Graph(GraphSelection::single_or_empty(handle.into())),
                 selection.clone(),
             ))
         }
@@ -860,8 +837,8 @@ impl SceneController for GameScene {
 
                 false
             }
-            Message::SelectObject { type_id, handle } => {
-                self.select_object(*type_id, *handle, engine, selection);
+            Message::SelectObject { handle } => {
+                self.select_object(*handle, engine, selection);
                 false
             }
             Message::FocusObject(handle) => {
@@ -876,7 +853,10 @@ impl SceneController for GameScene {
                     .send_message(HandlePropertyEditorMessage::name(
                         *view,
                         MessageDirection::ToWidget,
-                        scene.graph.try_get(*handle).map(|n| n.name_owned()),
+                        scene
+                            .graph
+                            .try_get((*handle).into())
+                            .map(|n| n.name_owned()),
                     ));
                 false
             }

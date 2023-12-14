@@ -14,7 +14,7 @@ use fyrox::{
     material::MaterialResource,
     scene::{camera::Projection, node::Node},
 };
-use std::{any::TypeId, path::PathBuf, sync::mpsc::Sender};
+use std::{path::PathBuf, sync::mpsc::Sender};
 
 #[derive(Debug)]
 pub enum Message {
@@ -51,7 +51,6 @@ pub enum Message {
         handle: ErasedHandle,
     },
     SelectObject {
-        type_id: TypeId,
         handle: ErasedHandle,
     },
     SetCurrentScene(Uuid),
@@ -70,7 +69,7 @@ pub enum Message {
     SaveSelectionAsPrefab(PathBuf),
     SyncNodeHandleName {
         view: Handle<UiNode>,
-        handle: Handle<Node>,
+        handle: ErasedHandle,
     },
     ProvideSceneHierarchy {
         view: Handle<UiNode>,

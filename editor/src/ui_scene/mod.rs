@@ -4,10 +4,12 @@ pub mod selection;
 pub mod utils;
 
 use crate::{
+    inspector::editors::handle::HandlePropertyEditorMessage,
     message::MessageSender,
-    scene::{controller::SceneController, Selection},
+    scene::{controller::SceneController, selector::HierarchyNode, Selection},
     settings::{keys::KeyBindings, Settings},
     ui_scene::{
+        commands::ChangeUiSelectionCommand,
         commands::{
             make_set_widget_property_command, UiCommand, UiCommandGroup, UiCommandStack,
             UiSceneContext,
@@ -17,11 +19,18 @@ use crate::{
     Message,
 };
 use fyrox::{
-    core::{algebra::Vector2, color::Color, log::Log, math::Rect, pool::Handle, reflect::Reflect},
+    core::{
+        algebra::Vector2,
+        color::Color,
+        log::Log,
+        math::Rect,
+        pool::{ErasedHandle, Handle},
+        reflect::Reflect,
+    },
     engine::Engine,
     gui::{
         inspector::PropertyChanged,
-        message::{KeyCode, MouseButton},
+        message::{KeyCode, MessageDirection, MouseButton},
         UiNode, UserInterface,
     },
     resource::texture::{TextureKind, TextureResource, TextureResourceExtension},
@@ -60,6 +69,16 @@ impl UiScene {
                 message_sender: &self.message_sender,
             },
         );
+    }
+
+    fn select_object(&mut self, handle: ErasedHandle, selection: &Selection) {
+        if self.ui.try_get_node(handle.into()).is_some() {
+            self.message_sender
+                .do_ui_scene_command(ChangeUiSelectionCommand::new(
+                    Selection::Ui(UiSelection::single_or_empty(handle.into())),
+                    selection.clone(),
+                ))
+        }
     }
 }
 
@@ -250,10 +269,37 @@ impl SceneController for UiScene {
 
     fn on_message(
         &mut self,
-        _message: &Message,
-        _selection: &Selection,
-        _engine: &mut Engine,
+        message: &Message,
+        selection: &Selection,
+        engine: &mut Engine,
     ) -> bool {
+        match message {
+            Message::SelectObject { handle } => {
+                self.select_object(*handle, selection);
+            }
+            Message::SyncNodeHandleName { view, handle } => {
+                engine
+                    .user_interface
+                    .send_message(HandlePropertyEditorMessage::name(
+                        *view,
+                        MessageDirection::ToWidget,
+                        self.ui
+                            .try_get_node((*handle).into())
+                            .map(|n| n.name().to_owned()),
+                    ));
+            }
+            Message::ProvideSceneHierarchy { view } => {
+                engine
+                    .user_interface
+                    .send_message(HandlePropertyEditorMessage::hierarchy(
+                        *view,
+                        MessageDirection::ToWidget,
+                        HierarchyNode::from_ui_node(self.ui.root(), Handle::NONE, &self.ui),
+                    ));
+            }
+            _ => {}
+        }
+
         false
     }
 

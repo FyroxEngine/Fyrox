@@ -1,9 +1,9 @@
 use crate::utils::make_node_name;
-use fyrox::core::uuid_provider;
-use fyrox::gui::scroll_viewer::ScrollViewerMessage;
 use fyrox::{
-    core::{algebra::Vector2, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, pool::ErasedHandle, pool::Handle, reflect::prelude::*, uuid_provider,
+        visitor::prelude::*,
+    },
     gui::{
         border::BorderBuilder,
         button::{ButtonBuilder, ButtonMessage},
@@ -12,6 +12,7 @@ use fyrox::{
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, OsEvent, UiMessage},
         scroll_viewer::ScrollViewerBuilder,
+        scroll_viewer::ScrollViewerMessage,
         searchbar::{SearchBarBuilder, SearchBarMessage},
         stack_panel::StackPanelBuilder,
         text::TextBuilder,
@@ -33,7 +34,7 @@ use std::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HierarchyNode {
     pub name: String,
-    pub handle: Handle<Node>,
+    pub handle: ErasedHandle,
     pub children: Vec<HierarchyNode>,
 }
 
@@ -47,7 +48,7 @@ impl HierarchyNode {
 
         Self {
             name: node.name_owned(),
-            handle: node_handle,
+            handle: node_handle.into(),
             children: node
                 .children()
                 .iter()
@@ -62,8 +63,32 @@ impl HierarchyNode {
         }
     }
 
+    pub fn from_ui_node(
+        node_handle: Handle<UiNode>,
+        ignored_node: Handle<UiNode>,
+        ui: &UserInterface,
+    ) -> Self {
+        let node = ui.node(node_handle);
+
+        Self {
+            name: node.name().to_owned(),
+            handle: node_handle.into(),
+            children: node
+                .children()
+                .iter()
+                .filter_map(|c| {
+                    if *c == ignored_node {
+                        None
+                    } else {
+                        Some(HierarchyNode::from_ui_node(*c, ignored_node, ui))
+                    }
+                })
+                .collect(),
+        }
+    }
+
     #[allow(dead_code)]
-    pub fn find_node(&mut self, node_handle: Handle<Node>) -> Option<&mut HierarchyNode> {
+    pub fn find_node(&mut self, node_handle: ErasedHandle) -> Option<&mut HierarchyNode> {
         if self.handle == node_handle {
             return Some(self);
         }
@@ -85,7 +110,7 @@ impl HierarchyNode {
         .with_items(self.children.iter().map(|c| c.make_view(ctx)).collect())
         .with_content(
             TextBuilder::new(WidgetBuilder::new())
-                .with_text(make_node_name(&self.name, self.handle.into()))
+                .with_text(make_node_name(&self.name, self.handle))
                 .build(ctx),
         )
         .build(ctx)
@@ -96,17 +121,17 @@ impl HierarchyNode {
 pub enum NodeSelectorMessage {
     #[allow(dead_code)] // Might be used in the future.
     Hierarchy(HierarchyNode),
-    Selection(Vec<Handle<Node>>),
+    Selection(Vec<ErasedHandle>),
 }
 
 impl NodeSelectorMessage {
     define_constructor!(NodeSelectorMessage:Hierarchy => fn hierarchy(HierarchyNode), layout: false);
-    define_constructor!(NodeSelectorMessage:Selection => fn selection(Vec<Handle<Node>>), layout: false);
+    define_constructor!(NodeSelectorMessage:Selection => fn selection(Vec<ErasedHandle>), layout: false);
 }
 
 struct TreeData {
     name: String,
-    handle: Handle<Node>,
+    handle: ErasedHandle,
 }
 
 #[derive(Clone, Visit, Reflect, Debug)]
@@ -114,7 +139,7 @@ pub struct NodeSelector {
     widget: Widget,
     tree_root: Handle<UiNode>,
     search_bar: Handle<UiNode>,
-    selected: Vec<Handle<Node>>,
+    selected: Vec<ErasedHandle>,
     scroll_viewer: Handle<UiNode>,
 }
 

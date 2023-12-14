@@ -14,6 +14,8 @@ use crate::{
     },
     send_sync_message,
 };
+use fyrox::core::pool::ErasedHandle;
+use fyrox::scene::node::Node;
 use fyrox::{
     animation::machine::{LayerMask, MachineLayer},
     core::pool::Handle,
@@ -281,7 +283,12 @@ impl Toolbar {
 
                     if let Some(layer_index) = selection.layer {
                         if let Some(layer) = absm_node.machine().layers().get(layer_index) {
-                            let selection = layer.mask().inner().to_vec();
+                            let selection = layer
+                                .mask()
+                                .inner()
+                                .iter()
+                                .map(|h| ErasedHandle::from(*h))
+                                .collect::<Vec<_>>();
 
                             ui.send_message(NodeSelectorMessage::selection(
                                 self.node_selector,
@@ -325,7 +332,12 @@ impl Toolbar {
                 && message.direction() == MessageDirection::FromWidget
             {
                 if let Some(layer_index) = selection.layer {
-                    let new_mask = LayerMask::from(mask_selection.to_vec());
+                    let new_mask = LayerMask::from(
+                        mask_selection
+                            .iter()
+                            .map(|h| Handle::<Node>::from(*h))
+                            .collect::<Vec<_>>(),
+                    );
                     sender.do_scene_command(SetLayerMaskCommand {
                         absm_node_handle: selection.absm_node_handle,
                         layer_index,

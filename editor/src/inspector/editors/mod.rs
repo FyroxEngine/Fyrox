@@ -1,3 +1,4 @@
+use crate::inspector::editors::handle::EntityKind;
 use crate::{
     inspector::editors::{
         animation::{
@@ -147,7 +148,14 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(InheritablePropertyEditorDefinition::<MaterialResource>::new());
 
     container.register_inheritable_vec_collection::<Handle<Node>>();
-    container.insert(NodeHandlePropertyEditorDefinition::new(sender.clone()));
+    container.insert(NodeHandlePropertyEditorDefinition::new(
+        sender.clone(),
+        EntityKind::SceneNode,
+    ));
+    container.insert(NodeHandlePropertyEditorDefinition::new(
+        sender.clone(),
+        EntityKind::UiNode,
+    ));
 
     container.register_inheritable_vec_collection::<Surface>();
     container.register_inheritable_inspectable::<Surface>();

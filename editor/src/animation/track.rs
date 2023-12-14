@@ -839,12 +839,12 @@ impl TrackList {
         } else if let Some(NodeSelectorMessage::Selection(node_selection)) = message.data() {
             if message.destination() == self.node_selector {
                 if let Some(first) = node_selection.first() {
-                    self.selected_node = *first;
+                    self.selected_node = (*first).into();
 
                     match self.property_binding_mode {
                         PropertyBindingMode::Generic => {
                             self.property_selector =
-                                Self::open_property_selector(&scene.graph, *first, ui);
+                                Self::open_property_selector(&scene.graph, (*first).into(), ui);
                         }
                         PropertyBindingMode::Position => {
                             sender.do_scene_command(AddTrackCommand::new(
@@ -880,7 +880,7 @@ impl TrackList {
                                     animation_player_handle: scene_selection.animation_player,
                                     animation_handle: scene_selection.animation,
                                     track: *id,
-                                    target: *first,
+                                    target: (*first).into(),
                                 }));
                             }
                         }

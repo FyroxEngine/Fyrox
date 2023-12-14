@@ -263,7 +263,7 @@ impl RootMotionDropdownArea {
                             self.node_selector,
                             MessageDirection::ToWidget,
                             if settings.node.is_some() {
-                                vec![settings.node]
+                                vec![settings.node.into()]
                             } else {
                                 vec![]
                             },
@@ -285,7 +285,7 @@ impl RootMotionDropdownArea {
                             node_handle: selection.animation_player,
                             animation_handle: selection.animation,
                             value: Some(RootMotionSettings {
-                                node: node_selection.first().cloned().unwrap_or_default(),
+                                node: node_selection.first().cloned().unwrap_or_default().into(),
                                 ..*settings
                             }),
                         });
@@ -1037,7 +1037,7 @@ impl Toolbar {
                 && message.direction() == MessageDirection::FromWidget
             {
                 if let Some(first) = selected_nodes.first() {
-                    self.selected_import_root = *first;
+                    self.selected_import_root = (*first).into();
 
                     ui.send_message(WindowMessage::open_modal(
                         self.import_file_selector,
