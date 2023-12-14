@@ -1,8 +1,7 @@
-use fyrox::core::uuid_provider;
 use fyrox::{
     core::{
-        algebra::Vector2, pool::Handle, reflect::prelude::*, sstorage::ImmutableString,
-        visitor::prelude::*,
+        algebra::Vector2, make_pretty_type_name, pool::Handle, reflect::prelude::*,
+        sstorage::ImmutableString, uuid_provider, visitor::prelude::*,
     },
     fxhash::FxHashSet,
     gui::{
@@ -53,24 +52,6 @@ pub struct PropertyDescriptorData {
     pub name: String,
     pub path: String,
     pub type_id: TypeId,
-}
-
-fn make_pretty_type_name(type_name: &str) -> String {
-    let mut colon_position = None;
-    let mut byte_pos = 0;
-    for c in type_name.chars() {
-        byte_pos += c.len_utf8();
-        if c == ':' {
-            colon_position = Some(byte_pos);
-        } else if c == '<' {
-            break;
-        }
-    }
-    if let Some(colon_position) = colon_position {
-        type_name.split_at(colon_position).1.to_owned()
-    } else {
-        type_name.to_owned()
-    }
 }
 
 fn make_views_for_property_descriptor_collection(

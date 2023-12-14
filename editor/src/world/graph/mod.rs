@@ -15,7 +15,7 @@ use fyrox::{
     gui::draw::SharedTexture,
     scene::{node::Node, Scene},
 };
-use std::path::Path;
+use std::{borrow::Cow, path::Path};
 
 pub mod item;
 pub mod menu;
@@ -73,8 +73,11 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
             .unwrap_or_default()
     }
 
-    fn name_of(&self, node: ErasedHandle) -> Option<&str> {
-        self.scene.graph.try_get(node.into()).map(|n| n.name())
+    fn name_of(&self, node: ErasedHandle) -> Option<Cow<str>> {
+        self.scene
+            .graph
+            .try_get(node.into())
+            .map(|n| Cow::Borrowed(n.name()))
     }
 
     fn is_valid_handle(&self, node: ErasedHandle) -> bool {

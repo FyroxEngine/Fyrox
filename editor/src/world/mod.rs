@@ -39,7 +39,9 @@ use fyrox::{
     },
 };
 use rust_fuzzy_search::fuzzy_compare;
-use std::{cell::RefCell, cmp::Ordering, collections::HashMap, path::Path, rc::Rc};
+use std::{
+    borrow::Cow, cell::RefCell, cmp::Ordering, collections::HashMap, ops::Deref, path::Path, rc::Rc,
+};
 
 pub mod graph;
 
@@ -56,7 +58,7 @@ pub trait WorldViewerDataProvider {
 
     fn parent_of(&self, node: ErasedHandle) -> ErasedHandle;
 
-    fn name_of(&self, node: ErasedHandle) -> Option<&str>;
+    fn name_of(&self, node: ErasedHandle) -> Option<Cow<str>>;
 
     fn is_valid_handle(&self, node: ErasedHandle) -> bool;
 
@@ -100,7 +102,7 @@ pub struct WorldViewer {
 }
 
 fn make_graph_node_item(
-    name: &str,
+    name: Cow<str>,
     is_instance: bool,
     icon: Option<SharedTexture>,
     handle: ErasedHandle,
@@ -127,7 +129,7 @@ fn make_graph_node_item(
     } else {
         Brush::Solid(fyrox::gui::COLOR_FOREGROUND)
     })
-    .with_name(name.to_owned())
+    .with_name(name.deref().to_owned())
     .with_entity_handle(handle)
     .with_icon(icon)
     .build(ctx, sender)
@@ -468,7 +470,7 @@ impl WorldViewer {
                             }
                             if !found {
                                 let graph_node_item = make_graph_node_item(
-                                    data_provider.name_of(child_handle).unwrap_or(""),
+                                    data_provider.name_of(child_handle).unwrap_or_default(),
                                     data_provider.is_instance(child_handle),
                                     data_provider.icon_of(child_handle),
                                     child_handle,
@@ -496,7 +498,7 @@ impl WorldViewer {
                     || tree_node(ui, tree_root.items[0]) != data_provider.root_node()
                 {
                     let new_root_item = make_graph_node_item(
-                        data_provider.name_of(node_handle).unwrap_or(""),
+                        data_provider.name_of(node_handle).unwrap_or_default(),
                         data_provider.is_instance(node_handle),
                         data_provider.icon_of(node_handle),
                         node_handle,
@@ -534,7 +536,7 @@ impl WorldViewer {
                             SceneItemMessage::name(
                                 handle,
                                 MessageDirection::ToWidget,
-                                name.to_owned(),
+                                (*name).to_owned(),
                             ),
                         );
                     }

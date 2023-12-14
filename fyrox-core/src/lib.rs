@@ -374,6 +374,24 @@ pub fn hash_as_bytes<T: Sized, H: Hasher>(value: &T, hasher: &mut H) {
     hasher.write(value_as_u8_slice(value))
 }
 
+pub fn make_pretty_type_name(type_name: &str) -> &str {
+    let mut colon_position = None;
+    let mut byte_pos = 0;
+    for c in type_name.chars() {
+        byte_pos += c.len_utf8();
+        if c == ':' {
+            colon_position = Some(byte_pos);
+        } else if c == '<' {
+            break;
+        }
+    }
+    if let Some(colon_position) = colon_position {
+        type_name.split_at(colon_position).1
+    } else {
+        type_name
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::path::Path;

@@ -3,10 +3,10 @@ use crate::{
     ui_scene::selection::UiSelection, world::WorldViewerDataProvider,
 };
 use fyrox::{
-    core::pool::ErasedHandle,
+    core::{make_pretty_type_name, pool::ErasedHandle, reflect::Reflect},
     gui::{draw::SharedTexture, UserInterface},
 };
-use std::path::Path;
+use std::{borrow::Cow, path::Path};
 
 pub struct UiSceneWorldViewerDataProvider<'a> {
     pub ui: &'a UserInterface,
@@ -51,8 +51,14 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
             .unwrap_or_default()
     }
 
-    fn name_of(&self, node: ErasedHandle) -> Option<&str> {
-        self.ui.try_get_node(node.into()).map(|n| n.name())
+    fn name_of(&self, node: ErasedHandle) -> Option<Cow<str>> {
+        self.ui.try_get_node(node.into()).map(|n| {
+            Cow::Owned(format!(
+                "{} [{}]",
+                n.name(),
+                make_pretty_type_name(Reflect::type_name(n))
+            ))
+        })
     }
 
     fn is_valid_handle(&self, node: ErasedHandle) -> bool {
