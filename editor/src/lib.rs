@@ -34,6 +34,7 @@ pub mod preview;
 pub mod scene;
 pub mod scene_viewer;
 pub mod settings;
+pub mod ui_scene;
 pub mod utils;
 pub mod world;
 
@@ -147,7 +148,7 @@ use std::{
 };
 
 use crate::scene::container::EditorSceneEntry;
-use crate::scene::ui_scene::{UiScene, UiSceneCommand, UiSceneWrapper};
+use crate::ui_scene::{UiScene, UiSceneCommand, UiSceneWrapper};
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;

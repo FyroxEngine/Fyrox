@@ -1,5 +1,5 @@
 use crate::scene::controller::SceneController;
-use crate::scene::ui_scene::UiScene;
+use crate::ui_scene::UiScene;
 use crate::{
     create_terrain_layer_material,
     menu::ui::UiMenu,

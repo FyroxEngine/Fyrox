@@ -6,13 +6,10 @@ use crate::{
         InteractionModeContainer,
     },
     message::MessageSender,
-    scene::{
-        controller::SceneController,
-        ui_scene::{UiScene, UiSelectInteractionMode},
-        GameScene, Selection,
-    },
+    scene::{controller::SceneController, GameScene, Selection},
     scene_viewer::SceneViewer,
     settings::{keys::KeyBindings, Settings},
+    ui_scene::{UiScene, UiSelectInteractionMode},
 };
 use fyrox::gui::UserInterface;
 use fyrox::{
