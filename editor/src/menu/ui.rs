@@ -1,5 +1,5 @@
-use crate::scene::ui::UiScene;
-use crate::{menu::create_menu_item, message::MessageSender, scene::ui::AddUiNodeCommand};
+use crate::scene::ui_scene::UiScene;
+use crate::{menu::create_menu_item, message::MessageSender, scene::ui_scene::AddUiNodeCommand};
 use fyrox::{
     core::pool::Handle,
     fxhash::FxHashMap,

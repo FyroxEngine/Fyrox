@@ -147,7 +147,7 @@ use std::{
 };
 
 use crate::scene::container::EditorSceneEntry;
-use crate::scene::ui::{UiScene, UiSceneCommand, UiSceneWrapper};
+use crate::scene::ui_scene::{UiScene, UiSceneCommand, UiSceneWrapper};
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;

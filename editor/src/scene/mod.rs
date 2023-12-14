@@ -29,7 +29,7 @@ use crate::{
         },
         controller::SceneController,
         selector::HierarchyNode,
-        ui::UiSelection,
+        ui_scene::UiSelection,
     },
     settings::keys::KeyBindings,
     world::graph::selection::GraphSelection,
@@ -90,7 +90,7 @@ pub mod settings;
 pub mod commands;
 pub mod container;
 pub mod controller;
-pub mod ui;
+pub mod ui_scene;
 
 pub struct PreviewInstance {
     pub instance: Handle<Node>,

@@ -8,7 +8,7 @@ use crate::{
     message::MessageSender,
     scene::{
         controller::SceneController,
-        ui::{UiScene, UiSelectInteractionMode},
+        ui_scene::{UiScene, UiSelectInteractionMode},
         GameScene, Selection,
     },
     scene_viewer::SceneViewer,
