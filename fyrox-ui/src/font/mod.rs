@@ -1,3 +1,5 @@
+#![allow(clippy::unnecessary_to_owned)] // false-positive
+
 use crate::{
     core::{
         algebra::Vector2, rectpack::RectPacker, reflect::prelude::*, uuid::Uuid, uuid_provider,

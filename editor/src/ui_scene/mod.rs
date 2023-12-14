@@ -1,15 +1,21 @@
-#![allow(unused_variables)] // TODO
+pub mod commands;
+pub mod interaction;
+pub mod selection;
 
 use crate::{
-    define_command_stack, define_universal_commands,
-    interaction::{make_interaction_mode_button, InteractionMode},
     message::MessageSender,
     scene::{controller::SceneController, Selection},
     settings::{keys::KeyBindings, Settings},
+    ui_scene::{
+        commands::{
+            make_set_widget_property_command, ChangeUiSelectionCommand, UiCommand, UiCommandGroup,
+            UiCommandStack, UiSceneContext,
+        },
+        selection::UiSelection,
+    },
     world::WorldViewerDataProvider,
     Message,
 };
-use fyrox::core::pool::Ticket;
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -17,29 +23,19 @@ use fyrox::{
         log::Log,
         math::Rect,
         pool::{ErasedHandle, Handle},
-        reflect::{Reflect, ResolvePath, SetFieldByPathError},
-        uuid::{uuid, Uuid},
-        TypeUuidProvider,
+        reflect::Reflect,
     },
     engine::Engine,
     gui::{
         draw::SharedTexture,
         inspector::PropertyChanged,
-        message::{KeyCode, MessageDirection, MouseButton},
-        widget::WidgetMessage,
-        BuildContext, UiNode, UserInterface,
+        message::{KeyCode, MouseButton},
+        UiNode, UserInterface,
     },
     resource::texture::{TextureKind, TextureResource, TextureResourceExtension},
     scene::SceneContainer,
 };
-use std::{
-    any::Any,
-    fmt::Debug,
-    fs::File,
-    io::Write,
-    ops::{Deref, DerefMut},
-    path::Path,
-};
+use std::{any::Any, fs::File, io::Write, path::Path};
 
 pub struct UiScene {
     pub ui: UserInterface,
@@ -62,7 +58,7 @@ impl UiScene {
         &mut self,
         command: Box<dyn UiCommand>,
         selection: &mut Selection,
-        engine: &mut Engine,
+        _engine: &mut Engine,
     ) {
         self.command_stack.do_command(
             command,
@@ -84,73 +80,78 @@ impl SceneController for UiScene {
         self
     }
 
-    fn on_key_up(&mut self, key: KeyCode, engine: &mut Engine, key_bindings: &KeyBindings) -> bool {
+    fn on_key_up(
+        &mut self,
+        _key: KeyCode,
+        _engine: &mut Engine,
+        _key_bindings: &KeyBindings,
+    ) -> bool {
         false
     }
 
     fn on_key_down(
         &mut self,
-        key: KeyCode,
-        engine: &mut Engine,
-        key_bindings: &KeyBindings,
+        _key: KeyCode,
+        _engine: &mut Engine,
+        _key_bindings: &KeyBindings,
     ) -> bool {
         false
     }
 
     fn on_mouse_move(
         &mut self,
-        pos: Vector2<f32>,
-        offset: Vector2<f32>,
-        screen_bounds: Rect<f32>,
-        engine: &mut Engine,
-        settings: &Settings,
+        _pos: Vector2<f32>,
+        _offset: Vector2<f32>,
+        _screen_bounds: Rect<f32>,
+        _engine: &mut Engine,
+        _settings: &Settings,
     ) {
     }
 
     fn on_mouse_up(
         &mut self,
-        button: MouseButton,
-        pos: Vector2<f32>,
-        screen_bounds: Rect<f32>,
-        engine: &mut Engine,
-        settings: &Settings,
+        _button: MouseButton,
+        _pos: Vector2<f32>,
+        _screen_bounds: Rect<f32>,
+        _engine: &mut Engine,
+        _settings: &Settings,
     ) {
     }
 
     fn on_mouse_down(
         &mut self,
-        button: MouseButton,
-        pos: Vector2<f32>,
-        screen_bounds: Rect<f32>,
-        engine: &mut Engine,
-        settings: &Settings,
+        _button: MouseButton,
+        _pos: Vector2<f32>,
+        _screen_bounds: Rect<f32>,
+        _engine: &mut Engine,
+        _settings: &Settings,
     ) {
     }
 
-    fn on_mouse_wheel(&mut self, amount: f32, engine: &mut Engine, settings: &Settings) {}
+    fn on_mouse_wheel(&mut self, _amount: f32, _engine: &mut Engine, _settings: &Settings) {}
 
-    fn on_mouse_leave(&mut self, engine: &mut Engine, settings: &Settings) {}
+    fn on_mouse_leave(&mut self, _engine: &mut Engine, _settings: &Settings) {}
 
     fn on_drag_over(
         &mut self,
-        handle: Handle<UiNode>,
-        screen_bounds: Rect<f32>,
-        engine: &mut Engine,
-        settings: &Settings,
+        _handle: Handle<UiNode>,
+        _screen_bounds: Rect<f32>,
+        _engine: &mut Engine,
+        _settings: &Settings,
     ) {
     }
 
     fn on_drop(
         &mut self,
-        handle: Handle<UiNode>,
-        screen_bounds: Rect<f32>,
-        engine: &mut Engine,
-        settings: &Settings,
-        editor_selection: &Selection,
+        _handle: Handle<UiNode>,
+        _screen_bounds: Rect<f32>,
+        _engine: &mut Engine,
+        _settings: &Settings,
+        _editor_selection: &Selection,
     ) {
     }
 
-    fn render_target(&self, engine: &Engine) -> Option<TextureResource> {
+    fn render_target(&self, _engine: &Engine) -> Option<TextureResource> {
         Some(self.render_target.clone())
     }
 
@@ -158,7 +159,7 @@ impl SceneController for UiScene {
         &mut self,
         path: &Path,
         settings: &Settings,
-        engine: &mut Engine,
+        _engine: &mut Engine,
     ) -> Result<String, String> {
         match self.ui.save(path) {
             Ok(visitor) => {
@@ -184,7 +185,7 @@ impl SceneController for UiScene {
         }
     }
 
-    fn undo(&mut self, selection: &mut Selection, engine: &mut Engine) {
+    fn undo(&mut self, selection: &mut Selection, _engine: &mut Engine) {
         self.command_stack.undo(UiSceneContext {
             ui: &mut self.ui,
             selection,
@@ -192,7 +193,7 @@ impl SceneController for UiScene {
         });
     }
 
-    fn redo(&mut self, selection: &mut Selection, engine: &mut Engine) {
+    fn redo(&mut self, selection: &mut Selection, _engine: &mut Engine) {
         self.command_stack.redo(UiSceneContext {
             ui: &mut self.ui,
             selection,
@@ -200,7 +201,7 @@ impl SceneController for UiScene {
         });
     }
 
-    fn clear_command_stack(&mut self, selection: &mut Selection, engine: &mut Engine) {
+    fn clear_command_stack(&mut self, selection: &mut Selection, _engine: &mut Engine) {
         self.command_stack.clear(UiSceneContext {
             ui: &mut self.ui,
             selection,
@@ -218,15 +219,15 @@ impl SceneController for UiScene {
         );
     }
 
-    fn on_after_render(&mut self, engine: &mut Engine) {}
+    fn on_after_render(&mut self, _engine: &mut Engine) {}
 
     fn update(
         &mut self,
-        editor_selection: &Selection,
-        engine: &mut Engine,
+        _editor_selection: &Selection,
+        _engine: &mut Engine,
         dt: f32,
-        path: Option<&Path>,
-        settings: &mut Settings,
+        _path: Option<&Path>,
+        _settings: &mut Settings,
         screen_bounds: Rect<f32>,
     ) -> Option<TextureResource> {
         self.ui.update(screen_bounds.size, dt);
@@ -244,7 +245,7 @@ impl SceneController for UiScene {
             }
         }
 
-        while let Some(message) = self.ui.poll_message() {}
+        while self.ui.poll_message().is_some() {}
 
         new_render_target
     }
@@ -253,13 +254,13 @@ impl SceneController for UiScene {
         false
     }
 
-    fn on_destroy(&mut self, engine: &mut Engine) {}
+    fn on_destroy(&mut self, _engine: &mut Engine) {}
 
     fn on_message(
         &mut self,
-        message: &Message,
-        selection: &Selection,
-        engine: &mut Engine,
+        _message: &Message,
+        _selection: &Selection,
+        _engine: &mut Engine,
     ) -> bool {
         false
     }
@@ -268,7 +269,7 @@ impl SceneController for UiScene {
         self.command_stack.top
     }
 
-    fn command_names(&mut self, selection: &mut Selection, engine: &mut Engine) -> Vec<String> {
+    fn command_names(&mut self, selection: &mut Selection, _engine: &mut Engine) -> Vec<String> {
         self.command_stack
             .commands
             .iter_mut()
@@ -285,7 +286,7 @@ impl SceneController for UiScene {
     fn first_selected_entity(
         &self,
         selection: &Selection,
-        scenes: &SceneContainer,
+        _scenes: &SceneContainer,
         callback: &mut dyn FnMut(&dyn Reflect),
     ) {
         if let Selection::Ui(selection) = selection {
@@ -301,14 +302,14 @@ impl SceneController for UiScene {
         &mut self,
         args: &PropertyChanged,
         selection: &Selection,
-        engine: &mut Engine,
+        _engine: &mut Engine,
     ) {
         let group = match selection {
             Selection::Ui(selection) => selection
                 .widgets
                 .iter()
                 .filter_map(|&node_handle| {
-                    if let Some(widget) = self.ui.try_get_node(node_handle) {
+                    if self.ui.try_get_node(node_handle).is_some() {
                         make_set_widget_property_command(node_handle, args)
                     } else {
                         None
@@ -331,7 +332,7 @@ impl SceneController for UiScene {
         }
     }
 
-    fn provide_docs(&self, selection: &Selection, engine: &Engine) -> Option<String> {
+    fn provide_docs(&self, selection: &Selection, _engine: &Engine) -> Option<String> {
         match selection {
             Selection::Ui(selection) => selection
                 .widgets
@@ -393,12 +394,12 @@ impl<'a> WorldViewerDataProvider for UiSceneWrapper<'a> {
         self.ui.try_get_node(node.into()).is_some()
     }
 
-    fn icon_of(&self, node: ErasedHandle) -> Option<SharedTexture> {
+    fn icon_of(&self, _node: ErasedHandle) -> Option<SharedTexture> {
         // TODO
         None
     }
 
-    fn is_instance(&self, node: ErasedHandle) -> bool {
+    fn is_instance(&self, _node: ErasedHandle) -> bool {
         false
     }
 
@@ -414,7 +415,9 @@ impl<'a> WorldViewerDataProvider for UiSceneWrapper<'a> {
         }
     }
 
-    fn on_drop(&self, child: ErasedHandle, parent: ErasedHandle) {}
+    fn on_drop(&self, _child: ErasedHandle, _parent: ErasedHandle) {
+        // TODO: Add link widgets command
+    }
 
     fn validate(&self) -> Vec<(ErasedHandle, Result<(), String>)> {
         Default::default()
@@ -441,469 +444,6 @@ impl<'a> WorldViewerDataProvider for UiSceneWrapper<'a> {
                     new_selection,
                     self.selection.clone(),
                 ));
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct UiSelection {
-    pub widgets: Vec<Handle<UiNode>>,
-}
-
-impl UiSelection {
-    /// Creates new selection as single if node handle is not none, and empty if it is.
-    pub fn single_or_empty(node: Handle<UiNode>) -> Self {
-        if node.is_none() {
-            Self {
-                widgets: Default::default(),
-            }
-        } else {
-            Self {
-                widgets: vec![node],
-            }
-        }
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.widgets.is_empty()
-    }
-
-    pub fn len(&self) -> usize {
-        self.widgets.len()
-    }
-
-    pub fn insert_or_exclude(&mut self, handle: Handle<UiNode>) {
-        if let Some(position) = self.widgets.iter().position(|&h| h == handle) {
-            self.widgets.remove(position);
-        } else {
-            self.widgets.push(handle);
-        }
-    }
-}
-
-pub struct UiSelectInteractionMode {
-    preview: Handle<UiNode>,
-    selection_frame: Handle<UiNode>,
-    message_sender: MessageSender,
-    stack: Vec<Handle<UiNode>>,
-    click_pos: Vector2<f32>,
-}
-
-impl UiSelectInteractionMode {
-    pub fn new(
-        preview: Handle<UiNode>,
-        selection_frame: Handle<UiNode>,
-        message_sender: MessageSender,
-    ) -> Self {
-        Self {
-            preview,
-            selection_frame,
-            message_sender,
-            stack: Vec::new(),
-            click_pos: Vector2::default(),
-        }
-    }
-}
-
-impl TypeUuidProvider for UiSelectInteractionMode {
-    fn type_uuid() -> Uuid {
-        uuid!("12e550dc-0fb2-4a45-8060-fa363db3e197")
-    }
-}
-
-impl InteractionMode for UiSelectInteractionMode {
-    fn on_left_mouse_button_down(
-        &mut self,
-        _editor_selection: &Selection,
-        _controller: &mut dyn SceneController,
-        engine: &mut Engine,
-        mouse_pos: Vector2<f32>,
-        _frame_size: Vector2<f32>,
-        _settings: &Settings,
-    ) {
-        self.click_pos = mouse_pos;
-        let ui = &mut engine.user_interface;
-        ui.send_message(WidgetMessage::visibility(
-            self.selection_frame,
-            MessageDirection::ToWidget,
-            true,
-        ));
-        ui.send_message(WidgetMessage::desired_position(
-            self.selection_frame,
-            MessageDirection::ToWidget,
-            mouse_pos,
-        ));
-        ui.send_message(WidgetMessage::width(
-            self.selection_frame,
-            MessageDirection::ToWidget,
-            0.0,
-        ));
-        ui.send_message(WidgetMessage::height(
-            self.selection_frame,
-            MessageDirection::ToWidget,
-            0.0,
-        ));
-    }
-
-    fn on_left_mouse_button_up(
-        &mut self,
-        editor_selection: &Selection,
-        controller: &mut dyn SceneController,
-        engine: &mut Engine,
-        _mouse_pos: Vector2<f32>,
-        frame_size: Vector2<f32>,
-        _settings: &Settings,
-    ) {
-        let Some(ui_scene) = controller.downcast_mut::<UiScene>() else {
-            return;
-        };
-
-        let preview_screen_bounds = engine.user_interface.node(self.preview).screen_bounds();
-        let frame_screen_bounds = engine
-            .user_interface
-            .node(self.selection_frame)
-            .screen_bounds();
-        let relative_bounds = frame_screen_bounds.translate(-preview_screen_bounds.position);
-        self.stack.clear();
-        self.stack.push(ui_scene.ui.root());
-        let mut ui_selection = UiSelection::default();
-        while let Some(handle) = self.stack.pop() {
-            let node = ui_scene.ui.node(handle);
-            if handle == ui_scene.ui.root() {
-                self.stack.extend_from_slice(node.children());
-                continue;
-            }
-
-            if relative_bounds.intersects(node.screen_bounds()) {
-                ui_selection.insert_or_exclude(handle);
-                break;
-            }
-
-            self.stack.extend_from_slice(node.children());
-        }
-
-        let new_selection = Selection::Ui(ui_selection);
-
-        if &new_selection != editor_selection {
-            self.message_sender
-                .do_ui_scene_command(ChangeUiSelectionCommand::new(
-                    new_selection,
-                    editor_selection.clone(),
-                ));
-        }
-        engine
-            .user_interface
-            .send_message(WidgetMessage::visibility(
-                self.selection_frame,
-                MessageDirection::ToWidget,
-                false,
-            ));
-    }
-
-    fn on_mouse_move(
-        &mut self,
-        _mouse_offset: Vector2<f32>,
-        mouse_position: Vector2<f32>,
-        _editor_selection: &Selection,
-        _controller: &mut dyn SceneController,
-        engine: &mut Engine,
-        _frame_size: Vector2<f32>,
-        _settings: &Settings,
-    ) {
-        let ui = &mut engine.user_interface;
-        let width = mouse_position.x - self.click_pos.x;
-        let height = mouse_position.y - self.click_pos.y;
-
-        let position = Vector2::new(
-            if width < 0.0 {
-                mouse_position.x
-            } else {
-                self.click_pos.x
-            },
-            if height < 0.0 {
-                mouse_position.y
-            } else {
-                self.click_pos.y
-            },
-        );
-        ui.send_message(WidgetMessage::desired_position(
-            self.selection_frame,
-            MessageDirection::ToWidget,
-            position,
-        ));
-        ui.send_message(WidgetMessage::width(
-            self.selection_frame,
-            MessageDirection::ToWidget,
-            width.abs(),
-        ));
-        ui.send_message(WidgetMessage::height(
-            self.selection_frame,
-            MessageDirection::ToWidget,
-            height.abs(),
-        ));
-    }
-
-    fn update(
-        &mut self,
-        _editor_selection: &Selection,
-        _controller: &mut dyn SceneController,
-        _engine: &mut Engine,
-        _settings: &Settings,
-    ) {
-    }
-
-    fn deactivate(&mut self, _controller: &dyn SceneController, _engine: &mut Engine) {}
-
-    fn make_button(&mut self, ctx: &mut BuildContext, selected: bool) -> Handle<UiNode> {
-        let select_mode_tooltip = "Select Object(s) - Shortcut: [1]\n\nSelection interaction mode \
-        allows you to select an object by a single left mouse button click or multiple objects using either \
-        frame selection (click and drag) or by holding Ctrl+Click";
-
-        make_interaction_mode_button(
-            ctx,
-            include_bytes!("../../resources/select.png"),
-            select_mode_tooltip,
-            selected,
-        )
-    }
-
-    fn uuid(&self) -> Uuid {
-        Self::type_uuid()
-    }
-}
-
-pub struct UiSceneContext<'a> {
-    ui: &'a mut UserInterface,
-    selection: &'a mut Selection,
-    message_sender: &'a MessageSender,
-}
-
-#[derive(Debug)]
-pub struct UiSceneCommand(pub Box<dyn UiCommand>);
-
-impl Deref for UiSceneCommand {
-    type Target = dyn UiCommand;
-
-    fn deref(&self) -> &Self::Target {
-        &*self.0
-    }
-}
-
-impl DerefMut for UiSceneCommand {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut *self.0
-    }
-}
-
-impl UiSceneCommand {
-    pub fn new<C: UiCommand>(cmd: C) -> Self {
-        Self(Box::new(cmd))
-    }
-
-    pub fn into_inner(self) -> Box<dyn UiCommand> {
-        self.0
-    }
-}
-
-#[derive(Debug)]
-pub struct UiCommandGroup {
-    commands: Vec<UiSceneCommand>,
-    custom_name: String,
-}
-
-impl From<Vec<UiSceneCommand>> for UiCommandGroup {
-    fn from(commands: Vec<UiSceneCommand>) -> Self {
-        Self {
-            commands,
-            custom_name: Default::default(),
-        }
-    }
-}
-
-impl UiCommandGroup {
-    pub fn push(&mut self, command: UiSceneCommand) {
-        self.commands.push(command)
-    }
-
-    pub fn with_custom_name<S: AsRef<str>>(mut self, name: S) -> Self {
-        self.custom_name = name.as_ref().to_string();
-        self
-    }
-}
-
-impl UiCommand for UiCommandGroup {
-    fn name(&mut self, context: &UiSceneContext) -> String {
-        if self.custom_name.is_empty() {
-            let mut name = String::from("Command group: ");
-            for cmd in self.commands.iter_mut() {
-                name.push_str(&cmd.name(context));
-                name.push_str(", ");
-            }
-            name
-        } else {
-            self.custom_name.clone()
-        }
-    }
-
-    fn execute(&mut self, context: &mut UiSceneContext) {
-        for cmd in self.commands.iter_mut() {
-            cmd.execute(context);
-        }
-    }
-
-    fn revert(&mut self, context: &mut UiSceneContext) {
-        // revert must be done in reverse order.
-        for cmd in self.commands.iter_mut().rev() {
-            cmd.revert(context);
-        }
-    }
-
-    fn finalize(&mut self, context: &mut UiSceneContext) {
-        for mut cmd in self.commands.drain(..) {
-            cmd.finalize(context);
-        }
-    }
-}
-
-define_command_stack!(UiCommand, UiCommandStack, UiSceneContext);
-
-#[derive(Debug)]
-pub struct ChangeUiSelectionCommand {
-    new_selection: Selection,
-    old_selection: Selection,
-}
-
-impl ChangeUiSelectionCommand {
-    pub fn new(new_selection: Selection, old_selection: Selection) -> Self {
-        Self {
-            new_selection,
-            old_selection,
-        }
-    }
-
-    fn swap(&mut self) -> Selection {
-        let selection = self.new_selection.clone();
-        std::mem::swap(&mut self.new_selection, &mut self.old_selection);
-        selection
-    }
-
-    fn exec(&mut self, context: &mut UiSceneContext) {
-        let old_selection = self.old_selection.clone();
-        let new_selection = self.swap();
-        if &new_selection != context.selection {
-            *context.selection = new_selection;
-            context
-                .message_sender
-                .send(Message::SelectionChanged { old_selection });
-        }
-    }
-}
-
-impl UiCommand for ChangeUiSelectionCommand {
-    fn name(&mut self, _context: &UiSceneContext) -> String {
-        "Change Selection".to_string()
-    }
-
-    fn execute(&mut self, context: &mut UiSceneContext) {
-        self.exec(context);
-    }
-
-    fn revert(&mut self, context: &mut UiSceneContext) {
-        self.exec(context);
-    }
-}
-
-define_universal_commands!(
-    make_set_widget_property_command,
-    UiCommand,
-    UiSceneCommand,
-    UiSceneContext,
-    Handle<UiNode>,
-    ctx,
-    handle,
-    self,
-    { &mut *ctx.ui.node_mut(self.handle) as &mut dyn Reflect },
-);
-
-#[derive(Debug)]
-pub struct AddUiNodeCommand {
-    ticket: Option<Ticket<UiNode>>,
-    handle: Handle<UiNode>,
-    node: Option<UiNode>,
-    cached_name: String,
-    parent: Handle<UiNode>,
-    select_added: bool,
-    prev_selection: Selection,
-}
-
-impl AddUiNodeCommand {
-    pub fn new(node: UiNode, parent: Handle<UiNode>, select_added: bool) -> Self {
-        Self {
-            ticket: None,
-            handle: Default::default(),
-            cached_name: format!("Add Node {}", node.name()),
-            node: Some(node),
-            parent,
-            select_added,
-            prev_selection: Selection::None,
-        }
-    }
-}
-
-impl UiCommand for AddUiNodeCommand {
-    fn name(&mut self, _context: &UiSceneContext) -> String {
-        self.cached_name.clone()
-    }
-
-    fn execute(&mut self, context: &mut UiSceneContext) {
-        match self.ticket.take() {
-            None => {
-                self.handle = context.ui.add_node(self.node.take().unwrap());
-            }
-            Some(ticket) => {
-                let handle = context.ui.put_back(ticket, self.node.take().unwrap());
-                assert_eq!(handle, self.handle);
-            }
-        }
-
-        if self.select_added {
-            self.prev_selection = std::mem::replace(
-                context.selection,
-                Selection::Ui(UiSelection::single_or_empty(self.handle)),
-            );
-            context.message_sender.send(Message::SelectionChanged {
-                old_selection: self.prev_selection.clone(),
-            });
-        }
-
-        context.ui.link_nodes(
-            self.handle,
-            if self.parent.is_none() {
-                context.ui.root()
-            } else {
-                self.parent
-            },
-            false,
-        )
-    }
-
-    fn revert(&mut self, context: &mut UiSceneContext) {
-        // No need to unlink node from its parent because .take_reserve() does that for us.
-        let (ticket, node) = context.ui.take_reserve(self.handle);
-        self.ticket = Some(ticket);
-        self.node = Some(node);
-
-        if self.select_added {
-            std::mem::swap(context.selection, &mut self.prev_selection);
-            context.message_sender.send(Message::SelectionChanged {
-                old_selection: self.prev_selection.clone(),
-            });
-        }
-    }
-
-    fn finalize(&mut self, context: &mut UiSceneContext) {
-        if let Some(ticket) = self.ticket.take() {
-            context.ui.forget_ticket(ticket, self.node.take().unwrap());
         }
     }
 }

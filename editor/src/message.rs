@@ -1,7 +1,7 @@
-use crate::ui_scene::{UiCommand, UiSceneCommand};
 use crate::{
     command::GameSceneCommandTrait,
     scene::{commands::GameSceneCommand, Selection},
+    ui_scene::commands::{UiCommand, UiSceneCommand},
     BuildProfile, SaveSceneConfirmationDialogAction,
 };
 use fyrox::{

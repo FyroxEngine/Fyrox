@@ -31,7 +31,7 @@ use crate::{
         selector::HierarchyNode,
     },
     settings::keys::KeyBindings,
-    ui_scene::UiSelection,
+    ui_scene::selection::UiSelection,
     world::graph::selection::GraphSelection,
     Message, Settings,
 };

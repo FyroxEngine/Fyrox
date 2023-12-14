@@ -1,5 +1,7 @@
-use crate::ui_scene::UiScene;
-use crate::{menu::create_menu_item, message::MessageSender, ui_scene::AddUiNodeCommand};
+use crate::{
+    menu::create_menu_item, message::MessageSender, ui_scene::commands::graph::AddUiNodeCommand,
+    ui_scene::UiScene,
+};
 use fyrox::{
     core::pool::Handle,
     fxhash::FxHashMap,
@@ -14,6 +16,7 @@ pub struct UiMenu {
     constructors: FxHashMap<Handle<UiNode>, UiMenuEntry>,
 }
 
+#[allow(clippy::type_complexity)]
 pub struct UiMenuEntry {
     pub name: String,
     pub constructor: Box<dyn FnMut(&str, &mut BuildContext) -> UiNode>,

@@ -9,7 +9,7 @@ use crate::{
     scene::{controller::SceneController, GameScene, Selection},
     scene_viewer::SceneViewer,
     settings::{keys::KeyBindings, Settings},
-    ui_scene::{UiScene, UiSelectInteractionMode},
+    ui_scene::{interaction::UiSelectInteractionMode, UiScene},
 };
 use fyrox::gui::UserInterface;
 use fyrox::{
