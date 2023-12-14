@@ -148,7 +148,7 @@ use std::{
 };
 
 use crate::scene::container::EditorSceneEntry;
-use crate::ui_scene::{commands::UiSceneCommand, UiScene, UiSceneWrapper};
+use crate::ui_scene::{commands::UiSceneCommand, utils::UiSceneWorldViewerDataProvider, UiScene};
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -1316,7 +1316,7 @@ impl Editor {
             {
                 self.world_viewer.handle_ui_message(
                     message,
-                    &UiSceneWrapper {
+                    &UiSceneWorldViewerDataProvider {
                         ui: &game_scene.ui,
                         path: current_scene_entry.path.as_deref(),
                         selection: &current_scene_entry.selection,
@@ -1557,7 +1557,7 @@ impl Editor {
                 current_scene_entry.controller.downcast_mut::<UiScene>()
             {
                 self.world_viewer.sync_to_model(
-                    &UiSceneWrapper {
+                    &UiSceneWorldViewerDataProvider {
                         ui: &game_scene.ui,
                         path: current_scene_entry.path.as_deref(),
                         selection: &current_scene_entry.selection,
@@ -1589,7 +1589,7 @@ impl Editor {
                 );
             } else if let Some(game_scene) = entry.controller.downcast_ref::<UiScene>() {
                 self.world_viewer.post_update(
-                    &UiSceneWrapper {
+                    &UiSceneWorldViewerDataProvider {
                         ui: &game_scene.ui,
                         path: entry.path.as_deref(),
                         selection: &entry.selection,
