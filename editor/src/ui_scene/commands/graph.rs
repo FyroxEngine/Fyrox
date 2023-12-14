@@ -2,33 +2,31 @@
 
 use crate::{
     scene::Selection,
-    ui_scene::commands::{UiCommand, UiSceneContext},
-    ui_scene::UiSelection,
+    ui_scene::{
+        commands::{UiCommand, UiSceneContext},
+        UiSelection,
+    },
     Message,
 };
 use fyrox::{
-    core::pool::{Handle, Ticket},
-    gui::UiNode,
+    core::pool::Handle,
+    gui::{SubGraph, UiNode},
 };
 
 #[derive(Debug)]
 pub struct AddUiNodeCommand {
-    ticket: Option<Ticket<UiNode>>,
+    sub_graph: Option<SubGraph>,
     handle: Handle<UiNode>,
-    node: Option<UiNode>,
-    cached_name: String,
     parent: Handle<UiNode>,
     select_added: bool,
     prev_selection: Selection,
 }
 
 impl AddUiNodeCommand {
-    pub fn new(node: UiNode, parent: Handle<UiNode>, select_added: bool) -> Self {
+    pub fn new(sub_graph: SubGraph, parent: Handle<UiNode>, select_added: bool) -> Self {
         Self {
-            ticket: None,
+            sub_graph: Some(sub_graph),
             handle: Default::default(),
-            cached_name: format!("Add Node {}", node.name()),
-            node: Some(node),
             parent,
             select_added,
             prev_selection: Selection::None,
@@ -38,19 +36,13 @@ impl AddUiNodeCommand {
 
 impl UiCommand for AddUiNodeCommand {
     fn name(&mut self, _context: &UiSceneContext) -> String {
-        self.cached_name.clone()
+        "Add Ui Node".to_string()
     }
 
     fn execute(&mut self, context: &mut UiSceneContext) {
-        match self.ticket.take() {
-            None => {
-                self.handle = context.ui.add_node(self.node.take().unwrap());
-            }
-            Some(ticket) => {
-                let handle = context.ui.put_back(ticket, self.node.take().unwrap());
-                assert_eq!(handle, self.handle);
-            }
-        }
+        self.handle = context
+            .ui
+            .put_sub_graph_back(self.sub_graph.take().unwrap());
 
         if self.select_added {
             self.prev_selection = std::mem::replace(
@@ -74,10 +66,8 @@ impl UiCommand for AddUiNodeCommand {
     }
 
     fn revert(&mut self, context: &mut UiSceneContext) {
-        // No need to unlink node from its parent because .take_reserve() does that for us.
-        let (ticket, node) = context.ui.take_reserve(self.handle);
-        self.ticket = Some(ticket);
-        self.node = Some(node);
+        // No need to unlink node from its parent because .take_reserve_sub_graph() does that for us.
+        self.sub_graph = Some(context.ui.take_reserve_sub_graph(self.handle));
 
         if self.select_added {
             std::mem::swap(context.selection, &mut self.prev_selection);
@@ -88,8 +78,8 @@ impl UiCommand for AddUiNodeCommand {
     }
 
     fn finalize(&mut self, context: &mut UiSceneContext) {
-        if let Some(ticket) = self.ticket.take() {
-            context.ui.forget_ticket(ticket, self.node.take().unwrap());
+        if let Some(sub_graph) = self.sub_graph.take() {
+            context.ui.forget_sub_graph(sub_graph)
         }
     }
 }

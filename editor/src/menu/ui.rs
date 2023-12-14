@@ -19,7 +19,7 @@ pub struct UiMenu {
 #[allow(clippy::type_complexity)]
 pub struct UiMenuEntry {
     pub name: String,
-    pub constructor: Box<dyn FnMut(&str, &mut BuildContext) -> UiNode>,
+    pub constructor: Box<dyn FnMut(&str, &mut BuildContext) -> Handle<UiNode>>,
 }
 
 impl UiMenu {
@@ -27,7 +27,7 @@ impl UiMenu {
         vec![UiMenuEntry {
             name: "Button".to_string(),
             constructor: Box::new(|name, ctx| {
-                ButtonBuilder::new(WidgetBuilder::new().with_name(name)).build_node(ctx)
+                ButtonBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
             }),
         }]
     }
@@ -57,8 +57,9 @@ impl UiMenu {
     ) {
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if let Some(entry) = self.constructors.get_mut(&message.destination()) {
-                let ui_node = (entry.constructor)(&entry.name, &mut scene.ui.build_ctx());
-                sender.do_ui_scene_command(AddUiNodeCommand::new(ui_node, Handle::NONE, true));
+                let ui_node_handle = (entry.constructor)(&entry.name, &mut scene.ui.build_ctx());
+                let sub_graph = scene.ui.take_reserve_sub_graph(ui_node_handle);
+                sender.do_ui_scene_command(AddUiNodeCommand::new(sub_graph, Handle::NONE, true));
             }
         }
     }
