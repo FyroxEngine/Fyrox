@@ -14,11 +14,10 @@ use crate::{
     core::algebra::{Vector2, Vector3},
     event::{ElementState, MouseScrollDelta, WindowEvent},
     gui::{
-        draw, message,
+        message,
         message::{ButtonState, KeyboardModifiers, OsEvent},
     },
     keyboard::{KeyCode, ModifiersState},
-    resource::texture::TextureResource,
 };
 use fyrox_ui::message::CursorIcon;
 use half::f16;
@@ -781,11 +780,6 @@ pub fn into_any_arc<T: Any + Send + Sync>(
         Some(r) => Some(r),
         None => None,
     }
-}
-
-/// Converts engine's optional texture "pointer" to fyrox-ui's.
-pub fn into_gui_texture(this: TextureResource) -> draw::SharedTexture {
-    draw::SharedTexture(this.into_untyped().0)
 }
 
 /// A trait for entities that have name.

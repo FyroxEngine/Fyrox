@@ -1,3 +1,4 @@
+use fyrox::asset::untyped::UntypedResource;
 use fyrox::{
     core::{color::Color, pool::Handle},
     gui::{
@@ -6,7 +7,6 @@ use fyrox::{
         button::ButtonBuilder,
         decorator::DecoratorBuilder,
         define_constructor,
-        draw::SharedTexture,
         image::ImageBuilder,
         message::{MessageDirection, UiMessage},
         text::TextBuilder,
@@ -81,7 +81,7 @@ pub fn make_image_button_with_tooltip(
     ctx: &mut BuildContext,
     width: f32,
     height: f32,
-    image: Option<SharedTexture>,
+    image: Option<UntypedResource>,
     tooltip: &str,
 ) -> Handle<UiNode> {
     ButtonBuilder::new(

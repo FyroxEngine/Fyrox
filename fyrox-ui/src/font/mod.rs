@@ -1,13 +1,11 @@
 #![allow(clippy::unnecessary_to_owned)] // false-positive
 
-use crate::{
-    core::{
-        algebra::Vector2, rectpack::RectPacker, reflect::prelude::*, uuid::Uuid, uuid_provider,
-        visitor::prelude::*, TypeUuidProvider,
-    },
-    draw::SharedTexture,
+use crate::core::{
+    algebra::Vector2, rectpack::RectPacker, reflect::prelude::*, uuid::Uuid, uuid_provider,
+    visitor::prelude::*, TypeUuidProvider,
 };
 use fxhash::FxHashMap;
+use fyrox_resource::untyped::UntypedResource;
 use fyrox_resource::{io::ResourceIo, Resource, ResourceData};
 use lazy_static::lazy_static;
 use std::fmt::Formatter;
@@ -36,7 +34,7 @@ pub struct FontGlyph {
 /// Page is a storage for rasterized glyphs.
 pub struct Page {
     pub pixels: Vec<u8>,
-    pub texture: Option<SharedTexture>,
+    pub texture: Option<UntypedResource>,
     pub rect_packer: RectPacker<usize>,
     pub modified: bool,
 }

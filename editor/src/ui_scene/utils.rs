@@ -2,9 +2,10 @@ use crate::{
     message::MessageSender, scene::Selection, ui_scene::commands::ChangeUiSelectionCommand,
     ui_scene::selection::UiSelection, world::WorldViewerDataProvider,
 };
+use fyrox::asset::untyped::UntypedResource;
 use fyrox::{
     core::{make_pretty_type_name, pool::ErasedHandle, reflect::Reflect},
-    gui::{draw::SharedTexture, UserInterface},
+    gui::UserInterface,
 };
 use std::{borrow::Cow, path::Path};
 
@@ -65,7 +66,7 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
         self.ui.try_get_node(node.into()).is_some()
     }
 
-    fn icon_of(&self, _node: ErasedHandle) -> Option<SharedTexture> {
+    fn icon_of(&self, _node: ErasedHandle) -> Option<UntypedResource> {
         // TODO
         None
     }

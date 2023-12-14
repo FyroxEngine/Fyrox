@@ -1,4 +1,5 @@
 use crate::gui::AssetItemMessage;
+use fyrox::asset::untyped::UntypedResource;
 use fyrox::core::uuid_provider;
 use fyrox::{
     core::{
@@ -7,7 +8,7 @@ use fyrox::{
     gui::{
         border::BorderBuilder,
         brush::Brush,
-        draw::{CommandTexture, Draw, DrawingContext, SharedTexture},
+        draw::{CommandTexture, Draw, DrawingContext},
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
@@ -117,7 +118,7 @@ impl Control for AssetItem {
 pub struct AssetItemBuilder {
     widget_builder: WidgetBuilder,
     path: Option<PathBuf>,
-    icon: Option<SharedTexture>,
+    icon: Option<UntypedResource>,
 }
 
 fn make_tooltip(ctx: &mut BuildContext, text: &str) -> RcUiNodeHandle {
@@ -156,7 +157,7 @@ impl AssetItemBuilder {
         self
     }
 
-    pub fn with_icon(mut self, icon: Option<SharedTexture>) -> Self {
+    pub fn with_icon(mut self, icon: Option<UntypedResource>) -> Self {
         self.icon = icon;
         self
     }

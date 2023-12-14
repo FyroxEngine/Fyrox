@@ -10,7 +10,8 @@ use crate::{
     formatted_text::FormattedText,
     Thickness,
 };
-use std::{any::Any, ops::Range, sync::Arc};
+use fyrox_resource::untyped::UntypedResource;
+use std::ops::Range;
 
 #[derive(Clone, Debug)]
 #[repr(C)]
@@ -30,31 +31,10 @@ impl Vertex {
     }
 }
 
-pub type Texture = dyn Any + Sync + Send;
-
-#[derive(Debug, Clone)]
-pub struct SharedTexture(pub Arc<Texture>);
-
-impl<T: Any + Sync + Send> From<Arc<T>> for SharedTexture {
-    fn from(arc: Arc<T>) -> Self {
-        SharedTexture(arc)
-    }
-}
-
-impl PartialEq for SharedTexture {
-    fn eq(&self, other: &Self) -> bool {
-        // Cast fat pointers to thin first.
-        let ptr_a = &*self.0 as *const _ as *const ();
-        let ptr_b = &*other.0 as *const _ as *const ();
-        // Compare thin pointers.
-        std::ptr::eq(ptr_a, ptr_b)
-    }
-}
-
 #[derive(Clone, Debug)]
 pub enum CommandTexture {
     None,
-    Texture(SharedTexture),
+    Texture(UntypedResource),
     Font {
         font: FontResource,
         height: FontHeight,

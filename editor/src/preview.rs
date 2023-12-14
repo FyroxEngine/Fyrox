@@ -32,7 +32,6 @@ use fyrox::{
         transform::TransformBuilder,
         Scene,
     },
-    utils::into_gui_texture,
 };
 use std::path::Path;
 
@@ -216,7 +215,7 @@ impl PreviewPanel {
                             .with_cursor(Some(CursorIcon::Grab)),
                     )
                     .with_flip(true)
-                    .with_texture(into_gui_texture(render_target))
+                    .with_texture(render_target.into())
                     .build(ctx);
                     frame
                 }),
@@ -389,7 +388,7 @@ impl PreviewPanel {
                 engine.user_interface.send_message(ImageMessage::texture(
                     self.frame,
                     MessageDirection::ToWidget,
-                    Some(into_gui_texture(rt)),
+                    Some(rt.into()),
                 ));
             }
         }

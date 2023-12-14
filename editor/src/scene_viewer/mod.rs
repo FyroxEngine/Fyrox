@@ -38,7 +38,6 @@ use fyrox::{
     },
     resource::texture::TextureResource,
     scene::camera::Projection,
-    utils::into_gui_texture,
 };
 use std::cmp::Ordering;
 
@@ -226,7 +225,7 @@ impl SceneViewer {
                 .with_margin(Thickness::uniform(1.0)),
         )
         .with_flip(true)
-        .with_texture(into_gui_texture(scene_gizmo.render_target.clone()))
+        .with_texture(scene_gizmo.render_target.clone().into())
         .build(ctx);
 
         let tab_control;
@@ -715,7 +714,7 @@ impl SceneViewer {
         ui.send_message(ImageMessage::texture(
             self.frame,
             MessageDirection::ToWidget,
-            render_target.map(into_gui_texture),
+            render_target.map(Into::into),
         ));
     }
 

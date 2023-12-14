@@ -80,6 +80,7 @@ use crate::{
     utils::{doc::DocWindow, path_fixer::PathFixer, ragdoll::RagdollWizard},
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
+use fyrox::asset::untyped::UntypedResource;
 use fyrox::{
     asset::{io::FsResourceIo, manager::ResourceManager},
     core::{
@@ -106,7 +107,6 @@ use fyrox::{
         dock::{
             DockingManager, DockingManagerBuilder, DockingManagerMessage, TileBuilder, TileContent,
         },
-        draw,
         dropdown_list::DropdownListBuilder,
         file_browser::{FileBrowserMode, FileSelectorBuilder, FileSelectorMessage, Filter},
         font::Font,
@@ -130,7 +130,7 @@ use fyrox::{
         TextureResource, TextureResourceExtension,
     },
     scene::{graph::GraphUpdateSwitches, mesh::Mesh, Scene, SceneLoader},
-    utils::{into_gui_texture, translate_cursor_icon, translate_event},
+    utils::{translate_cursor_icon, translate_event},
     window::{Icon, WindowAttributes},
 };
 use std::{
@@ -159,8 +159,8 @@ pub fn send_sync_message(ui: &UserInterface, mut msg: UiMessage) {
     ui.send_message(msg);
 }
 
-pub fn load_image(data: &[u8]) -> Option<draw::SharedTexture> {
-    Some(into_gui_texture(
+pub fn load_image(data: &[u8]) -> Option<UntypedResource> {
+    Some(
         TextureResource::load_from_memory(
             Default::default(),
             data,
@@ -168,8 +168,9 @@ pub fn load_image(data: &[u8]) -> Option<draw::SharedTexture> {
                 .with_compression(CompressionOptions::NoCompression)
                 .with_minification_filter(TextureMinificationFilter::Linear),
         )
-        .ok()?,
-    ))
+        .ok()?
+        .into(),
+    )
 }
 
 lazy_static! {

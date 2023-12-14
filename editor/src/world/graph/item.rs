@@ -1,4 +1,5 @@
 use crate::{load_image, message::MessageSender, utils::make_node_name, Message};
+use fyrox::asset::untyped::UntypedResource;
 use fyrox::core::pool::ErasedHandle;
 use fyrox::core::uuid_provider;
 use fyrox::{
@@ -7,7 +8,7 @@ use fyrox::{
     gui::{
         brush::Brush,
         define_constructor,
-        draw::{DrawingContext, SharedTexture},
+        draw::DrawingContext,
         grid::{Column, GridBuilder, Row},
         image::ImageBuilder,
         message::{MessageDirection, OsEvent, UiMessage},
@@ -200,7 +201,7 @@ pub struct SceneItemBuilder {
     tree_builder: TreeBuilder,
     entity_handle: ErasedHandle,
     name: String,
-    icon: Option<SharedTexture>,
+    icon: Option<UntypedResource>,
     text_brush: Option<Brush>,
 }
 
@@ -225,7 +226,7 @@ impl SceneItemBuilder {
         self
     }
 
-    pub fn with_icon(mut self, icon: Option<SharedTexture>) -> Self {
+    pub fn with_icon(mut self, icon: Option<UntypedResource>) -> Self {
         self.icon = icon;
         self
     }

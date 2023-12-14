@@ -10,7 +10,6 @@ use fyrox::{
         TypeUuidProvider,
     },
     fxhash::FxHashMap,
-    gui::draw::SharedTexture,
     material::{shader::Shader, Material, MaterialResource, PropertyValue},
     resource::{
         curve::CurveResourceState,
@@ -27,7 +26,6 @@ use fyrox::{
         sound::{HrirSphereResourceData, SoundBuffer, SoundBuilder, Status},
         Scene,
     },
-    utils::into_gui_texture,
 };
 
 #[derive(Default)]
@@ -69,7 +67,7 @@ pub trait AssetPreview: 'static {
         &self,
         resource: &UntypedResource,
         resource_manager: &ResourceManager,
-    ) -> Option<SharedTexture>;
+    ) -> Option<UntypedResource>;
 }
 
 pub struct TexturePreview;
@@ -123,8 +121,8 @@ impl AssetPreview for TexturePreview {
         &self,
         resource: &UntypedResource,
         _resource_manager: &ResourceManager,
-    ) -> Option<SharedTexture> {
-        resource.try_cast::<Texture>().map(into_gui_texture)
+    ) -> Option<UntypedResource> {
+        resource.try_cast::<Texture>().map(Into::into)
     }
 }
 
@@ -151,7 +149,7 @@ impl AssetPreview for SoundPreview {
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
-    ) -> Option<SharedTexture> {
+    ) -> Option<UntypedResource> {
         load_image(include_bytes!("../../resources/sound.png"))
     }
 }
@@ -176,7 +174,7 @@ impl AssetPreview for ModelPreview {
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
-    ) -> Option<SharedTexture> {
+    ) -> Option<UntypedResource> {
         load_image(include_bytes!("../../resources/model.png"))
     }
 }
@@ -212,7 +210,7 @@ impl AssetPreview for ShaderPreview {
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
-    ) -> Option<SharedTexture> {
+    ) -> Option<UntypedResource> {
         load_image(include_bytes!("../../resources/shader.png"))
     }
 }
@@ -243,7 +241,7 @@ impl AssetPreview for MaterialPreview {
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
-    ) -> Option<SharedTexture> {
+    ) -> Option<UntypedResource> {
         load_image(include_bytes!("../../resources/material.png"))
     }
 }
@@ -264,7 +262,7 @@ impl AssetPreview for HrirPreview {
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
-    ) -> Option<SharedTexture> {
+    ) -> Option<UntypedResource> {
         load_image(include_bytes!("../../resources/hrir.png"))
     }
 }
@@ -285,7 +283,7 @@ impl AssetPreview for CurvePreview {
         &self,
         _resource: &UntypedResource,
         _resource_manager: &ResourceManager,
-    ) -> Option<SharedTexture> {
+    ) -> Option<UntypedResource> {
         load_image(include_bytes!("../../resources/curve.png"))
     }
 }

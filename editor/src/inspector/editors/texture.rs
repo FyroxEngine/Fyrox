@@ -19,7 +19,6 @@ use fyrox::{
         BuildContext, Control, Thickness, UiNode, UserInterface,
     },
     resource::texture::{Texture, TextureResource},
-    utils::into_gui_texture,
 };
 use std::{
     any::{Any, TypeId},
@@ -101,7 +100,7 @@ impl Control for TextureEditor {
                 ui.send_message(ImageMessage::texture(
                     self.image,
                     MessageDirection::ToWidget,
-                    self.texture.clone().map(into_gui_texture),
+                    self.texture.clone().map(Into::into),
                 ));
 
                 ui.send_message(message.reverse());
@@ -143,7 +142,7 @@ impl TextureEditorBuilder {
                         .with_allow_drop(true),
                 )
                 .with_checkerboard_background(true)
-                .with_opt_texture(self.texture.map(into_gui_texture))
+                .with_opt_texture(self.texture.map(Into::into))
                 .build(ctx);
                 image
             })

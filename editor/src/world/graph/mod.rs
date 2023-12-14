@@ -10,9 +10,9 @@ use crate::{
     world::graph::selection::GraphSelection,
     world::WorldViewerDataProvider,
 };
+use fyrox::asset::untyped::UntypedResource;
 use fyrox::{
     core::pool::{ErasedHandle, Handle},
-    gui::draw::SharedTexture,
     scene::{node::Node, Scene},
 };
 use std::{borrow::Cow, path::Path};
@@ -84,7 +84,7 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
         self.scene.graph.is_valid_handle(node.into())
     }
 
-    fn icon_of(&self, node: ErasedHandle) -> Option<SharedTexture> {
+    fn icon_of(&self, node: ErasedHandle) -> Option<UntypedResource> {
         let node = self.scene.graph.try_get(node.into()).unwrap();
         if node.is_point_light() || node.is_directional_light() || node.is_spot_light() {
             load_image(include_bytes!("../../../resources/light.png"))

@@ -1,6 +1,3 @@
-//! Property editor for [`InheritableVariable`]. It acts like a proxy to inner property, but also
-//! adds special "revert" button that is used to revert value to its parent's value.
-
 use crate::{
     core::{reflect::prelude::*, reflect::FieldValue},
     inspector::{

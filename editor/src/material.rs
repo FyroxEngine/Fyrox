@@ -7,12 +7,10 @@ use crate::{
     send_sync_message, Engine, Message,
 };
 use fyrox::{
-    asset::untyped::UntypedResource,
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
         futures::executor::block_on,
         make_relative_path,
-        parking_lot::Mutex,
         pool::Handle,
         sstorage::ImmutableString,
         BiDirHashMap,
@@ -48,7 +46,6 @@ use fyrox::{
             MeshBuilder,
         },
     },
-    utils::into_gui_texture,
 };
 use std::rc::Rc;
 
@@ -438,7 +435,7 @@ impl MaterialEditor {
                                 .with_allow_drop(true)
                                 .with_context_menu(self.texture_context_menu.popup.clone()),
                         )
-                        .with_opt_texture(value.clone().map(into_gui_texture))
+                        .with_opt_texture(value.clone().map(Into::into))
                         .build(ctx),
                     };
 
@@ -567,7 +564,7 @@ impl MaterialEditor {
                         ImageMessage::texture(
                             item,
                             MessageDirection::ToWidget,
-                            value.clone().map(into_gui_texture),
+                            value.clone().map(Into::into),
                         ),
                     ),
                 }
@@ -626,11 +623,7 @@ impl MaterialEditor {
                         .unwrap()
                         .texture
                         .clone()
-                        .and_then(|t| {
-                            t.0.downcast::<Mutex<UntypedResource>>()
-                                .ok()
-                                .and_then(|t| t.lock().kind().into_path())
-                        });
+                        .and_then(|t| t.kind().into_path());
 
                     if let Some(path) = path {
                         sender.send(Message::ShowInAssetBrowser(path));
@@ -697,7 +690,7 @@ impl MaterialEditor {
                             engine.user_interface.send_message(ImageMessage::texture(
                                 message.destination(),
                                 MessageDirection::ToWidget,
-                                texture.clone().map(into_gui_texture),
+                                texture.clone().map(Into::into),
                             ));
 
                             Some(PropertyValue::Sampler {

@@ -25,7 +25,6 @@ use fyrox::{
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
         copypasta::ClipboardProvider,
-        draw::SharedTexture,
         file_browser::{FileBrowserBuilder, FileBrowserMessage, Filter},
         grid::{Column, GridBuilder, Row},
         list_view::{ListViewBuilder, ListViewMessage},
@@ -621,7 +620,7 @@ impl AssetBrowser {
         &self,
         resource_manager: &ResourceManager,
         resource_path: &Path,
-    ) -> Option<SharedTexture> {
+    ) -> Option<UntypedResource> {
         if let Ok(resource) = block_on(resource_manager.request_untyped(resource_path)) {
             return self
                 .preview_generators

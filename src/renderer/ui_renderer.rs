@@ -1,18 +1,17 @@
 //! See [`UiRenderer`] docs.
 
 use crate::{
-    asset::{state::ResourceState, untyped::UntypedResource},
+    asset::untyped::ResourceKind,
     core::{
         algebra::{Matrix4, Vector2, Vector4},
         color::Color,
         math::Rect,
-        parking_lot::Mutex,
         scope_profile,
         sstorage::ImmutableString,
     },
     gui::{
         brush::Brush,
-        draw::{CommandTexture, DrawingContext, SharedTexture},
+        draw::{CommandTexture, DrawingContext},
     },
     renderer::{
         framework::{
@@ -31,11 +30,12 @@ use crate::{
         },
         RenderPassStatistics, TextureCache,
     },
-    resource::texture::{Texture, TextureKind, TexturePixelKind},
+    resource::{
+        texture::TextureResource,
+        texture::{Texture, TextureKind, TexturePixelKind},
+    },
 };
-use fyrox_resource::untyped::ResourceHeader;
-use fyrox_resource::ResourceData;
-use std::{cell::RefCell, rc::Rc, sync::Arc};
+use std::{cell::RefCell, rc::Rc};
 
 struct UiShader {
     program: GpuProgram,
@@ -284,26 +284,22 @@ impl UiRenderer {
                                     TexturePixelKind::R8,
                                     page.pixels.clone(),
                                 ) {
-                                    page.texture =
-                                        Some(SharedTexture(Arc::new(Mutex::new(ResourceHeader {
-                                            kind: Default::default(),
-                                            type_uuid: details.type_uuid(),
-                                            state: ResourceState::new_ok(details),
-                                        }))));
+                                    page.texture = Some(
+                                        TextureResource::new_ok(ResourceKind::Embedded, details)
+                                            .into(),
+                                    );
                                     page.modified = false;
                                 }
                             }
-                            let tex = UntypedResource(
-                                page.texture
-                                    .clone()
+                            if let Some(texture) = texture_cache.get(
+                                state,
+                                &page
+                                    .texture
+                                    .as_ref()
                                     .unwrap()
-                                    .0
-                                    .downcast::<Mutex<ResourceHeader>>()
+                                    .try_cast::<Texture>()
                                     .unwrap(),
-                            );
-                            if let Some(texture) =
-                                texture_cache.get(state, &tex.try_cast::<Texture>().unwrap())
-                            {
+                            ) {
                                 diffuse_texture = texture;
                             }
                             is_font_texture = true;
@@ -311,8 +307,7 @@ impl UiRenderer {
                     }
                 }
                 CommandTexture::Texture(texture) => {
-                    if let Ok(texture) = texture.clone().0.downcast::<Mutex<ResourceHeader>>() {
-                        let resource = UntypedResource(texture).try_cast::<Texture>().unwrap();
+                    if let Some(resource) = texture.try_cast::<Texture>() {
                         if let Some(texture) = texture_cache.get(state, &resource) {
                             diffuse_texture = texture;
                         }

@@ -7,6 +7,7 @@ use crate::{
     world::graph::item::{SceneItem, SceneItemBuilder, SceneItemMessage},
     Mode, Settings,
 };
+use fyrox::asset::untyped::UntypedResource;
 use fyrox::{
     core::{
         color::Color,
@@ -20,7 +21,6 @@ use fyrox::{
         button::{ButtonBuilder, ButtonMessage},
         check_box::{CheckBoxBuilder, CheckBoxMessage},
         decorator::{Decorator, DecoratorBuilder, DecoratorMessage},
-        draw::SharedTexture,
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, UiMessage},
         scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
@@ -62,7 +62,7 @@ pub trait WorldViewerDataProvider {
 
     fn is_valid_handle(&self, node: ErasedHandle) -> bool;
 
-    fn icon_of(&self, node: ErasedHandle) -> Option<SharedTexture>;
+    fn icon_of(&self, node: ErasedHandle) -> Option<UntypedResource>;
 
     fn is_instance(&self, node: ErasedHandle) -> bool;
 
@@ -104,7 +104,7 @@ pub struct WorldViewer {
 fn make_graph_node_item(
     name: Cow<str>,
     is_instance: bool,
-    icon: Option<SharedTexture>,
+    icon: Option<UntypedResource>,
     handle: ErasedHandle,
     ctx: &mut BuildContext,
     context_menu: RcUiNodeHandle,

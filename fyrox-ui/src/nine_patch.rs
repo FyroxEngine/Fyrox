@@ -4,11 +4,12 @@ use crate::{
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
     core::{reflect::prelude::*, visitor::prelude::*},
-    draw::{CommandTexture, Draw, DrawingContext, SharedTexture},
+    draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_resource::untyped::UntypedResource;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
@@ -18,10 +19,7 @@ use std::{
 #[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct NinePatch {
     pub widget: Widget,
-    #[visit(skip)] // TODO
-    #[reflect(hidden)] // TODO
-    texture: Option<SharedTexture>,
-
+    pub texture: Option<UntypedResource>,
     pub bottom_margin_uv: f32,
     pub left_margin_uv: f32,
     pub right_margin_uv: f32,
@@ -334,7 +332,7 @@ impl Control for NinePatch {
 
 pub struct NinePatchBuilder {
     widget_builder: WidgetBuilder,
-    texture: Option<SharedTexture>,
+    texture: Option<UntypedResource>,
 
     pub bottom_margin_pixel: Option<u32>,
     pub left_margin_pixel: Option<u32>,
@@ -365,7 +363,7 @@ impl NinePatchBuilder {
         }
     }
 
-    pub fn with_texture(mut self, texture: SharedTexture) -> Self {
+    pub fn with_texture(mut self, texture: UntypedResource) -> Self {
         self.texture = Some(texture);
         self
     }
@@ -453,7 +451,7 @@ impl NinePatchBuilder {
     }
 }
 fn draw_image(
-    image: &SharedTexture,
+    image: &UntypedResource,
     bounds: Rect<f32>,
     tex_coords: &[Vector2<f32>; 4],
     clip_bounds: Rect<f32>,
