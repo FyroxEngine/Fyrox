@@ -275,6 +275,7 @@ use std::{
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
+use fyrox_core::pool::Ticket;
 pub use node::*;
 pub use thickness::*;
 
@@ -1617,14 +1618,14 @@ impl UserInterface {
                             if self.nodes.is_valid_handle(message.destination())
                                 && self.nodes.is_valid_handle(parent)
                             {
-                                self.link_nodes_internal(message.destination(), parent, false);
+                                self.link_nodes(message.destination(), parent, false);
                             }
                         }
                         &WidgetMessage::LinkWithReverse(parent) => {
                             if self.nodes.is_valid_handle(message.destination())
                                 && self.nodes.is_valid_handle(parent)
                             {
-                                self.link_nodes_internal(message.destination(), parent, true);
+                                self.link_nodes(message.destination(), parent, true);
                             }
                         }
                         WidgetMessage::Remove => {
@@ -2419,15 +2420,15 @@ impl UserInterface {
         self.root_canvas
     }
 
-    fn add_node(&mut self, mut node: UiNode) -> Handle<UiNode> {
+    pub fn add_node(&mut self, mut node: UiNode) -> Handle<UiNode> {
         let children = node.children().to_vec();
         node.clear_children();
         let node_handle = self.nodes.spawn(node);
         if self.root_canvas.is_some() {
-            self.link_nodes_internal(node_handle, self.root_canvas, false);
+            self.link_nodes(node_handle, self.root_canvas, false);
         }
         for child in children {
-            self.link_nodes_internal(child, node_handle, false)
+            self.link_nodes(child, node_handle, false)
         }
         let node = self.nodes[node_handle].deref_mut();
         node.layout_events_sender = Some(self.layout_events_sender.clone());
@@ -2436,6 +2437,30 @@ impl UserInterface {
         }
         node.handle = node_handle;
         node_handle
+    }
+
+    /// Extracts a widget from the user interface and reserves its handle. It is used to temporarily take
+    /// ownership over the widget, and then put the widget back using the returned ticket. Extracted
+    /// widget is detached from its parent!
+    #[inline]
+    pub fn take_reserve(&mut self, handle: Handle<UiNode>) -> (Ticket<UiNode>, UiNode) {
+        self.unlink_node_internal(handle);
+        self.nodes.take_reserve(handle)
+    }
+
+    /// Puts the widget back by the given ticket. Attaches it back to the root canvas of the user interface.
+    #[inline]
+    pub fn put_back(&mut self, ticket: Ticket<UiNode>, node: UiNode) -> Handle<UiNode> {
+        let handle = self.nodes.put_back(ticket, node);
+        self.link_nodes(handle, self.root_canvas, false);
+        handle
+    }
+
+    /// Makes a widget handle vacant again.
+    #[inline]
+    pub fn forget_ticket(&mut self, ticket: Ticket<UiNode>, node: UiNode) -> UiNode {
+        self.nodes.forget_ticket(ticket);
+        node
     }
 
     pub fn push_picking_restriction(&mut self, restriction: RestrictionEntry) {
@@ -2501,9 +2526,9 @@ impl UserInterface {
         &self.drag_context
     }
 
-    /// Links specified child with specified parent.
+    /// Links the specified child widget with the specified parent widget.
     #[inline]
-    fn link_nodes_internal(
+    pub fn link_nodes(
         &mut self,
         child_handle: Handle<UiNode>,
         parent_handle: Handle<UiNode>,
@@ -2515,7 +2540,7 @@ impl UserInterface {
         self.nodes[parent_handle].add_child(child_handle, in_front);
     }
 
-    /// Unlinks specified node from its parent, so node will become root.
+    /// Unlinks the specified widget from its parent, so the widget will become root.
     #[inline]
     fn unlink_node_internal(&mut self, node_handle: Handle<UiNode>) {
         // Replace parent handle of child
@@ -2534,9 +2559,9 @@ impl UserInterface {
     /// Use [WidgetMessage::remove](enum.WidgetMessage.html#method.remove) to unlink
     /// a node at runtime!
     #[inline]
-    fn unlink_node(&mut self, node_handle: Handle<UiNode>) {
+    pub fn unlink_node(&mut self, node_handle: Handle<UiNode>) {
         self.unlink_node_internal(node_handle);
-        self.link_nodes_internal(node_handle, self.root_canvas, false);
+        self.link_nodes(node_handle, self.root_canvas, false);
     }
 
     #[inline]
