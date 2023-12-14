@@ -1,4 +1,3 @@
-use crate::world::WorldViewerItemContextMenu;
 use crate::{
     make_save_file_selector,
     menu::{create::CreateEntityMenu, create_menu_item, create_menu_item_shortcut},
@@ -9,13 +8,16 @@ use crate::{
             make_delete_selection_command, CommandGroup, GameSceneCommand,
             RevertSceneNodePropertyCommand,
         },
+        controller::SceneController,
         GameScene, Selection,
     },
     settings::Settings,
-    utils, Engine, Message, MessageDirection, PasteCommand,
+    utils,
+    world::WorldViewerItemContextMenu,
+    Engine, Message, MessageDirection, PasteCommand,
 };
-use fyrox::asset::untyped::UntypedResource;
 use fyrox::{
+    asset::untyped::UntypedResource,
     core::{algebra::Vector2, pool::Handle, reflect::Reflect, scope_profile},
     gui::{
         file_browser::FileSelectorMessage,
@@ -28,8 +30,7 @@ use fyrox::{
         BuildContext, RcUiNodeHandle, UiNode,
     },
 };
-use std::any::TypeId;
-use std::path::PathBuf;
+use std::{any::TypeId, path::PathBuf};
 
 pub struct SceneNodeContextMenu {
     menu: RcUiNodeHandle,
@@ -161,19 +162,28 @@ impl SceneNodeContextMenu {
         &mut self,
         message: &UiMessage,
         editor_selection: &Selection,
-        game_scene: &mut GameScene,
-        engine: &Engine,
+        controller: &mut dyn SceneController,
+        engine: &mut Engine,
         sender: &MessageSender,
         settings: &Settings,
     ) {
         scope_profile!();
 
-        if let Selection::Graph(graph_selection) = editor_selection {
-            if let Some(first) = graph_selection.nodes().first() {
-                if let Some(node) = self.create_entity_menu.handle_ui_message(message) {
+        if let Some(node) = self
+            .create_entity_menu
+            .handle_ui_message(message, sender, controller)
+        {
+            if let Selection::Graph(graph_selection) = editor_selection {
+                if let Some(first) = graph_selection.nodes().first() {
                     sender.do_scene_command(AddNodeCommand::new(node, *first, true));
-                } else if let Some(replacement) = self.replace_with_menu.handle_ui_message(message)
-                {
+                }
+            }
+        } else if let Some(replacement) = self
+            .replace_with_menu
+            .handle_ui_message(message, sender, controller)
+        {
+            if let Selection::Graph(graph_selection) = editor_selection {
+                if let Some(first) = graph_selection.nodes().first() {
                     sender.do_scene_command(ReplaceNodeCommand {
                         handle: *first,
                         node: replacement,
@@ -182,117 +192,120 @@ impl SceneNodeContextMenu {
             }
         }
 
-        if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
-            if message.destination() == self.delete_selection {
-                if settings.general.show_node_removal_dialog
-                    && game_scene.is_current_selection_has_external_refs(
-                        editor_selection,
-                        &engine.scenes[game_scene.scene].graph,
-                    )
-                {
-                    sender.send(Message::OpenNodeRemovalDialog);
-                } else {
-                    sender.send(Message::DoGameSceneCommand(make_delete_selection_command(
-                        editor_selection,
-                        game_scene,
-                        engine,
-                    )));
-                }
-            } else if message.destination() == self.copy_selection {
-                if let Selection::Graph(graph_selection) = editor_selection {
-                    game_scene.clipboard.fill_from_selection(
-                        graph_selection,
-                        game_scene.scene,
-                        engine,
-                    );
-                }
-            } else if message.destination() == self.paste {
-                if let Selection::Graph(graph_selection) = editor_selection {
-                    if let Some(first) = graph_selection.nodes.first() {
-                        if !game_scene.clipboard.is_empty() {
-                            sender.do_scene_command(PasteCommand::new(*first));
+        if let Some(game_scene) = controller.downcast_mut::<GameScene>() {
+            if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
+                if message.destination() == self.delete_selection {
+                    if settings.general.show_node_removal_dialog
+                        && game_scene.is_current_selection_has_external_refs(
+                            editor_selection,
+                            &engine.scenes[game_scene.scene].graph,
+                        )
+                    {
+                        sender.send(Message::OpenNodeRemovalDialog);
+                    } else {
+                        sender.send(Message::DoGameSceneCommand(make_delete_selection_command(
+                            editor_selection,
+                            game_scene,
+                            engine,
+                        )));
+                    }
+                } else if message.destination() == self.copy_selection {
+                    if let Selection::Graph(graph_selection) = editor_selection {
+                        game_scene.clipboard.fill_from_selection(
+                            graph_selection,
+                            game_scene.scene,
+                            engine,
+                        );
+                    }
+                } else if message.destination() == self.paste {
+                    if let Selection::Graph(graph_selection) = editor_selection {
+                        if let Some(first) = graph_selection.nodes.first() {
+                            if !game_scene.clipboard.is_empty() {
+                                sender.do_scene_command(PasteCommand::new(*first));
+                            }
                         }
                     }
-                }
-            } else if message.destination() == self.save_as_prefab {
-                engine
-                    .user_interface
-                    .send_message(WindowMessage::open_modal(
-                        self.save_as_prefab_dialog,
-                        MessageDirection::ToWidget,
-                        true,
-                    ));
-                engine
-                    .user_interface
-                    .send_message(FileSelectorMessage::root(
-                        self.save_as_prefab_dialog,
-                        MessageDirection::ToWidget,
-                        Some(std::env::current_dir().unwrap()),
-                    ));
-            } else if message.destination() == self.make_root {
-                if let Selection::Graph(graph_selection) = editor_selection {
-                    if let Some(first) = graph_selection.nodes.first() {
-                        sender.do_scene_command(SetGraphRootCommand {
-                            root: *first,
-                            revert_list: Default::default(),
-                        });
-                    }
-                }
-            } else if message.destination() == self.open_asset {
-                if let Some(path) =
-                    resource_path_of_first_selected_node(editor_selection, game_scene, engine)
-                {
-                    if utils::is_native_scene(&path) {
-                        sender.send(Message::LoadScene(path));
-                    }
-                }
-            } else if message.destination() == self.reset_inheritable_properties {
-                if let Selection::Graph(graph_selection) = editor_selection {
-                    let scene = &engine.scenes[game_scene.scene];
-                    let mut commands = Vec::new();
-                    for node_handle in graph_selection.nodes.iter() {
-                        if let Some(node) = scene.graph.try_get(*node_handle) {
-                            (node as &dyn Reflect).enumerate_fields_recursively(
-                                &mut |path, _, val| {
-                                    val.as_inheritable_variable(&mut |inheritable| {
-                                        if inheritable.is_some() {
-                                            commands.push(GameSceneCommand::new(
-                                                RevertSceneNodePropertyCommand::new(
-                                                    path.to_string(),
-                                                    *node_handle,
-                                                ),
-                                            ));
-                                        }
-                                    });
-                                },
-                                &[TypeId::of::<UntypedResource>()],
-                            )
+                } else if message.destination() == self.save_as_prefab {
+                    engine
+                        .user_interface
+                        .send_message(WindowMessage::open_modal(
+                            self.save_as_prefab_dialog,
+                            MessageDirection::ToWidget,
+                            true,
+                        ));
+                    engine
+                        .user_interface
+                        .send_message(FileSelectorMessage::root(
+                            self.save_as_prefab_dialog,
+                            MessageDirection::ToWidget,
+                            Some(std::env::current_dir().unwrap()),
+                        ));
+                } else if message.destination() == self.make_root {
+                    if let Selection::Graph(graph_selection) = editor_selection {
+                        if let Some(first) = graph_selection.nodes.first() {
+                            sender.do_scene_command(SetGraphRootCommand {
+                                root: *first,
+                                revert_list: Default::default(),
+                            });
                         }
                     }
-                    sender.do_scene_command(CommandGroup::from(commands));
+                } else if message.destination() == self.open_asset {
+                    if let Some(path) =
+                        resource_path_of_first_selected_node(editor_selection, game_scene, engine)
+                    {
+                        if utils::is_native_scene(&path) {
+                            sender.send(Message::LoadScene(path));
+                        }
+                    }
+                } else if message.destination() == self.reset_inheritable_properties {
+                    if let Selection::Graph(graph_selection) = editor_selection {
+                        let scene = &engine.scenes[game_scene.scene];
+                        let mut commands = Vec::new();
+                        for node_handle in graph_selection.nodes.iter() {
+                            if let Some(node) = scene.graph.try_get(*node_handle) {
+                                (node as &dyn Reflect).enumerate_fields_recursively(
+                                    &mut |path, _, val| {
+                                        val.as_inheritable_variable(&mut |inheritable| {
+                                            if inheritable.is_some() {
+                                                commands.push(GameSceneCommand::new(
+                                                    RevertSceneNodePropertyCommand::new(
+                                                        path.to_string(),
+                                                        *node_handle,
+                                                    ),
+                                                ));
+                                            }
+                                        });
+                                    },
+                                    &[TypeId::of::<UntypedResource>()],
+                                )
+                            }
+                        }
+                        sender.do_scene_command(CommandGroup::from(commands));
+                    }
                 }
-            }
-        } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == *self.menu {
-                self.placement_target = *target;
+            } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data()
+            {
+                if message.destination() == *self.menu {
+                    self.placement_target = *target;
 
-                // Check if there's something to paste and deactivate "Paste" if nothing.
-                engine.user_interface.send_message(WidgetMessage::enabled(
-                    self.paste,
-                    MessageDirection::ToWidget,
-                    !game_scene.clipboard.is_empty(),
-                ));
+                    // Check if there's something to paste and deactivate "Paste" if nothing.
+                    engine.user_interface.send_message(WidgetMessage::enabled(
+                        self.paste,
+                        MessageDirection::ToWidget,
+                        !game_scene.clipboard.is_empty(),
+                    ));
 
-                engine.user_interface.send_message(WidgetMessage::enabled(
-                    self.open_asset,
-                    MessageDirection::ToWidget,
-                    resource_path_of_first_selected_node(editor_selection, game_scene, engine)
-                        .map_or(false, |p| utils::is_native_scene(&p)),
-                ));
-            }
-        } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
-            if message.destination() == self.save_as_prefab_dialog {
-                sender.send(Message::SaveSelectionAsPrefab(path.clone()));
+                    engine.user_interface.send_message(WidgetMessage::enabled(
+                        self.open_asset,
+                        MessageDirection::ToWidget,
+                        resource_path_of_first_selected_node(editor_selection, game_scene, engine)
+                            .map_or(false, |p| utils::is_native_scene(&p)),
+                    ));
+                }
+            } else if let Some(FileSelectorMessage::Commit(path)) = message.data() {
+                if message.destination() == self.save_as_prefab_dialog {
+                    sender.send(Message::SaveSelectionAsPrefab(path.clone()));
+                }
             }
         }
     }

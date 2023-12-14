@@ -1,5 +1,8 @@
+use crate::scene::controller::SceneController;
+use crate::scene::ui::UiScene;
 use crate::{
     create_terrain_layer_material,
+    menu::ui::UiMenu,
     menu::{
         animation::AnimationMenu, create_menu_item, create_root_menu_item, dim2::Dim2Menu,
         physics::PhysicsMenu, physics2d::Physics2dMenu,
@@ -62,10 +65,13 @@ impl CreateEntityRootMenu {
         &mut self,
         message: &UiMessage,
         sender: &MessageSender,
-        parent: Handle<Node>,
+        controller: &mut dyn SceneController,
     ) {
-        if let Some(node) = self.sub_menus.handle_ui_message(message) {
-            sender.do_scene_command(AddNodeCommand::new(node, parent, true));
+        if let Some(node) = self
+            .sub_menus
+            .handle_ui_message(message, sender, controller)
+        {
+            sender.do_scene_command(AddNodeCommand::new(node, Handle::NONE, true));
         }
     }
 
@@ -100,6 +106,7 @@ pub struct CreateEntityMenu {
     physics2d_menu: Physics2dMenu,
     dim2_menu: Dim2Menu,
     animation_menu: AnimationMenu,
+    ui_menu: UiMenu,
 }
 
 impl CreateEntityMenu {
@@ -126,7 +133,10 @@ impl CreateEntityMenu {
         let dim2_menu = Dim2Menu::new(ctx);
         let animation_menu = AnimationMenu::new(ctx);
 
+        let ui_menu = UiMenu::new(UiMenu::default_entries(), ctx);
+
         let items = vec![
+            ui_menu.menu,
             {
                 create_pivot = create_menu_item("Pivot", vec![], ctx);
                 create_pivot
@@ -243,12 +253,22 @@ impl CreateEntityMenu {
                 physics2d_menu,
                 dim2_menu,
                 animation_menu,
+                ui_menu,
             },
             items,
         )
     }
 
-    pub fn handle_ui_message(&mut self, message: &UiMessage) -> Option<Node> {
+    pub fn handle_ui_message(
+        &mut self,
+        message: &UiMessage,
+        sender: &MessageSender,
+        controller: &mut dyn SceneController,
+    ) -> Option<Node> {
+        if let Some(ui_scene) = controller.downcast_mut::<UiScene>() {
+            self.ui_menu.handle_ui_message(sender, message, ui_scene);
+        }
+
         self.physics_menu
             .handle_ui_message(message)
             .or_else(|| self.physics2d_menu.handle_ui_message(message))

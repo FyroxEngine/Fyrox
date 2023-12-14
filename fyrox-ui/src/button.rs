@@ -263,8 +263,8 @@ impl ButtonBuilder {
         self
     }
 
-    /// Finishes button build and adds to the user interface and returns its handle.
-    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+    /// Finishes building a button.
+    pub fn build_node(self, ctx: &mut BuildContext) -> UiNode {
         let content = self.content.map(|c| c.build(ctx)).unwrap_or_default();
 
         let back = self.back.unwrap_or_else(|| {
@@ -286,11 +286,16 @@ impl ButtonBuilder {
             ctx.link(content, back);
         }
 
-        let button = Button {
+        UiNode::new(Button {
             widget: self.widget_builder.with_child(back).build(),
             decorator: back,
             content,
-        };
-        ctx.add_node(UiNode::new(button))
+        })
+    }
+
+    /// Finishes button build and adds to the user interface and returns its handle.
+    pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
+        let node = self.build_node(ctx);
+        ctx.add_node(node)
     }
 }

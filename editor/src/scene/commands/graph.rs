@@ -365,7 +365,14 @@ impl GameSceneCommandTrait for AddNodeCommand {
             });
         }
 
-        context.scene.graph.link_nodes(self.handle, self.parent)
+        context.scene.graph.link_nodes(
+            self.handle,
+            if self.parent.is_none() {
+                *context.scene_content_root
+            } else {
+                self.parent
+            },
+        )
     }
 
     fn revert(&mut self, context: &mut GameSceneContext) {

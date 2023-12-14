@@ -5,7 +5,7 @@ use crate::{
         utils::UtilsMenu, view::ViewMenu,
     },
     message::MessageSender,
-    scene::{container::EditorSceneEntry, GameScene},
+    scene::container::EditorSceneEntry,
     send_sync_message,
     settings::Settings,
     utils::ragdoll::RagdollWizard,
@@ -29,6 +29,7 @@ pub mod file;
 pub mod help;
 pub mod physics;
 pub mod physics2d;
+pub mod ui;
 pub mod utils;
 pub mod view;
 
@@ -175,13 +176,11 @@ impl Menu {
                 ctx.engine,
             );
 
-            if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
-                self.create_entity_menu.handle_ui_message(
-                    message,
-                    &self.message_sender,
-                    game_scene.scene_content_root,
-                );
-            }
+            self.create_entity_menu.handle_ui_message(
+                message,
+                &self.message_sender,
+                &mut *entry.controller,
+            );
         }
 
         self.utils_menu
