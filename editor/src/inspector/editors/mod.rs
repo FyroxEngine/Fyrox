@@ -133,7 +133,8 @@ pub fn make_status_enum_editor_definition() -> EnumPropertyEditorDefinition<Stat
 pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorDefinitionContainer {
     let container = PropertyEditorDefinitionContainer::new();
 
-    container.insert(TexturePropertyEditorDefinition);
+    container.insert(TexturePropertyEditorDefinition { untyped: false });
+    container.insert(TexturePropertyEditorDefinition { untyped: true });
     container.insert(FontPropertyEditorDefinition);
     container.insert(InheritablePropertyEditorDefinition::<Option<TextureResource>>::new());
     container.register_inheritable_vec_collection::<Option<TextureResource>>();

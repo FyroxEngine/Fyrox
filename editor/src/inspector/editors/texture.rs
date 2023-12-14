@@ -1,4 +1,5 @@
 use crate::{asset::item::AssetItem, inspector::EditorEnvironment};
+use fyrox::asset::untyped::UntypedResource;
 use fyrox::core::uuid_provider;
 use fyrox::{
     asset::manager::ResourceManager,
@@ -160,18 +161,36 @@ impl TextureEditorBuilder {
 }
 
 #[derive(Debug)]
-pub struct TexturePropertyEditorDefinition;
+pub struct TexturePropertyEditorDefinition {
+    pub untyped: bool,
+}
+
+impl TexturePropertyEditorDefinition {
+    fn value(&self, field_info: &FieldInfo) -> Result<Option<TextureResource>, InspectorError> {
+        if self.untyped {
+            let value = field_info.cast_value::<Option<UntypedResource>>()?;
+            let casted = value.as_ref().and_then(|r| r.try_cast::<Texture>());
+            Ok(casted)
+        } else {
+            Ok(field_info.cast_value::<Option<TextureResource>>()?.clone())
+        }
+    }
+}
 
 impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
     fn value_type_id(&self) -> TypeId {
-        TypeId::of::<Option<TextureResource>>()
+        if self.untyped {
+            TypeId::of::<Option<UntypedResource>>()
+        } else {
+            TypeId::of::<Option<TextureResource>>()
+        }
     }
 
     fn create_instance(
         &self,
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
-        let value = ctx.property_info.cast_value::<Option<TextureResource>>()?;
+        let value = self.value(ctx.property_info)?;
 
         Ok(PropertyEditorInstance::Simple {
             editor: TextureEditorBuilder::new(
@@ -195,7 +214,7 @@ impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
         &self,
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
-        let value = ctx.property_info.cast_value::<Option<TextureResource>>()?;
+        let value = self.value(ctx.property_info)?;
 
         Ok(Some(TextureEditorMessage::texture(
             ctx.instance,
@@ -212,7 +231,11 @@ impl PropertyEditorDefinition for TexturePropertyEditorDefinition {
                 return Some(PropertyChanged {
                     owner_type_id: ctx.owner_type_id,
                     name: ctx.name.to_string(),
-                    value: FieldKind::object(value.clone()),
+                    value: if self.untyped {
+                        FieldKind::object(value.clone().map(|r| r.into_untyped()))
+                    } else {
+                        FieldKind::object(value.clone())
+                    },
                 });
             }
         }
