@@ -6,7 +6,38 @@ use fyrox::{
     core::pool::Handle,
     fxhash::FxHashMap,
     gui::{
-        button::ButtonBuilder, menu::MenuItemMessage, message::UiMessage, widget::WidgetBuilder,
+        border::BorderBuilder,
+        button::ButtonBuilder,
+        canvas::CanvasBuilder,
+        check_box::CheckBoxBuilder,
+        decorator::DecoratorBuilder,
+        dropdown_list::DropdownListBuilder,
+        expander::ExpanderBuilder,
+        grid::GridBuilder,
+        image::ImageBuilder,
+        list_view::ListViewBuilder,
+        menu::MenuItemMessage,
+        menu::{MenuBuilder, MenuItemBuilder},
+        message::UiMessage,
+        messagebox::MessageBoxBuilder,
+        nine_patch::NinePatchBuilder,
+        numeric::NumericUpDownBuilder,
+        path::PathEditorBuilder,
+        popup::PopupBuilder,
+        progress_bar::ProgressBarBuilder,
+        scroll_bar::ScrollBarBuilder,
+        scroll_viewer::ScrollViewerBuilder,
+        searchbar::SearchBarBuilder,
+        stack_panel::StackPanelBuilder,
+        tab_control::TabControlBuilder,
+        text::TextBuilder,
+        text_box::TextBoxBuilder,
+        tree::{TreeBuilder, TreeRootBuilder},
+        uuid::UuidEditorBuilder,
+        vector_image::VectorImageBuilder,
+        widget::WidgetBuilder,
+        window::WindowBuilder,
+        wrap_panel::WrapPanelBuilder,
         BuildContext, UiNode,
     },
 };
@@ -22,14 +53,134 @@ pub struct UiMenuEntry {
     pub constructor: Box<dyn FnMut(&str, &mut BuildContext) -> Handle<UiNode>>,
 }
 
+impl UiMenuEntry {
+    pub fn new<P, F>(name: P, constructor: F) -> Self
+    where
+        P: AsRef<str>,
+        F: FnMut(&str, &mut BuildContext) -> Handle<UiNode> + 'static,
+    {
+        Self {
+            name: name.as_ref().to_owned(),
+            constructor: Box::new(constructor),
+        }
+    }
+}
+
 impl UiMenu {
     pub fn default_entries() -> Vec<UiMenuEntry> {
-        vec![UiMenuEntry {
-            name: "Button".to_string(),
-            constructor: Box::new(|name, ctx| {
-                ButtonBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+        vec![
+            UiMenuEntry::new("Button", |name, ctx| {
+                ButtonBuilder::new(
+                    WidgetBuilder::new()
+                        .with_width(100.0)
+                        .with_height(20.0)
+                        .with_name(name),
+                )
+                .build(ctx)
             }),
-        }]
+            UiMenuEntry::new("Image", |name, ctx| {
+                ImageBuilder::new(
+                    WidgetBuilder::new()
+                        .with_height(32.0)
+                        .with_width(32.0)
+                        .with_name(name),
+                )
+                .build(ctx)
+            }),
+            UiMenuEntry::new("Canvas", |name, ctx| {
+                CanvasBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("Grid", |name, ctx| {
+                GridBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("CheckBox", |name, ctx| {
+                CheckBoxBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("Decorator", |name, ctx| {
+                DecoratorBuilder::new(BorderBuilder::new(WidgetBuilder::new().with_name(name)))
+                    .build(ctx)
+            }),
+            UiMenuEntry::new("DropdownList", |name, ctx| {
+                DropdownListBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("Expander", |name, ctx| {
+                ExpanderBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("ListView", |name, ctx| {
+                ListViewBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("Menu", |name, ctx| {
+                MenuBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("MenuItem", |name, ctx| {
+                MenuItemBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("MessageBox", |name, ctx| {
+                MessageBoxBuilder::new(WindowBuilder::new(WidgetBuilder::new().with_name(name)))
+                    .build(ctx)
+            }),
+            UiMenuEntry::new("NinePatch", |name, ctx| {
+                NinePatchBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("NumericUpDownF32", |name, ctx| {
+                NumericUpDownBuilder::<f32>::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("NumericUpDownI32", |name, ctx| {
+                NumericUpDownBuilder::<i32>::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("PathEditor", |name, ctx| {
+                PathEditorBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("Popup", |name, ctx| {
+                PopupBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("ProgressBar", |name, ctx| {
+                ProgressBarBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("ScrollBar", |name, ctx| {
+                ScrollBarBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("ScrollViewer", |name, ctx| {
+                ScrollViewerBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("SearchBar", |name, ctx| {
+                SearchBarBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("StackPanel", |name, ctx| {
+                StackPanelBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("TabControl", |name, ctx| {
+                TabControlBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("Text", |name, ctx| {
+                TextBuilder::new(WidgetBuilder::new().with_name(name))
+                    .with_text("Text")
+                    .build(ctx)
+            }),
+            UiMenuEntry::new("TextBox", |name, ctx| {
+                TextBoxBuilder::new(WidgetBuilder::new().with_name(name))
+                    .with_text("Text")
+                    .build(ctx)
+            }),
+            UiMenuEntry::new("Tree", |name, ctx| {
+                TreeBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("TreeRoot", |name, ctx| {
+                TreeRootBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("UuidEditor", |name, ctx| {
+                UuidEditorBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("VectorImage", |name, ctx| {
+                VectorImageBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("Window", |name, ctx| {
+                WindowBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("WrapPanel", |name, ctx| {
+                WrapPanelBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+        ]
     }
 
     pub fn new(entries: Vec<UiMenuEntry>, ctx: &mut BuildContext) -> Self {
