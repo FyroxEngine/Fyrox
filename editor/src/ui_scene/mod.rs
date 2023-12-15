@@ -299,6 +299,8 @@ impl SceneController for UiScene {
                 self.render_target =
                     TextureResource::new_render_target(frame_size.x as u32, frame_size.y as u32);
                 new_render_target = Some(self.render_target.clone());
+
+                self.ui.invalidate_layout();
             }
         }
 
