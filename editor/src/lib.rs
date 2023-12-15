@@ -70,19 +70,19 @@ use crate::{
             make_delete_selection_command, ChangeSelectionCommand, GameSceneCommand,
             GameSceneContext, PasteCommand,
         },
-        container::SceneContainer,
+        container::{EditorSceneEntry, SceneContainer},
         dialog::NodeRemovalDialog,
         settings::SceneSettingsWindow,
         GameScene, Selection,
     },
     scene_viewer::SceneViewer,
     settings::Settings,
+    ui_scene::{commands::UiSceneCommand, utils::UiSceneWorldViewerDataProvider, UiScene},
     utils::{doc::DocWindow, path_fixer::PathFixer, ragdoll::RagdollWizard},
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
-use fyrox::asset::untyped::UntypedResource;
 use fyrox::{
-    asset::{io::FsResourceIo, manager::ResourceManager},
+    asset::{io::FsResourceIo, manager::ResourceManager, untyped::UntypedResource},
     core::{
         algebra::{Matrix3, Vector2},
         color::Color,
@@ -147,8 +147,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::scene::container::EditorSceneEntry;
-use crate::ui_scene::{commands::UiSceneCommand, utils::UiSceneWorldViewerDataProvider, UiScene};
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -647,12 +645,7 @@ impl Editor {
         let ctx = &mut engine.user_interface.build_ctx();
         let navmesh_panel = NavmeshPanel::new(ctx, message_sender.clone());
         let scene_node_context_menu = Rc::new(RefCell::new(SceneNodeContextMenu::new(ctx)));
-        let world_outliner = WorldViewer::new(
-            ctx,
-            message_sender.clone(),
-            &settings,
-            scene_node_context_menu.clone(),
-        );
+        let world_outliner = WorldViewer::new(ctx, message_sender.clone(), &settings);
         let command_stack_viewer = CommandStackViewer::new(ctx, message_sender.clone());
         let log = LogPanel::new(ctx, log_message_receiver);
         let inspector = Inspector::new(ctx, message_sender.clone());
@@ -1903,6 +1896,14 @@ impl Editor {
 
     fn on_scene_changed(&mut self) {
         let ui = &self.engine.user_interface;
+        if let Some(entry) = self.scenes.current_scene_entry_ref() {
+            if entry.controller.downcast_ref::<GameScene>().is_some() {
+                self.world_viewer.item_context_menu = Some(self.scene_node_context_menu.clone());
+            } else {
+                self.world_viewer.item_context_menu = None;
+            }
+        }
+
         self.world_viewer.clear(ui);
         self.animation_editor.clear(ui);
         self.absm_editor.clear(ui);

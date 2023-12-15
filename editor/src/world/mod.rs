@@ -97,7 +97,7 @@ pub struct WorldViewer {
     expand_all: Handle<UiNode>,
     locate_selection: Handle<UiNode>,
     scroll_view: Handle<UiNode>,
-    item_context_menu: Rc<RefCell<dyn WorldViewerItemContextMenu>>,
+    pub item_context_menu: Option<Rc<RefCell<dyn WorldViewerItemContextMenu>>>,
     node_to_view_map: HashMap<ErasedHandle, Handle<UiNode>>,
 }
 
@@ -184,12 +184,7 @@ fn fetch_expanded_state(
 }
 
 impl WorldViewer {
-    pub fn new(
-        ctx: &mut BuildContext,
-        sender: MessageSender,
-        settings: &Settings,
-        item_context_menu: Rc<RefCell<dyn WorldViewerItemContextMenu>>,
-    ) -> Self {
+    pub fn new(ctx: &mut BuildContext, sender: MessageSender, settings: &Settings) -> Self {
         let tree_root;
         let node_path;
         let collapse_all;
@@ -318,7 +313,7 @@ impl WorldViewer {
             collapse_all,
             expand_all,
             scroll_view,
-            item_context_menu,
+            item_context_menu: None,
             node_to_view_map: Default::default(),
             filter: Default::default(),
         }
@@ -469,13 +464,17 @@ impl WorldViewer {
                                 }
                             }
                             if !found {
+                                let menu = self.item_context_menu.as_ref().map_or(
+                                    RcUiNodeHandle::new(Default::default(), ui.sender()),
+                                    |menu| menu.borrow().menu(),
+                                );
                                 let graph_node_item = make_graph_node_item(
                                     data_provider.name_of(child_handle).unwrap_or_default(),
                                     data_provider.is_instance(child_handle),
                                     data_provider.icon_of(child_handle),
                                     child_handle,
                                     &mut ui.build_ctx(),
-                                    self.item_context_menu.borrow().menu(),
+                                    menu,
                                     self.sender.clone(),
                                     fetch_expanded_state(child_handle, data_provider, settings),
                                 );
@@ -497,13 +496,17 @@ impl WorldViewer {
                 if tree_root.items.is_empty()
                     || tree_node(ui, tree_root.items[0]) != data_provider.root_node()
                 {
+                    let menu = self.item_context_menu.as_ref().map_or(
+                        RcUiNodeHandle::new(Default::default(), ui.sender()),
+                        |menu| menu.borrow().menu(),
+                    );
                     let new_root_item = make_graph_node_item(
                         data_provider.name_of(node_handle).unwrap_or_default(),
                         data_provider.is_instance(node_handle),
                         data_provider.icon_of(node_handle),
                         node_handle,
                         &mut ui.build_ctx(),
-                        self.item_context_menu.borrow().menu(),
+                        menu,
                         self.sender.clone(),
                         fetch_expanded_state(node_handle, data_provider, settings),
                     );
