@@ -262,7 +262,7 @@ impl SceneController for UiScene {
                     self.render_target.clone(),
                     self.ui.screen_size(),
                     self.ui.get_drawing_context(),
-                    Color::DARK_GRAY,
+                    Color::DIM_GRAY,
                     PixelKind::RGBA8,
                 ),
         );
