@@ -92,7 +92,7 @@ impl WidgetContextMenu {
         sender: &MessageSender,
     ) {
         self.create_entity_menu
-            .handle_ui_message(message, sender, controller);
+            .handle_ui_message(message, sender, controller, editor_selection);
 
         if let Some(ui_scene) = controller.downcast_mut::<UiScene>() {
             if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {

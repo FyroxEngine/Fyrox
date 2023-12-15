@@ -169,18 +169,18 @@ impl SceneNodeContextMenu {
     ) {
         scope_profile!();
 
-        if let Some(node) = self
-            .create_entity_menu
-            .handle_ui_message(message, sender, controller)
+        if let Some(node) =
+            self.create_entity_menu
+                .handle_ui_message(message, sender, controller, editor_selection)
         {
             if let Selection::Graph(graph_selection) = editor_selection {
                 if let Some(first) = graph_selection.nodes().first() {
                     sender.do_scene_command(AddNodeCommand::new(node, *first, true));
                 }
             }
-        } else if let Some(replacement) = self
-            .replace_with_menu
-            .handle_ui_message(message, sender, controller)
+        } else if let Some(replacement) =
+            self.replace_with_menu
+                .handle_ui_message(message, sender, controller, editor_selection)
         {
             if let Selection::Graph(graph_selection) = editor_selection {
                 if let Some(first) = graph_selection.nodes().first() {

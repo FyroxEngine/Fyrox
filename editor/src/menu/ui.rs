@@ -1,3 +1,4 @@
+use crate::scene::Selection;
 use crate::{
     menu::create_menu_item, message::MessageSender, ui_scene::commands::graph::AddWidgetCommand,
     ui_scene::UiScene,
@@ -209,12 +210,18 @@ impl UiMenu {
         sender: &MessageSender,
         message: &UiMessage,
         scene: &mut UiScene,
+        selection: &Selection,
     ) {
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if let Some(entry) = self.constructors.get_mut(&message.destination()) {
                 let ui_node_handle = (entry.constructor)(&entry.name, &mut scene.ui.build_ctx());
                 let sub_graph = scene.ui.take_reserve_sub_graph(ui_node_handle);
-                sender.do_ui_scene_command(AddWidgetCommand::new(sub_graph, Handle::NONE, true));
+                let parent = if let Selection::Ui(selection) = selection {
+                    selection.widgets.first().cloned().unwrap_or_default()
+                } else {
+                    Handle::NONE
+                };
+                sender.do_ui_scene_command(AddWidgetCommand::new(sub_graph, parent, true));
             }
         }
     }

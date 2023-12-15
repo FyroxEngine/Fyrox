@@ -1,4 +1,5 @@
 use crate::scene::controller::SceneController;
+use crate::scene::Selection;
 use crate::ui_scene::UiScene;
 use crate::{
     create_terrain_layer_material,
@@ -66,10 +67,11 @@ impl CreateEntityRootMenu {
         message: &UiMessage,
         sender: &MessageSender,
         controller: &mut dyn SceneController,
+        selection: &Selection,
     ) {
         if let Some(node) = self
             .sub_menus
-            .handle_ui_message(message, sender, controller)
+            .handle_ui_message(message, sender, controller, selection)
         {
             sender.do_scene_command(AddNodeCommand::new(node, Handle::NONE, true));
         }
@@ -264,9 +266,11 @@ impl CreateEntityMenu {
         message: &UiMessage,
         sender: &MessageSender,
         controller: &mut dyn SceneController,
+        selection: &Selection,
     ) -> Option<Node> {
         if let Some(ui_scene) = controller.downcast_mut::<UiScene>() {
-            self.ui_menu.handle_ui_message(sender, message, ui_scene);
+            self.ui_menu
+                .handle_ui_message(sender, message, ui_scene, selection);
         }
 
         self.physics_menu

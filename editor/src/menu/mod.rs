@@ -180,6 +180,7 @@ impl Menu {
                 message,
                 &self.message_sender,
                 &mut *entry.controller,
+                &entry.selection,
             );
         }
 
