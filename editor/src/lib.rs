@@ -147,6 +147,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::ui_scene::menu::WidgetContextMenu;
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -515,6 +516,7 @@ pub struct Editor {
     pub is_suspended: bool,
     pub ragdoll_wizard: RagdollWizard,
     pub scene_node_context_menu: Rc<RefCell<SceneNodeContextMenu>>,
+    pub widget_context_menu: Rc<RefCell<WidgetContextMenu>>,
     pub widget_constructors: Arc<WidgetConstructorContainer>,
 }
 
@@ -645,6 +647,7 @@ impl Editor {
         let ctx = &mut engine.user_interface.build_ctx();
         let navmesh_panel = NavmeshPanel::new(ctx, message_sender.clone());
         let scene_node_context_menu = Rc::new(RefCell::new(SceneNodeContextMenu::new(ctx)));
+        let widget_context_menu = Rc::new(RefCell::new(WidgetContextMenu::new(ctx)));
         let world_outliner = WorldViewer::new(ctx, message_sender.clone(), &settings);
         let command_stack_viewer = CommandStackViewer::new(ctx, message_sender.clone());
         let log = LogPanel::new(ctx, log_message_receiver);
@@ -892,6 +895,7 @@ impl Editor {
             ragdoll_wizard,
             scene_node_context_menu,
             widget_constructors: Arc::new(WidgetConstructorContainer::new()),
+            widget_context_menu,
         };
 
         if let Some(data) = startup_data {
@@ -1320,19 +1324,26 @@ impl Editor {
 
                 self.light_panel
                     .handle_ui_message(message, game_scene, engine);
-            } else if let Some(game_scene) =
-                current_scene_entry.controller.downcast_mut::<UiScene>()
+            } else if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>()
             {
                 self.world_viewer.handle_ui_message(
                     message,
                     &UiSceneWorldViewerDataProvider {
-                        ui: &game_scene.ui,
+                        ui: &ui_scene.ui,
                         path: current_scene_entry.path.as_deref(),
                         selection: &current_scene_entry.selection,
                         sender: &self.message_sender,
                     },
                     engine,
                     &mut self.settings,
+                );
+
+                self.widget_context_menu.borrow_mut().handle_ui_message(
+                    message,
+                    &current_scene_entry.selection,
+                    ui_scene,
+                    engine,
+                    &self.message_sender,
                 );
             }
 
@@ -1899,6 +1910,8 @@ impl Editor {
         if let Some(entry) = self.scenes.current_scene_entry_ref() {
             if entry.controller.downcast_ref::<GameScene>().is_some() {
                 self.world_viewer.item_context_menu = Some(self.scene_node_context_menu.clone());
+            } else if entry.controller.downcast_ref::<UiScene>().is_some() {
+                self.world_viewer.item_context_menu = Some(self.widget_context_menu.clone());
             } else {
                 self.world_viewer.item_context_menu = None;
             }

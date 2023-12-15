@@ -1,5 +1,7 @@
+pub mod clipboard;
 pub mod commands;
 pub mod interaction;
+pub mod menu;
 pub mod selection;
 pub mod utils;
 
@@ -9,18 +11,15 @@ use crate::{
     scene::{controller::SceneController, selector::HierarchyNode, Selection},
     settings::{keys::KeyBindings, Settings},
     ui_scene::{
-        commands::ChangeUiSelectionCommand,
+        clipboard::Clipboard,
         commands::{
-            make_set_widget_property_command, UiCommand, UiCommandGroup, UiCommandStack,
-            UiSceneContext,
+            make_set_widget_property_command, ChangeUiSelectionCommand, UiCommand, UiCommandGroup,
+            UiCommandStack, UiSceneContext,
         },
         selection::UiSelection,
     },
     Message,
 };
-use fyrox::gui::brush::Brush;
-use fyrox::gui::draw::{CommandTexture, Draw};
-use fyrox::renderer::framework::gpu_texture::PixelKind;
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -32,10 +31,13 @@ use fyrox::{
     },
     engine::Engine,
     gui::{
+        brush::Brush,
+        draw::{CommandTexture, Draw},
         inspector::PropertyChanged,
         message::{KeyCode, MessageDirection, MouseButton},
         UiNode, UserInterface,
     },
+    renderer::framework::gpu_texture::PixelKind,
     resource::texture::{TextureKind, TextureResource, TextureResourceExtension},
     scene::SceneContainer,
 };
@@ -46,6 +48,7 @@ pub struct UiScene {
     pub render_target: TextureResource,
     pub command_stack: UiCommandStack,
     pub message_sender: MessageSender,
+    pub clipboard: Clipboard,
 }
 
 impl UiScene {
@@ -55,6 +58,7 @@ impl UiScene {
             render_target: TextureResource::new_render_target(200, 200),
             command_stack: UiCommandStack::new(false),
             message_sender,
+            clipboard: Default::default(),
         }
     }
 
@@ -70,6 +74,7 @@ impl UiScene {
                 ui: &mut self.ui,
                 selection,
                 message_sender: &self.message_sender,
+                clipboard: &mut self.clipboard,
             },
         );
 
@@ -206,6 +211,7 @@ impl SceneController for UiScene {
             ui: &mut self.ui,
             selection,
             message_sender: &self.message_sender,
+            clipboard: &mut self.clipboard,
         });
 
         self.ui.invalidate_layout();
@@ -216,6 +222,7 @@ impl SceneController for UiScene {
             ui: &mut self.ui,
             selection,
             message_sender: &self.message_sender,
+            clipboard: &mut self.clipboard,
         });
 
         self.ui.invalidate_layout();
@@ -226,6 +233,7 @@ impl SceneController for UiScene {
             ui: &mut self.ui,
             selection,
             message_sender: &self.message_sender,
+            clipboard: &mut self.clipboard,
         });
 
         self.ui.invalidate_layout();
@@ -354,6 +362,7 @@ impl SceneController for UiScene {
                     ui: &mut self.ui,
                     selection,
                     message_sender: &self.message_sender,
+                    clipboard: &mut self.clipboard,
                 })
             })
             .collect::<Vec<_>>()

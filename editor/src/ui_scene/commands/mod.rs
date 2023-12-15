@@ -1,5 +1,6 @@
 pub mod graph;
 
+use crate::ui_scene::clipboard::Clipboard;
 use crate::{
     define_command_stack, define_universal_commands, message::MessageSender, scene::Selection,
     Message,
@@ -19,6 +20,7 @@ pub struct UiSceneContext<'a> {
     pub ui: &'a mut UserInterface,
     pub selection: &'a mut Selection,
     pub message_sender: &'a MessageSender,
+    pub clipboard: &'a mut Clipboard,
 }
 
 #[derive(Debug)]

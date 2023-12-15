@@ -1,5 +1,6 @@
 //! Ui graph manipulation commands.
 
+use crate::ui_scene::clipboard::DeepCloneResult;
 use crate::{
     scene::Selection,
     ui_scene::{
@@ -155,6 +156,118 @@ impl UiCommand for DeleteWidgetsSubGraphCommand {
     fn finalize(&mut self, context: &mut UiSceneContext) {
         if let Some(sub_graph) = self.sub_graph.take() {
             context.ui.forget_sub_graph(sub_graph)
+        }
+    }
+}
+
+#[derive(Debug)]
+enum PasteWidgetCommandState {
+    Undefined,
+    NonExecuted,
+    Reverted {
+        subgraphs: Vec<SubGraph>,
+        selection: Selection,
+    },
+    Executed {
+        paste_result: DeepCloneResult,
+        last_selection: Selection,
+    },
+}
+
+#[derive(Debug)]
+pub struct PasteWidgetCommand {
+    parent: Handle<UiNode>,
+    state: PasteWidgetCommandState,
+}
+
+impl PasteWidgetCommand {
+    pub fn new(parent: Handle<UiNode>) -> Self {
+        Self {
+            parent,
+            state: PasteWidgetCommandState::NonExecuted,
+        }
+    }
+}
+
+impl UiCommand for PasteWidgetCommand {
+    fn name(&mut self, _context: &UiSceneContext) -> String {
+        "Paste".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut UiSceneContext) {
+        match std::mem::replace(&mut self.state, PasteWidgetCommandState::Undefined) {
+            PasteWidgetCommandState::NonExecuted => {
+                let paste_result = context.clipboard.paste(context.ui);
+
+                for &handle in paste_result.root_nodes.iter() {
+                    context.ui.link_nodes(handle, self.parent, false);
+                }
+
+                let mut selection = Selection::Ui(UiSelection {
+                    widgets: paste_result.root_nodes.clone(),
+                });
+                std::mem::swap(context.selection, &mut selection);
+
+                self.state = PasteWidgetCommandState::Executed {
+                    paste_result,
+                    last_selection: selection,
+                };
+            }
+            PasteWidgetCommandState::Reverted {
+                subgraphs,
+                mut selection,
+            } => {
+                let mut paste_result = DeepCloneResult {
+                    ..Default::default()
+                };
+
+                for subgraph in subgraphs {
+                    paste_result
+                        .root_nodes
+                        .push(context.ui.put_sub_graph_back(subgraph));
+                }
+
+                for &handle in paste_result.root_nodes.iter() {
+                    context.ui.link_nodes(handle, self.parent, false);
+                }
+
+                std::mem::swap(context.selection, &mut selection);
+                self.state = PasteWidgetCommandState::Executed {
+                    paste_result,
+                    last_selection: selection,
+                };
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    fn revert(&mut self, context: &mut UiSceneContext) {
+        if let PasteWidgetCommandState::Executed {
+            paste_result,
+            mut last_selection,
+        } = std::mem::replace(&mut self.state, PasteWidgetCommandState::Undefined)
+        {
+            let mut subgraphs = Vec::new();
+            for root_node in paste_result.root_nodes {
+                subgraphs.push(context.ui.take_reserve_sub_graph(root_node));
+            }
+
+            std::mem::swap(context.selection, &mut last_selection);
+
+            self.state = PasteWidgetCommandState::Reverted {
+                subgraphs,
+                selection: last_selection,
+            };
+        }
+    }
+
+    fn finalize(&mut self, context: &mut UiSceneContext) {
+        if let PasteWidgetCommandState::Reverted { subgraphs, .. } =
+            std::mem::replace(&mut self.state, PasteWidgetCommandState::Undefined)
+        {
+            for subgraph in subgraphs {
+                context.ui.forget_sub_graph(subgraph);
+            }
         }
     }
 }
