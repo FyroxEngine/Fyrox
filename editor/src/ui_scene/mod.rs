@@ -69,6 +69,8 @@ impl UiScene {
                 message_sender: &self.message_sender,
             },
         );
+
+        self.ui.invalidate_layout();
     }
 
     fn select_object(&mut self, handle: ErasedHandle, selection: &Selection) {
@@ -202,6 +204,8 @@ impl SceneController for UiScene {
             selection,
             message_sender: &self.message_sender,
         });
+
+        self.ui.invalidate_layout();
     }
 
     fn redo(&mut self, selection: &mut Selection, _engine: &mut Engine) {
@@ -210,6 +214,8 @@ impl SceneController for UiScene {
             selection,
             message_sender: &self.message_sender,
         });
+
+        self.ui.invalidate_layout();
     }
 
     fn clear_command_stack(&mut self, selection: &mut Selection, _engine: &mut Engine) {
@@ -218,6 +224,8 @@ impl SceneController for UiScene {
             selection,
             message_sender: &self.message_sender,
         });
+
+        self.ui.invalidate_layout();
     }
 
     fn on_before_render(&mut self, engine: &mut Engine) {
