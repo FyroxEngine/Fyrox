@@ -271,11 +271,13 @@ use std::{
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
     sync::Arc,
 };
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
 use fyrox_core::pool::Ticket;
+use fyrox_core::uuid_provider;
 pub use node::*;
 pub use thickness::*;
 
@@ -382,12 +384,28 @@ impl Deref for RcUiNodeHandle {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Visit, Reflect, Default, Serialize, Deserialize)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Visit,
+    Reflect,
+    Default,
+    Serialize,
+    Deserialize,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
 pub enum Orientation {
     #[default]
     Vertical,
     Horizontal,
 }
+
+uuid_provider!(Orientation = "1c6ad1b0-3f4c-48be-87dd-6929cb3577bf");
 
 type NodeHandle = Handle<UiNode>;
 

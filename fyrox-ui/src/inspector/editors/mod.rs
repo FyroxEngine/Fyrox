@@ -74,7 +74,8 @@ use crate::{
     widget::Widget,
     window::Window,
     wrap_panel::WrapPanel,
-    BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
+    BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+    VerticalAlignment,
 };
 use fxhash::FxHashMap;
 use std::{
@@ -321,12 +322,14 @@ impl PropertyEditorDefinitionContainer {
 
         // UI
         container.insert(EnumPropertyEditorDefinition::<Brush>::new());
+        container.insert(EnumPropertyEditorDefinition::<Orientation>::new());
         container.insert(EnumPropertyEditorDefinition::<VerticalAlignment>::new());
         container.insert(EnumPropertyEditorDefinition::<HorizontalAlignment>::new());
         container.insert(EnumPropertyEditorDefinition::<WrapMode>::new());
         container.insert(EnumPropertyEditorDefinition::<SizeMode>::new());
         container.insert(EnumPropertyEditorDefinition::<CursorIcon>::new());
         container.insert(EnumPropertyEditorDefinition::<CursorIcon>::new_optional());
+        container.insert(EnumPropertyEditorDefinition::<bool>::new_optional());
         container.insert(VecCollectionPropertyEditorDefinition::<GradientPoint>::new());
         container.insert(RefCellPropertyEditorDefinition::<FormattedText>::new());
         container.insert(RefCellPropertyEditorDefinition::<Vec<GridDimension>>::new());
