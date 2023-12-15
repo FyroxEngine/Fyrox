@@ -324,6 +324,7 @@ uuid_provider!(f32 = "479e29c6-85fd-4bb8-b311-7b98793b8bf6");
 uuid_provider!(f64 = "dac09d54-d069-47f4-aa0e-aa0057cc2b52");
 uuid_provider!(usize = "620e24e3-fb51-48c6-a885-91d65135c5c9");
 uuid_provider!(isize = "0a06591a-1c66-4299-ba6f-2b205b795575");
+uuid_provider!(bool = "3b104074-9d39-4a2b-b974-da8cc1759fe8");
 
 impl<T: TypeUuidProvider> TypeUuidProvider for Option<T> {
     fn type_uuid() -> Uuid {
