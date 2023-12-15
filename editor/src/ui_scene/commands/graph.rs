@@ -8,13 +8,14 @@ use crate::{
     },
     Message,
 };
+use fyrox::gui::UserInterface;
 use fyrox::{
     core::pool::Handle,
     gui::{SubGraph, UiNode},
 };
 
 #[derive(Debug)]
-pub struct AddUiNodeCommand {
+pub struct AddWidgetCommand {
     sub_graph: Option<SubGraph>,
     handle: Handle<UiNode>,
     parent: Handle<UiNode>,
@@ -22,7 +23,7 @@ pub struct AddUiNodeCommand {
     prev_selection: Selection,
 }
 
-impl AddUiNodeCommand {
+impl AddWidgetCommand {
     pub fn new(sub_graph: SubGraph, parent: Handle<UiNode>, select_added: bool) -> Self {
         Self {
             sub_graph: Some(sub_graph),
@@ -34,9 +35,9 @@ impl AddUiNodeCommand {
     }
 }
 
-impl UiCommand for AddUiNodeCommand {
+impl UiCommand for AddWidgetCommand {
     fn name(&mut self, _context: &UiSceneContext) -> String {
-        "Add Ui Node".to_string()
+        "Add Widget".to_string()
     }
 
     fn execute(&mut self, context: &mut UiSceneContext) {
@@ -81,5 +82,37 @@ impl UiCommand for AddUiNodeCommand {
         if let Some(sub_graph) = self.sub_graph.take() {
             context.ui.forget_sub_graph(sub_graph)
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct LinkWidgetsCommand {
+    child: Handle<UiNode>,
+    parent: Handle<UiNode>,
+}
+
+impl LinkWidgetsCommand {
+    pub fn new(child: Handle<UiNode>, parent: Handle<UiNode>) -> Self {
+        Self { child, parent }
+    }
+
+    fn link(&mut self, ui: &mut UserInterface) {
+        let old_parent = ui.node(self.child).parent();
+        ui.link_nodes(self.child, self.parent, false);
+        self.parent = old_parent;
+    }
+}
+
+impl UiCommand for LinkWidgetsCommand {
+    fn name(&mut self, _context: &UiSceneContext) -> String {
+        "Link Widgets".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut UiSceneContext) {
+        self.link(context.ui);
+    }
+
+    fn revert(&mut self, context: &mut UiSceneContext) {
+        self.link(context.ui);
     }
 }

@@ -1,11 +1,18 @@
 use crate::{
-    message::MessageSender, scene::Selection, ui_scene::commands::ChangeUiSelectionCommand,
-    ui_scene::selection::UiSelection, world::WorldViewerDataProvider,
+    message::MessageSender,
+    scene::Selection,
+    ui_scene::{
+        commands::{
+            graph::LinkWidgetsCommand, ChangeUiSelectionCommand, UiCommandGroup, UiSceneCommand,
+        },
+        selection::UiSelection,
+    },
+    world::WorldViewerDataProvider,
 };
-use fyrox::asset::untyped::UntypedResource;
 use fyrox::{
-    core::{make_pretty_type_name, pool::ErasedHandle, reflect::Reflect},
-    gui::UserInterface,
+    asset::untyped::UntypedResource,
+    core::{make_pretty_type_name, pool::ErasedHandle, pool::Handle, reflect::Reflect},
+    gui::{UiNode, UserInterface},
 };
 use std::{borrow::Cow, path::Path};
 
@@ -87,8 +94,41 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
         }
     }
 
-    fn on_drop(&self, _child: ErasedHandle, _parent: ErasedHandle) {
-        // TODO: Add link widgets command
+    fn on_drop(&self, child: ErasedHandle, parent: ErasedHandle) {
+        let child: Handle<UiNode> = child.into();
+        let parent: Handle<UiNode> = parent.into();
+
+        if let Selection::Ui(ref selection) = self.selection {
+            if selection.widgets.contains(&child) {
+                let mut commands = Vec::new();
+
+                for &widget_handle in selection.widgets.iter() {
+                    // Make sure we won't create any loops - child must not have parent in its
+                    // descendants.
+                    let mut attach = true;
+                    let mut p = parent;
+                    while p.is_some() {
+                        if p == widget_handle {
+                            attach = false;
+                            break;
+                        }
+                        p = self.ui.node(p).parent();
+                    }
+
+                    if attach {
+                        commands.push(UiSceneCommand::new(LinkWidgetsCommand::new(
+                            widget_handle,
+                            parent,
+                        )));
+                    }
+                }
+
+                if !commands.is_empty() {
+                    self.sender
+                        .do_ui_scene_command(UiCommandGroup::from(commands));
+                }
+            }
+        }
     }
 
     fn validate(&self) -> Vec<(ErasedHandle, Result<(), String>)> {

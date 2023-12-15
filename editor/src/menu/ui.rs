@@ -1,5 +1,5 @@
 use crate::{
-    menu::create_menu_item, message::MessageSender, ui_scene::commands::graph::AddUiNodeCommand,
+    menu::create_menu_item, message::MessageSender, ui_scene::commands::graph::AddWidgetCommand,
     ui_scene::UiScene,
 };
 use fyrox::{
@@ -210,7 +210,7 @@ impl UiMenu {
             if let Some(entry) = self.constructors.get_mut(&message.destination()) {
                 let ui_node_handle = (entry.constructor)(&entry.name, &mut scene.ui.build_ctx());
                 let sub_graph = scene.ui.take_reserve_sub_graph(ui_node_handle);
-                sender.do_ui_scene_command(AddUiNodeCommand::new(sub_graph, Handle::NONE, true));
+                sender.do_ui_scene_command(AddWidgetCommand::new(sub_graph, Handle::NONE, true));
             }
         }
     }
