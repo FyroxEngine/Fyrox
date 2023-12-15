@@ -922,6 +922,12 @@ impl UserInterface {
         }
     }
 
+    pub fn invalidate_layout(&mut self) {
+        for node in self.nodes.iter_mut() {
+            node.invalidate_layout();
+        }
+    }
+
     pub fn update(&mut self, screen_size: Vector2<f32>, dt: f32) {
         scope_profile!();
 
