@@ -1102,27 +1102,42 @@ impl Editor {
                 } else if hot_key == key_bindings.remove_selection {
                     if let Some(entry) = self.scenes.current_scene_entry_mut() {
                         if !entry.selection.is_empty() {
-                            if let Selection::Graph(_) = entry.selection {
-                                if let Some(game_scene) =
-                                    entry.controller.downcast_mut::<GameScene>()
-                                {
-                                    if self.settings.general.show_node_removal_dialog
-                                        && game_scene.is_current_selection_has_external_refs(
-                                            &entry.selection,
-                                            &engine.scenes[game_scene.scene].graph,
-                                        )
+                            match entry.selection {
+                                Selection::Graph(_) => {
+                                    if let Some(game_scene) =
+                                        entry.controller.downcast_mut::<GameScene>()
                                     {
-                                        sender.send(Message::OpenNodeRemovalDialog);
-                                    } else {
-                                        sender.send(Message::DoGameSceneCommand(
-                                            make_delete_selection_command(
+                                        if self.settings.general.show_node_removal_dialog
+                                            && game_scene.is_current_selection_has_external_refs(
                                                 &entry.selection,
-                                                game_scene,
-                                                engine,
+                                                &engine.scenes[game_scene.scene].graph,
+                                            )
+                                        {
+                                            sender.send(Message::OpenNodeRemovalDialog);
+                                        } else {
+                                            sender.send(Message::DoGameSceneCommand(
+                                                make_delete_selection_command(
+                                                    &entry.selection,
+                                                    game_scene,
+                                                    engine,
+                                                ),
+                                            ));
+                                        }
+                                    }
+                                }
+                                Selection::Ui(ref selection) => {
+                                    if let Some(ui_scene) =
+                                        entry.controller.downcast_mut::<UiScene>()
+                                    {
+                                        sender.send(Message::DoUiSceneCommand(
+                                            selection.make_deletion_command(
+                                                &ui_scene.ui,
+                                                entry.selection.clone(),
                                             ),
                                         ));
                                     }
                                 }
+                                _ => {}
                             }
                         }
                     }

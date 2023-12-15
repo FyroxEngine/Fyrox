@@ -8,10 +8,9 @@ use crate::{
     },
     Message,
 };
-use fyrox::gui::UserInterface;
 use fyrox::{
     core::pool::Handle,
-    gui::{SubGraph, UiNode},
+    gui::{SubGraph, UiNode, UserInterface},
 };
 
 #[derive(Debug)]
@@ -114,5 +113,48 @@ impl UiCommand for LinkWidgetsCommand {
 
     fn revert(&mut self, context: &mut UiSceneContext) {
         self.link(context.ui);
+    }
+}
+
+#[derive(Debug)]
+pub struct DeleteWidgetsSubGraphCommand {
+    sub_graph_root: Handle<UiNode>,
+    sub_graph: Option<SubGraph>,
+    parent: Handle<UiNode>,
+}
+
+impl DeleteWidgetsSubGraphCommand {
+    pub fn new(sub_graph_root: Handle<UiNode>) -> Self {
+        Self {
+            sub_graph_root,
+            sub_graph: None,
+            parent: Handle::NONE,
+        }
+    }
+}
+
+impl UiCommand for DeleteWidgetsSubGraphCommand {
+    fn name(&mut self, _context: &UiSceneContext) -> String {
+        "Delete Sub Graph".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut UiSceneContext) {
+        self.parent = context.ui.node(self.sub_graph_root).parent();
+        self.sub_graph = Some(context.ui.take_reserve_sub_graph(self.sub_graph_root));
+    }
+
+    fn revert(&mut self, context: &mut UiSceneContext) {
+        context
+            .ui
+            .put_sub_graph_back(self.sub_graph.take().unwrap());
+        context
+            .ui
+            .link_nodes(self.sub_graph_root, self.parent, false);
+    }
+
+    fn finalize(&mut self, context: &mut UiSceneContext) {
+        if let Some(sub_graph) = self.sub_graph.take() {
+            context.ui.forget_sub_graph(sub_graph)
+        }
     }
 }
