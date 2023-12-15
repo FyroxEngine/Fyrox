@@ -735,7 +735,7 @@ impl SceneController for GameScene {
         });
     }
 
-    fn on_before_render(&mut self, engine: &mut Engine) {
+    fn on_before_render(&mut self, _editor_selection: &Selection, engine: &mut Engine) {
         // Temporarily disable cameras in currently edited scene. This is needed to prevent any
         // scene camera to interfere with the editor camera.
         let scene = &mut engine.scenes[self.scene];

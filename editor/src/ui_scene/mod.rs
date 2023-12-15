@@ -18,6 +18,8 @@ use crate::{
     },
     Message,
 };
+use fyrox::gui::brush::Brush;
+use fyrox::gui::draw::{CommandTexture, Draw};
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -228,13 +230,39 @@ impl SceneController for UiScene {
         self.ui.invalidate_layout();
     }
 
-    fn on_before_render(&mut self, engine: &mut Engine) {
+    fn on_before_render(&mut self, editor_selection: &Selection, engine: &mut Engine) {
+        self.ui.draw();
+
+        // Draw selection on top.
+        if let Selection::Ui(selection) = editor_selection {
+            for node in selection.widgets.iter() {
+                if let Some(node) = self.ui.try_get_node(*node) {
+                    let bounds = node.screen_bounds();
+                    let clip_bounds = node.clip_bounds();
+                    let drawing_context = self.ui.get_drawing_context_mut();
+                    drawing_context.push_rect(&bounds, 1.0);
+                    drawing_context.commit(
+                        clip_bounds,
+                        Brush::Solid(Color::GREEN),
+                        CommandTexture::None,
+                        None,
+                    );
+                }
+            }
+        }
+
+        // Render to texture.
         Log::verify(
             engine
                 .graphics_context
                 .as_initialized_mut()
                 .renderer
-                .render_ui_to_texture(self.render_target.clone(), &mut self.ui, Color::DARK_GRAY),
+                .render_ui_to_texture(
+                    self.render_target.clone(),
+                    self.ui.screen_size(),
+                    self.ui.get_drawing_context(),
+                    Color::DARK_GRAY,
+                ),
         );
     }
 

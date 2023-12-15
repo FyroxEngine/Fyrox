@@ -44,7 +44,7 @@ use crate::{
         scope_profile,
         sstorage::ImmutableString,
     },
-    gui::{draw::DrawingContext, UserInterface},
+    gui::draw::DrawingContext,
     material::{
         shader::{SamplerFallback, Shader, ShaderResource, ShaderResourceExtension},
         Material, PropertyValue,
@@ -1455,11 +1455,12 @@ impl Renderer {
     pub fn render_ui_to_texture(
         &mut self,
         render_target: TextureResource,
-        ui: &mut UserInterface,
+        screen_size: Vector2<f32>,
+        drawing_context: &DrawingContext,
         clear_color: Color,
     ) -> Result<(), FrameworkError> {
-        let new_width = ui.screen_size().x as usize;
-        let new_height = ui.screen_size().y as usize;
+        let new_width = screen_size.x as usize;
+        let new_height = screen_size.y as usize;
 
         // Create or reuse existing frame buffer.
         let frame_buffer = match self.ui_frame_buffers.entry(render_target.key()) {
@@ -1469,7 +1470,7 @@ impl Renderer {
                 let color_texture_kind = frame.texture.borrow().kind();
                 if let GpuTextureKind::Rectangle { width, height } = color_texture_kind {
                     if width != new_width || height != new_height {
-                        *frame_buffer = make_ui_frame_buffer(ui.screen_size(), &mut self.state)?;
+                        *frame_buffer = make_ui_frame_buffer(screen_size, &mut self.state)?;
                     }
                 } else {
                     panic!("ui can be rendered only in rectangle texture!")
@@ -1477,7 +1478,7 @@ impl Renderer {
                 frame_buffer
             }
             Entry::Vacant(entry) => {
-                entry.insert(make_ui_frame_buffer(ui.screen_size(), &mut self.state)?)
+                entry.insert(make_ui_frame_buffer(screen_size, &mut self.state)?)
             }
         };
 
@@ -1495,9 +1496,9 @@ impl Renderer {
             state: &mut self.state,
             viewport,
             frame_buffer,
-            frame_width: ui.screen_size().x,
-            frame_height: ui.screen_size().y,
-            drawing_context: ui.draw(),
+            frame_width: screen_size.x,
+            frame_height: screen_size.y,
+            drawing_context,
             white_dummy: self.white_dummy.clone(),
             texture_cache: &mut self.texture_cache,
         })?;

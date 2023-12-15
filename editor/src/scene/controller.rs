@@ -93,7 +93,7 @@ pub trait SceneController: 'static {
 
     fn clear_command_stack(&mut self, selection: &mut Selection, engine: &mut Engine);
 
-    fn on_before_render(&mut self, engine: &mut Engine);
+    fn on_before_render(&mut self, editor_selection: &Selection, engine: &mut Engine);
 
     fn on_after_render(&mut self, engine: &mut Engine);
 

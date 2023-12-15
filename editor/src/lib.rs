@@ -2446,9 +2446,10 @@ impl Editor {
                         }
                         WindowEvent::RedrawRequested => {
                             if self.is_active() {
-                                if let Some(game_scene) = self.scenes.current_scene_controller_mut()
-                                {
-                                    game_scene.on_before_render(&mut self.engine);
+                                if let Some(entry) = self.scenes.current_scene_entry_mut() {
+                                    entry
+                                        .controller
+                                        .on_before_render(&entry.selection, &mut self.engine);
                                 }
 
                                 self.engine.render().unwrap();
