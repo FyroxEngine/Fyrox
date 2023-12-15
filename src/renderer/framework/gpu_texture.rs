@@ -67,7 +67,7 @@ impl GpuTextureKind {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PixelKind {
     R32F,
     R16F,

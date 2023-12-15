@@ -751,6 +751,7 @@ pub struct Renderer {
 fn make_ui_frame_buffer(
     frame_size: Vector2<f32>,
     state: &mut PipelineState,
+    pixel_kind: PixelKind,
 ) -> Result<FrameBuffer, FrameworkError> {
     let color_texture = Rc::new(RefCell::new(GpuTexture::new(
         state,
@@ -758,7 +759,7 @@ fn make_ui_frame_buffer(
             width: frame_size.x as usize,
             height: frame_size.y as usize,
         },
-        PixelKind::SRGBA8,
+        pixel_kind,
         MinificationFilter::Linear,
         MagnificationFilter::Linear,
         1,
@@ -1458,6 +1459,7 @@ impl Renderer {
         screen_size: Vector2<f32>,
         drawing_context: &DrawingContext,
         clear_color: Color,
+        pixel_kind: PixelKind,
     ) -> Result<(), FrameworkError> {
         let new_width = screen_size.x as usize;
         let new_height = screen_size.y as usize;
@@ -1469,17 +1471,23 @@ impl Renderer {
                 let frame = frame_buffer.color_attachments().first().unwrap();
                 let color_texture_kind = frame.texture.borrow().kind();
                 if let GpuTextureKind::Rectangle { width, height } = color_texture_kind {
-                    if width != new_width || height != new_height {
-                        *frame_buffer = make_ui_frame_buffer(screen_size, &mut self.state)?;
+                    if width != new_width
+                        || height != new_height
+                        || frame.texture.borrow().pixel_kind() != pixel_kind
+                    {
+                        *frame_buffer =
+                            make_ui_frame_buffer(screen_size, &mut self.state, pixel_kind)?;
                     }
                 } else {
                     panic!("ui can be rendered only in rectangle texture!")
                 }
                 frame_buffer
             }
-            Entry::Vacant(entry) => {
-                entry.insert(make_ui_frame_buffer(screen_size, &mut self.state)?)
-            }
+            Entry::Vacant(entry) => entry.insert(make_ui_frame_buffer(
+                screen_size,
+                &mut self.state,
+                pixel_kind,
+            )?),
         };
 
         let viewport = Rect::new(0, 0, new_width as i32, new_height as i32);

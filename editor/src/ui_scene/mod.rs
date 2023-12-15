@@ -20,6 +20,7 @@ use crate::{
 };
 use fyrox::gui::brush::Brush;
 use fyrox::gui::draw::{CommandTexture, Draw};
+use fyrox::renderer::framework::gpu_texture::PixelKind;
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -262,6 +263,7 @@ impl SceneController for UiScene {
                     self.ui.screen_size(),
                     self.ui.get_drawing_context(),
                     Color::DARK_GRAY,
+                    PixelKind::RGBA8,
                 ),
         );
     }
