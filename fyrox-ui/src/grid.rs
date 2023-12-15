@@ -17,9 +17,22 @@ use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
 };
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// Size mode defines how grid's dimension (see [`GridDimension`]) will behave on layout step.
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Reflect, Visit, Default)]
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Debug,
+    Reflect,
+    Visit,
+    Default,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
 pub enum SizeMode {
     /// Strict size of the dimension.
     #[default]
@@ -29,6 +42,8 @@ pub enum SizeMode {
     /// Size of the dimension will stretch to fit available bounds.
     Stretch,
 }
+
+uuid_provider!(SizeMode = "9c5dfbce-5df2-4a7f-8c57-c4473743a718");
 
 /// Grid dimension defines sizing rules and constraints for [`Grid`]'s rows and columns.
 #[derive(Clone, Copy, PartialEq, Debug, Reflect, Visit, Default)]
@@ -43,6 +58,8 @@ pub struct GridDimension {
     /// Local position along the axis of the dimension after arrangement step.
     pub location: f32,
 }
+
+uuid_provider!(GridDimension = "5e894900-c14a-4eb6-acb9-1636efead4b4");
 
 impl GridDimension {
     /// Generic constructor for [`GridDimension`].

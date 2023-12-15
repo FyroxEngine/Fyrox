@@ -19,7 +19,7 @@ use crate::{
     dropdown_list::DropdownList,
     expander::Expander,
     formatted_text::{FormattedText, WrapMode},
-    grid::Grid,
+    grid::{Grid, GridDimension, SizeMode},
     image::Image,
     inspector::{
         editors::{
@@ -324,10 +324,13 @@ impl PropertyEditorDefinitionContainer {
         container.insert(EnumPropertyEditorDefinition::<VerticalAlignment>::new());
         container.insert(EnumPropertyEditorDefinition::<HorizontalAlignment>::new());
         container.insert(EnumPropertyEditorDefinition::<WrapMode>::new());
+        container.insert(EnumPropertyEditorDefinition::<SizeMode>::new());
         container.insert(EnumPropertyEditorDefinition::<CursorIcon>::new());
         container.insert(EnumPropertyEditorDefinition::<CursorIcon>::new_optional());
         container.insert(VecCollectionPropertyEditorDefinition::<GradientPoint>::new());
         container.insert(RefCellPropertyEditorDefinition::<FormattedText>::new());
+        container.insert(RefCellPropertyEditorDefinition::<Vec<GridDimension>>::new());
+        container.insert(VecCollectionPropertyEditorDefinition::<GridDimension>::new());
         container.insert(Utf32StringPropertyEditorDefinition);
         reg_inspectables!(
             container,
@@ -435,7 +438,8 @@ impl PropertyEditorDefinitionContainer {
             // Structs
             GradientPoint,
             Thickness,
-            FormattedText
+            FormattedText,
+            GridDimension
         );
 
         container
