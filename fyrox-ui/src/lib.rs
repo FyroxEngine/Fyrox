@@ -411,7 +411,7 @@ type NodeHandle = Handle<UiNode>;
 
 #[derive(Default)]
 pub struct NodeHandleMapping {
-    hash_map: FxHashMap<NodeHandle, NodeHandle>,
+    pub hash_map: FxHashMap<NodeHandle, NodeHandle>,
 }
 
 impl NodeHandleMapping {
@@ -2697,6 +2697,45 @@ impl UserInterface {
         let copy_handle = self.add_node(cloned);
         map.add_mapping(node_handle, copy_handle);
         copy_handle
+    }
+
+    pub fn copy_node_to(
+        &self,
+        node: Handle<UiNode>,
+        dest: &mut UserInterface,
+    ) -> (Handle<UiNode>, NodeHandleMapping) {
+        let mut map = NodeHandleMapping::default();
+
+        let root = self.copy_node_to_recursive(node, dest, &mut map);
+
+        for &node_handle in map.hash_map.values() {
+            dest.nodes[node_handle].resolve(&map);
+        }
+
+        (root, map)
+    }
+
+    fn copy_node_to_recursive(
+        &self,
+        node_handle: Handle<UiNode>,
+        dest: &mut UserInterface,
+        map: &mut NodeHandleMapping,
+    ) -> Handle<UiNode> {
+        let node = self.nodes.borrow(node_handle);
+        let children = node.children.clone();
+
+        let mut cloned = UiNode(node.clone_boxed());
+        cloned.children.clear();
+        cloned.parent = Handle::NONE;
+        let cloned_node_handle = dest.add_node(cloned);
+
+        for child in children {
+            let cloned_child_node_handle = self.copy_node_to_recursive(child, dest, map);
+            dest.link_nodes(cloned_child_node_handle, cloned_node_handle, false);
+        }
+
+        map.add_mapping(node_handle, cloned_node_handle);
+        cloned_node_handle
     }
 
     pub fn copy_node_with_limit(
