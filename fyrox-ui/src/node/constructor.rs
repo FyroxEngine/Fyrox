@@ -1,4 +1,5 @@
 //! A special container that is able to create widgets by their type UUID.
+use crate::screen::Screen;
 use crate::{
     bit::BitField,
     border::Border,
@@ -189,6 +190,7 @@ impl WidgetConstructorContainer {
 
         container.add::<Text>();
         container.add::<TextBox>();
+        container.add::<Screen>();
 
         container
     }

@@ -2,6 +2,7 @@ use crate::{
     menu::create_menu_item, message::MessageSender, ui_scene::commands::graph::AddWidgetCommand,
     ui_scene::UiScene,
 };
+use fyrox::gui::screen::ScreenBuilder;
 use fyrox::{
     core::pool::Handle,
     fxhash::FxHashMap,
@@ -69,6 +70,9 @@ impl UiMenuEntry {
 impl UiMenu {
     pub fn default_entries() -> Vec<UiMenuEntry> {
         vec![
+            UiMenuEntry::new("Screen", |name, ctx| {
+                ScreenBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
             UiMenuEntry::new("Button", |name, ctx| {
                 ButtonBuilder::new(
                     WidgetBuilder::new()
