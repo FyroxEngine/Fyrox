@@ -369,7 +369,6 @@ impl PartialEq for RcUiNodeHandle {
 
 impl RcUiNodeHandle {
     pub fn new(handle: Handle<UiNode>, sender: Sender<UiMessage>) -> Self {
-        assert!(handle.is_some());
         Self(Rc::new(RcUiNodeHandleInner {
             handle,
             sender: Some(sender),
