@@ -1,3 +1,4 @@
+use crate::vector_image::Primitive;
 use crate::{
     bit::BitField,
     border::Border,
@@ -326,11 +327,13 @@ impl PropertyEditorDefinitionContainer {
         container.insert(EnumPropertyEditorDefinition::<VerticalAlignment>::new());
         container.insert(EnumPropertyEditorDefinition::<HorizontalAlignment>::new());
         container.insert(EnumPropertyEditorDefinition::<WrapMode>::new());
+        container.insert(EnumPropertyEditorDefinition::<Primitive>::new());
         container.insert(EnumPropertyEditorDefinition::<SizeMode>::new());
         container.insert(EnumPropertyEditorDefinition::<CursorIcon>::new());
         container.insert(EnumPropertyEditorDefinition::<CursorIcon>::new_optional());
         container.insert(EnumPropertyEditorDefinition::<bool>::new_optional());
         container.insert(VecCollectionPropertyEditorDefinition::<GradientPoint>::new());
+        container.insert(VecCollectionPropertyEditorDefinition::<Primitive>::new());
         container.insert(RefCellPropertyEditorDefinition::<FormattedText>::new());
         container.insert(RefCellPropertyEditorDefinition::<Vec<GridDimension>>::new());
         container.insert(VecCollectionPropertyEditorDefinition::<GridDimension>::new());

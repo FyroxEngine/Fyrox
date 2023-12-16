@@ -17,9 +17,10 @@ use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
 };
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// Primitive is a simplest shape, that consists of one or multiple lines of the same thickness.
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Clone, Debug, Visit, Reflect, AsRefStr, EnumString, EnumVariantNames)]
 pub enum Primitive {
     /// Solid triangle primitive.
     Triangle {
@@ -58,6 +59,8 @@ pub enum Primitive {
         rect: Rect<f32>,
     },
 }
+
+uuid_provider!(Primitive = "766be1b3-6d1c-4466-bcf3-7093017c9e31");
 
 impl Default for Primitive {
     fn default() -> Self {
