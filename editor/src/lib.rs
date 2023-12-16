@@ -1356,7 +1356,6 @@ impl Editor {
                         id: current_scene_entry.id,
                         path: path.clone(),
                     });
-                    self.message_sender.send(Message::Exit { force: true });
                 }
             }
         }
