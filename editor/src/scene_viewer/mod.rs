@@ -389,6 +389,12 @@ impl SceneViewer {
                     self.sender.send(Message::SetInteractionMode(*mode_id));
                 }
             }
+
+            if message.destination() == self.play {
+                self.sender.send(Message::SwitchToBuildMode);
+            } else if message.destination() == self.stop {
+                self.sender.send(Message::SwitchToEditMode);
+            }
         } else if let Some(WidgetMessage::MouseDown { button, .. }) =
             message.data::<WidgetMessage>()
         {
