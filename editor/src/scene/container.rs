@@ -1,3 +1,4 @@
+use crate::ui_scene::interaction::move_mode::MoveWidgetsInteractionMode;
 use crate::{
     interaction::{
         move_mode::MoveInteractionMode, navmesh::EditNavmeshMode,
@@ -118,6 +119,7 @@ impl EditorSceneEntry {
             scene_viewer.selection_frame(),
             message_sender.clone(),
         ));
+        interaction_modes.add(MoveWidgetsInteractionMode::new(message_sender.clone()));
 
         let mut entry = EditorSceneEntry {
             has_unsaved_changes: false,

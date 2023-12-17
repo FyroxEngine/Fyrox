@@ -16,6 +16,8 @@ use fyrox::{
     gui::{message::MessageDirection, widget::WidgetMessage, BuildContext, UiNode},
 };
 
+pub mod move_mode;
+
 pub struct UiSelectInteractionMode {
     preview: Handle<UiNode>,
     selection_frame: Handle<UiNode>,

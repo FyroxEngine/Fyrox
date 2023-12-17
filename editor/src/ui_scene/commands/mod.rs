@@ -1,4 +1,5 @@
 pub mod graph;
+pub mod widget;
 
 use crate::ui_scene::clipboard::Clipboard;
 use crate::{
