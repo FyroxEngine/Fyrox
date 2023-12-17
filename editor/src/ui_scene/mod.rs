@@ -176,6 +176,10 @@ impl SceneController for UiScene {
         Some(self.render_target.clone())
     }
 
+    fn extension(&self) -> &str {
+        "ui"
+    }
+
     fn save(
         &mut self,
         path: &Path,

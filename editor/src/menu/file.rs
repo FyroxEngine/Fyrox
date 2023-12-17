@@ -18,6 +18,7 @@ use fyrox::{
         BuildContext, UiNode, UserInterface,
     },
 };
+use std::path::PathBuf;
 
 pub struct FileMenu {
     pub menu: Handle<UiNode>,
@@ -130,8 +131,6 @@ impl FileMenu {
             ctx,
         );
 
-        let save_file_selector = make_save_file_selector(ctx);
-
         let load_file_selector = FileSelectorBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
                 .open(false)
@@ -141,7 +140,7 @@ impl FileMenu {
         .build(ctx);
 
         Self {
-            save_file_selector,
+            save_file_selector: Handle::NONE,
             load_file_selector,
             menu,
             new_scene,
@@ -183,16 +182,18 @@ impl FileMenu {
         ));
     }
 
-    pub fn open_save_file_selector(&self, ui: &mut UserInterface) {
+    pub fn open_save_file_selector(&mut self, ui: &mut UserInterface, default_file_name: PathBuf) {
+        self.save_file_selector = make_save_file_selector(&mut ui.build_ctx(), default_file_name);
+
         ui.send_message(WindowMessage::open_modal(
             self.save_file_selector,
             MessageDirection::ToWidget,
             true,
         ));
-        ui.send_message(FileSelectorMessage::root(
+        ui.send_message(FileSelectorMessage::path(
             self.save_file_selector,
             MessageDirection::ToWidget,
-            Some(std::env::current_dir().unwrap()),
+            std::env::current_dir().unwrap(),
         ));
     }
 
@@ -216,50 +217,37 @@ impl FileMenu {
                         path: path.to_owned(),
                     });
                 }
+                engine.user_interface.send_message(WidgetMessage::remove(
+                    self.save_file_selector,
+                    MessageDirection::ToWidget,
+                ));
+                self.save_file_selector = Handle::NONE;
             } else if message.destination() == self.load_file_selector {
                 sender.send(Message::LoadScene(path.to_owned()));
             }
         } else if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.save {
-                if let Some(game_scene) = entry {
-                    if let Some(scene_path) = game_scene.path.as_ref() {
+                if let Some(entry) = entry {
+                    if let Some(scene_path) = entry.path.as_ref() {
                         sender.send(Message::SaveScene {
-                            id: game_scene.id,
+                            id: entry.id,
                             path: scene_path.clone(),
                         });
                     } else {
                         // If scene wasn't saved yet - open Save As window.
-                        engine
-                            .user_interface
-                            .send_message(WindowMessage::open_modal(
-                                self.save_file_selector,
-                                MessageDirection::ToWidget,
-                                true,
-                            ));
-                        engine
-                            .user_interface
-                            .send_message(FileSelectorMessage::path(
-                                self.save_file_selector,
-                                MessageDirection::ToWidget,
-                                std::env::current_dir().unwrap(),
-                            ));
+                        self.open_save_file_selector(
+                            &mut engine.user_interface,
+                            entry.default_file_name(),
+                        );
                     }
                 }
             } else if message.destination() == self.save_as {
-                engine
-                    .user_interface
-                    .send_message(WindowMessage::open_modal(
-                        self.save_file_selector,
-                        MessageDirection::ToWidget,
-                        true,
-                    ));
-                engine
-                    .user_interface
-                    .send_message(FileSelectorMessage::path(
-                        self.save_file_selector,
-                        MessageDirection::ToWidget,
-                        std::env::current_dir().unwrap(),
-                    ));
+                if let Some(entry) = entry {
+                    self.open_save_file_selector(
+                        &mut engine.user_interface,
+                        entry.default_file_name(),
+                    );
+                }
             } else if message.destination() == self.load {
                 self.open_load_file_selector(&mut engine.user_interface);
             } else if message.destination() == self.close_scene {

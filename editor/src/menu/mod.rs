@@ -20,6 +20,7 @@ use fyrox::{
         BuildContext, Thickness, UiNode, UserInterface,
     },
 };
+use std::path::PathBuf;
 
 pub mod animation;
 pub mod create;
@@ -140,8 +141,9 @@ impl Menu {
         self.file_menu.open_load_file_selector(ui)
     }
 
-    pub fn open_save_file_selector(&self, ui: &mut UserInterface) {
-        self.file_menu.open_save_file_selector(ui)
+    pub fn open_save_file_selector(&mut self, ui: &mut UserInterface, default_file_name: PathBuf) {
+        self.file_menu
+            .open_save_file_selector(ui, default_file_name)
     }
 
     pub fn sync_to_model(&mut self, has_active_scene: bool, ui: &mut UserInterface) {

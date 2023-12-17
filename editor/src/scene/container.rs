@@ -161,6 +161,10 @@ impl EditorSceneEntry {
         }
     }
 
+    pub fn default_file_name(&self) -> PathBuf {
+        format!("unnamed.{}", self.controller.extension()).into()
+    }
+
     pub fn need_save(&self) -> bool {
         self.has_unsaved_changes || self.path.is_none()
     }

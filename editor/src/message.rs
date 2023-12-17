@@ -60,7 +60,9 @@ pub enum Message {
     SwitchToEditMode,
     SwitchMode,
     OpenLoadSceneDialog,
-    OpenSaveSceneDialog,
+    OpenSaveSceneDialog {
+        default_file_name: PathBuf,
+    },
     OpenSaveSceneConfirmationDialog {
         id: Uuid,
         action: SaveSceneConfirmationDialogAction,

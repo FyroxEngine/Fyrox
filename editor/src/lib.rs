@@ -108,7 +108,7 @@ use fyrox::{
             DockingManager, DockingManagerBuilder, DockingManagerMessage, TileBuilder, TileContent,
         },
         dropdown_list::DropdownListBuilder,
-        file_browser::{FileBrowserMode, FileSelectorBuilder, FileSelectorMessage, Filter},
+        file_browser::{FileBrowserMode, FileSelectorBuilder, Filter},
         font::Font,
         formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
@@ -233,15 +233,16 @@ pub fn make_scene_file_filter() -> Filter {
     })
 }
 
-pub fn make_save_file_selector(ctx: &mut BuildContext) -> Handle<UiNode> {
+pub fn make_save_file_selector(
+    ctx: &mut BuildContext,
+    default_file_name: PathBuf,
+) -> Handle<UiNode> {
     FileSelectorBuilder::new(
         WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0))
             .with_title(WindowTitle::Text("Save Scene As".into()))
             .open(false),
     )
-    .with_mode(FileBrowserMode::Save {
-        default_file_name: PathBuf::from("unnamed.rgs"),
-    })
+    .with_mode(FileBrowserMode::Save { default_file_name })
     .with_path("./")
     .with_filter(make_scene_file_filter())
     .build(ctx)
@@ -392,15 +393,9 @@ impl SaveSceneConfirmationDialog {
                             } else {
                                 // Otherwise, open save scene dialog and do the action after the
                                 // scene was saved.
-                                match self.action {
-                                    SaveSceneConfirmationDialogAction::None => {}
-                                    SaveSceneConfirmationDialogAction::OpenLoadSceneDialog
-                                    | SaveSceneConfirmationDialogAction::LoadScene(_)
-                                    | SaveSceneConfirmationDialogAction::MakeNewScene
-                                    | SaveSceneConfirmationDialogAction::CloseScene(_) => {
-                                        sender.send(Message::OpenSaveSceneDialog)
-                                    }
-                                }
+                                sender.send(Message::OpenSaveSceneDialog {
+                                    default_file_name: entry.default_file_name(),
+                                })
                             }
                         }
                     }
@@ -480,7 +475,6 @@ pub struct Editor {
     pub scene_viewer: SceneViewer,
     pub asset_browser: AssetBrowser,
     pub exit_message_box: Handle<UiNode>,
-    pub save_file_selector: Handle<UiNode>,
     pub save_scene_dialog: SaveSceneConfirmationDialog,
     pub light_panel: LightPanel,
     pub menu: Menu,
@@ -798,8 +792,6 @@ impl Editor {
         .add_column(Column::stretch())
         .build(ctx);
 
-        let save_file_selector = make_save_file_selector(ctx);
-
         let exit_message_box = MessageBoxBuilder::new(
             WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(100.0))
                 .can_close(false)
@@ -857,7 +849,6 @@ impl Editor {
             exit: false,
             asset_browser,
             exit_message_box,
-            save_file_selector,
             configurator,
             log,
             light_panel,
@@ -1057,14 +1048,9 @@ impl Editor {
                                 path: path.clone(),
                             });
                         } else {
-                            // Scene wasn't saved yet, open Save As dialog.
-                            engine
-                                .user_interface
-                                .send_message(WindowMessage::open_modal(
-                                    self.save_file_selector,
-                                    MessageDirection::ToWidget,
-                                    true,
-                                ));
+                            self.message_sender.send(Message::OpenSaveSceneDialog {
+                                default_file_name: entry.default_file_name(),
+                            });
                         }
                     }
                 } else if hot_key == key_bindings.copy_selection {
@@ -1349,15 +1335,6 @@ impl Editor {
 
             self.material_editor
                 .handle_ui_message(message, engine, &self.message_sender);
-
-            if let Some(FileSelectorMessage::Commit(path)) = message.data::<FileSelectorMessage>() {
-                if message.destination() == self.save_file_selector {
-                    self.message_sender.send(Message::SaveScene {
-                        id: current_scene_entry.id,
-                        path: path.clone(),
-                    });
-                }
-            }
         }
 
         if let Some(MessageBoxMessage::Close(result)) = message.data() {
@@ -1382,14 +1359,9 @@ impl Editor {
                                         force: self.scenes.unsaved_scene_count() == 1,
                                     });
                                 } else {
-                                    // Scene wasn't saved yet, open Save As dialog.
-                                    engine
-                                        .user_interface
-                                        .send_message(WindowMessage::open_modal(
-                                            self.save_file_selector,
-                                            MessageDirection::ToWidget,
-                                            true,
-                                        ));
+                                    self.message_sender.send(Message::OpenSaveSceneDialog {
+                                        default_file_name: first_unsaved.default_file_name(),
+                                    });
                                 }
                             }
                         }
@@ -2268,9 +2240,11 @@ impl Editor {
                         self.menu
                             .open_load_file_selector(&mut self.engine.user_interface);
                     }
-                    Message::OpenSaveSceneDialog => {
-                        self.menu
-                            .open_save_file_selector(&mut self.engine.user_interface);
+                    Message::OpenSaveSceneDialog { default_file_name } => {
+                        self.menu.open_save_file_selector(
+                            &mut self.engine.user_interface,
+                            default_file_name,
+                        );
                     }
                     Message::OpenSaveSceneConfirmationDialog { id, action } => {
                         self.save_scene_dialog.open(

@@ -80,6 +80,8 @@ pub trait SceneController: 'static {
 
     fn render_target(&self, engine: &Engine) -> Option<TextureResource>;
 
+    fn extension(&self) -> &str;
+
     fn save(
         &mut self,
         path: &Path,

@@ -140,7 +140,7 @@ impl SceneNodeContextMenu {
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         // TODO: Not sure if this is the right place for this dialog.
-        let save_as_prefab_dialog = make_save_file_selector(ctx);
+        let save_as_prefab_dialog = make_save_file_selector(ctx, PathBuf::from("unnamed.rgs"));
 
         Self {
             create_entity_menu,

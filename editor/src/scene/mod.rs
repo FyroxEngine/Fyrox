@@ -690,6 +690,10 @@ impl SceneController for GameScene {
             .clone()
     }
 
+    fn extension(&self) -> &str {
+        "rgs"
+    }
+
     fn save(
         &mut self,
         path: &Path,
