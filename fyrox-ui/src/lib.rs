@@ -1439,6 +1439,11 @@ impl UserInterface {
         self.find_by_criteria_down(node_handle, &|node| node.name() == name)
     }
 
+    /// Searches a node by name down on tree starting from root canvas.
+    pub fn find_by_name_down_from_root(&self, name: &str) -> Handle<UiNode> {
+        self.find_by_criteria_down(self.root_canvas, &|node| node.name() == name)
+    }
+
     /// Searches a node by name up on tree starting from given root node and tries to borrow it if exists.
     pub fn borrow_by_name_up(&self, start_node_handle: Handle<UiNode>, name: &str) -> &UiNode {
         self.nodes
