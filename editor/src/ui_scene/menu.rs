@@ -1,5 +1,5 @@
 use crate::{
-    menu::{create::CreateEntityMenu, create_menu_item, create_menu_item_shortcut},
+    menu::{create_menu_item, create_menu_item_shortcut, ui::UiMenu},
     message::MessageSender,
     scene::{controller::SceneController, Selection},
     ui_scene::{commands::graph::PasteWidgetCommand, UiScene},
@@ -7,9 +7,9 @@ use crate::{
     Engine, Message, MessageDirection,
 };
 use fyrox::{
-    core::{algebra::Vector2, pool::Handle},
+    core::pool::Handle,
     gui::{
-        menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
+        menu::MenuItemMessage,
         message::UiMessage,
         popup::{Placement, PopupBuilder, PopupMessage},
         stack_panel::StackPanelBuilder,
@@ -22,7 +22,7 @@ pub struct WidgetContextMenu {
     menu: RcUiNodeHandle,
     delete_selection: Handle<UiNode>,
     copy_selection: Handle<UiNode>,
-    create_entity_menu: CreateEntityMenu,
+    widgets_menu: UiMenu,
     placement_target: Handle<UiNode>,
     paste: Handle<UiNode>,
 }
@@ -39,7 +39,7 @@ impl WidgetContextMenu {
         let copy_selection;
         let paste;
 
-        let (create_entity_menu, create_entity_menu_root_items) = CreateEntityMenu::new(ctx);
+        let widgets_menu = UiMenu::new(UiMenu::default_entries(), "Create Child Widget", ctx);
 
         let menu = PopupBuilder::new(WidgetBuilder::new().with_visibility(false))
             .with_content(
@@ -59,14 +59,7 @@ impl WidgetContextMenu {
                             paste = create_menu_item("Paste As Child", vec![], ctx);
                             paste
                         })
-                        .with_child(
-                            MenuItemBuilder::new(
-                                WidgetBuilder::new().with_min_size(Vector2::new(120.0, 22.0)),
-                            )
-                            .with_content(MenuItemContent::text("Create Child"))
-                            .with_items(create_entity_menu_root_items)
-                            .build(ctx),
-                        ),
+                        .with_child(widgets_menu.menu),
                 )
                 .build(ctx),
             )
@@ -74,7 +67,7 @@ impl WidgetContextMenu {
         let menu = RcUiNodeHandle::new(menu, ctx.sender());
 
         Self {
-            create_entity_menu,
+            widgets_menu,
             menu,
             delete_selection,
             copy_selection,
@@ -91,10 +84,10 @@ impl WidgetContextMenu {
         engine: &mut Engine,
         sender: &MessageSender,
     ) {
-        self.create_entity_menu
-            .handle_ui_message(message, sender, controller, editor_selection);
-
         if let Some(ui_scene) = controller.downcast_mut::<UiScene>() {
+            self.widgets_menu
+                .handle_ui_message(sender, message, ui_scene, editor_selection);
+
             if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
                 if message.destination() == self.delete_selection {
                     if let Selection::Ui(ui_selection) = editor_selection {

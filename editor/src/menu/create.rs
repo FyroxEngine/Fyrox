@@ -135,7 +135,7 @@ impl CreateEntityMenu {
         let dim2_menu = Dim2Menu::new(ctx);
         let animation_menu = AnimationMenu::new(ctx);
 
-        let ui_menu = UiMenu::new(UiMenu::default_entries(), ctx);
+        let ui_menu = UiMenu::new(UiMenu::default_entries(), "UI", ctx);
 
         let items = vec![
             ui_menu.menu,

@@ -188,7 +188,7 @@ impl UiMenu {
         ]
     }
 
-    pub fn new(entries: Vec<UiMenuEntry>, ctx: &mut BuildContext) -> Self {
+    pub fn new(entries: Vec<UiMenuEntry>, name: &str, ctx: &mut BuildContext) -> Self {
         let items = entries
             .iter()
             .map(|e| create_menu_item(&e.name, Default::default(), ctx))
@@ -200,7 +200,7 @@ impl UiMenu {
             .map(|(entry, node)| (node, entry))
             .collect::<FxHashMap<_, _>>();
 
-        let menu = create_menu_item("UI", items, ctx);
+        let menu = create_menu_item(name, items, ctx);
 
         Self { menu, constructors }
     }
