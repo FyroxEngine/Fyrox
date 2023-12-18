@@ -2,11 +2,13 @@ use crate::{asset::item::AssetItem, inspector::EditorEnvironment};
 use fyrox::{
     asset::{manager::ResourceManager, untyped::ResourceKind},
     core::{
-        algebra::Vector2, make_relative_path, pool::Handle, reflect::prelude::*, uuid_provider,
-        visitor::prelude::*,
+        algebra::Vector2, color::Color, make_relative_path, pool::Handle, reflect::prelude::*,
+        uuid_provider, visitor::prelude::*,
     },
     gui::{
+        brush::Brush,
         define_constructor,
+        draw::{CommandTexture, Draw, DrawingContext},
         font::{Font, FontResource, BUILT_IN_FONT},
         formatted_text::WrapMode,
         inspector::{
@@ -78,11 +80,23 @@ impl Control for FontField {
         }
     }
 
+    fn draw(&self, drawing_context: &mut DrawingContext) {
+        // Emit transparent geometry for the field to be able to catch mouse events without precise pointing at the
+        // node name letters.
+        drawing_context.push_rect_filled(&self.bounding_rect(), None);
+        drawing_context.commit(
+            self.clip_bounds(),
+            Brush::Solid(Color::TRANSPARENT),
+            CommandTexture::None,
+            None,
+        );
+    }
+
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(WidgetMessage::Drop(dropped)) = message.data::<WidgetMessage>() {
-            if message.destination() == self.text_preview {
+            if message.destination() == self.handle {
                 if let Some(item) = ui.node(*dropped).cast::<AssetItem>() {
                     if let Ok(relative_path) = make_relative_path(&item.path) {
                         if let Some(font) = self.resource_manager.try_request::<Font>(relative_path)
@@ -156,6 +170,7 @@ impl FontFieldBuilder {
         let text_preview;
         let widget = self
             .widget_builder
+            .with_allow_drop(true)
             .with_child({
                 text_preview = TextBuilder::new(WidgetBuilder::new())
                     .with_wrap(WrapMode::Word)
