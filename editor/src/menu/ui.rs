@@ -83,6 +83,9 @@ impl UiMenu {
                 )
                 .build(ctx)
             }),
+            UiMenuEntry::new("Border", |name, ctx| {
+                BorderBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
             UiMenuEntry::new("Image", |name, ctx| {
                 ImageBuilder::new(
                     WidgetBuilder::new()
