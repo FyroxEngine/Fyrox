@@ -90,8 +90,8 @@ impl Control for ItemContextMenu {
         self.popup.draw(drawing_context)
     }
 
-    fn update(&mut self, dt: f32, sender: &Sender<UiMessage>) {
-        self.popup.update(dt, sender)
+    fn update(&mut self, dt: f32, sender: &Sender<UiMessage>, screen_size: Vector2<f32>) {
+        self.popup.update(dt, sender, screen_size)
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

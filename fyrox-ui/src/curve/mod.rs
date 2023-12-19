@@ -600,7 +600,7 @@ impl Control for CurveEditor {
         }
     }
 
-    fn update(&mut self, _dt: f32, sender: &Sender<UiMessage>) {
+    fn update(&mut self, _dt: f32, sender: &Sender<UiMessage>, _screen_size: Vector2<f32>) {
         if let Some(timer) = self.zoom_to_fit_timer.as_mut() {
             *timer = timer.saturating_sub(1);
             if *timer == 0 {

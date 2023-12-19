@@ -151,7 +151,7 @@ impl Control for TransitionView {
         }
     }
 
-    fn update(&mut self, dt: f32, _sender: &Sender<UiMessage>) {
+    fn update(&mut self, dt: f32, _sender: &Sender<UiMessage>, _screen_size: Vector2<f32>) {
         // Slowly fade.
         self.activity_factor = (self.activity_factor - dt).max(0.0);
     }

@@ -41,6 +41,7 @@ mod selector;
 
 pub use selector::*;
 
+use fyrox_core::algebra::Vector2;
 use fyrox_core::uuid_provider;
 use notify::Watcher;
 #[cfg(not(target_arch = "wasm32"))]
@@ -468,7 +469,7 @@ impl Control for FileBrowser {
         }
     }
 
-    fn update(&mut self, _dt: f32, sender: &Sender<UiMessage>) {
+    fn update(&mut self, _dt: f32, sender: &Sender<UiMessage>, _screen_size: Vector2<f32>) {
         if let Ok(event) = self.fs_receiver.as_ref().unwrap().try_recv() {
             if event.need_rescan() {
                 let _ = sender.send(FileBrowserMessage::rescan(

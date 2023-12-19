@@ -977,7 +977,7 @@ impl UserInterface {
 
         let sender = self.sender.clone();
         for node in self.nodes.iter_mut() {
-            node.update(dt, &sender)
+            node.update(dt, &sender, self.screen_size)
         }
 
         self.update_tooltips(dt);

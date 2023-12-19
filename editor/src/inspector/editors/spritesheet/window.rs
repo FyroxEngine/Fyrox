@@ -92,8 +92,8 @@ impl Control for SpriteSheetFramesEditorWindow {
         self.window.draw(drawing_context)
     }
 
-    fn update(&mut self, dt: f32, sender: &Sender<UiMessage>) {
-        self.window.update(dt, sender);
+    fn update(&mut self, dt: f32, sender: &Sender<UiMessage>, screen_size: Vector2<f32>) {
+        self.window.update(dt, sender, screen_size);
 
         self.animation.update(dt);
         self.animation.play();

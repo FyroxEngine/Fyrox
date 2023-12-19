@@ -1097,7 +1097,7 @@ impl Control for TextBox {
         }
     }
 
-    fn update(&mut self, dt: f32, _sender: &Sender<UiMessage>) {
+    fn update(&mut self, dt: f32, _sender: &Sender<UiMessage>, _screen_size: Vector2<f32>) {
         if self.has_focus {
             self.blink_timer += dt;
             if self.blink_timer >= self.blink_interval {

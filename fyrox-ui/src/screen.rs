@@ -9,13 +9,18 @@ use crate::{
 };
 use std::{
     any::{Any, TypeId},
+    cell::Cell,
     ops::{Deref, DerefMut},
+    sync::mpsc::Sender,
 };
 
 #[derive(Default, Clone, Visit, Reflect, Debug)]
 pub struct Screen {
     /// Base widget of the screen.
     pub widget: Widget,
+    #[visit(skip)]
+    #[reflect(hidden)]
+    pub last_screen_size: Cell<Vector2<f32>>,
 }
 
 crate::define_widget_deref!(Screen);
@@ -49,6 +54,13 @@ impl Control for Screen {
         ui.screen_size()
     }
 
+    fn update(&mut self, _dt: f32, _sender: &Sender<UiMessage>, screen_size: Vector2<f32>) {
+        if self.last_screen_size.get() != screen_size {
+            self.invalidate_layout();
+            self.last_screen_size.set(screen_size);
+        }
+    }
+
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
     }
@@ -66,6 +78,7 @@ impl ScreenBuilder {
     pub fn build(self, ui: &mut BuildContext) -> Handle<UiNode> {
         let screen = Screen {
             widget: self.widget_builder.build(),
+            last_screen_size: Cell::new(Default::default()),
         };
         ui.add_node(UiNode::new(screen))
     }
