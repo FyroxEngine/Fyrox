@@ -312,6 +312,17 @@ macro_rules! uuid_provider {
     };
 }
 
+#[macro_export]
+macro_rules! stub_uuid_provider {
+    ($type:ty) => {
+        impl $crate::TypeUuidProvider for $type {
+            fn type_uuid() -> $crate::uuid::Uuid {
+                unimplemented!()
+            }
+        }
+    };
+}
+
 uuid_provider!(u8 = "7a8c337c-0219-466b-92b5-81460fa9c836");
 uuid_provider!(i8 = "3036f00e-5986-4ac3-8763-19e51d0889d7");
 uuid_provider!(u16 = "c662169d-cc3b-453c-bdf3-e0104ac3b966");
