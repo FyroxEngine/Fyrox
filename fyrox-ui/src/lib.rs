@@ -499,7 +499,7 @@ impl NodeStatistics {
     }
 }
 
-#[derive(Visit, Reflect, Debug)]
+#[derive(Visit, Reflect, Debug, Clone)]
 pub struct DragContext {
     pub is_dragging: bool,
     pub drag_node: Handle<UiNode>,
@@ -551,7 +551,7 @@ pub struct RestrictionEntry {
     pub stop: bool,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct TooltipEntry {
     tooltip: RcUiNodeHandle,
     /// Time remaining until this entry should disappear (in seconds).
@@ -654,6 +654,50 @@ pub struct UserInterface {
     #[reflect(hidden)]
     double_click_entries: FxHashMap<MouseButton, DoubleClickEntry>,
     pub double_click_time_slice: f32,
+}
+
+impl Clone for UserInterface {
+    fn clone(&self) -> Self {
+        let (sender, receiver) = mpsc::channel();
+        let (layout_events_sender, layout_events_receiver) = mpsc::channel();
+        let mut nodes = Pool::new();
+        for (handle, node) in self.nodes.pair_iter() {
+            let mut clone = node.clone_boxed();
+            clone.layout_events_sender = Some(layout_events_sender.clone());
+            nodes.spawn_at_handle(handle, UiNode(clone)).unwrap();
+        }
+
+        Self {
+            screen_size: self.screen_size,
+            nodes,
+            drawing_context: self.drawing_context.clone(),
+            visual_debug: self.visual_debug,
+            root_canvas: self.root_canvas,
+            picked_node: self.picked_node,
+            prev_picked_node: self.prev_picked_node,
+            captured_node: self.captured_node,
+            keyboard_focus_node: self.keyboard_focus_node,
+            cursor_position: self.cursor_position,
+            receiver,
+            sender,
+            stack: self.stack.clone(),
+            picking_stack: self.picking_stack.clone(),
+            bubble_queue: self.bubble_queue.clone(),
+            drag_context: self.drag_context.clone(),
+            mouse_state: self.mouse_state,
+            keyboard_modifiers: self.keyboard_modifiers,
+            cursor_icon: self.cursor_icon,
+            active_tooltip: self.active_tooltip.clone(),
+            preview_set: self.preview_set.clone(),
+            clipboard: Clipboard(ClipboardContext::new().ok().map(RefCell::new)),
+            layout_events_receiver,
+            layout_events_sender,
+            need_update_global_transform: self.need_update_global_transform,
+            default_font: self.default_font.clone(),
+            double_click_entries: self.double_click_entries.clone(),
+            double_click_time_slice: self.double_click_time_slice,
+        }
+    }
 }
 
 impl Default for UserInterface {
