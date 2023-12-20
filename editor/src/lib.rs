@@ -1802,6 +1802,7 @@ impl Editor {
                     &scene_path,
                     self.widget_constructors.clone(),
                     self.engine.resource_manager.clone(),
+                    &FsResourceIo,
                 )) {
                     Ok(ui) => {
                         let entry = EditorSceneEntry::new_ui_scene(

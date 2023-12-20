@@ -279,6 +279,7 @@ pub use build::*;
 pub use control::*;
 use fyrox_core::pool::Ticket;
 use fyrox_core::uuid_provider;
+use fyrox_resource::io::ResourceIo;
 pub use node::*;
 pub use thickness::*;
 
@@ -2808,8 +2809,9 @@ impl UserInterface {
         path: &Path,
         constructors: Arc<WidgetConstructorContainer>,
         resource_manager: ResourceManager,
+        io: &dyn ResourceIo,
     ) -> Result<Self, VisitError> {
-        let mut visitor = Visitor::load_binary(path).await?;
+        let mut visitor = Visitor::load_from_memory(&io.load_file(path).await?)?;
         let (sender, receiver) = mpsc::channel();
         visitor.blackboard.register(constructors);
         visitor.blackboard.register(Arc::new(sender.clone()));
