@@ -25,8 +25,8 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 /// #     UserInterface,
 /// # };
 /// #
-/// // Message must be debuggable and comparable.
-/// #[derive(Debug, PartialEq)]
+/// // Message must be debuggable, comparable, cloneable.
+/// #[derive(Debug, PartialEq, Clone)]
 /// enum MyWidgetMessage {
 ///     DoSomething,
 ///     Foo(u32),
