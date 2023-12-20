@@ -23,13 +23,13 @@ use crate::{
     VerticalAlignment,
 };
 use fyrox_core::uuid::{uuid, Uuid};
-use fyrox_core::{combine_uuids, TypeUuidProvider};
+use fyrox_core::{combine_uuids, PhantomDataSendSync, TypeUuidProvider};
+use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
     marker::PhantomData,
     ops::{Deref, DerefMut},
-    rc::Rc,
 };
 
 #[derive(Clone, Debug, PartialEq, Default, Visit, Reflect)]
@@ -38,9 +38,15 @@ pub struct Item {
     remove: Handle<UiNode>,
 }
 
-pub trait CollectionItem: Clone + Reflect + Debug + Default + TypeUuidProvider + 'static {}
+pub trait CollectionItem:
+    Clone + Reflect + Debug + Default + TypeUuidProvider + Send + 'static
+{
+}
 
-impl<T> CollectionItem for T where T: Clone + Reflect + Debug + Default + TypeUuidProvider + 'static {}
+impl<T> CollectionItem for T where
+    T: Clone + Reflect + Debug + Default + TypeUuidProvider + Send + 'static
+{
+}
 
 #[derive(Debug, Visit, Reflect)]
 pub struct CollectionEditor<T: CollectionItem> {
@@ -186,8 +192,8 @@ where
 {
     widget_builder: WidgetBuilder,
     collection: Option<I>,
-    environment: Option<Rc<dyn InspectorEnvironment>>,
-    definition_container: Option<Rc<PropertyEditorDefinitionContainer>>,
+    environment: Option<Arc<dyn InspectorEnvironment>>,
+    definition_container: Option<Arc<PropertyEditorDefinitionContainer>>,
     add: Handle<UiNode>,
     layer_index: usize,
     generate_property_string_values: bool,
@@ -245,8 +251,8 @@ where
 
 fn create_items<'a, 'b, T, I>(
     iter: I,
-    environment: Option<Rc<dyn InspectorEnvironment>>,
-    definition_container: Rc<PropertyEditorDefinitionContainer>,
+    environment: Option<Arc<dyn InspectorEnvironment>>,
+    definition_container: Arc<PropertyEditorDefinitionContainer>,
     property_info: &FieldInfo<'a, 'b>,
     ctx: &mut BuildContext,
     sync_flag: u64,
@@ -333,7 +339,7 @@ where
         self
     }
 
-    pub fn with_environment(mut self, environment: Option<Rc<dyn InspectorEnvironment>>) -> Self {
+    pub fn with_environment(mut self, environment: Option<Arc<dyn InspectorEnvironment>>) -> Self {
         self.environment = environment;
         self
     }
@@ -345,7 +351,7 @@ where
 
     pub fn with_definition_container(
         mut self,
-        definition_container: Rc<PropertyEditorDefinitionContainer>,
+        definition_container: Arc<PropertyEditorDefinitionContainer>,
     ) -> Self {
         self.definition_container = Some(definition_container);
         self
@@ -382,7 +388,7 @@ where
     ) -> Result<Handle<UiNode>, InspectorError> {
         let definition_container = self
             .definition_container
-            .unwrap_or_else(|| Rc::new(PropertyEditorDefinitionContainer::new()));
+            .unwrap_or_else(|| Arc::new(PropertyEditorDefinitionContainer::new()));
 
         let environment = self.environment;
         let items = if let Some(collection) = self.collection {
@@ -429,7 +435,8 @@ pub struct VecCollectionPropertyEditorDefinition<T>
 where
     T: CollectionItem,
 {
-    phantom: PhantomData<T>,
+    #[allow(dead_code)]
+    phantom: PhantomDataSendSync<T>,
 }
 
 impl<T> VecCollectionPropertyEditorDefinition<T>
@@ -447,7 +454,7 @@ where
 {
     fn default() -> Self {
         Self {
-            phantom: PhantomData,
+            phantom: Default::default(),
         }
     }
 }

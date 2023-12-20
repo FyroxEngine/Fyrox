@@ -290,13 +290,13 @@ impl Control for ColorGradientEditor {
                 ));
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == *self.context_menu
-                || message.destination() == *self.point_context_menu
+            if message.destination() == self.context_menu.handle()
+                || message.destination() == self.point_context_menu.handle()
             {
                 self.context_menu_open_position.set(ui.cursor_position());
                 self.context_menu_target.set(*target);
 
-                if message.destination() == *self.point_context_menu {
+                if message.destination() == self.point_context_menu.handle() {
                     if let Some(point) = ui
                         .try_get_node(self.context_menu_target.get())
                         .and_then(|n| n.query_component::<ColorPoint>())

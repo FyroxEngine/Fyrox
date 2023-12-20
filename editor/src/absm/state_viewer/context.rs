@@ -107,7 +107,7 @@ impl CanvasContextMenu {
         if let Some(MenuItemMessage::Click) = message.data() {
             let position = ui
                 .node(self.canvas)
-                .screen_to_local(ui.node(*self.menu).screen_position());
+                .screen_to_local(ui.node(self.menu.handle()).screen_position());
 
             let pose_node = if message.destination() == self.create_play_animation {
                 Some(PoseNode::PlayAnimation(PlayAnimation {
@@ -268,7 +268,7 @@ impl NodeContextMenu {
                 });
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == *self.menu {
+            if message.destination() == self.menu.handle() {
                 self.placement_target = *target;
             }
         }
@@ -365,7 +365,7 @@ impl ConnectionContextMenu {
                 }
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == *self.menu {
+            if message.destination() == self.menu.handle() {
                 self.placement_target = *target;
             }
         }

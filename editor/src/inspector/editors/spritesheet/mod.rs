@@ -32,7 +32,7 @@ mod window;
 #[derive(Debug)]
 pub struct SpriteSheetFramesContainerEditorDefinition;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SpriteSheetFramesPropertyEditorMessage {
     Value(SpriteSheetFramesContainer),
 }

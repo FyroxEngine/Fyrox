@@ -18,10 +18,11 @@ use crate::{
     HorizontalAlignment, LayoutEvent, MouseButton, MouseState, RcUiNodeHandle, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_FOREGROUND, BRUSH_PRIMARY,
 };
+use fyrox_core::parking_lot::Mutex;
+use std::sync::Arc;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
-    rc::Rc,
     sync::mpsc::Sender,
 };
 
@@ -738,7 +739,7 @@ pub struct Widget {
     /// Optional, user-defined data.
     #[reflect(hidden)]
     #[visit(skip)]
-    pub user_data: Option<Rc<dyn Any>>,
+    pub user_data: Option<Arc<Mutex<dyn Any + Send>>>,
     /// A flag, that defines whether the widget should be drawn in a separate drawind pass after any other widget that draws
     /// normally.
     pub draw_on_top: bool,
@@ -1566,8 +1567,11 @@ impl Widget {
 
     /// Tries to fetch user-defined data of the specified type `T`.
     #[inline]
-    pub fn user_data_ref<T: 'static>(&self) -> Option<&T> {
-        self.user_data.as_ref().and_then(|v| v.downcast_ref::<T>())
+    pub fn user_data_cloned<T: Clone + 'static>(&self) -> Option<T> {
+        self.user_data.as_ref().and_then(|v| {
+            let guard = v.lock();
+            guard.downcast_ref::<T>().cloned()
+        })
     }
 
     /// Returns current clipping bounds of the widget. It is valid only after at least one layout pass.
@@ -1691,7 +1695,7 @@ pub struct WidgetBuilder {
     /// Whether the drop of the widget is allowed or not.
     pub allow_drop: bool,
     /// User-defined data.
-    pub user_data: Option<Rc<dyn Any>>,
+    pub user_data: Option<Arc<Mutex<dyn Any + Send>>>,
     /// Whether to draw the widget on top of any other or not.
     pub draw_on_top: bool,
     /// Whether the widget is enabled or not.
@@ -1937,7 +1941,7 @@ impl WidgetBuilder {
     }
 
     /// Sets the desired widget user data.
-    pub fn with_user_data(mut self, user_data: Rc<dyn Any>) -> Self {
+    pub fn with_user_data(mut self, user_data: Arc<Mutex<dyn Any + Send>>) -> Self {
         self.user_data = Some(user_data);
         self
     }

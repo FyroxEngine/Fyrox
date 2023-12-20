@@ -172,7 +172,7 @@ impl ContextMenu {
         engine: &mut Engine,
     ) {
         if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == *self.menu {
+            if message.destination() == self.menu.handle() {
                 self.placement_target = *target;
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {

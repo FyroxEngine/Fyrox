@@ -22,11 +22,10 @@ use crate::{
     Widget, WidgetMessage,
 };
 use fyrox_core::reflect::FieldValue;
-use fyrox_core::uuid_provider;
+use fyrox_core::{uuid_provider, PhantomDataSendSync};
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
-    marker::PhantomData,
     ops::{Deref, DerefMut},
 };
 
@@ -168,7 +167,8 @@ pub struct InheritablePropertyEditorDefinition<T>
 where
     T: FieldValue,
 {
-    phantom: PhantomData<T>,
+    #[allow(dead_code)]
+    phantom: PhantomDataSendSync<T>,
 }
 
 impl<T> InheritablePropertyEditorDefinition<T>
@@ -177,7 +177,7 @@ where
 {
     pub fn new() -> Self {
         Self {
-            phantom: PhantomData,
+            phantom: Default::default(),
         }
     }
 }

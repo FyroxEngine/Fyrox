@@ -1,4 +1,5 @@
 use crate::utils::make_node_name;
+use fyrox::core::parking_lot::Mutex;
 use fyrox::{
     core::{
         algebra::Vector2, pool::ErasedHandle, pool::Handle, reflect::prelude::*, uuid_provider,
@@ -24,10 +25,10 @@ use fyrox::{
     },
     scene::{graph::Graph, node::Node},
 };
+use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
-    rc::Rc,
     sync::mpsc::Sender,
 };
 
@@ -103,10 +104,12 @@ impl HierarchyNode {
     }
 
     fn make_view(&self, ctx: &mut BuildContext) -> Handle<UiNode> {
-        TreeBuilder::new(WidgetBuilder::new().with_user_data(Rc::new(TreeData {
-            name: self.name.clone(),
-            handle: self.handle,
-        })))
+        TreeBuilder::new(
+            WidgetBuilder::new().with_user_data(Arc::new(Mutex::new(TreeData {
+                name: self.name.clone(),
+                handle: self.handle,
+            }))),
+        )
         .with_items(self.children.iter().map(|c| c.make_view(ctx)).collect())
         .with_content(
             TextBuilder::new(WidgetBuilder::new())
@@ -129,6 +132,7 @@ impl NodeSelectorMessage {
     define_constructor!(NodeSelectorMessage:Selection => fn selection(Vec<ErasedHandle>), layout: false);
 }
 
+#[derive(Clone)]
 struct TreeData {
     name: String,
     handle: ErasedHandle,
@@ -155,7 +159,7 @@ fn apply_filter_recursive(node: Handle<UiNode>, filter: &str, ui: &UserInterface
 
     if let Some(data) = node_ref
         .query_component::<Tree>()
-        .and_then(|n| n.user_data_ref::<TreeData>())
+        .and_then(|n| n.user_data_cloned::<TreeData>())
     {
         is_any_match |= data.name.to_lowercase().contains(filter);
 
@@ -235,7 +239,7 @@ impl Control for NodeSelector {
                     MessageDirection::ToWidget,
                     selection
                         .iter()
-                        .map(|s| ui.node(*s).user_data_ref::<TreeData>().unwrap().handle)
+                        .map(|s| ui.node(*s).user_data_cloned::<TreeData>().unwrap().handle)
                         .collect(),
                 ));
             }
@@ -260,7 +264,7 @@ impl NodeSelector {
             if let Some(tree) = node.query_component::<Tree>() {
                 if self
                     .selected
-                    .contains(&tree.user_data_ref::<TreeData>().unwrap().handle)
+                    .contains(&tree.user_data_cloned::<TreeData>().unwrap().handle)
                 {
                     selected_trees.push(node_handle);
                 }

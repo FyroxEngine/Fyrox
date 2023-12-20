@@ -40,6 +40,7 @@ pub trait BitContainer:
     + Debug
     + Reflect
     + Visit
+    + Send
     + TypeUuidProvider
     + 'static
 {
@@ -60,6 +61,7 @@ impl<T> BitContainer for T where
         + Debug
         + Reflect
         + Visit
+        + Send
         + TypeUuidProvider
         + 'static
 {

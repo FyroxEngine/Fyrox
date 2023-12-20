@@ -3,6 +3,7 @@ use crate::{
     Message,
 };
 use fyrox::asset::state::LoadError;
+use fyrox::core::parking_lot::Mutex;
 use fyrox::core::uuid::{uuid, Uuid};
 use fyrox::core::TypeUuidProvider;
 use fyrox::{
@@ -30,12 +31,12 @@ use fyrox::{
         BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
 };
+use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     path::Path,
-    rc::Rc,
 };
 
 fn resource_path<T>(resource: &Option<Resource<T>>) -> String
@@ -54,6 +55,14 @@ where
     T: TypedResourceData,
 {
     Value(Option<Resource<T>>),
+}
+
+impl<T: TypedResourceData> Clone for ResourceFieldMessage<T> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Value(value) => Self::Value(value.clone()),
+        }
+    }
 }
 
 impl<T> PartialEq for ResourceFieldMessage<T>
@@ -76,8 +85,12 @@ where
     define_constructor!(ResourceFieldMessage:Value => fn value(Option<Resource<T>>), layout: false);
 }
 
-pub type ResourceLoaderCallback<T> =
-    Rc<dyn Fn(&ResourceManager, &Path) -> Option<Result<Resource<T>, LoadError>>>;
+pub type ResourceLoaderCallback<T> = Arc<
+    Mutex<
+        dyn for<'a> Fn(&'a ResourceManager, &'a Path) -> Option<Result<Resource<T>, LoadError>>
+            + Send,
+    >,
+>;
 
 #[derive(Visit, Reflect)]
 pub struct ResourceField<T>
@@ -196,7 +209,7 @@ where
 
                     if let Ok(path) = path {
                         if let Some(Ok(value)) =
-                            (self.loader)(&self.resource_manager, path.as_path())
+                            (self.loader.lock())(&self.resource_manager, path.as_path())
                         {
                             ui.send_message(ResourceFieldMessage::value(
                                 self.handle(),

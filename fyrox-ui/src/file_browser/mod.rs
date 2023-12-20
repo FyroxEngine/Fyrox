@@ -22,16 +22,14 @@ use core::time;
 use std::{
     any::{Any, TypeId},
     borrow::BorrowMut,
-    cell,
     cmp::Ordering,
     fmt::{Debug, Formatter},
     fs::DirEntry,
     ops::{Deref, DerefMut},
     path::{Component, Path, PathBuf, Prefix},
-    rc::Rc,
     sync::{
         mpsc::{self, Receiver, Sender},
-        Arc, Mutex,
+        Arc,
     },
     thread,
 };
@@ -42,6 +40,7 @@ mod selector;
 pub use selector::*;
 
 use fyrox_core::algebra::Vector2;
+use fyrox_core::parking_lot::Mutex;
 use fyrox_core::uuid_provider;
 use notify::Watcher;
 #[cfg(not(target_arch = "wasm32"))]
@@ -111,7 +110,7 @@ pub enum FileBrowserMode {
     },
 }
 
-#[derive(Default, Clone, Visit, Reflect)]
+#[derive(Default, Visit, Reflect)]
 pub struct FileBrowser {
     pub widget: Widget,
     pub tree_root: Handle<UiNode>,
@@ -127,14 +126,34 @@ pub struct FileBrowser {
     pub file_name_value: PathBuf,
     #[visit(skip)]
     #[reflect(hidden)]
-    pub fs_receiver: Option<Rc<Receiver<notify::Event>>>,
+    pub fs_receiver: Option<Receiver<notify::Event>>,
     #[visit(skip)]
     #[reflect(hidden)]
     pub item_context_menu: RcUiNodeHandle,
     #[allow(clippy::type_complexity)]
     #[visit(skip)]
     #[reflect(hidden)]
-    pub watcher: Rc<cell::Cell<Option<(notify::RecommendedWatcher, thread::JoinHandle<()>)>>>,
+    pub watcher: Option<(notify::RecommendedWatcher, thread::JoinHandle<()>)>,
+}
+
+impl Clone for FileBrowser {
+    fn clone(&self) -> Self {
+        Self {
+            widget: self.widget.clone(),
+            tree_root: self.tree_root,
+            path_text: self.path_text,
+            scroll_viewer: self.scroll_viewer,
+            path: self.path.clone(),
+            root: self.root.clone(),
+            filter: self.filter.clone(),
+            mode: self.mode.clone(),
+            file_name: self.file_name,
+            file_name_value: self.file_name_value.clone(),
+            fs_receiver: None,
+            item_context_menu: self.item_context_menu.clone(),
+            watcher: None,
+        }
+    }
 }
 
 impl Debug for FileBrowser {
@@ -267,7 +286,7 @@ impl Control for FileBrowser {
                     }
                     FileBrowserMessage::Root(root) => {
                         if &self.root != root {
-                            let watcher_replacment = match self.watcher.replace(None) {
+                            let watcher_replacement = match self.watcher.take() {
                                 Some((mut watcher, converter)) => {
                                     let current_root = match &self.root {
                                         Some(path) => path.clone(),
@@ -289,7 +308,7 @@ impl Control for FileBrowser {
                             self.root = root.clone();
                             self.path = root.clone().unwrap_or_default();
                             self.rebuild_from_root(ui);
-                            self.watcher.replace(watcher_replacment);
+                            self.watcher = watcher_replacement;
                         }
                     }
                     FileBrowserMessage::Filter(filter) => {
@@ -370,7 +389,7 @@ impl Control for FileBrowser {
                 // Look into internals of directory and build tree items.
                 let parent_path = ui
                     .node(message.destination())
-                    .user_data_ref::<PathBuf>()
+                    .user_data_cloned::<PathBuf>()
                     .unwrap()
                     .clone();
                 if let Ok(dir_iter) = std::fs::read_dir(&parent_path) {
@@ -379,7 +398,7 @@ impl Control for FileBrowser {
                     for entry in entries {
                         let path = entry.path();
                         let build = if let Some(filter) = self.filter.as_mut() {
-                            filter.0.borrow_mut().deref_mut().lock().unwrap()(&path)
+                            filter.0.borrow_mut().deref_mut().lock()(&path)
                         } else {
                             true
                         };
@@ -406,7 +425,7 @@ impl Control for FileBrowser {
             }
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {
             if !message.handled() {
-                if let Some(path) = ui.node(message.destination()).user_data_ref::<PathBuf>() {
+                if let Some(path) = ui.node(message.destination()).user_data_cloned::<PathBuf>() {
                     ui.send_message(FileBrowserMessage::drop(
                         self.handle,
                         MessageDirection::FromWidget,
@@ -414,8 +433,7 @@ impl Control for FileBrowser {
                         message.destination(),
                         path.clone(),
                         ui.node(*dropped)
-                            .user_data_ref::<PathBuf>()
-                            .cloned()
+                            .user_data_cloned::<PathBuf>()
                             .unwrap_or_default(),
                     ));
 
@@ -430,7 +448,7 @@ impl Control for FileBrowser {
                 if let Some(&first_selected) = selection.first() {
                     let mut path = ui
                         .node(first_selected)
-                        .user_data_ref::<PathBuf>()
+                        .user_data_cloned::<PathBuf>()
                         .unwrap()
                         .clone();
 
@@ -509,7 +527,7 @@ fn parent_path(path: &Path) -> PathBuf {
 
 fn filtered_out(filter: &mut Option<Filter>, path: &Path) -> bool {
     match filter.as_mut() {
-        Some(filter) => !filter.0.borrow_mut().deref_mut().lock().unwrap()(path),
+        Some(filter) => !filter.0.borrow_mut().deref_mut().lock()(path),
         None => false,
     }
 }
@@ -561,7 +579,7 @@ fn find_tree<P: AsRef<Path>>(node: Handle<UiNode>, path: &P, ui: &UserInterface)
     let node_ref = ui.node(node);
 
     if let Some(tree) = node_ref.cast::<Tree>() {
-        let tree_path = tree.user_data_ref::<PathBuf>().unwrap();
+        let tree_path = tree.user_data_cloned::<PathBuf>().unwrap();
         if tree_path == path.as_ref() {
             tree_handle = node;
         } else {
@@ -599,7 +617,7 @@ fn build_tree_item<P: AsRef<Path>>(
         .map_or(true, |mut f| f.next().is_none());
     TreeBuilder::new(
         WidgetBuilder::new()
-            .with_user_data(Rc::new(path.as_ref().to_owned()))
+            .with_user_data(Arc::new(Mutex::new(path.as_ref().to_owned())))
             .with_context_menu(menu),
     )
     .with_expanded(false)
@@ -749,9 +767,10 @@ fn build_all(
             for entry in entries {
                 let path = entry.path();
                 #[allow(clippy::blocks_in_if_conditions)]
-                if filter.as_mut().map_or(true, |f| {
-                    f.0.borrow_mut().deref_mut().lock().unwrap()(&path)
-                }) {
+                if filter
+                    .as_mut()
+                    .map_or(true, |f| f.0.borrow_mut().deref_mut().lock()(&path))
+                {
                     let item = build_tree_item(&path, &full_path, menu.clone(), ctx);
                     if parent.is_some() {
                         Tree::add_item(parent, item, ctx);
@@ -980,7 +999,7 @@ impl FileBrowserBuilder {
         };
         let (fs_sender, fs_receiver) = mpsc::channel();
         let browser = FileBrowser {
-            fs_receiver: Some(Rc::new(fs_receiver)),
+            fs_receiver: Some(fs_receiver),
             widget,
             tree_root,
             path_text,
@@ -1001,14 +1020,10 @@ impl FileBrowserBuilder {
             scroll_viewer,
             root: self.root,
             file_name,
-            watcher: Rc::new(cell::Cell::new(None)),
+            watcher: setup_filebrowser_fs_watcher(fs_sender, the_path),
             item_context_menu,
         };
-        let watcher = browser.watcher.clone();
-        let filebrowser_node = UiNode::new(browser);
-        let node = ctx.add_node(filebrowser_node);
-        watcher.replace(setup_filebrowser_fs_watcher(fs_sender, the_path));
-        node
+        ctx.add_node(UiNode::new(browser))
     }
 }
 
@@ -1052,14 +1067,16 @@ mod test {
         RcUiNodeHandle, UserInterface,
     };
     use fyrox_core::algebra::Vector2;
-    use std::{path::PathBuf, rc::Rc};
+    use fyrox_core::parking_lot::Mutex;
+    use std::path::PathBuf;
+    use std::sync::Arc;
 
     #[test]
     fn test_find_tree() {
         let mut ui = UserInterface::new(Vector2::new(100.0, 100.0));
 
         let root = TreeRootBuilder::new(
-            WidgetBuilder::new().with_user_data(Rc::new(PathBuf::from("test"))),
+            WidgetBuilder::new().with_user_data(Arc::new(Mutex::new(PathBuf::from("test")))),
         )
         .build(&mut ui.build_ctx());
 

@@ -266,9 +266,8 @@ use std::{
     cell::{Cell, Ref, RefCell, RefMut},
     collections::{btree_set::BTreeSet, hash_map::Entry, VecDeque},
     fmt::{Debug, Formatter},
-    ops::{Deref, DerefMut},
+    ops::DerefMut,
     path::Path,
-    rc::Rc,
     sync::mpsc::{self, Receiver, Sender, TryRecvError},
     sync::Arc,
 };
@@ -277,6 +276,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
+use fyrox_core::parking_lot::Mutex;
 use fyrox_core::pool::Ticket;
 use fyrox_core::uuid_provider;
 use fyrox_resource::io::ResourceIo;
@@ -348,40 +348,38 @@ impl Drop for RcUiNodeHandleInner {
 }
 
 #[derive(Clone, Default, Visit)]
-pub struct RcUiNodeHandle(Rc<RcUiNodeHandleInner>);
+pub struct RcUiNodeHandle(Arc<Mutex<RcUiNodeHandleInner>>);
 
 impl Debug for RcUiNodeHandle {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(
             f,
             "RcUiNodeHandle - {}:{} with {} uses",
-            self.0.handle.index(),
-            self.0.handle.generation(),
-            Rc::strong_count(&self.0)
+            self.0.lock().handle.index(),
+            self.0.lock().handle.generation(),
+            Arc::strong_count(&self.0)
         )
     }
 }
 
 impl PartialEq for RcUiNodeHandle {
     fn eq(&self, other: &Self) -> bool {
-        self.0.handle == other.0.handle
+        let a = self.0.lock().handle;
+        let b = other.0.lock().handle;
+        a == b
     }
 }
 
 impl RcUiNodeHandle {
     pub fn new(handle: Handle<UiNode>, sender: Sender<UiMessage>) -> Self {
-        Self(Rc::new(RcUiNodeHandleInner {
+        Self(Arc::new(Mutex::new(RcUiNodeHandleInner {
             handle,
             sender: Some(sender),
-        }))
+        })))
     }
-}
 
-impl Deref for RcUiNodeHandle {
-    type Target = Handle<UiNode>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0.handle
+    pub fn handle(&self) -> Handle<UiNode> {
+        self.0.lock().handle
     }
 }
 
@@ -1833,12 +1831,12 @@ impl UserInterface {
                                     // Display context menu
                                     if let Some(context_menu) = context_menu {
                                         self.send_message(PopupMessage::placement(
-                                            *context_menu,
+                                            context_menu.handle(),
                                             MessageDirection::ToWidget,
                                             Placement::Cursor(target),
                                         ));
                                         self.send_message(PopupMessage::open(
-                                            *context_menu,
+                                            context_menu.handle(),
                                             MessageDirection::ToWidget,
                                         ));
                                     }
@@ -1864,18 +1862,21 @@ impl UserInterface {
 
     fn show_tooltip(&self, tooltip: RcUiNodeHandle) {
         self.send_message(WidgetMessage::visibility(
-            *tooltip,
+            tooltip.handle(),
             MessageDirection::ToWidget,
             true,
         ));
-        self.send_message(WidgetMessage::topmost(*tooltip, MessageDirection::ToWidget));
+        self.send_message(WidgetMessage::topmost(
+            tooltip.handle(),
+            MessageDirection::ToWidget,
+        ));
         self.send_message(WidgetMessage::desired_position(
-            *tooltip,
+            tooltip.handle(),
             MessageDirection::ToWidget,
             self.screen_to_root_canvas_space(self.cursor_position() + Vector2::new(0.0, 16.0)),
         ));
         self.send_message(WidgetMessage::adjust_position_to_fit(
-            *tooltip,
+            tooltip.handle(),
             MessageDirection::ToWidget,
         ));
     }
@@ -1893,7 +1894,7 @@ impl UserInterface {
 
                 // Hide previous.
                 self.send_message(WidgetMessage::visibility(
-                    *old_tooltip,
+                    old_tooltip.handle(),
                     MessageDirection::ToWidget,
                     false,
                 ));
@@ -1915,7 +1916,7 @@ impl UserInterface {
                 // visible_tooltips
                 sender
                     .send(WidgetMessage::visibility(
-                        *entry.tooltip,
+                        entry.tooltip.handle(),
                         MessageDirection::ToWidget,
                         false,
                     ))
@@ -1938,7 +1939,7 @@ impl UserInterface {
                 self.replace_or_update_tooltip(tooltip, tooltip_time);
                 break;
             } else if let Some(entry) = self.active_tooltip.as_mut() {
-                if *entry.tooltip == handle {
+                if entry.tooltip.handle() == handle {
                     // The current node was a tooltip.
                     // We refresh the timer back to the stored max time.
                     entry.time = entry.max_time;

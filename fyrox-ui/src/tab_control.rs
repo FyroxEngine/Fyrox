@@ -20,11 +20,11 @@ use crate::{
     BRUSH_LIGHT,
 };
 use fyrox_core::uuid_provider;
+use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    rc::Rc,
 };
 
 /// A set of messages for [`TabControl`] widget.
@@ -63,15 +63,15 @@ impl TabControlMessage {
 
 /// User-defined data of a tab.
 #[derive(Clone)]
-pub struct TabUserData(pub Rc<dyn Any>);
+pub struct TabUserData(pub Arc<dyn Any + Send + Sync>);
 
 impl TabUserData {
     /// Creates new instance of the tab data.
     pub fn new<T>(data: T) -> Self
     where
-        T: Any,
+        T: Any + Send + Sync,
     {
-        Self(Rc::new(data))
+        Self(Arc::new(data))
     }
 }
 

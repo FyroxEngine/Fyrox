@@ -17,13 +17,12 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
-use fyrox_core::uuid_provider;
+use fyrox_core::{uuid_provider, PhantomDataSendSync};
+use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
-    marker::PhantomData,
     ops::{Deref, DerefMut},
-    rc::Rc,
 };
 
 #[derive(Clone, Debug, PartialEq, Visit, Reflect, Default)]
@@ -84,8 +83,8 @@ where
 {
     widget_builder: WidgetBuilder,
     collection: Option<I>,
-    environment: Option<Rc<dyn InspectorEnvironment>>,
-    definition_container: Option<Rc<PropertyEditorDefinitionContainer>>,
+    environment: Option<Arc<dyn InspectorEnvironment>>,
+    definition_container: Option<Arc<PropertyEditorDefinitionContainer>>,
     layer_index: usize,
     generate_property_string_values: bool,
     filter: PropertyFilter,
@@ -131,8 +130,8 @@ where
 
 fn create_items<'a, 'b, T, I>(
     iter: I,
-    environment: Option<Rc<dyn InspectorEnvironment>>,
-    definition_container: Rc<PropertyEditorDefinitionContainer>,
+    environment: Option<Arc<dyn InspectorEnvironment>>,
+    definition_container: Arc<PropertyEditorDefinitionContainer>,
     property_info: &FieldInfo<'a, 'b>,
     ctx: &mut BuildContext,
     sync_flag: u64,
@@ -202,7 +201,7 @@ where
         self
     }
 
-    pub fn with_environment(mut self, environment: Option<Rc<dyn InspectorEnvironment>>) -> Self {
+    pub fn with_environment(mut self, environment: Option<Arc<dyn InspectorEnvironment>>) -> Self {
         self.environment = environment;
         self
     }
@@ -217,7 +216,7 @@ where
 
     pub fn with_definition_container(
         mut self,
-        definition_container: Rc<PropertyEditorDefinitionContainer>,
+        definition_container: Arc<PropertyEditorDefinitionContainer>,
     ) -> Self {
         self.definition_container = Some(definition_container);
         self
@@ -241,7 +240,7 @@ where
     ) -> Result<Handle<UiNode>, InspectorError> {
         let definition_container = self
             .definition_container
-            .unwrap_or_else(|| Rc::new(PropertyEditorDefinitionContainer::new()));
+            .unwrap_or_else(|| Arc::new(PropertyEditorDefinitionContainer::new()));
 
         let environment = self.environment;
         let items = if let Some(collection) = self.collection {
@@ -278,7 +277,8 @@ pub struct ArrayPropertyEditorDefinition<T, const N: usize>
 where
     T: Reflect + Debug + 'static,
 {
-    phantom: PhantomData<T>,
+    #[allow(dead_code)]
+    phantom: PhantomDataSendSync<T>,
 }
 
 impl<T, const N: usize> ArrayPropertyEditorDefinition<T, N>
@@ -296,7 +296,7 @@ where
 {
     fn default() -> Self {
         Self {
-            phantom: PhantomData,
+            phantom: Default::default(),
         }
     }
 }

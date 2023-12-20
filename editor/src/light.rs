@@ -22,9 +22,9 @@ use fyrox::{
         CancellationToken, Lightmap, LightmapGenerationError, LightmapInputData, ProgressIndicator,
     },
 };
+use std::sync::Arc;
 use std::{
     path::PathBuf,
-    rc::Rc,
     sync::mpsc::{Receiver, Sender},
 };
 
@@ -196,7 +196,7 @@ pub struct LightPanel {
 impl LightPanel {
     pub fn new(engine: &mut Engine, sender: MessageSender) -> Self {
         let settings = LightmapperSettings::default();
-        let container = Rc::new(make_property_editors_container(sender));
+        let container = Arc::new(make_property_editors_container(sender));
 
         let generate;
         let inspector;

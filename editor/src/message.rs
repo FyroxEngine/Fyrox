@@ -85,6 +85,9 @@ pub enum Message {
 #[derive(Clone, Debug)]
 pub struct MessageSender(pub Sender<Message>);
 
+unsafe impl Send for MessageSender {}
+unsafe impl Sync for MessageSender {}
+
 impl MessageSender {
     pub fn do_scene_command<C>(&self, cmd: C)
     where

@@ -23,6 +23,7 @@ use crate::{
     },
     send_sync_message, utils,
 };
+use fyrox::core::parking_lot::Mutex;
 use fyrox::core::uuid_provider;
 use fyrox::resource::texture::TextureBytes;
 use fyrox::{
@@ -67,12 +68,12 @@ use fyrox::{
     },
     scene::{animation::AnimationPlayer, graph::Graph, node::Node, Scene},
 };
+use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
     cmp::Ordering,
     collections::hash_map::Entry,
     ops::{Deref, DerefMut},
-    rc::Rc,
     sync::mpsc::Sender,
 };
 
@@ -586,6 +587,7 @@ pub struct TrackList {
     selected_animation: Handle<Animation>,
 }
 
+#[derive(Clone)]
 struct CurveViewData {
     id: Uuid,
 }
@@ -954,7 +956,7 @@ impl TrackList {
                             {
                                 Some(SelectedEntity::Track(track_data.id))
                             } else if let Some(curve_data) =
-                                selected_widget.user_data_ref::<CurveViewData>()
+                                selected_widget.user_data_cloned::<CurveViewData>()
                             {
                                 Some(SelectedEntity::Curve(curve_data.id))
                             } else {
@@ -1294,7 +1296,7 @@ impl TrackList {
                         {
                             let curve_item_ref = ui
                                 .node(curve_item)
-                                .user_data_ref::<CurveViewData>()
+                                .user_data_cloned::<CurveViewData>()
                                 .unwrap();
                             assert!(self.curve_views.remove(&curve_item_ref.id).is_some());
                         }
@@ -1389,19 +1391,19 @@ impl TrackList {
                             .iter()
                             .enumerate()
                             .map(|(i, curve)| {
-                                let curve_view = TreeBuilder::new(
-                                    WidgetBuilder::new()
-                                        .with_user_data(Rc::new(CurveViewData { id: curve.id() })),
-                                )
-                                .with_content(
-                                    TextBuilder::new(WidgetBuilder::new())
-                                        .with_text(format!(
-                                            "Curve - {}",
-                                            ["X", "Y", "Z", "W"].get(i).unwrap_or(&"_"),
-                                        ))
-                                        .build(ctx),
-                                )
-                                .build(ctx);
+                                let curve_view =
+                                    TreeBuilder::new(WidgetBuilder::new().with_user_data(
+                                        Arc::new(Mutex::new(CurveViewData { id: curve.id() })),
+                                    ))
+                                    .with_content(
+                                        TextBuilder::new(WidgetBuilder::new())
+                                            .with_text(format!(
+                                                "Curve - {}",
+                                                ["X", "Y", "Z", "W"].get(i).unwrap_or(&"_"),
+                                            ))
+                                            .build(ctx),
+                                    )
+                                    .build(ctx);
 
                                 self.curve_views.insert(curve.id(), curve_view);
 

@@ -79,14 +79,9 @@ use crate::{
     VerticalAlignment,
 };
 use fxhash::FxHashMap;
-use std::{
-    any::TypeId,
-    cell::{Ref, RefCell},
-    fmt::Debug,
-    ops::Range,
-    rc::Rc,
-    str::FromStr,
-};
+use fyrox_core::parking_lot::{RwLock, RwLockReadGuard};
+use std::sync::Arc;
+use std::{any::TypeId, fmt::Debug, ops::Range, str::FromStr};
 use strum::VariantNames;
 
 pub mod array;
@@ -113,8 +108,8 @@ pub mod vec;
 pub struct PropertyEditorBuildContext<'a, 'b, 'c, 'd> {
     pub build_context: &'a mut BuildContext<'c>,
     pub property_info: &'b FieldInfo<'b, 'd>,
-    pub environment: Option<Rc<dyn InspectorEnvironment>>,
-    pub definition_container: Rc<PropertyEditorDefinitionContainer>,
+    pub environment: Option<Arc<dyn InspectorEnvironment>>,
+    pub definition_container: Arc<PropertyEditorDefinitionContainer>,
     pub sync_flag: u64,
     pub layer_index: usize,
     pub generate_property_string_values: bool,
@@ -126,19 +121,19 @@ pub struct PropertyEditorMessageContext<'a, 'b, 'c> {
     pub instance: Handle<UiNode>,
     pub ui: &'b mut UserInterface,
     pub property_info: &'a FieldInfo<'a, 'c>,
-    pub definition_container: Rc<PropertyEditorDefinitionContainer>,
+    pub definition_container: Arc<PropertyEditorDefinitionContainer>,
     pub layer_index: usize,
-    pub environment: Option<Rc<dyn InspectorEnvironment>>,
+    pub environment: Option<Arc<dyn InspectorEnvironment>>,
     pub generate_property_string_values: bool,
     pub filter: PropertyFilter,
 }
 
 pub struct PropertyEditorTranslationContext<'b, 'c> {
-    pub environment: Option<Rc<dyn InspectorEnvironment>>,
+    pub environment: Option<Arc<dyn InspectorEnvironment>>,
     pub name: &'b str,
     pub owner_type_id: TypeId,
     pub message: &'c UiMessage,
-    pub definition_container: Rc<PropertyEditorDefinitionContainer>,
+    pub definition_container: Arc<PropertyEditorDefinitionContainer>,
 }
 
 #[derive(Clone, Debug, PartialEq, Visit, Reflect)]
@@ -174,7 +169,7 @@ impl PropertyEditorInstance {
     }
 }
 
-pub trait PropertyEditorDefinition: Debug {
+pub trait PropertyEditorDefinition: Debug + Send + Sync {
     fn value_type_id(&self) -> TypeId;
 
     fn create_instance(
@@ -190,9 +185,17 @@ pub trait PropertyEditorDefinition: Debug {
     fn translate_message(&self, ctx: PropertyEditorTranslationContext) -> Option<PropertyChanged>;
 }
 
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct PropertyEditorDefinitionContainer {
-    definitions: RefCell<FxHashMap<TypeId, Rc<dyn PropertyEditorDefinition>>>,
+    definitions: RwLock<FxHashMap<TypeId, Arc<dyn PropertyEditorDefinition>>>,
+}
+
+impl Clone for PropertyEditorDefinitionContainer {
+    fn clone(&self) -> Self {
+        Self {
+            definitions: RwLock::new(self.definitions.read().clone()),
+        }
+    }
 }
 
 macro_rules! reg_array_property_editor {
@@ -451,13 +454,13 @@ impl PropertyEditorDefinitionContainer {
         container
     }
 
-    pub fn insert<T>(&self, definition: T) -> Option<Rc<dyn PropertyEditorDefinition>>
+    pub fn insert<T>(&self, definition: T) -> Option<Arc<dyn PropertyEditorDefinition>>
     where
         T: PropertyEditorDefinition + 'static,
     {
         self.definitions
-            .borrow_mut()
-            .insert(definition.value_type_id(), Rc::new(definition))
+            .write()
+            .insert(definition.value_type_id(), Arc::new(definition))
     }
 
     pub fn register_inheritable_vec_collection<T>(&self)
@@ -508,7 +511,9 @@ impl PropertyEditorDefinitionContainer {
             .is_none());
     }
 
-    pub fn definitions(&self) -> Ref<FxHashMap<TypeId, Rc<dyn PropertyEditorDefinition>>> {
-        self.definitions.borrow()
+    pub fn definitions(
+        &self,
+    ) -> RwLockReadGuard<FxHashMap<TypeId, Arc<dyn PropertyEditorDefinition>>> {
+        self.definitions.read()
     }
 }

@@ -49,7 +49,7 @@ use fyrox::{
         terrain::{Brush, BrushMode, BrushShape, Terrain, TerrainRayCastResult},
     },
 };
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct TerrainInteractionMode {
     heightmaps: Vec<Vec<f32>>,
@@ -544,7 +544,7 @@ impl BrushPanel {
         let context = InspectorContext::from_object(
             brush,
             ctx,
-            Rc::new(property_editors),
+            Arc::new(property_editors),
             None,
             MSG_SYNC_FLAG,
             0,

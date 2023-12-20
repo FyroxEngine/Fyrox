@@ -9,7 +9,7 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use serde::{Deserialize, Serialize};
-use std::{any::Any, cell::Cell, fmt::Debug, rc::Rc};
+use std::{any::Any, cell::Cell, fmt::Debug};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// Defines a new message constructor for a enum variant. It is widely used in this crate to create shortcuts to create
@@ -84,7 +84,7 @@ macro_rules! define_constructor {
         pub fn $name(destination: Handle<UiNode>, direction: MessageDirection) -> UiMessage {
             UiMessage {
                 handled: std::cell::Cell::new(false),
-                data: std::rc::Rc::new($inner::$inner_var),
+                data: Box::new($inner::$inner_var),
                 destination,
                 direction,
                 perform_layout: std::cell::Cell::new($perform_layout),
@@ -99,7 +99,7 @@ macro_rules! define_constructor {
         pub fn $name(destination: Handle<UiNode>, direction: MessageDirection, value:$typ) -> UiMessage {
             UiMessage {
                 handled: std::cell::Cell::new(false),
-                data: std::rc::Rc::new($inner::$inner_var(value)),
+                data: Box::new($inner::$inner_var(value)),
                 destination,
                 direction,
                 perform_layout: std::cell::Cell::new($perform_layout),
@@ -114,7 +114,7 @@ macro_rules! define_constructor {
         pub fn $name(destination: Handle<UiNode>, direction: MessageDirection, $($params : $types),+) -> UiMessage {
             UiMessage {
                 handled: std::cell::Cell::new(false),
-                data: std::rc::Rc::new($inner::$inner_var { $($params),+ }),
+                data: Box::new($inner::$inner_var { $($params),+ }),
                 destination,
                 direction,
                 perform_layout: std::cell::Cell::new($perform_layout),
@@ -155,17 +155,20 @@ impl MessageDirection {
 
 /// A trait, that is used by every messages used in the user interface. It contains utility methods, that are used
 /// for downcasting and equality comparison.
-pub trait MessageData: 'static + Debug + Any {
+pub trait MessageData: 'static + Debug + Any + Send {
     /// Casts `self` as [`Any`] reference.
     fn as_any(&self) -> &dyn Any;
 
     /// Compares this message data with some other.
     fn compare(&self, other: &dyn MessageData) -> bool;
+
+    /// Clones self as boxed value.
+    fn clone_box(&self) -> Box<dyn MessageData>;
 }
 
 impl<T> MessageData for T
 where
-    T: 'static + Debug + PartialEq + Any,
+    T: 'static + Debug + PartialEq + Any + Send + Clone,
 {
     fn as_any(&self) -> &dyn Any {
         self
@@ -177,6 +180,10 @@ where
             .downcast_ref::<T>()
             .map(|other| other == self)
             .unwrap_or_default()
+    }
+
+    fn clone_box(&self) -> Box<dyn MessageData> {
+        Box::new(self.clone())
     }
 }
 
@@ -208,7 +215,7 @@ where
 /// };
 ///
 /// // Message must be debuggable and comparable.
-/// #[derive(Debug, PartialEq)]
+/// #[derive(Debug, PartialEq, Clone)]
 /// enum MyWidgetMessage {
 ///     DoSomething,
 ///     Foo(u32),
@@ -244,7 +251,7 @@ where
 /// ```
 ///
 ///
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct UiMessage {
     /// Useful flag to check if a message was already handled. It could be used to mark messages as "handled" to prevent
     /// any further responses to them. It is especially useful in bubble message routing, when a message is passed through
@@ -254,7 +261,7 @@ pub struct UiMessage {
     pub handled: Cell<bool>,
 
     /// Actual message data. Use [`UiMessage::data`] method to try to downcast the internal data to a specific type.
-    pub data: Rc<dyn MessageData>,
+    pub data: Box<dyn MessageData>,
 
     /// Handle of node that will receive message. Please note that **all** nodes in hierarchy will also receive this message,
     /// order is "up-on-tree" (so called "bubble" message routing). T
@@ -276,6 +283,19 @@ pub struct UiMessage {
     pub flags: u64,
 }
 
+impl Clone for UiMessage {
+    fn clone(&self) -> Self {
+        Self {
+            handled: self.handled.clone(),
+            data: self.data.clone_box(),
+            destination: self.destination,
+            direction: self.direction,
+            perform_layout: self.perform_layout.clone(),
+            flags: self.flags,
+        }
+    }
+}
+
 impl PartialEq for UiMessage {
     fn eq(&self, other: &Self) -> bool {
         self.handled == other.handled
@@ -292,7 +312,7 @@ impl UiMessage {
     pub fn with_data<T: MessageData>(data: T) -> Self {
         Self {
             handled: Cell::new(false),
-            data: Rc::new(data),
+            data: Box::new(data),
             destination: Default::default(),
             direction: MessageDirection::ToWidget,
             perform_layout: Cell::new(false),
@@ -339,7 +359,7 @@ impl UiMessage {
     pub fn reverse(&self) -> Self {
         Self {
             handled: self.handled.clone(),
-            data: self.data.clone(),
+            data: self.data.clone_box(),
             destination: self.destination,
             direction: self.direction.reverse(),
             perform_layout: self.perform_layout.clone(),

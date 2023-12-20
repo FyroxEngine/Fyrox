@@ -861,16 +861,19 @@ impl Toolbar {
                     .query_component::<DropdownList>()
                     .unwrap()
                     .items()[*index];
-                let animation = ui.node(item).user_data_ref::<Handle<Animation>>().unwrap();
+                let animation = ui
+                    .node(item)
+                    .user_data_cloned::<Handle<Animation>>()
+                    .unwrap();
                 sender.do_scene_command(ChangeSelectionCommand::new(
                     Selection::Animation(AnimationSelection {
                         animation_player: animation_player_handle,
-                        animation: *animation,
+                        animation,
                         entities: vec![],
                     }),
                     editor_selection.clone(),
                 ));
-                return ToolbarAction::SelectAnimation(*animation);
+                return ToolbarAction::SelectAnimation(animation);
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.play_pause {

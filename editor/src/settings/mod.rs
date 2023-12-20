@@ -34,13 +34,13 @@ use fyrox::{
 };
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::{
     collections::HashMap,
     fs::File,
     io::Write,
     ops::{Deref, DerefMut},
     path::PathBuf,
-    rc::Rc,
 };
 
 pub mod camera;
@@ -177,7 +177,7 @@ impl SettingsData {
 
     fn make_property_editors_container(
         sender: MessageSender,
-    ) -> Rc<PropertyEditorDefinitionContainer> {
+    ) -> Arc<PropertyEditorDefinitionContainer> {
         let container = make_property_editors_container(sender);
 
         container.insert(InspectablePropertyEditorDefinition::<GeneralSettings>::new());
@@ -200,7 +200,7 @@ impl SettingsData {
         container.insert(InspectablePropertyEditorDefinition::<TerrainKeyBindings>::new());
         container.insert(HotKeyPropertyEditorDefinition);
 
-        Rc::new(container)
+        Arc::new(container)
     }
 
     fn handle_property_changed(&mut self, property_changed: &PropertyChanged) {

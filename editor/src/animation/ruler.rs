@@ -401,7 +401,7 @@ impl Control for Ruler {
                 for signal in self.signals.borrow().iter() {
                     if signal
                         .screen_bounds(self)
-                        .contains(ui.node(*self.context_menu.menu).screen_position())
+                        .contains(ui.node(self.context_menu.menu.handle()).screen_position())
                     {
                         ui.send_message(RulerMessage::remove_signal(
                             self.handle,

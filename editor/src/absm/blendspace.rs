@@ -430,7 +430,7 @@ impl Control for BlendSpaceField {
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == *self.field_context_menu.menu {
+            if message.destination() == self.field_context_menu.menu.handle() {
                 self.field_context_menu.placement_target.set(*target);
 
                 ui.send_message(WidgetMessage::enabled(

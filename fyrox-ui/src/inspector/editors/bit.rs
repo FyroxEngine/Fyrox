@@ -9,14 +9,16 @@ use crate::{
     },
     MessageDirection, Thickness, UiMessage, WidgetBuilder,
 };
-use std::{any::TypeId, marker::PhantomData};
+use fyrox_core::PhantomDataSendSync;
+use std::any::TypeId;
 
 #[derive(Debug)]
 pub struct BitFieldPropertyEditorDefinition<T>
 where
     T: BitContainer,
 {
-    phantom: PhantomData<T>,
+    #[allow(dead_code)]
+    phantom: PhantomDataSendSync<T>,
 }
 
 impl<T> BitFieldPropertyEditorDefinition<T>
@@ -25,7 +27,7 @@ where
 {
     pub fn new() -> Self {
         Self {
-            phantom: PhantomData,
+            phantom: Default::default(),
         }
     }
 }

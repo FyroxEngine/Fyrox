@@ -16,6 +16,7 @@ use crate::{
     },
     message::MessageSender,
 };
+use fyrox::asset::manager::ResourceManager;
 use fyrox::{
     animation::{
         machine::{
@@ -100,7 +101,8 @@ use fyrox::{
         transform::Transform,
     },
 };
-use std::rc::Rc;
+use std::path::Path;
+use std::sync::Arc;
 
 pub mod animation;
 pub mod font;
@@ -197,18 +199,24 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
         .register_inheritable_vec_collection::<fyrox::animation::spritesheet::signal::Signal>();
 
     container.insert(ResourceFieldPropertyEditorDefinition::<Model>::new(
-        Rc::new(|resource_manager, path| resource_manager.try_request::<Model>(path).map(block_on)),
+        Arc::new(Mutex::new(
+            |resource_manager: &ResourceManager, path: &Path| {
+                resource_manager.try_request::<Model>(path).map(block_on)
+            },
+        )),
         sender.clone(),
     ));
     container.insert(InheritablePropertyEditorDefinition::<Option<ModelResource>>::new());
     container.register_inheritable_vec_collection::<Option<ModelResource>>();
 
     container.insert(ResourceFieldPropertyEditorDefinition::<SoundBuffer>::new(
-        Rc::new(|resource_manager, path| {
-            resource_manager
-                .try_request::<SoundBuffer>(path)
-                .map(block_on)
-        }),
+        Arc::new(Mutex::new(
+            |resource_manager: &ResourceManager, path: &Path| {
+                resource_manager
+                    .try_request::<SoundBuffer>(path)
+                    .map(block_on)
+            },
+        )),
         sender.clone(),
     ));
     container.insert(InheritablePropertyEditorDefinition::<
@@ -218,11 +226,13 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
 
     container.insert(
         ResourceFieldPropertyEditorDefinition::<CurveResourceState>::new(
-            Rc::new(|resource_manager, path| {
-                resource_manager
-                    .try_request::<CurveResourceState>(path)
-                    .map(block_on)
-            }),
+            Arc::new(Mutex::new(
+                |resource_manager: &ResourceManager, path: &Path| {
+                    resource_manager
+                        .try_request::<CurveResourceState>(path)
+                        .map(block_on)
+                },
+            )),
             sender.clone(),
         ),
     );
@@ -230,9 +240,11 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.register_inheritable_vec_collection::<Option<CurveResource>>();
 
     container.insert(ResourceFieldPropertyEditorDefinition::<Shader>::new(
-        Rc::new(|resource_manager, path| {
-            resource_manager.try_request::<Shader>(path).map(block_on)
-        }),
+        Arc::new(Mutex::new(
+            |resource_manager: &ResourceManager, path: &Path| {
+                resource_manager.try_request::<Shader>(path).map(block_on)
+            },
+        )),
         sender,
     ));
     container.insert(InheritablePropertyEditorDefinition::<Option<ShaderResource>>::new());

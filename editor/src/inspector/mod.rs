@@ -34,7 +34,7 @@ use fyrox::{
     },
     scene::animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
 };
-use std::{any::Any, rc::Rc, sync::Arc};
+use std::{any::Any, sync::Arc};
 
 pub mod editors;
 pub mod handlers;
@@ -55,7 +55,7 @@ pub struct EditorEnvironment {
 }
 
 impl EditorEnvironment {
-    pub fn try_get_from(environment: &Option<Rc<dyn InspectorEnvironment>>) -> Option<&Self> {
+    pub fn try_get_from(environment: &Option<Arc<dyn InspectorEnvironment>>) -> Option<&Self> {
         environment
             .as_ref()
             .and_then(|e| e.as_any().downcast_ref::<Self>())
@@ -70,7 +70,7 @@ impl InspectorEnvironment for EditorEnvironment {
 
 pub struct Inspector {
     /// Allows you to register your property editors for custom types.
-    pub property_editors: Rc<PropertyEditorDefinitionContainer>,
+    pub property_editors: Arc<PropertyEditorDefinitionContainer>,
     pub(crate) window: Handle<UiNode>,
     inspector: Handle<UiNode>,
     // Hack. This flag tells whether the inspector should sync with model or not.
@@ -152,7 +152,7 @@ fn fetch_available_animations(
 
 impl Inspector {
     pub fn new(ctx: &mut BuildContext, sender: MessageSender) -> Self {
-        let property_editors = Rc::new(make_property_editors_container(sender));
+        let property_editors = Arc::new(make_property_editors_container(sender));
 
         let warning_text_str =
             "Multiple objects are selected, showing properties of the first object only!\
@@ -285,7 +285,7 @@ impl Inspector {
         available_animations: &[AnimationDefinition],
         sender: &MessageSender,
     ) {
-        let environment = Rc::new(EditorEnvironment {
+        let environment = Arc::new(EditorEnvironment {
             resource_manager,
             serialization_context,
             available_animations: available_animations.to_vec(),

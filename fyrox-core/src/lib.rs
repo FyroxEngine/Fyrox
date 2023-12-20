@@ -24,6 +24,7 @@ use std::ffi::OsString;
 use std::hash::Hasher;
 use std::{
     borrow::Borrow,
+    cmp,
     hash::Hash,
     path::{Path, PathBuf},
 };
@@ -55,6 +56,7 @@ pub use notify;
 #[cfg(target_arch = "wasm32")]
 pub use js_sys;
 use std::iter::FromIterator;
+use std::marker::PhantomData;
 use uuid::Uuid;
 #[cfg(target_arch = "wasm32")]
 pub use wasm_bindgen;
@@ -401,6 +403,54 @@ pub fn make_pretty_type_name(type_name: &str) -> &str {
         type_name.split_at(colon_position).1
     } else {
         type_name
+    }
+}
+
+#[repr(transparent)]
+#[derive(Debug)]
+pub struct PhantomDataSendSync<T: ?Sized>(PhantomData<T>);
+
+// SAFETY: PhantomDataSendSync does not hold any data.
+unsafe impl<T: ?Sized> Send for PhantomDataSendSync<T> {}
+// SAFETY: PhantomDataSendSync does not hold any data.
+unsafe impl<T: ?Sized> Sync for PhantomDataSendSync<T> {}
+
+impl<T: ?Sized> Hash for PhantomDataSendSync<T> {
+    #[inline]
+    fn hash<H: Hasher>(&self, _: &mut H) {}
+}
+
+impl<T: ?Sized> PartialEq for PhantomDataSendSync<T> {
+    fn eq(&self, _other: &PhantomDataSendSync<T>) -> bool {
+        true
+    }
+}
+
+impl<T: ?Sized> Eq for PhantomDataSendSync<T> {}
+
+impl<T: ?Sized> PartialOrd for PhantomDataSendSync<T> {
+    fn partial_cmp(&self, _other: &PhantomDataSendSync<T>) -> Option<cmp::Ordering> {
+        Some(cmp::Ordering::Equal)
+    }
+}
+
+impl<T: ?Sized> Ord for PhantomDataSendSync<T> {
+    fn cmp(&self, _other: &PhantomDataSendSync<T>) -> cmp::Ordering {
+        cmp::Ordering::Equal
+    }
+}
+
+impl<T: ?Sized> Copy for PhantomDataSendSync<T> {}
+
+impl<T: ?Sized> Clone for PhantomDataSendSync<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T: ?Sized> Default for PhantomDataSendSync<T> {
+    fn default() -> Self {
+        Self(PhantomData)
     }
 }
 
