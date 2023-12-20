@@ -204,6 +204,7 @@ pub mod image;
 pub mod inspector;
 pub mod key;
 pub mod list_view;
+pub mod loader;
 pub mod menu;
 pub mod message;
 pub mod messagebox;
@@ -248,6 +249,7 @@ use crate::{
         scope_profile,
         visitor::prelude::*,
     },
+    core::{parking_lot::Mutex, pool::Ticket, uuid::Uuid, uuid_provider, TypeUuidProvider},
     draw::{CommandTexture, Draw, DrawingContext},
     font::FontResource,
     font::BUILT_IN_FONT,
@@ -260,26 +262,26 @@ use crate::{
 };
 use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_resource::manager::ResourceManager;
+use fyrox_resource::{io::ResourceIo, manager::ResourceManager, ResourceData};
 use serde::{Deserialize, Serialize};
 use std::{
+    any::Any,
     cell::{Cell, Ref, RefCell, RefMut},
     collections::{btree_set::BTreeSet, hash_map::Entry, VecDeque},
+    error::Error,
     fmt::{Debug, Formatter},
     ops::DerefMut,
     path::Path,
-    sync::mpsc::{self, Receiver, Sender, TryRecvError},
-    sync::Arc,
+    sync::{
+        mpsc::{self, Receiver, Sender, TryRecvError},
+        Arc,
+    },
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
-use fyrox_core::parking_lot::Mutex;
-use fyrox_core::pool::Ticket;
-use fyrox_core::uuid_provider;
-use fyrox_resource::io::ResourceIo;
 pub use node::*;
 pub use thickness::*;
 
@@ -652,6 +654,12 @@ pub struct UserInterface {
     #[reflect(hidden)]
     double_click_entries: FxHashMap<MouseButton, DoubleClickEntry>,
     pub double_click_time_slice: f32,
+}
+
+impl Default for UserInterface {
+    fn default() -> Self {
+        Self::new(Vector2::new(100.0, 100.0))
+    }
 }
 
 fn is_on_screen(node: &UiNode, nodes: &Pool<UiNode, WidgetContainer>) -> bool {
@@ -3011,6 +3019,31 @@ fn transform_size(transform_space_bounds: Vector2<f32>, matrix: &Matrix3<f32>) -
     }
 
     Vector2::new(w, h)
+}
+
+uuid_provider!(UserInterface = "0d065c93-ef9c-4dd2-9fe7-e2b33c1a21b6");
+
+impl ResourceData for UserInterface {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn type_uuid(&self) -> Uuid {
+        <Self as TypeUuidProvider>::type_uuid()
+    }
+
+    fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
+        self.save(path)?;
+        Ok(())
+    }
+
+    fn can_be_saved(&self) -> bool {
+        true
+    }
 }
 
 #[cfg(test)]
