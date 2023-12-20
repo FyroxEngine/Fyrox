@@ -1,4 +1,5 @@
 use crate::inspector::editors::spritesheet::SpriteSheetFramesPropertyEditorMessage;
+use fyrox::core::parking_lot::Mutex;
 use fyrox::core::uuid_provider;
 use fyrox::{
     animation::spritesheet::{SpriteSheetAnimation, SpriteSheetFramesContainer},
@@ -23,10 +24,10 @@ use fyrox::{
         UiNode, UserInterface, VerticalAlignment,
     },
 };
+use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
-    rc::Rc,
     sync::mpsc::Sender,
 };
 
@@ -148,17 +149,17 @@ impl Control for SpriteSheetFramesEditorWindow {
             {
                 let cell_position = ui
                     .node(message.destination())
-                    .user_data_ref::<Vector2<u32>>()
+                    .user_data_cloned::<Vector2<u32>>()
                     .unwrap();
 
                 if *value {
-                    self.animation.frames_mut().push(*cell_position);
+                    self.animation.frames_mut().push(cell_position);
                 } else {
                     let position = self
                         .animation
                         .frames()
                         .iter()
-                        .position(|p| p == cell_position);
+                        .position(|p| p == &cell_position);
                     if let Some(i) = position {
                         self.animation.frames_mut().remove(i);
                     }
@@ -202,7 +203,7 @@ fn make_grid(
                         .with_height(16.0)
                         .on_row(i as usize)
                         .on_column(j as usize)
-                        .with_user_data(Rc::new(cell_position)),
+                        .with_user_data(Arc::new(Mutex::new(cell_position))),
                 )
                 .checked(Some(container.iter().any(|pos| *pos == cell_position)))
                 .build(ctx),

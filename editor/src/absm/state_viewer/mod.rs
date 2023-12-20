@@ -209,7 +209,7 @@ impl StateViewer {
         ));
 
         ui.send_message(WidgetMessage::enabled(
-            *self.canvas_context_menu.menu,
+            self.canvas_context_menu.menu.handle(),
             MessageDirection::ToWidget,
             exists,
         ));
@@ -229,7 +229,7 @@ impl StateViewer {
         ));
 
         ui.send_message(WidgetMessage::enabled(
-            *self.canvas_context_menu.menu,
+            self.canvas_context_menu.menu.handle(),
             MessageDirection::ToWidget,
             false,
         ));

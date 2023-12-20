@@ -36,7 +36,6 @@ use std::{
     cell::Cell,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    rc::Rc,
 };
 
 pub mod editors;
@@ -193,13 +192,16 @@ impl PropertyAction {
     }
 }
 
-pub trait Value: Reflect + Debug {
+pub trait Value: Reflect + Debug + Send {
     fn clone_box(&self) -> Box<dyn Value>;
 
     fn into_box_reflect(self: Box<Self>) -> Box<dyn Reflect>;
 }
 
-impl<T: Reflect + Clone + Debug> Value for T {
+impl<T> Value for T
+where
+    T: Reflect + Clone + Debug + Send,
+{
     fn clone_box(&self) -> Box<dyn Value> {
         Box::new(self.clone())
     }
@@ -338,7 +340,7 @@ impl InspectorMessage {
     define_constructor!(InspectorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
 }
 
-pub trait InspectorEnvironment: Any {
+pub trait InspectorEnvironment: Any + Send + Sync {
     fn as_any(&self) -> &dyn Any;
 }
 
@@ -363,7 +365,7 @@ pub trait InspectorEnvironment: Any {
 /// #     widget::WidgetBuilder,
 /// #     BuildContext, UiNode,
 /// # };
-/// # use std::rc::Rc;
+/// # use std::sync::Arc;
 /// # use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 /// # use fyrox_core::uuid_provider;
 ///
@@ -407,7 +409,7 @@ pub trait InspectorEnvironment: Any {
 ///     let context = InspectorContext::from_object(
 ///         &my_object,
 ///         ctx,
-///         Rc::new(definition_container),
+///         Arc::new(definition_container),
 ///         None,
 ///         1,
 ///         0,
@@ -462,7 +464,7 @@ impl From<CastError> for InspectorError {
 pub struct ContextEntry {
     pub property_name: String,
     pub property_owner_type_id: TypeId,
-    pub property_editor_definition: Rc<dyn PropertyEditorDefinition>,
+    pub property_editor_definition: Arc<dyn PropertyEditorDefinition>,
     pub property_editor: Handle<UiNode>,
     pub property_debug_output: String,
     pub property_container: Handle<UiNode>,
@@ -493,8 +495,8 @@ pub struct InspectorContext {
     pub stack_panel: Handle<UiNode>,
     pub menu: Menu,
     pub entries: Vec<ContextEntry>,
-    pub property_definitions: Rc<PropertyEditorDefinitionContainer>,
-    pub environment: Option<Rc<dyn InspectorEnvironment>>,
+    pub property_definitions: Arc<PropertyEditorDefinitionContainer>,
+    pub environment: Option<Arc<dyn InspectorEnvironment>>,
     pub sync_flag: u64,
 }
 
@@ -510,7 +512,7 @@ impl Default for InspectorContext {
             stack_panel: Default::default(),
             menu: Default::default(),
             entries: Default::default(),
-            property_definitions: Rc::new(PropertyEditorDefinitionContainer::new()),
+            property_definitions: Arc::new(PropertyEditorDefinitionContainer::new()),
             environment: None,
             sync_flag: 0,
         }
@@ -633,12 +635,12 @@ fn make_simple_property_container(
 }
 
 #[derive(Default, Clone)]
-pub struct PropertyFilter(pub Option<Arc<dyn Fn(&dyn Reflect) -> bool>>);
+pub struct PropertyFilter(pub Option<Arc<dyn Fn(&dyn Reflect) -> bool + Send + Sync>>);
 
 impl PropertyFilter {
     pub fn new<T>(func: T) -> Self
     where
-        T: Fn(&dyn Reflect) -> bool + 'static,
+        T: Fn(&dyn Reflect) -> bool + 'static + Send + Sync,
     {
         Self(Some(Arc::new(func)))
     }
@@ -655,8 +657,8 @@ impl InspectorContext {
     pub fn from_object(
         object: &dyn Reflect,
         ctx: &mut BuildContext,
-        definition_container: Rc<PropertyEditorDefinitionContainer>,
-        environment: Option<Rc<dyn InspectorEnvironment>>,
+        definition_container: Arc<PropertyEditorDefinitionContainer>,
+        environment: Option<Arc<dyn InspectorEnvironment>>,
         sync_flag: u64,
         layer_index: usize,
         generate_property_string_values: bool,
@@ -935,7 +937,7 @@ impl Control for Inspector {
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         if message.destination() == self.context.menu.copy_value_as_string {
             if let Some(MenuItemMessage::Click) = message.data() {
-                if let Some(menu_handle) = self.context.menu.menu.as_ref().map(|h| **h) {
+                if let Some(menu_handle) = self.context.menu.menu.as_ref().map(|h| h.handle()) {
                     let position = ui.node(menu_handle).screen_position();
 
                     let mut parent_handle =

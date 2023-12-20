@@ -12,17 +12,18 @@ use crate::{
     widget::WidgetBuilder,
 };
 use fyrox_core::pool::Handle;
+use fyrox_core::PhantomDataSendSync;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},
-    marker::PhantomData,
 };
 
 pub struct InspectablePropertyEditorDefinition<T>
 where
     T: Reflect + 'static,
 {
-    phantom: PhantomData<T>,
+    #[allow(dead_code)]
+    phantom: PhantomDataSendSync<T>,
 }
 
 impl<T> InspectablePropertyEditorDefinition<T>
@@ -31,7 +32,7 @@ where
 {
     pub fn new() -> Self {
         Self {
-            phantom: PhantomData,
+            phantom: Default::default(),
         }
     }
 }

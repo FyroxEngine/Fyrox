@@ -17,7 +17,7 @@ use std::{
 /// Base trait for all UI widgets. It has auto-impl and you don't need to implement it manually. Your widget
 /// must implement [`Clone`] and [`Control`] traits for impl to be generated for you, also your widget must
 /// not contain any references (due to `'static` lifetime requirement).
-pub trait BaseControl: 'static {
+pub trait BaseControl: Send + 'static {
     /// Returns `self` as `&dyn Any`.
     fn as_any(&self) -> &dyn Any;
 

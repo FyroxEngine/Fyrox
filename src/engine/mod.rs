@@ -70,6 +70,7 @@ use raw_window_handle::HasRawWindowHandle;
 use std::{ffi::CString, num::NonZeroU32};
 
 use fyrox_ui::font::BUILT_IN_FONT;
+use fyrox_ui::loader::UserInterfaceLoader;
 use fyrox_ui::{font::loader::FontLoader, font::Font};
 use std::{
     any::TypeId,
@@ -1045,6 +1046,7 @@ pub(crate) fn initialize_resource_manager_loaders(
     state.constructors_container.add::<HrirSphereResourceData>();
     state.constructors_container.add::<Material>();
     state.constructors_container.add::<Font>();
+    state.constructors_container.add::<UserInterface>();
 
     let loaders = &mut state.loaders;
     loaders.set(model_loader);
@@ -1061,6 +1063,9 @@ pub(crate) fn initialize_resource_manager_loaders(
         resource_manager: resource_manager.clone(),
     });
     loaders.set(FontLoader::default());
+    loaders.set(UserInterfaceLoader {
+        resource_manager: resource_manager.clone(),
+    });
 }
 
 impl Engine {

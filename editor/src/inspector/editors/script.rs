@@ -2,6 +2,7 @@ use crate::{
     gui::make_dropdown_list_option, inspector::EditorEnvironment, send_sync_message,
     DropdownListBuilder, MSG_SYNC_FLAG,
 };
+use fyrox::core::parking_lot::Mutex;
 use fyrox::core::uuid_provider;
 use fyrox::gui::inspector::PropertyFilter;
 use fyrox::{
@@ -30,11 +31,10 @@ use std::{
     any::{Any, TypeId},
     cell::Cell,
     ops::{Deref, DerefMut},
-    rc::Rc,
     sync::Arc,
 };
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ScriptPropertyEditorMessage {
     Value(Option<Uuid>),
     PropertyChanged(PropertyChanged),
@@ -117,9 +117,9 @@ impl Control for ScriptPropertyEditor {
                     .expect("Must be DropdownList")
                     .items()[*i];
 
-                let new_selected_script_uuid = *ui
+                let new_selected_script_uuid = ui
                     .node(selected_item)
-                    .user_data_ref::<Uuid>()
+                    .user_data_cloned::<Uuid>()
                     .expect("Must be script UUID");
 
                 ui.send_message(ScriptPropertyEditorMessage::value(
@@ -145,13 +145,13 @@ impl ScriptPropertyEditorBuilder {
         self,
         variant_selector: Handle<UiNode>,
         script_uuid: Option<Uuid>,
-        environment: Option<Rc<dyn InspectorEnvironment>>,
+        environment: Option<Arc<dyn InspectorEnvironment>>,
         sync_flag: u64,
         layer_index: usize,
         generate_property_string_values: bool,
         filter: PropertyFilter,
         script: &Option<Script>,
-        definition_container: Rc<PropertyEditorDefinitionContainer>,
+        definition_container: Arc<PropertyEditorDefinitionContainer>,
         ctx: &mut BuildContext,
     ) -> Handle<UiNode> {
         let context = script.as_ref().map(|script| {
@@ -191,14 +191,14 @@ fn create_items(
 ) -> Vec<Handle<UiNode>> {
     let mut items = vec![{
         let empty = make_dropdown_list_option(ctx, "<No Script>");
-        ctx[empty].user_data = Some(Rc::new(Uuid::default()));
+        ctx[empty].user_data = Some(Arc::new(Mutex::new(Uuid::default())));
         empty
     }];
 
     items.extend(serialization_context.script_constructors.map().iter().map(
         |(type_uuid, constructor)| {
             let item = make_dropdown_list_option(ctx, &constructor.name);
-            ctx[item].user_data = Some(Rc::new(*type_uuid));
+            ctx[item].user_data = Some(Arc::new(Mutex::new(*type_uuid)));
             item
         },
     ));

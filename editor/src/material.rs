@@ -6,6 +6,8 @@ use crate::{
     scene::commands::material::{SetMaterialPropertyValueCommand, SetMaterialShaderCommand},
     send_sync_message, Engine, Message,
 };
+use fyrox::asset::manager::ResourceManager;
+use fyrox::core::parking_lot::Mutex;
 use fyrox::{
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},
@@ -47,7 +49,8 @@ use fyrox::{
         },
     },
 };
-use std::rc::Rc;
+use std::path::Path;
+use std::sync::Arc;
 
 struct TextureContextMenu {
     popup: RcUiNodeHandle,
@@ -268,11 +271,13 @@ impl MaterialEditor {
                                     .with_child({
                                         shader = ResourceFieldBuilder::new(
                                             WidgetBuilder::new().on_column(1),
-                                            Rc::new(|resource_manager, path| {
-                                                resource_manager
-                                                    .try_request::<Shader>(path)
-                                                    .map(block_on)
-                                            }),
+                                            Arc::new(Mutex::new(
+                                                |resource_manager: &ResourceManager,  path: &Path| {
+                                                    resource_manager
+                                                        .try_request::<Shader>(path)
+                                                        .map(block_on)
+                                                },
+                                            )),
                                             sender,
                                         )
                                         .build(ctx, engine.resource_manager.clone());
@@ -609,7 +614,7 @@ impl MaterialEditor {
             } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) =
                 message.data::<PopupMessage>()
             {
-                if message.destination() == *self.texture_context_menu.popup {
+                if message.destination() == self.texture_context_menu.popup.handle() {
                     self.texture_context_menu.target = *target;
                 }
             } else if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {

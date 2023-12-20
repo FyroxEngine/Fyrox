@@ -30,14 +30,15 @@ use fyrox::{
     },
     utils::lightmap::Lightmap,
 };
-use std::rc::Rc;
+
+use std::sync::Arc;
 
 mod command;
 
 pub struct SceneSettingsWindow {
     pub window: Handle<UiNode>,
     inspector: Handle<UiNode>,
-    property_definitions: Rc<PropertyEditorDefinitionContainer>,
+    property_definitions: Arc<PropertyEditorDefinitionContainer>,
 }
 
 impl SceneSettingsWindow {
@@ -69,7 +70,7 @@ impl SceneSettingsWindow {
         Self {
             window,
             inspector,
-            property_definitions: Rc::new(container),
+            property_definitions: Arc::new(container),
         }
     }
 

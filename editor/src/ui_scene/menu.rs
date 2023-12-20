@@ -113,7 +113,7 @@ impl WidgetContextMenu {
                 }
             } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data()
             {
-                if message.destination() == *self.menu {
+                if message.destination() == self.menu.handle() {
                     self.placement_target = *target;
 
                     // Check if there's something to paste and deactivate "Paste" if nothing.

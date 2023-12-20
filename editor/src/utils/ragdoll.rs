@@ -41,7 +41,8 @@ use fyrox::{
         transform::TransformBuilder,
     },
 };
-use std::{ops::Range, rc::Rc};
+use std::ops::Range;
+use std::sync::Arc;
 
 #[derive(Reflect, Debug)]
 pub struct RagdollPreset {
@@ -998,7 +999,7 @@ pub struct RagdollWizard {
 impl RagdollWizard {
     pub fn new(ctx: &mut BuildContext, sender: MessageSender) -> Self {
         let preset = RagdollPreset::default();
-        let container = Rc::new(make_property_editors_container(sender));
+        let container = Arc::new(make_property_editors_container(sender));
 
         let inspector;
         let ok;

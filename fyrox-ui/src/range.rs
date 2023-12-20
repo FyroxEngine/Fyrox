@@ -22,7 +22,7 @@ use std::{
 };
 
 /// A set of messages, that can be used to modify/fetch the state of a [`RangeEditor`] widget instance.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum RangeEditorMessage<T>
 where
     T: NumericType,

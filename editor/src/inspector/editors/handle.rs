@@ -40,7 +40,7 @@ use std::{
     sync::Mutex,
 };
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum HandlePropertyEditorMessage {
     Value(ErasedHandle),
     Name(Option<String>),

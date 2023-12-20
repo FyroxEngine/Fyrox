@@ -80,7 +80,7 @@ impl CanvasContextMenu {
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.create_state {
-                let screen_position = ui.node(*self.menu).screen_position();
+                let screen_position = ui.node(self.menu.handle()).screen_position();
 
                 sender.do_scene_command(AddStateCommand::new(
                     absm_node_handle,
@@ -306,7 +306,7 @@ impl NodeContextMenu {
                 ));
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == *self.menu {
+            if message.destination() == self.menu.handle() {
                 self.placement_target = *target;
             }
         }
@@ -376,7 +376,7 @@ impl TransitionContextMenu {
                 }
             }
         } else if let Some(PopupMessage::Placement(Placement::Cursor(target))) = message.data() {
-            if message.destination() == *self.menu {
+            if message.destination() == self.menu.handle() {
                 self.placement_target = *target;
             }
         }

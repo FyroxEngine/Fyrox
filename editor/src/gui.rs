@@ -1,4 +1,5 @@
 use fyrox::asset::untyped::UntypedResource;
+use fyrox::core::parking_lot::Mutex;
 use fyrox::{
     core::{color::Color, pool::Handle},
     gui::{
@@ -15,14 +16,14 @@ use fyrox::{
         BuildContext, HorizontalAlignment, Thickness, UiNode, VerticalAlignment,
     },
 };
-use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AssetItemMessage {
     Select(bool),
 }
 
-pub fn make_dropdown_list_option_universal<T: 'static>(
+pub fn make_dropdown_list_option_universal<T: Send + 'static>(
     ctx: &mut BuildContext,
     name: &str,
     height: f32,
@@ -31,7 +32,7 @@ pub fn make_dropdown_list_option_universal<T: 'static>(
     DecoratorBuilder::new(BorderBuilder::new(
         WidgetBuilder::new()
             .with_height(height)
-            .with_user_data(Rc::new(user_data))
+            .with_user_data(Arc::new(Mutex::new(user_data)))
             .with_child(
                 TextBuilder::new(WidgetBuilder::new())
                     .with_vertical_text_alignment(VerticalAlignment::Center)

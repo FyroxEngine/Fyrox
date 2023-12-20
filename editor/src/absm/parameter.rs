@@ -24,12 +24,12 @@ use fyrox::{
     },
     scene::{animation::absm::AnimationBlendingStateMachine, node::Node},
 };
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct ParameterPanel {
     pub window: Handle<UiNode>,
     inspector: Handle<UiNode>,
-    property_editors: Rc<PropertyEditorDefinitionContainer>,
+    property_editors: Arc<PropertyEditorDefinitionContainer>,
 }
 
 impl ParameterPanel {
@@ -58,7 +58,7 @@ impl ParameterPanel {
         Self {
             window,
             inspector,
-            property_editors: Rc::new(property_editors),
+            property_editors: Arc::new(property_editors),
         }
     }
 

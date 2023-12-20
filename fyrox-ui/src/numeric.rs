@@ -31,7 +31,6 @@ use std::{
     cmp::Ordering,
     fmt::{Debug, Display},
     ops::{Deref, DerefMut},
-    rc::Rc,
     str::FromStr,
 };
 
@@ -126,7 +125,7 @@ impl<T: NumericType> NumericUpDownMessage<T> {
     ) -> UiMessage {
         UiMessage {
             handled: Default::default(),
-            data: Rc::new(precision),
+            data: Box::new(precision),
             destination,
             direction,
             perform_layout: Default::default(),

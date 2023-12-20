@@ -20,10 +20,8 @@ use fyrox::{
     },
 };
 use std::ffi::OsStr;
-use std::{
-    path::{Path, PathBuf},
-    rc::Rc,
-};
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 struct Context {
     resource_path: PathBuf,
@@ -112,7 +110,7 @@ impl AssetInspector {
                 let context = InspectorContext::from_object(
                     reflect,
                     &mut ui.build_ctx(),
-                    Rc::new(make_property_editors_container(sender.clone())),
+                    Arc::new(make_property_editors_container(sender.clone())),
                     None,
                     MSG_SYNC_FLAG,
                     0,

@@ -1,3 +1,4 @@
+use fyrox::core::parking_lot::Mutex;
 use fyrox::{
     core::{
         algebra::Vector2, make_pretty_type_name, pool::Handle, reflect::prelude::*,
@@ -22,10 +23,10 @@ use fyrox::{
         UiNode, UserInterface,
     },
 };
+use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
-    rc::Rc,
     sync::mpsc::Sender,
 };
 
@@ -82,7 +83,7 @@ fn apply_filter_recursive(node: Handle<UiNode>, filter: &str, ui: &UserInterface
 
     if let Some(data) = node_ref
         .query_component::<Tree>()
-        .and_then(|n| n.user_data_ref::<PropertyDescriptorData>())
+        .and_then(|n| n.user_data_cloned::<PropertyDescriptorData>())
     {
         is_any_match |= data.name.to_lowercase().contains(filter);
 
@@ -119,13 +120,13 @@ impl PropertyDescriptor {
                 make_pretty_type_name(&self.type_name)
             );
 
-            TreeBuilder::new(
-                WidgetBuilder::new().with_user_data(Rc::new(PropertyDescriptorData {
+            TreeBuilder::new(WidgetBuilder::new().with_user_data(Arc::new(Mutex::new(
+                PropertyDescriptorData {
                     name: name.clone(),
                     path: self.path.clone(),
                     type_id: self.type_id,
-                })),
-            )
+                },
+            ))))
             .with_items(items)
             .with_content(
                 TextBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(1.0)))
@@ -308,7 +309,7 @@ impl Control for PropertySelector {
                         .iter()
                         .map(|s| {
                             ui.node(*s)
-                                .user_data_ref::<PropertyDescriptorData>()
+                                .user_data_cloned::<PropertyDescriptorData>()
                                 .unwrap()
                                 .clone()
                         })

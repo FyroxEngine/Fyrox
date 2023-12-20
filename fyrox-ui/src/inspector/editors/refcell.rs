@@ -9,18 +9,19 @@ use crate::{
     },
     message::UiMessage,
 };
+use fyrox_core::PhantomDataSendSync;
 use std::{
     any::TypeId,
     cell::RefCell,
     fmt::{Debug, Formatter},
-    marker::PhantomData,
 };
 
 pub struct RefCellPropertyEditorDefinition<T>
 where
     T: FieldValue,
 {
-    phantom: PhantomData<T>,
+    #[allow(dead_code)]
+    phantom: PhantomDataSendSync<T>,
 }
 
 impl<T> RefCellPropertyEditorDefinition<T>
@@ -29,7 +30,7 @@ where
 {
     pub fn new() -> Self {
         Self {
-            phantom: PhantomData,
+            phantom: Default::default(),
         }
     }
 }

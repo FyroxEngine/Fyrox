@@ -204,6 +204,7 @@ pub mod image;
 pub mod inspector;
 pub mod key;
 pub mod list_view;
+pub mod loader;
 pub mod menu;
 pub mod message;
 pub mod messagebox;
@@ -248,6 +249,7 @@ use crate::{
         scope_profile,
         visitor::prelude::*,
     },
+    core::{parking_lot::Mutex, pool::Ticket, uuid::Uuid, uuid_provider, TypeUuidProvider},
     draw::{CommandTexture, Draw, DrawingContext},
     font::FontResource,
     font::BUILT_IN_FONT,
@@ -260,26 +262,26 @@ use crate::{
 };
 use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_resource::manager::ResourceManager;
+use fyrox_resource::{io::ResourceIo, manager::ResourceManager, ResourceData};
 use serde::{Deserialize, Serialize};
 use std::{
+    any::Any,
     cell::{Cell, Ref, RefCell, RefMut},
     collections::{btree_set::BTreeSet, hash_map::Entry, VecDeque},
+    error::Error,
     fmt::{Debug, Formatter},
-    ops::{Deref, DerefMut},
+    ops::DerefMut,
     path::Path,
-    rc::Rc,
-    sync::mpsc::{self, Receiver, Sender, TryRecvError},
-    sync::Arc,
+    sync::{
+        mpsc::{self, Receiver, Sender, TryRecvError},
+        Arc,
+    },
 };
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
-use fyrox_core::pool::Ticket;
-use fyrox_core::uuid_provider;
-use fyrox_resource::io::ResourceIo;
 pub use node::*;
 pub use thickness::*;
 
@@ -348,40 +350,38 @@ impl Drop for RcUiNodeHandleInner {
 }
 
 #[derive(Clone, Default, Visit)]
-pub struct RcUiNodeHandle(Rc<RcUiNodeHandleInner>);
+pub struct RcUiNodeHandle(Arc<Mutex<RcUiNodeHandleInner>>);
 
 impl Debug for RcUiNodeHandle {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(
             f,
             "RcUiNodeHandle - {}:{} with {} uses",
-            self.0.handle.index(),
-            self.0.handle.generation(),
-            Rc::strong_count(&self.0)
+            self.0.lock().handle.index(),
+            self.0.lock().handle.generation(),
+            Arc::strong_count(&self.0)
         )
     }
 }
 
 impl PartialEq for RcUiNodeHandle {
     fn eq(&self, other: &Self) -> bool {
-        self.0.handle == other.0.handle
+        let a = self.0.lock().handle;
+        let b = other.0.lock().handle;
+        a == b
     }
 }
 
 impl RcUiNodeHandle {
     pub fn new(handle: Handle<UiNode>, sender: Sender<UiMessage>) -> Self {
-        Self(Rc::new(RcUiNodeHandleInner {
+        Self(Arc::new(Mutex::new(RcUiNodeHandleInner {
             handle,
             sender: Some(sender),
-        }))
+        })))
     }
-}
 
-impl Deref for RcUiNodeHandle {
-    type Target = Handle<UiNode>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0.handle
+    pub fn handle(&self) -> Handle<UiNode> {
+        self.0.lock().handle
     }
 }
 
@@ -499,7 +499,7 @@ impl NodeStatistics {
     }
 }
 
-#[derive(Visit, Reflect, Debug)]
+#[derive(Visit, Reflect, Debug, Clone)]
 pub struct DragContext {
     pub is_dragging: bool,
     pub drag_node: Handle<UiNode>,
@@ -551,7 +551,7 @@ pub struct RestrictionEntry {
     pub stop: bool,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct TooltipEntry {
     tooltip: RcUiNodeHandle,
     /// Time remaining until this entry should disappear (in seconds).
@@ -654,6 +654,56 @@ pub struct UserInterface {
     #[reflect(hidden)]
     double_click_entries: FxHashMap<MouseButton, DoubleClickEntry>,
     pub double_click_time_slice: f32,
+}
+
+impl Clone for UserInterface {
+    fn clone(&self) -> Self {
+        let (sender, receiver) = mpsc::channel();
+        let (layout_events_sender, layout_events_receiver) = mpsc::channel();
+        let mut nodes = Pool::new();
+        for (handle, node) in self.nodes.pair_iter() {
+            let mut clone = node.clone_boxed();
+            clone.layout_events_sender = Some(layout_events_sender.clone());
+            nodes.spawn_at_handle(handle, UiNode(clone)).unwrap();
+        }
+
+        Self {
+            screen_size: self.screen_size,
+            nodes,
+            drawing_context: self.drawing_context.clone(),
+            visual_debug: self.visual_debug,
+            root_canvas: self.root_canvas,
+            picked_node: self.picked_node,
+            prev_picked_node: self.prev_picked_node,
+            captured_node: self.captured_node,
+            keyboard_focus_node: self.keyboard_focus_node,
+            cursor_position: self.cursor_position,
+            receiver,
+            sender,
+            stack: self.stack.clone(),
+            picking_stack: self.picking_stack.clone(),
+            bubble_queue: self.bubble_queue.clone(),
+            drag_context: self.drag_context.clone(),
+            mouse_state: self.mouse_state,
+            keyboard_modifiers: self.keyboard_modifiers,
+            cursor_icon: self.cursor_icon,
+            active_tooltip: self.active_tooltip.clone(),
+            preview_set: self.preview_set.clone(),
+            clipboard: Clipboard(ClipboardContext::new().ok().map(RefCell::new)),
+            layout_events_receiver,
+            layout_events_sender,
+            need_update_global_transform: self.need_update_global_transform,
+            default_font: self.default_font.clone(),
+            double_click_entries: self.double_click_entries.clone(),
+            double_click_time_slice: self.double_click_time_slice,
+        }
+    }
+}
+
+impl Default for UserInterface {
+    fn default() -> Self {
+        Self::new(Vector2::new(100.0, 100.0))
+    }
 }
 
 fn is_on_screen(node: &UiNode, nodes: &Pool<UiNode, WidgetContainer>) -> bool {
@@ -1833,12 +1883,12 @@ impl UserInterface {
                                     // Display context menu
                                     if let Some(context_menu) = context_menu {
                                         self.send_message(PopupMessage::placement(
-                                            *context_menu,
+                                            context_menu.handle(),
                                             MessageDirection::ToWidget,
                                             Placement::Cursor(target),
                                         ));
                                         self.send_message(PopupMessage::open(
-                                            *context_menu,
+                                            context_menu.handle(),
                                             MessageDirection::ToWidget,
                                         ));
                                     }
@@ -1864,18 +1914,21 @@ impl UserInterface {
 
     fn show_tooltip(&self, tooltip: RcUiNodeHandle) {
         self.send_message(WidgetMessage::visibility(
-            *tooltip,
+            tooltip.handle(),
             MessageDirection::ToWidget,
             true,
         ));
-        self.send_message(WidgetMessage::topmost(*tooltip, MessageDirection::ToWidget));
+        self.send_message(WidgetMessage::topmost(
+            tooltip.handle(),
+            MessageDirection::ToWidget,
+        ));
         self.send_message(WidgetMessage::desired_position(
-            *tooltip,
+            tooltip.handle(),
             MessageDirection::ToWidget,
             self.screen_to_root_canvas_space(self.cursor_position() + Vector2::new(0.0, 16.0)),
         ));
         self.send_message(WidgetMessage::adjust_position_to_fit(
-            *tooltip,
+            tooltip.handle(),
             MessageDirection::ToWidget,
         ));
     }
@@ -1893,7 +1946,7 @@ impl UserInterface {
 
                 // Hide previous.
                 self.send_message(WidgetMessage::visibility(
-                    *old_tooltip,
+                    old_tooltip.handle(),
                     MessageDirection::ToWidget,
                     false,
                 ));
@@ -1915,7 +1968,7 @@ impl UserInterface {
                 // visible_tooltips
                 sender
                     .send(WidgetMessage::visibility(
-                        *entry.tooltip,
+                        entry.tooltip.handle(),
                         MessageDirection::ToWidget,
                         false,
                     ))
@@ -1938,7 +1991,7 @@ impl UserInterface {
                 self.replace_or_update_tooltip(tooltip, tooltip_time);
                 break;
             } else if let Some(entry) = self.active_tooltip.as_mut() {
-                if *entry.tooltip == handle {
+                if entry.tooltip.handle() == handle {
                     // The current node was a tooltip.
                     // We refresh the timer back to the stored max time.
                     entry.time = entry.max_time;
@@ -3010,6 +3063,31 @@ fn transform_size(transform_space_bounds: Vector2<f32>, matrix: &Matrix3<f32>) -
     }
 
     Vector2::new(w, h)
+}
+
+uuid_provider!(UserInterface = "0d065c93-ef9c-4dd2-9fe7-e2b33c1a21b6");
+
+impl ResourceData for UserInterface {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn type_uuid(&self) -> Uuid {
+        <Self as TypeUuidProvider>::type_uuid()
+    }
+
+    fn save(&mut self, path: &Path) -> Result<(), Box<dyn Error>> {
+        self.save(path)?;
+        Ok(())
+    }
+
+    fn can_be_saved(&self) -> bool {
+        true
+    }
 }
 
 #[cfg(test)]

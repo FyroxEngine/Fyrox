@@ -23,14 +23,15 @@ use crate::{
     BRUSH_DARKER, BRUSH_TEXT,
 };
 use copypasta::ClipboardProvider;
+use fyrox_core::parking_lot::Mutex;
 use fyrox_core::uuid_provider;
+use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
     cell::RefCell,
     cmp::Ordering,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    rc::Rc,
     sync::mpsc::Sender,
 };
 
@@ -160,7 +161,7 @@ impl SelectionRange {
 
 /// Defines a function, that could be used to filter out desired characters. It must return `true` for characters, that pass
 /// the filter, and `false` - otherwise.
-pub type FilterCallback = dyn FnMut(char) -> bool;
+pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 
 /// TextBox is a text widget that allows you to edit text and create specialized input fields. It has various options like
 /// word wrapping, text alignment, and so on.
@@ -351,11 +352,12 @@ pub type FilterCallback = dyn FnMut(char) -> bool;
 /// #     core::pool::Handle,
 /// #     text_box::TextBoxBuilder, widget::WidgetBuilder, UiNode, UserInterface
 /// # };
-/// # use std::{cell::RefCell, rc::Rc};
+/// # use std::sync::Arc;
+/// # use fyrox_core::parking_lot::Mutex;
 /// fn create_text_box(ui: &mut UserInterface) -> Handle<UiNode> {
 ///     TextBoxBuilder::new(WidgetBuilder::new())
 ///         // Specify a filter that will pass only digits.
-///         .with_filter(Rc::new(RefCell::new(|c: char| c.is_ascii_digit())))
+///         .with_filter(Arc::new(Mutex::new(|c: char| c.is_ascii_digit())))
 ///         .build(&mut ui.build_ctx())
 /// }
 /// ```
@@ -391,7 +393,7 @@ pub struct TextBox {
     /// Current character filter of the text box.
     #[visit(skip)]
     #[reflect(hidden)]
-    pub filter: Option<Rc<RefCell<FilterCallback>>>,
+    pub filter: Option<Arc<Mutex<FilterCallback>>>,
     /// Current text commit mode of the text box.
     pub commit_mode: TextCommitMode,
     /// `true` if the the multiline mode is active.
@@ -1122,7 +1124,7 @@ impl Control for TextBox {
                     {
                         for symbol in text.chars() {
                             let insert = if let Some(filter) = self.filter.as_ref() {
-                                let filter = &mut *filter.borrow_mut();
+                                let filter = &mut *filter.lock();
                                 filter(symbol)
                             } else {
                                 true
@@ -1574,7 +1576,7 @@ pub struct TextBoxBuilder {
     text: String,
     caret_brush: Brush,
     selection_brush: Brush,
-    filter: Option<Rc<RefCell<FilterCallback>>>,
+    filter: Option<Arc<Mutex<FilterCallback>>>,
     vertical_alignment: VerticalAlignment,
     horizontal_alignment: HorizontalAlignment,
     wrap: WrapMode,
@@ -1641,7 +1643,7 @@ impl TextBoxBuilder {
     }
 
     /// Sets the desired character filter of the text box. See [`FilterCallback`] for more info.
-    pub fn with_filter(mut self, filter: Rc<RefCell<FilterCallback>>) -> Self {
+    pub fn with_filter(mut self, filter: Arc<Mutex<FilterCallback>>) -> Self {
         self.filter = Some(filter);
         self
     }

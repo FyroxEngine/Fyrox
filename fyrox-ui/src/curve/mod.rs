@@ -568,7 +568,7 @@ impl Control for CurveEditor {
                     },
                 ));
             } else if message.destination() == self.context_menu.add_key {
-                let screen_pos = ui.node(*self.context_menu.widget).screen_position();
+                let screen_pos = ui.node(self.context_menu.widget.handle()).screen_position();
                 ui.send_message(CurveEditorMessage::add_key(
                     self.handle,
                     MessageDirection::ToWidget,

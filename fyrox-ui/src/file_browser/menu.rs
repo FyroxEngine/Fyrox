@@ -21,7 +21,7 @@ use std::{
     any::{Any, TypeId},
     cell::{Cell, RefCell},
     ops::{Deref, DerefMut},
-    path::{Path, PathBuf},
+    path::PathBuf,
     sync::mpsc::Sender,
 };
 
@@ -347,9 +347,8 @@ impl ItemContextMenu {
         ctx.add_node(UiNode::new(menu))
     }
 
-    fn item_path<'a>(&self, ui: &'a UserInterface) -> Option<&'a Path> {
+    fn item_path(&self, ui: &UserInterface) -> Option<PathBuf> {
         ui.try_get_node(self.popup.placement.target())
-            .and_then(|n| n.user_data_ref::<PathBuf>())
-            .map(|p| p.as_path())
+            .and_then(|n| n.user_data_cloned::<PathBuf>())
     }
 }

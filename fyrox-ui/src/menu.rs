@@ -22,11 +22,12 @@ use crate::{
     Thickness, UiNode, UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE,
     BRUSH_PRIMARY,
 };
+use fyrox_core::parking_lot::Mutex;
 use fyrox_core::uuid_provider;
+use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
-    rc::Rc,
     sync::mpsc::Sender,
 };
 
@@ -297,8 +298,7 @@ fn find_menu(from: Handle<UiNode>, ui: &UserInterface) -> Handle<UiNode> {
         if let Some((_, popup)) = ui.try_borrow_by_type_up::<Popup>(handle) {
             // Continue search from parent menu item of popup.
             handle = popup
-                .user_data_ref::<Handle<UiNode>>()
-                .cloned()
+                .user_data_cloned::<Handle<UiNode>>()
                 .unwrap_or_default();
         } else {
             // Maybe we have Menu as parent for MenuItem.
@@ -337,8 +337,7 @@ fn close_menu_chain(from: Handle<UiNode>, ui: &UserInterface) {
 
             // Continue search from parent menu item of popup.
             handle = popup
-                .user_data_ref::<Handle<UiNode>>()
-                .cloned()
+                .user_data_cloned::<Handle<UiNode>>()
                 .unwrap_or_default();
         } else {
             // Prevent infinite loops.
@@ -527,8 +526,7 @@ impl Control for MenuItem {
                             // Once we found popup in chain, we must extract handle
                             // of parent menu item to continue search.
                             handle = popup
-                                .user_data_ref::<Handle<UiNode>>()
-                                .cloned()
+                                .user_data_cloned::<Handle<UiNode>>()
                                 .unwrap_or_default();
                         } else {
                             handle = node.parent();
@@ -837,7 +835,7 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
 
         // "Link" popup with its parent menu item.
         if let Some(popup) = ctx[popup].cast_mut::<Popup>() {
-            popup.user_data = Some(Rc::new(handle));
+            popup.user_data = Some(Arc::new(Mutex::new(handle)));
         }
 
         handle
