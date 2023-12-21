@@ -16,6 +16,7 @@ use crate::{
     window::WindowAttributes,
 };
 use clap::Parser;
+use fyrox_core::task::TaskPool;
 use std::{
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -67,10 +68,12 @@ impl Executor {
         graphics_context_params: GraphicsContextParams,
     ) -> Self {
         let serialization_context = Arc::new(SerializationContext::new());
+        let task_pool = Arc::new(TaskPool::new());
         let engine = Engine::new(EngineInitParams {
             graphics_context_params,
-            resource_manager: ResourceManager::new(),
+            resource_manager: ResourceManager::new(task_pool.clone()),
             serialization_context,
+            task_pool,
         })
         .unwrap();
 

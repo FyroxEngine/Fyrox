@@ -11,6 +11,7 @@ use crate::{
         log::Log,
         make_relative_path, notify,
         parking_lot::{Mutex, MutexGuard},
+        task::TaskPool,
         watcher::FileSystemWatcher,
         TypeUuidProvider,
     },
@@ -20,7 +21,6 @@ use crate::{
     loader::{ResourceLoader, ResourceLoadersContainer},
     options::OPTIONS_EXTENSION,
     state::{LoadError, ResourceState},
-    task::TaskPool,
     Resource, ResourceData, TypedResourceData, UntypedResource,
 };
 use fxhash::{FxHashMap, FxHashSet};
@@ -77,12 +77,6 @@ pub struct ResourceManager {
     state: Arc<Mutex<ResourceManagerState>>,
 }
 
-impl Default for ResourceManager {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// An error that may occur during texture registration.
 #[derive(Debug)]
 pub enum ResourceRegistrationError {
@@ -112,9 +106,9 @@ impl Display for ResourceRegistrationError {
 
 impl ResourceManager {
     /// Creates a resource manager with default settings and loaders.
-    pub fn new() -> Self {
+    pub fn new(task_pool: Arc<TaskPool>) -> Self {
         Self {
-            state: Arc::new(Mutex::new(ResourceManagerState::new())),
+            state: Arc::new(Mutex::new(ResourceManagerState::new(task_pool))),
         }
     }
 
@@ -349,10 +343,10 @@ impl ResourceManager {
 }
 
 impl ResourceManagerState {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(task_pool: Arc<TaskPool>) -> Self {
         Self {
             resources: Default::default(),
-            task_pool: Arc::new(Default::default()),
+            task_pool,
             loaders: Default::default(),
             event_broadcaster: Default::default(),
             constructors_container: Default::default(),
@@ -744,6 +738,10 @@ mod test {
         }
     }
 
+    fn new_resource_manager() -> ResourceManagerState {
+        ResourceManagerState::new(Arc::new(Default::default()))
+    }
+
     #[test]
     fn resource_wait_context_is_all_loaded() {
         assert!(ResourceWaitContext::default().is_all_loaded());
@@ -762,7 +760,7 @@ mod test {
 
     #[test]
     fn resource_manager_state_new() {
-        let state = ResourceManagerState::new();
+        let state = new_resource_manager();
 
         assert!(state.resources.is_empty());
         assert!(state.loaders.is_empty());
@@ -774,7 +772,7 @@ mod test {
 
     #[test]
     fn resource_manager_state_set_watcher() {
-        let mut state = ResourceManagerState::new();
+        let mut state = new_resource_manager();
         assert!(state.watcher.is_none());
 
         let path = PathBuf::from("test.txt");
@@ -787,7 +785,7 @@ mod test {
 
     #[test]
     fn resource_manager_state_push() {
-        let mut state = ResourceManagerState::new();
+        let mut state = new_resource_manager();
 
         assert_eq!(state.count_loaded_resources(), 0);
         assert_eq!(state.count_pending_resources(), 0);
@@ -812,7 +810,7 @@ mod test {
 
     #[test]
     fn resource_manager_state_loading_progress() {
-        let mut state = ResourceManagerState::new();
+        let mut state = new_resource_manager();
 
         assert_eq!(state.loading_progress(), 100);
 
@@ -831,7 +829,7 @@ mod test {
 
     #[test]
     fn resource_manager_state_find() {
-        let mut state = ResourceManagerState::new();
+        let mut state = new_resource_manager();
 
         assert!(state.find(Path::new("foo.txt")).is_none());
 
@@ -845,7 +843,7 @@ mod test {
 
     #[test]
     fn resource_manager_state_resources() {
-        let mut state = ResourceManagerState::new();
+        let mut state = new_resource_manager();
 
         assert_eq!(state.resources(), Vec::new());
 
@@ -865,7 +863,7 @@ mod test {
 
     #[test]
     fn resource_manager_state_destroy_unused_resources() {
-        let mut state = ResourceManagerState::new();
+        let mut state = new_resource_manager();
 
         state.push(UntypedResource::new_pending(
             PathBuf::from("test.txt").into(),
@@ -879,7 +877,7 @@ mod test {
 
     #[test]
     fn resource_manager_state_request() {
-        let mut state = ResourceManagerState::new();
+        let mut state = new_resource_manager();
         let path = PathBuf::from("test.txt");
         let type_uuid = Uuid::default();
 
@@ -900,7 +898,7 @@ mod test {
 
     #[test]
     fn resource_manager_state_try_reload_resource_from_path() {
-        let mut state = ResourceManagerState::new();
+        let mut state = new_resource_manager();
         state.loaders.set(Stub {});
 
         let resource = UntypedResource::new_load_error(
@@ -918,7 +916,7 @@ mod test {
 
     #[test]
     fn resource_manager_state_get_wait_context() {
-        let mut state = ResourceManagerState::new();
+        let mut state = new_resource_manager();
 
         let resource = UntypedResource::new_ok(Default::default(), Stub {});
         state.push(resource.clone());
@@ -929,7 +927,7 @@ mod test {
 
     #[test]
     fn resource_manager_new() {
-        let manager = ResourceManager::new();
+        let manager = ResourceManager::new(Arc::new(Default::default()));
 
         assert!(manager.state.lock().is_empty());
         assert!(manager.state().is_empty());
@@ -937,7 +935,7 @@ mod test {
 
     #[test]
     fn resource_manager_register() {
-        let manager = ResourceManager::default();
+        let manager = ResourceManager::new(Arc::new(Default::default()));
         let path = PathBuf::from("test.txt");
         let type_uuid = Uuid::default();
 
@@ -952,7 +950,7 @@ mod test {
 
     #[test]
     fn resource_manager_request() {
-        let manager = ResourceManager::new();
+        let manager = ResourceManager::new(Arc::new(Default::default()));
         let untyped = UntypedResource::new_ok(Default::default(), Stub {});
         let res = manager.register(untyped.clone(), PathBuf::from("foo.txt"), |_, __| true);
         assert!(res.is_ok());
@@ -969,7 +967,7 @@ mod test {
 
     #[test]
     fn resource_manager_request_untyped() {
-        let manager = ResourceManager::new();
+        let manager = ResourceManager::new(Arc::new(Default::default()));
         let resource = UntypedResource::new_ok(Default::default(), Stub {});
         let res = manager.register(resource.clone(), PathBuf::from("foo.txt"), |_, __| true);
         assert!(res.is_ok());

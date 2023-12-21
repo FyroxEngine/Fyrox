@@ -80,6 +80,7 @@ use crate::{
     utils::{doc::DocWindow, path_fixer::PathFixer, ragdoll::RagdollWizard},
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
+use fyrox::core::task::TaskPool;
 use fyrox::{
     asset::{io::FsResourceIo, manager::ResourceManager, untyped::UntypedResource},
     core::{
@@ -555,10 +556,12 @@ impl Editor {
         };
 
         let serialization_context = Arc::new(SerializationContext::new());
+        let task_pool = Arc::new(TaskPool::new());
         let mut engine = Engine::new(EngineInitParams {
             graphics_context_params,
-            resource_manager: ResourceManager::new(),
+            resource_manager: ResourceManager::new(task_pool.clone()),
             serialization_context,
+            task_pool,
         })
         .unwrap();
 

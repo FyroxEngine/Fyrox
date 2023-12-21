@@ -674,7 +674,7 @@ mod test {
         }
 
         // Initialize resource manager and re-load the scene.
-        let resource_manager = ResourceManager::new();
+        let resource_manager = ResourceManager::new(Arc::new(Default::default()));
         let serialization_context = SerializationContext::new();
         serialization_context
             .script_constructors

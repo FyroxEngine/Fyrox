@@ -347,7 +347,7 @@ impl QualitySettings {
 
             use_bloom: true,
 
-            use_parallax_mapping: false, // TODO: Enable when it is fixed!
+            use_parallax_mapping: true,
 
             csm_settings: Default::default(),
         }
@@ -380,7 +380,7 @@ impl QualitySettings {
 
             use_bloom: true,
 
-            use_parallax_mapping: false, // TODO: Enable when it is fixed!
+            use_parallax_mapping: true,
 
             csm_settings: CsmSettings {
                 enabled: true,

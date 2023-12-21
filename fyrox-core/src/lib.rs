@@ -44,6 +44,7 @@ pub mod rectpack;
 pub mod reflect;
 pub mod sparse;
 pub mod sstorage;
+pub mod task;
 pub mod variable;
 pub mod visitor;
 pub mod watcher;

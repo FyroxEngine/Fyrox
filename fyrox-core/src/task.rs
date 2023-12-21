@@ -1,5 +1,5 @@
 #[cfg(not(target_arch = "wasm32"))]
-use crate::core::futures::executor::ThreadPool;
+use crate::futures::executor::ThreadPool;
 use std::future::Future;
 
 pub struct TaskPool {

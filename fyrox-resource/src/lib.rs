@@ -42,7 +42,6 @@ pub mod loader;
 pub mod manager;
 pub mod options;
 pub mod state;
-mod task;
 pub mod untyped;
 
 /// Type UUID of texture resource. It is defined here to load old versions of resources.

@@ -13,6 +13,7 @@ use crate::{
     gui::{message::UiMessage, UserInterface},
     scene::{Scene, SceneContainer},
 };
+use fyrox_core::task::TaskPool;
 use fyrox_core::visitor::VisitError;
 use std::{any::Any, path::Path, sync::Arc};
 use winit::event_loop::EventLoopWindowTarget;
@@ -102,6 +103,9 @@ pub struct PluginContext<'a, 'b> {
     /// Special field that associates main application event loop (not game loop) with OS-specific
     /// windows. It also can be used to alternate control flow of the application.
     pub window_target: Option<&'b EventLoopWindowTarget<()>>,
+
+    /// Task pool for asynchronous task management.
+    pub task_pool: &'a Arc<TaskPool>,
 }
 
 /// Base plugin automatically implements type casting for plugins.

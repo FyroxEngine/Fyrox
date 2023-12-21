@@ -69,6 +69,7 @@ use raw_window_handle::HasRawWindowHandle;
 #[cfg(not(target_arch = "wasm32"))]
 use std::{ffi::CString, num::NonZeroU32};
 
+use fyrox_core::task::TaskPool;
 use fyrox_ui::font::BUILT_IN_FONT;
 use fyrox_ui::loader::UserInterfaceLoader;
 use fyrox_ui::{font::loader::FontLoader, font::Font};
@@ -415,6 +416,9 @@ pub struct Engine {
 
     /// An instance of the async scene loader. See [`AsyncSceneLoader`] docs for usage example.
     pub async_scene_loader: AsyncSceneLoader,
+
+    /// Task pool for asynchronous task management.
+    pub task_pool: Arc<TaskPool>,
 
     performance_statistics: PerformanceStatistics,
 
@@ -935,6 +939,8 @@ pub struct EngineInitParams {
     pub serialization_context: Arc<SerializationContext>,
     /// A resource manager.
     pub resource_manager: ResourceManager,
+    /// Task pool for asynchronous task management.
+    pub task_pool: Arc<TaskPool>,
 }
 
 macro_rules! define_process_node {
@@ -1088,6 +1094,7 @@ impl Engine {
     ///     window::WindowAttributes,
     /// };
     /// use std::sync::Arc;
+    /// use fyrox_core::task::TaskPool;
     ///
     /// let mut window_attributes = WindowAttributes::default();
     /// window_attributes.title = "Some title".to_string();
@@ -1095,11 +1102,13 @@ impl Engine {
     ///     window_attributes,
     ///     vsync: true,
     /// };
+    /// let task_pool = Arc::new(TaskPool::new());
     ///
     /// Engine::new(EngineInitParams {
     ///     graphics_context_params,
-    ///     resource_manager: ResourceManager::new(),
+    ///     resource_manager: ResourceManager::new(task_pool.clone()),
     ///     serialization_context: Arc::new(SerializationContext::new()),
+    ///     task_pool
     /// })
     /// .unwrap();
     /// ```
@@ -1110,6 +1119,7 @@ impl Engine {
             graphics_context_params,
             serialization_context,
             resource_manager,
+            task_pool,
         } = params;
 
         initialize_resource_manager_loaders(&resource_manager, serialization_context.clone());
@@ -1137,6 +1147,7 @@ impl Engine {
             plugins_enabled: false,
             plugin_constructors: Default::default(),
             elapsed_time: 0.0,
+            task_pool,
         })
     }
 
@@ -1484,6 +1495,7 @@ impl Engine {
                             script_processor: &self.script_processor,
                             async_scene_loader: &mut self.async_scene_loader,
                             window_target: Some(window_target),
+                            task_pool: &self.task_pool,
                         };
 
                         for plugin in self.plugins.iter_mut() {
@@ -1515,6 +1527,7 @@ impl Engine {
                     script_processor: &self.script_processor,
                     async_scene_loader: &mut self.async_scene_loader,
                     window_target: Some(window_target),
+                    task_pool: &self.task_pool,
                 };
 
                 match loading_result.result {
@@ -1722,6 +1735,7 @@ impl Engine {
                 script_processor: &self.script_processor,
                 async_scene_loader: &mut self.async_scene_loader,
                 window_target: Some(window_target),
+                task_pool: &self.task_pool,
             };
 
             for plugin in self.plugins.iter_mut() {
@@ -1742,6 +1756,7 @@ impl Engine {
                     script_processor: &self.script_processor,
                     async_scene_loader: &mut self.async_scene_loader,
                     window_target: Some(window_target),
+                    task_pool: &self.task_pool,
                 };
 
                 for plugin in self.plugins.iter_mut() {
@@ -1777,6 +1792,7 @@ impl Engine {
                         script_processor: &self.script_processor,
                         async_scene_loader: &mut self.async_scene_loader,
                         window_target: Some(window_target),
+                        task_pool: &self.task_pool,
                     },
                 );
             }
@@ -1804,6 +1820,7 @@ impl Engine {
                     script_processor: &self.script_processor,
                     async_scene_loader: &mut self.async_scene_loader,
                     window_target: Some(window_target),
+                    task_pool: &self.task_pool,
                 });
             }
         }
@@ -1830,6 +1847,7 @@ impl Engine {
                     script_processor: &self.script_processor,
                     async_scene_loader: &mut self.async_scene_loader,
                     window_target: Some(window_target),
+                    task_pool: &self.task_pool,
                 });
             }
         }
@@ -1856,6 +1874,7 @@ impl Engine {
                     script_processor: &self.script_processor,
                     async_scene_loader: &mut self.async_scene_loader,
                     window_target: Some(window_target),
+                    task_pool: &self.task_pool,
                 });
             }
         }
@@ -1987,6 +2006,7 @@ impl Engine {
                             script_processor: &self.script_processor,
                             async_scene_loader: &mut self.async_scene_loader,
                             window_target,
+                            task_pool: &self.task_pool,
                         },
                     ));
                 }
@@ -2008,6 +2028,7 @@ impl Engine {
                         script_processor: &self.script_processor,
                         async_scene_loader: &mut self.async_scene_loader,
                         window_target,
+                        task_pool: &self.task_pool,
                     });
                 }
             }
@@ -2061,6 +2082,7 @@ mod test {
             ScriptTrait,
         },
     };
+    use std::sync::Arc;
 
     use std::sync::mpsc::{self, Sender, TryRecvError};
 
@@ -2164,7 +2186,7 @@ mod test {
 
     #[test]
     fn test_order() {
-        let resource_manager = ResourceManager::new();
+        let resource_manager = ResourceManager::new(Arc::new(Default::default()));
         let mut scene = Scene::new();
 
         let (tx, rx) = mpsc::channel();
@@ -2326,7 +2348,7 @@ mod test {
 
     #[test]
     fn test_messages() {
-        let resource_manager = ResourceManager::new();
+        let resource_manager = ResourceManager::new(Arc::new(Default::default()));
         let mut scene = Scene::new();
 
         let (tx, rx) = mpsc::channel();
