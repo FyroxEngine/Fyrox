@@ -689,6 +689,7 @@ impl ScriptProcessor {
                     plugins,
                     handle: Default::default(),
                     scene,
+                    scene_handle: scripted_scene.handle,
                     resource_manager,
                     message_sender: &scripted_scene.message_sender,
                     message_dispatcher: &mut scripted_scene.message_dispatcher,
@@ -990,6 +991,7 @@ define_process_node!(process_node_message, ScriptMessageContext);
 
 pub(crate) fn process_scripts<T>(
     scene: &mut Scene,
+    scene_handle: Handle<Scene>,
     plugins: &mut [Box<dyn Plugin>],
     resource_manager: &ResourceManager,
     message_sender: &ScriptMessageSender,
@@ -1007,6 +1009,7 @@ pub(crate) fn process_scripts<T>(
         plugins,
         handle: Default::default(),
         scene,
+        scene_handle,
         resource_manager,
         message_sender,
         message_dispatcher,
@@ -1726,6 +1729,7 @@ impl Engine {
                             plugins: &mut self.plugins,
                             handle: handler.node_handle,
                             scene,
+                            scene_handle: scripted_scene.handle,
                             resource_manager: &self.resource_manager,
                             message_sender: &scripted_scene.message_sender,
                             message_dispatcher: &mut scripted_scene.message_dispatcher,
@@ -1949,19 +1953,20 @@ impl Engine {
     pub(crate) fn handle_os_event_by_scripts(
         &mut self,
         event: &Event<()>,
-        scene: Handle<Scene>,
+        scene_handle: Handle<Scene>,
         dt: f32,
     ) {
         if let Some(scripted_scene) = self
             .script_processor
             .scripted_scenes
             .iter_mut()
-            .find(|s| s.handle == scene)
+            .find(|s| s.handle == scene_handle)
         {
-            let scene = &mut self.scenes[scene];
+            let scene = &mut self.scenes[scene_handle];
             if *scene.enabled {
                 process_scripts(
                     scene,
+                    scene_handle,
                     &mut self.plugins,
                     &self.resource_manager,
                     &scripted_scene.message_sender,

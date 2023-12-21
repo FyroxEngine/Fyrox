@@ -210,6 +210,9 @@ pub struct ScriptContext<'a, 'b, 'c> {
     /// in most of the script methods.
     pub scene: &'b mut Scene,
 
+    /// A handle of a scene the script instance belongs to.
+    pub scene_handle: Handle<Scene>,
+
     /// A reference to resource manager, use it to load resources.
     pub resource_manager: &'a ResourceManager,
 
