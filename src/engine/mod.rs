@@ -5,6 +5,7 @@
 
 pub mod error;
 pub mod executor;
+pub mod task;
 
 use crate::{
     asset::{
@@ -69,6 +70,7 @@ use raw_window_handle::HasRawWindowHandle;
 #[cfg(not(target_arch = "wasm32"))]
 use std::{ffi::CString, num::NonZeroU32};
 
+use crate::engine::task::TaskPoolHandler;
 use fyrox_core::task::TaskPool;
 use fyrox_ui::font::BUILT_IN_FONT;
 use fyrox_ui::loader::UserInterfaceLoader;
@@ -418,7 +420,7 @@ pub struct Engine {
     pub async_scene_loader: AsyncSceneLoader,
 
     /// Task pool for asynchronous task management.
-    pub task_pool: Arc<TaskPool>,
+    pub task_pool: TaskPoolHandler,
 
     performance_statistics: PerformanceStatistics,
 
@@ -629,6 +631,7 @@ impl ScriptProcessor {
         scenes: &mut SceneContainer,
         plugins: &mut Vec<Box<dyn Plugin>>,
         resource_manager: &ResourceManager,
+        task_pool: &mut TaskPoolHandler,
         dt: f32,
         elapsed_time: f32,
     ) {
@@ -689,6 +692,7 @@ impl ScriptProcessor {
                     resource_manager,
                     message_sender: &scripted_scene.message_sender,
                     message_dispatcher: &mut scripted_scene.message_dispatcher,
+                    task_pool,
                 };
 
                 'init_loop: for init_loop_iteration in 0..max_iterations {
@@ -990,6 +994,7 @@ pub(crate) fn process_scripts<T>(
     resource_manager: &ResourceManager,
     message_sender: &ScriptMessageSender,
     message_dispatcher: &mut ScriptMessageDispatcher,
+    task_pool: &mut TaskPoolHandler,
     dt: f32,
     elapsed_time: f32,
     mut func: T,
@@ -1005,6 +1010,7 @@ pub(crate) fn process_scripts<T>(
         resource_manager,
         message_sender,
         message_dispatcher,
+        task_pool,
     };
 
     for node_index in 0..context.scene.graph.capacity() {
@@ -1147,7 +1153,7 @@ impl Engine {
             plugins_enabled: false,
             plugin_constructors: Default::default(),
             elapsed_time: 0.0,
-            task_pool,
+            task_pool: TaskPoolHandler::new(task_pool),
         })
     }
 
@@ -1495,7 +1501,7 @@ impl Engine {
                             script_processor: &self.script_processor,
                             async_scene_loader: &mut self.async_scene_loader,
                             window_target: Some(window_target),
-                            task_pool: &self.task_pool,
+                            task_pool: &mut self.task_pool,
                         };
 
                         for plugin in self.plugins.iter_mut() {
@@ -1527,7 +1533,7 @@ impl Engine {
                     script_processor: &self.script_processor,
                     async_scene_loader: &mut self.async_scene_loader,
                     window_target: Some(window_target),
-                    task_pool: &self.task_pool,
+                    task_pool: &mut self.task_pool,
                 };
 
                 match loading_result.result {
@@ -1703,13 +1709,42 @@ impl Engine {
 
     fn handle_scripts(&mut self, dt: f32) {
         let time = instant::Instant::now();
+
+        while let Some((payload, handler)) = self.task_pool.pop_node_task() {
+            if let Some(scripted_scene) = self
+                .script_processor
+                .scripted_scenes
+                .iter_mut()
+                .find(|e| e.handle == handler.scene_handle)
+            {
+                if let Some(scene) = self.scenes.try_get_mut(handler.scene_handle) {
+                    (handler.closure)(
+                        payload,
+                        &mut ScriptContext {
+                            dt,
+                            elapsed_time: self.elapsed_time,
+                            plugins: &mut self.plugins,
+                            handle: handler.node_handle,
+                            scene,
+                            resource_manager: &self.resource_manager,
+                            message_sender: &scripted_scene.message_sender,
+                            message_dispatcher: &mut scripted_scene.message_dispatcher,
+                            task_pool: &mut self.task_pool,
+                        },
+                    )
+                }
+            }
+        }
+
         self.script_processor.handle_scripts(
             &mut self.scenes,
             &mut self.plugins,
             &self.resource_manager,
+            &mut self.task_pool,
             dt,
             self.elapsed_time,
         );
+
         self.performance_statistics.scripts_time = instant::Instant::now() - time;
     }
 
@@ -1722,6 +1757,30 @@ impl Engine {
         let time = instant::Instant::now();
 
         if self.plugins_enabled {
+            // Handle asynchronous tasks first.
+            while let Some((payload, handler)) = self.task_pool.pop_plugin_task() {
+                (handler)(
+                    payload,
+                    &mut self.plugins,
+                    &mut PluginContext {
+                        scenes: &mut self.scenes,
+                        resource_manager: &self.resource_manager,
+                        graphics_context: &mut self.graphics_context,
+                        dt,
+                        lag,
+                        user_interface: &mut self.user_interface,
+                        serialization_context: &self.serialization_context,
+                        performance_statistics: &self.performance_statistics,
+                        elapsed_time: self.elapsed_time,
+                        script_processor: &self.script_processor,
+                        async_scene_loader: &mut self.async_scene_loader,
+                        window_target: Some(window_target),
+                        task_pool: &mut self.task_pool,
+                    },
+                )
+            }
+
+            // Then update all the plugins.
             let mut context = PluginContext {
                 scenes: &mut self.scenes,
                 resource_manager: &self.resource_manager,
@@ -1735,7 +1794,7 @@ impl Engine {
                 script_processor: &self.script_processor,
                 async_scene_loader: &mut self.async_scene_loader,
                 window_target: Some(window_target),
-                task_pool: &self.task_pool,
+                task_pool: &mut self.task_pool,
             };
 
             for plugin in self.plugins.iter_mut() {
@@ -1756,7 +1815,7 @@ impl Engine {
                     script_processor: &self.script_processor,
                     async_scene_loader: &mut self.async_scene_loader,
                     window_target: Some(window_target),
-                    task_pool: &self.task_pool,
+                    task_pool: &mut self.task_pool,
                 };
 
                 for plugin in self.plugins.iter_mut() {
@@ -1792,7 +1851,7 @@ impl Engine {
                         script_processor: &self.script_processor,
                         async_scene_loader: &mut self.async_scene_loader,
                         window_target: Some(window_target),
-                        task_pool: &self.task_pool,
+                        task_pool: &mut self.task_pool,
                     },
                 );
             }
@@ -1820,7 +1879,7 @@ impl Engine {
                     script_processor: &self.script_processor,
                     async_scene_loader: &mut self.async_scene_loader,
                     window_target: Some(window_target),
-                    task_pool: &self.task_pool,
+                    task_pool: &mut self.task_pool,
                 });
             }
         }
@@ -1847,7 +1906,7 @@ impl Engine {
                     script_processor: &self.script_processor,
                     async_scene_loader: &mut self.async_scene_loader,
                     window_target: Some(window_target),
-                    task_pool: &self.task_pool,
+                    task_pool: &mut self.task_pool,
                 });
             }
         }
@@ -1874,7 +1933,7 @@ impl Engine {
                     script_processor: &self.script_processor,
                     async_scene_loader: &mut self.async_scene_loader,
                     window_target: Some(window_target),
-                    task_pool: &self.task_pool,
+                    task_pool: &mut self.task_pool,
                 });
             }
         }
@@ -1907,6 +1966,7 @@ impl Engine {
                     &self.resource_manager,
                     &scripted_scene.message_sender,
                     &mut scripted_scene.message_dispatcher,
+                    &mut self.task_pool,
                     dt,
                     self.elapsed_time,
                     |script, context| {
@@ -2006,7 +2066,7 @@ impl Engine {
                             script_processor: &self.script_processor,
                             async_scene_loader: &mut self.async_scene_loader,
                             window_target,
-                            task_pool: &self.task_pool,
+                            task_pool: &mut self.task_pool,
                         },
                     ));
                 }
@@ -2028,7 +2088,7 @@ impl Engine {
                         script_processor: &self.script_processor,
                         async_scene_loader: &mut self.async_scene_loader,
                         window_target,
-                        task_pool: &self.task_pool,
+                        task_pool: &mut self.task_pool,
                     });
                 }
             }
@@ -2084,6 +2144,8 @@ mod test {
     };
     use std::sync::Arc;
 
+    use crate::engine::task::TaskPoolHandler;
+    use fyrox_core::task::TaskPool;
     use std::sync::mpsc::{self, Sender, TryRecvError};
 
     #[derive(PartialEq, Eq, Clone, Debug)]
@@ -2210,12 +2272,14 @@ mod test {
         let handle_on_init = Handle::new(2, 1);
         let handle_on_start = Handle::new(3, 1);
         let handle_on_update1 = Handle::new(4, 1);
+        let mut task_pool = TaskPoolHandler::new(Arc::new(TaskPool::new()));
 
         for iteration in 0..3 {
             script_processor.handle_scripts(
                 &mut scene_container,
                 &mut Default::default(),
                 &resource_manager,
+                &mut task_pool,
                 0.0,
                 0.0,
             );
@@ -2371,6 +2435,7 @@ mod test {
         let scene_handle = scene_container.add(scene);
 
         let mut script_processor = ScriptProcessor::default();
+        let mut task_pool = TaskPoolHandler::new(Arc::new(TaskPool::new()));
 
         script_processor.register_scripted_scene(scene_handle, &resource_manager);
 
@@ -2379,6 +2444,7 @@ mod test {
                 &mut scene_container,
                 &mut Default::default(),
                 &resource_manager,
+                &mut task_pool,
                 0.0,
                 0.0,
             );

@@ -2,6 +2,7 @@
 
 //! Script is used to add custom logic to scene nodes. See [ScriptTrait] for more info.
 
+use crate::engine::task::TaskPoolHandler;
 use crate::{
     asset::manager::ResourceManager,
     core::{
@@ -219,6 +220,9 @@ pub struct ScriptContext<'a, 'b, 'c> {
     /// A message dispatcher. If you need to receive messages of a particular type, you must subscribe to a type
     /// explicitly. See [`ScriptTrait::on_message`] for more examples.
     pub message_dispatcher: &'c mut ScriptMessageDispatcher,
+
+    /// Task pool for asynchronous task management.
+    pub task_pool: &'a mut TaskPoolHandler,
 }
 
 /// A set of data, that provides contextual information for script methods.

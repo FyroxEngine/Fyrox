@@ -2,6 +2,7 @@
 
 #![warn(missing_docs)]
 
+use crate::engine::task::TaskPoolHandler;
 use crate::{
     asset::manager::ResourceManager,
     core::pool::Handle,
@@ -13,7 +14,6 @@ use crate::{
     gui::{message::UiMessage, UserInterface},
     scene::{Scene, SceneContainer},
 };
-use fyrox_core::task::TaskPool;
 use fyrox_core::visitor::VisitError;
 use std::{any::Any, path::Path, sync::Arc};
 use winit::event_loop::EventLoopWindowTarget;
@@ -105,7 +105,7 @@ pub struct PluginContext<'a, 'b> {
     pub window_target: Option<&'b EventLoopWindowTarget<()>>,
 
     /// Task pool for asynchronous task management.
-    pub task_pool: &'a Arc<TaskPool>,
+    pub task_pool: &'a mut TaskPoolHandler,
 }
 
 /// Base plugin automatically implements type casting for plugins.
