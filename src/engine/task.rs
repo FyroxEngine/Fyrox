@@ -1,4 +1,4 @@
-#![allow(missing_docs)] // TODO
+//! Asynchronous task handler. See [`TaskPoolHandler`] for more info and usage examples.
 
 use crate::{
     core::{pool::Handle, task::TaskPool, uuid::Uuid},
@@ -9,19 +9,38 @@ use crate::{
 use fxhash::FxHashMap;
 use std::{any::Any, future::Future, sync::Arc};
 
-pub type NodeTaskHandlerClosure =
+pub(crate) type NodeTaskHandlerClosure =
     Box<dyn for<'a, 'b, 'c> Fn(Box<dyn Any + Send>, &mut ScriptContext<'a, 'b, 'c>)>;
 
-pub type PluginTaskHandler = Box<
+pub(crate) type PluginTaskHandler = Box<
     dyn for<'a, 'b> Fn(Box<dyn Any + Send>, &'a mut [Box<dyn Plugin>], &mut PluginContext<'a, 'b>),
 >;
 
-pub struct NodeTaskHandler {
-    pub scene_handle: Handle<Scene>,
-    pub node_handle: Handle<Node>,
-    pub closure: NodeTaskHandlerClosure,
+pub(crate) struct NodeTaskHandler {
+    pub(crate) scene_handle: Handle<Scene>,
+    pub(crate) node_handle: Handle<Node>,
+    pub(crate) closure: NodeTaskHandlerClosure,
 }
 
+/// Asynchronous task handler is used as an executor for async functions (tasks), that in addition to them
+/// has a closure, that will be called when a task is finished. The main use case for such tasks is to
+/// off-thread a heavy task to one of background threads (from a thread pool on PC, or a microtask on
+/// WebAssembly) and when it is done, incorporate its result in your game's state. A task and its
+/// "on-complete" closure could be pretty much anything: procedural world generation + adding a
+/// generated scene to the engine, asset loading + its instantiation, etc. It should be noted that
+/// a task itself is executed asynchronously (in other thread), while a closure - synchronously,
+/// just at the beginning of the next game loop iteration. This means, that you should never put
+/// heavy tasks into the closure, otherwise it will result in quite notable stutters.
+///
+/// There are two main methods - [`TaskPoolHandler::spawn_plugin_task`] and [`TaskPoolHandler::spawn_node_task`].
+/// They are somewhat similar, but the main difference between them is that the first one operates
+/// on per plugin basis and the latter operates on scene node basis. This means that in case of
+/// [`TaskPoolHandler::spawn_plugin_task`], it will accept an async task and when it is finished, it
+/// will give you a result of the task and access to the plugin from which it was called, so you can
+/// do some actions with the result. [`TaskPoolHandler::spawn_node_task`] does somewhat the same, but
+/// on a scene node basis - when a task is done, the "on-complete" closure will be provided with a
+/// wide context, allowing you to modify the caller's node state. See the docs for the respective
+/// methods for more info.
 pub struct TaskPoolHandler {
     task_pool: Arc<TaskPool>,
     plugin_task_handlers: FxHashMap<Uuid, PluginTaskHandler>,
@@ -37,6 +56,64 @@ impl TaskPoolHandler {
         }
     }
 
+    /// Spawns a task represented by the `future`, that does something and then adds the result to
+    /// a plugin it was called from using the `on_complete` closure.
+    ///
+    /// ## Example
+    ///
+    /// ```rust ,no_run
+    /// # use fyrox::plugin::{Plugin, PluginConstructor, PluginContext};
+    /// # use std::{fs::File, io::Read};
+    /// #
+    /// struct MyGameConstructor;
+    ///
+    /// impl PluginConstructor for MyGameConstructor {
+    ///     fn create_instance(
+    ///         &self,
+    ///         _scene_path: Option<&str>,
+    ///         context: PluginContext,
+    ///     ) -> Box<dyn Plugin> {
+    ///         Box::new(MyGame::new(context))
+    ///     }
+    /// }
+    ///
+    /// struct MyGame {
+    ///     data: Option<Vec<u8>>,
+    /// }
+    ///
+    /// impl MyGame {
+    ///     pub fn new(context: PluginContext) -> Self {
+    ///         context.task_pool.spawn_plugin_task(
+    ///             // Emulate heavy task by reading a potentially large file. The game will be fully
+    ///             // responsive while it runs.
+    ///             async move {
+    ///                 let mut file = File::open("some/file.txt").unwrap();
+    ///                 let mut data = Vec::new();
+    ///                 file.read_to_end(&mut data).unwrap();
+    ///                 data
+    ///             },
+    ///             // This closure is called when the future above has finished, but not immediately - on
+    ///             // the next update iteration.
+    ///             |data, game: &mut MyGame, _context| {
+    ///                 // Store the data in the game instance.
+    ///                 game.data = Some(data);
+    ///             },
+    ///         );
+    ///
+    ///         // Immediately return the new game instance with empty data.
+    ///         Self { data: None }
+    ///     }
+    /// }
+    ///
+    /// impl Plugin for MyGame {
+    ///     fn update(&mut self, _context: &mut PluginContext) {
+    ///         // Do something with the data.
+    ///         if let Some(data) = self.data.take() {
+    ///             println!("The data is: {:?}", data);
+    ///         }
+    ///     }
+    /// }
+    /// ```
     #[inline]
     pub fn spawn_plugin_task<F, T, P, C>(&mut self, future: F, on_complete: C)
     where
@@ -60,6 +137,52 @@ impl TaskPoolHandler {
         );
     }
 
+    /// Spawns a task represented by the `future`, that does something and then adds the result to
+    /// a scene node using the `on_complete` closure. This method could be used to off-thread some
+    /// heavy work from usual update routine (for example - pathfinding).
+    ///
+    /// ## Examples
+    ///
+    /// ```rust ,no_run
+    /// # use fyrox::{
+    /// #     core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
+    /// #     impl_component_provider,
+    /// #     resource::model::{Model, ModelResourceExtension},
+    /// #     script::{ScriptContext, ScriptTrait},
+    /// # };
+    /// #
+    /// #[derive(Reflect, Visit, Default, Debug, Clone)]
+    /// struct MyScript;
+    ///
+    /// impl_component_provider!(MyScript);
+    ///
+    /// impl ScriptTrait for MyScript {
+    ///     fn on_start(&mut self, ctx: &mut ScriptContext) {
+    ///         ctx.task_pool.spawn_node_task(
+    ///             ctx.scene_handle,
+    ///             ctx.handle,
+    ///             // Request loading of some heavy asset. It does not actually does the loading in the
+    ///             // same routine, since asset loading itself is asynchronous, but we can't block the
+    ///             // current thread on all support platforms to wait until the loading is done. So we
+    ///             // have to use this approach to load assets on demand. Since every asset implements
+    ///             // Future trait, it can be used directly as a future. Alternatively, you can use async
+    ///             // move { } block here.
+    ///             ctx.resource_manager.request::<Model>("path/to/model.fbx"),
+    ///             // This closure will executed only when the upper future is done and only on the next
+    ///             // update iteration.
+    ///             |result, ctx| {
+    ///                 if let Ok(model) = result {
+    ///                     model.instantiate(&mut ctx.scene);
+    ///                 }
+    ///             },
+    ///         );
+    ///     }
+    /// #
+    /// #     fn id(&self) -> Uuid {
+    /// #         todo!()
+    /// #     }
+    /// }
+    /// ```
     #[inline]
     pub fn spawn_node_task<F, T, C>(
         &mut self,
@@ -87,6 +210,8 @@ impl TaskPoolHandler {
         );
     }
 
+    /// Returns a reference to the underlying, low level task pool, that could be used to for special
+    /// cases.
     #[inline]
     pub fn inner(&self) -> &Arc<TaskPool> {
         &self.task_pool
