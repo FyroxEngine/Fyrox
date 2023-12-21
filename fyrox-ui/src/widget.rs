@@ -751,10 +751,12 @@ pub struct Widget {
     /// Optional opacity of the widget. It should be in `[0.0..1.0]` range, where 0.0 - fully transparent, 1.0 - fully opaque.
     pub opacity: Option<f32>,
     /// An optional ref counted handle to a tooltip used by the widget.
+    #[visit(optional)]
     pub tooltip: Option<RcUiNodeHandle>,
     /// Maximum available time to show the tooltip after the cursor was moved away from the widget.
     pub tooltip_time: f32,
     /// An optional ref counted handle to a context menu used by the widget.
+    #[visit(optional)]
     pub context_menu: Option<RcUiNodeHandle>,
     /// A flag, that defines whether the widget should be clipped by the parent bounds or not.
     pub clip_to_bounds: bool,
