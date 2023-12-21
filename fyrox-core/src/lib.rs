@@ -431,7 +431,7 @@ impl<T: ?Sized> Eq for PhantomDataSendSync<T> {}
 
 impl<T: ?Sized> PartialOrd for PhantomDataSendSync<T> {
     fn partial_cmp(&self, _other: &PhantomDataSendSync<T>) -> Option<cmp::Ordering> {
-        Some(cmp::Ordering::Equal)
+        Some(self.cmp(_other))
     }
 }
 

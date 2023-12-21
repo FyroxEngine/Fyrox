@@ -44,7 +44,7 @@ impl TaskPool {
     where
         F: Future<Output = ()> + 'static,
     {
-        crate::core::wasm_bindgen_futures::spawn_local(future);
+        crate::wasm_bindgen_futures::spawn_local(future);
     }
 
     #[inline]
