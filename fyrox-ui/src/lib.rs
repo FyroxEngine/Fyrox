@@ -312,9 +312,10 @@ pub const BRUSH_BRIGHT_BLUE: Brush = Brush::Solid(COLOR_BRIGHT_BLUE);
 pub const BRUSH_TEXT: Brush = Brush::Solid(COLOR_TEXT);
 pub const BRUSH_FOREGROUND: Brush = Brush::Solid(COLOR_FOREGROUND);
 
-#[derive(Default)]
+#[derive(Default, Reflect, Debug)]
 struct RcUiNodeHandleInner {
     handle: Handle<UiNode>,
+    #[reflect(hidden)]
     sender: Option<Sender<UiMessage>>,
 }
 
@@ -349,7 +350,7 @@ impl Drop for RcUiNodeHandleInner {
     }
 }
 
-#[derive(Clone, Default, Visit)]
+#[derive(Clone, Default, Visit, Reflect)]
 pub struct RcUiNodeHandle(Arc<Mutex<RcUiNodeHandleInner>>);
 
 impl Debug for RcUiNodeHandle {

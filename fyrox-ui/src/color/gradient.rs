@@ -160,11 +160,7 @@ pub struct ColorGradientEditor {
     gradient_field: Handle<UiNode>,
     selector_field: Handle<UiNode>,
     points_canvas: Handle<UiNode>,
-    #[visit(skip)] // TODO
-    #[reflect(hidden)] // TODO
     context_menu: RcUiNodeHandle,
-    #[visit(skip)] // TODO
-    #[reflect(hidden)] // TODO
     point_context_menu: RcUiNodeHandle,
     add_point: Handle<UiNode>,
     remove_point: Handle<UiNode>,

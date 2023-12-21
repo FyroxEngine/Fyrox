@@ -131,8 +131,6 @@ crate::define_widget_deref!(CurveEditor);
 
 #[derive(Default, Clone, Visit, Reflect, Debug)]
 struct ContextMenu {
-    #[visit(skip)] // TODO
-    #[reflect(hidden)] // TODO
     widget: RcUiNodeHandle,
     add_key: Handle<UiNode>,
     remove: Handle<UiNode>,

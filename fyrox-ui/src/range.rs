@@ -108,8 +108,6 @@ where
     /// Base widget of the range editor.
     pub widget: Widget,
     /// Current value of the range editor.
-    #[visit(skip)] // TODO
-    #[reflect(hidden)] // TODO
     pub value: Range<T>,
     /// A handle to numeric field that is used to show/modify start value of current range.
     pub start: Handle<UiNode>,
