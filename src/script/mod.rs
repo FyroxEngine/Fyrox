@@ -3,6 +3,7 @@
 //! Script is used to add custom logic to scene nodes. See [ScriptTrait] for more info.
 
 use crate::engine::task::TaskPoolHandler;
+use crate::engine::GraphicsContext;
 use crate::{
     asset::manager::ResourceManager,
     core::{
@@ -226,6 +227,9 @@ pub struct ScriptContext<'a, 'b, 'c> {
 
     /// Task pool for asynchronous task management.
     pub task_pool: &'a mut TaskPoolHandler,
+
+    /// Current graphics context of the engine. See [`GraphicsContext`] docs for more info.
+    pub graphics_context: &'a mut GraphicsContext,
 }
 
 /// A set of data, that provides contextual information for script methods.

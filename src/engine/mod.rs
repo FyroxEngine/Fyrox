@@ -632,6 +632,7 @@ impl ScriptProcessor {
         plugins: &mut Vec<Box<dyn Plugin>>,
         resource_manager: &ResourceManager,
         task_pool: &mut TaskPoolHandler,
+        graphics_context: &mut GraphicsContext,
         dt: f32,
         elapsed_time: f32,
     ) {
@@ -694,6 +695,7 @@ impl ScriptProcessor {
                     message_sender: &scripted_scene.message_sender,
                     message_dispatcher: &mut scripted_scene.message_dispatcher,
                     task_pool,
+                    graphics_context,
                 };
 
                 'init_loop: for init_loop_iteration in 0..max_iterations {
@@ -997,6 +999,7 @@ pub(crate) fn process_scripts<T>(
     message_sender: &ScriptMessageSender,
     message_dispatcher: &mut ScriptMessageDispatcher,
     task_pool: &mut TaskPoolHandler,
+    graphics_context: &mut GraphicsContext,
     dt: f32,
     elapsed_time: f32,
     mut func: T,
@@ -1014,6 +1017,7 @@ pub(crate) fn process_scripts<T>(
         message_sender,
         message_dispatcher,
         task_pool,
+        graphics_context,
     };
 
     for node_index in 0..context.scene.graph.capacity() {
@@ -1734,6 +1738,7 @@ impl Engine {
                             message_sender: &scripted_scene.message_sender,
                             message_dispatcher: &mut scripted_scene.message_dispatcher,
                             task_pool: &mut self.task_pool,
+                            graphics_context: &mut self.graphics_context,
                         },
                     )
                 }
@@ -1745,6 +1750,7 @@ impl Engine {
             &mut self.plugins,
             &self.resource_manager,
             &mut self.task_pool,
+            &mut self.graphics_context,
             dt,
             self.elapsed_time,
         );
@@ -1972,6 +1978,7 @@ impl Engine {
                     &scripted_scene.message_sender,
                     &mut scripted_scene.message_dispatcher,
                     &mut self.task_pool,
+                    &mut self.graphics_context,
                     dt,
                     self.elapsed_time,
                     |script, context| {
@@ -2150,6 +2157,7 @@ mod test {
     use std::sync::Arc;
 
     use crate::engine::task::TaskPoolHandler;
+    use crate::engine::GraphicsContext;
     use fyrox_core::task::TaskPool;
     use std::sync::mpsc::{self, Sender, TryRecvError};
 
@@ -2278,6 +2286,7 @@ mod test {
         let handle_on_start = Handle::new(3, 1);
         let handle_on_update1 = Handle::new(4, 1);
         let mut task_pool = TaskPoolHandler::new(Arc::new(TaskPool::new()));
+        let mut gc = GraphicsContext::Uninitialized(Default::default());
 
         for iteration in 0..3 {
             script_processor.handle_scripts(
@@ -2285,6 +2294,7 @@ mod test {
                 &mut Default::default(),
                 &resource_manager,
                 &mut task_pool,
+                &mut gc,
                 0.0,
                 0.0,
             );
@@ -2441,6 +2451,7 @@ mod test {
 
         let mut script_processor = ScriptProcessor::default();
         let mut task_pool = TaskPoolHandler::new(Arc::new(TaskPool::new()));
+        let mut gc = GraphicsContext::Uninitialized(Default::default());
 
         script_processor.register_scripted_scene(scene_handle, &resource_manager);
 
@@ -2450,6 +2461,7 @@ mod test {
                 &mut Default::default(),
                 &resource_manager,
                 &mut task_pool,
+                &mut gc,
                 0.0,
                 0.0,
             );
