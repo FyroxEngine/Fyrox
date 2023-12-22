@@ -144,7 +144,7 @@ impl TaskPoolHandler {
     }
 
     /// Spawns a task represented by the `future`, that does something and then adds the result to
-    /// a scene node using the `on_complete` closure. This method could be used to off-thread some
+    /// a scene node's script using the `on_complete` closure. This method could be used to off-thread some
     /// heavy work from usual update routine (for example - pathfinding).
     ///
     /// ## Examples
