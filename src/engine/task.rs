@@ -1,5 +1,6 @@
 //! Asynchronous task handler. See [`TaskPoolHandler`] for more info and usage examples.
 
+use crate::script::ScriptTrait;
 use crate::{
     core::{pool::Handle, task::TaskPool, uuid::Uuid},
     plugin::{Plugin, PluginContext},
@@ -9,8 +10,13 @@ use crate::{
 use fxhash::FxHashMap;
 use std::{any::Any, future::Future, sync::Arc};
 
-pub(crate) type NodeTaskHandlerClosure =
-    Box<dyn for<'a, 'b, 'c> Fn(Box<dyn Any + Send>, &mut ScriptContext<'a, 'b, 'c>)>;
+pub(crate) type NodeTaskHandlerClosure = Box<
+    dyn for<'a, 'b, 'c> Fn(
+        Box<dyn Any + Send>,
+        &mut dyn ScriptTrait,
+        &mut ScriptContext<'a, 'b, 'c>,
+    ),
+>;
 
 pub(crate) type PluginTaskHandler = Box<
     dyn for<'a, 'b> Fn(Box<dyn Any + Send>, &'a mut [Box<dyn Plugin>], &mut PluginContext<'a, 'b>),
@@ -32,12 +38,12 @@ pub(crate) struct NodeTaskHandler {
 /// just at the beginning of the next game loop iteration. This means, that you should never put
 /// heavy tasks into the closure, otherwise it will result in quite notable stutters.
 ///
-/// There are two main methods - [`TaskPoolHandler::spawn_plugin_task`] and [`TaskPoolHandler::spawn_node_task`].
+/// There are two main methods - [`TaskPoolHandler::spawn_plugin_task`] and [`TaskPoolHandler::spawn_script_task`].
 /// They are somewhat similar, but the main difference between them is that the first one operates
 /// on per plugin basis and the latter operates on scene node basis. This means that in case of
 /// [`TaskPoolHandler::spawn_plugin_task`], it will accept an async task and when it is finished, it
 /// will give you a result of the task and access to the plugin from which it was called, so you can
-/// do some actions with the result. [`TaskPoolHandler::spawn_node_task`] does somewhat the same, but
+/// do some actions with the result. [`TaskPoolHandler::spawn_script_task`] does somewhat the same, but
 /// on a scene node basis - when a task is done, the "on-complete" closure will be provided with a
 /// wide context, allowing you to modify the caller's node state. See the docs for the respective
 /// methods for more info.
@@ -158,7 +164,7 @@ impl TaskPoolHandler {
     ///
     /// impl ScriptTrait for MyScript {
     ///     fn on_start(&mut self, ctx: &mut ScriptContext) {
-    ///         ctx.task_pool.spawn_node_task(
+    ///         ctx.task_pool.spawn_script_task(
     ///             ctx.scene_handle,
     ///             ctx.handle,
     ///             // Request loading of some heavy asset. It does not actually does the loading in the
@@ -170,7 +176,7 @@ impl TaskPoolHandler {
     ///             ctx.resource_manager.request::<Model>("path/to/model.fbx"),
     ///             // This closure will executed only when the upper future is done and only on the next
     ///             // update iteration.
-    ///             |result, ctx| {
+    ///             |result, script: &mut MyScript, ctx| {
     ///                 if let Ok(model) = result {
     ///                     model.instantiate(&mut ctx.scene);
     ///                 }
@@ -184,7 +190,7 @@ impl TaskPoolHandler {
     /// }
     /// ```
     #[inline]
-    pub fn spawn_node_task<F, T, C>(
+    pub fn spawn_script_task<F, T, C, S>(
         &mut self,
         scene_handle: Handle<Scene>,
         node_handle: Handle<Node>,
@@ -193,7 +199,8 @@ impl TaskPoolHandler {
     ) where
         F: Future<Output = T> + Send + 'static,
         T: Send + 'static,
-        for<'a, 'b, 'c> C: Fn(T, &mut ScriptContext<'a, 'b, 'c>) + 'static,
+        for<'a, 'b, 'c> C: Fn(T, &mut S, &mut ScriptContext<'a, 'b, 'c>) + 'static,
+        S: ScriptTrait,
     {
         let task_id = self.task_pool.spawn_with_result(future);
         self.node_task_handlers.insert(
@@ -201,10 +208,14 @@ impl TaskPoolHandler {
             NodeTaskHandler {
                 scene_handle,
                 node_handle,
-                closure: Box::new(move |result, context| {
+                closure: Box::new(move |result, script, context| {
+                    let script = script
+                        .as_any_ref_mut()
+                        .downcast_mut::<S>()
+                        .expect("Types must match");
                     let typed =
                         Box::<dyn Any + Send>::downcast::<T>(result).expect("Types must match");
-                    on_complete(*typed, context)
+                    on_complete(*typed, script, context)
                 }),
             },
         );

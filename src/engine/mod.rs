@@ -75,6 +75,7 @@ use fyrox_core::task::TaskPool;
 use fyrox_ui::font::BUILT_IN_FONT;
 use fyrox_ui::loader::UserInterfaceLoader;
 use fyrox_ui::{font::loader::FontLoader, font::Font};
+use std::ops::DerefMut;
 use std::{
     any::TypeId,
     collections::{HashSet, VecDeque},
@@ -1725,22 +1726,33 @@ impl Engine {
                 .find(|e| e.handle == handler.scene_handle)
             {
                 if let Some(scene) = self.scenes.try_get_mut(handler.scene_handle) {
-                    (handler.closure)(
-                        payload,
-                        &mut ScriptContext {
-                            dt,
-                            elapsed_time: self.elapsed_time,
-                            plugins: &mut self.plugins,
-                            handle: handler.node_handle,
-                            scene,
-                            scene_handle: scripted_scene.handle,
-                            resource_manager: &self.resource_manager,
-                            message_sender: &scripted_scene.message_sender,
-                            message_dispatcher: &mut scripted_scene.message_dispatcher,
-                            task_pool: &mut self.task_pool,
-                            graphics_context: &mut self.graphics_context,
-                        },
-                    )
+                    if let Some(mut script) = scene
+                        .graph
+                        .try_get_mut(handler.node_handle)
+                        .and_then(|n| n.script.take())
+                    {
+                        (handler.closure)(
+                            payload,
+                            script.deref_mut(),
+                            &mut ScriptContext {
+                                dt,
+                                elapsed_time: self.elapsed_time,
+                                plugins: &mut self.plugins,
+                                handle: handler.node_handle,
+                                scene,
+                                scene_handle: scripted_scene.handle,
+                                resource_manager: &self.resource_manager,
+                                message_sender: &scripted_scene.message_sender,
+                                message_dispatcher: &mut scripted_scene.message_dispatcher,
+                                task_pool: &mut self.task_pool,
+                                graphics_context: &mut self.graphics_context,
+                            },
+                        );
+
+                        if let Some(node) = scene.graph.try_get_mut(handler.node_handle) {
+                            node.script = Some(script);
+                        }
+                    }
                 }
             }
         }
