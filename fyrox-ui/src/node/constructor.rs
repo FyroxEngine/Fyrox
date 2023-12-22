@@ -50,15 +50,22 @@ use fxhash::FxHashMap;
 pub type WidgetConstructor = Box<dyn FnMut() -> UiNode + Send>;
 
 /// A special container that is able to create widgets by their type UUID.
-#[derive(Default)]
 pub struct WidgetConstructorContainer {
     map: Mutex<FxHashMap<Uuid, WidgetConstructor>>,
+}
+
+impl Default for WidgetConstructorContainer {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl WidgetConstructorContainer {
     /// Creates default widget constructor container with constructors for built-in widgets.
     pub fn new() -> Self {
-        let container = WidgetConstructorContainer::default();
+        let container = WidgetConstructorContainer {
+            map: Default::default(),
+        };
 
         container.add::<BitField<u8>>();
         container.add::<BitField<i8>>();
