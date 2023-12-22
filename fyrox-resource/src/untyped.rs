@@ -222,7 +222,10 @@ impl Visit for ResourceHeader {
 
         self.kind.visit("Kind", &mut region)?;
         self.type_uuid.visit("TypeUuid", &mut region)?;
-        self.state.visit("State", &mut region)?;
+
+        if self.kind == ResourceKind::Embedded {
+            self.state.visit("State", &mut region)?;
+        }
 
         Ok(())
     }
