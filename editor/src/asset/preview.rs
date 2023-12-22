@@ -10,7 +10,7 @@ use fyrox::{
         TypeUuidProvider,
     },
     fxhash::FxHashMap,
-    gui::font::Font,
+    gui::{font::Font, UserInterface},
     material::{shader::Shader, Material, MaterialResource, PropertyValue},
     resource::{
         curve::CurveResourceState,
@@ -45,6 +45,7 @@ impl AssetPreviewGeneratorsCollection {
         this.add(HrirSphereResourceData::type_uuid(), HrirPreview);
         this.add(CurveResourceState::type_uuid(), CurvePreview);
         this.add(Font::type_uuid(), FontPreview);
+        this.add(UserInterface::type_uuid(), UserInterfacePreview);
         this
     }
 
@@ -308,5 +309,26 @@ impl AssetPreview for FontPreview {
         _resource_manager: &ResourceManager,
     ) -> Option<UntypedResource> {
         load_image(include_bytes!("../../resources/font.png"))
+    }
+}
+
+pub struct UserInterfacePreview;
+
+impl AssetPreview for UserInterfacePreview {
+    fn generate(
+        &mut self,
+        _resource: &UntypedResource,
+        _resource_manager: &ResourceManager,
+        _scene: &mut Scene,
+    ) -> Handle<Node> {
+        Handle::NONE
+    }
+
+    fn icon(
+        &self,
+        _resource: &UntypedResource,
+        _resource_manager: &ResourceManager,
+    ) -> Option<UntypedResource> {
+        load_image(include_bytes!("../../resources/ui.png"))
     }
 }
