@@ -2859,13 +2859,13 @@ impl UserInterface {
     }
 
     #[allow(clippy::arc_with_non_send_sync)]
-    pub async fn load_from_file(
-        path: &Path,
+    pub async fn load_from_file<P: AsRef<Path>>(
+        path: P,
         constructors: Arc<WidgetConstructorContainer>,
         resource_manager: ResourceManager,
         io: &dyn ResourceIo,
     ) -> Result<Self, VisitError> {
-        let mut visitor = Visitor::load_from_memory(&io.load_file(path).await?)?;
+        let mut visitor = Visitor::load_from_memory(&io.load_file(path.as_ref()).await?)?;
         let (sender, receiver) = mpsc::channel();
         visitor.blackboard.register(constructors);
         visitor.blackboard.register(Arc::new(sender.clone()));
