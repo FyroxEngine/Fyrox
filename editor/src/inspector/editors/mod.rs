@@ -17,6 +17,8 @@ use crate::{
     message::MessageSender,
 };
 use fyrox::asset::manager::ResourceManager;
+use fyrox::asset::Resource;
+use fyrox::gui::UserInterface;
 use fyrox::{
     animation::{
         machine::{
@@ -238,6 +240,21 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     );
     container.insert(InheritablePropertyEditorDefinition::<Option<CurveResource>>::new());
     container.register_inheritable_vec_collection::<Option<CurveResource>>();
+
+    container.insert(ResourceFieldPropertyEditorDefinition::<UserInterface>::new(
+        Arc::new(Mutex::new(
+            |resource_manager: &ResourceManager, path: &Path| {
+                resource_manager
+                    .try_request::<UserInterface>(path)
+                    .map(block_on)
+            },
+        )),
+        sender.clone(),
+    ));
+    container.insert(InheritablePropertyEditorDefinition::<
+        Option<Resource<UserInterface>>,
+    >::new());
+    container.register_inheritable_vec_collection::<Option<UserInterface>>();
 
     container.insert(ResourceFieldPropertyEditorDefinition::<Shader>::new(
         Arc::new(Mutex::new(
