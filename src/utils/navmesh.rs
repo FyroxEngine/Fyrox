@@ -25,7 +25,10 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap};
-use std::ops::{Deref, DerefMut};
+use std::{
+    cell::RefCell,
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Clone, Debug, Default, Visit)]
 struct Vertex {
@@ -62,8 +65,8 @@ pub struct Navmesh {
     octree: Octree,
     triangles: Vec<TriangleDefinition>,
     vertices: Vec<Vector3<f32>>,
-    graph: Option<Graph<Vertex>>,
-    query_buffer: Vec<u32>,
+    graph: RefCell<Option<Graph<Vertex>>>,
+    query_buffer: RefCell<Vec<u32>>,
 }
 
 impl PartialEq for Navmesh {
@@ -219,7 +222,7 @@ impl Navmesh {
             .collect::<Vec<[Vector3<f32>; 3]>>();
 
         Self {
-            graph: None,
+            graph: Default::default(),
             triangles,
             vertices,
             octree: Octree::new(&raw_triangles, 32),
@@ -310,14 +313,15 @@ impl Navmesh {
     /// This method has `O(log(n))` complexity in the best case (when the query point lies inside the
     /// navmesh bounds) and `O(n)` complexity in the worst case. `n` here is the number of triangles
     /// in the navmesh.
-    pub fn query_closest(&mut self, query_point: Vector3<f32>) -> Option<(Vector3<f32>, usize)> {
-        self.octree.point_query(query_point, &mut self.query_buffer);
-        if self.query_buffer.is_empty() {
+    pub fn query_closest(&self, query_point: Vector3<f32>) -> Option<(Vector3<f32>, usize)> {
+        let mut query_buffer = self.query_buffer.borrow_mut();
+        self.octree.point_query(query_point, &mut query_buffer);
+        if query_buffer.is_empty() {
             // O(n)
             self.query_closest_internal(0..self.triangles.len(), query_point)
         } else {
             // O(log(n))
-            self.query_closest_internal(self.query_buffer.iter().map(|i| *i as usize), query_point)
+            self.query_closest_internal(query_buffer.iter().map(|i| *i as usize), query_point)
         }
     }
 
@@ -384,7 +388,7 @@ impl Navmesh {
     /// the triangle must be valid!
     pub fn add_triangle(&mut self, triangle: TriangleDefinition) -> u32 {
         let index = self.triangles.len();
-        self.graph = None;
+        self.graph = Default::default();
         self.triangles.push(triangle);
         index as u32
     }
@@ -392,7 +396,7 @@ impl Navmesh {
     /// Removes a triangle at the given index from the navigational mesh.
     pub fn remove_triangle(&mut self, index: usize) -> TriangleDefinition {
         let triangle = self.triangles.remove(index);
-        self.graph = None;
+        self.graph = Default::default();
         triangle
     }
 
@@ -448,7 +452,7 @@ impl Navmesh {
 
     /// Returns a mutable reference to the internal array of vertices.
     pub fn vertices_mut(&mut self) -> &mut [Vector3<f32>] {
-        self.graph = None;
+        self.graph = Default::default();
         &mut self.vertices
     }
 
@@ -456,7 +460,7 @@ impl Navmesh {
     pub fn add_vertex(&mut self, vertex: Vector3<f32>) -> u32 {
         let index = self.vertices.len();
         self.vertices.push(vertex);
-        self.graph = None;
+        self.graph = Default::default();
         index as u32
     }
 
@@ -492,7 +496,7 @@ impl Navmesh {
             }
         }
 
-        self.graph = None;
+        self.graph = Default::default();
     }
 
     /// Returns shared reference to inner octree.
@@ -509,7 +513,7 @@ impl Navmesh {
     /// use fyrox::core::algebra::Vector3;
     /// use fyrox::utils::astar::{PathKind, PathError};
     ///
-    /// fn find_path(navmesh: &mut Navmesh, begin: Vector3<f32>, end: Vector3<f32>, path: &mut Vec<Vector3<f32>>) -> Result<PathKind, PathError> {
+    /// fn find_path(navmesh: &Navmesh, begin: Vector3<f32>, end: Vector3<f32>, path: &mut Vec<Vector3<f32>>) -> Result<PathKind, PathError> {
     ///     if let Some((_, begin_index)) = navmesh.query_closest(begin) {
     ///         if let Some((_, end_index)) = navmesh.query_closest(end) {
     ///             return navmesh.build_path(begin_index, end_index, path);
@@ -519,14 +523,13 @@ impl Navmesh {
     /// }
     /// ```
     pub fn build_path(
-        &mut self,
+        &self,
         from: usize,
         to: usize,
         path: &mut Vec<Vector3<f32>>,
     ) -> Result<PathKind, PathError> {
-        let graph = self
-            .graph
-            .get_or_insert_with(|| make_graph(&self.triangles, &self.vertices));
+        let mut graph = self.graph.borrow_mut();
+        let graph = graph.get_or_insert_with(|| make_graph(&self.triangles, &self.vertices));
         graph.build_positional_path(from, to, path)
     }
 
@@ -701,9 +704,9 @@ impl NavmeshAgent {
                 }
 
                 let mut path_triangle_indices = Vec::new();
-                let graph = navmesh
-                    .graph
-                    .get_or_insert_with(|| make_graph(&navmesh.triangles, &navmesh.vertices));
+                let mut graph = navmesh.graph.borrow_mut();
+                let graph =
+                    graph.get_or_insert_with(|| make_graph(&navmesh.triangles, &navmesh.vertices));
                 let path_kind = graph.build_indexed_path(
                     src_triangle,
                     dest_triangle,
@@ -963,7 +966,8 @@ mod test {
         agent.set_target(Vector3::new(3.0, 0.0, 1.0));
         agent.update(1.0 / 60.0, &mut navmesh).unwrap();
 
-        let graph = navmesh.graph.as_ref().unwrap();
+        let graph = navmesh.graph.borrow();
+        let graph = graph.as_ref().unwrap();
 
         assert_eq!(graph.vertices.len(), 6);
         assert_eq!(graph.vertices[0].neighbours[0], 1);
