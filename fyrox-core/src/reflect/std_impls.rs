@@ -7,7 +7,6 @@ use crate::{
     uuid::Uuid,
 };
 use fyrox_core_derive::impl_reflect;
-use parking_lot::Mutex;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -402,8 +401,12 @@ macro_rules! impl_reflect_inner_mutability {
     };
 }
 
-impl<T: Reflect> Reflect for Mutex<T> {
+impl<T: Reflect> Reflect for parking_lot::Mutex<T> {
     impl_reflect_inner_mutability!(self, { self.lock() }, { self.into_inner() });
+}
+
+impl<T: Reflect> Reflect for parking_lot::RwLock<T> {
+    impl_reflect_inner_mutability!(self, { self.write() }, { self.into_inner() });
 }
 
 #[allow(clippy::mut_mutex_lock)]
@@ -411,7 +414,11 @@ impl<T: Reflect> Reflect for std::sync::Mutex<T> {
     impl_reflect_inner_mutability!(self, { self.lock().unwrap() }, { self.into_inner() });
 }
 
-impl<T: Reflect> Reflect for Arc<Mutex<T>> {
+impl<T: Reflect> Reflect for std::sync::RwLock<T> {
+    impl_reflect_inner_mutability!(self, { self.write().unwrap() }, { self.into_inner() });
+}
+
+impl<T: Reflect> Reflect for Arc<parking_lot::Mutex<T>> {
     impl_reflect_inner_mutability!(self, { self.lock() }, {
         Arc::into_inner(*self)
             .expect("Value cannot be shared!")
@@ -421,6 +428,22 @@ impl<T: Reflect> Reflect for Arc<Mutex<T>> {
 
 impl<T: Reflect> Reflect for Arc<std::sync::Mutex<T>> {
     impl_reflect_inner_mutability!(self, { self.lock().unwrap() }, {
+        Arc::into_inner(*self)
+            .expect("Value cannot be shared!")
+            .into_inner()
+    });
+}
+
+impl<T: Reflect> Reflect for Arc<std::sync::RwLock<T>> {
+    impl_reflect_inner_mutability!(self, { self.write().unwrap() }, {
+        Arc::into_inner(*self)
+            .expect("Value cannot be shared!")
+            .into_inner()
+    });
+}
+
+impl<T: Reflect> Reflect for Arc<parking_lot::RwLock<T>> {
+    impl_reflect_inner_mutability!(self, { self.write() }, {
         Arc::into_inner(*self)
             .expect("Value cannot be shared!")
             .into_inner()
