@@ -94,6 +94,9 @@
 //! has selected.
 //! * [`crate::dock::DockingManager`]: The Docking manager allows you to dock windows and hold them in-place.
 //! * [`crate::tree::Tree`]: The Tree allows you to create views for hierarchical data.
+//! * [`crate::screen::Screen`]: The Screen widgets always has its bounds match the current screen size
+//! thus making it possible to create widget hierarchy that always fits the screen bounds.
+//!
 //!
 //! ### Visual
 //!
@@ -350,6 +353,9 @@ impl Drop for RcUiNodeHandleInner {
     }
 }
 
+/// Reference counted handle to a widget. It is used to automatically destroy the widget it points
+/// to when the reference counter reaches zero. It's main usage in the library is to store handles
+/// to context menus, that could be shared across multiple widgets.
 #[derive(Clone, Default, Visit, Reflect)]
 pub struct RcUiNodeHandle(Arc<Mutex<RcUiNodeHandleInner>>);
 
@@ -374,6 +380,8 @@ impl PartialEq for RcUiNodeHandle {
 }
 
 impl RcUiNodeHandle {
+    /// Creates a new reference counted widget handle.
+    #[inline]
     pub fn new(handle: Handle<UiNode>, sender: Sender<UiMessage>) -> Self {
         Self(Arc::new(Mutex::new(RcUiNodeHandleInner {
             handle,
@@ -381,11 +389,14 @@ impl RcUiNodeHandle {
         })))
     }
 
+    /// Returns the inner handle.
+    #[inline]
     pub fn handle(&self) -> Handle<UiNode> {
         self.0.lock().handle
     }
 }
 
+/// Orientation of something.
 #[derive(
     Copy,
     Clone,
@@ -402,8 +413,10 @@ impl RcUiNodeHandle {
     EnumVariantNames,
 )]
 pub enum Orientation {
+    /// Vertical orientation. This is default value.
     #[default]
     Vertical,
+    /// Horizontal orientation.
     Horizontal,
 }
 
@@ -411,16 +424,22 @@ uuid_provider!(Orientation = "1c6ad1b0-3f4c-48be-87dd-6929cb3577bf");
 
 type NodeHandle = Handle<UiNode>;
 
+/// Node handle mapping is used to map handles when copying an arbitrary hierarchy of widgets. This
+/// is needed, because internally, widgets could contain handles to some other widgets which must
+/// point to their respective copies when a widget hierarchy was copied.
 #[derive(Default)]
 pub struct NodeHandleMapping {
+    /// Internal old-handle-to-new-handle mapping.
     pub hash_map: FxHashMap<NodeHandle, NodeHandle>,
 }
 
 impl NodeHandleMapping {
+    /// Adds new old -> new mapping.
     pub fn add_mapping(&mut self, old: Handle<UiNode>, new: Handle<UiNode>) {
         self.hash_map.insert(old, new);
     }
 
+    /// Tries to fetch new handle of a node using its old handle.
     pub fn resolve(&self, old: &mut Handle<UiNode>) {
         // None handles aren't mapped.
         if old.is_some() {
@@ -430,6 +449,7 @@ impl NodeHandleMapping {
         }
     }
 
+    /// The same as [`Self::resolve`], but for case when a handle is wrapped into [`Cell`].
     pub fn resolve_cell(&self, old: &mut Cell<Handle<UiNode>>) {
         // None handles aren't mapped.
         if Cell::get(old).is_some() {
@@ -439,6 +459,7 @@ impl NodeHandleMapping {
         }
     }
 
+    /// The same as [`Self::resolve`], but for case when you have a slice of handles.
     pub fn resolve_slice(&self, slice: &mut [Handle<UiNode>]) {
         for item in slice {
             self.resolve(item);
