@@ -3,6 +3,7 @@ use crate::{
     interaction::navmesh::selection::{NavmeshEntity, NavmeshSelection},
     scene::{commands::GameSceneContext, Selection},
 };
+use fyrox::core::parking_lot::RwLockWriteGuard;
 use fyrox::{
     core::{
         algebra::Vector3,
@@ -22,7 +23,10 @@ pub struct AddNavmeshEdgeCommand {
     new_selection: Selection,
 }
 
-fn fetch_navmesh<'a>(ctx: &'a mut GameSceneContext, node: Handle<Node>) -> &'a mut Navmesh {
+fn fetch_navmesh<'a>(
+    ctx: &'a mut GameSceneContext,
+    node: Handle<Node>,
+) -> RwLockWriteGuard<'a, Navmesh> {
     ctx.scene.graph[node]
         .as_navigational_mesh_mut()
         .navmesh_mut()
@@ -59,19 +63,20 @@ impl GameSceneCommandTrait for AddNavmeshEdgeCommand {
     }
 
     fn execute(&mut self, context: &mut GameSceneContext) {
-        let navmesh = fetch_navmesh(context, self.navmesh_node);
+        let mut navmesh = fetch_navmesh(context, self.navmesh_node);
 
         match std::mem::replace(&mut self.state, AddNavmeshEdgeCommandState::Undefined) {
             AddNavmeshEdgeCommandState::NonExecuted { edge }
             | AddNavmeshEdgeCommandState::Reverted { edge } => {
-                let begin = navmesh.add_vertex(edge.0);
-                let end = navmesh.add_vertex(edge.1);
-                navmesh.add_triangle(TriangleDefinition([
+                let mut ctx = navmesh.modify();
+                let begin = ctx.add_vertex(edge.0);
+                let end = ctx.add_vertex(edge.1);
+                ctx.add_triangle(TriangleDefinition([
                     self.opposite_edge.a,
                     begin,
                     self.opposite_edge.b,
                 ]));
-                navmesh.add_triangle(TriangleDefinition([begin, end, self.opposite_edge.b]));
+                ctx.add_triangle(TriangleDefinition([begin, end, self.opposite_edge.b]));
                 self.state = AddNavmeshEdgeCommandState::Executed;
                 let navmesh_selection = NavmeshSelection::new(
                     self.navmesh_node,
@@ -83,6 +88,8 @@ impl GameSceneCommandTrait for AddNavmeshEdgeCommand {
             _ => unreachable!(),
         }
 
+        drop(navmesh);
+
         if self.select {
             std::mem::swap(context.selection, &mut self.new_selection);
         }
@@ -93,14 +100,15 @@ impl GameSceneCommandTrait for AddNavmeshEdgeCommand {
             std::mem::swap(context.selection, &mut self.new_selection);
         }
 
-        let navmesh = fetch_navmesh(context, self.navmesh_node);
+        let mut navmesh = fetch_navmesh(context, self.navmesh_node);
 
         match std::mem::replace(&mut self.state, AddNavmeshEdgeCommandState::Undefined) {
             AddNavmeshEdgeCommandState::Executed => {
-                navmesh.pop_triangle();
-                navmesh.pop_triangle();
-                let va = navmesh.pop_vertex().unwrap();
-                let vb = navmesh.pop_vertex().unwrap();
+                let mut ctx = navmesh.modify();
+                ctx.pop_triangle();
+                ctx.pop_triangle();
+                let va = ctx.pop_vertex().unwrap();
+                let vb = ctx.pop_vertex().unwrap();
                 self.state = AddNavmeshEdgeCommandState::Reverted { edge: (vb, va) };
             }
             _ => unreachable!(),
@@ -137,19 +145,20 @@ impl GameSceneCommandTrait for ConnectNavmeshEdgesCommand {
     }
 
     fn execute(&mut self, context: &mut GameSceneContext) {
-        let navmesh = fetch_navmesh(context, self.navmesh_node);
+        let mut navmesh = fetch_navmesh(context, self.navmesh_node);
+        let mut ctx = navmesh.modify();
 
         match std::mem::replace(&mut self.state, ConnectNavmeshEdgesCommandState::Undefined) {
             ConnectNavmeshEdgesCommandState::NonExecuted { edges } => {
-                navmesh.add_triangle(TriangleDefinition([edges[0].a, edges[0].b, edges[1].a]));
-                navmesh.add_triangle(TriangleDefinition([edges[1].a, edges[1].b, edges[0].a]));
+                ctx.add_triangle(TriangleDefinition([edges[0].a, edges[0].b, edges[1].a]));
+                ctx.add_triangle(TriangleDefinition([edges[1].a, edges[1].b, edges[0].a]));
 
                 self.state = ConnectNavmeshEdgesCommandState::Executed;
             }
             ConnectNavmeshEdgesCommandState::Reverted { triangles } => {
                 let [a, b] = triangles;
-                navmesh.add_triangle(a);
-                navmesh.add_triangle(b);
+                ctx.add_triangle(a);
+                ctx.add_triangle(b);
                 self.state = ConnectNavmeshEdgesCommandState::Executed;
             }
             _ => unreachable!(),
@@ -157,15 +166,13 @@ impl GameSceneCommandTrait for ConnectNavmeshEdgesCommand {
     }
 
     fn revert(&mut self, context: &mut GameSceneContext) {
-        let navmesh = fetch_navmesh(context, self.navmesh_node);
+        let mut navmesh = fetch_navmesh(context, self.navmesh_node);
+        let mut ctx = navmesh.modify();
 
         match std::mem::replace(&mut self.state, ConnectNavmeshEdgesCommandState::Undefined) {
             ConnectNavmeshEdgesCommandState::Executed => {
                 self.state = ConnectNavmeshEdgesCommandState::Reverted {
-                    triangles: [
-                        navmesh.pop_triangle().unwrap(),
-                        navmesh.pop_triangle().unwrap(),
-                    ],
+                    triangles: [ctx.pop_triangle().unwrap(), ctx.pop_triangle().unwrap()],
                 }
             }
             _ => unreachable!(),
@@ -210,7 +217,7 @@ impl GameSceneCommandTrait for DeleteNavmeshVertexCommand {
     }
 
     fn execute(&mut self, context: &mut GameSceneContext) {
-        let navmesh = fetch_navmesh(context, self.navmesh_node);
+        let mut navmesh = fetch_navmesh(context, self.navmesh_node);
 
         match std::mem::replace(&mut self.state, DeleteNavmeshVertexCommandState::Undefined) {
             DeleteNavmeshVertexCommandState::NonExecuted { vertex }
@@ -224,7 +231,7 @@ impl GameSceneCommandTrait for DeleteNavmeshVertexCommand {
                 }
 
                 self.state = DeleteNavmeshVertexCommandState::Executed {
-                    vertex: navmesh.remove_vertex(vertex),
+                    vertex: navmesh.modify().remove_vertex(vertex),
                     triangles,
                     vertex_index: vertex,
                 };
@@ -234,7 +241,7 @@ impl GameSceneCommandTrait for DeleteNavmeshVertexCommand {
     }
 
     fn revert(&mut self, context: &mut GameSceneContext) {
-        let navmesh = fetch_navmesh(context, self.navmesh_node);
+        let mut navmesh = fetch_navmesh(context, self.navmesh_node);
 
         match std::mem::replace(&mut self.state, DeleteNavmeshVertexCommandState::Undefined) {
             DeleteNavmeshVertexCommandState::Executed {
@@ -242,10 +249,12 @@ impl GameSceneCommandTrait for DeleteNavmeshVertexCommand {
                 vertex_index,
                 triangles,
             } => {
-                navmesh.insert_vertex(vertex_index as u32, vertex);
+                let mut ctx = navmesh.modify();
+
+                ctx.insert_vertex(vertex_index as u32, vertex);
 
                 for triangle in triangles {
-                    navmesh.add_triangle(triangle);
+                    ctx.add_triangle(triangle);
                 }
 
                 self.state = DeleteNavmeshVertexCommandState::Reverted {
@@ -286,8 +295,8 @@ impl MoveNavmeshVertexCommand {
         position
     }
 
-    fn set_position(&self, navmesh: &mut Navmesh, position: Vector3<f32>) {
-        navmesh.vertices_mut()[self.vertex] = position;
+    fn set_position(&self, mut navmesh: RwLockWriteGuard<Navmesh>, position: Vector3<f32>) {
+        navmesh.modify().vertices_mut()[self.vertex] = position;
     }
 }
 

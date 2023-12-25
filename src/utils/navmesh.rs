@@ -25,10 +25,7 @@ use crate::{
     },
 };
 use fxhash::{FxBuildHasher, FxHashMap};
-use std::{
-    cell::RefCell,
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 #[derive(Clone, Debug, Default, Visit)]
 struct Vertex {
@@ -65,8 +62,7 @@ pub struct Navmesh {
     octree: Octree,
     triangles: Vec<TriangleDefinition>,
     vertices: Vec<Vector3<f32>>,
-    graph: RefCell<Option<Graph<Vertex>>>,
-    query_buffer: RefCell<Vec<u32>>,
+    graph: Graph<Vertex>,
 }
 
 impl PartialEq for Navmesh {
@@ -116,6 +112,9 @@ impl Visit for Navmesh {
             self.octree = Octree::new(&raw_triangles, 32);
         }
 
+        let graph = make_graph(&self.triangles, &self.vertices);
+        self.graph = graph;
+
         Ok(())
     }
 }
@@ -125,6 +124,7 @@ struct Portal {
     left: usize,
     right: usize,
 }
+
 fn triangle_area_2d(a: Vector3<f32>, b: Vector3<f32>, c: Vector3<f32>) -> f32 {
     let abx = b[0] - a[0];
     let abz = b[2] - a[2];
@@ -204,6 +204,127 @@ fn make_graph(triangles: &[TriangleDefinition], vertices: &[Vector3<f32>]) -> Gr
     graph
 }
 
+/// A temporary modification context which allows you to modify a navmesh. When the modification
+/// context is dropped, it recalculates navigation graph automatically.
+pub struct NavmeshModificationContext<'a> {
+    navmesh: &'a mut Navmesh,
+}
+
+impl<'a> Drop for NavmeshModificationContext<'a> {
+    fn drop(&mut self) {
+        let graph = make_graph(&self.navmesh.triangles, &self.navmesh.vertices);
+        self.navmesh.graph = graph;
+    }
+}
+
+impl<'a> NavmeshModificationContext<'a> {
+    /// Adds the triangle to the navigational mesh and returns its index in the internal array. Vertex indices in
+    /// the triangle must be valid!
+    pub fn add_triangle(&mut self, triangle: TriangleDefinition) -> u32 {
+        let index = self.navmesh.triangles.len();
+        self.navmesh.triangles.push(triangle);
+        index as u32
+    }
+
+    /// Removes a triangle at the given index from the navigational mesh.
+    pub fn remove_triangle(&mut self, index: usize) -> TriangleDefinition {
+        self.navmesh.triangles.remove(index)
+    }
+
+    /// Removes last triangle from the navigational mesh. Automatically fixes vertex links in the internal
+    /// navigational graph.
+    pub fn pop_triangle(&mut self) -> Option<TriangleDefinition> {
+        if self.navmesh.triangles.is_empty() {
+            None
+        } else {
+            Some(self.remove_triangle(self.navmesh.triangles.len() - 1))
+        }
+    }
+
+    /// Removes a vertex at the given index from the navigational mesh. All triangles that share the vertex will
+    /// be also removed.
+    pub fn remove_vertex(&mut self, index: usize) -> Vector3<f32> {
+        // Remove triangles that sharing the vertex first.
+        let mut i = 0;
+        while i < self.navmesh.triangles.len() {
+            if self.navmesh.triangles[i]
+                .indices()
+                .contains(&(index as u32))
+            {
+                self.remove_triangle(i);
+            } else {
+                i += 1;
+            }
+        }
+
+        // Shift vertex indices in triangles. Example:
+        //
+        // 0:A 1:B 2:C 3:D 4:E
+        // [A,B,C], [A,C,D], [A,D,E], [D,C,E]
+        // [0,1,2], [0,2,3], [0,3,4], [3,2,4]
+        //
+        // Remove B.
+        //
+        // 0:A 1:C 2:D 3:E
+        // [A,C,D], [A,D,E], [D,C,E]
+        // [0,1,2], [0,2,3], [2,1,3]
+        for triangle in self.navmesh.triangles.iter_mut() {
+            for other_vertex_index in triangle.indices_mut() {
+                if *other_vertex_index > index as u32 {
+                    *other_vertex_index -= 1;
+                }
+            }
+        }
+
+        self.navmesh.vertices.remove(index)
+    }
+
+    /// Returns a mutable reference to the internal array of vertices.
+    pub fn vertices_mut(&mut self) -> &mut [Vector3<f32>] {
+        &mut self.navmesh.vertices
+    }
+
+    /// Adds the vertex to the navigational mesh. The vertex will **not** be connected with any other vertex.
+    pub fn add_vertex(&mut self, vertex: Vector3<f32>) -> u32 {
+        let index = self.navmesh.vertices.len();
+        self.navmesh.vertices.push(vertex);
+        index as u32
+    }
+
+    /// Removes last vertex from the navigational mesh. All triangles that share the vertex will be also removed.
+    pub fn pop_vertex(&mut self) -> Option<Vector3<f32>> {
+        if self.navmesh.vertices.is_empty() {
+            None
+        } else {
+            Some(self.remove_vertex(self.navmesh.vertices.len() - 1))
+        }
+    }
+
+    /// Inserts the vertex at the given index. Automatically shift indices in triangles to preserve mesh structure.
+    pub fn insert_vertex(&mut self, index: u32, vertex: Vector3<f32>) {
+        self.navmesh.vertices.insert(index as usize, vertex);
+
+        // Shift vertex indices in triangles. Example:
+        //
+        // 0:A 1:C 2:D 3:E
+        // [A,C,D], [A,D,E], [D,C,E]
+        // [0,1,2], [0,2,3], [2,1,3]
+        //
+        // Insert B.
+        //
+        // 0:A 1:B 2:C 3:D 4:E
+        // [A,C,D], [A,D,E], [D,C,E]
+        // [0,2,3], [0,3,4], [3,2,4]
+        for triangle in self.navmesh.triangles.iter_mut() {
+            for other_vertex_index in triangle.indices_mut() {
+                if *other_vertex_index >= index {
+                    *other_vertex_index += 1;
+                }
+            }
+        }
+    }
+}
+
 impl Navmesh {
     /// Creates new navigation mesh from given set of triangles and vertices. This is
     /// low level method that allows to specify triangles and vertices directly. In
@@ -222,11 +343,10 @@ impl Navmesh {
             .collect::<Vec<[Vector3<f32>; 3]>>();
 
         Self {
-            graph: Default::default(),
+            graph: make_graph(&triangles, &vertices),
             triangles,
             vertices,
             octree: Octree::new(&raw_triangles, 32),
-            query_buffer: Default::default(),
         }
     }
 
@@ -314,38 +434,54 @@ impl Navmesh {
     /// navmesh bounds) and `O(n)` complexity in the worst case. `n` here is the number of triangles
     /// in the navmesh.
     pub fn query_closest(&self, query_point: Vector3<f32>) -> Option<(Vector3<f32>, usize)> {
-        let mut query_buffer = self.query_buffer.borrow_mut();
-        self.octree.point_query(query_point, &mut query_buffer);
-        if query_buffer.is_empty() {
-            // O(n)
-            self.query_closest_internal(0..self.triangles.len(), query_point)
-        } else {
+        let mut closest = None;
+        let mut closest_distance = f32::MAX;
+
+        self.octree.point_query(query_point, |triangles| {
             // O(log(n))
-            self.query_closest_internal(query_buffer.iter().map(|i| *i as usize), query_point)
+            self.query_closest_internal(
+                &mut closest,
+                &mut closest_distance,
+                triangles.iter().map(|i| *i as usize),
+                query_point,
+            )
+        });
+
+        if closest.is_none() {
+            // O(n)
+            self.query_closest_internal(
+                &mut closest,
+                &mut closest_distance,
+                0..self.triangles.len(),
+                query_point,
+            )
         }
+
+        closest
     }
 
     fn query_closest_internal(
         &self,
+        closest: &mut Option<(Vector3<f32>, usize)>,
+        closest_distance: &mut f32,
         triangles: impl Iterator<Item = usize>,
         query_point: Vector3<f32>,
-    ) -> Option<(Vector3<f32>, usize)> {
-        let mut closest = None;
-        let mut closest_distance = f32::MAX;
-
+    ) {
         for triangle_index in triangles {
             let triangle = &self.triangles[triangle_index];
             let a = self.vertices[triangle[0] as usize];
             let b = self.vertices[triangle[1] as usize];
             let c = self.vertices[triangle[2] as usize];
 
-            let plane = Plane::from_triangle(&a, &b, &c)?;
+            let Some(plane) = Plane::from_triangle(&a, &b, &c) else {
+                continue;
+            };
             let projection = plane.project(&query_point);
             if math::is_point_inside_triangle(&projection, &[a, b, c]) {
                 let sqr_distance = query_point.sqr_distance(&projection);
-                if sqr_distance < closest_distance {
-                    closest_distance = sqr_distance;
-                    closest = Some((projection, triangle_index));
+                if sqr_distance < *closest_distance {
+                    *closest_distance = sqr_distance;
+                    *closest = Some((projection, triangle_index));
                 }
             }
 
@@ -359,9 +495,9 @@ impl Navmesh {
                 if (0.0..=1.0).contains(&t) {
                     let edge_pt_projection = ray.get_point(t);
                     let sqr_distance = query_point.sqr_distance(&edge_pt_projection);
-                    if sqr_distance < closest_distance {
-                        closest_distance = sqr_distance;
-                        closest = Some((ray.get_point(t), triangle_index));
+                    if sqr_distance < *closest_distance {
+                        *closest_distance = sqr_distance;
+                        *closest = Some((ray.get_point(t), triangle_index));
                     }
                 }
             }
@@ -369,14 +505,18 @@ impl Navmesh {
             // Also check vertices.
             for pt in [a, b, c] {
                 let sqr_distance = query_point.sqr_distance(&pt);
-                if sqr_distance < closest_distance {
-                    closest_distance = sqr_distance;
-                    closest = Some((pt, triangle_index));
+                if sqr_distance < *closest_distance {
+                    *closest_distance = sqr_distance;
+                    *closest = Some((pt, triangle_index));
                 }
             }
         }
+    }
 
-        closest
+    /// Creates a temporary modification context which allows you to modify the navmesh. When the
+    /// modification context is dropped, it recalculates navigation graph automatically.
+    pub fn modify(&mut self) -> NavmeshModificationContext {
+        NavmeshModificationContext { navmesh: self }
     }
 
     /// Returns reference to array of triangles.
@@ -384,119 +524,9 @@ impl Navmesh {
         &self.triangles
     }
 
-    /// Adds the triangle to the navigational mesh and returns its index in the internal array. Vertex indices in
-    /// the triangle must be valid!
-    pub fn add_triangle(&mut self, triangle: TriangleDefinition) -> u32 {
-        let index = self.triangles.len();
-        self.graph = Default::default();
-        self.triangles.push(triangle);
-        index as u32
-    }
-
-    /// Removes a triangle at the given index from the navigational mesh.
-    pub fn remove_triangle(&mut self, index: usize) -> TriangleDefinition {
-        let triangle = self.triangles.remove(index);
-        self.graph = Default::default();
-        triangle
-    }
-
-    /// Removes last triangle from the navigational mesh. Automatically fixes vertex links in the internal
-    /// navigational graph.
-    pub fn pop_triangle(&mut self) -> Option<TriangleDefinition> {
-        if self.triangles.is_empty() {
-            None
-        } else {
-            Some(self.remove_triangle(self.triangles.len() - 1))
-        }
-    }
-
-    /// Removes a vertex at the given index from the navigational mesh. All triangles that share the vertex will
-    /// be also removed.
-    pub fn remove_vertex(&mut self, index: usize) -> Vector3<f32> {
-        // Remove triangles that sharing the vertex first.
-        let mut i = 0;
-        while i < self.triangles.len() {
-            if self.triangles[i].indices().contains(&(index as u32)) {
-                self.remove_triangle(i);
-            } else {
-                i += 1;
-            }
-        }
-
-        // Shift vertex indices in triangles. Example:
-        //
-        // 0:A 1:B 2:C 3:D 4:E
-        // [A,B,C], [A,C,D], [A,D,E], [D,C,E]
-        // [0,1,2], [0,2,3], [0,3,4], [3,2,4]
-        //
-        // Remove B.
-        //
-        // 0:A 1:C 2:D 3:E
-        // [A,C,D], [A,D,E], [D,C,E]
-        // [0,1,2], [0,2,3], [2,1,3]
-        for triangle in self.triangles.iter_mut() {
-            for other_vertex_index in triangle.indices_mut() {
-                if *other_vertex_index > index as u32 {
-                    *other_vertex_index -= 1;
-                }
-            }
-        }
-
-        self.vertices.remove(index)
-    }
-
     /// Returns reference to the internal array of vertices.
     pub fn vertices(&self) -> &[Vector3<f32>] {
         &self.vertices
-    }
-
-    /// Returns a mutable reference to the internal array of vertices.
-    pub fn vertices_mut(&mut self) -> &mut [Vector3<f32>] {
-        self.graph = Default::default();
-        &mut self.vertices
-    }
-
-    /// Adds the vertex to the navigational mesh. The vertex will **not** be connected with any other vertex.
-    pub fn add_vertex(&mut self, vertex: Vector3<f32>) -> u32 {
-        let index = self.vertices.len();
-        self.vertices.push(vertex);
-        self.graph = Default::default();
-        index as u32
-    }
-
-    /// Removes last vertex from the navigational mesh. All triangles that share the vertex will be also removed.
-    pub fn pop_vertex(&mut self) -> Option<Vector3<f32>> {
-        if self.vertices.is_empty() {
-            None
-        } else {
-            Some(self.remove_vertex(self.vertices.len() - 1))
-        }
-    }
-
-    /// Inserts the vertex at the given index. Automatically shift indices in triangles to preserve mesh structure.
-    pub fn insert_vertex(&mut self, index: u32, vertex: Vector3<f32>) {
-        self.vertices.insert(index as usize, vertex);
-
-        // Shift vertex indices in triangles. Example:
-        //
-        // 0:A 1:C 2:D 3:E
-        // [A,C,D], [A,D,E], [D,C,E]
-        // [0,1,2], [0,2,3], [2,1,3]
-        //
-        // Insert B.
-        //
-        // 0:A 1:B 2:C 3:D 4:E
-        // [A,C,D], [A,D,E], [D,C,E]
-        // [0,2,3], [0,3,4], [3,2,4]
-        for triangle in self.triangles.iter_mut() {
-            for other_vertex_index in triangle.indices_mut() {
-                if *other_vertex_index >= index {
-                    *other_vertex_index += 1;
-                }
-            }
-        }
-
-        self.graph = Default::default();
     }
 
     /// Returns shared reference to inner octree.
@@ -528,9 +558,7 @@ impl Navmesh {
         to: usize,
         path: &mut Vec<Vector3<f32>>,
     ) -> Result<PathKind, PathError> {
-        let mut graph = self.graph.borrow_mut();
-        let graph = graph.get_or_insert_with(|| make_graph(&self.triangles, &self.vertices));
-        graph.build_positional_path(from, to, path)
+        self.graph.build_positional_path(from, to, path)
     }
 
     /// Tries to pick a triangle by given ray. Returns closest result.
@@ -685,7 +713,7 @@ impl NavmeshAgent {
     /// directly, because `update` will call it anyway if target position has moved.
     pub fn calculate_path(
         &mut self,
-        navmesh: &mut Navmesh,
+        navmesh: &Navmesh,
         src_point: Vector3<f32>,
         dest_point: Vector3<f32>,
     ) -> Result<PathKind, PathError> {
@@ -704,10 +732,7 @@ impl NavmeshAgent {
                 }
 
                 let mut path_triangle_indices = Vec::new();
-                let mut graph = navmesh.graph.borrow_mut();
-                let graph =
-                    graph.get_or_insert_with(|| make_graph(&navmesh.triangles, &navmesh.vertices));
-                let path_kind = graph.build_indexed_path(
+                let path_kind = navmesh.graph.build_indexed_path(
                     src_triangle,
                     dest_triangle,
                     &mut path_triangle_indices,
@@ -813,7 +838,7 @@ impl NavmeshAgent {
 
     /// Performs single update tick that moves agent to the target along the path (which is automatically
     /// recalculated if target's position has changed).
-    pub fn update(&mut self, dt: f32, navmesh: &mut Navmesh) -> Result<PathKind, PathError> {
+    pub fn update(&mut self, dt: f32, navmesh: &Navmesh) -> Result<PathKind, PathError> {
         if self.path_dirty {
             self.calculate_path(navmesh, self.position, self.target)?;
             self.path_dirty = false;
@@ -966,8 +991,7 @@ mod test {
         agent.set_target(Vector3::new(3.0, 0.0, 1.0));
         agent.update(1.0 / 60.0, &mut navmesh).unwrap();
 
-        let graph = navmesh.graph.borrow();
-        let graph = graph.as_ref().unwrap();
+        let graph = &navmesh.graph;
 
         assert_eq!(graph.vertices.len(), 6);
         assert_eq!(graph.vertices[0].neighbours[0], 1);

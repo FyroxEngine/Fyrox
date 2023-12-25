@@ -166,27 +166,31 @@ impl Octree {
         }
     }
 
-    pub fn point_query(&self, point: Vector3<f32>, buffer: &mut Vec<u32>) {
-        buffer.clear();
-        self.point_recursive_query(self.root, point, buffer);
+    pub fn point_query<C>(&self, point: Vector3<f32>, mut callback: C)
+    where
+        C: FnMut(&[u32]),
+    {
+        self.point_recursive_query(self.root, point, &mut callback);
     }
 
-    fn point_recursive_query(
+    fn point_recursive_query<C>(
         &self,
         node: Handle<OctreeNode>,
         point: Vector3<f32>,
-        buffer: &mut Vec<u32>,
-    ) {
+        callback: &mut C,
+    ) where
+        C: FnMut(&[u32]),
+    {
         match self.nodes.borrow(node) {
             OctreeNode::Leaf { indices, bounds } => {
                 if bounds.is_contains_point(point) {
-                    buffer.extend_from_slice(indices)
+                    (callback)(indices)
                 }
             }
             OctreeNode::Branch { bounds, leaves } => {
                 if bounds.is_contains_point(point) {
                     for leaf in leaves {
-                        self.point_recursive_query(*leaf, point, buffer)
+                        self.point_recursive_query(*leaf, point, callback)
                     }
                 }
             }
@@ -292,7 +296,9 @@ mod test {
     fn octree_point_query() {
         let tree = Octree::new(&get_six_triangles(), 5);
         let mut buffer = Vec::new();
-        tree.point_query(Vector3::new(0.0, 0.0, 0.0), &mut buffer);
+        tree.point_query(Vector3::new(0.0, 0.0, 0.0), |triangles| {
+            buffer.extend_from_slice(triangles)
+        });
 
         assert_eq!(buffer, [0, 1, 2, 3, 0, 1, 2, 3]);
     }

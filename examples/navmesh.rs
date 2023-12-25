@@ -168,10 +168,11 @@ impl Plugin for Game {
         let navmesh_handle = scene.graph.find_by_name_from_root("Navmesh").unwrap().0;
         let navmesh_node = scene.graph[navmesh_handle].as_navigational_mesh_mut();
         navmesh_node.debug_draw(&mut scene.drawing_context);
-        let navmesh = navmesh_node.navmesh_mut();
+        let navmesh = navmesh_node.navmesh_ref();
 
         self.navmesh_agent.set_target(self.target_position);
-        let _ = self.navmesh_agent.update(context.dt, navmesh);
+        let _ = self.navmesh_agent.update(context.dt, &navmesh);
+        drop(navmesh);
 
         scene.graph[self.agent]
             .local_transform_mut()

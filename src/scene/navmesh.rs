@@ -5,6 +5,7 @@ use crate::{
     core::{
         color::Color,
         math::aabb::AxisAlignedBoundingBox,
+        parking_lot::RwLock,
         pool::Handle,
         reflect::prelude::*,
         uuid::{uuid, Uuid},
@@ -20,7 +21,26 @@ use crate::{
     },
     utils::navmesh::Navmesh,
 };
-use std::ops::{Deref, DerefMut};
+use fyrox_core::parking_lot::{RwLockReadGuard, RwLockWriteGuard};
+use std::{
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
+
+#[derive(Clone, Default, Reflect, Debug)]
+struct Container(Arc<RwLock<Navmesh>>);
+
+impl PartialEq for Container {
+    fn eq(&self, other: &Self) -> bool {
+        *self.0.read() == *other.0.read()
+    }
+}
+
+impl Visit for Container {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.0.write().visit(name, visitor)
+    }
+}
 
 /// Navigational mesh (navmesh for short) is a surface which can be used for path finding. Unlike [A* Pathfinder](crate::utils::astar),
 /// it can build arbitrary paths on a surface of large polygons, making a path from point A to point B linear (standard pathfinder builds
@@ -83,14 +103,14 @@ use std::ops::{Deref, DerefMut};
 ///     agent: &mut NavmeshAgent,
 ///     target: Vector3<f32>,
 ///     dt: f32,
-///     navmesh: &mut NavigationalMesh,
+///     navmesh: &NavigationalMesh,
 /// ) {
 ///     // Set the target to follow and the speed.
 ///     agent.set_target(target);
 ///     agent.set_speed(1.0);
 ///
 ///     // Update the agent.
-///     agent.update(dt, navmesh.navmesh_mut()).unwrap();
+///     agent.update(dt, &navmesh.navmesh_ref()).unwrap();
 ///
 ///     // Print its position - you can use this position as target point of your game character.
 ///     println!("{}", agent.position());
@@ -112,7 +132,7 @@ use std::ops::{Deref, DerefMut};
 pub struct NavigationalMesh {
     base: Base,
     #[reflect(read_only)]
-    navmesh: InheritableVariable<Navmesh>,
+    navmesh: InheritableVariable<Container>,
 }
 
 impl TypeUuidProvider for NavigationalMesh {
@@ -151,15 +171,17 @@ impl NodeTrait for NavigationalMesh {
     }
 
     fn debug_draw(&self, ctx: &mut SceneDrawingContext) {
-        for vertex in self.navmesh.vertices().iter() {
+        let navmesh = self.navmesh.0.read();
+
+        for vertex in navmesh.vertices().iter() {
             ctx.draw_sphere(*vertex, 6, 6, 0.1, Color::GREEN);
         }
 
-        for triangle in self.navmesh.triangles().iter() {
+        for triangle in navmesh.triangles().iter() {
             for edge in &triangle.edges() {
                 ctx.add_line(Line {
-                    begin: self.navmesh.vertices()[edge.a as usize],
-                    end: self.navmesh.vertices()[edge.b as usize],
+                    begin: navmesh.vertices()[edge.a as usize],
+                    end: navmesh.vertices()[edge.b as usize],
                     color: Color::GREEN,
                 });
             }
@@ -169,13 +191,19 @@ impl NodeTrait for NavigationalMesh {
 
 impl NavigationalMesh {
     /// Returns a reference to the inner navigational mesh.
-    pub fn navmesh_ref(&self) -> &Navmesh {
-        &self.navmesh
+    pub fn navmesh_ref(&self) -> RwLockReadGuard<Navmesh> {
+        self.navmesh.0.read()
     }
 
     /// Returns a reference to the inner navigational mesh.
-    pub fn navmesh_mut(&mut self) -> &mut Navmesh {
-        &mut self.navmesh
+    pub fn navmesh_mut(&mut self) -> RwLockWriteGuard<Navmesh> {
+        self.navmesh.0.write()
+    }
+
+    /// Returns a shared reference to the inner navigational mesh. It could be used to perform
+    /// off-thread path calculations.
+    pub fn navmesh(&self) -> Arc<RwLock<Navmesh>> {
+        self.navmesh.0.clone()
     }
 }
 
@@ -203,7 +231,9 @@ impl NavigationalMeshBuilder {
     fn build_navigational_mesh(self) -> NavigationalMesh {
         NavigationalMesh {
             base: self.base_builder.build_base(),
-            navmesh: self.navmesh.into(),
+            navmesh: InheritableVariable::new_modified(Container(Arc::new(RwLock::new(
+                self.navmesh,
+            )))),
         }
     }
 

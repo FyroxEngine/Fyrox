@@ -412,7 +412,7 @@ impl InteractionMode for EditNavmeshMode {
         let graph = &mut engine.scenes[game_scene.scene].graph;
 
         if let Some(selection) = fetch_selection(editor_selection) {
-            if let Some(navmesh) = graph
+            if let Some(mut navmesh) = graph
                 .try_get_mut_of_type::<NavigationalMesh>(selection.navmesh_node())
                 .map(|n| n.navmesh_mut())
             {
@@ -446,8 +446,9 @@ impl InteractionMode for EditNavmeshMode {
                 if let Some(drag_context) = self.drag_context.as_mut() {
                     match drag_context {
                         DragContext::MoveSelection { .. } => {
+                            let mut ctx = navmesh.modify();
                             for &vertex in &*selection.unique_vertices() {
-                                navmesh.vertices_mut()[vertex] += offset;
+                                ctx.vertices_mut()[vertex] += offset;
                             }
                         }
                         DragContext::EdgeDuplication { vertices, .. } => {
@@ -482,14 +483,14 @@ impl InteractionMode for EditNavmeshMode {
         );
 
         if let Some(selection) = fetch_selection(editor_selection) {
+            let mut gizmo_visible = false;
+            let mut gizmo_position = Default::default();
+
             if let Some(navmesh) = scene
                 .graph
                 .try_get_mut_of_type::<NavigationalMesh>(selection.navmesh_node())
                 .map(|n| n.navmesh_mut())
             {
-                let mut gizmo_visible = false;
-                let mut gizmo_position = Default::default();
-
                 if let Some(DragContext::EdgeDuplication {
                     vertices,
                     opposite_edge,
@@ -539,13 +540,13 @@ impl InteractionMode for EditNavmeshMode {
                         }
                     };
                 }
-
-                self.move_gizmo.set_visible(&mut scene.graph, gizmo_visible);
-                self.move_gizmo
-                    .transform(&mut scene.graph)
-                    .set_scale(scale)
-                    .set_position(gizmo_position);
             }
+
+            self.move_gizmo.set_visible(&mut scene.graph, gizmo_visible);
+            self.move_gizmo
+                .transform(&mut scene.graph)
+                .set_scale(scale)
+                .set_position(gizmo_position);
         }
     }
 
