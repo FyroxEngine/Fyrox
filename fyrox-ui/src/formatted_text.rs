@@ -104,7 +104,8 @@ pub struct FormattedText {
     constraint: Vector2<f32>,
     wrap: WrapMode,
     mask_char: Option<char>,
-    height: f32,
+    #[visit(rename = "Height")]
+    font_size: f32,
     pub shadow: bool,
     pub shadow_brush: Brush,
     pub shadow_dilation: f32,
@@ -131,12 +132,12 @@ impl FormattedText {
         self
     }
 
-    pub fn height(&self) -> f32 {
-        self.height
+    pub fn font_size(&self) -> f32 {
+        self.font_size
     }
 
-    pub fn set_height(&mut self, height: f32) -> &mut Self {
-        self.height = height;
+    pub fn set_font_size(&mut self, font_size: f32) -> &mut Self {
+        self.font_size = font_size;
         self
     }
 
@@ -193,7 +194,7 @@ impl FormattedText {
             for index in range {
                 // We can't trust the range values, check to prevent panic.
                 if let Some(glyph) = self.text.get(index) {
-                    width += font.glyph_advance(*glyph, self.height);
+                    width += font.glyph_advance(*glyph, self.font_size);
                 }
             }
         }
@@ -282,9 +283,9 @@ impl FormattedText {
         let mut word: Option<Word> = None;
         self.lines.clear();
         for (i, &character) in text.iter().enumerate() {
-            let advance = match font.glyph(character, self.height) {
+            let advance = match font.glyph(character, self.font_size) {
                 Some(glyph) => glyph.advance,
-                None => self.height,
+                None => self.font_size,
             };
             let is_new_line = character == '\n' || character == '\r';
             let new_width = current_line.width + advance;
@@ -315,7 +316,7 @@ impl FormattedText {
                 current_line.begin = if is_new_line { i + 1 } else { i };
                 current_line.end = current_line.begin;
                 current_line.width = advance;
-                total_height += font.ascender(self.height);
+                total_height += font.ascender(self.font_size);
             } else {
                 match self.wrap {
                     WrapMode::NoWrap => {
@@ -328,7 +329,7 @@ impl FormattedText {
                             current_line.begin = if is_new_line { i + 1 } else { i };
                             current_line.end = current_line.begin + 1;
                             current_line.width = advance;
-                            total_height += font.ascender(self.height);
+                            total_height += font.ascender(self.font_size);
                         } else {
                             current_line.width = new_width;
                             current_line.end += 1;
@@ -345,7 +346,7 @@ impl FormattedText {
                                     self.lines.push(current_line);
                                     current_line.begin = current_line.end;
                                     current_line.width = 0.0;
-                                    total_height += font.ascender(self.height);
+                                    total_height += font.ascender(self.font_size);
                                 } else if current_line.width + word.width > self.constraint.x {
                                     // The word will exceed horizontal constraint, we have to
                                     // commit current line and move the word in the next line.
@@ -353,7 +354,7 @@ impl FormattedText {
                                     current_line.begin = i - word.length;
                                     current_line.end = i;
                                     current_line.width = word.width;
-                                    total_height += font.ascender(self.height);
+                                    total_height += font.ascender(self.font_size);
                                 } else {
                                     // The word does not exceed horizontal constraint, append it
                                     // to the line.
@@ -375,15 +376,15 @@ impl FormattedText {
         // Commit rest of text.
         if current_line.begin != current_line.end {
             for &character in text.iter().skip(current_line.end) {
-                let advance = match font.glyph(character, self.height) {
+                let advance = match font.glyph(character, self.font_size) {
                     Some(glyph) => glyph.advance,
-                    None => self.height,
+                    None => self.font_size,
                 };
                 current_line.width += advance;
             }
             current_line.end = self.text.len();
             self.lines.push(current_line);
-            total_height += font.ascender(self.height);
+            total_height += font.ascender(self.font_size);
         }
 
         // Align lines according to desired alignment.
@@ -440,9 +441,9 @@ impl FormattedText {
         for line in self.lines.iter_mut() {
             cursor.x = line.x_offset;
 
-            let ascender = font.ascender(self.height);
+            let ascender = font.ascender(self.font_size);
             for &character in text.iter().take(line.end).skip(line.begin) {
-                match font.glyph(character, self.height) {
+                match font.glyph(character, self.font_size) {
                     Some(glyph) => {
                         // Insert glyph
                         let rect = Rect::new(
@@ -466,9 +467,9 @@ impl FormattedText {
                         // Insert invalid symbol
                         let rect = Rect::new(
                             cursor.x,
-                            cursor.y + font.ascender(self.height),
-                            self.height,
-                            self.height,
+                            cursor.y + font.ascender(self.font_size),
+                            self.font_size,
+                            self.font_size,
                         );
                         self.glyphs.push(TextGlyph {
                             bounds: rect,
@@ -479,13 +480,13 @@ impl FormattedText {
                     }
                 }
             }
-            line.height = font.ascender(self.height);
+            line.height = font.ascender(self.font_size);
             line.y_offset = cursor.y;
-            cursor.y += font.ascender(self.height);
+            cursor.y += font.ascender(self.font_size);
         }
 
         // Minus here is because descender has negative value.
-        let mut full_size = Vector2::new(0.0, total_height - font.descender(self.height));
+        let mut full_size = Vector2::new(0.0, total_height - font.descender(self.font_size));
         for line in self.lines.iter() {
             full_size.x = line.width.max(full_size.x);
         }
@@ -506,7 +507,7 @@ pub struct FormattedTextBuilder {
     shadow_brush: Brush,
     shadow_dilation: f32,
     shadow_offset: Vector2<f32>,
-    height: f32,
+    font_size: f32,
 }
 
 impl FormattedTextBuilder {
@@ -525,7 +526,7 @@ impl FormattedTextBuilder {
             shadow_brush: Brush::Solid(Color::BLACK),
             shadow_dilation: 1.0,
             shadow_offset: Vector2::new(1.0, 1.0),
-            height: 14.0,
+            font_size: 14.0,
         }
     }
 
@@ -549,8 +550,8 @@ impl FormattedTextBuilder {
         self
     }
 
-    pub fn with_height(mut self, height: f32) -> Self {
-        self.height = height;
+    pub fn with_font_size(mut self, font_size: f32) -> Self {
+        self.font_size = font_size;
         self
     }
 
@@ -605,7 +606,7 @@ impl FormattedTextBuilder {
             constraint: self.constraint,
             wrap: self.wrap,
             mask_char: self.mask_char,
-            height: self.height,
+            font_size: self.font_size,
             shadow: self.shadow,
             shadow_brush: self.shadow_brush,
             font: self.font,

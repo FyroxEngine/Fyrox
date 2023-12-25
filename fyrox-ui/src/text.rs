@@ -47,7 +47,7 @@ pub enum TextMessage {
     /// Used to set how much the shadows will be offset from the widget. See [Text](Text#shadows) for usage examples.
     ShadowOffset(Vector2<f32>),
     /// Used to set font height of the widget.
-    Height(f32),
+    FontSize(f32),
 }
 
 impl TextMessage {
@@ -97,8 +97,8 @@ impl TextMessage {
     );
 
     define_constructor!(
-        /// Creates new [`TextMessage::Height`] message.
-        TextMessage:Height => fn height(f32), layout: false
+        /// Creates new [`TextMessage::FontSize`] message.
+        TextMessage:FontSize => fn font_size(f32), layout: false
     );
 }
 
@@ -228,7 +228,7 @@ impl TextMessage {
 ///     TextBuilder::new(WidgetBuilder::new())
 ///         .with_font(resource_manager.request::<Font>("path/to/your/font.ttf"))
 ///         .with_text(text)
-///         .with_height(20.0)
+///         .with_font_size(20.0)
 ///         .build(&mut ui.build_ctx())
 /// }
 /// ```
@@ -237,7 +237,7 @@ impl TextMessage {
 ///
 /// ### Font size
 ///
-/// Use [`TextBuilder::with_height`] or send [`TextMessage::height`] to your Text widget instance
+/// Use [`TextBuilder::with_font_size`] or send [`TextMessage::font_size`] to your Text widget instance
 /// to set the font size of it.
 ///
 /// ## Shadows
@@ -410,9 +410,9 @@ impl Control for Text {
                             self.invalidate_layout();
                         }
                     }
-                    &TextMessage::Height(height) => {
-                        if text_ref.height() != height {
-                            text_ref.set_height(height);
+                    &TextMessage::FontSize(height) => {
+                        if text_ref.font_size() != height {
+                            text_ref.set_font_size(height);
                             drop(text_ref);
                             self.invalidate_layout();
                         }
@@ -462,7 +462,7 @@ pub struct TextBuilder {
     shadow_brush: Brush,
     shadow_dilation: f32,
     shadow_offset: Vector2<f32>,
-    height: f32,
+    font_size: f32,
 }
 
 impl TextBuilder {
@@ -479,7 +479,7 @@ impl TextBuilder {
             shadow_brush: Brush::Solid(Color::BLACK),
             shadow_dilation: 1.0,
             shadow_offset: Vector2::new(1.0, 1.0),
-            height: 14.0,
+            font_size: 14.0,
         }
     }
 
@@ -508,8 +508,8 @@ impl TextBuilder {
     }
 
     /// Sets the desired height of the text.
-    pub fn with_height(mut self, height: f32) -> Self {
-        self.height = height;
+    pub fn with_font_size(mut self, font_size: f32) -> Self {
+        self.font_size = font_size;
         self
     }
 
@@ -574,7 +574,7 @@ impl TextBuilder {
                     .with_shadow_brush(self.shadow_brush)
                     .with_shadow_dilation(self.shadow_dilation)
                     .with_shadow_offset(self.shadow_offset)
-                    .with_height(self.height)
+                    .with_font_size(self.font_size)
                     .build(),
             ),
         };

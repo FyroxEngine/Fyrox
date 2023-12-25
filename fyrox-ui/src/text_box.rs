@@ -255,7 +255,7 @@ pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 ///     TextBoxBuilder::new(WidgetBuilder::new())
 ///         .with_font(resource_manager.request::<Font>("path/to/your/font.ttf"))
 ///         .with_text(text)
-///         .with_height(20.0)
+///         .with_font_size(20.0)
 ///         .build(&mut ui.build_ctx())
 /// }
 /// ```
@@ -264,7 +264,7 @@ pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 ///
 /// ### Font size
 ///
-/// Use [`TextBoxBuilder::with_height`] or send [`TextMessage::height`] to your TextBox widget instance
+/// Use [`TextBoxBuilder::with_font_size`] or send [`TextMessage::font_size`] to your TextBox widget instance
 /// to set the font size of it.
 ///
 /// ## Messages
@@ -693,11 +693,11 @@ impl TextBox {
                     }
                     if let Some(glyph) = raw_text
                         .get(char_index)
-                        .and_then(|c| font.glyph(*c, formatted_text.height()))
+                        .and_then(|c| font.glyph(*c, formatted_text.font_size()))
                     {
                         caret_pos.x += glyph.advance;
                     } else {
-                        caret_pos.x += formatted_text.height();
+                        caret_pos.x += formatted_text.font_size();
                     }
                 }
             }
@@ -841,25 +841,26 @@ impl TextBox {
                     line.x_offset - self.view_position.x,
                     line.y_offset - self.view_position.y,
                     line.width,
-                    font.ascender(formatted_text.height()),
+                    font.ascender(formatted_text.font_size()),
                 );
                 if line_screen_bounds.contains(point_to_check) {
                     let mut x = line_screen_bounds.x();
                     // Check each character in line.
                     for (offset, index) in (line.begin..line.end).enumerate() {
                         let character = formatted_text.get_raw_text()[index];
-                        let (width, height, advance) =
-                            if let Some(glyph) = font.glyph(character, formatted_text.height()) {
-                                (
-                                    glyph.bitmap_width as f32,
-                                    glyph.bitmap_height as f32,
-                                    glyph.advance,
-                                )
-                            } else {
-                                // Stub
-                                let h = formatted_text.height();
-                                (h, h, h)
-                            };
+                        let (width, height, advance) = if let Some(glyph) =
+                            font.glyph(character, formatted_text.font_size())
+                        {
+                            (
+                                glyph.bitmap_width as f32,
+                                glyph.bitmap_height as f32,
+                                glyph.advance,
+                            )
+                        } else {
+                            // Stub
+                            let h = formatted_text.font_size();
+                            (h, h, h)
+                        };
                         let char_screen_bounds =
                             Rect::new(x, line_screen_bounds.y(), width, height);
                         if char_screen_bounds.contains(point_to_check) {
@@ -886,7 +887,7 @@ impl TextBox {
                 let line_x_begin = line.x_offset - self.view_position.x;
                 let line_x_end = line_x_begin + line.width;
                 let line_y_begin = line.y_offset - self.view_position.y;
-                let line_y_end = line_y_begin + font.ascender(formatted_text.height());
+                let line_y_end = line_y_begin + font.ascender(formatted_text.font_size());
                 if (line_y_begin..line_y_end).contains(&point_to_check.y) {
                     if point_to_check.x < line_x_begin {
                         return Some(Position {
@@ -1087,7 +1088,7 @@ impl Control for TextBox {
                 caret_pos.x,
                 caret_pos.y,
                 2.0,
-                self.formatted_text.borrow().height(),
+                self.formatted_text.borrow().font_size(),
             );
             drawing_context.push_rect_filled(&caret_bounds, None);
             drawing_context.commit(
@@ -1519,9 +1520,9 @@ impl Control for TextBox {
                                 ui.send_message(message.reverse());
                             }
                         }
-                        &TextMessage::Height(height) => {
-                            if text.height() != height {
-                                text.set_height(height);
+                        &TextMessage::FontSize(height) => {
+                            if text.font_size() != height {
+                                text.set_font_size(height);
                                 drop(text);
                                 self.invalidate_layout();
                                 ui.send_message(message.reverse());
@@ -1589,7 +1590,7 @@ pub struct TextBoxBuilder {
     shadow_dilation: f32,
     shadow_offset: Vector2<f32>,
     skip_chars: Vec<char>,
-    height: f32,
+    font_size: f32,
 }
 
 impl TextBoxBuilder {
@@ -1614,7 +1615,7 @@ impl TextBoxBuilder {
             shadow_dilation: 1.0,
             shadow_offset: Vector2::new(1.0, 1.0),
             skip_chars: Default::default(),
-            height: 14.0,
+            font_size: 14.0,
         }
     }
 
@@ -1685,8 +1686,8 @@ impl TextBoxBuilder {
     }
 
     /// Sets the desired height of the text.
-    pub fn with_height(mut self, height: f32) -> Self {
-        self.height = height;
+    pub fn with_font_size(mut self, font_size: f32) -> Self {
+        self.font_size = font_size;
         self
     }
 
@@ -1759,7 +1760,7 @@ impl TextBoxBuilder {
                     .with_shadow_brush(self.shadow_brush)
                     .with_shadow_dilation(self.shadow_dilation)
                     .with_shadow_offset(self.shadow_offset)
-                    .with_height(self.height)
+                    .with_font_size(self.font_size)
                     .build(),
             ),
             selection_range: None,

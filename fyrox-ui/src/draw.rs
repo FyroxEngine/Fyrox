@@ -687,7 +687,7 @@ impl DrawingContext {
                         CommandTexture::Font {
                             font: font.clone(),
                             page_index: current_page_index,
-                            height: formatted_text.height().into(),
+                            height: formatted_text.font_size().into(),
                         },
                         None,
                     );
@@ -714,7 +714,7 @@ impl DrawingContext {
                 CommandTexture::Font {
                     font: font.clone(),
                     page_index: current_page_index,
-                    height: formatted_text.height().into(),
+                    height: formatted_text.font_size().into(),
                 },
                 None,
             );
