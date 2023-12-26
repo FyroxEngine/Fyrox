@@ -350,7 +350,7 @@ impl RootMotionDropdownArea {
                         MessageDirection::ToWidget,
                         scene
                             .graph
-                            .try_get(settings.node.into())
+                            .try_get(settings.node)
                             .map(|n| n.name().to_owned())
                             .unwrap_or_else(|| String::from("<Unassigned>")),
                     ),

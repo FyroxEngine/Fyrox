@@ -611,7 +611,7 @@ impl SetTrackTargetCommand {
             .find(|t| t.id() == self.track)
             .unwrap();
 
-        let old = track.target().into();
+        let old = track.target();
         track.set_target(self.target);
         self.target = old;
     }

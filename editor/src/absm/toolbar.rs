@@ -259,7 +259,7 @@ impl Toolbar {
 
                     for local_root in local_roots {
                         root.children.push(HierarchyNode::from_scene_node(
-                            local_root.into(),
+                            local_root,
                             game_scene.editor_objects_root,
                             graph,
                         ));
