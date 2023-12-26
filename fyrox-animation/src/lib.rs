@@ -1,10 +1,9 @@
-//! Animation allows you to change properties of scene nodes at runtime using a set of key frames.
+//! Animation allows you to change properties of arbitrary objects at runtime using a set of key frames.
 //! See [`Animation`] docs for more info.
 
 #![warn(missing_docs)]
 
 use crate::{
-    animation::track::Track,
     core::{
         algebra::{UnitQuaternion, Vector3},
         math::wrapf,
@@ -13,22 +12,23 @@ use crate::{
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
-    scene::{
-        graph::{Graph, NodePool},
-        node::Node,
-    },
-    utils::{self, NameProvider},
+    track::Track,
 };
-use fyrox_core::uuid_provider;
+use fyrox_core::{NameProvider, TypeUuidProvider};
+use std::hash::Hash;
 use std::{
     collections::VecDeque,
     fmt::Debug,
     ops::{Index, IndexMut, Range},
 };
 
-use crate::animation::value::{TrackValue, ValueBinding};
+pub use fyrox_core as core;
+use fyrox_core::pool::ErasedHandle;
+use fyrox_core::uuid::uuid;
+
 pub use pose::{AnimationPose, NodePose};
 pub use signal::{AnimationEvent, AnimationSignal};
+use value::{TrackValue, ValueBinding};
 
 pub mod container;
 pub mod machine;
@@ -40,8 +40,8 @@ pub mod value;
 
 /// # Overview
 ///
-/// Animation allows you to change properties of scene nodes at runtime using a set of key frames. Animation
-/// consists of multiple tracks, where each track is bound to a property of a scene node. A track can animate
+/// Animation allows you to change properties of arbitrary entities at runtime using a set of key frames. Animation
+/// consists of multiple tracks, where each track is bound to a property of an entity. A track can animate
 /// any numeric properties, starting from numbers (including `bool`) end ending by 2/3/4 dimensional vectors.
 /// Each component (number, x/y/z/w vector components) is stored in a _parametric curve_ (see
 /// [`crate::core::curve::Curve`] docs for more info). Every parametric curve contains zero or more _key frames_.
@@ -110,33 +110,24 @@ pub mod value;
 ///
 /// # Examples
 ///
-/// Usually, animations are created from the editor or some external tool and then imported in the engine. Before trying the example
-/// below, please read the docs for [`crate::scene::animation::AnimationPlayer`] node, it is much more convenient way of animating
-/// other nodes. The node can be created from the editor and you don't even need to write any code.
-///
-/// Use the following example code as a guide **only** if you need to create procedural animations:
+/// Usually, animations are created from the editor or some external tool and then imported in the engine.
+/// However, sometimes there's a need for procedural animations. Use the following example code as
+/// a guide **only** if you need to create procedural animations:
 ///
 /// ```rust
-/// use fyrox::{
-///     animation::{
-///         container::{TrackDataContainer, TrackValueKind},
-///         track::Track,
-///         value::ValueBinding,
-///         Animation,
-///     },
+/// use fyrox_animation::{
+///     container::{TrackDataContainer, TrackValueKind},
+///     track::Track,
+///     value::ValueBinding,
+///     Animation,
 ///     core::{
 ///         curve::{Curve, CurveKey, CurveKeyKind},
 ///         pool::Handle,
 ///     },
-///     scene::{
-///         node::Node,
-///         base::BaseBuilder,
-///         graph::Graph,
-///         pivot::PivotBuilder
-///     }
 /// };
+/// use fyrox_core::pool::ErasedHandle;
 ///
-/// fn create_animation(node: Handle<Node>) -> Animation {
+/// fn create_animation(target: ErasedHandle) -> Animation<ErasedHandle> {
 ///     let mut frames_container = TrackDataContainer::new(TrackValueKind::Vector3);
 ///
 ///     // We'll animate only X coordinate (at index 0).
@@ -148,7 +139,7 @@ pub mod value;
 ///
 ///     // Create a track that will animated the node using the curve above.
 ///     let mut track = Track::new(frames_container, ValueBinding::Position);
-///     track.set_target(node);
+///     track.set_target(target);
 ///
 ///     // Finally create an animation and set its time slice and turn it on.
 ///     let mut animation = Animation::default();
@@ -159,17 +150,12 @@ pub mod value;
 ///     animation
 /// }
 ///
-/// // Create a graph with a node.
-/// let mut graph = Graph::new();
-/// let some_node = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
-///
 /// // Create the animation.
-/// let mut animation = create_animation(some_node);
+/// let mut animation = create_animation(Default::default());
 ///
 /// // Emulate some ticks (like it was updated from the main loop of your game).
 /// for _ in 0..10 {
 ///     animation.tick(1.0 / 60.0);
-///     animation.pose().apply(&mut graph);
 /// }
 /// ```
 ///
@@ -177,10 +163,10 @@ pub mod value;
 /// is only for the sake of completeness of the example. In the real games you need to add the animation to an animation
 /// player scene node and it will do the job for you.
 #[derive(Debug, Reflect, Visit, PartialEq)]
-pub struct Animation {
+pub struct Animation<T: EntityId> {
     #[visit(optional)]
     name: String,
-    tracks: Vec<Track>,
+    tracks: Vec<Track<T>>,
     time_position: f32,
     #[visit(optional)]
     time_slice: Range<f32>,
@@ -190,7 +176,7 @@ pub struct Animation {
     signals: Vec<AnimationSignal>,
 
     #[visit(optional)]
-    root_motion_settings: Option<RootMotionSettings>,
+    root_motion_settings: Option<RootMotionSettings<T>>,
 
     #[reflect(hidden)]
     #[visit(skip)]
@@ -199,23 +185,36 @@ pub struct Animation {
     // Non-serialized
     #[reflect(hidden)]
     #[visit(skip)]
-    pose: AnimationPose,
+    pose: AnimationPose<T>,
     // Non-serialized
     #[reflect(hidden)]
     #[visit(skip)]
     events: VecDeque<AnimationEvent>,
 }
 
-uuid_provider!(Animation = "aade8e9d-e2cf-401d-a4d1-59c6943645f3");
+impl<T: EntityId> TypeUuidProvider for Animation<T> {
+    fn type_uuid() -> Uuid {
+        uuid!("aade8e9d-e2cf-401d-a4d1-59c6943645f3")
+    }
+}
+
+/// Identifier of an entity, that can be animated.
+pub trait EntityId:
+    Default + Copy + Reflect + Visit + PartialEq + Eq + Hash + Debug + Ord + PartialEq + 'static
+{
+}
+
+impl<T: 'static> EntityId for Handle<T> {}
+impl EntityId for ErasedHandle {}
 
 /// Root motion settings. It allows you to set a node (root) from which the motion will be taken
 /// as well as filter out some unnecessary parts of the motion (i.e. do not extract motion on
 /// Y axis).
 #[derive(Default, Debug, Clone, PartialEq, Reflect, Visit)]
-pub struct RootMotionSettings {
+pub struct RootMotionSettings<T: EntityId> {
     /// A handle to a node which movement will be extracted and put in root motion field of an animation
     /// to which these settings were set to.
-    pub node: Handle<Node>,
+    pub node: T,
     /// Keeps X part of the translational part of the motion.
     pub ignore_x_movement: bool,
     /// Keeps Y part of the translational part of the motion.
@@ -248,13 +247,13 @@ impl RootMotion {
     }
 }
 
-impl NameProvider for Animation {
+impl<T: EntityId> NameProvider for Animation<T> {
     fn name(&self) -> &str {
         &self.name
     }
 }
 
-impl Clone for Animation {
+impl<T: EntityId> Clone for Animation<T> {
     fn clone(&self) -> Self {
         Self {
             name: self.name.clone(),
@@ -273,7 +272,7 @@ impl Clone for Animation {
     }
 }
 
-impl Animation {
+impl<T: EntityId> Animation<T> {
     /// Sets a new name for the animation. The name then could be used to find the animation in a container.
     pub fn set_name<S: AsRef<str>>(&mut self, name: S) {
         self.name = name.as_ref().to_owned();
@@ -286,22 +285,22 @@ impl Animation {
 
     /// Adds new track to the animation. Animation can have unlimited number of tracks, each track is responsible
     /// for animation of a single scene node.
-    pub fn add_track(&mut self, track: Track) {
+    pub fn add_track(&mut self, track: Track<T>) {
         self.tracks.push(track);
     }
 
     /// Removes a track at given index.
-    pub fn remove_track(&mut self, index: usize) -> Track {
+    pub fn remove_track(&mut self, index: usize) -> Track<T> {
         self.tracks.remove(index)
     }
 
     /// Inserts a track at given index.
-    pub fn insert_track(&mut self, index: usize, track: Track) {
+    pub fn insert_track(&mut self, index: usize, track: Track<T>) {
         self.tracks.insert(index, track)
     }
 
     /// Removes last track from the list of tracks of the animation.
-    pub fn pop_track(&mut self) -> Option<Track> {
+    pub fn pop_track(&mut self) -> Option<Track<T>> {
         self.tracks.pop()
     }
 
@@ -319,7 +318,7 @@ impl Animation {
     }
 
     /// Returns a reference to tracks container.
-    pub fn tracks(&self) -> &[Track] {
+    pub fn tracks(&self) -> &[Track<T>] {
         &self.tracks
     }
 
@@ -401,7 +400,7 @@ impl Animation {
     }
 
     fn update_root_motion(&mut self, prev_time_position: f32) {
-        fn fetch_position_at_time(tracks: &[Track], time: f32) -> Vector3<f32> {
+        fn fetch_position_at_time<T: EntityId>(tracks: &[Track<T>], time: f32) -> Vector3<f32> {
             tracks
                 .iter()
                 .find(|track| track.binding() == &ValueBinding::Position)
@@ -416,7 +415,10 @@ impl Animation {
                 .unwrap_or_default()
         }
 
-        fn fetch_rotation_at_time(tracks: &[Track], time: f32) -> UnitQuaternion<f32> {
+        fn fetch_rotation_at_time<T: EntityId>(
+            tracks: &[Track<T>],
+            time: f32,
+        ) -> UnitQuaternion<f32> {
             tracks
                 .iter()
                 .find(|track| track.binding() == &ValueBinding::Rotation)
@@ -550,17 +552,17 @@ impl Animation {
     }
 
     /// Sets new root motion settings.
-    pub fn set_root_motion_settings(&mut self, settings: Option<RootMotionSettings>) {
+    pub fn set_root_motion_settings(&mut self, settings: Option<RootMotionSettings<T>>) {
         self.root_motion_settings = settings;
     }
 
     /// Returns a reference to the root motion settings (if any).
-    pub fn root_motion_settings_ref(&self) -> Option<&RootMotionSettings> {
+    pub fn root_motion_settings_ref(&self) -> Option<&RootMotionSettings<T>> {
         self.root_motion_settings.as_ref()
     }
 
     /// Returns a reference to the root motion settings (if any).
-    pub fn root_motion_settings_mut(&mut self) -> Option<&mut RootMotionSettings> {
+    pub fn root_motion_settings_mut(&mut self) -> Option<&mut RootMotionSettings<T>> {
         self.root_motion_settings.as_mut()
     }
 
@@ -639,7 +641,7 @@ impl Animation {
     }
 
     /// Returns a mutable reference to the track container.
-    pub fn tracks_mut(&mut self) -> &mut [Track] {
+    pub fn tracks_mut(&mut self) -> &mut [Track<T>] {
         &mut self.tracks
     }
 
@@ -678,44 +680,13 @@ impl Animation {
     /// to remove undesired animation tracks.
     pub fn retain_tracks<F>(&mut self, filter: F)
     where
-        F: FnMut(&Track) -> bool,
+        F: FnMut(&Track<T>) -> bool,
     {
         self.tracks.retain(filter)
     }
 
-    /// Enables or disables animation tracks for nodes in hierarchy starting from given root. Could be useful to enable
-    /// or disable animation for skeleton parts, i.e. you don't want legs to be animated and you know that legs starts
-    /// from torso bone, then you could do this.
-    ///
-    /// ```
-    /// use fyrox::scene::node::Node;
-    /// use fyrox::animation::Animation;
-    /// use fyrox::core::pool::Handle;
-    /// use fyrox::scene::graph::Graph;
-    ///
-    /// fn disable_legs(torso_bone: Handle<Node>, aim_animation: &mut Animation, graph: &Graph) {
-    ///     aim_animation.set_tracks_enabled_from(torso_bone, false, graph)
-    /// }
-    /// ```
-    ///
-    /// After this legs won't be animated and animation could be blended together with run animation so it will produce
-    /// new animation - run and aim.
-    pub fn set_tracks_enabled_from(&mut self, handle: Handle<Node>, enabled: bool, graph: &Graph) {
-        let mut stack = vec![handle];
-        while let Some(node) = stack.pop() {
-            for track in self.tracks.iter_mut() {
-                if track.target() == node {
-                    track.set_enabled(enabled);
-                }
-            }
-            for child in graph[node].children() {
-                stack.push(*child);
-            }
-        }
-    }
-
     /// Tries to find all tracks that refer to a given node and enables or disables them.
-    pub fn set_node_track_enabled(&mut self, handle: Handle<Node>, enabled: bool) {
+    pub fn set_node_track_enabled(&mut self, handle: T, enabled: bool) {
         for track in self.tracks.iter_mut() {
             if track.target() == handle {
                 track.set_enabled(enabled);
@@ -724,14 +695,14 @@ impl Animation {
     }
 
     /// Returns an iterator that yields a number of references to tracks that refer to a given node.
-    pub fn tracks_of(&self, handle: Handle<Node>) -> impl Iterator<Item = &Track> {
+    pub fn tracks_of(&self, handle: T) -> impl Iterator<Item = &Track<T>> {
         self.tracks
             .iter()
             .filter(move |track| track.target() == handle)
     }
 
     /// Returns an iterator that yields a number of references to tracks that refer to a given node.
-    pub fn tracks_of_mut(&mut self, handle: Handle<Node>) -> impl Iterator<Item = &mut Track> {
+    pub fn tracks_of_mut(&mut self, handle: T) -> impl Iterator<Item = &mut Track<T>> {
         self.tracks
             .iter_mut()
             .filter(move |track| track.target() == handle)
@@ -743,7 +714,7 @@ impl Animation {
         &self,
         name: S,
     ) -> Option<(usize, &AnimationSignal)> {
-        utils::find_by_name_ref(self.signals.iter().enumerate(), name)
+        core::find_by_name_ref(self.signals.iter().enumerate(), name)
     }
 
     /// Tries to find a signal by its name. Returns index of the signal and its reference.
@@ -752,7 +723,7 @@ impl Animation {
         &mut self,
         name: S,
     ) -> Option<(usize, &mut AnimationSignal)> {
-        utils::find_by_name_mut(self.signals.iter_mut().enumerate(), name)
+        core::find_by_name_mut(self.signals.iter_mut().enumerate(), name)
     }
 
     /// Returns `true` if there's a signal with given name and id.
@@ -779,12 +750,12 @@ impl Animation {
     }
 
     /// Returns current pose of the animation (a final result that can be applied to a scene graph).
-    pub fn pose(&self) -> &AnimationPose {
+    pub fn pose(&self) -> &AnimationPose<T> {
         &self.pose
     }
 }
 
-impl Default for Animation {
+impl<T: EntityId> Default for Animation<T> {
     fn default() -> Self {
         Self {
             name: Default::default(),
@@ -806,17 +777,17 @@ impl Default for Animation {
 /// A container for animations. It is a tiny wrapper around [`Pool`], you should never create the container yourself,
 /// it is managed by the engine.
 #[derive(Debug, Clone, Reflect, PartialEq)]
-pub struct AnimationContainer {
-    pool: Pool<Animation>,
+pub struct AnimationContainer<T: EntityId> {
+    pool: Pool<Animation<T>>,
 }
 
-impl Default for AnimationContainer {
+impl<T: EntityId> Default for AnimationContainer<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl AnimationContainer {
+impl<T: EntityId> AnimationContainer<T> {
     /// Creates an empty animation container.
     pub fn new() -> Self {
         Self { pool: Pool::new() }
@@ -830,57 +801,62 @@ impl AnimationContainer {
 
     /// Returns an iterator yielding a references to animations in the container.
     #[inline]
-    pub fn iter(&self) -> impl Iterator<Item = &Animation> {
+    pub fn iter(&self) -> impl Iterator<Item = &Animation<T>> {
         self.pool.iter()
     }
 
     /// Returns an iterator yielding a pair (handle, reference) to animations in the container.
     #[inline]
-    pub fn pair_iter(&self) -> impl Iterator<Item = (Handle<Animation>, &Animation)> {
+    pub fn pair_iter(&self) -> impl Iterator<Item = (Handle<Animation<T>>, &Animation<T>)> {
         self.pool.pair_iter()
     }
 
     /// Returns an iterator yielding a pair (handle, reference) to animations in the container.
     #[inline]
-    pub fn pair_iter_mut(&mut self) -> impl Iterator<Item = (Handle<Animation>, &mut Animation)> {
+    pub fn pair_iter_mut(
+        &mut self,
+    ) -> impl Iterator<Item = (Handle<Animation<T>>, &mut Animation<T>)> {
         self.pool.pair_iter_mut()
     }
 
     /// Returns an iterator yielding a references to animations in the container.
     #[inline]
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Animation> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Animation<T>> {
         self.pool.iter_mut()
     }
 
     /// Adds a new animation to the container and returns its handle.
     #[inline]
-    pub fn add(&mut self, animation: Animation) -> Handle<Animation> {
+    pub fn add(&mut self, animation: Animation<T>) -> Handle<Animation<T>> {
         self.pool.spawn(animation)
     }
 
     /// Tries to remove an animation from the container by its handle.
     #[inline]
-    pub fn remove(&mut self, handle: Handle<Animation>) -> Option<Animation> {
+    pub fn remove(&mut self, handle: Handle<Animation<T>>) -> Option<Animation<T>> {
         self.pool.try_free(handle)
     }
 
     /// Extracts animation from container and reserves its handle. It is used to temporarily take
     /// ownership over animation, and then put animation back using given ticket.
-    pub fn take_reserve(&mut self, handle: Handle<Animation>) -> (Ticket<Animation>, Animation) {
+    pub fn take_reserve(
+        &mut self,
+        handle: Handle<Animation<T>>,
+    ) -> (Ticket<Animation<T>>, Animation<T>) {
         self.pool.take_reserve(handle)
     }
 
     /// Puts animation back by given ticket.
     pub fn put_back(
         &mut self,
-        ticket: Ticket<Animation>,
-        animation: Animation,
-    ) -> Handle<Animation> {
+        ticket: Ticket<Animation<T>>,
+        animation: Animation<T>,
+    ) -> Handle<Animation<T>> {
         self.pool.put_back(ticket, animation)
     }
 
     /// Makes animation handle vacant again.
-    pub fn forget_ticket(&mut self, ticket: Ticket<Animation>) {
+    pub fn forget_ticket(&mut self, ticket: Ticket<Animation<T>>) {
         self.pool.forget_ticket(ticket)
     }
 
@@ -892,25 +868,25 @@ impl AnimationContainer {
 
     /// Tries to borrow a reference to an animation in the container. Panics if the handle is invalid.
     #[inline]
-    pub fn get(&self, handle: Handle<Animation>) -> &Animation {
+    pub fn get(&self, handle: Handle<Animation<T>>) -> &Animation<T> {
         self.pool.borrow(handle)
     }
 
     /// Tries to borrow a mutable reference to an animation in the container. Panics if the handle is invalid.
     #[inline]
-    pub fn get_mut(&mut self, handle: Handle<Animation>) -> &mut Animation {
+    pub fn get_mut(&mut self, handle: Handle<Animation<T>>) -> &mut Animation<T> {
         self.pool.borrow_mut(handle)
     }
 
     /// Tries to borrow a reference to an animation in the container.
     #[inline]
-    pub fn try_get(&self, handle: Handle<Animation>) -> Option<&Animation> {
+    pub fn try_get(&self, handle: Handle<Animation<T>>) -> Option<&Animation<T>> {
         self.pool.try_borrow(handle)
     }
 
     /// Tries to borrow a mutable reference to an animation in the container.
     #[inline]
-    pub fn try_get_mut(&mut self, handle: Handle<Animation>) -> Option<&mut Animation> {
+    pub fn try_get_mut(&mut self, handle: Handle<Animation<T>>) -> Option<&mut Animation<T>> {
         self.pool.try_borrow_mut(handle)
     }
 
@@ -919,8 +895,8 @@ impl AnimationContainer {
     pub fn find_by_name_ref<S: AsRef<str>>(
         &self,
         name: S,
-    ) -> Option<(Handle<Animation>, &Animation)> {
-        utils::find_by_name_ref(self.pool.pair_iter(), name)
+    ) -> Option<(Handle<Animation<T>>, &Animation<T>)> {
+        core::find_by_name_ref(self.pool.pair_iter(), name)
     }
 
     /// Tries to find an animation by its name in the container.
@@ -928,8 +904,8 @@ impl AnimationContainer {
     pub fn find_by_name_mut<S: AsRef<str>>(
         &mut self,
         name: S,
-    ) -> Option<(Handle<Animation>, &mut Animation)> {
-        utils::find_by_name_mut(self.pool.pair_iter_mut(), name)
+    ) -> Option<(Handle<Animation<T>>, &mut Animation<T>)> {
+        core::find_by_name_mut(self.pool.pair_iter_mut(), name)
     }
 
     /// Removes every animation from the container that does not satisfy a particular condition represented by the given
@@ -937,20 +913,9 @@ impl AnimationContainer {
     #[inline]
     pub fn retain<P>(&mut self, pred: P)
     where
-        P: FnMut(&Animation) -> bool,
+        P: FnMut(&Animation<T>) -> bool,
     {
         self.pool.retain(pred)
-    }
-
-    /// Updates all animations in the container and applies their poses to respective nodes. This method is intended to
-    /// be used only by the internals of the engine!
-    pub fn update_animations(&mut self, nodes: &mut NodePool, apply: bool, dt: f32) {
-        for animation in self.pool.iter_mut().filter(|anim| anim.enabled) {
-            animation.tick(dt);
-            if apply {
-                animation.pose.apply_internal(nodes);
-            }
-        }
     }
 
     /// Removes queued animation events from every animation in the container.
@@ -968,7 +933,7 @@ impl AnimationContainer {
     }
 }
 
-impl Visit for AnimationContainer {
+impl<T: EntityId> Visit for AnimationContainer<T> {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         if visitor.is_reading() && self.pool.get_capacity() != 0 {
             panic!("Animation pool must be empty on load!");
@@ -982,16 +947,16 @@ impl Visit for AnimationContainer {
     }
 }
 
-impl Index<Handle<Animation>> for AnimationContainer {
-    type Output = Animation;
+impl<T: EntityId> Index<Handle<Animation<T>>> for AnimationContainer<T> {
+    type Output = Animation<T>;
 
-    fn index(&self, index: Handle<Animation>) -> &Self::Output {
+    fn index(&self, index: Handle<Animation<T>>) -> &Self::Output {
         &self.pool[index]
     }
 }
 
-impl IndexMut<Handle<Animation>> for AnimationContainer {
-    fn index_mut(&mut self, index: Handle<Animation>) -> &mut Self::Output {
+impl<T: EntityId> IndexMut<Handle<Animation<T>>> for AnimationContainer<T> {
+    fn index_mut(&mut self, index: Handle<Animation<T>>) -> &mut Self::Output {
         &mut self.pool[index]
     }
 }

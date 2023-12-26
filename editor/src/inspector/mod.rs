@@ -8,6 +8,7 @@ use crate::{
     utils::window_content,
     Brush, Engine, Message, Mode, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
+use fyrox::scene::node::Node;
 use fyrox::{
     animation::Animation,
     asset::manager::ResourceManager,
@@ -42,7 +43,7 @@ pub mod handlers;
 #[derive(Clone)]
 pub struct AnimationDefinition {
     name: String,
-    handle: Handle<Animation>,
+    handle: Handle<Animation<Handle<Node>>>,
 }
 
 pub struct EditorEnvironment {

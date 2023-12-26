@@ -2,7 +2,6 @@
 //! of parametric curves. See [`TrackDataContainer`] docs for more info.
 
 use crate::{
-    animation::value::TrackValue,
     core::{
         algebra::{Vector2, Vector3, Vector4},
         curve::Curve,
@@ -10,6 +9,7 @@ use crate::{
         reflect::prelude::*,
         visitor::prelude::*,
     },
+    value::TrackValue,
 };
 
 /// The kind of track output value, the animation system works only with numeric properties and the number

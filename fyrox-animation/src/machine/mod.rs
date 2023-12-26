@@ -6,15 +6,15 @@
 #![warn(missing_docs)]
 
 use crate::{
-    animation::{AnimationContainer, AnimationPose},
     core::{
         reflect::prelude::*,
         visitor::{Visit, VisitResult, Visitor},
     },
-    utils,
+    AnimationContainer, AnimationPose, EntityId,
 };
 
 pub use event::Event;
+use fyrox_core::{find_by_name_mut, find_by_name_ref};
 pub use layer::MachineLayer;
 pub use mask::LayerMask;
 pub use node::{
@@ -122,20 +122,21 @@ pub mod transition;
 /// using code like so:
 ///
 /// ```no_run
-/// use fyrox::{
-///     animation::machine::{
+/// use fyrox_animation::{
+///     machine::{
 ///         Machine, State, Transition, PoseNode,
 ///         Parameter, PlayAnimation, PoseWeight, BlendAnimations, BlendPose
 ///     },
 ///     core::pool::Handle
 /// };
+/// use fyrox_core::pool::ErasedHandle;
 ///
 /// // Assume that these are correct handles.
 /// let idle_animation = Handle::default();
 /// let walk_animation = Handle::default();
 /// let aim_animation = Handle::default();
 ///
-/// let mut machine = Machine::new();
+/// let mut machine = Machine::<ErasedHandle>::new();
 ///
 /// let root_layer = &mut machine.layers_mut()[0];
 ///
@@ -167,18 +168,18 @@ pub mod transition;
 ///
 /// Complex state machines quite hard to create from code, you should use ABSM editor instead whenever possible.
 #[derive(Default, Debug, Visit, Reflect, Clone, PartialEq)]
-pub struct Machine {
+pub struct Machine<T: EntityId> {
     parameters: ParameterContainer,
 
     #[visit(optional)]
-    layers: Vec<MachineLayer>,
+    layers: Vec<MachineLayer<T>>,
 
     #[visit(skip)]
     #[reflect(hidden)]
-    final_pose: AnimationPose,
+    final_pose: AnimationPose<T>,
 }
 
-impl Machine {
+impl<T: EntityId> Machine<T> {
     /// Creates a new animation blending state machine with a single animation layer.
     #[inline]
     pub fn new() -> Self {
@@ -193,9 +194,10 @@ impl Machine {
     /// The method returns a reference to the machine, so the calls could be chained:
     ///
     /// ```rust
-    /// use fyrox::animation::machine::{Machine, Parameter};
+    /// use fyrox_animation::machine::{Machine, Parameter};
+    /// use fyrox_core::pool::ErasedHandle;
     ///
-    /// let mut machine = Machine::new();
+    /// let mut machine = Machine::<ErasedHandle>::new();
     ///
     /// machine
     ///     .set_parameter("Run", Parameter::Rule(true))
@@ -229,44 +231,47 @@ impl Machine {
 
     /// Adds a new layer to the animation blending state machine.
     #[inline]
-    pub fn add_layer(&mut self, layer: MachineLayer) {
+    pub fn add_layer(&mut self, layer: MachineLayer<T>) {
         self.layers.push(layer)
     }
 
     /// Removes a layer at given index. Panics if index is out-of-bounds.
     #[inline]
-    pub fn remove_layer(&mut self, index: usize) -> MachineLayer {
+    pub fn remove_layer(&mut self, index: usize) -> MachineLayer<T> {
         self.layers.remove(index)
     }
 
     /// Inserts a layer at given position, panics in index is out-of-bounds.
     #[inline]
-    pub fn insert_layer(&mut self, index: usize, layer: MachineLayer) {
+    pub fn insert_layer(&mut self, index: usize, layer: MachineLayer<T>) {
         self.layers.insert(index, layer)
     }
 
     /// Removes last layer from the list.
     #[inline]
-    pub fn pop_layer(&mut self) -> Option<MachineLayer> {
+    pub fn pop_layer(&mut self) -> Option<MachineLayer<T>> {
         self.layers.pop()
     }
 
     /// Returns a shared reference to the list of layers.
     #[inline]
-    pub fn layers(&self) -> &[MachineLayer] {
+    pub fn layers(&self) -> &[MachineLayer<T>] {
         &self.layers
     }
 
     /// Returns a mutable reference to the list of layers.
     #[inline]
-    pub fn layers_mut(&mut self) -> &mut [MachineLayer] {
+    pub fn layers_mut(&mut self) -> &mut [MachineLayer<T>] {
         &mut self.layers
     }
 
     /// Tries to find a layer by its name. Returns index of the layer and its reference.
     #[inline]
-    pub fn find_layer_by_name_ref<S: AsRef<str>>(&self, name: S) -> Option<(usize, &MachineLayer)> {
-        utils::find_by_name_ref(self.layers.iter().enumerate(), name)
+    pub fn find_layer_by_name_ref<S: AsRef<str>>(
+        &self,
+        name: S,
+    ) -> Option<(usize, &MachineLayer<T>)> {
+        find_by_name_ref(self.layers.iter().enumerate(), name)
     }
 
     /// Tries to find a layer by its name. Returns index of the layer and its reference.
@@ -274,23 +279,23 @@ impl Machine {
     pub fn find_by_name_mut<S: AsRef<str>>(
         &mut self,
         name: S,
-    ) -> Option<(usize, &mut MachineLayer)> {
-        utils::find_by_name_mut(self.layers.iter_mut().enumerate(), name)
+    ) -> Option<(usize, &mut MachineLayer<T>)> {
+        find_by_name_mut(self.layers.iter_mut().enumerate(), name)
     }
 
     /// Returns final pose of the machine.
     #[inline]
-    pub fn pose(&self) -> &AnimationPose {
+    pub fn pose(&self) -> &AnimationPose<T> {
         &self.final_pose
     }
 
-    /// Computes final animation pose that could be then applied to a scene graph.
+    /// Computes final animation pose that could be then applied to a set of entities graph.
     #[inline]
     pub fn evaluate_pose(
         &mut self,
-        animations: &mut AnimationContainer,
+        animations: &mut AnimationContainer<T>,
         dt: f32,
-    ) -> &AnimationPose {
+    ) -> &AnimationPose<T> {
         self.final_pose.reset();
 
         for layer in self.layers.iter_mut() {

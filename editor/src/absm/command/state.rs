@@ -15,7 +15,7 @@ define_universal_commands!(
     GameSceneCommandTrait,
     GameSceneCommand,
     GameSceneContext,
-    Handle<State>,
+    Handle<State<Handle<Node>>>,
     ctx,
     handle,
     self,

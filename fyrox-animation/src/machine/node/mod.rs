@@ -1,21 +1,18 @@
 //! Node is a part of animation blending tree, that backs a state with animation data. See [`PoseNode`] docs for
 //! more info.
 
-use crate::animation::AnimationEvent;
 use crate::{
-    animation::{
-        machine::{
-            node::{blend::BlendAnimations, blendspace::BlendSpace, play::PlayAnimation},
-            BlendAnimationsByIndex, BlendPose, IndexedBlendInput, ParameterContainer, State,
-        },
-        Animation, AnimationContainer, AnimationPose,
-    },
     core::{
         algebra::Vector2,
         pool::{Handle, Pool},
         reflect::prelude::*,
         visitor::prelude::*,
     },
+    machine::{
+        node::{blend::BlendAnimations, blendspace::BlendSpace, play::PlayAnimation},
+        BlendAnimationsByIndex, BlendPose, IndexedBlendInput, ParameterContainer, State,
+    },
+    Animation, AnimationContainer, AnimationEvent, AnimationPose, EntityId,
 };
 use std::{
     cell::Ref,
@@ -28,45 +25,45 @@ pub mod play;
 
 /// A set of common data fields that is used in every node.
 #[derive(Debug, Visit, Clone, Default, Reflect, PartialEq)]
-pub struct BasePoseNode {
+pub struct BasePoseNode<T: EntityId> {
     /// Position on the canvas, it is editor-specific data.
     pub position: Vector2<f32>,
 
     /// A handle of parent state that "owns" the node.
     #[reflect(hidden)]
-    pub parent_state: Handle<State>,
+    pub parent_state: Handle<State<T>>,
 }
 
 /// Specialized node that provides animation pose. See documentation for each variant.
 #[derive(Debug, Visit, Clone, Reflect, PartialEq)]
-pub enum PoseNode {
+pub enum PoseNode<T: EntityId> {
     /// See docs for [`PlayAnimation`].
-    PlayAnimation(PlayAnimation),
+    PlayAnimation(PlayAnimation<T>),
 
     /// See docs for [`BlendAnimations`].
-    BlendAnimations(BlendAnimations),
+    BlendAnimations(BlendAnimations<T>),
 
     /// See docs for [`BlendAnimationsByIndex`].
-    BlendAnimationsByIndex(BlendAnimationsByIndex),
+    BlendAnimationsByIndex(BlendAnimationsByIndex<T>),
 
     /// See doc for [`BlendSpace`]
-    BlendSpace(BlendSpace),
+    BlendSpace(BlendSpace<T>),
 }
 
-impl Default for PoseNode {
+impl<T: EntityId> Default for PoseNode<T> {
     fn default() -> Self {
         Self::PlayAnimation(Default::default())
     }
 }
 
-impl PoseNode {
+impl<T: EntityId> PoseNode<T> {
     /// Creates new node that plays an animation.
-    pub fn make_play_animation(animation: Handle<Animation>) -> Self {
+    pub fn make_play_animation(animation: Handle<Animation<T>>) -> Self {
         Self::PlayAnimation(PlayAnimation::new(animation))
     }
 
     /// Creates new node that blends multiple poses into one.
-    pub fn make_blend_animations(poses: Vec<BlendPose>) -> Self {
+    pub fn make_blend_animations(poses: Vec<BlendPose<T>>) -> Self {
         Self::BlendAnimations(BlendAnimations::new(poses))
     }
 
@@ -74,13 +71,13 @@ impl PoseNode {
     /// one animation to another while switching.
     pub fn make_blend_animations_by_index(
         index_parameter: String,
-        inputs: Vec<IndexedBlendInput>,
+        inputs: Vec<IndexedBlendInput<T>>,
     ) -> Self {
         Self::BlendAnimationsByIndex(BlendAnimationsByIndex::new(index_parameter, inputs))
     }
 
     /// Returns a set of handles to children pose nodes.
-    pub fn children(&self) -> Vec<Handle<PoseNode>> {
+    pub fn children(&self) -> Vec<Handle<PoseNode<T>>> {
         match self {
             Self::PlayAnimation(_) => {
                 // No children nodes.
@@ -104,15 +101,15 @@ macro_rules! static_dispatch {
     };
 }
 
-impl Deref for PoseNode {
-    type Target = BasePoseNode;
+impl<T: EntityId> Deref for PoseNode<T> {
+    type Target = BasePoseNode<T>;
 
     fn deref(&self) -> &Self::Target {
         static_dispatch!(self, deref,)
     }
 }
 
-impl DerefMut for PoseNode {
+impl<T: EntityId> DerefMut for PoseNode<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         static_dispatch!(self, deref_mut,)
     }
@@ -130,51 +127,51 @@ pub enum AnimationEventCollectionStrategy {
 }
 
 /// A trait that responsible for animation pose evaluation.
-pub trait AnimationPoseSource {
+pub trait AnimationPoseSource<T: EntityId> {
     /// Evaluates animation pose and returns a reference to it.
     fn eval_pose(
         &self,
-        nodes: &Pool<PoseNode>,
+        nodes: &Pool<PoseNode<T>>,
         params: &ParameterContainer,
-        animations: &AnimationContainer,
+        animations: &AnimationContainer<T>,
         dt: f32,
-    ) -> Ref<AnimationPose>;
+    ) -> Ref<AnimationPose<T>>;
 
     /// Returns a reference to inner pose of a node.
-    fn pose(&self) -> Ref<AnimationPose>;
+    fn pose(&self) -> Ref<AnimationPose<T>>;
 
     /// Collects animation events from internals.
     fn collect_animation_events(
         &self,
-        nodes: &Pool<PoseNode>,
+        nodes: &Pool<PoseNode<T>>,
         params: &ParameterContainer,
-        animations: &AnimationContainer,
+        animations: &AnimationContainer<T>,
         strategy: AnimationEventCollectionStrategy,
-    ) -> Vec<(Handle<Animation>, AnimationEvent)>;
+    ) -> Vec<(Handle<Animation<T>>, AnimationEvent)>;
 }
 
-impl AnimationPoseSource for PoseNode {
+impl<T: EntityId> AnimationPoseSource<T> for PoseNode<T> {
     fn eval_pose(
         &self,
-        nodes: &Pool<PoseNode>,
+        nodes: &Pool<PoseNode<T>>,
         params: &ParameterContainer,
-        animations: &AnimationContainer,
+        animations: &AnimationContainer<T>,
         dt: f32,
-    ) -> Ref<AnimationPose> {
+    ) -> Ref<AnimationPose<T>> {
         static_dispatch!(self, eval_pose, nodes, params, animations, dt)
     }
 
-    fn pose(&self) -> Ref<AnimationPose> {
+    fn pose(&self) -> Ref<AnimationPose<T>> {
         static_dispatch!(self, pose,)
     }
 
     fn collect_animation_events(
         &self,
-        nodes: &Pool<PoseNode>,
+        nodes: &Pool<PoseNode<T>>,
         params: &ParameterContainer,
-        animations: &AnimationContainer,
+        animations: &AnimationContainer<T>,
         strategy: AnimationEventCollectionStrategy,
-    ) -> Vec<(Handle<Animation>, AnimationEvent)> {
+    ) -> Vec<(Handle<Animation<T>>, AnimationEvent)> {
         static_dispatch!(
             self,
             collect_animation_events,

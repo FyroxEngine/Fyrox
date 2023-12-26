@@ -1,4 +1,3 @@
-use crate::message::MessageSender;
 use crate::{
     absm::{
         command::{AddLayerCommand, RemoveLayerCommand, SetLayerMaskCommand, SetLayerNameCommand},
@@ -7,6 +6,7 @@ use crate::{
     },
     gui::make_dropdown_list_option,
     load_image,
+    message::MessageSender,
     scene::{
         commands::{ChangeSelectionCommand, CommandGroup, GameSceneCommand},
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
@@ -287,7 +287,8 @@ impl Toolbar {
                                 .mask()
                                 .inner()
                                 .iter()
-                                .map(|h| ErasedHandle::from(*h))
+                                .cloned()
+                                .map(ErasedHandle::from)
                                 .collect::<Vec<_>>();
 
                             ui.send_message(NodeSelectorMessage::selection(

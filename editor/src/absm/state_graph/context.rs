@@ -277,7 +277,7 @@ impl NodeContextMenu {
                     layer: layer_index,
                     entry: ui
                         .node(self.placement_target)
-                        .query_component::<AbsmNode<State>>()
+                        .query_component::<AbsmNode<State<Handle<Node>>>>()
                         .unwrap()
                         .model_handle,
                 });
@@ -296,7 +296,7 @@ impl NodeContextMenu {
                     .children()
                     .iter()
                     .cloned()
-                    .filter(|c| ui.node(*c).has_component::<AbsmNode<State>>())
+                    .filter(|c| ui.node(*c).has_component::<AbsmNode<State<Handle<Node>>>>())
                     .collect::<Vec<_>>();
                 ui.send_message(AbsmCanvasMessage::commit_transition_to_all_nodes(
                     self.canvas,

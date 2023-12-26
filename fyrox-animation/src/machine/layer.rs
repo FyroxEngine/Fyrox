@@ -1,25 +1,20 @@
 //! Layer is a separate state graph that usually animates only a part of nodes from animations. See docs of [`MachineLayer`]
 //! for more info.
 
-use crate::animation::machine::node::AnimationEventCollectionStrategy;
-use crate::animation::machine::AnimationPoseSource;
-use crate::animation::AnimationEvent;
 use crate::{
-    animation::{
-        machine::{
-            event::FixedEventQueue, Event, LayerMask, ParameterContainer, PoseNode, State,
-            Transition,
-        },
-        Animation, AnimationContainer, AnimationPose,
-    },
     core::{
         log::{Log, MessageKind},
         pool::{Handle, Pool},
         reflect::prelude::*,
         visitor::prelude::*,
     },
-    utils::{self, NameProvider},
+    machine::{
+        event::FixedEventQueue, node::AnimationEventCollectionStrategy, AnimationPoseSource, Event,
+        LayerMask, ParameterContainer, PoseNode, State, Transition,
+    },
+    Animation, AnimationContainer, AnimationEvent, AnimationPose, EntityId,
 };
+use fyrox_core::{find_by_name_mut, find_by_name_ref, NameProvider};
 
 /// Layer is a separate state graph. Layers mainly used to animate different parts of humanoid (but not only) characters. For
 /// example there could a layer for upper body and a layer for lower body. Upper body layer could contain animations for aiming,
@@ -30,20 +25,21 @@ use crate::{
 /// # Example
 ///
 /// ```rust
-/// use fyrox::{
-///     animation::machine::{
+/// use fyrox_animation::{
+///     machine::{
 ///         State, Transition, PoseNode, MachineLayer,
 ///         Parameter, PlayAnimation, PoseWeight, BlendAnimations, BlendPose
 ///     },
 ///     core::pool::Handle
 /// };
+/// use fyrox_core::pool::ErasedHandle;
 ///
 /// // Assume that these are correct handles.
 /// let idle_animation = Handle::default();
 /// let walk_animation = Handle::default();
 /// let aim_animation = Handle::default();
 ///
-/// let mut root_layer = MachineLayer::new();
+/// let mut root_layer = MachineLayer::<ErasedHandle>::new();
 ///
 /// let aim = root_layer.add_node(PoseNode::PlayAnimation(PlayAnimation::new(aim_animation)));
 /// let walk = root_layer.add_node(PoseNode::PlayAnimation(PlayAnimation::new(walk_animation)));
@@ -66,45 +62,45 @@ use crate::{
 ///
 /// ```
 #[derive(Default, Debug, Visit, Reflect, Clone, PartialEq)]
-pub struct MachineLayer {
+pub struct MachineLayer<T: EntityId> {
     name: String,
 
     weight: f32,
 
-    mask: LayerMask,
+    mask: LayerMask<T>,
 
     #[reflect(hidden)]
-    nodes: Pool<PoseNode>,
+    nodes: Pool<PoseNode<T>>,
 
     #[reflect(hidden)]
-    transitions: Pool<Transition>,
+    transitions: Pool<Transition<T>>,
 
     #[reflect(hidden)]
-    states: Pool<State>,
+    states: Pool<State<T>>,
 
     #[reflect(hidden)]
-    active_state: Handle<State>,
+    active_state: Handle<State<T>>,
 
     #[reflect(hidden)]
-    entry_state: Handle<State>,
+    entry_state: Handle<State<T>>,
 
     #[reflect(hidden)]
-    active_transition: Handle<Transition>,
-
-    #[visit(skip)]
-    #[reflect(hidden)]
-    final_pose: AnimationPose,
+    active_transition: Handle<Transition<T>>,
 
     #[visit(skip)]
     #[reflect(hidden)]
-    events: FixedEventQueue,
+    final_pose: AnimationPose<T>,
+
+    #[visit(skip)]
+    #[reflect(hidden)]
+    events: FixedEventQueue<T>,
 
     #[visit(skip)]
     #[reflect(hidden)]
     debug: bool,
 }
 
-impl NameProvider for MachineLayer {
+impl<T: EntityId> NameProvider for MachineLayer<T> {
     fn name(&self) -> &str {
         &self.name
     }
@@ -112,25 +108,25 @@ impl NameProvider for MachineLayer {
 
 /// A source of animation events coming from a layer.
 #[derive(Default)]
-pub enum AnimationEventsSource {
+pub enum AnimationEventsSource<T: EntityId> {
     /// Layer is malformed and no events were gathered.
     #[default]
     Unknown,
     /// Animation events were gathered from a state.
     State {
         /// A handle of a state, from which the events were collected.
-        handle: Handle<State>,
+        handle: Handle<State<T>>,
         /// A name of a state, from which the events were collected.
         name: String,
     },
     /// Animation events were gathered from both states of a transition.
     Transition {
         /// A handle of an active transition.
-        handle: Handle<Transition>,
+        handle: Handle<Transition<T>>,
         /// A handle of a source state of an active transition.
-        source_state_handle: Handle<State>,
+        source_state_handle: Handle<State<T>>,
         /// A handle of a destination state of an active transition.
-        dest_state_handle: Handle<State>,
+        dest_state_handle: Handle<State<T>>,
         /// A name of a source state of an active transition.
         source_state_name: String,
         /// A name of a destination state of an active transition.
@@ -141,14 +137,14 @@ pub enum AnimationEventsSource {
 /// A collection of events gathered from an active state (or a transition between states). See docs of [`MachineLayer::collect_active_animations_events`]
 /// for more info and usage examples.
 #[derive(Default)]
-pub struct LayerAnimationEventsCollection {
+pub struct LayerAnimationEventsCollection<T: EntityId> {
     /// A source of events.
-    pub source: AnimationEventsSource,
+    pub source: AnimationEventsSource<T>,
     /// Actual animation events, defined as a tuple `(animation handle, event)`.
-    pub events: Vec<(Handle<Animation>, AnimationEvent)>,
+    pub events: Vec<(Handle<Animation<T>>, AnimationEvent)>,
 }
 
-impl MachineLayer {
+impl<T: EntityId> MachineLayer<T> {
     /// Creates a new machine layer. See examples in [`MachineLayer`] docs.
     #[inline]
     pub fn new() -> Self {
@@ -182,21 +178,21 @@ impl MachineLayer {
 
     /// Adds a new node to the layer and returns its handle.
     #[inline]
-    pub fn add_node(&mut self, node: PoseNode) -> Handle<PoseNode> {
+    pub fn add_node(&mut self, node: PoseNode<T>) -> Handle<PoseNode<T>> {
         self.nodes.spawn(node)
     }
 
     /// Sets new entry state of the layer. Entry state will always be active on the first frame and will remain active
     /// until some transition won't change it.
     #[inline]
-    pub fn set_entry_state(&mut self, entry_state: Handle<State>) {
+    pub fn set_entry_state(&mut self, entry_state: Handle<State<T>>) {
         self.active_state = entry_state;
         self.entry_state = entry_state;
     }
 
     /// Returns a handle of current entry state.
     #[inline]
-    pub fn entry_state(&self) -> Handle<State> {
+    pub fn entry_state(&self) -> Handle<State<T>> {
         self.entry_state
     }
 
@@ -209,7 +205,7 @@ impl MachineLayer {
 
     /// Adds a new state to the layer and returns its handle.
     #[inline]
-    pub fn add_state(&mut self, state: State) -> Handle<State> {
+    pub fn add_state(&mut self, state: State<T>) -> Handle<State<T>> {
         let state = self.states.spawn(state);
         if self.active_state.is_none() {
             self.active_state = state;
@@ -219,19 +215,19 @@ impl MachineLayer {
 
     /// Adds a new transition to the layer and returns its handle.
     #[inline]
-    pub fn add_transition(&mut self, transition: Transition) -> Handle<Transition> {
+    pub fn add_transition(&mut self, transition: Transition<T>) -> Handle<Transition<T>> {
         self.transitions.spawn(transition)
     }
 
     /// Borrows a state using its handle, panics if the handle is invalid.
     #[inline]
-    pub fn get_state(&self, state: Handle<State>) -> &State {
+    pub fn get_state(&self, state: Handle<State<T>>) -> &State<T> {
         &self.states[state]
     }
 
     /// Borrows a transition using its handle, panics if the handle is invalid.
     #[inline]
-    pub fn get_transition(&self, transition: Handle<Transition>) -> &Transition {
+    pub fn get_transition(&self, transition: Handle<Transition<T>>) -> &Transition<T> {
         &self.transitions[transition]
     }
 
@@ -241,9 +237,10 @@ impl MachineLayer {
     /// # Example
     ///
     /// ```rust
-    /// use fyrox::animation::machine::{Event, MachineLayer};
+    /// use fyrox_animation::machine::{Event, MachineLayer};
+    /// use fyrox_core::pool::ErasedHandle;
     ///
-    /// let mut layer = MachineLayer::new();
+    /// let mut layer = MachineLayer::<ErasedHandle>::new();
     ///
     /// while let Some(event) = layer.pop_event() {
     ///     match event {
@@ -263,7 +260,7 @@ impl MachineLayer {
     /// }
     /// ```
     #[inline]
-    pub fn pop_event(&mut self) -> Option<Event> {
+    pub fn pop_event(&mut self) -> Option<Event<T>> {
         self.events.pop()
     }
 
@@ -290,9 +287,9 @@ impl MachineLayer {
     pub fn collect_active_animations_events(
         &self,
         params: &ParameterContainer,
-        animations: &AnimationContainer,
+        animations: &AnimationContainer<T>,
         strategy: AnimationEventCollectionStrategy,
-    ) -> LayerAnimationEventsCollection {
+    ) -> LayerAnimationEventsCollection<T> {
         if let Some(state) = self.states.try_borrow(self.active_state) {
             return LayerAnimationEventsCollection {
                 source: AnimationEventsSource::State {
@@ -384,25 +381,25 @@ impl MachineLayer {
 
     /// Tries to borrow a node by its handle, panics if the handle is invalid.
     #[inline]
-    pub fn node(&self, handle: Handle<PoseNode>) -> &PoseNode {
+    pub fn node(&self, handle: Handle<PoseNode<T>>) -> &PoseNode<T> {
         &self.nodes[handle]
     }
 
     /// Tries to borrow a node by its handle, panics if the handle is invalid.
     #[inline]
-    pub fn node_mut(&mut self, handle: Handle<PoseNode>) -> &mut PoseNode {
+    pub fn node_mut(&mut self, handle: Handle<PoseNode<T>>) -> &mut PoseNode<T> {
         &mut self.nodes[handle]
     }
 
     /// Returns a reference to inner node container.
     #[inline]
-    pub fn nodes(&self) -> &Pool<PoseNode> {
+    pub fn nodes(&self) -> &Pool<PoseNode<T>> {
         &self.nodes
     }
 
     /// Returns a reference to inner node container.
     #[inline]
-    pub fn nodes_mut(&mut self) -> &mut Pool<PoseNode> {
+    pub fn nodes_mut(&mut self) -> &mut Pool<PoseNode<T>> {
         &mut self.nodes
     }
 
@@ -410,38 +407,38 @@ impl MachineLayer {
     /// state is active. For example jumping could be done only from `idle` and `run` state, and not from
     /// `crouch` and other states.
     #[inline]
-    pub fn active_state(&self) -> Handle<State> {
+    pub fn active_state(&self) -> Handle<State<T>> {
         self.active_state
     }
 
     /// Returns a handle of active transition. It is not empty only while a transition is active (doing blending
     /// between states).
     #[inline]
-    pub fn active_transition(&self) -> Handle<Transition> {
+    pub fn active_transition(&self) -> Handle<Transition<T>> {
         self.active_transition
     }
 
     /// Tries to borrow a transition using its handle, panics if the handle is invalid.
     #[inline]
-    pub fn transition(&self, handle: Handle<Transition>) -> &Transition {
+    pub fn transition(&self, handle: Handle<Transition<T>>) -> &Transition<T> {
         &self.transitions[handle]
     }
 
     /// Tries to borrow a transition using its handle, panics if the handle is invalid.
     #[inline]
-    pub fn transition_mut(&mut self, handle: Handle<Transition>) -> &mut Transition {
+    pub fn transition_mut(&mut self, handle: Handle<Transition<T>>) -> &mut Transition<T> {
         &mut self.transitions[handle]
     }
 
     /// Returns a reference to inner transitions container.
     #[inline]
-    pub fn transitions(&self) -> &Pool<Transition> {
+    pub fn transitions(&self) -> &Pool<Transition<T>> {
         &self.transitions
     }
 
     /// Returns a reference to inner transitions container.
     #[inline]
-    pub fn transitions_mut(&mut self) -> &mut Pool<Transition> {
+    pub fn transitions_mut(&mut self) -> &mut Pool<Transition<T>> {
         &mut self.transitions
     }
 
@@ -450,8 +447,8 @@ impl MachineLayer {
     pub fn find_transition_by_name_ref<S: AsRef<str>>(
         &self,
         name: S,
-    ) -> Option<(Handle<Transition>, &Transition)> {
-        utils::find_by_name_ref(self.transitions.pair_iter(), name)
+    ) -> Option<(Handle<Transition<T>>, &Transition<T>)> {
+        find_by_name_ref(self.transitions.pair_iter(), name)
     }
 
     /// Tries to find a transition by its name.
@@ -459,19 +456,19 @@ impl MachineLayer {
     pub fn find_transition_by_name_mut<S: AsRef<str>>(
         &mut self,
         name: S,
-    ) -> Option<(Handle<Transition>, &mut Transition)> {
-        utils::find_by_name_mut(self.transitions.pair_iter_mut(), name)
+    ) -> Option<(Handle<Transition<T>>, &mut Transition<T>)> {
+        find_by_name_mut(self.transitions.pair_iter_mut(), name)
     }
 
     /// Tries to borrow a state using its handle, panics if the handle is invalid.
     #[inline]
-    pub fn state(&self, handle: Handle<State>) -> &State {
+    pub fn state(&self, handle: Handle<State<T>>) -> &State<T> {
         &self.states[handle]
     }
 
     /// Tries to borrow a state using its handle, panics if the handle is invalid.
     #[inline]
-    pub fn state_mut(&mut self, handle: Handle<State>) -> &mut State {
+    pub fn state_mut(&mut self, handle: Handle<State<T>>) -> &mut State<T> {
         &mut self.states[handle]
     }
 
@@ -480,8 +477,8 @@ impl MachineLayer {
     pub fn find_state_by_name_ref<S: AsRef<str>>(
         &self,
         name: S,
-    ) -> Option<(Handle<State>, &State)> {
-        utils::find_by_name_ref(self.states.pair_iter(), name)
+    ) -> Option<(Handle<State<T>>, &State<T>)> {
+        find_by_name_ref(self.states.pair_iter(), name)
     }
 
     /// Tries to find a state by its name.
@@ -489,19 +486,19 @@ impl MachineLayer {
     pub fn find_state_by_name_mut<S: AsRef<str>>(
         &mut self,
         name: S,
-    ) -> Option<(Handle<State>, &mut State)> {
-        utils::find_by_name_mut(self.states.pair_iter_mut(), name)
+    ) -> Option<(Handle<State<T>>, &mut State<T>)> {
+        find_by_name_mut(self.states.pair_iter_mut(), name)
     }
 
     /// Returns a reference to inner states container.
     #[inline]
-    pub fn states(&self) -> &Pool<State> {
+    pub fn states(&self) -> &Pool<State<T>> {
         &self.states
     }
 
     /// Returns a reference to inner states container.
     #[inline]
-    pub fn states_mut(&mut self) -> &mut Pool<State> {
+    pub fn states_mut(&mut self) -> &mut Pool<State<T>> {
         &mut self.states
     }
 
@@ -520,19 +517,19 @@ impl MachineLayer {
 
     /// Sets new layer mask. See docs of [`LayerMask`] for more info about layer masks.
     #[inline]
-    pub fn set_mask(&mut self, mask: LayerMask) -> LayerMask {
+    pub fn set_mask(&mut self, mask: LayerMask<T>) -> LayerMask<T> {
         std::mem::replace(&mut self.mask, mask)
     }
 
     /// Returns a reference to current layer mask.
     #[inline]
-    pub fn mask(&self) -> &LayerMask {
+    pub fn mask(&self) -> &LayerMask<T> {
         &self.mask
     }
 
     /// Returns final pose of the layer.
     #[inline]
-    pub fn pose(&self) -> &AnimationPose {
+    pub fn pose(&self) -> &AnimationPose<T> {
         &self.final_pose
     }
 
@@ -541,8 +538,8 @@ impl MachineLayer {
     /// to listen for animation events and react to them.
     pub fn animations_of_state(
         &self,
-        state: Handle<State>,
-    ) -> impl Iterator<Item = Handle<Animation>> + '_ {
+        state: Handle<State<T>>,
+    ) -> impl Iterator<Item = Handle<Animation<T>>> + '_ {
         self.nodes.iter().filter_map(move |node| {
             if node.parent_state == state {
                 if let PoseNode::PlayAnimation(play_animation) = node {
@@ -559,8 +556,8 @@ impl MachineLayer {
     /// Returns `true` if all animations of the given state has ended, `false` - otherwise.
     pub fn is_all_animations_of_state_ended(
         &self,
-        state: Handle<State>,
-        animations: &AnimationContainer,
+        state: Handle<State<T>>,
+        animations: &AnimationContainer<T>,
     ) -> bool {
         self.animations_of_state(state)
             .filter_map(|a| animations.try_get(a))
@@ -570,10 +567,10 @@ impl MachineLayer {
     #[inline]
     pub(super) fn evaluate_pose(
         &mut self,
-        animations: &mut AnimationContainer,
+        animations: &mut AnimationContainer<T>,
         parameters: &ParameterContainer,
         dt: f32,
-    ) -> &AnimationPose {
+    ) -> &AnimationPose<T> {
         self.final_pose.reset();
 
         if self.active_state.is_some() || self.active_transition.is_some() {

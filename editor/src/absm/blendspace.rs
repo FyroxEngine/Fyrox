@@ -11,6 +11,7 @@ use crate::{
     send_sync_message,
 };
 use fyrox::core::uuid_provider;
+use fyrox::scene::node::Node;
 use fyrox::{
     animation::machine::{
         node::blendspace::BlendSpacePoint, Machine, MachineLayer, Parameter, ParameterContainer,
@@ -811,7 +812,7 @@ impl BlendSpaceEditor {
     pub fn sync_to_model(
         &mut self,
         parameters: &ParameterContainer,
-        layer: &MachineLayer,
+        layer: &MachineLayer<Handle<Node>>,
         selection: &AbsmSelection,
         ui: &mut UserInterface,
     ) {
@@ -893,7 +894,7 @@ impl BlendSpaceEditor {
         selection: &AbsmSelection,
         message: &UiMessage,
         sender: &MessageSender,
-        machine: &mut Machine,
+        machine: &mut Machine<Handle<Node>>,
         is_preview_mode_active: bool,
     ) {
         if let Some(SelectedEntity::PoseNode(first)) = selection.entities.first() {

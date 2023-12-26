@@ -194,7 +194,7 @@ impl RootMotionDropdownArea {
         game_scene: &GameScene,
         selection: &AnimationSelection,
     ) {
-        let send_command = |settings: Option<RootMotionSettings>| {
+        let send_command = |settings: Option<RootMotionSettings<Handle<Node>>>| {
             sender.do_scene_command(SetAnimationRootMotionSettingsCommand {
                 node_handle: selection.animation_player,
                 animation_handle: selection.animation,
@@ -285,7 +285,11 @@ impl RootMotionDropdownArea {
                             node_handle: selection.animation_player,
                             animation_handle: selection.animation,
                             value: Some(RootMotionSettings {
-                                node: node_selection.first().cloned().unwrap_or_default().into(),
+                                node: node_selection
+                                    .first()
+                                    .cloned()
+                                    .map(Handle::from)
+                                    .unwrap_or_default(),
                                 ..*settings
                             }),
                         });
@@ -365,7 +369,7 @@ pub enum ToolbarAction {
     None,
     EnterPreviewMode,
     LeavePreviewMode,
-    SelectAnimation(Handle<Animation>),
+    SelectAnimation(Handle<Animation<Handle<Node>>>),
     PlayPause,
     Stop,
 }
@@ -863,7 +867,7 @@ impl Toolbar {
                     .items()[*index];
                 let animation = ui
                     .node(item)
-                    .user_data_cloned::<Handle<Animation>>()
+                    .user_data_cloned::<Handle<Animation<Handle<Node>>>>()
                     .unwrap();
                 sender.do_scene_command(ChangeSelectionCommand::new(
                     Selection::Animation(AnimationSelection {

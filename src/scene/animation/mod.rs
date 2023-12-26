@@ -2,8 +2,12 @@
 //! See [`AnimationPlayer`] docs for more info.
 
 use crate::{
-    animation::AnimationContainer,
+    animation::{
+        value::{BoundValueCollection, TrackValue, ValueBinding},
+        AnimationContainer, AnimationPose, NodePose,
+    },
     core::{
+        log::{Log, MessageKind},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
@@ -14,13 +18,167 @@ use crate::{
     },
     scene::{
         base::{Base, BaseBuilder},
-        graph::Graph,
+        graph::{Graph, NodePool},
         node::{Node, NodeTrait, UpdateContext},
     },
 };
+use fyrox_animation::machine::LayerMask;
+use fyrox_core::pool::ErasedHandle;
 use std::ops::{Deref, DerefMut};
 
 pub mod absm;
+
+/// Extension trait for [`AnimationContainer`].
+pub trait AnimationContainerExt {
+    /// Updates all animations in the container and applies their poses to respective nodes. This method is intended to
+    /// be used only by the internals of the engine!
+    fn update_animations(&mut self, nodes: &mut NodePool, apply: bool, dt: f32);
+}
+
+impl AnimationContainerExt for AnimationContainer<Handle<Node>> {
+    fn update_animations(&mut self, nodes: &mut NodePool, apply: bool, dt: f32) {
+        for animation in self.iter_mut().filter(|anim| anim.is_enabled()) {
+            animation.tick(dt);
+            if apply {
+                animation.pose().apply_internal(nodes);
+            }
+        }
+    }
+}
+
+/// Extension trait for [`AnimationPose`].
+pub trait AnimationPoseExt {
+    /// Tries to set each value to the each property from the animation pose to respective scene nodes.
+    fn apply_internal(&self, nodes: &mut NodePool);
+
+    /// Tries to set each value to the each property from the animation pose to respective scene nodes.
+    fn apply(&self, graph: &mut Graph);
+
+    /// Calls given callback function for each node and allows you to apply pose with your own
+    /// rules. This could be useful if you need to ignore transform some part of pose for a node.
+    fn apply_with<C>(&self, graph: &mut Graph, callback: C)
+    where
+        C: FnMut(&mut Node, Handle<Node>, &NodePose<Handle<Node>>);
+}
+
+impl AnimationPoseExt for AnimationPose<Handle<Node>> {
+    fn apply_internal(&self, nodes: &mut NodePool) {
+        for (node, local_pose) in self.poses() {
+            if node.is_none() {
+                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
+            } else if let Some(node) = nodes.try_borrow_mut(*node) {
+                local_pose.values.apply(node);
+            }
+        }
+    }
+
+    fn apply(&self, graph: &mut Graph) {
+        for (node, local_pose) in self.poses() {
+            if node.is_none() {
+                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
+            } else if let Some(node) = graph.try_get_mut(*node) {
+                local_pose.values.apply(node);
+            }
+        }
+    }
+
+    fn apply_with<C>(&self, graph: &mut Graph, mut callback: C)
+    where
+        C: FnMut(&mut Node, Handle<Node>, &NodePose<Handle<Node>>),
+    {
+        for (node, local_pose) in self.poses() {
+            if node.is_none() {
+                Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
+            } else if let Some(node_ref) = graph.try_get_mut(*node) {
+                callback(node_ref, *node, local_pose);
+            }
+        }
+    }
+}
+
+/// Extension trait for [`BoundValueCollection`].
+pub trait BoundValueCollectionExt {
+    /// Tries to set each value from the collection to the respective property (by binding) of the given scene node.
+    fn apply(&self, node_ref: &mut Node);
+}
+
+impl BoundValueCollectionExt for BoundValueCollection {
+    fn apply(&self, node_ref: &mut Node) {
+        for bound_value in self.values.iter() {
+            match bound_value.binding {
+                ValueBinding::Position => {
+                    if let TrackValue::Vector3(v) = bound_value.value {
+                        node_ref.local_transform_mut().set_position(v);
+                    } else {
+                        Log::err(
+                            "Unable to apply position, because underlying type is not Vector3!",
+                        )
+                    }
+                }
+                ValueBinding::Scale => {
+                    if let TrackValue::Vector3(v) = bound_value.value {
+                        node_ref.local_transform_mut().set_scale(v);
+                    } else {
+                        Log::err("Unable to apply scaling, because underlying type is not Vector3!")
+                    }
+                }
+                ValueBinding::Rotation => {
+                    if let TrackValue::UnitQuaternion(v) = bound_value.value {
+                        node_ref.local_transform_mut().set_rotation(v);
+                    } else {
+                        Log::err("Unable to apply rotation, because underlying type is not UnitQuaternion!")
+                    }
+                }
+                ValueBinding::Property {
+                    name: ref property_name,
+                    value_type,
+                } => {
+                    if let Some(casted) = bound_value.value.numeric_type_cast(value_type) {
+                        let mut casted = Some(casted);
+                        node_ref.as_reflect_mut(&mut |node_ref| {
+                            node_ref.set_field_by_path(
+                                property_name,
+                                casted.take().unwrap(),
+                                &mut |result| {
+                                    if let Err(err) = result {
+                                        match err {
+                                            SetFieldByPathError::InvalidPath { reason, .. } => {
+                                                Log::err(format!(
+                                                    "Failed to set property {}! Invalid path: {}",
+                                                    property_name, reason
+                                                ));
+                                            }
+                                            SetFieldByPathError::InvalidValue(_) => {
+                                                Log::err(format!(
+                                                    "Failed to set property {}! Types mismatch!",
+                                                    property_name
+                                                ));
+                                            }
+                                        }
+                                    }
+                                },
+                            )
+                        })
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Extension trait for [`LayerMask`].
+pub trait LayerMaskExt {
+    /// Creates a layer mask for every descendant node starting from specified `root` (included). It could
+    /// be useful if you have an entire node hierarchy (for example, lower part of a body) that needs to
+    /// be filtered out.
+    fn from_hierarchy(graph: &Graph, root: ErasedHandle) -> Self;
+}
+
+impl LayerMaskExt for LayerMask<Handle<Node>> {
+    fn from_hierarchy(graph: &Graph, root: ErasedHandle) -> Self {
+        Self::from(graph.traverse_handle_iter(root.into()).collect::<Vec<_>>())
+    }
+}
 
 /// Animation player is a node that contains multiple animations. It updates and plays all the animations.
 /// The node could be a source of animations for animation blending state machines. To learn more about
@@ -47,7 +205,7 @@ pub mod absm;
 ///     scene::{animation::AnimationPlayerBuilder, base::BaseBuilder, graph::Graph, node::Node},
 /// };
 ///
-/// fn create_bounce_animation(animated_node: Handle<Node>) -> Animation {
+/// fn create_bounce_animation(animated_node: Handle<Node>) -> Animation<Handle<Node>> {
 ///     let mut frames_container = TrackDataContainer::new(TrackValueKind::Vector3);
 ///
 ///     // We'll animate only Y coordinate (at index 1).
@@ -94,7 +252,7 @@ pub mod absm;
 #[derive(Visit, Reflect, Clone, Debug)]
 pub struct AnimationPlayer {
     base: Base,
-    animations: InheritableVariable<AnimationContainer>,
+    animations: InheritableVariable<AnimationContainer<Handle<Node>>>,
     auto_apply: bool,
 }
 
@@ -124,18 +282,18 @@ impl AnimationPlayer {
     }
 
     /// Returns a reference to internal animations container.
-    pub fn animations(&self) -> &InheritableVariable<AnimationContainer> {
+    pub fn animations(&self) -> &InheritableVariable<AnimationContainer<Handle<Node>>> {
         &self.animations
     }
 
     /// Returns a reference to internal animations container. Keep in mind that mutable access to [`InheritableVariable`]
     /// may have side effects if used inappropriately. Checks docs for [`InheritableVariable`] for more info.
-    pub fn animations_mut(&mut self) -> &mut InheritableVariable<AnimationContainer> {
+    pub fn animations_mut(&mut self) -> &mut InheritableVariable<AnimationContainer<Handle<Node>>> {
         &mut self.animations
     }
 
     /// Sets new animations container of the animation player.
-    pub fn set_animations(&mut self, animations: AnimationContainer) {
+    pub fn set_animations(&mut self, animations: AnimationContainer<Handle<Node>>) {
         self.animations.set_value_and_mark_modified(animations);
     }
 }
@@ -187,7 +345,7 @@ impl NodeTrait for AnimationPlayer {
 /// A builder for [`AnimationPlayer`] node.
 pub struct AnimationPlayerBuilder {
     base_builder: BaseBuilder,
-    animations: AnimationContainer,
+    animations: AnimationContainer<Handle<Node>>,
     auto_apply: bool,
 }
 
@@ -202,7 +360,7 @@ impl AnimationPlayerBuilder {
     }
 
     /// Sets a container with desired animations.
-    pub fn with_animations(mut self, animations: AnimationContainer) -> Self {
+    pub fn with_animations(mut self, animations: AnimationContainer<Handle<Node>>) -> Self {
         self.animations = animations;
         self
     }

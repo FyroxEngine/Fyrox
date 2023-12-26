@@ -15,7 +15,7 @@ define_universal_commands! {
     GameSceneCommandTrait,
     GameSceneCommand,
     GameSceneContext,
-    Handle<PoseNode>,
+    Handle<PoseNode<Handle<Node>>>,
     ctx,
     handle,
     self,

@@ -6,9 +6,9 @@ use fyrox::{
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum SelectedEntity {
-    Transition(Handle<Transition>),
-    State(Handle<State>),
-    PoseNode(Handle<PoseNode>),
+    Transition(Handle<Transition<Handle<Node>>>),
+    State(Handle<State<Handle<Node>>>),
+    PoseNode(Handle<PoseNode<Handle<Node>>>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]

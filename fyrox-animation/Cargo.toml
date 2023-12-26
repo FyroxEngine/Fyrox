@@ -1,0 +1,12 @@
+[package]
+name = "fyrox-animation"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fyrox-core = { version = "0.26.0", path = "../fyrox-core" }
+fyrox-resource = { version = "0.10.0", path = "../fyrox-resource" }
+strum = "0.25.0"
+strum_macros = "0.25.0"
+fxhash = "0.2.1"
+spade = "2.1.0"

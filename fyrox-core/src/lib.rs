@@ -306,8 +306,8 @@ pub trait TypeUuidProvider: Sized {
 
 #[macro_export]
 macro_rules! uuid_provider {
-    ($type:ty = $uuid:expr) => {
-        impl $crate::TypeUuidProvider for $type {
+    ($type:ident $(<$($generics:tt),*>)? = $uuid:expr) => {
+        impl$(<$($generics),*>)? $crate::TypeUuidProvider for $type $(<$($generics),*>)? {
             fn type_uuid() -> $crate::uuid::Uuid {
                 $crate::uuid::uuid!($uuid)
             }
@@ -453,6 +453,32 @@ impl<T: ?Sized> Default for PhantomDataSendSync<T> {
     fn default() -> Self {
         Self(PhantomData)
     }
+}
+
+/// A trait for entities that have name.
+pub trait NameProvider {
+    /// Returns a reference to the name of the entity.
+    fn name(&self) -> &str;
+}
+
+/// Tries to find an entity by its name in a series of entities produced by an iterator.
+pub fn find_by_name_ref<'a, T, I, S, K>(mut iter: I, name: S) -> Option<(K, &'a T)>
+where
+    T: NameProvider,
+    I: Iterator<Item = (K, &'a T)>,
+    S: AsRef<str>,
+{
+    iter.find(|(_, value)| value.name() == name.as_ref())
+}
+
+/// Tries to find an entity by its name in a series of entities produced by an iterator.
+pub fn find_by_name_mut<'a, T, I, S, K>(mut iter: I, name: S) -> Option<(K, &'a mut T)>
+where
+    T: NameProvider,
+    I: Iterator<Item = (K, &'a mut T)>,
+    S: AsRef<str>,
+{
+    iter.find(|(_, value)| value.name() == name.as_ref())
 }
 
 #[cfg(test)]

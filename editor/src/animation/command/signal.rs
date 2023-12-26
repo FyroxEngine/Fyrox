@@ -27,5 +27,5 @@ define_universal_commands!(
             .unwrap()
     },
     node_handle: Handle<Node>,
-    animation_handle: Handle<Animation>
+    animation_handle: Handle<Animation<Handle<Node>>>
 );

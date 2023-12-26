@@ -123,7 +123,11 @@ pub trait ModelResourceExtension: Sized {
     ///
     /// Most of the 3d model formats can contain only one animation, so in most cases
     /// this function will return vector with only one animation.
-    fn retarget_animations_directly(&self, root: Handle<Node>, graph: &Graph) -> Vec<Animation>;
+    fn retarget_animations_directly(
+        &self,
+        root: Handle<Node>,
+        graph: &Graph,
+    ) -> Vec<Animation<Handle<Node>>>;
 
     /// Tries to retarget animations from given model resource to a node hierarchy starting
     /// from `root` on a given scene. Unlike [`Self::retarget_animations_directly`], it automatically
@@ -138,7 +142,7 @@ pub trait ModelResourceExtension: Sized {
         root: Handle<Node>,
         dest_animation_player: Handle<Node>,
         graph: &mut Graph,
-    ) -> Vec<Handle<Animation>>;
+    ) -> Vec<Handle<Animation<Handle<Node>>>>;
 
     /// Tries to retarget animations from given model resource to a node hierarchy starting
     /// from `root` on a given scene. Unlike [`Self::retarget_animations_directly`], it automatically
@@ -147,7 +151,11 @@ pub trait ModelResourceExtension: Sized {
     /// # Panic
     ///
     /// Panics if there's no animation player in the given hierarchy (descendant nodes of `root`).
-    fn retarget_animations(&self, root: Handle<Node>, graph: &mut Graph) -> Vec<Handle<Animation>>;
+    fn retarget_animations(
+        &self,
+        root: Handle<Node>,
+        graph: &mut Graph,
+    ) -> Vec<Handle<Animation<Handle<Node>>>>;
 }
 
 impl ModelResourceExtension for ModelResource {
@@ -208,7 +216,11 @@ impl ModelResourceExtension for ModelResource {
         root
     }
 
-    fn retarget_animations_directly(&self, root: Handle<Node>, graph: &Graph) -> Vec<Animation> {
+    fn retarget_animations_directly(
+        &self,
+        root: Handle<Node>,
+        graph: &Graph,
+    ) -> Vec<Animation<Handle<Node>>> {
         let mut retargetted_animations = Vec::new();
 
         let mut header = self.state();
@@ -232,7 +244,7 @@ impl ModelResourceExtension for ModelResource {
                                     track.set_target(instance_node);
                                 }
                                 None => {
-                                    track.set_target(Handle::NONE);
+                                    track.set_target(Default::default());
                                     Log::writeln(
                                         MessageKind::Error,
                                         format!(
@@ -259,7 +271,7 @@ impl ModelResourceExtension for ModelResource {
         root: Handle<Node>,
         dest_animation_player: Handle<Node>,
         graph: &mut Graph,
-    ) -> Vec<Handle<Animation>> {
+    ) -> Vec<Handle<Animation<Handle<Node>>>> {
         let mut animation_handles = Vec::new();
 
         let animations = self.retarget_animations_directly(root, graph);
@@ -275,7 +287,11 @@ impl ModelResourceExtension for ModelResource {
         animation_handles
     }
 
-    fn retarget_animations(&self, root: Handle<Node>, graph: &mut Graph) -> Vec<Handle<Animation>> {
+    fn retarget_animations(
+        &self,
+        root: Handle<Node>,
+        graph: &mut Graph,
+    ) -> Vec<Handle<Animation<Handle<Node>>>> {
         if let Some((animation_player, _)) = graph.find(root, &mut |n| {
             n.query_component_ref::<AnimationPlayer>().is_some()
         }) {

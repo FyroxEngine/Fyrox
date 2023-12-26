@@ -4,11 +4,11 @@
 #![warn(missing_docs)]
 
 use crate::{
-    animation::spritesheet::signal::Signal,
     core::{algebra::Vector2, math::Rect, reflect::prelude::*, visitor::prelude::*},
-    resource::texture::TextureResource,
+    spritesheet::signal::Signal,
 };
 use fyrox_core::uuid_provider;
+use fyrox_resource::untyped::UntypedResource;
 use std::collections::vec_deque::VecDeque;
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -58,7 +58,7 @@ pub struct SpriteSheetFramesContainer {
     size: Vector2<u32>,
     frames: Vec<Vector2<u32>>,
     #[visit(optional)]
-    texture: Option<TextureResource>,
+    texture: Option<UntypedResource>,
 }
 
 impl SpriteSheetFramesContainer {
@@ -115,7 +115,7 @@ impl SpriteSheetFramesContainer {
     }
 
     /// Returns current texture of the container. To set a texture use sprite sheet animation methods.
-    pub fn texture(&self) -> Option<TextureResource> {
+    pub fn texture(&self) -> Option<UntypedResource> {
         self.texture.clone()
     }
 }
@@ -143,7 +143,7 @@ pub struct SpriteSheetAnimation {
     signals: Vec<Signal>,
     #[visit(optional)]
     #[reflect(setter = "set_texture")]
-    texture: Option<TextureResource>,
+    texture: Option<UntypedResource>,
     #[reflect(hidden)]
     #[visit(skip)]
     events: VecDeque<Event>,
@@ -221,8 +221,8 @@ impl SpriteSheetAnimation {
     /// like this:
     ///
     /// ```rust
-    /// # use fyrox::{
-    /// #      animation::spritesheet::{ImageParameters, SpriteSheetAnimation},
+    /// # use fyrox_animation::{
+    /// #      spritesheet::{ImageParameters, SpriteSheetAnimation},
     /// #      core::math::Rect,
     /// # };
     /// fn extract_animations() {
@@ -310,13 +310,13 @@ impl SpriteSheetAnimation {
     }
 
     /// Sets new texture for the animation.
-    pub fn set_texture(&mut self, texture: Option<TextureResource>) -> Option<TextureResource> {
+    pub fn set_texture(&mut self, texture: Option<UntypedResource>) -> Option<UntypedResource> {
         self.frames_container.texture = texture.clone();
         std::mem::replace(&mut self.texture, texture)
     }
 
     /// Returns current texture of the animation.
-    pub fn texture(&self) -> Option<TextureResource> {
+    pub fn texture(&self) -> Option<UntypedResource> {
         self.texture.clone()
     }
 
@@ -510,7 +510,7 @@ impl SpriteSheetAnimation {
 
 #[cfg(test)]
 mod test {
-    use crate::animation::spritesheet::{
+    use crate::spritesheet::{
         signal::Signal, Event, ImageParameters, SpriteSheetAnimation, Status,
     };
     use fyrox_core::algebra::Vector2;

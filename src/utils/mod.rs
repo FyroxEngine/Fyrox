@@ -782,32 +782,6 @@ pub fn into_any_arc<T: Any + Send + Sync>(
     }
 }
 
-/// A trait for entities that have name.
-pub trait NameProvider {
-    /// Returns a reference to the name of the entity.
-    fn name(&self) -> &str;
-}
-
-/// Tries to find an entity by its name in a series of entities produced by an iterator.
-pub fn find_by_name_ref<'a, T, I, S, K>(mut iter: I, name: S) -> Option<(K, &'a T)>
-where
-    T: NameProvider,
-    I: Iterator<Item = (K, &'a T)>,
-    S: AsRef<str>,
-{
-    iter.find(|(_, value)| value.name() == name.as_ref())
-}
-
-/// Tries to find an entity by its name in a series of entities produced by an iterator.
-pub fn find_by_name_mut<'a, T, I, S, K>(mut iter: I, name: S) -> Option<(K, &'a mut T)>
-where
-    T: NameProvider,
-    I: Iterator<Item = (K, &'a mut T)>,
-    S: AsRef<str>,
-{
-    iter.find(|(_, value)| value.name() == name.as_ref())
-}
-
 /// Converts `Vector3<f32>` -> `Vector3<f16>`.
 pub fn vec3_f16_from_f32(v: Vector3<f32>) -> Vector3<f16> {
     v.map(f16::from_f32)

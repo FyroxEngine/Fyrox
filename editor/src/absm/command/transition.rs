@@ -15,7 +15,7 @@ define_universal_commands!(
     GameSceneCommandTrait,
     GameSceneCommand,
     GameSceneContext,
-    Handle<Transition>,
+    Handle<Transition<Handle<Node>>>,
     ctx,
     handle,
     self,
