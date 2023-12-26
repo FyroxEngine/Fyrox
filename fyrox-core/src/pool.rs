@@ -33,6 +33,7 @@ use crate::{
 use arrayvec::ArrayVec;
 use serde::{Deserialize, Serialize};
 use std::any::Any;
+use std::cmp::Ordering;
 use std::{
     fmt::{Debug, Display, Formatter},
     future::Future,
@@ -212,6 +213,18 @@ impl<T: TypeUuidProvider> TypeUuidProvider for Handle<T> {
             uuid::uuid!("30c0668d-7a2c-47e6-8c7b-208fdcc905a1"),
             T::type_uuid(),
         )
+    }
+}
+
+impl<T> PartialOrd for Handle<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.index.partial_cmp(&other.index)
+    }
+}
+
+impl<T> Ord for Handle<T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.index.cmp(&other.index)
     }
 }
 
