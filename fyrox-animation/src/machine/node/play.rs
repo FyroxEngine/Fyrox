@@ -29,7 +29,7 @@ pub struct PlayAnimation<T: EntityId> {
     /// A handle to animation.
     pub animation: Handle<Animation<T>>,
 
-    /// Output pose, it contains a filtered (see [`crate::animation::machine::LayerMask`] for more info) pose from
+    /// Output pose, it contains a filtered (see [`crate::machine::LayerMask`] for more info) pose from
     /// the animation specified by the `animation` field.
     #[visit(skip)]
     #[reflect(hidden)]

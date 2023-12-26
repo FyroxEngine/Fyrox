@@ -110,11 +110,9 @@ pub mod value;
 ///
 /// # Examples
 ///
-/// Usually, animations are created from the editor or some external tool and then imported in the engine. Before trying the example
-/// below, please read the docs for [`crate::scene::animation::AnimationPlayer`] node, it is much more convenient way of animating
-/// other nodes. The node can be created from the editor and you don't even need to write any code.
-///
-/// Use the following example code as a guide **only** if you need to create procedural animations:
+/// Usually, animations are created from the editor or some external tool and then imported in the engine.
+/// However, sometimes there's a need for procedural animations. Use the following example code as
+/// a guide **only** if you need to create procedural animations:
 ///
 /// ```rust
 /// use fyrox_animation::{
