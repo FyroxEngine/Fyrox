@@ -129,13 +129,14 @@ pub mod transition;
 ///     },
 ///     core::pool::Handle
 /// };
+/// use fyrox_core::pool::ErasedHandle;
 ///
 /// // Assume that these are correct handles.
 /// let idle_animation = Handle::default();
 /// let walk_animation = Handle::default();
 /// let aim_animation = Handle::default();
 ///
-/// let mut machine = Machine::new();
+/// let mut machine = Machine::<ErasedHandle>::new();
 ///
 /// let root_layer = &mut machine.layers_mut()[0];
 ///
@@ -194,8 +195,9 @@ impl<T: EntityId> Machine<T> {
     ///
     /// ```rust
     /// use fyrox_animation::machine::{Machine, Parameter};
+    /// use fyrox_core::pool::ErasedHandle;
     ///
-    /// let mut machine = Machine::new();
+    /// let mut machine = Machine::<ErasedHandle>::new();
     ///
     /// machine
     ///     .set_parameter("Run", Parameter::Rule(true))
@@ -287,7 +289,7 @@ impl<T: EntityId> Machine<T> {
         &self.final_pose
     }
 
-    /// Computes final animation pose that could be then applied to a scene graph.
+    /// Computes final animation pose that could be then applied to a set of entities graph.
     #[inline]
     pub fn evaluate_pose(
         &mut self,

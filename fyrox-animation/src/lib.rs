@@ -1,4 +1,4 @@
-//! Animation allows you to change properties of scene nodes at runtime using a set of key frames.
+//! Animation allows you to change properties of arbitrary objects at runtime using a set of key frames.
 //! See [`Animation`] docs for more info.
 
 #![warn(missing_docs)]
@@ -40,8 +40,8 @@ pub mod value;
 
 /// # Overview
 ///
-/// Animation allows you to change properties of scene nodes at runtime using a set of key frames. Animation
-/// consists of multiple tracks, where each track is bound to a property of a scene node. A track can animate
+/// Animation allows you to change properties of arbitrary entities at runtime using a set of key frames. Animation
+/// consists of multiple tracks, where each track is bound to a property of an entity. A track can animate
 /// any numeric properties, starting from numbers (including `bool`) end ending by 2/3/4 dimensional vectors.
 /// Each component (number, x/y/z/w vector components) is stored in a _parametric curve_ (see
 /// [`crate::core::curve::Curve`] docs for more info). Every parametric curve contains zero or more _key frames_.
@@ -129,7 +129,7 @@ pub mod value;
 /// };
 /// use fyrox_core::pool::ErasedHandle;
 ///
-/// fn create_animation(target: ErasedHandle) -> Animation<T> {
+/// fn create_animation(target: ErasedHandle) -> Animation<ErasedHandle> {
 ///     let mut frames_container = TrackDataContainer::new(TrackValueKind::Vector3);
 ///
 ///     // We'll animate only X coordinate (at index 0).

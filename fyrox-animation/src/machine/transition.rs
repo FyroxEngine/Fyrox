@@ -269,13 +269,14 @@ impl<T: EntityId> Reflect for NotNode<T> {
 ///     transition::{AndNode, LogicNode, NotNode},
 ///     Parameter, ParameterContainer,
 /// };
+/// use fyrox_core::pool::ErasedHandle;
 ///
 /// let mut parameters = ParameterContainer::default();
 /// parameters.add("Run", Parameter::Rule(false));
 /// parameters.add("Jump", Parameter::Rule(true));
 ///
 /// // !Run && Jump
-/// let transition_logic = LogicNode::And(AndNode {
+/// let transition_logic = LogicNode::<ErasedHandle>::And(AndNode {
 ///     lhs: Box::new(LogicNode::Not(NotNode {
 ///         lhs: Box::new(LogicNode::Parameter("Run".to_string())),
 ///     })),

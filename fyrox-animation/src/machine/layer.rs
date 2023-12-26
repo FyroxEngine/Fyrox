@@ -32,13 +32,14 @@ use fyrox_core::{find_by_name_mut, find_by_name_ref, NameProvider};
 ///     },
 ///     core::pool::Handle
 /// };
+/// use fyrox_core::pool::ErasedHandle;
 ///
 /// // Assume that these are correct handles.
 /// let idle_animation = Handle::default();
 /// let walk_animation = Handle::default();
 /// let aim_animation = Handle::default();
 ///
-/// let mut root_layer = MachineLayer::new();
+/// let mut root_layer = MachineLayer::<ErasedHandle>::new();
 ///
 /// let aim = root_layer.add_node(PoseNode::PlayAnimation(PlayAnimation::new(aim_animation)));
 /// let walk = root_layer.add_node(PoseNode::PlayAnimation(PlayAnimation::new(walk_animation)));
@@ -237,8 +238,9 @@ impl<T: EntityId> MachineLayer<T> {
     ///
     /// ```rust
     /// use fyrox_animation::machine::{Event, MachineLayer};
+    /// use fyrox_core::pool::ErasedHandle;
     ///
-    /// let mut layer = MachineLayer::new();
+    /// let mut layer = MachineLayer::<ErasedHandle>::new();
     ///
     /// while let Some(event) = layer.pop_event() {
     ///     match event {
