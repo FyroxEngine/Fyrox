@@ -584,7 +584,7 @@ pub struct TrackList {
     context_menu: TrackContextMenu,
     property_binding_mode: PropertyBindingMode,
     scroll_viewer: Handle<UiNode>,
-    selected_animation: Handle<Animation>,
+    selected_animation: Handle<Animation<Handle<Node>>>,
 }
 
 #[derive(Clone)]
@@ -735,7 +735,7 @@ impl TrackList {
         game_scene: &GameScene,
         sender: &MessageSender,
         animation_player: Handle<Node>,
-        animation: Handle<Animation>,
+        animation: Handle<Animation<Handle<Node>>>,
         ui: &mut UserInterface,
         scene: &Scene,
     ) {
@@ -1266,8 +1266,8 @@ impl TrackList {
 
     pub fn sync_to_model(
         &mut self,
-        animation: &Animation,
-        animation_handle: Handle<Animation>,
+        animation: &Animation<Handle<Node>>,
+        animation_handle: Handle<Animation<Handle<Node>>>,
         graph: &Graph,
         editor_selection: &Selection,
         ui: &mut UserInterface,

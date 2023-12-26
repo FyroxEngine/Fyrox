@@ -99,7 +99,7 @@ impl CanvasContextMenu {
         &mut self,
         sender: &MessageSender,
         message: &UiMessage,
-        current_state: Handle<State>,
+        current_state: Handle<State<Handle<Node>>>,
         ui: &mut UserInterface,
         absm_node_handle: Handle<Node>,
         layer_index: usize,
@@ -221,7 +221,7 @@ impl NodeContextMenu {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        machine_layer: &MachineLayer,
+        machine_layer: &MachineLayer<Handle<Node>>,
         sender: &MessageSender,
         ui: &UserInterface,
         editor_selection: &Selection,
@@ -256,7 +256,7 @@ impl NodeContextMenu {
             } else if message.destination() == self.set_as_root {
                 let root = ui
                     .node(self.placement_target)
-                    .query_component::<AbsmNode<PoseNode>>()
+                    .query_component::<AbsmNode<PoseNode<Handle<Node>>>>()
                     .unwrap()
                     .model_handle;
 
@@ -307,7 +307,7 @@ impl ConnectionContextMenu {
         message: &UiMessage,
         ui: &mut UserInterface,
         sender: &MessageSender,
-        machine_layer: &MachineLayer,
+        machine_layer: &MachineLayer<Handle<Node>>,
         absm_node_handle: Handle<Node>,
         layer_index: usize,
     ) {
@@ -320,7 +320,7 @@ impl ConnectionContextMenu {
 
                 let dest_node_ref = ui
                     .node(connection_ref.dest_node)
-                    .query_component::<AbsmNode<PoseNode>>()
+                    .query_component::<AbsmNode<PoseNode<Handle<Node>>>>()
                     .unwrap();
 
                 let index = dest_node_ref

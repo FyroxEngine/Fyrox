@@ -1,6 +1,7 @@
 //! Animation selector for `Handle<Animation>` fields.
 
 use crate::{gui::make_dropdown_list_option_universal, inspector::EditorEnvironment, Message};
+use fyrox::scene::node::Node;
 use fyrox::{
     animation::{machine::Machine, Animation, AnimationContainer},
     core::pool::Handle,
@@ -25,14 +26,16 @@ pub struct AnimationPropertyEditorDefinition;
 
 impl PropertyEditorDefinition for AnimationPropertyEditorDefinition {
     fn value_type_id(&self) -> TypeId {
-        TypeId::of::<Handle<Animation>>()
+        TypeId::of::<Handle<Animation<Handle<Node>>>>()
     }
 
     fn create_instance(
         &self,
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
-        let value = ctx.property_info.cast_value::<Handle<Animation>>()?;
+        let value = ctx
+            .property_info
+            .cast_value::<Handle<Animation<Handle<Node>>>>()?;
         if let Some(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
             Ok(PropertyEditorInstance::Simple {
                 editor: DropdownListBuilder::new(WidgetBuilder::new())
@@ -68,7 +71,9 @@ impl PropertyEditorDefinition for AnimationPropertyEditorDefinition {
         &self,
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
-        let value = ctx.property_info.cast_value::<Handle<Animation>>()?;
+        let value = ctx
+            .property_info
+            .cast_value::<Handle<Animation<Handle<Node>>>>()?;
         if let Some(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
             if let Some(index) = environment
                 .available_animations
@@ -113,7 +118,7 @@ pub struct AnimationContainerPropertyEditorDefinition;
 
 impl PropertyEditorDefinition for AnimationContainerPropertyEditorDefinition {
     fn value_type_id(&self) -> TypeId {
-        TypeId::of::<AnimationContainer>()
+        TypeId::of::<AnimationContainer<Handle<Node>>>()
     }
 
     fn create_instance(
@@ -151,7 +156,7 @@ pub struct MachinePropertyEditorDefinition;
 
 impl PropertyEditorDefinition for MachinePropertyEditorDefinition {
     fn value_type_id(&self) -> TypeId {
-        TypeId::of::<Machine>()
+        TypeId::of::<Machine<Handle<Node>>>()
     }
 
     fn create_instance(

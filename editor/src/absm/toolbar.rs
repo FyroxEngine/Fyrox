@@ -14,6 +14,8 @@ use crate::{
     },
     send_sync_message,
 };
+use fyrox::core::pool::ErasedHandle;
+use fyrox::scene::node::Node;
 use fyrox::{
     animation::machine::{LayerMask, MachineLayer},
     core::pool::Handle,
@@ -250,8 +252,8 @@ impl Toolbar {
                         .cloned()
                         .filter(|n| {
                             graph
-                                .try_get((*n).into())
-                                .map_or(false, |n| !unique_nodes.contains(&(n.parent().into())))
+                                .try_get(*n)
+                                .map_or(false, |n| !unique_nodes.contains(&n.parent()))
                         })
                         .collect::<Vec<_>>();
 
@@ -281,8 +283,13 @@ impl Toolbar {
 
                     if let Some(layer_index) = selection.layer {
                         if let Some(layer) = absm_node.machine().layers().get(layer_index) {
-                            let selection =
-                                layer.mask().inner().iter().cloned().collect::<Vec<_>>();
+                            let selection = layer
+                                .mask()
+                                .inner()
+                                .iter()
+                                .cloned()
+                                .map(ErasedHandle::from)
+                                .collect::<Vec<_>>();
 
                             ui.send_message(NodeSelectorMessage::selection(
                                 self.node_selector,
@@ -326,7 +333,12 @@ impl Toolbar {
                 && message.direction() == MessageDirection::FromWidget
             {
                 if let Some(layer_index) = selection.layer {
-                    let new_mask = LayerMask::from(mask_selection.clone());
+                    let new_mask = LayerMask::from(
+                        mask_selection
+                            .iter()
+                            .map(|h| Handle::<Node>::from(*h))
+                            .collect::<Vec<_>>(),
+                    );
                     sender.do_scene_command(SetLayerMaskCommand {
                         absm_node_handle: selection.absm_node_handle,
                         layer_index,

@@ -42,7 +42,6 @@ use crate::{
         Scene, SceneLoader,
     },
 };
-use fyrox_core::pool::ErasedHandle;
 use fyrox_core::uuid_provider;
 use fyrox_resource::io::ResourceIo;
 use serde::{Deserialize, Serialize};
@@ -124,7 +123,11 @@ pub trait ModelResourceExtension: Sized {
     ///
     /// Most of the 3d model formats can contain only one animation, so in most cases
     /// this function will return vector with only one animation.
-    fn retarget_animations_directly(&self, root: Handle<Node>, graph: &Graph) -> Vec<Animation>;
+    fn retarget_animations_directly(
+        &self,
+        root: Handle<Node>,
+        graph: &Graph,
+    ) -> Vec<Animation<Handle<Node>>>;
 
     /// Tries to retarget animations from given model resource to a node hierarchy starting
     /// from `root` on a given scene. Unlike [`Self::retarget_animations_directly`], it automatically
@@ -139,7 +142,7 @@ pub trait ModelResourceExtension: Sized {
         root: Handle<Node>,
         dest_animation_player: Handle<Node>,
         graph: &mut Graph,
-    ) -> Vec<Handle<Animation>>;
+    ) -> Vec<Handle<Animation<Handle<Node>>>>;
 
     /// Tries to retarget animations from given model resource to a node hierarchy starting
     /// from `root` on a given scene. Unlike [`Self::retarget_animations_directly`], it automatically
@@ -148,7 +151,11 @@ pub trait ModelResourceExtension: Sized {
     /// # Panic
     ///
     /// Panics if there's no animation player in the given hierarchy (descendant nodes of `root`).
-    fn retarget_animations(&self, root: Handle<Node>, graph: &mut Graph) -> Vec<Handle<Animation>>;
+    fn retarget_animations(
+        &self,
+        root: Handle<Node>,
+        graph: &mut Graph,
+    ) -> Vec<Handle<Animation<Handle<Node>>>>;
 }
 
 impl ModelResourceExtension for ModelResource {
@@ -209,7 +216,11 @@ impl ModelResourceExtension for ModelResource {
         root
     }
 
-    fn retarget_animations_directly(&self, root: Handle<Node>, graph: &Graph) -> Vec<Animation> {
+    fn retarget_animations_directly(
+        &self,
+        root: Handle<Node>,
+        graph: &Graph,
+    ) -> Vec<Animation<Handle<Node>>> {
         let mut retargetted_animations = Vec::new();
 
         let mut header = self.state();
@@ -224,8 +235,7 @@ impl ModelResourceExtension for ModelResource {
                         // because we've made a plain copy and it has tracks with node handles mapped
                         // to nodes of internal scene.
                         for (i, ref_track) in src_anim.tracks().iter().enumerate() {
-                            let ref_node =
-                                &model.scene.graph[Handle::<Node>::from(ref_track.target())];
+                            let ref_node = &model.scene.graph[ref_track.target()];
                             let track = &mut anim_copy.tracks_mut()[i];
                             // Find instantiated node that corresponds to node in resource
                             match graph.find_by_name(root, ref_node.name()) {
@@ -234,7 +244,7 @@ impl ModelResourceExtension for ModelResource {
                                     track.set_target(instance_node);
                                 }
                                 None => {
-                                    track.set_target(ErasedHandle::default());
+                                    track.set_target(Default::default());
                                     Log::writeln(
                                         MessageKind::Error,
                                         format!(
@@ -261,7 +271,7 @@ impl ModelResourceExtension for ModelResource {
         root: Handle<Node>,
         dest_animation_player: Handle<Node>,
         graph: &mut Graph,
-    ) -> Vec<Handle<Animation>> {
+    ) -> Vec<Handle<Animation<Handle<Node>>>> {
         let mut animation_handles = Vec::new();
 
         let animations = self.retarget_animations_directly(root, graph);
@@ -277,7 +287,11 @@ impl ModelResourceExtension for ModelResource {
         animation_handles
     }
 
-    fn retarget_animations(&self, root: Handle<Node>, graph: &mut Graph) -> Vec<Handle<Animation>> {
+    fn retarget_animations(
+        &self,
+        root: Handle<Node>,
+        graph: &mut Graph,
+    ) -> Vec<Handle<Animation<Handle<Node>>>> {
         if let Some((animation_player, _)) = graph.find(root, &mut |n| {
             n.query_component_ref::<AnimationPlayer>().is_some()
         }) {

@@ -3,9 +3,10 @@
 use crate::{
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
     machine::{Parameter, ParameterContainer, State},
-    Animation, AnimationContainer,
+    Animation, AnimationContainer, EntityId,
 };
-use fyrox_core::{uuid_provider, NameProvider};
+use fyrox_core::uuid::{uuid, Uuid};
+use fyrox_core::{NameProvider, TypeUuidProvider};
 use std::any::{type_name, Any, TypeId};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -13,14 +14,14 @@ macro_rules! define_two_args_node {
     ($(#[$meta:meta])* $name:ident) => {
         $(#[$meta])*
         #[derive(Debug, Clone, PartialEq)]
-        pub struct $name {
+        pub struct $name <T:EntityId> {
             /// Left argument.
-            pub lhs: Box<LogicNode>,
+            pub lhs: Box<LogicNode<T>>,
             /// Right argument.
-            pub rhs: Box<LogicNode>,
+            pub rhs: Box<LogicNode<T>>,
         }
 
-        impl Default for $name {
+        impl<T:EntityId> Default for $name<T> {
             fn default() -> Self {
                 Self {
                     lhs: Box::new(LogicNode::Parameter(Default::default())),
@@ -29,7 +30,7 @@ macro_rules! define_two_args_node {
             }
         }
 
-        impl Visit for $name {
+        impl<T:EntityId> Visit for $name<T> {
             fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
                 let mut guard = visitor.enter_region(name)?;
 
@@ -40,7 +41,7 @@ macro_rules! define_two_args_node {
             }
         }
 
-        impl Reflect for $name {
+        impl<T:EntityId> Reflect for $name<T> {
             fn type_name(&self) -> &'static str {
                 type_name::<Self>()
             }
@@ -159,12 +160,12 @@ define_two_args_node!(
 
 /// Calculates logical NOT of an argument. Output value will be `true` if the value of the argument is `false`.
 #[derive(Debug, Clone, PartialEq)]
-pub struct NotNode {
+pub struct NotNode<T: EntityId> {
     /// Argument to be negated.
-    pub lhs: Box<LogicNode>,
+    pub lhs: Box<LogicNode<T>>,
 }
 
-impl Default for NotNode {
+impl<T: EntityId> Default for NotNode<T> {
     fn default() -> Self {
         Self {
             lhs: Box::new(LogicNode::Parameter(Default::default())),
@@ -172,7 +173,7 @@ impl Default for NotNode {
     }
 }
 
-impl Visit for NotNode {
+impl<T: EntityId> Visit for NotNode<T> {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut guard = visitor.enter_region(name)?;
 
@@ -182,7 +183,7 @@ impl Visit for NotNode {
     }
 }
 
-impl Reflect for NotNode {
+impl<T: EntityId> Reflect for NotNode<T> {
     fn type_name(&self) -> &'static str {
         type_name::<Self>()
     }
@@ -284,35 +285,39 @@ impl Reflect for NotNode {
 /// assert_eq!(transition_logic.calculate_value(&parameters, &AnimationContainer::default()), true);
 /// ```
 #[derive(Debug, Visit, Clone, Reflect, PartialEq, AsRefStr, EnumString, EnumVariantNames)]
-pub enum LogicNode {
+pub enum LogicNode<T: EntityId> {
     /// Fetches a value of `Rule` parameter and returns its value. `false` if the parameter is not found.
     Parameter(String),
     /// Calculates logical AND between two arguments. Output value will be `true` iff both of the arguments is `true`.
-    And(AndNode),
+    And(AndNode<T>),
     /// Calculates logical OR between two arguments. Output value will be `true` iff any of the arguments is `true`.
-    Or(OrNode),
+    Or(OrNode<T>),
     /// Calculates logical XOR (excluding OR) between two arguments. Output value will be `true` iff the arguments differ.
-    Xor(XorNode),
+    Xor(XorNode<T>),
     /// Calculates logical NOT of an argument. Output value will be `true` if the value of the argument is `false`.
-    Not(NotNode),
+    Not(NotNode<T>),
     /// Returns `true` if the animation has ended, `false` - otherwise.
-    IsAnimationEnded(Handle<Animation>),
+    IsAnimationEnded(Handle<Animation<T>>),
 }
 
-uuid_provider!(LogicNode = "98a5b767-5560-4ed7-ad40-1625a8868e39");
+impl<T: EntityId> TypeUuidProvider for LogicNode<T> {
+    fn type_uuid() -> Uuid {
+        uuid!("98a5b767-5560-4ed7-ad40-1625a8868e39")
+    }
+}
 
-impl Default for LogicNode {
+impl<T: EntityId> Default for LogicNode<T> {
     fn default() -> Self {
         Self::Parameter(Default::default())
     }
 }
 
-impl LogicNode {
+impl<T: EntityId> LogicNode<T> {
     /// Calculates final value of the logic node.
     pub fn calculate_value(
         &self,
         parameters: &ParameterContainer,
-        animations: &AnimationContainer,
+        animations: &AnimationContainer<T>,
     ) -> bool {
         match self {
             LogicNode::Parameter(rule_name) => parameters.get(rule_name).map_or(false, |p| {
@@ -347,7 +352,7 @@ impl LogicNode {
 
 /// Transition is a connection between two states with a rule that defines possibility of actual transition with blending.
 #[derive(Default, Debug, Clone, Reflect, PartialEq)]
-pub struct Transition {
+pub struct Transition<T: EntityId> {
     /// The name of the transition, it is used for debug output.
     #[reflect(description = "The name of the transition, it is used for debug output.")]
     pub(crate) name: String,
@@ -360,21 +365,21 @@ pub struct Transition {
     pub(crate) elapsed_time: f32,
 
     #[reflect(read_only)]
-    pub(crate) source: Handle<State>,
+    pub(crate) source: Handle<State<T>>,
 
     #[reflect(read_only)]
-    pub(crate) dest: Handle<State>,
+    pub(crate) dest: Handle<State<T>>,
 
     #[reflect(
         description = "Computational graph that can use any amount of Rule parameters to calculate transition value."
     )]
-    pub(crate) condition: LogicNode,
+    pub(crate) condition: LogicNode<T>,
 
     /// 0 - evaluates `src` pose, 1 - `dest`, 0..1 - blends `src` and `dest`
     pub(crate) blend_factor: f32,
 }
 
-impl Visit for Transition {
+impl<T: EntityId> Visit for Transition<T> {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut guard = visitor.enter_region(name)?;
 
@@ -409,22 +414,22 @@ impl Visit for Transition {
     }
 }
 
-impl NameProvider for Transition {
+impl<T: EntityId> NameProvider for Transition<T> {
     fn name(&self) -> &str {
         &self.name
     }
 }
 
-impl Transition {
+impl<T: EntityId> Transition<T> {
     /// Creates a new named transition between two states with a given time and a name of a parameter that
     /// will be used to check if it is possible to activate the transition.
     pub fn new(
         name: &str,
-        src: Handle<State>,
-        dest: Handle<State>,
+        src: Handle<State<T>>,
+        dest: Handle<State<T>>,
         time: f32,
         rule: &str,
-    ) -> Transition {
+    ) -> Transition<T> {
         Self {
             name: name.to_owned(),
             transition_time: time,
@@ -450,23 +455,23 @@ impl Transition {
 
     /// Returns a handle to source state.
     #[inline]
-    pub fn source(&self) -> Handle<State> {
+    pub fn source(&self) -> Handle<State<T>> {
         self.source
     }
 
     /// Returns a handle to destination state.
     #[inline]
-    pub fn dest(&self) -> Handle<State> {
+    pub fn dest(&self) -> Handle<State<T>> {
         self.dest
     }
 
     /// Sets new condition for the transition.
-    pub fn set_condition(&mut self, condition: LogicNode) {
+    pub fn set_condition(&mut self, condition: LogicNode<T>) {
         self.condition = condition;
     }
 
     /// Returns a reference to the current condition of the transition.
-    pub fn condition(&self) -> &LogicNode {
+    pub fn condition(&self) -> &LogicNode<T> {
         &self.condition
     }
 

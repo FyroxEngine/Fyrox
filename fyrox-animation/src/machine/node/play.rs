@@ -11,7 +11,7 @@ use crate::{
         node::{AnimationPoseSource, BasePoseNode},
         ParameterContainer, PoseNode,
     },
-    Animation, AnimationContainer, AnimationEvent, AnimationPose,
+    Animation, AnimationContainer, AnimationEvent, AnimationPose, EntityId,
 };
 use std::{
     cell::{Ref, RefCell},
@@ -22,37 +22,37 @@ use std::{
 /// Animation handle should point to an animation in some animation container see [`AnimationContainer`] docs
 /// for more info.
 #[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
-pub struct PlayAnimation {
+pub struct PlayAnimation<T: EntityId> {
     /// Base node.
-    pub base: BasePoseNode,
+    pub base: BasePoseNode<T>,
 
     /// A handle to animation.
-    pub animation: Handle<Animation>,
+    pub animation: Handle<Animation<T>>,
 
     /// Output pose, it contains a filtered (see [`crate::animation::machine::LayerMask`] for more info) pose from
     /// the animation specified by the `animation` field.
     #[visit(skip)]
     #[reflect(hidden)]
-    pub output_pose: RefCell<AnimationPose>,
+    pub output_pose: RefCell<AnimationPose<T>>,
 }
 
-impl Deref for PlayAnimation {
-    type Target = BasePoseNode;
+impl<T: EntityId> Deref for PlayAnimation<T> {
+    type Target = BasePoseNode<T>;
 
     fn deref(&self) -> &Self::Target {
         &self.base
     }
 }
 
-impl DerefMut for PlayAnimation {
+impl<T: EntityId> DerefMut for PlayAnimation<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
     }
 }
 
-impl PlayAnimation {
+impl<T: EntityId> PlayAnimation<T> {
     /// Creates new PlayAnimation node with given animation handle.
-    pub fn new(animation: Handle<Animation>) -> Self {
+    pub fn new(animation: Handle<Animation<T>>) -> Self {
         Self {
             base: Default::default(),
             animation,
@@ -61,14 +61,14 @@ impl PlayAnimation {
     }
 }
 
-impl AnimationPoseSource for PlayAnimation {
+impl<T: EntityId> AnimationPoseSource<T> for PlayAnimation<T> {
     fn eval_pose(
         &self,
-        _nodes: &Pool<PoseNode>,
+        _nodes: &Pool<PoseNode<T>>,
         _params: &ParameterContainer,
-        animations: &AnimationContainer,
+        animations: &AnimationContainer<T>,
         _dt: f32,
-    ) -> Ref<AnimationPose> {
+    ) -> Ref<AnimationPose<T>> {
         if let Some(animation) = animations.try_get(self.animation) {
             let mut output_pose = self.output_pose.borrow_mut();
             animation.pose().clone_into(&mut output_pose);
@@ -78,17 +78,17 @@ impl AnimationPoseSource for PlayAnimation {
         self.output_pose.borrow()
     }
 
-    fn pose(&self) -> Ref<AnimationPose> {
+    fn pose(&self) -> Ref<AnimationPose<T>> {
         self.output_pose.borrow()
     }
 
     fn collect_animation_events(
         &self,
-        _nodes: &Pool<PoseNode>,
+        _nodes: &Pool<PoseNode<T>>,
         _params: &ParameterContainer,
-        animations: &AnimationContainer,
+        animations: &AnimationContainer<T>,
         _strategy: AnimationEventCollectionStrategy,
-    ) -> Vec<(Handle<Animation>, AnimationEvent)> {
+    ) -> Vec<(Handle<Animation<T>>, AnimationEvent)> {
         animations
             .try_get(self.animation)
             .map(|a| {

@@ -7,6 +7,7 @@ use crate::{
 };
 use fyrox::animation::machine::Transition;
 use fyrox::core::uuid_provider;
+use fyrox::scene::node::Node;
 use fyrox::{
     core::{algebra::Vector2, color::Color, color::Hsv, math::Rect, pool::Handle},
     core::{reflect::prelude::*, visitor::prelude::*},
@@ -46,7 +47,7 @@ impl TransitionMessage {
 pub struct TransitionView {
     widget: Widget,
     pub segment: Segment,
-    pub model_handle: Handle<Transition>,
+    pub model_handle: Handle<Transition<Handle<Node>>>,
     selectable: Selectable,
     activity_factor: f32,
 }
@@ -182,7 +183,11 @@ impl TransitionBuilder {
         self
     }
 
-    pub fn build(self, model_handle: Handle<Transition>, ctx: &mut BuildContext) -> Handle<UiNode> {
+    pub fn build(
+        self,
+        model_handle: Handle<Transition<Handle<Node>>>,
+        ctx: &mut BuildContext,
+    ) -> Handle<UiNode> {
         let transition = TransitionView {
             widget: self
                 .widget_builder

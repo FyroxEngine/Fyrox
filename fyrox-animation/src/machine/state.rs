@@ -9,9 +9,10 @@ use crate::{
         visitor::prelude::*,
     },
     machine::{AnimationPoseSource, ParameterContainer, PoseNode},
-    Animation, AnimationContainer, AnimationPose,
+    Animation, AnimationContainer, AnimationPose, EntityId,
 };
-use fyrox_core::{uuid_provider, NameProvider};
+use fyrox_core::uuid::{uuid, Uuid};
+use fyrox_core::{NameProvider, TypeUuidProvider};
 use std::{
     cell::Ref,
     ops::{Deref, DerefMut},
@@ -20,19 +21,23 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 #[doc(hidden)]
 #[derive(Default, Debug, Visit, Reflect, Clone, PartialEq)]
-pub struct StateActionWrapper(pub StateAction);
+pub struct StateActionWrapper<T: EntityId>(pub StateAction<T>);
 
-uuid_provider!(StateActionWrapper = "d686fac8-5cc1-46b1-82a4-7f4438cc078d");
+impl<T: EntityId> TypeUuidProvider for StateActionWrapper<T> {
+    fn type_uuid() -> Uuid {
+        uuid!("d686fac8-5cc1-46b1-82a4-7f4438cc078d")
+    }
+}
 
-impl Deref for StateActionWrapper {
-    type Target = StateAction;
+impl<T: EntityId> Deref for StateActionWrapper<T> {
+    type Target = StateAction<T>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl DerefMut for StateActionWrapper {
+impl<T: EntityId> DerefMut for StateActionWrapper<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
@@ -47,28 +52,32 @@ impl DerefMut for StateActionWrapper {
 #[derive(
     Default, Debug, Visit, Reflect, Clone, PartialEq, EnumVariantNames, EnumString, AsRefStr,
 )]
-pub enum StateAction {
+pub enum StateAction<T: EntityId> {
     /// No action.
     #[default]
     None,
     /// Rewinds the animation.
-    RewindAnimation(Handle<Animation>),
+    RewindAnimation(Handle<Animation<T>>),
     /// Enables the animation.
-    EnableAnimation(Handle<Animation>),
+    EnableAnimation(Handle<Animation<T>>),
     /// Disables the animation.
-    DisableAnimation(Handle<Animation>),
+    DisableAnimation(Handle<Animation<T>>),
     /// Enables random animation from the list. It could be useful if you want to add randomization
     /// to your state machine. For example, you may have few melee attack animations and all of them
     /// are suitable for every situation, in this case you can add randomization to make attacks less
     /// predictable.
-    EnableRandomAnimation(Vec<Handle<Animation>>),
+    EnableRandomAnimation(Vec<Handle<Animation<T>>>),
 }
 
-uuid_provider!(StateAction = "c50a15cc-0f63-4409-bbe0-74b9d3e94755");
+impl<T: EntityId> TypeUuidProvider for StateAction<T> {
+    fn type_uuid() -> Uuid {
+        uuid!("c50a15cc-0f63-4409-bbe0-74b9d3e94755")
+    }
+}
 
-impl StateAction {
+impl<T: EntityId> StateAction<T> {
     /// Applies the action to the given animation container.
-    pub fn apply(&self, animations: &mut AnimationContainer) {
+    pub fn apply(&self, animations: &mut AnimationContainer<T>) {
         match self {
             StateAction::None => {}
             StateAction::RewindAnimation(animation) => {
@@ -100,7 +109,7 @@ impl StateAction {
 /// State is a final "container" for animation pose. It has backing pose node which provides a set of values.
 /// States can be connected with each other using _transitions_, states with transitions form a state graph.
 #[derive(Default, Debug, Visit, Clone, Reflect, PartialEq)]
-pub struct State {
+pub struct State<T: EntityId> {
     /// Position of state on the canvas. It is editor-specific data.
     pub position: Vector2<f32>,
 
@@ -109,26 +118,26 @@ pub struct State {
 
     /// A set of actions that will be executed when entering the state.
     #[visit(optional)]
-    pub on_enter_actions: Vec<StateActionWrapper>,
+    pub on_enter_actions: Vec<StateActionWrapper<T>>,
 
     /// A set of actions that will be executed when leaving the state.
     #[visit(optional)]
-    pub on_leave_actions: Vec<StateActionWrapper>,
+    pub on_leave_actions: Vec<StateActionWrapper<T>>,
 
     /// Root node of the state that provides the state with animation data.
     #[reflect(read_only)]
-    pub root: Handle<PoseNode>,
+    pub root: Handle<PoseNode<T>>,
 }
 
-impl NameProvider for State {
+impl<T: EntityId> NameProvider for State<T> {
     fn name(&self) -> &str {
         &self.name
     }
 }
 
-impl State {
+impl<T: EntityId> State<T> {
     /// Creates new instance of state with a given pose.
-    pub fn new(name: &str, root: Handle<PoseNode>) -> Self {
+    pub fn new(name: &str, root: Handle<PoseNode<T>>) -> Self {
         Self {
             position: Default::default(),
             name: name.to_owned(),
@@ -139,15 +148,15 @@ impl State {
     }
 
     /// Returns a final pose of the state.
-    pub fn pose<'a>(&self, nodes: &'a Pool<PoseNode>) -> Option<Ref<'a, AnimationPose>> {
+    pub fn pose<'a>(&self, nodes: &'a Pool<PoseNode<T>>) -> Option<Ref<'a, AnimationPose<T>>> {
         nodes.try_borrow(self.root).map(|root| root.pose())
     }
 
     pub(super) fn update(
         &mut self,
-        nodes: &Pool<PoseNode>,
+        nodes: &Pool<PoseNode<T>>,
         params: &ParameterContainer,
-        animations: &AnimationContainer,
+        animations: &AnimationContainer<T>,
         dt: f32,
     ) {
         if let Some(root) = nodes.try_borrow(self.root) {

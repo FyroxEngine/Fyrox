@@ -59,7 +59,7 @@ const NORMAL_ROOT_COLOR: Color = Color::opaque(40, 80, 0);
 const SELECTED_ROOT_COLOR: Color = Color::opaque(60, 100, 0);
 
 struct PreviewModeData {
-    machine: Machine,
+    machine: Machine<Handle<Node>>,
     nodes: Vec<(Handle<Node>, Node)>,
 }
 
@@ -175,7 +175,7 @@ impl AbsmEditor {
 
     fn enter_preview_mode(
         &mut self,
-        machine: Machine,
+        machine: Machine<Handle<Node>>,
         animation_targets: FxHashSet<Handle<Node>>,
         scene: &Scene,
         ui: &UserInterface,
@@ -525,7 +525,7 @@ impl AbsmEditor {
                     AbsmNodeMessage::Enter => {
                         if let Some(node) = ui
                             .node(message.destination())
-                            .query_component::<AbsmNode<State>>()
+                            .query_component::<AbsmNode<State<Handle<Node>>>>()
                         {
                             if let Some(layer_index) = selection.layer {
                                 self.state_viewer.set_state(
@@ -541,7 +541,7 @@ impl AbsmEditor {
                     AbsmNodeMessage::Edit => {
                         if let Some(node) = ui
                             .node(message.destination())
-                            .query_component::<AbsmNode<PoseNode>>()
+                            .query_component::<AbsmNode<PoseNode<Handle<Node>>>>()
                         {
                             if let Some(layer_index) = selection.layer {
                                 let model_ref = &absm_node.machine().layers()[layer_index].nodes()
@@ -556,7 +556,7 @@ impl AbsmEditor {
                     AbsmNodeMessage::AddInput => {
                         if let Some(node) = ui
                             .node(message.destination())
-                            .query_component::<AbsmNode<PoseNode>>()
+                            .query_component::<AbsmNode<PoseNode<Handle<Node>>>>()
                         {
                             if let Some(layer_index) = selection.layer {
                                 let model_ref = &absm_node.machine().layers()[layer_index].nodes()

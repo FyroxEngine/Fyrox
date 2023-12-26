@@ -106,23 +106,23 @@ use std::ops::{Deref, DerefMut};
 #[derive(Visit, Reflect, Clone, Debug, Default)]
 pub struct AnimationBlendingStateMachine {
     base: Base,
-    machine: InheritableVariable<Machine>,
+    machine: InheritableVariable<Machine<Handle<Node>>>,
     animation_player: InheritableVariable<Handle<Node>>,
 }
 
 impl AnimationBlendingStateMachine {
     /// Sets new state machine to the node.
-    pub fn set_machine(&mut self, machine: Machine) {
+    pub fn set_machine(&mut self, machine: Machine<Handle<Node>>) {
         self.machine.set_value_and_mark_modified(machine);
     }
 
     /// Returns a reference to the state machine used by the node.
-    pub fn machine(&self) -> &InheritableVariable<Machine> {
+    pub fn machine(&self) -> &InheritableVariable<Machine<Handle<Node>>> {
         &self.machine
     }
 
     /// Returns a mutable reference to the state machine used by the node.
-    pub fn machine_mut(&mut self) -> &mut InheritableVariable<Machine> {
+    pub fn machine_mut(&mut self) -> &mut InheritableVariable<Machine<Handle<Node>>> {
         &mut self.machine
     }
 
@@ -214,7 +214,7 @@ impl NodeTrait for AnimationBlendingStateMachine {
 /// Animation blending state machine builder allows you to create state machines in declarative manner.
 pub struct AnimationBlendingStateMachineBuilder {
     base_builder: BaseBuilder,
-    machine: Machine,
+    machine: Machine<Handle<Node>>,
     animation_player: Handle<Node>,
 }
 
@@ -229,7 +229,7 @@ impl AnimationBlendingStateMachineBuilder {
     }
 
     /// Sets the desired state machine.
-    pub fn with_machine(mut self, machine: Machine) -> Self {
+    pub fn with_machine(mut self, machine: Machine<Handle<Node>>) -> Self {
         self.machine = machine;
         self
     }

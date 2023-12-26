@@ -12,9 +12,10 @@ use crate::{
         node::AnimationEventCollectionStrategy, node::BasePoseNode, AnimationPoseSource, Parameter,
         ParameterContainer, PoseNode,
     },
-    Animation, AnimationContainer, AnimationEvent, AnimationPose,
+    Animation, AnimationContainer, AnimationEvent, AnimationPose, EntityId,
 };
-use fyrox_core::uuid_provider;
+use fyrox_core::uuid::{uuid, Uuid};
+use fyrox_core::TypeUuidProvider;
 use spade::{DelaunayTriangulation, Point2, Triangulation};
 use std::cmp::Ordering;
 use std::{
@@ -23,18 +24,23 @@ use std::{
 };
 
 #[derive(Debug, Visit, Clone, Reflect, PartialEq, Default)]
-pub struct BlendSpacePoint {
+pub struct BlendSpacePoint<T: EntityId> {
     pub position: Vector2<f32>,
-    pub pose_source: Handle<PoseNode>,
+    pub pose_source: Handle<PoseNode<T>>,
 }
-uuid_provider!(BlendSpacePoint = "d163b4b9-aed6-447f-bb93-b7e539099417");
+
+impl<T: EntityId> TypeUuidProvider for BlendSpacePoint<T> {
+    fn type_uuid() -> Uuid {
+        uuid!("d163b4b9-aed6-447f-bb93-b7e539099417")
+    }
+}
 
 #[derive(Debug, Visit, Clone, Reflect, PartialEq)]
-pub struct BlendSpace {
-    base: BasePoseNode,
+pub struct BlendSpace<T: EntityId> {
+    base: BasePoseNode<T>,
 
     #[reflect(hidden)]
-    points: Vec<BlendSpacePoint>,
+    points: Vec<BlendSpacePoint<T>>,
 
     #[reflect(hidden)]
     triangles: Vec<TriangleDefinition>,
@@ -59,10 +65,10 @@ pub struct BlendSpace {
 
     #[reflect(hidden)]
     #[visit(skip)]
-    pose: RefCell<AnimationPose>,
+    pose: RefCell<AnimationPose<T>>,
 }
 
-impl Default for BlendSpace {
+impl<T: EntityId> Default for BlendSpace<T> {
     fn default() -> Self {
         Self {
             base: Default::default(),
@@ -79,28 +85,28 @@ impl Default for BlendSpace {
     }
 }
 
-impl Deref for BlendSpace {
-    type Target = BasePoseNode;
+impl<T: EntityId> Deref for BlendSpace<T> {
+    type Target = BasePoseNode<T>;
 
     fn deref(&self) -> &Self::Target {
         &self.base
     }
 }
 
-impl DerefMut for BlendSpace {
+impl<T: EntityId> DerefMut for BlendSpace<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.base
     }
 }
 
-impl AnimationPoseSource for BlendSpace {
+impl<T: EntityId> AnimationPoseSource<T> for BlendSpace<T> {
     fn eval_pose(
         &self,
-        nodes: &Pool<PoseNode>,
+        nodes: &Pool<PoseNode<T>>,
         params: &ParameterContainer,
-        animations: &AnimationContainer,
+        animations: &AnimationContainer<T>,
         dt: f32,
-    ) -> Ref<AnimationPose> {
+    ) -> Ref<AnimationPose<T>> {
         let mut pose = self.pose.borrow_mut();
 
         pose.reset();
@@ -129,17 +135,17 @@ impl AnimationPoseSource for BlendSpace {
         self.pose.borrow()
     }
 
-    fn pose(&self) -> Ref<AnimationPose> {
+    fn pose(&self) -> Ref<AnimationPose<T>> {
         self.pose.borrow()
     }
 
     fn collect_animation_events(
         &self,
-        nodes: &Pool<PoseNode>,
+        nodes: &Pool<PoseNode<T>>,
         params: &ParameterContainer,
-        animations: &AnimationContainer,
+        animations: &AnimationContainer<T>,
         strategy: AnimationEventCollectionStrategy,
-    ) -> Vec<(Handle<Animation>, AnimationEvent)> {
+    ) -> Vec<(Handle<Animation<T>>, AnimationEvent)> {
         if let Some(Parameter::SamplingPoint(sampling_point)) = params.get(&self.sampling_parameter)
         {
             if let Some(weights) = self.fetch_weights(*sampling_point) {
@@ -197,38 +203,38 @@ impl AnimationPoseSource for BlendSpace {
     }
 }
 
-pub struct PointsMut<'a> {
-    blend_space: &'a mut BlendSpace,
+pub struct PointsMut<'a, T: EntityId> {
+    blend_space: &'a mut BlendSpace<T>,
 }
 
-impl<'a> Deref for PointsMut<'a> {
-    type Target = Vec<BlendSpacePoint>;
+impl<'a, T: EntityId> Deref for PointsMut<'a, T> {
+    type Target = Vec<BlendSpacePoint<T>>;
 
     fn deref(&self) -> &Self::Target {
         &self.blend_space.points
     }
 }
 
-impl<'a> DerefMut for PointsMut<'a> {
+impl<'a, T: EntityId> DerefMut for PointsMut<'a, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.blend_space.points
     }
 }
 
-impl<'a> Drop for PointsMut<'a> {
+impl<'a, T: EntityId> Drop for PointsMut<'a, T> {
     fn drop(&mut self) {
         self.blend_space.triangulate();
     }
 }
 
-impl BlendSpace {
-    pub fn add_point(&mut self, point: BlendSpacePoint) -> bool {
+impl<T: EntityId> BlendSpace<T> {
+    pub fn add_point(&mut self, point: BlendSpacePoint<T>) -> bool {
         self.points.push(point);
         self.triangulate()
     }
 
     /// Sets new points to the blend space.
-    pub fn set_points(&mut self, points: Vec<BlendSpacePoint>) -> bool {
+    pub fn set_points(&mut self, points: Vec<BlendSpacePoint<T>>) -> bool {
         self.points = points;
         self.triangulate()
     }
@@ -238,11 +244,11 @@ impl BlendSpace {
         self.triangles.clear();
     }
 
-    pub fn points(&self) -> &[BlendSpacePoint] {
+    pub fn points(&self) -> &[BlendSpacePoint<T>] {
         &self.points
     }
 
-    pub fn points_mut(&mut self) -> PointsMut {
+    pub fn points_mut(&mut self) -> PointsMut<T> {
         PointsMut { blend_space: self }
     }
 
@@ -250,7 +256,7 @@ impl BlendSpace {
         &self.triangles
     }
 
-    pub fn children(&self) -> Vec<Handle<PoseNode>> {
+    pub fn children(&self) -> Vec<Handle<PoseNode<T>>> {
         self.points.iter().map(|p| p.pose_source).collect()
     }
 
@@ -429,10 +435,11 @@ mod test {
         core::{algebra::Vector2, math::TriangleDefinition},
         machine::node::blendspace::{BlendSpace, BlendSpacePoint},
     };
+    use fyrox_core::pool::ErasedHandle;
 
     #[test]
     fn test_blend_space_triangulation() {
-        let mut blend_space = BlendSpace::default();
+        let mut blend_space = BlendSpace::<ErasedHandle>::default();
 
         blend_space.set_points(vec![
             BlendSpacePoint {
@@ -463,14 +470,14 @@ mod test {
 
     #[test]
     fn test_empty_blend_space_sampling() {
-        assert!(BlendSpace::default()
+        assert!(BlendSpace::<ErasedHandle>::default()
             .fetch_weights(Default::default())
             .is_none())
     }
 
     #[test]
     fn test_single_point_blend_space_sampling() {
-        let mut blend_space = BlendSpace::default();
+        let mut blend_space = BlendSpace::<ErasedHandle>::default();
 
         blend_space.set_points(vec![BlendSpacePoint {
             position: Vector2::new(0.0, 0.0),
@@ -485,7 +492,7 @@ mod test {
 
     #[test]
     fn test_two_points_blend_space_sampling() {
-        let mut blend_space = BlendSpace::default();
+        let mut blend_space = BlendSpace::<ErasedHandle>::default();
 
         blend_space.set_points(vec![
             BlendSpacePoint {

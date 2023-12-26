@@ -638,7 +638,7 @@ async fn convert_model(
     model: &FbxModel,
     resource_manager: ResourceManager,
     graph: &mut Graph,
-    animation: &mut Animation,
+    animation: &mut Animation<Handle<Node>>,
     model_path: &Path,
     model_import_options: &ModelImportOptions,
 ) -> Result<Handle<Node>, FbxError> {
@@ -682,7 +682,7 @@ async fn convert_model(
         }
 
         fn fill_track<F: Fn(f32) -> f32>(
-            track: &mut Track,
+            track: &mut Track<Handle<Node>>,
             fbx_scene: &FbxScene,
             fbx_track: &FbxAnimationCurveNode,
             default: Vector3<f32>,
@@ -730,7 +730,7 @@ async fn convert_model(
             }
         }
 
-        fn add_vec3_key(track: &mut Track, value: Vector3<f32>) {
+        fn add_vec3_key(track: &mut Track<Handle<Node>>, value: Vector3<f32>) {
             let curves = track.data_container_mut().curves_mut();
             curves[0].add_key(CurveKey::new(0.0, value.x, CurveKeyKind::Constant));
             curves[1].add_key(CurveKey::new(0.0, value.y, CurveKeyKind::Constant));

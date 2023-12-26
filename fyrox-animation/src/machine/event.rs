@@ -4,40 +4,41 @@
 use crate::{
     core::pool::Handle,
     machine::{State, Transition},
+    EntityId,
 };
 use std::collections::VecDeque;
 
 /// Specific state machine event.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Event {
+pub enum Event<T: EntityId> {
     /// Occurs when enter some state. See module docs for example.
-    StateEnter(Handle<State>),
+    StateEnter(Handle<State<T>>),
 
     /// Occurs when leaving some state. See module docs for example.
-    StateLeave(Handle<State>),
+    StateLeave(Handle<State<T>>),
 
     /// Occurs when a transition is done and a new active state was set.
     ActiveStateChanged {
         /// Previously active state.
-        prev: Handle<State>,
+        prev: Handle<State<T>>,
 
         /// New active state.
-        new: Handle<State>,
+        new: Handle<State<T>>,
     },
 
     /// Occurs when active transition was changed.
-    ActiveTransitionChanged(Handle<Transition>),
+    ActiveTransitionChanged(Handle<Transition<T>>),
 }
 
 /// A simple event queue with fixed capacity. It is used to store a fixed amount of events and discard any
 /// events when the queue is full.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct FixedEventQueue {
-    queue: VecDeque<Event>,
+pub struct FixedEventQueue<T: EntityId> {
+    queue: VecDeque<Event<T>>,
     limit: u32,
 }
 
-impl Default for FixedEventQueue {
+impl<T: EntityId> Default for FixedEventQueue<T> {
     fn default() -> Self {
         Self {
             queue: Default::default(),
@@ -46,7 +47,7 @@ impl Default for FixedEventQueue {
     }
 }
 
-impl FixedEventQueue {
+impl<T: EntityId> FixedEventQueue<T> {
     /// Creates a new queue with given limit.
     pub fn new(limit: u32) -> Self {
         Self {
@@ -56,14 +57,14 @@ impl FixedEventQueue {
     }
 
     /// Pushes an event to the queue.
-    pub fn push(&mut self, event: Event) {
+    pub fn push(&mut self, event: Event<T>) {
         if self.queue.len() < (self.limit as usize) {
             self.queue.push_back(event);
         }
     }
 
     /// Pops an event from the queue.
-    pub fn pop(&mut self) -> Option<Event> {
+    pub fn pop(&mut self) -> Option<Event<T>> {
         self.queue.pop_front()
     }
 }

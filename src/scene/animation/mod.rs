@@ -35,7 +35,7 @@ pub trait AnimationContainerExt {
     fn update_animations(&mut self, nodes: &mut NodePool, apply: bool, dt: f32);
 }
 
-impl AnimationContainerExt for AnimationContainer {
+impl AnimationContainerExt for AnimationContainer<Handle<Node>> {
     fn update_animations(&mut self, nodes: &mut NodePool, apply: bool, dt: f32) {
         for animation in self.iter_mut().filter(|anim| anim.is_enabled()) {
             animation.tick(dt);
@@ -58,15 +58,15 @@ pub trait AnimationPoseExt {
     /// rules. This could be useful if you need to ignore transform some part of pose for a node.
     fn apply_with<C>(&self, graph: &mut Graph, callback: C)
     where
-        C: FnMut(&mut Node, Handle<Node>, &NodePose);
+        C: FnMut(&mut Node, Handle<Node>, &NodePose<Handle<Node>>);
 }
 
-impl AnimationPoseExt for AnimationPose {
+impl AnimationPoseExt for AnimationPose<Handle<Node>> {
     fn apply_internal(&self, nodes: &mut NodePool) {
         for (node, local_pose) in self.poses() {
             if node.is_none() {
                 Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
-            } else if let Some(node) = nodes.try_borrow_mut(Handle::from(*node)) {
+            } else if let Some(node) = nodes.try_borrow_mut(*node) {
                 local_pose.values.apply(node);
             }
         }
@@ -76,7 +76,7 @@ impl AnimationPoseExt for AnimationPose {
         for (node, local_pose) in self.poses() {
             if node.is_none() {
                 Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
-            } else if let Some(node) = graph.try_get_mut(Handle::from(*node)) {
+            } else if let Some(node) = graph.try_get_mut(*node) {
                 local_pose.values.apply(node);
             }
         }
@@ -84,13 +84,13 @@ impl AnimationPoseExt for AnimationPose {
 
     fn apply_with<C>(&self, graph: &mut Graph, mut callback: C)
     where
-        C: FnMut(&mut Node, Handle<Node>, &NodePose),
+        C: FnMut(&mut Node, Handle<Node>, &NodePose<Handle<Node>>),
     {
         for (node, local_pose) in self.poses() {
             if node.is_none() {
                 Log::writeln(MessageKind::Error, "Invalid node handle found for animation pose, most likely it means that animation retargeting failed!");
-            } else if let Some(node_ref) = graph.try_get_mut(Handle::from(*node)) {
-                callback(node_ref, Handle::from(*node), local_pose);
+            } else if let Some(node_ref) = graph.try_get_mut(*node) {
+                callback(node_ref, *node, local_pose);
             }
         }
     }
@@ -174,14 +174,9 @@ pub trait LayerMaskExt {
     fn from_hierarchy(graph: &Graph, root: ErasedHandle) -> Self;
 }
 
-impl LayerMaskExt for LayerMask {
+impl LayerMaskExt for LayerMask<Handle<Node>> {
     fn from_hierarchy(graph: &Graph, root: ErasedHandle) -> Self {
-        Self::from(
-            graph
-                .traverse_handle_iter(root.into())
-                .map(ErasedHandle::from)
-                .collect::<Vec<_>>(),
-        )
+        Self::from(graph.traverse_handle_iter(root.into()).collect::<Vec<_>>())
     }
 }
 
@@ -210,7 +205,7 @@ impl LayerMaskExt for LayerMask {
 ///     scene::{animation::AnimationPlayerBuilder, base::BaseBuilder, graph::Graph, node::Node},
 /// };
 ///
-/// fn create_bounce_animation(animated_node: Handle<Node>) -> Animation {
+/// fn create_bounce_animation(animated_node: Handle<Node>) -> Animation<Handle<Node>> {
 ///     let mut frames_container = TrackDataContainer::new(TrackValueKind::Vector3);
 ///
 ///     // We'll animate only Y coordinate (at index 1).
@@ -257,7 +252,7 @@ impl LayerMaskExt for LayerMask {
 #[derive(Visit, Reflect, Clone, Debug)]
 pub struct AnimationPlayer {
     base: Base,
-    animations: InheritableVariable<AnimationContainer>,
+    animations: InheritableVariable<AnimationContainer<Handle<Node>>>,
     auto_apply: bool,
 }
 
@@ -287,18 +282,18 @@ impl AnimationPlayer {
     }
 
     /// Returns a reference to internal animations container.
-    pub fn animations(&self) -> &InheritableVariable<AnimationContainer> {
+    pub fn animations(&self) -> &InheritableVariable<AnimationContainer<Handle<Node>>> {
         &self.animations
     }
 
     /// Returns a reference to internal animations container. Keep in mind that mutable access to [`InheritableVariable`]
     /// may have side effects if used inappropriately. Checks docs for [`InheritableVariable`] for more info.
-    pub fn animations_mut(&mut self) -> &mut InheritableVariable<AnimationContainer> {
+    pub fn animations_mut(&mut self) -> &mut InheritableVariable<AnimationContainer<Handle<Node>>> {
         &mut self.animations
     }
 
     /// Sets new animations container of the animation player.
-    pub fn set_animations(&mut self, animations: AnimationContainer) {
+    pub fn set_animations(&mut self, animations: AnimationContainer<Handle<Node>>) {
         self.animations.set_value_and_mark_modified(animations);
     }
 }
@@ -350,7 +345,7 @@ impl NodeTrait for AnimationPlayer {
 /// A builder for [`AnimationPlayer`] node.
 pub struct AnimationPlayerBuilder {
     base_builder: BaseBuilder,
-    animations: AnimationContainer,
+    animations: AnimationContainer<Handle<Node>>,
     auto_apply: bool,
 }
 
@@ -365,7 +360,7 @@ impl AnimationPlayerBuilder {
     }
 
     /// Sets a container with desired animations.
-    pub fn with_animations(mut self, animations: AnimationContainer) -> Self {
+    pub fn with_animations(mut self, animations: AnimationContainer<Handle<Node>>) -> Self {
         self.animations = animations;
         self
     }

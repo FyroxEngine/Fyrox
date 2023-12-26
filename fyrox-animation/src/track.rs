@@ -4,23 +4,23 @@ use crate::{
     container::{TrackDataContainer, TrackValueKind},
     core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
     value::{BoundValue, ValueBinding},
+    EntityId,
 };
-use fyrox_core::pool::ErasedHandle;
 use std::fmt::Debug;
 
 /// Track is responsible in animating a property of a single scene node. The track consists up to 4 parametric curves
 /// that contains the actual property data. Parametric curves allows the engine to perform various interpolations between
 /// key values.
 #[derive(Debug, Reflect, Clone, PartialEq)]
-pub struct Track {
+pub struct Track<T: EntityId> {
     binding: ValueBinding,
     frames: TrackDataContainer,
     enabled: bool,
-    target: ErasedHandle,
+    target: T,
     id: Uuid,
 }
 
-impl Visit for Track {
+impl<T: EntityId> Visit for Track<T> {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
@@ -35,7 +35,7 @@ impl Visit for Track {
     }
 }
 
-impl Default for Track {
+impl<T: EntityId> Default for Track<T> {
     fn default() -> Self {
         Self {
             binding: ValueBinding::Position,
@@ -47,7 +47,7 @@ impl Default for Track {
     }
 }
 
-impl Track {
+impl<T: EntityId> Track<T> {
     /// Creates a new track that will animate a property in the given binding. The `container` must have enough parametric
     /// curves to be able to produces property values.
     pub fn new(container: TrackDataContainer, binding: ValueBinding) -> Self {
@@ -86,7 +86,7 @@ impl Track {
     }
 
     /// Sets target of the track.
-    pub fn with_target(mut self, target: ErasedHandle) -> Self {
+    pub fn with_target(mut self, target: T) -> Self {
         self.target = target;
         self
     }
@@ -102,12 +102,12 @@ impl Track {
     }
 
     /// Sets a handle of a node that will be animated.
-    pub fn set_target<H: Into<ErasedHandle>>(&mut self, target: H) {
-        self.target = target.into();
+    pub fn set_target(&mut self, target: T) {
+        self.target = target;
     }
 
     /// Returns a handle of a node that will be animated.
-    pub fn target(&self) -> ErasedHandle {
+    pub fn target(&self) -> T {
         self.target
     }
 

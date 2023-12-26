@@ -34,12 +34,16 @@ fn fetch_animation_player<'a>(
 #[derive(Debug)]
 pub struct AddTrackCommand {
     animation_player: Handle<Node>,
-    animation: Handle<Animation>,
-    track: Option<Track>,
+    animation: Handle<Animation<Handle<Node>>>,
+    track: Option<Track<Handle<Node>>>,
 }
 
 impl AddTrackCommand {
-    pub fn new(animation_player: Handle<Node>, animation: Handle<Animation>, track: Track) -> Self {
+    pub fn new(
+        animation_player: Handle<Node>,
+        animation: Handle<Animation<Handle<Node>>>,
+        track: Track<Handle<Node>>,
+    ) -> Self {
         Self {
             animation_player,
             animation,
@@ -68,13 +72,17 @@ impl GameSceneCommandTrait for AddTrackCommand {
 #[derive(Debug)]
 pub struct RemoveTrackCommand {
     animation_player: Handle<Node>,
-    animation: Handle<Animation>,
+    animation: Handle<Animation<Handle<Node>>>,
     index: usize,
-    track: Option<Track>,
+    track: Option<Track<Handle<Node>>>,
 }
 
 impl RemoveTrackCommand {
-    pub fn new(animation_player: Handle<Node>, animation: Handle<Animation>, index: usize) -> Self {
+    pub fn new(
+        animation_player: Handle<Node>,
+        animation: Handle<Animation<Handle<Node>>>,
+        index: usize,
+    ) -> Self {
         Self {
             animation_player,
             animation,
@@ -105,7 +113,7 @@ impl GameSceneCommandTrait for RemoveTrackCommand {
 #[derive(Debug)]
 pub struct ReplaceTrackCurveCommand {
     pub animation_player: Handle<Node>,
-    pub animation: Handle<Animation>,
+    pub animation: Handle<Animation<Handle<Node>>>,
     pub curve: Curve,
 }
 
@@ -146,23 +154,23 @@ pub enum AddAnimationCommand {
     Unknown,
     NonExecuted {
         animation_player: Handle<Node>,
-        animation: Animation,
+        animation: Animation<Handle<Node>>,
     },
     Executed {
         animation_player: Handle<Node>,
-        animation: Handle<Animation>,
+        animation: Handle<Animation<Handle<Node>>>,
         selection: Selection,
     },
     Reverted {
         animation_player: Handle<Node>,
-        animation: Animation,
-        ticket: Ticket<Animation>,
+        animation: Animation<Handle<Node>>,
+        ticket: Ticket<Animation<Handle<Node>>>,
         selection: Selection,
     },
 }
 
 impl AddAnimationCommand {
-    pub fn new(animation_player: Handle<Node>, animation: Animation) -> Self {
+    pub fn new(animation_player: Handle<Node>, animation: Animation<Handle<Node>>) -> Self {
         Self::NonExecuted {
             animation_player,
             animation,
@@ -265,21 +273,21 @@ pub enum RemoveAnimationCommand {
     Unknown,
     NonExecuted {
         animation_player: Handle<Node>,
-        animation: Handle<Animation>,
+        animation: Handle<Animation<Handle<Node>>>,
     },
     Executed {
         animation_player: Handle<Node>,
-        animation: Animation,
-        ticket: Ticket<Animation>,
+        animation: Animation<Handle<Node>>,
+        ticket: Ticket<Animation<Handle<Node>>>,
     },
     Reverted {
         animation_player: Handle<Node>,
-        animation: Handle<Animation>,
+        animation: Handle<Animation<Handle<Node>>>,
     },
 }
 
 impl RemoveAnimationCommand {
-    pub fn new(animation_player: Handle<Node>, animation: Handle<Animation>) -> Self {
+    pub fn new(animation_player: Handle<Node>, animation: Handle<Animation<Handle<Node>>>) -> Self {
         Self::NonExecuted {
             animation_player,
             animation,
@@ -353,8 +361,8 @@ impl GameSceneCommandTrait for RemoveAnimationCommand {
 #[derive(Debug)]
 pub struct ReplaceAnimationCommand {
     pub animation_player: Handle<Node>,
-    pub animation_handle: Handle<Animation>,
-    pub animation: Animation,
+    pub animation_handle: Handle<Animation<Handle<Node>>>,
+    pub animation: Animation<Handle<Node>>,
 }
 
 impl ReplaceAnimationCommand {
@@ -388,7 +396,7 @@ macro_rules! define_animation_swap_command {
         #[derive(Debug)]
         pub struct $name {
             pub node_handle: Handle<Node>,
-            pub animation_handle: Handle<Animation>,
+            pub animation_handle: Handle<Animation<Handle<Node>>>,
             pub value: $value_type,
         }
 
@@ -416,9 +424,9 @@ macro_rules! define_animation_swap_command {
 
 fn fetch_animation<'a>(
     animation_player: Handle<Node>,
-    animation: Handle<Animation>,
+    animation: Handle<Animation<Handle<Node>>>,
     ctx: &'a mut GameSceneContext,
-) -> &'a mut Animation {
+) -> &'a mut Animation<Handle<Node>> {
     fetch_animation_player(animation_player, ctx)
         .animations_mut()
         .index_mut(animation)
@@ -459,7 +467,7 @@ define_animation_swap_command!(SetAnimationEnabledCommand<bool>(self, context) {
     self.value = old;
 });
 
-define_animation_swap_command!(SetAnimationRootMotionSettingsCommand<Option<RootMotionSettings>>(self, context) {
+define_animation_swap_command!(SetAnimationRootMotionSettingsCommand<Option<RootMotionSettings<Handle<Node>>>>(self, context) {
     let animation = fetch_animation(self.node_handle, self.animation_handle, context);
     let old = animation.root_motion_settings_ref().cloned();
     animation.set_root_motion_settings(self.value.clone());
@@ -469,7 +477,7 @@ define_animation_swap_command!(SetAnimationRootMotionSettingsCommand<Option<Root
 #[derive(Debug)]
 pub struct AddAnimationSignal {
     pub animation_player_handle: Handle<Node>,
-    pub animation_handle: Handle<Animation>,
+    pub animation_handle: Handle<Animation<Handle<Node>>>,
     pub signal: Option<AnimationSignal>,
 }
 
@@ -492,7 +500,7 @@ impl GameSceneCommandTrait for AddAnimationSignal {
 #[derive(Debug)]
 pub struct MoveAnimationSignal {
     pub animation_player_handle: Handle<Node>,
-    pub animation_handle: Handle<Animation>,
+    pub animation_handle: Handle<Animation<Handle<Node>>>,
     pub signal: Uuid,
     pub time: f32,
 }
@@ -528,7 +536,7 @@ impl GameSceneCommandTrait for MoveAnimationSignal {
 #[derive(Debug)]
 pub struct RemoveAnimationSignal {
     pub animation_player_handle: Handle<Node>,
-    pub animation_handle: Handle<Animation>,
+    pub animation_handle: Handle<Animation<Handle<Node>>>,
     pub signal_index: usize,
     pub signal: Option<AnimationSignal>,
 }
@@ -554,7 +562,7 @@ impl GameSceneCommandTrait for RemoveAnimationSignal {
 #[derive(Debug)]
 pub struct SetTrackEnabledCommand {
     pub animation_player_handle: Handle<Node>,
-    pub animation_handle: Handle<Animation>,
+    pub animation_handle: Handle<Animation<Handle<Node>>>,
     pub track: Uuid,
     pub enabled: bool,
 }
@@ -590,7 +598,7 @@ impl GameSceneCommandTrait for SetTrackEnabledCommand {
 #[derive(Debug)]
 pub struct SetTrackTargetCommand {
     pub animation_player_handle: Handle<Node>,
-    pub animation_handle: Handle<Animation>,
+    pub animation_handle: Handle<Animation<Handle<Node>>>,
     pub track: Uuid,
     pub target: Handle<Node>,
 }
@@ -626,7 +634,7 @@ impl GameSceneCommandTrait for SetTrackTargetCommand {
 #[derive(Debug)]
 pub struct SetTrackBindingCommand {
     pub animation_player_handle: Handle<Node>,
-    pub animation_handle: Handle<Animation>,
+    pub animation_handle: Handle<Animation<Handle<Node>>>,
     pub track: Uuid,
     pub binding: ValueBinding,
 }
