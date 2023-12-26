@@ -965,7 +965,7 @@ mod test {
 
     #[test]
     fn test_navmesh() {
-        let mut navmesh = Navmesh::new(
+        let navmesh = Navmesh::new(
             vec![
                 TriangleDefinition([0, 1, 3]),
                 TriangleDefinition([1, 2, 3]),
@@ -989,7 +989,7 @@ mod test {
         let mut agent = NavmeshAgent::new();
 
         agent.set_target(Vector3::new(3.0, 0.0, 1.0));
-        agent.update(1.0 / 60.0, &mut navmesh).unwrap();
+        agent.update(1.0 / 60.0, &navmesh).unwrap();
 
         let graph = &navmesh.graph;
 

@@ -1,20 +1,16 @@
 //! Various animation blending nodes.
 
-use crate::animation::machine::node::AnimationEventCollectionStrategy;
-use crate::animation::{Animation, AnimationEvent};
 use crate::{
-    animation::{
-        machine::{
-            node::BasePoseNode, AnimationPoseSource, Parameter, ParameterContainer, PoseNode,
-            PoseWeight,
-        },
-        AnimationContainer, AnimationPose,
-    },
     core::{
         pool::{Handle, Pool},
         reflect::prelude::*,
         visitor::{Visit, VisitResult, Visitor},
     },
+    machine::{
+        node::AnimationEventCollectionStrategy, node::BasePoseNode, AnimationPoseSource, Parameter,
+        ParameterContainer, PoseNode, PoseWeight,
+    },
+    Animation, AnimationContainer, AnimationEvent, AnimationPose,
 };
 use fyrox_core::uuid_provider;
 use std::cmp::Ordering;

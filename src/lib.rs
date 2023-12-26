@@ -9,7 +9,7 @@
 #![allow(clippy::from_over_into)]
 #![allow(clippy::approx_constant)]
 
-pub mod animation;
+pub use fyrox_animation as animation;
 pub mod engine;
 pub mod material;
 pub mod plugin;

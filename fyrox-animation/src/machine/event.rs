@@ -2,8 +2,8 @@
 //! needed to works with such events.
 
 use crate::{
-    animation::machine::{State, Transition},
     core::pool::Handle,
+    machine::{State, Transition},
 };
 use std::collections::VecDeque;
 

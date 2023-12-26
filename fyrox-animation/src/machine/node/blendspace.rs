@@ -1,14 +1,6 @@
 #![allow(missing_docs)] // TODO
 
-use crate::animation::machine::node::AnimationEventCollectionStrategy;
-use crate::animation::{Animation, AnimationEvent};
 use crate::{
-    animation::{
-        machine::{
-            node::BasePoseNode, AnimationPoseSource, Parameter, ParameterContainer, PoseNode,
-        },
-        AnimationContainer, AnimationPose,
-    },
     core::{
         algebra::Vector2,
         math::{self, TriangleDefinition},
@@ -16,6 +8,11 @@ use crate::{
         reflect::prelude::*,
         visitor::prelude::*,
     },
+    machine::{
+        node::AnimationEventCollectionStrategy, node::BasePoseNode, AnimationPoseSource, Parameter,
+        ParameterContainer, PoseNode,
+    },
+    Animation, AnimationContainer, AnimationEvent, AnimationPose,
 };
 use fyrox_core::uuid_provider;
 use spade::{DelaunayTriangulation, Point2, Triangulation};
@@ -429,8 +426,8 @@ impl BlendSpace {
 #[cfg(test)]
 mod test {
     use crate::{
-        animation::machine::node::blendspace::{BlendSpace, BlendSpacePoint},
         core::{algebra::Vector2, math::TriangleDefinition},
+        machine::node::blendspace::{BlendSpace, BlendSpacePoint},
     };
 
     #[test]

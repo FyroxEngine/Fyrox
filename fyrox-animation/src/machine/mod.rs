@@ -6,15 +6,15 @@
 #![warn(missing_docs)]
 
 use crate::{
-    animation::{AnimationContainer, AnimationPose},
     core::{
         reflect::prelude::*,
         visitor::{Visit, VisitResult, Visitor},
     },
-    utils,
+    AnimationContainer, AnimationPose,
 };
 
 pub use event::Event;
+use fyrox_core::{find_by_name_mut, find_by_name_ref};
 pub use layer::MachineLayer;
 pub use mask::LayerMask;
 pub use node::{
@@ -122,8 +122,8 @@ pub mod transition;
 /// using code like so:
 ///
 /// ```no_run
-/// use fyrox::{
-///     animation::machine::{
+/// use fyrox_animation::{
+///     machine::{
 ///         Machine, State, Transition, PoseNode,
 ///         Parameter, PlayAnimation, PoseWeight, BlendAnimations, BlendPose
 ///     },
@@ -193,7 +193,7 @@ impl Machine {
     /// The method returns a reference to the machine, so the calls could be chained:
     ///
     /// ```rust
-    /// use fyrox::animation::machine::{Machine, Parameter};
+    /// use fyrox_animation::machine::{Machine, Parameter};
     ///
     /// let mut machine = Machine::new();
     ///
@@ -266,7 +266,7 @@ impl Machine {
     /// Tries to find a layer by its name. Returns index of the layer and its reference.
     #[inline]
     pub fn find_layer_by_name_ref<S: AsRef<str>>(&self, name: S) -> Option<(usize, &MachineLayer)> {
-        utils::find_by_name_ref(self.layers.iter().enumerate(), name)
+        find_by_name_ref(self.layers.iter().enumerate(), name)
     }
 
     /// Tries to find a layer by its name. Returns index of the layer and its reference.
@@ -275,7 +275,7 @@ impl Machine {
         &mut self,
         name: S,
     ) -> Option<(usize, &mut MachineLayer)> {
-        utils::find_by_name_mut(self.layers.iter_mut().enumerate(), name)
+        find_by_name_mut(self.layers.iter_mut().enumerate(), name)
     }
 
     /// Returns final pose of the machine.

@@ -1,16 +1,12 @@
 //! A module that contains everything related to numeric values of animation tracks. See [`TrackValue`] docs
 //! for more info.
 
-use crate::{
-    core::{
-        algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
-        log::Log,
-        math::lerpf,
-        num_traits::AsPrimitive,
-        reflect::{prelude::*, SetFieldByPathError},
-        visitor::prelude::*,
-    },
-    scene::node::Node,
+use crate::core::{
+    algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
+    math::lerpf,
+    num_traits::AsPrimitive,
+    reflect::prelude::*,
+    visitor::prelude::*,
 };
 use std::fmt::{Debug, Display, Formatter};
 
@@ -324,69 +320,6 @@ impl BoundValueCollection {
         for value in self.values.iter_mut() {
             if let Some(other_value) = other.values.iter().find(|v| v.binding == value.binding) {
                 value.blend_with(other_value, weight);
-            }
-        }
-    }
-
-    /// Tries to set each value from the collection to the respective property (by binding) of the given scene node.
-    pub fn apply(&self, node_ref: &mut Node) {
-        for bound_value in self.values.iter() {
-            match bound_value.binding {
-                ValueBinding::Position => {
-                    if let TrackValue::Vector3(v) = bound_value.value {
-                        node_ref.local_transform_mut().set_position(v);
-                    } else {
-                        Log::err(
-                            "Unable to apply position, because underlying type is not Vector3!",
-                        )
-                    }
-                }
-                ValueBinding::Scale => {
-                    if let TrackValue::Vector3(v) = bound_value.value {
-                        node_ref.local_transform_mut().set_scale(v);
-                    } else {
-                        Log::err("Unable to apply scaling, because underlying type is not Vector3!")
-                    }
-                }
-                ValueBinding::Rotation => {
-                    if let TrackValue::UnitQuaternion(v) = bound_value.value {
-                        node_ref.local_transform_mut().set_rotation(v);
-                    } else {
-                        Log::err("Unable to apply rotation, because underlying type is not UnitQuaternion!")
-                    }
-                }
-                ValueBinding::Property {
-                    name: ref property_name,
-                    value_type,
-                } => {
-                    if let Some(casted) = bound_value.value.numeric_type_cast(value_type) {
-                        let mut casted = Some(casted);
-                        node_ref.as_reflect_mut(&mut |node_ref| {
-                            node_ref.set_field_by_path(
-                                property_name,
-                                casted.take().unwrap(),
-                                &mut |result| {
-                                    if let Err(err) = result {
-                                        match err {
-                                            SetFieldByPathError::InvalidPath { reason, .. } => {
-                                                Log::err(format!(
-                                                    "Failed to set property {}! Invalid path: {}",
-                                                    property_name, reason
-                                                ));
-                                            }
-                                            SetFieldByPathError::InvalidValue(_) => {
-                                                Log::err(format!(
-                                                    "Failed to set property {}! Types mismatch!",
-                                                    property_name
-                                                ));
-                                            }
-                                        }
-                                    }
-                                },
-                            )
-                        })
-                    }
-                }
             }
         }
     }

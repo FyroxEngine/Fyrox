@@ -1,13 +1,11 @@
 //! Track is responsible in animating a property of a single scene node. See [`Track`] docs for more info.
 
 use crate::{
-    animation::{
-        container::{TrackDataContainer, TrackValueKind},
-        value::{BoundValue, ValueBinding},
-    },
-    core::{pool::Handle, reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
-    scene::node::Node,
+    container::{TrackDataContainer, TrackValueKind},
+    core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
+    value::{BoundValue, ValueBinding},
 };
+use fyrox_core::pool::ErasedHandle;
 use std::fmt::Debug;
 
 /// Track is responsible in animating a property of a single scene node. The track consists up to 4 parametric curves
@@ -18,7 +16,7 @@ pub struct Track {
     binding: ValueBinding,
     frames: TrackDataContainer,
     enabled: bool,
-    target: Handle<Node>,
+    target: ErasedHandle,
     id: Uuid,
 }
 
@@ -88,7 +86,7 @@ impl Track {
     }
 
     /// Sets target of the track.
-    pub fn with_target(mut self, target: Handle<Node>) -> Self {
+    pub fn with_target(mut self, target: ErasedHandle) -> Self {
         self.target = target;
         self
     }
@@ -104,12 +102,12 @@ impl Track {
     }
 
     /// Sets a handle of a node that will be animated.
-    pub fn set_target(&mut self, target: Handle<Node>) {
-        self.target = target;
+    pub fn set_target<H: Into<ErasedHandle>>(&mut self, target: H) {
+        self.target = target.into();
     }
 
     /// Returns a handle of a node that will be animated.
-    pub fn target(&self) -> Handle<Node> {
+    pub fn target(&self) -> ErasedHandle {
         self.target
     }
 

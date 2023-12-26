@@ -13,7 +13,7 @@ use crate::{
         TypeUuidProvider,
     },
     scene::{
-        animation::AnimationPlayer,
+        animation::{AnimationPlayer, AnimationPoseExt},
         base::{Base, BaseBuilder},
         graph::Graph,
         node::{Node, NodeTrait, UpdateContext},

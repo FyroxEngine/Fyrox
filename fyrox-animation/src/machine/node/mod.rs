@@ -1,21 +1,18 @@
 //! Node is a part of animation blending tree, that backs a state with animation data. See [`PoseNode`] docs for
 //! more info.
 
-use crate::animation::AnimationEvent;
 use crate::{
-    animation::{
-        machine::{
-            node::{blend::BlendAnimations, blendspace::BlendSpace, play::PlayAnimation},
-            BlendAnimationsByIndex, BlendPose, IndexedBlendInput, ParameterContainer, State,
-        },
-        Animation, AnimationContainer, AnimationPose,
-    },
     core::{
         algebra::Vector2,
         pool::{Handle, Pool},
         reflect::prelude::*,
         visitor::prelude::*,
     },
+    machine::{
+        node::{blend::BlendAnimations, blendspace::BlendSpace, play::PlayAnimation},
+        BlendAnimationsByIndex, BlendPose, IndexedBlendInput, ParameterContainer, State,
+    },
+    Animation, AnimationContainer, AnimationEvent, AnimationPose,
 };
 use std::{
     cell::Ref,

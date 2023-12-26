@@ -263,7 +263,7 @@ impl RootMotionDropdownArea {
                             self.node_selector,
                             MessageDirection::ToWidget,
                             if settings.node.is_some() {
-                                vec![settings.node.into()]
+                                vec![settings.node]
                             } else {
                                 vec![]
                             },
@@ -285,7 +285,7 @@ impl RootMotionDropdownArea {
                             node_handle: selection.animation_player,
                             animation_handle: selection.animation,
                             value: Some(RootMotionSettings {
-                                node: node_selection.first().cloned().unwrap_or_default().into(),
+                                node: node_selection.first().cloned().unwrap_or_default(),
                                 ..*settings
                             }),
                         });
@@ -346,7 +346,7 @@ impl RootMotionDropdownArea {
                         MessageDirection::ToWidget,
                         scene
                             .graph
-                            .try_get(settings.node)
+                            .try_get(settings.node.into())
                             .map(|n| n.name().to_owned())
                             .unwrap_or_else(|| String::from("<Unassigned>")),
                     ),

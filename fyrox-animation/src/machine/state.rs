@@ -1,20 +1,17 @@
 //! State is a final "container" for animation pose. See [`State`] docs for more info.
 
 use crate::{
-    animation::{
-        machine::{AnimationPoseSource, ParameterContainer, PoseNode},
-        Animation, AnimationContainer, AnimationPose,
-    },
     core::{
         algebra::Vector2,
         pool::{Handle, Pool},
+        rand::{self, seq::IteratorRandom},
         reflect::prelude::*,
         visitor::prelude::*,
     },
-    rand::{self, seq::IteratorRandom},
-    utils::NameProvider,
+    machine::{AnimationPoseSource, ParameterContainer, PoseNode},
+    Animation, AnimationContainer, AnimationPose,
 };
-use fyrox_core::uuid_provider;
+use fyrox_core::{uuid_provider, NameProvider};
 use std::{
     cell::Ref,
     ops::{Deref, DerefMut},

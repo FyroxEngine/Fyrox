@@ -353,7 +353,7 @@ impl AnimationEditor {
                         let animation_targets = animation
                             .tracks()
                             .iter()
-                            .map(|t| t.target())
+                            .map(|t| Handle::<Node>::from(t.target()))
                             .collect::<FxHashSet<_>>();
 
                         self.enter_preview_mode(

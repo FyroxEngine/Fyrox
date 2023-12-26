@@ -1,25 +1,20 @@
 //! Layer is a separate state graph that usually animates only a part of nodes from animations. See docs of [`MachineLayer`]
 //! for more info.
 
-use crate::animation::machine::node::AnimationEventCollectionStrategy;
-use crate::animation::machine::AnimationPoseSource;
-use crate::animation::AnimationEvent;
 use crate::{
-    animation::{
-        machine::{
-            event::FixedEventQueue, Event, LayerMask, ParameterContainer, PoseNode, State,
-            Transition,
-        },
-        Animation, AnimationContainer, AnimationPose,
-    },
     core::{
         log::{Log, MessageKind},
         pool::{Handle, Pool},
         reflect::prelude::*,
         visitor::prelude::*,
     },
-    utils::{self, NameProvider},
+    machine::{
+        event::FixedEventQueue, node::AnimationEventCollectionStrategy, AnimationPoseSource, Event,
+        LayerMask, ParameterContainer, PoseNode, State, Transition,
+    },
+    Animation, AnimationContainer, AnimationEvent, AnimationPose,
 };
+use fyrox_core::{find_by_name_mut, find_by_name_ref, NameProvider};
 
 /// Layer is a separate state graph. Layers mainly used to animate different parts of humanoid (but not only) characters. For
 /// example there could a layer for upper body and a layer for lower body. Upper body layer could contain animations for aiming,
@@ -30,8 +25,8 @@ use crate::{
 /// # Example
 ///
 /// ```rust
-/// use fyrox::{
-///     animation::machine::{
+/// use fyrox_animation::{
+///     machine::{
 ///         State, Transition, PoseNode, MachineLayer,
 ///         Parameter, PlayAnimation, PoseWeight, BlendAnimations, BlendPose
 ///     },
@@ -241,7 +236,7 @@ impl MachineLayer {
     /// # Example
     ///
     /// ```rust
-    /// use fyrox::animation::machine::{Event, MachineLayer};
+    /// use fyrox_animation::machine::{Event, MachineLayer};
     ///
     /// let mut layer = MachineLayer::new();
     ///
@@ -451,7 +446,7 @@ impl MachineLayer {
         &self,
         name: S,
     ) -> Option<(Handle<Transition>, &Transition)> {
-        utils::find_by_name_ref(self.transitions.pair_iter(), name)
+        find_by_name_ref(self.transitions.pair_iter(), name)
     }
 
     /// Tries to find a transition by its name.
@@ -460,7 +455,7 @@ impl MachineLayer {
         &mut self,
         name: S,
     ) -> Option<(Handle<Transition>, &mut Transition)> {
-        utils::find_by_name_mut(self.transitions.pair_iter_mut(), name)
+        find_by_name_mut(self.transitions.pair_iter_mut(), name)
     }
 
     /// Tries to borrow a state using its handle, panics if the handle is invalid.
@@ -481,7 +476,7 @@ impl MachineLayer {
         &self,
         name: S,
     ) -> Option<(Handle<State>, &State)> {
-        utils::find_by_name_ref(self.states.pair_iter(), name)
+        find_by_name_ref(self.states.pair_iter(), name)
     }
 
     /// Tries to find a state by its name.
@@ -490,7 +485,7 @@ impl MachineLayer {
         &mut self,
         name: S,
     ) -> Option<(Handle<State>, &mut State)> {
-        utils::find_by_name_mut(self.states.pair_iter_mut(), name)
+        find_by_name_mut(self.states.pair_iter_mut(), name)
     }
 
     /// Returns a reference to inner states container.

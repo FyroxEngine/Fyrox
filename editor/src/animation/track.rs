@@ -852,21 +852,21 @@ impl TrackList {
                             sender.do_scene_command(AddTrackCommand::new(
                                 animation_player,
                                 animation,
-                                Track::new_position().with_target(self.selected_node),
+                                Track::new_position().with_target(self.selected_node.into()),
                             ));
                         }
                         PropertyBindingMode::Rotation => {
                             sender.do_scene_command(AddTrackCommand::new(
                                 animation_player,
                                 animation,
-                                Track::new_rotation().with_target(self.selected_node),
+                                Track::new_rotation().with_target(self.selected_node.into()),
                             ));
                         }
                         PropertyBindingMode::Scale => {
                             sender.do_scene_command(AddTrackCommand::new(
                                 animation_player,
                                 animation,
-                                Track::new_scale().with_target(self.selected_node),
+                                Track::new_scale().with_target(self.selected_node.into()),
                             ));
                         }
                     }
@@ -1185,7 +1185,7 @@ impl TrackList {
             .find(|t| t.id() == first_selected_track)
         {
             self.context_menu.property_rebinding_selector =
-                Self::open_property_selector(graph, track.target(), ui);
+                Self::open_property_selector(graph, track.target().into(), ui);
         }
     }
 
@@ -1223,7 +1223,7 @@ impl TrackList {
             return;
         };
 
-        let Some(node) = graph.try_get(track.target()) else {
+        let Some(node) = graph.try_get(track.target().into()) else {
             Log::err("Invalid node handle!");
             return;
         };
@@ -1348,7 +1348,8 @@ impl TrackList {
                         .map(|v| ui.node(*v))
                         .all(|v| v.query_component::<TrackView>().unwrap().id != model_track.id())
                     {
-                        let parent_group = match self.group_views.entry(model_track.target()) {
+                        let parent_group = match self.group_views.entry(model_track.target().into())
+                        {
                             Entry::Occupied(entry) => *entry.get(),
                             Entry::Vacant(entry) => {
                                 let ctx = &mut ui.build_ctx();
@@ -1361,7 +1362,7 @@ impl TrackList {
                                         .with_text(format!(
                                             "{} ({}:{})",
                                             graph
-                                                .try_get(model_track.target())
+                                                .try_get(model_track.target().into())
                                                 .map(|n| n.name())
                                                 .unwrap_or_default(),
                                             model_track.target().index(),
@@ -1420,7 +1421,7 @@ impl TrackList {
                         )
                         .with_track_enabled(model_track.is_enabled())
                         .with_id(model_track.id())
-                        .with_target(model_track.target())
+                        .with_target(model_track.target().into())
                         .with_name(format!("{}", model_track.binding()))
                         .build(ctx);
 
@@ -1495,8 +1496,8 @@ impl TrackList {
                 }
 
                 let mut validation_result = Ok(());
-                if let Some(target) = graph.try_get(track_model.target()) {
-                    if let Some(parent_group) = self.group_views.get(&track_model.target()) {
+                if let Some(target) = graph.try_get(track_model.target().into()) {
+                    if let Some(parent_group) = self.group_views.get(&track_model.target().into()) {
                         send_sync_message(
                             ui,
                             TextMessage::text(

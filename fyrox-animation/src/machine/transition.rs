@@ -1,14 +1,11 @@
 //! Transition is a connection between two states with a rule that defines possibility of actual transition with blending.
 
 use crate::{
-    animation::{
-        machine::{Parameter, ParameterContainer, State},
-        Animation, AnimationContainer,
-    },
     core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
-    utils::NameProvider,
+    machine::{Parameter, ParameterContainer, State},
+    Animation, AnimationContainer,
 };
-use fyrox_core::uuid_provider;
+use fyrox_core::{uuid_provider, NameProvider};
 use std::any::{type_name, Any, TypeId};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -266,8 +263,8 @@ impl Reflect for NotNode {
 /// # Examples
 ///
 /// ```rust
-/// use fyrox::animation::AnimationContainer;
-/// use fyrox::animation::machine::{
+/// use fyrox_animation::AnimationContainer;
+/// use fyrox_animation::machine::{
 ///     transition::{AndNode, LogicNode, NotNode},
 ///     Parameter, ParameterContainer,
 /// };

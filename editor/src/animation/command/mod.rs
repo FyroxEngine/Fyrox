@@ -603,7 +603,7 @@ impl SetTrackTargetCommand {
             .find(|t| t.id() == self.track)
             .unwrap();
 
-        let old = track.target();
+        let old = track.target().into();
         track.set_target(self.target);
         self.target = old;
     }

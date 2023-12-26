@@ -42,6 +42,7 @@ use crate::{
         Scene, SceneLoader,
     },
 };
+use fyrox_core::pool::ErasedHandle;
 use fyrox_core::uuid_provider;
 use fyrox_resource::io::ResourceIo;
 use serde::{Deserialize, Serialize};
@@ -223,7 +224,8 @@ impl ModelResourceExtension for ModelResource {
                         // because we've made a plain copy and it has tracks with node handles mapped
                         // to nodes of internal scene.
                         for (i, ref_track) in src_anim.tracks().iter().enumerate() {
-                            let ref_node = &model.scene.graph[ref_track.target()];
+                            let ref_node =
+                                &model.scene.graph[Handle::<Node>::from(ref_track.target())];
                             let track = &mut anim_copy.tracks_mut()[i];
                             // Find instantiated node that corresponds to node in resource
                             match graph.find_by_name(root, ref_node.name()) {
@@ -232,7 +234,7 @@ impl ModelResourceExtension for ModelResource {
                                     track.set_target(instance_node);
                                 }
                                 None => {
-                                    track.set_target(Handle::NONE);
+                                    track.set_target(ErasedHandle::default());
                                     Log::writeln(
                                         MessageKind::Error,
                                         format!(

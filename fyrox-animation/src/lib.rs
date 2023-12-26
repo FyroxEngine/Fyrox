@@ -4,7 +4,6 @@
 #![warn(missing_docs)]
 
 use crate::{
-    animation::track::Track,
     core::{
         algebra::{UnitQuaternion, Vector3},
         math::wrapf,
@@ -13,22 +12,21 @@ use crate::{
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
     },
-    scene::{
-        graph::{Graph, NodePool},
-        node::Node,
-    },
-    utils::{self, NameProvider},
+    track::Track,
 };
-use fyrox_core::uuid_provider;
+use fyrox_core::{uuid_provider, NameProvider};
 use std::{
     collections::VecDeque,
     fmt::Debug,
     ops::{Index, IndexMut, Range},
 };
 
-use crate::animation::value::{TrackValue, ValueBinding};
+pub use fyrox_core as core;
+use fyrox_core::pool::ErasedHandle;
+
 pub use pose::{AnimationPose, NodePose};
 pub use signal::{AnimationEvent, AnimationSignal};
+use value::{TrackValue, ValueBinding};
 
 pub mod container;
 pub mod machine;
@@ -117,26 +115,19 @@ pub mod value;
 /// Use the following example code as a guide **only** if you need to create procedural animations:
 ///
 /// ```rust
-/// use fyrox::{
-///     animation::{
-///         container::{TrackDataContainer, TrackValueKind},
-///         track::Track,
-///         value::ValueBinding,
-///         Animation,
-///     },
+/// use fyrox_animation::{
+///     container::{TrackDataContainer, TrackValueKind},
+///     track::Track,
+///     value::ValueBinding,
+///     Animation,
 ///     core::{
 ///         curve::{Curve, CurveKey, CurveKeyKind},
 ///         pool::Handle,
 ///     },
-///     scene::{
-///         node::Node,
-///         base::BaseBuilder,
-///         graph::Graph,
-///         pivot::PivotBuilder
-///     }
 /// };
+/// use fyrox_core::pool::ErasedHandle;
 ///
-/// fn create_animation(node: Handle<Node>) -> Animation {
+/// fn create_animation(target: ErasedHandle) -> Animation {
 ///     let mut frames_container = TrackDataContainer::new(TrackValueKind::Vector3);
 ///
 ///     // We'll animate only X coordinate (at index 0).
@@ -148,7 +139,7 @@ pub mod value;
 ///
 ///     // Create a track that will animated the node using the curve above.
 ///     let mut track = Track::new(frames_container, ValueBinding::Position);
-///     track.set_target(node);
+///     track.set_target(target);
 ///
 ///     // Finally create an animation and set its time slice and turn it on.
 ///     let mut animation = Animation::default();
@@ -159,17 +150,12 @@ pub mod value;
 ///     animation
 /// }
 ///
-/// // Create a graph with a node.
-/// let mut graph = Graph::new();
-/// let some_node = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
-///
 /// // Create the animation.
-/// let mut animation = create_animation(some_node);
+/// let mut animation = create_animation(Default::default());
 ///
 /// // Emulate some ticks (like it was updated from the main loop of your game).
 /// for _ in 0..10 {
 ///     animation.tick(1.0 / 60.0);
-///     animation.pose().apply(&mut graph);
 /// }
 /// ```
 ///
@@ -215,7 +201,7 @@ uuid_provider!(Animation = "aade8e9d-e2cf-401d-a4d1-59c6943645f3");
 pub struct RootMotionSettings {
     /// A handle to a node which movement will be extracted and put in root motion field of an animation
     /// to which these settings were set to.
-    pub node: Handle<Node>,
+    pub node: ErasedHandle,
     /// Keeps X part of the translational part of the motion.
     pub ignore_x_movement: bool,
     /// Keeps Y part of the translational part of the motion.
@@ -683,39 +669,8 @@ impl Animation {
         self.tracks.retain(filter)
     }
 
-    /// Enables or disables animation tracks for nodes in hierarchy starting from given root. Could be useful to enable
-    /// or disable animation for skeleton parts, i.e. you don't want legs to be animated and you know that legs starts
-    /// from torso bone, then you could do this.
-    ///
-    /// ```
-    /// use fyrox::scene::node::Node;
-    /// use fyrox::animation::Animation;
-    /// use fyrox::core::pool::Handle;
-    /// use fyrox::scene::graph::Graph;
-    ///
-    /// fn disable_legs(torso_bone: Handle<Node>, aim_animation: &mut Animation, graph: &Graph) {
-    ///     aim_animation.set_tracks_enabled_from(torso_bone, false, graph)
-    /// }
-    /// ```
-    ///
-    /// After this legs won't be animated and animation could be blended together with run animation so it will produce
-    /// new animation - run and aim.
-    pub fn set_tracks_enabled_from(&mut self, handle: Handle<Node>, enabled: bool, graph: &Graph) {
-        let mut stack = vec![handle];
-        while let Some(node) = stack.pop() {
-            for track in self.tracks.iter_mut() {
-                if track.target() == node {
-                    track.set_enabled(enabled);
-                }
-            }
-            for child in graph[node].children() {
-                stack.push(*child);
-            }
-        }
-    }
-
     /// Tries to find all tracks that refer to a given node and enables or disables them.
-    pub fn set_node_track_enabled(&mut self, handle: Handle<Node>, enabled: bool) {
+    pub fn set_node_track_enabled(&mut self, handle: ErasedHandle, enabled: bool) {
         for track in self.tracks.iter_mut() {
             if track.target() == handle {
                 track.set_enabled(enabled);
@@ -724,14 +679,14 @@ impl Animation {
     }
 
     /// Returns an iterator that yields a number of references to tracks that refer to a given node.
-    pub fn tracks_of(&self, handle: Handle<Node>) -> impl Iterator<Item = &Track> {
+    pub fn tracks_of(&self, handle: ErasedHandle) -> impl Iterator<Item = &Track> {
         self.tracks
             .iter()
             .filter(move |track| track.target() == handle)
     }
 
     /// Returns an iterator that yields a number of references to tracks that refer to a given node.
-    pub fn tracks_of_mut(&mut self, handle: Handle<Node>) -> impl Iterator<Item = &mut Track> {
+    pub fn tracks_of_mut(&mut self, handle: ErasedHandle) -> impl Iterator<Item = &mut Track> {
         self.tracks
             .iter_mut()
             .filter(move |track| track.target() == handle)
@@ -743,7 +698,7 @@ impl Animation {
         &self,
         name: S,
     ) -> Option<(usize, &AnimationSignal)> {
-        utils::find_by_name_ref(self.signals.iter().enumerate(), name)
+        core::find_by_name_ref(self.signals.iter().enumerate(), name)
     }
 
     /// Tries to find a signal by its name. Returns index of the signal and its reference.
@@ -752,7 +707,7 @@ impl Animation {
         &mut self,
         name: S,
     ) -> Option<(usize, &mut AnimationSignal)> {
-        utils::find_by_name_mut(self.signals.iter_mut().enumerate(), name)
+        core::find_by_name_mut(self.signals.iter_mut().enumerate(), name)
     }
 
     /// Returns `true` if there's a signal with given name and id.
@@ -920,7 +875,7 @@ impl AnimationContainer {
         &self,
         name: S,
     ) -> Option<(Handle<Animation>, &Animation)> {
-        utils::find_by_name_ref(self.pool.pair_iter(), name)
+        core::find_by_name_ref(self.pool.pair_iter(), name)
     }
 
     /// Tries to find an animation by its name in the container.
@@ -929,7 +884,7 @@ impl AnimationContainer {
         &mut self,
         name: S,
     ) -> Option<(Handle<Animation>, &mut Animation)> {
-        utils::find_by_name_mut(self.pool.pair_iter_mut(), name)
+        core::find_by_name_mut(self.pool.pair_iter_mut(), name)
     }
 
     /// Removes every animation from the container that does not satisfy a particular condition represented by the given
@@ -940,17 +895,6 @@ impl AnimationContainer {
         P: FnMut(&Animation) -> bool,
     {
         self.pool.retain(pred)
-    }
-
-    /// Updates all animations in the container and applies their poses to respective nodes. This method is intended to
-    /// be used only by the internals of the engine!
-    pub fn update_animations(&mut self, nodes: &mut NodePool, apply: bool, dt: f32) {
-        for animation in self.pool.iter_mut().filter(|anim| anim.enabled) {
-            animation.tick(dt);
-            if apply {
-                animation.pose.apply_internal(nodes);
-            }
-        }
     }
 
     /// Removes queued animation events from every animation in the container.

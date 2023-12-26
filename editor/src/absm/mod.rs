@@ -484,7 +484,7 @@ impl AbsmEditor {
                         let mut animation_targets = FxHashSet::default();
                         for animation in animation_player.animations_mut().iter_mut() {
                             for track in animation.tracks() {
-                                animation_targets.insert(track.target());
+                                animation_targets.insert(Handle::<Node>::from(track.target()));
                             }
                         }
 
