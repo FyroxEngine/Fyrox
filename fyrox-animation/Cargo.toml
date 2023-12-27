@@ -1,7 +1,19 @@
 [package]
 name = "fyrox-animation"
 version = "0.1.0"
+authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
+license = "MIT"
+description = "Flexible Animation System"
+keywords = ["animation", "game"]
+categories = ["game-development", "animation"]
+include = ["/src/**/*", "/Cargo.toml", "/LICENSE", "/README.md"]
+homepage = "https://fyrox.rs"
+documentation = "https://docs.rs/fyrox-animation"
+repository = "https://github.com/FyroxEngine/Fyrox"
+readme = "README.md"
+resolver = "2"
+rust-version = "1.72"
 
 [dependencies]
 fyrox-core = { version = "0.26.0", path = "../fyrox-core" }
