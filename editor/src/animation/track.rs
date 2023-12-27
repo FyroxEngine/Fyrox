@@ -1348,8 +1348,7 @@ impl TrackList {
                         .map(|v| ui.node(*v))
                         .all(|v| v.query_component::<TrackView>().unwrap().id != model_track.id())
                     {
-                        let parent_group = match self.group_views.entry(model_track.target())
-                        {
+                        let parent_group = match self.group_views.entry(model_track.target()) {
                             Entry::Occupied(entry) => *entry.get(),
                             Entry::Vacant(entry) => {
                                 let ctx = &mut ui.build_ctx();
