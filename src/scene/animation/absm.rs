@@ -46,7 +46,7 @@ pub type BlendSpacePoint =
 /// Scene specific animation blending state machine layer mask.
 pub type LayerMask = crate::generic_animation::machine::mask::LayerMask<Handle<Node>>;
 /// Scene specific animation blending state machine layer mask.
-pub type MachineEvent = crate::generic_animation::machine::event::Event<Handle<Node>>;
+pub type Event = crate::generic_animation::machine::event::Event<Handle<Node>>;
 /// Scene specific animation blending state machine.
 pub type Machine = crate::generic_animation::machine::Machine<Handle<Node>>;
 /// Scene specific animation blending state machine layer.
@@ -77,13 +77,14 @@ pub type NotNode = crate::generic_animation::machine::transition::NotNode<Handle
 pub mod prelude {
     pub use super::{
         AndNode, AnimationBlendingStateMachine, AnimationBlendingStateMachineBuilder, BasePoseNode,
-        BlendAnimations, BlendAnimationsByIndex, BlendPose, BlendSpace, BlendSpacePoint,
-        IndexedBlendInput, LayerMask, LogicNode, Machine, MachineEvent, MachineLayer, NotNode,
-        OrNode, PlayAnimation, PoseNode, RootMotionSettings, State, StateAction,
-        StateActionWrapper, Transition, XorNode,
+        BlendAnimations, BlendAnimationsByIndex, BlendPose, BlendSpace, BlendSpacePoint, Event,
+        IndexedBlendInput, LayerMask, LogicNode, Machine, MachineLayer, NotNode, OrNode,
+        PlayAnimation, PoseNode, RootMotionSettings, State, StateAction, StateActionWrapper,
+        Transition, XorNode,
     };
-    pub use crate::generic_animation::machine::parameter::{
-        Parameter, ParameterContainer, ParameterDefinition, PoseWeight,
+    pub use crate::generic_animation::machine::{
+        node::AnimationEventCollectionStrategy,
+        parameter::{Parameter, ParameterContainer, ParameterDefinition, PoseWeight},
     };
 }
 

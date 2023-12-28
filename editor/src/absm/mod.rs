@@ -377,11 +377,11 @@ impl AbsmEditor {
                 if let Some(layer) = machine.layers_mut().get_mut(layer_index) {
                     while let Some(event) = layer.pop_event() {
                         match event {
-                            MachineEvent::ActiveStateChanged { new: state, .. } => {
+                            Event::ActiveStateChanged { new: state, .. } => {
                                 self.state_graph_viewer
                                     .activate_state(&engine.user_interface, state);
                             }
-                            MachineEvent::ActiveTransitionChanged(transition) => {
+                            Event::ActiveTransitionChanged(transition) => {
                                 self.state_graph_viewer
                                     .activate_transition(&engine.user_interface, transition);
                             }
