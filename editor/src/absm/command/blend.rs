@@ -4,16 +4,11 @@ use crate::{
     scene::commands::GameSceneContext,
 };
 use fyrox::{
-    animation::machine::node::{
-        blend::{BlendPose, IndexedBlendInput},
-        blendspace::BlendSpacePoint,
-        PoseNode,
-    },
     core::{algebra::Vector2, pool::Handle},
-    scene::node::Node,
+    scene::{animation::absm::prelude::*, node::Node},
 };
 
-define_push_element_to_collection_command!(AddInputCommand<Handle<PoseNode<Handle<Node>>>, IndexedBlendInput<Handle<Node>>>(self, context) {
+define_push_element_to_collection_command!(AddInputCommand<Handle<PoseNode>, IndexedBlendInput>(self, context) {
     let machine = fetch_machine(context, self.node_handle);
     match &mut machine.layers_mut()[self.layer_index].nodes_mut()[self.handle] {
         PoseNode::BlendAnimationsByIndex(definition) => &mut definition.inputs,
@@ -21,7 +16,7 @@ define_push_element_to_collection_command!(AddInputCommand<Handle<PoseNode<Handl
     }
 });
 
-define_push_element_to_collection_command!(AddPoseSourceCommand<Handle<PoseNode<Handle<Node>>>, BlendPose<Handle<Node>>>(self, context) {
+define_push_element_to_collection_command!(AddPoseSourceCommand<Handle<PoseNode>, BlendPose>(self, context) {
     let machine = fetch_machine(context, self.node_handle);
     match &mut machine.layers_mut()[self.layer_index].nodes_mut()[self.handle] {
         PoseNode::BlendAnimations(definition) => &mut definition.pose_sources,
@@ -29,7 +24,7 @@ define_push_element_to_collection_command!(AddPoseSourceCommand<Handle<PoseNode<
     }
 });
 
-define_push_element_to_collection_command!(AddBlendSpacePointCommand<Handle<PoseNode<Handle<Node>>>, BlendSpacePoint<Handle<Node>>>(self, context) {
+define_push_element_to_collection_command!(AddBlendSpacePointCommand<Handle<PoseNode>, BlendSpacePoint>(self, context) {
     let machine = fetch_machine(context, self.node_handle);
     match &mut machine.layers_mut()[self.layer_index].nodes_mut()[self.handle] {
         PoseNode::BlendSpace(definition) => definition.points_mut(),
@@ -38,7 +33,7 @@ define_push_element_to_collection_command!(AddBlendSpacePointCommand<Handle<Pose
 });
 
 define_set_collection_element_command!(
-    SetBlendAnimationByIndexInputPoseSourceCommand<Handle<PoseNode<Handle<Node>>>, Handle<PoseNode<Handle<Node>>>>(self, context) {
+    SetBlendAnimationByIndexInputPoseSourceCommand<Handle<PoseNode>, Handle<PoseNode>>(self, context) {
         let machine = fetch_machine(context, self.node_handle);
         if let PoseNode::BlendAnimationsByIndex(ref mut definition) = machine.layers_mut()[self.layer_index].nodes_mut()[self.handle] {
             std::mem::swap(&mut definition.inputs[self.index].pose_source, &mut self.value)
@@ -47,7 +42,7 @@ define_set_collection_element_command!(
 );
 
 define_set_collection_element_command!(
-    SetBlendAnimationsPoseSourceCommand<Handle<PoseNode<Handle<Node>>>, Handle<PoseNode<Handle<Node>>>>(self, context) {
+    SetBlendAnimationsPoseSourceCommand<Handle<PoseNode>, Handle<PoseNode>>(self, context) {
         let machine = fetch_machine(context, self.node_handle);
         if let PoseNode::BlendAnimations(ref mut definition) = machine.layers_mut()[self.layer_index].nodes_mut()[self.handle] {
             std::mem::swap(&mut definition.pose_sources[self.index].pose_source, &mut self.value);
@@ -56,7 +51,7 @@ define_set_collection_element_command!(
 );
 
 define_set_collection_element_command!(
-    SetBlendSpacePoseSourceCommand<Handle<PoseNode<Handle<Node>>>, Handle<PoseNode<Handle<Node>>>>(self, context) {
+    SetBlendSpacePoseSourceCommand<Handle<PoseNode>, Handle<PoseNode>>(self, context) {
         let machine = fetch_machine(context, self.node_handle);
         if let PoseNode::BlendSpace(ref mut definition) = machine.layers_mut()[self.layer_index].nodes_mut()[self.handle] {
             std::mem::swap( &mut definition.points_mut()[self.index].pose_source, &mut self.value);
@@ -65,7 +60,7 @@ define_set_collection_element_command!(
 );
 
 define_set_collection_element_command!(
-    SetBlendSpacePointPositionCommand<Handle<PoseNode<Handle<Node>>>, Vector2<f32>>(self, context) {
+    SetBlendSpacePointPositionCommand<Handle<PoseNode>, Vector2<f32>>(self, context) {
         let machine = fetch_machine(context, self.node_handle);
         if let PoseNode::BlendSpace(ref mut definition) = machine.layers_mut()[self.layer_index].nodes_mut()[self.handle] {
             std::mem::swap( &mut definition.points_mut()[self.index].position, &mut self.value);
@@ -78,9 +73,9 @@ define_set_collection_element_command!(
 pub struct RemoveBlendSpacePointCommand {
     pub scene_node_handle: Handle<Node>,
     pub layer_index: usize,
-    pub node_handle: Handle<PoseNode<Handle<Node>>>,
+    pub node_handle: Handle<PoseNode>,
     pub point_index: usize,
-    pub point: Option<BlendSpacePoint<Handle<Node>>>,
+    pub point: Option<BlendSpacePoint>,
 }
 
 impl GameSceneCommandTrait for RemoveBlendSpacePointCommand {

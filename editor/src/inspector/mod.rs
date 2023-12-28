@@ -8,9 +8,7 @@ use crate::{
     utils::window_content,
     Brush, Engine, Message, Mode, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
-use fyrox::scene::node::Node;
 use fyrox::{
-    animation::Animation,
     asset::manager::ResourceManager,
     core::{
         color::Color,
@@ -33,6 +31,7 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface,
     },
+    scene::animation::prelude::*,
     scene::animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
 };
 use std::{any::Any, sync::Arc};
@@ -43,7 +42,7 @@ pub mod handlers;
 #[derive(Clone)]
 pub struct AnimationDefinition {
     name: String,
-    handle: Handle<Animation<Handle<Node>>>,
+    handle: Handle<Animation>,
 }
 
 pub struct EditorEnvironment {

@@ -4,7 +4,6 @@ use crate::{
     inspector::editors::make_property_editors_container, Message, MessageDirection, MSG_SYNC_FLAG,
 };
 use fyrox::{
-    animation::machine::parameter::{Parameter, ParameterDefinition},
     core::{log::Log, pool::Handle},
     gui::{
         inspector::{
@@ -22,7 +21,7 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, UiNode, UserInterface,
     },
-    scene::{animation::absm::AnimationBlendingStateMachine, node::Node},
+    scene::{animation::absm::prelude::*, node::Node},
 };
 use std::sync::Arc;
 

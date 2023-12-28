@@ -1,14 +1,13 @@
 use fyrox::{
-    animation::machine::{PoseNode, State, Transition},
     core::pool::Handle,
-    scene::node::Node,
+    scene::{animation::absm::prelude::*, node::Node},
 };
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum SelectedEntity {
-    Transition(Handle<Transition<Handle<Node>>>),
-    State(Handle<State<Handle<Node>>>),
-    PoseNode(Handle<PoseNode<Handle<Node>>>),
+    Transition(Handle<Transition>),
+    State(Handle<State>),
+    PoseNode(Handle<PoseNode>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]

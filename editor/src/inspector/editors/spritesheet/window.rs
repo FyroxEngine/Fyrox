@@ -1,10 +1,10 @@
 use crate::inspector::editors::spritesheet::SpriteSheetFramesPropertyEditorMessage;
-use fyrox::core::parking_lot::Mutex;
-use fyrox::core::uuid_provider;
 use fyrox::{
-    animation::spritesheet::{SpriteSheetAnimation, SpriteSheetFramesContainer},
-    core::{algebra::Vector2, color::Color, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, color::Color, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
+        uuid_provider, visitor::prelude::*,
+    },
+    generic_animation::spritesheet::{SpriteSheetAnimation, SpriteSheetFramesContainer},
     gui::{
         border::BorderBuilder,
         brush::Brush,
@@ -24,11 +24,10 @@ use fyrox::{
         UiNode, UserInterface, VerticalAlignment,
     },
 };
-use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
     ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
+    sync::{mpsc::Sender, Arc},
 };
 
 #[derive(Clone, Visit, Reflect, Debug)]

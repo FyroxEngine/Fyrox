@@ -23,26 +23,19 @@ use crate::{
     },
     send_sync_message, utils,
 };
-use fyrox::core::parking_lot::Mutex;
-use fyrox::core::uuid_provider;
-use fyrox::resource::texture::TextureBytes;
 use fyrox::{
-    animation::{
-        container::{TrackDataContainer, TrackValueKind},
-        track::Track,
-        value::{ValueBinding, ValueType},
-        Animation,
-    },
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},
         color::Color,
         log::Log,
+        parking_lot::Mutex,
         pool::Handle,
-        reflect::{Reflect, ResolvePath},
+        reflect::{prelude::*, Reflect, ResolvePath},
         uuid::Uuid,
+        uuid_provider,
         variable::InheritableVariable,
+        visitor::prelude::*,
     },
-    core::{reflect::prelude::*, visitor::prelude::*},
     fxhash::{FxHashMap, FxHashSet},
     gui::{
         brush::Brush,
@@ -66,15 +59,16 @@ use fyrox::{
         BuildContext, Control, NodeHandleMapping, Orientation, RcUiNodeHandle, Thickness, UiNode,
         UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_TEXT,
     },
-    scene::{animation::AnimationPlayer, graph::Graph, node::Node, Scene},
+    resource::texture::TextureBytes,
+    scene::{animation::prelude::*, graph::Graph, node::Node, Scene},
 };
-use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
     cmp::Ordering,
     collections::hash_map::Entry,
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
+    sync::Arc,
 };
 
 #[derive(PartialEq, Eq)]
@@ -584,7 +578,7 @@ pub struct TrackList {
     context_menu: TrackContextMenu,
     property_binding_mode: PropertyBindingMode,
     scroll_viewer: Handle<UiNode>,
-    selected_animation: Handle<Animation<Handle<Node>>>,
+    selected_animation: Handle<Animation>,
 }
 
 #[derive(Clone)]
@@ -735,7 +729,7 @@ impl TrackList {
         game_scene: &GameScene,
         sender: &MessageSender,
         animation_player: Handle<Node>,
-        animation: Handle<Animation<Handle<Node>>>,
+        animation: Handle<Animation>,
         ui: &mut UserInterface,
         scene: &Scene,
     ) {
@@ -1266,8 +1260,8 @@ impl TrackList {
 
     pub fn sync_to_model(
         &mut self,
-        animation: &Animation<Handle<Node>>,
-        animation_handle: Handle<Animation<Handle<Node>>>,
+        animation: &Animation,
+        animation_handle: Handle<Animation>,
         graph: &Graph,
         editor_selection: &Selection,
         ui: &mut UserInterface,

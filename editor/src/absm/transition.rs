@@ -5,12 +5,16 @@ use crate::{
     },
     utils::fetch_node_center,
 };
-use fyrox::animation::machine::Transition;
-use fyrox::core::uuid_provider;
-use fyrox::scene::node::Node;
 use fyrox::{
-    core::{algebra::Vector2, color::Color, color::Hsv, math::Rect, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2,
+        color::{Color, Hsv},
+        math::Rect,
+        pool::Handle,
+        reflect::prelude::*,
+        uuid_provider,
+        visitor::prelude::*,
+    },
     gui::{
         brush::Brush,
         define_constructor, define_widget_deref,
@@ -19,6 +23,7 @@ use fyrox::{
         widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, UiNode, UserInterface,
     },
+    scene::animation::absm::prelude::*,
 };
 use std::{
     any::{Any, TypeId},
@@ -47,7 +52,7 @@ impl TransitionMessage {
 pub struct TransitionView {
     widget: Widget,
     pub segment: Segment,
-    pub model_handle: Handle<Transition<Handle<Node>>>,
+    pub model_handle: Handle<Transition>,
     selectable: Selectable,
     activity_factor: f32,
 }
@@ -183,11 +188,7 @@ impl TransitionBuilder {
         self
     }
 
-    pub fn build(
-        self,
-        model_handle: Handle<Transition<Handle<Node>>>,
-        ctx: &mut BuildContext,
-    ) -> Handle<UiNode> {
+    pub fn build(self, model_handle: Handle<Transition>, ctx: &mut BuildContext) -> Handle<UiNode> {
         let transition = TransitionView {
             widget: self
                 .widget_builder

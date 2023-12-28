@@ -24,10 +24,6 @@ use crate::{
     send_sync_message,
 };
 use fyrox::{
-    animation::{
-        machine::{MachineLayer, PoseNode, State},
-        Animation,
-    },
     core::pool::Handle,
     gui::{
         border::BorderBuilder,
@@ -37,7 +33,7 @@ use fyrox::{
         BuildContext, Thickness, UiNode, UserInterface,
     },
     scene::{
-        animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
+        animation::{absm::prelude::*, prelude::*},
         graph::Graph,
         node::Node,
     },
@@ -49,7 +45,7 @@ mod context;
 pub struct StateViewer {
     pub window: Handle<UiNode>,
     canvas: Handle<UiNode>,
-    state: Handle<State<Handle<Node>>>,
+    state: Handle<State>,
     canvas_context_menu: CanvasContextMenu,
     node_context_menu: NodeContextMenu,
     connection_context_menu: ConnectionContextMenu,
@@ -60,7 +56,7 @@ fn create_socket(
     direction: SocketDirection,
     index: usize,
     show_index: bool,
-    parent_node: Handle<PoseNode<Handle<Node>>>,
+    parent_node: Handle<PoseNode>,
     ui: &mut UserInterface,
 ) -> Handle<UiNode> {
     SocketBuilder::new(WidgetBuilder::new().with_margin(Thickness::uniform(2.0)))
@@ -74,7 +70,7 @@ fn create_socket(
 fn create_sockets(
     count: usize,
     direction: SocketDirection,
-    parent_node: Handle<PoseNode<Handle<Node>>>,
+    parent_node: Handle<PoseNode>,
     ui: &mut UserInterface,
 ) -> Vec<Handle<UiNode>> {
     (0..count)
@@ -82,12 +78,9 @@ fn create_sockets(
         .collect::<Vec<_>>()
 }
 
-fn fetch_pose_node_model_handle(
-    handle: Handle<UiNode>,
-    ui: &UserInterface,
-) -> Handle<PoseNode<Handle<Node>>> {
+fn fetch_pose_node_model_handle(handle: Handle<UiNode>, ui: &UserInterface) -> Handle<PoseNode> {
     ui.node(handle)
-        .query_component::<AbsmNode<PoseNode<Handle<Node>>>>()
+        .query_component::<AbsmNode<PoseNode>>()
         .unwrap()
         .model_handle
 }
@@ -95,7 +88,7 @@ fn fetch_pose_node_model_handle(
 fn fetch_socket_pose_node_model_handle(
     handle: Handle<UiNode>,
     ui: &UserInterface,
-) -> Handle<PoseNode<Handle<Node>>> {
+) -> Handle<PoseNode> {
     ui.node(handle)
         .query_component::<Socket>()
         .unwrap()
@@ -105,7 +98,7 @@ fn fetch_socket_pose_node_model_handle(
 fn make_play_animation_name(
     graph: &Graph,
     absm_node: &AnimationBlendingStateMachine,
-    animation: Handle<Animation<Handle<Node>>>,
+    animation: Handle<Animation>,
 ) -> String {
     if let Some(animation) = graph
         .try_get_of_type::<AnimationPlayer>(absm_node.animation_player())
@@ -118,7 +111,7 @@ fn make_play_animation_name(
 }
 
 fn make_pose_node_name(
-    model_ref: &PoseNode<Handle<Node>>,
+    model_ref: &PoseNode,
     graph: &Graph,
     absm_node: &AnimationBlendingStateMachine,
 ) -> String {
@@ -180,7 +173,7 @@ impl StateViewer {
 
     pub fn set_state(
         &mut self,
-        state: Handle<State<Handle<Node>>>,
+        state: Handle<State>,
         absm_node: &AnimationBlendingStateMachine,
         layer_index: usize,
         ui: &UserInterface,
@@ -283,7 +276,7 @@ impl StateViewer {
                                         .filter_map(|n| {
                                             let node_ref = ui.node(*n);
 
-                                            node_ref.query_component::<AbsmNode<PoseNode<Handle<Node>>>>().map(
+                                            node_ref.query_component::<AbsmNode<PoseNode>>().map(
                                                 |state_node| {
                                                     SelectedEntity::PoseNode(
                                                         state_node.model_handle,
@@ -383,7 +376,7 @@ impl StateViewer {
     pub fn sync_to_model(
         &mut self,
         ui: &mut UserInterface,
-        machine_layer: &MachineLayer<Handle<Node>>,
+        machine_layer: &MachineLayer,
         editor_selection: &Selection,
         absm_node: &AnimationBlendingStateMachine,
         graph: &Graph,
@@ -404,9 +397,7 @@ impl StateViewer {
                     .iter()
                     .cloned()
                     .filter(|h| {
-                        if let Some(pose_node) = ui
-                            .node(*h)
-                            .query_component::<AbsmNode<PoseNode<Handle<Node>>>>()
+                        if let Some(pose_node) = ui.node(*h).query_component::<AbsmNode<PoseNode>>()
                         {
                             if machine_layer
                                 .nodes()
@@ -449,7 +440,7 @@ impl StateViewer {
                     for &pose_definition in models.iter() {
                         if views.iter().all(|v| {
                             ui.node(*v)
-                                .query_component::<AbsmNode<PoseNode<Handle<Node>>>>()
+                                .query_component::<AbsmNode<PoseNode>>()
                                 .unwrap()
                                 .model_handle
                                 != pose_definition
@@ -532,7 +523,7 @@ impl StateViewer {
                     for &view in views.clone().iter() {
                         let view_ref = ui
                             .node(view)
-                            .query_component::<AbsmNode<PoseNode<Handle<Node>>>>()
+                            .query_component::<AbsmNode<PoseNode>>()
                             .unwrap();
 
                         if machine_layer
@@ -558,7 +549,7 @@ impl StateViewer {
             for &view in &views {
                 let view_ref = ui
                     .node(view)
-                    .query_component::<AbsmNode<PoseNode<Handle<Node>>>>()
+                    .query_component::<AbsmNode<PoseNode>>()
                     .unwrap();
                 let model_handle = view_ref.model_handle;
                 let model_ref = &machine_layer.nodes()[model_handle];
@@ -645,10 +636,7 @@ impl StateViewer {
             for model in models.iter().cloned() {
                 let dest_ref = views
                     .iter()
-                    .filter_map(|v| {
-                        ui.node(*v)
-                            .query_component::<AbsmNode<PoseNode<Handle<Node>>>>()
-                    })
+                    .filter_map(|v| ui.node(*v).query_component::<AbsmNode<PoseNode>>())
                     .find(|v| v.model_handle == model)
                     .unwrap();
                 let dest_handle = dest_ref.handle();
@@ -662,10 +650,7 @@ impl StateViewer {
                     if machine_layer.nodes().is_valid_handle(child) {
                         let source = views
                             .iter()
-                            .filter_map(|v| {
-                                ui.node(*v)
-                                    .query_component::<AbsmNode<PoseNode<Handle<Node>>>>()
-                            })
+                            .filter_map(|v| ui.node(*v).query_component::<AbsmNode<PoseNode>>())
                             .find(|v| v.model_handle == child)
                             .unwrap();
 
@@ -706,7 +691,7 @@ impl StateViewer {
                     }
                     SelectedEntity::PoseNode(pose_node) => views.iter().cloned().find(|s| {
                         ui.node(*s)
-                            .query_component::<AbsmNode<PoseNode<Handle<Node>>>>()
+                            .query_component::<AbsmNode<PoseNode>>()
                             .unwrap()
                             .model_handle
                             == *pose_node

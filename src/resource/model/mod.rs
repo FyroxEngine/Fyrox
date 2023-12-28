@@ -19,7 +19,6 @@
 //! and RGS (native Fyroxed format) formats are supported.
 
 use crate::{
-    animation::Animation,
     asset::{
         manager::ResourceManager, options::ImportOptions, Resource, ResourceData,
         MODEL_RESOURCE_UUID,
@@ -36,7 +35,7 @@ use crate::{
     engine::SerializationContext,
     resource::fbx::{self, error::FbxError},
     scene::{
-        animation::AnimationPlayer,
+        animation::{Animation, AnimationPlayer},
         graph::{map::NodeHandleMap, Graph},
         node::Node,
         Scene, SceneLoader,
@@ -123,11 +122,7 @@ pub trait ModelResourceExtension: Sized {
     ///
     /// Most of the 3d model formats can contain only one animation, so in most cases
     /// this function will return vector with only one animation.
-    fn retarget_animations_directly(
-        &self,
-        root: Handle<Node>,
-        graph: &Graph,
-    ) -> Vec<Animation<Handle<Node>>>;
+    fn retarget_animations_directly(&self, root: Handle<Node>, graph: &Graph) -> Vec<Animation>;
 
     /// Tries to retarget animations from given model resource to a node hierarchy starting
     /// from `root` on a given scene. Unlike [`Self::retarget_animations_directly`], it automatically
@@ -142,7 +137,7 @@ pub trait ModelResourceExtension: Sized {
         root: Handle<Node>,
         dest_animation_player: Handle<Node>,
         graph: &mut Graph,
-    ) -> Vec<Handle<Animation<Handle<Node>>>>;
+    ) -> Vec<Handle<Animation>>;
 
     /// Tries to retarget animations from given model resource to a node hierarchy starting
     /// from `root` on a given scene. Unlike [`Self::retarget_animations_directly`], it automatically
@@ -151,11 +146,7 @@ pub trait ModelResourceExtension: Sized {
     /// # Panic
     ///
     /// Panics if there's no animation player in the given hierarchy (descendant nodes of `root`).
-    fn retarget_animations(
-        &self,
-        root: Handle<Node>,
-        graph: &mut Graph,
-    ) -> Vec<Handle<Animation<Handle<Node>>>>;
+    fn retarget_animations(&self, root: Handle<Node>, graph: &mut Graph) -> Vec<Handle<Animation>>;
 }
 
 impl ModelResourceExtension for ModelResource {
@@ -216,11 +207,7 @@ impl ModelResourceExtension for ModelResource {
         root
     }
 
-    fn retarget_animations_directly(
-        &self,
-        root: Handle<Node>,
-        graph: &Graph,
-    ) -> Vec<Animation<Handle<Node>>> {
+    fn retarget_animations_directly(&self, root: Handle<Node>, graph: &Graph) -> Vec<Animation> {
         let mut retargetted_animations = Vec::new();
 
         let mut header = self.state();
@@ -271,7 +258,7 @@ impl ModelResourceExtension for ModelResource {
         root: Handle<Node>,
         dest_animation_player: Handle<Node>,
         graph: &mut Graph,
-    ) -> Vec<Handle<Animation<Handle<Node>>>> {
+    ) -> Vec<Handle<Animation>> {
         let mut animation_handles = Vec::new();
 
         let animations = self.retarget_animations_directly(root, graph);
@@ -287,11 +274,7 @@ impl ModelResourceExtension for ModelResource {
         animation_handles
     }
 
-    fn retarget_animations(
-        &self,
-        root: Handle<Node>,
-        graph: &mut Graph,
-    ) -> Vec<Handle<Animation<Handle<Node>>>> {
+    fn retarget_animations(&self, root: Handle<Node>, graph: &mut Graph) -> Vec<Handle<Animation>> {
         if let Some((animation_player, _)) = graph.find(root, &mut |n| {
             n.query_component_ref::<AnimationPlayer>().is_some()
         }) {

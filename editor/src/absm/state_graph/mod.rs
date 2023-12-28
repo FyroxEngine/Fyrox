@@ -17,7 +17,6 @@ use crate::{
     send_sync_message,
 };
 use fyrox::{
-    animation::machine::{MachineLayer, State, Transition},
     core::pool::Handle,
     gui::{
         border::BorderBuilder,
@@ -26,7 +25,7 @@ use fyrox::{
         window::{WindowBuilder, WindowTitle},
         BuildContext, Thickness, UiNode, UserInterface,
     },
-    scene::{animation::absm::AnimationBlendingStateMachine, node::Node},
+    scene::{animation::absm::prelude::*, node::Node},
 };
 use std::cmp::Ordering;
 
@@ -41,12 +40,9 @@ pub struct StateGraphViewer {
     last_selection: AbsmSelection,
 }
 
-fn fetch_state_node_model_handle(
-    handle: Handle<UiNode>,
-    ui: &UserInterface,
-) -> Handle<State<Handle<Node>>> {
+fn fetch_state_node_model_handle(handle: Handle<UiNode>, ui: &UserInterface) -> Handle<State> {
     ui.node(handle)
-        .query_component::<AbsmNode<State<Handle<Node>>>>()
+        .query_component::<AbsmNode<State>>()
         .unwrap()
         .model_handle
 }
@@ -96,11 +92,7 @@ impl StateGraphViewer {
         }
     }
 
-    pub fn activate_transition(
-        &self,
-        ui: &UserInterface,
-        transition: Handle<Transition<Handle<Node>>>,
-    ) {
+    pub fn activate_transition(&self, ui: &UserInterface, transition: Handle<Transition>) {
         if let Some(view_handle) = ui.node(self.canvas).children().iter().cloned().find(|c| {
             ui.node(*c)
                 .query_component::<TransitionView>()
@@ -115,7 +107,7 @@ impl StateGraphViewer {
         }
     }
 
-    pub fn activate_state(&self, ui: &UserInterface, state: Handle<State<Handle<Node>>>) {
+    pub fn activate_state(&self, ui: &UserInterface, state: Handle<State>) {
         for (state_view_handle, state_view_ref) in ui
             .node(self.canvas)
             .children()
@@ -123,7 +115,7 @@ impl StateGraphViewer {
             .cloned()
             .filter_map(|c| {
                 ui.node(c)
-                    .query_component::<AbsmNode<State<Handle<Node>>>>()
+                    .query_component::<AbsmNode<State>>()
                     .map(|state_view_ref| (c, state_view_ref))
             })
         {
@@ -191,8 +183,8 @@ impl StateGraphViewer {
                                     .filter_map(|n| {
                                         let node_ref = ui.node(*n);
 
-                                        if let Some(state_node) = node_ref
-                                            .query_component::<AbsmNode<State<Handle<Node>>>>()
+                                        if let Some(state_node) =
+                                            node_ref.query_component::<AbsmNode<State>>()
                                         {
                                             Some(SelectedEntity::State(state_node.model_handle))
                                         } else {
@@ -270,7 +262,7 @@ impl StateGraphViewer {
 
     pub fn sync_to_model(
         &mut self,
-        machine_layer: &MachineLayer<Handle<Node>>,
+        machine_layer: &MachineLayer,
         ui: &mut UserInterface,
         editor_selection: &Selection,
     ) {
@@ -294,7 +286,7 @@ impl StateGraphViewer {
                 .children()
                 .iter()
                 .cloned()
-                .filter(|c| ui.node(*c).has_component::<AbsmNode<State<Handle<Node>>>>())
+                .filter(|c| ui.node(*c).has_component::<AbsmNode<State>>())
                 .collect::<Vec<_>>();
 
             transitions = canvas
@@ -314,7 +306,7 @@ impl StateGraphViewer {
                 for (state_handle, state) in machine_layer.states().pair_iter() {
                     if states.iter().all(|state_view| {
                         ui.node(*state_view)
-                            .query_component::<AbsmNode<State<Handle<Node>>>>()
+                            .query_component::<AbsmNode<State>>()
                             .unwrap()
                             .model_handle
                             != state_handle
@@ -358,7 +350,7 @@ impl StateGraphViewer {
                         (
                             state_view,
                             ui.node(state_view)
-                                .query_component::<AbsmNode<State<Handle<Node>>>>()
+                                .query_component::<AbsmNode<State>>()
                                 .unwrap()
                                 .model_handle,
                         )
@@ -388,7 +380,7 @@ impl StateGraphViewer {
         for state in states.iter() {
             let state_node = ui
                 .node(*state)
-                .query_component::<AbsmNode<State<Handle<Node>>>>()
+                .query_component::<AbsmNode<State>>()
                 .unwrap();
             let state_model_handle = state_node.model_handle;
             let state_model_ref = &machine_layer.states()[state_node.model_handle];
@@ -458,7 +450,7 @@ impl StateGraphViewer {
                             != transition_handle
                     }) {
                         fn find_state_view(
-                            state_handle: Handle<State<Handle<Node>>>,
+                            state_handle: Handle<State>,
                             states: &[Handle<UiNode>],
                             ui: &UserInterface,
                         ) -> Handle<UiNode> {
@@ -466,7 +458,7 @@ impl StateGraphViewer {
                                 .iter()
                                 .find(|s| {
                                     ui.node(**s)
-                                        .query_component::<AbsmNode<State<Handle<Node>>>>()
+                                        .query_component::<AbsmNode<State>>()
                                         .unwrap()
                                         .model_handle
                                         == state_handle
@@ -554,7 +546,7 @@ impl StateGraphViewer {
                 }),
                 SelectedEntity::State(state) => states.iter().cloned().find(|s| {
                     ui.node(*s)
-                        .query_component::<AbsmNode<State<Handle<Node>>>>()
+                        .query_component::<AbsmNode<State>>()
                         .unwrap()
                         .model_handle
                         == *state

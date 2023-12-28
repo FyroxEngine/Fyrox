@@ -1,11 +1,10 @@
 use crate::{command::GameSceneCommandTrait, scene::commands::GameSceneContext};
 use fyrox::{
-    animation::machine::{LayerMask, Machine, MachineLayer, PoseNode, State, Transition},
     core::{
         algebra::Vector2,
         pool::{Handle, Ticket},
     },
-    scene::{animation::absm::AnimationBlendingStateMachine, node::Node},
+    scene::{animation::absm::prelude::*, node::Node},
 };
 use std::fmt::Debug;
 
@@ -126,11 +125,7 @@ macro_rules! define_spawn_command {
     };
 }
 
-define_spawn_command!(
-    AddTransitionCommand,
-    Transition<Handle<Node>>,
-    transitions_mut
-);
+define_spawn_command!(AddTransitionCommand, Transition, transitions_mut);
 
 #[derive(Debug)]
 pub enum AddStateCommand {
@@ -138,24 +133,24 @@ pub enum AddStateCommand {
     NonExecuted {
         node_handle: Handle<Node>,
         layer_index: usize,
-        state: State<Handle<Node>>,
+        state: State,
     },
     Executed {
         node_handle: Handle<Node>,
         layer_index: usize,
-        handle: Handle<State<Handle<Node>>>,
-        prev_entry_state: Handle<State<Handle<Node>>>,
+        handle: Handle<State>,
+        prev_entry_state: Handle<State>,
     },
     Reverted {
         node_handle: Handle<Node>,
         layer_index: usize,
-        ticket: Ticket<State<Handle<Node>>>,
-        state: State<Handle<Node>>,
+        ticket: Ticket<State>,
+        state: State,
     },
 }
 
 impl AddStateCommand {
-    pub fn new(node_handle: Handle<Node>, layer_index: usize, state: State<Handle<Node>>) -> Self {
+    pub fn new(node_handle: Handle<Node>, layer_index: usize, state: State) -> Self {
         Self::NonExecuted {
             node_handle,
             layer_index,
@@ -167,7 +162,7 @@ impl AddStateCommand {
 fn fetch_machine<'a>(
     context: &'a mut GameSceneContext,
     node_handle: Handle<Node>,
-) -> &'a mut Machine<Handle<Node>> {
+) -> &'a mut Machine {
     context.scene.graph[node_handle]
         .query_component_mut::<AnimationBlendingStateMachine>()
         .unwrap()
@@ -283,28 +278,24 @@ pub enum AddPoseNodeCommand {
     NonExecuted {
         node_handle: Handle<Node>,
         layer_index: usize,
-        node: PoseNode<Handle<Node>>,
+        node: PoseNode,
     },
     Executed {
         node_handle: Handle<Node>,
         layer_index: usize,
-        handle: Handle<PoseNode<Handle<Node>>>,
-        prev_root_node: Handle<PoseNode<Handle<Node>>>,
+        handle: Handle<PoseNode>,
+        prev_root_node: Handle<PoseNode>,
     },
     Reverted {
         node_handle: Handle<Node>,
         layer_index: usize,
-        ticket: Ticket<PoseNode<Handle<Node>>>,
-        node: PoseNode<Handle<Node>>,
+        ticket: Ticket<PoseNode>,
+        node: PoseNode,
     },
 }
 
 impl AddPoseNodeCommand {
-    pub fn new(
-        node_handle: Handle<Node>,
-        layer_index: usize,
-        node: PoseNode<Handle<Node>>,
-    ) -> Self {
+    pub fn new(node_handle: Handle<Node>, layer_index: usize, node: PoseNode) -> Self {
         Self::NonExecuted {
             node_handle,
             layer_index,
@@ -472,8 +463,8 @@ macro_rules! define_move_command {
     };
 }
 
-define_move_command!(MoveStateNodeCommand, State<Handle<Node>>, states_mut);
-define_move_command!(MovePoseNodeCommand, PoseNode<Handle<Node>>, nodes_mut);
+define_move_command!(MoveStateNodeCommand, State, states_mut);
+define_move_command!(MovePoseNodeCommand, PoseNode, nodes_mut);
 
 macro_rules! define_free_command {
     ($name:ident, $ent_type:ty, $container:ident) => {
@@ -586,13 +577,9 @@ macro_rules! define_free_command {
     };
 }
 
-define_free_command!(DeleteStateCommand, State<Handle<Node>>, states_mut);
-define_free_command!(DeletePoseNodeCommand, PoseNode<Handle<Node>>, nodes_mut);
-define_free_command!(
-    DeleteTransitionCommand,
-    Transition<Handle<Node>>,
-    transitions_mut
-);
+define_free_command!(DeleteStateCommand, State, states_mut);
+define_free_command!(DeletePoseNodeCommand, PoseNode, nodes_mut);
+define_free_command!(DeleteTransitionCommand, Transition, transitions_mut);
 
 #[macro_export]
 macro_rules! define_push_element_to_collection_command {
@@ -712,7 +699,7 @@ macro_rules! define_set_collection_element_command {
 pub struct SetMachineEntryStateCommand {
     pub node_handle: Handle<Node>,
     pub layer: usize,
-    pub entry: Handle<State<Handle<Node>>>,
+    pub entry: Handle<State>,
 }
 
 impl SetMachineEntryStateCommand {
@@ -777,7 +764,7 @@ macro_rules! define_absm_swap_command {
     };
 }
 
-define_absm_swap_command!(SetStateRootPoseCommand<Handle<State<Handle<Node>>>, Handle<PoseNode<Handle<Node>>>>[layer_index: usize](self, context) {
+define_absm_swap_command!(SetStateRootPoseCommand<Handle<State>, Handle<PoseNode>>[layer_index: usize](self, context) {
     let machine = fetch_machine(context, self.node_handle);
     &mut machine.layers_mut()[self.layer_index].states_mut()[self.handle].root
 });
@@ -816,7 +803,7 @@ impl GameSceneCommandTrait for SetLayerNameCommand {
 #[derive(Debug)]
 pub struct AddLayerCommand {
     pub absm_node_handle: Handle<Node>,
-    pub layer: Option<MachineLayer<Handle<Node>>>,
+    pub layer: Option<MachineLayer>,
 }
 
 impl GameSceneCommandTrait for AddLayerCommand {
@@ -837,7 +824,7 @@ impl GameSceneCommandTrait for AddLayerCommand {
 pub struct RemoveLayerCommand {
     pub absm_node_handle: Handle<Node>,
     pub layer_index: usize,
-    pub layer: Option<MachineLayer<Handle<Node>>>,
+    pub layer: Option<MachineLayer>,
 }
 
 impl RemoveLayerCommand {
@@ -870,7 +857,7 @@ impl GameSceneCommandTrait for RemoveLayerCommand {
 pub struct SetLayerMaskCommand {
     pub absm_node_handle: Handle<Node>,
     pub layer_index: usize,
-    pub mask: LayerMask<Handle<Node>>,
+    pub mask: LayerMask,
 }
 
 impl SetLayerMaskCommand {

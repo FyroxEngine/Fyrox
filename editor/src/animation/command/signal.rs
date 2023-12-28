@@ -5,8 +5,8 @@ use crate::{
     scene::commands::{GameSceneCommand, GameSceneContext},
 };
 use fyrox::{
-    animation::Animation,
     core::{pool::Handle, reflect::prelude::*, uuid::Uuid},
+    scene::animation::Animation,
     scene::node::Node,
 };
 
@@ -27,5 +27,5 @@ define_universal_commands!(
             .unwrap()
     },
     node_handle: Handle<Node>,
-    animation_handle: Handle<Animation<Handle<Node>>>
+    animation_handle: Handle<Animation>
 );

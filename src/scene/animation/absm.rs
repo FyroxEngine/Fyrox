@@ -2,7 +2,6 @@
 //! mixes them in arbitrary way into one animation. See [`AnimationBlendingStateMachine`] docs for more info.
 
 use crate::{
-    animation::machine::Machine,
     core::{
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
@@ -13,7 +12,7 @@ use crate::{
         TypeUuidProvider,
     },
     scene::{
-        animation::{AnimationPlayer, AnimationPoseExt},
+        animation::prelude::*,
         base::{Base, BaseBuilder},
         graph::Graph,
         node::{Node, NodeTrait, UpdateContext},
@@ -21,6 +20,86 @@ use crate::{
     },
 };
 use std::ops::{Deref, DerefMut};
+
+/// Scene specific root motion settings.
+pub type RootMotionSettings = crate::generic_animation::RootMotionSettings<Handle<Node>>;
+/// Scene specific animation pose node.
+pub type PoseNode = crate::generic_animation::machine::PoseNode<Handle<Node>>;
+/// Scene specific animation pose node.
+pub type PlayAnimation = crate::generic_animation::machine::node::play::PlayAnimation<Handle<Node>>;
+/// Scene specific animation blending state machine BlendAnimations node.
+pub type BlendAnimations =
+    crate::generic_animation::machine::node::blend::BlendAnimations<Handle<Node>>;
+/// Scene specific animation blending state machine BlendAnimationsByIndex node.
+pub type BlendAnimationsByIndex =
+    crate::generic_animation::machine::node::blend::BlendAnimationsByIndex<Handle<Node>>;
+/// Scene specific animation blending state machine BlendPose node.
+pub type BlendPose = crate::generic_animation::machine::node::blend::BlendPose<Handle<Node>>;
+/// Scene specific animation blending state machine IndexedBlendInput node.
+pub type IndexedBlendInput =
+    crate::generic_animation::machine::node::blend::IndexedBlendInput<Handle<Node>>;
+/// Scene specific animation blending state machine BlendSpace node.
+pub type BlendSpace = crate::generic_animation::machine::node::blendspace::BlendSpace<Handle<Node>>;
+/// Scene specific animation blending state machine blend space point.
+pub type BlendSpacePoint =
+    crate::generic_animation::machine::node::blendspace::BlendSpacePoint<Handle<Node>>;
+/// Scene specific animation blending state machine layer mask.
+pub type LayerMask = crate::generic_animation::machine::mask::LayerMask<Handle<Node>>;
+/// Scene specific animation blending state machine layer mask.
+pub type MachineEvent = crate::generic_animation::machine::event::Event<Handle<Node>>;
+/// Scene specific animation blending state machine.
+pub type Machine = crate::generic_animation::machine::Machine<Handle<Node>>;
+/// Scene specific animation blending state machine layer.
+pub type MachineLayer = crate::generic_animation::machine::MachineLayer<Handle<Node>>;
+/// Scene specific animation blending state machine transition.
+pub type Transition = crate::generic_animation::machine::transition::Transition<Handle<Node>>;
+/// Scene specific animation blending state machine state.
+pub type State = crate::generic_animation::machine::state::State<Handle<Node>>;
+/// Scene specific animation blending state machine base pose node.
+pub type BasePoseNode = crate::generic_animation::machine::node::BasePoseNode<Handle<Node>>;
+/// Scene specific animation blending state machine state action.
+pub type StateAction = crate::generic_animation::machine::state::StateAction<Handle<Node>>;
+/// Scene specific animation blending state machine state action wrapper.
+pub type StateActionWrapper =
+    crate::generic_animation::machine::state::StateActionWrapper<Handle<Node>>;
+/// Scene specific animation blending state machine logic node.
+pub type LogicNode = crate::generic_animation::machine::transition::LogicNode<Handle<Node>>;
+/// Scene specific animation blending state machine And logic node.
+pub type AndNode = crate::generic_animation::machine::transition::AndNode<Handle<Node>>;
+/// Scene specific animation blending state machine Xor logic nde.
+pub type XorNode = crate::generic_animation::machine::transition::XorNode<Handle<Node>>;
+/// Scene specific animation blending state machine Or logic node.
+pub type OrNode = crate::generic_animation::machine::transition::OrNode<Handle<Node>>;
+/// Scene specific animation blending state machine Not logic node.
+pub type NotNode = crate::generic_animation::machine::transition::NotNode<Handle<Node>>;
+
+/// Standard prelude for animation blending state machine, that contains all most commonly used types and traits.
+pub mod prelude {
+    pub use super::{
+        AndNode, AnimationBlendingStateMachine, AnimationBlendingStateMachineBuilder, BasePoseNode,
+        BlendAnimations, BlendAnimationsByIndex, BlendPose, BlendSpace, BlendSpacePoint,
+        IndexedBlendInput, LayerMask, LogicNode, Machine, MachineEvent, MachineLayer, NotNode,
+        OrNode, PlayAnimation, PoseNode, RootMotionSettings, State, StateAction,
+        StateActionWrapper, Transition, XorNode,
+    };
+    pub use crate::generic_animation::machine::parameter::{
+        Parameter, ParameterContainer, ParameterDefinition, PoseWeight,
+    };
+}
+
+/// Extension trait for [`LayerMask`].
+pub trait LayerMaskExt {
+    /// Creates a layer mask for every descendant node starting from specified `root` (included). It could
+    /// be useful if you have an entire node hierarchy (for example, lower part of a body) that needs to
+    /// be filtered out.
+    fn from_hierarchy(graph: &Graph, root: Handle<Node>) -> Self;
+}
+
+impl LayerMaskExt for LayerMask {
+    fn from_hierarchy(graph: &Graph, root: Handle<Node>) -> Self {
+        Self::from(graph.traverse_handle_iter(root).collect::<Vec<_>>())
+    }
+}
 
 /// Animation blending state machine (ABSM) is a node that takes multiple animations from an animation player and
 /// mixes them in arbitrary way into one animation. Usually, ABSMs are used to animate humanoid characters in games,
@@ -41,10 +120,9 @@ use std::ops::{Deref, DerefMut};
 ///
 /// ```rust
 /// use fyrox::{
-///     animation::machine::{Machine, PoseNode, State, Transition},
 ///     core::pool::Handle,
 ///     scene::{
-///         animation::{absm::AnimationBlendingStateMachineBuilder, AnimationPlayer},
+///         animation::{absm::prelude::*, prelude::*},
 ///         base::BaseBuilder,
 ///         graph::Graph,
 ///         node::Node,
@@ -106,23 +184,23 @@ use std::ops::{Deref, DerefMut};
 #[derive(Visit, Reflect, Clone, Debug, Default)]
 pub struct AnimationBlendingStateMachine {
     base: Base,
-    machine: InheritableVariable<Machine<Handle<Node>>>,
+    machine: InheritableVariable<Machine>,
     animation_player: InheritableVariable<Handle<Node>>,
 }
 
 impl AnimationBlendingStateMachine {
     /// Sets new state machine to the node.
-    pub fn set_machine(&mut self, machine: Machine<Handle<Node>>) {
+    pub fn set_machine(&mut self, machine: Machine) {
         self.machine.set_value_and_mark_modified(machine);
     }
 
     /// Returns a reference to the state machine used by the node.
-    pub fn machine(&self) -> &InheritableVariable<Machine<Handle<Node>>> {
+    pub fn machine(&self) -> &InheritableVariable<Machine> {
         &self.machine
     }
 
     /// Returns a mutable reference to the state machine used by the node.
-    pub fn machine_mut(&mut self) -> &mut InheritableVariable<Machine<Handle<Node>>> {
+    pub fn machine_mut(&mut self) -> &mut InheritableVariable<Machine> {
         &mut self.machine
     }
 
@@ -214,7 +292,7 @@ impl NodeTrait for AnimationBlendingStateMachine {
 /// Animation blending state machine builder allows you to create state machines in declarative manner.
 pub struct AnimationBlendingStateMachineBuilder {
     base_builder: BaseBuilder,
-    machine: Machine<Handle<Node>>,
+    machine: Machine,
     animation_player: Handle<Node>,
 }
 
@@ -229,7 +307,7 @@ impl AnimationBlendingStateMachineBuilder {
     }
 
     /// Sets the desired state machine.
-    pub fn with_machine(mut self, machine: Machine<Handle<Node>>) -> Self {
+    pub fn with_machine(mut self, machine: Machine) -> Self {
         self.machine = machine;
         self
     }

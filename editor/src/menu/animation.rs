@@ -1,10 +1,9 @@
 use crate::menu::create_menu_item;
 use fyrox::{
-    animation::machine::{Machine, MachineLayer},
     core::pool::Handle,
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
     scene::{
-        animation::{absm::AnimationBlendingStateMachineBuilder, AnimationPlayerBuilder},
+        animation::{absm::prelude::*, prelude::*},
         base::BaseBuilder,
         node::Node,
     },

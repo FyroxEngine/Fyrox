@@ -1,7 +1,6 @@
 use fyrox::{
-    animation::Animation,
     core::{pool::Handle, uuid::Uuid},
-    scene::node::Node,
+    scene::{animation::prelude::*, node::Node},
 };
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -14,7 +13,7 @@ pub enum SelectedEntity {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AnimationSelection {
     pub animation_player: Handle<Node>,
-    pub animation: Handle<Animation<Handle<Node>>>,
+    pub animation: Handle<Animation>,
     pub entities: Vec<SelectedEntity>,
 }
 

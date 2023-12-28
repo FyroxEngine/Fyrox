@@ -1,4 +1,3 @@
-use crate::message::MessageSender;
 use crate::{
     animation::{
         command::{
@@ -11,6 +10,7 @@ use crate::{
     },
     gui::make_dropdown_list_option_universal,
     load_image,
+    message::MessageSender,
     scene::{
         commands::{ChangeSelectionCommand, CommandGroup, GameSceneCommand},
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
@@ -19,7 +19,6 @@ use crate::{
     send_sync_message,
 };
 use fyrox::{
-    animation::{Animation, RootMotionSettings},
     asset::manager::ResourceManager,
     core::{algebra::Vector2, futures::executor::block_on, log::Log, math::Rect, pool::Handle},
     gui::{
@@ -44,7 +43,11 @@ use fyrox::{
         VerticalAlignment, BRUSH_BRIGHT, BRUSH_LIGHT,
     },
     resource::model::{Model, ModelResourceExtension},
-    scene::{animation::AnimationPlayer, node::Node, Scene},
+    scene::{
+        animation::{absm::prelude::*, prelude::*},
+        node::Node,
+        Scene,
+    },
 };
 use std::path::Path;
 
@@ -194,7 +197,7 @@ impl RootMotionDropdownArea {
         game_scene: &GameScene,
         selection: &AnimationSelection,
     ) {
-        let send_command = |settings: Option<RootMotionSettings<Handle<Node>>>| {
+        let send_command = |settings: Option<RootMotionSettings>| {
             sender.do_scene_command(SetAnimationRootMotionSettingsCommand {
                 node_handle: selection.animation_player,
                 animation_handle: selection.animation,
@@ -369,7 +372,7 @@ pub enum ToolbarAction {
     None,
     EnterPreviewMode,
     LeavePreviewMode,
-    SelectAnimation(Handle<Animation<Handle<Node>>>),
+    SelectAnimation(Handle<Animation>),
     PlayPause,
     Stop,
 }
@@ -867,7 +870,7 @@ impl Toolbar {
                     .items()[*index];
                 let animation = ui
                     .node(item)
-                    .user_data_cloned::<Handle<Animation<Handle<Node>>>>()
+                    .user_data_cloned::<Handle<Animation>>()
                     .unwrap();
                 sender.do_scene_command(ChangeSelectionCommand::new(
                     Selection::Animation(AnimationSelection {

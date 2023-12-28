@@ -14,11 +14,8 @@ use crate::{
     },
     send_sync_message,
 };
-use fyrox::core::pool::ErasedHandle;
-use fyrox::scene::node::Node;
 use fyrox::{
-    animation::machine::{LayerMask, MachineLayer},
-    core::pool::Handle,
+    core::{pool::ErasedHandle, pool::Handle},
     fxhash::FxHashSet,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
@@ -36,8 +33,9 @@ use fyrox::{
         BRUSH_BRIGHT,
     },
     scene::{
-        animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
+        animation::{absm::prelude::*, prelude::*},
         graph::Graph,
+        node::Node,
     },
 };
 

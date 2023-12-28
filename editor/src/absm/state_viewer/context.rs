@@ -19,13 +19,6 @@ use crate::{
     },
 };
 use fyrox::{
-    animation::machine::{
-        node::{
-            blendspace::{BlendSpace, BlendSpacePoint},
-            BasePoseNode,
-        },
-        BlendAnimations, BlendAnimationsByIndex, MachineLayer, PlayAnimation, PoseNode, State,
-    },
     core::{algebra::Vector2, pool::Handle},
     gui::{
         menu::MenuItemMessage,
@@ -35,7 +28,7 @@ use fyrox::{
         widget::WidgetBuilder,
         BuildContext, RcUiNodeHandle, UiNode, UserInterface,
     },
-    scene::node::Node,
+    scene::{animation::absm::prelude::*, node::Node},
 };
 
 pub struct CanvasContextMenu {
@@ -99,7 +92,7 @@ impl CanvasContextMenu {
         &mut self,
         sender: &MessageSender,
         message: &UiMessage,
-        current_state: Handle<State<Handle<Node>>>,
+        current_state: Handle<State>,
         ui: &mut UserInterface,
         absm_node_handle: Handle<Node>,
         layer_index: usize,
@@ -221,7 +214,7 @@ impl NodeContextMenu {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        machine_layer: &MachineLayer<Handle<Node>>,
+        machine_layer: &MachineLayer,
         sender: &MessageSender,
         ui: &UserInterface,
         editor_selection: &Selection,
@@ -256,7 +249,7 @@ impl NodeContextMenu {
             } else if message.destination() == self.set_as_root {
                 let root = ui
                     .node(self.placement_target)
-                    .query_component::<AbsmNode<PoseNode<Handle<Node>>>>()
+                    .query_component::<AbsmNode<PoseNode>>()
                     .unwrap()
                     .model_handle;
 
@@ -307,7 +300,7 @@ impl ConnectionContextMenu {
         message: &UiMessage,
         ui: &mut UserInterface,
         sender: &MessageSender,
-        machine_layer: &MachineLayer<Handle<Node>>,
+        machine_layer: &MachineLayer,
         absm_node_handle: Handle<Node>,
         layer_index: usize,
     ) {
@@ -320,7 +313,7 @@ impl ConnectionContextMenu {
 
                 let dest_node_ref = ui
                     .node(connection_ref.dest_node)
-                    .query_component::<AbsmNode<PoseNode<Handle<Node>>>>()
+                    .query_component::<AbsmNode<PoseNode>>()
                     .unwrap();
 
                 let index = dest_node_ref

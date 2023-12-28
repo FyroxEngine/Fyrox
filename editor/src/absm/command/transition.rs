@@ -5,9 +5,8 @@ use crate::{
     scene::commands::{GameSceneCommand, GameSceneContext},
 };
 use fyrox::{
-    animation::machine::transition::Transition,
     core::{pool::Handle, reflect::prelude::*},
-    scene::node::Node,
+    scene::{animation::absm::prelude::*, node::Node},
 };
 
 define_universal_commands!(
@@ -15,7 +14,7 @@ define_universal_commands!(
     GameSceneCommandTrait,
     GameSceneCommand,
     GameSceneContext,
-    Handle<Transition<Handle<Node>>>,
+    Handle<Transition>,
     ctx,
     handle,
     self,

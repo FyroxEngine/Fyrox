@@ -1,4 +1,3 @@
-use crate::inspector::editors::handle::EntityKind;
 use crate::{
     inspector::editors::{
         animation::{
@@ -6,7 +5,7 @@ use crate::{
             MachinePropertyEditorDefinition,
         },
         font::FontPropertyEditorDefinition,
-        handle::NodeHandlePropertyEditorDefinition,
+        handle::{EntityKind, NodeHandlePropertyEditorDefinition},
         material::MaterialPropertyEditorDefinition,
         resource::ResourceFieldPropertyEditorDefinition,
         script::ScriptPropertyEditorDefinition,
@@ -16,23 +15,8 @@ use crate::{
     },
     message::MessageSender,
 };
-use fyrox::asset::manager::ResourceManager;
-use fyrox::asset::Resource;
-use fyrox::gui::UserInterface;
 use fyrox::{
-    animation::{
-        machine::{
-            node::{
-                blendspace::{BlendSpace, BlendSpacePoint},
-                BasePoseNode,
-            },
-            state::{StateAction, StateActionWrapper},
-            transition::{AndNode, LogicNode, NotNode, OrNode, XorNode},
-            BlendAnimations, BlendAnimationsByIndex, BlendPose, IndexedBlendInput, Machine,
-            PlayAnimation, PoseNode, PoseWeight, State,
-        },
-        Animation, AnimationContainer,
-    },
+    asset::{manager::ResourceManager, Resource},
     core::{
         futures::executor::block_on,
         parking_lot::Mutex,
@@ -44,6 +28,7 @@ use fyrox::{
         inspectable::InspectablePropertyEditorDefinition, path::PathPropertyEditorDefinition,
         PropertyEditorDefinitionContainer,
     },
+    gui::UserInterface,
     material::{
         shader::{Shader, ShaderResource},
         MaterialResource,
@@ -58,6 +43,7 @@ use fyrox::{
         },
     },
     scene::{
+        animation::{absm::prelude::*, prelude::*},
         base::{Base, LevelOfDetail, LodGroup, Mobility, Property, PropertyValue},
         camera::{
             ColorGradingLut, Exposure, OrthographicProjection, PerspectiveProjection, Projection,
@@ -103,8 +89,7 @@ use fyrox::{
         transform::Transform,
     },
 };
-use std::path::Path;
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 pub mod animation;
 pub mod font;
@@ -186,19 +171,21 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(EnumPropertyEditorDefinition::<LodGroup>::new_optional());
     container.insert(InheritablePropertyEditorDefinition::<Option<LodGroup>>::new());
 
-    container.register_inheritable_enum::<fyrox::animation::spritesheet::Status, _>();
+    container.register_inheritable_enum::<fyrox::generic_animation::spritesheet::Status, _>();
 
     container.register_inheritable_inspectable::<LodGroup>();
 
     container
-        .register_inheritable_inspectable::<fyrox::animation::spritesheet::SpriteSheetAnimation>();
+        .register_inheritable_inspectable::<fyrox::generic_animation::spritesheet::SpriteSheetAnimation>();
     container
-        .register_inheritable_vec_collection::<fyrox::animation::spritesheet::SpriteSheetAnimation>(
+        .register_inheritable_vec_collection::<fyrox::generic_animation::spritesheet::SpriteSheetAnimation>(
         );
 
-    container.register_inheritable_inspectable::<fyrox::animation::spritesheet::signal::Signal>();
     container
-        .register_inheritable_vec_collection::<fyrox::animation::spritesheet::signal::Signal>();
+        .register_inheritable_inspectable::<fyrox::generic_animation::spritesheet::signal::Signal>(
+        );
+    container
+        .register_inheritable_vec_collection::<fyrox::generic_animation::spritesheet::signal::Signal>();
 
     container.insert(ResourceFieldPropertyEditorDefinition::<Model>::new(
         Arc::new(Mutex::new(
@@ -365,71 +352,39 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(InheritablePropertyEditorDefinition::<SurfaceSharedData>::new());
     container.insert(InheritablePropertyEditorDefinition::<Status>::new());
 
-    container.insert(InspectablePropertyEditorDefinition::<
-        BasePoseNode<Handle<Node>>,
-    >::new());
-    container.insert(InspectablePropertyEditorDefinition::<
-        IndexedBlendInput<Handle<Node>>,
-    >::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<
-        IndexedBlendInput<Handle<Node>>,
-    >::new());
-    container.insert(InspectablePropertyEditorDefinition::<
-        BlendSpacePoint<Handle<Node>>,
-    >::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<
-        BlendSpacePoint<Handle<Node>>,
-    >::new());
-    container.insert(InspectablePropertyEditorDefinition::<BlendPose<Handle<Node>>>::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<
-        BlendPose<Handle<Node>>,
-    >::new());
+    container.insert(InspectablePropertyEditorDefinition::<BasePoseNode>::new());
+    container.insert(InspectablePropertyEditorDefinition::<IndexedBlendInput>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<IndexedBlendInput>::new());
+    container.insert(InspectablePropertyEditorDefinition::<BlendSpacePoint>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<BlendSpacePoint>::new());
+    container.insert(InspectablePropertyEditorDefinition::<BlendPose>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<BlendPose>::new());
     container.insert(EnumPropertyEditorDefinition::<PoseWeight>::new());
-    container.insert(EnumPropertyEditorDefinition::<StateAction<Handle<Node>>>::new());
-    container.insert(InspectablePropertyEditorDefinition::<
-        StateActionWrapper<Handle<Node>>,
-    >::new());
-    container.insert(VecCollectionPropertyEditorDefinition::<
-        StateActionWrapper<Handle<Node>>,
-    >::new());
-    container.insert(InspectablePropertyEditorDefinition::<
-        BlendAnimationsByIndex<Handle<Node>>,
-    >::new());
-    container.insert(InspectablePropertyEditorDefinition::<
-        BlendAnimations<Handle<Node>>,
-    >::new());
-    container.insert(InspectablePropertyEditorDefinition::<
-        BlendSpace<Handle<Node>>,
-    >::new());
-    container.insert(InspectablePropertyEditorDefinition::<
-        PlayAnimation<Handle<Node>>,
-    >::new());
+    container.insert(EnumPropertyEditorDefinition::<StateAction>::new());
+    container.insert(InspectablePropertyEditorDefinition::<StateActionWrapper>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<StateActionWrapper>::new());
+    container.insert(InspectablePropertyEditorDefinition::<BlendAnimationsByIndex>::new());
+    container.insert(InspectablePropertyEditorDefinition::<BlendAnimations>::new());
+    container.insert(InspectablePropertyEditorDefinition::<BlendSpace>::new());
+    container.insert(InspectablePropertyEditorDefinition::<PlayAnimation>::new());
 
-    container.insert(InspectablePropertyEditorDefinition::<
-        Handle<PoseNode<Handle<Node>>>,
-    >::new());
-    container.insert(InspectablePropertyEditorDefinition::<
-        Handle<State<Handle<Node>>>,
-    >::new());
+    container.insert(InspectablePropertyEditorDefinition::<Handle<PoseNode>>::new());
+    container.insert(InspectablePropertyEditorDefinition::<Handle<State>>::new());
 
-    container.insert(VecCollectionPropertyEditorDefinition::<
-        Handle<Animation<Handle<Node>>>,
-    >::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<Handle<Animation>>::new());
     container.insert(AnimationPropertyEditorDefinition);
 
     container.insert(AnimationContainerPropertyEditorDefinition);
-    container.insert(InheritablePropertyEditorDefinition::<
-        AnimationContainer<Handle<Node>>,
-    >::new());
+    container.insert(InheritablePropertyEditorDefinition::<AnimationContainer>::new());
 
     container.insert(MachinePropertyEditorDefinition);
-    container.insert(InheritablePropertyEditorDefinition::<Machine<Handle<Node>>>::new());
+    container.insert(InheritablePropertyEditorDefinition::<Machine>::new());
 
-    container.insert(EnumPropertyEditorDefinition::<LogicNode<Handle<Node>>>::new());
-    container.insert(InspectablePropertyEditorDefinition::<AndNode<Handle<Node>>>::new());
-    container.insert(InspectablePropertyEditorDefinition::<OrNode<Handle<Node>>>::new());
-    container.insert(InspectablePropertyEditorDefinition::<XorNode<Handle<Node>>>::new());
-    container.insert(InspectablePropertyEditorDefinition::<NotNode<Handle<Node>>>::new());
+    container.insert(EnumPropertyEditorDefinition::<LogicNode>::new());
+    container.insert(InspectablePropertyEditorDefinition::<AndNode>::new());
+    container.insert(InspectablePropertyEditorDefinition::<OrNode>::new());
+    container.insert(InspectablePropertyEditorDefinition::<XorNode>::new());
+    container.insert(InspectablePropertyEditorDefinition::<NotNode>::new());
 
     container.insert(InspectablePropertyEditorDefinition::<ParticleSystemRng>::new());
     container.insert(EnumPropertyEditorDefinition::<PolygonFillMode>::new());

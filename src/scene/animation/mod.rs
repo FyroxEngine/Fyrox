@@ -2,10 +2,6 @@
 //! See [`AnimationPlayer`] docs for more info.
 
 use crate::{
-    animation::{
-        value::{BoundValueCollection, TrackValue, ValueBinding},
-        AnimationContainer, AnimationPose, NodePose,
-    },
     core::{
         log::{Log, MessageKind},
         math::aabb::AxisAlignedBoundingBox,
@@ -16,17 +12,42 @@ use crate::{
         visitor::prelude::*,
         TypeUuidProvider,
     },
+    generic_animation::value::{BoundValueCollection, TrackValue, ValueBinding},
     scene::{
         base::{Base, BaseBuilder},
         graph::{Graph, NodePool},
         node::{Node, NodeTrait, UpdateContext},
     },
 };
-use fyrox_animation::machine::LayerMask;
-use fyrox_core::pool::ErasedHandle;
 use std::ops::{Deref, DerefMut};
 
 pub mod absm;
+
+/// Scene specific animation.
+pub type Animation = crate::generic_animation::Animation<Handle<Node>>;
+/// Scene specific animation track.
+pub type Track = crate::generic_animation::track::Track<Handle<Node>>;
+/// Scene specific animation container.
+pub type AnimationContainer = crate::generic_animation::AnimationContainer<Handle<Node>>;
+/// Scene specific animation pose.
+pub type AnimationPose = crate::generic_animation::AnimationPose<Handle<Node>>;
+/// Scene specific animation node pose.
+pub type NodePose = crate::generic_animation::NodePose<Handle<Node>>;
+
+/// Standard prelude for animations, that contains all most commonly used types and traits.
+pub mod prelude {
+    pub use super::{
+        Animation, AnimationContainer, AnimationContainerExt, AnimationPlayer,
+        AnimationPlayerBuilder, AnimationPose, AnimationPoseExt, BoundValueCollectionExt, NodePose,
+        Track,
+    };
+    pub use crate::generic_animation::{
+        container::{TrackDataContainer, TrackValueKind},
+        signal::AnimationSignal,
+        value::{BoundValueCollection, TrackValue, ValueBinding, ValueType},
+        AnimationEvent,
+    };
+}
 
 /// Extension trait for [`AnimationContainer`].
 pub trait AnimationContainerExt {
@@ -35,7 +56,7 @@ pub trait AnimationContainerExt {
     fn update_animations(&mut self, nodes: &mut NodePool, apply: bool, dt: f32);
 }
 
-impl AnimationContainerExt for AnimationContainer<Handle<Node>> {
+impl AnimationContainerExt for AnimationContainer {
     fn update_animations(&mut self, nodes: &mut NodePool, apply: bool, dt: f32) {
         for animation in self.iter_mut().filter(|anim| anim.is_enabled()) {
             animation.tick(dt);
@@ -58,10 +79,10 @@ pub trait AnimationPoseExt {
     /// rules. This could be useful if you need to ignore transform some part of pose for a node.
     fn apply_with<C>(&self, graph: &mut Graph, callback: C)
     where
-        C: FnMut(&mut Node, Handle<Node>, &NodePose<Handle<Node>>);
+        C: FnMut(&mut Node, Handle<Node>, &NodePose);
 }
 
-impl AnimationPoseExt for AnimationPose<Handle<Node>> {
+impl AnimationPoseExt for AnimationPose {
     fn apply_internal(&self, nodes: &mut NodePool) {
         for (node, local_pose) in self.poses() {
             if node.is_none() {
@@ -84,7 +105,7 @@ impl AnimationPoseExt for AnimationPose<Handle<Node>> {
 
     fn apply_with<C>(&self, graph: &mut Graph, mut callback: C)
     where
-        C: FnMut(&mut Node, Handle<Node>, &NodePose<Handle<Node>>),
+        C: FnMut(&mut Node, Handle<Node>, &NodePose),
     {
         for (node, local_pose) in self.poses() {
             if node.is_none() {
@@ -166,23 +187,9 @@ impl BoundValueCollectionExt for BoundValueCollection {
     }
 }
 
-/// Extension trait for [`LayerMask`].
-pub trait LayerMaskExt {
-    /// Creates a layer mask for every descendant node starting from specified `root` (included). It could
-    /// be useful if you have an entire node hierarchy (for example, lower part of a body) that needs to
-    /// be filtered out.
-    fn from_hierarchy(graph: &Graph, root: ErasedHandle) -> Self;
-}
-
-impl LayerMaskExt for LayerMask<Handle<Node>> {
-    fn from_hierarchy(graph: &Graph, root: ErasedHandle) -> Self {
-        Self::from(graph.traverse_handle_iter(root.into()).collect::<Vec<_>>())
-    }
-}
-
 /// Animation player is a node that contains multiple animations. It updates and plays all the animations.
 /// The node could be a source of animations for animation blending state machines. To learn more about
-/// animations, see [`crate::animation::Animation`] docs.
+/// animations, see [`Animation`] docs.
 ///
 /// # Examples
 ///
@@ -192,20 +199,14 @@ impl LayerMaskExt for LayerMask<Handle<Node>> {
 ///
 /// ```rust
 /// use fyrox::{
-///     animation::{
-///         container::{TrackDataContainer, TrackValueKind},
-///         track::Track,
-///         value::ValueBinding,
-///         Animation, AnimationContainer,
-///     },
 ///     core::{
 ///         curve::{Curve, CurveKey, CurveKeyKind},
 ///         pool::Handle,
 ///     },
-///     scene::{animation::AnimationPlayerBuilder, base::BaseBuilder, graph::Graph, node::Node},
+///     scene::{animation::prelude::*, base::BaseBuilder, graph::Graph, node::Node},
 /// };
 ///
-/// fn create_bounce_animation(animated_node: Handle<Node>) -> Animation<Handle<Node>> {
+/// fn create_bounce_animation(animated_node: Handle<Node>) -> Animation {
 ///     let mut frames_container = TrackDataContainer::new(TrackValueKind::Vector3);
 ///
 ///     // We'll animate only Y coordinate (at index 1).
@@ -248,11 +249,11 @@ impl LayerMaskExt for LayerMask<Handle<Node>> {
 /// As you can see, the example is quite big. That's why you should always prefer using the editor to create animations.
 /// The example creates a bounce animation first - it is a simple animation that animates position of a given node
 /// (`animated_node`). Only then it creates an animation player node with an animation container with a single animation.
-/// To understand why this is so complicated, see the docs of [`crate::animation::Animation`].
+/// To understand why this is so complicated, see the docs of [`Animation`].
 #[derive(Visit, Reflect, Clone, Debug)]
 pub struct AnimationPlayer {
     base: Base,
-    animations: InheritableVariable<AnimationContainer<Handle<Node>>>,
+    animations: InheritableVariable<AnimationContainer>,
     auto_apply: bool,
 }
 
@@ -282,18 +283,18 @@ impl AnimationPlayer {
     }
 
     /// Returns a reference to internal animations container.
-    pub fn animations(&self) -> &InheritableVariable<AnimationContainer<Handle<Node>>> {
+    pub fn animations(&self) -> &InheritableVariable<AnimationContainer> {
         &self.animations
     }
 
     /// Returns a reference to internal animations container. Keep in mind that mutable access to [`InheritableVariable`]
     /// may have side effects if used inappropriately. Checks docs for [`InheritableVariable`] for more info.
-    pub fn animations_mut(&mut self) -> &mut InheritableVariable<AnimationContainer<Handle<Node>>> {
+    pub fn animations_mut(&mut self) -> &mut InheritableVariable<AnimationContainer> {
         &mut self.animations
     }
 
     /// Sets new animations container of the animation player.
-    pub fn set_animations(&mut self, animations: AnimationContainer<Handle<Node>>) {
+    pub fn set_animations(&mut self, animations: AnimationContainer) {
         self.animations.set_value_and_mark_modified(animations);
     }
 }
@@ -345,7 +346,7 @@ impl NodeTrait for AnimationPlayer {
 /// A builder for [`AnimationPlayer`] node.
 pub struct AnimationPlayerBuilder {
     base_builder: BaseBuilder,
-    animations: AnimationContainer<Handle<Node>>,
+    animations: AnimationContainer,
     auto_apply: bool,
 }
 
@@ -360,7 +361,7 @@ impl AnimationPlayerBuilder {
     }
 
     /// Sets a container with desired animations.
-    pub fn with_animations(mut self, animations: AnimationContainer<Handle<Node>>) -> Self {
+    pub fn with_animations(mut self, animations: AnimationContainer) -> Self {
         self.animations = animations;
         self
     }

@@ -15,7 +15,6 @@ use crate::{
     send_sync_message, Message,
 };
 use fyrox::{
-    animation::AnimationSignal,
     core::{algebra::Vector2, math::Rect, pool::Handle, uuid::Uuid},
     engine::Engine,
     fxhash::FxHashSet,
@@ -29,7 +28,7 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, UiNode, UserInterface, BRUSH_DARK, BRUSH_PRIMARY,
     },
-    scene::{animation::AnimationPlayer, node::Node, Scene},
+    scene::{animation::prelude::*, node::Node, Scene},
 };
 
 pub mod command;

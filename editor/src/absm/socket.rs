@@ -1,7 +1,5 @@
 use fyrox::core::uuid_provider;
-use fyrox::scene::node::Node;
 use fyrox::{
-    animation::machine::PoseNode,
     core::{algebra::Vector2, color::Color, pool::Handle},
     core::{reflect::prelude::*, visitor::prelude::*},
     gui::{
@@ -15,6 +13,7 @@ use fyrox::{
         widget::{Widget, WidgetBuilder, WidgetMessage},
         BuildContext, Control, Orientation, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
+    scene::animation::absm::prelude::*,
 };
 use std::{
     any::{Any, TypeId},
@@ -45,7 +44,7 @@ pub enum SocketDirection {
 pub struct Socket {
     widget: Widget,
     click_position: Option<Vector2<f32>>,
-    pub parent_node: Handle<PoseNode<Handle<Node>>>,
+    pub parent_node: Handle<PoseNode>,
     pub direction: SocketDirection,
     #[allow(dead_code)] // TODO
     editor: Handle<UiNode>,
@@ -125,7 +124,7 @@ impl Control for Socket {
 
 pub struct SocketBuilder {
     widget_builder: WidgetBuilder,
-    parent_node: Handle<PoseNode<Handle<Node>>>,
+    parent_node: Handle<PoseNode>,
     direction: SocketDirection,
     editor: Handle<UiNode>,
     index: usize,
@@ -144,7 +143,7 @@ impl SocketBuilder {
         }
     }
 
-    pub fn with_parent_node(mut self, parent_node: Handle<PoseNode<Handle<Node>>>) -> Self {
+    pub fn with_parent_node(mut self, parent_node: Handle<PoseNode>) -> Self {
         self.parent_node = parent_node;
         self
     }

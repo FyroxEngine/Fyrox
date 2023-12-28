@@ -10,19 +10,14 @@ use crate::{
     message::MessageSender,
     send_sync_message,
 };
-use fyrox::core::uuid_provider;
-use fyrox::scene::node::Node;
 use fyrox::{
-    animation::machine::{
-        node::blendspace::BlendSpacePoint, Machine, MachineLayer, Parameter, ParameterContainer,
-        PoseNode,
-    },
     core::{
         algebra::Vector2,
         color::Color,
         math::{Rect, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
+        uuid_provider,
         visitor::prelude::*,
     },
     gui::{
@@ -40,11 +35,12 @@ use fyrox::{
         BuildContext, Control, HorizontalAlignment, RcUiNodeHandle, Thickness, UiNode,
         UserInterface, VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT, BRUSH_LIGHTEST,
     },
+    scene::animation::absm::prelude::*,
 };
-use std::fmt::{Debug, Formatter};
 use std::{
     any::{Any, TypeId},
     cell::Cell,
+    fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
 
@@ -812,7 +808,7 @@ impl BlendSpaceEditor {
     pub fn sync_to_model(
         &mut self,
         parameters: &ParameterContainer,
-        layer: &MachineLayer<Handle<Node>>,
+        layer: &MachineLayer,
         selection: &AbsmSelection,
         ui: &mut UserInterface,
     ) {
@@ -894,7 +890,7 @@ impl BlendSpaceEditor {
         selection: &AbsmSelection,
         message: &UiMessage,
         sender: &MessageSender,
-        machine: &mut Machine<Handle<Node>>,
+        machine: &mut Machine,
         is_preview_mode_active: bool,
     ) {
         if let Some(SelectedEntity::PoseNode(first)) = selection.entities.first() {

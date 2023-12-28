@@ -17,7 +17,6 @@ use crate::{
     },
 };
 use fyrox::{
-    animation::machine::{State, Transition},
     core::pool::Handle,
     gui::{
         menu::MenuItemMessage,
@@ -27,7 +26,7 @@ use fyrox::{
         widget::WidgetBuilder,
         BuildContext, RcUiNodeHandle, UiNode, UserInterface,
     },
-    scene::{animation::absm::AnimationBlendingStateMachine, node::Node},
+    scene::{animation::absm::prelude::*, node::Node},
 };
 
 use super::fetch_state_node_model_handle;
@@ -277,7 +276,7 @@ impl NodeContextMenu {
                     layer: layer_index,
                     entry: ui
                         .node(self.placement_target)
-                        .query_component::<AbsmNode<State<Handle<Node>>>>()
+                        .query_component::<AbsmNode<State>>()
                         .unwrap()
                         .model_handle,
                 });
@@ -296,7 +295,7 @@ impl NodeContextMenu {
                     .children()
                     .iter()
                     .cloned()
-                    .filter(|c| ui.node(*c).has_component::<AbsmNode<State<Handle<Node>>>>())
+                    .filter(|c| ui.node(*c).has_component::<AbsmNode<State>>())
                     .collect::<Vec<_>>();
                 ui.send_message(AbsmCanvasMessage::commit_transition_to_all_nodes(
                     self.canvas,
