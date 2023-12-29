@@ -4,15 +4,26 @@
 #![warn(missing_docs)]
 
 use crate::{
-    core::{algebra::Vector2, math::Rect, reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2,
+        math::Rect,
+        reflect::prelude::*,
+        uuid::{uuid, Uuid},
+        uuid_provider,
+        visitor::prelude::*,
+        TypeUuidProvider,
+    },
     spritesheet::signal::Signal,
 };
-use fyrox_core::uuid_provider;
-use fyrox_resource::untyped::UntypedResource;
 use std::collections::vec_deque::VecDeque;
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 pub mod signal;
+
+/// Trait for anything that can be used as a texture.
+pub trait SpriteSheetTexture: Clone + Visit + Reflect + 'static {}
+
+impl<T: Clone + Visit + Reflect + 'static> SpriteSheetTexture for T {}
 
 /// Animation playback status.
 #[derive(
@@ -54,14 +65,20 @@ impl Default for Event {
 
 /// Container for a sprite sheet animation frames.
 #[derive(Reflect, Visit, Clone, Debug, PartialEq, Eq)]
-pub struct SpriteSheetFramesContainer {
+pub struct SpriteSheetFramesContainer<T>
+where
+    T: SpriteSheetTexture,
+{
     size: Vector2<u32>,
     frames: Vec<Vector2<u32>>,
     #[visit(optional)]
-    texture: Option<UntypedResource>,
+    texture: Option<T>,
 }
 
-impl SpriteSheetFramesContainer {
+impl<T> SpriteSheetFramesContainer<T>
+where
+    T: SpriteSheetTexture,
+{
     /// Adds a frame to the container.
     pub fn push(&mut self, bounds: Vector2<u32>) {
         self.frames.push(bounds)
@@ -115,12 +132,15 @@ impl SpriteSheetFramesContainer {
     }
 
     /// Returns current texture of the container. To set a texture use sprite sheet animation methods.
-    pub fn texture(&self) -> Option<UntypedResource> {
+    pub fn texture(&self) -> Option<T> {
         self.texture.clone()
     }
 }
 
-impl Default for SpriteSheetFramesContainer {
+impl<T> Default for SpriteSheetFramesContainer<T>
+where
+    T: SpriteSheetTexture,
+{
     fn default() -> Self {
         Self {
             size: Vector2::new(1, 1),
@@ -133,9 +153,12 @@ impl Default for SpriteSheetFramesContainer {
 /// Sprite sheet animation is an animation based on key frames, where each key frame is packed into single image. Usually, all key
 /// frames have the same size, but this is not mandatory.
 #[derive(Visit, Reflect, Clone, Debug)]
-pub struct SpriteSheetAnimation {
+pub struct SpriteSheetAnimation<T>
+where
+    T: SpriteSheetTexture,
+{
     #[visit(rename = "Frames")]
-    frames_container: SpriteSheetFramesContainer,
+    frames_container: SpriteSheetFramesContainer<T>,
     current_frame: f32,
     speed: f32,
     status: Status,
@@ -143,15 +166,25 @@ pub struct SpriteSheetAnimation {
     signals: Vec<Signal>,
     #[visit(optional)]
     #[reflect(setter = "set_texture")]
-    texture: Option<UntypedResource>,
+    texture: Option<T>,
     #[reflect(hidden)]
     #[visit(skip)]
     events: VecDeque<Event>,
 }
 
-uuid_provider!(SpriteSheetAnimation = "1fa13feb-a16d-4539-acde-672aaeb0f62b");
+impl<T> TypeUuidProvider for SpriteSheetAnimation<T>
+where
+    T: SpriteSheetTexture,
+{
+    fn type_uuid() -> Uuid {
+        uuid!("1fa13feb-a16d-4539-acde-672aaeb0f62b")
+    }
+}
 
-impl Default for SpriteSheetAnimation {
+impl<T> Default for SpriteSheetAnimation<T>
+where
+    T: SpriteSheetTexture,
+{
     fn default() -> Self {
         Self {
             frames_container: Default::default(),
@@ -192,7 +225,10 @@ pub struct ImageParameters {
     pub column_major: bool,
 }
 
-impl SpriteSheetAnimation {
+impl<T> SpriteSheetAnimation<T>
+where
+    T: SpriteSheetTexture,
+{
     /// Creates new empty animation.
     pub fn new() -> Self {
         Self::default()
@@ -302,7 +338,7 @@ impl SpriteSheetAnimation {
     }
 
     /// Creates new animation with given frames container.
-    pub fn with_container(container: SpriteSheetFramesContainer) -> Self {
+    pub fn with_container(container: SpriteSheetFramesContainer<T>) -> Self {
         Self {
             frames_container: container,
             ..Default::default()
@@ -310,23 +346,23 @@ impl SpriteSheetAnimation {
     }
 
     /// Sets new texture for the animation.
-    pub fn set_texture(&mut self, texture: Option<UntypedResource>) -> Option<UntypedResource> {
+    pub fn set_texture(&mut self, texture: Option<T>) -> Option<T> {
         self.frames_container.texture = texture.clone();
         std::mem::replace(&mut self.texture, texture)
     }
 
     /// Returns current texture of the animation.
-    pub fn texture(&self) -> Option<UntypedResource> {
+    pub fn texture(&self) -> Option<T> {
         self.texture.clone()
     }
 
     /// Returns a shared reference to inner frames container.
-    pub fn frames(&self) -> &SpriteSheetFramesContainer {
+    pub fn frames(&self) -> &SpriteSheetFramesContainer<T> {
         &self.frames_container
     }
 
     /// Returns a mutable reference to inner frames container.
-    pub fn frames_mut(&mut self) -> &mut SpriteSheetFramesContainer {
+    pub fn frames_mut(&mut self) -> &mut SpriteSheetFramesContainer<T> {
         &mut self.frames_container
     }
 

@@ -22,6 +22,7 @@ use crate::{
 use std::ops::{Deref, DerefMut};
 
 pub mod absm;
+pub mod spritesheet;
 
 /// Scene specific animation.
 pub type Animation = crate::generic_animation::Animation<Handle<Node>>;

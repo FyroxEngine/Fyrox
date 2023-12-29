@@ -171,21 +171,15 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(EnumPropertyEditorDefinition::<LodGroup>::new_optional());
     container.insert(InheritablePropertyEditorDefinition::<Option<LodGroup>>::new());
 
-    container.register_inheritable_enum::<fyrox::generic_animation::spritesheet::Status, _>();
-
-    container.register_inheritable_inspectable::<LodGroup>();
-
-    container
-        .register_inheritable_inspectable::<fyrox::generic_animation::spritesheet::SpriteSheetAnimation>();
-    container
-        .register_inheritable_vec_collection::<fyrox::generic_animation::spritesheet::SpriteSheetAnimation>(
-        );
-
-    container
-        .register_inheritable_inspectable::<fyrox::generic_animation::spritesheet::signal::Signal>(
-        );
-    container
-        .register_inheritable_vec_collection::<fyrox::generic_animation::spritesheet::signal::Signal>();
+    {
+        use fyrox::scene::animation::spritesheet::prelude::*;
+        container.register_inheritable_enum::<Status, _>();
+        container.register_inheritable_inspectable::<LodGroup>();
+        container.register_inheritable_inspectable::<SpriteSheetAnimation>();
+        container.register_inheritable_vec_collection::<SpriteSheetAnimation>();
+        container.register_inheritable_inspectable::<Signal>();
+        container.register_inheritable_vec_collection::<Signal>();
+    }
 
     container.insert(ResourceFieldPropertyEditorDefinition::<Model>::new(
         Arc::new(Mutex::new(

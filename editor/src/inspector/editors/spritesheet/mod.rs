@@ -1,7 +1,6 @@
 use crate::inspector::editors::spritesheet::window::SpriteSheetFramesEditorWindow;
 use fyrox::{
     core::{pool::Handle, reflect::prelude::*, uuid_provider, visitor::prelude::*},
-    generic_animation::spritesheet::SpriteSheetFramesContainer,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         define_constructor, define_widget_deref,
@@ -19,6 +18,7 @@ use fyrox::{
         window::WindowMessage,
         BuildContext, Control, Thickness, UiNode, UserInterface,
     },
+    scene::animation::spritesheet::prelude::*,
 };
 use std::{
     any::{Any, TypeId},

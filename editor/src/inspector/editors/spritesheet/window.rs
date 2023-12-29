@@ -4,7 +4,6 @@ use fyrox::{
         algebra::Vector2, color::Color, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
         uuid_provider, visitor::prelude::*,
     },
-    generic_animation::spritesheet::{SpriteSheetAnimation, SpriteSheetFramesContainer},
     gui::{
         border::BorderBuilder,
         brush::Brush,
@@ -23,6 +22,7 @@ use fyrox::{
         BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness,
         UiNode, UserInterface, VerticalAlignment,
     },
+    scene::animation::spritesheet::prelude::*,
 };
 use std::{
     any::{Any, TypeId},
