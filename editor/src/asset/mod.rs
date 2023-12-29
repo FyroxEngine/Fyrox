@@ -845,7 +845,12 @@ impl AssetBrowser {
                                     .file_stem()
                                     .map(|s| s.to_string_lossy().to_lowercase())
                                     .unwrap_or_default();
-                                if file_stem.contains(&search_text) {
+                                if file_stem.contains(&search_text)
+                                    || rust_fuzzy_search::fuzzy_compare(
+                                        &search_text,
+                                        file_stem.as_str(),
+                                    ) >= 0.33
+                                {
                                     if let Ok(relative_path) = make_relative_path(dir.path()) {
                                         self.add_asset(
                                             &relative_path,
