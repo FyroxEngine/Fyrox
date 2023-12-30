@@ -260,9 +260,14 @@ where
     /// # use fyrox_animation::{
     /// #      spritesheet::{ImageParameters, SpriteSheetAnimation},
     /// #      core::math::Rect,
-    /// # };
+    /// # };    
+    /// # use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
+    /// #
+    /// #[derive(Clone, Reflect, Visit, Debug)]
+    /// struct MyTexture {}
+    ///
     /// fn extract_animations() {
-    ///     let run = SpriteSheetAnimation::new_from_image_parameters(ImageParameters {
+    ///     let run = SpriteSheetAnimation::<MyTexture>::new_from_image_parameters(ImageParameters {
     ///         width: 128,
     ///         height: 128,
     ///         frame_width: 32,
@@ -272,7 +277,7 @@ where
     ///         column_major: false,
     ///     });
     ///
-    ///     let idle = SpriteSheetAnimation::new_from_image_parameters(ImageParameters {
+    ///     let idle = SpriteSheetAnimation::<MyTexture>::new_from_image_parameters(ImageParameters {
     ///         width: 128,
     ///         height: 128,
     ///         frame_width: 32,
@@ -282,7 +287,7 @@ where
     ///         column_major: false,
     ///     });
     ///
-    ///     let attack = SpriteSheetAnimation::new_from_image_parameters(ImageParameters {
+    ///     let attack = SpriteSheetAnimation::<MyTexture>::new_from_image_parameters(ImageParameters {
     ///         width: 128,
     ///         height: 128,
     ///         frame_width: 32,
@@ -549,20 +554,23 @@ mod test {
     use crate::spritesheet::{
         signal::Signal, Event, ImageParameters, SpriteSheetAnimation, Status,
     };
-    use fyrox_core::algebra::Vector2;
-    use fyrox_core::math::Rect;
+    use fyrox_core::{algebra::Vector2, math::Rect, reflect::prelude::*, visitor::prelude::*};
+
+    #[derive(Clone, Reflect, Visit, Debug)]
+    struct MyTexture {}
 
     #[test]
     fn test_sprite_sheet_one_row() {
-        let animation = SpriteSheetAnimation::new_from_image_parameters(ImageParameters {
-            width: 128,
-            height: 128,
-            frame_width: 32,
-            frame_height: 32,
-            first_frame: 0,
-            last_frame: 4,
-            column_major: false,
-        });
+        let animation =
+            SpriteSheetAnimation::<MyTexture>::new_from_image_parameters(ImageParameters {
+                width: 128,
+                height: 128,
+                frame_width: 32,
+                frame_height: 32,
+                first_frame: 0,
+                last_frame: 4,
+                column_major: false,
+            });
         assert_eq!(
             animation.frame_uv_rect(0),
             Some(Rect::new(0.0, 0.0, 0.25, 0.25))
@@ -583,15 +591,16 @@ mod test {
 
     #[test]
     fn test_sprite_sheet_one_column() {
-        let animation = SpriteSheetAnimation::new_from_image_parameters(ImageParameters {
-            width: 128,
-            height: 128,
-            frame_width: 32,
-            frame_height: 32,
-            first_frame: 0,
-            last_frame: 4,
-            column_major: true,
-        });
+        let animation =
+            SpriteSheetAnimation::<MyTexture>::new_from_image_parameters(ImageParameters {
+                width: 128,
+                height: 128,
+                frame_width: 32,
+                frame_height: 32,
+                first_frame: 0,
+                last_frame: 4,
+                column_major: true,
+            });
         assert_eq!(
             animation.frame_uv_rect(0),
             Some(Rect::new(0.0, 0.0, 0.25, 0.25))
@@ -612,15 +621,16 @@ mod test {
 
     #[test]
     fn test_sprite_sheet_row_partial() {
-        let animation = SpriteSheetAnimation::new_from_image_parameters(ImageParameters {
-            width: 128,
-            height: 128,
-            frame_width: 32,
-            frame_height: 32,
-            first_frame: 2,
-            last_frame: 6,
-            column_major: false,
-        });
+        let animation =
+            SpriteSheetAnimation::<MyTexture>::new_from_image_parameters(ImageParameters {
+                width: 128,
+                height: 128,
+                frame_width: 32,
+                frame_height: 32,
+                first_frame: 2,
+                last_frame: 6,
+                column_major: false,
+            });
         assert_eq!(
             animation.frame_uv_rect(0),
             Some(Rect::new(0.5, 0.0, 0.25, 0.25))
@@ -641,15 +651,16 @@ mod test {
 
     #[test]
     fn test_sprite_sheet_column_partial() {
-        let animation = SpriteSheetAnimation::new_from_image_parameters(ImageParameters {
-            width: 128,
-            height: 128,
-            frame_width: 32,
-            frame_height: 32,
-            first_frame: 2,
-            last_frame: 6,
-            column_major: true,
-        });
+        let animation =
+            SpriteSheetAnimation::<MyTexture>::new_from_image_parameters(ImageParameters {
+                width: 128,
+                height: 128,
+                frame_width: 32,
+                frame_height: 32,
+                first_frame: 2,
+                last_frame: 6,
+                column_major: true,
+            });
         assert_eq!(
             animation.frame_uv_rect(0),
             Some(Rect::new(0.0, 0.5, 0.25, 0.25))
@@ -670,15 +681,16 @@ mod test {
 
     #[test]
     fn test_sprite_sheet_playback() {
-        let mut animation = SpriteSheetAnimation::new_from_image_parameters(ImageParameters {
-            width: 128,
-            height: 128,
-            frame_width: 32,
-            frame_height: 32,
-            first_frame: 2,
-            last_frame: 6,
-            column_major: true,
-        });
+        let mut animation =
+            SpriteSheetAnimation::<MyTexture>::new_from_image_parameters(ImageParameters {
+                width: 128,
+                height: 128,
+                frame_width: 32,
+                frame_height: 32,
+                first_frame: 2,
+                last_frame: 6,
+                column_major: true,
+            });
 
         animation.speed = 1.0; // 1 FPS
         animation.looping = false;
@@ -715,7 +727,7 @@ mod test {
 
     #[test]
     fn test_signals() {
-        let mut animation = SpriteSheetAnimation::new();
+        let mut animation = SpriteSheetAnimation::<MyTexture>::new();
 
         animation.add_frame(Vector2::new(0, 0));
         animation.add_frame(Vector2::new(1, 0));
