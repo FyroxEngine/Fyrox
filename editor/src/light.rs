@@ -315,7 +315,7 @@ impl LightPanel {
                                 progress_indicator,
                             ) {
                                 Ok(lightmap) => {
-                                    if lightmap.save(path, resource_manager).is_err() {
+                                    if lightmap.save_textures(path, resource_manager).is_err() {
                                         sender
                                             .send(Err(LightmapGenerationError::Cancelled))
                                             .unwrap();
@@ -383,5 +383,19 @@ impl LightPanel {
 
     pub fn is_in_preview_mode(&self) -> bool {
         self.progress_window.is_some()
+    }
+}
+
+mod kekw {
+    use fyrox::{asset::manager::ResourceManager, scene::Scene, utils::lightmap::Lightmap};
+
+    fn change_light_map(scene: &mut Scene, resource_manager: ResourceManager) {
+        let light_map = fyrox::core::futures::executor::block_on(Lightmap::load(
+            "a/path/to/lightmap.lmp",
+            resource_manager,
+        ))
+        .unwrap();
+
+        scene.graph.set_lightmap(light_map).unwrap();
     }
 }

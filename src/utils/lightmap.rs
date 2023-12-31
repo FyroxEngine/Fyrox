@@ -395,6 +395,27 @@ impl LightmapInputData {
 }
 
 impl Lightmap {
+    /// Loads a light map from the given path.
+    pub async fn load<P: AsRef<Path>>(
+        path: P,
+        resource_manager: ResourceManager,
+    ) -> Result<Lightmap, VisitError> {
+        let mut visitor = Visitor::load_binary(path).await?;
+        visitor.blackboard.register(Arc::new(resource_manager));
+        let mut lightmap = Lightmap::default();
+        lightmap.visit("Lightmap", &mut visitor)?;
+        Ok(lightmap)
+    }
+
+    /// Saves a light map to the given file. Keep in mind, that the textures should be saved separately first, via
+    /// [`Self::save_textures`] method.
+    pub fn save<P: AsRef<Path>>(&mut self, path: P) -> VisitResult {
+        let mut visitor = Visitor::new();
+        self.visit("Lightmap", &mut visitor)?;
+        visitor.save_binary(path)?;
+        Ok(())
+    }
+
     /// Generates lightmap for given scene. This method **automatically** generates secondary
     /// texture coordinates! This method is blocking, however internally it uses massive parallelism
     /// to use all available CPU power efficiently.
@@ -519,7 +540,7 @@ impl Lightmap {
     }
 
     /// Saves lightmap textures into specified folder.
-    pub fn save<P: AsRef<Path>>(
+    pub fn save_textures<P: AsRef<Path>>(
         &self,
         base_path: P,
         resource_manager: ResourceManager,
@@ -965,6 +986,7 @@ fn generate_lightmap(
 #[cfg(test)]
 mod test {
     use crate::{
+        asset::ResourceData,
         core::algebra::{Matrix4, Vector3},
         scene::{
             base::BaseBuilder,
@@ -979,7 +1001,6 @@ mod test {
         },
         utils::lightmap::{Lightmap, LightmapInputData},
     };
-    use fyrox_resource::ResourceData;
     use std::path::Path;
 
     #[test]
