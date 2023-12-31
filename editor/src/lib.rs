@@ -784,6 +784,7 @@ impl Editor {
                             audio_preview_panel.window,
                             navmesh_panel.window,
                             doc_window.window,
+                            light_panel.window,
                         ])
                         .build(ctx);
                     docking_manager
