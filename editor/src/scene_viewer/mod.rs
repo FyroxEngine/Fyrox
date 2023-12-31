@@ -673,6 +673,15 @@ impl SceneViewer {
                 entry.controller.render_target(engine),
             );
 
+            send_sync_message(
+                &engine.user_interface,
+                WidgetMessage::visibility(
+                    self.scene_gizmo_image,
+                    MessageDirection::ToWidget,
+                    entry.controller.downcast_ref::<GameScene>().is_some(),
+                ),
+            );
+
             if let (Some(game_scene), Selection::Graph(selection)) = (
                 entry.controller.downcast_ref::<GameScene>(),
                 &entry.selection,
