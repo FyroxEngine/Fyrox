@@ -2,18 +2,18 @@ use crate::{
     inspector::editors::make_property_editors_container, message::MessageSender, scene::GameScene,
     Engine, MSG_SYNC_FLAG,
 };
-use fyrox::gui::formatted_text::WrapMode;
-use fyrox::gui::text::TextMessage;
 use fyrox::{
     core::{log::Log, pool::Handle, reflect::prelude::*, scope_profile},
     gui::{
         button::{ButtonBuilder, ButtonMessage},
+        formatted_text::WrapMode,
         grid::{Column, GridBuilder, Row},
         inspector::{InspectorBuilder, InspectorContext, InspectorMessage, PropertyAction},
         message::{MessageDirection, UiMessage},
         progress_bar::{ProgressBarBuilder, ProgressBarMessage},
         scroll_viewer::ScrollViewerBuilder,
         text::TextBuilder,
+        text::TextMessage,
         widget::{WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, HorizontalAlignment, Thickness, UiNode, UserInterface, VerticalAlignment,
@@ -22,10 +22,10 @@ use fyrox::{
         CancellationToken, Lightmap, LightmapGenerationError, LightmapInputData, ProgressIndicator,
     },
 };
-use std::sync::Arc;
 use std::{
     path::PathBuf,
     sync::mpsc::{Receiver, Sender},
+    sync::Arc,
 };
 
 #[derive(Reflect, Debug)]
@@ -383,19 +383,5 @@ impl LightPanel {
 
     pub fn is_in_preview_mode(&self) -> bool {
         self.progress_window.is_some()
-    }
-}
-
-mod kekw {
-    use fyrox::{asset::manager::ResourceManager, scene::Scene, utils::lightmap::Lightmap};
-
-    fn change_light_map(scene: &mut Scene, resource_manager: ResourceManager) {
-        let light_map = fyrox::core::futures::executor::block_on(Lightmap::load(
-            "a/path/to/lightmap.lmp",
-            resource_manager,
-        ))
-        .unwrap();
-
-        scene.graph.set_lightmap(light_map).unwrap();
     }
 }
