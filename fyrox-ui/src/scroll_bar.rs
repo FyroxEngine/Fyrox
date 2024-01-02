@@ -517,6 +517,7 @@ impl ScrollBarBuilder {
                     Orientation::Horizontal => make_arrow(ctx, ArrowDirection::Right, 8.0),
                     Orientation::Vertical => make_arrow(ctx, ArrowDirection::Bottom, 8.0),
                 })
+                .with_repeat_clicks_on_hold(true)
                 .build(ctx)
         });
 
@@ -535,6 +536,7 @@ impl ScrollBarBuilder {
                     Orientation::Horizontal => make_arrow(ctx, ArrowDirection::Left, 8.0),
                     Orientation::Vertical => make_arrow(ctx, ArrowDirection::Top, 8.0),
                 })
+                .with_repeat_clicks_on_hold(true)
                 .build(ctx)
         });
 
