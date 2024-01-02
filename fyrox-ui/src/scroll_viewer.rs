@@ -428,6 +428,7 @@ impl ScrollViewerBuilder {
 
         let v_scroll_bar = self.v_scroll_bar.unwrap_or_else(|| {
             ScrollBarBuilder::new(WidgetBuilder::new().with_width(16.0))
+                .with_step(30.0)
                 .with_orientation(Orientation::Vertical)
                 .build(ctx)
         });
@@ -435,6 +436,7 @@ impl ScrollViewerBuilder {
 
         let h_scroll_bar = self.h_scroll_bar.unwrap_or_else(|| {
             ScrollBarBuilder::new(WidgetBuilder::new().with_height(16.0))
+                .with_step(30.0)
                 .with_orientation(Orientation::Horizontal)
                 .build(ctx)
         });
