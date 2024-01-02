@@ -4,8 +4,9 @@
 
 use crate::{
     border::BorderBuilder,
-    core::pool::Handle,
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, pool::Handle, reflect::prelude::*, uuid_provider, visitor::prelude::*,
+    },
     decorator::DecoratorBuilder,
     define_constructor,
     font::FontResource,
@@ -15,10 +16,11 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
 };
-use fyrox_core::uuid_provider;
 use std::{
     any::{Any, TypeId},
+    cell::RefCell,
     ops::{Deref, DerefMut},
+    sync::mpsc::Sender,
 };
 
 /// Messages that can be emitted by [`Button`] widget (or can be sent to the widget).
@@ -30,6 +32,11 @@ pub enum ButtonMessage {
     Click,
     /// A message, that can be used to set new content of the button. See [`ButtonContent`] for usage examples.
     Content(ButtonContent),
+    /// Click repetition interval (in seconds) of the button. The button will send [`ButtonMessage::Click`] with the
+    /// desired period.
+    RepeatInterval(f32),
+    /// A flag, that defines whether the button should repeat click message when being hold or not.
+    RepeatClicksOnHold(bool),
 }
 
 impl ButtonMessage {
@@ -40,6 +47,14 @@ impl ButtonMessage {
     define_constructor!(
         /// A shortcut method to create [`ButtonMessage::Content`] message.
         ButtonMessage:Content => fn content(ButtonContent), layout: false
+    );
+    define_constructor!(
+        /// A shortcut method to create [`ButtonMessage::RepeatInterval`] message.
+        ButtonMessage:RepeatInterval => fn repeat_interval(f32), layout: false
+    );
+    define_constructor!(
+        /// A shortcut method to create [`ButtonMessage::RepeatClicksOnHold`] message.
+        ButtonMessage:RepeatClicksOnHold => fn repeat_clicks_on_hold(bool), layout: false
     );
 }
 
@@ -84,6 +99,18 @@ pub struct Button {
     pub decorator: Handle<UiNode>,
     /// Current content of the button. It is attached to the content holder.
     pub content: Handle<UiNode>,
+    /// Click repetition interval (in seconds) of the button.
+    #[visit(optional)]
+    #[reflect(min_value = 0.0)]
+    pub repeat_interval: f32,
+    /// Current clicks repetition timer.
+    #[visit(optional)]
+    #[reflect(hidden)]
+    pub repeat_timer: RefCell<Option<f32>>,
+    /// A flag, that defines whether the button should repeat click message when being
+    /// hold or not. Default is `false` (disabled).
+    #[visit(optional)]
+    pub repeat_clicks_on_hold: bool,
 }
 
 crate::define_widget_deref!(Button);
@@ -104,6 +131,20 @@ impl Control for Button {
         node_map.resolve(&mut self.decorator);
     }
 
+    fn update(&mut self, dt: f32, sender: &Sender<UiMessage>, _screen_size: Vector2<f32>) {
+        let mut repeat_timer = self.repeat_timer.borrow_mut();
+        if let Some(repeat_timer) = &mut *repeat_timer {
+            *repeat_timer -= dt;
+            if *repeat_timer <= 0.0 {
+                let _ = sender.send(ButtonMessage::click(
+                    self.handle(),
+                    MessageDirection::FromWidget,
+                ));
+                *repeat_timer = self.repeat_interval;
+            }
+        }
+    }
+
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
@@ -112,33 +153,23 @@ impl Control for Button {
                 || self.has_descendant(message.destination(), ui)
             {
                 match msg {
-                    WidgetMessage::MouseUp { .. } => {
+                    WidgetMessage::MouseDown { .. }
+                    | WidgetMessage::TouchStarted { .. }
+                    | WidgetMessage::TouchMoved { .. } => {
+                        ui.capture_mouse(self.handle);
+                        message.set_handled(true);
+                        if self.repeat_clicks_on_hold {
+                            self.repeat_timer.replace(Some(self.repeat_interval));
+                        }
+                    }
+                    WidgetMessage::MouseUp { .. } | WidgetMessage::TouchEnded { .. } => {
                         ui.send_message(ButtonMessage::click(
                             self.handle(),
                             MessageDirection::FromWidget,
                         ));
                         ui.release_mouse_capture();
                         message.set_handled(true);
-                    }
-                    WidgetMessage::MouseDown { .. } => {
-                        ui.capture_mouse(message.destination());
-                        message.set_handled(true);
-                    }
-                    WidgetMessage::TouchStarted { .. } => {
-                        ui.capture_mouse(message.destination());
-                        message.set_handled(true);
-                    }
-                    WidgetMessage::TouchMoved { .. } => {
-                        ui.capture_mouse(message.destination());
-                        message.set_handled(true);
-                    }
-                    WidgetMessage::TouchEnded { .. } => {
-                        ui.send_message(ButtonMessage::click(
-                            self.handle(),
-                            MessageDirection::FromWidget,
-                        ));
-                        ui.release_mouse_capture();
-                        message.set_handled(true);
+                        self.repeat_timer.replace(None);
                     }
                     _ => (),
                 }
@@ -160,6 +191,22 @@ impl Control for Button {
                             MessageDirection::ToWidget,
                             self.decorator,
                         ));
+                    }
+                    ButtonMessage::RepeatInterval(interval) => {
+                        if self.repeat_interval != *interval
+                            && message.direction() == MessageDirection::ToWidget
+                        {
+                            self.repeat_interval = *interval;
+                            ui.send_message(message.reverse());
+                        }
+                    }
+                    ButtonMessage::RepeatClicksOnHold(repeat_clicks) => {
+                        if self.repeat_clicks_on_hold != *repeat_clicks
+                            && message.direction() == MessageDirection::ToWidget
+                        {
+                            self.repeat_clicks_on_hold = *repeat_clicks;
+                            ui.send_message(message.reverse());
+                        }
                     }
                 }
             }
@@ -225,6 +272,8 @@ pub struct ButtonBuilder {
     widget_builder: WidgetBuilder,
     content: Option<ButtonContent>,
     back: Option<Handle<UiNode>>,
+    repeat_interval: f32,
+    repeat_clicks_on_hold: bool,
 }
 
 impl ButtonBuilder {
@@ -234,6 +283,8 @@ impl ButtonBuilder {
             widget_builder,
             content: None,
             back: None,
+            repeat_interval: 0.1,
+            repeat_clicks_on_hold: false,
         }
     }
 
@@ -260,6 +311,19 @@ impl ButtonBuilder {
     /// events to highlight button state (hovered, pressed, etc.)
     pub fn with_back(mut self, decorator: Handle<UiNode>) -> Self {
         self.back = Some(decorator);
+        self
+    }
+
+    /// Set the flag, that defines whether the button should repeat click message when being hold or not.
+    /// Default is `false` (disabled).
+    pub fn with_repeat_clicks_on_hold(mut self, repeat: bool) -> Self {
+        self.repeat_clicks_on_hold = repeat;
+        self
+    }
+
+    /// Sets the desired click repetition interval (in seconds) of the button. Default is 0.1s
+    pub fn with_repeat_interval(mut self, interval: f32) -> Self {
+        self.repeat_interval = interval;
         self
     }
 
@@ -290,6 +354,9 @@ impl ButtonBuilder {
             widget: self.widget_builder.with_child(back).build(),
             decorator: back,
             content,
+            repeat_interval: self.repeat_interval,
+            repeat_clicks_on_hold: self.repeat_clicks_on_hold,
+            repeat_timer: Default::default(),
         })
     }
 
