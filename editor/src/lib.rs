@@ -2371,6 +2371,8 @@ impl Editor {
     pub fn is_active(&self) -> bool {
         !self.update_loop_state.is_suspended()
             && (self.focused || !self.settings.general.suspend_unfocused_editor)
+            // Keep the editor active if user holds any mouse button.
+            || self.engine.user_interface.captured_node().is_some()
     }
 
     pub fn run(mut self, event_loop: EventLoop<()>) {
