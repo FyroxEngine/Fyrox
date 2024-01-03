@@ -2173,6 +2173,7 @@ mod test {
     use fyrox_core::task::TaskPool;
     use std::sync::mpsc::{self, Sender, TryRecvError};
 
+    #[allow(clippy::enum_variant_names)]
     #[derive(PartialEq, Eq, Clone, Debug)]
     enum Event {
         Initialized(Handle<Node>),

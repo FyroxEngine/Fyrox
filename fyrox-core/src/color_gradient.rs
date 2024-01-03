@@ -89,7 +89,7 @@ impl ColorGradient {
             return self.points.first().unwrap().color;
         } else if self.points.len() == 2 {
             // special case for two points (much faster than generic)
-            let pt_a = self.points.get(0).unwrap();
+            let pt_a = self.points.first().unwrap();
             let pt_b = self.points.get(1).unwrap();
             if location >= pt_a.location && location <= pt_b.location {
                 // linear interpolation

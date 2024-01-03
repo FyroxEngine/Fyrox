@@ -129,25 +129,25 @@ impl TrackDataContainer {
     /// is 3).
     pub fn fetch(&self, time: f32) -> Option<TrackValue> {
         match self.kind {
-            TrackValueKind::Real => Some(TrackValue::Real(self.curves.get(0)?.value_at(time))),
+            TrackValueKind::Real => Some(TrackValue::Real(self.curves.first()?.value_at(time))),
             TrackValueKind::Vector2 => Some(TrackValue::Vector2(Vector2::new(
-                self.curves.get(0)?.value_at(time),
+                self.curves.first()?.value_at(time),
                 self.curves.get(1)?.value_at(time),
             ))),
             TrackValueKind::Vector3 => Some(TrackValue::Vector3(Vector3::new(
-                self.curves.get(0)?.value_at(time),
+                self.curves.first()?.value_at(time),
                 self.curves.get(1)?.value_at(time),
                 self.curves.get(2)?.value_at(time),
             ))),
             TrackValueKind::Vector4 => Some(TrackValue::Vector4(Vector4::new(
-                self.curves.get(0)?.value_at(time),
+                self.curves.first()?.value_at(time),
                 self.curves.get(1)?.value_at(time),
                 self.curves.get(2)?.value_at(time),
                 self.curves.get(3)?.value_at(time),
             ))),
             TrackValueKind::UnitQuaternion => {
                 // Convert Euler angles to quaternion
-                let x = self.curves.get(0)?.value_at(time);
+                let x = self.curves.first()?.value_at(time);
                 let y = self.curves.get(1)?.value_at(time);
                 let z = self.curves.get(2)?.value_at(time);
 

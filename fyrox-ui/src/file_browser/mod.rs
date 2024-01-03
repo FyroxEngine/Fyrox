@@ -696,7 +696,7 @@ fn build_all(
 
     let dest_path_components = dest_path.components().collect::<Vec<Component>>();
     #[allow(unused_variables)]
-    let dest_disk = dest_path_components.get(0).and_then(|c| {
+    let dest_disk = dest_path_components.first().and_then(|c| {
         if let Component::Prefix(prefix) = c {
             if let Prefix::Disk(disk_letter) | Prefix::VerbatimDisk(disk_letter) = prefix.kind() {
                 Some(disk_letter)

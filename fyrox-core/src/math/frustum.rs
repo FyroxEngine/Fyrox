@@ -66,7 +66,7 @@ impl Frustum {
 
     #[inline]
     pub fn left(&self) -> &Plane {
-        self.planes.get(0).unwrap()
+        self.planes.first().unwrap()
     }
 
     #[inline]
