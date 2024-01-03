@@ -225,11 +225,10 @@ pub enum BuildProfile {
 
 pub fn make_scene_file_filter() -> Filter {
     Filter::new(|p: &Path| {
-        if let Some(ext) = p.extension() {
-            matches!(ext.to_string_lossy().as_ref(), "rgs" | "ui")
-        } else {
-            p.is_dir()
-        }
+        p.is_dir()
+            || p.extension().map_or(false, |ext| {
+                matches!(ext.to_string_lossy().as_ref(), "rgs" | "ui")
+            })
     })
 }
 

@@ -59,11 +59,10 @@ pub fn create_file_selector(
         WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(400.0)).open(false),
     )
     .with_filter(Filter::new(move |path| {
-        if let Some(ext) = path.extension() {
-            ext.to_string_lossy().as_ref() == extension
-        } else {
-            path.is_dir()
-        }
+        path.is_dir()
+            || path
+                .extension()
+                .map_or(false, |ext| ext.to_string_lossy().as_ref() == extension)
     }))
     .with_mode(mode)
     .build(ctx)
