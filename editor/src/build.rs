@@ -47,9 +47,11 @@ impl BuildWindow {
                 GridBuilder::new(
                     WidgetBuilder::new()
                         .with_child(
-                            TextBuilder::new(WidgetBuilder::new())
-                                .with_text("Please wait while your game is building...\nLog:")
-                                .build(ctx),
+                            TextBuilder::new(
+                                WidgetBuilder::new().with_margin(Thickness::uniform(1.0)),
+                            )
+                            .with_text("Please wait while your game is building...\nLog:")
+                            .build(ctx),
                         )
                         .with_child(
                             BorderBuilder::new(
@@ -79,7 +81,9 @@ impl BuildWindow {
                                     .on_row(2)
                                     .with_child({
                                         stop = ButtonBuilder::new(
-                                            WidgetBuilder::new().with_width(100.0),
+                                            WidgetBuilder::new()
+                                                .with_width(100.0)
+                                                .with_margin(Thickness::uniform(1.0)),
                                         )
                                         .with_text("Stop")
                                         .build(ctx);
