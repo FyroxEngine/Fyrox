@@ -6,14 +6,14 @@ use fyrox::{
         button::{ButtonBuilder, ButtonMessage},
         grid::{Column, GridBuilder, Row},
         message::{MessageDirection, UiMessage},
-        scroll_viewer::ScrollViewerBuilder,
+        scroll_viewer::{ScrollViewerBuilder, ScrollViewerMessage},
         stack_panel::StackPanelBuilder,
         text::{TextBuilder, TextMessage},
         widget::WidgetBuilder,
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Thickness, UiNode, UserInterface, BRUSH_DARKEST,
+        BuildContext, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        BRUSH_DARKEST,
     },
-    gui::{HorizontalAlignment, Orientation},
 };
 use std::{
     io::{BufRead, BufReader},
@@ -31,12 +31,14 @@ pub struct BuildWindow {
     log: Arc<Mutex<String>>,
     log_text: Handle<UiNode>,
     stop: Handle<UiNode>,
+    scroll_viewer: Handle<UiNode>,
 }
 
 impl BuildWindow {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let log_text;
         let stop;
+        let scroll_viewer;
         let window = WindowBuilder::new(WidgetBuilder::new().with_width(420.0).with_height(200.0))
             .can_minimize(false)
             .can_close(false)
@@ -55,15 +57,18 @@ impl BuildWindow {
                                     .on_row(1)
                                     .with_margin(Thickness::uniform(2.0))
                                     .with_background(BRUSH_DARKEST)
-                                    .with_child(
-                                        ScrollViewerBuilder::new(WidgetBuilder::new())
-                                            .with_content({
-                                                log_text = TextBuilder::new(WidgetBuilder::new())
-                                                    .build(ctx);
-                                                log_text
-                                            })
-                                            .build(ctx),
-                                    ),
+                                    .with_child({
+                                        scroll_viewer =
+                                            ScrollViewerBuilder::new(WidgetBuilder::new())
+                                                .with_content({
+                                                    log_text =
+                                                        TextBuilder::new(WidgetBuilder::new())
+                                                            .build(ctx);
+                                                    log_text
+                                                })
+                                                .build(ctx);
+                                        scroll_viewer
+                                    }),
                             )
                             .build(ctx),
                         )
@@ -101,6 +106,7 @@ impl BuildWindow {
             active: Arc::new(AtomicBool::new(false)),
             changed: Arc::new(AtomicBool::new(false)),
             stop,
+            scroll_viewer,
         }
     }
 
@@ -148,6 +154,10 @@ impl BuildWindow {
                 self.log_text,
                 MessageDirection::ToWidget,
                 self.log.lock().clone(),
+            ));
+            ui.send_message(ScrollViewerMessage::scroll_to_end(
+                self.scroll_viewer,
+                MessageDirection::ToWidget,
             ));
 
             self.changed.store(false, Ordering::SeqCst);
