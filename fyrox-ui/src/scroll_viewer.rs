@@ -32,6 +32,8 @@ pub enum ScrollViewerMessage {
     VScrollSpeed(f32),
     /// Sets the new horizontal scrolling speed.
     HScrollSpeed(f32),
+    /// Scrolls to end of the content.
+    ScrollToEnd,
 }
 
 impl ScrollViewerMessage {
@@ -50,6 +52,10 @@ impl ScrollViewerMessage {
     define_constructor!(
         /// Creates [`ScrollViewerMessage::HScrollSpeed`] message.
         ScrollViewerMessage:HScrollSpeed => fn h_scroll_speed(f32), layout: true
+    );
+    define_constructor!(
+        /// Creates [`ScrollViewerMessage::ScrollToEnd`] message.
+        ScrollViewerMessage:ScrollToEnd => fn scroll_to_end(), layout: true
     );
 }
 
@@ -338,6 +344,13 @@ impl Control for ScrollViewer {
 
                             ui.send_message(message.reverse());
                         }
+                    }
+                    ScrollViewerMessage::ScrollToEnd => {
+                        // Re-cast message to inner panel.
+                        ui.send_message(ScrollPanelMessage::scroll_to_end(
+                            self.scroll_panel,
+                            MessageDirection::ToWidget,
+                        ));
                     }
                 }
             }
