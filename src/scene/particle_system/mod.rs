@@ -249,7 +249,7 @@ impl Visit for ParticleSystem {
 
         // Backward compatibility.
         let mut texture: InheritableVariable<Option<TextureResource>> = Default::default();
-        if texture.visit("Texture", &mut region).is_ok() {
+        if visitor.is_reading() && texture.visit("Texture", &mut region).is_ok() {
             let mut material = Material::standard_particle_system();
             material
                 .set_property(
@@ -262,7 +262,7 @@ impl Visit for ParticleSystem {
                 .unwrap();
             self.material = MaterialResource::new_ok(Default::default(), material).into();
         } else {
-            self.material.visit(name, &mut region)?;
+            self.material.visit("Material", &mut region)?;
         }
 
         let mut soft_boundary_sharpness_factor = 100.0;
