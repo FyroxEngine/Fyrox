@@ -5,6 +5,7 @@ use crate::{
     core::{
         algebra::{Point3, Vector2, Vector3},
         color_gradient::ColorGradient,
+        log::Log,
         math::{aabb::AxisAlignedBoundingBox, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
@@ -14,10 +15,9 @@ use crate::{
         visitor::prelude::*,
         TypeUuidProvider,
     },
-    material::{shader::SamplerFallback, Material, MaterialResource, PropertyValue},
+    material::{self, Material, MaterialResource, PropertyValue},
     rand::{prelude::StdRng, Error, RngCore, SeedableRng},
     renderer::{self, batch::RenderContext},
-    resource::texture::TextureResource,
     scene::{
         base::{Base, BaseBuilder},
         graph::Graph,
@@ -248,19 +248,15 @@ impl Visit for ParticleSystem {
         let _ = self.rng.visit("Rng", &mut region);
 
         // Backward compatibility.
-        let mut texture: InheritableVariable<Option<TextureResource>> = Default::default();
-        if region.is_reading() && texture.visit("Texture", &mut region).is_ok() {
-            let mut material = Material::standard_particle_system();
-            material
-                .set_property(
-                    &ImmutableString::new("diffuseTexture"),
-                    PropertyValue::Sampler {
-                        value: texture.deref().clone(),
-                        fallback: SamplerFallback::White,
-                    },
-                )
-                .unwrap();
-            self.material = MaterialResource::new_ok(Default::default(), material).into();
+        if region.is_reading() {
+            if let Some(material) = material::visit_old_texture_as_material(
+                &mut region,
+                Material::standard_particle_system,
+            ) {
+                self.material = material.into();
+            } else {
+                self.material.visit("Material", &mut region)?;
+            }
         } else {
             self.material.visit("Material", &mut region)?;
         }
@@ -270,13 +266,10 @@ impl Visit for ParticleSystem {
             .visit("SoftBoundarySharpnessFactor", &mut region)
             .is_ok()
         {
-            self.material
-                .data_ref()
-                .set_property(
-                    &ImmutableString::new("softBoundarySharpnessFactor"),
-                    PropertyValue::Float(soft_boundary_sharpness_factor),
-                )
-                .unwrap();
+            Log::verify(self.material.data_ref().set_property(
+                &ImmutableString::new("softBoundarySharpnessFactor"),
+                PropertyValue::Float(soft_boundary_sharpness_factor),
+            ));
         }
 
         Ok(())
