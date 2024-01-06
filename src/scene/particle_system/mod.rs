@@ -249,7 +249,7 @@ impl Visit for ParticleSystem {
 
         // Backward compatibility.
         let mut texture: InheritableVariable<Option<TextureResource>> = Default::default();
-        if visitor.is_reading() && texture.visit("Texture", &mut region).is_ok() {
+        if region.is_reading() && texture.visit("Texture", &mut region).is_ok() {
             let mut material = Material::standard_particle_system();
             material
                 .set_property(
