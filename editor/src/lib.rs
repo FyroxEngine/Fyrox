@@ -2040,7 +2040,7 @@ impl Editor {
                             self.mode = Mode::Edit;
                             self.on_mode_changed();
 
-                            Log::info(format!("Game was closed: {:?}", status))
+                            Log::warn(format!("Game was closed: {:?}", status))
                         }
                     }
                     Err(err) => Log::err(format!("Failed to wait for game process: {:?}", err)),
@@ -2058,7 +2058,7 @@ impl Editor {
                             let err_code = 101;
                             let code = status.code().unwrap_or(err_code);
                             if code == err_code {
-                                Log::info("Failed to build the game!");
+                                Log::err("Failed to build the game!");
                                 self.mode = Mode::Edit;
                                 self.on_mode_changed();
                             } else {
