@@ -2063,6 +2063,7 @@ impl Editor {
                                 self.on_mode_changed();
                             } else {
                                 self.set_play_mode();
+                                self.build_window.close(&self.engine.user_interface);
                             }
                         }
                     }

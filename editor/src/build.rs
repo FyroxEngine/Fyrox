@@ -146,10 +146,18 @@ impl BuildWindow {
             MessageDirection::ToWidget,
             Default::default(),
         ));
+    }
+
+    pub fn close(&mut self, ui: &UserInterface) {
         ui.send_message(WindowMessage::close(
             self.window,
             MessageDirection::ToWidget,
         ));
+    }
+
+    pub fn close_and_reset(&mut self, ui: &UserInterface) {
+        self.reset(ui);
+        self.close(ui);
     }
 
     pub fn update(&mut self, ui: &UserInterface) {
@@ -177,7 +185,7 @@ impl BuildWindow {
         if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.stop {
                 sender.send(Message::SwitchToEditMode);
-                self.reset(ui);
+                self.close_and_reset(ui);
             }
         }
     }
