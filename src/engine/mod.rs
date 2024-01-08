@@ -1611,6 +1611,11 @@ impl Engine {
                         // Notify plugins about newly loaded scene.
                         if self.plugins_enabled {
                             for plugin in self.plugins.iter_mut() {
+                                Log::info(format!(
+                                    "Scene {} was loaded successfully!",
+                                    loading_result.path.display()
+                                ));
+
                                 plugin.on_scene_loaded(
                                     &request.path,
                                     scene_handle,
@@ -1623,6 +1628,12 @@ impl Engine {
                     Err(error) => {
                         // Notify plugins about a scene, that is failed to load.
                         if self.plugins_enabled {
+                            Log::err(format!(
+                                "Unable to load scene {}. Reason: {:?}",
+                                loading_result.path.display(),
+                                error
+                            ));
+
                             for plugin in self.plugins.iter_mut() {
                                 plugin.on_scene_loading_failed(&request.path, &error, &mut context);
                             }
