@@ -76,11 +76,13 @@ use crate::{
     },
     scene_viewer::SceneViewer,
     settings::Settings,
-    ui_scene::{commands::UiSceneCommand, utils::UiSceneWorldViewerDataProvider, UiScene},
+    ui_scene::{
+        commands::graph::PasteWidgetCommand, commands::UiSceneCommand, menu::WidgetContextMenu,
+        utils::UiSceneWorldViewerDataProvider, UiScene,
+    },
     utils::{doc::DocWindow, path_fixer::PathFixer, ragdoll::RagdollWizard},
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
-use fyrox::core::task::TaskPool;
 use fyrox::{
     asset::{io::FsResourceIo, manager::ResourceManager, untyped::UntypedResource},
     core::{
@@ -91,6 +93,7 @@ use fyrox::{
         pool::Handle,
         scope_profile,
         sstorage::ImmutableString,
+        task::TaskPool,
         uuid::Uuid,
         watcher::FileSystemWatcher,
         TypeUuidProvider,
@@ -147,7 +150,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::ui_scene::menu::WidgetContextMenu;
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -1058,13 +1060,20 @@ impl Editor {
                 } else if hot_key == key_bindings.copy_selection {
                     if let Some(entry) = self.scenes.current_scene_entry_mut() {
                         if let Selection::Graph(graph_selection) = &entry.selection {
-                            // TODO
                             if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
                                 game_scene.clipboard.fill_from_selection(
                                     graph_selection,
                                     game_scene.scene,
                                     engine,
                                 );
+                            } else if let Some(ui_scene) =
+                                entry.controller.downcast_mut::<UiScene>()
+                            {
+                                if let Selection::Ui(ref selection) = entry.selection {
+                                    ui_scene
+                                        .clipboard
+                                        .fill_from_selection(selection, &ui_scene.ui);
+                                }
                             }
                         }
                     }
@@ -1074,6 +1083,12 @@ impl Editor {
                             if !game_scene.clipboard.is_empty() {
                                 sender.do_scene_command(PasteCommand::new(
                                     game_scene.scene_content_root,
+                                ));
+                            }
+                        } else if let Some(ui_scene) = controller.downcast_mut::<UiScene>() {
+                            if !ui_scene.clipboard.is_empty() {
+                                sender.do_ui_scene_command(PasteWidgetCommand::new(
+                                    ui_scene.ui.root(),
                                 ));
                             }
                         }
