@@ -1,6 +1,7 @@
 //! Flying camera controller script is used to create flying cameras, that can be rotated via mouse and moved via keyboard keys.
 //! See [`FlyingCameraController`] docs for more info and usage examples.
 
+use fyrox::core::uuid_provider;
 use fyrox::{
     core::algebra::UnitVector3,
     core::{
@@ -8,10 +9,8 @@ use fyrox::{
         curve::{Curve, CurveKey, CurveKeyKind},
         math::Vector3Ext,
         reflect::prelude::*,
-        uuid::{uuid, Uuid},
         variable::InheritableVariable,
         visitor::prelude::*,
-        TypeUuidProvider,
     },
     event::{DeviceEvent, ElementState, Event, WindowEvent},
     gui::{key::KeyBinding, message::KeyCode},
@@ -195,12 +194,7 @@ impl Default for FlyingCameraController {
 }
 
 impl_component_provider!(FlyingCameraController);
-
-impl TypeUuidProvider for FlyingCameraController {
-    fn type_uuid() -> Uuid {
-        uuid!("8d9e2feb-8c61-482c-8ba4-b0b13b201113")
-    }
-}
+uuid_provider!(FlyingCameraController = "8d9e2feb-8c61-482c-8ba4-b0b13b201113");
 
 impl ScriptTrait for FlyingCameraController {
     fn on_os_event(&mut self, event: &Event<()>, context: &mut ScriptContext) {
@@ -290,9 +284,5 @@ impl ScriptTrait for FlyingCameraController {
                 ) * yaw,
             )
             .offset(*self.velocity);
-    }
-
-    fn id(&self) -> Uuid {
-        Self::type_uuid()
     }
 }

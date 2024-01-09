@@ -19,6 +19,7 @@ use crate::{
     scene::{node::Node, Scene},
     utils::component::ComponentProvider,
 };
+use fyrox_core::TypeUuidProvider;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -163,11 +164,53 @@ pub trait BaseScript: Visit + Reflect + Send + Debug + 'static {
 
     /// Casts self as `Any`
     fn as_any_ref_mut(&mut self) -> &mut dyn Any;
+
+    /// Script instance type UUID. The value will be used for serialization, to write type
+    /// identifier to a data source so the engine can restore the script from data source.
+    ///
+    /// # Important notes
+    ///
+    /// Do **not** use [`Uuid::new_v4`] or any other [`Uuid`] methods that generates ids, ids
+    /// generated using these methods are **random** and are not suitable for serialization!
+    ///
+    /// # Example
+    ///
+    /// All you need to do in the method is to return `Self::type_uuid`.
+    ///
+    /// ```rust
+    /// use std::str::FromStr;
+    /// use fyrox::{
+    ///     core::visitor::prelude::*,
+    ///     core::reflect::prelude::*,
+    ///     core::uuid::Uuid,
+    ///     script::ScriptTrait,
+    ///     core::TypeUuidProvider,
+    ///     core::uuid::uuid, impl_component_provider
+    /// };
+    ///
+    /// #[derive(Reflect, Visit, Debug, Clone)]
+    /// struct MyScript { }
+    ///
+    /// // Implement TypeUuidProvider trait that will return type uuid of the type.
+    /// // Every script must implement the trait so the script can be registered in
+    /// // serialization context of the engine.
+    /// impl TypeUuidProvider for MyScript {
+    ///     fn type_uuid() -> Uuid {
+    ///         // Use https://www.uuidgenerator.net/ to generate new UUID.
+    ///         uuid!("4cfbe65e-a2c1-474f-b123-57516d80b1f8")
+    ///     }
+    /// }
+    ///
+    /// impl_component_provider!(MyScript);
+    ///
+    /// impl ScriptTrait for MyScript { }
+    /// ```
+    fn id(&self) -> Uuid;
 }
 
 impl<T> BaseScript for T
 where
-    T: Clone + ScriptTrait + Any,
+    T: Clone + ScriptTrait + Any + TypeUuidProvider,
 {
     fn clone_box(&self) -> Box<dyn ScriptTrait> {
         Box::new(self.clone())
@@ -179,6 +222,10 @@ where
 
     fn as_any_ref_mut(&mut self) -> &mut dyn Any {
         self
+    }
+
+    fn id(&self) -> Uuid {
+        T::type_uuid()
     }
 }
 
@@ -376,10 +423,6 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     ///             // Do something.
     ///         }
     ///     }
-    ///
-    ///     # fn id(&self) -> Uuid {
-    ///     #     Self::type_uuid()
-    ///     # }
     /// }
     /// ```
     fn on_message(
@@ -388,52 +431,6 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
         #[allow(unused_variables)] ctx: &mut ScriptMessageContext,
     ) {
     }
-
-    /// Script instance type UUID. The value will be used for serialization, to write type
-    /// identifier to a data source so the engine can restore the script from data source.
-    ///
-    /// # Important notes
-    ///
-    /// Do **not** use [`Uuid::new_v4`] or any other [`Uuid`] methods that generates ids, ids
-    /// generated using these methods are **random** and are not suitable for serialization!
-    ///
-    /// # Example
-    ///
-    /// All you need to do in the method is to return `Self::type_uuid`.
-    ///
-    /// ```rust
-    /// use std::str::FromStr;
-    /// use fyrox::{
-    ///     core::visitor::prelude::*,
-    ///     core::reflect::prelude::*,
-    ///     core::uuid::Uuid,
-    ///     script::ScriptTrait,
-    ///     core::TypeUuidProvider,
-    ///     core::uuid::uuid, impl_component_provider
-    /// };
-    ///
-    /// #[derive(Reflect, Visit, Debug, Clone)]
-    /// struct MyScript { }
-    ///
-    /// // Implement TypeUuidProvider trait that will return type uuid of the type.
-    /// // Every script must implement the trait so the script can be registered in
-    /// // serialization context of the engine.
-    /// impl TypeUuidProvider for MyScript {
-    ///     fn type_uuid() -> Uuid {
-    ///         // Use https://www.uuidgenerator.net/ to generate new UUID.
-    ///         uuid!("4cfbe65e-a2c1-474f-b123-57516d80b1f8")
-    ///     }
-    /// }
-    ///
-    /// impl_component_provider!(MyScript);
-    ///
-    /// impl ScriptTrait for MyScript {
-    ///     fn id(&self) -> Uuid {
-    ///         Self::type_uuid()
-    ///     }
-    /// }
-    /// ```
-    fn id(&self) -> Uuid;
 }
 
 /// A wrapper for actual script instance internals, it used by the engine.
@@ -615,13 +612,14 @@ impl Script {
 mod test {
     use crate::{
         core::{
-            reflect::prelude::*, uuid::Uuid, variable::try_inherit_properties,
-            variable::InheritableVariable, visitor::prelude::*,
+            reflect::prelude::*, variable::try_inherit_properties, variable::InheritableVariable,
+            visitor::prelude::*,
         },
         impl_component_provider,
         scene::base::Base,
         script::{Script, ScriptTrait},
     };
+    use fyrox_core::uuid_provider;
 
     #[derive(Reflect, Visit, Debug, Clone, Default)]
     struct MyScript {
@@ -629,12 +627,9 @@ mod test {
     }
 
     impl_component_provider!(MyScript);
+    uuid_provider!(MyScript = "eed9bf56-7d71-44a0-ba8e-0f3163c59669");
 
-    impl ScriptTrait for MyScript {
-        fn id(&self) -> Uuid {
-            todo!()
-        }
-    }
+    impl ScriptTrait for MyScript {}
 
     #[test]
     fn test_script_property_inheritance_on_nodes() {

@@ -156,11 +156,13 @@ impl TaskPoolHandler {
     /// #     resource::model::{Model, ModelResourceExtension},
     /// #     script::{ScriptContext, ScriptTrait},
     /// # };
+    /// # use fyrox_core::uuid_provider;
     /// #
     /// #[derive(Reflect, Visit, Default, Debug, Clone)]
     /// struct MyScript;
     ///
-    /// impl_component_provider!(MyScript);
+    /// # impl_component_provider!(MyScript);
+    /// # uuid_provider!(MyScript = "f5ded79e-6101-4e23-b20d-48cbdb25d87a");
     ///
     /// impl ScriptTrait for MyScript {
     ///     fn on_start(&mut self, ctx: &mut ScriptContext) {
@@ -183,10 +185,6 @@ impl TaskPoolHandler {
     ///             },
     ///         );
     ///     }
-    /// #
-    /// #     fn id(&self) -> Uuid {
-    /// #         todo!()
-    /// #     }
     /// }
     /// ```
     #[inline]

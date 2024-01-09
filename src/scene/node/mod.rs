@@ -608,11 +608,7 @@ mod test {
         }
     }
 
-    impl ScriptTrait for MyScript {
-        fn id(&self) -> Uuid {
-            Self::type_uuid()
-        }
-    }
+    impl ScriptTrait for MyScript {}
 
     fn create_scene() -> Scene {
         let mut scene = Scene::new();

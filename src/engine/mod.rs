@@ -2168,7 +2168,7 @@ impl Drop for Engine {
 mod test {
     use crate::{
         asset::manager::ResourceManager,
-        core::{pool::Handle, reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
+        core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
         engine::ScriptProcessor,
         impl_component_provider,
         scene::{base::BaseBuilder, node::Node, pivot::PivotBuilder, Scene, SceneContainer},
@@ -2182,6 +2182,7 @@ mod test {
     use crate::engine::task::TaskPoolHandler;
     use crate::engine::GraphicsContext;
     use fyrox_core::task::TaskPool;
+    use fyrox_core::uuid_provider;
     use std::sync::mpsc::{self, Sender, TryRecvError};
 
     #[allow(clippy::enum_variant_names)]
@@ -2203,6 +2204,7 @@ mod test {
     }
 
     impl_component_provider!(MyScript);
+    uuid_provider!(MyScript = "2569de84-d4b2-427d-969b-d5c7b31a0ba6");
 
     impl ScriptTrait for MyScript {
         fn on_init(&mut self, ctx: &mut ScriptContext) {
@@ -2246,10 +2248,6 @@ mod test {
                 self.spawned = true;
             }
         }
-
-        fn id(&self) -> Uuid {
-            Uuid::new_v4()
-        }
     }
 
     #[derive(Debug, Clone, Reflect, Visit)]
@@ -2260,6 +2258,7 @@ mod test {
     }
 
     impl_component_provider!(MySubScript);
+    uuid_provider!(MySubScript = "1cebacd9-b500-4753-93be-39db344add21");
 
     impl ScriptTrait for MySubScript {
         fn on_init(&mut self, ctx: &mut ScriptContext) {
@@ -2276,10 +2275,6 @@ mod test {
 
         fn on_update(&mut self, ctx: &mut ScriptContext) {
             self.sender.send(Event::Updated(ctx.handle)).unwrap();
-        }
-
-        fn id(&self) -> Uuid {
-            Uuid::new_v4()
         }
     }
 
@@ -2385,6 +2380,7 @@ mod test {
     }
 
     impl_component_provider!(ScriptListeningToMessages);
+    uuid_provider!(ScriptListeningToMessages = "bf2976ad-f41d-4de6-9a32-b1a293956058");
 
     impl ScriptTrait for ScriptListeningToMessages {
         fn on_start(&mut self, ctx: &mut ScriptContext) {
@@ -2419,10 +2415,6 @@ mod test {
 
             self.index += 1;
         }
-
-        fn id(&self) -> Uuid {
-            Uuid::new_v4()
-        }
     }
 
     #[derive(Debug, Clone, Reflect, Visit)]
@@ -2431,6 +2423,7 @@ mod test {
     }
 
     impl_component_provider!(ScriptSendingMessages);
+    uuid_provider!(ScriptSendingMessages = "6bcbf9b4-9546-42d3-965a-de055ab85475");
 
     impl ScriptTrait for ScriptSendingMessages {
         fn on_update(&mut self, ctx: &mut ScriptContext) {
@@ -2442,10 +2435,6 @@ mod test {
                 _ => (),
             }
             self.index += 1;
-        }
-
-        fn id(&self) -> Uuid {
-            Uuid::new_v4()
         }
     }
 
