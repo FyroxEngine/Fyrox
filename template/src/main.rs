@@ -574,22 +574,14 @@ fn init_script(raw_name: &str) {
         format!(
             r#"
 use fyrox::{{
-    core::{{uuid::{{Uuid, uuid}}, visitor::prelude::*, reflect::prelude::*, TypeUuidProvider}},
-    event::Event, impl_component_provider,
-    script::{{ScriptContext, ScriptDeinitContext, ScriptTrait}},
+    core::{{visitor::prelude::*, reflect::prelude::*, type_traits::prelude::*}},
+    event::Event, script::{{ScriptContext, ScriptDeinitContext, ScriptTrait}},
 }};
 
-#[derive(Visit, Reflect, Default, Debug, Clone)]
+#[derive(Visit, Reflect, Default, Debug, Clone, TypeUuidProvider, ComponentProvider)]
+#[type_uuid(id = "{id}")]
 pub struct {name} {{
     // Add fields here.
-}}
-
-impl_component_provider!({name});
-
-impl TypeUuidProvider for {name} {{
-    fn type_uuid() -> Uuid {{
-        uuid!("{id}")
-    }}
 }}
 
 impl ScriptTrait for {name} {{
@@ -612,10 +604,6 @@ impl ScriptTrait for {name} {{
 
     fn on_update(&mut self, context: &mut ScriptContext) {{
         // Put object logic here.
-    }}
-
-    fn id(&self) -> Uuid {{
-        Self::type_uuid()
     }}
 }}
     "#,
