@@ -571,6 +571,7 @@ mod test {
         core::{
             algebra::{Matrix4, Vector3},
             futures::executor::block_on,
+            impl_component_provider,
             reflect::prelude::*,
             uuid::{uuid, Uuid},
             variable::InheritableVariable,
@@ -578,7 +579,6 @@ mod test {
             TypeUuidProvider,
         },
         engine::{self, SerializationContext},
-        impl_component_provider,
         resource::model::{Model, ModelResourceExtension},
         scene::{
             base::BaseBuilder,

@@ -1,3 +1,4 @@
+mod component;
 mod reflect;
 mod uuid;
 mod visit;
@@ -52,4 +53,13 @@ pub fn impl_reflect(input: TokenStream) -> TokenStream {
 pub fn type_uuid(input: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(input as DeriveInput);
     TokenStream::from(uuid::impl_type_uuid_provider(ast))
+}
+
+/// Implements `ComponentProvider` trait
+///
+/// User has to import `ComponentProvider` trait to use this macro.
+#[proc_macro_derive(ComponentProvider, attributes(component))]
+pub fn component(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as DeriveInput);
+    TokenStream::from(component::impl_type_uuid_provider(ast))
 }

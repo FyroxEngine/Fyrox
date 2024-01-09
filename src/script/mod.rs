@@ -2,24 +2,22 @@
 
 //! Script is used to add custom logic to scene nodes. See [ScriptTrait] for more info.
 
-use crate::engine::task::TaskPoolHandler;
-use crate::engine::GraphicsContext;
 use crate::{
     asset::manager::ResourceManager,
     core::{
         log::Log,
         pool::Handle,
         reflect::{FieldInfo, Reflect, ReflectArray, ReflectList},
+        type_traits::ComponentProvider,
         uuid::Uuid,
         visitor::{Visit, VisitResult, Visitor},
+        TypeUuidProvider,
     },
-    engine::ScriptMessageDispatcher,
+    engine::{task::TaskPoolHandler, GraphicsContext, ScriptMessageDispatcher},
     event::Event,
     plugin::Plugin,
     scene::{node::Node, Scene},
-    utils::component::ComponentProvider,
 };
-use fyrox_core::TypeUuidProvider;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -185,10 +183,10 @@ pub trait BaseScript: Visit + Reflect + Send + Debug + 'static {
     ///     core::uuid::Uuid,
     ///     script::ScriptTrait,
     ///     core::TypeUuidProvider,
-    ///     core::uuid::uuid, impl_component_provider
+    ///     core::uuid::uuid, core::type_traits::prelude::*
     /// };
     ///
-    /// #[derive(Reflect, Visit, Debug, Clone)]
+    /// #[derive(Reflect, Visit, Debug, Clone, ComponentProvider)]
     /// struct MyScript { }
     ///
     /// // Implement TypeUuidProvider trait that will return type uuid of the type.
@@ -200,8 +198,6 @@ pub trait BaseScript: Visit + Reflect + Send + Debug + 'static {
     ///         uuid!("4cfbe65e-a2c1-474f-b123-57516d80b1f8")
     ///     }
     /// }
-    ///
-    /// impl_component_provider!(MyScript);
     ///
     /// impl ScriptTrait for MyScript { }
     /// ```
@@ -388,8 +384,7 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     ///
     /// ```rust
     /// use fyrox::{
-    ///     core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
-    ///     impl_component_provider,
+    ///     core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*, type_traits::prelude::*},
     ///     core::TypeUuidProvider,
     ///     script::ScriptTrait,
     ///     script::{ScriptContext, ScriptMessageContext, ScriptMessagePayload},
@@ -397,7 +392,7 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     ///
     /// struct Message;
     ///
-    /// #[derive(Reflect, Visit, Debug, Clone)]
+    /// #[derive(Reflect, Visit, Debug, Clone, ComponentProvider)]
     /// struct MyScript {}
     ///
     /// # impl TypeUuidProvider for MyScript {
@@ -405,8 +400,6 @@ pub trait ScriptTrait: BaseScript + ComponentProvider {
     /// #         todo!();
     /// #     }
     /// # }
-    ///
-    /// # impl_component_provider!(MyScript);
     ///
     /// impl ScriptTrait for MyScript {
     ///     fn on_start(&mut self, ctx: &mut ScriptContext) {
@@ -612,10 +605,9 @@ impl Script {
 mod test {
     use crate::{
         core::{
-            reflect::prelude::*, variable::try_inherit_properties, variable::InheritableVariable,
-            visitor::prelude::*,
+            impl_component_provider, reflect::prelude::*, variable::try_inherit_properties,
+            variable::InheritableVariable, visitor::prelude::*,
         },
-        impl_component_provider,
         scene::base::Base,
         script::{Script, ScriptTrait},
     };

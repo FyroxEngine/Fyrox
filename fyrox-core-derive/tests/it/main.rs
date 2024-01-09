@@ -5,6 +5,7 @@
 // #![feature(trace_macros)]
 // trace_macros!(true);
 
+pub mod component;
 pub mod reflect;
 pub mod uuid;
 pub mod visit;

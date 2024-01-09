@@ -151,8 +151,7 @@ impl TaskPoolHandler {
     ///
     /// ```rust ,no_run
     /// # use fyrox::{
-    /// #     core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*},
-    /// #     impl_component_provider,
+    /// #     core::{reflect::prelude::*, uuid::Uuid, visitor::prelude::*, impl_component_provider},
     /// #     resource::model::{Model, ModelResourceExtension},
     /// #     script::{ScriptContext, ScriptTrait},
     /// # };

@@ -4,7 +4,6 @@
 
 pub mod astar;
 pub mod behavior;
-pub mod component;
 pub mod lightmap;
 pub mod navmesh;
 pub mod raw_mesh;

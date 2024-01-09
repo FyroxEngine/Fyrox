@@ -2168,9 +2168,11 @@ impl Drop for Engine {
 mod test {
     use crate::{
         asset::manager::ResourceManager,
-        core::{pool::Handle, reflect::prelude::*, visitor::prelude::*},
-        engine::ScriptProcessor,
-        impl_component_provider,
+        core::{
+            impl_component_provider, pool::Handle, reflect::prelude::*, task::TaskPool,
+            uuid_provider, visitor::prelude::*,
+        },
+        engine::{task::TaskPoolHandler, GraphicsContext, ScriptProcessor},
         scene::{base::BaseBuilder, node::Node, pivot::PivotBuilder, Scene, SceneContainer},
         script::{
             Script, ScriptContext, ScriptDeinitContext, ScriptMessageContext, ScriptMessagePayload,
@@ -2179,10 +2181,6 @@ mod test {
     };
     use std::sync::Arc;
 
-    use crate::engine::task::TaskPoolHandler;
-    use crate::engine::GraphicsContext;
-    use fyrox_core::task::TaskPool;
-    use fyrox_core::uuid_provider;
     use std::sync::mpsc::{self, Sender, TryRecvError};
 
     #[allow(clippy::enum_variant_names)]

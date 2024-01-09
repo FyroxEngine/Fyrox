@@ -1,8 +1,10 @@
+pub use fyrox_core_derive::ComponentProvider;
 pub use fyrox_core_derive::TypeUuidProvider;
+use std::any::{Any, TypeId};
 use uuid::Uuid;
 
 pub mod prelude {
-    pub use super::{combine_uuids, TypeUuidProvider};
+    pub use super::{combine_uuids, ComponentProvider, TypeUuidProvider};
     pub use uuid::{uuid, Uuid};
 }
 
@@ -66,4 +68,90 @@ pub fn combine_uuids(a: Uuid, b: Uuid) -> Uuid {
     }
 
     Uuid::from_bytes(combined_bytes)
+}
+
+/// Component provider provides dynamic access to inner components of an object by their type id.
+pub trait ComponentProvider {
+    /// Allows an object to provide access to inner components.
+    fn query_component_ref(&self, type_id: TypeId) -> Option<&dyn Any>;
+
+    /// Allows an object to provide access to inner components.
+    fn query_component_mut(&mut self, type_id: TypeId) -> Option<&mut dyn Any>;
+}
+
+impl dyn ComponentProvider {
+    /// Tries to borrow a component of given type.
+    #[inline]
+    pub fn component_ref<T: Any>(&self) -> Option<&T> {
+        ComponentProvider::query_component_ref(self, TypeId::of::<T>())
+            .and_then(|c| c.downcast_ref())
+    }
+
+    /// Tries to borrow a component of given type.
+    #[inline]
+    pub fn component_mut<T: Any>(&mut self) -> Option<&mut T> {
+        ComponentProvider::query_component_mut(self, TypeId::of::<T>())
+            .and_then(|c| c.downcast_mut())
+    }
+}
+
+/// Implements [`ComponentProvider::query_component_ref`] and [`ComponentProvider::query_component_mut`] in a much
+/// shorter way.
+#[macro_export]
+macro_rules! impl_component_provider {
+     ($dest_type:ty) => {
+        impl $crate::type_traits::ComponentProvider for $dest_type {
+            fn query_component_ref(&self, type_id: std::any::TypeId) -> Option<&dyn std::any::Any> {
+                if type_id == std::any::TypeId::of::<Self>() {
+                    return Some(self);
+                }
+                None
+            }
+
+            fn query_component_mut(
+                &mut self,
+                type_id: std::any::TypeId,
+            ) -> Option<&mut dyn std::any::Any> {
+                if type_id == std::any::TypeId::of::<Self>() {
+                    return Some(self);
+                }
+                None
+            }
+        }
+    };
+
+    ($dest_type:ty, $($($comp_field:ident).*: $comp_type:ty),*) => {
+        impl $crate::type_traits::ComponentProvider for $dest_type {
+            fn query_component_ref(&self, type_id: std::any::TypeId) -> Option<&dyn std::any::Any> {
+                if type_id == std::any::TypeId::of::<Self>() {
+                    return Some(self);
+                }
+
+                $(
+                    if type_id == std::any::TypeId::of::<$comp_type>() {
+                        return Some(&self.$($comp_field).*)
+                    }
+                )*
+
+                None
+            }
+
+            fn query_component_mut(
+                &mut self,
+                type_id: std::any::TypeId,
+            ) -> Option<&mut dyn std::any::Any> {
+                if type_id == std::any::TypeId::of::<Self>() {
+                    return Some(self);
+                }
+
+                $(
+                    if type_id == std::any::TypeId::of::<$comp_type>() {
+                        return Some(&mut self.$($comp_field).*)
+                    }
+                )*
+
+                None
+            }
+        }
+    };
 }

@@ -1,20 +1,19 @@
 //! Flying camera controller script is used to create flying cameras, that can be rotated via mouse and moved via keyboard keys.
 //! See [`FlyingCameraController`] docs for more info and usage examples.
 
-use fyrox::core::uuid_provider;
 use fyrox::{
-    core::algebra::UnitVector3,
     core::{
-        algebra::{UnitQuaternion, Vector3},
+        algebra::{UnitQuaternion, UnitVector3, Vector3},
         curve::{Curve, CurveKey, CurveKeyKind},
+        impl_component_provider,
         math::Vector3Ext,
         reflect::prelude::*,
+        uuid_provider,
         variable::InheritableVariable,
         visitor::prelude::*,
     },
     event::{DeviceEvent, ElementState, Event, WindowEvent},
     gui::{key::KeyBinding, message::KeyCode},
-    impl_component_provider,
     script::{ScriptContext, ScriptTrait},
     utils,
 };
