@@ -580,6 +580,7 @@ use fyrox::{{
 
 #[derive(Visit, Reflect, Default, Debug, Clone, TypeUuidProvider, ComponentProvider)]
 #[type_uuid(id = "{id}")]
+#[visit(optional)]
 pub struct {name} {{
     // Add fields here.
 }}
