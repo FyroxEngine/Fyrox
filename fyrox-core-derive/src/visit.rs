@@ -24,8 +24,12 @@ fn impl_visit_struct(
         quote! { Ok(()) }
     } else {
         // `field.visit(..)?;` parts
-        let field_visits =
-            utils::create_field_visits(true, field_args.fields.iter(), field_args.style);
+        let field_visits = utils::create_field_visits(
+            true,
+            ty_args.optional,
+            field_args.fields.iter(),
+            field_args.style,
+        );
 
         quote! {
             let mut region = match visitor.enter_region(name) {
@@ -155,7 +159,8 @@ fn impl_visit_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs])
 
         match style {
             ast::Style::Struct => {
-                let field_visits = utils::create_field_visits(false, fields.iter(), style);
+                let field_visits =
+                    utils::create_field_visits(false, ty_args.optional, fields.iter(), style);
 
                 let idents = fields.iter().map(|field| {
                     let ident = &field.ident;
@@ -169,7 +174,8 @@ fn impl_visit_enum(ty_args: &args::TypeArgs, variant_args: &[args::VariantArgs])
                 }
             }
             ast::Style::Tuple => {
-                let field_visits = utils::create_field_visits(false, fields.iter(), style);
+                let field_visits =
+                    utils::create_field_visits(false, ty_args.optional, fields.iter(), style);
 
                 let idents = (0..fields.len()).map(|i| format_ident!("f{}", Index::from(i)));
 

@@ -5,10 +5,10 @@ use syn::*;
 #[darling(attributes(visit), supports(struct_any, enum_any))]
 pub struct TypeArgs {
     pub ident: Ident,
-    // pub vis: Visibility,
     pub generics: Generics,
     pub data: ast::Data<VariantArgs, FieldArgs>,
-    // attrs: Vec<Attribute>
+    #[darling(default)]
+    pub optional: bool,
 }
 
 /// Parsed from struct's or enum variant's field

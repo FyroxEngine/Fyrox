@@ -52,6 +52,7 @@ fn create_impl_generics(
 pub fn create_field_visits<'a>(
     // false if enum variant
     is_struct: bool,
+    optional_override: bool,
     fields: impl Iterator<Item = &'a args::FieldArgs>,
     field_style: ast::Style,
 ) -> Vec<TokenStream2> {
@@ -120,7 +121,7 @@ pub fn create_field_visits<'a>(
     visit_args
         .iter()
         .map(|(ident, name, optional)| {
-            if *optional {
+            if optional_override || *optional {
                 quote! {
                     #prefix #ident.visit(#name, &mut region).ok();
                 }
