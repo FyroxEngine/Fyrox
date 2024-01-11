@@ -496,6 +496,7 @@ impl ScriptMessageDispatcher {
         dt: f32,
         elapsed_time: f32,
         message_sender: &ScriptMessageSender,
+        user_interface: &mut UserInterface,
     ) {
         while let Ok(message) = self.message_receiver.try_recv() {
             let mut payload = message.payload;
@@ -511,6 +512,7 @@ impl ScriptMessageDispatcher {
                                 scene,
                                 resource_manager,
                                 message_sender,
+                                user_interface,
                             };
 
                             process_node_message(&mut context, &mut |s, ctx| {
@@ -532,6 +534,7 @@ impl ScriptMessageDispatcher {
                                     scene,
                                     resource_manager,
                                     message_sender,
+                                    user_interface,
                                 };
 
                                 if receivers.contains(&node) {
@@ -553,6 +556,7 @@ impl ScriptMessageDispatcher {
                                     scene,
                                     resource_manager,
                                     message_sender,
+                                    user_interface,
                                 };
 
                                 if receivers.contains(&node) {
@@ -573,6 +577,7 @@ impl ScriptMessageDispatcher {
                                 scene,
                                 resource_manager,
                                 message_sender,
+                                user_interface,
                             };
 
                             process_node_message(&mut context, &mut |s, ctx| {
@@ -634,6 +639,7 @@ impl ScriptProcessor {
         resource_manager: &ResourceManager,
         task_pool: &mut TaskPoolHandler,
         graphics_context: &mut GraphicsContext,
+        user_interface: &mut UserInterface,
         dt: f32,
         elapsed_time: f32,
     ) {
@@ -697,6 +703,7 @@ impl ScriptProcessor {
                     message_dispatcher: &mut scripted_scene.message_dispatcher,
                     task_pool,
                     graphics_context,
+                    user_interface,
                 };
 
                 'init_loop: for init_loop_iteration in 0..max_iterations {
@@ -775,6 +782,7 @@ impl ScriptProcessor {
                         dt,
                         elapsed_time,
                         &scripted_scene.message_sender,
+                        user_interface,
                     );
                 }
 
@@ -794,6 +802,7 @@ impl ScriptProcessor {
                 scene,
                 node_handle: Default::default(),
                 message_sender: &scripted_scene.message_sender,
+                user_interface,
             };
             while let Some((handle, mut script)) = destruction_queue.pop_front() {
                 context.node_handle = handle;
@@ -817,6 +826,7 @@ impl ScriptProcessor {
                     scene: &mut detached_scene,
                     node_handle: Default::default(),
                     message_sender: &scripted_scene.message_sender,
+                    user_interface,
                 };
 
                 // Destroy every script instance from nodes that were still alive.
@@ -1001,6 +1011,7 @@ pub(crate) fn process_scripts<T>(
     message_dispatcher: &mut ScriptMessageDispatcher,
     task_pool: &mut TaskPoolHandler,
     graphics_context: &mut GraphicsContext,
+    user_interface: &mut UserInterface,
     dt: f32,
     elapsed_time: f32,
     mut func: T,
@@ -1019,6 +1030,7 @@ pub(crate) fn process_scripts<T>(
         message_dispatcher,
         task_pool,
         graphics_context,
+        user_interface,
     };
 
     for node_index in 0..context.scene.graph.capacity() {
@@ -1757,6 +1769,7 @@ impl Engine {
                                 message_dispatcher: &mut scripted_scene.message_dispatcher,
                                 task_pool: &mut self.task_pool,
                                 graphics_context: &mut self.graphics_context,
+                                user_interface: &mut self.user_interface,
                             },
                         );
 
@@ -1774,6 +1787,7 @@ impl Engine {
             &self.resource_manager,
             &mut self.task_pool,
             &mut self.graphics_context,
+            &mut self.user_interface,
             dt,
             self.elapsed_time,
         );
@@ -2002,6 +2016,7 @@ impl Engine {
                     &mut scripted_scene.message_dispatcher,
                     &mut self.task_pool,
                     &mut self.graphics_context,
+                    &mut self.user_interface,
                     dt,
                     self.elapsed_time,
                     |script, context| {
@@ -2181,6 +2196,7 @@ mod test {
     };
     use std::sync::Arc;
 
+    use fyrox_ui::UserInterface;
     use std::sync::mpsc::{self, Sender, TryRecvError};
 
     #[allow(clippy::enum_variant_names)]
@@ -2304,6 +2320,7 @@ mod test {
         let handle_on_update1 = Handle::new(4, 1);
         let mut task_pool = TaskPoolHandler::new(Arc::new(TaskPool::new()));
         let mut gc = GraphicsContext::Uninitialized(Default::default());
+        let mut user_interface = UserInterface::default();
 
         for iteration in 0..3 {
             script_processor.handle_scripts(
@@ -2312,6 +2329,7 @@ mod test {
                 &resource_manager,
                 &mut task_pool,
                 &mut gc,
+                &mut user_interface,
                 0.0,
                 0.0,
             );
@@ -2463,6 +2481,7 @@ mod test {
         let mut script_processor = ScriptProcessor::default();
         let mut task_pool = TaskPoolHandler::new(Arc::new(TaskPool::new()));
         let mut gc = GraphicsContext::Uninitialized(Default::default());
+        let mut user_interface = UserInterface::default();
 
         script_processor.register_scripted_scene(scene_handle, &resource_manager);
 
@@ -2473,6 +2492,7 @@ mod test {
                 &resource_manager,
                 &mut task_pool,
                 &mut gc,
+                &mut user_interface,
                 0.0,
                 0.0,
             );

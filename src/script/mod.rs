@@ -18,6 +18,7 @@ use crate::{
     plugin::Plugin,
     scene::{node::Node, Scene},
 };
+use fyrox_ui::UserInterface;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -273,6 +274,9 @@ pub struct ScriptContext<'a, 'b, 'c> {
 
     /// Current graphics context of the engine. See [`GraphicsContext`] docs for more info.
     pub graphics_context: &'a mut GraphicsContext,
+
+    /// A reference to the user interface.
+    pub user_interface: &'a mut UserInterface,
 }
 
 /// A set of data, that provides contextual information for script methods.
@@ -310,6 +314,9 @@ pub struct ScriptMessageContext<'a, 'b, 'c> {
     /// An message sender. Every message sent via this sender will be then passed to every [`ScriptTrait::on_message`]
     /// method of every script.
     pub message_sender: &'c ScriptMessageSender,
+
+    /// A reference to the user interface.
+    pub user_interface: &'a mut UserInterface,
 }
 
 /// A set of data that will be passed to a script instance just before its destruction.
@@ -338,6 +345,9 @@ pub struct ScriptDeinitContext<'a, 'b, 'c> {
     /// An message sender. Every message sent via this sender will be then passed to every [`ScriptTrait::on_message`]
     /// method of every script.
     pub message_sender: &'c ScriptMessageSender,
+
+    /// A reference to the user interface.
+    pub user_interface: &'a mut UserInterface,
 }
 
 /// Script is a set predefined methods that are called on various stages by the engine. It is used to add
