@@ -262,6 +262,24 @@ impl<'a> PluginsRefMut<'a> {
     {
         self.0.iter_mut().find_map(|p| p.cast_mut::<T>())
     }
+
+    /// Searches for a plugin of the given type `T`. Panics if there's no such plugin.
+    #[inline]
+    pub fn get<T>(&self) -> &T
+    where
+        T: Plugin,
+    {
+        self.of_type_ref().unwrap()
+    }
+
+    /// Searches for a plugin of the given type `T`. Panics if there's no such plugin.
+    #[inline]
+    pub fn get_mut<T>(&mut self) -> &mut T
+    where
+        T: Plugin,
+    {
+        self.of_type_mut().unwrap()
+    }
 }
 
 /// A set of data, that provides contextual information for script methods.
