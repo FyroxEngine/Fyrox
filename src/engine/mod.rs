@@ -71,6 +71,7 @@ use raw_window_handle::HasRawWindowHandle;
 use std::{ffi::CString, num::NonZeroU32};
 
 use crate::engine::task::TaskPoolHandler;
+use crate::script::PluginsRefMut;
 use fyrox_core::task::TaskPool;
 use fyrox_ui::font::BUILT_IN_FONT;
 use fyrox_ui::loader::UserInterfaceLoader;
@@ -491,7 +492,7 @@ impl ScriptMessageDispatcher {
     fn dispatch_messages(
         &self,
         scene: &mut Scene,
-        plugins: &mut Vec<Box<dyn Plugin>>,
+        plugins: &mut [Box<dyn Plugin>],
         resource_manager: &ResourceManager,
         dt: f32,
         elapsed_time: f32,
@@ -507,7 +508,7 @@ impl ScriptMessageDispatcher {
                             let mut context = ScriptMessageContext {
                                 dt,
                                 elapsed_time,
-                                plugins,
+                                plugins: PluginsRefMut(plugins),
                                 handle: target,
                                 scene,
                                 resource_manager,
@@ -529,7 +530,7 @@ impl ScriptMessageDispatcher {
                                 let mut context = ScriptMessageContext {
                                     dt,
                                     elapsed_time,
-                                    plugins,
+                                    plugins: PluginsRefMut(plugins),
                                     handle: node,
                                     scene,
                                     resource_manager,
@@ -551,7 +552,7 @@ impl ScriptMessageDispatcher {
                                 let mut context = ScriptMessageContext {
                                     dt,
                                     elapsed_time,
-                                    plugins,
+                                    plugins: PluginsRefMut(plugins),
                                     handle: node,
                                     scene,
                                     resource_manager,
@@ -572,7 +573,7 @@ impl ScriptMessageDispatcher {
                             let mut context = ScriptMessageContext {
                                 dt,
                                 elapsed_time,
-                                plugins,
+                                plugins: PluginsRefMut(plugins),
                                 handle: node,
                                 scene,
                                 resource_manager,
@@ -635,7 +636,7 @@ impl ScriptProcessor {
     fn handle_scripts(
         &mut self,
         scenes: &mut SceneContainer,
-        plugins: &mut Vec<Box<dyn Plugin>>,
+        plugins: &mut [Box<dyn Plugin>],
         resource_manager: &ResourceManager,
         task_pool: &mut TaskPoolHandler,
         graphics_context: &mut GraphicsContext,
@@ -694,7 +695,7 @@ impl ScriptProcessor {
                 let mut context = ScriptContext {
                     dt,
                     elapsed_time,
-                    plugins,
+                    plugins: PluginsRefMut(plugins),
                     handle: Default::default(),
                     scene,
                     scene_handle: scripted_scene.handle,
@@ -797,7 +798,7 @@ impl ScriptProcessor {
             // As the last step, destroy queued scripts.
             let mut context = ScriptDeinitContext {
                 elapsed_time,
-                plugins,
+                plugins: PluginsRefMut(plugins),
                 resource_manager,
                 scene,
                 node_handle: Default::default(),
@@ -821,7 +822,7 @@ impl ScriptProcessor {
             if let Some(scripted_scene) = self.scripted_scenes.iter().find(|s| s.handle == handle) {
                 let mut context = ScriptDeinitContext {
                     elapsed_time,
-                    plugins,
+                    plugins: PluginsRefMut(plugins),
                     resource_manager,
                     scene: &mut detached_scene,
                     node_handle: Default::default(),
@@ -1021,7 +1022,7 @@ pub(crate) fn process_scripts<T>(
     let mut context = ScriptContext {
         dt,
         elapsed_time,
-        plugins,
+        plugins: PluginsRefMut(plugins),
         handle: Default::default(),
         scene,
         scene_handle,
@@ -1760,7 +1761,7 @@ impl Engine {
                             &mut ScriptContext {
                                 dt,
                                 elapsed_time: self.elapsed_time,
-                                plugins: &mut self.plugins,
+                                plugins: PluginsRefMut(&mut self.plugins),
                                 handle: handler.node_handle,
                                 scene,
                                 scene_handle: scripted_scene.handle,
@@ -2325,7 +2326,7 @@ mod test {
         for iteration in 0..3 {
             script_processor.handle_scripts(
                 &mut scene_container,
-                &mut Default::default(),
+                &mut Vec::new(),
                 &resource_manager,
                 &mut task_pool,
                 &mut gc,
@@ -2488,7 +2489,7 @@ mod test {
         for iteration in 0..2 {
             script_processor.handle_scripts(
                 &mut scene_container,
-                &mut Default::default(),
+                &mut Vec::new(),
                 &resource_manager,
                 &mut task_pool,
                 &mut gc,

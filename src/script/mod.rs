@@ -226,6 +226,44 @@ where
     }
 }
 
+/// A simple wrapper for a reference to plugins container. It has some useful methods to fetch
+/// a plugin of certain type. See [`PluginsRefMut::of_type_ref`] and [`PluginsRefMut::of_type_mut`].
+pub struct PluginsRefMut<'a>(pub &'a mut [Box<dyn Plugin>]);
+
+impl<'a> Deref for PluginsRefMut<'a> {
+    type Target = [Box<dyn Plugin>];
+
+    fn deref(&self) -> &Self::Target {
+        self.0
+    }
+}
+
+impl<'a> DerefMut for PluginsRefMut<'a> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.0
+    }
+}
+
+impl<'a> PluginsRefMut<'a> {
+    /// Searches for a plugin of the given type `T`.
+    #[inline]
+    pub fn of_type_ref<T>(&self) -> Option<&T>
+    where
+        T: Plugin,
+    {
+        self.0.iter().find_map(|p| p.cast::<T>())
+    }
+
+    /// Searches for a plugin of the given type `T`.
+    #[inline]
+    pub fn of_type_mut<T>(&mut self) -> Option<&mut T>
+    where
+        T: Plugin,
+    {
+        self.0.iter_mut().find_map(|p| p.cast_mut::<T>())
+    }
+}
+
 /// A set of data, that provides contextual information for script methods.
 pub struct ScriptContext<'a, 'b, 'c> {
     /// Amount of time that passed from last call. It has valid values only when called from `on_update`.
@@ -239,7 +277,7 @@ pub struct ScriptContext<'a, 'b, 'c> {
     /// A reference to the plugin which the script instance belongs to. You can use it to access plugin data
     /// inside script methods. For example you can store some "global" data in the plugin - for example a
     /// controls configuration, some entity managers and so on.
-    pub plugins: &'a mut [Box<dyn Plugin>],
+    pub plugins: PluginsRefMut<'a>,
 
     /// Handle of a node to which the script instance belongs to. To access the node itself use `scene` field:
     ///
@@ -292,7 +330,7 @@ pub struct ScriptMessageContext<'a, 'b, 'c> {
     /// A reference to the plugin which the script instance belongs to. You can use it to access plugin data
     /// inside script methods. For example you can store some "global" data in the plugin - for example a
     /// controls configuration, some entity managers and so on.
-    pub plugins: &'a mut [Box<dyn Plugin>],
+    pub plugins: PluginsRefMut<'a>,
 
     /// Handle of a node to which the script instance belongs to. To access the node itself use `scene` field:
     ///
@@ -329,7 +367,7 @@ pub struct ScriptDeinitContext<'a, 'b, 'c> {
     /// A reference to the plugin which the script instance belongs to. You can use it to access plugin data
     /// inside script methods. For example you can store some "global" data in the plugin - for example a
     /// controls configuration, some entity managers and so on.
-    pub plugins: &'a mut [Box<dyn Plugin>],
+    pub plugins: PluginsRefMut<'a>,
 
     /// A reference to resource manager, use it to load resources.
     pub resource_manager: &'a ResourceManager,
