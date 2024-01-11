@@ -22,19 +22,19 @@
 
 #![allow(clippy::unneeded_field_pattern)]
 
-use crate::reflect::ReflectArray;
 use crate::{
     combine_uuids,
     reflect::prelude::*,
+    reflect::ReflectArray,
     uuid_provider,
     visitor::{Visit, VisitResult, Visitor},
     TypeUuidProvider,
 };
 use arrayvec::ArrayVec;
 use serde::{Deserialize, Serialize};
-use std::any::Any;
-use std::cmp::Ordering;
 use std::{
+    any::Any,
+    cmp::Ordering,
     fmt::{Debug, Display, Formatter},
     future::Future,
     hash::{Hash, Hasher},
@@ -67,30 +67,37 @@ pub trait PayloadContainer: Sized {
 impl<T> PayloadContainer for Option<T> {
     type Element = T;
 
+    #[inline]
     fn new_empty() -> Self {
         Self::None
     }
 
+    #[inline]
     fn new(element: Self::Element) -> Self {
         Self::Some(element)
     }
 
+    #[inline]
     fn is_some(&self) -> bool {
         Option::is_some(self)
     }
 
+    #[inline]
     fn as_ref(&self) -> Option<&Self::Element> {
         Option::as_ref(self)
     }
 
+    #[inline]
     fn as_mut(&mut self) -> Option<&mut Self::Element> {
         Option::as_mut(self)
     }
 
+    #[inline]
     fn replace(&mut self, element: Self::Element) -> Option<Self::Element> {
         Option::replace(self, element)
     }
 
+    #[inline]
     fn take(&mut self) -> Option<Self::Element> {
         Option::take(self)
     }
@@ -115,47 +122,58 @@ where
     T: Reflect,
     P: PayloadContainer<Element = T> + Reflect,
 {
+    #[inline]
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
 
+    #[inline]
     fn doc(&self) -> &'static str {
         ""
     }
 
+    #[inline]
     fn fields_info(&self, func: &mut dyn FnMut(&[FieldInfo])) {
         func(&[])
     }
 
+    #[inline]
     fn into_any(self: Box<Self>) -> Box<dyn Any> {
         self
     }
 
+    #[inline]
     fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {
         func(self)
     }
 
+    #[inline]
     fn as_any_mut(&mut self, func: &mut dyn FnMut(&mut dyn Any)) {
         func(self)
     }
 
+    #[inline]
     fn as_reflect(&self, func: &mut dyn FnMut(&dyn Reflect)) {
         func(self)
     }
 
+    #[inline]
     fn as_reflect_mut(&mut self, func: &mut dyn FnMut(&mut dyn Reflect)) {
         func(self)
     }
 
+    #[inline]
     fn set(&mut self, value: Box<dyn Reflect>) -> Result<Box<dyn Reflect>, Box<dyn Reflect>> {
         let this = std::mem::replace(self, value.take()?);
         Ok(Box::new(this))
     }
 
+    #[inline]
     fn as_array(&self, func: &mut dyn FnMut(Option<&dyn ReflectArray>)) {
         func(Some(self))
     }
 
+    #[inline]
     fn as_array_mut(&mut self, func: &mut dyn FnMut(Option<&mut dyn ReflectArray>)) {
         func(Some(self))
     }
@@ -166,14 +184,17 @@ where
     T: Reflect,
     P: PayloadContainer<Element = T> + Reflect,
 {
+    #[inline]
     fn reflect_index(&self, index: usize) -> Option<&dyn Reflect> {
         self.at(index as u32).map(|p| p as &dyn Reflect)
     }
 
+    #[inline]
     fn reflect_index_mut(&mut self, index: usize) -> Option<&mut dyn Reflect> {
         self.at_mut(index as u32).map(|p| p as &mut dyn Reflect)
     }
 
+    #[inline]
     fn reflect_len(&self) -> usize {
         self.get_capacity() as usize
     }
@@ -184,6 +205,7 @@ where
     T: PartialEq,
     P: PayloadContainer<Element = T> + PartialEq,
 {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.records == other.records
     }
@@ -208,6 +230,7 @@ pub struct Handle<T> {
 }
 
 impl<T: TypeUuidProvider> TypeUuidProvider for Handle<T> {
+    #[inline]
     fn type_uuid() -> Uuid {
         combine_uuids(
             uuid::uuid!("30c0668d-7a2c-47e6-8c7b-208fdcc905a1"),
@@ -217,12 +240,14 @@ impl<T: TypeUuidProvider> TypeUuidProvider for Handle<T> {
 }
 
 impl<T> PartialOrd for Handle<T> {
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl<T> Ord for Handle<T> {
+    #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
         self.index.cmp(&other.index)
     }
@@ -232,6 +257,7 @@ unsafe impl<T> Send for Handle<T> {}
 unsafe impl<T> Sync for Handle<T> {}
 
 impl<T> Display for Handle<T> {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}:{}", self.index, self.generation)
     }
@@ -254,18 +280,21 @@ pub struct ErasedHandle {
 uuid_provider!(ErasedHandle = "50131acc-8b3b-40b5-b495-e2c552c94db3");
 
 impl Display for ErasedHandle {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}:{}", self.index, self.generation)
     }
 }
 
 impl Default for ErasedHandle {
+    #[inline]
     fn default() -> Self {
         Self::none()
     }
 }
 
 impl<T> From<ErasedHandle> for Handle<T> {
+    #[inline]
     fn from(erased_handle: ErasedHandle) -> Self {
         Handle {
             index: erased_handle.index,
@@ -276,6 +305,7 @@ impl<T> From<ErasedHandle> for Handle<T> {
 }
 
 impl<T> From<Handle<T>> for ErasedHandle {
+    #[inline]
     fn from(h: Handle<T>) -> Self {
         Self {
             index: h.index,
@@ -285,6 +315,7 @@ impl<T> From<Handle<T>> for ErasedHandle {
 }
 
 impl ErasedHandle {
+    #[inline]
     pub fn none() -> Self {
         Self {
             index: 0,
@@ -292,6 +323,7 @@ impl ErasedHandle {
         }
     }
 
+    #[inline]
     pub fn new(index: u32, generation: u32) -> Self {
         Self { index, generation }
     }
@@ -318,6 +350,7 @@ impl ErasedHandle {
 }
 
 impl<T> Visit for Handle<T> {
+    #[inline]
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
@@ -329,12 +362,14 @@ impl<T> Visit for Handle<T> {
 }
 
 impl<T> Default for Handle<T> {
+    #[inline]
     fn default() -> Self {
         Self::NONE
     }
 }
 
 impl<T> Debug for Handle<T> {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "[Idx: {}; Gen: {}]", self.index, self.generation)
     }
@@ -359,6 +394,7 @@ where
     T: PartialEq,
     P: PayloadContainer<Element = T> + PartialEq,
 {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.generation == other.generation && self.payload == other.payload
     }
@@ -368,6 +404,7 @@ impl<T, P> Default for PoolRecord<T, P>
 where
     P: PayloadContainer<Element = T> + 'static,
 {
+    #[inline]
     fn default() -> Self {
         Self {
             generation: INVALID_GENERATION,
@@ -381,6 +418,7 @@ where
     T: Visit + 'static,
     P: PayloadContainer<Element = T> + Visit,
 {
+    #[inline]
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
 
@@ -392,6 +430,7 @@ where
 }
 
 impl<T> Clone for Handle<T> {
+    #[inline]
     fn clone(&self) -> Handle<T> {
         *self
     }
@@ -402,6 +441,7 @@ impl<T> Copy for Handle<T> {}
 impl<T> Eq for Handle<T> {}
 
 impl<T> PartialEq for Handle<T> {
+    #[inline]
     fn eq(&self, other: &Handle<T>) -> bool {
         self.generation == other.generation && self.index == other.index
     }
@@ -412,6 +452,7 @@ where
     T: Visit + 'static,
     P: PayloadContainer<Element = T> + Default + Visit + 'static,
 {
+    #[inline]
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         let mut region = visitor.enter_region(name)?;
         self.records.visit("Records", &mut region)?;
@@ -421,6 +462,7 @@ where
 }
 
 impl<T> Hash for Handle<T> {
+    #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.index.hash(state);
         self.generation.hash(state);
@@ -491,6 +533,7 @@ impl<T> Default for Pool<T>
 where
     T: 'static,
 {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
@@ -503,6 +546,7 @@ pub struct Ticket<T> {
 }
 
 impl<T: Clone> Clone for PoolRecord<T> {
+    #[inline]
     fn clone(&self) -> Self {
         Self {
             generation: self.generation,
@@ -512,6 +556,7 @@ impl<T: Clone> Clone for PoolRecord<T> {
 }
 
 impl<T: Clone> Clone for Pool<T> {
+    #[inline]
     fn clone(&self) -> Self {
         Self {
             records: self.records.clone(),
@@ -594,6 +639,7 @@ where
     /// Panics if the index is occupied or reserved (e.g. by [`take_reserve`]).
     ///
     /// [`take_reserve`]: Pool::take_reserve
+    #[inline]
     pub fn spawn_at_handle(&mut self, handle: Handle<T>, payload: T) -> Result<Handle<T>, T> {
         self.spawn_at_internal(handle.index, handle.generation, payload)
     }
@@ -987,6 +1033,7 @@ where
     }
 
     /// Tries to borrow two objects when a handle to the second object stored in the first object.
+    #[inline]
     pub fn try_borrow_dependant_mut<F>(
         &mut self,
         handle: Handle<T>,
@@ -1131,6 +1178,7 @@ where
     /// information.
     ///
     /// [`take_reserve`]: Pool::take_reserve
+    #[inline]
     pub fn put_back(&mut self, ticket: Ticket<T>, value: T) -> Handle<T> {
         let record = self
             .records_get_mut(ticket.index)
@@ -1143,6 +1191,7 @@ where
     /// Forgets that value at ticket was reserved and makes it usable again.
     /// Useful when you don't need to put value back by ticket, but just make
     /// pool record usable again.
+    #[inline]
     pub fn forget_ticket(&mut self, ticket: Ticket<T>) {
         self.free_stack.push(ticket.index);
     }
@@ -1227,6 +1276,7 @@ where
     ///
     /// [`take_reserve`]: Pool::take_reserve
     /// [`alive_count`]: Pool::alive_count
+    #[inline]
     pub fn total_count(&self) -> u32 {
         let free = u32::try_from(self.free_stack.len()).expect("free stack length overflowed u32");
         self.records_len() - free
@@ -1281,6 +1331,7 @@ where
     /// assert_eq!(*iter.next().unwrap(), 321);
     /// ```
     #[must_use]
+    #[inline]
     pub fn iter(&self) -> PoolIterator<T, P> {
         unsafe {
             PoolIterator {
@@ -1294,6 +1345,7 @@ where
     /// Creates new pair iterator that iterates over filled records using pair (handle, payload)
     /// Can be useful when there is a need to iterate over pool records and know a handle of
     /// that record.
+    #[inline]
     pub fn pair_iter(&self) -> PoolPairIterator<T, P> {
         PoolPairIterator {
             pool: self,
@@ -1316,6 +1368,7 @@ where
     /// assert_eq!(*iter.next().unwrap(), 321);
     /// ```
     #[must_use]
+    #[inline]
     pub fn iter_mut(&mut self) -> PoolIteratorMut<T, P> {
         unsafe {
             PoolIteratorMut {
@@ -1329,6 +1382,7 @@ where
     /// Creates new pair iterator that iterates over filled records using pair (handle, payload)
     /// Can be useful when there is a need to iterate over pool records and know a handle of
     /// that record.
+    #[inline]
     pub fn pair_iter_mut(&mut self) -> PoolPairIteratorMut<T, P> {
         unsafe {
             PoolPairIteratorMut {
@@ -1342,6 +1396,7 @@ where
 
     /// Retains pool records selected by `pred`. Useful when you need to remove all pool records
     /// by some criteria.
+    #[inline]
     pub fn retain<F>(&mut self, mut pred: F)
     where
         F: FnMut(&T) -> bool,
@@ -1366,11 +1421,13 @@ where
 
     /// Begins multi-borrow that allows you to borrow as many (`N`) **unique** references to the pool
     /// elements as you need. See [`MultiBorrowContext::try_get`] for more info.
+    #[inline]
     pub fn begin_multi_borrow<const N: usize>(&mut self) -> MultiBorrowContext<N, T, P> {
         MultiBorrowContext::new(self)
     }
 
     /// Removes all elements from the pool.
+    #[inline]
     pub fn drain(&mut self) -> impl Iterator<Item = T> + '_ {
         self.free_stack.clear();
         self.records.drain(..).filter_map(|mut r| r.payload.take())
@@ -1384,6 +1441,7 @@ where
         self.records.as_ptr()
     }
 
+    #[inline]
     pub fn handle_of(&self, ptr: &T) -> Handle<T> {
         let begin = self.begin() as usize;
         let end = self.end() as usize;
@@ -1405,6 +1463,7 @@ impl<T> FromIterator<T> for Pool<T>
 where
     T: 'static,
 {
+    #[inline]
     fn from_iter<C: IntoIterator<Item = T>>(iter: C) -> Self {
         let iter = iter.into_iter();
         let (lower_bound, upper_bound) = iter.size_hint();
@@ -1426,6 +1485,7 @@ where
 {
     type Output = T;
 
+    #[inline]
     fn index(&self, index: Handle<T>) -> &Self::Output {
         self.borrow(index)
     }
@@ -1436,6 +1496,7 @@ where
     T: 'static,
     P: PayloadContainer<Element = T> + 'static,
 {
+    #[inline]
     fn index_mut(&mut self, index: Handle<T>) -> &mut Self::Output {
         self.borrow_mut(index)
     }
@@ -1448,6 +1509,7 @@ where
     type Item = &'a T;
     type IntoIter = PoolIterator<'a, T, P>;
 
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         self.iter()
     }
@@ -1460,6 +1522,7 @@ where
     type Item = &'a mut T;
     type IntoIter = PoolIteratorMut<'a, T, P>;
 
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         self.iter_mut()
     }
@@ -1480,6 +1543,7 @@ where
 {
     type Item = &'a T;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         unsafe {
             while self.ptr != self.end {
@@ -1507,6 +1571,7 @@ where
 {
     type Item = (Handle<T>, &'a T);
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             match self.pool.records.get(self.current) {
@@ -1539,6 +1604,7 @@ where
 {
     type Item = &'a mut T;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         unsafe {
             while self.ptr != self.end {
@@ -1571,6 +1637,7 @@ where
 {
     type Item = (Handle<T>, &'a mut T);
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         unsafe {
             while self.ptr != self.end {
@@ -1606,6 +1673,7 @@ where
     T: Sized,
     P: PayloadContainer<Element = T> + 'static,
 {
+    #[inline]
     fn new(pool: &'a mut Pool<T, P>) -> Self {
         Self {
             pool,
@@ -1627,6 +1695,7 @@ where
     /// This method has `O(N)` complexity, internally it does linear search in the internal handles storage
     /// to enforce borrowing rules at runtime. The method is designed for small reference count (<32), where
     /// linear search is faster than hash set.
+    #[inline]
     pub fn try_get(&mut self, handle: Handle<T>) -> Option<&'a mut T> {
         // Performance: linear search is much faster than hash set for small element count.
         // The context is meant to be used for limited amount of references (<32).
