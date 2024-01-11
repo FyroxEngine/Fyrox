@@ -1964,12 +1964,14 @@ impl Graph {
 impl Index<Handle<Node>> for Graph {
     type Output = Node;
 
+    #[inline]
     fn index(&self, index: Handle<Node>) -> &Self::Output {
         &self.pool[index]
     }
 }
 
 impl IndexMut<Handle<Node>> for Graph {
+    #[inline]
     fn index_mut(&mut self, index: Handle<Node>) -> &mut Self::Output {
         &mut self.pool[index]
     }
@@ -1981,6 +1983,7 @@ where
 {
     type Output = T;
 
+    #[inline]
     fn index(&self, typed_handle: Handle<T>) -> &Self::Output {
         let node = &self.pool[typed_handle.transmute()];
         node.cast().unwrap_or_else(|| {
@@ -1999,6 +2002,7 @@ impl<T> IndexMut<Handle<T>> for Graph
 where
     T: NodeTrait,
 {
+    #[inline]
     fn index_mut(&mut self, typed_handle: Handle<T>) -> &mut Self::Output {
         let node = &mut self.pool[typed_handle.transmute()];
 
