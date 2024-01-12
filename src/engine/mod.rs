@@ -492,12 +492,15 @@ impl ScriptMessageDispatcher {
     fn dispatch_messages(
         &self,
         scene: &mut Scene,
+        scene_handle: Handle<Scene>,
         plugins: &mut [Box<dyn Plugin>],
         resource_manager: &ResourceManager,
         dt: f32,
         elapsed_time: f32,
         message_sender: &ScriptMessageSender,
         user_interface: &mut UserInterface,
+        graphics_context: &mut GraphicsContext,
+        task_pool: &mut TaskPoolHandler,
     ) {
         while let Ok(message) = self.message_receiver.try_recv() {
             let mut payload = message.payload;
@@ -511,8 +514,11 @@ impl ScriptMessageDispatcher {
                                 plugins: PluginsRefMut(plugins),
                                 handle: target,
                                 scene,
+                                scene_handle,
                                 resource_manager,
                                 message_sender,
+                                task_pool,
+                                graphics_context,
                                 user_interface,
                             };
 
@@ -533,8 +539,11 @@ impl ScriptMessageDispatcher {
                                     plugins: PluginsRefMut(plugins),
                                     handle: node,
                                     scene,
+                                    scene_handle,
                                     resource_manager,
                                     message_sender,
+                                    task_pool,
+                                    graphics_context,
                                     user_interface,
                                 };
 
@@ -555,8 +564,11 @@ impl ScriptMessageDispatcher {
                                     plugins: PluginsRefMut(plugins),
                                     handle: node,
                                     scene,
+                                    scene_handle,
                                     resource_manager,
                                     message_sender,
+                                    task_pool,
+                                    graphics_context,
                                     user_interface,
                                 };
 
@@ -576,8 +588,11 @@ impl ScriptMessageDispatcher {
                                 plugins: PluginsRefMut(plugins),
                                 handle: node,
                                 scene,
+                                scene_handle,
                                 resource_manager,
                                 message_sender,
+                                task_pool,
+                                graphics_context,
                                 user_interface,
                             };
 
@@ -778,12 +793,15 @@ impl ScriptProcessor {
                     // frame (to prevent one-frame lag).
                     scripted_scene.message_dispatcher.dispatch_messages(
                         scene,
+                        scripted_scene.handle,
                         plugins,
                         resource_manager,
                         dt,
                         elapsed_time,
                         &scripted_scene.message_sender,
                         user_interface,
+                        graphics_context,
+                        task_pool,
                     );
                 }
 
@@ -801,9 +819,12 @@ impl ScriptProcessor {
                 plugins: PluginsRefMut(plugins),
                 resource_manager,
                 scene,
+                scene_handle: scripted_scene.handle,
                 node_handle: Default::default(),
                 message_sender: &scripted_scene.message_sender,
                 user_interface,
+                graphics_context,
+                task_pool,
             };
             while let Some((handle, mut script)) = destruction_queue.pop_front() {
                 context.node_handle = handle;
@@ -825,8 +846,11 @@ impl ScriptProcessor {
                     plugins: PluginsRefMut(plugins),
                     resource_manager,
                     scene: &mut detached_scene,
+                    scene_handle: scripted_scene.handle,
                     node_handle: Default::default(),
                     message_sender: &scripted_scene.message_sender,
+                    task_pool,
+                    graphics_context,
                     user_interface,
                 };
 

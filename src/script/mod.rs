@@ -364,12 +364,21 @@ pub struct ScriptMessageContext<'a, 'b, 'c> {
     /// in most of the script methods.
     pub scene: &'b mut Scene,
 
+    /// A handle of a scene the script instance belongs to.
+    pub scene_handle: Handle<Scene>,
+
     /// A reference to resource manager, use it to load resources.
     pub resource_manager: &'a ResourceManager,
 
     /// An message sender. Every message sent via this sender will be then passed to every [`ScriptTrait::on_message`]
     /// method of every script.
     pub message_sender: &'c ScriptMessageSender,
+
+    /// Task pool for asynchronous task management.
+    pub task_pool: &'a mut TaskPoolHandler,
+
+    /// Current graphics context of the engine. See [`GraphicsContext`] docs for more info.
+    pub graphics_context: &'a mut GraphicsContext,
 
     /// A reference to the user interface.
     pub user_interface: &'a mut UserInterface,
@@ -394,6 +403,9 @@ pub struct ScriptDeinitContext<'a, 'b, 'c> {
     /// in most of the script methods.
     pub scene: &'b mut Scene,
 
+    /// A handle of a scene the script instance belongs to.
+    pub scene_handle: Handle<Scene>,
+
     /// Handle to a parent scene node. Use it with caution because parent node could be deleted already and
     /// any unchecked borrowing using the handle will cause panic!
     pub node_handle: Handle<Node>,
@@ -401,6 +413,12 @@ pub struct ScriptDeinitContext<'a, 'b, 'c> {
     /// An message sender. Every message sent via this sender will be then passed to every [`ScriptTrait::on_message`]
     /// method of every script.
     pub message_sender: &'c ScriptMessageSender,
+
+    /// Task pool for asynchronous task management.
+    pub task_pool: &'a mut TaskPoolHandler,
+
+    /// Current graphics context of the engine. See [`GraphicsContext`] docs for more info.
+    pub graphics_context: &'a mut GraphicsContext,
 
     /// A reference to the user interface.
     pub user_interface: &'a mut UserInterface,
