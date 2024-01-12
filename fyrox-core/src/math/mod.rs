@@ -1008,22 +1008,27 @@ pub trait Matrix4Ext<T: Scalar> {
 }
 
 impl<T: Scalar + Default + Copy + Clone> Matrix4Ext<T> for Matrix4<T> {
+    #[inline]
     fn side(&self) -> Vector3<T> {
         Vector3::new(self[0], self[1], self[2])
     }
 
+    #[inline]
     fn up(&self) -> Vector3<T> {
         Vector3::new(self[4], self[5], self[6])
     }
 
+    #[inline]
     fn look(&self) -> Vector3<T> {
         Vector3::new(self[8], self[9], self[10])
     }
 
+    #[inline]
     fn position(&self) -> Vector3<T> {
         Vector3::new(self[12], self[13], self[14])
     }
 
+    #[inline]
     fn basis(&self) -> Matrix3<T> {
         self.fixed_resize::<3, 3>(T::default())
     }
@@ -1036,14 +1041,17 @@ pub trait Matrix3Ext<T: Scalar> {
 }
 
 impl<T: Scalar + Copy + Clone> Matrix3Ext<T> for Matrix3<T> {
+    #[inline]
     fn side(&self) -> Vector3<T> {
         Vector3::new(self[0], self[1], self[2])
     }
 
+    #[inline]
     fn up(&self) -> Vector3<T> {
         Vector3::new(self[3], self[4], self[5])
     }
 
+    #[inline]
     fn look(&self) -> Vector3<T> {
         Vector3::new(self[6], self[7], self[8])
     }
