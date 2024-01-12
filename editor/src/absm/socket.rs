@@ -1,7 +1,8 @@
-use fyrox::core::uuid_provider;
 use fyrox::{
-    core::{algebra::Vector2, color::Color, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        uuid_provider, visitor::prelude::*,
+    },
     gui::{
         brush::Brush,
         define_constructor, define_widget_deref,
@@ -15,10 +16,7 @@ use fyrox::{
     },
     scene::animation::absm::prelude::*,
 };
-use std::{
-    any::{Any, TypeId},
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 const PICKED_BRUSH: Brush = Brush::Solid(Color::opaque(170, 170, 170));
 const NORMAL_BRUSH: Brush = Brush::Solid(Color::opaque(120, 120, 120));
@@ -40,7 +38,7 @@ pub enum SocketDirection {
     Output,
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Clone, Debug, Visit, Reflect, ComponentProvider)]
 pub struct Socket {
     widget: Widget,
     click_position: Option<Vector2<f32>>,
@@ -59,14 +57,6 @@ const RADIUS: f32 = 8.0;
 uuid_provider!(Socket = "a6c0473e-7073-4e91-a681-cf88795af52a");
 
 impl Control for Socket {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

@@ -5,15 +5,14 @@
 
 use crate::{
     core::{
-        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, uuid_provider,
-        visitor::prelude::*,
+        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        uuid_provider, visitor::prelude::*,
     },
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
 use std::{
-    any::{Any, TypeId},
     cell::Cell,
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
@@ -89,7 +88,7 @@ use std::{
 ///     .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct Screen {
     /// Base widget of the screen.
     pub widget: Widget,
@@ -104,14 +103,6 @@ crate::define_widget_deref!(Screen);
 uuid_provider!(Screen = "3bc7649f-a1ba-49be-bc4e-e0624654e40c");
 
 impl Control for Screen {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn measure_override(&self, ui: &UserInterface, _available_size: Vector2<f32>) -> Vector2<f32> {
         for &child in self.children.iter() {
             ui.measure_node(child, ui.screen_size());

@@ -5,18 +5,17 @@
 #![warn(missing_docs)]
 
 use crate::{
-    core::{algebra::Vector2, color::Color, math::Rect, math::Vector2Ext, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, color::Color, math::Rect, math::Vector2Ext, pool::Handle,
+        reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*,
+    },
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_core::uuid_provider;
-use std::{
-    any::{Any, TypeId},
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// Primitive is a simplest shape, that consists of one or multiple lines of the same thickness.
@@ -162,7 +161,7 @@ impl Primitive {
 ///
 /// Keep in mind that all primitives located in local coordinates. The color of the vector image can be changed by
 /// setting a new foreground brush.
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct VectorImage {
     /// Base widget of the image.
     pub widget: Widget,
@@ -175,14 +174,6 @@ crate::define_widget_deref!(VectorImage);
 uuid_provider!(VectorImage = "7e535b65-0178-414e-b310-e208afc0eeb5");
 
 impl Control for VectorImage {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn measure_override(&self, _ui: &UserInterface, _available_size: Vector2<f32>) -> Vector2<f32> {
         if self.primitives.is_empty() {
             Default::default()

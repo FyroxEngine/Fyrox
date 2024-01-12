@@ -3,8 +3,10 @@
 
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
-    core::visitor::prelude::*,
-    core::{pool::Handle, reflect::prelude::*, variable::InheritableVariable},
+    core::{
+        pool::Handle, reflect::prelude::*, reflect::FieldValue, type_traits::prelude::*,
+        uuid_provider, variable::InheritableVariable, visitor::prelude::*, PhantomDataSendSync,
+    },
     define_constructor,
     grid::{Column, GridBuilder, Row},
     inspector::{
@@ -21,10 +23,8 @@ use crate::{
     BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, VerticalAlignment,
     Widget, WidgetMessage,
 };
-use fyrox_core::reflect::FieldValue;
-use fyrox_core::{uuid_provider, PhantomDataSendSync};
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
@@ -40,7 +40,7 @@ impl InheritablePropertyEditorMessage {
     define_constructor!(InheritablePropertyEditorMessage:Modified => fn modified(bool), layout: false);
 }
 
-#[derive(Debug, Clone, Visit, Reflect)]
+#[derive(Debug, Clone, Visit, Reflect, ComponentProvider)]
 pub struct InheritablePropertyEditor {
     widget: Widget,
     revert: Handle<UiNode>,
@@ -64,14 +64,6 @@ impl DerefMut for InheritablePropertyEditor {
 uuid_provider!(InheritablePropertyEditor = "d5dce72c-a54b-4754-96a3-2e923eaa802f");
 
 impl Control for InheritablePropertyEditor {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

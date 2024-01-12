@@ -5,8 +5,10 @@ use crate::{
     border::BorderBuilder,
     brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
-    core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
+        type_traits::prelude::*, visitor::prelude::*,
+    },
     decorator::DecoratorBuilder,
     define_constructor,
     grid::{Column, GridBuilder, Row},
@@ -19,7 +21,6 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use std::{
-    any::{Any, TypeId},
     cell::RefCell,
     ops::{Deref, DerefMut},
 };
@@ -241,7 +242,7 @@ impl WindowMessage {
 /// to interact with anything else until the modal is dismissed.
 ///
 /// Any window can be set and unset as a modal via the *modal* function.
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct Window {
     /// Base widget of the window.
     pub widget: Widget,
@@ -342,14 +343,6 @@ crate::define_widget_deref!(Window);
 uuid_provider!(Window = "9331bf32-8614-4005-874c-5239e56bb15e");
 
 impl Control for Window {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.header);
         node_map.resolve(&mut self.minimize_button);

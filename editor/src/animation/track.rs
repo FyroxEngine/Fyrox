@@ -31,6 +31,7 @@ use fyrox::{
         parking_lot::Mutex,
         pool::Handle,
         reflect::{prelude::*, Reflect, ResolvePath},
+        type_traits::prelude::*,
         uuid::Uuid,
         uuid_provider,
         variable::InheritableVariable,
@@ -63,7 +64,7 @@ use fyrox::{
     scene::{animation::prelude::*, graph::Graph, node::Node, Scene},
 };
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     cmp::Ordering,
     collections::hash_map::Entry,
     ops::{Deref, DerefMut},
@@ -245,8 +246,9 @@ impl TrackViewMessage {
     define_constructor!(TrackViewMessage:TrackTargetIsValid => fn track_target_is_valid(Result<(), String>), layout: false);
 }
 
-#[derive(Clone, Debug, Reflect, Visit)]
+#[derive(Clone, Debug, Reflect, Visit, ComponentProvider)]
 struct TrackView {
+    #[component(include)]
     tree: Tree,
     id: Uuid,
     target: Handle<Node>,
@@ -272,16 +274,6 @@ impl DerefMut for TrackView {
 uuid_provider!(TrackView = "c1e930da-d55d-492e-b87b-16c1adf03319");
 
 impl Control for TrackView {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        self.tree.query_component(type_id).or_else(|| {
-            if type_id == TypeId::of::<Self>() {
-                Some(self)
-            } else {
-                None
-            }
-        })
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.tree.resolve(node_map)
     }

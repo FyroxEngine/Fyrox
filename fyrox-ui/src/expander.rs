@@ -6,7 +6,7 @@
 use crate::{
     check_box::{CheckBoxBuilder, CheckBoxMessage},
     core::pool::Handle,
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
@@ -15,10 +15,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_core::uuid_provider;
-use std::{
-    any::{Any, TypeId},
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 /// A set messages that can be used to either alternate the state of an [`Expander`] widget, or to listen for
 /// state changes.
@@ -135,7 +132,7 @@ impl ExpanderMessage {
 ///
 /// To switch expander state at runtime, send [`ExpanderMessage::Expand`] to your Expander widget instance with
 /// [`MessageDirection::ToWidget`].
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct Expander {
     /// Base widget of the expander.
     pub widget: Widget,
@@ -152,14 +149,6 @@ crate::define_widget_deref!(Expander);
 uuid_provider!(Expander = "24976179-b338-4c55-84c3-72d21663efd2");
 
 impl Control for Expander {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         if let Some(&ExpanderMessage::Expand(expand)) = message.data::<ExpanderMessage>() {
             if message.destination() == self.handle()

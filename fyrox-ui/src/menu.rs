@@ -6,8 +6,10 @@
 use crate::{
     border::BorderBuilder,
     brush::Brush,
-    core::{algebra::Vector2, color::Color, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, color::Color, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
+        type_traits::prelude::*, uuid_provider, visitor::prelude::*,
+    },
     decorator::DecoratorBuilder,
     define_constructor,
     grid::{Column, GridBuilder, Row},
@@ -22,13 +24,10 @@ use crate::{
     Thickness, UiNode, UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE,
     BRUSH_PRIMARY,
 };
-use fyrox_core::parking_lot::Mutex;
-use fyrox_core::uuid_provider;
-use std::sync::Arc;
 use std::{
-    any::{Any, TypeId},
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
+    sync::Arc,
 };
 
 /// A set of messages that can be used to manipulate a [`Menu`] widget at runtime.
@@ -147,7 +146,7 @@ impl MenuItemMessage {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct Menu {
     widget: Widget,
     active: bool,
@@ -158,14 +157,6 @@ crate::define_widget_deref!(Menu);
 uuid_provider!(Menu = "582a04f3-a7fd-4e70-bbd1-eb95e2275b75");
 
 impl Control for Menu {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
@@ -269,7 +260,7 @@ pub enum MenuItemPlacement {
 
 /// Menu item is a widget with arbitrary content, that has a "floating" panel (popup) for sub-items if the menu item. This was menu items can form
 /// arbitrary hierarchies. See [`Menu`] docs for examples.
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
 pub struct MenuItem {
     /// Base widget of the menu item.
     pub widget: Widget,
@@ -349,14 +340,6 @@ fn close_menu_chain(from: Handle<UiNode>, ui: &UserInterface) {
 uuid_provider!(MenuItem = "72e002c6-6060-4583-b5b7-0c5500244fef");
 
 impl Control for MenuItem {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn on_remove(&self, sender: &Sender<UiMessage>) {
         // Popup won't be deleted with the menu item, because it is not the child of the item.
         // So we have to remove it manually.

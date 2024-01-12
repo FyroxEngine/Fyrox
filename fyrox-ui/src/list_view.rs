@@ -6,8 +6,10 @@
 use crate::{
     border::BorderBuilder,
     brush::Brush,
-    core::{color::Color, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        visitor::prelude::*,
+    },
     decorator::{Decorator, DecoratorMessage},
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
@@ -19,10 +21,7 @@ use crate::{
     BRUSH_LIGHT,
 };
 use fyrox_core::uuid_provider;
-use std::{
-    any::{Any, TypeId},
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 /// A set of messages that can be used to modify/fetch the state of a [`ListView`] widget at runtime.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -215,7 +214,7 @@ impl ListViewMessage {
 ///     ));
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct ListView {
     /// Base widget of the list view.
     pub widget: Widget,
@@ -290,7 +289,7 @@ impl ListView {
 }
 
 /// A wrapper for list view items, that is used to add selection functionality to arbitrary items.
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct ListViewItem {
     /// Base widget of the list view item.
     pub widget: Widget,
@@ -301,14 +300,6 @@ crate::define_widget_deref!(ListViewItem);
 uuid_provider!(ListViewItem = "02f21415-5843-42f5-a3e4-b4a21e7739ad");
 
 impl Control for ListViewItem {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         // Emit transparent geometry so item container can be picked by hit test.
         drawing_context.push_rect_filled(&self.widget.bounding_rect(), None);
@@ -353,14 +344,6 @@ impl Control for ListViewItem {
 uuid_provider!(ListView = "5832a643-5bf9-4d84-8358-b4c45bb440e8");
 
 impl Control for ListView {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.panel);
         node_map.resolve_slice(&mut self.items);

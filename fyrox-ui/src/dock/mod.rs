@@ -5,10 +5,9 @@
 //! Docking manager can hold any types of UI elements, but dragging works only
 //! for windows.
 
-use crate::core::{reflect::prelude::*, visitor::prelude::*};
+use crate::core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*};
 use fyrox_core::uuid_provider;
 use std::{
-    any::{Any, TypeId},
     cell::RefCell,
     ops::{Deref, DerefMut},
 };
@@ -40,7 +39,7 @@ impl DockingManagerMessage {
     );
 }
 
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct DockingManager {
     pub widget: Widget,
     pub floating_windows: RefCell<Vec<Handle<UiNode>>>,
@@ -51,14 +50,6 @@ crate::define_widget_deref!(DockingManager);
 uuid_provider!(DockingManager = "b04299f7-3f6b-45f1-89a6-0dce4ad929e1");
 
 impl Control for DockingManager {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve_slice(&mut self.floating_windows.borrow_mut());
     }

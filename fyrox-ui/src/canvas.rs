@@ -7,17 +7,13 @@
 use crate::{
     core::{
         algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, scope_profile,
-        visitor::prelude::*,
+        type_traits::prelude::*, visitor::prelude::*,
     },
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
-use fyrox_core::uuid_provider;
-use std::{
-    any::{Any, TypeId},
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 /// Canvas widget allows its children to have an arbitrary position on an imaginable infinite plane, it also
 /// gives the children constraints of infinite size, which forces them to take all the desired size. This widget
@@ -52,7 +48,8 @@ use std::{
 ///     .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider, ComponentProvider)]
+#[type_uuid(id = "6b843a36-53da-467b-b85e-2380fe891ca1")]
 pub struct Canvas {
     /// Base widget of the canvas.
     pub widget: Widget,
@@ -60,17 +57,7 @@ pub struct Canvas {
 
 crate::define_widget_deref!(Canvas);
 
-uuid_provider!(Canvas = "6b843a36-53da-467b-b85e-2380fe891ca1");
-
 impl Control for Canvas {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn measure_override(&self, ui: &UserInterface, _available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 

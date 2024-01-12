@@ -5,7 +5,8 @@
 use crate::{
     border::BorderBuilder,
     core::{
-        algebra::Vector2, pool::Handle, reflect::prelude::*, uuid_provider, visitor::prelude::*,
+        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        visitor::prelude::*,
     },
     decorator::DecoratorBuilder,
     define_constructor,
@@ -17,7 +18,6 @@ use crate::{
     UserInterface, VerticalAlignment, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
 };
 use std::{
-    any::{Any, TypeId},
     cell::RefCell,
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
@@ -91,7 +91,8 @@ impl ButtonMessage {
 ///     }
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, TypeUuidProvider, ComponentProvider)]
+#[type_uuid(id = "2abcf12b-2f19-46da-b900-ae8890f7c9c6")]
 pub struct Button {
     /// Base widget of the button.
     pub widget: Widget,
@@ -115,17 +116,7 @@ pub struct Button {
 
 crate::define_widget_deref!(Button);
 
-uuid_provider!(Button = "2abcf12b-2f19-46da-b900-ae8890f7c9c6");
-
 impl Control for Button {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.content);
         node_map.resolve(&mut self.decorator);

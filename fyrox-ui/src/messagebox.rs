@@ -6,8 +6,10 @@
 
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
-    core::{algebra::Vector2, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        visitor::prelude::*,
+    },
     define_constructor,
     draw::DrawingContext,
     formatted_text::WrapMode,
@@ -22,7 +24,6 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use std::{
-    any::{Any, TypeId},
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
@@ -153,9 +154,10 @@ pub enum MessageBoxButtons {
 ///
 /// There's no way to change the style of the message box, nor add some widgets to it. If you need custom message box, then you
 /// need to create your own widget. This message box is meant to be used as a standard dialog box for standard situations in UI.
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct MessageBox {
     /// Base window of the message box.
+    #[component(include)]
     pub window: Window,
     /// Current set of buttons of the message box.
     pub buttons: MessageBoxButtons,
@@ -188,16 +190,6 @@ uuid_provider!(MessageBox = "b14c0012-4383-45cf-b9a1-231415d95373");
 // Message box extends Window widget so it delegates most of calls
 // to inner window.
 impl Control for MessageBox {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        self.window.query_component(type_id).or_else(|| {
-            if type_id == TypeId::of::<Self>() {
-                Some(self)
-            } else {
-                None
-            }
-        })
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.window.resolve(node_map);
         node_map.resolve(&mut self.ok_yes);

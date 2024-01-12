@@ -1,8 +1,9 @@
 use crate::gui::make_dropdown_list_option;
-use fyrox::core::uuid_provider;
 use fyrox::{
-    core::pool::Handle,
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
+        visitor::prelude::*,
+    },
     gui::{
         border::BorderBuilder,
         decorator::DecoratorBuilder,
@@ -19,10 +20,7 @@ use fyrox::{
     },
     scene::sound::{AudioBus, AudioBusGraph},
 };
-use std::{
-    any::{Any, TypeId},
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AudioBusViewMessage {
@@ -39,7 +37,7 @@ impl AudioBusViewMessage {
     define_constructor!(AudioBusViewMessage:Name => fn name(String), layout: false);
 }
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct AudioBusView {
     widget: Widget,
     pub bus: Handle<AudioBus>,
@@ -54,14 +52,6 @@ define_widget_deref!(AudioBusView);
 uuid_provider!(AudioBusView = "5439e3a9-096a-4155-922c-ed57a76a46f3");
 
 impl Control for AudioBusView {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

@@ -1,7 +1,9 @@
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
-    core::{algebra::Vector2, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        visitor::prelude::*,
+    },
     define_constructor, define_widget_deref,
     draw::DrawingContext,
     file_browser::{FileBrowser, FileBrowserBuilder, FileBrowserMessage, FileBrowserMode, Filter},
@@ -17,7 +19,6 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use std::{
-    any::{Any, TypeId},
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
     sync::mpsc::Sender,
@@ -42,8 +43,9 @@ impl FileSelectorMessage {
 
 /// File selector is a modal window that allows you to select a file (or directory) and commit or
 /// cancel selection.
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
 pub struct FileSelector {
+    #[component(include)]
     pub window: Window,
     pub browser: Handle<UiNode>,
     pub ok: Handle<UiNode>,
@@ -69,16 +71,6 @@ uuid_provider!(FileSelector = "878b2220-03e6-4a50-a97d-3a8e5397b6cb");
 // File selector extends Window widget so it delegates most of calls
 // to inner window.
 impl Control for FileSelector {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        self.window.query_component(type_id).or_else(|| {
-            if type_id == TypeId::of::<Self>() {
-                Some(self)
-            } else {
-                None
-            }
-        })
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.window.resolve(node_map);
         node_map.resolve(&mut self.ok);
@@ -296,7 +288,7 @@ impl FileSelectorFieldMessage {
     define_constructor!(FileSelectorFieldMessage:Path => fn path(PathBuf), layout: false);
 }
 
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct FileSelectorField {
     widget: Widget,
     path: PathBuf,
@@ -310,14 +302,6 @@ define_widget_deref!(FileSelectorField);
 uuid_provider!(FileSelectorField = "2dbda730-8a60-4f62-aee8-2ff0ccd15bf2");
 
 impl Control for FileSelectorField {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

@@ -7,9 +7,9 @@ use crate::{
     widget::Widget,
     NodeHandleMapping, UiNode, UserInterface,
 };
-use fyrox_core::TypeUuidProvider;
+use fyrox_core::{ComponentProvider, TypeUuidProvider};
 use std::{
-    any::{Any, TypeId},
+    any::Any,
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
@@ -59,53 +59,9 @@ where
 }
 
 /// Trait for all UI controls in library.
-pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + Visit {
-    /// Allows a widget to provide access to inner components. For example you can build your custom
-    /// MyTree widget using engine's Tree widget as a base. The engine needs to know whether the custom
-    /// widget is actually extends functionality of some existing widget.
-    ///
-    /// ## Implementation
-    ///
-    /// It should return at least `Some(self)` for `type_id == TypeId::of::<Self>`. Here's the simplest
-    /// implementation:
-    ///
-    /// ```rust
-    /// # use fyrox_ui::{
-    /// #     define_widget_deref, message::UiMessage, Control, UserInterface, widget::Widget,
-    /// #     core::{visitor::prelude::*, reflect::prelude::*},
-    /// # };
-    /// # use std::{
-    /// #     any::{Any, TypeId},
-    /// #     ops::{Deref, DerefMut},
-    /// # };
-    /// # use fyrox_core::uuid_provider;
-    /// #
-    /// # #[derive(Clone, Visit, Reflect, Debug)]
-    /// # struct MyWidget {
-    /// #     widget: Widget,
-    /// # }
-    /// # uuid_provider!(MyWidget = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd");
-    /// # define_widget_deref!(MyWidget);
-    /// #
-    /// # impl Control for MyWidget {
-    /// fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-    ///     if type_id == TypeId::of::<Self>() {
-    ///         Some(self)
-    ///     } else {
-    ///         None
-    ///     }
-    /// }
-    ///     #
-    ///     # fn handle_routed_message(&mut self, _ui: &mut UserInterface, _message: &mut UiMessage) {
-    ///     #     todo!()
-    ///     # }
-    /// # }
-    /// ```
-    ///
-    /// Keep in mind, if you're building custom widget using existing one, you also need to add another
-    /// `if` branch that checks for the type of your existing widget that you're using to build your own.
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any>;
-
+pub trait Control:
+    BaseControl + Deref<Target = Widget> + DerefMut + Reflect + Visit + ComponentProvider
+{
     /// This method will be called right after the widget was cloned. It is used remap handles in the widgets
     /// to their respective copies from the copied hierarchy.
     fn resolve(&mut self, #[allow(unused_variables)] node_map: &NodeHandleMapping) {}
@@ -123,7 +79,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// ```rust
     /// # use fyrox_ui::{
     /// #     core::algebra::Vector2, define_widget_deref, message::UiMessage, Control, UserInterface,
-    /// #     core::{visitor::prelude::*, reflect::prelude::*},
+    /// #     core::{visitor::prelude::*, reflect::prelude::*, type_traits::prelude::*,},
     /// #     widget::Widget,
     /// # };
     /// # use std::{
@@ -132,7 +88,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// # };
     /// # use fyrox_core::uuid_provider;
     /// #
-    /// #[derive(Clone, Visit, Reflect, Debug)]
+    /// #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
     /// struct MyWidget {
     ///     widget: Widget,
     /// }
@@ -140,10 +96,6 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// # define_widget_deref!(MyWidget);
     /// # uuid_provider!(MyWidget = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd");
     /// impl Control for MyWidget {
-    ///     # fn query_component(&self, _type_id: TypeId) -> Option<&dyn Any> {
-    ///     #     todo!()
-    ///     # }
-    ///     #
     ///     fn measure_override(
     ///         &self,
     ///         ui: &UserInterface,
@@ -197,7 +149,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// ```rust
     /// # use fyrox_ui::{
     /// #     core::{algebra::Vector2, math::Rect},
-    /// #     core::{visitor::prelude::*, reflect::prelude::*},
+    /// #     core::{visitor::prelude::*, reflect::prelude::*, type_traits::prelude::*,},
     /// #     define_widget_deref,
     /// #     message::UiMessage,
     /// #     Control, UserInterface, widget::Widget,
@@ -208,7 +160,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// # };
     /// # use fyrox_core::uuid_provider;
     /// #
-    /// #[derive(Clone, Visit, Reflect, Debug)]
+    /// #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
     /// struct MyWidget {
     ///     widget: Widget,
     /// }
@@ -216,10 +168,6 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// # define_widget_deref!(MyWidget);
     /// # uuid_provider!(MyWidget = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd");
     /// impl Control for MyWidget {
-    ///     # fn query_component(&self, _type_id: TypeId) -> Option<&dyn Any> {
-    ///     #     todo!()
-    ///     # }
-    ///     #
     ///     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
     ///         let final_rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
     ///
@@ -261,7 +209,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// # use fyrox_ui::{
     /// #     define_widget_deref,
     /// #     draw::{CommandTexture, Draw, DrawingContext},
-    /// #     core::{visitor::prelude::*, reflect::prelude::*},
+    /// #     core::{visitor::prelude::*, reflect::prelude::*, type_traits::prelude::*,},
     /// #     message::UiMessage,
     /// #     Control, UserInterface, widget::Widget,
     /// # };
@@ -271,7 +219,7 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// # };
     /// # use fyrox_core::uuid_provider;
     /// #
-    /// #[derive(Clone, Visit, Reflect, Debug)]
+    /// #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
     /// struct MyWidget {
     ///     widget: Widget,
     /// }
@@ -279,9 +227,6 @@ pub trait Control: BaseControl + Deref<Target = Widget> + DerefMut + Reflect + V
     /// # define_widget_deref!(MyWidget);
     /// # uuid_provider!(MyWidget = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd");
     /// impl Control for MyWidget {
-    /// # fn query_component(&self, _type_id: TypeId) -> Option<&dyn Any> {
-    /// #     todo!()
-    /// # }
     /// fn draw(&self, drawing_context: &mut DrawingContext) {
     ///     let bounds = self.widget.bounding_rect();
     ///

@@ -6,8 +6,10 @@
 use crate::{
     border::{Border, BorderBuilder},
     brush::Brush,
-    core::{algebra::Vector2, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        visitor::prelude::*,
+    },
     define_constructor,
     draw::DrawingContext,
     message::{MessageDirection, UiMessage},
@@ -17,7 +19,6 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use std::{
-    any::{Any, TypeId},
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
@@ -89,9 +90,10 @@ impl DecoratorMessage {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct Decorator {
     /// Base widget of the decorator.
+    #[component(include)]
     pub border: Border,
     /// Current brush used for `Normal` state.
     pub normal_brush: Brush,
@@ -124,16 +126,6 @@ impl DerefMut for Decorator {
 uuid_provider!(Decorator = "bb4b60aa-c657-4ed6-8db6-d7f374397c73");
 
 impl Control for Decorator {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        self.border.query_component(type_id).or_else(|| {
-            if type_id == TypeId::of::<Self>() {
-                Some(self)
-            } else {
-                None
-            }
-        })
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.border.resolve(node_map)
     }

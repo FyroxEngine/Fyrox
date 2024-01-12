@@ -1,9 +1,9 @@
 use crate::gui::AssetItemMessage;
-use fyrox::asset::untyped::UntypedResource;
-use fyrox::core::uuid_provider;
 use fyrox::{
+    asset::untyped::UntypedResource,
     core::{
-        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*,
+        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        uuid_provider, visitor::prelude::*,
     },
     gui::{
         border::BorderBuilder,
@@ -20,13 +20,12 @@ use fyrox::{
     },
 };
 use std::{
-    any::{Any, TypeId},
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},
 };
 
 #[allow(dead_code)]
-#[derive(Debug, Clone, Visit, Reflect)]
+#[derive(Debug, Clone, Visit, Reflect, ComponentProvider)]
 pub struct AssetItem {
     widget: Widget,
     pub path: PathBuf,
@@ -51,14 +50,6 @@ impl DerefMut for AssetItem {
 uuid_provider!(AssetItem = "54f7d9c1-e707-4c8c-a5c9-3fc5cc80b545");
 
 impl Control for AssetItem {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.bounding_rect();
         drawing_context.push_rect_filled(&bounds, None);

@@ -4,18 +4,17 @@
 #![warn(missing_docs)]
 
 use crate::{
-    core::{algebra::Vector2, math::Rect, pool::Handle, scope_profile},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, scope_profile,
+        type_traits::prelude::*, visitor::prelude::*,
+    },
     define_constructor,
     message::{MessageDirection, UiMessage},
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
 use fyrox_core::uuid_provider;
-use std::{
-    any::{Any, TypeId},
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 /// A set of possible [`StackPanel`] widget messages.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -94,7 +93,7 @@ impl StackPanelMessage {
 ///     .build(ctx);
 /// # }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct StackPanel {
     /// Base widget of the stack panel.
     pub widget: Widget,
@@ -107,14 +106,6 @@ crate::define_widget_deref!(StackPanel);
 uuid_provider!(StackPanel = "d868f554-a2c5-4280-abfc-396d10a0e1ed");
 
 impl Control for StackPanel {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 

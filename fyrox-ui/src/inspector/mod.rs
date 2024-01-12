@@ -8,9 +8,11 @@ use crate::{
     core::{
         algebra::Vector2,
         pool::Handle,
+        reflect::prelude::*,
         reflect::{CastError, Reflect, ResolvePath},
+        type_traits::prelude::*,
+        visitor::prelude::*,
     },
-    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     expander::ExpanderBuilder,
     formatted_text::WrapMode,
@@ -422,7 +424,7 @@ pub trait InspectorEnvironment: Any + Send + Sync {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct Inspector {
     pub widget: Widget,
     #[reflect(hidden)]
@@ -878,14 +880,6 @@ impl InspectorContext {
 uuid_provider!(Inspector = "c599c0f5-f749-4033-afed-1a9949c937a1");
 
 impl Control for Inspector {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

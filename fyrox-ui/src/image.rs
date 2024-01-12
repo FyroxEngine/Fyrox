@@ -7,7 +7,7 @@ use crate::{
     brush::Brush,
     color::draw_checker_board,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
     message::{MessageDirection, UiMessage},
@@ -16,10 +16,7 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use fyrox_resource::untyped::UntypedResource;
-use std::{
-    any::{Any, TypeId},
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 /// A set of messages that could be used to alter [`Image`] widget state at runtime.
 #[derive(Debug, Clone, PartialEq)]
@@ -158,7 +155,7 @@ impl ImageMessage {
 /// It is useful if you have many custom UI elements packed in a single texture atlas. Drawing using atlases is much more
 /// efficient and faster. This could also be used for animations, when you have multiple frames packed in a single atlas
 /// and changing texture coordinates over the time.
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct Image {
     /// Base widget of the image.
     pub widget: Widget,
@@ -177,14 +174,6 @@ crate::define_widget_deref!(Image);
 uuid_provider!(Image = "18e18d0f-cb84-4ac1-8050-3480a2ec3de5");
 
 impl Control for Image {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.widget.bounding_rect();
 

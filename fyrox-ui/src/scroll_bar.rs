@@ -8,8 +8,10 @@ use crate::{
     brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
     canvas::CanvasBuilder,
-    core::{algebra::Vector2, color::Color, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        visitor::prelude::*,
+    },
     decorator::DecoratorBuilder,
     define_constructor,
     grid::{Column, GridBuilder, Row},
@@ -21,10 +23,7 @@ use crate::{
     UserInterface, VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
 };
 use fyrox_core::uuid_provider;
-use std::{
-    any::{Any, TypeId},
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 /// A set of messages that can be accepted by [`ScrollBar`] widget.
 #[derive(Debug, Clone, PartialEq)]
@@ -118,7 +117,7 @@ impl ScrollBarMessage {
 ///
 /// Scroll bar provides arrows to change the current value using a fixed step value. You can change it using
 /// [`ScrollBarBuilder::with_step`] method.
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
 pub struct ScrollBar {
     /// Base widget of the scroll bar.
     pub widget: Widget,
@@ -155,14 +154,6 @@ crate::define_widget_deref!(ScrollBar);
 uuid_provider!(ScrollBar = "92accc96-b334-424d-97ea-332c4787acf6");
 
 impl Control for ScrollBar {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.increase);
         node_map.resolve(&mut self.decrease);

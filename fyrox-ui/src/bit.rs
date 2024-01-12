@@ -7,6 +7,7 @@ use crate::{
         num_traits::{NumCast, One, Zero},
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         uuid::{uuid, Uuid},
         visitor::prelude::*,
         TypeUuidProvider,
@@ -19,7 +20,6 @@ use crate::{
     Thickness, UiNode, UserInterface, WidgetMessage,
 };
 use std::{
-    any::{Any, TypeId},
     fmt::Debug,
     mem,
     ops::{BitAnd, BitOr, Deref, DerefMut, Not, Shl},
@@ -76,7 +76,7 @@ impl<T: BitContainer> BitFieldMessage<T> {
     define_constructor!(BitFieldMessage:Value => fn value(T), layout: false);
 }
 
-#[derive(Default, Clone, Reflect, Visit, Debug)]
+#[derive(Default, Clone, Reflect, Visit, Debug, ComponentProvider)]
 pub struct BitField<T>
 where
     T: BitContainer,
@@ -137,13 +137,6 @@ impl<T> Control for BitField<T>
 where
     T: BitContainer,
 {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve_slice(&mut self.bit_switches)
     }

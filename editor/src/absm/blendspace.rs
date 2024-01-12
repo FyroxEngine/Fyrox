@@ -17,6 +17,7 @@ use fyrox::{
         math::{Rect, TriangleDefinition},
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         uuid_provider,
         visitor::prelude::*,
     },
@@ -38,7 +39,6 @@ use fyrox::{
     scene::animation::absm::prelude::*,
 };
 use std::{
-    any::{Any, TypeId},
     cell::Cell,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
@@ -89,7 +89,7 @@ enum DragContext {
     Point { point: usize },
 }
 
-#[derive(Clone, Visit, Reflect)]
+#[derive(Clone, Visit, Reflect, ComponentProvider)]
 struct BlendSpaceField {
     widget: Widget,
     points: Vec<Handle<UiNode>>,
@@ -163,14 +163,6 @@ fn make_points<P: Iterator<Item = Vector2<f32>>>(
 uuid_provider!(BlendSpaceField = "854a7c2d-3ccd-4331-95e1-956a3a035bd0");
 
 impl Control for BlendSpaceField {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn measure_override(&self, ui: &UserInterface, _available_size: Vector2<f32>) -> Vector2<f32> {
         let size_for_child = Vector2::new(f32::INFINITY, f32::INFINITY);
 
@@ -546,7 +538,7 @@ impl BlendSpaceFieldPointMessage {
     define_constructor!(BlendSpaceFieldPointMessage:Select => fn select(), layout: false);
 }
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 struct BlendSpaceFieldPoint {
     widget: Widget,
     selected: bool,
@@ -557,14 +549,6 @@ define_widget_deref!(BlendSpaceFieldPoint);
 uuid_provider!(BlendSpaceFieldPoint = "22c215c1-ff23-4a64-9aa7-640b5014a78b");
 
 impl Control for BlendSpaceFieldPoint {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         drawing_context.push_circle(
             Vector2::new(self.width * 0.5, self.height * 0.5),

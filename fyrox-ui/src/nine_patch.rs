@@ -2,21 +2,20 @@ use fyrox_core::{scope_profile, uuid_provider};
 
 use crate::{
     brush::Brush,
-    core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
+        type_traits::prelude::*, visitor::prelude::*,
+    },
     draw::{CommandTexture, Draw, DrawingContext},
     message::UiMessage,
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_resource::untyped::UntypedResource;
-use std::{
-    any::{Any, TypeId},
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 /// Automatically arranges children by rows and columns
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct NinePatch {
     pub widget: Widget,
     pub texture: Option<UntypedResource>,
@@ -36,14 +35,6 @@ crate::define_widget_deref!(NinePatch);
 uuid_provider!(NinePatch = "c345033e-8c10-4186-b101-43f73b85981d");
 
 impl Control for NinePatch {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
         let mut size: Vector2<f32> = available_size;

@@ -6,6 +6,7 @@ use crate::{
         curve::{Curve, CurveKeyKind},
         math::{cubicf, lerpf, wrap_angle, Rect},
         pool::Handle,
+        type_traits::prelude::*,
         uuid::Uuid,
     },
     core::{reflect::prelude::*, visitor::prelude::*},
@@ -27,7 +28,6 @@ use fxhash::FxHashSet;
 use fyrox_core::uuid_provider;
 use std::sync::mpsc::Sender;
 use std::{
-    any::{Any, TypeId},
     cell::{Cell, RefCell},
     ops::{Deref, DerefMut},
 };
@@ -78,7 +78,7 @@ pub struct HighlightZone {
     pub brush: Brush,
 }
 
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct CurveEditor {
     widget: Widget,
     key_container: KeyContainer,
@@ -200,14 +200,6 @@ impl Selection {
 uuid_provider!(CurveEditor = "5c7b087e-871e-498d-b064-187b604a37d8");
 
 impl Control for CurveEditor {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn draw(&self, ctx: &mut DrawingContext) {
         ctx.transform_stack.push(Matrix3::identity());
         self.update_matrices();

@@ -2,14 +2,18 @@ use crate::{
     asset::item::AssetItem, inspector::EditorEnvironment, load_image, message::MessageSender,
     Message,
 };
-use fyrox::asset::state::LoadError;
-use fyrox::core::parking_lot::Mutex;
-use fyrox::core::uuid::{uuid, Uuid};
-use fyrox::core::TypeUuidProvider;
 use fyrox::{
-    asset::{manager::ResourceManager, Resource, TypedResourceData},
+    asset::{manager::ResourceManager, state::LoadError, Resource, TypedResourceData},
     core::{
-        color::Color, make_relative_path, pool::Handle, reflect::prelude::*, visitor::prelude::*,
+        color::Color,
+        make_relative_path,
+        parking_lot::Mutex,
+        pool::Handle,
+        reflect::prelude::*,
+        type_traits::prelude::*,
+        uuid::{uuid, Uuid},
+        visitor::prelude::*,
+        TypeUuidProvider,
     },
     gui::{
         brush::Brush,
@@ -31,12 +35,12 @@ use fyrox::{
         BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
 };
-use std::sync::Arc;
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     path::Path,
+    sync::Arc,
 };
 
 fn resource_path<T>(resource: &Option<Resource<T>>) -> String
@@ -92,7 +96,7 @@ pub type ResourceLoaderCallback<T> = Arc<
     >,
 >;
 
-#[derive(Visit, Reflect)]
+#[derive(Visit, Reflect, ComponentProvider)]
 pub struct ResourceField<T>
 where
     T: TypedResourceData,
@@ -170,14 +174,6 @@ impl<T> Control for ResourceField<T>
 where
     T: TypedResourceData,
 {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         // Emit transparent geometry for the field to be able to catch mouse events without precise pointing at the
         // node name letters.

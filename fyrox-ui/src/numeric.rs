@@ -8,11 +8,16 @@ use crate::{
     button::{ButtonBuilder, ButtonMessage},
     core::{
         color::Color,
+        combine_uuids,
         num_traits::{clamp, Bounded, NumAssign, NumCast, NumOps},
         pool::Handle,
+        reflect::prelude::*,
         reflect::Reflect,
+        type_traits::prelude::*,
+        uuid::{uuid, Uuid},
+        visitor::prelude::*,
+        TypeUuidProvider,
     },
-    core::{reflect::prelude::*, visitor::prelude::*},
     decorator::DecoratorBuilder,
     define_constructor,
     grid::{Column, GridBuilder, Row},
@@ -24,10 +29,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT,
 };
-use fyrox_core::uuid::{uuid, Uuid};
-use fyrox_core::{combine_uuids, TypeUuidProvider};
 use std::{
-    any::{Any, TypeId},
     cmp::Ordering,
     fmt::{Debug, Display},
     ops::{Deref, DerefMut},
@@ -239,7 +241,7 @@ pub enum DragContext<T: NumericType> {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct NumericUpDown<T: NumericType> {
     /// Base widget of the [`NumericUpDown`] widget.
     pub widget: Widget,
@@ -384,14 +386,6 @@ where
 }
 
 impl<T: NumericType> Control for NumericUpDown<T> {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.field);
         node_map.resolve(&mut self.increase);

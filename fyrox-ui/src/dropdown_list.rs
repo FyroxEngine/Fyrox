@@ -4,7 +4,7 @@
 use crate::{
     border::BorderBuilder,
     core::{algebra::Vector2, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     define_constructor,
     grid::{Column, GridBuilder, Row},
     list_view::{ListViewBuilder, ListViewMessage},
@@ -17,7 +17,6 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use std::{
-    any::{Any, TypeId},
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
@@ -39,7 +38,7 @@ impl DropdownListMessage {
     define_constructor!(DropdownListMessage:Close => fn close(), layout: false);
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
 pub struct DropdownList {
     pub widget: Widget,
     pub popup: Handle<UiNode>,
@@ -56,14 +55,6 @@ crate::define_widget_deref!(DropdownList);
 uuid_provider!(DropdownList = "1da2f69a-c8b4-4ae2-a2ad-4afe61ee2a32");
 
 impl Control for DropdownList {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn on_remove(&self, sender: &Sender<UiMessage>) {
         // Popup won't be deleted with the dropdown list, because it is not the child of the list.
         // So we have to remove it manually.

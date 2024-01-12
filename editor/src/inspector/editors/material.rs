@@ -2,13 +2,11 @@ use crate::{
     asset::item::AssetItem, inspector::EditorEnvironment, message::MessageSender, Message,
     MessageDirection,
 };
-use fyrox::asset::state::ResourceState;
-use fyrox::core::uuid_provider;
 use fyrox::{
-    asset::{core::pool::Handle, manager::ResourceManager},
+    asset::{core::pool::Handle, manager::ResourceManager, state::ResourceState},
     core::{
         color::Color, futures::executor::block_on, make_relative_path, parking_lot::Mutex,
-        reflect::prelude::*, visitor::prelude::*,
+        reflect::prelude::*, type_traits::prelude::*, uuid_provider, visitor::prelude::*,
     },
     gui::{
         brush::Brush,
@@ -32,7 +30,7 @@ use fyrox::{
     material::{Material, MaterialResource, MaterialResourceExtension},
 };
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
@@ -46,7 +44,7 @@ impl MaterialFieldMessage {
     define_constructor!(MaterialFieldMessage:Material => fn material(MaterialResource), layout: false);
 }
 
-#[derive(Clone, Visit, Reflect)]
+#[derive(Clone, Visit, Reflect, ComponentProvider)]
 pub struct MaterialFieldEditor {
     widget: Widget,
     #[visit(skip)]
@@ -84,14 +82,6 @@ impl DerefMut for MaterialFieldEditor {
 uuid_provider!(MaterialFieldEditor = "d3fa0a7c-52d6-4cca-885e-0db8b18542e2");
 
 impl Control for MaterialFieldEditor {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         // Emit transparent geometry for the field to be able to catch mouse events without precise
         // pointing.

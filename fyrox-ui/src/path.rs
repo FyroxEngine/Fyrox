@@ -5,8 +5,7 @@
 
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
-    core::pool::Handle,
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     define_constructor,
     file_browser::{FileSelectorBuilder, FileSelectorMessage},
     grid::{Column, GridBuilder, Row},
@@ -19,7 +18,6 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use std::{
-    any::{Any, TypeId},
     ops::{Deref, DerefMut},
     path::Path,
     path::PathBuf,
@@ -61,7 +59,7 @@ impl PathEditorMessage {
 ///
 /// To receive the changes, listen to [`PathEditorMessage::Path`] and check for its direction, it should be [`MessageDirection::FromWidget`].
 /// To set a new path value, send [`PathEditorMessage::Path`] message, but with [`MessageDirection::ToWidget`].
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct PathEditor {
     /// Base widget of the editor.
     pub widget: Widget,
@@ -80,14 +78,6 @@ crate::define_widget_deref!(PathEditor);
 uuid_provider!(PathEditor = "51cfe7ec-ec31-4354-9578-047004b213a1");
 
 impl Control for PathEditor {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

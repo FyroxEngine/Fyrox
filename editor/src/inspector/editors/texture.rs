@@ -1,10 +1,11 @@
 use crate::{asset::item::AssetItem, inspector::EditorEnvironment};
-use fyrox::asset::untyped::UntypedResource;
-use fyrox::core::uuid_provider;
 use fyrox::{
     asset::manager::ResourceManager,
-    core::{algebra::Vector2, make_relative_path, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    asset::untyped::UntypedResource,
+    core::{
+        algebra::Vector2, make_relative_path, pool::Handle, reflect::prelude::*,
+        type_traits::prelude::*, uuid_provider, visitor::prelude::*,
+    },
     gui::{
         define_constructor,
         image::{ImageBuilder, ImageMessage},
@@ -22,12 +23,12 @@ use fyrox::{
     resource::texture::{Texture, TextureResource},
 };
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
 
-#[derive(Clone, Visit, Reflect)]
+#[derive(Clone, Visit, Reflect, ComponentProvider)]
 pub struct TextureEditor {
     widget: Widget,
     image: Handle<UiNode>,
@@ -69,14 +70,6 @@ impl TextureEditorMessage {
 uuid_provider!(TextureEditor = "5db49479-ff89-49b8-a038-0766253d6493");
 
 impl Control for TextureEditor {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

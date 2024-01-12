@@ -5,11 +5,11 @@ use crate::{
     world::graph::item::SceneItem,
     Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
 };
-use fyrox::core::pool::ErasedHandle;
-use fyrox::core::uuid_provider;
 use fyrox::{
-    core::{color::Color, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        color::Color, pool::ErasedHandle, pool::Handle, reflect::prelude::*,
+        type_traits::prelude::*, uuid_provider, visitor::prelude::*,
+    },
     gui::{
         brush::Brush,
         button::{ButtonBuilder, ButtonMessage},
@@ -34,7 +34,7 @@ use fyrox::{
     scene::node::Node,
 };
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     fmt::Debug,
     ops::{Deref, DerefMut},
     sync::Mutex,
@@ -53,7 +53,7 @@ impl HandlePropertyEditorMessage {
     define_constructor!(HandlePropertyEditorMessage:Hierarchy => fn hierarchy(HierarchyNode), layout: false);
 }
 
-#[derive(Debug, Visit, Reflect)]
+#[derive(Debug, Visit, Reflect, ComponentProvider)]
 pub struct HandlePropertyEditor {
     widget: Widget,
     text: Handle<UiNode>,
@@ -101,14 +101,6 @@ impl DerefMut for HandlePropertyEditor {
 uuid_provider!(HandlePropertyEditor = "3ceca8c1-c365-4f03-a413-062f8f3cd685");
 
 impl Control for HandlePropertyEditor {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         // Emit transparent geometry for the field to be able to catch mouse events without precise pointing at the
         // node name letters.

@@ -9,7 +9,6 @@ use crate::{
     },
     utils::fetch_node_screen_center_ui,
 };
-use fyrox::core::uuid_provider;
 use fyrox::{
     core::{
         algebra::{Matrix3, Point2, Vector2},
@@ -17,6 +16,8 @@ use fyrox::{
         math::{round_to_step, Rect},
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
+        uuid_provider,
         visitor::prelude::*,
     },
     gui::{
@@ -29,7 +30,6 @@ use fyrox::{
     },
 };
 use std::{
-    any::{Any, TypeId},
     cell::Cell,
     ops::{Deref, DerefMut},
 };
@@ -98,7 +98,7 @@ impl AbsmCanvasMessage {
     define_constructor!(AbsmCanvasMessage:ForceSyncDependentObjects => fn force_sync_dependent_objects(), layout: true);
 }
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct AbsmCanvas {
     widget: Widget,
     selection: Vec<Handle<UiNode>>,
@@ -307,14 +307,6 @@ impl AbsmCanvas {
 uuid_provider!(AbsmCanvas = "100b1c33-d017-4fe6-95e7-e1daf310ef27");
 
 impl Control for AbsmCanvas {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn draw(&self, ctx: &mut DrawingContext) {
         let size = 9999.0;
 

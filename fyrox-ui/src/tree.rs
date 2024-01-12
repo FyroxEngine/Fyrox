@@ -7,8 +7,10 @@ use crate::{
     border::BorderBuilder,
     brush::Brush,
     check_box::{CheckBoxBuilder, CheckBoxMessage},
-    core::{algebra::Vector2, color::Color, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        visitor::prelude::*,
+    },
     decorator::{DecoratorBuilder, DecoratorMessage},
     define_constructor,
     grid::{Column, GridBuilder, Row},
@@ -20,10 +22,7 @@ use crate::{
     VerticalAlignment, BRUSH_DARK, BRUSH_DARKEST,
 };
 use fyrox_core::uuid_provider;
-use std::{
-    any::{Any, TypeId},
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 /// Opaque selection state of a tree.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -200,7 +199,7 @@ impl TreeRootMessage {
 /// `Ctrl+Click` - enables multi-selection.
 /// `Alt+Click` - prevents selection allowing you to use drag'n'drop.
 /// `Shift+Click` - selects a span of items.
-#[derive(Default, Debug, Clone, Visit, Reflect)]
+#[derive(Default, Debug, Clone, Visit, Reflect, ComponentProvider)]
 pub struct Tree {
     /// Base widget of the tree.
     pub widget: Widget,
@@ -228,14 +227,6 @@ crate::define_widget_deref!(Tree);
 uuid_provider!(Tree = "e090e913-393a-4192-a220-e1d87e272170");
 
 impl Control for Tree {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.content);
         node_map.resolve(&mut self.expander);
@@ -697,7 +688,7 @@ fn build_expander(
 /// Tree root is special widget that handles the entire hierarchy of descendant [`Tree`] widgets. Its
 /// main purpose is to handle selection of descendant [`Tree`] widgets. Tree root cannot have a
 /// content and it only could have children tree items. See docs for [`Tree`] for usage examples.
-#[derive(Default, Debug, Clone, Visit, Reflect)]
+#[derive(Default, Debug, Clone, Visit, Reflect, ComponentProvider)]
 pub struct TreeRoot {
     /// Base widget of the tree root.
     pub widget: Widget,
@@ -714,14 +705,6 @@ crate::define_widget_deref!(TreeRoot);
 uuid_provider!(TreeRoot = "cf7c0476-f779-4e4b-8b7e-01a23ff51a72");
 
 impl Control for TreeRoot {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.panel);
         node_map.resolve_slice(&mut self.selected);

@@ -7,8 +7,10 @@ use crate::{
         color_gradient::{ColorGradient, GradientPoint},
         math::Rect,
         pool::Handle,
+        reflect::prelude::*,
+        type_traits::prelude::*,
+        visitor::prelude::*,
     },
-    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor, define_widget_deref,
     draw::{CommandTexture, Draw, DrawingContext},
     grid::{Column, GridBuilder, Row},
@@ -19,9 +21,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, RcUiNodeHandle, UiNode, UserInterface,
 };
-use fyrox_core::uuid_provider;
 use std::{
-    any::{Any, TypeId},
     cell::Cell,
     ops::{Deref, DerefMut},
 };
@@ -36,7 +36,8 @@ impl ColorGradientEditorMessage {
     define_constructor!(ColorGradientEditorMessage:Value => fn value(ColorGradient), layout: false);
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
+#[type_uuid(id = "50d00eb7-f30b-4973-8a36-03d6b8f007ec")]
 pub struct ColorGradientField {
     widget: Widget,
     color_gradient: ColorGradient,
@@ -46,17 +47,7 @@ define_widget_deref!(ColorGradientField);
 
 const SYNC_FLAG: u64 = 1;
 
-uuid_provider!(ColorGradientField = "50d00eb7-f30b-4973-8a36-03d6b8f007ec");
-
 impl Control for ColorGradientField {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         // Draw checkerboard background.
         super::draw_checker_board(
@@ -154,7 +145,8 @@ impl ColorGradientFieldBuilder {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
+#[type_uuid(id = "82843d8b-1972-46e6-897c-9619b74059cc")]
 pub struct ColorGradientEditor {
     widget: Widget,
     gradient_field: Handle<UiNode>,
@@ -170,17 +162,7 @@ pub struct ColorGradientEditor {
 
 define_widget_deref!(ColorGradientEditor);
 
-uuid_provider!(ColorGradientEditor = "82843d8b-1972-46e6-897c-9619b74059cc");
-
 impl Control for ColorGradientEditor {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
@@ -473,7 +455,8 @@ impl ColorPointMessage {
     define_constructor!(ColorPointMessage:Location => fn location(f32), layout: false);
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
+#[type_uuid(id = "a493a603-3451-4005-8c80-559707729e70")]
 pub struct ColorPoint {
     pub widget: Widget,
     pub location: f32,
@@ -482,17 +465,7 @@ pub struct ColorPoint {
 
 define_widget_deref!(ColorPoint);
 
-uuid_provider!(ColorPoint = "a493a603-3451-4005-8c80-559707729e70");
-
 impl Control for ColorPoint {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn draw(&self, ctx: &mut DrawingContext) {
         let size = self.bounding_rect().size;
 
@@ -610,24 +583,15 @@ impl ColorPointBuilder {
     }
 }
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Clone, Visit, Reflect, Debug, TypeUuidProvider, ComponentProvider)]
+#[type_uuid(id = "2608955a-4095-4fd1-af71-99bcdf2600f0")]
 struct ColorPointsCanvas {
     widget: Widget,
 }
 
 define_widget_deref!(ColorPointsCanvas);
 
-uuid_provider!(ColorPointsCanvas = "2608955a-4095-4fd1-af71-99bcdf2600f0");
-
 impl Control for ColorPointsCanvas {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         for &child in self.children() {
             let child_ref = ui.node(child);

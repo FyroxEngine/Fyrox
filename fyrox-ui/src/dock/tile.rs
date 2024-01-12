@@ -2,7 +2,7 @@ use crate::{
     border::BorderBuilder,
     brush::Brush,
     core::{algebra::Vector2, color::Color, math::Rect, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     define_constructor,
     dock::DockingManager,
     grid::{Column, GridBuilder, Row},
@@ -13,7 +13,6 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use std::{
-    any::{Any, TypeId},
     cell::Cell,
     ops::{Deref, DerefMut},
 };
@@ -63,7 +62,7 @@ impl TileContent {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
 pub struct Tile {
     pub widget: Widget,
     pub left_anchor: Handle<UiNode>,
@@ -82,14 +81,6 @@ crate::define_widget_deref!(Tile);
 uuid_provider!(Tile = "8ed17fa9-890e-4dd7-b4f9-a24660882234");
 
 impl Control for Tile {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve_cell(&mut self.drop_anchor);
         node_map.resolve(&mut self.splitter);

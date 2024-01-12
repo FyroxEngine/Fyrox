@@ -1,9 +1,8 @@
 use crate::{absm::segment::Segment, utils::fetch_node_screen_center};
-use fyrox::core::uuid_provider;
 use fyrox::{
     core::{
         algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
-        visitor::prelude::*,
+        type_traits::prelude::*, uuid_provider, visitor::prelude::*,
     },
     gui::{
         brush::Brush,
@@ -14,15 +13,12 @@ use fyrox::{
         BuildContext, Control, UiNode, UserInterface,
     },
 };
-use std::{
-    any::{Any, TypeId},
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 const PICKED_BRUSH: Brush = Brush::Solid(Color::opaque(100, 100, 100));
 const NORMAL_BRUSH: Brush = Brush::Solid(Color::opaque(80, 80, 80));
 
-#[derive(Debug, Clone, Visit, Reflect)]
+#[derive(Debug, Clone, Visit, Reflect, ComponentProvider)]
 pub struct Connection {
     widget: Widget,
     pub segment: Segment,
@@ -54,14 +50,6 @@ pub fn draw_connection(
 uuid_provider!(Connection = "c802b6fa-a5ef-4464-a097-749c731ffde0");
 
 impl Control for Connection {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         draw_connection(
             drawing_context,

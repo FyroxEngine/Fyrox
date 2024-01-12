@@ -1,6 +1,8 @@
 use crate::{
-    core::visitor::prelude::*,
-    core::{pool::Handle, reflect::prelude::*, reflect::FieldValue},
+    core::{
+        pool::Handle, reflect::prelude::*, reflect::FieldValue, type_traits::prelude::*,
+        uuid_provider, visitor::prelude::*, PhantomDataSendSync,
+    },
     define_constructor,
     inspector::{
         editors::{
@@ -17,10 +19,9 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
-use fyrox_core::{uuid_provider, PhantomDataSendSync};
 use std::sync::Arc;
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     fmt::Debug,
     ops::{Deref, DerefMut},
 };
@@ -39,7 +40,7 @@ impl ArrayEditorMessage {
     define_constructor!(ArrayEditorMessage:ItemChanged => fn item_changed(index: usize, message: UiMessage), layout: false);
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Clone, Debug, Visit, Reflect, ComponentProvider)]
 pub struct ArrayEditor {
     pub widget: Widget,
     pub items: Vec<Item>,
@@ -50,14 +51,6 @@ crate::define_widget_deref!(ArrayEditor);
 uuid_provider!(ArrayEditor = "5c6e4785-8e2d-441f-8478-523900394b93");
 
 impl Control for ArrayEditor {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

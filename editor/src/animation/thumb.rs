@@ -2,13 +2,15 @@
 //! It is made as a separate widget to be able to draw it on top of curve editor,
 //! dope sheet and time ruler.
 
-use fyrox::core::uuid_provider;
 use fyrox::{
     core::{
         algebra::{Matrix3, Point2, Vector2},
         pool::Handle,
+        reflect::prelude::*,
+        type_traits::prelude::*,
+        uuid_provider,
+        visitor::prelude::*,
     },
-    core::{reflect::prelude::*, visitor::prelude::*},
     gui::{
         define_constructor, define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
@@ -17,10 +19,7 @@ use fyrox::{
         BuildContext, Control, UiNode, UserInterface, BRUSH_BRIGHT,
     },
 };
-use std::{
-    any::{Any, TypeId},
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ThumbMessage {
@@ -35,7 +34,7 @@ impl ThumbMessage {
     define_constructor!(ThumbMessage:Position => fn position(f32), layout: false);
 }
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct Thumb {
     widget: Widget,
     zoom: f32,
@@ -61,14 +60,6 @@ impl Thumb {
 uuid_provider!(Thumb = "820ba009-54e0-4050-ba7e-28f1f5b40429");
 
 impl Control for Thumb {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn draw(&self, ctx: &mut DrawingContext) {
         let local_bounds = self.bounding_rect();
 

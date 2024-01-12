@@ -7,6 +7,7 @@ use crate::{
         math::Rect,
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         visitor::prelude::*,
     },
     define_constructor,
@@ -22,7 +23,6 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use std::{
-    any::{Any, TypeId},
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
@@ -102,7 +102,7 @@ impl ColorFieldMessage {
     define_constructor!(ColorFieldMessage:Color => fn color(Color), layout: false);
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
 pub struct AlphaBar {
     pub widget: Widget,
     pub orientation: Orientation,
@@ -233,14 +233,6 @@ pub fn draw_checker_board(
 uuid_provider!(AlphaBar = "956d4cae-7953-486b-99da-a9b852c2e144");
 
 impl Control for AlphaBar {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.bounding_rect();
 
@@ -373,7 +365,7 @@ impl AlphaBarBuilder {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
 pub struct HueBar {
     pub widget: Widget,
     pub orientation: Orientation,
@@ -397,14 +389,6 @@ impl HueBar {
 uuid_provider!(HueBar = "af28f977-85e7-4c9e-9a61-7f208844acb5");
 
 impl Control for HueBar {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let bounds = self.bounding_rect();
         for hue in 1..360 {
@@ -532,7 +516,7 @@ impl HueBarBuilder {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
 pub struct SaturationBrightnessField {
     pub widget: Widget,
     pub is_picking: bool,
@@ -559,14 +543,6 @@ impl SaturationBrightnessField {
 uuid_provider!(SaturationBrightnessField = "ab6bfad5-0c4b-42a5-8da5-fc5687b1afc7");
 
 impl Control for SaturationBrightnessField {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.deref().arrange_override(ui, final_size);
         // Make sure field is always square.
@@ -740,7 +716,7 @@ impl SaturationBrightnessFieldBuilder {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
 pub struct ColorPicker {
     pub widget: Widget,
     pub hue_bar: Handle<UiNode>,
@@ -820,14 +796,6 @@ impl ColorPicker {
 uuid_provider!(ColorPicker = "b7a5d650-5b77-4938-83c1-37f3fe107885");
 
 impl Control for ColorPicker {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.hue_bar);
         node_map.resolve(&mut self.alpha_bar);
@@ -1177,7 +1145,7 @@ impl ColorPickerBuilder {
     }
 }
 
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
 pub struct ColorField {
     pub widget: Widget,
     pub popup: Handle<UiNode>,
@@ -1190,14 +1158,6 @@ crate::define_widget_deref!(ColorField);
 uuid_provider!(ColorField = "68dec1ac-23c6-41df-bc85-499f2a82e908");
 
 impl Control for ColorField {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn on_remove(&self, sender: &Sender<UiMessage>) {
         // Popup won't be deleted with the color field, because it is not the child of the field.
         // So we have to remove it manually.

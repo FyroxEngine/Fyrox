@@ -1,6 +1,9 @@
 use crate::inspector::editors::spritesheet::window::SpriteSheetFramesEditorWindow;
 use fyrox::{
-    core::{pool::Handle, reflect::prelude::*, uuid_provider, visitor::prelude::*},
+    core::{
+        pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
+        visitor::prelude::*,
+    },
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         define_constructor, define_widget_deref,
@@ -21,7 +24,7 @@ use fyrox::{
     scene::animation::spritesheet::prelude::*,
 };
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     ops::{Deref, DerefMut},
 };
 
@@ -39,7 +42,7 @@ impl SpriteSheetFramesPropertyEditorMessage {
     define_constructor!(SpriteSheetFramesPropertyEditorMessage:Value => fn value(SpriteSheetFramesContainer), layout: false);
 }
 
-#[derive(Clone, Debug, Reflect, Visit)]
+#[derive(Clone, Debug, Reflect, Visit, ComponentProvider)]
 pub struct SpriteSheetFramesPropertyEditor {
     widget: Widget,
     edit_button: Handle<UiNode>,
@@ -51,14 +54,6 @@ define_widget_deref!(SpriteSheetFramesPropertyEditor);
 uuid_provider!(SpriteSheetFramesPropertyEditor = "8994228d-6106-4e41-872c-5191840badcc");
 
 impl Control for SpriteSheetFramesPropertyEditor {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

@@ -1,7 +1,9 @@
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
-    core::{algebra::Vector2, log::Log, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, log::Log, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        visitor::prelude::*,
+    },
     draw::DrawingContext,
     grid::{Column, GridBuilder, Row},
     menu::{MenuItemBuilder, MenuItemContent, MenuItemMessage},
@@ -18,7 +20,6 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use std::{
-    any::{Any, TypeId},
     cell::{Cell, RefCell},
     ops::{Deref, DerefMut},
     path::PathBuf,
@@ -34,8 +35,9 @@ pub struct FolderNameDialog {
     pub cancel: Handle<UiNode>,
 }
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct ItemContextMenu {
+    #[component(include)]
     pub popup: Popup,
     pub delete: Handle<UiNode>,
     pub make_folder: Handle<UiNode>,
@@ -60,16 +62,6 @@ impl DerefMut for ItemContextMenu {
 uuid_provider!(ItemContextMenu = "6a9d597f-6a9f-4bad-b569-4cff1a6deff7");
 
 impl Control for ItemContextMenu {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        self.popup.query_component(type_id).or_else(|| {
-            if type_id == TypeId::of::<Self>() {
-                Some(self)
-            } else {
-                None
-            }
-        })
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.popup.resolve(node_map)
     }

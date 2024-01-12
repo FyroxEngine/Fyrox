@@ -5,7 +5,10 @@
 
 use crate::{
     brush::Brush,
-    core::{color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*},
+    core::{
+        color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        visitor::prelude::*,
+    },
     define_constructor, define_widget_deref,
     draw::{CommandTexture, Draw, DrawingContext},
     message::{KeyCode, KeyboardModifiers, MessageDirection, MouseButton, UiMessage},
@@ -16,7 +19,6 @@ use crate::{
 use fyrox_core::uuid_provider;
 use serde::{Deserialize, Serialize};
 use std::{
-    any::{Any, TypeId},
     fmt::{Display, Formatter},
     ops::{Deref, DerefMut},
 };
@@ -152,7 +154,7 @@ impl HotKeyEditorMessage {
 /// ## Messages
 ///
 /// Use [`HotKeyEditorMessage`] message to alternate the state of a hot key widget, or to listen to its changes.
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct HotKeyEditor {
     widget: Widget,
     text: Handle<UiNode>,
@@ -180,14 +182,6 @@ impl HotKeyEditor {
 uuid_provider!(HotKeyEditor = "7bc49843-1302-4e36-b901-63af5cea6c60");
 
 impl Control for HotKeyEditor {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         // Make background clickable.
         drawing_context.push_rect_filled(&self.bounding_rect(), None);
@@ -377,7 +371,7 @@ impl KeyBindingEditorMessage {
 /// ## Messages
 ///
 /// Use [`KeyBindingEditorMessage`] message to alternate the state of a key binding widget, or to listen to its changes.
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct KeyBindingEditor {
     widget: Widget,
     text: Handle<UiNode>,
@@ -405,14 +399,6 @@ impl KeyBindingEditor {
 uuid_provider!(KeyBindingEditor = "150113ce-f95e-4c76-9ac9-4503e78b960f");
 
 impl Control for KeyBindingEditor {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         // Make background clickable.
         drawing_context.push_rect_filled(&self.bounding_rect(), None);

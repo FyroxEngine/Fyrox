@@ -48,7 +48,7 @@ impl UiNode {
     /// # use fyrox_ui::{
     /// #     core::pool::Handle,
     /// #     define_widget_deref,
-    /// #     core::{visitor::prelude::*, reflect::prelude::*},
+    /// #     core::{visitor::prelude::*, reflect::prelude::*, type_traits::prelude::*,},
     /// #     message::UiMessage,
     /// #     widget::{Widget, WidgetBuilder},
     /// #     BuildContext, Control, UiNode, UserInterface,
@@ -59,7 +59,7 @@ impl UiNode {
     /// # };
     /// # use fyrox_core::uuid_provider;
     /// #
-    /// #[derive(Clone, Visit, Reflect, Debug)]
+    /// #[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
     /// struct MyWidget {
     ///     widget: Widget,
     /// }
@@ -69,10 +69,6 @@ impl UiNode {
     /// # uuid_provider!(MyWidget = "a93ec1b5-e7c8-4919-ac19-687d8c99f6bd");
     /// #
     /// # impl Control for MyWidget {
-    /// #     fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-    /// #         todo!()
-    /// #     }
-    /// #
     /// #     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
     /// #         todo!()
     /// #     }
@@ -130,7 +126,7 @@ impl UiNode {
         T: 'static,
     {
         self.0
-            .query_component(TypeId::of::<T>())
+            .query_component_ref(TypeId::of::<T>())
             .and_then(|c| c.downcast_ref::<T>())
     }
 

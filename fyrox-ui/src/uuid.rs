@@ -5,8 +5,9 @@
 
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
-    core::{pool::Handle, uuid::Uuid},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid::Uuid, visitor::prelude::*,
+    },
     define_constructor, define_widget_deref,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
@@ -15,10 +16,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use fyrox_core::uuid_provider;
-use std::{
-    any::{Any, TypeId},
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 /// A set of messages that is used to fetch or modify values of [`UuidEditor`] widgets.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -52,7 +50,7 @@ impl UuidEditorMessage {
 ///         .build(ctx)
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct UuidEditor {
     widget: Widget,
     value: Uuid,
@@ -65,14 +63,6 @@ define_widget_deref!(UuidEditor);
 uuid_provider!(UuidEditor = "667f7f48-2448-42da-91dd-cd743ca7117e");
 
 impl Control for UuidEditor {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

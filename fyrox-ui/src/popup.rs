@@ -5,8 +5,10 @@
 
 use crate::{
     border::BorderBuilder,
-    core::{algebra::Vector2, math::Rect, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        visitor::prelude::*,
+    },
     define_constructor,
     message::{ButtonState, MessageDirection, OsEvent, UiMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
@@ -14,10 +16,7 @@ use crate::{
     BRUSH_DARKEST, BRUSH_PRIMARY,
 };
 use fyrox_core::uuid_provider;
-use std::{
-    any::{Any, TypeId},
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 /// A set of messages for [`Popup`] widget.
 #[derive(Debug, Clone, PartialEq)]
@@ -263,7 +262,7 @@ impl Placement {
 ///
 /// Popup widget can automatically adjust its position to always remain on screen, which is useful for tooltips, dropdown lists,
 /// etc. To enable this option, use [`PopupBuilder::with_smart_placement`] with `true` as the first argument.
-#[derive(Clone, Visit, Debug, Reflect)]
+#[derive(Clone, Visit, Debug, Reflect, ComponentProvider)]
 pub struct Popup {
     /// Base widget of the popup.
     pub widget: Widget,
@@ -338,14 +337,6 @@ impl Popup {
 uuid_provider!(Popup = "1c641540-59eb-4ccd-a090-2173dab02245");
 
 impl Control for Popup {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.content);
         node_map.resolve(&mut self.body);

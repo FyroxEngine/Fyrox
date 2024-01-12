@@ -12,6 +12,7 @@ use fyrox::{
         math::Rect,
         pool::Handle,
         reflect::prelude::*,
+        type_traits::prelude::*,
         uuid_provider,
         visitor::prelude::*,
     },
@@ -26,7 +27,6 @@ use fyrox::{
     scene::animation::absm::prelude::*,
 };
 use std::{
-    any::{Any, TypeId},
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
@@ -48,11 +48,12 @@ impl TransitionMessage {
     define_constructor!(TransitionMessage:Activate => fn activate(), layout: false);
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Clone, Debug, Visit, Reflect, ComponentProvider)]
 pub struct TransitionView {
     widget: Widget,
     pub segment: Segment,
     pub model_handle: Handle<Transition>,
+    #[component(include)]
     selectable: Selectable,
     activity_factor: f32,
 }
@@ -100,16 +101,6 @@ pub fn draw_transition(
 uuid_provider!(TransitionView = "01798aee-8fe5-4480-a69d-8e5b95c3cc96");
 
 impl Control for TransitionView {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else if type_id == TypeId::of::<Selectable>() {
-            Some(&self.selectable)
-        } else {
-            None
-        }
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         let color = if let Brush::Solid(color) = self.foreground() {
             color

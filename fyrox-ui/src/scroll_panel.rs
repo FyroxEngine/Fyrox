@@ -6,8 +6,10 @@
 
 use crate::{
     brush::Brush,
-    core::{algebra::Vector2, color::Color, math::Rect, pool::Handle, scope_profile},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, color::Color, math::Rect, pool::Handle, reflect::prelude::*,
+        scope_profile, type_traits::prelude::*, visitor::prelude::*,
+    },
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
     message::{MessageDirection, UiMessage},
@@ -15,10 +17,7 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_core::uuid_provider;
-use std::{
-    any::{Any, TypeId},
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 /// A set of messages, that is used to modify the state of a scroll panel.
 #[derive(Debug, Clone, PartialEq)]
@@ -145,7 +144,7 @@ impl ScrollPanelMessage {
 ///     ))
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct ScrollPanel {
     /// Base widget of the scroll panel.
     pub widget: Widget,
@@ -162,14 +161,6 @@ crate::define_widget_deref!(ScrollPanel);
 uuid_provider!(ScrollPanel = "1ab4936d-58c8-4cf7-b33c-4b56092f4826");
 
 impl Control for ScrollPanel {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 

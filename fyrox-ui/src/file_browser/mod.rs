@@ -5,7 +5,7 @@
 
 use crate::{
     core::pool::Handle,
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     define_constructor,
     file_browser::menu::ItemContextMenu,
     grid::{Column, GridBuilder, Row},
@@ -20,7 +20,6 @@ use crate::{
 };
 use core::time;
 use std::{
-    any::{Any, TypeId},
     borrow::BorrowMut,
     cmp::Ordering,
     fmt::{Debug, Formatter},
@@ -110,7 +109,7 @@ pub enum FileBrowserMode {
     },
 }
 
-#[derive(Default, Visit, Reflect)]
+#[derive(Default, Visit, Reflect, ComponentProvider)]
 pub struct FileBrowser {
     pub widget: Widget,
     pub tree_root: Handle<UiNode>,
@@ -209,14 +208,6 @@ impl FileBrowser {
 uuid_provider!(FileBrowser = "b7f4610e-4b0c-4671-9b4a-60bb45268928");
 
 impl Control for FileBrowser {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.tree_root);
         node_map.resolve(&mut self.path_text);

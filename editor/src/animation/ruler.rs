@@ -1,14 +1,15 @@
 use crate::menu::create_menu_item;
-use fyrox::core::uuid_provider;
-use fyrox::gui::RcUiNodeHandle;
 use fyrox::{
     core::{
         algebra::{Matrix3, Point2, Vector2},
         math::{round_to_step, Rect},
         pool::Handle,
+        reflect::prelude::*,
+        type_traits::prelude::*,
         uuid::Uuid,
+        uuid_provider,
+        visitor::prelude::*,
     },
-    core::{reflect::prelude::*, visitor::prelude::*},
     gui::{
         define_constructor, define_widget_deref,
         draw::{CommandTexture, Draw, DrawingContext},
@@ -19,14 +20,13 @@ use fyrox::{
         popup::{Placement, PopupMessage},
         stack_panel::StackPanelBuilder,
         widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, UiNode, UserInterface, BRUSH_BRIGHT, BRUSH_DARKER, BRUSH_LIGHTER,
-        BRUSH_LIGHTEST,
+        BuildContext, Control, RcUiNodeHandle, UiNode, UserInterface, BRUSH_BRIGHT, BRUSH_DARKER,
+        BRUSH_LIGHTER, BRUSH_LIGHTEST,
     },
 };
-use std::fmt::{Debug, Formatter};
 use std::{
-    any::{Any, TypeId},
     cell::{Cell, RefCell},
+    fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
 
@@ -135,7 +135,7 @@ struct DragContext {
     entity: DragEntity,
 }
 
-#[derive(Clone, Visit, Reflect)]
+#[derive(Clone, Visit, Reflect, ComponentProvider)]
 pub struct Ruler {
     widget: Widget,
     zoom: f32,
@@ -192,14 +192,6 @@ impl Ruler {
 uuid_provider!(Ruler = "98655c9b-428f-4977-a478-ad3674cc66d4");
 
 impl Control for Ruler {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn draw(&self, ctx: &mut DrawingContext) {
         let local_bounds = self.bounding_rect();
 

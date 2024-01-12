@@ -4,8 +4,17 @@
 #![warn(missing_docs)]
 
 use crate::{
-    core::{algebra::Vector2, math::Rect, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2,
+        combine_uuids,
+        math::Rect,
+        pool::Handle,
+        reflect::prelude::*,
+        type_traits::prelude::*,
+        uuid::{uuid, Uuid},
+        visitor::prelude::*,
+        TypeUuidProvider,
+    },
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
@@ -15,10 +24,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
-use fyrox_core::uuid::{uuid, Uuid};
-use fyrox_core::{combine_uuids, TypeUuidProvider};
 use std::{
-    any::{Any, TypeId},
     fmt::Debug,
     ops::{Deref, DerefMut},
 };
@@ -103,7 +109,7 @@ impl<T: NumericType> RectEditorMessage<T> {
 ///     }
 /// }
 /// ```
-#[derive(Default, Debug, Clone, Visit, Reflect)]
+#[derive(Default, Debug, Clone, Visit, Reflect, ComponentProvider)]
 pub struct RectEditor<T>
 where
     T: NumericType,
@@ -154,14 +160,6 @@ impl<T> Control for RectEditor<T>
 where
     T: NumericType,
 {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

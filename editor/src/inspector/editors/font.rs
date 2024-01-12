@@ -3,7 +3,7 @@ use fyrox::{
     asset::{manager::ResourceManager, untyped::ResourceKind},
     core::{
         algebra::Vector2, color::Color, make_relative_path, pool::Handle, reflect::prelude::*,
-        uuid_provider, visitor::prelude::*,
+        type_traits::prelude::*, uuid_provider, visitor::prelude::*,
     },
     gui::{
         brush::Brush,
@@ -25,12 +25,12 @@ use fyrox::{
     },
 };
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
 
-#[derive(Clone, Visit, Reflect)]
+#[derive(Clone, Visit, Reflect, ComponentProvider)]
 pub struct FontField {
     widget: Widget,
     text_preview: Handle<UiNode>,
@@ -72,14 +72,6 @@ impl FontFieldMessage {
 uuid_provider!(FontField = "5db49479-ff89-49b8-a038-0766253d6493");
 
 impl Control for FontField {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn draw(&self, drawing_context: &mut DrawingContext) {
         // Emit transparent geometry for the field to be able to catch mouse events without precise pointing at the
         // node name letters.

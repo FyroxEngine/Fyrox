@@ -1,10 +1,10 @@
 use crate::{load_image, message::MessageSender, utils::make_node_name, Message};
-use fyrox::asset::untyped::UntypedResource;
-use fyrox::core::pool::ErasedHandle;
-use fyrox::core::uuid_provider;
 use fyrox::{
-    core::{algebra::Vector2, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    asset::untyped::UntypedResource,
+    core::{
+        algebra::Vector2, pool::ErasedHandle, pool::Handle, reflect::prelude::*,
+        type_traits::prelude::*, uuid_provider, visitor::prelude::*,
+    },
     gui::{
         brush::Brush,
         define_constructor,
@@ -21,7 +21,6 @@ use fyrox::{
     },
 };
 use std::{
-    any::{Any, TypeId},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
@@ -38,8 +37,9 @@ impl SceneItemMessage {
     define_constructor!(SceneItemMessage:Validate => fn validate(Result<(), String>), layout: false);
 }
 
-#[derive(Visit, Reflect)]
+#[derive(Visit, Reflect, ComponentProvider)]
 pub struct SceneItem {
+    #[component(include)]
     pub tree: Tree,
     text_name: Handle<UiNode>,
     name_value: String,
@@ -95,16 +95,6 @@ impl DerefMut for SceneItem {
 uuid_provider!(SceneItem = "16f35257-a250-413b-ab51-b1ad086a3a9c");
 
 impl Control for SceneItem {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        self.tree.query_component(type_id).or_else(|| {
-            if type_id == TypeId::of::<Self>() {
-                Some(self)
-            } else {
-                None
-            }
-        })
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.tree.resolve(node_map);
         node_map.resolve(&mut self.text_name);

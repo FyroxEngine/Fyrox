@@ -4,8 +4,15 @@
 #![warn(missing_docs)]
 
 use crate::{
-    core::pool::Handle,
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        combine_uuids,
+        pool::Handle,
+        reflect::prelude::*,
+        type_traits::prelude::*,
+        uuid::{uuid, Uuid},
+        visitor::prelude::*,
+        TypeUuidProvider,
+    },
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
@@ -14,12 +21,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
-use fyrox_core::uuid::{uuid, Uuid};
-use fyrox_core::{combine_uuids, TypeUuidProvider};
-use std::{
-    any::{Any, TypeId},
-    ops::{Deref, DerefMut, Range},
-};
+use std::ops::{Deref, DerefMut, Range};
 
 /// A set of messages, that can be used to modify/fetch the state of a [`RangeEditor`] widget instance.
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -100,7 +102,7 @@ impl<T: NumericType> RangeEditorMessage<T> {
 ///
 /// Be very careful about the type of the range when sending a message, you need to send a range of exact type, that match the type
 /// of your editor, otherwise the message have no effect. The same applied to fetching.
-#[derive(Default, Debug, Clone, Reflect, Visit)]
+#[derive(Default, Debug, Clone, Reflect, Visit, ComponentProvider)]
 pub struct RangeEditor<T>
 where
     T: NumericType,
@@ -153,14 +155,6 @@ impl<T> Control for RangeEditor<T>
 where
     T: NumericType,
 {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

@@ -2,10 +2,16 @@ use crate::absm::{
     selectable::{Selectable, SelectableMessage},
     BORDER_COLOR, NORMAL_BACKGROUND, SELECTED_BACKGROUND,
 };
-use fyrox::core::uuid::{uuid, Uuid};
-use fyrox::core::TypeUuidProvider;
 use fyrox::{
-    core::{color::Color, pool::Handle, reflect::prelude::*, visitor::prelude::*},
+    core::{
+        color::Color,
+        pool::Handle,
+        reflect::prelude::*,
+        type_traits::prelude::*,
+        uuid::{uuid, Uuid},
+        visitor::prelude::*,
+        TypeUuidProvider,
+    },
     gui::{
         border::{BorderBuilder, BorderMessage},
         brush::Brush,
@@ -20,9 +26,8 @@ use fyrox::{
         VerticalAlignment,
     },
 };
-use std::fmt::{Debug, Formatter};
 use std::{
-    any::{Any, TypeId},
+    fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
 
@@ -32,16 +37,18 @@ pub struct AbsmBaseNode {
     pub output_socket: Handle<UiNode>,
 }
 
-#[derive(Visit, Reflect)]
+#[derive(Visit, Reflect, ComponentProvider)]
 pub struct AbsmNode<T>
 where
     T: 'static,
 {
     widget: Widget,
     background: Handle<UiNode>,
+    #[component(include)]
     selectable: Selectable,
     pub name_value: String,
     pub model_handle: Handle<T>,
+    #[component(include)]
     pub base: AbsmBaseNode,
     pub add_input: Handle<UiNode>,
     input_sockets_panel: Handle<UiNode>,
@@ -149,18 +156,6 @@ impl<T> Control for AbsmNode<T>
 where
     T: 'static,
 {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else if type_id == TypeId::of::<Selectable>() {
-            Some(&self.selectable)
-        } else if type_id == TypeId::of::<AbsmBaseNode>() {
-            Some(&self.base)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
         self.selectable

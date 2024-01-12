@@ -5,8 +5,10 @@
 #![allow(clippy::reversed_empty_ranges)]
 
 use crate::{
-    core::{algebra::Vector2, math::Rect, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, math::Rect, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        visitor::prelude::*,
+    },
     define_constructor,
     message::{MessageDirection, UiMessage},
     widget::{Widget, WidgetBuilder},
@@ -14,7 +16,6 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use std::{
-    any::{Any, TypeId},
     cell::RefCell,
     ops::{Deref, DerefMut, Range},
 };
@@ -61,7 +62,7 @@ impl WrapPanelMessage {
 ///
 /// Wrap panel can stack your widgets either in vertical or horizontal direction. Use `.with_orientation` while building
 /// the panel to switch orientation to desired.
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
 pub struct WrapPanel {
     /// Base widget of the wrap panel.
     pub widget: Widget,
@@ -96,14 +97,6 @@ impl Default for Line {
 uuid_provider!(WrapPanel = "f488ab8e-8f8b-473c-a450-5ac33f1afb39");
 
 impl Control for WrapPanel {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         let mut measured_size: Vector2<f32> = Vector2::default();
         let mut line_size = Vector2::default();

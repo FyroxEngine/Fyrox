@@ -1,8 +1,14 @@
-use crate::inspector::PropertyFilter;
 use crate::{
     border::BorderBuilder,
-    core::pool::Handle,
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        combine_uuids,
+        pool::Handle,
+        reflect::prelude::*,
+        reflect::Reflect,
+        uuid::{uuid, Uuid},
+        visitor::prelude::*,
+        TypeUuidProvider,
+    },
     decorator::DecoratorBuilder,
     define_constructor,
     dropdown_list::{DropdownList, DropdownListBuilder, DropdownListMessage},
@@ -13,7 +19,7 @@ use crate::{
             PropertyEditorMessageContext, PropertyEditorTranslationContext,
         },
         make_expander_container, FieldKind, Inspector, InspectorBuilder, InspectorContext,
-        InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged,
+        InspectorEnvironment, InspectorError, InspectorMessage, PropertyChanged, PropertyFilter,
     },
     message::{MessageDirection, UiMessage},
     text::TextBuilder,
@@ -21,15 +27,13 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
-use fyrox_core::reflect::Reflect;
-use fyrox_core::uuid::{uuid, Uuid};
-use fyrox_core::{combine_uuids, TypeUuidProvider};
-use std::sync::Arc;
+use fyrox_core::ComponentProvider;
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     str::FromStr,
+    sync::Arc,
 };
 use strum::VariantNames;
 
@@ -50,7 +54,7 @@ impl EnumPropertyEditorMessage {
     define_constructor!(EnumPropertyEditorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
 }
 
-#[derive(Visit, Reflect)]
+#[derive(Visit, Reflect, ComponentProvider)]
 pub struct EnumPropertyEditor<T: InspectableEnum> {
     pub widget: Widget,
     pub variant_selector: Handle<UiNode>,
@@ -128,14 +132,6 @@ where
 }
 
 impl<T: InspectableEnum> Control for EnumPropertyEditor<T> {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

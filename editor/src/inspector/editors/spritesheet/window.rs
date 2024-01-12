@@ -2,7 +2,7 @@ use crate::inspector::editors::spritesheet::SpriteSheetFramesPropertyEditorMessa
 use fyrox::{
     core::{
         algebra::Vector2, color::Color, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
-        uuid_provider, visitor::prelude::*,
+        type_traits::prelude::*, uuid_provider, visitor::prelude::*,
     },
     gui::{
         border::BorderBuilder,
@@ -25,13 +25,13 @@ use fyrox::{
     scene::animation::spritesheet::prelude::*,
 };
 use std::{
-    any::{Any, TypeId},
     ops::{Deref, DerefMut},
     sync::{mpsc::Sender, Arc},
 };
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct SpriteSheetFramesEditorWindow {
+    #[component(include)]
     window: Window,
     editor: Handle<UiNode>,
     ok: Handle<UiNode>,
@@ -62,16 +62,6 @@ impl DerefMut for SpriteSheetFramesEditorWindow {
 uuid_provider!(SpriteSheetFramesEditorWindow = "55607fe0-2996-418d-ad31-a5b96fdfa4b7");
 
 impl Control for SpriteSheetFramesEditorWindow {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        self.window.query_component(type_id).or_else(|| {
-            if type_id == TypeId::of::<Self>() {
-                Some(self)
-            } else {
-                None
-            }
-        })
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.window.resolve(node_map);
     }

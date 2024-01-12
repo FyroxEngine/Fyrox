@@ -1,9 +1,13 @@
 use crate::{
     button::{ButtonBuilder, ButtonMessage},
-    core::visitor::prelude::*,
     core::{
+        combine_uuids,
         pool::Handle,
         reflect::{FieldInfo, FieldValue, Reflect},
+        type_traits::prelude::*,
+        uuid::{uuid, Uuid},
+        visitor::prelude::*,
+        PhantomDataSendSync, TypeUuidProvider,
     },
     define_constructor,
     grid::{Column, GridBuilder, Row},
@@ -22,14 +26,12 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
     VerticalAlignment,
 };
-use fyrox_core::uuid::{uuid, Uuid};
-use fyrox_core::{combine_uuids, PhantomDataSendSync, TypeUuidProvider};
-use std::sync::Arc;
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     fmt::Debug,
     marker::PhantomData,
     ops::{Deref, DerefMut},
+    sync::Arc,
 };
 
 #[derive(Clone, Debug, PartialEq, Default, Visit, Reflect)]
@@ -48,7 +50,7 @@ impl<T> CollectionItem for T where
 {
 }
 
-#[derive(Debug, Visit, Reflect)]
+#[derive(Debug, Visit, Reflect, ComponentProvider)]
 pub struct CollectionEditor<T: CollectionItem> {
     pub widget: Widget,
     pub add: Handle<UiNode>,
@@ -110,14 +112,6 @@ impl<T: CollectionItem> TypeUuidProvider for CollectionEditor<T> {
 }
 
 impl<T: CollectionItem> Control for CollectionEditor<T> {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

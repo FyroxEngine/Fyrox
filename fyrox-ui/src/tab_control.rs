@@ -7,8 +7,10 @@ use crate::{
     border::BorderBuilder,
     brush::Brush,
     button::{ButtonBuilder, ButtonMessage},
-    core::{color::Color, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        visitor::prelude::*,
+    },
     decorator::{DecoratorBuilder, DecoratorMessage},
     define_constructor,
     grid::{Column, GridBuilder, Row},
@@ -22,7 +24,7 @@ use crate::{
 use fyrox_core::uuid_provider;
 use std::sync::Arc;
 use std::{
-    any::{Any, TypeId},
+    any::Any,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
@@ -198,7 +200,7 @@ pub struct Tab {
 /// # }
 ///
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct TabControl {
     /// Base widget of the tab control.
     pub widget: Widget,
@@ -219,14 +221,6 @@ crate::define_widget_deref!(TabControl);
 uuid_provider!(TabControl = "d54cfac3-0afc-464b-838a-158b3a2253f5");
 
 impl Control for TabControl {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         for tab in self.tabs.iter_mut() {
             node_map.resolve(&mut tab.header_button);

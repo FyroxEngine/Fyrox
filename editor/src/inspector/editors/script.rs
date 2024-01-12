@@ -2,16 +2,16 @@ use crate::{
     gui::make_dropdown_list_option, inspector::EditorEnvironment, send_sync_message,
     DropdownListBuilder, MSG_SYNC_FLAG,
 };
-use fyrox::core::parking_lot::Mutex;
-use fyrox::core::uuid_provider;
-use fyrox::gui::inspector::PropertyFilter;
 use fyrox::{
-    core::{pool::Handle, uuid::Uuid},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        parking_lot::Mutex, pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid::Uuid,
+        uuid_provider, visitor::prelude::*,
+    },
     engine::SerializationContext,
     gui::{
         define_constructor,
         dropdown_list::{DropdownList, DropdownListMessage},
+        inspector::PropertyFilter,
         inspector::{
             editors::{
                 PropertyEditorBuildContext, PropertyEditorDefinition,
@@ -28,7 +28,7 @@ use fyrox::{
     script::Script,
 };
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     cell::Cell,
     ops::{Deref, DerefMut},
     sync::Arc,
@@ -45,7 +45,7 @@ impl ScriptPropertyEditorMessage {
     define_constructor!(ScriptPropertyEditorMessage:PropertyChanged => fn property_changed(PropertyChanged), layout: false);
 }
 
-#[derive(Clone, Debug, Visit, Reflect)]
+#[derive(Clone, Debug, Visit, Reflect, ComponentProvider)]
 pub struct ScriptPropertyEditor {
     widget: Widget,
     inspector: Handle<UiNode>,
@@ -71,14 +71,6 @@ impl DerefMut for ScriptPropertyEditor {
 uuid_provider!(ScriptPropertyEditor = "f43c3bfb-8b39-4cc0-be77-04141a45822e");
 
 impl Control for ScriptPropertyEditor {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

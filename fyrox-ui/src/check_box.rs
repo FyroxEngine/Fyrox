@@ -7,8 +7,10 @@
 use crate::{
     border::BorderBuilder,
     brush::Brush,
-    core::{algebra::Vector2, color::Color, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, color::Color, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        visitor::prelude::*,
+    },
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
@@ -18,11 +20,7 @@ use crate::{
     UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE, BRUSH_DARKEST, BRUSH_LIGHT,
     BRUSH_TEXT,
 };
-use fyrox_core::uuid_provider;
-use std::{
-    any::{Any, TypeId},
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 /// A set of possible check box messages.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -130,7 +128,8 @@ impl CheckBoxMessage {
 /// 2) [`CheckBoxBuilder::with_check_mark`] - sets the widget that will be used as checked icon.
 /// 3) [`CheckBoxBuilder::with_uncheck_mark`] - sets the widget that will be used as unchecked icon.
 /// 4) [`CheckBoxBuilder::with_undefined_mark`] - sets the widget that will be used as undefined icon.
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect, TypeUuidProvider, ComponentProvider)]
+#[type_uuid(id = "3a866ba8-7682-4ce7-954a-46360f5837dc")]
 pub struct CheckBox {
     /// Base widget of the check box.
     pub widget: Widget,
@@ -146,17 +145,7 @@ pub struct CheckBox {
 
 crate::define_widget_deref!(CheckBox);
 
-uuid_provider!(CheckBox = "3a866ba8-7682-4ce7-954a-46360f5837dc");
-
 impl Control for CheckBox {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.check_mark);
         node_map.resolve(&mut self.uncheck_mark);

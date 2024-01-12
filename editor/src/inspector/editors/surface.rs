@@ -1,7 +1,8 @@
-use fyrox::core::uuid_provider;
 use fyrox::{
-    core::pool::Handle,
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        pool::Handle, reflect::prelude::*, type_traits::prelude::*, uuid_provider,
+        visitor::prelude::*,
+    },
     gui::{
         define_widget_deref,
         grid::Column,
@@ -21,11 +22,11 @@ use fyrox::{
     scene::mesh::surface::SurfaceSharedData,
 };
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     ops::{Deref, DerefMut},
 };
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 #[allow(dead_code)]
 pub struct SurfaceDataPropertyEditor {
     widget: Widget,
@@ -37,14 +38,6 @@ define_widget_deref!(SurfaceDataPropertyEditor);
 uuid_provider!(SurfaceDataPropertyEditor = "8461a183-4fd4-4f74-a4f4-7fd8e84bf423");
 
 impl Control for SurfaceDataPropertyEditor {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message)
     }

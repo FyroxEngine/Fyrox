@@ -1,8 +1,17 @@
 use crate::{
     border::BorderBuilder,
     brush::Brush,
-    core::{algebra::SVector, color::Color, num_traits, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::SVector,
+        color::Color,
+        combine_uuids, num_traits,
+        pool::Handle,
+        reflect::prelude::*,
+        type_traits::prelude::*,
+        uuid::{uuid, Uuid},
+        visitor::prelude::*,
+        TypeUuidProvider,
+    },
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
@@ -10,12 +19,7 @@ use crate::{
     widget::WidgetBuilder,
     BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface, Widget,
 };
-use fyrox_core::uuid::{uuid, Uuid};
-use fyrox_core::{combine_uuids, TypeUuidProvider};
-use std::{
-    any::{Any, TypeId},
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 fn make_numeric_input<T: NumericType>(
     ctx: &mut BuildContext,
@@ -73,7 +77,7 @@ where
     define_constructor!(VecEditorMessage:Value => fn value(SVector<T, D>), layout: false);
 }
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct VecEditor<T, const D: usize>
 where
     T: NumericType,
@@ -166,14 +170,6 @@ impl<T, const D: usize> Control for VecEditor<T, D>
 where
     T: NumericType,
 {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve_slice(&mut self.fields);
     }

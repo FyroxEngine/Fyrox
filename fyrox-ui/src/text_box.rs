@@ -9,9 +9,13 @@ use crate::{
         algebra::{Point2, Vector2},
         color::Color,
         math::Rect,
+        parking_lot::Mutex,
         pool::Handle,
+        reflect::prelude::*,
+        type_traits::prelude::*,
+        uuid_provider,
+        visitor::prelude::*,
     },
-    core::{reflect::prelude::*, visitor::prelude::*},
     define_constructor,
     draw::{CommandTexture, Draw, DrawingContext},
     font::FontResource,
@@ -23,11 +27,8 @@ use crate::{
     BRUSH_DARKER, BRUSH_TEXT,
 };
 use copypasta::ClipboardProvider;
-use fyrox_core::parking_lot::Mutex;
-use fyrox_core::uuid_provider;
 use std::sync::Arc;
 use std::{
-    any::{Any, TypeId},
     cell::RefCell,
     cmp::Ordering,
     fmt::{Debug, Formatter},
@@ -366,7 +367,7 @@ pub type FilterCallback = dyn FnMut(char) -> bool + Send;
 ///
 /// You can change brush of caret by using [`TextBoxBuilder::with_caret_brush`] and also selection brush by using
 /// [`TextBoxBuilder::with_selection_brush`], it could be useful if you don't like default colors.
-#[derive(Default, Clone, Visit, Reflect)]
+#[derive(Default, Clone, Visit, Reflect, ComponentProvider)]
 pub struct TextBox {
     /// Base widget of the text box.
     pub widget: Widget,
@@ -977,14 +978,6 @@ impl TextBox {
 uuid_provider!(TextBox = "536276f2-a175-4c05-a376-5a7d8bf0d10b");
 
 impl Control for TextBox {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn measure_override(&self, _: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         self.formatted_text
             .borrow_mut()

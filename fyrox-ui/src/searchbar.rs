@@ -7,8 +7,10 @@
 use crate::{
     border::BorderBuilder,
     button::{ButtonBuilder, ButtonMessage},
-    core::{algebra::Vector2, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::{
+        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        uuid_provider, visitor::prelude::*,
+    },
     define_constructor, define_widget_deref,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
@@ -20,11 +22,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment, BRUSH_DARKER,
     BRUSH_LIGHT, BRUSH_LIGHTEST,
 };
-use fyrox_core::uuid_provider;
-use std::{
-    any::{Any, TypeId},
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 /// A set of messages that can be used to get the state of a search bar.
 #[derive(Debug, Clone, PartialEq)]
@@ -75,7 +73,7 @@ impl SearchBarMessage {
 ///     }
 /// }
 /// ```
-#[derive(Default, Clone, Visit, Reflect, Debug)]
+#[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct SearchBar {
     /// Base widget of the search bar.
     pub widget: Widget,
@@ -90,14 +88,6 @@ define_widget_deref!(SearchBar);
 uuid_provider!(SearchBar = "23db1179-0e07-493d-98fd-2b3c0c795215");
 
 impl Control for SearchBar {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

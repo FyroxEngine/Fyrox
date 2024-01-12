@@ -5,8 +5,11 @@
 #![warn(missing_docs)]
 
 use crate::{
-    core::{algebra::Vector2, pool::Handle},
-    core::{reflect::prelude::*, visitor::prelude::*},
+    core::uuid_provider,
+    core::{
+        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
+        visitor::prelude::*,
+    },
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{MessageDirection, UiMessage},
@@ -15,11 +18,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, NodeHandleMapping, Orientation, UiNode, UserInterface,
 };
-use fyrox_core::uuid_provider;
-use std::{
-    any::{Any, TypeId},
-    ops::{Deref, DerefMut},
-};
+use std::ops::{Deref, DerefMut};
 
 /// A set of messages that could be used to alternate the state of a [`ScrollViewer`] widget.
 #[derive(Debug, Clone, PartialEq)]
@@ -142,7 +141,7 @@ impl ScrollViewerMessage {
 ///     ))
 /// }
 /// ```
-#[derive(Default, Clone, Debug, Visit, Reflect)]
+#[derive(Default, Clone, Debug, Visit, Reflect, ComponentProvider)]
 pub struct ScrollViewer {
     /// Base widget of the scroll viewer.
     pub widget: Widget,
@@ -165,14 +164,6 @@ crate::define_widget_deref!(ScrollViewer);
 uuid_provider!(ScrollViewer = "173e869f-7da0-4ae2-915a-5d545d8150cc");
 
 impl Control for ScrollViewer {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         node_map.resolve(&mut self.content);
         node_map.resolve(&mut self.scroll_panel);

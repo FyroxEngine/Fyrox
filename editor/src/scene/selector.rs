@@ -1,9 +1,8 @@
 use crate::utils::make_node_name;
-use fyrox::core::parking_lot::Mutex;
 use fyrox::{
     core::{
-        algebra::Vector2, pool::ErasedHandle, pool::Handle, reflect::prelude::*, uuid_provider,
-        visitor::prelude::*,
+        algebra::Vector2, parking_lot::Mutex, pool::ErasedHandle, pool::Handle,
+        reflect::prelude::*, type_traits::prelude::*, uuid_provider, visitor::prelude::*,
     },
     gui::{
         border::BorderBuilder,
@@ -25,11 +24,10 @@ use fyrox::{
     },
     scene::{graph::Graph, node::Node},
 };
-use std::sync::Arc;
 use std::{
-    any::{Any, TypeId},
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
+    sync::Arc,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -138,7 +136,7 @@ struct TreeData {
     handle: ErasedHandle,
 }
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct NodeSelector {
     widget: Widget,
     tree_root: Handle<UiNode>,
@@ -176,14 +174,6 @@ fn apply_filter_recursive(node: Handle<UiNode>, filter: &str, ui: &UserInterface
 uuid_provider!(NodeSelector = "1d718f90-323c-492d-b057-98d47495900a");
 
 impl Control for NodeSelector {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
@@ -365,8 +355,9 @@ impl NodeSelectorBuilder {
     }
 }
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct NodeSelectorWindow {
+    #[component(include)]
     window: Window,
     selector: Handle<UiNode>,
     ok: Handle<UiNode>,
@@ -390,16 +381,6 @@ impl DerefMut for NodeSelectorWindow {
 uuid_provider!(NodeSelectorWindow = "5bb00f15-d6ec-4f0e-af7e-9472b0e290b4");
 
 impl Control for NodeSelectorWindow {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        self.window.query_component(type_id).or_else(|| {
-            if type_id == TypeId::of::<Self>() {
-                Some(self)
-            } else {
-                None
-            }
-        })
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.window.resolve(node_map);
     }

@@ -1,8 +1,8 @@
-use fyrox::core::parking_lot::Mutex;
 use fyrox::{
     core::{
-        algebra::Vector2, make_pretty_type_name, pool::Handle, reflect::prelude::*,
-        sstorage::ImmutableString, uuid_provider, visitor::prelude::*,
+        algebra::Vector2, make_pretty_type_name, parking_lot::Mutex, pool::Handle,
+        reflect::prelude::*, sstorage::ImmutableString, type_traits::prelude::*, uuid_provider,
+        visitor::prelude::*,
     },
     fxhash::FxHashSet,
     gui::{
@@ -23,11 +23,10 @@ use fyrox::{
         UiNode, UserInterface,
     },
 };
-use std::sync::Arc;
 use std::{
-    any::{Any, TypeId},
+    any::TypeId,
     ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
+    sync::{mpsc::Sender, Arc},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -272,7 +271,7 @@ where
     descriptors
 }
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct PropertySelector {
     widget: Widget,
     #[reflect(hidden)]
@@ -287,14 +286,6 @@ define_widget_deref!(PropertySelector);
 uuid_provider!(PropertySelector = "8e58e123-48a1-4e18-9e90-fd35a1669bdc");
 
 impl Control for PropertySelector {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        if type_id == TypeId::of::<Self>() {
-            Some(self)
-        } else {
-            None
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 
@@ -416,8 +407,9 @@ impl PropertySelectorBuilder {
     }
 }
 
-#[derive(Clone, Visit, Reflect, Debug)]
+#[derive(Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct PropertySelectorWindow {
+    #[component(include)]
     window: Window,
     selector: Handle<UiNode>,
     ok: Handle<UiNode>,
@@ -444,16 +436,6 @@ impl DerefMut for PropertySelectorWindow {
 uuid_provider!(PropertySelectorWindow = "725e4a10-eca6-4345-9833-d54dae2f20f2");
 
 impl Control for PropertySelectorWindow {
-    fn query_component(&self, type_id: TypeId) -> Option<&dyn Any> {
-        self.window.query_component(type_id).or_else(|| {
-            if type_id == TypeId::of::<Self>() {
-                Some(self)
-            } else {
-                None
-            }
-        })
-    }
-
     fn resolve(&mut self, node_map: &NodeHandleMapping) {
         self.window.resolve(node_map)
     }
