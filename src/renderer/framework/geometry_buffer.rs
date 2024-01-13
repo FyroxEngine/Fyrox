@@ -294,17 +294,16 @@ impl GeometryBuffer {
         data: &SurfaceData,
         kind: GeometryBufferKind,
         state: &mut PipelineState,
-    ) -> Self {
+    ) -> Result<Self, FrameworkError> {
         let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
             .with_buffer_builder(BufferBuilder::from_vertex_buffer(&data.vertex_buffer, kind))
-            .build(state)
-            .unwrap();
+            .build(state)?;
 
         geometry_buffer
             .bind(state)
             .set_triangles(data.geometry_buffer.triangles_ref());
 
-        geometry_buffer
+        Ok(geometry_buffer)
     }
 
     pub fn set_buffer_data<T>(&mut self, state: &mut PipelineState, buffer: usize, data: &[T]) {

@@ -200,7 +200,7 @@ pub struct SurfaceData {
     // If true - indicates that surface was generated and does not have reference
     // resource. Procedural data will be serialized.
     is_embedded: bool,
-    pub(crate) cache_entry: AtomicIndex,
+    pub(crate) cache_index: Arc<AtomicIndex>,
 }
 
 impl SurfaceData {
@@ -213,7 +213,7 @@ impl SurfaceData {
             geometry_buffer: triangles,
             blend_shapes_container: None,
             is_embedded,
-            cache_entry: AtomicIndex::unassigned(),
+            cache_index: Arc::new(AtomicIndex::unassigned()),
         }
     }
 
@@ -257,7 +257,7 @@ impl SurfaceData {
             geometry_buffer: TriangleBuffer::new(raw.triangles),
             blend_shapes_container: Default::default(),
             is_embedded,
-            cache_entry: AtomicIndex::unassigned(),
+            cache_index: Arc::new(AtomicIndex::unassigned()),
         }
     }
 

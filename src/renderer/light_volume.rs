@@ -132,12 +132,12 @@ impl LightVolumeRenderer {
                 ),
                 GeometryBufferKind::StaticDraw,
                 state,
-            ),
+            )?,
             sphere: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_sphere(8, 8, 1.0, &Matrix4::identity()),
                 GeometryBufferKind::StaticDraw,
                 state,
-            ),
+            )?,
         })
     }
 

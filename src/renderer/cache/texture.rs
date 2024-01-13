@@ -1,11 +1,11 @@
+use crate::resource::texture::Texture;
 use crate::{
-    asset::entry::DEFAULT_RESOURCE_LIFETIME,
     core::{
         log::{Log, MessageKind},
         scope_profile,
     },
     renderer::{
-        cache::CacheEntry,
+        cache::TemporaryCache,
         framework::{
             error::FrameworkError,
             gpu_texture::{Coordinate, GpuTexture, PixelKind},
@@ -14,12 +14,35 @@ use crate::{
     },
     resource::texture::TextureResource,
 };
-use fxhash::FxHashMap;
-use std::{cell::RefCell, collections::hash_map::Entry, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
+
+pub(crate) struct TextureRenderData {
+    pub gpu_texture: Rc<RefCell<GpuTexture>>,
+    pub data_hash: u64,
+}
 
 #[derive(Default)]
 pub struct TextureCache {
-    pub(crate) map: FxHashMap<usize, CacheEntry<Rc<RefCell<GpuTexture>>>>,
+    pub(crate) map: TemporaryCache<TextureRenderData>,
+}
+
+fn create_gpu_texture(
+    state: &mut PipelineState,
+    texture: &Texture,
+) -> Result<TextureRenderData, FrameworkError> {
+    GpuTexture::new(
+        state,
+        texture.kind().into(),
+        PixelKind::from(texture.pixel_kind()),
+        texture.minification_filter().into(),
+        texture.magnification_filter().into(),
+        texture.mip_count() as usize,
+        Some(texture.data()),
+    )
+    .map(|gpu_texture| TextureRenderData {
+        gpu_texture: Rc::new(RefCell::new(gpu_texture)),
+        data_hash: texture.data_hash(),
+    })
 }
 
 impl TextureCache {
@@ -30,33 +53,13 @@ impl TextureCache {
         state: &mut PipelineState,
         texture: &TextureResource,
     ) -> Result<(), FrameworkError> {
-        let key = texture.key();
         let mut texture = texture.state();
-
         if let Some(texture) = texture.data() {
-            let gpu_texture = GpuTexture::new(
-                state,
-                texture.kind().into(),
-                PixelKind::from(texture.pixel_kind()),
-                texture.minification_filter().into(),
-                texture.magnification_filter().into(),
-                texture.mip_count() as usize,
-                Some(texture.data()),
+            self.map.get_entry_mut_or_insert_with(
+                &texture.cache_index,
+                Default::default(),
+                || create_gpu_texture(state, texture),
             )?;
-
-            match self.map.entry(key) {
-                Entry::Occupied(mut e) => {
-                    *e.get_mut().value.borrow_mut() = gpu_texture;
-                }
-                Entry::Vacant(e) => {
-                    e.insert(CacheEntry {
-                        value: Rc::new(RefCell::new(gpu_texture)),
-                        time_to_live: DEFAULT_RESOURCE_LIFETIME,
-                        value_hash: texture.data_hash(),
-                    });
-                }
-            }
-
             Ok(())
         } else {
             Err(FrameworkError::Custom(
@@ -72,25 +75,22 @@ impl TextureCache {
     ) -> Option<Rc<RefCell<GpuTexture>>> {
         scope_profile!();
 
-        let key = texture_resource.key();
-
         let mut texture_data_guard = texture_resource.state();
 
         if let Some(texture) = texture_data_guard.data() {
-            let entry = match self.map.entry(key) {
-                Entry::Occupied(e) => {
-                    let entry = e.into_mut();
-
-                    // Texture won't be destroyed while it used.
-                    entry.time_to_live = DEFAULT_RESOURCE_LIFETIME;
-
+            match self
+                .map
+                .get_mut_or_insert_with(&texture.cache_index, Default::default(), || {
+                    create_gpu_texture(state, texture)
+                }) {
+                Ok(entry) => {
                     // Check if some value has changed in resource.
 
                     // Data might change from last frame, so we have to check it and upload new if so.
                     let data_hash = texture.data_hash();
-                    if entry.value_hash != data_hash {
-                        let mut tex = entry.borrow_mut();
-                        if let Err(e) = tex.bind_mut(state, 0).set_data(
+                    if entry.data_hash != data_hash {
+                        let mut gpu_texture = entry.gpu_texture.borrow_mut();
+                        if let Err(e) = gpu_texture.bind_mut(state, 0).set_data(
                             texture.kind().into(),
                             texture.pixel_kind().into(),
                             texture.mip_count() as usize,
@@ -104,91 +104,66 @@ impl TextureCache {
                                 ),
                             )
                         } else {
-                            drop(tex);
-                            // TODO: Is this correct to overwrite hash only if we've succeeded?
-                            entry.value_hash = data_hash;
+                            entry.data_hash = data_hash;
                         }
                     }
 
-                    let mut tex = entry.borrow_mut();
+                    let mut gpu_texture = entry.gpu_texture.borrow_mut();
 
                     let new_mag_filter = texture.magnification_filter().into();
-                    if tex.magnification_filter() != new_mag_filter {
-                        tex.bind_mut(state, 0)
+                    if gpu_texture.magnification_filter() != new_mag_filter {
+                        gpu_texture
+                            .bind_mut(state, 0)
                             .set_magnification_filter(new_mag_filter);
                     }
 
                     let new_min_filter = texture.minification_filter().into();
-                    if tex.minification_filter() != new_min_filter {
-                        tex.bind_mut(state, 0)
+                    if gpu_texture.minification_filter() != new_min_filter {
+                        gpu_texture
+                            .bind_mut(state, 0)
                             .set_minification_filter(new_min_filter);
                     }
 
-                    if tex.anisotropy().ne(&texture.anisotropy_level()) {
-                        tex.bind_mut(state, 0)
+                    if gpu_texture.anisotropy().ne(&texture.anisotropy_level()) {
+                        gpu_texture
+                            .bind_mut(state, 0)
                             .set_anisotropy(texture.anisotropy_level());
                     }
 
                     let new_s_wrap_mode = texture.s_wrap_mode().into();
-                    if tex.s_wrap_mode() != new_s_wrap_mode {
-                        tex.bind_mut(state, 0)
+                    if gpu_texture.s_wrap_mode() != new_s_wrap_mode {
+                        gpu_texture
+                            .bind_mut(state, 0)
                             .set_wrap(Coordinate::S, new_s_wrap_mode);
                     }
 
                     let new_t_wrap_mode = texture.t_wrap_mode().into();
-                    if tex.t_wrap_mode() != new_t_wrap_mode {
-                        tex.bind_mut(state, 0)
+                    if gpu_texture.t_wrap_mode() != new_t_wrap_mode {
+                        gpu_texture
+                            .bind_mut(state, 0)
                             .set_wrap(Coordinate::T, new_t_wrap_mode);
                     }
 
-                    std::mem::drop(tex);
-
-                    entry
+                    return Some(entry.gpu_texture.clone());
                 }
-                Entry::Vacant(e) => {
-                    let gpu_texture = match GpuTexture::new(
-                        state,
-                        texture.kind().into(),
-                        PixelKind::from(texture.pixel_kind()),
-                        texture.minification_filter().into(),
-                        texture.magnification_filter().into(),
-                        texture.mip_count() as usize,
-                        Some(texture.data()),
-                    ) {
-                        Ok(texture) => texture,
-                        Err(e) => {
-                            drop(texture_data_guard);
-
-                            Log::writeln(
-                                MessageKind::Error,
-                                format!("Failed to create GPU texture from {} engine texture. Reason: {:?}", texture_resource.kind(), e),
-                            );
-                            return None;
-                        }
-                    };
-
-                    e.insert(CacheEntry {
-                        value: Rc::new(RefCell::new(gpu_texture)),
-                        time_to_live: DEFAULT_RESOURCE_LIFETIME,
-                        value_hash: texture.data_hash(),
-                    })
+                Err(e) => {
+                    drop(texture_data_guard);
+                    Log::writeln(
+                        MessageKind::Error,
+                        format!(
+                            "Failed to create GPU texture from {} texture. Reason: {:?}",
+                            texture_resource.kind(),
+                            e
+                        ),
+                    );
                 }
-            };
-
-            Some(entry.value.clone())
-        } else {
-            None
+            }
         }
+        None
     }
 
     pub fn update(&mut self, dt: f32) {
-        scope_profile!();
-
-        for entry in self.map.values_mut() {
-            entry.time_to_live -= dt;
-        }
-
-        self.map.retain(|_, v| v.time_to_live > 0.0);
+        self.map.update(dt)
     }
 
     pub fn clear(&mut self) {
@@ -196,6 +171,8 @@ impl TextureCache {
     }
 
     pub fn unload(&mut self, texture: TextureResource) {
-        self.map.remove(&texture.key());
+        if let Some(texture) = texture.state().data() {
+            self.map.remove(&texture.cache_index);
+        }
     }
 }

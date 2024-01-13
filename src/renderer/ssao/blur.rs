@@ -87,7 +87,7 @@ impl Blur {
                 &SurfaceData::make_unit_xy_quad(),
                 GeometryBufferKind::StaticDraw,
                 state,
-            ),
+            )?,
             width,
             height,
         })

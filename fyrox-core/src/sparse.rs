@@ -23,9 +23,11 @@ impl Default for AtomicIndex {
 }
 
 impl AtomicIndex {
+    pub const UNASSIGNED_INDEX: usize = usize::MAX;
+
     pub fn unassigned() -> Self {
         Self {
-            index: AtomicUsize::new(usize::MAX),
+            index: AtomicUsize::new(Self::UNASSIGNED_INDEX),
         }
     }
 

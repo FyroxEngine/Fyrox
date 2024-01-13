@@ -156,68 +156,76 @@ impl ForwardRenderer {
             .filter(|b| b.render_path == RenderPath::Forward)
         {
             let mut material_state = batch.material.state();
-            if let Some(material) = material_state.data() {
-                let geometry = geom_cache.get(state, &batch.data, batch.time_to_live);
-                let blend_shapes_storage = batch
-                    .data
-                    .lock()
-                    .blend_shapes_container
-                    .as_ref()
-                    .and_then(|c| c.blend_shape_storage.clone());
 
-                if let Some(render_pass) = shader_cache
-                    .get(state, material.shader())
-                    .and_then(|shader_set| shader_set.render_passes.get(&self.render_pass_name))
-                {
-                    for instance in batch.instances.iter() {
-                        let view_projection = if instance.depth_offset != 0.0 {
-                            let mut projection = camera.projection_matrix();
-                            projection[14] -= instance.depth_offset;
-                            projection * camera.view_matrix()
-                        } else {
-                            initial_view_projection
-                        };
+            let Some(material) = material_state.data() else {
+                continue;
+            };
 
-                        statistics += framebuffer.draw(
-                            geometry,
-                            state,
-                            viewport,
-                            &render_pass.program,
-                            &render_pass.draw_params,
-                            instance.element_range,
-                            |mut program_binding| {
-                                apply_material(MaterialContext {
-                                    material,
-                                    program_binding: &mut program_binding,
-                                    texture_cache,
-                                    world_matrix: &instance.world_transform,
-                                    view_projection_matrix: &view_projection,
-                                    wvp_matrix: &(view_projection * instance.world_transform),
-                                    bone_matrices: &instance.bone_matrices,
-                                    use_skeletal_animation: batch.is_skinned,
-                                    camera_position: &camera.global_position(),
-                                    camera_up_vector: &camera_up,
-                                    camera_side_vector: &camera_side,
-                                    z_near: camera.projection().z_near(),
-                                    z_far: camera.projection().z_far(),
-                                    use_pom: quality_settings.use_parallax_mapping,
-                                    light_position: &Default::default(),
-                                    blend_shapes_storage: blend_shapes_storage.as_ref(),
-                                    blend_shapes_weights: &instance.blend_shapes_weights,
-                                    normal_dummy: normal_dummy.clone(),
-                                    white_dummy: white_dummy.clone(),
-                                    black_dummy: black_dummy.clone(),
-                                    volume_dummy: volume_dummy.clone(),
-                                    matrix_storage,
-                                    persistent_identifier: instance.persistent_identifier,
-                                    light_data: Some(&light_data),
-                                    ambient_light,
-                                    scene_depth: Some(&scene_depth),
-                                });
-                            },
-                        )?;
-                    }
-                }
+            let Some(geometry) = geom_cache.get(state, &batch.data, batch.time_to_live) else {
+                continue;
+            };
+
+            let blend_shapes_storage = batch
+                .data
+                .lock()
+                .blend_shapes_container
+                .as_ref()
+                .and_then(|c| c.blend_shape_storage.clone());
+
+            let Some(render_pass) = shader_cache
+                .get(state, material.shader())
+                .and_then(|shader_set| shader_set.render_passes.get(&self.render_pass_name))
+            else {
+                continue;
+            };
+
+            for instance in batch.instances.iter() {
+                let view_projection = if instance.depth_offset != 0.0 {
+                    let mut projection = camera.projection_matrix();
+                    projection[14] -= instance.depth_offset;
+                    projection * camera.view_matrix()
+                } else {
+                    initial_view_projection
+                };
+
+                statistics += framebuffer.draw(
+                    geometry,
+                    state,
+                    viewport,
+                    &render_pass.program,
+                    &render_pass.draw_params,
+                    instance.element_range,
+                    |mut program_binding| {
+                        apply_material(MaterialContext {
+                            material,
+                            program_binding: &mut program_binding,
+                            texture_cache,
+                            world_matrix: &instance.world_transform,
+                            view_projection_matrix: &view_projection,
+                            wvp_matrix: &(view_projection * instance.world_transform),
+                            bone_matrices: &instance.bone_matrices,
+                            use_skeletal_animation: batch.is_skinned,
+                            camera_position: &camera.global_position(),
+                            camera_up_vector: &camera_up,
+                            camera_side_vector: &camera_side,
+                            z_near: camera.projection().z_near(),
+                            z_far: camera.projection().z_far(),
+                            use_pom: quality_settings.use_parallax_mapping,
+                            light_position: &Default::default(),
+                            blend_shapes_storage: blend_shapes_storage.as_ref(),
+                            blend_shapes_weights: &instance.blend_shapes_weights,
+                            normal_dummy: normal_dummy.clone(),
+                            white_dummy: white_dummy.clone(),
+                            black_dummy: black_dummy.clone(),
+                            volume_dummy: volume_dummy.clone(),
+                            matrix_storage,
+                            persistent_identifier: instance.persistent_identifier,
+                            light_data: Some(&light_data),
+                            ambient_light,
+                            scene_depth: Some(&scene_depth),
+                        });
+                    },
+                )?;
             }
         }
 

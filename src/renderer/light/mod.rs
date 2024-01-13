@@ -189,7 +189,7 @@ impl DeferredLightRenderer {
                 &SurfaceData::make_unit_xy_quad(),
                 GeometryBufferKind::StaticDraw,
                 state,
-            ),
+            )?,
             skybox: GeometryBuffer::from_surface_data(
                 &SurfaceData::new(
                     VertexBuffer::new(vertices.len(), vertices).unwrap(),
@@ -211,12 +211,12 @@ impl DeferredLightRenderer {
                 ),
                 GeometryBufferKind::StaticDraw,
                 state,
-            ),
+            )?,
             sphere: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_sphere(6, 6, 1.0, &Matrix4::identity()),
                 GeometryBufferKind::StaticDraw,
                 state,
-            ),
+            )?,
             flat_shader: FlatShader::new(state)?,
             skybox_shader: SkyboxShader::new(state)?,
             spot_shadow_map_renderer: SpotShadowMapRenderer::new(

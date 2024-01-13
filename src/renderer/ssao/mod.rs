@@ -135,7 +135,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
                 &SurfaceData::make_unit_xy_quad(),
                 GeometryBufferKind::StaticDraw,
                 state,
-            ),
+            )?,
             width: width as i32,
             height: height as i32,
             kernel: {

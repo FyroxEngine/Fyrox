@@ -8,7 +8,7 @@ use crate::{
         sstorage::ImmutableString,
     },
     material::MaterialResource,
-    renderer::{cache::geometry::TimeToLive, framework::geometry_buffer::ElementRange},
+    renderer::{cache::TimeToLive, framework::geometry_buffer::ElementRange},
     scene::{
         graph::Graph,
         mesh::{

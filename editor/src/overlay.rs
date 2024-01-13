@@ -66,7 +66,8 @@ impl OverlayRenderPass {
                 &SurfaceData::make_collapsed_xy_quad(),
                 GeometryBufferKind::StaticDraw,
                 state,
-            ),
+            )
+            .unwrap(),
             shader: OverlayShader::new(state).unwrap(),
             sound_icon: TextureResource::load_from_memory(
                 "../resources/sound_source.png".into(),

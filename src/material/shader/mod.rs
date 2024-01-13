@@ -244,6 +244,7 @@ use crate::{
 };
 use ron::ser::PrettyConfig;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::{
     any::Any,
     error::Error,
@@ -326,7 +327,7 @@ pub struct Shader {
 
     #[reflect(hidden)]
     #[visit(skip)]
-    pub(crate) cache_index: AtomicIndex,
+    pub(crate) cache_index: Arc<AtomicIndex>,
 }
 
 impl TypeUuidProvider for Shader {

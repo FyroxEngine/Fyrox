@@ -31,6 +31,9 @@ mod shadow;
 mod skybox_shader;
 mod ssao;
 
+use crate::renderer::cache::texture::TextureRenderData;
+
+use crate::renderer::cache::TimeToLive;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
@@ -52,7 +55,7 @@ use crate::{
     renderer::{
         batch::{ObserverInfo, PersistentIdentifier, RenderDataBatchStorage},
         bloom::BloomRenderer,
-        cache::{geometry::GeometryCache, shader::ShaderCache, texture::TextureCache, CacheEntry},
+        cache::{geometry::GeometryCache, shader::ShaderCache, texture::TextureCache},
         debug_renderer::DebugRenderer,
         flat_shader::FlatShader,
         forward_renderer::{ForwardRenderContext, ForwardRenderer},
@@ -1331,7 +1334,7 @@ impl Renderer {
                 &SurfaceData::make_unit_xy_quad(),
                 GeometryBufferKind::StaticDraw,
                 &mut state,
-            ),
+            )?,
             ui_renderer: UiRenderer::new(&mut state)?,
             quality_settings: settings,
             debug_renderer: DebugRenderer::new(&mut state)?,
@@ -1513,18 +1516,18 @@ impl Renderer {
 
         // Finally register texture in the cache so it will become available as texture in deferred/forward
         // renderer.
-        self.texture_cache.map.insert(
-            render_target.key(),
-            CacheEntry {
-                value: frame_buffer
+        self.texture_cache.map.spawn(
+            TextureRenderData {
+                gpu_texture: frame_buffer
                     .color_attachments()
                     .first()
                     .unwrap()
                     .texture
                     .clone(),
-                time_to_live: f32::INFINITY,
-                value_hash: 0, // TODO
+                data_hash: 0,
             },
+            render_target.data_ref().cache_index.clone(),
+            TimeToLive(f32::INFINITY),
         );
 
         Ok(())
@@ -1683,13 +1686,13 @@ impl Renderer {
             // TODO: However it can be dangerous to use frame texture as it may be bound to
             //  pipeline.
             if let Some(rt) = scene.rendering_options.render_target.clone() {
-                self.texture_cache.map.insert(
-                    rt.key(),
-                    CacheEntry {
-                        value: scene_associated_data.ldr_scene_frame_texture(),
-                        time_to_live: f32::INFINITY,
-                        value_hash: 0, // TODO
+                self.texture_cache.map.spawn(
+                    TextureRenderData {
+                        gpu_texture: scene_associated_data.ldr_scene_frame_texture(),
+                        data_hash: 0,
                     },
+                    rt.data_ref().cache_index.clone(),
+                    TimeToLive(f32::INFINITY),
                 );
             }
 

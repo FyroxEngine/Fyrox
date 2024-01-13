@@ -58,7 +58,7 @@ impl FxaaRenderer {
                 &SurfaceData::make_unit_xy_quad(),
                 GeometryBufferKind::StaticDraw,
                 state,
-            ),
+            )?,
         })
     }
 

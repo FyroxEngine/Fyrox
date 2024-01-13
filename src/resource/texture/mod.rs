@@ -36,11 +36,13 @@ use ddsfile::{Caps2, D3DFormat};
 use fast_image_resize as fr;
 use fxhash::FxHasher;
 use fyrox_core::num_traits::Bounded;
+use fyrox_core::sparse::AtomicIndex;
 use fyrox_core::uuid_provider;
 use fyrox_resource::io::ResourceIo;
 use fyrox_resource::untyped::ResourceKind;
 use image::{ColorType, DynamicImage, ImageError, ImageFormat, Pixel};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::{
     any::Any,
     fmt::{Debug, Display, Formatter},
@@ -255,6 +257,9 @@ pub struct Texture {
     anisotropy: f32,
     data_hash: u64,
     is_render_target: bool,
+    #[doc(hidden)]
+    #[reflect(hidden)]
+    pub cache_index: Arc<AtomicIndex>,
 }
 
 impl TypeUuidProvider for Texture {
@@ -368,6 +373,7 @@ impl Default for Texture {
             anisotropy: 16.0,
             data_hash: 0,
             is_render_target: false,
+            cache_index: Default::default(),
         }
     }
 }
@@ -619,6 +625,7 @@ impl TextureResourceExtension for TextureResource {
                 anisotropy: 1.0,
                 data_hash: 0,
                 is_render_target: true,
+                cache_index: Default::default(),
             },
         )
     }
@@ -1379,6 +1386,7 @@ impl Texture {
                     }
                 },
                 is_render_target: false,
+                cache_index: Default::default(),
             })
         } else {
             // Commonly used formats are all rectangle textures.
@@ -1505,6 +1513,7 @@ impl Texture {
                 t_wrap_mode: import_options.t_wrap_mode,
                 anisotropy: import_options.anisotropy,
                 is_render_target: false,
+                cache_index: Default::default(),
             })
         }
     }
