@@ -41,6 +41,7 @@ use std::{
     iter::FromIterator,
     marker::PhantomData,
     ops::{Index, IndexMut},
+    sync::{atomic, atomic::AtomicUsize},
 };
 use uuid::Uuid;
 
@@ -263,6 +264,85 @@ impl<T> Display for Handle<T> {
     }
 }
 
+/// Atomic handle.
+pub struct AtomicHandle(AtomicUsize);
+
+impl Clone for AtomicHandle {
+    #[inline]
+    fn clone(&self) -> Self {
+        Self(AtomicUsize::new(self.0.load(atomic::Ordering::Relaxed)))
+    }
+}
+
+impl Default for AtomicHandle {
+    #[inline]
+    fn default() -> Self {
+        Self::none()
+    }
+}
+
+impl AtomicHandle {
+    #[inline]
+    pub fn none() -> Self {
+        Self(AtomicUsize::new(0))
+    }
+
+    #[inline]
+    pub fn new(index: u32, generation: u32) -> Self {
+        let handle = Self(AtomicUsize::new(0));
+        handle.set(index, generation);
+        handle
+    }
+
+    #[inline]
+    pub fn set(&self, index: u32, generation: u32) {
+        let index = (index as usize) << (usize::BITS / 2) >> (usize::BITS / 2);
+        let generation = (generation as usize) << (usize::BITS / 2);
+        self.0.store(index | generation, atomic::Ordering::Relaxed);
+    }
+
+    #[inline]
+    pub fn set_from_handle<T>(&self, handle: Handle<T>) {
+        self.set(handle.index, handle.generation)
+    }
+
+    #[inline(always)]
+    pub fn is_some(&self) -> bool {
+        self.generation() != INVALID_GENERATION
+    }
+
+    #[inline(always)]
+    pub fn is_none(&self) -> bool {
+        !self.is_some()
+    }
+
+    #[inline]
+    pub fn index(&self) -> u32 {
+        let bytes = self.0.load(atomic::Ordering::Relaxed);
+        ((bytes << (usize::BITS / 2)) >> (usize::BITS / 2)) as u32
+    }
+
+    #[inline]
+    pub fn generation(&self) -> u32 {
+        let bytes = self.0.load(atomic::Ordering::Relaxed);
+        (bytes >> (usize::BITS / 2)) as u32
+    }
+}
+
+impl Display for AtomicHandle {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.index(), self.generation())
+    }
+}
+
+impl Debug for AtomicHandle {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[Idx: {}; Gen: {}]", self.index(), self.generation())
+    }
+}
+
 /// Type-erased handle.
 #[derive(
     Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Hash, Reflect, Visit, Serialize, Deserialize,
@@ -299,6 +379,17 @@ impl<T> From<ErasedHandle> for Handle<T> {
         Handle {
             index: erased_handle.index,
             generation: erased_handle.generation,
+            type_marker: PhantomData,
+        }
+    }
+}
+
+impl<T> From<AtomicHandle> for Handle<T> {
+    #[inline]
+    fn from(atomic_handle: AtomicHandle) -> Self {
+        Handle {
+            index: atomic_handle.index(),
+            generation: atomic_handle.generation(),
             type_marker: PhantomData,
         }
     }
@@ -1725,6 +1816,7 @@ where
 
 #[cfg(test)]
 mod test {
+    use crate::pool::AtomicHandle;
     use crate::{
         pool::{ErasedHandle, Handle, Pool, PoolRecord, Ticket, INVALID_GENERATION},
         visitor::{Visit, Visitor},
@@ -2282,5 +2374,16 @@ mod test {
 
         assert_eq!(pool[a], 15);
         assert_eq!(pool[b], 5);
+    }
+
+    #[test]
+    fn test_atomic_handle() {
+        let handle = AtomicHandle::new(123, 321);
+        assert!(handle.is_some());
+        assert_eq!(handle.index(), 123);
+        assert_eq!(handle.generation(), 321);
+
+        let handle = AtomicHandle::default();
+        assert!(handle.is_none());
     }
 }
