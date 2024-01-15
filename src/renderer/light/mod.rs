@@ -378,7 +378,7 @@ impl DeferredLightRenderer {
                     },
                     |mut program_binding| {
                         program_binding
-                            .set_texture(&shader.cubemap_texture, &gpu_texture)
+                            .set_texture(&shader.cubemap_texture, gpu_texture)
                             .set_matrix4(&shader.wvp_matrix, &(view_projection * wvp));
                     },
                 )?;
@@ -736,7 +736,7 @@ impl DeferredLightRenderer {
                                 &shader.spot_shadow_texture,
                                 &self.spot_shadow_map_renderer.cascade_texture(cascade_index),
                             )
-                            .set_texture(&shader.cookie_texture, &cookie_texture)
+                            .set_texture(&shader.cookie_texture, cookie_texture)
                             .set_bool(&shader.cookie_enabled, cookie_enabled)
                             .set_f32(&shader.shadow_bias, spot_light.shadow_bias())
                             .set_f32(

@@ -405,7 +405,7 @@ impl GBuffer {
             let normal_texture = decal
                 .normal_texture()
                 .and_then(|t| texture_cache.get(state, t))
-                .unwrap_or_else(|| &normal_dummy);
+                .unwrap_or(&normal_dummy);
 
             let world_view_proj = initial_view_projection * decal.global_transform();
 
@@ -438,7 +438,7 @@ impl GBuffer {
                         .set_vector2(&shader.resolution, &resolution)
                         .set_texture(&shader.scene_depth, &depth)
                         .set_texture(&shader.diffuse_texture, &diffuse_texture)
-                        .set_texture(&shader.normal_texture, &normal_texture)
+                        .set_texture(&shader.normal_texture, normal_texture)
                         .set_texture(&shader.decal_mask, &decal_mask)
                         .set_u32(&shader.layer_index, decal.layer() as u32)
                         .set_linear_color(&shader.color, &decal.color());

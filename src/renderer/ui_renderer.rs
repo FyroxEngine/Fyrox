@@ -352,7 +352,7 @@ impl UiRenderer {
                 },
                 |mut program_binding| {
                     program_binding
-                        .set_texture(&shader.diffuse_texture, &diffuse_texture)
+                        .set_texture(&shader.diffuse_texture, diffuse_texture)
                         .set_matrix4(&shader.wvp_matrix, &ortho)
                         .set_vector2(&shader.resolution, &resolution)
                         .set_vector2(&shader.bounds_min, &cmd.bounds.position)

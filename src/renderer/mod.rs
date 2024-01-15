@@ -1111,7 +1111,7 @@ pub(crate) fn apply_material(ctx: MaterialContext) {
                     .get(ctx.program_binding.state, blend_shapes_storage)
             })
         {
-            ctx.program_binding.set_texture(location, &texture);
+            ctx.program_binding.set_texture(location, texture);
         } else {
             ctx.program_binding.set_texture(location, &ctx.volume_dummy);
         }
@@ -1166,13 +1166,13 @@ pub(crate) fn apply_material(ctx: MaterialContext) {
                     let texture = value
                         .as_ref()
                         .and_then(|t| ctx.texture_cache.get(ctx.program_binding.state, t))
-                        .unwrap_or_else(|| match fallback {
+                        .unwrap_or(match fallback {
                             SamplerFallback::White => &ctx.white_dummy,
                             SamplerFallback::Normal => &ctx.normal_dummy,
                             SamplerFallback::Black => &ctx.black_dummy,
                         });
 
-                    ctx.program_binding.set_texture(&uniform, &texture);
+                    ctx.program_binding.set_texture(&uniform, texture);
                 }
                 PropertyValue::FloatArray(v) => {
                     ctx.program_binding.set_f32_slice(&uniform, v);

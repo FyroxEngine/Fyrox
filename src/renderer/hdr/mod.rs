@@ -269,7 +269,7 @@ impl HighDynamicRangeRenderer {
 
         let color_grading_lut_tex = color_grading_lut
             .and_then(|l| texture_cache.get(state, l.lut_ref()))
-            .unwrap_or_else(|| &self.stub_lut);
+            .unwrap_or(&self.stub_lut);
 
         ldr_framebuffer.draw(
             quad,
@@ -296,7 +296,7 @@ impl HighDynamicRangeRenderer {
                         &shader.use_color_grading,
                         use_color_grading && color_grading_lut.is_some(),
                     )
-                    .set_texture(&shader.color_map_sampler, &color_grading_lut_tex);
+                    .set_texture(&shader.color_map_sampler, color_grading_lut_tex);
 
                 match exposure {
                     Exposure::Auto {
