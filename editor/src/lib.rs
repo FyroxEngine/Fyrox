@@ -28,6 +28,7 @@ pub mod menu;
 pub mod message;
 pub mod overlay;
 pub mod particle;
+pub mod physics;
 pub mod plugin;
 pub mod preview;
 pub mod scene;
@@ -150,6 +151,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::physics::ColliderControlPanel;
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -513,6 +515,7 @@ pub struct Editor {
     pub scene_node_context_menu: Rc<RefCell<SceneNodeContextMenu>>,
     pub widget_context_menu: Rc<RefCell<WidgetContextMenu>>,
     pub widget_constructors: Arc<WidgetConstructorContainer>,
+    pub collider_control_panel: ColliderControlPanel,
 }
 
 impl Editor {
@@ -655,6 +658,7 @@ impl Editor {
             ParticleSystemPreviewControlPanel::new(scene_viewer.frame(), ctx);
         let camera_control_panel = CameraPreviewControlPanel::new(scene_viewer.frame(), ctx);
         let audio_preview_panel = AudioPreviewPanel::new(scene_viewer.frame(), ctx);
+        let collider_control_panel = ColliderControlPanel::new(scene_viewer.frame(), ctx);
         let doc_window = DocWindow::new(ctx);
         let node_removal_dialog = NodeRemovalDialog::new(ctx);
         let ragdoll_wizard = RagdollWizard::new(ctx, message_sender.clone());
@@ -783,6 +787,7 @@ impl Editor {
                             particle_system_control_panel.window,
                             camera_control_panel.window,
                             audio_preview_panel.window,
+                            collider_control_panel.window,
                             navmesh_panel.window,
                             doc_window.window,
                             light_panel.window,
@@ -891,6 +896,7 @@ impl Editor {
             scene_node_context_menu,
             widget_constructors: Arc::new(WidgetConstructorContainer::new()),
             widget_context_menu,
+            collider_control_panel,
         };
 
         if let Some(data) = startup_data {
@@ -1257,6 +1263,13 @@ impl Editor {
                     &current_scene_entry.selection,
                     game_scene,
                     engine,
+                );
+                self.collider_control_panel.handle_ui_message(
+                    message,
+                    engine,
+                    game_scene,
+                    &current_scene_entry.selection,
+                    &self.message_sender,
                 );
                 self.audio_preview_panel.handle_ui_message(
                     message,
@@ -2145,6 +2158,12 @@ impl Editor {
                             &entry.selection,
                             game_scene,
                             &mut self.engine,
+                        );
+                        self.collider_control_panel.handle_message(
+                            &message,
+                            &self.engine,
+                            game_scene,
+                            &entry.selection,
                         );
                         self.audio_preview_panel.handle_message(
                             &message,
