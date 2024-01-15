@@ -356,10 +356,10 @@ impl GBuffer {
                         light_position: &Default::default(),
                         blend_shapes_storage: blend_shapes_storage.as_ref(),
                         blend_shapes_weights: &instance.blend_shapes_weights,
-                        normal_dummy: normal_dummy.clone(),
-                        white_dummy: white_dummy.clone(),
-                        black_dummy: black_dummy.clone(),
-                        volume_dummy: volume_dummy.clone(),
+                        normal_dummy: &normal_dummy,
+                        white_dummy: &white_dummy,
+                        black_dummy: &black_dummy,
+                        volume_dummy: &volume_dummy,
                         persistent_identifier: instance.persistent_identifier,
                         light_data: None,
                         ambient_light: Color::WHITE, // TODO
@@ -393,16 +393,6 @@ impl GBuffer {
             let shader = &self.decal_shader;
             let program = &self.decal_shader.program;
 
-            let diffuse_texture = decal
-                .diffuse_texture()
-                .and_then(|t| texture_cache.get(state, t).cloned())
-                .unwrap_or_else(|| white_dummy.clone());
-
-            let normal_texture = decal
-                .normal_texture()
-                .and_then(|t| texture_cache.get(state, t))
-                .unwrap_or(&normal_dummy);
-
             let world_view_proj = initial_view_projection * decal.global_transform();
 
             statistics += self.decal_framebuffer.draw(
@@ -433,8 +423,20 @@ impl GBuffer {
                         )
                         .set_vector2(&shader.resolution, &resolution)
                         .set_texture(&shader.scene_depth, &depth)
-                        .set_texture(&shader.diffuse_texture, &diffuse_texture)
-                        .set_texture(&shader.normal_texture, normal_texture)
+                        .set_texture(
+                            &shader.diffuse_texture,
+                            decal
+                                .diffuse_texture()
+                                .and_then(|t| texture_cache.get(state, t))
+                                .unwrap_or(&white_dummy),
+                        )
+                        .set_texture(
+                            &shader.normal_texture,
+                            decal
+                                .normal_texture()
+                                .and_then(|t| texture_cache.get(state, t))
+                                .unwrap_or(&normal_dummy),
+                        )
                         .set_texture(&shader.decal_mask, &decal_mask)
                         .set_u32(&shader.layer_index, decal.layer() as u32)
                         .set_linear_color(&shader.color, &decal.color());

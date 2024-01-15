@@ -992,10 +992,10 @@ pub(crate) struct MaterialContext<'a, 'b, 'c> {
     pub z_far: f32,
 
     // Fallback samplers.
-    pub normal_dummy: Rc<RefCell<GpuTexture>>,
-    pub white_dummy: Rc<RefCell<GpuTexture>>,
-    pub black_dummy: Rc<RefCell<GpuTexture>>,
-    pub volume_dummy: Rc<RefCell<GpuTexture>>,
+    pub normal_dummy: &'a Rc<RefCell<GpuTexture>>,
+    pub white_dummy: &'a Rc<RefCell<GpuTexture>>,
+    pub black_dummy: &'a Rc<RefCell<GpuTexture>>,
+    pub volume_dummy: &'a Rc<RefCell<GpuTexture>>,
 }
 
 pub(crate) fn apply_material(ctx: MaterialContext) {
@@ -1108,7 +1108,7 @@ pub(crate) fn apply_material(ctx: MaterialContext) {
         {
             ctx.program_binding.set_texture(location, texture);
         } else {
-            ctx.program_binding.set_texture(location, &ctx.volume_dummy);
+            ctx.program_binding.set_texture(location, ctx.volume_dummy);
         }
     }
     if let Some(location) = &built_in_uniforms[BuiltInUniform::BlendShapesWeights as usize] {
@@ -1162,9 +1162,9 @@ pub(crate) fn apply_material(ctx: MaterialContext) {
                         .as_ref()
                         .and_then(|t| ctx.texture_cache.get(ctx.program_binding.state, t))
                         .unwrap_or(match fallback {
-                            SamplerFallback::White => &ctx.white_dummy,
-                            SamplerFallback::Normal => &ctx.normal_dummy,
-                            SamplerFallback::Black => &ctx.black_dummy,
+                            SamplerFallback::White => ctx.white_dummy,
+                            SamplerFallback::Normal => ctx.normal_dummy,
+                            SamplerFallback::Black => ctx.black_dummy,
                         });
 
                     ctx.program_binding.set_texture(&uniform, texture);

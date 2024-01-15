@@ -304,10 +304,10 @@ impl PointShadowMapRenderer {
                                 light_position: &light_pos,
                                 blend_shapes_storage: blend_shapes_storage.as_ref(),
                                 blend_shapes_weights: &instance.blend_shapes_weights,
-                                normal_dummy: normal_dummy.clone(),
-                                white_dummy: white_dummy.clone(),
-                                black_dummy: black_dummy.clone(),
-                                volume_dummy: volume_dummy.clone(),
+                                normal_dummy: &normal_dummy,
+                                white_dummy: &white_dummy,
+                                black_dummy: &black_dummy,
+                                volume_dummy: &volume_dummy,
                                 persistent_identifier: instance.persistent_identifier,
                                 light_data: None,            // TODO
                                 ambient_light: Color::WHITE, // TODO
