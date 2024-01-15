@@ -1425,27 +1425,44 @@ impl Graph {
     /// Tries to compute combined axis-aligned bounding box (AABB) in world-space of the hierarchy starting from the given
     /// scene node. It will return [`None`] if the scene node handle is invalid, otherwise it will return AABB that enclosing
     /// all the nodes in the hierarchy.
-    pub fn aabb_of_descendants(&self, root: Handle<Node>) -> Option<AxisAlignedBoundingBox> {
-        fn aabb_of_descendants_recursive(
+    pub fn aabb_of_descendants<F>(
+        &self,
+        root: Handle<Node>,
+        mut filter: F,
+    ) -> Option<AxisAlignedBoundingBox>
+    where
+        F: FnMut(Handle<Node>, &Node) -> bool,
+    {
+        fn aabb_of_descendants_recursive<F>(
             graph: &Graph,
             node: Handle<Node>,
-        ) -> Option<AxisAlignedBoundingBox> {
-            graph.try_get(node).map(|n| {
-                let mut aabb = n.local_bounding_box();
-                if aabb.is_invalid_or_degenerate() {
-                    aabb = AxisAlignedBoundingBox::collapsed().transform(&n.global_transform());
-                } else {
-                    aabb = aabb.transform(&n.global_transform());
-                }
-                for child in n.children() {
-                    if let Some(child_aabb) = aabb_of_descendants_recursive(graph, *child) {
-                        aabb.add_box(child_aabb);
+            filter: &mut F,
+        ) -> Option<AxisAlignedBoundingBox>
+        where
+            F: FnMut(Handle<Node>, &Node) -> bool,
+        {
+            graph.try_get(node).and_then(|n| {
+                if filter(node, n) {
+                    let mut aabb = n.local_bounding_box();
+                    if aabb.is_invalid_or_degenerate() {
+                        aabb = AxisAlignedBoundingBox::collapsed().transform(&n.global_transform());
+                    } else {
+                        aabb = aabb.transform(&n.global_transform());
                     }
+                    for child in n.children() {
+                        if let Some(child_aabb) =
+                            aabb_of_descendants_recursive(graph, *child, filter)
+                        {
+                            aabb.add_box(child_aabb);
+                        }
+                    }
+                    Some(aabb)
+                } else {
+                    None
                 }
-                aabb
             })
         }
-        aabb_of_descendants_recursive(self, root)
+        aabb_of_descendants_recursive(self, root, &mut filter)
     }
 
     /// Calculates local and global transform, global visibility for each node in graph starting from the
