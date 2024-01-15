@@ -37,7 +37,7 @@ pub struct Cascade {
 
 impl Cascade {
     pub fn new(
-        state: &mut PipelineState,
+        state: &PipelineState,
         size: usize,
         precision: ShadowMapPrecision,
     ) -> Result<Self, FrameworkError> {
@@ -95,7 +95,7 @@ pub struct CsmRenderer {
 
 pub(crate) struct CsmRenderContext<'a, 'c> {
     pub frame_size: Vector2<f32>,
-    pub state: &'a mut PipelineState,
+    pub state: &'a PipelineState,
     pub graph: &'c Graph,
     pub light: &'c DirectionalLight,
     pub camera: &'c Camera,
@@ -111,7 +111,7 @@ pub(crate) struct CsmRenderContext<'a, 'c> {
 
 impl CsmRenderer {
     pub fn new(
-        state: &mut PipelineState,
+        state: &PipelineState,
         size: usize,
         precision: ShadowMapPrecision,
     ) -> Result<Self, FrameworkError> {

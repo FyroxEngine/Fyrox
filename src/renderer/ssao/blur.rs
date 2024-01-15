@@ -26,7 +26,7 @@ struct Shader {
 }
 
 impl Shader {
-    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+    fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/blur_fs.glsl");
         let vertex_source = include_str!("../shaders/blur_vs.glsl");
 
@@ -50,11 +50,7 @@ pub struct Blur {
 }
 
 impl Blur {
-    pub fn new(
-        state: &mut PipelineState,
-        width: usize,
-        height: usize,
-    ) -> Result<Self, FrameworkError> {
+    pub fn new(state: &PipelineState, width: usize, height: usize) -> Result<Self, FrameworkError> {
         let frame = {
             let kind = GpuTextureKind::Rectangle { width, height };
             let mut texture = GpuTexture::new(
@@ -99,7 +95,7 @@ impl Blur {
 
     pub(crate) fn render(
         &mut self,
-        state: &mut PipelineState,
+        state: &PipelineState,
         input: Rc<RefCell<GpuTexture>>,
     ) -> Result<DrawCallStatistics, FrameworkError> {
         scope_profile!();

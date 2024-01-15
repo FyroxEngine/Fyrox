@@ -40,12 +40,12 @@ pub struct SpotShadowMapRenderer {
 
 impl SpotShadowMapRenderer {
     pub fn new(
-        state: &mut PipelineState,
+        state: &PipelineState,
         size: usize,
         precision: ShadowMapPrecision,
     ) -> Result<Self, FrameworkError> {
         fn make_cascade(
-            state: &mut PipelineState,
+            state: &PipelineState,
             size: usize,
             precision: ShadowMapPrecision,
         ) -> Result<FrameBuffer, FrameworkError> {
@@ -118,7 +118,7 @@ impl SpotShadowMapRenderer {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn render(
         &mut self,
-        state: &mut PipelineState,
+        state: &PipelineState,
         graph: &Graph,
         light_position: Vector3<f32>,
         light_view_matrix: Matrix4<f32>,

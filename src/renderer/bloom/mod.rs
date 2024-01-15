@@ -29,7 +29,7 @@ struct Shader {
 }
 
 impl Shader {
-    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+    fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/bloom_fs.glsl");
         let vertex_source = include_str!("../shaders/flat_vs.glsl");
 
@@ -53,11 +53,7 @@ pub struct BloomRenderer {
 }
 
 impl BloomRenderer {
-    pub fn new(
-        state: &mut PipelineState,
-        width: usize,
-        height: usize,
-    ) -> Result<Self, FrameworkError> {
+    pub fn new(state: &PipelineState, width: usize, height: usize) -> Result<Self, FrameworkError> {
         let frame = {
             let kind = GpuTextureKind::Rectangle { width, height };
             let mut texture = GpuTexture::new(
@@ -102,7 +98,7 @@ impl BloomRenderer {
 
     pub(crate) fn render(
         &mut self,
-        state: &mut PipelineState,
+        state: &PipelineState,
         quad: &GeometryBuffer,
         hdr_scene_frame: Rc<RefCell<GpuTexture>>,
     ) -> Result<RenderPassStatistics, FrameworkError> {

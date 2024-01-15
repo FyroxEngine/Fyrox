@@ -51,7 +51,7 @@ struct Shader {
 }
 
 impl Shader {
-    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/ssao_fs.glsl");
         let vertex_source = include_str!("../shaders/ssao_vs.glsl");
         let program = GpuProgram::from_source(state, "SsaoShader", vertex_source, fragment_source)?;
@@ -91,7 +91,7 @@ pub struct ScreenSpaceAmbientOcclusionRenderer {
 
 impl ScreenSpaceAmbientOcclusionRenderer {
     pub fn new(
-        state: &mut PipelineState,
+        state: &PipelineState,
         frame_width: usize,
         frame_height: usize,
     ) -> Result<Self, FrameworkError> {
@@ -201,7 +201,7 @@ impl ScreenSpaceAmbientOcclusionRenderer {
 
     pub(crate) fn render(
         &mut self,
-        state: &mut PipelineState,
+        state: &PipelineState,
         gbuffer: &GBuffer,
         projection_matrix: Matrix4<f32>,
         view_matrix: Matrix3<f32>,

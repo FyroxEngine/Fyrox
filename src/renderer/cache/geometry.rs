@@ -25,7 +25,7 @@ pub struct GeometryCache {
 
 fn create_geometry_buffer(
     data: &SurfaceData,
-    state: &mut PipelineState,
+    state: &PipelineState,
 ) -> Result<SurfaceRenderData, FrameworkError> {
     let geometry_buffer =
         GeometryBuffer::from_surface_data(data, GeometryBufferKind::StaticDraw, state)?;
@@ -41,7 +41,7 @@ fn create_geometry_buffer(
 impl GeometryCache {
     pub fn get<'a>(
         &'a mut self,
-        state: &mut PipelineState,
+        state: &PipelineState,
         data: &SurfaceSharedData,
         time_to_live: TimeToLive,
     ) -> Option<&'a mut GeometryBuffer> {

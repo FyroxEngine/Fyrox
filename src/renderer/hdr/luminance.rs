@@ -13,7 +13,7 @@ pub struct LuminanceShader {
 }
 
 impl LuminanceShader {
-    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/hdr_luminance_fs.glsl");
         let vertex_source = include_str!("../shaders/flat_vs.glsl");
 

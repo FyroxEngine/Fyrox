@@ -10,10 +10,11 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use glow::HasContext;
+use std::rc::Weak;
 use std::{cell::RefCell, marker::PhantomData, ops::Deref, rc::Rc};
 
 pub struct GpuProgram {
-    state: *mut PipelineState,
+    state: Weak<PipelineState>,
     id: glow::Program,
     // Force compiler to not implement Send and Sync, because OpenGL is not thread-safe.
     thread_mark: PhantomData<*const u8>,
@@ -58,7 +59,7 @@ pub struct UniformLocation {
 }
 
 unsafe fn create_shader(
-    state: &mut PipelineState,
+    state: &PipelineState,
     name: String,
     actual_type: u32,
     source: &str,
@@ -123,7 +124,7 @@ fn prepare_source_code(code: &str, gl_kind: GlKind) -> String {
 }
 
 pub struct GpuProgramBinding<'a, 'b> {
-    pub state: &'a mut PipelineState,
+    pub state: &'a PipelineState,
     active_sampler: u32,
     pub(crate) program: &'b GpuProgram,
 }
@@ -485,7 +486,7 @@ fn fetch_built_in_uniform_locations(
 
 impl GpuProgram {
     pub fn from_source(
-        state: &mut PipelineState,
+        state: &PipelineState,
         name: &str,
         vertex_source: &str,
         fragment_source: &str,
@@ -537,7 +538,7 @@ impl GpuProgram {
                 Log::writeln(MessageKind::Information, msg);
 
                 Ok(Self {
-                    state,
+                    state: state.weak(),
                     id: program,
                     thread_mark: PhantomData,
                     uniform_locations: Default::default(),
@@ -574,7 +575,7 @@ impl GpuProgram {
             .ok_or_else(|| FrameworkError::UnableToFindShaderUniform(name.deref().to_owned()))
     }
 
-    pub fn bind<'a, 'b>(&'b self, state: &'a mut PipelineState) -> GpuProgramBinding<'a, 'b> {
+    pub fn bind<'a, 'b>(&'b self, state: &'a PipelineState) -> GpuProgramBinding<'a, 'b> {
         state.set_program(Some(self.id));
         GpuProgramBinding {
             state,
@@ -586,8 +587,10 @@ impl GpuProgram {
 
 impl Drop for GpuProgram {
     fn drop(&mut self) {
-        unsafe {
-            (*self.state).gl.delete_program(self.id);
+        if let Some(state) = self.state.upgrade() {
+            unsafe {
+                state.gl.delete_program(self.id);
+            }
         }
     }
 }

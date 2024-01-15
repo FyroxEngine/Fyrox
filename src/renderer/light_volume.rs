@@ -43,7 +43,7 @@ struct SpotLightShader {
 }
 
 impl SpotLightShader {
-    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+    fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/spot_volumetric_fs.glsl");
         let vertex_source = include_str!("shaders/flat_vs.glsl");
         let program =
@@ -82,7 +82,7 @@ struct PointLightShader {
 }
 
 impl PointLightShader {
-    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+    fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/point_volumetric_fs.glsl");
         let vertex_source = include_str!("shaders/flat_vs.glsl");
         let program = GpuProgram::from_source(
@@ -118,7 +118,7 @@ pub struct LightVolumeRenderer {
 }
 
 impl LightVolumeRenderer {
-    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
         Ok(Self {
             spot_light_shader: SpotLightShader::new(state)?,
             point_light_shader: PointLightShader::new(state)?,
@@ -144,7 +144,7 @@ impl LightVolumeRenderer {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn render_volume(
         &mut self,
-        state: &mut PipelineState,
+        state: &PipelineState,
         light: &Node,
         light_handle: Handle<Node>,
         gbuffer: &mut GBuffer,

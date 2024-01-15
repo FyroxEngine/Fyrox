@@ -19,7 +19,7 @@ pub struct AdaptationShader {
 }
 
 impl AdaptationShader {
-    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/hdr_adaptation_fs.glsl");
         let vertex_source = include_str!("../shaders/flat_vs.glsl");
 
@@ -50,7 +50,7 @@ pub struct AdaptationContext<'a> {
 }
 
 impl AdaptationChain {
-    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
         Ok(Self {
             lum_framebuffers: [LumBuffer::new(state, 1)?, LumBuffer::new(state, 1)?],
             swap: false,

@@ -56,7 +56,7 @@ struct UiShader {
 }
 
 impl UiShader {
-    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/ui_fs.glsl");
         let vertex_source = include_str!("shaders/ui_vs.glsl");
         let program = GpuProgram::from_source(state, "UIShader", vertex_source, fragment_source)?;
@@ -96,7 +96,7 @@ pub struct UiRenderer {
 /// A set of parameters to render a specified user interface drawing context.
 pub struct UiRenderContext<'a, 'b, 'c> {
     /// Render pipeline state.
-    pub state: &'a mut PipelineState,
+    pub state: &'a PipelineState,
     /// Viewport to where render the user interface.
     pub viewport: Rect<i32>,
     /// Frame buffer to where render the user interface.
@@ -114,7 +114,7 @@ pub struct UiRenderContext<'a, 'b, 'c> {
 }
 
 impl UiRenderer {
-    pub(in crate::renderer) fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+    pub(in crate::renderer) fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
         let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
             .with_buffer_builder(
                 BufferBuilder::new::<crate::gui::draw::Vertex>(

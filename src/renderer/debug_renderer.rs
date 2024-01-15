@@ -41,7 +41,7 @@ pub(crate) struct DebugShader {
 }
 
 impl DebugShader {
-    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+    fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("shaders/debug_fs.glsl");
         let vertex_source = include_str!("shaders/debug_vs.glsl");
         let program =
@@ -55,7 +55,7 @@ impl DebugShader {
 }
 
 impl DebugRenderer {
-    pub(crate) fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+    pub(crate) fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
         let geometry = GeometryBufferBuilder::new(ElementKind::Line)
             .with_buffer_builder(
                 BufferBuilder::new::<Vertex>(GeometryBufferKind::DynamicDraw, None)
@@ -84,7 +84,7 @@ impl DebugRenderer {
 
     pub(crate) fn render(
         &mut self,
-        state: &mut PipelineState,
+        state: &PipelineState,
         viewport: Rect<i32>,
         framebuffer: &mut FrameBuffer,
         drawing_context: &SceneDrawingContext,

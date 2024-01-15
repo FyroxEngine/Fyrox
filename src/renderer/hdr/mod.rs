@@ -39,7 +39,7 @@ pub struct LumBuffer {
 }
 
 impl LumBuffer {
-    fn new(state: &mut PipelineState, size: usize) -> Result<Self, FrameworkError> {
+    fn new(state: &PipelineState, size: usize) -> Result<Self, FrameworkError> {
         let texture = GpuTexture::new(
             state,
             GpuTextureKind::Rectangle {
@@ -65,7 +65,7 @@ impl LumBuffer {
         })
     }
 
-    fn clear(&mut self, state: &mut PipelineState) {
+    fn clear(&mut self, state: &PipelineState) {
         self.framebuffer.clear(
             state,
             Rect::new(0, 0, self.size as i32, self.size as i32),
@@ -101,7 +101,7 @@ pub struct HighDynamicRangeRenderer {
 }
 
 impl HighDynamicRangeRenderer {
-    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
         Ok(Self {
             frame_luminance: LumBuffer::new(state, 64)?,
             downscale_chain: [
@@ -135,7 +135,7 @@ impl HighDynamicRangeRenderer {
 
     fn calculate_frame_luminance(
         &mut self,
-        state: &mut PipelineState,
+        state: &PipelineState,
         scene_frame: Rc<RefCell<GpuTexture>>,
         quad: &GeometryBuffer,
     ) -> Result<DrawCallStatistics, FrameworkError> {
@@ -175,7 +175,7 @@ impl HighDynamicRangeRenderer {
 
     fn calculate_avg_frame_luminance(
         &mut self,
-        state: &mut PipelineState,
+        state: &PipelineState,
         quad: &GeometryBuffer,
     ) -> Result<RenderPassStatistics, FrameworkError> {
         let mut stats = RenderPassStatistics::default();
@@ -214,7 +214,7 @@ impl HighDynamicRangeRenderer {
 
     fn adaptation(
         &mut self,
-        state: &mut PipelineState,
+        state: &PipelineState,
         quad: &GeometryBuffer,
         dt: f32,
     ) -> Result<DrawCallStatistics, FrameworkError> {
@@ -252,7 +252,7 @@ impl HighDynamicRangeRenderer {
 
     fn map_hdr_to_ldr(
         &mut self,
-        state: &mut PipelineState,
+        state: &PipelineState,
         hdr_scene_frame: Rc<RefCell<GpuTexture>>,
         bloom_texture: Rc<RefCell<GpuTexture>>,
         ldr_framebuffer: &mut FrameBuffer,
@@ -322,7 +322,7 @@ impl HighDynamicRangeRenderer {
 
     pub fn render(
         &mut self,
-        state: &mut PipelineState,
+        state: &PipelineState,
         hdr_scene_frame: Rc<RefCell<GpuTexture>>,
         bloom_texture: Rc<RefCell<GpuTexture>>,
         ldr_framebuffer: &mut FrameBuffer,

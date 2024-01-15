@@ -30,7 +30,7 @@ struct OverlayShader {
 }
 
 impl OverlayShader {
-    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../resources/shaders/overlay_fs.glsl");
         let vertex_source = include_str!("../resources/shaders/overlay_vs.glsl");
         let program =
@@ -60,7 +60,7 @@ pub struct OverlayRenderPass {
 }
 
 impl OverlayRenderPass {
-    pub fn new(state: &mut PipelineState) -> Rc<RefCell<Self>> {
+    pub fn new(state: &PipelineState) -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(Self {
             quad: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_collapsed_xy_quad(),

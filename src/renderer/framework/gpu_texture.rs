@@ -8,6 +8,7 @@ use crate::{
 };
 use glow::{HasContext, COMPRESSED_RED_RGTC1, COMPRESSED_RG_RGTC2};
 use std::marker::PhantomData;
+use std::rc::Weak;
 
 #[derive(Copy, Clone)]
 pub enum GpuTextureKind {
@@ -261,7 +262,7 @@ impl PixelKind {
 }
 
 pub struct GpuTexture {
-    state: *mut PipelineState,
+    state: Weak<PipelineState>,
     texture: glow::Texture,
     kind: GpuTextureKind,
     min_filter: MinificationFilter,
@@ -483,7 +484,7 @@ impl Coordinate {
 }
 
 pub struct TextureBinding<'a> {
-    state: &'a mut PipelineState,
+    state: &'a PipelineState,
     texture: &'a mut GpuTexture,
     sampler_index: u32,
 }
@@ -994,7 +995,7 @@ impl GpuTexture {
     /// For compressed textures data must contain all mips, where each mip must be 2 times
     /// smaller than previous.
     pub fn new(
-        state: &mut PipelineState,
+        state: &PipelineState,
         kind: GpuTextureKind,
         pixel_kind: PixelKind,
         min_filter: MinificationFilter,
@@ -1010,7 +1011,7 @@ impl GpuTexture {
             let texture = state.gl.create_texture()?;
 
             let mut result = Self {
-                state,
+                state: state.weak(),
                 texture,
                 kind,
                 min_filter,
@@ -1053,7 +1054,7 @@ impl GpuTexture {
 
     pub fn bind_mut<'a>(
         &'a mut self,
-        state: &'a mut PipelineState,
+        state: &'a PipelineState,
         sampler_index: u32,
     ) -> TextureBinding<'a> {
         state.set_texture(
@@ -1068,7 +1069,7 @@ impl GpuTexture {
         }
     }
 
-    pub fn bind(&self, state: &mut PipelineState, sampler_index: u32) {
+    pub fn bind(&self, state: &PipelineState, sampler_index: u32) {
         for kind in [glow::TEXTURE_2D, glow::TEXTURE_3D, glow::TEXTURE_CUBE_MAP] {
             state.set_texture(
                 sampler_index,
@@ -1118,8 +1119,10 @@ impl GpuTexture {
 
 impl Drop for GpuTexture {
     fn drop(&mut self) {
-        unsafe {
-            (*self.state).gl.delete_texture(self.texture);
+        if let Some(state) = self.state.upgrade() {
+            unsafe {
+                state.gl.delete_texture(self.texture);
+            }
         }
     }
 }

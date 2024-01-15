@@ -117,7 +117,7 @@ pub struct DeferredLightRenderer {
 }
 
 pub(crate) struct DeferredRendererContext<'a> {
-    pub state: &'a mut PipelineState,
+    pub state: &'a PipelineState,
     pub scene: &'a Scene,
     pub camera: &'a Camera,
     pub gbuffer: &'a mut GBuffer,
@@ -136,7 +136,7 @@ pub(crate) struct DeferredRendererContext<'a> {
 
 impl DeferredLightRenderer {
     pub fn new(
-        state: &mut PipelineState,
+        state: &PipelineState,
         frame_size: (u32, u32),
         settings: &QualitySettings,
     ) -> Result<Self, FrameworkError> {
@@ -240,7 +240,7 @@ impl DeferredLightRenderer {
 
     pub fn set_quality_settings(
         &mut self,
-        state: &mut PipelineState,
+        state: &PipelineState,
         settings: &QualitySettings,
     ) -> Result<(), FrameworkError> {
         if settings.spot_shadow_map_size != self.spot_shadow_map_renderer.base_size()
@@ -276,7 +276,7 @@ impl DeferredLightRenderer {
 
     pub fn set_frame_size(
         &mut self,
-        state: &mut PipelineState,
+        state: &PipelineState,
         frame_size: (u32, u32),
     ) -> Result<(), FrameworkError> {
         self.ssao_renderer = ScreenSpaceAmbientOcclusionRenderer::new(

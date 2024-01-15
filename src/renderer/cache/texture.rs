@@ -27,7 +27,7 @@ pub struct TextureCache {
 }
 
 fn create_gpu_texture(
-    state: &mut PipelineState,
+    state: &PipelineState,
     texture: &Texture,
 ) -> Result<TextureRenderData, FrameworkError> {
     GpuTexture::new(
@@ -50,7 +50,7 @@ impl TextureCache {
     /// destroyed.
     pub fn upload(
         &mut self,
-        state: &mut PipelineState,
+        state: &PipelineState,
         texture: &TextureResource,
     ) -> Result<(), FrameworkError> {
         let mut texture = texture.state();
@@ -70,7 +70,7 @@ impl TextureCache {
 
     pub fn get(
         &mut self,
-        state: &mut PipelineState,
+        state: &PipelineState,
         texture_resource: &TextureResource,
     ) -> Option<&Rc<RefCell<GpuTexture>>> {
         scope_profile!();

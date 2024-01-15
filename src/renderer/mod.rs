@@ -34,6 +34,7 @@ mod ssao;
 use crate::renderer::cache::texture::TextureRenderData;
 
 use crate::renderer::cache::TimeToLive;
+use crate::renderer::framework::state::SharedPipelineState;
 use crate::{
     asset::{event::ResourceEvent, manager::ResourceManager},
     core::{
@@ -548,11 +549,7 @@ pub struct AssociatedSceneData {
 
 impl AssociatedSceneData {
     /// Creates new scene data.
-    pub fn new(
-        state: &mut PipelineState,
-        width: usize,
-        height: usize,
-    ) -> Result<Self, FrameworkError> {
+    pub fn new(state: &PipelineState, width: usize, height: usize) -> Result<Self, FrameworkError> {
         let mut depth_stencil_texture = GpuTexture::new(
             state,
             GpuTextureKind::Rectangle { width, height },
@@ -648,7 +645,7 @@ impl AssociatedSceneData {
         })
     }
 
-    fn copy_depth_stencil_to_scene_framebuffer(&mut self, state: &mut PipelineState) {
+    fn copy_depth_stencil_to_scene_framebuffer(&mut self, state: &PipelineState) {
         state.blit_framebuffer(
             self.gbuffer.framebuffer().id(),
             self.hdr_scene_framebuffer.id(),
@@ -745,15 +742,13 @@ pub struct Renderer {
     // TextureId -> FrameBuffer mapping. This mapping is used for temporal frame buffers
     // like ones used to render UI instances.
     ui_frame_buffers: FxHashMap<usize, FrameBuffer>,
-    // MUST BE LAST! Otherwise you'll get crash, because other parts of the renderer will
-    // contain **pointer** to pipeline state. It must be dropped last!
     /// Pipeline state.
-    pub state: Box<PipelineState>,
+    pub state: SharedPipelineState,
 }
 
 fn make_ui_frame_buffer(
     frame_size: Vector2<f32>,
-    state: &mut PipelineState,
+    state: &PipelineState,
     pixel_kind: PixelKind,
 ) -> Result<FrameBuffer, FrameworkError> {
     let color_texture = Rc::new(RefCell::new(GpuTexture::new(
@@ -798,7 +793,7 @@ fn make_ui_frame_buffer(
 /// A context for custom scene render passes.
 pub struct SceneRenderPassContext<'a, 'b> {
     /// A pipeline state that is used as a wrapper to underlying graphics API.
-    pub pipeline_state: &'a mut PipelineState,
+    pub pipeline_state: &'a PipelineState,
 
     /// A texture cache that uploads engine's `Texture` as internal `GpuTexture` to GPU.
     /// Use this to get a corresponding GPU texture by an instance of a `Texture`.
@@ -904,7 +899,7 @@ pub trait SceneRenderPass {
 }
 
 fn blit_pixels(
-    state: &mut PipelineState,
+    state: &PipelineState,
     framebuffer: &mut FrameBuffer,
     texture: Rc<RefCell<GpuTexture>>,
     shader: &FlatShader,
@@ -1229,9 +1224,7 @@ impl Renderer {
             .event_broadcaster
             .add(shader_event_sender);
 
-        // Box pipeline state because we'll store pointers to it inside framework's entities and
-        // it must have constant address.
-        let mut state = Box::new(PipelineState::new(context, gl_kind));
+        let state = PipelineState::new(context, gl_kind);
 
         // Dump available GL extensions to the log, this will help debugging graphical issues.
         Log::info(format!(
@@ -1242,16 +1235,16 @@ impl Renderer {
         let mut shader_cache = ShaderCache::default();
 
         for shader in ShaderResource::standard_shaders() {
-            shader_cache.get(&mut state, &shader);
+            shader_cache.get(&state, &shader);
         }
 
         Ok(Self {
-            backbuffer: FrameBuffer::backbuffer(&mut state),
+            backbuffer: FrameBuffer::backbuffer(&state),
             frame_size,
-            deferred_light_renderer: DeferredLightRenderer::new(&mut state, frame_size, &settings)?,
-            flat_shader: FlatShader::new(&mut state)?,
+            deferred_light_renderer: DeferredLightRenderer::new(&state, frame_size, &settings)?,
+            flat_shader: FlatShader::new(&state)?,
             white_dummy: Rc::new(RefCell::new(GpuTexture::new(
-                &mut state,
+                &state,
                 GpuTextureKind::Rectangle {
                     width: 1,
                     height: 1,
@@ -1263,7 +1256,7 @@ impl Renderer {
                 Some(&[255u8, 255u8, 255u8, 255u8]),
             )?)),
             black_dummy: Rc::new(RefCell::new(GpuTexture::new(
-                &mut state,
+                &state,
                 GpuTextureKind::Rectangle {
                     width: 1,
                     height: 1,
@@ -1275,7 +1268,7 @@ impl Renderer {
                 Some(&[0u8, 0u8, 0u8, 255u8]),
             )?)),
             environment_dummy: Rc::new(RefCell::new(GpuTexture::new(
-                &mut state,
+                &state,
                 GpuTextureKind::Cube {
                     width: 1,
                     height: 1,
@@ -1294,7 +1287,7 @@ impl Renderer {
                 ]),
             )?)),
             normal_dummy: Rc::new(RefCell::new(GpuTexture::new(
-                &mut state,
+                &state,
                 GpuTextureKind::Rectangle {
                     width: 1,
                     height: 1,
@@ -1306,7 +1299,7 @@ impl Renderer {
                 Some(&[128u8, 128u8, 255u8, 255u8]),
             )?)),
             metallic_dummy: Rc::new(RefCell::new(GpuTexture::new(
-                &mut state,
+                &state,
                 GpuTextureKind::Rectangle {
                     width: 1,
                     height: 1,
@@ -1318,7 +1311,7 @@ impl Renderer {
                 Some(&[0u8, 0u8, 0u8, 0u8]),
             )?)),
             volume_dummy: Rc::new(RefCell::new(GpuTexture::new(
-                &mut state,
+                &state,
                 GpuTextureKind::Volume {
                     width: 1,
                     height: 1,
@@ -1333,24 +1326,24 @@ impl Renderer {
             quad: GeometryBuffer::from_surface_data(
                 &SurfaceData::make_unit_xy_quad(),
                 GeometryBufferKind::StaticDraw,
-                &mut state,
+                &state,
             )?,
-            ui_renderer: UiRenderer::new(&mut state)?,
+            ui_renderer: UiRenderer::new(&state)?,
             quality_settings: settings,
-            debug_renderer: DebugRenderer::new(&mut state)?,
+            debug_renderer: DebugRenderer::new(&state)?,
             scene_data_map: Default::default(),
             backbuffer_clear_color: Color::BLACK,
             texture_cache: Default::default(),
             geometry_cache: Default::default(),
             forward_renderer: ForwardRenderer::new(),
             ui_frame_buffers: Default::default(),
-            fxaa_renderer: FxaaRenderer::new(&mut state)?,
+            fxaa_renderer: FxaaRenderer::new(&state)?,
             statistics: Statistics::default(),
             shader_event_receiver,
             texture_event_receiver,
             shader_cache,
             scene_render_passes: Default::default(),
-            matrix_storage: MatrixStorageCache::new(&mut state)?,
+            matrix_storage: MatrixStorageCache::new(&state)?,
             state,
         })
     }
@@ -1397,7 +1390,7 @@ impl Renderer {
     }
 
     /// Returns a reference to current pipeline state.
-    pub fn pipeline_state(&mut self) -> &mut PipelineState {
+    pub fn pipeline_state(&mut self) -> &PipelineState {
         &mut self.state
     }
 
@@ -1414,7 +1407,7 @@ impl Renderer {
         self.frame_size.1 = new_size.1.max(1);
 
         self.deferred_light_renderer
-            .set_frame_size(&mut self.state, new_size)?;
+            .set_frame_size(&self.state, new_size)?;
 
         Ok(())
     }
@@ -1438,7 +1431,7 @@ impl Renderer {
     ) -> Result<(), FrameworkError> {
         self.quality_settings = *settings;
         self.deferred_light_renderer
-            .set_quality_settings(&mut self.state, settings)
+            .set_quality_settings(&self.state, settings)
     }
 
     /// Returns current quality settings.
@@ -1478,30 +1471,21 @@ impl Renderer {
                         || height != new_height
                         || frame.texture.borrow().pixel_kind() != pixel_kind
                     {
-                        *frame_buffer =
-                            make_ui_frame_buffer(screen_size, &mut self.state, pixel_kind)?;
+                        *frame_buffer = make_ui_frame_buffer(screen_size, &self.state, pixel_kind)?;
                     }
                 } else {
                     panic!("ui can be rendered only in rectangle texture!")
                 }
                 frame_buffer
             }
-            Entry::Vacant(entry) => entry.insert(make_ui_frame_buffer(
-                screen_size,
-                &mut self.state,
-                pixel_kind,
-            )?),
+            Entry::Vacant(entry) => {
+                entry.insert(make_ui_frame_buffer(screen_size, &self.state, pixel_kind)?)
+            }
         };
 
         let viewport = Rect::new(0, 0, new_width as i32, new_height as i32);
 
-        frame_buffer.clear(
-            &mut self.state,
-            viewport,
-            Some(clear_color),
-            Some(0.0),
-            Some(0),
-        );
+        frame_buffer.clear(&self.state, viewport, Some(clear_color), Some(0.0), Some(0));
 
         self.statistics += self.ui_renderer.render(UiRenderContext {
             state: &mut self.state,
@@ -1543,7 +1527,7 @@ impl Renderer {
         while let Ok(event) = self.texture_event_receiver.try_recv() {
             if let ResourceEvent::Loaded(resource) | ResourceEvent::Reloaded(resource) = event {
                 if let Some(texture) = resource.try_cast::<Texture>() {
-                    match self.texture_cache.upload(&mut self.state, &texture) {
+                    match self.texture_cache.upload(&self.state, &texture) {
                         Ok(_) => {
                             uploaded += 1;
                             if uploaded >= THROUGHPUT {
@@ -1570,7 +1554,7 @@ impl Renderer {
                 if let Some(shader) = resource.try_cast::<Shader>() {
                     // Remove and immediately "touch" the shader cache to force upload shader.
                     self.shader_cache.remove(&shader);
-                    let _ = self.shader_cache.get(&mut self.state, &shader);
+                    let _ = self.shader_cache.get(&self.state, &shader);
                 }
             }
         }
@@ -1615,7 +1599,7 @@ impl Renderer {
 
         let window_viewport = Rect::new(0, 0, self.frame_size.0 as i32, self.frame_size.1 as i32);
         self.backbuffer.clear(
-            &mut self.state,
+            &self.state,
             window_viewport,
             Some(self.backbuffer_clear_color),
             Some(1.0),

@@ -10,6 +10,7 @@ use crate::{
 };
 use glow::HasContext;
 use serde::{Deserialize, Serialize};
+use std::rc::Weak;
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Copy, Clone, PartialOrd, PartialEq, Hash, Debug, Eq)]
@@ -25,7 +26,7 @@ pub struct Attachment {
 }
 
 pub struct FrameBuffer {
-    state: *mut PipelineState,
+    state: Weak<PipelineState>,
     fbo: Option<glow::Framebuffer>,
     depth_attachment: Option<Attachment>,
     color_attachments: Vec<Attachment>,
@@ -77,7 +78,7 @@ impl Default for DrawParameters {
     }
 }
 
-unsafe fn set_attachment(state: &mut PipelineState, gl_attachment_kind: u32, texture: &GpuTexture) {
+unsafe fn set_attachment(state: &PipelineState, gl_attachment_kind: u32, texture: &GpuTexture) {
     match texture.kind() {
         GpuTextureKind::Line { .. } => {
             state.gl.framebuffer_texture(
@@ -120,7 +121,7 @@ unsafe fn set_attachment(state: &mut PipelineState, gl_attachment_kind: u32, tex
 
 impl FrameBuffer {
     pub fn new(
-        state: &mut PipelineState,
+        state: &PipelineState,
         depth_attachment: Option<Attachment>,
         color_attachments: Vec<Attachment>,
     ) -> Result<Self, FrameworkError> {
@@ -169,7 +170,7 @@ impl FrameBuffer {
             state.set_framebuffer(None);
 
             Ok(Self {
-                state,
+                state: state.weak(),
                 fbo: Some(fbo),
                 depth_attachment,
                 color_attachments,
@@ -177,9 +178,9 @@ impl FrameBuffer {
         }
     }
 
-    pub fn backbuffer(state: &mut PipelineState) -> Self {
+    pub fn backbuffer(state: &PipelineState) -> Self {
         Self {
-            state,
+            state: state.weak(),
             fbo: None,
             depth_attachment: None,
             color_attachments: Default::default(),
@@ -196,7 +197,7 @@ impl FrameBuffer {
 
     pub fn set_cubemap_face(
         &mut self,
-        state: &mut PipelineState,
+        state: &PipelineState,
         attachment_index: usize,
         face: CubeMapFace,
     ) -> &mut Self {
@@ -223,7 +224,7 @@ impl FrameBuffer {
 
     pub fn clear(
         &mut self,
-        state: &mut PipelineState,
+        state: &PipelineState,
         viewport: Rect<i32>,
         color: Option<Color>,
         depth: Option<f32>,
@@ -339,7 +340,7 @@ impl FrameBuffer {
     pub fn draw<F: FnOnce(GpuProgramBinding<'_, '_>)>(
         &mut self,
         geometry: &GeometryBuffer,
-        state: &mut PipelineState,
+        state: &PipelineState,
         viewport: Rect<i32>,
         program: &GpuProgram,
         params: &DrawParameters,
@@ -357,7 +358,7 @@ impl FrameBuffer {
         &mut self,
         count: usize,
         geometry: &GeometryBuffer,
-        state: &mut PipelineState,
+        state: &PipelineState,
         viewport: Rect<i32>,
         program: &GpuProgram,
         params: &DrawParameters,
@@ -372,7 +373,7 @@ impl FrameBuffer {
 
 fn pre_draw<F: FnOnce(GpuProgramBinding<'_, '_>)>(
     fbo: Option<glow::Framebuffer>,
-    state: &mut PipelineState,
+    state: &PipelineState,
     viewport: Rect<i32>,
     program: &GpuProgram,
     params: &DrawParameters,
@@ -390,9 +391,11 @@ fn pre_draw<F: FnOnce(GpuProgramBinding<'_, '_>)>(
 
 impl Drop for FrameBuffer {
     fn drop(&mut self) {
-        unsafe {
-            if let Some(id) = self.fbo {
-                (*self.state).gl.delete_framebuffer(id);
+        if let Some(state) = self.state.upgrade() {
+            unsafe {
+                if let Some(id) = self.fbo {
+                    state.gl.delete_framebuffer(id);
+                }
             }
         }
     }

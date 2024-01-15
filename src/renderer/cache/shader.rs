@@ -20,7 +20,7 @@ pub struct ShaderSet {
 }
 
 impl ShaderSet {
-    pub fn new(state: &mut PipelineState, shader: &Shader) -> Result<Self, FrameworkError> {
+    pub fn new(state: &PipelineState, shader: &Shader) -> Result<Self, FrameworkError> {
         let mut map = FxHashMap::default();
         for render_pass in shader.definition.passes.iter() {
             let program_name = format!("{}_{}", shader.definition.name, render_pass.name);
@@ -67,7 +67,7 @@ impl ShaderCache {
 
     pub fn get(
         &mut self,
-        pipeline_state: &mut PipelineState,
+        pipeline_state: &PipelineState,
         shader: &ShaderResource,
     ) -> Option<&ShaderSet> {
         let mut shader_state = shader.state();

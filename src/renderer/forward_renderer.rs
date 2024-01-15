@@ -40,7 +40,7 @@ pub(crate) struct ForwardRenderer {
 }
 
 pub(crate) struct ForwardRenderContext<'a, 'b> {
-    pub state: &'a mut PipelineState,
+    pub state: &'a PipelineState,
     pub graph: &'b Graph,
     pub camera: &'b Camera,
     pub geom_cache: &'a mut GeometryCache,

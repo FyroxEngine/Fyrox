@@ -6,10 +6,11 @@ use crate::{
     scene::mesh::buffer::{VertexAttributeDataType, VertexBuffer},
 };
 use glow::HasContext;
+use std::rc::Weak;
 use std::{cell::Cell, marker::PhantomData, mem::size_of};
 
 struct NativeBuffer {
-    state: *mut PipelineState,
+    state: Weak<PipelineState>,
     id: glow::Buffer,
     kind: GeometryBufferKind,
     element_size: usize,
@@ -20,14 +21,16 @@ struct NativeBuffer {
 
 impl Drop for NativeBuffer {
     fn drop(&mut self) {
-        unsafe {
-            (*self.state).gl.delete_buffer(self.id);
+        if let Some(state) = self.state.upgrade() {
+            unsafe {
+                state.gl.delete_buffer(self.id);
+            }
         }
     }
 }
 
 pub struct GeometryBuffer {
-    state: *mut PipelineState,
+    state: Weak<PipelineState>,
     vertex_array_object: glow::VertexArray,
     buffers: Vec<NativeBuffer>,
     element_buffer_object: glow::Buffer,
@@ -177,7 +180,7 @@ impl ElementKind {
 }
 
 pub struct GeometryBufferBinding<'a> {
-    state: &'a mut PipelineState,
+    state: &'a PipelineState,
     buffer: &'a GeometryBuffer,
 }
 
@@ -293,7 +296,7 @@ impl GeometryBuffer {
     pub fn from_surface_data(
         data: &SurfaceData,
         kind: GeometryBufferKind,
-        state: &mut PipelineState,
+        state: &PipelineState,
     ) -> Result<Self, FrameworkError> {
         let geometry_buffer = GeometryBufferBuilder::new(ElementKind::Triangle)
             .with_buffer_builder(BufferBuilder::from_vertex_buffer(&data.vertex_buffer, kind))
@@ -306,7 +309,7 @@ impl GeometryBuffer {
         Ok(geometry_buffer)
     }
 
-    pub fn set_buffer_data<T>(&mut self, state: &mut PipelineState, buffer: usize, data: &[T]) {
+    pub fn set_buffer_data<T>(&mut self, state: &PipelineState, buffer: usize, data: &[T]) {
         scope_profile!();
 
         let buffer = &mut self.buffers[buffer];
@@ -333,7 +336,7 @@ impl GeometryBuffer {
         buffer.size_bytes = size;
     }
 
-    pub fn bind<'a>(&'a self, state: &'a mut PipelineState) -> GeometryBufferBinding<'a> {
+    pub fn bind<'a>(&'a self, state: &'a PipelineState) -> GeometryBufferBinding<'a> {
         scope_profile!();
 
         state.set_vertex_array_object(Some(self.vertex_array_object));
@@ -359,13 +362,13 @@ impl GeometryBuffer {
 
 impl Drop for GeometryBuffer {
     fn drop(&mut self) {
-        unsafe {
-            self.buffers.clear();
+        if let Some(state) = self.state.upgrade() {
+            unsafe {
+                self.buffers.clear();
 
-            (*self.state).gl.delete_buffer(self.element_buffer_object);
-            (*self.state)
-                .gl
-                .delete_vertex_array(self.vertex_array_object);
+                state.gl.delete_buffer(self.element_buffer_object);
+                state.gl.delete_vertex_array(self.vertex_array_object);
+            }
         }
     }
 }
@@ -437,7 +440,7 @@ impl BufferBuilder {
         self
     }
 
-    fn build(self, state: &mut PipelineState) -> Result<NativeBuffer, FrameworkError> {
+    fn build(self, state: &PipelineState) -> Result<NativeBuffer, FrameworkError> {
         let vbo = unsafe { state.gl.create_buffer()? };
 
         state.set_vertex_buffer_object(Some(vbo));
@@ -453,7 +456,7 @@ impl BufferBuilder {
         }
 
         let native_buffer = NativeBuffer {
-            state,
+            state: state.weak(),
             id: vbo,
             kind: self.kind,
             element_size: self.element_size,
@@ -508,7 +511,7 @@ impl GeometryBufferBuilder {
         self
     }
 
-    pub fn build(self, state: &mut PipelineState) -> Result<GeometryBuffer, FrameworkError> {
+    pub fn build(self, state: &PipelineState) -> Result<GeometryBuffer, FrameworkError> {
         scope_profile!();
 
         let vao = unsafe { state.gl.create_vertex_array()? };
@@ -522,7 +525,7 @@ impl GeometryBufferBuilder {
         }
 
         Ok(GeometryBuffer {
-            state,
+            state: state.weak(),
             vertex_array_object: vao,
             buffers,
             element_buffer_object: ebo,

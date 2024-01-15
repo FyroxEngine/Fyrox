@@ -42,7 +42,7 @@ struct PointShadowCubeMapFace {
 }
 
 pub(crate) struct PointShadowMapRenderContext<'a> {
-    pub state: &'a mut PipelineState,
+    pub state: &'a PipelineState,
     pub graph: &'a Graph,
     pub light_pos: Vector3<f32>,
     pub light_radius: f32,
@@ -59,12 +59,12 @@ pub(crate) struct PointShadowMapRenderContext<'a> {
 
 impl PointShadowMapRenderer {
     pub fn new(
-        state: &mut PipelineState,
+        state: &PipelineState,
         size: usize,
         precision: ShadowMapPrecision,
     ) -> Result<Self, FrameworkError> {
         fn make_cascade(
-            state: &mut PipelineState,
+            state: &PipelineState,
             size: usize,
             precision: ShadowMapPrecision,
         ) -> Result<FrameBuffer, FrameworkError> {

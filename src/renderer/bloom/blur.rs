@@ -28,7 +28,7 @@ struct Shader {
 }
 
 impl Shader {
-    fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+    fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/gaussian_blur_fs.glsl");
         let vertex_source = include_str!("../shaders/flat_vs.glsl");
 
@@ -54,7 +54,7 @@ pub struct GaussianBlur {
 }
 
 fn create_framebuffer(
-    state: &mut PipelineState,
+    state: &PipelineState,
     width: usize,
     height: usize,
     pixel_kind: PixelKind,
@@ -89,7 +89,7 @@ fn create_framebuffer(
 
 impl GaussianBlur {
     pub fn new(
-        state: &mut PipelineState,
+        state: &PipelineState,
         width: usize,
         height: usize,
         pixel_kind: PixelKind,
@@ -113,7 +113,7 @@ impl GaussianBlur {
 
     pub(crate) fn render(
         &mut self,
-        state: &mut PipelineState,
+        state: &PipelineState,
         quad: &GeometryBuffer,
         input: Rc<RefCell<GpuTexture>>,
     ) -> Result<RenderPassStatistics, FrameworkError> {

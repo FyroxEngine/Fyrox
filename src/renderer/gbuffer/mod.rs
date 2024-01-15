@@ -61,7 +61,7 @@ pub struct GBuffer {
 }
 
 pub(crate) struct GBufferRenderContext<'a, 'b> {
-    pub state: &'a mut PipelineState,
+    pub state: &'a PipelineState,
     pub camera: &'b Camera,
     pub geom_cache: &'a mut GeometryCache,
     pub batch_storage: &'a RenderDataBatchStorage,
@@ -79,11 +79,7 @@ pub(crate) struct GBufferRenderContext<'a, 'b> {
 }
 
 impl GBuffer {
-    pub fn new(
-        state: &mut PipelineState,
-        width: usize,
-        height: usize,
-    ) -> Result<Self, FrameworkError> {
+    pub fn new(state: &PipelineState, width: usize, height: usize) -> Result<Self, FrameworkError> {
         scope_profile!();
 
         let mut depth_stencil_texture = GpuTexture::new(

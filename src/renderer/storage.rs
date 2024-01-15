@@ -29,7 +29,7 @@ pub struct MatrixStorage {
 
 impl MatrixStorage {
     /// Creates a new matrix storage.
-    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
         let identity = [Matrix4::<f32>::identity()];
         Ok(Self {
             texture: Rc::new(RefCell::new(GpuTexture::new(
@@ -56,7 +56,7 @@ impl MatrixStorage {
     /// Updates contents of the internal texture with provided matrices.
     fn upload(
         &mut self,
-        state: &mut PipelineState,
+        state: &PipelineState,
         matrices: &[Matrix4<f32>],
         sampler: u32,
     ) -> Result<(), FrameworkError> {
@@ -106,7 +106,7 @@ pub struct MatrixStorageCache {
 
 impl MatrixStorageCache {
     /// Creates new cache.
-    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
         Ok(Self {
             empty: MatrixStorage::new(state)?,
             active_set: Default::default(),
@@ -128,7 +128,7 @@ impl MatrixStorageCache {
     /// synchronization.  
     pub fn try_bind_and_upload(
         &mut self,
-        state: &mut PipelineState,
+        state: &PipelineState,
         id: PersistentIdentifier,
         matrices: &[Matrix4<f32>],
         sampler: u32,

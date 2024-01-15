@@ -32,7 +32,7 @@ pub struct DirectionalLightShader {
 }
 
 impl DirectionalLightShader {
-    pub fn new(state: &mut PipelineState) -> Result<Self, FrameworkError> {
+    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = include_str!("../shaders/deferred_directional_light_fs.glsl");
         let vertex_source = include_str!("../shaders/deferred_light_vs.glsl");
         let program = GpuProgram::from_source(
