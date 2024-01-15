@@ -119,7 +119,7 @@ impl UiNode {
     /// Tries to fetch a component of the given type `T`. At very basis it mimics [`Self::cast`] behaviour, but
     /// also allows you to fetch components of other types as well. For example, your widget may be built on
     /// top of existing one (via composition) and you have it as a field inside your widget. In this case, you
-    /// can fetch it by using this method with the appropriate type. See docs for [`Control::query_component`]
+    /// can fetch it by using this method with the appropriate type. See docs for [`fyrox_core::type_traits::ComponentProvider::query_component_ref`]
     /// for more info.
     pub fn query_component<T>(&self) -> Option<&T>
     where
