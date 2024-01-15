@@ -197,7 +197,7 @@ impl UiRenderer {
         state.set_scissor_test(true);
 
         for cmd in drawing_context.get_commands() {
-            let mut diffuse_texture = white_dummy.clone();
+            let mut diffuse_texture = &white_dummy;
             let mut is_font_texture = false;
 
             let mut clip_bounds = cmd.clip_bounds;

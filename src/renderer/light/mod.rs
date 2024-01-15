@@ -685,10 +685,10 @@ impl DeferredLightRenderer {
                         if let Some(cookie) = textures.get(state, texture) {
                             (true, cookie)
                         } else {
-                            (false, white_dummy.clone())
+                            (false, &white_dummy)
                         }
                     } else {
-                        (false, white_dummy.clone())
+                        (false, &white_dummy)
                     };
 
                 light_stats.spot_lights_rendered += 1;

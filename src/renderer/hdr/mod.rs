@@ -269,7 +269,7 @@ impl HighDynamicRangeRenderer {
 
         let color_grading_lut_tex = color_grading_lut
             .and_then(|l| texture_cache.get(state, l.lut_ref()))
-            .unwrap_or_else(|| self.stub_lut.clone());
+            .unwrap_or_else(|| &self.stub_lut);
 
         ldr_framebuffer.draw(
             quad,

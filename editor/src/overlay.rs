@@ -103,6 +103,7 @@ impl SceneRenderPass for OverlayRenderPass {
         let sound_icon = ctx
             .texture_cache
             .get(ctx.pipeline_state, &self.sound_icon)
+            .cloned()
             .unwrap();
         let light_icon = ctx
             .texture_cache

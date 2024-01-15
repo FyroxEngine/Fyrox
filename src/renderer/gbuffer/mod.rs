@@ -399,13 +399,13 @@ impl GBuffer {
 
             let diffuse_texture = decal
                 .diffuse_texture()
-                .and_then(|t| texture_cache.get(state, t))
+                .and_then(|t| texture_cache.get(state, t).cloned())
                 .unwrap_or_else(|| white_dummy.clone());
 
             let normal_texture = decal
                 .normal_texture()
                 .and_then(|t| texture_cache.get(state, t))
-                .unwrap_or_else(|| normal_dummy.clone());
+                .unwrap_or_else(|| &normal_dummy);
 
             let world_view_proj = initial_view_projection * decal.global_transform();
 

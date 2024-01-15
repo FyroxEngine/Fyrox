@@ -1167,9 +1167,9 @@ pub(crate) fn apply_material(ctx: MaterialContext) {
                         .as_ref()
                         .and_then(|t| ctx.texture_cache.get(ctx.program_binding.state, t))
                         .unwrap_or_else(|| match fallback {
-                            SamplerFallback::White => ctx.white_dummy.clone(),
-                            SamplerFallback::Normal => ctx.normal_dummy.clone(),
-                            SamplerFallback::Black => ctx.black_dummy.clone(),
+                            SamplerFallback::White => &ctx.white_dummy,
+                            SamplerFallback::Normal => &ctx.normal_dummy,
+                            SamplerFallback::Black => &ctx.black_dummy,
                         });
 
                     ctx.program_binding.set_texture(&uniform, &texture);

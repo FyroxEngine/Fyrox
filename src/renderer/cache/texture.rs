@@ -72,7 +72,7 @@ impl TextureCache {
         &mut self,
         state: &mut PipelineState,
         texture_resource: &TextureResource,
-    ) -> Option<Rc<RefCell<GpuTexture>>> {
+    ) -> Option<&Rc<RefCell<GpuTexture>>> {
         scope_profile!();
 
         let mut texture_data_guard = texture_resource.state();
@@ -144,7 +144,7 @@ impl TextureCache {
                             .set_wrap(Coordinate::T, new_t_wrap_mode);
                     }
 
-                    return Some(entry.gpu_texture.clone());
+                    return Some(&entry.gpu_texture);
                 }
                 Err(e) => {
                     drop(texture_data_guard);
