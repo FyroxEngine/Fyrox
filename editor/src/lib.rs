@@ -2478,7 +2478,9 @@ impl Editor {
                             self.focused = *focused;
                         }
                         WindowEvent::Moved(new_position) => {
-                            if new_position.x > 0 && new_position.y > 0 {
+                            // Allow the window to go outside the screen bounds by a little. This
+                            // happens when the window is maximized.
+                            if new_position.x > -50 && new_position.y > -50 {
                                 self.settings.windows.window_position.x = new_position.x as f32;
                                 self.settings.windows.window_position.y = new_position.y as f32;
                             }
