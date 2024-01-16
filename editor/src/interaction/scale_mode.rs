@@ -1,4 +1,3 @@
-use crate::scene::controller::SceneController;
 use crate::{
     camera::PickingOptions,
     interaction::{
@@ -10,6 +9,7 @@ use crate::{
         commands::{
             graph::ScaleNodeCommand, ChangeSelectionCommand, CommandGroup, GameSceneCommand,
         },
+        controller::SceneController,
         GameScene, Selection,
     },
     settings::Settings,
@@ -58,7 +58,7 @@ impl InteractionMode for ScaleInteractionMode {
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
-        settings: &Settings,
+        _settings: &Settings,
     ) {
         let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
@@ -78,15 +78,11 @@ impl InteractionMode for ScaleInteractionMode {
                 screen_size: frame_size,
                 editor_only: true,
                 filter: |handle, _| handle != camera && handle != camera_pivot,
-                ignore_back_faces: settings.selection.ignore_back_faces,
+                ignore_back_faces: false,
                 use_picking_loop: true,
                 only_meshes: false,
             }) {
-                if self
-                    .scale_gizmo
-                    .handle_pick(result.node, game_scene, engine)
-                {
-                    let graph = &mut engine.scenes[game_scene.scene].graph;
+                if self.scale_gizmo.handle_pick(result.node, graph) {
                     self.interacting = true;
                     self.initial_scales = selection.local_scales(graph);
                 }
@@ -187,25 +183,43 @@ impl InteractionMode for ScaleInteractionMode {
             return;
         };
 
+        let graph = &mut engine.scenes[game_scene.scene].graph;
+
         if let Selection::Graph(selection) = editor_selection {
             if self.interacting {
                 let scale_delta = self.scale_gizmo.calculate_scale_delta(
-                    game_scene,
                     game_scene.camera_controller.camera,
                     mouse_offset,
                     mouse_position,
-                    engine,
+                    graph,
                     frame_size,
                 );
                 for &node in selection.nodes().iter() {
-                    let transform =
-                        engine.scenes[game_scene.scene].graph[node].local_transform_mut();
+                    let transform = graph[node].local_transform_mut();
                     let initial_scale = transform.scale();
-                    let sx = (initial_scale.x * (1.0 + scale_delta.x)).max(std::f32::EPSILON);
-                    let sy = (initial_scale.y * (1.0 + scale_delta.y)).max(std::f32::EPSILON);
-                    let sz = (initial_scale.z * (1.0 + scale_delta.z)).max(std::f32::EPSILON);
+                    let sx = (initial_scale.x * (1.0 + scale_delta.x)).max(f32::EPSILON);
+                    let sy = (initial_scale.y * (1.0 + scale_delta.y)).max(f32::EPSILON);
+                    let sz = (initial_scale.z * (1.0 + scale_delta.z)).max(f32::EPSILON);
                     transform.set_scale(Vector3::new(sx, sy, sz));
                 }
+            } else {
+                let picked = game_scene
+                    .camera_controller
+                    .pick(PickingOptions {
+                        cursor_pos: mouse_position,
+                        graph,
+                        editor_objects_root: game_scene.editor_objects_root,
+                        scene_content_root: game_scene.scene_content_root,
+                        screen_size: frame_size,
+                        editor_only: true,
+                        filter: |_, _| true,
+                        ignore_back_faces: false,
+                        use_picking_loop: false,
+                        only_meshes: false,
+                    })
+                    .map(|r| r.node)
+                    .unwrap_or_default();
+                self.scale_gizmo.handle_pick(picked, graph);
             }
         }
     }

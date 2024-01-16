@@ -184,14 +184,7 @@ impl ScaleGizmo {
         }
     }
 
-    pub fn handle_pick(
-        &mut self,
-        picked: Handle<Node>,
-        game_scene: &GameScene,
-        engine: &mut Engine,
-    ) -> bool {
-        let graph = &mut engine.scenes[game_scene.scene].graph;
-
+    pub fn handle_pick(&mut self, picked: Handle<Node>, graph: &mut Graph) -> bool {
         if picked == self.x_axis || picked == self.x_arrow {
             self.set_mode(ScaleGizmoMode::X, graph);
             true
@@ -212,14 +205,12 @@ impl ScaleGizmo {
 
     pub fn calculate_scale_delta(
         &self,
-        game_scene: &GameScene,
         camera: Handle<Node>,
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
-        engine: &Engine,
+        graph: &Graph,
         frame_size: Vector2<f32>,
     ) -> Vector3<f32> {
-        let graph = &engine.scenes[game_scene.scene].graph;
         let node_global_transform = graph[self.origin].global_transform();
 
         let camera = &graph[camera].as_camera();
@@ -261,7 +252,7 @@ impl ScaleGizmo {
                 let delta = next_point - initial_point;
                 return match self.mode {
                     ScaleGizmoMode::None => unreachable!(),
-                    ScaleGizmoMode::X => Vector3::new(-delta.x, 0.0, 0.0),
+                    ScaleGizmoMode::X => Vector3::new(delta.x, 0.0, 0.0),
                     ScaleGizmoMode::Y => Vector3::new(0.0, delta.y, 0.0),
                     ScaleGizmoMode::Z => Vector3::new(0.0, 0.0, delta.z),
                     ScaleGizmoMode::Uniform => {

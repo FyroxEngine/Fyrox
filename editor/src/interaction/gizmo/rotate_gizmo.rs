@@ -2,7 +2,6 @@ use crate::{
     make_color_material, scene::GameScene, set_mesh_diffuse_color,
     world::graph::selection::GraphSelection, Engine,
 };
-use fyrox::scene::pivot::PivotBuilder;
 use fyrox::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
@@ -18,6 +17,7 @@ use fyrox::{
             MeshBuilder, RenderPath,
         },
         node::Node,
+        pivot::PivotBuilder,
         transform::TransformBuilder,
     },
 };
@@ -54,13 +54,7 @@ fn make_rotation_ribbon(
     )
     .with_render_path(RenderPath::Forward)
     .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
-        SurfaceData::make_torus(
-            0.5,
-            0.025,
-            16,
-            32,
-            &Matrix4::new_translation(&Vector3::new(0.0, -0.00, 0.0)),
-        ),
+        SurfaceData::make_torus(0.5, 0.025, 16, 32, &Matrix4::identity()),
     ))
     .with_material(make_color_material(color))
     .build()])
