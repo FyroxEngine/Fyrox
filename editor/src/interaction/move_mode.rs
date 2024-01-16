@@ -291,7 +291,7 @@ impl InteractionMode for MoveInteractionMode {
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
-        settings: &Settings,
+        _settings: &Settings,
     ) {
         let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
@@ -312,7 +312,7 @@ impl InteractionMode for MoveInteractionMode {
             filter: |handle, _| {
                 handle != camera && handle != camera_pivot && handle != self.move_gizmo.origin
             },
-            ignore_back_faces: settings.selection.ignore_back_faces,
+            ignore_back_faces: false,
             use_picking_loop: true,
             only_meshes: false,
         }) {
@@ -433,8 +433,9 @@ impl InteractionMode for MoveInteractionMode {
             return;
         };
 
+        let scene = &mut engine.scenes[game_scene.scene];
+
         if let Some(move_context) = self.move_context.as_mut() {
-            let scene = &mut engine.scenes[game_scene.scene];
             let graph = &mut scene.graph;
 
             move_context.update(graph, game_scene, settings, mouse_position, frame_size);
@@ -444,6 +445,24 @@ impl InteractionMode for MoveInteractionMode {
                     .local_transform_mut()
                     .set_position(entry.new_local_position);
             }
+        } else {
+            let picked = game_scene
+                .camera_controller
+                .pick(PickingOptions {
+                    cursor_pos: mouse_position,
+                    graph: &scene.graph,
+                    editor_objects_root: game_scene.editor_objects_root,
+                    scene_content_root: game_scene.scene_content_root,
+                    screen_size: frame_size,
+                    editor_only: true,
+                    filter: |_, _| true,
+                    ignore_back_faces: false,
+                    use_picking_loop: false,
+                    only_meshes: false,
+                })
+                .map(|r| r.node)
+                .unwrap_or_default();
+            self.move_gizmo.handle_pick(picked, &mut scene.graph);
         }
     }
 
