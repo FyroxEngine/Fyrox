@@ -4,6 +4,7 @@
 
 #![warn(missing_docs)]
 
+use crate::resource::texture::PLACEHOLDER;
 use crate::{
     asset::{io::ResourceIo, manager::ResourceManager, Resource, ResourceData},
     core::{
@@ -521,7 +522,7 @@ lazy_static! {
     /// of it will reflect on every other usage of it.
     pub static ref STANDARD: MaterialResource = MaterialResource::new_ok(
         "__StandardMaterial".into(),
-        Material::from_shader(ShaderResource::standard(), None),
+         assign_placeholder_texture(Material::from_shader(ShaderResource::standard(), None)),
     );
 }
 
@@ -530,7 +531,7 @@ lazy_static! {
     /// of it will reflect on every other usage of it.
     pub static ref STANDARD_2D: MaterialResource = MaterialResource::new_ok(
         "__Standard2DMaterial".into(),
-        Material::from_shader(ShaderResource::standard_2d(), None),
+         assign_placeholder_texture(Material::from_shader(ShaderResource::standard_2d(), None)),
     );
 }
 
@@ -548,7 +549,7 @@ lazy_static! {
     /// of it will reflect on every other usage of it.
     pub static ref STANDARD_SPRITE: MaterialResource = MaterialResource::new_ok(
         "__StandardSpriteMaterial".into(),
-        Material::from_shader(ShaderResource::standard_sprite(), None),
+         assign_placeholder_texture(Material::from_shader(ShaderResource::standard_sprite(), None)),
     );
 }
 
@@ -557,7 +558,7 @@ lazy_static! {
     /// of it will reflect on every other usage of it.
     pub static ref STANDARD_TERRAIN: MaterialResource = MaterialResource::new_ok(
         "__StandardTerrainMaterial".into(),
-        Material::from_shader(ShaderResource::standard_terrain(), None),
+         assign_placeholder_texture(Material::from_shader(ShaderResource::standard_terrain(), None)),
     );
 }
 
@@ -566,8 +567,13 @@ lazy_static! {
     /// of it will reflect on every other usage of it.
     pub static ref STANDARD_TWOSIDES: MaterialResource = MaterialResource::new_ok(
         "__StandardTwoSidesMaterial".into(),
-        Material::from_shader(ShaderResource::standard_twosides(), None),
+        assign_placeholder_texture(Material::from_shader(ShaderResource::standard_twosides(), None)),
     );
+}
+
+fn assign_placeholder_texture(mut material: Material) -> Material {
+    let _ = material.set_texture(&"diffuseTexture".into(), Some(PLACEHOLDER.clone()));
+    material
 }
 
 impl Material {
@@ -600,32 +606,35 @@ impl Material {
     /// }
     /// ```
     pub fn standard() -> Self {
-        Self::from_shader(ShaderResource::standard(), None)
+        assign_placeholder_texture(Self::from_shader(ShaderResource::standard(), None))
     }
 
     /// Creates new instance of standard 2D material.
     pub fn standard_2d() -> Self {
-        Self::from_shader(ShaderResource::standard_2d(), None)
+        assign_placeholder_texture(Self::from_shader(ShaderResource::standard_2d(), None))
     }
 
     /// Creates new instance of standard 2D material.
     pub fn standard_particle_system() -> Self {
-        Self::from_shader(ShaderResource::standard_particle_system(), None)
+        assign_placeholder_texture(Self::from_shader(
+            ShaderResource::standard_particle_system(),
+            None,
+        ))
     }
 
     /// Creates new instance of standard sprite material.
     pub fn standard_sprite() -> Self {
-        Self::from_shader(ShaderResource::standard_sprite(), None)
+        assign_placeholder_texture(Self::from_shader(ShaderResource::standard_sprite(), None))
     }
 
     /// Creates new instance of standard material that renders both sides of a face.
     pub fn standard_two_sides() -> Self {
-        Self::from_shader(ShaderResource::standard_twosides(), None)
+        assign_placeholder_texture(Self::from_shader(ShaderResource::standard_twosides(), None))
     }
 
     /// Creates new instance of standard terrain material.
     pub fn standard_terrain() -> Self {
-        Self::from_shader(ShaderResource::standard_terrain(), None)
+        assign_placeholder_texture(Self::from_shader(ShaderResource::standard_terrain(), None))
     }
 
     /// Creates a new material instance with given shader. Each property will have default values

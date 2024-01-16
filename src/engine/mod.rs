@@ -72,6 +72,7 @@ use raw_window_handle::HasRawWindowHandle;
 use std::{ffi::CString, num::NonZeroU32};
 
 use crate::engine::task::TaskPoolHandler;
+use crate::resource::texture;
 use crate::script::PluginsRefMut;
 use fyrox_core::task::TaskPool;
 use fyrox_ui::font::BUILT_IN_FONT;
@@ -1104,6 +1105,11 @@ pub(crate) fn initialize_resource_manager_loaders(
     state.built_in_resources.insert(
         BUILT_IN_FONT.kind().path_owned().unwrap(),
         BUILT_IN_FONT.clone().into_untyped(),
+    );
+
+    state.built_in_resources.insert(
+        texture::PLACEHOLDER.kind().path_owned().unwrap(),
+        texture::PLACEHOLDER.clone().into_untyped(),
     );
 
     for material in [

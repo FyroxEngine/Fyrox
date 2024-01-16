@@ -41,6 +41,7 @@ use fyrox_core::uuid_provider;
 use fyrox_resource::io::ResourceIo;
 use fyrox_resource::untyped::ResourceKind;
 use image::{ColorType, DynamicImage, ImageError, ImageFormat, Pixel};
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::{
@@ -559,6 +560,16 @@ impl TextureImportOptions {
     pub fn set_compression(&mut self, compression: CompressionOptions) {
         self.compression = compression;
     }
+}
+
+lazy_static! {
+    /// Placeholder texture.
+    pub static ref PLACEHOLDER: TextureResource = TextureResource::load_from_memory(
+        ResourceKind::External("__PlaceholderTexture".into()),
+        include_bytes!("default.png"),
+        Default::default()
+    )
+    .unwrap();
 }
 
 /// Type alias for texture resources.
