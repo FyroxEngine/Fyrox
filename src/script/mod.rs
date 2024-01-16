@@ -29,7 +29,7 @@ use std::{
 pub mod constructor;
 
 /// A script message's payload.
-pub trait ScriptMessagePayload: Any + Send {
+pub trait ScriptMessagePayload: Any + Send + Debug {
     /// Returns `self` as `&dyn Any`
     fn as_any_ref(&self) -> &dyn Any;
 
@@ -51,7 +51,7 @@ impl dyn ScriptMessagePayload {
 
 impl<T> ScriptMessagePayload for T
 where
-    T: 'static + Send,
+    T: 'static + Send + Debug,
 {
     fn as_any_ref(&self) -> &dyn Any {
         self
@@ -63,6 +63,7 @@ where
 }
 
 /// Defines how a script message will be delivered for each node in a hierarchy.
+#[derive(Debug)]
 pub enum RoutingStrategy {
     /// An message will be passed to the specified root node and then to every node up in the hierarchy.
     Up,
@@ -71,6 +72,7 @@ pub enum RoutingStrategy {
 }
 
 /// A script message of a particular kind.
+#[derive(Debug)]
 pub struct ScriptMessage {
     /// Actual message payload.
     pub payload: Box<dyn ScriptMessagePayload>,
@@ -79,6 +81,7 @@ pub struct ScriptMessage {
 }
 
 /// An message for a node with a script.
+#[derive(Debug)]
 pub enum ScriptMessageKind {
     /// An message for a specific scene node. It will be delivered only if the node is subscribed to receive
     /// messages of a particular type.
@@ -122,7 +125,7 @@ impl ScriptMessageSender {
     /// Sends a targeted script message with the given payload.
     pub fn send_to_target<T>(&self, target: Handle<Node>, payload: T)
     where
-        T: 'static + Send,
+        T: ScriptMessagePayload,
     {
         self.send(ScriptMessage {
             payload: Box::new(payload),
@@ -133,7 +136,7 @@ impl ScriptMessageSender {
     /// Sends a global script message with the given payload.
     pub fn send_global<T>(&self, payload: T)
     where
-        T: 'static + Send,
+        T: ScriptMessagePayload,
     {
         self.send(ScriptMessage {
             payload: Box::new(payload),
@@ -144,7 +147,7 @@ impl ScriptMessageSender {
     /// Sends a hierarchical script message with the given payload.
     pub fn send_hierarchical<T>(&self, root: Handle<Node>, routing: RoutingStrategy, payload: T)
     where
-        T: 'static + Send,
+        T: ScriptMessagePayload,
     {
         self.send(ScriptMessage {
             payload: Box::new(payload),

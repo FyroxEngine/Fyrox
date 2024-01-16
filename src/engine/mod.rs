@@ -503,8 +503,18 @@ impl ScriptMessageDispatcher {
         task_pool: &mut TaskPoolHandler,
     ) {
         while let Ok(message) = self.message_receiver.try_recv() {
-            let mut payload = message.payload;
-            if let Some(receivers) = self.type_groups.get(&payload.deref().type_id()) {
+            let receivers = self.type_groups.get(&message.payload.deref().type_id());
+
+            if receivers.map_or(true, |r| r.is_empty()) {
+                Log::warn(format!(
+                    "Script message {message:?} was sent, but there's no receivers. \
+                    Did you forgot to subscribe your script to the message?"
+                ));
+            }
+
+            if let Some(receivers) = receivers {
+                let mut payload = message.payload;
+
                 match message.kind {
                     ScriptMessageKind::Targeted(target) => {
                         if receivers.contains(&target) {
@@ -2407,6 +2417,7 @@ mod test {
         }
     }
 
+    #[derive(Debug)]
     enum MyMessage {
         Foo(usize),
         Bar(String),
