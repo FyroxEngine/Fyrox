@@ -19,6 +19,7 @@ pub mod command;
 pub mod configurator;
 pub mod curve_editor;
 pub mod gui;
+pub mod highlight;
 pub mod inspector;
 pub mod interaction;
 pub mod light;
@@ -151,6 +152,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::highlight::HighlightRenderPass;
 use crate::physics::ColliderControlPanel;
 pub use message::Message;
 
@@ -516,6 +518,7 @@ pub struct Editor {
     pub widget_context_menu: Rc<RefCell<WidgetContextMenu>>,
     pub widget_constructors: Arc<WidgetConstructorContainer>,
     pub collider_control_panel: ColliderControlPanel,
+    pub highlighter: Rc<RefCell<HighlightRenderPass>>,
 }
 
 impl Editor {
@@ -608,6 +611,15 @@ impl Editor {
         graphics_context
             .renderer
             .add_render_pass(overlay_pass.clone());
+
+        let highlighter = HighlightRenderPass::new(
+            &graphics_context.renderer.state,
+            settings.windows.window_size.x as usize,
+            settings.windows.window_size.y as usize,
+        );
+        graphics_context
+            .renderer
+            .add_render_pass(highlighter.clone());
 
         let (message_sender, message_receiver) = mpsc::channel();
         let message_sender = MessageSender(message_sender);
@@ -897,6 +909,7 @@ impl Editor {
             widget_constructors: Arc::new(WidgetConstructorContainer::new()),
             widget_context_menu,
             collider_control_panel,
+            highlighter,
         };
 
         if let Some(data) = startup_data {
@@ -1820,6 +1833,7 @@ impl Editor {
                             &self.settings,
                             self.message_sender.clone(),
                             &self.scene_viewer,
+                            self.highlighter.clone(),
                         );
                         self.add_scene(entry);
                     }
@@ -1946,6 +1960,7 @@ impl Editor {
             &self.settings,
             self.message_sender.clone(),
             &self.scene_viewer,
+            self.highlighter.clone(),
         );
         self.add_scene(entry);
     }

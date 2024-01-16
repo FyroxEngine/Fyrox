@@ -1,3 +1,4 @@
+use crate::highlight::{HighlightEntry, HighlightRenderPass};
 use crate::{
     absm::{
         command::{
@@ -73,6 +74,8 @@ use fyrox::{
         Scene, SceneContainer,
     },
 };
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::{any::Any, fs::File, io::Write, path::Path};
 
 pub mod clipboard;
@@ -105,6 +108,7 @@ pub struct GameScene {
     pub sender: MessageSender,
     pub camera_state: Vec<(Handle<Node>, bool)>,
     pub node_property_changed_handler: SceneNodePropertyChangedHandler,
+    pub highlighter: Rc<RefCell<HighlightRenderPass>>,
 }
 
 impl GameScene {
@@ -114,6 +118,7 @@ impl GameScene {
         path: Option<&Path>,
         settings: &Settings,
         sender: MessageSender,
+        highlighter: Rc<RefCell<HighlightRenderPass>>,
     ) -> Self {
         scene.rendering_options.render_target = Some(TextureResource::new_render_target(0, 0));
 
@@ -157,6 +162,7 @@ impl GameScene {
             sender,
             camera_state: Default::default(),
             node_property_changed_handler: SceneNodePropertyChangedHandler,
+            highlighter,
         }
     }
 
@@ -797,6 +803,13 @@ impl SceneController for GameScene {
                     frame_size.y as u32,
                 ));
                 new_render_target = scene.rendering_options.render_target.clone();
+
+                let gc = engine.graphics_context.as_initialized_mut();
+                self.highlighter.borrow_mut().resize(
+                    &gc.renderer.state,
+                    frame_size.x as usize,
+                    frame_size.y as usize,
+                );
             }
         }
 
@@ -862,6 +875,24 @@ impl SceneController for GameScene {
                             .try_get((*handle).into())
                             .map(|n| n.name_owned()),
                     ));
+                false
+            }
+            Message::SelectionChanged { .. } => {
+                let mut highlighter = self.highlighter.borrow_mut();
+                highlighter.nodes_to_highlight.clear();
+
+                highlighter.scene_handle = self.scene;
+                if let Selection::Graph(ref selection) = selection {
+                    for &handle in selection.nodes() {
+                        highlighter.nodes_to_highlight.insert(
+                            handle,
+                            HighlightEntry {
+                                color: Color::ORANGE,
+                            },
+                        );
+                    }
+                }
+
                 false
             }
             Message::ProvideSceneHierarchy { view } => {

@@ -1,5 +1,5 @@
-use crate::ui_scene::interaction::move_mode::MoveWidgetsInteractionMode;
 use crate::{
+    highlight::HighlightRenderPass,
     interaction::{
         move_mode::MoveInteractionMode, navmesh::EditNavmeshMode,
         rotate_mode::RotateInteractionMode, scale_mode::ScaleInteractionMode,
@@ -10,19 +10,21 @@ use crate::{
     scene::{controller::SceneController, GameScene, Selection},
     scene_viewer::SceneViewer,
     settings::{keys::KeyBindings, Settings},
-    ui_scene::{interaction::UiSelectInteractionMode, UiScene},
+    ui_scene::{
+        interaction::move_mode::MoveWidgetsInteractionMode, interaction::UiSelectInteractionMode,
+        UiScene,
+    },
 };
-use fyrox::gui::UserInterface;
 use fyrox::{
     core::{algebra::Vector2, math::Rect, pool::Handle, uuid::Uuid, TypeUuidProvider},
     engine::Engine,
     gui::{
         message::{KeyCode, MouseButton},
-        UiNode,
+        UiNode, UserInterface,
     },
     scene::Scene,
 };
-use std::path::PathBuf;
+use std::{cell::RefCell, path::PathBuf, rc::Rc};
 
 pub struct EditorSceneEntry {
     pub has_unsaved_changes: bool,
@@ -46,6 +48,7 @@ impl EditorSceneEntry {
         settings: &Settings,
         message_sender: MessageSender,
         scene_viewer: &SceneViewer,
+        highlighter: Rc<RefCell<HighlightRenderPass>>,
     ) -> Self {
         let game_scene = GameScene::from_native_scene(
             scene,
@@ -53,6 +56,7 @@ impl EditorSceneEntry {
             path.as_deref(),
             settings,
             message_sender.clone(),
+            highlighter,
         );
 
         let mut interaction_modes = InteractionModeContainer::default();
