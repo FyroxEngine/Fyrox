@@ -1917,11 +1917,15 @@ impl Editor {
             } else {
                 self.world_viewer.item_context_menu = None;
             }
+
+            self.menu
+                .on_scene_changed(&*entry.controller, &self.engine.user_interface);
         }
 
         self.world_viewer.clear(ui);
         self.animation_editor.clear(ui);
         self.absm_editor.clear(ui);
+
         self.poll_ui_messages();
 
         self.world_viewer.sync_selection = true;

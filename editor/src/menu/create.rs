@@ -1,15 +1,12 @@
-use crate::scene::controller::SceneController;
-use crate::scene::Selection;
-use crate::ui_scene::UiScene;
 use crate::{
     create_terrain_layer_material,
-    menu::ui::UiMenu,
     menu::{
         animation::AnimationMenu, create_menu_item, create_root_menu_item, dim2::Dim2Menu,
-        physics::PhysicsMenu, physics2d::Physics2dMenu,
+        physics::PhysicsMenu, physics2d::Physics2dMenu, ui::UiMenu,
     },
     message::MessageSender,
-    scene::commands::graph::AddNodeCommand,
+    scene::{commands::graph::AddNodeCommand, controller::SceneController, Selection},
+    ui_scene::UiScene,
     Mode,
 };
 use fyrox::{
@@ -77,6 +74,10 @@ impl CreateEntityRootMenu {
         }
     }
 
+    pub fn on_scene_changed(&self, controller: &dyn SceneController, ui: &UserInterface) {
+        self.sub_menus.on_scene_changed(controller, ui);
+    }
+
     pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
         ui.send_message(WidgetMessage::enabled(
             self.menu,
@@ -109,6 +110,10 @@ pub struct CreateEntityMenu {
     dim2_menu: Dim2Menu,
     animation_menu: AnimationMenu,
     ui_menu: UiMenu,
+
+    mesh_menu: Handle<UiNode>,
+    sound_menu: Handle<UiNode>,
+    light_menu: Handle<UiNode>,
 }
 
 impl CreateEntityMenu {
@@ -134,6 +139,9 @@ impl CreateEntityMenu {
         let physics2d_menu = Physics2dMenu::new(ctx);
         let dim2_menu = Dim2Menu::new(ctx);
         let animation_menu = AnimationMenu::new(ctx);
+        let mesh_menu;
+        let sound_menu;
+        let light_menu;
 
         let ui_menu = UiMenu::new(UiMenu::default_entries(), "UI", ctx);
 
@@ -143,65 +151,74 @@ impl CreateEntityMenu {
                 create_pivot = create_menu_item("Pivot", vec![], ctx);
                 create_pivot
             },
-            create_menu_item(
-                "Mesh",
-                vec![
-                    {
-                        create_cube = create_menu_item("Cube", vec![], ctx);
-                        create_cube
-                    },
-                    {
-                        create_sphere = create_menu_item("Sphere", vec![], ctx);
-                        create_sphere
-                    },
-                    {
-                        create_cylinder = create_menu_item("Cylinder", vec![], ctx);
-                        create_cylinder
-                    },
-                    {
-                        create_cone = create_menu_item("Cone", vec![], ctx);
-                        create_cone
-                    },
-                    {
-                        create_quad = create_menu_item("Quad", vec![], ctx);
-                        create_quad
-                    },
-                ],
-                ctx,
-            ),
-            create_menu_item(
-                "Sound",
-                vec![
-                    {
-                        create_sound_source = create_menu_item("Source", vec![], ctx);
-                        create_sound_source
-                    },
-                    {
-                        create_listener = create_menu_item("Listener", vec![], ctx);
-                        create_listener
-                    },
-                ],
-                ctx,
-            ),
-            create_menu_item(
-                "Light",
-                vec![
-                    {
-                        create_directional_light =
-                            create_menu_item("Directional Light", vec![], ctx);
-                        create_directional_light
-                    },
-                    {
-                        create_spot_light = create_menu_item("Spot Light", vec![], ctx);
-                        create_spot_light
-                    },
-                    {
-                        create_point_light = create_menu_item("Point Light", vec![], ctx);
-                        create_point_light
-                    },
-                ],
-                ctx,
-            ),
+            {
+                mesh_menu = create_menu_item(
+                    "Mesh",
+                    vec![
+                        {
+                            create_cube = create_menu_item("Cube", vec![], ctx);
+                            create_cube
+                        },
+                        {
+                            create_sphere = create_menu_item("Sphere", vec![], ctx);
+                            create_sphere
+                        },
+                        {
+                            create_cylinder = create_menu_item("Cylinder", vec![], ctx);
+                            create_cylinder
+                        },
+                        {
+                            create_cone = create_menu_item("Cone", vec![], ctx);
+                            create_cone
+                        },
+                        {
+                            create_quad = create_menu_item("Quad", vec![], ctx);
+                            create_quad
+                        },
+                    ],
+                    ctx,
+                );
+                mesh_menu
+            },
+            {
+                sound_menu = create_menu_item(
+                    "Sound",
+                    vec![
+                        {
+                            create_sound_source = create_menu_item("Source", vec![], ctx);
+                            create_sound_source
+                        },
+                        {
+                            create_listener = create_menu_item("Listener", vec![], ctx);
+                            create_listener
+                        },
+                    ],
+                    ctx,
+                );
+                sound_menu
+            },
+            {
+                light_menu = create_menu_item(
+                    "Light",
+                    vec![
+                        {
+                            create_directional_light =
+                                create_menu_item("Directional Light", vec![], ctx);
+                            create_directional_light
+                        },
+                        {
+                            create_spot_light = create_menu_item("Spot Light", vec![], ctx);
+                            create_spot_light
+                        },
+                        {
+                            create_point_light = create_menu_item("Point Light", vec![], ctx);
+                            create_point_light
+                        },
+                    ],
+                    ctx,
+                );
+                light_menu
+            },
             physics_menu.menu,
             physics2d_menu.menu,
             dim2_menu.menu,
@@ -256,9 +273,45 @@ impl CreateEntityMenu {
                 dim2_menu,
                 animation_menu,
                 ui_menu,
+                mesh_menu,
+                light_menu,
+                sound_menu,
             },
             items,
         )
+    }
+
+    pub fn on_scene_changed(&self, controller: &dyn SceneController, ui: &UserInterface) {
+        let is_ui_scene = controller.downcast_ref::<UiScene>().is_some();
+
+        ui.send_message(WidgetMessage::enabled(
+            self.ui_menu.menu,
+            MessageDirection::ToWidget,
+            is_ui_scene,
+        ));
+
+        for widget in [
+            self.mesh_menu,
+            self.light_menu,
+            self.create_camera,
+            self.create_sprite,
+            self.create_particle_system,
+            self.create_pivot,
+            self.create_terrain,
+            self.sound_menu,
+            self.create_navmesh,
+            self.create_decal,
+            self.physics_menu.menu,
+            self.physics2d_menu.menu,
+            self.dim2_menu.menu,
+            self.animation_menu.menu,
+        ] {
+            ui.send_message(WidgetMessage::enabled(
+                widget,
+                MessageDirection::ToWidget,
+                !is_ui_scene,
+            ));
+        }
     }
 
     pub fn handle_ui_message(

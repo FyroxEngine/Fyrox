@@ -1,3 +1,4 @@
+use crate::scene::controller::SceneController;
 use crate::{
     animation::AnimationEditor,
     menu::{
@@ -203,6 +204,10 @@ impl Menu {
             &self.message_sender,
         );
         self.help_menu.handle_ui_message(message);
+    }
+
+    pub fn on_scene_changed(&self, controller: &dyn SceneController, ui: &UserInterface) {
+        self.create_entity_menu.on_scene_changed(controller, ui);
     }
 
     pub fn on_mode_changed(&mut self, ui: &UserInterface, mode: &Mode) {
