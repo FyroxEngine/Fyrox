@@ -1,4 +1,3 @@
-use crate::scene::controller::SceneController;
 use crate::{
     camera::PickingOptions,
     interaction::{
@@ -10,19 +9,20 @@ use crate::{
         commands::{
             graph::RotateNodeCommand, ChangeSelectionCommand, CommandGroup, GameSceneCommand,
         },
+        controller::SceneController,
         GameScene, Selection,
     },
     settings::Settings,
     world::graph::selection::GraphSelection,
     Engine,
 };
-use fyrox::core::TypeUuidProvider;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2},
         math::round_to_step,
         pool::Handle,
         uuid::{uuid, Uuid},
+        TypeUuidProvider,
     },
     gui::{BuildContext, UiNode},
 };
@@ -59,7 +59,7 @@ impl InteractionMode for RotateInteractionMode {
         engine: &mut Engine,
         mouse_pos: Vector2<f32>,
         frame_size: Vector2<f32>,
-        settings: &Settings,
+        _settings: &Settings,
     ) {
         let Some(game_scene) = controller.downcast_mut::<GameScene>() else {
             return;
@@ -80,14 +80,11 @@ impl InteractionMode for RotateInteractionMode {
             filter: |handle, _| {
                 handle != camera && handle != camera_pivot && handle != self.rotation_gizmo.origin
             },
-            ignore_back_faces: settings.selection.ignore_back_faces,
+            ignore_back_faces: false,
             use_picking_loop: true,
             only_meshes: false,
         }) {
-            if self
-                .rotation_gizmo
-                .handle_pick(result.node, game_scene, engine)
-            {
+            if self.rotation_gizmo.handle_pick(result.node, graph) {
                 let graph = &mut engine.scenes[game_scene.scene].graph;
                 if let Selection::Graph(selection) = editor_selection {
                     self.interacting = true;
@@ -192,19 +189,19 @@ impl InteractionMode for RotateInteractionMode {
             return;
         };
 
+        let graph = &mut engine.scenes[game_scene.scene].graph;
+
         if let Selection::Graph(selection) = editor_selection {
             if self.interacting {
                 let rotation_delta = self.rotation_gizmo.calculate_rotation_delta(
-                    game_scene,
                     game_scene.camera_controller.camera,
                     mouse_offset,
                     mouse_position,
-                    engine,
+                    graph,
                     frame_size,
                 );
                 for &node in selection.nodes().iter() {
-                    let transform =
-                        engine.scenes[game_scene.scene].graph[node].local_transform_mut();
+                    let transform = graph[node].local_transform_mut();
                     let rotation = **transform.rotation();
                     let final_rotation = rotation * rotation_delta;
                     let (mut roll, mut pitch, mut yaw) = final_rotation.euler_angles();
@@ -223,6 +220,28 @@ impl InteractionMode for RotateInteractionMode {
                         );
                     }
                     transform.set_rotation(UnitQuaternion::from_euler_angles(roll, pitch, yaw));
+                }
+            } else {
+                let picked = game_scene
+                    .camera_controller
+                    .pick(PickingOptions {
+                        cursor_pos: mouse_position,
+                        graph,
+                        editor_objects_root: game_scene.editor_objects_root,
+                        scene_content_root: game_scene.scene_content_root,
+                        screen_size: frame_size,
+                        editor_only: true,
+                        filter: |_, _| true,
+                        ignore_back_faces: false,
+                        use_picking_loop: false,
+                        only_meshes: false,
+                    })
+                    .map(|r| r.node)
+                    .unwrap_or_default();
+                if picked.is_none() {
+                    self.rotation_gizmo.reset_state(graph)
+                } else {
+                    self.rotation_gizmo.handle_pick(picked, graph);
                 }
             }
         }

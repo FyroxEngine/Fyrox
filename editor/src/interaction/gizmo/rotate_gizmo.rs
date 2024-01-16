@@ -2,6 +2,7 @@ use crate::{
     make_color_material, scene::GameScene, set_mesh_diffuse_color,
     world::graph::selection::GraphSelection, Engine,
 };
+use fyrox::scene::pivot::PivotBuilder;
 use fyrox::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},
@@ -58,7 +59,7 @@ fn make_rotation_ribbon(
             0.025,
             16,
             32,
-            &Matrix4::new_translation(&Vector3::new(0.0, -0.05, 0.0)),
+            &Matrix4::new_translation(&Vector3::new(0.0, -0.00, 0.0)),
         ),
     ))
     .with_material(make_color_material(color))
@@ -71,18 +72,11 @@ impl RotationGizmo {
         let scene = &mut engine.scenes[game_scene.scene];
         let graph = &mut scene.graph;
 
-        let origin = MeshBuilder::new(
+        let origin = PivotBuilder::new(
             BaseBuilder::new()
-                .with_cast_shadows(false)
                 .with_name("Origin")
                 .with_visibility(false),
         )
-        .with_render_path(RenderPath::Forward)
-        .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
-            SurfaceData::make_sphere(10, 10, 0.1, &Matrix4::identity()),
-        ))
-        .with_material(make_color_material(Color::opaque(100, 100, 100)))
-        .build()])
         .build(graph);
 
         graph.link_nodes(origin, game_scene.editor_objects_root);
@@ -119,7 +113,6 @@ impl RotationGizmo {
     }
 
     pub fn reset_state(&self, graph: &mut Graph) {
-        set_mesh_diffuse_color(graph[self.origin].as_mesh_mut(), Color::WHITE);
         set_mesh_diffuse_color(graph[self.x_axis].as_mesh_mut(), Color::RED);
         set_mesh_diffuse_color(graph[self.y_axis].as_mesh_mut(), Color::GREEN);
         set_mesh_diffuse_color(graph[self.z_axis].as_mesh_mut(), Color::BLUE);
@@ -145,14 +138,7 @@ impl RotationGizmo {
         }
     }
 
-    pub fn handle_pick(
-        &mut self,
-        picked: Handle<Node>,
-        game_scene: &GameScene,
-        engine: &mut Engine,
-    ) -> bool {
-        let graph = &mut engine.scenes[game_scene.scene].graph;
-
+    pub fn handle_pick(&mut self, picked: Handle<Node>, graph: &mut Graph) -> bool {
         if picked == self.x_axis {
             self.set_mode(RotateGizmoMode::Pitch, graph);
             true
@@ -169,15 +155,12 @@ impl RotationGizmo {
 
     pub fn calculate_rotation_delta(
         &self,
-        game_scene: &GameScene,
         camera: Handle<Node>,
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
-        engine: &Engine,
+        graph: &Graph,
         frame_size: Vector2<f32>,
     ) -> UnitQuaternion<f32> {
-        let graph = &engine.scenes[game_scene.scene].graph;
-
         let camera = &graph[camera].as_camera();
         let transform = graph[self.origin].global_transform();
 
