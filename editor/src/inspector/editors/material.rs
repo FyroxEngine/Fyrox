@@ -137,13 +137,14 @@ impl Control for MaterialFieldEditor {
                 };
 
                 if let Ok(path) = path {
-                    if let Ok(material) = block_on(self.resource_manager.request::<Material>(path))
-                    {
-                        ui.send_message(MaterialFieldMessage::material(
-                            self.handle(),
-                            MessageDirection::ToWidget,
-                            material,
-                        ));
+                    if let Some(material) = self.resource_manager.try_request::<Material>(path) {
+                        if let Ok(material) = block_on(material) {
+                            ui.send_message(MaterialFieldMessage::material(
+                                self.handle(),
+                                MessageDirection::ToWidget,
+                                material,
+                            ));
+                        }
                     }
                 }
             }
