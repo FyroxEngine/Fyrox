@@ -19,6 +19,7 @@ use crate::{
     engine::error::EngineError,
     event::Event,
     gui::UserInterface,
+    material,
     material::{
         loader::MaterialLoader,
         shader::{loader::ShaderLoader, Shader, ShaderResource, ShaderResourceExtension},
@@ -1104,6 +1105,20 @@ pub(crate) fn initialize_resource_manager_loaders(
         BUILT_IN_FONT.kind().path_owned().unwrap(),
         BUILT_IN_FONT.clone().into_untyped(),
     );
+
+    for material in [
+        material::STANDARD.clone(),
+        material::STANDARD_2D.clone(),
+        material::STANDARD_SPRITE.clone(),
+        material::STANDARD_TERRAIN.clone(),
+        material::STANDARD_TWOSIDES.clone(),
+        material::STANDARD_PARTICLE_SYSTEM.clone(),
+    ] {
+        state.built_in_resources.insert(
+            material.kind().path_owned().unwrap(),
+            material.clone().into_untyped(),
+        );
+    }
 
     state.constructors_container.add::<Texture>();
     state.constructors_container.add::<Shader>();
