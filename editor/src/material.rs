@@ -342,7 +342,10 @@ impl MaterialEditor {
 
     pub fn sync_to_model(&mut self, ui: &mut UserInterface) {
         if let Some(material) = self.material.as_ref() {
-            let material = material.data_ref();
+            let mut material_state = material.state();
+            let Some(material) = material_state.data() else {
+                return;
+            };
 
             // Remove properties from ui.
             for name in self
@@ -643,11 +646,15 @@ impl MaterialEditor {
                     if message.direction() == MessageDirection::FromWidget {
                         // NumericUpDown is used for Float, Int, UInt properties, so we have to check
                         // the actual property "type" to create suitable value from f32.
-                        match material.data_ref().property_ref(property_name).unwrap() {
-                            PropertyValue::Float(_) => Some(PropertyValue::Float(*value)),
-                            PropertyValue::Int(_) => Some(PropertyValue::Int(*value as i32)),
-                            PropertyValue::UInt(_) => Some(PropertyValue::UInt(*value as u32)),
-                            _ => None,
+                        if let Some(material) = material.state().data() {
+                            match material.property_ref(property_name).unwrap() {
+                                PropertyValue::Float(_) => Some(PropertyValue::Float(*value)),
+                                PropertyValue::Int(_) => Some(PropertyValue::Int(*value as i32)),
+                                PropertyValue::UInt(_) => Some(PropertyValue::UInt(*value as u32)),
+                                _ => None,
+                            }
+                        } else {
+                            None
                         }
                     } else {
                         None
