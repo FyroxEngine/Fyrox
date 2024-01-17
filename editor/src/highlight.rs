@@ -122,7 +122,7 @@ impl HighlightRenderPass {
 
         let depth_stencil = Rc::new(RefCell::new(depth_stencil_texture));
 
-        let frame_texture = GpuTexture::new(
+        let mut frame_texture = GpuTexture::new(
             state,
             GpuTextureKind::Rectangle { width, height },
             PixelKind::RGBA8,
@@ -132,6 +132,10 @@ impl HighlightRenderPass {
             None,
         )
         .unwrap();
+        frame_texture
+            .bind_mut(state, 0)
+            .set_wrap(Coordinate::S, WrapMode::ClampToEdge)
+            .set_wrap(Coordinate::T, WrapMode::ClampToEdge);
 
         FrameBuffer::new(
             state,
