@@ -848,6 +848,9 @@ pub struct SceneRenderPassContext<'a, 'b> {
     /// An 1x1 black pixel texture that could be used a stub when there is no texture.
     pub black_dummy: Rc<RefCell<GpuTexture>>,
 
+    /// A dummy 1x1x1 pixel volume texture.
+    pub volume_dummy: Rc<RefCell<GpuTexture>>,
+
     /// A texture with depth values from G-Buffer.
     ///
     /// # Important notes
@@ -875,6 +878,9 @@ pub struct SceneRenderPassContext<'a, 'b> {
 
     /// User interface renderer.
     pub ui_renderer: &'a mut UiRenderer,
+
+    /// Matrix storage is container of procedural textures that stores matrices for bones.
+    pub matrix_storage: &'a mut MatrixStorageCache,
 }
 
 /// A trait for custom scene rendering pass. It could be used to add your own rendering techniques.
@@ -942,12 +948,13 @@ fn blit_pixels(
     )
 }
 
-pub(crate) struct LightData<const N: usize = 16> {
-    count: usize,
-    color_radius: [Vector4<f32>; N],
-    position: [Vector3<f32>; N],
-    direction: [Vector3<f32>; N],
-    parameters: [Vector2<f32>; N],
+#[allow(missing_docs)] // TODO
+pub struct LightData<const N: usize = 16> {
+    pub count: usize,
+    pub color_radius: [Vector4<f32>; N],
+    pub position: [Vector3<f32>; N],
+    pub direction: [Vector3<f32>; N],
+    pub parameters: [Vector2<f32>; N],
 }
 
 impl<const N: usize> Default for LightData<N> {
@@ -962,7 +969,8 @@ impl<const N: usize> Default for LightData<N> {
     }
 }
 
-pub(crate) struct MaterialContext<'a, 'b, 'c> {
+#[allow(missing_docs)] // TODO
+pub struct MaterialContext<'a, 'b, 'c> {
     pub material: &'a Material,
     pub program_binding: &'a mut GpuProgramBinding<'b, 'c>,
     pub texture_cache: &'a mut TextureCache,
@@ -998,7 +1006,8 @@ pub(crate) struct MaterialContext<'a, 'b, 'c> {
     pub volume_dummy: &'a Rc<RefCell<GpuTexture>>,
 }
 
-pub(crate) fn apply_material(ctx: MaterialContext) {
+#[allow(missing_docs)] // TODO
+pub fn apply_material(ctx: MaterialContext) {
     let built_in_uniforms = &ctx.program_binding.program.built_in_uniform_locations;
 
     // Apply values for built-in uniforms.
@@ -1802,11 +1811,13 @@ impl Renderer {
                                 metallic_dummy: self.metallic_dummy.clone(),
                                 environment_dummy: self.environment_dummy.clone(),
                                 black_dummy: self.black_dummy.clone(),
+                                volume_dummy: self.volume_dummy.clone(),
                                 depth_texture: scene_associated_data.gbuffer.depth(),
                                 normal_texture: scene_associated_data.gbuffer.normal_texture(),
                                 ambient_texture: scene_associated_data.gbuffer.ambient_texture(),
                                 framebuffer: &mut scene_associated_data.hdr_scene_framebuffer,
                                 ui_renderer: &mut self.ui_renderer,
+                                matrix_storage: &mut self.matrix_storage,
                             })?;
                 }
 
@@ -1884,11 +1895,13 @@ impl Renderer {
                                 metallic_dummy: self.metallic_dummy.clone(),
                                 environment_dummy: self.environment_dummy.clone(),
                                 black_dummy: self.black_dummy.clone(),
+                                volume_dummy: self.volume_dummy.clone(),
                                 depth_texture: scene_associated_data.gbuffer.depth(),
                                 normal_texture: scene_associated_data.gbuffer.normal_texture(),
                                 ambient_texture: scene_associated_data.gbuffer.ambient_texture(),
                                 framebuffer: &mut scene_associated_data.ldr_scene_framebuffer,
                                 ui_renderer: &mut self.ui_renderer,
+                                matrix_storage: &mut self.matrix_storage,
                             })?;
                 }
             }
