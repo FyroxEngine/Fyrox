@@ -10,7 +10,7 @@ use crate::{
         algebra::Vector2, color::Color, parking_lot::Mutex, pool::Handle, reflect::prelude::*,
         type_traits::prelude::*, uuid_provider, visitor::prelude::*,
     },
-    decorator::DecoratorBuilder,
+    decorator::{DecoratorBuilder, DecoratorMessage},
     define_constructor,
     grid::{Column, GridBuilder, Row},
     message::{ButtonState, MessageDirection, OsEvent, UiMessage},
@@ -274,6 +274,8 @@ pub struct MenuItem {
     pub placement: MenuItemPlacement,
     /// A flag, that defines whether the menu item is clickable when it has sub-items or not.
     pub clickable_when_not_empty: bool,
+    /// A handle to the decorator of the item.
+    pub decorator: Handle<UiNode>,
 }
 
 crate::define_widget_deref!(MenuItem);
@@ -442,12 +444,22 @@ impl Control for MenuItem {
                                 self.popup,
                                 MessageDirection::ToWidget,
                             ));
+                            ui.send_message(DecoratorMessage::select(
+                                self.decorator,
+                                MessageDirection::ToWidget,
+                                true,
+                            ));
                         }
                     }
                     MenuItemMessage::Close => {
                         ui.send_message(PopupMessage::close(
                             self.popup,
                             MessageDirection::ToWidget,
+                        ));
+                        ui.send_message(DecoratorMessage::select(
+                            self.decorator,
+                            MessageDirection::ToWidget,
+                            false,
                         ));
                     }
                     MenuItemMessage::Click => {}
@@ -773,19 +785,20 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
             Some(MenuItemContent::Node(node)) => node,
         };
 
-        let back = self.back.unwrap_or_else(|| {
+        let decorator = self.back.unwrap_or_else(|| {
             DecoratorBuilder::new(
                 BorderBuilder::new(WidgetBuilder::new())
                     .with_stroke_thickness(Thickness::uniform(0.0)),
             )
             .with_hover_brush(BRUSH_BRIGHT_BLUE)
+            .with_selected_brush(BRUSH_BRIGHT_BLUE)
             .with_normal_brush(BRUSH_PRIMARY)
             .with_pressed_brush(Brush::Solid(Color::TRANSPARENT))
             .with_pressable(false)
             .build(ctx)
         });
 
-        ctx.link(content, back);
+        ctx.link(content, decorator);
 
         let panel;
         let popup = PopupBuilder::new(WidgetBuilder::new().with_min_size(Vector2::new(10.0, 10.0)))
@@ -805,13 +818,14 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                 .widget_builder
                 .with_handle_os_events(true)
                 .with_preview_messages(true)
-                .with_child(back)
+                .with_child(decorator)
                 .build(),
             popup,
             items: self.items,
             placement: MenuItemPlacement::Right,
             panel,
             clickable_when_not_empty: false,
+            decorator,
         };
 
         let handle = ctx.add_node(UiNode::new(menu));
