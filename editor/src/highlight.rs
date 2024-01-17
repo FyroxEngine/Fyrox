@@ -2,11 +2,13 @@ use fyrox::{
     core::{
         algebra::{Matrix4, Vector3},
         color::Color,
+        math::Matrix4Ext,
         pool::Handle,
         sstorage::ImmutableString,
     },
-    fxhash::FxHashMap,
+    fxhash::FxHashSet,
     renderer::{
+        apply_material,
         batch::{RenderContext, RenderDataBatchStorage},
         framework::{
             error::FrameworkError,
@@ -21,7 +23,7 @@ use fyrox::{
             },
             state::{BlendFactor, BlendFunc, PipelineState},
         },
-        RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
+        MaterialContext, RenderPassStatistics, SceneRenderPass, SceneRenderPassContext,
     },
     scene::{mesh::surface::SurfaceData, node::Node, Scene},
 };
@@ -31,12 +33,14 @@ struct EdgeDetectShader {
     program: GpuProgram,
     wvp_matrix: UniformLocation,
     frame_texture: UniformLocation,
+    color: UniformLocation,
 }
 
 impl EdgeDetectShader {
     pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = r#"
 uniform sampler2D frameTexture;
+uniform vec4 color;
 
 in vec2 texCoord;
 
@@ -46,22 +50,22 @@ void main() {
 	float w = 1.0 / float(size.x);
 	float h = 1.0 / float(size.y);
 
-    vec4 n[9];
-	n[0] = texture(frameTexture, texCoord + vec2(-w, -h));
-	n[1] = texture(frameTexture, texCoord + vec2(0.0, -h));
-	n[2] = texture(frameTexture, texCoord + vec2(w, -h));
-	n[3] = texture(frameTexture, texCoord + vec2( -w, 0.0));
-	n[4] = texture(frameTexture, texCoord);
-	n[5] = texture(frameTexture, texCoord + vec2(w, 0.0));
-	n[6] = texture(frameTexture, texCoord + vec2(-w, h));
-	n[7] = texture(frameTexture, texCoord + vec2(0.0, h));
-	n[8] = texture(frameTexture, texCoord + vec2(w, h));
+    float n[9];
+	n[0] = texture(frameTexture, texCoord + vec2(-w, -h)).a;
+	n[1] = texture(frameTexture, texCoord + vec2(0.0, -h)).a;
+	n[2] = texture(frameTexture, texCoord + vec2(w, -h)).a;
+	n[3] = texture(frameTexture, texCoord + vec2( -w, 0.0)).a;
+	n[4] = texture(frameTexture, texCoord).a;
+	n[5] = texture(frameTexture, texCoord + vec2(w, 0.0)).a;
+	n[6] = texture(frameTexture, texCoord + vec2(-w, h)).a;
+	n[7] = texture(frameTexture, texCoord + vec2(0.0, h)).a;
+	n[8] = texture(frameTexture, texCoord + vec2(w, h)).a;
 
-	vec4 sobel_edge_h = n[2] + (2.0 * n[5]) + n[8] - (n[0] + (2.0 * n[3]) + n[6]);
-  	vec4 sobel_edge_v = n[0] + (2.0 * n[1]) + n[2] - (n[6] + (2.0 * n[7]) + n[8]);
-	vec4 sobel = sqrt((sobel_edge_h * sobel_edge_h) + (sobel_edge_v * sobel_edge_v));
+	float sobel_edge_h = n[2] + (2.0 * n[5]) + n[8] - (n[0] + (2.0 * n[3]) + n[6]);
+  	float sobel_edge_v = n[0] + (2.0 * n[1]) + n[2] - (n[6] + (2.0 * n[7]) + n[8]);
+	float sobel = sqrt((sobel_edge_h * sobel_edge_h) + (sobel_edge_v * sobel_edge_v));
 
-	gl_FragColor = vec4(sobel.rgb, (sobel.r + sobel.g + sobel.b) * 0.333);
+	gl_FragColor = vec4(color.rgb, color.a * sobel);
 }"#;
 
         let vertex_source = r#"
@@ -85,62 +89,18 @@ void main()
                 .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
             frame_texture: program
                 .uniform_location(state, &ImmutableString::new("frameTexture"))?,
+            color: program.uniform_location(state, &ImmutableString::new("color"))?,
             program,
         })
     }
-}
-
-struct FlatShader {
-    program: GpuProgram,
-    wvp_matrix: UniformLocation,
-    diffuse_color: UniformLocation,
-}
-
-impl FlatShader {
-    pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
-        let fragment_source = r#"
-out vec4 FragColor;
-
-uniform vec4 diffuseColor;
-
-void main()
-{
-    FragColor = diffuseColor;
-}"#;
-
-        let vertex_source = r#"
-layout(location = 0) in vec3 vertexPosition;
-
-uniform mat4 worldViewProjection;
-
-void main()
-{
-    gl_Position = worldViewProjection * vec4(vertexPosition, 1.0);
-}"#;
-
-        let program = GpuProgram::from_source(state, "FlatShader", vertex_source, fragment_source)?;
-        Ok(Self {
-            wvp_matrix: program
-                .uniform_location(state, &ImmutableString::new("worldViewProjection"))?,
-            diffuse_color: program
-                .uniform_location(state, &ImmutableString::new("diffuseColor"))?,
-            program,
-        })
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct HighlightEntry {
-    pub color: Color,
 }
 
 pub struct HighlightRenderPass {
     framebuffer: FrameBuffer,
     quad: GeometryBuffer,
     edge_detect_shader: EdgeDetectShader,
-    flat_shader: FlatShader,
     pub scene_handle: Handle<Scene>,
-    pub nodes_to_highlight: FxHashMap<Handle<Node>, HighlightEntry>,
+    pub nodes_to_highlight: FxHashSet<Handle<Node>>,
 }
 
 impl HighlightRenderPass {
@@ -197,7 +157,6 @@ impl HighlightRenderPass {
             )
             .unwrap(),
             edge_detect_shader: EdgeDetectShader::new(state).unwrap(),
-            flat_shader: FlatShader::new(state).unwrap(),
             scene_handle: Default::default(),
             nodes_to_highlight: Default::default(),
         }
@@ -220,11 +179,10 @@ impl SceneRenderPass for HighlightRenderPass {
         if self.scene_handle != ctx.scene_handle {
             return Ok(Default::default());
         }
-        dbg!(self.scene_handle);
 
         // Draw selected nodes in the temporary frame buffer first.
         {
-            let view_projection = ctx.camera.view_projection_matrix();
+            let render_pass_name = ImmutableString::new("Forward");
 
             let mut render_batch_storage = RenderDataBatchStorage::default();
 
@@ -237,17 +195,13 @@ impl SceneRenderPass for HighlightRenderPass {
                 frustum: &ctx.camera.frustum(),
                 storage: &mut render_batch_storage,
                 graph: &ctx.scene.graph,
-                render_pass_name: &Default::default(),
+                render_pass_name: &render_pass_name,
             };
 
-            let mut additional_data_map = FxHashMap::default();
-
-            for (&root_node_handle, entry) in dbg!(&self.nodes_to_highlight).iter() {
+            for &root_node_handle in self.nodes_to_highlight.iter() {
                 for node_handle in ctx.scene.graph.traverse_handle_iter(root_node_handle) {
                     if let Some(node) = ctx.scene.graph.try_get(node_handle) {
                         node.collect_render_data(&mut render_context);
-
-                        additional_data_map.insert(node_handle, entry.clone());
                     }
                 }
             }
@@ -262,7 +216,19 @@ impl SceneRenderPass for HighlightRenderPass {
                 None,
             );
 
+            let initial_view_projection = ctx.camera.view_projection_matrix();
+            let inv_view = ctx.camera.inv_view_matrix().unwrap();
+
+            let camera_up = inv_view.up();
+            let camera_side = inv_view.side();
+
             for batch in render_batch_storage.batches.iter() {
+                let mut material_state = batch.material.state();
+
+                let Some(material) = material_state.data() else {
+                    continue;
+                };
+
                 let Some(geometry) =
                     ctx.geometry_cache
                         .get(ctx.pipeline_state, &batch.data, batch.time_to_live)
@@ -270,36 +236,66 @@ impl SceneRenderPass for HighlightRenderPass {
                     continue;
                 };
 
+                let blend_shapes_storage = batch
+                    .data
+                    .lock()
+                    .blend_shapes_container
+                    .as_ref()
+                    .and_then(|c| c.blend_shape_storage.clone());
+
+                let Some(render_pass) = ctx
+                    .shader_cache
+                    .get(ctx.pipeline_state, material.shader())
+                    .and_then(|shader_set| shader_set.render_passes.get(&render_pass_name))
+                else {
+                    continue;
+                };
+
                 for instance in batch.instances.iter() {
-                    let shader = &self.flat_shader;
+                    let view_projection = if instance.depth_offset != 0.0 {
+                        let mut projection = ctx.camera.projection_matrix();
+                        projection[14] -= instance.depth_offset;
+                        projection * ctx.camera.view_matrix()
+                    } else {
+                        initial_view_projection
+                    };
+
                     self.framebuffer.draw(
                         geometry,
                         ctx.pipeline_state,
                         ctx.viewport,
-                        &shader.program,
-                        &DrawParameters {
-                            cull_face: None,
-                            color_write: Default::default(),
-                            depth_write: true,
-                            stencil_test: None,
-                            depth_test: true,
-                            blend: None,
-                            stencil_op: Default::default(),
-                        },
+                        &render_pass.program,
+                        &render_pass.draw_params,
                         instance.element_range,
                         |mut program_binding| {
-                            program_binding
-                                .set_matrix4(
-                                    &shader.wvp_matrix,
-                                    &(view_projection * instance.world_transform),
-                                )
-                                .set_linear_color(
-                                    &shader.diffuse_color,
-                                    &additional_data_map
-                                        .get(&instance.node_handle)
-                                        .map(|e| e.color)
-                                        .unwrap_or_default(),
-                                );
+                            apply_material(MaterialContext {
+                                material,
+                                program_binding: &mut program_binding,
+                                texture_cache: ctx.texture_cache,
+                                world_matrix: &instance.world_transform,
+                                view_projection_matrix: &view_projection,
+                                wvp_matrix: &(view_projection * instance.world_transform),
+                                bone_matrices: &instance.bone_matrices,
+                                use_skeletal_animation: batch.is_skinned,
+                                camera_position: &ctx.camera.global_position(),
+                                camera_up_vector: &camera_up,
+                                camera_side_vector: &camera_side,
+                                z_near: ctx.camera.projection().z_near(),
+                                z_far: ctx.camera.projection().z_far(),
+                                use_pom: false,
+                                light_position: &Default::default(),
+                                blend_shapes_storage: blend_shapes_storage.as_ref(),
+                                blend_shapes_weights: &instance.blend_shapes_weights,
+                                normal_dummy: &ctx.normal_dummy,
+                                white_dummy: &ctx.white_dummy,
+                                black_dummy: &ctx.black_dummy,
+                                volume_dummy: &ctx.volume_dummy,
+                                matrix_storage: ctx.matrix_storage,
+                                persistent_identifier: instance.persistent_identifier,
+                                light_data: None,
+                                ambient_light: Default::default(),
+                                scene_depth: Some(&ctx.depth_texture),
+                            });
                         },
                     )?;
                 }
@@ -343,7 +339,8 @@ impl SceneRenderPass for HighlightRenderPass {
                 |mut program_binding| {
                     program_binding
                         .set_matrix4(&shader.wvp_matrix, &frame_matrix)
-                        .set_texture(&shader.frame_texture, &frame_texture);
+                        .set_texture(&shader.frame_texture, &frame_texture)
+                        .set_srgb_color(&shader.color, &Color::ORANGE);
                 },
             )?;
         }

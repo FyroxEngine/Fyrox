@@ -1,4 +1,4 @@
-use crate::highlight::{HighlightEntry, HighlightRenderPass};
+use crate::highlight::HighlightRenderPass;
 use crate::{
     absm::{
         command::{
@@ -884,12 +884,7 @@ impl SceneController for GameScene {
                 highlighter.scene_handle = self.scene;
                 if let Selection::Graph(ref selection) = selection {
                     for &handle in selection.nodes() {
-                        highlighter.nodes_to_highlight.insert(
-                            handle,
-                            HighlightEntry {
-                                color: Color::ORANGE,
-                            },
-                        );
+                        highlighter.nodes_to_highlight.insert(handle);
                     }
                 }
 
