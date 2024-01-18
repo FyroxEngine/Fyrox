@@ -316,17 +316,22 @@ impl NodeTrait for Ragdoll {
             }
         });
 
-        if *self.is_active {
-            if let Some(root_limb_body) = ctx.nodes.try_borrow(self.root_limb.bone) {
-                let position = root_limb_body.global_position();
-                if let Some(capsule) = ctx
-                    .nodes
-                    .try_borrow_mut(*self.character_rigid_body)
-                    .and_then(|n| n.query_component_mut::<RigidBody>())
-                {
-                    capsule.set_lin_vel(Default::default());
-                    capsule.set_ang_vel(Default::default());
-                    capsule.local_transform_mut().set_position(position);
+        if let Some(root_limb_body) = ctx.nodes.try_borrow(self.root_limb.bone) {
+            let position = root_limb_body.global_position();
+            if let Some(character_rigid_body) = ctx
+                .nodes
+                .try_borrow_mut(*self.character_rigid_body)
+                .and_then(|n| n.query_component_mut::<RigidBody>())
+            {
+                if *self.is_active {
+                    character_rigid_body.set_lin_vel(Default::default());
+                    character_rigid_body.set_ang_vel(Default::default());
+                    character_rigid_body
+                        .local_transform_mut()
+                        .set_position(position);
+                    character_rigid_body.set_body_type(RigidBodyType::KinematicPositionBased);
+                } else {
+                    character_rigid_body.set_body_type(RigidBodyType::Dynamic);
                 }
             }
         }
