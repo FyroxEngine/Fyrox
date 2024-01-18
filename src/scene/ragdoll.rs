@@ -383,15 +383,22 @@ impl RagdollBuilder {
         self
     }
 
-    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
-        let ragdoll = Ragdoll {
+    pub fn build_ragdoll(self) -> Ragdoll {
+        Ragdoll {
             base: self.base_builder.build_base(),
             character_rigid_body: self.character_rigid_body.into(),
             is_active: self.is_active.into(),
             root_limb: self.root_limb.into(),
             prev_enabled: self.is_active,
-        };
+        }
+    }
 
-        graph.add_node(Node::new(ragdoll))
+    /// Creates ragdoll node, but does not add it to a graph.
+    pub fn build_node(self) -> Node {
+        Node::new(self.build_ragdoll())
+    }
+
+    pub fn build(self, graph: &mut Graph) -> Handle<Node> {
+        graph.add_node(self.build_node())
     }
 }

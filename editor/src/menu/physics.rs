@@ -2,7 +2,10 @@ use crate::menu::create_menu_item;
 use fyrox::{
     core::pool::Handle,
     gui::{menu::MenuItemMessage, message::UiMessage, BuildContext, UiNode},
-    scene::{base::BaseBuilder, collider::*, joint::*, node::Node, rigidbody::RigidBodyBuilder},
+    scene::{
+        base::BaseBuilder, collider::*, joint::*, node::Node, ragdoll::RagdollBuilder,
+        rigidbody::RigidBodyBuilder,
+    },
 };
 
 pub struct PhysicsMenu {
@@ -13,6 +16,7 @@ pub struct PhysicsMenu {
     create_prismatic_joint: Handle<UiNode>,
     create_fixed_joint: Handle<UiNode>,
     create_collider: Handle<UiNode>,
+    create_ragdoll: Handle<UiNode>,
 }
 
 impl PhysicsMenu {
@@ -23,6 +27,7 @@ impl PhysicsMenu {
         let create_ball_joint;
         let create_prismatic_joint;
         let create_fixed_joint;
+        let create_ragdoll;
         let menu = create_menu_item(
             "Physics",
             vec![
@@ -50,6 +55,10 @@ impl PhysicsMenu {
                     create_fixed_joint = create_menu_item("Fixed Joint", vec![], ctx);
                     create_fixed_joint
                 },
+                {
+                    create_ragdoll = create_menu_item("Ragdoll", vec![], ctx);
+                    create_ragdoll
+                },
             ],
             ctx,
         );
@@ -62,6 +71,7 @@ impl PhysicsMenu {
             create_prismatic_joint,
             create_fixed_joint,
             create_collider,
+            create_ragdoll,
         }
     }
 
@@ -99,6 +109,8 @@ impl PhysicsMenu {
                         .with_shape(ColliderShape::Cuboid(Default::default()))
                         .build_node(),
                 )
+            } else if message.destination == self.create_ragdoll {
+                Some(RagdollBuilder::new(BaseBuilder::new().with_name("Ragdoll")).build_node())
             } else {
                 None
             }
