@@ -10,6 +10,7 @@ use crate::{
     Mode,
 };
 use fyrox::{
+    asset::untyped::ResourceKind,
     core::{
         algebra::{Matrix4, Vector3},
         math::TriangleDefinition,
@@ -19,6 +20,8 @@ use fyrox::{
         menu::MenuItemMessage, message::MessageDirection, message::UiMessage,
         widget::WidgetMessage, BuildContext, UiNode, UserInterface,
     },
+    material::{Material, MaterialResource},
+    resource::texture::PLACEHOLDER,
     scene::{
         base::BaseBuilder,
         camera::CameraBuilder,
@@ -28,7 +31,7 @@ use fyrox::{
             BaseLightBuilder,
         },
         mesh::{
-            surface::{Surface, SurfaceData, SurfaceSharedData},
+            surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
             MeshBuilder,
         },
         navmesh::NavigationalMeshBuilder,
@@ -114,6 +117,12 @@ pub struct CreateEntityMenu {
     mesh_menu: Handle<UiNode>,
     sound_menu: Handle<UiNode>,
     light_menu: Handle<UiNode>,
+}
+
+fn placeholder_material() -> MaterialResource {
+    let mut material = Material::standard();
+    let _ = material.set_texture(&"diffuseTexture".into(), Some(PLACEHOLDER.clone()));
+    MaterialResource::new_ok(ResourceKind::Embedded, material)
 }
 
 impl CreateEntityMenu {
@@ -336,9 +345,11 @@ impl CreateEntityMenu {
                     if message.destination() == self.create_cube {
                         Some(
                             MeshBuilder::new(BaseBuilder::new().with_name("Cube"))
-                                .with_surfaces(vec![Surface::new(SurfaceSharedData::new(
+                                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
                                     SurfaceData::make_cube(Matrix4::identity()),
-                                ))])
+                                ))
+                                .with_material(placeholder_material())
+                                .build()])
                                 .build_node(),
                         )
                     } else if message.destination() == self.create_spot_light {
@@ -371,15 +382,17 @@ impl CreateEntityMenu {
                     } else if message.destination() == self.create_cone {
                         Some(
                             MeshBuilder::new(BaseBuilder::new().with_name("Cone"))
-                                .with_surfaces(vec![Surface::new(SurfaceSharedData::new(
+                                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
                                     SurfaceData::make_cone(16, 0.5, 1.0, &Matrix4::identity()),
-                                ))])
+                                ))
+                                .with_material(placeholder_material())
+                                .build()])
                                 .build_node(),
                         )
                     } else if message.destination() == self.create_cylinder {
                         Some(
                             MeshBuilder::new(BaseBuilder::new().with_name("Cylinder"))
-                                .with_surfaces(vec![Surface::new(SurfaceSharedData::new(
+                                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
                                     SurfaceData::make_cylinder(
                                         16,
                                         0.5,
@@ -387,23 +400,29 @@ impl CreateEntityMenu {
                                         true,
                                         &Matrix4::identity(),
                                     ),
-                                ))])
+                                ))
+                                .with_material(placeholder_material())
+                                .build()])
                                 .build_node(),
                         )
                     } else if message.destination() == self.create_sphere {
                         Some(
                             MeshBuilder::new(BaseBuilder::new().with_name("Sphere"))
-                                .with_surfaces(vec![Surface::new(SurfaceSharedData::new(
+                                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
                                     SurfaceData::make_sphere(16, 16, 0.5, &Matrix4::identity()),
-                                ))])
+                                ))
+                                .with_material(placeholder_material())
+                                .build()])
                                 .build_node(),
                         )
                     } else if message.destination() == self.create_quad {
                         Some(
                             MeshBuilder::new(BaseBuilder::new().with_name("Quad"))
-                                .with_surfaces(vec![Surface::new(SurfaceSharedData::new(
+                                .with_surfaces(vec![SurfaceBuilder::new(SurfaceSharedData::new(
                                     SurfaceData::make_quad(&Matrix4::identity()),
-                                ))])
+                                ))
+                                .with_material(placeholder_material())
+                                .build()])
                                 .build_node(),
                         )
                     } else if message.destination() == self.create_camera {
