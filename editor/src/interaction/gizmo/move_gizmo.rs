@@ -289,16 +289,13 @@ impl MoveGizmo {
 
     pub fn calculate_offset(
         &self,
-        game_scene: &GameScene,
+        graph: &Graph,
         camera: Handle<Node>,
         mouse_offset: Vector2<f32>,
         mouse_position: Vector2<f32>,
-        engine: &Engine,
         frame_size: Vector2<f32>,
         plane_kind: PlaneKind,
     ) -> Vector3<f32> {
-        let scene = &engine.scenes[game_scene.scene];
-        let graph = &scene.graph;
         let node_global_transform = graph[self.origin].global_transform();
         let node_local_transform = graph[self.origin].local_transform().matrix();
 

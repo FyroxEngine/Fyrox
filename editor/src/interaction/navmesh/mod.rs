@@ -251,7 +251,7 @@ impl InteractionMode for EditNavmeshMode {
                 filter: |handle, _| {
                     handle != camera && handle != camera_pivot && handle != gizmo_origin
                 },
-                ignore_back_faces: settings.selection.ignore_back_faces,
+                ignore_back_faces: false,
                 use_picking_loop: true,
                 only_meshes: false,
             })
@@ -404,21 +404,45 @@ impl InteractionMode for EditNavmeshMode {
             return;
         };
 
+        let graph = &mut engine.scenes[game_scene.scene].graph;
+
+        if self.drag_context.is_none() {
+            let camera = game_scene.camera_controller.camera;
+            let camera_pivot = game_scene.camera_controller.pivot;
+            let gizmo_origin = self.move_gizmo.origin;
+            let editor_node = game_scene
+                .camera_controller
+                .pick(PickingOptions {
+                    cursor_pos: mouse_position,
+                    graph,
+                    editor_objects_root: game_scene.editor_objects_root,
+                    scene_content_root: game_scene.scene_content_root,
+                    screen_size: frame_size,
+                    editor_only: true,
+                    filter: |handle, _| {
+                        handle != camera && handle != camera_pivot && handle != gizmo_origin
+                    },
+                    ignore_back_faces: false,
+                    use_picking_loop: true,
+                    only_meshes: false,
+                })
+                .map(|r| r.node)
+                .unwrap_or_default();
+            self.move_gizmo.handle_pick(editor_node, graph);
+        }
+
         if self.drag_context.is_none() {
             return;
         }
 
         let offset = self.move_gizmo.calculate_offset(
-            game_scene,
+            graph,
             game_scene.camera_controller.camera,
             mouse_offset,
             mouse_position,
-            engine,
             frame_size,
             self.plane_kind,
         );
-
-        let graph = &mut engine.scenes[game_scene.scene].graph;
 
         if let Some(selection) = fetch_selection(editor_selection) {
             if let Some(mut navmesh) = graph
