@@ -274,14 +274,13 @@ pub struct GameLoopData {
     clock: Instant,
     lag: f32,
 }
-
 pub struct StartupData {
     /// Working directory that should be set when starting the editor. If it is empty, then
     /// current working directory won't be changed.
     pub working_directory: PathBuf,
 
     /// A scene to load at the editor start. If it is empty, no scene will be loaded.
-    pub scene: PathBuf,
+    pub scenes: Vec<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -921,9 +920,12 @@ impl Editor {
                 },
             });
 
-            if data.scene != PathBuf::default() {
-                editor.message_sender.send(Message::LoadScene(data.scene));
+            for scene in data.scenes {
+                if scene != PathBuf::default() {
+                    editor.message_sender.send(Message::LoadScene(scene));
+                }
             }
+
         } else {
             // Open configurator as usual.
             editor
