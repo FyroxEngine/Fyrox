@@ -162,7 +162,7 @@ impl Visit for Limb {
 }
 
 impl Limb {
-    fn iterate_recursive<F>(&self, func: &mut F)
+    pub fn iterate_recursive<F>(&self, func: &mut F)
     where
         F: FnMut(&Self),
     {
