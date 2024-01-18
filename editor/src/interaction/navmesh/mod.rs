@@ -1,15 +1,14 @@
-use crate::interaction::make_interaction_mode_button;
-use crate::message::MessageSender;
-use crate::scene::controller::SceneController;
 use crate::{
     camera::PickingOptions,
     interaction::{
         calculate_gizmo_distance_scaling,
         gizmo::move_gizmo::MoveGizmo,
+        make_interaction_mode_button,
         navmesh::selection::{NavmeshEntity, NavmeshSelection},
         plane::PlaneKind,
         InteractionMode,
     },
+    message::MessageSender,
     scene::{
         commands::{
             navmesh::{
@@ -18,14 +17,13 @@ use crate::{
             },
             ChangeSelectionCommand, CommandGroup, GameSceneCommand,
         },
+        controller::SceneController,
         GameScene, Selection,
     },
     settings::Settings,
     utils::window_content,
     Mode,
 };
-use fyrox::core::uuid::{uuid, Uuid};
-use fyrox::core::TypeUuidProvider;
 use fyrox::{
     core::{
         algebra::{Vector2, Vector3},
@@ -33,6 +31,8 @@ use fyrox::{
         math::{ray::CylinderKind, TriangleEdge},
         pool::Handle,
         scope_profile,
+        uuid::{uuid, Uuid},
+        TypeUuidProvider,
     },
     engine::Engine,
     gui::{
@@ -44,6 +44,7 @@ use fyrox::{
         window::{WindowBuilder, WindowMessage, WindowTitle},
         BuildContext, Orientation, Thickness, UiNode, UserInterface,
     },
+    gui::{HorizontalAlignment, VerticalAlignment},
     scene::{camera::Camera, navmesh::NavigationalMesh},
 };
 use std::collections::HashMap;
@@ -54,6 +55,7 @@ pub struct NavmeshPanel {
     pub window: Handle<UiNode>,
     connect_edges: Handle<UiNode>,
     sender: MessageSender,
+    scene_frame: Handle<UiNode>,
 }
 
 fn fetch_selection(editor_selection: &Selection) -> Option<NavmeshSelection> {
@@ -70,7 +72,7 @@ fn fetch_selection(editor_selection: &Selection) -> Option<NavmeshSelection> {
 }
 
 impl NavmeshPanel {
-    pub fn new(ctx: &mut BuildContext, sender: MessageSender) -> Self {
+    pub fn new(scene_frame: Handle<UiNode>, ctx: &mut BuildContext, sender: MessageSender) -> Self {
         let connect_edges;
         let window = WindowBuilder::new(WidgetBuilder::new().with_name("NavmeshPanel"))
             .open(false)
@@ -100,6 +102,7 @@ impl NavmeshPanel {
             window,
             sender,
             connect_edges,
+            scene_frame,
         }
     }
 
@@ -147,11 +150,17 @@ impl NavmeshPanel {
         }
 
         if navmesh_selected {
-            engine.user_interface.send_message(WindowMessage::open(
-                self.window,
-                MessageDirection::ToWidget,
-                false,
-            ));
+            engine
+                .user_interface
+                .send_message(WindowMessage::open_and_align(
+                    self.window,
+                    MessageDirection::ToWidget,
+                    self.scene_frame,
+                    HorizontalAlignment::Right,
+                    VerticalAlignment::Top,
+                    Thickness::uniform(1.0),
+                    false,
+                ));
         } else {
             engine.user_interface.send_message(WindowMessage::close(
                 self.window,

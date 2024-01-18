@@ -49,6 +49,7 @@ use crate::{
     command::{panel::CommandStackViewer, GameSceneCommandTrait},
     configurator::Configurator,
     curve_editor::CurveEditorWindow,
+    highlight::HighlightRenderPass,
     inspector::Inspector,
     interaction::{
         move_mode::MoveInteractionMode,
@@ -65,6 +66,7 @@ use crate::{
     message::MessageSender,
     overlay::OverlayRenderPass,
     particle::ParticleSystemPreviewControlPanel,
+    physics::ColliderControlPanel,
     plugin::EditorPlugin,
     scene::{
         commands::{
@@ -152,8 +154,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::highlight::HighlightRenderPass;
-use crate::physics::ColliderControlPanel;
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -657,7 +657,7 @@ impl Editor {
         let audio_panel = AudioPanel::new(&mut engine, message_sender.clone());
 
         let ctx = &mut engine.user_interface.build_ctx();
-        let navmesh_panel = NavmeshPanel::new(ctx, message_sender.clone());
+        let navmesh_panel = NavmeshPanel::new(scene_viewer.frame(), ctx, message_sender.clone());
         let scene_node_context_menu = Rc::new(RefCell::new(SceneNodeContextMenu::new(ctx)));
         let widget_context_menu = Rc::new(RefCell::new(WidgetContextMenu::new(ctx)));
         let world_outliner = WorldViewer::new(ctx, message_sender.clone(), &settings);
