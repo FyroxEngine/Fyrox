@@ -420,10 +420,10 @@ impl SceneDrawingContext {
         transform: Matrix4<f32>
     ) {
         let top  = transform.position() + transform.transform_vector(&top);
-        let corner_a = transform.position() + transform.transform_vector(&a);
-        let corner_b = transform.position() + transform.transform_vector(&b);
-        let corner_c = transform.position() + transform.transform_vector(&c);
-        let corner_d = transform.position() + transform.transform_vector(&d);
+        let a = transform.position() + transform.transform_vector(&a);
+        let b = transform.position() + transform.transform_vector(&b);
+        let c = transform.position() + transform.transform_vector(&c);
+        let d = transform.position() + transform.transform_vector(&d);
         self.draw_triangle(top, a, b, color);
         self.draw_triangle(top, b, c, color);
         self.draw_triangle(top, c, d, color);
