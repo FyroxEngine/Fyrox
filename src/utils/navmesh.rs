@@ -437,6 +437,7 @@ impl Navmesh {
         let mut closest = None;
         let mut closest_distance = f32::MAX;
 
+        /* TODO: Octree query seems to be bugged and needs investigation.
         self.octree.point_query(query_point, |triangles| {
             // O(log(n))
             self.query_closest_internal(
@@ -448,14 +449,21 @@ impl Navmesh {
         });
 
         if closest.is_none() {
-            // O(n)
             self.query_closest_internal(
                 &mut closest,
                 &mut closest_distance,
                 0..self.triangles.len(),
                 query_point,
             )
-        }
+        }*/
+
+        // O(n)
+        self.query_closest_internal(
+            &mut closest,
+            &mut closest_distance,
+            0..self.triangles.len(),
+            query_point,
+        );
 
         closest
     }
@@ -624,6 +632,7 @@ impl Navmesh {
 /// Navmesh agent is a "pathfinding unit" that performs navigation on a mesh. It is designed to
 /// cover most of simple use cases when you need to build and follow some path from point A to point B.
 #[derive(Visit, Clone, Debug)]
+#[visit(optional)]
 pub struct NavmeshAgent {
     path: Vec<Vector3<f32>>,
     current: u32,
@@ -634,8 +643,8 @@ pub struct NavmeshAgent {
     recalculation_threshold: f32,
     speed: f32,
     path_dirty: bool,
-    #[visit(optional)]
     radius: f32,
+    interpolator: f32,
 }
 
 impl Default for NavmeshAgent {
@@ -658,6 +667,7 @@ impl NavmeshAgent {
             speed: 1.5,
             path_dirty: true,
             radius: 0.2,
+            interpolator: 0.0,
         }
     }
 
@@ -720,6 +730,7 @@ impl NavmeshAgent {
         self.path.clear();
 
         self.current = 0;
+        self.interpolator = 0.0;
 
         if let Some((src_point_on_navmesh, src_triangle)) = navmesh.query_closest(src_point) {
             if let Some((dest_point_on_navmesh, dest_triangle)) = navmesh.query_closest(dest_point)
@@ -846,11 +857,12 @@ impl NavmeshAgent {
 
         if let Some(source) = self.path.get(self.current as usize) {
             if let Some(destination) = self.path.get((self.current + 1) as usize) {
-                let ray = Ray::from_two_points(*source, *destination);
-                let d = ray.dir.try_normalize(f32::EPSILON).unwrap_or_default();
-                self.position += d.scale(self.speed * dt);
-                if ray.project_point(&self.position) >= 1.0 {
+                let len = destination.metric_distance(&source);
+                self.position = source.lerp(&destination, self.interpolator.clamp(0.0, 1.0));
+                self.interpolator += (self.speed * dt) / len.max(f32::EPSILON);
+                if self.interpolator >= 1.0 {
                     self.current += 1;
+                    self.interpolator = 0.0;
                 }
             }
         }
