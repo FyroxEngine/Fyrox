@@ -409,6 +409,28 @@ impl SceneDrawingContext {
         });
     }
 
+    /// Draws a pyramid by given points.
+    pub fn draw_pyramid(
+        &mut self,
+        top: Vector3<f32>,
+        a: Vector3<f32>,
+        b: Vector3<f32>,
+        c: Vector3<f32>,
+        d: Vector3<f32>,
+        color: Color,
+        transform: Matrix4<f32>,
+    ) {
+        let top = transform.position() + transform.transform_vector(&top);
+        let a = transform.position() + transform.transform_vector(&a);
+        let b = transform.position() + transform.transform_vector(&b);
+        let c = transform.position() + transform.transform_vector(&c);
+        let d = transform.position() + transform.transform_vector(&d);
+        self.draw_triangle(top, a, b, color);
+        self.draw_triangle(top, b, c, color);
+        self.draw_triangle(top, c, d, color);
+        self.draw_triangle(top, d, a, color);
+    }
+
     /// Draws a sphere as a set of three circles around each axes.
     pub fn draw_wire_sphere(
         &mut self,

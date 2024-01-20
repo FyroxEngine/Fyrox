@@ -272,7 +272,9 @@ impl GameScene {
                     node.debug_draw(ctx);
                 }
             } else if node.query_component_ref::<Camera>().is_some() {
-                if settings.debugging.show_camera_bounds {
+                if settings.debugging.show_camera_bounds
+                    && game_scene.preview_camera == Handle::NONE
+                {
                     node.debug_draw(ctx);
                 }
             } else if node.query_component_ref::<PointLight>().is_some()

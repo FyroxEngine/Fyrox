@@ -43,7 +43,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 pub struct PerspectiveProjection {
     /// Vertical angle at the top of viewing frustum, in radians. Larger values will increase field
     /// of view and create fish-eye effect, smaller values could be used to create "binocular" effect
-    /// or scope effect.  
+    /// or scope effect.
     #[reflect(min_value = 0.0, max_value = 6.28, step = 0.1)]
     pub fov: f32,
     /// Location of the near clipping plane. If it is larger than [`Self::z_far`] then it will be
@@ -161,7 +161,7 @@ impl OrthographicProjection {
 /// 1) Perspective projection most useful for 3D games, it makes a scene to look most natural,
 /// objects will look smaller with increasing distance.
 /// 2) Orthographic projection most useful for 2D games, objects won't look smaller with increasing
-/// distance.  
+/// distance.
 #[derive(Reflect, Clone, Debug, PartialEq, Visit, AsRefStr, EnumString, EnumVariantNames)]
 pub enum Projection {
     /// See [`PerspectiveProjection`] docs.
@@ -714,7 +714,16 @@ impl NodeTrait for Camera {
     }
 
     fn debug_draw(&self, ctx: &mut SceneDrawingContext) {
-        ctx.draw_frustum(&self.frustum(), Color::ORANGE);
+        let transform = self.global_transform.get();
+        ctx.draw_pyramid(
+            self.frustum().center(),
+            self.frustum().right_top_front_corner(),
+            self.frustum().left_top_front_corner(),
+            self.frustum().left_bottom_front_corner(),
+            self.frustum().right_bottom_front_corner(),
+            Color::GREEN,
+            transform,
+        );
     }
 }
 
