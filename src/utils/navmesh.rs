@@ -857,8 +857,8 @@ impl NavmeshAgent {
 
         if let Some(source) = self.path.get(self.current as usize) {
             if let Some(destination) = self.path.get((self.current + 1) as usize) {
-                let len = destination.metric_distance(&source);
-                self.position = source.lerp(&destination, self.interpolator.clamp(0.0, 1.0));
+                let len = destination.metric_distance(source);
+                self.position = source.lerp(destination, self.interpolator.clamp(0.0, 1.0));
                 self.interpolator += (self.speed * dt) / len.max(f32::EPSILON);
                 if self.interpolator >= 1.0 {
                     self.current += 1;
