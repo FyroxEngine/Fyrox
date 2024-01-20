@@ -925,7 +925,6 @@ impl Editor {
                     editor.message_sender.send(Message::LoadScene(scene));
                 }
             }
-
         } else {
             // Open configurator as usual.
             editor

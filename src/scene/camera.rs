@@ -722,7 +722,7 @@ impl NodeTrait for Camera {
             self.frustum().left_bottom_front_corner(),
             self.frustum().right_bottom_front_corner(),
             Color::GREEN,
-            transform
+            transform,
         );
     }
 }

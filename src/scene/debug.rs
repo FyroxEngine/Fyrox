@@ -409,6 +409,7 @@ impl SceneDrawingContext {
         });
     }
 
+    /// Draws a pyramid by given points.
     pub fn draw_pyramid(
         &mut self,
         top: Vector3<f32>,
@@ -417,9 +418,9 @@ impl SceneDrawingContext {
         c: Vector3<f32>,
         d: Vector3<f32>,
         color: Color,
-        transform: Matrix4<f32>
+        transform: Matrix4<f32>,
     ) {
-        let top  = transform.position() + transform.transform_vector(&top);
+        let top = transform.position() + transform.transform_vector(&top);
         let a = transform.position() + transform.transform_vector(&a);
         let b = transform.position() + transform.transform_vector(&b);
         let c = transform.position() + transform.transform_vector(&c);
