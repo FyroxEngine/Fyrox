@@ -188,7 +188,11 @@ impl ContextMenu {
                         show_in_explorer(canonical_path)
                     }
                 } else if message.destination() == self.open {
-                    if item.path.extension().map_or(false, |ext| ext == "rgs") {
+                    if item
+                        .path
+                        .extension()
+                        .map_or(false, |ext| ext == "rgs" || ext == "ui")
+                    {
                         sender.send(Message::LoadScene(item.path.clone()));
                     } else if item.path.extension().map_or(false, |ext| ext == "material") {
                         if let Ok(path) = make_relative_path(&item.path) {
