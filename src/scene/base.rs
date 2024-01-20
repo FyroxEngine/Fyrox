@@ -393,7 +393,7 @@ pub struct Base {
     //
     // WARNING: Setting a new script via reflection will break normal script destruction process!
     // Use it at your own risk only when you're completely sure what you are doing.
-    #[reflect(setter = "set_script_internal")]
+    //#[reflect(setter = "set_script_internal")]
     pub(crate) scripts: Vec<Option<Script>>,
 
     enabled: InheritableVariable<bool>,
@@ -749,7 +749,7 @@ impl Base {
 
     /// Removes all assigned scripts from scene node
     fn remove_all_scripts(&mut self) {
-        for script in &self.scripts {
+        for script in &mut self.scripts {
             // Send script to the graph to destroy script instances correctly.
             if let Some(script) = script.take() {
                 if let Some(sender) = self.script_message_sender.as_ref() {
@@ -761,7 +761,7 @@ impl Base {
                     Log::warn(format!(
                         "There is a script instance on a node {}, but no message sender. \
                     The script won't be correctly destroyed!",
-                        self.name(),
+                        self.name.as_str()
                     ));
                 }
             }
@@ -800,6 +800,12 @@ impl Base {
     #[inline]
     pub fn has_script<T: ScriptTrait>(&self, index: usize) -> bool {
         self.try_get_script::<T>(index).is_some()
+    }
+
+    /// Checks if the node has any scripts assigned
+    #[inline]
+    pub fn has_scripts_assigned(&self) -> bool {
+        self.scripts.iter().any(|script| script.is_some())
     }
 
     /// Tries to cast current script instance (if any) to given type and returns a shared reference
@@ -887,9 +893,6 @@ impl Base {
     /// Internal. Do not use.
     #[inline]
     pub fn script_inner(&mut self, index: usize) -> &mut Option<Script> {
-        if index < 0 || index >= self.scripts.len() {
-            return &mut None;
-        }
         &mut self.scripts[index]
     }
 
@@ -1030,8 +1033,8 @@ impl Visit for Base {
         //
         // None of the reasons are fatal and we should still give an ability to load such node
         // to edit or remove it.
-        for script in self.scripts {
-            if let Err(e) = visit_opt_script("Script", &mut script, &mut region) {
+        for script in &mut self.scripts {
+            if let Err(e) = visit_opt_script("Script", script, &mut region) {
                 // Do not spam with error messages if there is missing `Script` field. It is ok
                 // for old scenes not to have script at all.
                 if !matches!(e, VisitError::RegionDoesNotExist(_)) {
