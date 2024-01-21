@@ -66,7 +66,6 @@ impl TaskPool {
         let sender = self.sender.clone();
         self.spawn_task(async move {
             let result = future.await;
-            dbg!();
             sender
                 .send(TaskResult {
                     id,
