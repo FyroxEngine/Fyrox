@@ -1797,46 +1797,6 @@ impl Engine {
     fn handle_scripts(&mut self, dt: f32) {
         let time = instant::Instant::now();
 
-        while let Some((payload, handler)) = self.task_pool.pop_node_task() {
-            if let Some(scripted_scene) = self
-                .script_processor
-                .scripted_scenes
-                .iter_mut()
-                .find(|e| e.handle == handler.scene_handle)
-            {
-                if let Some(scene) = self.scenes.try_get_mut(handler.scene_handle) {
-                    if let Some(mut script) = scene
-                        .graph
-                        .try_get_mut(handler.node_handle)
-                        .and_then(|n| n.script.take())
-                    {
-                        (handler.closure)(
-                            payload,
-                            script.deref_mut(),
-                            &mut ScriptContext {
-                                dt,
-                                elapsed_time: self.elapsed_time,
-                                plugins: PluginsRefMut(&mut self.plugins),
-                                handle: handler.node_handle,
-                                scene,
-                                scene_handle: scripted_scene.handle,
-                                resource_manager: &self.resource_manager,
-                                message_sender: &scripted_scene.message_sender,
-                                message_dispatcher: &mut scripted_scene.message_dispatcher,
-                                task_pool: &mut self.task_pool,
-                                graphics_context: &mut self.graphics_context,
-                                user_interface: &mut self.user_interface,
-                            },
-                        );
-
-                        if let Some(node) = scene.graph.try_get_mut(handler.node_handle) {
-                            node.script = Some(script);
-                        }
-                    }
-                }
-            }
-        }
-
         self.script_processor.handle_scripts(
             &mut self.scenes,
             &mut self.plugins,
@@ -1851,19 +1811,17 @@ impl Engine {
         self.performance_statistics.scripts_time = instant::Instant::now() - time;
     }
 
-    fn update_plugins(
+    fn handle_async_tasks(
         &mut self,
         dt: f32,
         window_target: &EventLoopWindowTarget<()>,
         lag: &mut f32,
     ) {
-        let time = instant::Instant::now();
-
-        if self.plugins_enabled {
-            // Handle asynchronous tasks first.
-            while let Some((payload, handler)) = self.task_pool.pop_plugin_task() {
-                (handler)(
-                    payload,
+        while let Some(result) = self.task_pool.inner().next_task_result() {
+            if let Some(plugin_task_handler) = self.task_pool.pop_plugin_task_handler(result.id) {
+                // Handle plugin task.
+                (plugin_task_handler)(
+                    result.payload,
                     &mut self.plugins,
                     &mut PluginContext {
                         scenes: &mut self.scenes,
@@ -1881,7 +1839,63 @@ impl Engine {
                         task_pool: &mut self.task_pool,
                     },
                 )
+            } else if let Some(node_task_handler) = self.task_pool.pop_node_task_handler(result.id)
+            {
+                // Handle script task.
+                if let Some(scripted_scene) = self
+                    .script_processor
+                    .scripted_scenes
+                    .iter_mut()
+                    .find(|e| e.handle == node_task_handler.scene_handle)
+                {
+                    if let Some(scene) = self.scenes.try_get_mut(node_task_handler.scene_handle) {
+                        if let Some(mut script) = scene
+                            .graph
+                            .try_get_mut(node_task_handler.node_handle)
+                            .and_then(|n| n.script.take())
+                        {
+                            (node_task_handler.closure)(
+                                result.payload,
+                                script.deref_mut(),
+                                &mut ScriptContext {
+                                    dt,
+                                    elapsed_time: self.elapsed_time,
+                                    plugins: PluginsRefMut(&mut self.plugins),
+                                    handle: node_task_handler.node_handle,
+                                    scene,
+                                    scene_handle: scripted_scene.handle,
+                                    resource_manager: &self.resource_manager,
+                                    message_sender: &scripted_scene.message_sender,
+                                    message_dispatcher: &mut scripted_scene.message_dispatcher,
+                                    task_pool: &mut self.task_pool,
+                                    graphics_context: &mut self.graphics_context,
+                                    user_interface: &mut self.user_interface,
+                                },
+                            );
+
+                            if let Some(node) =
+                                scene.graph.try_get_mut(node_task_handler.node_handle)
+                            {
+                                node.script = Some(script);
+                            }
+                        }
+                    }
+                }
             }
+        }
+    }
+
+    fn update_plugins(
+        &mut self,
+        dt: f32,
+        window_target: &EventLoopWindowTarget<()>,
+        lag: &mut f32,
+    ) {
+        let time = instant::Instant::now();
+
+        if self.plugins_enabled {
+            // Handle asynchronous tasks first.
+            self.handle_async_tasks(dt, window_target, lag);
 
             // Then update all the plugins.
             let mut context = PluginContext {
