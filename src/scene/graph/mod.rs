@@ -22,6 +22,7 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
+use crate::scene::base::SceneNodeId;
 use crate::{
     asset::manager::ResourceManager,
     core::{
@@ -143,13 +144,14 @@ pub struct Graph {
     pub event_broadcaster: GraphEventBroadcaster,
 
     /// Current lightmap.
-    //lightmap: InheritableVariable<Option<Lightmap>>,
     lightmap: Option<Lightmap>,
 
     #[reflect(hidden)]
     pub(crate) script_message_sender: Sender<NodeScriptMessage>,
     #[reflect(hidden)]
     pub(crate) script_message_receiver: Receiver<NodeScriptMessage>,
+
+    instance_id_map: FxHashMap<SceneNodeId, Handle<Node>>,
 }
 
 impl Default for Graph {
@@ -168,6 +170,7 @@ impl Default for Graph {
             script_message_receiver: rx,
             script_message_sender: tx,
             lightmap: None,
+            instance_id_map: Default::default(),
         }
     }
 }
@@ -267,6 +270,7 @@ impl Graph {
 
         // Create root node.
         let mut root_node = Pivot::default();
+        let instance_id = root_node.instance_id;
         root_node.script_message_sender = Some(tx.clone());
         root_node.set_name("__ROOT__");
 
@@ -274,6 +278,8 @@ impl Graph {
         let mut pool = Pool::new();
         let root = pool.spawn(Node::new(root_node));
         pool[root].self_handle = root;
+
+        let instance_id_map = FxHashMap::from_iter([(instance_id, root)]);
 
         Self {
             physics: Default::default(),
@@ -287,6 +293,7 @@ impl Graph {
             script_message_receiver: rx,
             script_message_sender: tx,
             lightmap: None,
+            instance_id_map,
         }
     }
 
@@ -353,9 +360,11 @@ impl Graph {
         }
 
         let sender = self.script_message_sender.clone();
-        let node = &mut self[handle];
+        let node = &mut self.pool[handle];
         node.self_handle = handle;
         node.script_message_sender = Some(sender);
+
+        self.instance_id_map.insert(node.instance_id, handle);
 
         handle
     }
@@ -505,6 +514,7 @@ impl Graph {
 
             // Remove associated entities.
             let mut node = self.pool.free(handle);
+            self.instance_id_map.remove(&node.instance_id);
             node.on_removed_from_graph(self);
 
             self.event_broadcaster
@@ -1686,11 +1696,14 @@ impl Graph {
     #[inline]
     pub fn take_reserve(&mut self, handle: Handle<Node>) -> (Ticket<Node>, Node) {
         self.unlink_internal(handle);
-        self.take_reserve_internal(handle)
+        let (ticket, node) = self.take_reserve_internal(handle);
+        self.instance_id_map.remove(&node.instance_id);
+        (ticket, node)
     }
 
     pub(crate) fn take_reserve_internal(&mut self, handle: Handle<Node>) -> (Ticket<Node>, Node) {
         let (ticket, mut node) = self.pool.take_reserve(handle);
+        self.instance_id_map.remove(&node.instance_id);
         node.on_removed_from_graph(self);
         (ticket, node)
     }
@@ -1704,7 +1717,10 @@ impl Graph {
     }
 
     pub(crate) fn put_back_internal(&mut self, ticket: Ticket<Node>, node: Node) -> Handle<Node> {
-        self.pool.put_back(ticket, node)
+        let instance_id = node.instance_id;
+        let handle = self.pool.put_back(ticket, node);
+        self.instance_id_map.insert(instance_id, handle);
+        handle
     }
 
     /// Makes node handle vacant again.
@@ -1975,6 +1991,25 @@ impl Graph {
     {
         self.try_get_mut(node)
             .and_then(|node| node.try_get_script_component_mut())
+    }
+
+    /// Returns a handle of the node that has the given id.
+    pub fn id_to_node_handle(&self, id: SceneNodeId) -> Option<&Handle<Node>> {
+        self.instance_id_map.get(&id)
+    }
+
+    /// Tries to borrow a node by its id.
+    pub fn node_by_id(&self, id: SceneNodeId) -> Option<(Handle<Node>, &Node)> {
+        self.instance_id_map
+            .get(&id)
+            .and_then(|h| self.pool.try_borrow(*h).map(|n| (*h, n)))
+    }
+
+    /// Tries to borrow a node by its id.
+    pub fn node_by_id_mut(&mut self, id: SceneNodeId) -> Option<(Handle<Node>, &mut Node)> {
+        self.instance_id_map
+            .get(&id)
+            .and_then(|h| self.pool.try_borrow_mut(*h).map(|n| (*h, n)))
     }
 }
 
