@@ -19,6 +19,7 @@ use crate::{
     script::{Script, ScriptTrait},
 };
 use fyrox_core::uuid_provider;
+use serde::{Deserialize, Serialize};
 use std::{any::Any, cell::Cell, sync::mpsc::Sender};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -266,7 +267,20 @@ pub enum NodeScriptMessage {
 
 /// Unique id of a node, that could be used as a reliable "index" of the node. This id is mostly
 /// useful for network games.
-#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd, Default, Debug, Reflect)]
+#[derive(
+    Clone,
+    Copy,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Default,
+    Debug,
+    Reflect,
+    Serialize,
+    Deserialize,
+)]
 #[repr(transparent)]
 #[reflect(hide_all)]
 pub struct SceneNodeId(pub Uuid);
@@ -705,11 +719,6 @@ impl Base {
     #[inline]
     pub fn set_cast_shadows(&mut self, cast_shadows: bool) -> bool {
         self.cast_shadows.set_value_and_mark_modified(cast_shadows)
-    }
-
-    /// Sets instance id of the node. See [`SceneNodeId`] for more info.
-    pub fn set_instance_id(&mut self, id: SceneNodeId) {
-        self.instance_id = id;
     }
 
     /// Returns current instance id.

@@ -412,17 +412,21 @@ impl Scene {
 
     /// Creates deep copy of a scene, filter predicate allows you to filter out nodes
     /// by your criteria.
-    pub fn clone<F, C>(
+    pub fn clone<F, Pre, Post>(
         &self,
         root: Handle<Node>,
         filter: &mut F,
-        callback: &mut C,
+        pre_process_callback: &mut Pre,
+        post_process_callback: &mut Post,
     ) -> (Self, NodeHandleMap)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
-        C: FnMut(Handle<Node>, Handle<Node>, &mut Node),
+        Pre: FnMut(Handle<Node>, &mut Node),
+        Post: FnMut(Handle<Node>, Handle<Node>, &mut Node),
     {
-        let (graph, old_new_map) = self.graph.clone(root, filter, callback);
+        let (graph, old_new_map) =
+            self.graph
+                .clone(root, filter, pre_process_callback, post_process_callback);
 
         (
             Self {

@@ -173,6 +173,7 @@ impl GameScene {
         let (pure_scene, _) = scene.clone(
             self.scene_content_root,
             &mut |node, _| node != editor_root,
+            &mut |_, _| {},
             &mut |_, _, _| {},
         );
 
@@ -376,6 +377,7 @@ impl GameScene {
                     root_node,
                     &mut dest_scene.graph,
                     &mut |_, _| true,
+                    &mut |_, _| {},
                     &mut |_, _, _| {},
                 );
             }

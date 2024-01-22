@@ -20,7 +20,7 @@
 
 use crate::{
     asset::{
-        manager::ResourceManager, options::ImportOptions, Resource, ResourceData,
+        io::ResourceIo, manager::ResourceManager, options::ImportOptions, Resource, ResourceData,
         MODEL_RESOURCE_UUID,
     },
     core::{
@@ -29,6 +29,7 @@ use crate::{
         pool::Handle,
         reflect::prelude::*,
         uuid::Uuid,
+        uuid_provider,
         visitor::{Visit, VisitError, VisitResult, Visitor},
         TypeUuidProvider,
     },
@@ -36,17 +37,17 @@ use crate::{
     resource::fbx::{self, error::FbxError},
     scene::{
         animation::{Animation, AnimationPlayer},
+        base::SceneNodeId,
         graph::{map::NodeHandleMap, Graph},
         node::Node,
         Scene, SceneLoader,
     },
 };
-use fyrox_core::uuid_provider;
-use fyrox_resource::io::ResourceIo;
+use fxhash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::error::Error;
 use std::{
     any::Any,
+    error::Error,
     fmt::{Display, Formatter},
     path::{Path, PathBuf},
     sync::Arc,
@@ -101,6 +102,20 @@ pub trait ModelResourceExtension: Sized {
         orientation: UnitQuaternion<f32>,
     ) -> Handle<Node>;
 
+    /// Instantiates a prefab and assigns the given set of ids to the respective instances. The given
+    /// hash map should contain pairs `(OriginalHandle, SceneNodeId)`. Original handle is a handle
+    /// of a node from the prefab itself, not the instance handle! Use this method in pair with
+    /// [`Self::generate_ids`].
+    ///
+    /// This method should be used only if you need to instantiate an object on multiple clients in
+    /// a multiplayer game with client-server model. This method ensures that the instances will
+    /// have the same ids across all clients.
+    fn instantiate_with_ids(
+        &self,
+        ids: &FxHashMap<Handle<Node>, SceneNodeId>,
+        dest_scene: &mut Scene,
+    ) -> Handle<Node>;
+
     /// Tries to retarget animations from given model resource to a node hierarchy starting
     /// from `root` on a given scene.
     ///
@@ -147,6 +162,10 @@ pub trait ModelResourceExtension: Sized {
     ///
     /// Panics if there's no animation player in the given hierarchy (descendant nodes of `root`).
     fn retarget_animations(&self, root: Handle<Node>, graph: &mut Graph) -> Vec<Handle<Animation>>;
+
+    /// Generates a set of unique IDs for every node in the model. Use this method in pair with
+    /// [`Self::instantiate_with_ids`].
+    fn generate_ids(&self) -> FxHashMap<Handle<Node>, SceneNodeId>;
 }
 
 impl ModelResourceExtension for ModelResource {
@@ -160,6 +179,7 @@ impl ModelResourceExtension for ModelResource {
             handle,
             dest_graph,
             &mut |_, _| true,
+            &mut |_, _| {},
             &mut |_, original_handle, node| {
                 node.set_inheritance_data(original_handle, model.clone());
             },
@@ -184,8 +204,6 @@ impl ModelResourceExtension for ModelResource {
         // Explicitly mark as root node.
         dest_scene.graph[instance_root].is_resource_instance_root = true;
 
-        std::mem::drop(data);
-
         instance_root
     }
 
@@ -203,6 +221,40 @@ impl ModelResourceExtension for ModelResource {
             .set_rotation(orientation);
 
         scene.graph.update_hierarchical_data_for_descendants(root);
+
+        root
+    }
+
+    fn instantiate_with_ids(
+        &self,
+        ids: &FxHashMap<Handle<Node>, SceneNodeId>,
+        dest_scene: &mut Scene,
+    ) -> Handle<Node> {
+        let model = self.clone();
+        let data = self.data_ref();
+
+        let (root, _) = data.scene.graph.copy_node(
+            data.scene.graph.get_root(),
+            &mut dest_scene.graph,
+            &mut |_, _| true,
+            &mut |original_handle, node| {
+                if let Some(id) = ids.get(&original_handle) {
+                    node.instance_id = *id;
+                } else {
+                    Log::warn(format!(
+                        "No id specified for node {}! Random id will be used.",
+                        original_handle
+                    ))
+                }
+            },
+            &mut |_, original_handle, node| {
+                node.set_inheritance_data(original_handle, model.clone());
+            },
+        );
+
+        dest_scene
+            .graph
+            .update_hierarchical_data_for_descendants(root);
 
         root
     }
@@ -282,6 +334,15 @@ impl ModelResourceExtension for ModelResource {
         } else {
             Default::default()
         }
+    }
+
+    fn generate_ids(&self) -> FxHashMap<Handle<Node>, SceneNodeId> {
+        let data = self.data_ref();
+        data.scene
+            .graph
+            .pair_iter()
+            .map(|(h, _)| (h, SceneNodeId(Uuid::new_v4())))
+            .collect()
     }
 }
 
