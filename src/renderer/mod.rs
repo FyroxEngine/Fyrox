@@ -1692,7 +1692,7 @@ impl Renderer {
             for camera in graph
                 .linear_iter()
                 .filter(|&node| node.is_globally_enabled())
-                .filter_map(|node| node.cast::<Camera>())
+                .filter_map(|node| node.cast::<Camera>().filter(|c| c.is_enabled()))
             {
                 let viewport = camera.viewport_pixels(frame_size);
 
