@@ -73,6 +73,7 @@ use std::{ffi::CString, num::NonZeroU32};
 
 use crate::engine::task::TaskPoolHandler;
 use crate::resource::texture;
+use crate::scene::navmesh;
 use crate::script::PluginsRefMut;
 use fyrox_core::task::TaskPool;
 use fyrox_ui::font::BUILT_IN_FONT;
@@ -1658,7 +1659,10 @@ impl Engine {
                                         });
                                     }
                                 },
-                                &[TypeId::of::<UntypedResource>()],
+                                &[
+                                    TypeId::of::<UntypedResource>(),
+                                    TypeId::of::<navmesh::Container>(),
+                                ],
                             )
                         } else {
                             // Take scene data from the source scene.
@@ -1670,7 +1674,11 @@ impl Engine {
                                 Log::verify(try_inherit_properties(
                                     &mut scene,
                                     source_scene_ref,
-                                    &[TypeId::of::<NodePool>(), TypeId::of::<UntypedResource>()],
+                                    &[
+                                        TypeId::of::<NodePool>(),
+                                        TypeId::of::<UntypedResource>(),
+                                        TypeId::of::<navmesh::Container>(),
+                                    ],
                                 ));
                             }
                         }
