@@ -91,7 +91,7 @@ impl<'a, 'b, 'c> InstantiationContext<'a, 'b, 'c> {
     /// Sets the desired local rotation for the instance.
     pub fn with_rotation(mut self, rotation: UnitQuaternion<f32>) -> Self {
         self.local_transform
-            .get_or_insert_with(|| Default::default())
+            .get_or_insert_with(Default::default)
             .set_rotation(rotation);
         self
     }
@@ -99,7 +99,7 @@ impl<'a, 'b, 'c> InstantiationContext<'a, 'b, 'c> {
     /// Sets the desired local position for the instance.
     pub fn with_position(mut self, position: Vector3<f32>) -> Self {
         self.local_transform
-            .get_or_insert_with(|| Default::default())
+            .get_or_insert_with(Default::default)
             .set_position(position);
         self
     }
@@ -107,7 +107,7 @@ impl<'a, 'b, 'c> InstantiationContext<'a, 'b, 'c> {
     /// Sets the desired local scaling for the instance.
     pub fn with_scale(mut self, scale: Vector3<f32>) -> Self {
         self.local_transform
-            .get_or_insert_with(|| Default::default())
+            .get_or_insert_with(Default::default)
             .set_scale(scale);
         self
     }
