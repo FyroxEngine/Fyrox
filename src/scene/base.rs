@@ -394,7 +394,7 @@ pub struct Base {
     // WARNING: Setting a new script via reflection will break normal script destruction process!
     // Use it at your own risk only when you're completely sure what you are doing.
     //#[reflect(setter = "set_script_internal")]
-    pub(crate) scripts: Vec<Option<Script>>,
+    pub(crate) scripts: Option<Vec<Option<Script>>>,
 
     enabled: InheritableVariable<bool>,
 
@@ -749,7 +749,13 @@ impl Base {
 
     /// Removes all assigned scripts from scene node
     fn remove_all_scripts(&mut self) {
-        for script in &mut self.scripts {
+        let scripts = if let Some(scripts) = &mut self.scripts {
+            scripts
+        } else {
+            return;
+        };
+
+        for script in &mut scripts {
             // Send script to the graph to destroy script instances correctly.
             if let Some(script) = script.take() {
                 if let Some(sender) = self.script_message_sender.as_ref() {
@@ -760,7 +766,7 @@ impl Base {
                 } else {
                     Log::warn(format!(
                         "There is a script instance on a node {}, but no message sender. \
-                    The script won't be correctly destroyed!",
+                            The script won't be correctly destroyed!",
                         self.name.as_str()
                     ));
                 }
@@ -771,7 +777,13 @@ impl Base {
     /// Sets new script for the scene node.
     #[inline]
     pub fn set_script(&mut self, index: usize, script: Option<Script>) {
-        if index < 0 || index >= self.scripts.len() {
+        let scripts = if let Some(scripts) = &mut self.scripts {
+            scripts
+        } else {
+            return;
+        };
+
+        if index < 0 || index >= scripts.len() {
             return;
         }
 
@@ -788,7 +800,13 @@ impl Base {
     }
 
     fn set_script_internal(&mut self, index: usize, script: Option<Script>) -> Option<Script> {
-        if index < 0 || index >= self.scripts.len() {
+        let scripts = if let Some(scripts) = &mut self.scripts {
+            scripts
+        } else {
+            return None;
+        };
+
+        if index < 0 || index >= scripts.len() {
             return None;
         }
 
@@ -812,7 +830,13 @@ impl Base {
     /// to it on successful cast.
     #[inline]
     pub fn try_get_script<T: ScriptTrait>(&self, index: usize) -> Option<&T> {
-        if index < 0 || index >= self.scripts.len() {
+        let scripts = if let Some(scripts) = &mut self.scripts {
+            scripts
+        } else {
+            return None;
+        };
+
+        if index < 0 || index >= scripts.len() {
             return None;
         }
 
@@ -825,9 +849,16 @@ impl Base {
     where
         C: Any,
     {
-        if index < 0 || index >= self.scripts.len() {
+        let scripts = if let Some(scripts) = &mut self.scripts {
+            scripts
+        } else {
+            return None;
+        };
+
+        if index < 0 || index >= scripts.len() {
             return None;
         }
+
         self.scripts[index]
             .as_ref()
             .and_then(|s| s.query_component_ref::<C>())
@@ -839,9 +870,16 @@ impl Base {
     where
         C: Any,
     {
-        if index < 0 || index >= self.scripts.len() {
+        let scripts = if let Some(scripts) = &mut self.scripts {
+            scripts
+        } else {
+            return None;
+        };
+
+        if index < 0 || index >= scripts.len() {
             return None;
         }
+
         self.scripts[index]
             .as_mut()
             .and_then(|s| s.query_component_mut::<C>())
@@ -851,18 +889,32 @@ impl Base {
     /// to it on successful cast.
     #[inline]
     pub fn try_get_script_mut<T: ScriptTrait>(&mut self, index: usize) -> Option<&mut T> {
-        if index < 0 || index >= self.scripts.len() {
+        let scripts = if let Some(scripts) = &mut self.scripts {
+            scripts
+        } else {
+            return None;
+        };
+
+        if index < 0 || index >= scripts.len() {
             return None;
         }
+
         self.scripts[index].as_mut().and_then(|s| s.cast_mut::<T>())
     }
 
     /// Returns shared reference to current script instance.
     #[inline]
     pub fn script(&self, index: usize) -> Option<&Script> {
-        if index < 0 || index >= self.scripts.len() {
+        let scripts = if let Some(scripts) = &mut self.scripts {
+            scripts
+        } else {
+            return None;
+        };
+
+        if index < 0 || index >= scripts.len() {
             return None;
         }
+
         self.scripts[index].as_ref()
     }
 
@@ -875,18 +927,32 @@ impl Base {
     /// to replace the script.
     #[inline]
     pub fn script_mut(&mut self, index: usize) -> Option<&mut Script> {
-        if index < 0 || index >= self.scripts.len() {
+        let scripts = if let Some(scripts) = &mut self.scripts {
+            scripts
+        } else {
+            return None;
+        };
+
+        if index < 0 || index >= scripts.len() {
             return None;
         }
+
         self.scripts[index].as_mut()
     }
 
     /// Returns a copy of the current script.
     #[inline]
     pub fn script_cloned(&self, index: usize) -> Option<Script> {
-        if index < 0 || index >= self.scripts.len() {
+        let scripts = if let Some(scripts) = &mut self.scripts {
+            scripts
+        } else {
+            return None;
+        };
+
+        if index < 0 || index >= scripts.len() {
             return None;
         }
+
         self.scripts[index].clone()
     }
 
