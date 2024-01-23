@@ -16,7 +16,7 @@ resolver = "2"
 rust-version = "1.72"
 
 [dependencies]
-fyrox-core = { version = "0.26.0", path = "../fyrox-core" }
+fyrox-core = { version = "0.27.0", path = "../fyrox-core" }
 strum = "0.25.0"
 strum_macros = "0.25.0"
 fxhash = "0.2.1"
