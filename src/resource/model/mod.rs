@@ -250,7 +250,7 @@ pub trait ModelResourceExtension: Sized {
     fn retarget_animations(&self, root: Handle<Node>, graph: &mut Graph) -> Vec<Handle<Animation>>;
 
     /// Generates a set of unique IDs for every node in the model. Use this method in pair with
-    /// [`Self::instantiate_with_ids`].
+    /// [`ModelResource::begin_instantiation`].
     fn generate_ids(&self) -> FxHashMap<Handle<Node>, SceneNodeId>;
 }
 
