@@ -40,6 +40,7 @@ use crate::{
         base::SceneNodeId,
         graph::{map::NodeHandleMap, Graph},
         node::Node,
+        transform::Transform,
         Scene, SceneLoader,
     },
 };
@@ -78,18 +79,117 @@ impl TypeUuidProvider for Model {
     }
 }
 
+/// Instantiation context holds additional data that could be useful for a prefab instantiation.
+pub struct InstantiationContext<'a, 'b, 'c> {
+    model: &'a ModelResource,
+    dest_scene: &'b mut Scene,
+    local_transform: Option<Transform>,
+    ids: Option<&'c FxHashMap<Handle<Node>, SceneNodeId>>,
+}
+
+impl<'a, 'b, 'c> InstantiationContext<'a, 'b, 'c> {
+    /// Sets the desired local rotation for the instance.
+    pub fn with_rotation(mut self, rotation: UnitQuaternion<f32>) -> Self {
+        self.local_transform
+            .get_or_insert_with(|| Default::default())
+            .set_rotation(rotation);
+        self
+    }
+
+    /// Sets the desired local position for the instance.
+    pub fn with_position(mut self, position: Vector3<f32>) -> Self {
+        self.local_transform
+            .get_or_insert_with(|| Default::default())
+            .set_position(position);
+        self
+    }
+
+    /// Sets the desired local scaling for the instance.
+    pub fn with_scale(mut self, scale: Vector3<f32>) -> Self {
+        self.local_transform
+            .get_or_insert_with(|| Default::default())
+            .set_scale(scale);
+        self
+    }
+
+    /// Sets the desired local transform for the instance.
+    pub fn with_transform(mut self, transform: Transform) -> Self {
+        self.local_transform = Some(transform);
+        self
+    }
+
+    /// Instantiates a prefab and assigns the given set of ids to the respective instances. The given
+    /// hash map should contain pairs `(OriginalHandle, SceneNodeId)`. Original handle is a handle
+    /// of a node from the prefab itself, not the instance handle! Use this method in pair with
+    /// [`ModelResourceExtension::generate_ids`].
+    ///
+    /// This method should be used only if you need to instantiate an object on multiple clients in
+    /// a multiplayer game with client-server model. This method ensures that the instances will
+    /// have the same ids across all clients.
+    pub fn with_ids(mut self, ids: &'c FxHashMap<Handle<Node>, SceneNodeId>) -> Self {
+        self.ids = Some(ids);
+        self
+    }
+
+    /// Finishes instantiation.
+    pub fn finish(self) -> Handle<Node> {
+        let model = self.model.clone();
+        let data = model.data_ref();
+
+        let resource_root = data.scene.graph.get_root();
+        let (root, _) = ModelResource::instantiate_from(
+            model.clone(),
+            &data,
+            resource_root,
+            &mut self.dest_scene.graph,
+            &mut |original_handle, node| {
+                if original_handle == resource_root {
+                    if let Some(transform) = self.local_transform.clone() {
+                        *node.local_transform_mut() = transform;
+                    }
+                }
+
+                if let Some(ids) = self.ids.as_ref() {
+                    if let Some(id) = ids.get(&original_handle) {
+                        node.instance_id = *id;
+                    } else {
+                        Log::warn(format!(
+                            "No id specified for node {}! Random id will be used.",
+                            original_handle
+                        ))
+                    }
+                }
+            },
+        );
+
+        // Explicitly mark as root node.
+        self.dest_scene.graph[root].is_resource_instance_root = true;
+
+        root
+    }
+}
+
 /// Type alias for model resources.
 pub type ModelResource = Resource<Model>;
 
 /// Extension trait for model resources.
 pub trait ModelResourceExtension: Sized {
     /// Tries to instantiate model from given resource.
-    fn instantiate_from(
+    fn instantiate_from<Pre>(
         model: ModelResource,
         model_data: &Model,
         handle: Handle<Node>,
         dest_graph: &mut Graph,
-    ) -> (Handle<Node>, NodeHandleMap);
+        pre_processing_callback: &mut Pre,
+    ) -> (Handle<Node>, NodeHandleMap)
+    where
+        Pre: FnMut(Handle<Node>, &mut Node);
+
+    /// Begins instantiation of the model.
+    fn begin_instantiation<'a>(
+        &'a self,
+        dest_scene: &'a mut Scene,
+    ) -> InstantiationContext<'a, '_, '_>;
 
     /// Tries to instantiate model from given resource.
     fn instantiate(&self, dest_scene: &mut Scene) -> Handle<Node>;
@@ -100,20 +200,6 @@ pub trait ModelResourceExtension: Sized {
         scene: &mut Scene,
         position: Vector3<f32>,
         orientation: UnitQuaternion<f32>,
-    ) -> Handle<Node>;
-
-    /// Instantiates a prefab and assigns the given set of ids to the respective instances. The given
-    /// hash map should contain pairs `(OriginalHandle, SceneNodeId)`. Original handle is a handle
-    /// of a node from the prefab itself, not the instance handle! Use this method in pair with
-    /// [`Self::generate_ids`].
-    ///
-    /// This method should be used only if you need to instantiate an object on multiple clients in
-    /// a multiplayer game with client-server model. This method ensures that the instances will
-    /// have the same ids across all clients.
-    fn instantiate_with_ids(
-        &self,
-        ids: &FxHashMap<Handle<Node>, SceneNodeId>,
-        dest_scene: &mut Scene,
     ) -> Handle<Node>;
 
     /// Tries to retarget animations from given model resource to a node hierarchy starting
@@ -169,17 +255,21 @@ pub trait ModelResourceExtension: Sized {
 }
 
 impl ModelResourceExtension for ModelResource {
-    fn instantiate_from(
+    fn instantiate_from<Pre>(
         model: ModelResource,
         model_data: &Model,
         handle: Handle<Node>,
         dest_graph: &mut Graph,
-    ) -> (Handle<Node>, NodeHandleMap) {
+        pre_processing_callback: &mut Pre,
+    ) -> (Handle<Node>, NodeHandleMap)
+    where
+        Pre: FnMut(Handle<Node>, &mut Node),
+    {
         let (root, old_to_new) = model_data.scene.graph.copy_node(
             handle,
             dest_graph,
             &mut |_, _| true,
-            &mut |_, _| {},
+            pre_processing_callback,
             &mut |_, original_handle, node| {
                 node.set_inheritance_data(original_handle, model.clone());
             },
@@ -190,21 +280,20 @@ impl ModelResourceExtension for ModelResource {
         (root, old_to_new)
     }
 
+    fn begin_instantiation<'a>(
+        &'a self,
+        dest_scene: &'a mut Scene,
+    ) -> InstantiationContext<'a, '_, '_> {
+        InstantiationContext {
+            model: self,
+            dest_scene,
+            local_transform: None,
+            ids: None,
+        }
+    }
+
     fn instantiate(&self, dest_scene: &mut Scene) -> Handle<Node> {
-        let data = self.data_ref();
-
-        let instance_root = Self::instantiate_from(
-            self.clone(),
-            &data,
-            data.scene.graph.get_root(),
-            &mut dest_scene.graph,
-        )
-        .0;
-
-        // Explicitly mark as root node.
-        dest_scene.graph[instance_root].is_resource_instance_root = true;
-
-        instance_root
+        self.begin_instantiation(dest_scene).finish()
     }
 
     fn instantiate_at(
@@ -213,50 +302,10 @@ impl ModelResourceExtension for ModelResource {
         position: Vector3<f32>,
         orientation: UnitQuaternion<f32>,
     ) -> Handle<Node> {
-        let root = self.instantiate(scene);
-
-        scene.graph[root]
-            .local_transform_mut()
-            .set_position(position)
-            .set_rotation(orientation);
-
-        scene.graph.update_hierarchical_data_for_descendants(root);
-
-        root
-    }
-
-    fn instantiate_with_ids(
-        &self,
-        ids: &FxHashMap<Handle<Node>, SceneNodeId>,
-        dest_scene: &mut Scene,
-    ) -> Handle<Node> {
-        let model = self.clone();
-        let data = self.data_ref();
-
-        let (root, _) = data.scene.graph.copy_node(
-            data.scene.graph.get_root(),
-            &mut dest_scene.graph,
-            &mut |_, _| true,
-            &mut |original_handle, node| {
-                if let Some(id) = ids.get(&original_handle) {
-                    node.instance_id = *id;
-                } else {
-                    Log::warn(format!(
-                        "No id specified for node {}! Random id will be used.",
-                        original_handle
-                    ))
-                }
-            },
-            &mut |_, original_handle, node| {
-                node.set_inheritance_data(original_handle, model.clone());
-            },
-        );
-
-        dest_scene
-            .graph
-            .update_hierarchical_data_for_descendants(root);
-
-        root
+        self.begin_instantiation(scene)
+            .with_rotation(orientation)
+            .with_position(position)
+            .finish()
     }
 
     fn retarget_animations_directly(&self, root: Handle<Node>, graph: &Graph) -> Vec<Animation> {
