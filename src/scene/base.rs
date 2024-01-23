@@ -726,12 +726,18 @@ impl Base {
     }
 
     fn remove_script(&mut self, index: usize) {
-        if index < 0 || index >= self.scripts.len() {
+        let scripts = if let Some(scripts) = &mut self.scripts {
+            scripts
+        } else {
+            return;
+        };
+
+        if index >= scripts.len() {
             return;
         }
 
         // Send script to the graph to destroy script instances correctly.
-        if let Some(script) = self.scripts[index].take() {
+        if let Some(script) = scripts[index].take() {
             if let Some(sender) = self.script_message_sender.as_ref() {
                 Log::verify(sender.send(NodeScriptMessage::DestroyScript {
                     script,
@@ -755,7 +761,7 @@ impl Base {
             return;
         };
 
-        for script in &mut scripts {
+        for script in scripts {
             // Send script to the graph to destroy script instances correctly.
             if let Some(script) = script.take() {
                 if let Some(sender) = self.script_message_sender.as_ref() {
@@ -777,21 +783,28 @@ impl Base {
     /// Sets new script for the scene node.
     #[inline]
     pub fn set_script(&mut self, index: usize, script: Option<Script>) {
-        let scripts = if let Some(scripts) = &mut self.scripts {
-            scripts
-        } else {
-            return;
-        };
-
-        if index < 0 || index >= scripts.len() {
-            return;
-        }
-
+        // No need for explicit index check
+        // remove_script does the index check
         self.remove_script(index);
 
-        self.scripts[index] = script;
-        if let Some(sender) = self.script_message_sender.as_ref() {
-            if self.scripts[index].is_some() {
+        if let Some(scripts) = &mut self.scripts {
+            scripts[index] = script;
+            if let Some(sender) = self.script_message_sender.as_ref() {
+                if scripts[index].is_some() {
+                    Log::verify(sender.send(NodeScriptMessage::InitializeScript {
+                        handle: self.self_handle,
+                    }));
+                }
+            }
+        }
+    }
+
+    /// Adds a new script to the scene node.
+    #[inline]
+    pub fn add_script(&mut self, script: Script) {
+        if let Some(scripts) = &mut self.scripts {
+            scripts.push(Some(script));
+            if let Some(sender) = self.script_message_sender.as_ref() {
                 Log::verify(sender.send(NodeScriptMessage::InitializeScript {
                     handle: self.self_handle,
                 }));
@@ -806,11 +819,11 @@ impl Base {
             return None;
         };
 
-        if index < 0 || index >= scripts.len() {
+        if index >= scripts.len() {
             return None;
         }
 
-        std::mem::replace(&mut self.scripts[index], script)
+        std::mem::replace(&mut scripts[index], script)
     }
 
     /// Checks if the node has a script of a particular type. Returns `false` if there is no script
@@ -823,24 +836,28 @@ impl Base {
     /// Checks if the node has any scripts assigned
     #[inline]
     pub fn has_scripts_assigned(&self) -> bool {
-        self.scripts.iter().any(|script| script.is_some())
+        if let Some(scripts) = &self.scripts {
+            scripts.iter().any(|script| script.is_some())
+        } else {
+            false
+        }
     }
 
     /// Tries to cast current script instance (if any) to given type and returns a shared reference
     /// to it on successful cast.
     #[inline]
     pub fn try_get_script<T: ScriptTrait>(&self, index: usize) -> Option<&T> {
-        let scripts = if let Some(scripts) = &mut self.scripts {
+        let scripts = if let Some(scripts) = &self.scripts {
             scripts
         } else {
             return None;
         };
 
-        if index < 0 || index >= scripts.len() {
+        if index >= scripts.len() {
             return None;
         }
 
-        self.scripts[index].as_ref().and_then(|s| s.cast::<T>())
+        scripts[index].as_ref().and_then(|s| s.cast::<T>())
     }
 
     /// Tries to fetch a reference to a component of the given type from the script of the node.
@@ -849,17 +866,17 @@ impl Base {
     where
         C: Any,
     {
-        let scripts = if let Some(scripts) = &mut self.scripts {
+        let scripts = if let Some(scripts) = &self.scripts {
             scripts
         } else {
             return None;
         };
 
-        if index < 0 || index >= scripts.len() {
+        if index >= scripts.len() {
             return None;
         }
 
-        self.scripts[index]
+        scripts[index]
             .as_ref()
             .and_then(|s| s.query_component_ref::<C>())
     }
@@ -876,11 +893,11 @@ impl Base {
             return None;
         };
 
-        if index < 0 || index >= scripts.len() {
+        if index >= scripts.len() {
             return None;
         }
 
-        self.scripts[index]
+        scripts[index]
             .as_mut()
             .and_then(|s| s.query_component_mut::<C>())
     }
@@ -895,27 +912,27 @@ impl Base {
             return None;
         };
 
-        if index < 0 || index >= scripts.len() {
+        if index >= scripts.len() {
             return None;
         }
 
-        self.scripts[index].as_mut().and_then(|s| s.cast_mut::<T>())
+        scripts[index].as_mut().and_then(|s| s.cast_mut::<T>())
     }
 
     /// Returns shared reference to current script instance.
     #[inline]
     pub fn script(&self, index: usize) -> Option<&Script> {
-        let scripts = if let Some(scripts) = &mut self.scripts {
+        let scripts = if let Some(scripts) = &self.scripts {
             scripts
         } else {
             return None;
         };
 
-        if index < 0 || index >= scripts.len() {
+        if index >= scripts.len() {
             return None;
         }
 
-        self.scripts[index].as_ref()
+        scripts[index].as_ref()
     }
 
     /// Returns mutable reference to current script instance.
@@ -933,33 +950,37 @@ impl Base {
             return None;
         };
 
-        if index < 0 || index >= scripts.len() {
+        if index >= scripts.len() {
             return None;
         }
 
-        self.scripts[index].as_mut()
+        scripts[index].as_mut()
     }
 
     /// Returns a copy of the current script.
     #[inline]
     pub fn script_cloned(&self, index: usize) -> Option<Script> {
-        let scripts = if let Some(scripts) = &mut self.scripts {
+        let scripts = if let Some(scripts) = &self.scripts {
             scripts
         } else {
             return None;
         };
 
-        if index < 0 || index >= scripts.len() {
+        if index >= scripts.len() {
             return None;
         }
 
-        self.scripts[index].clone()
+        scripts[index].clone()
     }
 
     /// Internal. Do not use.
     #[inline]
-    pub fn script_inner(&mut self, index: usize) -> &mut Option<Script> {
-        &mut self.scripts[index]
+    pub fn script_inner(&mut self, index: usize) -> Option<&mut Option<Script>> {
+        if let Some(scripts) = &mut self.scripts {
+            Some(&mut scripts[index])
+        } else {
+            None
+        }
     }
 
     /// Enables or disables scene node. Disabled scene nodes won't be updated (including scripts) or rendered.
@@ -1099,12 +1120,14 @@ impl Visit for Base {
         //
         // None of the reasons are fatal and we should still give an ability to load such node
         // to edit or remove it.
-        for script in &mut self.scripts {
-            if let Err(e) = visit_opt_script("Script", script, &mut region) {
-                // Do not spam with error messages if there is missing `Script` field. It is ok
-                // for old scenes not to have script at all.
-                if !matches!(e, VisitError::RegionDoesNotExist(_)) {
-                    Log::err(format!("Unable to visit script. Reason: {:?}", e))
+        if let Some(scripts) = &mut self.scripts {
+            for script in scripts {
+                if let Err(e) = visit_opt_script("Script", script, &mut region) {
+                    // Do not spam with error messages if there is missing `Script` field. It is ok
+                    // for old scenes not to have script at all.
+                    if !matches!(e, VisitError::RegionDoesNotExist(_)) {
+                        Log::err(format!("Unable to visit script. Reason: {:?}", e))
+                    }
                 }
             }
         }
@@ -1126,7 +1149,7 @@ pub struct BaseBuilder {
     tag: String,
     frustum_culling: bool,
     cast_shadows: bool,
-    scripts: Vec<Option<Script>>,
+    scripts: Option<Vec<Option<Script>>>,
     instance_id: InstanceId,
     enabled: bool,
 }
@@ -1154,7 +1177,7 @@ impl BaseBuilder {
             tag: Default::default(),
             frustum_culling: true,
             cast_shadows: true,
-            scripts: vec![],
+            scripts: Some(vec![]),
             instance_id: InstanceId(Uuid::new_v4()),
             enabled: true,
         }
@@ -1260,7 +1283,9 @@ impl BaseBuilder {
     /// Sets desired script of the node.
     #[inline]
     pub fn with_script(mut self, script: Script) -> Self {
-        self.scripts.push(Some(script));
+        if let Some(scripts) = &mut self.scripts {
+            scripts.push(Some(script));
+        }
         self
     }
 

@@ -91,8 +91,6 @@ use std::{
     },
     time::Duration,
 };
-use std::cell::RefCell;
-use std::rc::Rc;
 use winit::{
     dpi::{Position, Size},
     event_loop::EventLoopWindowTarget,
@@ -695,7 +693,13 @@ impl ScriptProcessor {
             let mut update_queue = VecDeque::new();
             let mut start_queue = VecDeque::new();
             for (handle, node) in scene.graph.pair_iter() {
-                for script in &node.scripts {
+                let script = if let Some(scripts) = &node.scripts {
+                    scripts
+                } else {
+                    continue;
+                };
+
+                for script in script {
                     if let Some(script) = script {
                         if node.is_globally_enabled() {
                             if script.initialized {
@@ -857,7 +861,7 @@ impl ScriptProcessor {
         // Process scripts from destroyed scenes.
         for (handle, mut detached_scene) in scenes.destruction_list.drain(..) {
             if let Some(scripted_scene) = self.scripted_scenes.iter().find(|s| s.handle == handle) {
-                let context = RefCell::new(ScriptDeinitContext {
+                let mut context = ScriptDeinitContext {
                     elapsed_time,
                     plugins: PluginsRefMut(plugins),
                     resource_manager,
@@ -868,24 +872,35 @@ impl ScriptProcessor {
                     task_pool,
                     graphics_context,
                     user_interface,
-                });
+                };
 
                 // Destroy every script instance from nodes that were still alive.
-                for node_index in 0..context.borrow().scene.graph.capacity() {
-                    let handle_node = context.borrow().scene.graph.handle_from_index(node_index);
-                    context.borrow_mut().node_handle = handle_node;
+                for node_index in 0..context.scene.graph.capacity() {
+                    let handle_node = context.scene.graph.handle_from_index(node_index);
+                    context.node_handle = handle_node;
 
-                    let graph = &mut context.borrow_mut().scene.graph;
-                    let node = graph.try_get_mut(handle_node);
-                    if let Some(node) = node {
-                        for script in &mut node.scripts {
+                    let mut scripts =
+                        if let Some(node) = &mut context.scene.graph.try_get_mut(handle_node) {
+                            node.scripts.take()
+                        } else {
+                            continue;
+                        };
+
+                    if let Some(scripts) = &mut scripts {
+                        for script in scripts {
                             if let Some(script) = script {
                                 // A script could not be initialized in case if we added a scene, and then immediately
                                 // removed it. Calling `on_deinit` in this case would be a violation of API contract.
                                 if script.initialized {
-                                    script.on_deinit(&mut context.borrow_mut());
+                                    script.on_deinit(&mut context);
                                 }
                             }
+                        }
+                    }
+
+                    if let Some(scripts) = scripts {
+                        if let Some(node) = context.scene.graph.try_get_mut(handle_node) {
+                            node.scripts.replace(scripts);
                         }
                     }
                 }
@@ -1012,31 +1027,35 @@ macro_rules! define_process_node {
         {
             // Take a script from node. We're temporarily taking ownership over script
             // instance.
-            let handle_node = context.handle;
-            let context = RefCell::new(context);
-            let graph = &mut context.borrow_mut().scene.graph;
-            let node = graph.try_get_mut(handle_node);
-            if let Some(node) = node {
+            let mut scripts = if let Some(node) = context.scene.graph.try_get_mut(context.handle) {
                 if !node.is_globally_enabled() {
                     return;
                 }
 
-                for vec_script in &mut node.scripts {
-                    if vec_script.is_none() {
-                        continue;
-                    }
+                node.scripts.take()
+            } else {
+                return;
+            };
 
+            if let Some(scripts) = &mut scripts {
+                for vec_script in scripts {
                     let mut script = if let Some(script) = vec_script.take() {
                         script
                     } else {
                         continue;
                     };
 
-                    func(&mut script, &mut context.borrow_mut());
+                    func(&mut script, context);
 
                     // Put the script back to the node. We must do a checked borrow, because it is possible
                     // that the node is already destroyed by script logic.
                     *vec_script = Some(script);
+                }
+            }
+
+            if let Some(scripts) = scripts {
+                if let Some(node) = context.scene.graph.try_get_mut(context.handle) {
+                    node.scripts.replace(scripts);
                 }
             }
         }
@@ -1805,24 +1824,25 @@ impl Engine {
         let time = instant::Instant::now();
 
         while let Some((payload, handler)) = self.task_pool.pop_node_task() {
-            let payload = Rc::new(payload);
             if let Some(scripted_scene) = self
                 .script_processor
                 .scripted_scenes
                 .iter_mut()
                 .find(|e| e.handle == handler.scene_handle)
             {
-                if let Some(scene) = self.scenes.try_get_mut(handler.scene_handle) {
-                    let scene = RefCell::new(scene);
-                    let graph = &mut scene.borrow_mut().graph;
-                    let node = graph.try_get_mut(handler.node_handle);
-                    if let Some(node) = node {
-                        for vec_script in &mut node.scripts {
+                if let Some(mut scene) = self.scenes.try_get_mut(handler.scene_handle) {
+                    let mut scripts = if let Some(node) = scene.graph.try_get_mut(handler.node_handle) {
+                        node.scripts.take()
+                    } else {
+                        None
+                    };
+
+                    if let Some(scripts) = &mut scripts {
+                        let mut payload = payload;
+                        for vec_script in scripts {
                             if let Some(mut script) = vec_script.take() {
-                                let payload = payload.clone();
-                                let mut scene = scene.borrow_mut();
-                                (handler.closure)(
-                                    payload.clone(),
+                                payload = (handler.closure)(
+                                    payload,
                                     script.deref_mut(),
                                     &mut ScriptContext {
                                         dt,
@@ -1841,8 +1861,14 @@ impl Engine {
                                 );
 
                                 // Puts script back into node's script vector
-                                *vec_script = Some(script);
+                                vec_script.replace(script);
                             }
+                        }
+                    }
+
+                    if let Some(scripts) = scripts {
+                        if let Some(node) = scene.graph.try_get_mut(handler.node_handle) {
+                            node.scripts.replace(scripts);
                         }
                     }
                 }

@@ -15,7 +15,7 @@ pub(crate) type NodeTaskHandlerClosure = Box<
         Box<dyn Any + Send>,
         &mut dyn ScriptTrait,
         &mut ScriptContext<'a, 'b, 'c>,
-    ),
+    ) -> Box<dyn Any + Send>,
 >;
 
 pub(crate) type PluginTaskHandler = Box<
@@ -196,7 +196,7 @@ impl TaskPoolHandler {
     ) where
         F: Future<Output = T> + Send + 'static,
         T: Send + 'static,
-        for<'a, 'b, 'c> C: Fn(T, &mut S, &mut ScriptContext<'a, 'b, 'c>) + 'static,
+        for<'a, 'b, 'c> C: Fn(T, &mut S, &mut ScriptContext<'a, 'b, 'c>) -> T + 'static,
         S: ScriptTrait,
     {
         let task_id = self.task_pool.spawn_with_result(future);
@@ -212,7 +212,10 @@ impl TaskPoolHandler {
                         .expect("Types must match");
                     let typed =
                         Box::<dyn Any + Send>::downcast::<T>(result).expect("Types must match");
-                    on_complete(*typed, script, context)
+
+                    let result = on_complete(*typed, script, context);
+
+                    Box::new(result)
                 }),
             },
         );
