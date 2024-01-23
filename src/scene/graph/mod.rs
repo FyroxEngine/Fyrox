@@ -23,6 +23,7 @@
 //! is used in skinning (animating 3d model by set of bones).
 
 use crate::scene::base::SceneNodeId;
+use crate::scene::navmesh;
 use crate::{
     asset::manager::ResourceManager,
     core::{
@@ -969,7 +970,10 @@ impl Graph {
                             let mut resource_node_clone = resource_node.clone_box();
                             variable::mark_inheritable_properties_non_modified(
                                 &mut resource_node_clone as &mut dyn Reflect,
-                                &[TypeId::of::<UntypedResource>()],
+                                &[
+                                    TypeId::of::<UntypedResource>(),
+                                    TypeId::of::<navmesh::Container>(),
+                                ],
                             );
                             **resource_node_clone = base;
                             *node = resource_node_clone;
@@ -982,7 +986,10 @@ impl Graph {
                                     node_reflect,
                                     resource_node_reflect,
                                     // Do not try to inspect resources, because it most likely cause a deadlock.
-                                    &[std::any::TypeId::of::<UntypedResource>()],
+                                    &[
+                                        std::any::TypeId::of::<UntypedResource>(),
+                                        TypeId::of::<navmesh::Container>(),
+                                    ],
                                 ));
                             })
                         })
@@ -1156,6 +1163,7 @@ impl Graph {
                             data,
                             resource_node_handle,
                             self,
+                            &mut |_, _| {},
                         );
 
                         restored_count += old_to_new_mapping.map.len();
