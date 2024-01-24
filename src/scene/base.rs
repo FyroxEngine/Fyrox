@@ -16,7 +16,7 @@ use crate::{
     engine::SerializationContext,
     resource::model::ModelResource,
     scene::{node::Node, transform::Transform},
-    script::{Script, ScriptTrait},
+    script::{Script, ScriptTrait, ScriptBuffer},
 };
 use fyrox_core::uuid_provider;
 use std::{any::Any, cell::Cell, sync::mpsc::Sender};
@@ -394,7 +394,7 @@ pub struct Base {
     // WARNING: Setting a new script via reflection will break normal script destruction process!
     // Use it at your own risk only when you're completely sure what you are doing.
     //#[reflect(setter = "set_script_internal")]
-    pub(crate) scripts: Option<Vec<Option<Script>>>,
+    pub(crate) scripts: Option<ScriptBuffer>,
 
     enabled: InheritableVariable<bool>,
 
@@ -761,7 +761,7 @@ impl Base {
             return;
         };
 
-        for script in scripts {
+        for script in scripts.iter_mut() {
             // Send script to the graph to destroy script instances correctly.
             if let Some(script) = script.take() {
                 if let Some(sender) = self.script_message_sender.as_ref() {
@@ -1121,7 +1121,7 @@ impl Visit for Base {
         // None of the reasons are fatal and we should still give an ability to load such node
         // to edit or remove it.
         if let Some(scripts) = &mut self.scripts {
-            for script in scripts {
+            for script in scripts.iter_mut() {
                 if let Err(e) = visit_opt_script("Script", script, &mut region) {
                     // Do not spam with error messages if there is missing `Script` field. It is ok
                     // for old scenes not to have script at all.
@@ -1149,7 +1149,7 @@ pub struct BaseBuilder {
     tag: String,
     frustum_culling: bool,
     cast_shadows: bool,
-    scripts: Option<Vec<Option<Script>>>,
+    scripts: Option<ScriptBuffer>,
     instance_id: InstanceId,
     enabled: bool,
 }
@@ -1177,7 +1177,7 @@ impl BaseBuilder {
             tag: Default::default(),
             frustum_culling: true,
             cast_shadows: true,
-            scripts: Some(vec![]),
+            scripts: Some(ScriptBuffer::new()),
             instance_id: InstanceId(Uuid::new_v4()),
             enabled: true,
         }

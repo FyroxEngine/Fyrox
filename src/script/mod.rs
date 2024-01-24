@@ -25,6 +25,8 @@ use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
 };
+use std::ops::{Index, IndexMut};
+use std::slice::{Iter, IterMut};
 
 pub mod constructor;
 
@@ -685,6 +687,52 @@ impl Script {
         self.instance
             .query_component_mut(TypeId::of::<T>())
             .and_then(|c| c.downcast_mut())
+    }
+}
+
+/// A wrapper struct for the scripts
+#[derive(Reflect, Clone, Debug)]
+pub struct ScriptBuffer(Vec<Option<Script>>);
+
+impl ScriptBuffer {
+    pub fn new() -> Self {
+        Self(vec![])
+    }
+
+    pub fn iter<'a>(&'a self) -> Iter<'_, Option<Script>> {
+        self.0.iter()
+    }
+
+    pub fn iter_mut(&mut self) -> IterMut<'_, Option<Script>> {
+        self.0.iter_mut()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn push(&mut self, script: Option<Script>) {
+        self.0.push(script)
+    }
+}
+
+impl Index<usize> for ScriptBuffer {
+    type Output = Option<Script>;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl IndexMut<usize> for ScriptBuffer {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index]
+    }
+}
+
+impl Default for ScriptBuffer {
+    fn default() -> Self {
+        ScriptBuffer::new()
     }
 }
 

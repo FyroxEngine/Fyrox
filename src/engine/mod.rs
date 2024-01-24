@@ -699,7 +699,7 @@ impl ScriptProcessor {
                     continue;
                 };
 
-                for script in script {
+                for script in script.iter() {
                     if let Some(script) = script {
                         if node.is_globally_enabled() {
                             if script.initialized {
@@ -887,7 +887,7 @@ impl ScriptProcessor {
                         };
 
                     if let Some(scripts) = &mut scripts {
-                        for script in scripts {
+                        for script in scripts.iter_mut() {
                             if let Some(script) = script {
                                 // A script could not be initialized in case if we added a scene, and then immediately
                                 // removed it. Calling `on_deinit` in this case would be a violation of API contract.
@@ -1038,7 +1038,7 @@ macro_rules! define_process_node {
             };
 
             if let Some(scripts) = &mut scripts {
-                for vec_script in scripts {
+                for vec_script in scripts.iter_mut() {
                     let mut script = if let Some(script) = vec_script.take() {
                         script
                     } else {
@@ -1839,7 +1839,7 @@ impl Engine {
 
                     if let Some(scripts) = &mut scripts {
                         let mut payload = payload;
-                        for vec_script in scripts {
+                        for vec_script in scripts.iter_mut() {
                             if let Some(mut script) = vec_script.take() {
                                 payload = (handler.closure)(
                                     payload,
