@@ -899,6 +899,28 @@ where
         }
     }
 
+    /// Generates a set of handles that could be used to spawn a set of objects. This method does not
+    /// modify the pool and the generated handles could be used together with [`Self::spawn_at_handle`]
+    /// method.
+    #[inline]
+    pub fn generate_free_handles(&self, amount: usize) -> Vec<Handle<T>> {
+        let mut free_handles = Vec::with_capacity(amount);
+        free_handles.extend(
+            self.free_stack
+                .iter()
+                .take(amount)
+                .map(|i| Handle::new(*i, self.records[*i as usize].generation + 1)),
+        );
+        if free_handles.len() < amount {
+            let remainder = amount - free_handles.len();
+            free_handles.extend(
+                (self.records.len()..self.records.len() + remainder)
+                    .map(|i| Handle::new(i as u32, 1)),
+            );
+        }
+        free_handles
+    }
+
     /// Borrows shared reference to an object by its handle.
     ///
     /// # Panics
@@ -2385,5 +2407,37 @@ mod test {
 
         let handle = AtomicHandle::default();
         assert!(handle.is_none());
+    }
+
+    #[test]
+    fn test_generate_free_handles() {
+        let mut pool = Pool::<u32>::new();
+
+        let _ = pool.spawn(42);
+        let b = pool.spawn(5);
+        let _ = pool.spawn(228);
+
+        pool.free(b);
+
+        let h0 = Handle::new(1, 2);
+        let h1 = Handle::new(3, 1);
+        let h2 = Handle::new(4, 1);
+        let h3 = Handle::new(5, 1);
+        let h4 = Handle::new(6, 1);
+
+        let free_handles = pool.generate_free_handles(5);
+        assert_eq!(free_handles, [h0, h1, h2, h3, h4]);
+
+        // Spawn something on the generated handles.
+        for (i, handle) in free_handles.into_iter().enumerate() {
+            let instance_handle = pool.spawn_at_handle(handle, i as u32);
+            assert_eq!(instance_handle, Ok(handle));
+        }
+
+        assert_eq!(pool[h0], 0);
+        assert_eq!(pool[h1], 1);
+        assert_eq!(pool[h2], 2);
+        assert_eq!(pool[h3], 3);
+        assert_eq!(pool[h4], 4);
     }
 }
