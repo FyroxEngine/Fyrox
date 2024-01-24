@@ -24,6 +24,7 @@ use std::{
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
+    str::FromStr,
 };
 use std::ops::{Index, IndexMut};
 use std::slice::{Iter, IterMut};
@@ -713,6 +714,10 @@ impl ScriptBuffer {
 
     pub fn push(&mut self, script: Option<Script>) {
         self.0.push(script)
+    }
+
+    pub fn id(&self) -> Uuid {
+        Uuid::from_str("04f5ce94-bd27-4f5f-9f5b-a07ed1865979").unwrap()
     }
 }
 
