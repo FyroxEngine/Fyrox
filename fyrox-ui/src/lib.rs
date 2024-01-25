@@ -285,6 +285,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
+use fyrox_resource::io::FsResourceIo;
 pub use node::*;
 pub use thickness::*;
 
@@ -2882,15 +2883,30 @@ impl UserInterface {
     #[allow(clippy::arc_with_non_send_sync)]
     pub async fn load_from_file<P: AsRef<Path>>(
         path: P,
+        resource_manager: &ResourceManager,
+    ) -> Result<Self, VisitError> {
+        Self::load_from_file_ex(
+            path,
+            Arc::new(WidgetConstructorContainer::new()),
+            resource_manager,
+            &FsResourceIo,
+        )
+    }
+
+    #[allow(clippy::arc_with_non_send_sync)]
+    pub async fn load_from_file_ex<P: AsRef<Path>>(
+        path: P,
         constructors: Arc<WidgetConstructorContainer>,
-        resource_manager: ResourceManager,
+        resource_manager: &ResourceManager,
         io: &dyn ResourceIo,
     ) -> Result<Self, VisitError> {
         let mut visitor = Visitor::load_from_memory(&io.load_file(path.as_ref()).await?)?;
         let (sender, receiver) = mpsc::channel();
         visitor.blackboard.register(constructors);
         visitor.blackboard.register(Arc::new(sender.clone()));
-        visitor.blackboard.register(Arc::new(resource_manager));
+        visitor
+            .blackboard
+            .register(Arc::new(resource_manager.clone()));
         let mut ui = UserInterface::new_with_channel(sender, receiver, Vector2::new(100.0, 100.0));
         ui.visit("Ui", &mut visitor)?;
         for widget in ui.nodes.iter_mut() {
