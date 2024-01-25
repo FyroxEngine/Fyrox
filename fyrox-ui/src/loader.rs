@@ -34,7 +34,7 @@ impl ResourceLoader for UserInterfaceLoader {
             let ui = UserInterface::load_from_file_ex(
                 &path,
                 Arc::new(WidgetConstructorContainer::new()),
-                &resource_manager,
+                resource_manager,
                 io,
             )
             .await
