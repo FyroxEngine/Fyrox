@@ -1843,10 +1843,10 @@ impl Editor {
                     }
                 }
             } else if ext == "ui" {
-                match block_on(UserInterface::load_from_file(
+                match block_on(UserInterface::load_from_file_ex(
                     &scene_path,
                     self.widget_constructors.clone(),
-                    self.engine.resource_manager.clone(),
+                    &self.engine.resource_manager,
                     &FsResourceIo,
                 )) {
                     Ok(ui) => {
