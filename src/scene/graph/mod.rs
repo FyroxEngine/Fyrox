@@ -22,30 +22,23 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::scene::base::SceneNodeId;
-use crate::scene::navmesh;
 use crate::{
-    asset::manager::ResourceManager,
+    asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
         algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
         instant,
         log::{Log, MessageKind},
-        math::aabb::AxisAlignedBoundingBox,
-        math::Matrix4Ext,
+        math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::{Handle, MultiBorrowContext, Pool, Ticket},
         reflect::prelude::*,
         sstorage::ImmutableString,
-        variable::try_inherit_properties,
+        variable::{self, try_inherit_properties},
         visitor::{Visit, VisitResult, Visitor},
     },
     material::{shader::SamplerFallback, MaterialResource, PropertyValue},
     resource::model::{ModelResource, ModelResourceExtension, NodeMapping},
-    scene::mesh::buffer::{
-        VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage, VertexWriteTrait,
-    },
     scene::{
-        self,
-        base::NodeScriptMessage,
+        base::{NodeScriptMessage, SceneNodeId},
         camera::Camera,
         dim2::{self},
         graph::{
@@ -53,7 +46,12 @@ use crate::{
             map::NodeHandleMap,
             physics::{PhysicsPerformanceStatistics, PhysicsWorld},
         },
+        mesh::buffer::{
+            VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
+            VertexWriteTrait,
+        },
         mesh::Mesh,
+        navmesh,
         node::{container::NodeContainer, Node, NodeTrait, SyncContext, UpdateContext},
         pivot::Pivot,
         sound::context::SoundContext,
@@ -63,12 +61,8 @@ use crate::{
     utils::lightmap::Lightmap,
 };
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_core::variable;
-use fyrox_resource::untyped::UntypedResource;
-use rapier3d::geometry::ColliderHandle;
-use std::any::TypeId;
 use std::{
-    any::Any,
+    any::{Any, TypeId},
     fmt::Debug,
     ops::{Index, IndexMut},
     sync::mpsc::{channel, Receiver, Sender},
@@ -540,20 +534,9 @@ impl Graph {
             }
         }
 
-        let node_ref = &mut self.pool[node_handle];
-
-        // Remove native collider when detaching a collider node from rigid body node.
-        if let Some(collider) = node_ref.cast_mut::<scene::collider::Collider>() {
-            if self.physics.remove_collider(collider.native.get()) {
-                collider.native.set(ColliderHandle::invalid());
-            }
-        } else if let Some(collider2d) = node_ref.cast_mut::<dim2::collider::Collider>() {
-            if self.physics2d.remove_collider(collider2d.native.get()) {
-                collider2d
-                    .native
-                    .set(rapier2d::geometry::ColliderHandle::invalid());
-            }
-        }
+        let (ticket, mut node) = self.pool.take_reserve(node_handle);
+        node.on_unlink(self);
+        self.pool.put_back(ticket, node);
     }
 
     /// Links specified child with specified parent.

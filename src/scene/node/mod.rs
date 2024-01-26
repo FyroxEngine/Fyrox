@@ -4,18 +4,20 @@
 
 #![warn(missing_docs)]
 
-use crate::resource::model::ModelResource;
 use crate::{
+    asset::untyped::UntypedResource,
     core::{
         algebra::{Matrix4, Vector2},
         math::aabb::AxisAlignedBoundingBox,
         pool::Handle,
         reflect::prelude::*,
         uuid::Uuid,
-        variable,
+        uuid_provider, variable,
+        variable::mark_inheritable_properties_non_modified,
         visitor::{Visit, VisitResult, Visitor},
     },
     renderer::batch::RenderContext,
+    resource::model::ModelResource,
     scene::{
         self,
         animation::{absm::AnimationBlendingStateMachine, AnimationPlayer},
@@ -37,9 +39,6 @@ use crate::{
         Scene,
     },
 };
-use fyrox_core::uuid_provider;
-use fyrox_core::variable::mark_inheritable_properties_non_modified;
-use fyrox_resource::untyped::UntypedResource;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -176,6 +175,9 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
     /// Gives an opportunity to perform clean up after the node was extracted from the scene graph
     /// (or deleted).
     fn on_removed_from_graph(&mut self, #[allow(unused_variables)] graph: &mut Graph) {}
+
+    /// The method is called when the node was detached from its parent node.
+    fn on_unlink(&mut self, #[allow(unused_variables)] graph: &mut Graph) {}
 
     /// Synchronizes internal state of the node with components of scene graph. It has limited usage
     /// and mostly allows you to sync the state of backing entity with the state of the node.

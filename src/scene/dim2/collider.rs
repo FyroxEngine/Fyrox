@@ -560,6 +560,13 @@ impl NodeTrait for Collider {
         ));
     }
 
+    fn on_unlink(&mut self, graph: &mut Graph) {
+        if graph.physics2d.remove_collider(self.native.get()) {
+            // Remove native collider when detaching a collider node from rigid body node.
+            self.native.set(ColliderHandle::invalid());
+        }
+    }
+
     fn sync_native(&self, self_handle: Handle<Node>, context: &mut SyncContext) {
         context
             .physics2d
