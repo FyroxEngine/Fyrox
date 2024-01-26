@@ -16,6 +16,13 @@
 
 - TODO
 
+# 0.33.1
+
+## Fixed
+
+- Fixed occasional crash when undoing node creation
+- Fixed highlighting for objects that were cloned
+
 # 0.33
 
 ## Added

@@ -205,9 +205,11 @@ impl SceneRenderPass for HighlightRenderPass {
             };
 
             for &root_node_handle in self.nodes_to_highlight.iter() {
-                for node_handle in ctx.scene.graph.traverse_handle_iter(root_node_handle) {
-                    if let Some(node) = ctx.scene.graph.try_get(node_handle) {
-                        node.collect_render_data(&mut render_context);
+                if ctx.scene.graph.is_valid_handle(root_node_handle) {
+                    for node_handle in ctx.scene.graph.traverse_handle_iter(root_node_handle) {
+                        if let Some(node) = ctx.scene.graph.try_get(node_handle) {
+                            node.collect_render_data(&mut render_context);
+                        }
                     }
                 }
             }
