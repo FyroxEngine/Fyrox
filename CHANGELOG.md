@@ -1,4 +1,4 @@
-# 0.34 (WIP)
+# 0.34 Engine + 0.21.0 Editor (WIP)
 
 ## Added
 
@@ -16,14 +16,14 @@
 
 - TODO
 
-# 0.33.1
+# 0.33 Engine + 0.20.1 Editor 
 
 ## Fixed
 
 - Fixed occasional crash when undoing node creation
 - Fixed highlighting for objects that were cloned
 
-# 0.33
+# 0.33 Engine + 0.20 Editor
 
 ## Added
 
