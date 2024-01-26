@@ -43,8 +43,8 @@ fyrox-sound = { path = "fyrox-sound", version = "0.34.0" }
 fyrox-ui = { path = "fyrox-ui", version = "0.24.0" }
 fyrox-resource = { path = "fyrox-resource", version = "0.11.0" }
 fyrox-animation = { path = "fyrox-animation", version = "0.1.0" }
-rapier2d = { version = "0.17", features = ["debug-render"] }
-rapier3d = { version = "0.17", features = ["debug-render"] }
+rapier2d = { version = "0.18", features = ["debug-render"] }
+rapier3d = { version = "0.18", features = ["debug-render"] }
 image = { version = "0.24.3", default-features = false, features = ["gif", "jpeg", "png", "tga", "tiff", "bmp"] }
 inflate = "0.4.5"
 serde = { version = "1", features = ["derive"] }
