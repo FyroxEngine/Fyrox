@@ -830,6 +830,16 @@ impl SceneController for GameScene {
         self.camera_controller
             .update(&mut scene.graph, settings, path, dt);
 
+        let mut highlighter = self.highlighter.borrow_mut();
+        highlighter.nodes_to_highlight.clear();
+
+        highlighter.scene_handle = self.scene;
+        if let Selection::Graph(ref selection) = editor_selection {
+            for &handle in selection.nodes() {
+                highlighter.nodes_to_highlight.insert(handle);
+            }
+        }
+
         new_render_target
     }
 
@@ -879,19 +889,6 @@ impl SceneController for GameScene {
                             .try_get((*handle).into())
                             .map(|n| n.name_owned()),
                     ));
-                false
-            }
-            Message::SelectionChanged { .. } => {
-                let mut highlighter = self.highlighter.borrow_mut();
-                highlighter.nodes_to_highlight.clear();
-
-                highlighter.scene_handle = self.scene;
-                if let Selection::Graph(ref selection) = selection {
-                    for &handle in selection.nodes() {
-                        highlighter.nodes_to_highlight.insert(handle);
-                    }
-                }
-
                 false
             }
             Message::ProvideSceneHierarchy { view } => {
