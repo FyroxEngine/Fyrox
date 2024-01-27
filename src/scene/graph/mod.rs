@@ -494,9 +494,7 @@ impl Graph {
     /// assert!(ctx.try_get(handle1).is_none());
     /// ```
     #[inline]
-    pub fn begin_multi_borrow<const N: usize>(
-        &mut self,
-    ) -> MultiBorrowContext<N, Node, NodeContainer> {
+    pub fn begin_multi_borrow(&mut self) -> MultiBorrowContext<Node, NodeContainer> {
         self.pool.begin_multi_borrow()
     }
 

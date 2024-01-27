@@ -471,22 +471,18 @@ impl AudioBusGraph {
 
         for mut leaf in leafs {
             while leaf.is_some() {
-                let mut ctx = self.buses.begin_multi_borrow::<2>();
+                let ctx = self.buses.begin_multi_borrow();
 
-                let leaf_ref = ctx.try_get(leaf).expect("Malformed bus graph!");
+                let leaf_ref = ctx.try_get_mut(leaf).expect("Malformed bus graph!");
 
                 let input_buffer = leaf_ref.ping_pong_buffer.input_ref();
                 let leaf_gain = leaf_ref.gain;
-                let output_buffer = if leaf_ref.parent_bus.is_none() {
+                let mut parent_buffer = ctx.try_get_mut(leaf_ref.parent_bus);
+                let output_buffer = parent_buffer
+                    .as_mut()
+                    .map(|parent| parent.ping_pong_buffer.input_mut())
                     // Special case for the root bus - it writes directly to the output device buffer.
-                    &mut *output_device_buffer
-                } else {
-                    ctx.try_get(leaf_ref.parent_bus)
-                        .expect("Malformed bus graph!")
-                        .ping_pong_buffer
-                        .input_mut()
-                };
-
+                    .unwrap_or(&mut *output_device_buffer);
                 for ((input_left, input_right), (output_left, output_right)) in
                     input_buffer.iter().zip(output_buffer)
                 {
