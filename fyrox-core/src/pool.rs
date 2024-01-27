@@ -28,10 +28,11 @@ use crate::{
     reflect::ReflectArray,
     uuid_provider,
     visitor::{Visit, VisitResult, Visitor},
-    TypeUuidProvider,
+    ComponentProvider, TypeUuidProvider,
 };
 use arrayvec::ArrayVec;
 use serde::{Deserialize, Serialize};
+use std::any::TypeId;
 use std::{
     any::Any,
     cmp::Ordering,
@@ -1572,6 +1573,34 @@ where
     }
 }
 
+impl<T, P> Pool<T, P>
+where
+    T: ComponentProvider,
+    P: PayloadContainer<Element = T> + 'static,
+{
+    /// Tries to mutably borrow an object and fetch its component of specified type.
+    #[inline]
+    pub fn try_get_component_of_type<C>(&self, handle: Handle<T>) -> Option<&C>
+    where
+        C: 'static,
+    {
+        self.try_borrow(handle)
+            .and_then(|n| n.query_component_ref(TypeId::of::<C>()))
+            .and_then(|c| c.downcast_ref())
+    }
+
+    /// Tries to mutably borrow an object and fetch its component of specified type.
+    #[inline]
+    pub fn try_get_component_of_type_mut<C>(&mut self, handle: Handle<T>) -> Option<&mut C>
+    where
+        C: 'static,
+    {
+        self.try_borrow_mut(handle)
+            .and_then(|n| n.query_component_mut(TypeId::of::<C>()))
+            .and_then(|c| c.downcast_mut())
+    }
+}
+
 impl<T> FromIterator<T> for Pool<T>
 where
     T: 'static,
@@ -1833,6 +1862,23 @@ where
                 }
             }
         }
+    }
+}
+
+impl<'a, const N: usize, T, P> MultiBorrowContext<'a, N, T, P>
+where
+    T: Sized + ComponentProvider,
+    P: PayloadContainer<Element = T> + 'static,
+{
+    /// Tries to mutably borrow an object and fetch its component of specified type.
+    #[inline]
+    pub fn try_get_component_of_type<C>(&mut self, handle: Handle<T>) -> Option<&'a mut C>
+    where
+        C: 'static,
+    {
+        self.try_get(handle)
+            .and_then(|n| n.query_component_mut(TypeId::of::<C>()))
+            .and_then(|c| c.downcast_mut())
     }
 }
 
