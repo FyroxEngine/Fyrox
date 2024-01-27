@@ -39,6 +39,7 @@ use crate::{
         Scene,
     },
 };
+use fyrox_core::ComponentProvider;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -304,6 +305,16 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
 /// consumption, only disk space usage is reduced.
 #[derive(Debug)]
 pub struct Node(Box<dyn NodeTrait>);
+
+impl ComponentProvider for Node {
+    fn query_component_ref(&self, type_id: TypeId) -> Option<&dyn Any> {
+        self.0.query_component_ref(type_id)
+    }
+
+    fn query_component_mut(&mut self, type_id: TypeId) -> Option<&mut dyn Any> {
+        self.0.query_component_mut(type_id)
+    }
+}
 
 uuid_provider!(Node = "a9bc5231-155c-4564-b0ca-f23972673925");
 
