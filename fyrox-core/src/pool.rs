@@ -30,19 +30,20 @@ use crate::{
     visitor::{Visit, VisitResult, Visitor},
     ComponentProvider, TypeUuidProvider,
 };
-use arrayvec::ArrayVec;
 use serde::{Deserialize, Serialize};
-use std::any::TypeId;
+
 use std::{
-    any::Any,
+    any::{Any, TypeId},
+    cell::UnsafeCell,
     cmp::Ordering,
     fmt::{Debug, Display, Formatter},
     future::Future,
     hash::{Hash, Hasher},
     iter::FromIterator,
     marker::PhantomData,
-    ops::{Index, IndexMut},
-    sync::{atomic, atomic::AtomicUsize},
+    ops::{Deref, DerefMut, Index, IndexMut},
+    ptr::NonNull,
+    sync::atomic::{self, AtomicBool, AtomicU8, AtomicUsize},
 };
 use uuid::Uuid;
 
@@ -467,17 +468,110 @@ impl<T> Debug for Handle<T> {
     }
 }
 
+pub struct Ref<'a, 'b, T>
+where
+    T: ?Sized,
+{
+    data: NonNull<T>,
+    counter: &'a AtomicU8,
+    phantom: PhantomData<&'b ()>,
+}
+
+impl<'a, 'b, T> Debug for Ref<'a, 'b, T>
+where
+    T: ?Sized + Debug,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(&self.data, f)
+    }
+}
+
+impl<'a, 'b, T> Deref for Ref<'a, 'b, T>
+where
+    T: ?Sized,
+{
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { self.data.as_ref() }
+    }
+}
+
+impl<'a, 'b, T> Drop for Ref<'a, 'b, T>
+where
+    T: ?Sized,
+{
+    fn drop(&mut self) {
+        self.counter.fetch_sub(1, atomic::Ordering::Relaxed);
+    }
+}
+
+pub struct RefMut<'a, 'b, T>
+where
+    T: ?Sized,
+{
+    data: NonNull<T>,
+    flag: &'a AtomicBool,
+    phantom: PhantomData<&'b ()>,
+}
+
+impl<'a, 'b, T> Debug for RefMut<'a, 'b, T>
+where
+    T: ?Sized + Debug,
+{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(&self.data, f)
+    }
+}
+
+impl<'a, 'b, T> Deref for RefMut<'a, 'b, T>
+where
+    T: ?Sized,
+{
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { self.data.as_ref() }
+    }
+}
+
+impl<'a, 'b, T> DerefMut for RefMut<'a, 'b, T>
+where
+    T: ?Sized,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { self.data.as_mut() }
+    }
+}
+
+impl<'a, 'b, T> Drop for RefMut<'a, 'b, T>
+where
+    T: ?Sized,
+{
+    fn drop(&mut self) {
+        self.flag.store(false, atomic::Ordering::Relaxed);
+    }
+}
+
+#[derive(Default, Debug)]
+struct State {
+    // Number of immutable references to the record.
+    read: AtomicU8,
+    write: AtomicBool,
+}
+
 #[derive(Debug)]
 struct PoolRecord<T, P = Option<T>>
 where
     T: Sized,
     P: PayloadContainer<Element = T>,
 {
-    /// Generation number, used to keep info about lifetime. The handle is valid
-    /// only if record it points to is of the same generation as the pool record.
-    /// Notes: Zero is unknown generation used for None handles.
+    state: State,
+    // Generation number, used to keep info about lifetime. The handle is valid
+    // only if record it points to is of the same generation as the pool record.
+    // Notes: Zero is unknown generation used for None handles.
     generation: u32,
-    /// Actual payload.
+    // Actual payload.
     payload: P,
 }
 
@@ -499,6 +593,7 @@ where
     #[inline]
     fn default() -> Self {
         Self {
+            state: Default::default(),
             generation: INVALID_GENERATION,
             payload: P::new_empty(),
         }
@@ -641,6 +736,7 @@ impl<T: Clone> Clone for PoolRecord<T> {
     #[inline]
     fn clone(&self) -> Self {
         Self {
+            state: Default::default(),
             generation: self.generation,
             payload: self.payload.clone(),
         }
@@ -771,6 +867,7 @@ where
                 // Spawn missing records to fill gaps.
                 for i in self.records_len()..index {
                     self.records.push(PoolRecord {
+                        state: Default::default(),
                         generation: 1,
                         payload: P::new_empty(),
                     });
@@ -784,6 +881,7 @@ where
                 };
 
                 self.records.push(PoolRecord {
+                    state: Default::default(),
                     generation,
                     payload: P::new(payload),
                 });
@@ -835,6 +933,7 @@ where
             let payload = callback(handle);
 
             let record = PoolRecord {
+                state: Default::default(),
                 generation,
                 payload: P::new(payload),
             };
@@ -891,6 +990,7 @@ where
 
             let record = PoolRecord {
                 generation,
+                state: State::default(),
                 payload: P::new(payload),
             };
 
@@ -1536,7 +1636,7 @@ where
     /// Begins multi-borrow that allows you to borrow as many (`N`) **unique** references to the pool
     /// elements as you need. See [`MultiBorrowContext::try_get`] for more info.
     #[inline]
-    pub fn begin_multi_borrow<const N: usize>(&mut self) -> MultiBorrowContext<N, T, P> {
+    pub fn begin_multi_borrow(&mut self) -> MultiBorrowContext<T, P> {
         MultiBorrowContext::new(self)
     }
 
@@ -1801,16 +1901,15 @@ where
 
 /// Multi-borrow context allows you to get as many **unique** references to elements in
 /// a pool as you want.
-pub struct MultiBorrowContext<'a, const N: usize, T, P = Option<T>>
+pub struct MultiBorrowContext<'a, T, P = Option<T>>
 where
     T: Sized,
     P: PayloadContainer<Element = T> + 'static,
 {
-    pool: &'a mut Pool<T, P>,
-    borrowed: ArrayVec<Handle<T>, N>,
+    pool: UnsafeCell<&'a mut Pool<T, P>>,
 }
 
-impl<'a, const N: usize, T, P> MultiBorrowContext<'a, N, T, P>
+impl<'a, T, P> MultiBorrowContext<'a, T, P>
 where
     T: Sized,
     P: PayloadContainer<Element = T> + 'static,
@@ -1818,9 +1917,34 @@ where
     #[inline]
     fn new(pool: &'a mut Pool<T, P>) -> Self {
         Self {
-            pool,
-            borrowed: Default::default(),
+            pool: UnsafeCell::new(pool),
         }
+    }
+
+    #[inline]
+    fn try_get_internal<'b, C, F>(&'b self, handle: Handle<T>, func: F) -> Option<Ref<'a, 'b, C>>
+    where
+        C: ?Sized,
+        F: FnOnce(&T) -> Option<&C>,
+    {
+        let pool = unsafe { &mut *self.pool.get() };
+        pool.records_get(handle.index).and_then(move |record| {
+            record.payload.as_ref().and_then(move |payload| {
+                if handle.generation == record.generation
+                    && !record.state.write.load(atomic::Ordering::Relaxed)
+                {
+                    record.state.read.fetch_add(1, atomic::Ordering::Relaxed);
+
+                    Some(Ref {
+                        data: func(payload)?.into(),
+                        counter: &record.state.read,
+                        phantom: PhantomData,
+                    })
+                } else {
+                    None
+                }
+            })
+        })
     }
 
     /// Tries to get a mutable reference to a pool element located at the given handle. The method could
@@ -1831,54 +1955,78 @@ where
     /// 2) You're trying to get more references that the context could handle (there is not enough space
     /// in the internal handles storage) - in this case you must increase `N`.
     /// 3) A given handle is invalid.
-    ///
-    /// # Performance
-    ///
-    /// This method has `O(N)` complexity, internally it does linear search in the internal handles storage
-    /// to enforce borrowing rules at runtime. The method is designed for small reference count (<32), where
-    /// linear search is faster than hash set.
     #[inline]
-    pub fn try_get(&mut self, handle: Handle<T>) -> Option<&'a mut T> {
-        // Performance: linear search is much faster than hash set for small element count.
-        // The context is meant to be used for limited amount of references (<32).
-        if self.borrowed.contains(&handle) {
-            // Cannot give multiple mutable references to the same element.
-            None
-        } else {
-            // SAFETY: We enforce borrowing rules at runtime and do not return multiple
-            // references to the same element.
-            unsafe {
-                let pool = &mut *(self.pool as *mut Pool<T, P>);
-                if let Some(payload_ref) = pool.try_borrow_mut(handle) {
-                    // We can only return a reference to an element, if there is enough space to
-                    // register borrowed handle.
-                    if self.borrowed.try_push(handle).is_ok() {
-                        Some(payload_ref)
-                    } else {
-                        None
-                    }
+    pub fn try_get<'b>(&'b self, handle: Handle<T>) -> Option<Ref<'a, 'b, T>> {
+        self.try_get_internal(handle, |obj| Some(obj))
+    }
+
+    #[inline]
+    fn try_get_mut_internal<'b, C, F>(
+        &'b self,
+        handle: Handle<T>,
+        func: F,
+    ) -> Option<RefMut<'a, 'b, C>>
+    where
+        C: ?Sized,
+        F: FnOnce(&mut T) -> Option<&mut C>,
+    {
+        let pool = unsafe { &mut *self.pool.get() };
+        pool.records_get_mut(handle.index).and_then(|record| {
+            record.payload.as_mut().and_then(|payload| {
+                if handle.generation == record.generation
+                    && !record.state.write.load(atomic::Ordering::Relaxed)
+                    && record.state.read.load(atomic::Ordering::Relaxed) == 0
+                {
+                    record.state.write.store(true, atomic::Ordering::Relaxed);
+
+                    Some(RefMut {
+                        data: func(payload)?.into(),
+                        flag: &record.state.write,
+                        phantom: PhantomData,
+                    })
                 } else {
                     None
                 }
-            }
-        }
+            })
+        })
+    }
+
+    #[inline]
+    pub fn try_get_mut<'b>(&'b self, handle: Handle<T>) -> Option<RefMut<'a, 'b, T>> {
+        self.try_get_mut_internal(handle, |obj| Some(obj))
     }
 }
 
-impl<'a, const N: usize, T, P> MultiBorrowContext<'a, N, T, P>
+impl<'a, T, P> MultiBorrowContext<'a, T, P>
 where
     T: Sized + ComponentProvider,
     P: PayloadContainer<Element = T> + 'static,
 {
     /// Tries to mutably borrow an object and fetch its component of specified type.
     #[inline]
-    pub fn try_get_component_of_type<C>(&mut self, handle: Handle<T>) -> Option<&'a mut C>
+    pub fn try_get_component_of_type<'b, C>(&'b self, handle: Handle<T>) -> Option<Ref<'a, 'b, C>>
     where
         C: 'static,
     {
-        self.try_get(handle)
-            .and_then(|n| n.query_component_mut(TypeId::of::<C>()))
-            .and_then(|c| c.downcast_mut())
+        self.try_get_internal(handle, |obj| {
+            obj.query_component_ref(TypeId::of::<C>())
+                .and_then(|c| c.downcast_ref())
+        })
+    }
+
+    /// Tries to mutably borrow an object and fetch its component of specified type.
+    #[inline]
+    pub fn try_get_component_of_type_mut<'b, C>(
+        &'b self,
+        handle: Handle<T>,
+    ) -> Option<RefMut<'a, 'b, C>>
+    where
+        C: 'static,
+    {
+        self.try_get_mut_internal(handle, |obj| {
+            obj.query_component_mut(TypeId::of::<C>())
+                .and_then(|c| c.downcast_mut())
+        })
     }
 }
 
@@ -1889,6 +2037,7 @@ mod test {
         pool::{ErasedHandle, Handle, Pool, PoolRecord, Ticket, INVALID_GENERATION},
         visitor::{Visit, Visitor},
     };
+    use std::sync::atomic;
 
     #[test]
     fn pool_sanity_tests() {
@@ -1997,25 +2146,81 @@ mod test {
         assert_eq!(pool.free_stack.len(), 1);
     }
 
+    #[derive(PartialEq, Clone, Copy, Debug)]
+    struct MyPayload(u32);
+
     #[test]
     fn test_multi_borrow_context() {
-        let mut pool = Pool::<Payload>::new();
+        let mut pool = Pool::<MyPayload>::new();
 
-        let a = pool.spawn(Payload);
-        let b = pool.spawn(Payload);
-        let c = pool.spawn(Payload);
+        let mut val_a = MyPayload(123);
+        let mut val_b = MyPayload(321);
+        let mut val_c = MyPayload(42);
 
-        let mut ctx = pool.begin_multi_borrow::<2>();
+        let a = pool.spawn(val_a);
+        let b = pool.spawn(val_b);
+        let c = pool.spawn(val_c);
 
-        // Test borrowing of the same element.
-        assert_eq!(ctx.try_get(a), Some(&mut Payload));
-        assert_eq!(ctx.try_get(a), None);
+        let ctx = pool.begin_multi_borrow();
 
-        // Test next element borrowing.
-        assert_eq!(ctx.try_get(b), Some(&mut Payload));
+        // Test immutable borrowing of the same element.
+        {
+            let ref_a_1 = ctx.try_get(a);
+            let ref_a_2 = ctx.try_get(a);
+            assert_eq!(ref_a_1.as_deref(), Some(&val_a));
+            assert_eq!(ref_a_2.as_deref(), Some(&val_a));
+        }
 
-        // Test out-of-space - context has limited capacity.mut
-        assert_eq!(ctx.try_get(c), None);
+        // Test immutable borrowing of the same element with the following mutable borrowing.
+        {
+            let ref_a_1 = ctx.try_get(a);
+            assert_eq!(
+                ref_a_1
+                    .as_ref()
+                    .unwrap()
+                    .counter
+                    .load(atomic::Ordering::Relaxed),
+                1
+            );
+            let ref_a_2 = ctx.try_get(a);
+            assert_eq!(
+                ref_a_2
+                    .as_ref()
+                    .unwrap()
+                    .counter
+                    .load(atomic::Ordering::Relaxed),
+                2
+            );
+
+            assert_eq!(ref_a_1.as_deref(), Some(&val_a));
+            assert_eq!(ref_a_2.as_deref(), Some(&val_a));
+            assert_eq!(ctx.try_get_mut(a).as_deref(), None);
+
+            drop(ref_a_1);
+            drop(ref_a_2);
+
+            assert_eq!(ctx.try_get_mut(a).as_deref_mut(), Some(&mut val_a));
+        }
+
+        // Test immutable and mutable borrowing.
+        {
+            // Borrow two immutable refs to the same element.
+            let ref_a_1 = ctx.try_get(a);
+            let ref_a_2 = ctx.try_get(a);
+            assert_eq!(ref_a_1.as_deref(), Some(&val_a));
+            assert_eq!(ref_a_2.as_deref(), Some(&val_a));
+
+            // Borrow immutable ref to other element.
+            let mut ref_b_1 = ctx.try_get_mut(b);
+            let mut ref_b_2 = ctx.try_get_mut(b);
+            assert_eq!(ref_b_1.as_deref_mut(), Some(&mut val_b));
+            assert_eq!(ref_b_2.as_deref_mut(), None);
+
+            let mut ref_c_1 = ctx.try_get_mut(c);
+            let mut ref_c_2 = ctx.try_get_mut(c);
+            assert_eq!(ref_c_1.as_deref_mut(), Some(&mut val_c));
+            assert_eq!(ref_c_2.as_deref_mut(), None);
+        }
     }
 
     #[test]
