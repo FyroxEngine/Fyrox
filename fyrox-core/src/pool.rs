@@ -474,8 +474,7 @@ where
 {
     data: NonNull<T>,
     counter: &'a AtomicU8,
-    #[allow(dead_code)]
-    link: &'b u8,
+    phantom: PhantomData<&'b ()>,
 }
 
 impl<'a, 'b, T> Debug for Ref<'a, 'b, T>
@@ -513,8 +512,7 @@ where
 {
     data: NonNull<T>,
     flag: &'a AtomicBool,
-    #[allow(dead_code)]
-    link: &'b u8,
+    phantom: PhantomData<&'b ()>,
 }
 
 impl<'a, 'b, T> Debug for RefMut<'a, 'b, T>
@@ -1942,7 +1940,7 @@ where
                     Some(Ref {
                         data: func(payload)?.into(),
                         counter: &record.state.read,
-                        link: &self.link,
+                        phantom: PhantomData,
                     })
                 } else {
                     None
@@ -1986,7 +1984,7 @@ where
                     Some(RefMut {
                         data: func(payload)?.into(),
                         flag: &record.state.write,
-                        link: &self.link,
+                        phantom: PhantomData,
                     })
                 } else {
                     None
