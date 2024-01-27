@@ -1907,7 +1907,6 @@ where
     P: PayloadContainer<Element = T> + 'static,
 {
     pool: UnsafeCell<&'a mut Pool<T, P>>,
-    link: u8,
 }
 
 impl<'a, T, P> MultiBorrowContext<'a, T, P>
@@ -1919,7 +1918,6 @@ where
     fn new(pool: &'a mut Pool<T, P>) -> Self {
         Self {
             pool: UnsafeCell::new(pool),
-            link: 0,
         }
     }
 
