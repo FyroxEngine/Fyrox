@@ -31,7 +31,6 @@ use crate::{
     ComponentProvider, TypeUuidProvider,
 };
 use serde::{Deserialize, Serialize};
-
 use std::{
     any::{Any, TypeId},
     cell::UnsafeCell,
@@ -43,7 +42,7 @@ use std::{
     marker::PhantomData,
     ops::{Deref, DerefMut, Index, IndexMut},
     ptr::NonNull,
-    sync::atomic::{self, AtomicBool, AtomicU8, AtomicUsize},
+    sync::atomic::{self, AtomicBool, AtomicU16, AtomicUsize},
 };
 use uuid::Uuid;
 
@@ -473,7 +472,7 @@ where
     T: ?Sized,
 {
     data: NonNull<T>,
-    counter: &'a AtomicU8,
+    counter: &'a AtomicU16,
     phantom: PhantomData<&'b ()>,
 }
 
@@ -556,7 +555,7 @@ where
 #[derive(Default, Debug)]
 struct State {
     // Number of immutable references to the record.
-    read: AtomicU8,
+    read: AtomicU16,
     write: AtomicBool,
 }
 
