@@ -1960,6 +1960,11 @@ where
     }
 
     #[inline]
+    pub fn get<'b>(&'b self, handle: Handle<T>) -> Ref<'a, 'b, T> {
+        self.try_get(handle).unwrap()
+    }
+
+    #[inline]
     fn try_get_mut_internal<'b, C, F>(
         &'b self,
         handle: Handle<T>,
@@ -1993,6 +1998,11 @@ where
     #[inline]
     pub fn try_get_mut<'b>(&'b self, handle: Handle<T>) -> Option<RefMut<'a, 'b, T>> {
         self.try_get_mut_internal(handle, |obj| Some(obj))
+    }
+
+    #[inline]
+    pub fn get_mut<'b>(&'b self, handle: Handle<T>) -> RefMut<'a, 'b, T> {
+        self.try_get_mut(handle).unwrap()
     }
 }
 
