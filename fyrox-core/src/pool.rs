@@ -31,9 +31,9 @@ use crate::{
     ComponentProvider, TypeUuidProvider,
 };
 use serde::{Deserialize, Serialize};
+use std::cell::UnsafeCell;
 use std::{
     any::{Any, TypeId},
-    cell::UnsafeCell,
     cmp::Ordering,
     fmt::{Debug, Display, Formatter},
     future::Future,
@@ -41,7 +41,6 @@ use std::{
     iter::FromIterator,
     marker::PhantomData,
     ops::{Deref, DerefMut, Index, IndexMut},
-    ptr::NonNull,
     sync::atomic::{self, AtomicBool, AtomicU16, AtomicUsize},
 };
 use uuid::Uuid;
@@ -471,7 +470,7 @@ pub struct Ref<'a, 'b, T>
 where
     T: ?Sized,
 {
-    data: NonNull<T>,
+    data: &'a T,
     counter: &'a AtomicU16,
     phantom: PhantomData<&'b ()>,
 }
@@ -492,7 +491,7 @@ where
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { self.data.as_ref() }
+        self.data
     }
 }
 
@@ -509,7 +508,7 @@ pub struct RefMut<'a, 'b, T>
 where
     T: ?Sized,
 {
-    data: NonNull<T>,
+    data: &'a mut T,
     flag: &'a AtomicBool,
     phantom: PhantomData<&'b ()>,
 }
@@ -530,7 +529,7 @@ where
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { self.data.as_ref() }
+        self.data
     }
 }
 
@@ -539,7 +538,7 @@ where
     T: ?Sized,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { self.data.as_mut() }
+        self.data
     }
 }
 
@@ -560,6 +559,79 @@ struct State {
 }
 
 #[derive(Debug)]
+struct Payload<P>(UnsafeCell<P>);
+
+impl<T, P> Clone for Payload<P>
+where
+    T: Sized,
+    P: PayloadContainer<Element = T> + Clone,
+{
+    fn clone(&self) -> Self {
+        Self(UnsafeCell::new(self.get().clone()))
+    }
+}
+
+impl<T, P> Payload<P>
+where
+    T: Sized,
+    P: PayloadContainer<Element = T>,
+{
+    fn new(data: T) -> Self {
+        Self(UnsafeCell::new(P::new(data)))
+    }
+
+    fn new_empty() -> Self {
+        Self(UnsafeCell::new(P::new_empty()))
+    }
+
+    fn get(&self) -> &P {
+        unsafe { &*self.0.get() }
+    }
+
+    fn get_mut(&mut self) -> &mut P {
+        self.0.get_mut()
+    }
+
+    fn is_some(&self) -> bool {
+        self.get().is_some()
+    }
+
+    fn as_ref(&self) -> Option<&T> {
+        self.get().as_ref()
+    }
+
+    fn as_mut(&mut self) -> Option<&mut T> {
+        self.get_mut().as_mut()
+    }
+
+    fn replace(&mut self, element: T) -> Option<T> {
+        self.get_mut().replace(element)
+    }
+
+    fn take(&mut self) -> Option<T> {
+        self.get_mut().take()
+    }
+}
+
+// SAFETY: This is safe, because Payload is never directly exposed to the call site. It is always
+// accessed using a sort of read-write lock that forces borrowing rules at runtime.
+unsafe impl<T, P> Sync for Payload<P>
+where
+    T: Sized,
+    P: PayloadContainer<Element = T>,
+{
+}
+
+// SAFETY: This is safe, because Payload is never directly exposed to the call site. It is always
+// accessed using a sort of read-write lock that forces borrowing rules at runtime.
+unsafe impl<T, P> Send for Payload<P>
+where
+    T: Sized,
+    P: PayloadContainer<Element = T>,
+{
+}
+
+#[derive(Debug)]
 struct PoolRecord<T, P = Option<T>>
 where
     T: Sized,
@@ -571,7 +643,7 @@ where
     // Notes: Zero is unknown generation used for None handles.
     generation: u32,
     // Actual payload.
-    payload: P,
+    payload: Payload<P>,
 }
 
 impl<T, P> PartialEq for PoolRecord<T, P>
@@ -581,7 +653,7 @@ where
 {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        self.generation == other.generation && self.payload == other.payload
+        self.generation == other.generation && self.payload.get() == other.payload.get()
     }
 }
 
@@ -594,7 +666,7 @@ where
         Self {
             state: Default::default(),
             generation: INVALID_GENERATION,
-            payload: P::new_empty(),
+            payload: Payload::new_empty(),
         }
     }
 }
@@ -609,7 +681,7 @@ where
         let mut region = visitor.enter_region(name)?;
 
         self.generation.visit("Generation", &mut region)?;
-        self.payload.visit("Payload", &mut region)?;
+        self.payload.get_mut().visit("Payload", &mut region)?;
 
         Ok(())
     }
@@ -857,7 +929,7 @@ where
                     };
 
                     record.generation = generation;
-                    record.payload = P::new(payload);
+                    record.payload = Payload::new(payload);
 
                     Ok(Handle::new(index, generation))
                 }
@@ -868,7 +940,7 @@ where
                     self.records.push(PoolRecord {
                         state: Default::default(),
                         generation: 1,
-                        payload: P::new_empty(),
+                        payload: Payload::new_empty(),
                     });
                     self.free_stack.push(i);
                 }
@@ -882,7 +954,7 @@ where
                 self.records.push(PoolRecord {
                     state: Default::default(),
                     generation,
-                    payload: P::new(payload),
+                    payload: Payload::new(payload),
                 });
 
                 Ok(Handle::new(index, generation))
@@ -934,7 +1006,7 @@ where
             let record = PoolRecord {
                 state: Default::default(),
                 generation,
-                payload: P::new(payload),
+                payload: Payload::new(payload),
             };
 
             self.records.push(record);
@@ -990,7 +1062,7 @@ where
             let record = PoolRecord {
                 generation,
                 state: State::default(),
-                payload: P::new(payload),
+                payload: Payload::new(payload),
             };
 
             self.records.push(record);
@@ -1438,7 +1510,8 @@ where
     #[inline]
     #[must_use]
     pub fn at(&self, n: u32) -> Option<&T> {
-        self.records_get(n).and_then(|rec| rec.payload.as_ref())
+        self.records_get(n)
+            .and_then(|rec| rec.payload.get().as_ref())
     }
 
     #[inline]
@@ -1905,7 +1978,7 @@ where
     T: Sized,
     P: PayloadContainer<Element = T> + 'static,
 {
-    pool: UnsafeCell<&'a mut Pool<T, P>>,
+    pool: &'a mut Pool<T, P>,
 }
 
 impl<'a, T, P> MultiBorrowContext<'a, T, P>
@@ -1915,34 +1988,36 @@ where
 {
     #[inline]
     fn new(pool: &'a mut Pool<T, P>) -> Self {
-        Self {
-            pool: UnsafeCell::new(pool),
-        }
+        Self { pool }
     }
 
     #[inline]
-    fn try_get_internal<'b, C, F>(&'b self, handle: Handle<T>, func: F) -> Option<Ref<'a, 'b, C>>
+    fn try_get_internal<'b: 'a, C, F>(
+        &'b self,
+        handle: Handle<T>,
+        func: F,
+    ) -> Option<Ref<'a, 'b, C>>
     where
         C: ?Sized,
         F: FnOnce(&T) -> Option<&C>,
     {
-        let pool = unsafe { &mut *self.pool.get() };
-        pool.records_get(handle.index).and_then(move |record| {
-            record.payload.as_ref().and_then(move |payload| {
-                if handle.generation == record.generation
-                    && !record.state.write.load(atomic::Ordering::Relaxed)
-                {
-                    record.state.read.fetch_add(1, atomic::Ordering::Relaxed);
+        self.pool.records_get(handle.index).and_then(move |record| {
+            if handle.generation == record.generation
+                && !record.state.write.load(atomic::Ordering::Relaxed)
+            {
+                record.state.read.fetch_add(1, atomic::Ordering::Relaxed);
 
+                let payload_container = unsafe { &*record.payload.0.get() };
+                payload_container.as_ref().and_then(|payload| {
                     Some(Ref {
                         data: func(payload)?.into(),
                         counter: &record.state.read,
                         phantom: PhantomData,
                     })
-                } else {
-                    None
-                }
-            })
+                })
+            } else {
+                None
+            }
         })
     }
 
@@ -1955,17 +2030,17 @@ where
     /// in the internal handles storage) - in this case you must increase `N`.
     /// 3) A given handle is invalid.
     #[inline]
-    pub fn try_get<'b>(&'b self, handle: Handle<T>) -> Option<Ref<'a, 'b, T>> {
+    pub fn try_get<'b: 'a>(&'b self, handle: Handle<T>) -> Option<Ref<'a, 'b, T>> {
         self.try_get_internal(handle, |obj| Some(obj))
     }
 
     #[inline]
-    pub fn get<'b>(&'b self, handle: Handle<T>) -> Ref<'a, 'b, T> {
+    pub fn get<'b: 'a>(&'b self, handle: Handle<T>) -> Ref<'a, 'b, T> {
         self.try_get(handle).unwrap()
     }
 
     #[inline]
-    fn try_get_mut_internal<'b, C, F>(
+    fn try_get_mut_internal<'b: 'a, C, F>(
         &'b self,
         handle: Handle<T>,
         func: F,
@@ -1974,34 +2049,34 @@ where
         C: ?Sized,
         F: FnOnce(&mut T) -> Option<&mut C>,
     {
-        let pool = unsafe { &mut *self.pool.get() };
-        pool.records_get_mut(handle.index).and_then(|record| {
-            record.payload.as_mut().and_then(|payload| {
-                if handle.generation == record.generation
-                    && !record.state.write.load(atomic::Ordering::Relaxed)
-                    && record.state.read.load(atomic::Ordering::Relaxed) == 0
-                {
-                    record.state.write.store(true, atomic::Ordering::Relaxed);
+        self.pool.records_get(handle.index).and_then(|record| {
+            if handle.generation == record.generation
+                && !record.state.write.load(atomic::Ordering::Relaxed)
+                && record.state.read.load(atomic::Ordering::Relaxed) == 0
+            {
+                record.state.write.store(true, atomic::Ordering::Relaxed);
 
+                let payload_container = unsafe { &mut *record.payload.0.get() };
+                payload_container.as_mut().and_then(|payload| {
                     Some(RefMut {
-                        data: func(payload)?.into(),
+                        data: func(payload)?,
                         flag: &record.state.write,
                         phantom: PhantomData,
                     })
-                } else {
-                    None
-                }
-            })
+                })
+            } else {
+                None
+            }
         })
     }
 
     #[inline]
-    pub fn try_get_mut<'b>(&'b self, handle: Handle<T>) -> Option<RefMut<'a, 'b, T>> {
+    pub fn try_get_mut<'b: 'a>(&'b self, handle: Handle<T>) -> Option<RefMut<'a, 'b, T>> {
         self.try_get_mut_internal(handle, |obj| Some(obj))
     }
 
     #[inline]
-    pub fn get_mut<'b>(&'b self, handle: Handle<T>) -> RefMut<'a, 'b, T> {
+    pub fn get_mut<'b: 'a>(&'b self, handle: Handle<T>) -> RefMut<'a, 'b, T> {
         self.try_get_mut(handle).unwrap()
     }
 }
@@ -2013,11 +2088,14 @@ where
 {
     /// Tries to mutably borrow an object and fetch its component of specified type.
     #[inline]
-    pub fn try_get_component_of_type<'b, C>(&'b self, handle: Handle<T>) -> Option<Ref<'a, 'b, C>>
+    pub fn try_get_component_of_type<'b: 'a, C>(
+        &'b self,
+        handle: Handle<T>,
+    ) -> Option<Ref<'a, 'b, C>>
     where
         C: 'static,
     {
-        self.try_get_internal(handle, |obj| {
+        self.try_get_internal(handle, move |obj| {
             obj.query_component_ref(TypeId::of::<C>())
                 .and_then(|c| c.downcast_ref())
         })
@@ -2025,14 +2103,14 @@ where
 
     /// Tries to mutably borrow an object and fetch its component of specified type.
     #[inline]
-    pub fn try_get_component_of_type_mut<'b, C>(
+    pub fn try_get_component_of_type_mut<'b: 'a, C>(
         &'b self,
         handle: Handle<T>,
     ) -> Option<RefMut<'a, 'b, C>>
     where
         C: 'static,
     {
-        self.try_get_mut_internal(handle, |obj| {
+        self.try_get_mut_internal(handle, move |obj| {
             obj.query_component_mut(TypeId::of::<C>())
                 .and_then(|c| c.downcast_mut())
         })
@@ -2127,9 +2205,9 @@ mod test {
 
         assert_eq!(pool.spawn_at(2, Payload), Ok(Handle::new(2, 1)));
         assert_eq!(pool.spawn_at(2, Payload), Err(Payload));
-        assert_eq!(pool.records[0].payload, None);
-        assert_eq!(pool.records[1].payload, None);
-        assert_ne!(pool.records[2].payload, None);
+        assert_eq!(pool.records[0].payload.as_ref(), None);
+        assert_eq!(pool.records[1].payload.as_ref(), None);
+        assert_ne!(pool.records[2].payload.as_ref(), None);
 
         assert_eq!(pool.spawn_at(2, Payload), Err(Payload));
 
