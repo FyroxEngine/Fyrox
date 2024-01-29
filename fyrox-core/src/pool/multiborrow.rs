@@ -306,7 +306,7 @@ where
         self.try_get_internal(handle, move |obj| {
             obj.query_component_ref(TypeId::of::<C>())
                 .and_then(|c| c.downcast_ref())
-                .ok_or_else(|| MultiBorrowError::NoSuchComponent(handle))
+                .ok_or(MultiBorrowError::NoSuchComponent(handle))
         })
     }
 
@@ -322,7 +322,7 @@ where
         self.try_get_mut_internal(handle, move |obj| {
             obj.query_component_mut(TypeId::of::<C>())
                 .and_then(|c| c.downcast_mut())
-                .ok_or_else(|| MultiBorrowError::NoSuchComponent(handle))
+                .ok_or(MultiBorrowError::NoSuchComponent(handle))
         })
     }
 }
