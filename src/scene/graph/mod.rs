@@ -483,13 +483,13 @@ impl Graph {
     /// let node3 = ctx.try_get(handle3);
     /// let node4 = ctx.try_get(handle4);
     ///
-    /// assert!(node1.is_some());
-    /// assert!(node2.is_some());
-    /// assert!(node3.is_some());
-    /// assert!(node4.is_some());
+    /// assert!(node1.is_ok());
+    /// assert!(node2.is_ok());
+    /// assert!(node3.is_ok());
+    /// assert!(node4.is_ok());
     ///
     /// // An attempt to borrow the same node twice as immutable and mutable will fail.
-    /// assert!(ctx.try_get_mut(handle1).is_none());
+    /// assert!(ctx.try_get_mut(handle1).is_err());
     /// ```
     #[inline]
     pub fn begin_multi_borrow(&mut self) -> MultiBorrowContext<Node, NodeContainer> {

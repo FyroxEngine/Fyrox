@@ -29,9 +29,9 @@ use crate::{
     ComponentProvider, TypeUuidProvider,
 };
 use serde::{Deserialize, Serialize};
-use std::cell::UnsafeCell;
 use std::{
     any::{Any, TypeId},
+    cell::UnsafeCell,
     cmp::Ordering,
     fmt::{Debug, Display, Formatter},
     future::Future,
@@ -554,6 +554,16 @@ struct State {
     // Number of immutable references to the record.
     read: AtomicU16,
     write: AtomicBool,
+}
+
+impl State {
+    fn is_reading(&self) -> bool {
+        self.read.load(atomic::Ordering::Relaxed) != 0
+    }
+
+    fn is_writing(&self) -> bool {
+        self.write.load(atomic::Ordering::Relaxed)
+    }
 }
 
 #[derive(Debug)]
@@ -1979,6 +1989,66 @@ where
     pool: &'a mut Pool<T, P>,
 }
 
+#[derive(PartialEq)]
+pub enum MultiBorrowError<T> {
+    Empty(Handle<T>),
+    NoSuchComponent(Handle<T>),
+    MutablyBorrowed(Handle<T>),
+    ImmutablyBorrowed(Handle<T>),
+    InvalidHandleIndex(Handle<T>),
+    InvalidHandleGeneration(Handle<T>),
+}
+
+impl<T> Debug for MultiBorrowError<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self, f)
+    }
+}
+
+impl<T> Display for MultiBorrowError<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Empty(handle) => {
+                write!(f, "There's no object at {handle} handle.")
+            }
+            Self::NoSuchComponent(handle) => write!(
+                f,
+                "An object at {handle} handle does not have such component.",
+            ),
+            Self::MutablyBorrowed(handle) => {
+                write!(
+                    f,
+                    "An object at {handle} handle cannot be borrowed immutably, because it is \
+                    already borrowed mutably."
+                )
+            }
+            Self::ImmutablyBorrowed(handle) => {
+                write!(
+                    f,
+                    "An object at {handle} handle cannot be borrowed mutably, because it is \
+                    already borrowed immutably."
+                )
+            }
+            Self::InvalidHandleIndex(handle) => {
+                write!(
+                    f,
+                    "The index {} in {handle} handle is out of bounds.",
+                    handle.index
+                )
+            }
+            Self::InvalidHandleGeneration(handle) => {
+                write!(
+                    f,
+                    "The generation {} in {handle} handle does not match the record's generation. \
+                    It means that the object at the handle was freed and it position was taken \
+                    by some other object.",
+                    handle.generation
+                )
+            }
+        }
+    }
+}
+
 impl<'a, T, P> MultiBorrowContext<'a, T, P>
 where
     T: Sized,
@@ -1994,28 +2064,36 @@ where
         &'b self,
         handle: Handle<T>,
         func: F,
-    ) -> Option<Ref<'a, 'b, C>>
+    ) -> Result<Ref<'a, 'b, C>, MultiBorrowError<T>>
     where
         C: ?Sized,
-        F: FnOnce(&T) -> Option<&C>,
+        F: FnOnce(&T) -> Result<&C, MultiBorrowError<T>>,
     {
-        self.pool.records_get(handle.index).and_then(move |record| {
-            if handle.generation == record.generation
-                && !record.state.write.load(atomic::Ordering::Relaxed)
-            {
-                let payload_container = unsafe { &*record.payload.0.get() };
-                payload_container.as_ref().and_then(|payload| {
-                    record.state.read.fetch_add(1, atomic::Ordering::Relaxed);
+        let Some(record) = self.pool.records_get(handle.index) else {
+            return Err(MultiBorrowError::InvalidHandleIndex(handle));
+        };
 
-                    Some(Ref {
-                        data: func(payload)?,
-                        counter: &record.state.read,
-                        phantom: PhantomData,
-                    })
-                })
-            } else {
-                None
-            }
+        if handle.generation != record.generation {
+            return Err(MultiBorrowError::InvalidHandleGeneration(handle));
+        }
+
+        if record.state.is_writing() {
+            return Err(MultiBorrowError::MutablyBorrowed(handle));
+        }
+
+        // SAFETY: We've enforced borrowing rules by the previous check.
+        let payload_container = unsafe { &*record.payload.0.get() };
+
+        let Some(payload) = payload_container.as_ref() else {
+            return Err(MultiBorrowError::Empty(handle));
+        };
+
+        record.state.read.fetch_add(1, atomic::Ordering::Relaxed);
+
+        Ok(Ref {
+            data: func(payload)?,
+            counter: &record.state.read,
+            phantom: PhantomData,
         })
     }
 
@@ -2028,8 +2106,11 @@ where
     /// in the internal handles storage) - in this case you must increase `N`.
     /// 3) A given handle is invalid.
     #[inline]
-    pub fn try_get<'b: 'a>(&'b self, handle: Handle<T>) -> Option<Ref<'a, 'b, T>> {
-        self.try_get_internal(handle, |obj| Some(obj))
+    pub fn try_get<'b: 'a>(
+        &'b self,
+        handle: Handle<T>,
+    ) -> Result<Ref<'a, 'b, T>, MultiBorrowError<T>> {
+        self.try_get_internal(handle, |obj| Ok(obj))
     }
 
     #[inline]
@@ -2042,35 +2123,49 @@ where
         &'b self,
         handle: Handle<T>,
         func: F,
-    ) -> Option<RefMut<'a, 'b, C>>
+    ) -> Result<RefMut<'a, 'b, C>, MultiBorrowError<T>>
     where
         C: ?Sized,
-        F: FnOnce(&mut T) -> Option<&mut C>,
+        F: FnOnce(&mut T) -> Result<&mut C, MultiBorrowError<T>>,
     {
-        self.pool.records_get(handle.index).and_then(|record| {
-            if handle.generation == record.generation
-                && !record.state.write.load(atomic::Ordering::Relaxed)
-                && record.state.read.load(atomic::Ordering::Relaxed) == 0
-            {
-                let payload_container = unsafe { &mut *record.payload.0.get() };
-                payload_container.as_mut().and_then(|payload| {
-                    record.state.write.store(true, atomic::Ordering::Relaxed);
+        let Some(record) = self.pool.records_get(handle.index) else {
+            return Err(MultiBorrowError::InvalidHandleIndex(handle));
+        };
 
-                    Some(RefMut {
-                        data: func(payload)?,
-                        flag: &record.state.write,
-                        phantom: PhantomData,
-                    })
-                })
-            } else {
-                None
-            }
+        if handle.generation != record.generation {
+            return Err(MultiBorrowError::InvalidHandleGeneration(handle));
+        }
+
+        if record.state.is_writing() {
+            return Err(MultiBorrowError::MutablyBorrowed(handle));
+        }
+
+        if record.state.is_reading() {
+            return Err(MultiBorrowError::ImmutablyBorrowed(handle));
+        }
+
+        // SAFETY: We've enforced borrowing rules by the two previous checks.
+        let payload_container = unsafe { &mut *record.payload.0.get() };
+
+        let Some(payload) = payload_container.as_mut() else {
+            return Err(MultiBorrowError::Empty(handle));
+        };
+
+        record.state.write.store(true, atomic::Ordering::Relaxed);
+
+        Ok(RefMut {
+            data: func(payload)?,
+            flag: &record.state.write,
+            phantom: PhantomData,
         })
     }
 
     #[inline]
-    pub fn try_get_mut<'b: 'a>(&'b self, handle: Handle<T>) -> Option<RefMut<'a, 'b, T>> {
-        self.try_get_mut_internal(handle, |obj| Some(obj))
+    pub fn try_get_mut<'b: 'a>(
+        &'b self,
+        handle: Handle<T>,
+    ) -> Result<RefMut<'a, 'b, T>, MultiBorrowError<T>> {
+        self.try_get_mut_internal(handle, |obj| Ok(obj))
     }
 
     #[inline]
@@ -2089,13 +2184,14 @@ where
     pub fn try_get_component_of_type<'b: 'a, C>(
         &'b self,
         handle: Handle<T>,
-    ) -> Option<Ref<'a, 'b, C>>
+    ) -> Result<Ref<'a, 'b, C>, MultiBorrowError<T>>
     where
         C: 'static,
     {
         self.try_get_internal(handle, move |obj| {
             obj.query_component_ref(TypeId::of::<C>())
                 .and_then(|c| c.downcast_ref())
+                .ok_or_else(|| MultiBorrowError::NoSuchComponent(handle))
         })
     }
 
@@ -2104,20 +2200,21 @@ where
     pub fn try_get_component_of_type_mut<'b: 'a, C>(
         &'b self,
         handle: Handle<T>,
-    ) -> Option<RefMut<'a, 'b, C>>
+    ) -> Result<RefMut<'a, 'b, C>, MultiBorrowError<T>>
     where
         C: 'static,
     {
         self.try_get_mut_internal(handle, move |obj| {
             obj.query_component_mut(TypeId::of::<C>())
                 .and_then(|c| c.downcast_mut())
+                .ok_or_else(|| MultiBorrowError::NoSuchComponent(handle))
         })
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::pool::AtomicHandle;
+    use crate::pool::{AtomicHandle, MultiBorrowError};
     use crate::{
         pool::{ErasedHandle, Handle, Pool, PoolRecord, Ticket, INVALID_GENERATION},
         visitor::{Visit, Visitor},
@@ -2241,19 +2338,35 @@ mod test {
         let mut val_a = MyPayload(123);
         let mut val_b = MyPayload(321);
         let mut val_c = MyPayload(42);
+        let val_d = MyPayload(666);
 
         let a = pool.spawn(val_a);
         let b = pool.spawn(val_b);
         let c = pool.spawn(val_c);
+        let d = pool.spawn(val_d);
+
+        pool.free(d);
 
         let ctx = pool.begin_multi_borrow();
+
+        // Test empty.
+        {
+            assert_eq!(
+                ctx.try_get(d).as_deref(),
+                Err(MultiBorrowError::Empty(d)).as_ref()
+            );
+            assert_eq!(
+                ctx.try_get_mut(d).as_deref_mut(),
+                Err(MultiBorrowError::Empty(d)).as_mut()
+            );
+        }
 
         // Test immutable borrowing of the same element.
         {
             let ref_a_1 = ctx.try_get(a);
             let ref_a_2 = ctx.try_get(a);
-            assert_eq!(ref_a_1.as_deref(), Some(&val_a));
-            assert_eq!(ref_a_2.as_deref(), Some(&val_a));
+            assert_eq!(ref_a_1.as_deref(), Ok(&val_a));
+            assert_eq!(ref_a_2.as_deref(), Ok(&val_a));
         }
 
         // Test immutable borrowing of the same element with the following mutable borrowing.
@@ -2277,14 +2390,17 @@ mod test {
                 2
             );
 
-            assert_eq!(ref_a_1.as_deref(), Some(&val_a));
-            assert_eq!(ref_a_2.as_deref(), Some(&val_a));
-            assert_eq!(ctx.try_get_mut(a).as_deref(), None);
+            assert_eq!(ref_a_1.as_deref(), Ok(&val_a));
+            assert_eq!(ref_a_2.as_deref(), Ok(&val_a));
+            assert_eq!(
+                ctx.try_get_mut(a).as_deref(),
+                Err(MultiBorrowError::ImmutablyBorrowed(a)).as_ref()
+            );
 
             drop(ref_a_1);
             drop(ref_a_2);
 
-            assert_eq!(ctx.try_get_mut(a).as_deref_mut(), Some(&mut val_a));
+            assert_eq!(ctx.try_get_mut(a).as_deref_mut(), Ok(&mut val_a));
         }
 
         // Test immutable and mutable borrowing.
@@ -2292,19 +2408,25 @@ mod test {
             // Borrow two immutable refs to the same element.
             let ref_a_1 = ctx.try_get(a);
             let ref_a_2 = ctx.try_get(a);
-            assert_eq!(ref_a_1.as_deref(), Some(&val_a));
-            assert_eq!(ref_a_2.as_deref(), Some(&val_a));
+            assert_eq!(ref_a_1.as_deref(), Ok(&val_a));
+            assert_eq!(ref_a_2.as_deref(), Ok(&val_a));
 
             // Borrow immutable ref to other element.
             let mut ref_b_1 = ctx.try_get_mut(b);
             let mut ref_b_2 = ctx.try_get_mut(b);
-            assert_eq!(ref_b_1.as_deref_mut(), Some(&mut val_b));
-            assert_eq!(ref_b_2.as_deref_mut(), None);
+            assert_eq!(ref_b_1.as_deref_mut(), Ok(&mut val_b));
+            assert_eq!(
+                ref_b_2.as_deref_mut(),
+                Err(MultiBorrowError::MutablyBorrowed(b)).as_mut()
+            );
 
             let mut ref_c_1 = ctx.try_get_mut(c);
             let mut ref_c_2 = ctx.try_get_mut(c);
-            assert_eq!(ref_c_1.as_deref_mut(), Some(&mut val_c));
-            assert_eq!(ref_c_2.as_deref_mut(), None);
+            assert_eq!(ref_c_1.as_deref_mut(), Ok(&mut val_c));
+            assert_eq!(
+                ref_c_2.as_deref_mut(),
+                Err(MultiBorrowError::MutablyBorrowed(c)).as_mut()
+            );
         }
     }
 
