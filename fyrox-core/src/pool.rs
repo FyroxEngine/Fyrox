@@ -20,8 +20,6 @@
 //! indirections that might cause cache invalidation. This is the so called cache
 //! friendliness.
 
-#![allow(clippy::unneeded_field_pattern)]
-
 use crate::{
     combine_uuids,
     reflect::prelude::*,
@@ -2005,12 +2003,12 @@ where
             if handle.generation == record.generation
                 && !record.state.write.load(atomic::Ordering::Relaxed)
             {
-                record.state.read.fetch_add(1, atomic::Ordering::Relaxed);
-
                 let payload_container = unsafe { &*record.payload.0.get() };
                 payload_container.as_ref().and_then(|payload| {
+                    record.state.read.fetch_add(1, atomic::Ordering::Relaxed);
+
                     Some(Ref {
-                        data: func(payload)?.into(),
+                        data: func(payload)?,
                         counter: &record.state.read,
                         phantom: PhantomData,
                     })
@@ -2054,10 +2052,10 @@ where
                 && !record.state.write.load(atomic::Ordering::Relaxed)
                 && record.state.read.load(atomic::Ordering::Relaxed) == 0
             {
-                record.state.write.store(true, atomic::Ordering::Relaxed);
-
                 let payload_container = unsafe { &mut *record.payload.0.get() };
                 payload_container.as_mut().and_then(|payload| {
+                    record.state.write.store(true, atomic::Ordering::Relaxed);
+
                     Some(RefMut {
                         data: func(payload)?,
                         flag: &record.state.write,
