@@ -726,55 +726,45 @@ impl Base {
     }
 
     fn remove_script(&mut self, index: usize) {
-        let scripts = if let Some(scripts) = &mut self.scripts {
-            scripts
-        } else {
-            return;
-        };
-
-        if index >= scripts.len() {
-            return;
-        }
-
-        // Send script to the graph to destroy script instances correctly.
-        if let Some(script) = scripts[index].take() {
-            if let Some(sender) = self.script_message_sender.as_ref() {
-                Log::verify(sender.send(NodeScriptMessage::DestroyScript {
-                    script,
-                    handle: self.self_handle,
-                }));
-            } else {
-                Log::warn(format!(
-                    "There is a script instance on a node {}, but no message sender. \
+        if let Some(scripts) = &mut self.scripts {
+            // Send script to the graph to destroy script instances correctly.
+            if let Some(script) = scripts.get_mut(index) {
+                if let Some(script) = script.take() {
+                    if let Some(sender) = self.script_message_sender.as_ref() {
+                        Log::verify(sender.send(NodeScriptMessage::DestroyScript {
+                            script,
+                            handle: self.self_handle,
+                        }));
+                    } else {
+                        Log::warn(format!(
+                            "There is a script instance on a node {}, but no message sender. \
                     The script won't be correctly destroyed!",
-                    self.name(),
-                ));
+                            self.name(),
+                        ));
+                    }
+                }
             }
         }
     }
 
     /// Removes all assigned scripts from scene node
     fn remove_all_scripts(&mut self) {
-        let scripts = if let Some(scripts) = &mut self.scripts {
-            scripts
-        } else {
-            return;
-        };
-
-        for script in scripts.iter_mut() {
-            // Send script to the graph to destroy script instances correctly.
-            if let Some(script) = script.take() {
-                if let Some(sender) = self.script_message_sender.as_ref() {
-                    Log::verify(sender.send(NodeScriptMessage::DestroyScript {
-                        script,
-                        handle: self.self_handle,
-                    }));
-                } else {
-                    Log::warn(format!(
-                        "There is a script instance on a node {}, but no message sender. \
+        if let Some(scripts) = &mut self.scripts {
+            for script in scripts.iter_mut() {
+                // Send script to the graph to destroy script instances correctly.
+                if let Some(script) = script.take() {
+                    if let Some(sender) = self.script_message_sender.as_ref() {
+                        Log::verify(sender.send(NodeScriptMessage::DestroyScript {
+                            script,
+                            handle: self.self_handle,
+                        }));
+                    } else {
+                        Log::warn(format!(
+                            "There is a script instance on a node {}, but no message sender. \
                             The script won't be correctly destroyed!",
-                        self.name.as_str()
-                    ));
+                            self.name.as_str()
+                        ));
+                    }
                 }
             }
         }
@@ -783,12 +773,14 @@ impl Base {
     /// Sets new script for the scene node.
     #[inline]
     pub fn set_script(&mut self, index: usize, script: Option<Script>) {
-        // No need for explicit index check
-        // remove_script does the index check
-        self.remove_script(index);
+        let scripts = self.scripts.take();
+        if let Some(mut scripts) = scripts {
+            self.remove_script(index);
 
-        if let Some(scripts) = &mut self.scripts {
-            scripts[index] = script;
+            if index < scripts.len() {
+                scripts[index] = script;
+            }
+
             if let Some(sender) = self.script_message_sender.as_ref() {
                 if scripts[index].is_some() {
                     Log::verify(sender.send(NodeScriptMessage::InitializeScript {
@@ -796,6 +788,8 @@ impl Base {
                     }));
                 }
             }
+
+            self.scripts.replace(scripts);
         }
     }
 
@@ -813,17 +807,15 @@ impl Base {
     }
 
     fn set_script_internal(&mut self, (index, script): (usize, Option<Script>)) -> Option<Script> {
-        let scripts = if let Some(scripts) = &mut self.scripts {
-            scripts
+        if let Some(scripts) = &mut self.scripts {
+            if let Some(vec_script) = scripts.get_mut(index) {
+                std::mem::replace(vec_script, script)
+            } else {
+                None
+            }
         } else {
-            return None;
-        };
-
-        if index >= scripts.len() {
-            return None;
+            None
         }
-
-        std::mem::replace(&mut scripts[index], script)
     }
 
     /// Checks if the node has a script of a particular type. Returns `false` if there is no script
@@ -847,17 +839,15 @@ impl Base {
     /// to it on successful cast.
     #[inline]
     pub fn try_get_script<T: ScriptTrait>(&self, index: usize) -> Option<&T> {
-        let scripts = if let Some(scripts) = &self.scripts {
-            scripts
+        if let Some(scripts) = &self.scripts {
+            if let Some(script) = scripts.get(index) {
+                script.as_ref().and_then(|s| s.cast::<T>())
+            } else {
+                None
+            }
         } else {
-            return None;
-        };
-
-        if index >= scripts.len() {
-            return None;
+            None
         }
-
-        scripts[index].as_ref().and_then(|s| s.cast::<T>())
     }
 
     /// Tries to fetch a reference to a component of the given type from the script of the node.
@@ -866,19 +856,15 @@ impl Base {
     where
         C: Any,
     {
-        let scripts = if let Some(scripts) = &self.scripts {
-            scripts
+        if let Some(scripts) = &self.scripts {
+            if let Some(script) = scripts.get(index) {
+                script.as_ref().and_then(|s| s.query_component_ref::<C>())
+            } else {
+                None
+            }
         } else {
-            return None;
-        };
-
-        if index >= scripts.len() {
-            return None;
+            None
         }
-
-        scripts[index]
-            .as_ref()
-            .and_then(|s| s.query_component_ref::<C>())
     }
 
     /// Tries to fetch a reference to a component of the given type from the script of the node.
@@ -887,52 +873,44 @@ impl Base {
     where
         C: Any,
     {
-        let scripts = if let Some(scripts) = &mut self.scripts {
-            scripts
+        if let Some(scripts) = &mut self.scripts {
+            if let Some(script) = scripts.get_mut(index) {
+                script.as_mut().and_then(|s| s.query_component_mut::<C>())
+            } else {
+                None
+            }
         } else {
-            return None;
-        };
-
-        if index >= scripts.len() {
-            return None;
+            None
         }
-
-        scripts[index]
-            .as_mut()
-            .and_then(|s| s.query_component_mut::<C>())
     }
 
     /// Tries to cast current script instance (if any) to given type and returns a mutable reference
     /// to it on successful cast.
     #[inline]
     pub fn try_get_script_mut<T: ScriptTrait>(&mut self, index: usize) -> Option<&mut T> {
-        let scripts = if let Some(scripts) = &mut self.scripts {
-            scripts
+        if let Some(scripts) = &mut self.scripts {
+            if let Some(script) = scripts.get_mut(index) {
+                script.as_mut().and_then(|s| s.cast_mut::<T>())
+            } else {
+                None
+            }
         } else {
-            return None;
-        };
-
-        if index >= scripts.len() {
-            return None;
+            None
         }
-
-        scripts[index].as_mut().and_then(|s| s.cast_mut::<T>())
     }
 
     /// Returns shared reference to current script instance.
     #[inline]
     pub fn script(&self, index: usize) -> Option<&Script> {
-        let scripts = if let Some(scripts) = &self.scripts {
-            scripts
+        if let Some(scripts) = &self.scripts {
+            if let Some(script) = scripts.get(index) {
+                script.as_ref()
+            } else {
+                None
+            }
         } else {
-            return None;
-        };
-
-        if index >= scripts.len() {
-            return None;
+            None
         }
-
-        scripts[index].as_ref()
     }
 
     /// Returns mutable reference to current script instance.
@@ -944,40 +922,36 @@ impl Base {
     /// to replace the script.
     #[inline]
     pub fn script_mut(&mut self, index: usize) -> Option<&mut Script> {
-        let scripts = if let Some(scripts) = &mut self.scripts {
-            scripts
+        if let Some(scripts) = &mut self.scripts {
+            if let Some(scripts) = scripts.get_mut(index) {
+                scripts.as_mut()
+            } else {
+                None
+            }
         } else {
-            return None;
-        };
-
-        if index >= scripts.len() {
-            return None;
+            None
         }
-
-        scripts[index].as_mut()
     }
 
     /// Returns a copy of the current script.
     #[inline]
     pub fn script_cloned(&self, index: usize) -> Option<Script> {
-        let scripts = if let Some(scripts) = &self.scripts {
-            scripts
+        if let Some(scripts) = &self.scripts {
+            if let Some(script) = scripts.get(index) {
+                script.clone()
+            } else {
+                None
+            }
         } else {
-            return None;
-        };
-
-        if index >= scripts.len() {
-            return None;
+            None
         }
-
-        scripts[index].clone()
     }
 
     /// Internal. Do not use.
     #[inline]
     pub fn script_inner(&mut self, index: usize) -> Option<&mut Option<Script>> {
         if let Some(scripts) = &mut self.scripts {
-            Some(&mut scripts[index])
+            scripts.get_mut(index)
         } else {
             None
         }
@@ -1208,7 +1182,7 @@ impl BaseBuilder {
             tag: Default::default(),
             frustum_culling: true,
             cast_shadows: true,
-            scripts: Some(vec![None]),
+            scripts: Some(vec![]),
             instance_id: InstanceId(Uuid::new_v4()),
             enabled: true,
         }
