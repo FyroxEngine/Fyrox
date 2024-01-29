@@ -660,7 +660,7 @@ impl ScriptProcessor {
             .push(resource_manager.state().get_wait_context());
     }
 
-    fn handle_scripts<'a>(
+    fn handle_scripts(
         &mut self,
         scenes: &mut SceneContainer,
         plugins: &mut [Box<dyn Plugin>],
@@ -699,22 +699,20 @@ impl ScriptProcessor {
                     continue;
                 };
 
-                for script in script.iter() {
-                    if let Some(script) = script {
-                        if node.is_globally_enabled() {
-                            if script.initialized {
-                                if script.started {
-                                    update_queue.push_back(handle);
-                                } else {
-                                    start_queue.push_back(handle);
-                                }
+                for script in script.iter().flatten() {
+                    if node.is_globally_enabled() {
+                        if script.initialized {
+                            if script.started {
+                                update_queue.push_back(handle);
                             } else {
-                                scene
-                                    .graph
-                                    .script_message_sender
-                                    .send(NodeScriptMessage::InitializeScript { handle })
-                                    .unwrap();
+                                start_queue.push_back(handle);
                             }
+                        } else {
+                            scene
+                                .graph
+                                .script_message_sender
+                                .send(NodeScriptMessage::InitializeScript { handle })
+                                .unwrap();
                         }
                     }
                 }
@@ -887,13 +885,11 @@ impl ScriptProcessor {
                         };
 
                     if let Some(scripts) = &mut scripts {
-                        for script in scripts.iter_mut() {
-                            if let Some(script) = script {
-                                // A script could not be initialized in case if we added a scene, and then immediately
-                                // removed it. Calling `on_deinit` in this case would be a violation of API contract.
-                                if script.initialized {
-                                    script.on_deinit(&mut context);
-                                }
+                        for script in scripts.iter_mut().flatten() {
+                            // A script could not be initialized in case if we added a scene, and then immediately
+                            // removed it. Calling `on_deinit` in this case would be a violation of API contract.
+                            if script.initialized {
+                                script.on_deinit(&mut context);
                             }
                         }
                     }
@@ -1830,12 +1826,13 @@ impl Engine {
                 .iter_mut()
                 .find(|e| e.handle == handler.scene_handle)
             {
-                if let Some(mut scene) = self.scenes.try_get_mut(handler.scene_handle) {
-                    let mut scripts = if let Some(node) = scene.graph.try_get_mut(handler.node_handle) {
-                        node.scripts.take()
-                    } else {
-                        None
-                    };
+                if let Some(scene) = self.scenes.try_get_mut(handler.scene_handle) {
+                    let mut scripts =
+                        if let Some(node) = scene.graph.try_get_mut(handler.node_handle) {
+                            node.scripts.take()
+                        } else {
+                            None
+                        };
 
                     if let Some(scripts) = &mut scripts {
                         let mut payload = payload;
@@ -1849,7 +1846,7 @@ impl Engine {
                                         elapsed_time: self.elapsed_time,
                                         plugins: PluginsRefMut(&mut self.plugins),
                                         handle: handler.node_handle,
-                                        scene: &mut scene,
+                                        scene,
                                         scene_handle: scripted_scene.handle,
                                         resource_manager: &self.resource_manager,
                                         message_sender: &scripted_scene.message_sender,

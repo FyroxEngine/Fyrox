@@ -16,7 +16,7 @@ use crate::{
     engine::SerializationContext,
     resource::model::ModelResource,
     scene::{node::Node, transform::Transform},
-    script::{Script, ScriptTrait, ScriptBuffer},
+    script::{Script, ScriptTrait},
 };
 use fyrox_core::uuid_provider;
 use std::{any::Any, cell::Cell, sync::mpsc::Sender};
@@ -393,8 +393,8 @@ pub struct Base {
     //
     // WARNING: Setting a new script via reflection will break normal script destruction process!
     // Use it at your own risk only when you're completely sure what you are doing.
-    //#[reflect(setter = "set_script_internal")]
-    pub(crate) scripts: Option<ScriptBuffer>,
+    #[reflect(setter = "set_script_internal")]
+    pub(crate) scripts: Option<Vec<Option<Script>>>,
 
     enabled: InheritableVariable<bool>,
 
@@ -812,7 +812,7 @@ impl Base {
         }
     }
 
-    fn set_script_internal(&mut self, index: usize, script: Option<Script>) -> Option<Script> {
+    fn set_script_internal(&mut self, (index, script): (usize, Option<Script>)) -> Option<Script> {
         let scripts = if let Some(scripts) = &mut self.scripts {
             scripts
         } else {
@@ -1044,8 +1044,13 @@ impl Default for Base {
 }
 
 // Serializes Option<Script> using given serializer.
-fn visit_opt_script(name: &str, script: &mut Option<Script>, visitor: &mut Visitor) -> VisitResult {
-    let mut region = visitor.enter_region(name)?;
+fn visit_opt_script(
+    name: &str,
+    index: usize,
+    script: &mut Option<Script>,
+    visitor: &mut Visitor,
+) -> VisitResult {
+    let mut region = visitor.enter_region(&format!("{name}@{index}"))?;
 
     let mut script_type_uuid = script.as_ref().map(|s| s.id()).unwrap_or_default();
     script_type_uuid.visit("TypeUuid", &mut region)?;
@@ -1074,7 +1079,8 @@ fn visit_opt_script(name: &str, script: &mut Option<Script>, visitor: &mut Visit
     }
 
     if let Some(script) = script {
-        script.visit("ScriptData", &mut region)?;
+        let name2 = &format!("ScriptData@{index}");
+        script.visit(name2, &mut region)?;
     }
 
     Ok(())
@@ -1120,9 +1126,33 @@ impl Visit for Base {
         //
         // None of the reasons are fatal and we should still give an ability to load such node
         // to edit or remove it.
-        if let Some(scripts) = &mut self.scripts {
-            for script in scripts.iter_mut() {
-                if let Err(e) = visit_opt_script("Script", script, &mut region) {
+
+        if region.is_reading() {
+            let mut vector_len = 0;
+            let _ = vector_len.visit("ScriptBufferSize", &mut region);
+
+            let mut script_buffer = Vec::with_capacity(vector_len);
+
+            for index in 0..script_buffer.capacity() {
+                let mut script = None;
+                if let Err(e) = visit_opt_script("Script", index, &mut script, &mut region) {
+                    // Do not spam with error messages if there is missing `Script` field. It is ok
+                    // for old scenes not to have script at all.
+                    if !matches!(e, VisitError::RegionDoesNotExist(_)) {
+                        Log::err(format!("Unable to visit script. Reason: {:?}", e))
+                    }
+                } else {
+                    script_buffer.push(script);
+                }
+            }
+
+            self.scripts = Some(script_buffer);
+        } else if let Some(script_buffer) = &mut self.scripts {
+            let mut vector_len = script_buffer.len();
+            let _ = vector_len.visit("ScriptBufferSize", &mut region);
+
+            for (index, script) in self.scripts.iter_mut().flatten().enumerate() {
+                if let Err(e) = visit_opt_script("Script", index, script, &mut region) {
                     // Do not spam with error messages if there is missing `Script` field. It is ok
                     // for old scenes not to have script at all.
                     if !matches!(e, VisitError::RegionDoesNotExist(_)) {
@@ -1131,6 +1161,7 @@ impl Visit for Base {
                 }
             }
         }
+
         Ok(())
     }
 }
@@ -1149,7 +1180,7 @@ pub struct BaseBuilder {
     tag: String,
     frustum_culling: bool,
     cast_shadows: bool,
-    scripts: Option<ScriptBuffer>,
+    scripts: Option<Vec<Option<Script>>>,
     instance_id: InstanceId,
     enabled: bool,
 }
@@ -1177,7 +1208,7 @@ impl BaseBuilder {
             tag: Default::default(),
             frustum_culling: true,
             cast_shadows: true,
-            scripts: Some(ScriptBuffer::new()),
+            scripts: Some(vec![None]),
             instance_id: InstanceId(Uuid::new_v4()),
             enabled: true,
         }

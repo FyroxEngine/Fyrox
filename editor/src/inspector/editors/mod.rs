@@ -15,6 +15,7 @@ use crate::{
     },
     message::MessageSender,
 };
+use fyrox::script::Script;
 use fyrox::{
     asset::{manager::ResourceManager, Resource},
     core::{
@@ -320,7 +321,13 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.register_inheritable_enum::<sound::Renderer, _>();
     container.register_inheritable_enum::<RenderPath, _>();
 
+    container.insert(InspectablePropertyEditorDefinition::<
+        Option<Vec<Option<Script>>>,
+    >::new());
+    container.insert(InspectablePropertyEditorDefinition::<Vec<Option<Script>>>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<Option<Script>>::new());
     container.insert(ScriptPropertyEditorDefinition {});
+
     container.insert(BitFieldPropertyEditorDefinition::<BitMask>::new());
 
     container.register_inheritable_inspectable::<BallShape>();

@@ -23,11 +23,9 @@ use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
     str::FromStr,
+    sync::mpsc::Sender,
 };
-use std::ops::{Index, IndexMut};
-use std::slice::{Iter, IterMut};
 
 pub mod constructor;
 
@@ -524,6 +522,12 @@ pub struct Script {
     pub(crate) started: bool,
 }
 
+impl TypeUuidProvider for Script {
+    fn type_uuid() -> Uuid {
+        Uuid::from_str("24ecd17d-9b46-4cc8-9d07-a1273e50a20e").unwrap()
+    }
+}
+
 impl Reflect for Script {
     fn type_name(&self) -> &'static str {
         self.instance.type_name()
@@ -688,56 +692,6 @@ impl Script {
         self.instance
             .query_component_mut(TypeId::of::<T>())
             .and_then(|c| c.downcast_mut())
-    }
-}
-
-/// A wrapper struct for the scripts
-#[derive(Reflect, Clone, Debug)]
-pub struct ScriptBuffer(Vec<Option<Script>>);
-
-impl ScriptBuffer {
-    pub fn new() -> Self {
-        Self(vec![])
-    }
-
-    pub fn iter<'a>(&'a self) -> Iter<'_, Option<Script>> {
-        self.0.iter()
-    }
-
-    pub fn iter_mut(&mut self) -> IterMut<'_, Option<Script>> {
-        self.0.iter_mut()
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn push(&mut self, script: Option<Script>) {
-        self.0.push(script)
-    }
-
-    pub fn id(&self) -> Uuid {
-        Uuid::from_str("04f5ce94-bd27-4f5f-9f5b-a07ed1865979").unwrap()
-    }
-}
-
-impl Index<usize> for ScriptBuffer {
-    type Output = Option<Script>;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
-
-impl IndexMut<usize> for ScriptBuffer {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
-    }
-}
-
-impl Default for ScriptBuffer {
-    fn default() -> Self {
-        ScriptBuffer::new()
     }
 }
 
