@@ -720,16 +720,16 @@ mod test {
     #[test]
     fn test_script_property_inheritance_on_nodes() {
         let mut child = Base::default();
-
-        child.script = Some(Script::new(MyScript {
+        let child_script = Script::new(MyScript {
             field: InheritableVariable::new_non_modified(1.23),
-        }));
+        });
+        child.add_script(child_script);
 
         let mut parent = Base::default();
-
-        parent.script = Some(Script::new(MyScript {
+        let parent_script = Script::new(MyScript {
             field: InheritableVariable::new_non_modified(3.21),
-        }));
+        });
+        parent.add_script(parent_script);
 
         child.as_reflect_mut(&mut |child| {
             parent.as_reflect(&mut |parent| {
@@ -738,7 +738,7 @@ mod test {
         });
 
         assert_eq!(
-            *child.script().unwrap().cast::<MyScript>().unwrap().field,
+            *child.try_get_script::<MyScript>(0).unwrap().field,
             3.21
         );
     }
