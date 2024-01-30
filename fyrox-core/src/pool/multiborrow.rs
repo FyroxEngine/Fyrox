@@ -1,5 +1,6 @@
 use super::{Handle, PayloadContainer, Pool, RefCounter};
 use crate::ComponentProvider;
+use std::cmp::Ordering;
 use std::{
     any::TypeId,
     fmt::{Debug, Display, Formatter},
@@ -267,10 +268,14 @@ where
             atomic::Ordering::Acquire,
             atomic::Ordering::Relaxed,
         ) {
-            if ref_count < 0 {
-                return Err(MultiBorrowError::MutablyBorrowed(handle));
-            } else if ref_count > 0 {
-                return Err(MultiBorrowError::ImmutablyBorrowed(handle));
+            match ref_count.cmp(&0) {
+                Ordering::Less => {
+                    return Err(MultiBorrowError::MutablyBorrowed(handle));
+                }
+                Ordering::Greater => {
+                    return Err(MultiBorrowError::ImmutablyBorrowed(handle));
+                }
+                _ => (),
             }
         }
 
