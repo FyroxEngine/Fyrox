@@ -87,6 +87,7 @@ use crate::{
     utils::{doc::DocWindow, path_fixer::PathFixer, ragdoll::RagdollWizard},
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
+use fyrox::dpi::LogicalSize;
 use fyrox::{
     asset::{io::FsResourceIo, manager::ResourceManager, untyped::UntypedResource},
     core::{
@@ -102,7 +103,7 @@ use fyrox::{
         watcher::FileSystemWatcher,
         TypeUuidProvider,
     },
-    dpi::{PhysicalPosition, PhysicalSize},
+    dpi::PhysicalPosition,
     engine::{Engine, EngineInitParams, GraphicsContextParams, SerializationContext},
     event::{Event, WindowEvent},
     event_loop::{EventLoop, EventLoopWindowTarget},
@@ -502,7 +503,6 @@ pub struct Editor {
     pub animation_editor: AnimationEditor,
     pub particle_system_control_panel: ParticleSystemPreviewControlPanel,
     pub camera_control_panel: CameraPreviewControlPanel,
-    pub overlay_pass: Rc<RefCell<OverlayRenderPass>>,
     pub audio_preview_panel: AudioPreviewPanel,
     pub doc_window: DocWindow,
     pub docking_manager: Handle<UiNode>,
@@ -517,11 +517,12 @@ pub struct Editor {
     pub widget_context_menu: Rc<RefCell<WidgetContextMenu>>,
     pub widget_constructors: Arc<WidgetConstructorContainer>,
     pub collider_control_panel: ColliderControlPanel,
-    pub highlighter: Rc<RefCell<HighlightRenderPass>>,
+    pub overlay_pass: Option<Rc<RefCell<OverlayRenderPass>>>,
+    pub highlighter: Option<Rc<RefCell<HighlightRenderPass>>>,
 }
 
 impl Editor {
-    pub fn new(event_loop: &EventLoop<()>, startup_data: Option<StartupData>) -> Self {
+    pub fn new(startup_data: Option<StartupData>) -> Self {
         let (log_message_sender, log_message_receiver) = channel();
 
         Log::add_listener(log_message_sender);
@@ -540,7 +541,7 @@ impl Editor {
             )),
         }
 
-        let inner_size = PhysicalSize::new(
+        let inner_size = LogicalSize::new(
             settings.windows.window_size.x,
             settings.windows.window_size.y,
         );
@@ -571,55 +572,6 @@ impl Editor {
         })
         .unwrap();
 
-        // Editor cannot run on Android so we can safely initialize graphics context here.
-        engine.initialize_graphics_context(event_loop).unwrap();
-
-        let graphics_context = engine.graphics_context.as_initialized_mut();
-
-        if let Ok(icon_img) = TextureResource::load_from_memory(
-            "../resources/icon.png".into(),
-            include_bytes!("../resources/icon.png"),
-            TextureImportOptions::default()
-                .with_compression(CompressionOptions::NoCompression)
-                .with_minification_filter(TextureMinificationFilter::Linear),
-        ) {
-            let data = icon_img.data_ref();
-            if let TextureKind::Rectangle { width, height } = data.kind() {
-                if let Ok(img) = Icon::from_rgba(data.data().to_vec(), width, height) {
-                    graphics_context.window.set_window_icon(Some(img));
-                }
-            }
-        }
-
-        // High-DPI screen support
-        Log::info(format!(
-            "UI scaling of your OS is: {}",
-            graphics_context.window.scale_factor()
-        ));
-
-        let logical_size = graphics_context
-            .window
-            .inner_size()
-            .to_logical(graphics_context.window.scale_factor());
-        set_ui_scaling(
-            &engine.user_interface,
-            graphics_context.window.scale_factor() as f32,
-        );
-
-        let overlay_pass = OverlayRenderPass::new(graphics_context.renderer.pipeline_state());
-        graphics_context
-            .renderer
-            .add_render_pass(overlay_pass.clone());
-
-        let highlighter = HighlightRenderPass::new(
-            &graphics_context.renderer.state,
-            settings.windows.window_size.x as usize,
-            settings.windows.window_size.y as usize,
-        );
-        graphics_context
-            .renderer
-            .add_render_pass(highlighter.clone());
-
         let (message_sender, message_receiver) = mpsc::channel();
         let message_sender = MessageSender(message_sender);
 
@@ -635,19 +587,6 @@ impl Editor {
             message_sender.clone(),
             &mut engine.user_interface.build_ctx(),
         );
-
-        match graphics_context
-            .renderer
-            .set_quality_settings(&settings.graphics.quality)
-        {
-            Ok(_) => {
-                Log::info("Graphics settings were applied successfully!");
-            }
-            Err(e) => Log::err(format!(
-                "Failed to apply graphics settings! Reason: {:?}",
-                e
-            )),
-        }
 
         let scene_viewer = SceneViewer::new(&mut engine, message_sender.clone());
         let asset_browser = AssetBrowser::new(&mut engine);
@@ -677,8 +616,8 @@ impl Editor {
         let docking_manager;
         let root_grid = GridBuilder::new(
             WidgetBuilder::new()
-                .with_width(logical_size.width)
-                .with_height(logical_size.height)
+                .with_width(inner_size.width)
+                .with_height(inner_size.height)
                 .with_child(menu.menu)
                 .with_child({
                     docking_manager =
@@ -892,7 +831,6 @@ impl Editor {
             scene_settings,
             particle_system_control_panel,
             camera_control_panel,
-            overlay_pass,
             audio_preview_panel,
             node_removal_dialog,
             doc_window,
@@ -908,7 +846,8 @@ impl Editor {
             widget_constructors: Arc::new(WidgetConstructorContainer::new()),
             widget_context_menu,
             collider_control_panel,
-            highlighter,
+            overlay_pass: None,
+            highlighter: None,
         };
 
         if let Some(data) = startup_data {
@@ -2136,7 +2075,9 @@ impl Editor {
             }
         }
 
-        self.overlay_pass.borrow_mut().pictogram_size = self.settings.debugging.pictogram_size;
+        if let Some(overlay_pass) = self.overlay_pass.as_ref() {
+            overlay_pass.borrow_mut().pictogram_size = self.settings.debugging.pictogram_size;
+        }
 
         let mut iterations = 1;
         while iterations > 0 {
@@ -2429,6 +2370,76 @@ impl Editor {
             || self.engine.user_interface.captured_node().is_some()
     }
 
+    fn on_resumed(&mut self, evt: &EventLoopWindowTarget<()>) {
+        let engine = &mut self.engine;
+
+        engine.initialize_graphics_context(evt).unwrap();
+
+        let graphics_context = engine.graphics_context.as_initialized_mut();
+
+        if let Ok(icon_img) = TextureResource::load_from_memory(
+            "../resources/icon.png".into(),
+            include_bytes!("../resources/icon.png"),
+            TextureImportOptions::default()
+                .with_compression(CompressionOptions::NoCompression)
+                .with_minification_filter(TextureMinificationFilter::Linear),
+        ) {
+            let data = icon_img.data_ref();
+            if let TextureKind::Rectangle { width, height } = data.kind() {
+                if let Ok(img) = Icon::from_rgba(data.data().to_vec(), width, height) {
+                    graphics_context.window.set_window_icon(Some(img));
+                }
+            }
+        }
+
+        // High-DPI screen support
+        Log::info(format!(
+            "UI scaling of your OS is: {}",
+            graphics_context.window.scale_factor()
+        ));
+
+        set_ui_scaling(
+            &engine.user_interface,
+            graphics_context.window.scale_factor() as f32,
+        );
+
+        let overlay_pass = OverlayRenderPass::new(graphics_context.renderer.pipeline_state());
+        graphics_context
+            .renderer
+            .add_render_pass(overlay_pass.clone());
+        self.overlay_pass = Some(overlay_pass);
+
+        let highlighter = HighlightRenderPass::new(
+            &graphics_context.renderer.state,
+            self.settings.windows.window_size.x as usize,
+            self.settings.windows.window_size.y as usize,
+        );
+        graphics_context
+            .renderer
+            .add_render_pass(highlighter.clone());
+        self.highlighter = Some(highlighter);
+
+        match graphics_context
+            .renderer
+            .set_quality_settings(&self.settings.graphics.quality)
+        {
+            Ok(_) => {
+                Log::info("Graphics settings were applied successfully!");
+            }
+            Err(e) => Log::err(format!(
+                "Failed to apply graphics settings! Reason: {:?}",
+                e
+            )),
+        }
+    }
+
+    fn on_suspended(&mut self) {
+        self.overlay_pass.take();
+        self.highlighter.take();
+
+        self.engine.destroy_graphics_context().unwrap();
+    }
+
     pub fn run(mut self, event_loop: EventLoop<()>) {
         for_each_plugin!(self.plugins => on_start(&mut self));
 
@@ -2453,6 +2464,12 @@ impl Editor {
                             }
                         }
                     }
+                }
+                Event::Resumed => {
+                    self.on_resumed(window_target);
+                }
+                Event::Suspended => {
+                    self.on_suspended();
                 }
                 Event::WindowEvent { ref event, .. } => {
                     match event {

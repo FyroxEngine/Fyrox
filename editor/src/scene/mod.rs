@@ -108,7 +108,7 @@ pub struct GameScene {
     pub sender: MessageSender,
     pub camera_state: Vec<(Handle<Node>, bool)>,
     pub node_property_changed_handler: SceneNodePropertyChangedHandler,
-    pub highlighter: Rc<RefCell<HighlightRenderPass>>,
+    pub highlighter: Option<Rc<RefCell<HighlightRenderPass>>>,
 }
 
 impl GameScene {
@@ -118,7 +118,7 @@ impl GameScene {
         path: Option<&Path>,
         settings: &Settings,
         sender: MessageSender,
-        highlighter: Rc<RefCell<HighlightRenderPass>>,
+        highlighter: Option<Rc<RefCell<HighlightRenderPass>>>,
     ) -> Self {
         scene.rendering_options.render_target = Some(TextureResource::new_render_target(0, 0));
 
@@ -809,11 +809,14 @@ impl SceneController for GameScene {
                 new_render_target = scene.rendering_options.render_target.clone();
 
                 let gc = engine.graphics_context.as_initialized_mut();
-                self.highlighter.borrow_mut().resize(
-                    &gc.renderer.state,
-                    frame_size.x as usize,
-                    frame_size.y as usize,
-                );
+
+                if let Some(highlighter) = self.highlighter.as_ref() {
+                    highlighter.borrow_mut().resize(
+                        &gc.renderer.state,
+                        frame_size.x as usize,
+                        frame_size.y as usize,
+                    );
+                }
             }
         }
 
@@ -830,13 +833,15 @@ impl SceneController for GameScene {
         self.camera_controller
             .update(&mut scene.graph, settings, path, dt);
 
-        let mut highlighter = self.highlighter.borrow_mut();
-        highlighter.nodes_to_highlight.clear();
+        if let Some(highlighter) = self.highlighter.as_ref() {
+            let mut highlighter = highlighter.borrow_mut();
+            highlighter.nodes_to_highlight.clear();
 
-        highlighter.scene_handle = self.scene;
-        if let Selection::Graph(ref selection) = editor_selection {
-            for &handle in selection.nodes() {
-                highlighter.nodes_to_highlight.insert(handle);
+            highlighter.scene_handle = self.scene;
+            if let Selection::Graph(ref selection) = editor_selection {
+                for &handle in selection.nodes() {
+                    highlighter.nodes_to_highlight.insert(handle);
+                }
             }
         }
 
