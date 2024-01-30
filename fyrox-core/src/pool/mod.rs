@@ -32,7 +32,7 @@ use std::{
     iter::FromIterator,
     marker::PhantomData,
     ops::{Index, IndexMut},
-    sync::atomic::{self, AtomicBool, AtomicU16},
+    sync::atomic::{self, AtomicIsize},
 };
 
 pub mod handle;
@@ -153,20 +153,18 @@ where
     }
 }
 
+// Zero - non-borrowed.
+// Negative values - amount of mutable borrows, positive - amount of immutable borrows.
 #[derive(Default, Debug)]
-struct State {
-    // Number of immutable references to the record.
-    read: AtomicU16,
-    write: AtomicBool,
-}
+struct RefCounter(pub AtomicIsize);
 
-impl State {
-    fn is_reading(&self) -> bool {
-        self.read.load(atomic::Ordering::Relaxed) != 0
+impl RefCounter {
+    fn increment(&self) {
+        self.0.fetch_add(1, atomic::Ordering::Relaxed);
     }
 
-    fn is_writing(&self) -> bool {
-        self.write.load(atomic::Ordering::Relaxed)
+    fn decrement(&self) {
+        self.0.fetch_sub(1, atomic::Ordering::Relaxed);
     }
 }
 
@@ -176,7 +174,7 @@ where
     T: Sized,
     P: PayloadContainer<Element = T>,
 {
-    state: State,
+    ref_counter: RefCounter,
     // Generation number, used to keep info about lifetime. The handle is valid
     // only if record it points to is of the same generation as the pool record.
     // Notes: Zero is unknown generation used for None handles.
@@ -203,7 +201,7 @@ where
     #[inline]
     fn default() -> Self {
         Self {
-            state: Default::default(),
+            ref_counter: Default::default(),
             generation: INVALID_GENERATION,
             payload: Payload::new_empty(),
         }
@@ -267,7 +265,7 @@ impl<T: Clone> Clone for PoolRecord<T> {
     #[inline]
     fn clone(&self) -> Self {
         Self {
-            state: Default::default(),
+            ref_counter: Default::default(),
             generation: self.generation,
             payload: self.payload.clone(),
         }
@@ -398,7 +396,7 @@ where
                 // Spawn missing records to fill gaps.
                 for i in self.records_len()..index {
                     self.records.push(PoolRecord {
-                        state: Default::default(),
+                        ref_counter: Default::default(),
                         generation: 1,
                         payload: Payload::new_empty(),
                     });
@@ -412,7 +410,7 @@ where
                 };
 
                 self.records.push(PoolRecord {
-                    state: Default::default(),
+                    ref_counter: Default::default(),
                     generation,
                     payload: Payload::new(payload),
                 });
@@ -464,7 +462,7 @@ where
             let payload = callback(handle);
 
             let record = PoolRecord {
-                state: Default::default(),
+                ref_counter: Default::default(),
                 generation,
                 payload: Payload::new(payload),
             };
@@ -521,7 +519,7 @@ where
 
             let record = PoolRecord {
                 generation,
-                state: State::default(),
+                ref_counter: Default::default(),
                 payload: Payload::new(payload),
             };
 

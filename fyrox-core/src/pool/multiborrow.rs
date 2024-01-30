@@ -1,4 +1,4 @@
-use super::{Handle, PayloadContainer, Pool};
+use super::{Handle, PayloadContainer, Pool, RefCounter};
 use crate::ComponentProvider;
 use std::{
     any::TypeId,
@@ -6,7 +6,6 @@ use std::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
     sync::atomic,
-    sync::atomic::{AtomicBool, AtomicU16},
 };
 
 pub struct Ref<'a, 'b, T>
@@ -14,7 +13,7 @@ where
     T: ?Sized,
 {
     data: &'a T,
-    counter: &'a AtomicU16,
+    ref_counter: &'a RefCounter,
     phantom: PhantomData<&'b ()>,
 }
 
@@ -43,7 +42,7 @@ where
     T: ?Sized,
 {
     fn drop(&mut self) {
-        self.counter.fetch_sub(1, atomic::Ordering::Relaxed);
+        self.ref_counter.decrement();
     }
 }
 
@@ -52,7 +51,7 @@ where
     T: ?Sized,
 {
     data: &'a mut T,
-    flag: &'a AtomicBool,
+    ref_counter: &'a RefCounter,
     phantom: PhantomData<&'b ()>,
 }
 
@@ -90,7 +89,7 @@ where
     T: ?Sized,
 {
     fn drop(&mut self) {
-        self.flag.store(false, atomic::Ordering::Relaxed);
+        self.ref_counter.increment();
     }
 }
 
@@ -192,7 +191,8 @@ where
             return Err(MultiBorrowError::InvalidHandleGeneration(handle));
         }
 
-        if record.state.is_writing() {
+        let current_ref_count = record.ref_counter.0.load(atomic::Ordering::Relaxed);
+        if current_ref_count < 0 {
             return Err(MultiBorrowError::MutablyBorrowed(handle));
         }
 
@@ -203,11 +203,21 @@ where
             return Err(MultiBorrowError::Empty(handle));
         };
 
-        record.state.read.fetch_add(1, atomic::Ordering::Relaxed);
+        if let Err(ref_count) = record.ref_counter.0.compare_exchange(
+            current_ref_count,
+            current_ref_count + 1,
+            atomic::Ordering::Acquire,
+            atomic::Ordering::Relaxed,
+        ) {
+            // This might happen if other thread have already acquired the mutable reference.
+            if ref_count < 0 {
+                return Err(MultiBorrowError::MutablyBorrowed(handle));
+            }
+        }
 
         Ok(Ref {
             data: func(payload)?,
-            counter: &record.state.read,
+            ref_counter: &record.ref_counter,
             phantom: PhantomData,
         })
     }
@@ -251,12 +261,17 @@ where
             return Err(MultiBorrowError::InvalidHandleGeneration(handle));
         }
 
-        if record.state.is_writing() {
-            return Err(MultiBorrowError::MutablyBorrowed(handle));
-        }
-
-        if record.state.is_reading() {
-            return Err(MultiBorrowError::ImmutablyBorrowed(handle));
+        if let Err(ref_count) = record.ref_counter.0.compare_exchange(
+            0,
+            -1,
+            atomic::Ordering::Acquire,
+            atomic::Ordering::Relaxed,
+        ) {
+            if ref_count < 0 {
+                return Err(MultiBorrowError::MutablyBorrowed(handle));
+            } else if ref_count > 0 {
+                return Err(MultiBorrowError::ImmutablyBorrowed(handle));
+            }
         }
 
         // SAFETY: We've enforced borrowing rules by the two previous checks.
@@ -266,11 +281,9 @@ where
             return Err(MultiBorrowError::Empty(handle));
         };
 
-        record.state.write.store(true, atomic::Ordering::Relaxed);
-
         Ok(RefMut {
             data: func(payload)?,
-            flag: &record.state.write,
+            ref_counter: &record.ref_counter,
             phantom: PhantomData,
         })
     }
@@ -381,7 +394,8 @@ mod test {
                 ref_a_1
                     .as_ref()
                     .unwrap()
-                    .counter
+                    .ref_counter
+                    .0
                     .load(atomic::Ordering::Relaxed),
                 1
             );
@@ -390,7 +404,8 @@ mod test {
                 ref_a_2
                     .as_ref()
                     .unwrap()
-                    .counter
+                    .ref_counter
+                    .0
                     .load(atomic::Ordering::Relaxed),
                 2
             );
@@ -405,7 +420,18 @@ mod test {
             drop(ref_a_1);
             drop(ref_a_2);
 
-            assert_eq!(ctx.try_get_mut(a).as_deref_mut(), Ok(&mut val_a));
+            let mut mut_ref_a_1 = ctx.try_get_mut(a);
+            assert_eq!(mut_ref_a_1.as_deref_mut(), Ok(&mut val_a));
+
+            assert_eq!(
+                mut_ref_a_1
+                    .as_ref()
+                    .unwrap()
+                    .ref_counter
+                    .0
+                    .load(atomic::Ordering::Relaxed),
+                -1
+            );
         }
 
         // Test immutable and mutable borrowing.
