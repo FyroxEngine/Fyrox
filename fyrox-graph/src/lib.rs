@@ -1,7 +1,12 @@
-use fyrox_core::pool::{Handle, MultiBorrowContext, PayloadContainer, Pool};
-use fyrox_core::{reflect::prelude::*, visitor::prelude::*};
-use std::fmt::Debug;
-use std::ops::{Deref, DerefMut};
+use fyrox_core::{
+    pool::{Handle, MultiBorrowContext, PayloadContainer, Pool},
+    reflect::prelude::*,
+    visitor::prelude::*,
+};
+use std::{
+    fmt::Debug,
+    ops::{Deref, DerefMut},
+};
 
 #[derive(Reflect, Debug)]
 pub struct HierarchicalData<N>
@@ -56,6 +61,8 @@ where
     N: GraphNode<N>,
     P: PayloadContainer<Element = N> + Debug + 'static,
 {
+    #[reflect(hidden)]
+    pub root: Handle<N>,
     pub pool: Pool<N, P>,
     pub stack: Vec<Handle<N>>,
 }
@@ -66,6 +73,7 @@ where
     P: PayloadContainer<Element = N> + Debug + Visit + Default + 'static,
 {
     fn visit(&mut self, _name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.root.visit("Root", visitor)?;
         self.pool.visit("Pool", visitor)?;
         Ok(())
     }
@@ -100,9 +108,28 @@ where
 {
     pub fn new() -> Self {
         Self {
+            root: Default::default(),
             pool: Pool::new(),
             stack: Default::default(),
         }
+    }
+
+    pub fn add_node(&mut self, mut node: N) -> Handle<N> {
+        let children = std::mem::take(&mut node.hierarchical_data_mut().children);
+
+        let handle = self.pool.spawn(node);
+
+        if self.root.is_none() {
+            self.root = handle;
+        } else {
+            self.link_nodes(handle, self.root);
+        }
+
+        for child in children {
+            self.link_nodes(child, handle);
+        }
+
+        handle
     }
 
     #[inline]

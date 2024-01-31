@@ -113,9 +113,6 @@ pub type LowLevelGraph = fyrox_graph::Graph<Node, NodeContainer>;
 /// See module docs.
 #[derive(Debug, Reflect)]
 pub struct Graph {
-    #[reflect(hidden)]
-    root: Handle<Node>,
-
     inner: LowLevelGraph,
 
     /// Backing physics "world". It is responsible for the physics simulation.
@@ -154,7 +151,6 @@ impl Default for Graph {
         Self {
             physics: PhysicsWorld::new(),
             physics2d: dim2::physics::PhysicsWorld::new(),
-            root: Handle::NONE,
             inner: LowLevelGraph::new(),
             sound_context: Default::default(),
             performance_statistics: Default::default(),
@@ -266,16 +262,15 @@ impl Graph {
         root_node.set_name("__ROOT__");
 
         // Add it to the pool.
-        let mut pool = LowLevelGraph::new();
-        let root = pool.spawn(Node::new(root_node));
-        pool[root].self_handle = root;
+        let mut inner = LowLevelGraph::new();
+        let root = inner.add_node(Node::new(root_node));
+        inner[root].self_handle = root;
 
         let instance_id_map = FxHashMap::from_iter([(instance_id, root)]);
 
         Self {
             physics: Default::default(),
-            root,
-            inner: pool,
+            inner,
             physics2d: Default::default(),
             sound_context: SoundContext::new(),
             performance_statistics: Default::default(),
@@ -303,17 +298,17 @@ impl Graph {
     /// Sets new root of the graph and attaches the old root to the new root. Old root becomes a child
     /// node of the new root.
     pub fn change_root(&mut self, root: Node) {
-        let prev_root = self.root;
-        self.root = Handle::NONE;
+        let prev_root = self.inner.root;
+        self.inner.root = Handle::NONE;
         let handle = self.add_node(root);
-        assert_eq!(self.root, handle);
+        assert_eq!(self.inner.root, handle);
         self.link_nodes(prev_root, handle);
     }
 
     /// Makes a node in the graph the new root of the graph. All children nodes of the previous root will
     /// become children nodes of the new root. Old root will become a child node of the new root.
     pub fn change_root_inplace(&mut self, new_root: Handle<Node>) {
-        let prev_root = self.root;
+        let prev_root = self.inner.root;
         self.unlink_internal(new_root);
         let prev_root_children = self
             .try_get(prev_root)
@@ -325,28 +320,16 @@ impl Graph {
         if prev_root.is_some() {
             self.link_nodes(prev_root, new_root);
         }
-        self.root = new_root;
+        self.inner.root = new_root;
     }
 
     /// Adds new node to the graph. Node will be transferred into implementation-defined
     /// storage and you'll get a handle to the node. Node will be automatically attached
     /// to root node of graph, it is required because graph can contain only one root.
     #[inline]
-    pub fn add_node(&mut self, mut node: Node) -> Handle<Node> {
-        let children = node.hierarchical_data.children.clone();
-        node.hierarchical_data.children.clear();
+    pub fn add_node(&mut self, node: Node) -> Handle<Node> {
         let has_script = node.script.is_some();
-        let handle = self.inner.spawn(node);
-
-        if self.root.is_none() {
-            self.root = handle;
-        } else {
-            self.link_nodes(handle, self.root);
-        }
-
-        for child in children {
-            self.link_nodes(child, handle);
-        }
+        let handle = self.inner.add_node(node);
 
         self.event_broadcaster.broadcast(GraphEvent::Added(handle));
         if has_script {
@@ -355,10 +338,9 @@ impl Graph {
                 .unwrap();
         }
 
-        let sender = self.script_message_sender.clone();
         let node = &mut self.inner[handle];
         node.self_handle = handle;
-        node.script_message_sender = Some(sender);
+        node.script_message_sender = Some(self.script_message_sender.clone());
 
         self.instance_id_map.insert(node.instance_id, handle);
 
@@ -417,7 +399,7 @@ impl Graph {
     /// Returns root node of current graph.
     #[inline]
     pub fn get_root(&self) -> Handle<Node> {
-        self.root
+        self.inner.root
     }
 
     /// Tries to borrow a node, returns Some(node) if the handle is valid, None - otherwise.
@@ -560,7 +542,7 @@ impl Graph {
     #[inline]
     pub fn unlink_node(&mut self, node_handle: Handle<Node>) {
         self.unlink_internal(node_handle);
-        self.link_nodes(node_handle, self.root);
+        self.link_nodes(node_handle, self.inner.root);
         self.inner[node_handle]
             .local_transform_mut()
             .set_position(Vector3::default());
@@ -686,7 +668,7 @@ impl Graph {
     /// handle and a reference to the found node. If nothing is found, it returns [`None`].
     #[inline]
     pub fn find_by_name_from_root(&self, name: &str) -> Option<(Handle<Node>, &Node)> {
-        self.find_by_name(self.root, name)
+        self.find_by_name(self.inner.root, name)
     }
 
     /// Searches for a **first** node with a script of the given type `S` in the hierarchy starting from the
@@ -708,7 +690,7 @@ impl Graph {
     where
         C: FnMut(&Node) -> bool,
     {
-        self.find(self.root, cmp)
+        self.find(self.inner.root, cmp)
     }
 
     /// Creates deep copy of node with all children. This is relatively heavy operation!
@@ -1115,7 +1097,7 @@ impl Graph {
                     let mut compare =
                         |n: &Node| n.original_handle_in_resource == resource_node_handle;
 
-                    if resource_node_handle != resource_graph.root
+                    if resource_node_handle != resource_graph.inner.root
                         && self.find(instance_root, &mut compare).is_none()
                     {
                         Log::writeln(
@@ -1491,7 +1473,7 @@ impl Graph {
             &mut self.sound_context,
             &mut self.physics,
             &mut self.physics2d,
-            self.root,
+            self.inner.root,
         );
     }
 
@@ -1708,7 +1690,7 @@ impl Graph {
     #[inline]
     pub fn put_back(&mut self, ticket: Ticket<Node>, node: Node) -> Handle<Node> {
         let handle = self.put_back_internal(ticket, node);
-        self.link_nodes(handle, self.root);
+        self.link_nodes(handle, self.inner.root);
         handle
     }
 
@@ -1838,7 +1820,7 @@ impl Graph {
             pre_process_callback,
             post_process_callback,
         );
-        assert_eq!(copy.root, copy_root);
+        assert_eq!(copy.inner.root, copy_root);
 
         let mut lightmap = self.lightmap.clone();
         if let Some(lightmap) = lightmap.as_mut() {
@@ -2133,7 +2115,6 @@ impl Visit for Graph {
 
         let mut region = visitor.enter_region(name)?;
 
-        self.root.visit("Root", &mut region)?;
         self.inner.visit("", &mut region)?;
         self.sound_context.visit("SoundContext", &mut region)?;
         self.physics.visit("PhysicsWorld", &mut region)?;
