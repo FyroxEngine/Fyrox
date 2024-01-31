@@ -737,10 +737,7 @@ mod test {
             })
         });
 
-        assert_eq!(
-            *child.try_get_script::<MyScript>(0).unwrap().field,
-            3.21
-        );
+        assert_eq!(*child.try_get_script::<MyScript>(0).unwrap().field, 3.21);
     }
 
     #[test]
