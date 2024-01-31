@@ -262,6 +262,24 @@ where
             return Err(MultiBorrowError::InvalidHandleGeneration(handle));
         }
 
+        let current_ref_count = record.ref_counter.0.load(atomic::Ordering::Relaxed);
+        match current_ref_count.cmp(&0) {
+            Ordering::Less => {
+                return Err(MultiBorrowError::MutablyBorrowed(handle));
+            }
+            Ordering::Greater => {
+                return Err(MultiBorrowError::ImmutablyBorrowed(handle));
+            }
+            _ => (),
+        }
+
+        // SAFETY: We've enforced borrowing rules by the previous check.
+        let payload_container = unsafe { &mut *record.payload.0.get() };
+
+        let Some(payload) = payload_container.as_mut() else {
+            return Err(MultiBorrowError::Empty(handle));
+        };
+
         if let Err(ref_count) = record.ref_counter.0.compare_exchange(
             0,
             -1,
@@ -278,13 +296,6 @@ where
                 _ => (),
             }
         }
-
-        // SAFETY: We've enforced borrowing rules by the two previous checks.
-        let payload_container = unsafe { &mut *record.payload.0.get() };
-
-        let Some(payload) = payload_container.as_mut() else {
-            return Err(MultiBorrowError::Empty(handle));
-        };
 
         Ok(RefMut {
             data: func(payload)?,
