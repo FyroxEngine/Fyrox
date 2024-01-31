@@ -1,5 +1,6 @@
 use super::{Handle, PayloadContainer, Pool, RefCounter};
 use crate::ComponentProvider;
+use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::{
     any::TypeId,
@@ -102,6 +103,7 @@ where
     P: PayloadContainer<Element = T> + 'static,
 {
     pool: &'a mut Pool<T, P>,
+    free_indices: RefCell<Vec<u32>>,
 }
 
 #[derive(PartialEq)]
@@ -164,6 +166,18 @@ impl<T> Display for MultiBorrowError<T> {
     }
 }
 
+impl<'a, T, P> Drop for MultiBorrowContext<'a, T, P>
+where
+    T: Sized,
+    P: PayloadContainer<Element = T> + 'static,
+{
+    fn drop(&mut self) {
+        self.pool
+            .free_stack
+            .extend_from_slice(&self.free_indices.borrow())
+    }
+}
+
 impl<'a, T, P> MultiBorrowContext<'a, T, P>
 where
     T: Sized,
@@ -171,7 +185,10 @@ where
 {
     #[inline]
     pub fn new(pool: &'a mut Pool<T, P>) -> Self {
-        Self { pool }
+        Self {
+            pool,
+            free_indices: Default::default(),
+        }
     }
 
     #[inline]
@@ -315,6 +332,48 @@ where
     #[inline]
     pub fn get_mut<'b: 'a>(&'b self, handle: Handle<T>) -> RefMut<'a, 'b, T> {
         self.try_get_mut(handle).unwrap()
+    }
+
+    #[inline]
+    pub fn free(&self, handle: Handle<T>) -> Result<T, MultiBorrowError<T>> {
+        let Some(record) = self.pool.records_get(handle.index) else {
+            return Err(MultiBorrowError::InvalidHandleIndex(handle));
+        };
+
+        if handle.generation != record.generation {
+            return Err(MultiBorrowError::InvalidHandleGeneration(handle));
+        }
+
+        // Acquire temporary lock.
+        if let Err(ref_count) = record.ref_counter.0.compare_exchange(
+            0,
+            -1,
+            atomic::Ordering::Acquire,
+            atomic::Ordering::Relaxed,
+        ) {
+            match ref_count.cmp(&0) {
+                Ordering::Less => {
+                    return Err(MultiBorrowError::MutablyBorrowed(handle));
+                }
+                Ordering::Greater => {
+                    return Err(MultiBorrowError::ImmutablyBorrowed(handle));
+                }
+                _ => (),
+            }
+        }
+
+        // SAFETY: We've enforced borrowing rules by the previous check.
+        let payload_container = unsafe { &mut *record.payload.0.get() };
+
+        let Some(payload) = payload_container.take() else {
+            return Err(MultiBorrowError::Empty(handle));
+        };
+
+        self.free_indices.borrow_mut().push(handle.index);
+
+        record.ref_counter.increment();
+
+        Ok(payload)
     }
 }
 
