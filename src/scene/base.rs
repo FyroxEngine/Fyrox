@@ -19,6 +19,7 @@ use crate::{
     script::{Script, ScriptTrait},
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::HierarchicalData;
 use serde::{Deserialize, Serialize};
 use std::{any::Any, cell::Cell, sync::mpsc::Sender};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
@@ -372,10 +373,7 @@ pub struct Base {
     pub(crate) global_visibility: Cell<bool>,
 
     #[reflect(hidden)]
-    pub(crate) parent: Handle<Node>,
-
-    #[reflect(hidden)]
-    pub(crate) children: Vec<Handle<Node>>,
+    pub(crate) hierarchical_data: HierarchicalData<Node>,
 
     #[reflect(hidden)]
     pub(crate) global_transform: Cell<Matrix4<f32>>,
@@ -511,14 +509,14 @@ impl Base {
     /// Returns handle of parent node.
     #[inline]
     pub fn parent(&self) -> Handle<Node> {
-        self.parent
+        self.hierarchical_data.parent
     }
 
     /// Returns slice of handles to children nodes. This can be used, for example, to
     /// traverse tree starting from some node.
     #[inline]
     pub fn children(&self) -> &[Handle<Node>] {
-        self.children.as_slice()
+        self.hierarchical_data.children.as_slice()
     }
 
     /// Returns global transform matrix, such matrix contains combined transformation
@@ -946,8 +944,7 @@ impl Visit for Base {
         }
         self.local_transform.visit("Transform", &mut region)?;
         self.visibility.visit("Visibility", &mut region)?;
-        self.parent.visit("Parent", &mut region)?;
-        self.children.visit("Children", &mut region)?;
+        self.hierarchical_data.visit("", &mut region)?;
         self.resource.visit("Resource", &mut region)?;
         self.is_resource_instance_root
             .visit("IsResourceInstance", &mut region)?;
@@ -1149,12 +1146,14 @@ impl BaseBuilder {
             self_handle: Default::default(),
             script_message_sender: None,
             name: self.name,
-            children: self.children,
+            hierarchical_data: HierarchicalData {
+                parent: Handle::NONE,
+                children: self.children,
+            },
             local_transform: self.local_transform,
             lifetime: self.lifetime.into(),
             visibility: self.visibility.into(),
             global_visibility: Cell::new(true),
-            parent: Handle::NONE,
             global_transform: Cell::new(Matrix4::identity()),
             inv_bind_pose_transform: self.inv_bind_pose_transform,
             resource: None,

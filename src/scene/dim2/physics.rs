@@ -25,7 +25,7 @@ use crate::{
         dim2::{self, collider::ColliderShape, joint::JointParams, rigidbody::ApplyAction},
         graph::{
             physics::{FeatureId, IntegrationParameters, PhysicsPerformanceStatistics},
-            NodePool,
+            LowLevelGraph,
         },
         node::{Node, NodeTrait},
     },
@@ -831,7 +831,7 @@ impl PhysicsWorld {
 
     pub(crate) fn sync_to_collider_node(
         &mut self,
-        nodes: &NodePool,
+        nodes: &LowLevelGraph,
         handle: Handle<Node>,
         collider_node: &scene::dim2::collider::Collider,
     ) {
@@ -950,7 +950,7 @@ impl PhysicsWorld {
 
     pub(crate) fn sync_to_joint_node(
         &mut self,
-        nodes: &NodePool,
+        nodes: &LowLevelGraph,
         handle: Handle<Node>,
         joint: &scene::dim2::joint::Joint,
     ) {

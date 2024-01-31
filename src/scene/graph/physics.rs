@@ -21,7 +21,7 @@ use crate::{
         self,
         collider::{self, ColliderShape, GeometrySource},
         debug::SceneDrawingContext,
-        graph::{isometric_global_transform, NodePool},
+        graph::{isometric_global_transform, LowLevelGraph},
         joint::{JointLocalFrames, JointParams},
         mesh::{
             buffer::{VertexAttributeUsage, VertexReadTrait},
@@ -455,7 +455,7 @@ fn make_trimesh(
     owner_inv_transform: Matrix4<f32>,
     owner: Handle<Node>,
     sources: &[GeometrySource],
-    nodes: &NodePool,
+    nodes: &LowLevelGraph,
 ) -> SharedShape {
     let mut mesh_builder = RawMeshBuilder::new(0, 0);
 
@@ -678,7 +678,7 @@ fn collider_shape_into_native_shape(
     shape: &ColliderShape,
     owner_inv_global_transform: Matrix4<f32>,
     owner_collider: Handle<Node>,
-    pool: &NodePool,
+    pool: &LowLevelGraph,
 ) -> Option<SharedShape> {
     match shape {
         ColliderShape::Ball(ball) => Some(SharedShape::ball(ball.radius)),
@@ -1394,7 +1394,7 @@ impl PhysicsWorld {
 
     pub(crate) fn sync_to_collider_node(
         &mut self,
-        nodes: &NodePool,
+        nodes: &LowLevelGraph,
         handle: Handle<Node>,
         collider_node: &scene::collider::Collider,
     ) {
@@ -1525,7 +1525,7 @@ impl PhysicsWorld {
 
     pub(crate) fn sync_to_joint_node(
         &mut self,
-        nodes: &NodePool,
+        nodes: &LowLevelGraph,
         handle: Handle<Node>,
         joint: &scene::joint::Joint,
     ) {

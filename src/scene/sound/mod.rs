@@ -36,6 +36,7 @@ pub use fyrox_sound::{
     source::Status,
 };
 
+use crate::scene::node::GenericContext;
 use crate::scene::Scene;
 use fyrox_resource::state::ResourceState;
 use fyrox_sound::source::SoundSource;
@@ -380,7 +381,7 @@ impl NodeTrait for Sound {
         Self::type_uuid()
     }
 
-    fn on_removed_from_graph(&mut self, graph: &mut Graph) {
+    fn on_removed_from_graph(&mut self, graph: &mut GenericContext) {
         graph
             .sound_context
             .remove_sound(self.native.get(), &self.name);

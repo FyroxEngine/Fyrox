@@ -1,0 +1,18 @@
+[package]
+name = "fyrox-graph"
+version = "0.1.0"
+authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
+edition = "2021"
+license = "MIT"
+description = "Graph utilities for Fyrox Game Engine"
+keywords = ["asset", "resource"]
+categories = ["game-development"]
+include = ["/src/**/*", "/Cargo.toml", "/LICENSE"]
+homepage = "https://fyrox.rs"
+documentation = "https://docs.rs/fyrox-graph"
+repository = "https://github.com/FyroxEngine/Fyrox"
+resolver = "2"
+rust-version = "1.72"
+
+[dependencies]
+fyrox-core = { path = "../fyrox-core", version = "0.27.0" }

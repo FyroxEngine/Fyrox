@@ -8,6 +8,7 @@
 //! using [`RigidBody::wake_up`]. By default any external action does **not** wakes up rigid body.
 //! You can also explicitly tell to rigid body that it cannot sleep, by calling
 //! [`RigidBody::set_can_sleep`] with `false` value.
+use crate::scene::node::GenericContext;
 use crate::{
     core::{
         algebra::{Matrix4, Vector2},
@@ -416,8 +417,8 @@ impl NodeTrait for RigidBody {
         Self::type_uuid()
     }
 
-    fn on_removed_from_graph(&mut self, graph: &mut Graph) {
-        graph.physics2d.remove_body(self.native.get());
+    fn on_removed_from_graph(&mut self, ctx: &mut GenericContext) {
+        ctx.physics2d.remove_body(self.native.get());
         self.native.set(RigidBodyHandle::invalid());
 
         Log::info(format!(
@@ -444,7 +445,7 @@ impl NodeTrait for RigidBody {
             // Rigid body 2D can be root node of a scene, in this case it does not have a parent.
             context
                 .nodes
-                .try_borrow(self.parent)
+                .try_borrow(self.parent())
                 .map(|p| p.global_transform())
                 .unwrap_or_else(Matrix4::identity),
         );

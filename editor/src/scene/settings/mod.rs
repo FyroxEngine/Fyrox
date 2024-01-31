@@ -24,7 +24,7 @@ use fyrox::{
         dim2,
         graph::{
             physics::{IntegrationParameters, PhysicsWorld},
-            Graph, NodePool,
+            Graph, LowLevelGraph,
         },
         SceneRenderingOptions,
     },
@@ -97,7 +97,7 @@ impl SceneSettingsWindow {
             PropertyFilter::new(|property| {
                 let mut pass = true;
 
-                property.downcast_ref::<NodePool>(&mut |v| {
+                property.downcast_ref::<LowLevelGraph>(&mut |v| {
                     if v.is_some() {
                         pass = false;
                     }

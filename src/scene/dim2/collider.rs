@@ -1,6 +1,7 @@
 //! Collider is a geometric entity that can be attached to a rigid body to allow participate it
 //! participate in contact generation, collision response and proximity queries.
 
+use crate::scene::node::GenericContext;
 use crate::{
     core::{
         algebra::Vector2,
@@ -550,8 +551,8 @@ impl NodeTrait for Collider {
         Self::type_uuid()
     }
 
-    fn on_removed_from_graph(&mut self, graph: &mut Graph) {
-        graph.physics2d.remove_collider(self.native.get());
+    fn on_removed_from_graph(&mut self, ctx: &mut GenericContext) {
+        ctx.physics2d.remove_collider(self.native.get());
         self.native.set(ColliderHandle::invalid());
 
         Log::info(format!(
@@ -560,8 +561,8 @@ impl NodeTrait for Collider {
         ));
     }
 
-    fn on_unlink(&mut self, graph: &mut Graph) {
-        if graph.physics2d.remove_collider(self.native.get()) {
+    fn on_unlink(&mut self, ctx: &mut GenericContext) {
+        if ctx.physics2d.remove_collider(self.native.get()) {
             // Remove native collider when detaching a collider node from rigid body node.
             self.native.set(ColliderHandle::invalid());
         }

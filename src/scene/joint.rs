@@ -1,5 +1,6 @@
 //! Joint is used to restrict motion of two rigid bodies.
 
+use crate::scene::node::GenericContext;
 use crate::{
     core::{
         algebra::Matrix4,
@@ -348,8 +349,8 @@ impl NodeTrait for Joint {
         Self::type_uuid()
     }
 
-    fn on_removed_from_graph(&mut self, graph: &mut Graph) {
-        graph.physics.remove_joint(self.native.get());
+    fn on_removed_from_graph(&mut self, ctx: &mut GenericContext) {
+        ctx.physics.remove_joint(self.native.get());
         self.native.set(ImpulseJointHandle::invalid());
 
         Log::info(format!(

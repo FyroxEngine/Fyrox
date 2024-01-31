@@ -22,6 +22,7 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
+use crate::scene::node::GenericContext;
 use crate::{
     asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
@@ -29,7 +30,7 @@ use crate::{
         instant,
         log::{Log, MessageKind},
         math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
-        pool::{Handle, MultiBorrowContext, Pool, Ticket},
+        pool::{Handle, MultiBorrowContext, Ticket},
         reflect::prelude::*,
         sstorage::ImmutableString,
         variable::{self, try_inherit_properties},
@@ -107,7 +108,7 @@ impl GraphPerformanceStatistics {
 }
 
 /// A helper type alias for node pool.
-pub type NodePool = Pool<Node, NodeContainer>;
+pub type LowLevelGraph = fyrox_graph::Graph<Node, NodeContainer>;
 
 /// See module docs.
 #[derive(Debug, Reflect)]
@@ -115,10 +116,7 @@ pub struct Graph {
     #[reflect(hidden)]
     root: Handle<Node>,
 
-    pool: NodePool,
-
-    #[reflect(hidden)]
-    stack: Vec<Handle<Node>>,
+    inner: LowLevelGraph,
 
     /// Backing physics "world". It is responsible for the physics simulation.
     pub physics: PhysicsWorld,
@@ -157,8 +155,7 @@ impl Default for Graph {
             physics: PhysicsWorld::new(),
             physics2d: dim2::physics::PhysicsWorld::new(),
             root: Handle::NONE,
-            pool: Pool::new(),
-            stack: Vec::new(),
+            inner: LowLevelGraph::new(),
             sound_context: Default::default(),
             performance_statistics: Default::default(),
             event_broadcaster: Default::default(),
@@ -193,13 +190,13 @@ fn remap_handles(old_new_mapping: &NodeHandleMap, dest_graph: &mut Graph) {
     // Iterate over instantiated nodes and remap handles.
     for (_, &new_node_handle) in old_new_mapping.inner().iter() {
         old_new_mapping.remap_handles(
-            &mut dest_graph.pool[new_node_handle],
+            &mut dest_graph.inner[new_node_handle],
             &[TypeId::of::<UntypedResource>()],
         );
     }
 }
 
-fn isometric_local_transform(nodes: &NodePool, node: Handle<Node>) -> Matrix4<f32> {
+fn isometric_local_transform(nodes: &LowLevelGraph, node: Handle<Node>) -> Matrix4<f32> {
     let transform = nodes[node].local_transform();
     TransformBuilder::new()
         .with_local_position(**transform.position())
@@ -210,7 +207,7 @@ fn isometric_local_transform(nodes: &NodePool, node: Handle<Node>) -> Matrix4<f3
         .matrix()
 }
 
-fn isometric_global_transform(nodes: &NodePool, node: Handle<Node>) -> Matrix4<f32> {
+fn isometric_global_transform(nodes: &LowLevelGraph, node: Handle<Node>) -> Matrix4<f32> {
     let parent = nodes[node].parent();
     if parent.is_some() {
         isometric_global_transform(nodes, parent) * isometric_local_transform(nodes, node)
@@ -223,8 +220,7 @@ fn isometric_global_transform(nodes: &NodePool, node: Handle<Node>) -> Matrix4<f
 // cases (mostly when copying a node), because `Graph::add_node` uses children list to attach
 // children to the given node, and when copying a node it is important that this step is skipped.
 fn clear_links(mut node: Node) -> Node {
-    node.children.clear();
-    node.parent = Handle::NONE;
+    node.hierarchical_data = Default::default();
     node
 }
 
@@ -270,7 +266,7 @@ impl Graph {
         root_node.set_name("__ROOT__");
 
         // Add it to the pool.
-        let mut pool = Pool::new();
+        let mut pool = LowLevelGraph::new();
         let root = pool.spawn(Node::new(root_node));
         pool[root].self_handle = root;
 
@@ -278,9 +274,8 @@ impl Graph {
 
         Self {
             physics: Default::default(),
-            stack: Vec::new(),
             root,
-            pool,
+            inner: pool,
             physics2d: Default::default(),
             sound_context: SoundContext::new(),
             performance_statistics: Default::default(),
@@ -322,7 +317,7 @@ impl Graph {
         self.unlink_internal(new_root);
         let prev_root_children = self
             .try_get(prev_root)
-            .map(|r| r.children.clone())
+            .map(|r| r.hierarchical_data.children.clone())
             .unwrap_or_default();
         for child in prev_root_children {
             self.link_nodes(child, new_root);
@@ -338,10 +333,10 @@ impl Graph {
     /// to root node of graph, it is required because graph can contain only one root.
     #[inline]
     pub fn add_node(&mut self, mut node: Node) -> Handle<Node> {
-        let children = node.children.clone();
-        node.children.clear();
+        let children = node.hierarchical_data.children.clone();
+        node.hierarchical_data.children.clear();
         let has_script = node.script.is_some();
-        let handle = self.pool.spawn(node);
+        let handle = self.inner.spawn(node);
 
         if self.root.is_none() {
             self.root = handle;
@@ -361,7 +356,7 @@ impl Graph {
         }
 
         let sender = self.script_message_sender.clone();
-        let node = &mut self.pool[handle];
+        let node = &mut self.inner[handle];
         node.self_handle = handle;
         node.script_message_sender = Some(sender);
 
@@ -396,7 +391,7 @@ impl Graph {
     /// panic if handles overlaps (points to same node).
     #[inline]
     pub fn get_two_mut(&mut self, nodes: (Handle<Node>, Handle<Node>)) -> (&mut Node, &mut Node) {
-        self.pool.borrow_two_mut(nodes)
+        self.inner.borrow_two_mut(nodes)
     }
 
     /// Tries to borrow mutable references to three nodes at the same time by given handles. Will
@@ -406,7 +401,7 @@ impl Graph {
         &mut self,
         nodes: (Handle<Node>, Handle<Node>, Handle<Node>),
     ) -> (&mut Node, &mut Node, &mut Node) {
-        self.pool.borrow_three_mut(nodes)
+        self.inner.borrow_three_mut(nodes)
     }
 
     /// Tries to borrow mutable references to four nodes at the same time by given handles. Will
@@ -416,7 +411,7 @@ impl Graph {
         &mut self,
         nodes: (Handle<Node>, Handle<Node>, Handle<Node>, Handle<Node>),
     ) -> (&mut Node, &mut Node, &mut Node, &mut Node) {
-        self.pool.borrow_four_mut(nodes)
+        self.inner.borrow_four_mut(nodes)
     }
 
     /// Returns root node of current graph.
@@ -428,7 +423,7 @@ impl Graph {
     /// Tries to borrow a node, returns Some(node) if the handle is valid, None - otherwise.
     #[inline]
     pub fn try_get(&self, handle: Handle<Node>) -> Option<&Node> {
-        self.pool.try_borrow(handle)
+        self.inner.try_borrow(handle)
     }
 
     /// Tries to borrow a node and fetch its component of specified type.
@@ -444,7 +439,7 @@ impl Graph {
     /// Tries to mutably borrow a node, returns Some(node) if the handle is valid, None - otherwise.
     #[inline]
     pub fn try_get_mut(&mut self, handle: Handle<Node>) -> Option<&mut Node> {
-        self.pool.try_borrow_mut(handle)
+        self.inner.try_borrow_mut(handle)
     }
 
     /// Tries to mutably borrow a node and fetch its component of specified type.
@@ -493,7 +488,7 @@ impl Graph {
     /// ```
     #[inline]
     pub fn begin_multi_borrow(&mut self) -> MultiBorrowContext<Node, NodeContainer> {
-        self.pool.begin_multi_borrow()
+        self.inner.begin_multi_borrow()
     }
 
     /// Destroys the node and its children recursively. Scripts of the destroyed nodes will be removed in the next
@@ -502,45 +497,40 @@ impl Graph {
     pub fn remove_node(&mut self, node_handle: Handle<Node>) {
         self.unlink_internal(node_handle);
 
-        self.stack.clear();
-        self.stack.push(node_handle);
-        while let Some(handle) = self.stack.pop() {
-            for &child in self.pool[handle].children().iter() {
-                self.stack.push(child);
-            }
+        self.inner
+            .remove_node(node_handle, |handle, mut node, mbc| {
+                self.instance_id_map.remove(&node.instance_id);
 
-            // Remove associated entities.
-            let mut node = self.pool.free(handle);
-            self.instance_id_map.remove(&node.instance_id);
-            node.on_removed_from_graph(self);
+                node.on_removed_from_graph(&mut GenericContext {
+                    nodes: mbc,
+                    physics: &mut self.physics,
+                    physics2d: &mut self.physics2d,
+                    sound_context: &mut self.sound_context,
+                });
 
-            self.event_broadcaster
-                .broadcast(GraphEvent::Removed(handle));
-        }
+                self.event_broadcaster
+                    .broadcast(GraphEvent::Removed(handle));
+            });
     }
 
     fn unlink_internal(&mut self, node_handle: Handle<Node>) {
-        // Replace parent handle of child
-        let parent_handle = std::mem::replace(&mut self.pool[node_handle].parent, Handle::NONE);
+        self.inner.unlink(node_handle);
 
-        // Remove child from parent's children list
-        if let Some(parent) = self.pool.try_borrow_mut(parent_handle) {
-            if let Some(i) = parent.children().iter().position(|h| *h == node_handle) {
-                parent.children.remove(i);
-            }
-        }
-
-        let (ticket, mut node) = self.pool.take_reserve(node_handle);
-        node.on_unlink(self);
-        self.pool.put_back(ticket, node);
+        let mbc = self.inner.begin_multi_borrow();
+        let mut node = mbc.try_get_mut(node_handle).unwrap();
+        node.on_unlink(&mut GenericContext {
+            nodes: &mbc,
+            physics: &mut self.physics,
+            physics2d: &mut self.physics2d,
+            sound_context: &mut self.sound_context,
+        });
     }
 
     /// Links specified child with specified parent.
     #[inline]
     pub fn link_nodes(&mut self, child: Handle<Node>, parent: Handle<Node>) {
         self.unlink_internal(child);
-        self.pool[child].parent = parent;
-        self.pool[parent].children.push(child);
+        self.inner.link_nodes(child, parent);
     }
 
     /// Links specified child with specified parent while keeping the
@@ -551,15 +541,15 @@ impl Graph {
         child: Handle<Node>,
         parent: Handle<Node>,
     ) {
-        let parent_transform_inv = self.pool[parent]
+        let parent_transform_inv = self.inner[parent]
             .global_transform()
             .try_inverse()
             .unwrap_or_default();
-        let child_transform = self.pool[child].global_transform();
+        let child_transform = self.inner[child].global_transform();
         let relative_transform = parent_transform_inv * child_transform;
         let local_position = relative_transform.position();
         let local_rotation = UnitQuaternion::from_matrix(&relative_transform.basis());
-        self.pool[child]
+        self.inner[child]
             .local_transform_mut()
             .set_position(local_position)
             .set_rotation(local_rotation);
@@ -571,7 +561,7 @@ impl Graph {
     pub fn unlink_node(&mut self, node_handle: Handle<Node>) {
         self.unlink_internal(node_handle);
         self.link_nodes(node_handle, self.root);
-        self.pool[node_handle]
+        self.inner[node_handle]
             .local_transform_mut()
             .set_position(Vector3::default());
     }
@@ -583,7 +573,7 @@ impl Graph {
         root_handle: Handle<Node>,
         node_handle: Handle<Node>,
     ) -> Handle<Node> {
-        let root = &self.pool[root_handle];
+        let root = &self.inner[root_handle];
         if root.original_handle_in_resource() == node_handle {
             return root_handle;
         }
@@ -605,7 +595,7 @@ impl Graph {
     where
         C: FnMut(&Node) -> bool,
     {
-        self.pool.try_borrow(root_node).and_then(|root| {
+        self.inner.try_borrow(root_node).and_then(|root| {
             if cmp(root) {
                 Some((root_node, root))
             } else {
@@ -622,7 +612,7 @@ impl Graph {
         C: FnMut(&Node) -> Option<&T>,
         T: ?Sized,
     {
-        self.pool.try_borrow(root_node).and_then(|root| {
+        self.inner.try_borrow(root_node).and_then(|root| {
             if let Some(x) = cmp(root) {
                 Some((root_node, x))
             } else {
@@ -639,11 +629,11 @@ impl Graph {
         C: FnMut(&Node) -> bool,
     {
         let mut handle = root_node;
-        while let Some(node) = self.pool.try_borrow(handle) {
+        while let Some(node) = self.inner.try_borrow(handle) {
             if cmp(node) {
                 return Some((handle, node));
             }
-            handle = node.parent;
+            handle = node.parent();
         }
         None
     }
@@ -661,11 +651,11 @@ impl Graph {
         T: ?Sized,
     {
         let mut handle = root_node;
-        while let Some(node) = self.pool.try_borrow(handle) {
+        while let Some(node) = self.inner.try_borrow(handle) {
             if let Some(x) = cmp(node) {
                 return Some((handle, x));
             }
-            handle = node.parent;
+            handle = node.parent();
         }
         None
     }
@@ -791,14 +781,14 @@ impl Graph {
 
         let to_copy = self
             .traverse_handle_iter(node_handle)
-            .map(|node| (node, self.pool[node].children.clone()))
+            .map(|node| (node, self.inner[node].children().to_vec()))
             .collect::<Vec<_>>();
 
         let mut root_handle = Handle::NONE;
 
         for (parent, children) in to_copy.iter() {
             // Copy parent first.
-            let parent_copy = clear_links(self.pool[*parent].clone_box());
+            let parent_copy = clear_links(self.inner[*parent].clone_box());
             let parent_copy_handle = self.add_node(parent_copy);
             old_new_mapping.map.insert(*parent, parent_copy_handle);
 
@@ -808,8 +798,8 @@ impl Graph {
 
             // Copy children and link to new parent.
             for &child in children {
-                if filter(child, &self.pool[child]) {
-                    let child_copy = clear_links(self.pool[child].clone_box());
+                if filter(child, &self.inner[child]) {
+                    let child_copy = clear_links(self.inner[child].clone_box());
                     let child_copy_handle = self.add_node(child_copy);
                     old_new_mapping.map.insert(child, child_copy_handle);
                     self.link_nodes(child_copy_handle, parent_copy_handle);
@@ -829,7 +819,7 @@ impl Graph {
     /// this method returns copied node directly, it does not inserts it in any graph.
     #[inline]
     pub fn copy_single_node(&self, node_handle: Handle<Node>) -> Node {
-        let node = &self.pool[node_handle];
+        let node = &self.inner[node_handle];
         let mut clone = clear_links(node.clone_box());
         if let Some(ref mut mesh) = clone.cast_mut::<Mesh>() {
             for surface in mesh.surfaces_mut() {
@@ -853,13 +843,13 @@ impl Graph {
         Pre: FnMut(Handle<Node>, &mut Node),
         Post: FnMut(Handle<Node>, Handle<Node>, &mut Node),
     {
-        let src_node = &self.pool[root_handle];
+        let src_node = &self.inner[root_handle];
         let mut dest_node = clear_links(src_node.clone_box());
         pre_process_callback(root_handle, &mut dest_node);
         let dest_copy_handle = dest_graph.add_node(dest_node);
         old_new_mapping.map.insert(root_handle, dest_copy_handle);
         for &src_child_handle in src_node.children() {
-            if filter(src_child_handle, &self.pool[src_child_handle]) {
+            if filter(src_child_handle, &self.inner[src_child_handle]) {
                 let dest_child_handle = self.copy_node_raw(
                     src_child_handle,
                     dest_graph,
@@ -885,7 +875,7 @@ impl Graph {
         // Iterate over each node in the graph and resolve original handles. Original handle is a handle
         // to a node in resource from which a node was instantiated from. Also sync inheritable properties
         // if needed.
-        for node in self.pool.iter_mut() {
+        for node in self.inner.iter_mut() {
             if let Some(model) = node.resource() {
                 let mut header = model.state();
                 let model_kind = header.kind().clone();
@@ -911,7 +901,7 @@ impl Graph {
                         NodeMapping::UseHandles => {
                             // Use original handle directly.
                             resource_graph
-                                .pool
+                                .inner
                                 .try_borrow(node.original_handle_in_resource)
                                 .map(|resource_node| {
                                     (resource_node, node.original_handle_in_resource)
@@ -998,7 +988,7 @@ impl Graph {
             let mut old_new_mapping = NodeHandleMap::default();
             let mut traverse_stack = vec![*instance_root];
             while let Some(node_handle) = traverse_stack.pop() {
-                let node = &self.pool[node_handle];
+                let node = &self.inner[node_handle];
                 if let Some(node_resource) = node.resource().as_ref() {
                     // We're interested only in instance nodes.
                     if node_resource == resource {
@@ -1023,7 +1013,7 @@ impl Graph {
             // be cross references.
             for (_, handle) in old_new_mapping.map.iter() {
                 old_new_mapping.remap_inheritable_handles(
-                    &mut self.pool[*handle],
+                    &mut self.inner[*handle],
                     &[TypeId::of::<UntypedResource>()],
                 );
             }
@@ -1037,7 +1027,7 @@ impl Graph {
         Log::writeln(MessageKind::Information, "Checking integrity...");
 
         let instances = self
-            .pool
+            .inner
             .pair_iter()
             .filter_map(|(h, n)| {
                 if n.is_resource_instance_root {
@@ -1099,10 +1089,10 @@ impl Graph {
             if let Some(data) = model.data() {
                 let resource_graph = &data.get_scene().graph;
 
-                let resource_instance_root = self.pool[instance_root].original_handle_in_resource;
+                let resource_instance_root = self.inner[instance_root].original_handle_in_resource;
 
                 if resource_instance_root.is_none() {
-                    let instance = &self.pool[instance_root];
+                    let instance = &self.inner[instance_root];
                     Log::writeln(
                         MessageKind::Warning,
                         format!(
@@ -1182,7 +1172,7 @@ impl Graph {
     }
 
     fn restore_dynamic_node_data(&mut self) {
-        for (handle, node) in self.pool.pair_iter_mut() {
+        for (handle, node) in self.inner.pair_iter_mut() {
             node.self_handle = handle;
             node.script_message_sender = Some(self.script_message_sender.clone());
         }
@@ -1295,7 +1285,7 @@ impl Graph {
             // look in patch data if we have patch for data.
             let mut unique_data_set = FxHashMap::default();
             for &handle in lightmap.map.keys() {
-                if let Some(mesh) = self.pool[handle].cast_mut::<Mesh>() {
+                if let Some(mesh) = self.inner[handle].cast_mut::<Mesh>() {
                     for surface in mesh.surfaces() {
                         let data = surface.data();
                         unique_data_set.entry(data.key()).or_insert(data);
@@ -1356,7 +1346,7 @@ impl Graph {
 
             // Apply textures.
             for (&handle, entries) in lightmap.map.iter_mut() {
-                if let Some(mesh) = self.pool[handle].cast_mut::<Mesh>() {
+                if let Some(mesh) = self.inner[handle].cast_mut::<Mesh>() {
                     for (entry, surface) in entries.iter_mut().zip(mesh.surfaces_mut()) {
                         let mut material_state = surface.material().state();
                         if let Some(material) = material_state.data() {
@@ -1383,7 +1373,7 @@ impl Graph {
     }
 
     pub(crate) fn update_hierarchical_data_recursively(
-        nodes: &NodePool,
+        nodes: &LowLevelGraph,
         sound_context: &mut SoundContext,
         physics: &mut PhysicsWorld,
         physics2d: &mut dim2::physics::PhysicsWorld,
@@ -1481,7 +1471,7 @@ impl Graph {
     #[inline]
     pub fn update_hierarchical_data_for_descendants(&mut self, node_handle: Handle<Node>) {
         Self::update_hierarchical_data_recursively(
-            &self.pool,
+            &self.inner,
             &mut self.sound_context,
             &mut self.physics,
             &mut self.physics2d,
@@ -1497,7 +1487,7 @@ impl Graph {
     #[inline]
     pub fn update_hierarchical_data(&mut self) {
         Self::update_hierarchical_data_recursively(
-            &self.pool,
+            &self.inner,
             &mut self.sound_context,
             &mut self.physics,
             &mut self.physics2d,
@@ -1508,19 +1498,19 @@ impl Graph {
     /// Checks whether given node handle is valid or not.
     #[inline]
     pub fn is_valid_handle(&self, node_handle: Handle<Node>) -> bool {
-        self.pool.is_valid_handle(node_handle)
+        self.inner.is_valid_handle(node_handle)
     }
 
     fn sync_native(&mut self, switches: &GraphUpdateSwitches) {
         let mut sync_context = SyncContext {
-            nodes: &self.pool,
+            nodes: &self.inner,
             physics: &mut self.physics,
             physics2d: &mut self.physics2d,
             sound_context: &mut self.sound_context,
             switches: Some(switches),
         };
 
-        for (handle, node) in self.pool.pair_iter() {
+        for (handle, node) in self.inner.pair_iter() {
             node.sync_native(handle, &mut sync_context);
         }
     }
@@ -1532,7 +1522,7 @@ impl Graph {
         dt: f32,
         delete_dead_nodes: bool,
     ) {
-        if let Some((ticket, mut node)) = self.pool.try_take_reserve(handle) {
+        if let Some((ticket, mut node)) = self.inner.try_take_reserve(handle) {
             node.transform_modified.set(false);
 
             let mut is_alive = node.is_alive();
@@ -1541,7 +1531,7 @@ impl Graph {
                 node.update(&mut UpdateContext {
                     frame_size,
                     dt,
-                    nodes: &mut self.pool,
+                    nodes: &mut self.inner,
                     physics: &mut self.physics,
                     physics2d: &mut self.physics2d,
                     sound_context: &mut self.sound_context,
@@ -1557,7 +1547,7 @@ impl Graph {
                 }
             }
 
-            self.pool.put_back(ticket, node);
+            self.inner.put_back(ticket, node);
 
             if !is_alive && delete_dead_nodes {
                 self.remove_node(handle);
@@ -1607,9 +1597,9 @@ impl Graph {
                 self.update_node(*handle, frame_size, dt, switches.delete_dead_nodes);
             }
         } else {
-            for i in 0..self.pool.get_capacity() {
+            for i in 0..self.inner.get_capacity() {
                 self.update_node(
-                    self.pool.handle_from_index(i),
+                    self.inner.handle_from_index(i),
                     frame_size,
                     dt,
                     switches.delete_dead_nodes,
@@ -1638,7 +1628,7 @@ impl Graph {
     /// ```
     #[inline]
     pub fn capacity(&self) -> u32 {
-        self.pool.get_capacity()
+        self.inner.get_capacity()
     }
 
     /// Makes new handle from given index. Handle will be none if index was either out-of-bounds
@@ -1661,33 +1651,33 @@ impl Graph {
     /// ```
     #[inline]
     pub fn handle_from_index(&self, index: u32) -> Handle<Node> {
-        self.pool.handle_from_index(index)
+        self.inner.handle_from_index(index)
     }
 
     /// Creates an iterator that has linear iteration order over internal collection
     /// of nodes. It does *not* perform any tree traversal!
     #[inline]
     pub fn linear_iter(&self) -> impl Iterator<Item = &Node> {
-        self.pool.iter()
+        self.inner.iter()
     }
 
     /// Creates an iterator that has linear iteration order over internal collection
     /// of nodes. It does *not* perform any tree traversal!
     #[inline]
     pub fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Node> {
-        self.pool.iter_mut()
+        self.inner.iter_mut()
     }
 
     /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
     #[inline]
     pub fn pair_iter(&self) -> impl Iterator<Item = (Handle<Node>, &Node)> {
-        self.pool.pair_iter()
+        self.inner.pair_iter()
     }
 
     /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
     #[inline]
     pub fn pair_iter_mut(&mut self) -> impl Iterator<Item = (Handle<Node>, &mut Node)> {
-        self.pool.pair_iter_mut()
+        self.inner.pair_iter_mut()
     }
 
     /// Extracts node from graph and reserves its handle. It is used to temporarily take
@@ -1702,9 +1692,15 @@ impl Graph {
     }
 
     pub(crate) fn take_reserve_internal(&mut self, handle: Handle<Node>) -> (Ticket<Node>, Node) {
-        let (ticket, mut node) = self.pool.take_reserve(handle);
+        let (ticket, mut node) = self.inner.take_reserve(handle);
         self.instance_id_map.remove(&node.instance_id);
-        node.on_removed_from_graph(self);
+        let mbc = self.inner.begin_multi_borrow();
+        node.on_removed_from_graph(&mut GenericContext {
+            nodes: &mbc,
+            physics: &mut self.physics,
+            physics2d: &mut self.physics2d,
+            sound_context: &mut self.sound_context,
+        });
         (ticket, node)
     }
 
@@ -1718,7 +1714,7 @@ impl Graph {
 
     pub(crate) fn put_back_internal(&mut self, ticket: Ticket<Node>, node: Node) -> Handle<Node> {
         let instance_id = node.instance_id;
-        let handle = self.pool.put_back(ticket, node);
+        let handle = self.inner.put_back(ticket, node);
         self.instance_id_map.insert(instance_id, handle);
         handle
     }
@@ -1726,7 +1722,7 @@ impl Graph {
     /// Makes node handle vacant again.
     #[inline]
     pub fn forget_ticket(&mut self, ticket: Ticket<Node>, node: Node) -> Node {
-        self.pool.forget_ticket(ticket);
+        self.inner.forget_ticket(ticket);
         node
     }
 
@@ -1740,7 +1736,7 @@ impl Graph {
         let mut descendants = Vec::new();
         let root_ref = &mut self[root];
         let mut stack = root_ref.children().to_vec();
-        let parent = root_ref.parent;
+        let parent = root_ref.parent();
         while let Some(handle) = stack.pop() {
             stack.extend_from_slice(self[handle].children());
             descendants.push(self.take_reserve_internal(handle));
@@ -1760,7 +1756,7 @@ impl Graph {
     #[inline]
     pub fn put_sub_graph_back(&mut self, sub_graph: SubGraph) -> Handle<Node> {
         for (ticket, node) in sub_graph.descendants {
-            self.pool.put_back(ticket, node);
+            self.inner.put_back(ticket, node);
         }
 
         let (ticket, node) = sub_graph.root;
@@ -1775,16 +1771,16 @@ impl Graph {
     #[inline]
     pub fn forget_sub_graph(&mut self, sub_graph: SubGraph) {
         for (ticket, _) in sub_graph.descendants {
-            self.pool.forget_ticket(ticket);
+            self.inner.forget_ticket(ticket);
         }
         let (ticket, _) = sub_graph.root;
-        self.pool.forget_ticket(ticket);
+        self.inner.forget_ticket(ticket);
     }
 
     /// Returns the number of nodes in the graph.
     #[inline]
     pub fn node_count(&self) -> u32 {
-        self.pool.alive_count()
+        self.inner.alive_count()
     }
 
     /// Create a graph depth traversal iterator.
@@ -1888,14 +1884,14 @@ impl Graph {
     /// only translation and rotation.
     #[inline]
     pub fn isometric_local_transform(&self, node: Handle<Node>) -> Matrix4<f32> {
-        isometric_local_transform(&self.pool, node)
+        isometric_local_transform(&self.inner, node)
     }
 
     /// Returns world transformation matrix of a node only.  Such transform has
     /// only translation and rotation.
     #[inline]
     pub fn isometric_global_transform(&self, node: Handle<Node>) -> Matrix4<f32> {
-        isometric_global_transform(&self.pool, node)
+        isometric_global_transform(&self.inner, node)
     }
 
     /// Returns global scale matrix of a node.
@@ -2010,14 +2006,14 @@ impl Graph {
     pub fn node_by_id(&self, id: SceneNodeId) -> Option<(Handle<Node>, &Node)> {
         self.instance_id_map
             .get(&id)
-            .and_then(|h| self.pool.try_borrow(*h).map(|n| (*h, n)))
+            .and_then(|h| self.inner.try_borrow(*h).map(|n| (*h, n)))
     }
 
     /// Tries to borrow a node by its id.
     pub fn node_by_id_mut(&mut self, id: SceneNodeId) -> Option<(Handle<Node>, &mut Node)> {
         self.instance_id_map
             .get(&id)
-            .and_then(|h| self.pool.try_borrow_mut(*h).map(|n| (*h, n)))
+            .and_then(|h| self.inner.try_borrow_mut(*h).map(|n| (*h, n)))
     }
 }
 
@@ -2026,14 +2022,14 @@ impl Index<Handle<Node>> for Graph {
 
     #[inline]
     fn index(&self, index: Handle<Node>) -> &Self::Output {
-        &self.pool[index]
+        &self.inner[index]
     }
 }
 
 impl IndexMut<Handle<Node>> for Graph {
     #[inline]
     fn index_mut(&mut self, index: Handle<Node>) -> &mut Self::Output {
-        &mut self.pool[index]
+        &mut self.inner[index]
     }
 }
 
@@ -2045,7 +2041,7 @@ where
 
     #[inline]
     fn index(&self, typed_handle: Handle<T>) -> &Self::Output {
-        let node = &self.pool[typed_handle.transmute()];
+        let node = &self.inner[typed_handle.transmute()];
         node.cast().unwrap_or_else(|| {
             panic!(
                 "Downcasting of node {} ({}:{}) to type {} failed!",
@@ -2064,7 +2060,7 @@ where
 {
     #[inline]
     fn index_mut(&mut self, typed_handle: Handle<T>) -> &mut Self::Output {
-        let node = &mut self.pool[typed_handle.transmute()];
+        let node = &mut self.inner[typed_handle.transmute()];
 
         // SAFETY: This is safe to do, because we only read node's values for panicking.
         let second_node_ref = unsafe { &*(node as *const Node) };
@@ -2131,14 +2127,14 @@ impl<'a> Iterator for GraphHandleTraverseIterator<'a> {
 impl Visit for Graph {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         // Pool must be empty, otherwise handles will be invalid and everything will blow up.
-        if visitor.is_reading() && self.pool.get_capacity() != 0 {
+        if visitor.is_reading() && self.inner.get_capacity() != 0 {
             panic!("Graph pool must be empty on load!")
         }
 
         let mut region = visitor.enter_region(name)?;
 
         self.root.visit("Root", &mut region)?;
-        self.pool.visit("Pool", &mut region)?;
+        self.inner.visit("", &mut region)?;
         self.sound_context.visit("SoundContext", &mut region)?;
         self.physics.visit("PhysicsWorld", &mut region)?;
         self.physics2d.visit("PhysicsWorld2D", &mut region)?;
@@ -2179,7 +2175,7 @@ mod test {
     fn graph_init_test() {
         let graph = Graph::new();
         assert_ne!(graph.root, Handle::NONE);
-        assert_eq!(graph.pool.alive_count(), 1);
+        assert_eq!(graph.inner.alive_count(), 1);
     }
 
     #[test]
@@ -2188,7 +2184,7 @@ mod test {
         graph.add_node(Node::new(Pivot::default()));
         graph.add_node(Node::new(Pivot::default()));
         graph.add_node(Node::new(Pivot::default()));
-        assert_eq!(graph.pool.alive_count(), 4);
+        assert_eq!(graph.inner.alive_count(), 4);
     }
 
     #[test]

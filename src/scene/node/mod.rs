@@ -4,6 +4,7 @@
 
 #![warn(missing_docs)]
 
+use crate::scene::node::container::NodeContainer;
 use crate::{
     asset::untyped::UntypedResource,
     core::{
@@ -26,7 +27,7 @@ use crate::{
         debug::SceneDrawingContext,
         decal::Decal,
         dim2::{self, rectangle::Rectangle},
-        graph::{self, Graph, GraphUpdateSwitches, NodePool},
+        graph::{self, GraphUpdateSwitches, LowLevelGraph},
         light::{directional::DirectionalLight, point::PointLight, spot::SpotLight},
         mesh::Mesh,
         navmesh::NavigationalMesh,
@@ -39,7 +40,9 @@ use crate::{
         Scene,
     },
 };
+use fyrox_core::pool::MultiBorrowContext;
 use fyrox_core::ComponentProvider;
+use fyrox_graph::{GraphNode, HierarchicalData};
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -83,7 +86,7 @@ where
 /// A data for synchronization. See [`NodeTrait::sync_native`] for more info.
 pub struct SyncContext<'a, 'b> {
     /// A reference to a pool with nodes from a scene graph.
-    pub nodes: &'a NodePool,
+    pub nodes: &'a LowLevelGraph,
     /// A mutable reference to 3D physics world.
     pub physics: &'a mut graph::physics::PhysicsWorld,
     /// A mutable reference to 2D physics world.
@@ -101,7 +104,19 @@ pub struct UpdateContext<'a> {
     /// A time that have passed since last update call.
     pub dt: f32,
     /// A reference to a pool with nodes from a scene graph.
-    pub nodes: &'a mut NodePool,
+    pub nodes: &'a mut LowLevelGraph,
+    /// A mutable reference to 3D physics world.
+    pub physics: &'a mut graph::physics::PhysicsWorld,
+    /// A mutable reference to 2D physics world.
+    pub physics2d: &'a mut dim2::physics::PhysicsWorld,
+    /// A mutable reference to sound context.
+    pub sound_context: &'a mut SoundContext,
+}
+
+/// A generic data context.
+pub struct GenericContext<'a> {
+    /// A reference to a pool with nodes from a scene graph.
+    pub nodes: &'a MultiBorrowContext<'a, Node, NodeContainer>,
     /// A mutable reference to 3D physics world.
     pub physics: &'a mut graph::physics::PhysicsWorld,
     /// A mutable reference to 2D physics world.
@@ -175,10 +190,10 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
 
     /// Gives an opportunity to perform clean up after the node was extracted from the scene graph
     /// (or deleted).
-    fn on_removed_from_graph(&mut self, #[allow(unused_variables)] graph: &mut Graph) {}
+    fn on_removed_from_graph(&mut self, #[allow(unused_variables)] ctx: &mut GenericContext) {}
 
     /// The method is called when the node was detached from its parent node.
-    fn on_unlink(&mut self, #[allow(unused_variables)] graph: &mut Graph) {}
+    fn on_unlink(&mut self, #[allow(unused_variables)] ctx: &mut GenericContext) {}
 
     /// Synchronizes internal state of the node with components of scene graph. It has limited usage
     /// and mostly allows you to sync the state of backing entity with the state of the node.
@@ -305,6 +320,20 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
 /// consumption, only disk space usage is reduced.
 #[derive(Debug)]
 pub struct Node(Box<dyn NodeTrait>);
+
+impl GraphNode<Node> for Node {
+    fn children(&self) -> &[Handle<Node>] {
+        &self.hierarchical_data.children
+    }
+
+    fn parent(&self) -> Handle<Node> {
+        self.hierarchical_data.parent
+    }
+
+    fn hierarchical_data_mut(&mut self) -> &mut HierarchicalData<Node> {
+        &mut self.hierarchical_data
+    }
+}
 
 impl ComponentProvider for Node {
     fn query_component_ref(&self, type_id: TypeId) -> Option<&dyn Any> {
