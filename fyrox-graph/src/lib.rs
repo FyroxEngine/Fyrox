@@ -181,4 +181,72 @@ where
             .children
             .push(child);
     }
+
+    /// Searches for a node down the tree starting from the specified node using the specified closure. Returns a tuple
+    /// with a handle and a reference to the found node. If nothing is found, it returns [`None`].
+    #[inline]
+    pub fn find<C>(&self, root_node: Handle<N>, cmp: &mut C) -> Option<(Handle<N>, &N)>
+    where
+        C: FnMut(&N) -> bool,
+    {
+        self.pool.try_borrow(root_node).and_then(|root| {
+            if cmp(root) {
+                Some((root_node, root))
+            } else {
+                root.children().iter().find_map(|c| self.find(*c, cmp))
+            }
+        })
+    }
+
+    /// Searches for a node down the tree starting from the specified node using the specified closure. Returns a tuple
+    /// with a handle and a reference to the mapped value. If nothing is found, it returns [`None`].
+    #[inline]
+    pub fn find_map<C, T>(&self, root_node: Handle<N>, cmp: &mut C) -> Option<(Handle<N>, &T)>
+    where
+        C: FnMut(&N) -> Option<&T>,
+        T: ?Sized,
+    {
+        self.pool.try_borrow(root_node).and_then(|root| {
+            if let Some(x) = cmp(root) {
+                Some((root_node, x))
+            } else {
+                root.children().iter().find_map(|c| self.find_map(*c, cmp))
+            }
+        })
+    }
+
+    /// Searches for a node up the tree starting from the specified node using the specified closure. Returns a tuple
+    /// with a handle and a reference to the found node. If nothing is found, it returns [`None`].
+    #[inline]
+    pub fn find_up<C>(&self, root_node: Handle<N>, cmp: &mut C) -> Option<(Handle<N>, &N)>
+    where
+        C: FnMut(&N) -> bool,
+    {
+        let mut handle = root_node;
+        while let Some(node) = self.pool.try_borrow(handle) {
+            if cmp(node) {
+                return Some((handle, node));
+            }
+            handle = node.parent();
+        }
+        None
+    }
+
+    /// Searches for a node up the tree starting from the specified node using the specified closure. Returns a tuple
+    /// with a handle and a reference to the mapped value. If nothing is found, it returns [`None`].
+    #[inline]
+    pub fn find_up_map<C, T>(&self, root_node: Handle<N>, cmp: &mut C) -> Option<(Handle<N>, &T)>
+    where
+        C: FnMut(&N) -> Option<&T>,
+        T: ?Sized,
+    {
+        let mut handle = root_node;
+        while let Some(node) = self.pool.try_borrow(handle) {
+            if let Some(x) = cmp(node) {
+                return Some((handle, x));
+            }
+            handle = node.parent();
+        }
+        None
+    }
 }

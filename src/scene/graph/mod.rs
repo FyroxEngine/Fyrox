@@ -577,13 +577,7 @@ impl Graph {
     where
         C: FnMut(&Node) -> bool,
     {
-        self.inner.try_borrow(root_node).and_then(|root| {
-            if cmp(root) {
-                Some((root_node, root))
-            } else {
-                root.children().iter().find_map(|c| self.find(*c, cmp))
-            }
-        })
+        self.inner.find(root_node, cmp)
     }
 
     /// Searches for a node down the tree starting from the specified node using the specified closure. Returns a tuple
@@ -594,13 +588,7 @@ impl Graph {
         C: FnMut(&Node) -> Option<&T>,
         T: ?Sized,
     {
-        self.inner.try_borrow(root_node).and_then(|root| {
-            if let Some(x) = cmp(root) {
-                Some((root_node, x))
-            } else {
-                root.children().iter().find_map(|c| self.find_map(*c, cmp))
-            }
-        })
+        self.inner.find_map(root_node, cmp)
     }
 
     /// Searches for a node up the tree starting from the specified node using the specified closure. Returns a tuple
@@ -610,14 +598,7 @@ impl Graph {
     where
         C: FnMut(&Node) -> bool,
     {
-        let mut handle = root_node;
-        while let Some(node) = self.inner.try_borrow(handle) {
-            if cmp(node) {
-                return Some((handle, node));
-            }
-            handle = node.parent();
-        }
-        None
+        self.inner.find_up(root_node, cmp)
     }
 
     /// Searches for a node up the tree starting from the specified node using the specified closure. Returns a tuple
@@ -632,14 +613,7 @@ impl Graph {
         C: FnMut(&Node) -> Option<&T>,
         T: ?Sized,
     {
-        let mut handle = root_node;
-        while let Some(node) = self.inner.try_borrow(handle) {
-            if let Some(x) = cmp(node) {
-                return Some((handle, x));
-            }
-            handle = node.parent();
-        }
-        None
+        self.inner.find_up_map(root_node, cmp)
     }
 
     /// Searches for a node with the specified name down the tree starting from the specified node. Returns a tuple with
