@@ -216,7 +216,7 @@ fn isometric_global_transform(nodes: &LowLevelGraph, node: Handle<Node>) -> Matr
 // cases (mostly when copying a node), because `Graph::add_node` uses children list to attach
 // children to the given node, and when copying a node it is important that this step is skipped.
 fn clear_links(mut node: Node) -> Node {
-    node.hierarchical_data = Default::default();
+    node.base_node = Default::default();
     node
 }
 
@@ -312,7 +312,7 @@ impl Graph {
         self.unlink_internal(new_root);
         let prev_root_children = self
             .try_get(prev_root)
-            .map(|r| r.hierarchical_data.children.clone())
+            .map(|r| r.base_node.children.clone())
             .unwrap_or_default();
         for child in prev_root_children {
             self.link_nodes(child, new_root);

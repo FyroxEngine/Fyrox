@@ -42,7 +42,7 @@ use crate::{
 };
 use fyrox_core::pool::MultiBorrowContext;
 use fyrox_core::ComponentProvider;
-use fyrox_graph::{GraphNode, HierarchicalData};
+use fyrox_graph::{BaseNode, GraphNode};
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -322,16 +322,12 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
 pub struct Node(Box<dyn NodeTrait>);
 
 impl GraphNode<Node> for Node {
-    fn children(&self) -> &[Handle<Node>] {
-        &self.hierarchical_data.children
+    fn as_base_node_mut(&mut self) -> &mut BaseNode<Node> {
+        &mut self.base_node
     }
 
-    fn parent(&self) -> Handle<Node> {
-        self.hierarchical_data.parent
-    }
-
-    fn hierarchical_data_mut(&mut self) -> &mut HierarchicalData<Node> {
-        &mut self.hierarchical_data
+    fn as_base_node(&self) -> &BaseNode<Node> {
+        &self.base_node
     }
 }
 

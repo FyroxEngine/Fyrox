@@ -19,7 +19,7 @@ use crate::{
     script::{Script, ScriptTrait},
 };
 use fyrox_core::uuid_provider;
-use fyrox_graph::HierarchicalData;
+use fyrox_graph::BaseNode;
 use serde::{Deserialize, Serialize};
 use std::{any::Any, cell::Cell, sync::mpsc::Sender};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
@@ -373,7 +373,7 @@ pub struct Base {
     pub(crate) global_visibility: Cell<bool>,
 
     #[reflect(hidden)]
-    pub(crate) hierarchical_data: HierarchicalData<Node>,
+    pub(crate) base_node: BaseNode<Node>,
 
     #[reflect(hidden)]
     pub(crate) global_transform: Cell<Matrix4<f32>>,
@@ -509,14 +509,14 @@ impl Base {
     /// Returns handle of parent node.
     #[inline]
     pub fn parent(&self) -> Handle<Node> {
-        self.hierarchical_data.parent
+        self.base_node.parent
     }
 
     /// Returns slice of handles to children nodes. This can be used, for example, to
     /// traverse tree starting from some node.
     #[inline]
     pub fn children(&self) -> &[Handle<Node>] {
-        self.hierarchical_data.children.as_slice()
+        self.base_node.children.as_slice()
     }
 
     /// Returns global transform matrix, such matrix contains combined transformation
@@ -944,7 +944,7 @@ impl Visit for Base {
         }
         self.local_transform.visit("Transform", &mut region)?;
         self.visibility.visit("Visibility", &mut region)?;
-        self.hierarchical_data.visit("", &mut region)?;
+        self.base_node.visit("", &mut region)?;
         self.resource.visit("Resource", &mut region)?;
         self.is_resource_instance_root
             .visit("IsResourceInstance", &mut region)?;
@@ -1146,7 +1146,7 @@ impl BaseBuilder {
             self_handle: Default::default(),
             script_message_sender: None,
             name: self.name,
-            hierarchical_data: HierarchicalData {
+            base_node: BaseNode {
                 parent: Handle::NONE,
                 children: self.children,
             },

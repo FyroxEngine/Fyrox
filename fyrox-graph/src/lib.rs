@@ -9,7 +9,7 @@ use std::{
 };
 
 #[derive(Reflect, Debug)]
-pub struct HierarchicalData<N>
+pub struct BaseNode<N>
 where
     N: Debug,
 {
@@ -17,7 +17,17 @@ where
     pub children: Vec<Handle<N>>,
 }
 
-impl<N: Debug> Default for HierarchicalData<N> {
+impl<N: Debug> BaseNode<N> {
+    fn children(&self) -> &[Handle<N>] {
+        &self.children
+    }
+
+    fn parent(&self) -> Handle<N> {
+        self.parent
+    }
+}
+
+impl<N: Debug> Default for BaseNode<N> {
     fn default() -> Self {
         Self {
             parent: Default::default(),
@@ -26,7 +36,7 @@ impl<N: Debug> Default for HierarchicalData<N> {
     }
 }
 
-impl<N: Debug> Clone for HierarchicalData<N> {
+impl<N: Debug> Clone for BaseNode<N> {
     fn clone(&self) -> Self {
         Self {
             parent: self.parent,
@@ -35,7 +45,7 @@ impl<N: Debug> Clone for HierarchicalData<N> {
     }
 }
 
-impl<N> Visit for HierarchicalData<N>
+impl<N> Visit for BaseNode<N>
 where
     N: Debug + 'static,
 {
@@ -50,9 +60,8 @@ pub trait GraphNode<N>: Sized + Reflect + Visit + Debug
 where
     N: Debug,
 {
-    fn children(&self) -> &[Handle<N>];
-    fn parent(&self) -> Handle<N>;
-    fn hierarchical_data_mut(&mut self) -> &mut HierarchicalData<N>;
+    fn as_base_node_mut(&mut self) -> &mut BaseNode<N>;
+    fn as_base_node(&self) -> &BaseNode<N>;
 }
 
 #[derive(Reflect, Debug)]
@@ -115,7 +124,7 @@ where
     }
 
     pub fn add_node(&mut self, mut node: N) -> Handle<N> {
-        let children = std::mem::take(&mut node.hierarchical_data_mut().children);
+        let children = std::mem::take(&mut node.as_base_node_mut().children);
 
         let handle = self.pool.spawn(node);
 
@@ -144,7 +153,7 @@ where
         self.stack.push(node_handle);
         while let Some(handle) = self.stack.pop() {
             if let Ok(node) = mbc.free(handle) {
-                self.stack.extend_from_slice(node.children());
+                self.stack.extend_from_slice(node.as_base_node().children());
                 on_removed(handle, node, &mbc);
             }
         }
@@ -154,13 +163,13 @@ where
     pub fn unlink(&mut self, node_handle: Handle<N>) {
         // Replace parent handle of a child.
         let parent_handle = std::mem::replace(
-            &mut self.pool[node_handle].hierarchical_data_mut().parent,
+            &mut self.pool[node_handle].as_base_node_mut().parent,
             Handle::NONE,
         );
 
         // Remove the child from the parent's children list
         if let Some(parent) = self.pool.try_borrow_mut(parent_handle) {
-            let hierarchical_data = parent.hierarchical_data_mut();
+            let hierarchical_data = parent.as_base_node_mut();
             if let Some(i) = hierarchical_data
                 .children
                 .iter()
@@ -175,11 +184,8 @@ where
     #[inline]
     pub fn link_nodes(&mut self, child: Handle<N>, parent: Handle<N>) {
         self.unlink(child);
-        self.pool[child].hierarchical_data_mut().parent = parent;
-        self.pool[parent]
-            .hierarchical_data_mut()
-            .children
-            .push(child);
+        self.pool[child].as_base_node_mut().parent = parent;
+        self.pool[parent].as_base_node_mut().children.push(child);
     }
 
     /// Searches for a node down the tree starting from the specified node using the specified closure. Returns a tuple
@@ -193,7 +199,10 @@ where
             if cmp(root) {
                 Some((root_node, root))
             } else {
-                root.children().iter().find_map(|c| self.find(*c, cmp))
+                root.as_base_node()
+                    .children()
+                    .iter()
+                    .find_map(|c| self.find(*c, cmp))
             }
         })
     }
@@ -210,7 +219,10 @@ where
             if let Some(x) = cmp(root) {
                 Some((root_node, x))
             } else {
-                root.children().iter().find_map(|c| self.find_map(*c, cmp))
+                root.as_base_node()
+                    .children()
+                    .iter()
+                    .find_map(|c| self.find_map(*c, cmp))
             }
         })
     }
@@ -227,7 +239,7 @@ where
             if cmp(node) {
                 return Some((handle, node));
             }
-            handle = node.parent();
+            handle = node.as_base_node().parent();
         }
         None
     }
@@ -245,7 +257,7 @@ where
             if let Some(x) = cmp(node) {
                 return Some((handle, x));
             }
-            handle = node.parent();
+            handle = node.as_base_node().parent();
         }
         None
     }
