@@ -214,6 +214,7 @@ impl Hsl {
 
 impl From<Hsl> for Color {
     #[allow(clippy::manual_range_contains)]
+    #[inline]
     fn from(v: Hsl) -> Self {
         let h = v.hue;
         let s = v.saturation;

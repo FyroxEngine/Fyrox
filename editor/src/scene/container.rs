@@ -48,7 +48,7 @@ impl EditorSceneEntry {
         settings: &Settings,
         message_sender: MessageSender,
         scene_viewer: &SceneViewer,
-        highlighter: Rc<RefCell<HighlightRenderPass>>,
+        highlighter: Option<Rc<RefCell<HighlightRenderPass>>>,
     ) -> Self {
         let game_scene = GameScene::from_native_scene(
             scene,

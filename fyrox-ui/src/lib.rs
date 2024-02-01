@@ -285,6 +285,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
+use fyrox_resource::io::FsResourceIo;
 pub use node::*;
 pub use thickness::*;
 
@@ -2550,6 +2551,10 @@ impl UserInterface {
             self.preview_set.insert(node_handle);
         }
         node.handle = node_handle;
+        node.invalidate_layout();
+        self.layout_events_sender
+            .send(LayoutEvent::VisibilityChanged(node_handle))
+            .unwrap();
         node_handle
     }
 
@@ -2768,6 +2773,7 @@ impl UserInterface {
     ) -> Handle<UiNode> {
         let node = self.nodes.borrow(node_handle);
         let mut cloned = UiNode(node.clone_boxed());
+        cloned.id = Uuid::new_v4();
 
         let mut cloned_children = Vec::new();
         for child in node.children().to_vec() {
@@ -2808,6 +2814,7 @@ impl UserInterface {
         let mut cloned = UiNode(node.clone_boxed());
         cloned.children.clear();
         cloned.parent = Handle::NONE;
+        cloned.id = Uuid::new_v4();
         let cloned_node_handle = dest.add_node(cloned);
 
         for child in children {
@@ -2852,6 +2859,7 @@ impl UserInterface {
 
         let node = self.nodes.borrow(node_handle);
         let mut cloned = UiNode(node.clone_boxed());
+        cloned.id = Uuid::new_v4();
 
         let mut cloned_children = Vec::new();
         for child in node.children().to_vec() {
@@ -2881,6 +2889,20 @@ impl UserInterface {
 
     #[allow(clippy::arc_with_non_send_sync)]
     pub async fn load_from_file<P: AsRef<Path>>(
+        path: P,
+        resource_manager: ResourceManager,
+    ) -> Result<Self, VisitError> {
+        Self::load_from_file_ex(
+            path,
+            Arc::new(WidgetConstructorContainer::new()),
+            resource_manager,
+            &FsResourceIo,
+        )
+        .await
+    }
+
+    #[allow(clippy::arc_with_non_send_sync)]
+    pub async fn load_from_file_ex<P: AsRef<Path>>(
         path: P,
         constructors: Arc<WidgetConstructorContainer>,
         resource_manager: ResourceManager,

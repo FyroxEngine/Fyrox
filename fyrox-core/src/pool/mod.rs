@@ -20,89 +20,30 @@
 //! indirections that might cause cache invalidation. This is the so called cache
 //! friendliness.
 
-#![allow(clippy::unneeded_field_pattern)]
-
 use crate::{
-    combine_uuids,
-    reflect::prelude::*,
-    reflect::ReflectArray,
-    uuid_provider,
-    visitor::{Visit, VisitResult, Visitor},
-    TypeUuidProvider,
+    reflect::{prelude::*, ReflectArray},
+    visitor::prelude::*,
+    ComponentProvider,
 };
-use arrayvec::ArrayVec;
-use serde::{Deserialize, Serialize};
 use std::{
-    any::Any,
-    cmp::Ordering,
-    fmt::{Debug, Display, Formatter},
+    any::{Any, TypeId},
+    fmt::Debug,
     future::Future,
-    hash::{Hash, Hasher},
     iter::FromIterator,
     marker::PhantomData,
     ops::{Index, IndexMut},
-    sync::{atomic, atomic::AtomicUsize},
+    sync::atomic::{self, AtomicIsize},
 };
-use uuid::Uuid;
+
+pub mod handle;
+pub mod multiborrow;
+pub mod payload;
+
+pub use handle::*;
+pub use multiborrow::*;
+pub use payload::*;
 
 const INVALID_GENERATION: u32 = 0;
-
-pub trait PayloadContainer: Sized {
-    type Element: Sized;
-
-    fn new_empty() -> Self;
-
-    fn new(element: Self::Element) -> Self;
-
-    fn is_some(&self) -> bool;
-
-    fn as_ref(&self) -> Option<&Self::Element>;
-
-    fn as_mut(&mut self) -> Option<&mut Self::Element>;
-
-    fn replace(&mut self, element: Self::Element) -> Option<Self::Element>;
-
-    fn take(&mut self) -> Option<Self::Element>;
-}
-
-impl<T> PayloadContainer for Option<T> {
-    type Element = T;
-
-    #[inline]
-    fn new_empty() -> Self {
-        Self::None
-    }
-
-    #[inline]
-    fn new(element: Self::Element) -> Self {
-        Self::Some(element)
-    }
-
-    #[inline]
-    fn is_some(&self) -> bool {
-        Option::is_some(self)
-    }
-
-    #[inline]
-    fn as_ref(&self) -> Option<&Self::Element> {
-        Option::as_ref(self)
-    }
-
-    #[inline]
-    fn as_mut(&mut self) -> Option<&mut Self::Element> {
-        Option::as_mut(self)
-    }
-
-    #[inline]
-    fn replace(&mut self, element: Self::Element) -> Option<Self::Element> {
-        Option::replace(self, element)
-    }
-
-    #[inline]
-    fn take(&mut self) -> Option<Self::Element> {
-        Option::take(self)
-    }
-}
 
 /// Pool allows to create as many objects as you want in contiguous memory
 /// block. It allows to create and delete objects much faster than if they'll
@@ -212,257 +153,18 @@ where
     }
 }
 
-/// Handle is some sort of non-owning reference to content in a pool. It stores
-/// index of object and additional information that allows to ensure that handle
-/// is still valid (points to the same object as when handle was created).
-#[derive(Reflect, Serialize, Deserialize)]
-pub struct Handle<T> {
-    /// Index of object in pool.
-    #[reflect(read_only, description = "Index of an object in a pool.")]
-    index: u32,
-    /// Generation number, if it is same as generation of pool record at
-    /// index of handle then this is valid handle.
-    #[reflect(read_only, description = "Generation of an object in a pool.")]
-    generation: u32,
-    /// Type holder.
-    #[reflect(hidden)]
-    #[serde(skip)]
-    type_marker: PhantomData<T>,
-}
+// Zero - non-borrowed.
+// Negative values - amount of mutable borrows, positive - amount of immutable borrows.
+#[derive(Default, Debug)]
+struct RefCounter(pub AtomicIsize);
 
-impl<T: TypeUuidProvider> TypeUuidProvider for Handle<T> {
-    #[inline]
-    fn type_uuid() -> Uuid {
-        combine_uuids(
-            uuid::uuid!("30c0668d-7a2c-47e6-8c7b-208fdcc905a1"),
-            T::type_uuid(),
-        )
-    }
-}
-
-impl<T> PartialOrd for Handle<T> {
-    #[inline]
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<T> Ord for Handle<T> {
-    #[inline]
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.index.cmp(&other.index)
-    }
-}
-
-unsafe impl<T> Send for Handle<T> {}
-unsafe impl<T> Sync for Handle<T> {}
-
-impl<T> Display for Handle<T> {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.index, self.generation)
-    }
-}
-
-/// Atomic handle.
-pub struct AtomicHandle(AtomicUsize);
-
-impl Clone for AtomicHandle {
-    #[inline]
-    fn clone(&self) -> Self {
-        Self(AtomicUsize::new(self.0.load(atomic::Ordering::Relaxed)))
-    }
-}
-
-impl Default for AtomicHandle {
-    #[inline]
-    fn default() -> Self {
-        Self::none()
-    }
-}
-
-impl AtomicHandle {
-    #[inline]
-    pub fn none() -> Self {
-        Self(AtomicUsize::new(0))
+impl RefCounter {
+    fn increment(&self) {
+        self.0.fetch_add(1, atomic::Ordering::Relaxed);
     }
 
-    #[inline]
-    pub fn new(index: u32, generation: u32) -> Self {
-        let handle = Self(AtomicUsize::new(0));
-        handle.set(index, generation);
-        handle
-    }
-
-    #[inline]
-    pub fn set(&self, index: u32, generation: u32) {
-        let index = (index as usize) << (usize::BITS / 2) >> (usize::BITS / 2);
-        let generation = (generation as usize) << (usize::BITS / 2);
-        self.0.store(index | generation, atomic::Ordering::Relaxed);
-    }
-
-    #[inline]
-    pub fn set_from_handle<T>(&self, handle: Handle<T>) {
-        self.set(handle.index, handle.generation)
-    }
-
-    #[inline(always)]
-    pub fn is_some(&self) -> bool {
-        self.generation() != INVALID_GENERATION
-    }
-
-    #[inline(always)]
-    pub fn is_none(&self) -> bool {
-        !self.is_some()
-    }
-
-    #[inline]
-    pub fn index(&self) -> u32 {
-        let bytes = self.0.load(atomic::Ordering::Relaxed);
-        ((bytes << (usize::BITS / 2)) >> (usize::BITS / 2)) as u32
-    }
-
-    #[inline]
-    pub fn generation(&self) -> u32 {
-        let bytes = self.0.load(atomic::Ordering::Relaxed);
-        (bytes >> (usize::BITS / 2)) as u32
-    }
-}
-
-impl Display for AtomicHandle {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.index(), self.generation())
-    }
-}
-
-impl Debug for AtomicHandle {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[Idx: {}; Gen: {}]", self.index(), self.generation())
-    }
-}
-
-/// Type-erased handle.
-#[derive(
-    Copy, Clone, Debug, Ord, PartialOrd, PartialEq, Eq, Hash, Reflect, Visit, Serialize, Deserialize,
-)]
-pub struct ErasedHandle {
-    /// Index of object in pool.
-    #[reflect(read_only)]
-    index: u32,
-    /// Generation number, if it is same as generation of pool record at
-    /// index of handle then this is valid handle.
-    #[reflect(read_only)]
-    generation: u32,
-}
-
-uuid_provider!(ErasedHandle = "50131acc-8b3b-40b5-b495-e2c552c94db3");
-
-impl Display for ErasedHandle {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.index, self.generation)
-    }
-}
-
-impl Default for ErasedHandle {
-    #[inline]
-    fn default() -> Self {
-        Self::none()
-    }
-}
-
-impl<T> From<ErasedHandle> for Handle<T> {
-    #[inline]
-    fn from(erased_handle: ErasedHandle) -> Self {
-        Handle {
-            index: erased_handle.index,
-            generation: erased_handle.generation,
-            type_marker: PhantomData,
-        }
-    }
-}
-
-impl<T> From<AtomicHandle> for Handle<T> {
-    #[inline]
-    fn from(atomic_handle: AtomicHandle) -> Self {
-        Handle {
-            index: atomic_handle.index(),
-            generation: atomic_handle.generation(),
-            type_marker: PhantomData,
-        }
-    }
-}
-
-impl<T> From<Handle<T>> for ErasedHandle {
-    #[inline]
-    fn from(h: Handle<T>) -> Self {
-        Self {
-            index: h.index,
-            generation: h.generation,
-        }
-    }
-}
-
-impl ErasedHandle {
-    #[inline]
-    pub fn none() -> Self {
-        Self {
-            index: 0,
-            generation: INVALID_GENERATION,
-        }
-    }
-
-    #[inline]
-    pub fn new(index: u32, generation: u32) -> Self {
-        Self { index, generation }
-    }
-
-    #[inline(always)]
-    pub fn is_some(&self) -> bool {
-        self.generation != INVALID_GENERATION
-    }
-
-    #[inline(always)]
-    pub fn is_none(&self) -> bool {
-        !self.is_some()
-    }
-
-    #[inline(always)]
-    pub fn index(self) -> u32 {
-        self.index
-    }
-
-    #[inline(always)]
-    pub fn generation(self) -> u32 {
-        self.generation
-    }
-}
-
-impl<T> Visit for Handle<T> {
-    #[inline]
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        let mut region = visitor.enter_region(name)?;
-
-        self.index.visit("Index", &mut region)?;
-        self.generation.visit("Generation", &mut region)?;
-
-        Ok(())
-    }
-}
-
-impl<T> Default for Handle<T> {
-    #[inline]
-    fn default() -> Self {
-        Self::NONE
-    }
-}
-
-impl<T> Debug for Handle<T> {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "[Idx: {}; Gen: {}]", self.index, self.generation)
+    fn decrement(&self) {
+        self.0.fetch_sub(1, atomic::Ordering::Relaxed);
     }
 }
 
@@ -472,12 +174,13 @@ where
     T: Sized,
     P: PayloadContainer<Element = T>,
 {
-    /// Generation number, used to keep info about lifetime. The handle is valid
-    /// only if record it points to is of the same generation as the pool record.
-    /// Notes: Zero is unknown generation used for None handles.
+    ref_counter: RefCounter,
+    // Generation number, used to keep info about lifetime. The handle is valid
+    // only if record it points to is of the same generation as the pool record.
+    // Notes: Zero is unknown generation used for None handles.
     generation: u32,
-    /// Actual payload.
-    payload: P,
+    // Actual payload.
+    payload: Payload<P>,
 }
 
 impl<T, P> PartialEq for PoolRecord<T, P>
@@ -487,7 +190,7 @@ where
 {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
-        self.generation == other.generation && self.payload == other.payload
+        self.generation == other.generation && self.payload.get() == other.payload.get()
     }
 }
 
@@ -498,8 +201,9 @@ where
     #[inline]
     fn default() -> Self {
         Self {
+            ref_counter: Default::default(),
             generation: INVALID_GENERATION,
-            payload: P::new_empty(),
+            payload: Payload::new_empty(),
         }
     }
 }
@@ -514,7 +218,7 @@ where
         let mut region = visitor.enter_region(name)?;
 
         self.generation.visit("Generation", &mut region)?;
-        self.payload.visit("Payload", &mut region)?;
+        self.payload.get_mut().visit("Payload", &mut region)?;
 
         Ok(())
     }
@@ -524,17 +228,6 @@ impl<T> Clone for Handle<T> {
     #[inline]
     fn clone(&self) -> Handle<T> {
         *self
-    }
-}
-
-impl<T> Copy for Handle<T> {}
-
-impl<T> Eq for Handle<T> {}
-
-impl<T> PartialEq for Handle<T> {
-    #[inline]
-    fn eq(&self, other: &Handle<T>) -> bool {
-        self.generation == other.generation && self.index == other.index
     }
 }
 
@@ -549,74 +242,6 @@ where
         self.records.visit("Records", &mut region)?;
         self.free_stack.visit("FreeStack", &mut region)?;
         Ok(())
-    }
-}
-
-impl<T> Hash for Handle<T> {
-    #[inline]
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.index.hash(state);
-        self.generation.hash(state);
-    }
-}
-
-impl<T> Handle<T> {
-    pub const NONE: Handle<T> = Handle {
-        index: 0,
-        generation: INVALID_GENERATION,
-        type_marker: PhantomData,
-    };
-
-    #[inline(always)]
-    pub fn is_none(self) -> bool {
-        self.index == 0 && self.generation == INVALID_GENERATION
-    }
-
-    #[inline(always)]
-    pub fn is_some(self) -> bool {
-        !self.is_none()
-    }
-
-    #[inline(always)]
-    pub fn index(self) -> u32 {
-        self.index
-    }
-
-    #[inline(always)]
-    pub fn generation(self) -> u32 {
-        self.generation
-    }
-
-    #[inline(always)]
-    pub fn new(index: u32, generation: u32) -> Self {
-        Handle {
-            index,
-            generation,
-            type_marker: PhantomData,
-        }
-    }
-
-    #[inline(always)]
-    pub fn transmute<U>(&self) -> Handle<U> {
-        Handle {
-            index: self.index,
-            generation: self.generation,
-            type_marker: Default::default(),
-        }
-    }
-
-    #[inline(always)]
-    pub fn decode_from_u128(num: u128) -> Self {
-        Self {
-            index: num as u32,
-            generation: (num >> 32) as u32,
-            type_marker: Default::default(),
-        }
-    }
-
-    #[inline(always)]
-    pub fn encode_to_u128(&self) -> u128 {
-        (self.index as u128) | ((self.generation as u128) << 32)
     }
 }
 
@@ -640,6 +265,7 @@ impl<T: Clone> Clone for PoolRecord<T> {
     #[inline]
     fn clone(&self) -> Self {
         Self {
+            ref_counter: Default::default(),
             generation: self.generation,
             payload: self.payload.clone(),
         }
@@ -761,7 +387,7 @@ where
                     };
 
                     record.generation = generation;
-                    record.payload = P::new(payload);
+                    record.payload = Payload::new(payload);
 
                     Ok(Handle::new(index, generation))
                 }
@@ -770,8 +396,9 @@ where
                 // Spawn missing records to fill gaps.
                 for i in self.records_len()..index {
                     self.records.push(PoolRecord {
+                        ref_counter: Default::default(),
                         generation: 1,
-                        payload: P::new_empty(),
+                        payload: Payload::new_empty(),
                     });
                     self.free_stack.push(i);
                 }
@@ -783,8 +410,9 @@ where
                 };
 
                 self.records.push(PoolRecord {
+                    ref_counter: Default::default(),
                     generation,
-                    payload: P::new(payload),
+                    payload: Payload::new(payload),
                 });
 
                 Ok(Handle::new(index, generation))
@@ -834,8 +462,9 @@ where
             let payload = callback(handle);
 
             let record = PoolRecord {
+                ref_counter: Default::default(),
                 generation,
-                payload: P::new(payload),
+                payload: Payload::new(payload),
             };
 
             self.records.push(record);
@@ -890,13 +519,36 @@ where
 
             let record = PoolRecord {
                 generation,
-                payload: P::new(payload),
+                ref_counter: Default::default(),
+                payload: Payload::new(payload),
             };
 
             self.records.push(record);
 
             handle
         }
+    }
+
+    /// Generates a set of handles that could be used to spawn a set of objects. This method does not
+    /// modify the pool and the generated handles could be used together with [`Self::spawn_at_handle`]
+    /// method.
+    #[inline]
+    pub fn generate_free_handles(&self, amount: usize) -> Vec<Handle<T>> {
+        let mut free_handles = Vec::with_capacity(amount);
+        free_handles.extend(
+            self.free_stack
+                .iter()
+                .take(amount)
+                .map(|i| Handle::new(*i, self.records[*i as usize].generation + 1)),
+        );
+        if free_handles.len() < amount {
+            let remainder = amount - free_handles.len();
+            free_handles.extend(
+                (self.records.len()..self.records.len() + remainder)
+                    .map(|i| Handle::new(i as u32, 1)),
+            );
+        }
+        free_handles
     }
 
     /// Borrows shared reference to an object by its handle.
@@ -1316,7 +968,8 @@ where
     #[inline]
     #[must_use]
     pub fn at(&self, n: u32) -> Option<&T> {
-        self.records_get(n).and_then(|rec| rec.payload.as_ref())
+        self.records_get(n)
+            .and_then(|rec| rec.payload.get().as_ref())
     }
 
     #[inline]
@@ -1513,7 +1166,7 @@ where
     /// Begins multi-borrow that allows you to borrow as many (`N`) **unique** references to the pool
     /// elements as you need. See [`MultiBorrowContext::try_get`] for more info.
     #[inline]
-    pub fn begin_multi_borrow<const N: usize>(&mut self) -> MultiBorrowContext<N, T, P> {
+    pub fn begin_multi_borrow(&mut self) -> MultiBorrowContext<T, P> {
         MultiBorrowContext::new(self)
     }
 
@@ -1547,6 +1200,34 @@ where
             }
         }
         Handle::NONE
+    }
+}
+
+impl<T, P> Pool<T, P>
+where
+    T: ComponentProvider,
+    P: PayloadContainer<Element = T> + 'static,
+{
+    /// Tries to mutably borrow an object and fetch its component of specified type.
+    #[inline]
+    pub fn try_get_component_of_type<C>(&self, handle: Handle<T>) -> Option<&C>
+    where
+        C: 'static,
+    {
+        self.try_borrow(handle)
+            .and_then(|n| n.query_component_ref(TypeId::of::<C>()))
+            .and_then(|c| c.downcast_ref())
+    }
+
+    /// Tries to mutably borrow an object and fetch its component of specified type.
+    #[inline]
+    pub fn try_get_component_of_type_mut<C>(&mut self, handle: Handle<T>) -> Option<&mut C>
+    where
+        C: 'static,
+    {
+        self.try_borrow_mut(handle)
+            .and_then(|n| n.query_component_mut(TypeId::of::<C>()))
+            .and_then(|c| c.downcast_mut())
     }
 }
 
@@ -1748,77 +1429,10 @@ where
     }
 }
 
-/// Multi-borrow context allows you to get as many **unique** references to elements in
-/// a pool as you want.
-pub struct MultiBorrowContext<'a, const N: usize, T, P = Option<T>>
-where
-    T: Sized,
-    P: PayloadContainer<Element = T> + 'static,
-{
-    pool: &'a mut Pool<T, P>,
-    borrowed: ArrayVec<Handle<T>, N>,
-}
-
-impl<'a, const N: usize, T, P> MultiBorrowContext<'a, N, T, P>
-where
-    T: Sized,
-    P: PayloadContainer<Element = T> + 'static,
-{
-    #[inline]
-    fn new(pool: &'a mut Pool<T, P>) -> Self {
-        Self {
-            pool,
-            borrowed: Default::default(),
-        }
-    }
-
-    /// Tries to get a mutable reference to a pool element located at the given handle. The method could
-    /// fail in three main reasons:
-    ///
-    /// 1) A reference to an element is already taken - returning multiple mutable references to the
-    /// same element is forbidden by Rust safety rules.
-    /// 2) You're trying to get more references that the context could handle (there is not enough space
-    /// in the internal handles storage) - in this case you must increase `N`.
-    /// 3) A given handle is invalid.
-    ///
-    /// # Performance
-    ///
-    /// This method has `O(N)` complexity, internally it does linear search in the internal handles storage
-    /// to enforce borrowing rules at runtime. The method is designed for small reference count (<32), where
-    /// linear search is faster than hash set.
-    #[inline]
-    pub fn try_get(&mut self, handle: Handle<T>) -> Option<&'a mut T> {
-        // Performance: linear search is much faster than hash set for small element count.
-        // The context is meant to be used for limited amount of references (<32).
-        if self.borrowed.contains(&handle) {
-            // Cannot give multiple mutable references to the same element.
-            None
-        } else {
-            // SAFETY: We enforce borrowing rules at runtime and do not return multiple
-            // references to the same element.
-            unsafe {
-                let pool = &mut *(self.pool as *mut Pool<T, P>);
-                if let Some(payload_ref) = pool.try_borrow_mut(handle) {
-                    // We can only return a reference to an element, if there is enough space to
-                    // register borrowed handle.
-                    if self.borrowed.try_push(handle).is_ok() {
-                        Some(payload_ref)
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
-    use crate::pool::AtomicHandle;
     use crate::{
-        pool::{ErasedHandle, Handle, Pool, PoolRecord, Ticket, INVALID_GENERATION},
+        pool::{AtomicHandle, Handle, Pool, PoolRecord, Ticket, INVALID_GENERATION},
         visitor::{Visit, Visitor},
     };
 
@@ -1901,9 +1515,9 @@ mod test {
 
         assert_eq!(pool.spawn_at(2, Payload), Ok(Handle::new(2, 1)));
         assert_eq!(pool.spawn_at(2, Payload), Err(Payload));
-        assert_eq!(pool.records[0].payload, None);
-        assert_eq!(pool.records[1].payload, None);
-        assert_ne!(pool.records[2].payload, None);
+        assert_eq!(pool.records[0].payload.as_ref(), None);
+        assert_eq!(pool.records[1].payload.as_ref(), None);
+        assert_ne!(pool.records[2].payload.as_ref(), None);
 
         assert_eq!(pool.spawn_at(2, Payload), Err(Payload));
 
@@ -1927,176 +1541,6 @@ mod test {
         assert_eq!(pool.free_stack.len(), 1);
         assert_eq!(pool.try_free(handle), None);
         assert_eq!(pool.free_stack.len(), 1);
-    }
-
-    #[test]
-    fn test_multi_borrow_context() {
-        let mut pool = Pool::<Payload>::new();
-
-        let a = pool.spawn(Payload);
-        let b = pool.spawn(Payload);
-        let c = pool.spawn(Payload);
-
-        let mut ctx = pool.begin_multi_borrow::<2>();
-
-        // Test borrowing of the same element.
-        assert_eq!(ctx.try_get(a), Some(&mut Payload));
-        assert_eq!(ctx.try_get(a), None);
-
-        // Test next element borrowing.
-        assert_eq!(ctx.try_get(b), Some(&mut Payload));
-
-        // Test out-of-space - context has limited capacity.mut
-        assert_eq!(ctx.try_get(c), None);
-    }
-
-    #[test]
-    fn test_handle_u128_encode_decode() {
-        let a = Handle::<()>::new(123, 321);
-        let encoded = a.encode_to_u128();
-        let decoded = Handle::<()>::decode_from_u128(encoded);
-        assert_eq!(decoded, a);
-    }
-
-    #[test]
-    fn erased_handle_none() {
-        assert_eq!(
-            ErasedHandle::none(),
-            ErasedHandle {
-                index: 0,
-                generation: INVALID_GENERATION,
-            }
-        );
-    }
-
-    #[test]
-    fn erased_handle_new() {
-        assert_eq!(
-            ErasedHandle::new(0, 1),
-            ErasedHandle {
-                index: 0,
-                generation: 1,
-            }
-        );
-    }
-
-    #[test]
-    fn erased_handle_is_some() {
-        assert!(ErasedHandle::new(0, 1).is_some());
-        assert!(!ErasedHandle::none().is_some());
-    }
-
-    #[test]
-    fn erased_handle_is_none() {
-        assert!(!ErasedHandle::new(0, 1).is_none());
-        assert!(ErasedHandle::none().is_none());
-    }
-
-    #[test]
-    fn erased_handle_index() {
-        assert_eq!(
-            ErasedHandle {
-                index: 42,
-                generation: 15
-            }
-            .index(),
-            42
-        );
-    }
-
-    #[test]
-    fn erased_handle_generation() {
-        assert_eq!(
-            ErasedHandle {
-                index: 42,
-                generation: 15
-            }
-            .generation(),
-            15
-        );
-    }
-
-    #[test]
-    fn default_for_erased_handle() {
-        assert_eq!(ErasedHandle::default(), ErasedHandle::none());
-    }
-
-    #[test]
-    fn erased_handle_from_handle() {
-        let handle = Handle::<u32> {
-            index: 0,
-            generation: 1,
-            type_marker: std::marker::PhantomData,
-        };
-
-        assert_eq!(
-            ErasedHandle::from(handle),
-            ErasedHandle {
-                index: 0,
-                generation: 1
-            }
-        );
-    }
-
-    #[test]
-    fn handle_from_erased_handle() {
-        let er = ErasedHandle {
-            index: 0,
-            generation: 1,
-        };
-
-        assert_eq!(
-            Handle::from(er),
-            Handle::<u32> {
-                index: 0,
-                generation: 1,
-                type_marker: std::marker::PhantomData,
-            }
-        );
-    }
-
-    #[test]
-    fn default_for_handle() {
-        assert_eq!(Handle::default(), Handle::<u32>::NONE);
-    }
-
-    #[test]
-    fn visit_for_handle() {
-        let mut h = Handle::<u32>::default();
-        let mut visitor = Visitor::default();
-
-        assert!(h.visit("name", &mut visitor).is_ok());
-    }
-
-    #[test]
-    fn test_debug_for_handle() {
-        let h = Handle::<u32> {
-            index: 0,
-            generation: 1,
-            type_marker: std::marker::PhantomData,
-        };
-
-        assert_eq!(format!("{h:?}"), "[Idx: 0; Gen: 1]");
-    }
-
-    #[test]
-    fn handle_getters() {
-        let h = Handle::<u32> {
-            index: 0,
-            generation: 1,
-            type_marker: std::marker::PhantomData,
-        };
-
-        assert_eq!(h.index(), 0);
-        assert_eq!(h.generation(), 1);
-    }
-
-    #[test]
-    fn handle_transmute() {
-        assert_eq!(
-            Handle::<u32>::default().transmute::<f32>(),
-            Handle::<f32>::default()
-        );
     }
 
     #[test]
@@ -2385,5 +1829,37 @@ mod test {
 
         let handle = AtomicHandle::default();
         assert!(handle.is_none());
+    }
+
+    #[test]
+    fn test_generate_free_handles() {
+        let mut pool = Pool::<u32>::new();
+
+        let _ = pool.spawn(42);
+        let b = pool.spawn(5);
+        let _ = pool.spawn(228);
+
+        pool.free(b);
+
+        let h0 = Handle::new(1, 2);
+        let h1 = Handle::new(3, 1);
+        let h2 = Handle::new(4, 1);
+        let h3 = Handle::new(5, 1);
+        let h4 = Handle::new(6, 1);
+
+        let free_handles = pool.generate_free_handles(5);
+        assert_eq!(free_handles, [h0, h1, h2, h3, h4]);
+
+        // Spawn something on the generated handles.
+        for (i, handle) in free_handles.into_iter().enumerate() {
+            let instance_handle = pool.spawn_at_handle(handle, i as u32);
+            assert_eq!(instance_handle, Ok(handle));
+        }
+
+        assert_eq!(pool[h0], 0);
+        assert_eq!(pool[h1], 1);
+        assert_eq!(pool[h2], 2);
+        assert_eq!(pool[h3], 3);
+        assert_eq!(pool[h4], 4);
     }
 }

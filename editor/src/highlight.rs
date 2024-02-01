@@ -39,6 +39,8 @@ struct EdgeDetectShader {
 impl EdgeDetectShader {
     pub fn new(state: &PipelineState) -> Result<Self, FrameworkError> {
         let fragment_source = r#"
+layout (location = 0) out vec4 outColor;
+
 uniform sampler2D frameTexture;
 uniform vec4 color;
 
@@ -65,7 +67,7 @@ void main() {
   	float sobel_edge_v = n[0] + (2.0 * n[1]) + n[2] - (n[6] + (2.0 * n[7]) + n[8]);
 	float sobel = sqrt((sobel_edge_h * sobel_edge_h) + (sobel_edge_v * sobel_edge_v));
 
-	gl_FragColor = vec4(color.rgb, color.a * sobel);
+	outColor = vec4(color.rgb, color.a * sobel);
 }"#;
 
         let vertex_source = r#"
@@ -203,9 +205,11 @@ impl SceneRenderPass for HighlightRenderPass {
             };
 
             for &root_node_handle in self.nodes_to_highlight.iter() {
-                for node_handle in ctx.scene.graph.traverse_handle_iter(root_node_handle) {
-                    if let Some(node) = ctx.scene.graph.try_get(node_handle) {
-                        node.collect_render_data(&mut render_context);
+                if ctx.scene.graph.is_valid_handle(root_node_handle) {
+                    for node_handle in ctx.scene.graph.traverse_handle_iter(root_node_handle) {
+                        if let Some(node) = ctx.scene.graph.try_get(node_handle) {
+                            node.collect_render_data(&mut render_context);
+                        }
                     }
                 }
             }

@@ -23,27 +23,22 @@
 //! is used in skinning (animating 3d model by set of bones).
 
 use crate::{
-    asset::manager::ResourceManager,
+    asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
         algebra::{Matrix4, Rotation3, UnitQuaternion, Vector2, Vector3},
         instant,
         log::{Log, MessageKind},
-        math::aabb::AxisAlignedBoundingBox,
-        math::Matrix4Ext,
+        math::{aabb::AxisAlignedBoundingBox, Matrix4Ext},
         pool::{Handle, MultiBorrowContext, Pool, Ticket},
         reflect::prelude::*,
         sstorage::ImmutableString,
-        variable::try_inherit_properties,
+        variable::{self, try_inherit_properties},
         visitor::{Visit, VisitResult, Visitor},
     },
     material::{shader::SamplerFallback, MaterialResource, PropertyValue},
     resource::model::{ModelResource, ModelResourceExtension, NodeMapping},
-    scene::mesh::buffer::{
-        VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage, VertexWriteTrait,
-    },
     scene::{
-        self,
-        base::NodeScriptMessage,
+        base::{NodeScriptMessage, SceneNodeId},
         camera::Camera,
         dim2::{self},
         graph::{
@@ -51,7 +46,12 @@ use crate::{
             map::NodeHandleMap,
             physics::{PhysicsPerformanceStatistics, PhysicsWorld},
         },
+        mesh::buffer::{
+            VertexAttributeDataType, VertexAttributeDescriptor, VertexAttributeUsage,
+            VertexWriteTrait,
+        },
         mesh::Mesh,
+        navmesh,
         node::{container::NodeContainer, Node, NodeTrait, SyncContext, UpdateContext},
         pivot::Pivot,
         sound::context::SoundContext,
@@ -61,12 +61,8 @@ use crate::{
     utils::lightmap::Lightmap,
 };
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_core::variable;
-use fyrox_resource::untyped::UntypedResource;
-use rapier3d::geometry::ColliderHandle;
-use std::any::TypeId;
 use std::{
-    any::Any,
+    any::{Any, TypeId},
     fmt::Debug,
     ops::{Index, IndexMut},
     sync::mpsc::{channel, Receiver, Sender},
@@ -143,13 +139,14 @@ pub struct Graph {
     pub event_broadcaster: GraphEventBroadcaster,
 
     /// Current lightmap.
-    //lightmap: InheritableVariable<Option<Lightmap>>,
     lightmap: Option<Lightmap>,
 
     #[reflect(hidden)]
     pub(crate) script_message_sender: Sender<NodeScriptMessage>,
     #[reflect(hidden)]
     pub(crate) script_message_receiver: Receiver<NodeScriptMessage>,
+
+    instance_id_map: FxHashMap<SceneNodeId, Handle<Node>>,
 }
 
 impl Default for Graph {
@@ -168,6 +165,7 @@ impl Default for Graph {
             script_message_receiver: rx,
             script_message_sender: tx,
             lightmap: None,
+            instance_id_map: Default::default(),
         }
     }
 }
@@ -267,6 +265,7 @@ impl Graph {
 
         // Create root node.
         let mut root_node = Pivot::default();
+        let instance_id = root_node.instance_id;
         root_node.script_message_sender = Some(tx.clone());
         root_node.set_name("__ROOT__");
 
@@ -274,6 +273,8 @@ impl Graph {
         let mut pool = Pool::new();
         let root = pool.spawn(Node::new(root_node));
         pool[root].self_handle = root;
+
+        let instance_id_map = FxHashMap::from_iter([(instance_id, root)]);
 
         Self {
             physics: Default::default(),
@@ -287,13 +288,20 @@ impl Graph {
             script_message_receiver: rx,
             script_message_sender: tx,
             lightmap: None,
+            instance_id_map,
         }
     }
 
     /// Creates a new graph using a hierarchy of nodes specified by the `root`.
     pub fn from_hierarchy(root: Handle<Node>, other_graph: &Self) -> Self {
         let mut graph = Self::default();
-        other_graph.copy_node(root, &mut graph, &mut |_, _| true, &mut |_, _, _| {});
+        other_graph.copy_node(
+            root,
+            &mut graph,
+            &mut |_, _| true,
+            &mut |_, _| {},
+            &mut |_, _, _| {},
+        );
         graph
     }
 
@@ -353,9 +361,11 @@ impl Graph {
         }
 
         let sender = self.script_message_sender.clone();
-        let node = &mut self[handle];
+        let node = &mut self.pool[handle];
         node.self_handle = handle;
         node.script_message_sender = Some(sender);
+
+        self.instance_id_map.insert(node.instance_id, handle);
 
         handle
     }
@@ -447,8 +457,9 @@ impl Graph {
             .and_then(|n| n.query_component_mut::<T>())
     }
 
-    /// Begins multi-borrow that allows you borrow to as many (`N`) **unique** references to the graph
-    /// nodes as you need. See [`MultiBorrowContext::try_get`] for more info.
+    /// Begins multi-borrow that allows you borrow to as many shared references to the graph
+    /// nodes as you need and only one mutable reference to a node. See
+    /// [`MultiBorrowContext::try_get`] for more info.
     ///
     /// ## Examples
     ///
@@ -465,28 +476,23 @@ impl Graph {
     /// let handle3 = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
     /// let handle4 = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
     ///
-    /// // Begin multi-borrowing by creating borrowing context with max 3 references.
-    /// let mut ctx = graph.begin_multi_borrow::<3>();
+    /// let mut ctx = graph.begin_multi_borrow();
     ///
     /// let node1 = ctx.try_get(handle1);
     /// let node2 = ctx.try_get(handle2);
     /// let node3 = ctx.try_get(handle3);
     /// let node4 = ctx.try_get(handle4);
     ///
-    /// // First three borrows will be successful.
-    /// assert!(node1.is_some());
-    /// assert!(node2.is_some());
-    /// assert!(node3.is_some());
+    /// assert!(node1.is_ok());
+    /// assert!(node2.is_ok());
+    /// assert!(node3.is_ok());
+    /// assert!(node4.is_ok());
     ///
-    /// // Fourth borrow will fail, because borrowing context has capacity of 3.
-    /// assert!(node4.is_none());
-    /// // An attempt to borrow the same node twice will fail too.
-    /// assert!(ctx.try_get(handle1).is_none());
+    /// // An attempt to borrow the same node twice as immutable and mutable will fail.
+    /// assert!(ctx.try_get_mut(handle1).is_err());
     /// ```
     #[inline]
-    pub fn begin_multi_borrow<const N: usize>(
-        &mut self,
-    ) -> MultiBorrowContext<N, Node, NodeContainer> {
+    pub fn begin_multi_borrow(&mut self) -> MultiBorrowContext<Node, NodeContainer> {
         self.pool.begin_multi_borrow()
     }
 
@@ -505,6 +511,7 @@ impl Graph {
 
             // Remove associated entities.
             let mut node = self.pool.free(handle);
+            self.instance_id_map.remove(&node.instance_id);
             node.on_removed_from_graph(self);
 
             self.event_broadcaster
@@ -523,20 +530,9 @@ impl Graph {
             }
         }
 
-        let node_ref = &mut self.pool[node_handle];
-
-        // Remove native collider when detaching a collider node from rigid body node.
-        if let Some(collider) = node_ref.cast_mut::<scene::collider::Collider>() {
-            if self.physics.remove_collider(collider.native.get()) {
-                collider.native.set(ColliderHandle::invalid());
-            }
-        } else if let Some(collider2d) = node_ref.cast_mut::<dim2::collider::Collider>() {
-            if self.physics2d.remove_collider(collider2d.native.get()) {
-                collider2d
-                    .native
-                    .set(rapier2d::geometry::ColliderHandle::invalid());
-            }
-        }
+        let (ticket, mut node) = self.pool.take_reserve(node_handle);
+        node.on_unlink(self);
+        self.pool.put_back(ticket, node);
     }
 
     /// Links specified child with specified parent.
@@ -744,16 +740,18 @@ impl Graph {
     /// Filter allows to exclude some nodes from copied hierarchy. It must return false for
     /// odd nodes. Filtering applied only to descendant nodes.
     #[inline]
-    pub fn copy_node<F, C>(
+    pub fn copy_node<F, Pre, Post>(
         &self,
         node_handle: Handle<Node>,
         dest_graph: &mut Graph,
         filter: &mut F,
-        callback: &mut C,
+        pre_process_callback: &mut Pre,
+        post_process_callback: &mut Post,
     ) -> (Handle<Node>, NodeHandleMap)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
-        C: FnMut(Handle<Node>, Handle<Node>, &mut Node),
+        Pre: FnMut(Handle<Node>, &mut Node),
+        Post: FnMut(Handle<Node>, Handle<Node>, &mut Node),
     {
         let mut old_new_mapping = NodeHandleMap::default();
         let root_handle = self.copy_node_raw(
@@ -761,7 +759,8 @@ impl Graph {
             dest_graph,
             &mut old_new_mapping,
             filter,
-            callback,
+            pre_process_callback,
+            post_process_callback,
         );
 
         remap_handles(&old_new_mapping, dest_graph);
@@ -844,20 +843,23 @@ impl Graph {
         clone
     }
 
-    fn copy_node_raw<F, C>(
+    fn copy_node_raw<F, Pre, Post>(
         &self,
         root_handle: Handle<Node>,
         dest_graph: &mut Graph,
         old_new_mapping: &mut NodeHandleMap,
         filter: &mut F,
-        callback: &mut C,
+        pre_process_callback: &mut Pre,
+        post_process_callback: &mut Post,
     ) -> Handle<Node>
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
-        C: FnMut(Handle<Node>, Handle<Node>, &mut Node),
+        Pre: FnMut(Handle<Node>, &mut Node),
+        Post: FnMut(Handle<Node>, Handle<Node>, &mut Node),
     {
         let src_node = &self.pool[root_handle];
-        let dest_node = clear_links(src_node.clone_box());
+        let mut dest_node = clear_links(src_node.clone_box());
+        pre_process_callback(root_handle, &mut dest_node);
         let dest_copy_handle = dest_graph.add_node(dest_node);
         old_new_mapping.map.insert(root_handle, dest_copy_handle);
         for &src_child_handle in src_node.children() {
@@ -867,14 +869,15 @@ impl Graph {
                     dest_graph,
                     old_new_mapping,
                     filter,
-                    callback,
+                    pre_process_callback,
+                    post_process_callback,
                 );
                 if !dest_child_handle.is_none() {
                     dest_graph.link_nodes(dest_child_handle, dest_copy_handle);
                 }
             }
         }
-        callback(
+        post_process_callback(
             dest_copy_handle,
             root_handle,
             &mut dest_graph[dest_copy_handle],
@@ -950,7 +953,10 @@ impl Graph {
                             let mut resource_node_clone = resource_node.clone_box();
                             variable::mark_inheritable_properties_non_modified(
                                 &mut resource_node_clone as &mut dyn Reflect,
-                                &[TypeId::of::<UntypedResource>()],
+                                &[
+                                    TypeId::of::<UntypedResource>(),
+                                    TypeId::of::<navmesh::Container>(),
+                                ],
                             );
                             **resource_node_clone = base;
                             *node = resource_node_clone;
@@ -963,7 +969,10 @@ impl Graph {
                                     node_reflect,
                                     resource_node_reflect,
                                     // Do not try to inspect resources, because it most likely cause a deadlock.
-                                    &[std::any::TypeId::of::<UntypedResource>()],
+                                    &[
+                                        std::any::TypeId::of::<UntypedResource>(),
+                                        TypeId::of::<navmesh::Container>(),
+                                    ],
                                 ));
                             })
                         })
@@ -1137,6 +1146,7 @@ impl Graph {
                             data,
                             resource_node_handle,
                             self,
+                            &mut |_, _| {},
                         );
 
                         restored_count += old_to_new_mapping.map.len();
@@ -1690,11 +1700,14 @@ impl Graph {
     #[inline]
     pub fn take_reserve(&mut self, handle: Handle<Node>) -> (Ticket<Node>, Node) {
         self.unlink_internal(handle);
-        self.take_reserve_internal(handle)
+        let (ticket, node) = self.take_reserve_internal(handle);
+        self.instance_id_map.remove(&node.instance_id);
+        (ticket, node)
     }
 
     pub(crate) fn take_reserve_internal(&mut self, handle: Handle<Node>) -> (Ticket<Node>, Node) {
         let (ticket, mut node) = self.pool.take_reserve(handle);
+        self.instance_id_map.remove(&node.instance_id);
         node.on_removed_from_graph(self);
         (ticket, node)
     }
@@ -1708,7 +1721,10 @@ impl Graph {
     }
 
     pub(crate) fn put_back_internal(&mut self, ticket: Ticket<Node>, node: Node) -> Handle<Node> {
-        self.pool.put_back(ticket, node)
+        let instance_id = node.instance_id;
+        let handle = self.pool.put_back(ticket, node);
+        self.instance_id_map.insert(instance_id, handle);
+        handle
     }
 
     /// Makes node handle vacant again.
@@ -1806,22 +1822,30 @@ impl Graph {
     /// Creates deep copy of graph. Allows filtering while copying, returns copy and
     /// old-to-new node mapping.
     #[inline]
-    pub fn clone<F, C>(
+    pub fn clone<F, Pre, Post>(
         &self,
         root: Handle<Node>,
         filter: &mut F,
-        callback: &mut C,
+        pre_process_callback: &mut Pre,
+        post_process_callback: &mut Post,
     ) -> (Self, NodeHandleMap)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
-        C: FnMut(Handle<Node>, Handle<Node>, &mut Node),
+        Pre: FnMut(Handle<Node>, &mut Node),
+        Post: FnMut(Handle<Node>, Handle<Node>, &mut Node),
     {
         let mut copy = Self {
             sound_context: self.sound_context.deep_clone(),
             ..Default::default()
         };
 
-        let (copy_root, old_new_map) = self.copy_node(root, &mut copy, filter, callback);
+        let (copy_root, old_new_map) = self.copy_node(
+            root,
+            &mut copy,
+            filter,
+            pre_process_callback,
+            post_process_callback,
+        );
         assert_eq!(copy.root, copy_root);
 
         let mut lightmap = self.lightmap.clone();
@@ -1984,6 +2008,25 @@ impl Graph {
     {
         self.try_get_mut(node)
             .and_then(|node| node.try_get_script_component_mut(index))
+    }
+
+    /// Returns a handle of the node that has the given id.
+    pub fn id_to_node_handle(&self, id: SceneNodeId) -> Option<&Handle<Node>> {
+        self.instance_id_map.get(&id)
+    }
+
+    /// Tries to borrow a node by its id.
+    pub fn node_by_id(&self, id: SceneNodeId) -> Option<(Handle<Node>, &Node)> {
+        self.instance_id_map
+            .get(&id)
+            .and_then(|h| self.pool.try_borrow(*h).map(|n| (*h, n)))
+    }
+
+    /// Tries to borrow a node by its id.
+    pub fn node_by_id_mut(&mut self, id: SceneNodeId) -> Option<(Handle<Node>, &mut Node)> {
+        self.instance_id_map
+            .get(&id)
+            .and_then(|h| self.pool.try_borrow_mut(*h).map(|n| (*h, n)))
     }
 }
 

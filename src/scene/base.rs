@@ -19,6 +19,7 @@ use crate::{
     script::{Script, ScriptTrait},
 };
 use fyrox_core::uuid_provider;
+use serde::{Deserialize, Serialize};
 use std::{any::Any, cell::Cell, sync::mpsc::Sender};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -264,16 +265,27 @@ pub enum NodeScriptMessage {
     },
 }
 
-/// Unique id of the node. It can be shared across multiple resources (read - prefabs), to preserve parent-child
-/// links. It is useful to create various resources that can bind to any instance of the node. For example, an
-/// animation resource could be made for a specific node, but with the `instance_id` it can be retargetted to any
-/// instance of the node. Instance here means: any copy of the node in any resource (including nested prefabs).
-#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd, Default, Debug, Reflect)]
+/// Unique id of a node, that could be used as a reliable "index" of the node. This id is mostly
+/// useful for network games.
+#[derive(
+    Clone,
+    Copy,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Default,
+    Debug,
+    Reflect,
+    Serialize,
+    Deserialize,
+)]
 #[repr(transparent)]
 #[reflect(hide_all)]
-pub struct InstanceId(pub Uuid);
+pub struct SceneNodeId(pub Uuid);
 
-impl Visit for InstanceId {
+impl Visit for SceneNodeId {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         self.0.visit(name, visitor)
     }
@@ -385,7 +397,7 @@ pub struct Base {
 
     #[reflect(read_only)]
     #[reflect(hidden)]
-    pub(crate) instance_id: InstanceId,
+    pub(crate) instance_id: SceneNodeId,
 
     // Current script of the scene node.
     //
@@ -709,19 +721,8 @@ impl Base {
         self.cast_shadows.set_value_and_mark_modified(cast_shadows)
     }
 
-    /// Sets instance id of the node. See [`InstanceId`] for more info.
-    ///
-    /// ## Important notes
-    ///
-    /// Do not change instance id unless you're know for sure what you're doing! Changing the id could result in
-    /// broken parent-child relation between prefabs. This method has very limited usage when you need to override
-    /// the id with some hand-made value.
-    pub fn set_instance_id(&mut self, id: InstanceId) {
-        self.instance_id = id;
-    }
-
     /// Returns current instance id.
-    pub fn instance_id(&self) -> InstanceId {
+    pub fn instance_id(&self) -> SceneNodeId {
         self.instance_id
     }
 
@@ -1155,7 +1156,7 @@ pub struct BaseBuilder {
     frustum_culling: bool,
     cast_shadows: bool,
     scripts: Option<Vec<Option<Script>>>,
-    instance_id: InstanceId,
+    instance_id: SceneNodeId,
     enabled: bool,
 }
 
@@ -1183,7 +1184,7 @@ impl BaseBuilder {
             frustum_culling: true,
             cast_shadows: true,
             scripts: Some(vec![]),
-            instance_id: InstanceId(Uuid::new_v4()),
+            instance_id: SceneNodeId(Uuid::new_v4()),
             enabled: true,
         }
     }
@@ -1295,7 +1296,7 @@ impl BaseBuilder {
     }
 
     /// Sets new instance id.
-    pub fn with_instance_id(mut self, id: InstanceId) -> Self {
+    pub fn with_instance_id(mut self, id: SceneNodeId) -> Self {
         self.instance_id = id;
         self
     }
@@ -1327,7 +1328,7 @@ impl BaseBuilder {
             frustum_culling: self.frustum_culling.into(),
             cast_shadows: self.cast_shadows.into(),
             scripts: self.scripts,
-            instance_id: InstanceId(Uuid::new_v4()),
+            instance_id: SceneNodeId(Uuid::new_v4()),
             enabled: self.enabled.into(),
             global_enabled: Cell::new(true),
         }

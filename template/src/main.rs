@@ -57,9 +57,9 @@ enum Commands {
 // However, it does not seem to work with builds published to crates.io, because when
 // the template generator is published, it does not have these Cargo.toml's available
 // and to solve this we just hard code these values and pray for the best.
-const CURRENT_ENGINE_VERSION: &str = "0.32.0";
-const CURRENT_EDITOR_VERSION: &str = "0.19.0";
-const CURRENT_SCRIPTS_VERSION: &str = "0.1.0";
+const CURRENT_ENGINE_VERSION: &str = "0.33.0";
+const CURRENT_EDITOR_VERSION: &str = "0.20.0";
+const CURRENT_SCRIPTS_VERSION: &str = "0.2.0";
 
 fn write_file<P: AsRef<Path>, S: AsRef<str>>(path: P, content: S) {
     let mut file = File::create(path.as_ref()).unwrap();
@@ -695,6 +695,10 @@ fn main() {
 
             // Engine -> (Editor, Scripts) version mapping.
             let editor_versions = [
+                (
+                    "0.33.0".to_string(),
+                    ("0.20.0".to_string(), Some("0.2.0".to_string())),
+                ),
                 (
                     "0.32.0".to_string(),
                     ("0.19.0".to_string(), Some("0.1.0".to_string())),

@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-scripts"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
 license = "MIT"
@@ -15,4 +15,4 @@ resolver = "2"
 rust-version = "1.72"
 
 [dependencies]
-fyrox = { version = "0.32.0", path = "../" }
+fyrox = { version = "0.33.0", path = "../" }

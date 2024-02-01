@@ -28,7 +28,7 @@ use std::{
 };
 
 #[derive(Clone, Default, Reflect, Debug)]
-struct Container(Arc<RwLock<Navmesh>>);
+pub(crate) struct Container(Arc<RwLock<Navmesh>>);
 
 impl PartialEq for Container {
     fn eq(&self, other: &Self) -> bool {

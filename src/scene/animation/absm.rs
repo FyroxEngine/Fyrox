@@ -72,15 +72,21 @@ pub type XorNode = crate::generic_animation::machine::transition::XorNode<Handle
 pub type OrNode = crate::generic_animation::machine::transition::OrNode<Handle<Node>>;
 /// Scene specific animation blending state machine Not logic node.
 pub type NotNode = crate::generic_animation::machine::transition::NotNode<Handle<Node>>;
+/// Scene specific animation blending state machine layer animation events collection.
+pub type LayerAnimationEventsCollection =
+    crate::generic_animation::machine::layer::LayerAnimationEventsCollection<Handle<Node>>;
+/// Scene specific animation blending state machine animation events source.
+pub type AnimationEventsSource =
+    crate::generic_animation::machine::layer::AnimationEventsSource<Handle<Node>>;
 
 /// Standard prelude for animation blending state machine, that contains all most commonly used types and traits.
 pub mod prelude {
     pub use super::{
-        AndNode, AnimationBlendingStateMachine, AnimationBlendingStateMachineBuilder, BasePoseNode,
-        BlendAnimations, BlendAnimationsByIndex, BlendPose, BlendSpace, BlendSpacePoint, Event,
-        IndexedBlendInput, LayerMask, LogicNode, Machine, MachineLayer, NotNode, OrNode,
-        PlayAnimation, PoseNode, RootMotionSettings, State, StateAction, StateActionWrapper,
-        Transition, XorNode,
+        AndNode, AnimationBlendingStateMachine, AnimationBlendingStateMachineBuilder,
+        AnimationEventsSource, BasePoseNode, BlendAnimations, BlendAnimationsByIndex, BlendPose,
+        BlendSpace, BlendSpacePoint, Event, IndexedBlendInput, LayerAnimationEventsCollection,
+        LayerMask, LogicNode, Machine, MachineLayer, NotNode, OrNode, PlayAnimation, PoseNode,
+        RootMotionSettings, State, StateAction, StateActionWrapper, Transition, XorNode,
     };
     pub use crate::generic_animation::machine::{
         node::AnimationEventCollectionStrategy,

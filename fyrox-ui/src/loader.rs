@@ -31,7 +31,7 @@ impl ResourceLoader for UserInterfaceLoader {
         let resource_manager = self.resource_manager.clone();
         Box::pin(async move {
             let io = io.as_ref();
-            let ui = UserInterface::load_from_file(
+            let ui = UserInterface::load_from_file_ex(
                 &path,
                 Arc::new(WidgetConstructorContainer::new()),
                 resource_manager,

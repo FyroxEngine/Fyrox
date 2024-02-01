@@ -194,19 +194,20 @@ impl BaseEmitter {
     pub fn tick(&mut self, dt: f32) {
         self.time += dt;
         let time_amount_per_particle = 1.0 / self.particle_spawn_rate as f32;
-        let mut particle_count = (self.time / time_amount_per_particle) as u32;
-        self.time -= time_amount_per_particle * particle_count as f32;
+        self.particles_to_spawn = (self.time / time_amount_per_particle) as u32;
+        self.time -= time_amount_per_particle * self.particles_to_spawn as f32;
         if let Some(max_particles) = self.max_particles {
             let alive_particles = self.alive_particles;
-            if alive_particles < max_particles && alive_particles + particle_count > max_particles {
-                particle_count = max_particles - particle_count;
+            if alive_particles < max_particles
+                && alive_particles + self.particles_to_spawn > max_particles
+            {
+                self.particles_to_spawn = max_particles.saturating_sub(alive_particles);
             }
             if !self.resurrect_particles && self.spawned_particles > u64::from(max_particles) {
                 self.particles_to_spawn = 0;
                 return;
             }
         }
-        self.particles_to_spawn = particle_count;
         self.spawned_particles += self.particles_to_spawn as u64;
     }
 

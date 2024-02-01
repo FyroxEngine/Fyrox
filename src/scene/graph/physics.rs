@@ -48,6 +48,7 @@ use rapier3d::{
     pipeline::{DebugRenderPipeline, EventHandler, PhysicsPipeline, QueryFilter, QueryPipeline},
     prelude::JointAxis,
 };
+use std::num::NonZeroUsize;
 use std::{
     cell::{Cell, RefCell},
     cmp::Ordering,
@@ -733,11 +734,11 @@ fn collider_shape_into_native_shape(
 /// This is almost one-to-one copy of Rapier's integration parameters with custom attributes for
 /// each parameter.
 #[derive(Copy, Clone, Visit, Reflect, Debug, PartialEq)]
+#[visit(optional)]
 pub struct IntegrationParameters {
     /// The time step length, default is None - this means that physics simulation will use engine's
     /// time step.
     #[reflect(min_value = 0.0, description = "The time step length (default: None)")]
-    #[visit(optional)]
     pub dt: Option<f32>,
 
     /// Minimum timestep size when using CCD with multiple substeps (default `1.0 / 60.0 / 100.0`)
@@ -818,35 +819,26 @@ pub struct IntegrationParameters {
     )]
     pub prediction_distance: f32,
 
-    /// Maximum number of iterations performed by the velocity constraints solver (default: `8`).
+    /// The number of solver iterations run by the constraints solver for calculating forces (default: `4`).
     #[reflect(
         min_value = 0.0,
-        description = "Maximum number of iterations performed by the \
-    velocity constraints solver (default: `8`)."
+        description = "The number of solver iterations run by the constraints solver for calculating forces (default: `4`)."
     )]
-    pub max_velocity_iterations: u32,
+    pub num_solver_iterations: usize,
 
-    /// Maximum number of iterations performed to solve friction constraints (default: `8`).
+    /// Number of addition friction resolution iteration run during the last solver sub-step (default: `4`).
     #[reflect(
         min_value = 0.0,
-        description = "Maximum number of iterations performed to solve friction constraints (default: `8`)"
+        description = "Number of addition friction resolution iteration run during the last solver sub-step (default: `4`)."
     )]
-    pub max_velocity_friction_iterations: u32,
+    pub num_additional_friction_iterations: usize,
 
-    /// Maximum number of iterations performed to remove the energy introduced by penetration corrections  (default: `4`).
+    /// Number of internal Project Gauss Seidel (PGS) iterations run at each solver iteration (default: `1`).
     #[reflect(
         min_value = 0.0,
-        description = "Maximum number of iterations performed to remove the energy introduced by penetration corrections  (default: `4`)."
+        description = "Number of internal Project Gauss Seidel (PGS) iterations run at each solver iteration (default: `1`)."
     )]
-    pub max_stabilization_iterations: u32,
-
-    /// If `false`, friction and non-penetration constraints will be solved in the same loop. Otherwise,
-    /// non-penetration constraints are solved first, and friction constraints are solved after (default: `true`).
-    #[reflect(
-        description = "If `false`, friction and non-penetration constraints will be solved in the same loop. Otherwise, \
-        non-penetration constraints are solved first, and friction constraints are solved after (default: `true`)."
-    )]
-    pub interleave_restitution_and_friction_resolution: bool,
+    pub num_internal_pgs_iterations: usize,
 
     /// Minimum number of dynamic bodies in each active island (default: `128`).
     #[reflect(
@@ -875,10 +867,9 @@ impl Default for IntegrationParameters {
             allowed_linear_error: 0.002,
             max_penetration_correction: f32::MAX,
             prediction_distance: 0.002,
-            max_velocity_iterations: 8,
-            max_velocity_friction_iterations: 8,
-            max_stabilization_iterations: 4,
-            interleave_restitution_and_friction_resolution: true,
+            num_internal_pgs_iterations: 1,
+            num_additional_friction_iterations: 4,
+            num_solver_iterations: 4,
             min_island_size: 128,
             max_ccd_substeps: 4,
         }
@@ -1025,19 +1016,16 @@ impl PhysicsWorld {
                 allowed_linear_error: self.integration_parameters.allowed_linear_error,
                 max_penetration_correction: self.integration_parameters.max_penetration_correction,
                 prediction_distance: self.integration_parameters.prediction_distance,
-                max_velocity_iterations: self.integration_parameters.max_velocity_iterations
-                    as usize,
-                max_velocity_friction_iterations: self
+                num_solver_iterations: NonZeroUsize::new(
+                    self.integration_parameters.num_solver_iterations,
+                )
+                .unwrap(),
+                num_additional_friction_iterations: self
                     .integration_parameters
-                    .max_velocity_friction_iterations
-                    as usize,
-                max_stabilization_iterations: self
+                    .num_additional_friction_iterations,
+                num_internal_pgs_iterations: self
                     .integration_parameters
-                    .max_stabilization_iterations
-                    as usize,
-                interleave_restitution_and_friction_resolution: self
-                    .integration_parameters
-                    .interleave_restitution_and_friction_resolution,
+                    .num_internal_pgs_iterations,
                 min_island_size: self.integration_parameters.min_island_size as usize,
                 max_ccd_substeps: self.integration_parameters.max_ccd_substeps as usize,
             };
@@ -1652,7 +1640,7 @@ impl PhysicsWorld {
         &self,
         collider: ColliderHandle,
     ) -> impl Iterator<Item = IntersectionPair> + '_ {
-        self.narrow_phase.intersections_with(collider).map(
+        self.narrow_phase.intersection_pairs_with(collider).map(
             |(collider1, collider2, intersecting)| IntersectionPair {
                 collider1: Handle::decode_from_u128(
                     self.colliders.get(collider1).unwrap().user_data,
@@ -1673,7 +1661,7 @@ impl PhysicsWorld {
         self.narrow_phase
             // Note: contacts with will only return the interaction between 2 non-sensor nodes
             // https://rapier.rs/docs/user_guides/rust/advanced_collision_detection/#the-contact-graph
-            .contacts_with(collider)
+            .contact_pairs_with(collider)
             .filter_map(|c| ContactPair::from_native(c, self))
     }
 

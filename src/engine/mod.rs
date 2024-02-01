@@ -73,6 +73,7 @@ use std::{ffi::CString, num::NonZeroU32};
 
 use crate::engine::task::TaskPoolHandler;
 use crate::resource::texture;
+use crate::scene::navmesh;
 use crate::script::PluginsRefMut;
 use fyrox_core::task::TaskPool;
 use fyrox_ui::font::BUILT_IN_FONT;
@@ -693,13 +694,7 @@ impl ScriptProcessor {
             let mut update_queue = VecDeque::new();
             let mut start_queue = VecDeque::new();
             for (handle, node) in scene.graph.pair_iter() {
-                let script = if let Some(scripts) = &node.scripts {
-                    scripts
-                } else {
-                    continue;
-                };
-
-                for script in script.iter().flatten() {
+                if let Some(script) = node.script.as_ref() {
                     if node.is_globally_enabled() {
                         if script.initialized {
                             if script.started {
@@ -874,29 +869,18 @@ impl ScriptProcessor {
 
                 // Destroy every script instance from nodes that were still alive.
                 for node_index in 0..context.scene.graph.capacity() {
-                    let handle_node = context.scene.graph.handle_from_index(node_index);
-                    context.node_handle = handle_node;
+                    context.node_handle = context.scene.graph.handle_from_index(node_index);
 
-                    let mut scripts =
-                        if let Some(node) = &mut context.scene.graph.try_get_mut(handle_node) {
-                            node.scripts.take()
-                        } else {
-                            continue;
-                        };
-
-                    if let Some(scripts) = &mut scripts {
-                        for script in scripts.iter_mut().flatten() {
-                            // A script could not be initialized in case if we added a scene, and then immediately
-                            // removed it. Calling `on_deinit` in this case would be a violation of API contract.
-                            if script.initialized {
-                                script.on_deinit(&mut context);
-                            }
-                        }
-                    }
-
-                    if let Some(scripts) = scripts {
-                        if let Some(node) = context.scene.graph.try_get_mut(handle_node) {
-                            node.scripts.replace(scripts);
+                    if let Some(mut script) = context
+                        .scene
+                        .graph
+                        .try_get_mut(context.node_handle)
+                        .and_then(|node| node.script.take())
+                    {
+                        // A script could not be initialized in case if we added a scene, and then immediately
+                        // removed it. Calling `on_deinit` in this case would be a violation of API contract.
+                        if script.initialized {
+                            script.on_deinit(&mut context)
                         }
                     }
                 }
@@ -1023,36 +1007,31 @@ macro_rules! define_process_node {
         {
             // Take a script from node. We're temporarily taking ownership over script
             // instance.
-            let mut scripts = if let Some(node) = context.scene.graph.try_get_mut(context.handle) {
-                if !node.is_globally_enabled() {
-                    return;
-                }
+            let mut script = match context.scene.graph.try_get_mut(context.handle) {
+                Some(node) => {
+                    if !node.is_globally_enabled() {
+                        return;
+                    }
 
-                node.scripts.take()
-            } else {
-                return;
-            };
-
-            if let Some(scripts) = &mut scripts {
-                for vec_script in scripts.iter_mut() {
-                    let mut script = if let Some(script) = vec_script.take() {
+                    if let Some(script) = node.script.take() {
                         script
                     } else {
-                        continue;
-                    };
-
-                    func(&mut script, context);
-
-                    // Put the script back to the node. We must do a checked borrow, because it is possible
-                    // that the node is already destroyed by script logic.
-                    *vec_script = Some(script);
+                        // No script.
+                        return;
+                    }
                 }
-            }
-
-            if let Some(scripts) = scripts {
-                if let Some(node) = context.scene.graph.try_get_mut(context.handle) {
-                    node.scripts.replace(scripts);
+                None => {
+                    // Invalid handle.
+                    return;
                 }
+            };
+
+            func(&mut script, context);
+
+            // Put the script back to the node. We must do a checked borrow, because it is possible
+            // that the node is already destroyed by script logic.
+            if let Some(node) = context.scene.graph.try_get_mut(context.handle) {
+                node.script = Some(script);
             }
         }
     };
@@ -1650,6 +1629,7 @@ impl Engine {
                                         .clone(
                                             scene.graph.get_root(),
                                             &mut |_, _| true,
+                                            &mut |_, _| {},
                                             &mut |_, _, _| {},
                                         )
                                         .0,
@@ -1679,7 +1659,10 @@ impl Engine {
                                         });
                                     }
                                 },
-                                &[TypeId::of::<UntypedResource>()],
+                                &[
+                                    TypeId::of::<UntypedResource>(),
+                                    TypeId::of::<navmesh::Container>(),
+                                ],
                             )
                         } else {
                             // Take scene data from the source scene.
@@ -1691,7 +1674,11 @@ impl Engine {
                                 Log::verify(try_inherit_properties(
                                     &mut scene,
                                     source_scene_ref,
-                                    &[TypeId::of::<NodePool>(), TypeId::of::<UntypedResource>()],
+                                    &[
+                                        TypeId::of::<NodePool>(),
+                                        TypeId::of::<UntypedResource>(),
+                                        TypeId::of::<navmesh::Container>(),
+                                    ],
                                 ));
                             }
                         }
@@ -1819,59 +1806,6 @@ impl Engine {
     fn handle_scripts(&mut self, dt: f32) {
         let time = instant::Instant::now();
 
-        while let Some((payload, handler)) = self.task_pool.pop_node_task() {
-            if let Some(scripted_scene) = self
-                .script_processor
-                .scripted_scenes
-                .iter_mut()
-                .find(|e| e.handle == handler.scene_handle)
-            {
-                if let Some(scene) = self.scenes.try_get_mut(handler.scene_handle) {
-                    let mut scripts =
-                        if let Some(node) = scene.graph.try_get_mut(handler.node_handle) {
-                            node.scripts.take()
-                        } else {
-                            None
-                        };
-
-                    if let Some(scripts) = &mut scripts {
-                        let mut payload = payload;
-                        for vec_script in scripts.iter_mut() {
-                            if let Some(mut script) = vec_script.take() {
-                                payload = (handler.closure)(
-                                    payload,
-                                    script.deref_mut(),
-                                    &mut ScriptContext {
-                                        dt,
-                                        elapsed_time: self.elapsed_time,
-                                        plugins: PluginsRefMut(&mut self.plugins),
-                                        handle: handler.node_handle,
-                                        scene,
-                                        scene_handle: scripted_scene.handle,
-                                        resource_manager: &self.resource_manager,
-                                        message_sender: &scripted_scene.message_sender,
-                                        message_dispatcher: &mut scripted_scene.message_dispatcher,
-                                        task_pool: &mut self.task_pool,
-                                        graphics_context: &mut self.graphics_context,
-                                        user_interface: &mut self.user_interface,
-                                    },
-                                );
-
-                                // Puts script back into node's script vector
-                                vec_script.replace(script);
-                            }
-                        }
-                    }
-
-                    if let Some(scripts) = scripts {
-                        if let Some(node) = scene.graph.try_get_mut(handler.node_handle) {
-                            node.scripts.replace(scripts);
-                        }
-                    }
-                }
-            }
-        }
-
         self.script_processor.handle_scripts(
             &mut self.scenes,
             &mut self.plugins,
@@ -1886,19 +1820,17 @@ impl Engine {
         self.performance_statistics.scripts_time = instant::Instant::now() - time;
     }
 
-    fn update_plugins(
+    fn handle_async_tasks(
         &mut self,
         dt: f32,
         window_target: &EventLoopWindowTarget<()>,
         lag: &mut f32,
     ) {
-        let time = instant::Instant::now();
-
-        if self.plugins_enabled {
-            // Handle asynchronous tasks first.
-            while let Some((payload, handler)) = self.task_pool.pop_plugin_task() {
-                (handler)(
-                    payload,
+        while let Some(result) = self.task_pool.inner().next_task_result() {
+            if let Some(plugin_task_handler) = self.task_pool.pop_plugin_task_handler(result.id) {
+                // Handle plugin task.
+                (plugin_task_handler)(
+                    result.payload,
                     &mut self.plugins,
                     &mut PluginContext {
                         scenes: &mut self.scenes,
@@ -1916,7 +1848,63 @@ impl Engine {
                         task_pool: &mut self.task_pool,
                     },
                 )
+            } else if let Some(node_task_handler) = self.task_pool.pop_node_task_handler(result.id)
+            {
+                // Handle script task.
+                if let Some(scripted_scene) = self
+                    .script_processor
+                    .scripted_scenes
+                    .iter_mut()
+                    .find(|e| e.handle == node_task_handler.scene_handle)
+                {
+                    if let Some(scene) = self.scenes.try_get_mut(node_task_handler.scene_handle) {
+                        if let Some(mut script) = scene
+                            .graph
+                            .try_get_mut(node_task_handler.node_handle)
+                            .and_then(|n| n.script.take())
+                        {
+                            (node_task_handler.closure)(
+                                result.payload,
+                                script.deref_mut(),
+                                &mut ScriptContext {
+                                    dt,
+                                    elapsed_time: self.elapsed_time,
+                                    plugins: PluginsRefMut(&mut self.plugins),
+                                    handle: node_task_handler.node_handle,
+                                    scene,
+                                    scene_handle: scripted_scene.handle,
+                                    resource_manager: &self.resource_manager,
+                                    message_sender: &scripted_scene.message_sender,
+                                    message_dispatcher: &mut scripted_scene.message_dispatcher,
+                                    task_pool: &mut self.task_pool,
+                                    graphics_context: &mut self.graphics_context,
+                                    user_interface: &mut self.user_interface,
+                                },
+                            );
+
+                            if let Some(node) =
+                                scene.graph.try_get_mut(node_task_handler.node_handle)
+                            {
+                                node.script = Some(script);
+                            }
+                        }
+                    }
+                }
             }
+        }
+    }
+
+    fn update_plugins(
+        &mut self,
+        dt: f32,
+        window_target: &EventLoopWindowTarget<()>,
+        lag: &mut f32,
+    ) {
+        let time = instant::Instant::now();
+
+        if self.plugins_enabled {
+            // Handle asynchronous tasks first.
+            self.handle_async_tasks(dt, window_target, lag);
 
             // Then update all the plugins.
             let mut context = PluginContext {

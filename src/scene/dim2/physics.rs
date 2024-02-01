@@ -44,6 +44,7 @@ use rapier2d::{
     },
     pipeline::{DebugRenderPipeline, EventHandler, PhysicsPipeline, QueryFilter, QueryPipeline},
 };
+use std::num::NonZeroUsize;
 use std::{
     cell::RefCell,
     cmp::Ordering,
@@ -473,19 +474,16 @@ impl PhysicsWorld {
                 allowed_linear_error: self.integration_parameters.allowed_linear_error,
                 max_penetration_correction: self.integration_parameters.max_penetration_correction,
                 prediction_distance: self.integration_parameters.prediction_distance,
-                max_velocity_iterations: self.integration_parameters.max_velocity_iterations
-                    as usize,
-                max_velocity_friction_iterations: self
+                num_solver_iterations: NonZeroUsize::new(
+                    self.integration_parameters.num_solver_iterations,
+                )
+                .unwrap(),
+                num_additional_friction_iterations: self
                     .integration_parameters
-                    .max_velocity_friction_iterations
-                    as usize,
-                max_stabilization_iterations: self
+                    .num_additional_friction_iterations,
+                num_internal_pgs_iterations: self
                     .integration_parameters
-                    .max_stabilization_iterations
-                    as usize,
-                interleave_restitution_and_friction_resolution: self
-                    .integration_parameters
-                    .interleave_restitution_and_friction_resolution,
+                    .num_internal_pgs_iterations,
                 min_island_size: self.integration_parameters.min_island_size as usize,
                 max_ccd_substeps: self.integration_parameters.max_ccd_substeps as usize,
             };
@@ -1066,7 +1064,7 @@ impl PhysicsWorld {
         &self,
         collider: ColliderHandle,
     ) -> impl Iterator<Item = IntersectionPair> + '_ {
-        self.narrow_phase.intersections_with(collider).map(
+        self.narrow_phase.intersection_pairs_with(collider).map(
             |(collider1, collider2, intersecting)| IntersectionPair {
                 collider1: Handle::decode_from_u128(
                     self.colliders.get(collider1).unwrap().user_data,
@@ -1085,7 +1083,7 @@ impl PhysicsWorld {
         collider: ColliderHandle,
     ) -> impl Iterator<Item = ContactPair> + '_ {
         self.narrow_phase
-            .contacts_with(collider)
+            .contact_pairs_with(collider)
             .filter_map(|c| ContactPair::from_native(c, self))
     }
 

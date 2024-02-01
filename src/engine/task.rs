@@ -229,20 +229,12 @@ impl TaskPoolHandler {
     }
 
     #[inline]
-    pub(crate) fn pop_plugin_task(&mut self) -> Option<(Box<dyn Any + Send>, PluginTaskHandler)> {
-        self.task_pool.next_task_result().and_then(|result| {
-            self.plugin_task_handlers
-                .remove(&result.id)
-                .map(|handler| (result.payload, handler))
-        })
+    pub(crate) fn pop_plugin_task_handler(&mut self, id: Uuid) -> Option<PluginTaskHandler> {
+        self.plugin_task_handlers.remove(&id)
     }
 
     #[inline]
-    pub(crate) fn pop_node_task(&mut self) -> Option<(Box<dyn Any + Send>, NodeTaskHandler)> {
-        self.task_pool.next_task_result().and_then(|result| {
-            self.node_task_handlers
-                .remove(&result.id)
-                .map(|handler| (result.payload, handler))
-        })
+    pub(crate) fn pop_node_task_handler(&mut self, id: Uuid) -> Option<NodeTaskHandler> {
+        self.node_task_handlers.remove(&id)
     }
 }

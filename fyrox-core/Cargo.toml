@@ -1,6 +1,6 @@
 [package]
 name = "fyrox-core"
-version = "0.26.0"
+version = "0.27.0"
 authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
 edition = "2021"
 license = "MIT"
@@ -16,7 +16,7 @@ resolver = "2"
 rust-version = "1.72"
 
 [dependencies]
-fyrox-core-derive = { path = "../fyrox-core-derive", version = "0.21.0" }
+fyrox-core-derive = { path = "../fyrox-core-derive", version = "0.22.0" }
 
 base64 = "0.21.0"
 byteorder = "1.4.3"
@@ -35,6 +35,7 @@ bitflags = "2.2.1"
 once_cell = "1.17.1"
 notify = "6"
 serde = { version = "1", features = ["derive"] }
+bincode = "1.3.3"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3.53", features = ["Request", "Window", "Response", "AudioContext", "AudioBuffer", "AudioContextOptions", "AudioNode", "AudioBufferSourceNode", "AudioDestinationNode"] }

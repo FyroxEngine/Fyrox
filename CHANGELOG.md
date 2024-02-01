@@ -1,4 +1,245 @@
-# 0.32 (WIP)
+# 0.34 Engine + 0.21.0 Editor (WIP)
+
+## Added
+
+- TODO
+
+## Changed
+
+- TODO
+
+## Fixed
+
+- TODO
+
+## Removed
+
+- TODO
+
+# 0.33 Engine + 0.20.1 Editor 
+
+## Fixed
+
+- Fixed occasional crash when undoing node creation
+- Fixed highlighting for objects that were cloned
+
+# 0.33 Engine + 0.20 Editor
+
+## Added
+
+- UI editor.
+- Tasks system for scripts and plugins.
+- Implemented dynamic font atlas.
+- Batching for 2D graphics.
+- Ability to move resources and folders in the Asset Browser.
+- Edge highlighting for selection in the editor.
+- Added an ability to create resources from asset browser.
+- Added height parameter for `Text` and `TextBox` widgets.
+- Ability to specify IO abstraction when loading user interface.
+- `Utf32StringPropertyEditorDefinition` to edit `Vec<char>` UTF32 strings.
+- `RefCellPropertyEditorDefinition` for `RefCell<T>` types.
+- Enable reflection + serialization for formatted text and its instances.
+- Built in font resource.
+- Font resource property editor with font preview. 
+- Ability to assign fonts from asset browser.
+- Reflection for resources.
+- UI graph manipulation methods.
+- `Screen` widget  automatically fits to the current screen size.
+- Show type name in world viewer for widgets.
+- Ability to specify ignored types for `Reflect::apply_recursively`.
+- Preview for curve and hrir resources.
+- Ability to open a window at desired position.
+- Ability to edit textures as UntypedResource in widgets.
+- Implemented `Serialize + Deserialize + Display` traits for `ErasedHandle`.
+- Smart positioning for contextual floating panels in the editor.
+- `WidgetMessage::Align` + `WindowMessage::OpenAndAlign` messages.
+- Ability to invalidate layout for all widgets at once.
+- Ability to mark all fields of a struct/enum optional when deserializing: `#[visit(optional)]` can now be 
+added to a struct/enum directly, thus overriding all other such attributes on fields.
+- Added access to user interface, task pool, graphics context, current scene handle for scripts.
+- `PluginsRefMut::get/get_mut/of_type_ref/of_type_mut` methods.
+- Added a bunch of `#[inline]` attributes for `Pool` for slight performance improvements. 
+- Added `AtomicHandle` that can be modified using interrior mutability.
+- Ability to pass pixel kind to the `Renderer::render_ui_to_texture` method.
+- Show material resource state in the material field editor.
+- Ability to scroll to the end of the content for `ScrollViewer` and `ScrollPanel` widgets.
+- Ability to save and load light maps into/from a file.
+- Ability to repeat clicks of a button while it is hold pressed.
+- Ability to open materials for editing from the asset browser.
+- Ability to filter a list of types when using reflection for fields iteration.
+- Implemented `PartialOrd + Ord` traits for `Handle` type.
+- Added icon in the asset browser for material resources.
+- Ability to pass generics to `uuid_provider` macro.
+- Ability to share navigational mesh across multiple threads.
+- Implemented `Reflect` trait for `RwLock`.
+- `UserInterface::find_by_name_down_from_root` method to search widgets by name.
+- Implemented `Send` trait for UI entities.
+- Added user interface resource.
+- Collider control panel with ability to fit colliders to parent bounds.
+- Property editor for vector image's primitives.
+- Show warning in the log when there's script message with no subscribers.
+- Implemented `TypeUuidProvider` trait for standard types.
+- Ability to specify clear color in `Renderer::render_ui_to_texture`.
+- Added icon in the asset browser for shader resources.
+- Ability to copy widgets from UI to UI.
+- Ability to create ragdolls from `Create` menu.
+- Added an ability to rebind tracks in the animation editor.
+- Added a set of standard materials, exposed them in the editor.
+- Added placeholder texture.
+- Ability to fetch resource import options from their respective loaders.
+- Implemented `Visit` and `Reflect` traits for `char`.
+- Ability to specify icons for assets in respective preview generators.
+- `TypedResourceData` trait to be able to set correct default state of a resource.
+- Implemented `ResourceData::save` for built-in engine resource types.
+- Documentation for LODs.
+- Color constants for the colors with names.
+- Ability to save resources.
+- `ResourceLoader::supports_extension` method.
+- Implemented `Error` trait for `VisitError`.
+- `Material::set_texture` shortcut.
+- Implemented `From<&str>` trait for `ImmutableString`.
+- Added normalization option for vertex attribute descriptor.
+- Added experimental network abstraction layer.
+- Added frustum culling for rectangle node.
+- Added camera view pyramid visualization (kudos to [@dasimonde](https://github.com/dasimonde)).
+- Added IO abstraction for resource system (kudos to [@jacobtread](https://github.com/jacobtread)).
+- Added `Reflect`, `Debug`, `Visit` trait implementations for UI widgets.
+- Added `Visit` trait implementation for `usize/isize`.
+- Added `ResourceIo::move_file` method.
+- Added `ResourceManager::move_resource` method with filtering.
+- Added `Drop` message for `FileBrowser` with dropped path.
+- Added `ResourceIo::canonicalize_path`.
+- Added `Pool::generate_free_handles` methods.
+- Added `InteractionMode::make_button` method that creates appropriate button for the mode.
+
+## Changed
+
+- Major editor refactoring to support new UI scenes.
+- Moved low level animation modules into fyrox-animation crate.
+    - Type aliases for scene specific animation entities + preludes.
+    - Texture as generic parameter for sprite sheet animation.
+- Turn font into resource + added `TextMessage::Height`.
+- Make standard built-in shaders non-procedural by default.
+- Refactored internal structure of resources.
+    - All resource related data is now stored in `ResourceHeader` instead of being scattered all around in `ResourceState` 
+  variants and even in resource data itself.
+    - Backward compatibility is preserved.
+    - `ResourceKind` instead of path+flag, refactored resource loader trait.
+- Refactored interaction modes in the editor.    
+- Switched to UntypedResource from SharedTexture in ui
+- Simplified usage of `ResourceManager::request/try_request`. No need to write `rm.request<Type, _>`, just `rm.request<Type>`.
+- Registered Light Panel in floating panels, so it can be docked.
+- Made searching in the asset browser smarter.
+- GPU resources cache refactoring.    
+- Speed up access to textures.
+- Automatic implementation of `ScriptTrait::id()` method. This implementation now should be removed from your
+scripts.
+- Scroll to the end of build log in the editor.
+- Prevented build window from closing when a build has failed.
+- Tweaked node handle property editor to also work with ui widgets.
+- Filter out texture bytes in the property selector to improve performance.
+- Enabled clicks repetition mode for scroll bar increase/decrease buttons.
+- Keep the editor active if there's any captured ui element.
+- Increased scroll bar step for scroll viewer.
+- Added filter argument for `aabb_of_descendants`.
+- Use abstract EntityId instead of ErasedHandle in animation entities.
+- Optimized internals of navigation mesh. 
+- Prevented serialization of the data of external resources.
+- Pass screen size to `Control::update`.
+- Ability to clone user interface entirely.
+- Refactored scene saving dialogs in the editor to make them more stable.
+- Made `Limb::iterate_recursive` method public.
+- Switch character rigid body to kinematic when a ragdoll is active.
+- Keep menu items highlighted when opening a menu chain.
+- Gizmo improvements for navmesh interaction mode.
+- Open navmesh panel at the top right of the scene preview when selecting a navmesh scene node.
+- Improved visualization in the dependency viewer.
+- Made asset import options inspector generic.
+- Provide access to material context in the renderer.
+- Movement, scale, rotation gizmo improvements.
+- Mutable access for ui nodes.
+- Preload resources before generating preview for them.
+- Made world viewer to accept data provider instead of scene directly.
+- Replaced `Cow<Path>` with `&Path` in `ResourceData` trait
+- Allow to set materials by drag'n'drop on material editor field.
+- Made material fields in the inspector more clickable. 
+- Improved navigation on navmesh using string pulling algorithm.
+- Improved performance of navigation mesh queries.
+- Improved text box widget performance.
+- `Plane` API improvements.
+- Made material editor wider a bit by default.
+- Extend resource data constructor with type name.
+- Turned material into resource, removed `SharedMaterial` struct.
+- Serialize vertex buffer data as a bytes slab.
+- Use `Window::pre_present_notify` as recommended in the `winit` docs.
+- Refactored sprites rendering to use materials.
+- Refactored particle system rendering to use forward renderer.
+- More built-in shader variables for lighting.
+- Triangle buffer API improvements.
+- Use debug message callback instead of message queue for OpenGL errors.
+- Enable OpenGL debugging in debug build profile.
+- Customizable time-to-live for geometry buffers (allows to create temporary buffers that lives one frame (ttl = 0)).
+- Allow to start multiple scenes at editor start up (kudos to [@dasimonde](https://github.com/dasimonde)).
+- `push_vertices` + `push_vertices_transform` method for vertex buffer.
+- Ability to connect a state with every other state in the ABSM editor (kudos to [@Riddhiman007](https://github.com/Riddhiman007))
+- Added UUIDs for scene nodes.
+- Ability to set navmesh agent path recalculation threshold.
+- Reset `modified` flags of inheritable variables when fixing node type.
+- Check for node type mismatch on graph resolve and auto-fix this.
+- Use type names instead of type ids when reporting inheritance errors.
+- Remove orphaned nodes when restoring graph's integrity.
+- Code example for `Inspector` widget.
+- Pass node handle to surface instance data.
+- Check for global `enabled` flag when filtering out cameras for rendering.
+- Serialize joints binding local frames.
+- Support for touch events in the UI (kudos to [@Bocksdin](https://github.com/Bocksdin)).
+- A* pathfinding optimization (kudos to [@TiltedTeapot](https://github.com/TiltedTeapot)).
+
+## Fixed 
+
+- Fixed crash of the editor on Wayland.
+- Fixed font rendering API.
+- Fixed restoration of shallow resource handles of untyped resources.
+- Prevent double saving of settings after modification.
+- Keep aspect ratio when previewing a texture in the asset browser.
+- Filter out non-savable resources in resource creation dialog.
+- Fixed offscreen UI rendering in the UI editor.
+- Fixed deep cloning of materials: make them embedded after cloning.
+- Fixed path filters to correctly handle folders with "extensions".
+- Save material when changing its shader property in the material editor.
+- Fixed massive footgun with pointers to the graphics pipeline state scattered all around the renderer.
+- Prevent creating of multiple thread pool across the engine.
+- Fixed crash in the material editor if a material is failed to load.
+- Prevent the editor from closing after saving a scene via Ctrl+S.
+- Fixed position saving of maximized editor window.
+- Fixed crash when assigning non-material resource in a material property.
+- Fixed forward pass of standard shader for skinned meshes
+- Fixed uuid formatting in visitor.
+- Fixed resource extension comparison in the editor by making it case-insensitive.
+- Fixed crash when drag'n'dropping assets in scene previewer.
+- Fixed OpenGL error handling
+- Fixed performance issues when modifying vertex/triangle buffers.
+- Fixed crash when editing terrains (kudos to [@Riddhiman007](https://github.com/Riddhiman007))
+- Fixed a bug when vertex attribute divisor was ignored.
+- Fixed colors for log messages.
+- Fixed scene loading in derived mode.
+- Fixed text coloring when sending a `WidgetMessage::Foreground` to text.
+- Fixed memory leaks on Linux (kudos to [@LordCocoNut](https://github.com/LordCocoNut))
+- Fixed invalid GPU resource indexing bug, that caused crashes/quirks in graphics when switching scenes in the editor.
+
+## Removed
+
+- Removed implicit cloning when in `Reflect::into_any` impl for some types.
+- Removed redundant memory allocation when fetching fields using reflection.
+- Removed redundant memory allocation when iterating over fields.
+- Removed `Option` wrapper in typed resource to flatten the internal structure of resources.
+- Removed a bunch of redundant clones in the renderer.
+- Removed lazy calculations in the navigational mesh.
+- Removed unused `soft_boundary_sharpness_factor` param from particle systems (this property was moved to the 
+standard particle system material).
+- Removed `InteractionModeKind` and replaced it with uuids.
+
+# 0.32
 
 - Do not call `Script::on_os_event` if script is not started yet.
 - Borrow instead of move in `Visitor::load_from_memory`.
