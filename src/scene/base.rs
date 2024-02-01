@@ -19,7 +19,6 @@ use crate::{
     script::{Script, ScriptTrait},
 };
 use fyrox_core::uuid_provider;
-use fyrox_graph::BaseNode;
 use serde::{Deserialize, Serialize};
 use std::{any::Any, cell::Cell, sync::mpsc::Sender};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
@@ -292,6 +291,8 @@ impl Visit for SceneNodeId {
     }
 }
 
+pub type BaseNode = fyrox_graph::BaseNode<Node>;
+
 /// Base scene graph node is a simplest possible node, it is used to build more complex ones using composition.
 /// It contains all fundamental properties for each scene graph nodes, like local and global transforms, name,
 /// lifetime, etc. Base node is a building block for all complex node hierarchies - it contains list of children
@@ -314,7 +315,7 @@ impl Visit for SceneNodeId {
 /// ```
 #[derive(Debug, Reflect, Clone)]
 pub struct Base {
-    pub(crate) base_node: BaseNode<Node>,
+    pub(crate) base_node: BaseNode,
 
     #[reflect(hidden)]
     pub(crate) self_handle: Handle<Node>,

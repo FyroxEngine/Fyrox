@@ -19,7 +19,6 @@ use crate::{
     UserInterface, VerticalAlignment, BRUSH_FOREGROUND, BRUSH_PRIMARY,
 };
 use fyrox_core::parking_lot::Mutex;
-use fyrox_graph::BaseNode;
 use std::sync::Arc;
 use std::{
     any::Any,
@@ -661,13 +660,15 @@ impl WidgetMessage {
     );
 }
 
+pub type BaseNode = fyrox_graph::BaseNode<UiNode>;
+
 /// Widget is a base UI element, that is always used to build derived, more complex, widgets. In general, it is a container
 /// for layout information, basic visual appearance, visibility options, parent-child information. It does almost nothing
 /// on its own, instead, the user interface modifies its state accordingly.
 #[derive(Default, Debug, Clone, Reflect, Visit)]
 pub struct Widget {
     /// Base node of the widget.
-    pub base_node: fyrox_graph::BaseNode<UiNode>,
+    pub base_node: BaseNode,
     /// Self handle of the widget. It is valid **only**, if the widget is added to the user interface, in other
     /// cases it will most likely be [`Handle::NONE`].
     #[reflect(read_only)]

@@ -15,6 +15,7 @@ use crate::{
     },
     message::MessageSender,
 };
+use fyrox::scene::base::BaseNode;
 use fyrox::{
     asset::{manager::ResourceManager, Resource},
     core::{
@@ -123,6 +124,7 @@ pub fn make_status_enum_editor_definition() -> EnumPropertyEditorDefinition<Stat
 pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorDefinitionContainer {
     let container = PropertyEditorDefinitionContainer::new();
 
+    container.insert(InspectablePropertyEditorDefinition::<BaseNode>::new());
     container.insert(TexturePropertyEditorDefinition { untyped: false });
     container.insert(TexturePropertyEditorDefinition { untyped: true });
     container.insert(FontPropertyEditorDefinition);

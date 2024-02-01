@@ -1,4 +1,5 @@
 use crate::vector_image::Primitive;
+use crate::widget::BaseNode;
 use crate::{
     bit::BitField,
     border::Border,
@@ -325,6 +326,7 @@ impl PropertyEditorDefinitionContainer {
         container.insert(InheritablePropertyEditorDefinition::<Curve>::new());
 
         // UI
+        container.insert(InspectablePropertyEditorDefinition::<BaseNode>::new());
         container.insert(EnumPropertyEditorDefinition::<Brush>::new());
         container.insert(EnumPropertyEditorDefinition::<Orientation>::new());
         container.insert(EnumPropertyEditorDefinition::<VerticalAlignment>::new());
