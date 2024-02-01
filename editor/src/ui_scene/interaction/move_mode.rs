@@ -162,7 +162,7 @@ impl InteractionMode for MoveWidgetsInteractionMode {
                 let new_screen_space_position = mouse_position - entry.delta;
                 let parent_inv_transform = ui_scene
                     .ui
-                    .try_get_node(ui_scene.ui.node(entry.widget).parent)
+                    .try_get_node(ui_scene.ui.node(entry.widget).parent())
                     .and_then(|w| w.visual_transform().try_inverse())
                     .unwrap_or_default();
                 let new_local_position = parent_inv_transform.transform_point(&Point2::new(

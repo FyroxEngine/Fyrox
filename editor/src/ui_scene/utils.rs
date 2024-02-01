@@ -35,14 +35,14 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
     fn children_of(&self, node: ErasedHandle) -> Vec<ErasedHandle> {
         self.ui
             .try_get_node(node.into())
-            .map(|n| n.children.iter().map(|c| (*c).into()).collect::<Vec<_>>())
+            .map(|n| n.children().iter().map(|c| (*c).into()).collect::<Vec<_>>())
             .unwrap_or_default()
     }
 
     fn child_count_of(&self, node: ErasedHandle) -> usize {
         self.ui
             .try_get_node(node.into())
-            .map(|n| n.children.len())
+            .map(|n| n.children().len())
             .unwrap_or_default()
     }
 

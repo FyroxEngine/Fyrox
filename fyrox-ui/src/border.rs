@@ -115,7 +115,7 @@ impl Control for Border {
 
         for child_handle in self.widget.children() {
             ui.measure_node(*child_handle, size_for_child);
-            let child = ui.nodes.borrow(*child_handle);
+            let child = ui.inner.borrow(*child_handle);
             let child_desired_size = child.desired_size();
             if child_desired_size.x > desired_size.x {
                 desired_size.x = child_desired_size.x;

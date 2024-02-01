@@ -60,7 +60,7 @@ impl Control for DockingManager {
         if message.destination() == self.handle && message.direction() == MessageDirection::ToWidget
         {
             if let Some(DockingManagerMessage::Layout(layout_descriptor)) = message.data() {
-                if let Some(root_tile_handle) = self.children.first().cloned() {
+                if let Some(root_tile_handle) = self.base_node.children().first().cloned() {
                     let mut windows = Vec::new();
                     let mut stack = vec![root_tile_handle];
                     while let Some(tile_handle) = stack.pop() {

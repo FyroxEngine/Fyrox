@@ -526,7 +526,7 @@ impl Control for ColorPoint {
                         }
                         WidgetMessage::MouseMove { pos, .. } => {
                             if self.dragging {
-                                let parent_canvas = ui.node(self.parent);
+                                let parent_canvas = ui.node(self.base_node.parent());
 
                                 let cursor_x_local_to_parent =
                                     parent_canvas.screen_to_local(*pos).x;

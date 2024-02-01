@@ -3,6 +3,7 @@ use fyrox_core::{
     reflect::prelude::*,
     visitor::prelude::*,
 };
+use std::cmp::Ordering;
 use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
@@ -18,12 +19,18 @@ where
 }
 
 impl<N: Debug> BaseNode<N> {
-    fn children(&self) -> &[Handle<N>] {
+    pub fn children(&self) -> &[Handle<N>] {
         &self.children
     }
 
-    fn parent(&self) -> Handle<N> {
+    pub fn parent(&self) -> Handle<N> {
         self.parent
+    }
+
+    fn remove_child(&mut self, child: Handle<N>) {
+        if let Some(i) = self.children.iter().position(|h| *h == child) {
+            self.children.remove(i);
+        }
     }
 }
 
@@ -131,11 +138,11 @@ where
         if self.root.is_none() {
             self.root = handle;
         } else {
-            self.link_nodes(handle, self.root);
+            self.link_nodes(handle, self.root, false);
         }
 
         for child in children {
-            self.link_nodes(child, handle);
+            self.link_nodes(child, handle, false);
         }
 
         handle
@@ -169,23 +176,23 @@ where
 
         // Remove the child from the parent's children list
         if let Some(parent) = self.pool.try_borrow_mut(parent_handle) {
-            let hierarchical_data = parent.as_base_node_mut();
-            if let Some(i) = hierarchical_data
-                .children
-                .iter()
-                .position(|h| *h == node_handle)
-            {
-                hierarchical_data.children.remove(i);
-            }
+            parent.as_base_node_mut().remove_child(node_handle);
         }
     }
 
     /// Links specified child with specified parent.
     #[inline]
-    pub fn link_nodes(&mut self, child: Handle<N>, parent: Handle<N>) {
+    pub fn link_nodes(&mut self, child: Handle<N>, parent: Handle<N>, in_front: bool) {
         self.unlink(child);
+
         self.pool[child].as_base_node_mut().parent = parent;
-        self.pool[parent].as_base_node_mut().children.push(child);
+
+        let children = &mut self.pool[parent].as_base_node_mut().children;
+        if in_front {
+            children.insert(0, child);
+        } else {
+            children.push(child);
+        }
     }
 
     /// Searches for a node down the tree starting from the specified node using the specified closure. Returns a tuple
@@ -260,5 +267,43 @@ where
             handle = node.as_base_node().parent();
         }
         None
+    }
+
+    // Puts node at the end of children list of a parent node.
+    fn move_child(&mut self, handle: Handle<N>, in_front: bool) {
+        let Some(node) = self.pool.try_borrow(handle) else {
+            return;
+        };
+        let Some(parent) = self.pool.try_borrow_mut(node.as_base_node().parent()) else {
+            return;
+        };
+        let parent_base_node = parent.as_base_node_mut();
+        parent_base_node.remove_child(handle);
+        if in_front {
+            parent_base_node.children.insert(0, handle)
+        } else {
+            parent_base_node.children.push(handle)
+        };
+    }
+
+    pub fn make_topmost(&mut self, handle: Handle<N>) {
+        self.move_child(handle, false)
+    }
+
+    pub fn make_lowermost(&mut self, handle: Handle<N>) {
+        self.move_child(handle, true)
+    }
+
+    pub fn sort_children<F>(&mut self, handle: Handle<N>, mut cmp: F)
+    where
+        F: FnMut(&N, &N) -> Ordering,
+    {
+        let mbc = self.pool.begin_multi_borrow();
+        if let Ok(mut parent) = mbc.try_get_mut(handle) {
+            parent
+                .as_base_node_mut()
+                .children
+                .sort_by(|a, b| cmp(&mbc.get(*a), &mbc.get(*b)));
+        };
     }
 }

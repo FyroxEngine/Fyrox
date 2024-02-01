@@ -19,6 +19,7 @@ use crate::{
     UserInterface, VerticalAlignment, BRUSH_FOREGROUND, BRUSH_PRIMARY,
 };
 use fyrox_core::parking_lot::Mutex;
+use fyrox_graph::BaseNode;
 use std::sync::Arc;
 use std::{
     any::Any,
@@ -665,6 +666,8 @@ impl WidgetMessage {
 /// on its own, instead, the user interface modifies its state accordingly.
 #[derive(Default, Debug, Clone, Reflect, Visit)]
 pub struct Widget {
+    /// Base node of the widget.
+    pub base_node: fyrox_graph::BaseNode<UiNode>,
     /// Self handle of the widget. It is valid **only**, if the widget is added to the user interface, in other
     /// cases it will most likely be [`Handle::NONE`].
     #[reflect(read_only)]
@@ -713,12 +716,6 @@ pub struct Widget {
     /// Current, **global** (including the chain of parent widgets), visibility state of the widget.
     #[reflect(hidden)]
     pub global_visibility: bool,
-    /// A set of handles to children nodes of this widget.
-    #[reflect(hidden)]
-    pub children: Vec<Handle<UiNode>>,
-    /// A handle to the parent node of this widget.
-    #[reflect(hidden)]
-    pub parent: Handle<UiNode>,
     /// Indices of drawing commands in the drawing context emitted by this widget. It is used for picking.
     #[reflect(hidden)]
     #[visit(skip)]
@@ -1099,46 +1096,16 @@ impl Widget {
         Vector2::new(self.visual_transform[6], self.visual_transform[7])
     }
 
-    #[inline]
-    pub(crate) fn add_child(&mut self, child: Handle<UiNode>, in_front: bool) {
-        self.invalidate_layout();
-        if in_front && !self.children.is_empty() {
-            self.children.insert(0, child)
-        } else {
-            self.children.push(child)
-        }
-    }
-
     /// Returns a reference to the slice with the children widgets of this widget.
     #[inline(always)]
     pub fn children(&self) -> &[Handle<UiNode>] {
-        &self.children
-    }
-
-    #[inline]
-    pub(crate) fn clear_children(&mut self) {
-        self.invalidate_layout();
-        self.children.clear();
-    }
-
-    #[inline]
-    pub(crate) fn remove_child(&mut self, child: Handle<UiNode>) {
-        if let Some(i) = self.children.iter().position(|h| *h == child) {
-            self.children.remove(i);
-            self.invalidate_layout();
-        }
+        &self.base_node.children
     }
 
     /// Returns current parent handle of the widget.
     #[inline]
     pub fn parent(&self) -> Handle<UiNode> {
-        self.parent
-    }
-
-    /// Sets new
-    #[inline]
-    pub(super) fn set_parent(&mut self, parent: Handle<UiNode>) {
-        self.parent = parent;
+        self.base_node.parent
     }
 
     /// Sets new column of the widget. Columns are used only by [`crate::grid::Grid`] widget.
@@ -1231,13 +1198,13 @@ impl Widget {
 
     /// Returns `true`, if the widget has a descendant widget with the specified handle, `false` - otherwise.
     pub fn has_descendant(&self, node_handle: Handle<UiNode>, ui: &UserInterface) -> bool {
-        for child_handle in self.children.iter() {
+        for child_handle in self.base_node.children.iter() {
             if *child_handle == node_handle {
                 return true;
             }
 
             let result = ui
-                .nodes
+                .inner
                 .borrow(*child_handle)
                 .has_descendant(node_handle, ui);
             if result {
@@ -1248,23 +1215,14 @@ impl Widget {
     }
 
     /// Searches a node up on tree starting from the given root that matches a criteria defined by the given func.
-    pub fn find_by_criteria_up<Func: Fn(&UiNode) -> bool>(
-        &self,
-        ui: &UserInterface,
-        func: Func,
-    ) -> Handle<UiNode> {
-        let mut parent_handle = self.parent;
-        while parent_handle.is_some() {
-            if let Some(parent_node) = ui.nodes.try_borrow(parent_handle) {
-                if func(parent_node) {
-                    return parent_handle;
-                }
-                parent_handle = parent_node.parent;
-            } else {
-                break;
-            }
-        }
-        Handle::NONE
+    pub fn find_by_criteria_up<Func>(&self, ui: &UserInterface, mut func: Func) -> Handle<UiNode>
+    where
+        Func: FnMut(&UiNode) -> bool,
+    {
+        ui.inner
+            .find_up(self.parent(), &mut func)
+            .map(|(h, _)| h)
+            .unwrap_or_default()
     }
 
     /// Handles incoming [`WidgetMessage`]s. This method **must** be called in [`crate::control::Control::handle_routed_message`]
@@ -1428,7 +1386,7 @@ impl Widget {
     ) -> Vector2<f32> {
         let mut size: Vector2<f32> = Vector2::default();
 
-        for &child in self.children.iter() {
+        for &child in self.base_node.children.iter() {
             ui.measure_node(child, available_size);
             let desired_size = ui.node(child).desired_size();
             size.x = size.x.max(desired_size.x);
@@ -1445,7 +1403,7 @@ impl Widget {
     pub fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let final_rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
 
-        for &child in self.children.iter() {
+        for &child in self.base_node.children.iter() {
             ui.arrange_node(child, &final_rect);
         }
 
@@ -1457,13 +1415,6 @@ impl Widget {
         self.actual_local_size.set(size);
         self.actual_local_position.set(position);
         self.arrange_valid.set(true);
-    }
-
-    #[inline]
-    pub(crate) fn set_children(&mut self, children: Vec<Handle<UiNode>>) {
-        self.invalidate_layout();
-        self.request_update_visibility();
-        self.children = children;
     }
 
     /// Returns `true` if the current results of arrangement of the widget are valid, `false` - otherwise.
@@ -2021,8 +1972,10 @@ impl WidgetBuilder {
             visibility: self.visibility,
             global_visibility: true,
             prev_global_visibility: false,
-            children: self.children,
-            parent: Handle::NONE,
+            base_node: BaseNode {
+                parent: Handle::NONE,
+                children: self.children,
+            },
             command_indices: Default::default(),
             is_mouse_directly_over: false,
             measure_valid: Cell::new(false),

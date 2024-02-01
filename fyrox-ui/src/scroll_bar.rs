@@ -337,7 +337,7 @@ impl Control for ScrollBar {
                 match msg {
                     WidgetMessage::MouseDown { pos, .. } => {
                         if self.indicator.is_some() {
-                            let indicator_pos = ui.nodes.borrow(self.indicator).screen_position();
+                            let indicator_pos = ui.inner.borrow(self.indicator).screen_position();
                             self.is_dragging = true;
                             self.offset = indicator_pos - *pos;
                             ui.capture_mouse(self.indicator);
@@ -353,7 +353,7 @@ impl Control for ScrollBar {
                         if self.indicator.is_some() {
                             let indicator_canvas = ui.node(self.indicator_canvas);
                             let indicator_size =
-                                ui.nodes.borrow(self.indicator).actual_global_size();
+                                ui.inner.borrow(self.indicator).actual_global_size();
                             if self.is_dragging {
                                 let percent = match self.orientation {
                                     Orientation::Horizontal => {

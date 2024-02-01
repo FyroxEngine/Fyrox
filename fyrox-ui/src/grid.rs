@@ -251,7 +251,7 @@ fn calc_total_size_of_non_stretch_dims(
         } else if dim.size_mode == SizeMode::Auto {
             let mut dim_size = 0.0f32;
             for child_handle in children {
-                let child = ui.nodes.borrow(*child_handle);
+                let child = ui.inner.borrow(*child_handle);
                 if let Some(desired_size) = (desired_size_fetcher)(child, i) {
                     dim_size = dim_size.max(desired_size);
                 }
@@ -458,7 +458,7 @@ impl Control for Grid {
         arrange_dims(&mut rows, final_size.y);
 
         for child_handle in self.widget.children() {
-            let child = ui.nodes.borrow(*child_handle);
+            let child = ui.inner.borrow(*child_handle);
             if let Some(column) = columns.get(child.column()) {
                 if let Some(row) = rows.get(child.row()) {
                     ui.arrange_node(

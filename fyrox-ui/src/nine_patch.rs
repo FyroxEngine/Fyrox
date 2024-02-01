@@ -51,7 +51,7 @@ impl Control for NinePatch {
         let center_size =
             Vector2::new(available_size.x - x_overflow, available_size.y - y_overflow);
 
-        for &child in self.children.iter() {
+        for &child in self.base_node.children().iter() {
             ui.measure_node(child, center_size);
             let desired_size = ui.node(child).desired_size();
             size.x = size.x.max(desired_size.x.ceil());
@@ -79,7 +79,7 @@ impl Control for NinePatch {
             final_size.y - y_overflow,
         );
 
-        for &child in self.children.iter() {
+        for &child in self.base_node.children().iter() {
             ui.arrange_node(child, &final_rect);
         }
 

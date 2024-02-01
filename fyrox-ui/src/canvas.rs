@@ -74,7 +74,7 @@ impl Control for Canvas {
         scope_profile!();
 
         for &child_handle in self.widget.children() {
-            let child = ui.nodes.borrow(child_handle);
+            let child = ui.inner.borrow(child_handle);
             ui.arrange_node(
                 child_handle,
                 &Rect::new(

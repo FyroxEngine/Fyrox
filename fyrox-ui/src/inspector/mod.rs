@@ -948,7 +948,7 @@ impl Control for Inspector {
                             }
                         }
 
-                        parent_handle = parent.parent;
+                        parent_handle = parent.base_node.parent();
                     }
                 }
             }

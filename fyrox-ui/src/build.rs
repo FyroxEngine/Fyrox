@@ -72,13 +72,13 @@ impl<'a> Index<Handle<UiNode>> for BuildContext<'a> {
     type Output = UiNode;
 
     fn index(&self, index: Handle<UiNode>) -> &Self::Output {
-        &self.ui.nodes[index]
+        &self.ui.inner[index]
     }
 }
 
 impl<'a> IndexMut<Handle<UiNode>> for BuildContext<'a> {
     fn index_mut(&mut self, index: Handle<UiNode>) -> &mut Self::Output {
-        &mut self.ui.nodes[index]
+        &mut self.ui.inner[index]
     }
 }
 
@@ -124,7 +124,7 @@ impl<'a> BuildContext<'a> {
 
     /// Tries to fetch the node by its handle. Returns `None` if the handle is invalid.
     pub fn try_get_node_mut(&mut self, node: Handle<UiNode>) -> Option<&mut UiNode> {
-        self.ui.nodes.try_borrow_mut(node)
+        self.ui.inner.try_borrow_mut(node)
     }
 
     /// Pushes a new picking restriction to the picking-restriction stack. See [`UserInterface::push_picking_restriction`]

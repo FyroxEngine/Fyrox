@@ -4,6 +4,7 @@ use crate::{
     core::{reflect::prelude::*, visitor::prelude::*},
     BaseControl, Control,
 };
+use fyrox_graph::BaseNode;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -19,6 +20,16 @@ pub mod container;
 /// casting, component querying, etc. You could also be interested in [`Control`] docs, since it
 /// contains all the interesting stuff and detailed description for each method.
 pub struct UiNode(pub Box<dyn Control>);
+
+impl fyrox_graph::GraphNode<UiNode> for UiNode {
+    fn as_base_node_mut(&mut self) -> &mut BaseNode<UiNode> {
+        &mut self.base_node
+    }
+
+    fn as_base_node(&self) -> &BaseNode<UiNode> {
+        &self.base_node
+    }
+}
 
 impl Debug for UiNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

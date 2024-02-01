@@ -512,7 +512,7 @@ impl Graph {
     #[inline]
     pub fn link_nodes(&mut self, child: Handle<Node>, parent: Handle<Node>) {
         self.unlink_internal(child);
-        self.inner.link_nodes(child, parent);
+        self.inner.link_nodes(child, parent, false);
     }
 
     /// Links specified child with specified parent while keeping the

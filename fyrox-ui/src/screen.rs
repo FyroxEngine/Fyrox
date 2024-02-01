@@ -104,7 +104,7 @@ uuid_provider!(Screen = "3bc7649f-a1ba-49be-bc4e-e0624654e40c");
 
 impl Control for Screen {
     fn measure_override(&self, ui: &UserInterface, _available_size: Vector2<f32>) -> Vector2<f32> {
-        for &child in self.children.iter() {
+        for &child in self.base_node.children().iter() {
             ui.measure_node(child, ui.screen_size());
         }
 
@@ -114,7 +114,7 @@ impl Control for Screen {
     fn arrange_override(&self, ui: &UserInterface, _final_size: Vector2<f32>) -> Vector2<f32> {
         let final_rect = Rect::new(0.0, 0.0, ui.screen_size().x, ui.screen_size().y);
 
-        for &child in self.children.iter() {
+        for &child in self.base_node.children().iter() {
             ui.arrange_node(child, &final_rect);
         }
 

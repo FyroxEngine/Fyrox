@@ -474,7 +474,7 @@ pub struct NodeStatistics(pub FxHashMap<&'static str, isize>);
 impl NodeStatistics {
     pub fn new(ui: &UserInterface) -> NodeStatistics {
         let mut statistics = Self::default();
-        for node in ui.nodes.iter() {
+        for node in ui.inner.iter() {
             statistics
                 .0
                 .entry(BaseControl::type_name(&*node.0))
@@ -627,12 +627,11 @@ impl Debug for Clipboard {
 #[derive(Visit, Reflect, Debug)]
 pub struct UserInterface {
     screen_size: Vector2<f32>,
-    nodes: Pool<UiNode, WidgetContainer>,
+    inner: fyrox_graph::Graph<UiNode, WidgetContainer>,
     #[visit(skip)]
     #[reflect(hidden)]
     drawing_context: DrawingContext,
     visual_debug: bool,
-    root_canvas: Handle<UiNode>,
     picked_node: Handle<UiNode>,
     prev_picked_node: Handle<UiNode>,
     captured_node: Handle<UiNode>,
@@ -683,19 +682,18 @@ impl Clone for UserInterface {
     fn clone(&self) -> Self {
         let (sender, receiver) = mpsc::channel();
         let (layout_events_sender, layout_events_receiver) = mpsc::channel();
-        let mut nodes = Pool::new();
-        for (handle, node) in self.nodes.pair_iter() {
+        let mut inner = fyrox_graph::Graph::new();
+        for (handle, node) in self.inner.pair_iter() {
             let mut clone = node.clone_boxed();
             clone.layout_events_sender = Some(layout_events_sender.clone());
-            nodes.spawn_at_handle(handle, UiNode(clone)).unwrap();
+            inner.spawn_at_handle(handle, UiNode(clone)).unwrap();
         }
 
         Self {
             screen_size: self.screen_size,
-            nodes,
+            inner,
             drawing_context: self.drawing_context.clone(),
             visual_debug: self.visual_debug,
-            root_canvas: self.root_canvas,
             picked_node: self.picked_node,
             prev_picked_node: self.prev_picked_node,
             captured_node: self.captured_node,
@@ -840,8 +838,7 @@ impl UserInterface {
             receiver,
             visual_debug: false,
             captured_node: Handle::NONE,
-            root_canvas: Handle::NONE,
-            nodes: Pool::new(),
+            inner: fyrox_graph::Graph::new(),
             cursor_position: Vector2::new(0.0, 0.0),
             drawing_context: DrawingContext::new(),
             picked_node: Handle::NONE,
@@ -864,10 +861,10 @@ impl UserInterface {
             double_click_entries: Default::default(),
             double_click_time_slice: 0.5, // 500 ms is standard in most operating systems.
         };
-        ui.root_canvas = ui.add_node(UiNode::new(Canvas {
+        ui.add_node(UiNode::new(Canvas {
             widget: WidgetBuilder::new().build(),
         }));
-        ui.keyboard_focus_node = ui.root_canvas;
+        ui.keyboard_focus_node = ui.inner.root;
         ui
     }
 
@@ -905,7 +902,7 @@ impl UserInterface {
     }
 
     pub fn is_node_enabled(&self, handle: Handle<UiNode>) -> bool {
-        is_node_enabled(&self.nodes, handle)
+        is_node_enabled(&self.inner, handle)
     }
 
     fn update_global_visibility(&mut self, from: Handle<UiNode>) {
@@ -915,7 +912,7 @@ impl UserInterface {
         self.stack.push(from);
         while let Some(node_handle) = self.stack.pop() {
             let (widget, parent) = self
-                .nodes
+                .inner
                 .try_borrow_dependant_mut(node_handle, |n| n.parent());
 
             if let Some(widget) = widget {
@@ -945,10 +942,10 @@ impl UserInterface {
         scope_profile!();
 
         self.stack.clear();
-        self.stack.push(self.root_canvas);
+        self.stack.push(self.inner.root);
         while let Some(node_handle) = self.stack.pop() {
             let (widget, parent) = self
-                .nodes
+                .inner
                 .try_borrow_dependant_mut(node_handle, |n| n.parent());
 
             let widget = widget.unwrap();
@@ -997,12 +994,12 @@ impl UserInterface {
         while let Ok(layout_event) = self.layout_events_receiver.try_recv() {
             match layout_event {
                 LayoutEvent::MeasurementInvalidated(node) => {
-                    invalidate_recursive_up(&self.nodes, node, |node_ref| {
+                    invalidate_recursive_up(&self.inner, node, |node_ref| {
                         node_ref.measure_valid.set(false)
                     });
                 }
                 LayoutEvent::ArrangementInvalidated(node) => {
-                    invalidate_recursive_up(&self.nodes, node, |node_ref| {
+                    invalidate_recursive_up(&self.inner, node, |node_ref| {
                         node_ref.arrange_valid.set(false)
                     });
                     self.need_update_global_transform = true;
@@ -1015,7 +1012,7 @@ impl UserInterface {
     }
 
     pub fn invalidate_layout(&mut self) {
-        for node in self.nodes.iter_mut() {
+        for node in self.inner.iter_mut() {
             node.invalidate_layout();
         }
     }
@@ -1031,9 +1028,9 @@ impl UserInterface {
 
         self.handle_layout_events();
 
-        self.measure_node(self.root_canvas, screen_size);
+        self.measure_node(self.inner.root, screen_size);
         let arrangement_changed = self.arrange_node(
-            self.root_canvas,
+            self.inner.root,
             &Rect::new(0.0, 0.0, screen_size.x, screen_size.y),
         );
 
@@ -1044,13 +1041,13 @@ impl UserInterface {
 
         if arrangement_changed {
             self.calculate_clip_bounds(
-                self.root_canvas,
+                self.inner.root,
                 Rect::new(0.0, 0.0, self.screen_size.x, self.screen_size.y),
             );
         }
 
         let sender = self.sender.clone();
-        for node in self.nodes.iter_mut() {
+        for node in self.inner.iter_mut() {
             node.update(dt, &sender, self.screen_size)
         }
 
@@ -1062,7 +1059,7 @@ impl UserInterface {
             self.cursor_icon = CursorIcon::default();
             let mut handle = self.picked_node;
             while handle.is_some() {
-                let node = &self.nodes[handle];
+                let node = &self.inner[handle];
                 if let Some(cursor) = node.cursor() {
                     self.cursor_icon = cursor;
                     break;
@@ -1081,26 +1078,26 @@ impl UserInterface {
 
         self.drawing_context.clear();
 
-        for node in self.nodes.iter_mut() {
+        for node in self.inner.iter_mut() {
             node.command_indices.get_mut().clear();
         }
 
         // Draw everything except top-most nodes.
-        draw_node(&self.nodes, self.root_canvas, &mut self.drawing_context);
+        draw_node(&self.inner, self.inner.root, &mut self.drawing_context);
 
         // Render top-most nodes in separate pass.
         // TODO: This may give weird results because of invalid nesting.
         self.stack.clear();
         self.stack.push(self.root());
         while let Some(node_handle) = self.stack.pop() {
-            let node = &self.nodes[node_handle];
+            let node = &self.inner[node_handle];
 
-            if !is_on_screen(node, &self.nodes) {
+            if !is_on_screen(node, &self.inner) {
                 continue;
             }
 
             if node.is_draw_on_top() {
-                draw_node(&self.nodes, node_handle, &mut self.drawing_context);
+                draw_node(&self.inner, node_handle, &mut self.drawing_context);
             }
             for &child in node.children() {
                 self.stack.push(child);
@@ -1110,7 +1107,7 @@ impl UserInterface {
         // Debug info rendered on top of other.
         if self.visual_debug {
             if self.picked_node.is_some() {
-                let bounds = self.nodes.borrow(self.picked_node).screen_bounds();
+                let bounds = self.inner.borrow(self.picked_node).screen_bounds();
                 self.drawing_context.push_rect(&bounds, 1.0);
                 self.drawing_context.commit(
                     bounds,
@@ -1121,7 +1118,7 @@ impl UserInterface {
             }
 
             if self.keyboard_focus_node.is_some() {
-                let bounds = self.nodes.borrow(self.keyboard_focus_node).screen_bounds();
+                let bounds = self.inner.borrow(self.keyboard_focus_node).screen_bounds();
                 self.drawing_context.push_rect(&bounds, 1.0);
                 self.drawing_context.commit(
                     bounds,
@@ -1284,7 +1281,7 @@ impl UserInterface {
 
         let mut clipped = true;
 
-        let widget = self.nodes.borrow(node_handle);
+        let widget = self.inner.borrow(node_handle);
 
         if widget.is_globally_visible() {
             clipped = !widget.clip_bounds().contains(pt);
@@ -1314,7 +1311,7 @@ impl UserInterface {
     fn is_node_contains_point(&self, node_handle: Handle<UiNode>, pt: Vector2<f32>) -> bool {
         scope_profile!();
 
-        let widget = self.nodes.borrow(node_handle);
+        let widget = self.inner.borrow(node_handle);
 
         if !widget.is_globally_visible() {
             return false;
@@ -1341,7 +1338,7 @@ impl UserInterface {
     ) -> Handle<UiNode> {
         scope_profile!();
 
-        let widget = self.nodes.borrow(node_handle);
+        let widget = self.inner.borrow(node_handle);
 
         if !widget.is_hit_test_visible()
             || !widget.enabled()
@@ -1379,13 +1376,13 @@ impl UserInterface {
     pub fn hit_test_unrestricted(&self, pt: Vector2<f32>) -> Handle<UiNode> {
         // We're not restricted to any node, just start from root.
         let mut level = 0;
-        self.pick_node(self.root_canvas, pt, &mut level)
+        self.pick_node(self.inner.root, pt, &mut level)
     }
 
     pub fn hit_test(&self, pt: Vector2<f32>) -> Handle<UiNode> {
         scope_profile!();
 
-        if self.nodes.is_valid_handle(self.captured_node) {
+        if self.inner.is_valid_handle(self.captured_node) {
             self.captured_node
         } else if self.picking_stack.is_empty() {
             self.hit_test_unrestricted(pt)
@@ -1395,7 +1392,7 @@ impl UserInterface {
             // in a series of popups, especially in menus where may be many open popups
             // at the same time.
             for root in self.picking_stack.iter().rev() {
-                if self.nodes.is_valid_handle(root.handle) {
+                if self.inner.is_valid_handle(root.handle) {
                     let mut level = 0;
                     let picked = self.pick_node(root.handle, pt, &mut level);
                     if picked.is_some() {
@@ -1420,7 +1417,7 @@ impl UserInterface {
     where
         Func: Fn(&UiNode) -> bool,
     {
-        if let Some(node) = self.nodes.try_borrow(node_handle) {
+        if let Some(node) = self.inner.try_borrow(node_handle) {
             if func(node) {
                 return node_handle;
             }
@@ -1447,7 +1444,7 @@ impl UserInterface {
     where
         Func: Fn(&UiNode) -> bool,
     {
-        if let Some(node) = self.nodes.try_borrow(node_handle) {
+        if let Some(node) = self.inner.try_borrow(node_handle) {
             if func(node) {
                 return node_handle;
             }
@@ -1467,14 +1464,14 @@ impl UserInterface {
         node_handle: Handle<UiNode>,
         root_handle: Handle<UiNode>,
     ) -> bool {
-        self.nodes
+        self.inner
             .borrow(root_handle)
             .has_descendant(node_handle, self)
     }
 
     /// Recursively calculates clipping bounds for every node.
     fn calculate_clip_bounds(&self, node: Handle<UiNode>, parent_bounds: Rect<f32>) {
-        let node = &self.nodes[node];
+        let node = &self.inner[node];
 
         let screen_bounds = if node.clip_to_bounds {
             node.screen_bounds()
@@ -1495,7 +1492,7 @@ impl UserInterface {
         node_handle: Handle<UiNode>,
         root_handle: Handle<UiNode>,
     ) -> bool {
-        for child_handle in self.nodes.borrow(root_handle).children() {
+        for child_handle in self.inner.borrow(root_handle).children() {
             if *child_handle == node_handle {
                 return true;
             }
@@ -1515,18 +1512,18 @@ impl UserInterface {
 
     /// Searches a node by name down on tree starting from root canvas.
     pub fn find_by_name_down_from_root(&self, name: &str) -> Handle<UiNode> {
-        self.find_by_criteria_down(self.root_canvas, &|node| node.name() == name)
+        self.find_by_criteria_down(self.inner.root, &|node| node.name() == name)
     }
 
     /// Searches a node by name up on tree starting from given root node and tries to borrow it if exists.
     pub fn borrow_by_name_up(&self, start_node_handle: Handle<UiNode>, name: &str) -> &UiNode {
-        self.nodes
+        self.inner
             .borrow(self.find_by_name_up(start_node_handle, name))
     }
 
     /// Searches a node by name down on tree starting from given root node and tries to borrow it if exists.
     pub fn borrow_by_name_down(&self, start_node_handle: Handle<UiNode>, name: &str) -> &UiNode {
-        self.nodes
+        self.inner
             .borrow(self.find_by_name_down(start_node_handle, name))
     }
 
@@ -1544,7 +1541,7 @@ impl UserInterface {
     where
         Func: Fn(&UiNode) -> bool,
     {
-        self.nodes
+        self.inner
             .borrow(self.find_by_criteria_up(start_node_handle, func))
     }
 
@@ -1556,7 +1553,7 @@ impl UserInterface {
     where
         Func: Fn(&UiNode) -> bool,
     {
-        self.nodes
+        self.inner
             .try_borrow(self.find_by_criteria_up(start_node_handle, func))
     }
 
@@ -1567,7 +1564,7 @@ impl UserInterface {
     where
         T: Control,
     {
-        if let Some(node) = self.nodes.try_borrow(node_handle) {
+        if let Some(node) = self.inner.try_borrow(node_handle) {
             let casted = node.cast::<T>();
             if let Some(casted) = casted {
                 return Some((node_handle, casted));
@@ -1599,21 +1596,13 @@ impl UserInterface {
     // window (for example) and a window embedded into some other control (yes this is
     // possible) then floating window won't be the topmost.
     fn make_topmost(&mut self, node: Handle<UiNode>) {
-        let parent = self.node(node).parent();
-        if parent.is_some() {
-            let parent = &mut self.nodes[parent];
-            parent.remove_child(node);
-            parent.add_child(node, false);
-        }
+        self.inner.make_topmost(node);
+        self.inner[node].invalidate_layout();
     }
 
     fn make_lowermost(&mut self, node: Handle<UiNode>) {
-        let parent = self.node(node).parent();
-        if parent.is_some() {
-            let parent = &mut self.nodes[parent];
-            parent.remove_child(node);
-            parent.add_child(node, true);
-        }
+        self.inner.make_lowermost(node);
+        self.inner[node].invalidate_layout();
     }
 
     fn bubble_message(&mut self, message: &mut UiMessage) {
@@ -1624,16 +1613,16 @@ impl UserInterface {
         // Gather chain of nodes from source to root.
         self.bubble_queue.clear();
         self.bubble_queue.push_back(message.destination());
-        let mut parent = self.nodes[message.destination()].parent();
-        while parent.is_some() && self.nodes.is_valid_handle(parent) {
+        let mut parent = self.inner[message.destination()].parent();
+        while parent.is_some() && self.inner.is_valid_handle(parent) {
             self.bubble_queue.push_back(parent);
-            parent = self.nodes[parent].parent();
+            parent = self.inner[parent].parent();
         }
 
         while let Some(handle) = self.bubble_queue.pop_front() {
-            let (ticket, mut node) = self.nodes.take_reserve(handle);
+            let (ticket, mut node) = self.inner.take_reserve(handle);
             node.handle_routed_message(self, message);
-            self.nodes.put_back(ticket, node);
+            self.inner.put_back(ticket, node);
         }
     }
 
@@ -1646,7 +1635,7 @@ impl UserInterface {
             Ok(mut message) => {
                 // Destination node may be destroyed at the time we receive message,
                 // we have skip processing of such messages.
-                if !self.nodes.is_valid_handle(message.destination()) {
+                if !self.inner.is_valid_handle(message.destination()) {
                     return Some(message);
                 }
 
@@ -1655,7 +1644,7 @@ impl UserInterface {
                 }
 
                 for &handle in self.preview_set.iter() {
-                    if let Some(node_ref) = self.nodes.try_borrow(handle) {
+                    if let Some(node_ref) = self.inner.try_borrow(handle) {
                         node_ref.preview_message(self, &mut message);
                     }
                 }
@@ -1670,54 +1659,40 @@ impl UserInterface {
                             if let Some(parent) =
                                 self.try_get_node(message.destination()).map(|n| n.parent())
                             {
-                                self.stack.clear();
-                                for child in self.nodes.borrow(parent).children() {
-                                    self.stack.push(*child);
-                                }
-
-                                let nodes = &mut self.nodes;
-                                self.stack.sort_by(|a, b| {
-                                    let z_a = nodes.borrow(*a).z_index();
-                                    let z_b = nodes.borrow(*b).z_index();
-                                    z_a.cmp(&z_b)
-                                });
-
-                                let parent = self.nodes.borrow_mut(parent);
-                                parent.clear_children();
-                                for child in self.stack.iter() {
-                                    parent.add_child(*child, false);
-                                }
+                                self.inner
+                                    .sort_children(parent, |a, b| a.z_index().cmp(&b.z_index()));
+                                self.inner[message.destination()].invalidate_layout();
                             }
                         }
                         WidgetMessage::Focus => {
-                            if self.nodes.is_valid_handle(message.destination())
+                            if self.inner.is_valid_handle(message.destination())
                                 && message.direction() == MessageDirection::ToWidget
                             {
                                 self.request_focus(message.destination());
                             }
                         }
                         WidgetMessage::Unfocus => {
-                            if self.nodes.is_valid_handle(message.destination())
+                            if self.inner.is_valid_handle(message.destination())
                                 && message.direction() == MessageDirection::ToWidget
                             {
-                                self.request_focus(self.root_canvas);
+                                self.request_focus(self.inner.root);
                             }
                         }
                         WidgetMessage::Topmost => {
-                            if self.nodes.is_valid_handle(message.destination()) {
+                            if self.inner.is_valid_handle(message.destination()) {
                                 self.make_topmost(message.destination());
                             }
                         }
                         WidgetMessage::Lowermost => {
-                            if self.nodes.is_valid_handle(message.destination()) {
+                            if self.inner.is_valid_handle(message.destination()) {
                                 self.make_lowermost(message.destination());
                             }
                         }
                         WidgetMessage::Unlink => {
-                            if self.nodes.is_valid_handle(message.destination()) {
+                            if self.inner.is_valid_handle(message.destination()) {
                                 self.unlink_node(message.destination());
 
-                                let node = &self.nodes[message.destination()];
+                                let node = &self.inner[message.destination()];
                                 let new_position = node.screen_position();
                                 self.send_message(WidgetMessage::desired_position(
                                     message.destination(),
@@ -1727,38 +1702,38 @@ impl UserInterface {
                             }
                         }
                         &WidgetMessage::LinkWith(parent) => {
-                            if self.nodes.is_valid_handle(message.destination())
-                                && self.nodes.is_valid_handle(parent)
+                            if self.inner.is_valid_handle(message.destination())
+                                && self.inner.is_valid_handle(parent)
                             {
                                 self.link_nodes(message.destination(), parent, false);
                             }
                         }
                         &WidgetMessage::LinkWithReverse(parent) => {
-                            if self.nodes.is_valid_handle(message.destination())
-                                && self.nodes.is_valid_handle(parent)
+                            if self.inner.is_valid_handle(message.destination())
+                                && self.inner.is_valid_handle(parent)
                             {
                                 self.link_nodes(message.destination(), parent, true);
                             }
                         }
                         WidgetMessage::Remove => {
-                            if self.nodes.is_valid_handle(message.destination()) {
+                            if self.inner.is_valid_handle(message.destination()) {
                                 self.remove_node(message.destination());
                             }
                         }
                         WidgetMessage::ContextMenu(context_menu) => {
-                            if self.nodes.is_valid_handle(message.destination()) {
-                                let node = self.nodes.borrow_mut(message.destination());
+                            if self.inner.is_valid_handle(message.destination()) {
+                                let node = self.inner.borrow_mut(message.destination());
                                 node.set_context_menu(context_menu.clone());
                             }
                         }
                         WidgetMessage::Tooltip(tooltip) => {
-                            if self.nodes.is_valid_handle(message.destination()) {
-                                let node = self.nodes.borrow_mut(message.destination());
+                            if self.inner.is_valid_handle(message.destination()) {
+                                let node = self.inner.borrow_mut(message.destination());
                                 node.set_tooltip(tooltip.clone());
                             }
                         }
                         WidgetMessage::Center => {
-                            if self.nodes.is_valid_handle(message.destination()) {
+                            if self.inner.is_valid_handle(message.destination()) {
                                 let node = self.node(message.destination());
                                 let size = node.actual_initial_size();
                                 let parent = node.parent();
@@ -1776,7 +1751,7 @@ impl UserInterface {
                             }
                         }
                         WidgetMessage::AdjustPositionToFit => {
-                            if self.nodes.is_valid_handle(message.destination()) {
+                            if self.inner.is_valid_handle(message.destination()) {
                                 let node = self.node(message.destination());
                                 let mut position = node.actual_local_position();
                                 let size = node.actual_initial_size();
@@ -1886,7 +1861,7 @@ impl UserInterface {
                         }
                         WidgetMessage::MouseDown { button, .. } => {
                             if *button == MouseButton::Right {
-                                if let Some(picked) = self.nodes.try_borrow(self.picked_node) {
+                                if let Some(picked) = self.inner.try_borrow(self.picked_node) {
                                     // Get the context menu from the current node or a parent node
                                     let (context_menu, target) = if picked.context_menu().is_some()
                                     {
@@ -1896,7 +1871,7 @@ impl UserInterface {
                                             n.context_menu().is_some()
                                         });
 
-                                        if let Some(parent) = self.nodes.try_borrow(parent_handle) {
+                                        if let Some(parent) = self.inner.try_borrow(parent_handle) {
                                             (parent.context_menu(), parent_handle)
                                         } else {
                                             (None, Handle::NONE)
@@ -2003,7 +1978,7 @@ impl UserInterface {
 
         // Check for hovering over a widget with a tooltip, or hovering over a tooltip.
         let mut handle = self.picked_node;
-        while let Some(node) = self.nodes.try_borrow(handle) {
+        while let Some(node) = self.inner.try_borrow(handle) {
             // Get the parent to avoid the problem with having a immutable access here and a
             // mutable access later
             let parent = node.parent();
@@ -2122,7 +2097,7 @@ impl UserInterface {
                             self.stack.clear();
                             self.stack.push(self.picked_node);
                             while let Some(handle) = self.stack.pop() {
-                                let node = &self.nodes[handle];
+                                let node = &self.inner[handle];
                                 if node.is_drag_allowed() {
                                     self.drag_context.drag_node = handle;
                                     self.stack.clear();
@@ -2172,7 +2147,7 @@ impl UserInterface {
                                 self.stack.clear();
                                 self.stack.push(self.picked_node);
                                 while let Some(handle) = self.stack.pop() {
-                                    let node = &self.nodes[handle];
+                                    let node = &self.inner[handle];
                                     if node.is_drop_allowed() {
                                         self.send_message(WidgetMessage::drop(
                                             handle,
@@ -2187,7 +2162,7 @@ impl UserInterface {
                                 }
                             }
                             self.drag_context.drag_node = Handle::NONE;
-                            if self.nodes.is_valid_handle(self.drag_context.drag_preview) {
+                            if self.inner.is_valid_handle(self.drag_context.drag_preview) {
                                 self.remove_node(self.drag_context.drag_preview);
                                 self.drag_context.drag_preview = Default::default();
                             }
@@ -2209,12 +2184,12 @@ impl UserInterface {
                 {
                     self.drag_context.drag_preview =
                         self.copy_node_with_limit(self.drag_context.drag_node, Some(30));
-                    self.nodes[self.drag_context.drag_preview].set_opacity(Some(0.5));
+                    self.inner[self.drag_context.drag_preview].set_opacity(Some(0.5));
 
                     // Make preview nodes invisible for hit test.
                     let mut stack = vec![self.drag_context.drag_preview];
                     while let Some(handle) = stack.pop() {
-                        let preview_node = &mut self.nodes[handle];
+                        let preview_node = &mut self.inner[handle];
                         preview_node.hit_test_visibility = false;
                         stack.extend_from_slice(preview_node.children());
                     }
@@ -2231,7 +2206,7 @@ impl UserInterface {
                 }
 
                 if self.drag_context.is_dragging
-                    && self.nodes.is_valid_handle(self.drag_context.drag_preview)
+                    && self.inner.is_valid_handle(self.drag_context.drag_preview)
                 {
                     self.send_message(WidgetMessage::desired_position(
                         self.drag_context.drag_preview,
@@ -2242,7 +2217,7 @@ impl UserInterface {
 
                 // Fire mouse leave for previously picked node
                 if self.picked_node != self.prev_picked_node && self.prev_picked_node.is_some() {
-                    let prev_picked_node = self.nodes.borrow_mut(self.prev_picked_node);
+                    let prev_picked_node = self.inner.borrow_mut(self.prev_picked_node);
                     if prev_picked_node.is_mouse_directly_over {
                         prev_picked_node.is_mouse_directly_over = false;
                         self.send_message(WidgetMessage::mouse_leave(
@@ -2253,7 +2228,7 @@ impl UserInterface {
                 }
 
                 if self.picked_node.is_some() {
-                    let picked_node = self.nodes.borrow_mut(self.picked_node);
+                    let picked_node = self.inner.borrow_mut(self.picked_node);
                     if !picked_node.is_mouse_directly_over {
                         picked_node.is_mouse_directly_over = true;
                         self.send_message(WidgetMessage::mouse_enter(
@@ -2373,7 +2348,7 @@ impl UserInterface {
                         self.stack.clear();
                         self.stack.push(self.picked_node);
                         while let Some(handle) = self.stack.pop() {
-                            let node = &self.nodes[handle];
+                            let node = &self.inner[handle];
                             if node.is_drag_allowed() {
                                 self.drag_context.drag_node = handle;
                                 self.stack.clear();
@@ -2418,7 +2393,7 @@ impl UserInterface {
                         self.stack.clear();
                         self.stack.push(self.picked_node);
                         while let Some(handle) = self.stack.pop() {
-                            let node = &self.nodes[handle];
+                            let node = &self.inner[handle];
                             if node.is_drag_allowed() {
                                 self.drag_context.drag_node = handle;
                                 self.stack.clear();
@@ -2459,7 +2434,7 @@ impl UserInterface {
                             self.stack.clear();
                             self.stack.push(self.picked_node);
                             while let Some(handle) = self.stack.pop() {
-                                let node = &self.nodes[handle];
+                                let node = &self.inner[handle];
                                 if node.is_drop_allowed() {
                                     self.send_message(WidgetMessage::drop(
                                         handle,
@@ -2474,7 +2449,7 @@ impl UserInterface {
                             }
                         }
                         self.drag_context.drag_node = Handle::NONE;
-                        if self.nodes.is_valid_handle(self.drag_context.drag_preview) {
+                        if self.inner.is_valid_handle(self.drag_context.drag_preview) {
                             self.remove_node(self.drag_context.drag_preview);
                             self.drag_context.drag_preview = Default::default();
                         }
@@ -2497,7 +2472,7 @@ impl UserInterface {
                             self.stack.clear();
                         }
                         self.drag_context.drag_node = Handle::NONE;
-                        if self.nodes.is_valid_handle(self.drag_context.drag_preview) {
+                        if self.inner.is_valid_handle(self.drag_context.drag_preview) {
                             self.remove_node(self.drag_context.drag_preview);
                             self.drag_context.drag_preview = Default::default();
                         }
@@ -2510,16 +2485,16 @@ impl UserInterface {
 
         self.prev_picked_node = self.picked_node;
 
-        for i in 0..self.nodes.get_capacity() {
-            let handle = self.nodes.handle_from_index(i);
+        for i in 0..self.inner.get_capacity() {
+            let handle = self.inner.handle_from_index(i);
 
-            if let Some(node_ref) = self.nodes.try_borrow(handle) {
+            if let Some(node_ref) = self.inner.try_borrow(handle) {
                 if node_ref.handle_os_events {
-                    let (ticket, mut node) = self.nodes.take_reserve(handle);
+                    let (ticket, mut node) = self.inner.take_reserve(handle);
 
                     node.handle_os_event(handle, self, event);
 
-                    self.nodes.put_back(ticket, node);
+                    self.inner.put_back(ticket, node);
                 }
             }
         }
@@ -2528,30 +2503,23 @@ impl UserInterface {
     }
 
     pub fn nodes(&self) -> &Pool<UiNode, WidgetContainer> {
-        &self.nodes
+        &self.inner
     }
 
     pub fn root(&self) -> Handle<UiNode> {
-        self.root_canvas
+        self.inner.root
     }
 
-    pub fn add_node(&mut self, mut node: UiNode) -> Handle<UiNode> {
-        let children = node.children().to_vec();
-        node.clear_children();
-        let node_handle = self.nodes.spawn(node);
-        if self.root_canvas.is_some() {
-            self.link_nodes(node_handle, self.root_canvas, false);
-        }
-        for child in children {
-            self.link_nodes(child, node_handle, false)
-        }
-        let node = self.nodes[node_handle].deref_mut();
+    pub fn add_node(&mut self, node: UiNode) -> Handle<UiNode> {
+        let node_handle = self.inner.add_node(node);
+        let node = self.inner[node_handle].deref_mut();
         node.layout_events_sender = Some(self.layout_events_sender.clone());
         if node.preview_messages {
             self.preview_set.insert(node_handle);
         }
         node.handle = node_handle;
         node.invalidate_layout();
+        node.request_update_visibility();
         self.layout_events_sender
             .send(LayoutEvent::VisibilityChanged(node_handle))
             .unwrap();
@@ -2564,21 +2532,21 @@ impl UserInterface {
     #[inline]
     pub fn take_reserve(&mut self, handle: Handle<UiNode>) -> (Ticket<UiNode>, UiNode) {
         self.unlink_node_internal(handle);
-        self.nodes.take_reserve(handle)
+        self.inner.take_reserve(handle)
     }
 
     /// Puts the widget back by the given ticket. Attaches it back to the root canvas of the user interface.
     #[inline]
     pub fn put_back(&mut self, ticket: Ticket<UiNode>, node: UiNode) -> Handle<UiNode> {
-        let handle = self.nodes.put_back(ticket, node);
-        self.link_nodes(handle, self.root_canvas, false);
+        let handle = self.inner.put_back(ticket, node);
+        self.link_nodes(handle, self.inner.root, false);
         handle
     }
 
     /// Makes a widget handle vacant again.
     #[inline]
     pub fn forget_ticket(&mut self, ticket: Ticket<UiNode>, node: UiNode) -> UiNode {
-        self.nodes.forget_ticket(ticket);
+        self.inner.forget_ticket(ticket);
         node
     }
 
@@ -2590,12 +2558,12 @@ impl UserInterface {
     pub fn take_reserve_sub_graph(&mut self, root: Handle<UiNode>) -> SubGraph {
         // Take out descendants first.
         let mut descendants = Vec::new();
-        let root_ref = &mut self.nodes[root];
+        let root_ref = &mut self.inner[root];
         let mut stack = root_ref.children().to_vec();
-        let parent = root_ref.parent;
+        let parent = root_ref.base_node.parent;
         while let Some(handle) = stack.pop() {
-            stack.extend_from_slice(self.nodes[handle].children());
-            descendants.push(self.nodes.take_reserve(handle));
+            stack.extend_from_slice(self.inner[handle].children());
+            descendants.push(self.inner.take_reserve(handle));
         }
 
         SubGraph {
@@ -2611,7 +2579,7 @@ impl UserInterface {
     #[inline]
     pub fn put_sub_graph_back(&mut self, sub_graph: SubGraph) -> Handle<UiNode> {
         for (ticket, node) in sub_graph.descendants {
-            self.nodes.put_back(ticket, node);
+            self.inner.put_back(ticket, node);
         }
 
         let (ticket, node) = sub_graph.root;
@@ -2626,10 +2594,10 @@ impl UserInterface {
     #[inline]
     pub fn forget_sub_graph(&mut self, sub_graph: SubGraph) {
         for (ticket, _) in sub_graph.descendants {
-            self.nodes.forget_ticket(ticket);
+            self.inner.forget_ticket(ticket);
         }
         let (ticket, _) = sub_graph.root;
-        self.nodes.forget_ticket(ticket);
+        self.inner.forget_ticket(ticket);
     }
 
     pub fn push_picking_restriction(&mut self, restriction: RestrictionEntry) {
@@ -2679,14 +2647,14 @@ impl UserInterface {
             }
             self.remove_picking_restriction(handle);
 
-            let node_ref = self.nodes.borrow(handle);
+            let node_ref = self.inner.borrow(handle);
             stack.extend_from_slice(node_ref.children());
 
             // Notify node that it is about to be deleted so it will have a chance to remove
             // other widgets (like popups).
             node_ref.on_remove(&sender);
 
-            self.nodes.free(handle);
+            self.inner.free(handle);
             self.preview_set.remove(&handle);
         }
     }
@@ -2704,23 +2672,14 @@ impl UserInterface {
         in_front: bool,
     ) {
         assert_ne!(child_handle, parent_handle);
-        self.unlink_node_internal(child_handle);
-        self.nodes[child_handle].set_parent(parent_handle);
-        self.nodes[parent_handle].add_child(child_handle, in_front);
+        self.inner.link_nodes(child_handle, parent_handle, in_front);
+        self.inner[child_handle].invalidate_layout();
     }
 
     /// Unlinks the specified widget from its parent, so the widget will become root.
     #[inline]
     fn unlink_node_internal(&mut self, node_handle: Handle<UiNode>) {
-        // Replace parent handle of child
-        let node = self.nodes.borrow_mut(node_handle);
-        let parent_handle = node.parent();
-        if parent_handle.is_some() {
-            node.set_parent(Handle::NONE);
-
-            // Remove child from parent's children list
-            self.nodes[parent_handle].remove_child(node_handle);
-        }
+        self.inner.unlink(node_handle)
     }
 
     /// Unlinks specified node from its parent and attaches back to root canvas.
@@ -2730,27 +2689,27 @@ impl UserInterface {
     #[inline]
     pub fn unlink_node(&mut self, node_handle: Handle<UiNode>) {
         self.unlink_node_internal(node_handle);
-        self.link_nodes(node_handle, self.root_canvas, false);
+        self.link_nodes(node_handle, self.inner.root, false);
     }
 
     #[inline]
     pub fn node(&self, node_handle: Handle<UiNode>) -> &UiNode {
-        self.nodes.borrow(node_handle)
+        self.inner.borrow(node_handle)
     }
 
     #[inline]
     pub fn try_get_node(&self, node_handle: Handle<UiNode>) -> Option<&UiNode> {
-        self.nodes.try_borrow(node_handle)
+        self.inner.try_borrow(node_handle)
     }
 
     #[inline]
     pub fn node_mut(&mut self, node_handle: Handle<UiNode>) -> &mut UiNode {
-        self.nodes.borrow_mut(node_handle)
+        self.inner.borrow_mut(node_handle)
     }
 
     #[inline]
     pub fn try_get_node_mut(&mut self, node_handle: Handle<UiNode>) -> Option<&mut UiNode> {
-        self.nodes.try_borrow_mut(node_handle)
+        self.inner.try_borrow_mut(node_handle)
     }
 
     pub fn copy_node(&mut self, node: Handle<UiNode>) -> Handle<UiNode> {
@@ -2759,7 +2718,7 @@ impl UserInterface {
         let root = self.copy_node_recursive(node, &mut map);
 
         for &node_handle in map.hash_map.values() {
-            self.nodes[node_handle].resolve(&map);
+            self.inner[node_handle].resolve(&map);
         }
 
         root
@@ -2771,7 +2730,7 @@ impl UserInterface {
         node_handle: Handle<UiNode>,
         map: &mut NodeHandleMapping,
     ) -> Handle<UiNode> {
-        let node = self.nodes.borrow(node_handle);
+        let node = self.inner.borrow(node_handle);
         let mut cloned = UiNode(node.clone_boxed());
         cloned.id = Uuid::new_v4();
 
@@ -2779,8 +2738,8 @@ impl UserInterface {
         for child in node.children().to_vec() {
             cloned_children.push(self.copy_node_recursive(child, map));
         }
+        cloned.base_node.children = cloned_children;
 
-        cloned.set_children(cloned_children);
         let copy_handle = self.add_node(cloned);
         map.add_mapping(node_handle, copy_handle);
         copy_handle
@@ -2796,7 +2755,7 @@ impl UserInterface {
         let root = self.copy_node_to_recursive(node, dest, &mut map);
 
         for &node_handle in map.hash_map.values() {
-            dest.nodes[node_handle].resolve(&map);
+            dest.inner[node_handle].resolve(&map);
         }
 
         (root, map)
@@ -2808,12 +2767,12 @@ impl UserInterface {
         dest: &mut UserInterface,
         map: &mut NodeHandleMapping,
     ) -> Handle<UiNode> {
-        let node = self.nodes.borrow(node_handle);
-        let children = node.children.clone();
+        let node = self.inner.borrow(node_handle);
+        let children = node.base_node.children.clone();
 
         let mut cloned = UiNode(node.clone_boxed());
-        cloned.children.clear();
-        cloned.parent = Handle::NONE;
+        cloned.base_node.children.clear();
+        cloned.base_node.parent = Handle::NONE;
         cloned.id = Uuid::new_v4();
         let cloned_node_handle = dest.add_node(cloned);
 
@@ -2837,7 +2796,7 @@ impl UserInterface {
         let root = self.copy_node_recursive_with_limit(node, &mut map, limit, &mut counter);
 
         for &node_handle in map.hash_map.values() {
-            self.nodes[node_handle].resolve(&map);
+            self.inner[node_handle].resolve(&map);
         }
 
         root
@@ -2857,7 +2816,7 @@ impl UserInterface {
             }
         }
 
-        let node = self.nodes.borrow(node_handle);
+        let node = self.inner.borrow(node_handle);
         let mut cloned = UiNode(node.clone_boxed());
         cloned.id = Uuid::new_v4();
 
@@ -2870,8 +2829,8 @@ impl UserInterface {
                 break;
             }
         }
+        cloned.base_node.children = cloned_children;
 
-        cloned.set_children(cloned_children);
         let copy_handle = self.add_node(cloned);
         map.add_mapping(node_handle, copy_handle);
 
@@ -2915,7 +2874,7 @@ impl UserInterface {
         visitor.blackboard.register(Arc::new(resource_manager));
         let mut ui = UserInterface::new_with_channel(sender, receiver, Vector2::new(100.0, 100.0));
         ui.visit("Ui", &mut visitor)?;
-        for widget in ui.nodes.iter_mut() {
+        for widget in ui.inner.iter_mut() {
             widget.layout_events_sender = Some(ui.layout_events_sender.clone());
             widget.invalidate_layout();
         }
