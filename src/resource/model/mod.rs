@@ -376,7 +376,7 @@ impl ModelResourceExtension for ModelResource {
     }
 
     fn retarget_animations(&self, root: Handle<Node>, graph: &mut Graph) -> Vec<Handle<Animation>> {
-        if let Some((animation_player, _)) = graph.find(root, &mut |n| {
+        if let Some((animation_player, _)) = graph.find(root, |n| {
             n.query_component_ref::<AnimationPlayer>().is_some()
         }) {
             self.retarget_animations_to_player(root, animation_player, graph)

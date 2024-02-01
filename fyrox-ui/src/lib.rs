@@ -624,11 +624,10 @@ impl Debug for Clipboard {
     }
 }
 
-#[derive(Visit, Reflect, Debug)]
+#[derive(Reflect, Debug)]
 pub struct UserInterface {
     screen_size: Vector2<f32>,
     inner: fyrox_graph::Graph<UiNode, WidgetContainer>,
-    #[visit(skip)]
     #[reflect(hidden)]
     drawing_context: DrawingContext,
     visual_debug: bool,
@@ -637,45 +636,60 @@ pub struct UserInterface {
     captured_node: Handle<UiNode>,
     keyboard_focus_node: Handle<UiNode>,
     cursor_position: Vector2<f32>,
-    #[visit(skip)]
     #[reflect(hidden)]
     receiver: Receiver<UiMessage>,
-    #[visit(skip)]
     #[reflect(hidden)]
     sender: Sender<UiMessage>,
     stack: Vec<Handle<UiNode>>,
     picking_stack: Vec<RestrictionEntry>,
-    #[visit(skip)]
     #[reflect(hidden)]
     bubble_queue: VecDeque<Handle<UiNode>>,
     drag_context: DragContext,
     mouse_state: MouseState,
     keyboard_modifiers: KeyboardModifiers,
     cursor_icon: CursorIcon,
-    #[visit(skip)]
     #[reflect(hidden)]
     active_tooltip: Option<TooltipEntry>,
-    #[visit(skip)]
     #[reflect(hidden)]
     preview_set: FxHashSet<Handle<UiNode>>,
-    #[visit(skip)]
     #[reflect(hidden)]
     clipboard: Clipboard,
-    #[visit(skip)]
     #[reflect(hidden)]
     layout_events_receiver: Receiver<LayoutEvent>,
-    #[visit(skip)]
     #[reflect(hidden)]
     layout_events_sender: Sender<LayoutEvent>,
-    #[visit(skip)]
     need_update_global_transform: bool,
-    #[visit(skip)]
     #[reflect(hidden)]
     pub default_font: FontResource,
-    #[visit(skip)]
     #[reflect(hidden)]
     double_click_entries: FxHashMap<MouseButton, DoubleClickEntry>,
     pub double_click_time_slice: f32,
+}
+
+impl Visit for UserInterface {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+
+        self.inner.visit("RootCanvas", "Nodes", &mut region)?;
+        self.screen_size.visit("ScreenSize", &mut region)?;
+        self.visual_debug.visit("VisualDebug", &mut region)?;
+        self.picked_node.visit("PickedNode", &mut region)?;
+        self.prev_picked_node.visit("PrevPickedNode", &mut region)?;
+        self.captured_node.visit("CapturedNode", &mut region)?;
+        self.keyboard_focus_node
+            .visit("KeyboardFocusNode", &mut region)?;
+        self.cursor_position.visit("CursorPosition", &mut region)?;
+        self.picking_stack.visit("PickingStack", &mut region)?;
+        self.drag_context.visit("DragContext", &mut region)?;
+        self.mouse_state.visit("MouseState", &mut region)?;
+        self.keyboard_modifiers
+            .visit("KeyboardModifiers", &mut region)?;
+        self.cursor_icon.visit("CursorIcon", &mut region)?;
+        self.double_click_time_slice
+            .visit("DoubleClickTimeSlice", &mut region)?;
+
+        Ok(())
+    }
 }
 
 impl Clone for UserInterface {
@@ -688,6 +702,7 @@ impl Clone for UserInterface {
             clone.layout_events_sender = Some(layout_events_sender.clone());
             inner.spawn_at_handle(handle, UiNode(clone)).unwrap();
         }
+        inner.root = self.root();
 
         Self {
             screen_size: self.screen_size,
@@ -1409,52 +1424,28 @@ impl UserInterface {
 
     /// Searches a node down on tree starting from give root that matches a criteria
     /// defined by a given func.
-    pub fn find_by_criteria_down<Func>(
+    pub fn find_by_criteria_down(
         &self,
-        node_handle: Handle<UiNode>,
-        func: &Func,
-    ) -> Handle<UiNode>
-    where
-        Func: Fn(&UiNode) -> bool,
-    {
-        if let Some(node) = self.inner.try_borrow(node_handle) {
-            if func(node) {
-                return node_handle;
-            }
-
-            for child_handle in node.children() {
-                let result = self.find_by_criteria_down(*child_handle, func);
-
-                if result.is_some() {
-                    return result;
-                }
-            }
-        }
-
-        Handle::NONE
+        root: Handle<UiNode>,
+        cmp: impl FnMut(&UiNode) -> bool,
+    ) -> Handle<UiNode> {
+        self.inner
+            .find(root, cmp)
+            .map(|(h, _)| h)
+            .unwrap_or_default()
     }
 
     /// Searches a node up on tree starting from given root that matches a criteria
     /// defined by a given func.
-    pub fn find_by_criteria_up<Func>(
+    pub fn find_by_criteria_up(
         &self,
-        node_handle: Handle<UiNode>,
-        func: Func,
-    ) -> Handle<UiNode>
-    where
-        Func: Fn(&UiNode) -> bool,
-    {
-        if let Some(node) = self.inner.try_borrow(node_handle) {
-            if func(node) {
-                return node_handle;
-            }
-
-            if node.parent().is_some() {
-                return self.find_by_criteria_up(node.parent(), func);
-            }
-        }
-
-        Handle::NONE
+        root: Handle<UiNode>,
+        func: impl Fn(&UiNode) -> bool,
+    ) -> Handle<UiNode> {
+        self.inner
+            .find_up(root, func)
+            .map(|(h, _)| h)
+            .unwrap_or_default()
     }
 
     /// Checks if specified node is a child of some other node on `root_handle`. This method
@@ -1507,12 +1498,12 @@ impl UserInterface {
 
     /// Searches a node by name down on tree starting from given root node.
     pub fn find_by_name_down(&self, node_handle: Handle<UiNode>, name: &str) -> Handle<UiNode> {
-        self.find_by_criteria_down(node_handle, &|node| node.name() == name)
+        self.find_by_criteria_down(node_handle, |node| node.name() == name)
     }
 
     /// Searches a node by name down on tree starting from root canvas.
     pub fn find_by_name_down_from_root(&self, name: &str) -> Handle<UiNode> {
-        self.find_by_criteria_down(self.inner.root, &|node| node.name() == name)
+        self.find_by_criteria_down(self.inner.root, |node| node.name() == name)
     }
 
     /// Searches a node by name up on tree starting from given root node and tries to borrow it if exists.

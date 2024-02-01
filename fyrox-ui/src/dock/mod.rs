@@ -104,8 +104,8 @@ impl Control for DockingManager {
                     // Restore floating windows.
                     self.floating_windows.borrow_mut().clear();
                     for floating_window_desc in layout_descriptor.floating_windows.iter() {
-                        let floating_window = ui.find_by_criteria_down(ui.root(), &|n| {
-                            n.name == floating_window_desc.name
+                        let floating_window = ui.find_by_criteria_down(ui.root(), |n| {
+                            n.name() == floating_window_desc.name
                         });
                         if floating_window.is_some() {
                             self.floating_windows.borrow_mut().push(floating_window);
@@ -161,7 +161,7 @@ impl DockingManager {
                 .iter()
                 .filter_map(|h| {
                     ui.try_get_node(*h).map(|w| FloatingWindowDescriptor {
-                        name: w.name.clone(),
+                        name: w.name().to_string(),
                         position: w.actual_local_position(),
                         size: w.actual_local_size(),
                     })

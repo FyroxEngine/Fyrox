@@ -1149,7 +1149,7 @@ impl RagdollWizard {
             } else if message.destination() == self.autofill {
                 fn find_by_pattern(graph: &Graph, pattern: &str) -> Handle<Node> {
                     graph
-                        .find(graph.get_root(), &mut |n| n.name().contains(pattern))
+                        .find(graph.get_root(), |n| n.name().contains(pattern))
                         .map(|(h, _)| h)
                         .unwrap_or_default()
                 }

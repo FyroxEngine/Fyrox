@@ -43,7 +43,7 @@ impl TileContentDescriptor {
             TileContent::Empty => Self::Empty,
             TileContent::Window(window) => Self::Window(
                 ui.try_get_node(*window)
-                    .map(|w| w.name.clone())
+                    .map(|w| w.name().to_string())
                     .unwrap_or_default(),
             ),
             TileContent::VerticalTiles { splitter, tiles } => {
@@ -96,12 +96,12 @@ impl TileDescriptor {
                 TileContentDescriptor::Empty => TileContent::Empty,
                 TileContentDescriptor::Window(window_name) => {
                     let mut window_handle =
-                        ui.find_by_criteria_down(ui.root(), &|n| n.name() == window_name);
+                        ui.find_by_criteria_down(ui.root(), |n| n.name() == window_name);
 
                     if window_handle.is_none() {
                         for other_window_handle in windows.iter().cloned() {
                             if let Some(window_node) = ui.try_get_node(other_window_handle) {
-                                if &window_node.name == window_name {
+                                if &window_node.name() == window_name {
                                     window_handle = other_window_handle;
                                 }
                             }

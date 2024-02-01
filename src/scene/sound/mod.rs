@@ -384,7 +384,7 @@ impl NodeTrait for Sound {
     fn on_removed_from_graph(&mut self, graph: &mut GenericContext) {
         graph
             .sound_context
-            .remove_sound(self.native.get(), &self.name);
+            .remove_sound(self.native.get(), &self.base_node.name);
         self.native.set(Default::default());
     }
 

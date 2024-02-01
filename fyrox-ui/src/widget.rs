@@ -672,8 +672,6 @@ pub struct Widget {
     /// cases it will most likely be [`Handle::NONE`].
     #[reflect(read_only)]
     pub handle: Handle<UiNode>,
-    /// Name of the widget. Could be useful for debugging purposes.
-    pub name: String,
     /// Desired position relative to the parent node. It is just a recommendation for the layout system, actual position
     /// will be stored in the `actual_local_position` field and can be fetched using [`Widget::actual_local_position`]
     /// method.
@@ -832,13 +830,13 @@ impl Widget {
     /// Returns the name of the widget.
     #[inline]
     pub fn name(&self) -> &str {
-        self.name.as_str()
+        self.base_node.name.as_str()
     }
 
     /// Sets the new name of the widget.
     #[inline]
     pub fn set_name<P: AsRef<str>>(&mut self, name: P) -> &mut Self {
-        self.name = name.as_ref().to_owned();
+        self.base_node.name = name.as_ref().to_owned();
         self
     }
 
@@ -1234,7 +1232,7 @@ impl Widget {
                     &WidgetMessage::Opacity(opacity) => self.opacity = opacity,
                     WidgetMessage::Background(background) => self.background = background.clone(),
                     WidgetMessage::Foreground(foreground) => self.foreground = foreground.clone(),
-                    WidgetMessage::Name(name) => self.name = name.clone(),
+                    WidgetMessage::Name(name) => self.base_node.name = name.clone(),
                     &WidgetMessage::Width(width) => {
                         if self.width != width {
                             self.set_width_notify(width);
@@ -1951,7 +1949,6 @@ impl WidgetBuilder {
     pub fn build(self) -> Widget {
         Widget {
             handle: Default::default(),
-            name: self.name,
             desired_local_position: self.desired_position,
             width: self.width,
             height: self.height,
@@ -1975,6 +1972,7 @@ impl WidgetBuilder {
             base_node: BaseNode {
                 parent: Handle::NONE,
                 children: self.children,
+                name: self.name,
             },
             command_indices: Default::default(),
             is_mouse_directly_over: false,
