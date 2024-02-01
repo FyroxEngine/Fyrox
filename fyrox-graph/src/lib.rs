@@ -1,5 +1,5 @@
 use fyrox_core::{
-    pool::{Handle, MultiBorrowContext, PayloadContainer, Pool},
+    pool::{Handle, MultiBorrowContext, PayloadContainer, Pool, Ticket},
     reflect::prelude::*,
     visitor::prelude::*,
 };
@@ -120,6 +120,25 @@ where
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.pool
     }
+}
+
+/// Sub-graph is a piece of graph that was extracted from a graph. It has ownership
+/// over its nodes. It is used to temporarily take ownership of a sub-graph. This could
+/// be used if you making a scene editor with a command stack - once you reverted a command,
+/// that created a complex nodes hierarchy (for example you loaded a model) you must store
+/// all added nodes somewhere to be able put nodes back into graph when user decide to re-do
+/// command. Sub-graph allows you to do this without invalidating handles to nodes.
+#[derive(Debug)]
+pub struct SubGraph<N> {
+    /// A root node and its [ticket](/fyrox-core/model/struct.Ticket.html).
+    pub root: (Ticket<N>, N),
+
+    /// A set of descendant nodes with their tickets.
+    pub descendants: Vec<(Ticket<N>, N)>,
+
+    /// A handle to the parent node from which the sub-graph was extracted (it it parent node of
+    /// the root of this sub-graph).
+    pub parent: Handle<N>,
 }
 
 impl<N, P> Graph<N, P>
@@ -358,6 +377,81 @@ where
                 .children
                 .sort_by(|a, b| cmp(&mbc.get(*a), &mbc.get(*b)));
         };
+    }
+
+    /// Extracts node from graph and reserves its handle. It is used to temporarily take
+    /// ownership over node, and then put node back using given ticket. Extracted node is
+    /// detached from its parent!
+    #[inline]
+    pub fn take_reserve_node(&mut self, handle: Handle<N>) -> (Ticket<N>, N) {
+        self.unlink(handle);
+        self.pool.take_reserve(handle)
+    }
+
+    /// Puts node back by given ticket. Attaches back to root node of graph.
+    #[inline]
+    pub fn put_node_back(&mut self, ticket: Ticket<N>, node: N) -> Handle<N> {
+        let handle = self.pool.put_back(ticket, node);
+        self.link_nodes(handle, self.root, false);
+        handle
+    }
+
+    /// Makes node handle vacant again.
+    #[inline]
+    pub fn forget_node_ticket(&mut self, ticket: Ticket<N>, node: N) -> N {
+        self.pool.forget_ticket(ticket);
+        node
+    }
+
+    /// Extracts sub-graph starting from a given node. All handles to extracted nodes
+    /// becomes reserved and will be marked as "occupied", an attempt to borrow a node
+    /// at such handle will result in panic!. Please note that root node will be
+    /// detached from its parent!
+    #[inline]
+    pub fn take_reserve_sub_graph(&mut self, root: Handle<N>) -> SubGraph<N> {
+        // Take out descendants first.
+        let mut descendants = Vec::new();
+        let root_ref = self.pool[root].as_base_node();
+        let mut stack = root_ref.children().to_vec();
+        let parent = root_ref.parent();
+        while let Some(handle) = stack.pop() {
+            stack.extend_from_slice(self.pool[handle].as_base_node().children());
+            descendants.push(self.pool.take_reserve(handle));
+        }
+
+        SubGraph {
+            // Root must be extracted with detachment from its parent (if any).
+            root: self.take_reserve(root),
+            descendants,
+            parent,
+        }
+    }
+
+    /// Puts previously extracted sub-graph into graph. Handles to nodes will become valid
+    /// again. After that you probably want to re-link returned handle with its previous
+    /// parent.
+    #[inline]
+    pub fn put_sub_graph_back(&mut self, sub_graph: SubGraph<N>) -> Handle<N> {
+        for (ticket, node) in sub_graph.descendants {
+            self.pool.put_back(ticket, node);
+        }
+
+        let (ticket, node) = sub_graph.root;
+        let root_handle = self.pool.put_back(ticket, node);
+
+        self.link_nodes(root_handle, sub_graph.parent, false);
+
+        root_handle
+    }
+
+    /// Forgets the entire sub-graph making handles to nodes invalid.
+    #[inline]
+    pub fn forget_sub_graph(&mut self, sub_graph: SubGraph<N>) {
+        for (ticket, _) in sub_graph.descendants {
+            self.pool.forget_ticket(ticket);
+        }
+        let (ticket, _) = sub_graph.root;
+        self.pool.forget_ticket(ticket);
     }
 
     #[inline]

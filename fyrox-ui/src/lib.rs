@@ -826,14 +826,7 @@ fn is_node_enabled(nodes: &Pool<UiNode, WidgetContainer>, handle: Handle<UiNode>
     enabled
 }
 
-#[derive(Debug)]
-pub struct SubGraph {
-    pub root: (Ticket<UiNode>, UiNode),
-
-    pub descendants: Vec<(Ticket<UiNode>, UiNode)>,
-
-    pub parent: Handle<UiNode>,
-}
+pub type SubGraph = fyrox_graph::SubGraph<UiNode>;
 
 impl UserInterface {
     pub fn new(screen_size: Vector2<f32>) -> UserInterface {
@@ -2522,23 +2515,21 @@ impl UserInterface {
     /// widget is detached from its parent!
     #[inline]
     pub fn take_reserve(&mut self, handle: Handle<UiNode>) -> (Ticket<UiNode>, UiNode) {
-        self.unlink_node_internal(handle);
-        self.inner.take_reserve(handle)
+        self.inner.take_reserve_node(handle)
     }
 
     /// Puts the widget back by the given ticket. Attaches it back to the root canvas of the user interface.
     #[inline]
     pub fn put_back(&mut self, ticket: Ticket<UiNode>, node: UiNode) -> Handle<UiNode> {
-        let handle = self.inner.put_back(ticket, node);
-        self.link_nodes(handle, self.inner.root, false);
+        let handle = self.inner.put_node_back(ticket, node);
+        self.inner[handle].invalidate_layout();
         handle
     }
 
     /// Makes a widget handle vacant again.
     #[inline]
     pub fn forget_ticket(&mut self, ticket: Ticket<UiNode>, node: UiNode) -> UiNode {
-        self.inner.forget_ticket(ticket);
-        node
+        self.inner.forget_node_ticket(ticket, node)
     }
 
     /// Extracts sub-graph starting from the given widget. All handles to extracted widgets
@@ -2547,48 +2538,22 @@ impl UserInterface {
     /// detached from its parent!
     #[inline]
     pub fn take_reserve_sub_graph(&mut self, root: Handle<UiNode>) -> SubGraph {
-        // Take out descendants first.
-        let mut descendants = Vec::new();
-        let root_ref = &mut self.inner[root];
-        let mut stack = root_ref.children().to_vec();
-        let parent = root_ref.base_node.parent;
-        while let Some(handle) = stack.pop() {
-            stack.extend_from_slice(self.inner[handle].children());
-            descendants.push(self.inner.take_reserve(handle));
-        }
-
-        SubGraph {
-            // Root must be extracted with detachment from its parent (if any).
-            root: self.take_reserve(root),
-            descendants,
-            parent,
-        }
+        self.inner.take_reserve_sub_graph(root)
     }
 
     /// Puts previously extracted sub-graph into the user interface. Handles to widgets will become valid
     /// again. After that you probably want to re-link returned handle with its previous parent.
     #[inline]
     pub fn put_sub_graph_back(&mut self, sub_graph: SubGraph) -> Handle<UiNode> {
-        for (ticket, node) in sub_graph.descendants {
-            self.inner.put_back(ticket, node);
-        }
-
-        let (ticket, node) = sub_graph.root;
-        let root_handle = self.put_back(ticket, node);
-
-        self.link_nodes(root_handle, sub_graph.parent, false);
-
-        root_handle
+        let root = self.inner.put_sub_graph_back(sub_graph);
+        self.inner[root].invalidate_layout();
+        root
     }
 
     /// Forgets the entire sub-graph making handles to widgets invalid.
     #[inline]
     pub fn forget_sub_graph(&mut self, sub_graph: SubGraph) {
-        for (ticket, _) in sub_graph.descendants {
-            self.inner.forget_ticket(ticket);
-        }
-        let (ticket, _) = sub_graph.root;
-        self.inner.forget_ticket(ticket);
+        self.inner.forget_sub_graph(sub_graph)
     }
 
     pub fn push_picking_restriction(&mut self, restriction: RestrictionEntry) {

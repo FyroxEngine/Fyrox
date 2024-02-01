@@ -169,18 +169,7 @@ impl Default for Graph {
 /// that created a complex nodes hierarchy (for example you loaded a model) you must store
 /// all added nodes somewhere to be able put nodes back into graph when user decide to re-do
 /// command. Sub-graph allows you to do this without invalidating handles to nodes.
-#[derive(Debug)]
-pub struct SubGraph {
-    /// A root node and its [ticket](/fyrox-core/model/struct.Ticket.html).
-    pub root: (Ticket<Node>, Node),
-
-    /// A set of descendant nodes with their tickets.
-    pub descendants: Vec<(Ticket<Node>, Node)>,
-
-    /// A handle to the parent node from which the sub-graph was extracted (it it parent node of
-    /// the root of this sub-graph).
-    pub parent: Handle<Node>,
-}
+pub type SubGraph = fyrox_graph::SubGraph<Node>;
 
 fn remap_handles(old_new_mapping: &NodeHandleMap, dest_graph: &mut Graph) {
     // Iterate over instantiated nodes and remap handles.
@@ -473,6 +462,23 @@ impl Graph {
         self.inner.begin_multi_borrow()
     }
 
+    fn on_node_removed(
+        mbc: &MultiBorrowContext<Node, NodeContainer>,
+        node: &mut Node,
+        physics: &mut PhysicsWorld,
+        physics2d: &mut dim2::physics::PhysicsWorld,
+        sound_context: &mut SoundContext,
+        instance_id_map: &mut FxHashMap<SceneNodeId, Handle<Node>>,
+    ) {
+        instance_id_map.remove(&node.instance_id);
+        node.on_removed_from_graph(&mut GenericContext {
+            nodes: &mbc,
+            physics,
+            physics2d,
+            sound_context,
+        });
+    }
+
     /// Destroys the node and its children recursively. Scripts of the destroyed nodes will be removed in the next
     /// update tick.
     #[inline]
@@ -481,14 +487,14 @@ impl Graph {
 
         self.inner
             .remove_node(node_handle, |handle, mut node, mbc| {
-                self.instance_id_map.remove(&node.instance_id);
-
-                node.on_removed_from_graph(&mut GenericContext {
-                    nodes: mbc,
-                    physics: &mut self.physics,
-                    physics2d: &mut self.physics2d,
-                    sound_context: &mut self.sound_context,
-                });
+                Self::on_node_removed(
+                    mbc,
+                    &mut node,
+                    &mut self.physics,
+                    &mut self.physics2d,
+                    &mut self.sound_context,
+                    &mut self.instance_id_map,
+                );
 
                 self.event_broadcaster
                     .broadcast(GraphEvent::Removed(handle));
@@ -1629,33 +1635,22 @@ impl Graph {
     #[inline]
     pub fn take_reserve(&mut self, handle: Handle<Node>) -> (Ticket<Node>, Node) {
         self.unlink_internal(handle);
-        let (ticket, node) = self.take_reserve_internal(handle);
-        self.instance_id_map.remove(&node.instance_id);
-        (ticket, node)
-    }
-
-    pub(crate) fn take_reserve_internal(&mut self, handle: Handle<Node>) -> (Ticket<Node>, Node) {
         let (ticket, mut node) = self.inner.take_reserve(handle);
+        Self::on_node_removed(
+            &self.inner.begin_multi_borrow(),
+            &mut node,
+            &mut self.physics,
+            &mut self.physics2d,
+            &mut self.sound_context,
+            &mut self.instance_id_map,
+        );
         self.instance_id_map.remove(&node.instance_id);
-        let mbc = self.inner.begin_multi_borrow();
-        node.on_removed_from_graph(&mut GenericContext {
-            nodes: &mbc,
-            physics: &mut self.physics,
-            physics2d: &mut self.physics2d,
-            sound_context: &mut self.sound_context,
-        });
         (ticket, node)
     }
 
     /// Puts node back by given ticket. Attaches back to root node of graph.
     #[inline]
     pub fn put_back(&mut self, ticket: Ticket<Node>, node: Node) -> Handle<Node> {
-        let handle = self.put_back_internal(ticket, node);
-        self.link_nodes(handle, self.inner.root);
-        handle
-    }
-
-    pub(crate) fn put_back_internal(&mut self, ticket: Ticket<Node>, node: Node) -> Handle<Node> {
         let instance_id = node.instance_id;
         let handle = self.inner.put_back(ticket, node);
         self.instance_id_map.insert(instance_id, handle);
@@ -1665,8 +1660,7 @@ impl Graph {
     /// Makes node handle vacant again.
     #[inline]
     pub fn forget_ticket(&mut self, ticket: Ticket<Node>, node: Node) -> Node {
-        self.inner.forget_ticket(ticket);
-        node
+        self.inner.forget_node_ticket(ticket, node)
     }
 
     /// Extracts sub-graph starting from a given node. All handles to extracted nodes
@@ -1675,22 +1669,27 @@ impl Graph {
     /// detached from its parent!
     #[inline]
     pub fn take_reserve_sub_graph(&mut self, root: Handle<Node>) -> SubGraph {
-        // Take out descendants first.
-        let mut descendants = Vec::new();
-        let root_ref = &mut self[root];
-        let mut stack = root_ref.children().to_vec();
-        let parent = root_ref.parent();
-        while let Some(handle) = stack.pop() {
-            stack.extend_from_slice(self[handle].children());
-            descendants.push(self.take_reserve_internal(handle));
+        let mut subgraph = self.inner.take_reserve_sub_graph(root);
+
+        for (_, node) in subgraph.descendants.iter_mut().chain([&mut subgraph.root]) {
+            Self::on_node_removed(
+                &self.inner.begin_multi_borrow(),
+                node,
+                &mut self.physics,
+                &mut self.physics2d,
+                &mut self.sound_context,
+                &mut self.instance_id_map,
+            );
         }
 
-        SubGraph {
-            // Root must be extracted with detachment from its parent (if any).
-            root: self.take_reserve(root),
-            descendants,
-            parent,
-        }
+        subgraph.root.1.on_unlink(&mut GenericContext {
+            nodes: &self.inner.begin_multi_borrow(),
+            physics: &mut self.physics,
+            physics2d: &mut self.physics2d,
+            sound_context: &mut self.sound_context,
+        });
+
+        subgraph
     }
 
     /// Puts previously extracted sub-graph into graph. Handles to nodes will become valid
@@ -1698,26 +1697,13 @@ impl Graph {
     /// parent.
     #[inline]
     pub fn put_sub_graph_back(&mut self, sub_graph: SubGraph) -> Handle<Node> {
-        for (ticket, node) in sub_graph.descendants {
-            self.inner.put_back(ticket, node);
-        }
-
-        let (ticket, node) = sub_graph.root;
-        let root_handle = self.put_back(ticket, node);
-
-        self.link_nodes(root_handle, sub_graph.parent);
-
-        root_handle
+        self.inner.put_sub_graph_back(sub_graph)
     }
 
     /// Forgets the entire sub-graph making handles to nodes invalid.
     #[inline]
     pub fn forget_sub_graph(&mut self, sub_graph: SubGraph) {
-        for (ticket, _) in sub_graph.descendants {
-            self.inner.forget_ticket(ticket);
-        }
-        let (ticket, _) = sub_graph.root;
-        self.inner.forget_ticket(ticket);
+        self.inner.forget_sub_graph(sub_graph)
     }
 
     /// Returns the number of nodes in the graph.
