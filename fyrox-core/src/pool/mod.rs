@@ -261,6 +261,16 @@ pub struct Ticket<T> {
     marker: PhantomData<T>,
 }
 
+impl<T> Drop for Ticket<T> {
+    fn drop(&mut self) {
+        panic!(
+            "An object at index {} must be returned to a pool it was taken from! \
+            Call Pool::forget_ticket if you don't need the object anymore.",
+            self.index
+        )
+    }
+}
+
 impl<T: Clone> Clone for PoolRecord<T> {
     #[inline]
     fn clone(&self) -> Self {
@@ -928,7 +938,9 @@ where
             .expect("Ticket index was invalid");
         let old = record.payload.replace(value);
         assert!(old.is_none());
-        Handle::new(ticket.index, record.generation)
+        let handle = Handle::new(ticket.index, record.generation);
+        std::mem::forget(ticket);
+        handle
     }
 
     /// Forgets that value at ticket was reserved and makes it usable again.
@@ -937,6 +949,7 @@ where
     #[inline]
     pub fn forget_ticket(&mut self, ticket: Ticket<T>) {
         self.free_stack.push(ticket.index);
+        std::mem::forget(ticket);
     }
 
     /// Returns total capacity of pool. Capacity has nothing about real amount of objects in pool!
