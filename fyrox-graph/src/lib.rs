@@ -1,3 +1,4 @@
+use fxhash::FxHashMap;
 use fyrox_core::{
     pool::{Handle, MultiBorrowContext, PayloadContainer, Pool, Ticket},
     reflect::prelude::*,
@@ -140,6 +141,7 @@ where
     pub root: Handle<N>,
     pub pool: Pool<N, P>,
     pub stack: Vec<Handle<N>>,
+    pub instance_id_map: FxHashMap<NodeId, Handle<N>>,
 }
 
 impl<N, P> Deref for Graph<N, P>
@@ -194,6 +196,7 @@ where
             root: Default::default(),
             pool: Pool::new(),
             stack: Default::default(),
+            instance_id_map: Default::default(),
         }
     }
 
@@ -201,7 +204,11 @@ where
     pub fn add_node(&mut self, mut node: N) -> Handle<N> {
         let children = std::mem::take(&mut node.as_base_node_mut().children);
 
+        let instance_id = node.as_base_node().instance_id;
+
         let handle = self.pool.spawn(node);
+
+        self.instance_id_map.insert(instance_id, handle);
 
         if self.root.is_none() {
             self.root = handle;
@@ -228,7 +235,9 @@ where
         self.stack.push(node_handle);
         while let Some(handle) = self.stack.pop() {
             if let Ok(node) = mbc.free(handle) {
-                self.stack.extend_from_slice(node.as_base_node().children());
+                let base = node.as_base_node();
+                self.instance_id_map.remove(&base.instance_id);
+                self.stack.extend_from_slice(base.children());
                 on_removed(handle, node, &mbc);
             }
         }
@@ -427,13 +436,18 @@ where
     #[inline]
     pub fn take_reserve_node(&mut self, handle: Handle<N>) -> (Ticket<N>, N) {
         self.unlink(handle);
-        self.pool.take_reserve(handle)
+        let (ticket, node) = self.pool.take_reserve(handle);
+        self.instance_id_map
+            .remove(&node.as_base_node().instance_id);
+        (ticket, node)
     }
 
     /// Puts node back by given ticket. Attaches back to root node of graph.
     #[inline]
     pub fn put_node_back(&mut self, ticket: Ticket<N>, node: N) -> Handle<N> {
+        let instance_id = node.as_base_node().instance_id;
         let handle = self.pool.put_back(ticket, node);
+        self.instance_id_map.insert(instance_id, handle);
         self.link_nodes(handle, self.root, false);
         handle
     }
@@ -494,6 +508,25 @@ where
         }
         let (ticket, _) = sub_graph.root;
         self.pool.forget_ticket(ticket);
+    }
+
+    /// Returns a handle of the node that has the given id.
+    pub fn id_to_node_handle(&self, id: NodeId) -> Option<&Handle<N>> {
+        self.instance_id_map.get(&id)
+    }
+
+    /// Tries to borrow a node by its id.
+    pub fn node_by_id(&self, id: NodeId) -> Option<(Handle<N>, &N)> {
+        self.instance_id_map
+            .get(&id)
+            .and_then(|h| self.pool.try_borrow(*h).map(|n| (*h, n)))
+    }
+
+    /// Tries to borrow a node by its id.
+    pub fn node_by_id_mut(&mut self, id: NodeId) -> Option<(Handle<N>, &mut N)> {
+        self.instance_id_map
+            .get(&id)
+            .and_then(|h| self.pool.try_borrow_mut(*h).map(|n| (*h, n)))
     }
 
     #[inline]

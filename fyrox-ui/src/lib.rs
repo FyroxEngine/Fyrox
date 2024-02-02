@@ -285,6 +285,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
+use fyrox_graph::NodeId;
 use fyrox_resource::io::FsResourceIo;
 pub use node::*;
 pub use thickness::*;
@@ -2835,6 +2836,21 @@ impl UserInterface {
             widget.invalidate_layout();
         }
         Ok(ui)
+    }
+
+    /// Returns a handle of the node that has the given id.
+    pub fn id_to_node_handle(&self, id: NodeId) -> Option<&Handle<UiNode>> {
+        self.inner.id_to_node_handle(id)
+    }
+
+    /// Tries to borrow a node by its id.
+    pub fn node_by_id(&self, id: NodeId) -> Option<(Handle<UiNode>, &UiNode)> {
+        self.inner.node_by_id(id)
+    }
+
+    /// Tries to borrow a node by its id.
+    pub fn node_by_id_mut(&mut self, id: NodeId) -> Option<(Handle<UiNode>, &mut UiNode)> {
+        self.inner.node_by_id_mut(id)
     }
 }
 

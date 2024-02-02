@@ -19,9 +19,10 @@ use crate::{
     script::{Script, ScriptTrait},
 };
 use fyrox_core::uuid_provider;
-use fyrox_graph::NodeId;
 use std::{any::Any, cell::Cell, sync::mpsc::Sender};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
+
+pub use fyrox_graph::NodeId;
 
 /// Level of detail is a collection of objects for given normalized distance range.
 /// Objects will be rendered **only** if they're in specified range.

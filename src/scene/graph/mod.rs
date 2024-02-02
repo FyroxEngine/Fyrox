@@ -22,7 +22,6 @@
 //! just by linking nodes to each other. Good example of this is skeleton which
 //! is used in skinning (animating 3d model by set of bones).
 
-use crate::scene::node::GenericContext;
 use crate::{
     asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
@@ -53,7 +52,9 @@ use crate::{
         },
         mesh::Mesh,
         navmesh,
-        node::{container::NodeContainer, Node, NodeTrait, SyncContext, UpdateContext},
+        node::{
+            container::NodeContainer, GenericContext, Node, NodeTrait, SyncContext, UpdateContext,
+        },
         pivot::Pivot,
         sound::context::SoundContext,
         transform::TransformBuilder,
@@ -141,8 +142,6 @@ pub struct Graph {
     pub(crate) script_message_sender: Sender<NodeScriptMessage>,
     #[reflect(hidden)]
     pub(crate) script_message_receiver: Receiver<NodeScriptMessage>,
-
-    instance_id_map: FxHashMap<NodeId, Handle<Node>>,
 }
 
 impl Default for Graph {
@@ -159,7 +158,6 @@ impl Default for Graph {
             script_message_receiver: rx,
             script_message_sender: tx,
             lightmap: None,
-            instance_id_map: Default::default(),
         }
     }
 }
@@ -247,7 +245,6 @@ impl Graph {
 
         // Create root node.
         let mut root_node = Pivot::default();
-        let instance_id = root_node.base_node.instance_id;
         root_node.script_message_sender = Some(tx.clone());
         root_node.set_name("__ROOT__");
 
@@ -255,8 +252,6 @@ impl Graph {
         let mut inner = LowLevelGraph::new();
         let root = inner.add_node(Node::new(root_node));
         inner[root].self_handle = root;
-
-        let instance_id_map = FxHashMap::from_iter([(instance_id, root)]);
 
         Self {
             physics: Default::default(),
@@ -268,7 +263,6 @@ impl Graph {
             script_message_receiver: rx,
             script_message_sender: tx,
             lightmap: None,
-            instance_id_map,
         }
     }
 
@@ -331,9 +325,6 @@ impl Graph {
         let node = &mut self.inner[handle];
         node.self_handle = handle;
         node.script_message_sender = Some(self.script_message_sender.clone());
-
-        self.instance_id_map
-            .insert(node.base_node.instance_id, handle);
 
         handle
     }
@@ -470,9 +461,7 @@ impl Graph {
         physics: &mut PhysicsWorld,
         physics2d: &mut dim2::physics::PhysicsWorld,
         sound_context: &mut SoundContext,
-        instance_id_map: &mut FxHashMap<NodeId, Handle<Node>>,
     ) {
-        instance_id_map.remove(&node.base_node.instance_id);
         node.on_removed_from_graph(&mut GenericContext {
             nodes: &mbc,
             physics,
@@ -495,7 +484,6 @@ impl Graph {
                     &mut self.physics,
                     &mut self.physics2d,
                     &mut self.sound_context,
-                    &mut self.instance_id_map,
                 );
 
                 self.event_broadcaster
@@ -1637,26 +1625,21 @@ impl Graph {
     #[inline]
     pub fn take_reserve(&mut self, handle: Handle<Node>) -> (Ticket<Node>, Node) {
         self.unlink_internal(handle);
-        let (ticket, mut node) = self.inner.take_reserve(handle);
+        let (ticket, mut node) = self.inner.take_reserve_node(handle);
         Self::on_node_removed(
             &self.inner.begin_multi_borrow(),
             &mut node,
             &mut self.physics,
             &mut self.physics2d,
             &mut self.sound_context,
-            &mut self.instance_id_map,
         );
-        self.instance_id_map.remove(&node.base_node.instance_id);
         (ticket, node)
     }
 
     /// Puts node back by given ticket. Attaches back to root node of graph.
     #[inline]
     pub fn put_back(&mut self, ticket: Ticket<Node>, node: Node) -> Handle<Node> {
-        let instance_id = node.base_node.instance_id;
-        let handle = self.inner.put_back(ticket, node);
-        self.instance_id_map.insert(instance_id, handle);
-        handle
+        self.inner.put_node_back(ticket, node)
     }
 
     /// Makes node handle vacant again.
@@ -1680,7 +1663,6 @@ impl Graph {
                 &mut self.physics,
                 &mut self.physics2d,
                 &mut self.sound_context,
-                &mut self.instance_id_map,
             );
         }
 
@@ -1930,21 +1912,17 @@ impl Graph {
 
     /// Returns a handle of the node that has the given id.
     pub fn id_to_node_handle(&self, id: NodeId) -> Option<&Handle<Node>> {
-        self.instance_id_map.get(&id)
+        self.inner.id_to_node_handle(id)
     }
 
     /// Tries to borrow a node by its id.
     pub fn node_by_id(&self, id: NodeId) -> Option<(Handle<Node>, &Node)> {
-        self.instance_id_map
-            .get(&id)
-            .and_then(|h| self.inner.try_borrow(*h).map(|n| (*h, n)))
+        self.inner.node_by_id(id)
     }
 
     /// Tries to borrow a node by its id.
     pub fn node_by_id_mut(&mut self, id: NodeId) -> Option<(Handle<Node>, &mut Node)> {
-        self.instance_id_map
-            .get(&id)
-            .and_then(|h| self.inner.try_borrow_mut(*h).map(|n| (*h, n)))
+        self.inner.node_by_id_mut(id)
     }
 }
 
