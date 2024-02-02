@@ -19,6 +19,7 @@ use crate::{
     UserInterface, VerticalAlignment, BRUSH_FOREGROUND, BRUSH_PRIMARY,
 };
 use fyrox_core::parking_lot::Mutex;
+use fyrox_resource::Resource;
 use std::sync::Arc;
 use std::{
     any::Any,
@@ -784,6 +785,16 @@ pub struct Widget {
     pub layout_events_sender: Option<Sender<LayoutEvent>>,
     /// Unique identifier of the widget.
     pub id: Uuid,
+    /// A resource from which this widget was instantiated from, can work in pair with `original`
+    /// handle to get a corresponding widget from resource.
+    #[reflect(read_only)]
+    #[visit(optional)]
+    pub resource: Option<Resource<UserInterface>>,
+    /// Handle to a widget in a user interface resource from which this node was instantiated from.
+    #[reflect(read_only)]
+    #[reflect(hidden)]
+    #[visit(optional)]
+    pub original_handle_in_resource: Handle<UiNode>,
     //
     // Layout. Interior mutability is a must here because layout performed in a series of recursive calls.
     //
@@ -2050,6 +2061,8 @@ impl WidgetBuilder {
             visual_transform: Matrix3::identity(),
             clip_to_bounds: self.clip_to_bounds,
             id: self.id,
+            resource: None,
+            original_handle_in_resource: Default::default(),
         }
     }
 }
