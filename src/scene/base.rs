@@ -19,7 +19,7 @@ use crate::{
     script::{Script, ScriptTrait},
 };
 use fyrox_core::uuid_provider;
-use serde::{Deserialize, Serialize};
+use fyrox_graph::NodeId;
 use std::{any::Any, cell::Cell, sync::mpsc::Sender};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
@@ -265,32 +265,7 @@ pub enum NodeScriptMessage {
     },
 }
 
-/// Unique id of a node, that could be used as a reliable "index" of the node. This id is mostly
-/// useful for network games.
-#[derive(
-    Clone,
-    Copy,
-    Eq,
-    Hash,
-    Ord,
-    PartialEq,
-    PartialOrd,
-    Default,
-    Debug,
-    Reflect,
-    Serialize,
-    Deserialize,
-)]
-#[repr(transparent)]
-#[reflect(hide_all)]
-pub struct SceneNodeId(pub Uuid);
-
-impl Visit for SceneNodeId {
-    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
-        self.0.visit(name, visitor)
-    }
-}
-
+/// Generic node data.
 pub type BaseNode = fyrox_graph::BaseNode<Node>;
 
 /// Base scene graph node is a simplest possible node, it is used to build more complex ones using composition.
@@ -387,10 +362,6 @@ pub struct Base {
     #[reflect(read_only)]
     #[reflect(hidden)]
     pub(crate) original_handle_in_resource: Handle<Node>,
-
-    #[reflect(read_only)]
-    #[reflect(hidden)]
-    pub(crate) instance_id: SceneNodeId,
 
     // Current script of the scene node.
     //
@@ -715,8 +686,8 @@ impl Base {
     }
 
     /// Returns current instance id.
-    pub fn instance_id(&self) -> SceneNodeId {
-        self.instance_id
+    pub fn instance_id(&self) -> NodeId {
+        self.base_node.instance_id
     }
 
     fn remove_script(&mut self) {
@@ -945,7 +916,6 @@ impl Visit for Base {
         let _ = self.properties.visit("Properties", &mut region);
         let _ = self.frustum_culling.visit("FrustumCulling", &mut region);
         let _ = self.cast_shadows.visit("CastShadows", &mut region);
-        let _ = self.instance_id.visit("InstanceId", &mut region);
         let _ = self.enabled.visit("Enabled", &mut region);
 
         // Script visiting may fail for various reasons:
@@ -983,7 +953,7 @@ pub struct BaseBuilder {
     frustum_culling: bool,
     cast_shadows: bool,
     script: Option<Script>,
-    instance_id: SceneNodeId,
+    instance_id: NodeId,
     enabled: bool,
 }
 
@@ -1011,7 +981,7 @@ impl BaseBuilder {
             frustum_culling: true,
             cast_shadows: true,
             script: None,
-            instance_id: SceneNodeId(Uuid::new_v4()),
+            instance_id: NodeId(Uuid::new_v4()),
             enabled: true,
         }
     }
@@ -1121,8 +1091,8 @@ impl BaseBuilder {
     }
 
     /// Sets new instance id.
-    pub fn with_instance_id(mut self, id: SceneNodeId) -> Self {
-        self.instance_id = id;
+    pub fn with_instance_id(mut self, id: Uuid) -> Self {
+        self.instance_id = NodeId(id);
         self
     }
 
@@ -1136,6 +1106,7 @@ impl BaseBuilder {
                 parent: Handle::NONE,
                 children: self.children,
                 name: self.name,
+                instance_id: self.instance_id,
             },
             local_transform: self.local_transform,
             lifetime: self.lifetime.into(),
@@ -1155,7 +1126,6 @@ impl BaseBuilder {
             frustum_culling: self.frustum_culling.into(),
             cast_shadows: self.cast_shadows.into(),
             script: self.script,
-            instance_id: SceneNodeId(Uuid::new_v4()),
             enabled: self.enabled.into(),
             global_enabled: Cell::new(true),
         }

@@ -2688,7 +2688,7 @@ impl UserInterface {
     ) -> Handle<UiNode> {
         let node = self.inner.borrow(node_handle);
         let mut cloned = UiNode(node.clone_boxed());
-        cloned.id = Uuid::new_v4();
+        cloned.base_node.instance_id = Default::default();
 
         let mut cloned_children = Vec::new();
         for child in node.children().to_vec() {
@@ -2729,7 +2729,7 @@ impl UserInterface {
         let mut cloned = UiNode(node.clone_boxed());
         cloned.base_node.children.clear();
         cloned.base_node.parent = Handle::NONE;
-        cloned.id = Uuid::new_v4();
+        cloned.base_node.instance_id = Default::default();
         let cloned_node_handle = dest.add_node(cloned);
 
         for child in children {
@@ -2774,7 +2774,7 @@ impl UserInterface {
 
         let node = self.inner.borrow(node_handle);
         let mut cloned = UiNode(node.clone_boxed());
-        cloned.id = Uuid::new_v4();
+        cloned.base_node.instance_id = Default::default();
 
         let mut cloned_children = Vec::new();
         for child in node.children().to_vec() {

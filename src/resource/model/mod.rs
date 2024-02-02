@@ -37,7 +37,6 @@ use crate::{
     resource::fbx::{self, error::FbxError},
     scene::{
         animation::{Animation, AnimationPlayer},
-        base::SceneNodeId,
         graph::{map::NodeHandleMap, Graph},
         node::Node,
         transform::Transform,
@@ -45,6 +44,7 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
+use fyrox_graph::NodeId;
 use serde::{Deserialize, Serialize};
 use std::{
     any::Any,
@@ -84,7 +84,7 @@ pub struct InstantiationContext<'a, 'b, 'c> {
     model: &'a ModelResource,
     dest_scene: &'b mut Scene,
     local_transform: Option<Transform>,
-    ids: Option<&'c FxHashMap<Handle<Node>, SceneNodeId>>,
+    ids: Option<&'c FxHashMap<Handle<Node>, NodeId>>,
 }
 
 impl<'a, 'b, 'c> InstantiationContext<'a, 'b, 'c> {
@@ -126,7 +126,7 @@ impl<'a, 'b, 'c> InstantiationContext<'a, 'b, 'c> {
     /// This method should be used only if you need to instantiate an object on multiple clients in
     /// a multiplayer game with client-server model. This method ensures that the instances will
     /// have the same ids across all clients.
-    pub fn with_ids(mut self, ids: &'c FxHashMap<Handle<Node>, SceneNodeId>) -> Self {
+    pub fn with_ids(mut self, ids: &'c FxHashMap<Handle<Node>, NodeId>) -> Self {
         self.ids = Some(ids);
         self
     }
@@ -151,7 +151,7 @@ impl<'a, 'b, 'c> InstantiationContext<'a, 'b, 'c> {
 
                 if let Some(ids) = self.ids.as_ref() {
                     if let Some(id) = ids.get(&original_handle) {
-                        node.instance_id = *id;
+                        node.base_node.instance_id = *id;
                     } else {
                         Log::warn(format!(
                             "No id specified for node {}! Random id will be used.",
@@ -251,7 +251,7 @@ pub trait ModelResourceExtension: Sized {
 
     /// Generates a set of unique IDs for every node in the model. Use this method in pair with
     /// [`ModelResource::begin_instantiation`].
-    fn generate_ids(&self) -> FxHashMap<Handle<Node>, SceneNodeId>;
+    fn generate_ids(&self) -> FxHashMap<Handle<Node>, NodeId>;
 }
 
 impl ModelResourceExtension for ModelResource {
@@ -385,12 +385,12 @@ impl ModelResourceExtension for ModelResource {
         }
     }
 
-    fn generate_ids(&self) -> FxHashMap<Handle<Node>, SceneNodeId> {
+    fn generate_ids(&self) -> FxHashMap<Handle<Node>, NodeId> {
         let data = self.data_ref();
         data.scene
             .graph
             .pair_iter()
-            .map(|(h, _)| (h, SceneNodeId(Uuid::new_v4())))
+            .map(|(h, _)| (h, NodeId(Uuid::new_v4())))
             .collect()
     }
 }

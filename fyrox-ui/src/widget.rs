@@ -19,6 +19,7 @@ use crate::{
     UserInterface, VerticalAlignment, BRUSH_FOREGROUND, BRUSH_PRIMARY,
 };
 use fyrox_core::parking_lot::Mutex;
+use fyrox_graph::NodeId;
 use std::sync::Arc;
 use std::{
     any::Any,
@@ -660,6 +661,7 @@ impl WidgetMessage {
     );
 }
 
+/// Generic node data.
 pub type BaseNode = fyrox_graph::BaseNode<UiNode>;
 
 /// Widget is a base UI element, that is always used to build derived, more complex, widgets. In general, it is a container
@@ -778,8 +780,6 @@ pub struct Widget {
     #[reflect(hidden)]
     #[visit(skip)]
     pub layout_events_sender: Option<Sender<LayoutEvent>>,
-    /// Unique identifier of the widget.
-    pub id: Uuid,
     //
     // Layout. Interior mutability is a must here because layout performed in a series of recursive calls.
     //
@@ -1669,7 +1669,7 @@ pub struct WidgetBuilder {
     /// Whether the widget bounds should be clipped by its parent or not.
     pub clip_to_bounds: bool,
     /// Unique id of the widget.
-    pub id: Uuid,
+    pub instance_id: NodeId,
 }
 
 impl Default for WidgetBuilder {
@@ -1714,7 +1714,7 @@ impl WidgetBuilder {
             layout_transform: Matrix3::identity(),
             render_transform: Matrix3::identity(),
             clip_to_bounds: true,
-            id: Uuid::new_v4(),
+            instance_id: Default::default(),
         }
     }
 
@@ -1908,7 +1908,7 @@ impl WidgetBuilder {
 
     /// Sets the desired widget id.
     pub fn with_id(mut self, id: Uuid) -> Self {
-        self.id = id;
+        self.instance_id = NodeId(id);
         self
     }
 
@@ -1974,6 +1974,7 @@ impl WidgetBuilder {
                 parent: Handle::NONE,
                 children: self.children,
                 name: self.name,
+                instance_id: self.instance_id,
             },
             command_indices: Default::default(),
             is_mouse_directly_over: false,
@@ -2001,7 +2002,6 @@ impl WidgetBuilder {
             render_transform: self.render_transform,
             visual_transform: Matrix3::identity(),
             clip_to_bounds: self.clip_to_bounds,
-            id: self.id,
         }
     }
 }

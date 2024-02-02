@@ -39,7 +39,7 @@ use crate::{
     material::{shader::SamplerFallback, MaterialResource, PropertyValue},
     resource::model::{ModelResource, ModelResourceExtension, NodeMapping},
     scene::{
-        base::{NodeScriptMessage, SceneNodeId},
+        base::NodeScriptMessage,
         camera::Camera,
         dim2::{self},
         graph::{
@@ -62,6 +62,7 @@ use crate::{
     utils::lightmap::Lightmap,
 };
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_graph::NodeId;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -141,7 +142,7 @@ pub struct Graph {
     #[reflect(hidden)]
     pub(crate) script_message_receiver: Receiver<NodeScriptMessage>,
 
-    instance_id_map: FxHashMap<SceneNodeId, Handle<Node>>,
+    instance_id_map: FxHashMap<NodeId, Handle<Node>>,
 }
 
 impl Default for Graph {
@@ -246,7 +247,7 @@ impl Graph {
 
         // Create root node.
         let mut root_node = Pivot::default();
-        let instance_id = root_node.instance_id;
+        let instance_id = root_node.base_node.instance_id;
         root_node.script_message_sender = Some(tx.clone());
         root_node.set_name("__ROOT__");
 
@@ -331,7 +332,8 @@ impl Graph {
         node.self_handle = handle;
         node.script_message_sender = Some(self.script_message_sender.clone());
 
-        self.instance_id_map.insert(node.instance_id, handle);
+        self.instance_id_map
+            .insert(node.base_node.instance_id, handle);
 
         handle
     }
@@ -468,9 +470,9 @@ impl Graph {
         physics: &mut PhysicsWorld,
         physics2d: &mut dim2::physics::PhysicsWorld,
         sound_context: &mut SoundContext,
-        instance_id_map: &mut FxHashMap<SceneNodeId, Handle<Node>>,
+        instance_id_map: &mut FxHashMap<NodeId, Handle<Node>>,
     ) {
-        instance_id_map.remove(&node.instance_id);
+        instance_id_map.remove(&node.base_node.instance_id);
         node.on_removed_from_graph(&mut GenericContext {
             nodes: &mbc,
             physics,
@@ -1644,14 +1646,14 @@ impl Graph {
             &mut self.sound_context,
             &mut self.instance_id_map,
         );
-        self.instance_id_map.remove(&node.instance_id);
+        self.instance_id_map.remove(&node.base_node.instance_id);
         (ticket, node)
     }
 
     /// Puts node back by given ticket. Attaches back to root node of graph.
     #[inline]
     pub fn put_back(&mut self, ticket: Ticket<Node>, node: Node) -> Handle<Node> {
-        let instance_id = node.instance_id;
+        let instance_id = node.base_node.instance_id;
         let handle = self.inner.put_back(ticket, node);
         self.instance_id_map.insert(instance_id, handle);
         handle
@@ -1927,19 +1929,19 @@ impl Graph {
     }
 
     /// Returns a handle of the node that has the given id.
-    pub fn id_to_node_handle(&self, id: SceneNodeId) -> Option<&Handle<Node>> {
+    pub fn id_to_node_handle(&self, id: NodeId) -> Option<&Handle<Node>> {
         self.instance_id_map.get(&id)
     }
 
     /// Tries to borrow a node by its id.
-    pub fn node_by_id(&self, id: SceneNodeId) -> Option<(Handle<Node>, &Node)> {
+    pub fn node_by_id(&self, id: NodeId) -> Option<(Handle<Node>, &Node)> {
         self.instance_id_map
             .get(&id)
             .and_then(|h| self.inner.try_borrow(*h).map(|n| (*h, n)))
     }
 
     /// Tries to borrow a node by its id.
-    pub fn node_by_id_mut(&mut self, id: SceneNodeId) -> Option<(Handle<Node>, &mut Node)> {
+    pub fn node_by_id_mut(&mut self, id: NodeId) -> Option<(Handle<Node>, &mut Node)> {
         self.instance_id_map
             .get(&id)
             .and_then(|h| self.inner.try_borrow_mut(*h).map(|n| (*h, n)))

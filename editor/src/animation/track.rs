@@ -940,7 +940,7 @@ impl TrackList {
                             let selected_widget = ui.node(*s);
                             if let Some(track_data) = selected_widget.query_component::<TrackView>()
                             {
-                                Some(SelectedEntity::Track(track_data.id))
+                                Some(SelectedEntity::Track(track_data.base_node.instance_id.0))
                             } else if let Some(curve_data) =
                                 selected_widget.user_data_cloned::<CurveViewData>()
                             {
@@ -1076,12 +1076,12 @@ impl TrackList {
                                 if animation
                                     .tracks()
                                     .iter()
-                                    .any(|t| t.id() == track_view_ref.id)
+                                    .any(|t| track_view_ref.base_node.instance_id == t.id())
                                 {
                                     sender.do_scene_command(SetTrackEnabledCommand {
                                         animation_player_handle: selection.animation_player,
                                         animation_handle: selection.animation,
-                                        track: track_view_ref.id,
+                                        track: track_view_ref.base_node.instance_id.0,
                                         enabled: *enabled,
                                     })
                                 }
@@ -1271,7 +1271,7 @@ impl TrackList {
                     if animation
                         .tracks()
                         .iter()
-                        .all(|t| t.id() != track_view_data.id)
+                        .all(|t| t.id() != track_view_data.base_node.instance_id.0)
                     {
                         for curve_item in track_view_ref
                             .query_component::<Tree>()
@@ -1296,7 +1296,10 @@ impl TrackList {
                             ),
                         );
 
-                        assert!(self.track_views.remove(&track_view_data.id).is_some());
+                        assert!(self
+                            .track_views
+                            .remove(&track_view_data.base_node.instance_id.0)
+                            .is_some());
 
                         // Remove group if it is empty.
                         if let Some(group) = self.group_views.get(&track_view_data.target) {
@@ -1328,12 +1331,14 @@ impl TrackList {
             }
             Ordering::Greater => {
                 for model_track in animation.tracks().iter() {
-                    if self
-                        .track_views
-                        .values()
-                        .map(|v| ui.node(*v))
-                        .all(|v| v.query_component::<TrackView>().unwrap().id != model_track.id())
-                    {
+                    if self.track_views.values().map(|v| ui.node(*v)).all(|v| {
+                        v.query_component::<TrackView>()
+                            .unwrap()
+                            .base_node
+                            .instance_id
+                            .0
+                            != model_track.id()
+                    }) {
                         let parent_group = match self.group_views.entry(model_track.target()) {
                             Entry::Occupied(entry) => *entry.get(),
                             Entry::Vacant(entry) => {

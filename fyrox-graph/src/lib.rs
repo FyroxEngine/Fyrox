@@ -2,12 +2,48 @@ use fyrox_core::{
     pool::{Handle, MultiBorrowContext, PayloadContainer, Pool, Ticket},
     reflect::prelude::*,
     visitor::prelude::*,
+    Uuid,
 };
+use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
     fmt::Debug,
     ops::{Deref, DerefMut},
 };
+
+/// Unique id of a node, that could be used as a reliable "index" of the node. This id is mostly
+/// useful for network games.
+#[derive(
+    Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd, Debug, Reflect, Serialize, Deserialize,
+)]
+#[repr(transparent)]
+#[reflect(hide_all)]
+pub struct NodeId(pub Uuid);
+
+impl Default for NodeId {
+    fn default() -> Self {
+        // Generate new UUID everytime, instead of zero UUID.
+        Self(Uuid::new_v4())
+    }
+}
+
+impl PartialEq<Uuid> for NodeId {
+    fn eq(&self, other: &Uuid) -> bool {
+        &self.0 == other
+    }
+}
+
+impl From<Uuid> for NodeId {
+    fn from(value: Uuid) -> Self {
+        Self(value)
+    }
+}
+
+impl Visit for NodeId {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        self.0.visit(name, visitor)
+    }
+}
 
 #[derive(Reflect, Debug)]
 pub struct BaseNode<N>
@@ -15,6 +51,8 @@ where
     N: Debug,
 {
     pub name: String,
+
+    pub instance_id: NodeId,
 
     #[reflect(hidden)]
     pub parent: Handle<N>,
@@ -45,6 +83,7 @@ impl<N: Debug> Default for BaseNode<N> {
             name: Default::default(),
             parent: Default::default(),
             children: Default::default(),
+            instance_id: Default::default(),
         }
     }
 }
@@ -55,6 +94,8 @@ impl<N: Debug> Clone for BaseNode<N> {
             name: self.name.clone(),
             parent: self.parent,
             children: self.children.clone(),
+            // Copying **unique** id makes no sense, so generate new one.
+            instance_id: Default::default(),
         }
     }
 }
@@ -66,6 +107,7 @@ where
     fn visit(&mut self, _name: &str, visitor: &mut Visitor) -> VisitResult {
         self.parent.visit("Parent", visitor)?;
         self.children.visit("Children", visitor)?;
+        let _ = self.instance_id.visit("InstanceId", visitor);
 
         if self.name.visit("Name", visitor).is_err() {
             // Name was wrapped into `InheritableVariable` previously, so we must maintain
@@ -130,7 +172,7 @@ where
 /// command. Sub-graph allows you to do this without invalidating handles to nodes.
 #[derive(Debug)]
 pub struct SubGraph<N> {
-    /// A root node and its [ticket](/fyrox-core/model/struct.Ticket.html).
+    /// A root node and its [ticket](Ticket)
     pub root: (Ticket<N>, N),
 
     /// A set of descendant nodes with their tickets.
