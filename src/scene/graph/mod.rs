@@ -151,7 +151,7 @@ impl Default for Graph {
         Self {
             physics: PhysicsWorld::new(),
             physics2d: dim2::physics::PhysicsWorld::new(),
-            inner: LowLevelGraph::new(),
+            inner: LowLevelGraph::new_empty(),
             sound_context: Default::default(),
             performance_statistics: Default::default(),
             event_broadcaster: Default::default(),
@@ -249,7 +249,7 @@ impl Graph {
         root_node.set_name("__ROOT__");
 
         // Add it to the pool.
-        let mut inner = LowLevelGraph::new();
+        let mut inner = LowLevelGraph::new_empty();
         let root = inner.add_node(Node::new(root_node));
         inner[root].self_handle = root;
 
@@ -2059,152 +2059,22 @@ mod test {
         core::{
             algebra::{Matrix4, Vector3},
             futures::executor::block_on,
-            pool::Handle,
             visitor::Visitor,
         },
         engine::{self, SerializationContext},
         resource::model::{Model, ModelResourceExtension},
         scene::{
             base::BaseBuilder,
-            graph::Graph,
             mesh::{
                 surface::{SurfaceBuilder, SurfaceData, SurfaceSharedData},
                 MeshBuilder,
             },
-            node::Node,
-            pivot::{Pivot, PivotBuilder},
+            pivot::PivotBuilder,
             transform::TransformBuilder,
             Scene, SceneLoader,
         },
     };
     use std::{fs, path::Path, sync::Arc};
-
-    #[test]
-    fn graph_init_test() {
-        let graph = Graph::new();
-        assert_ne!(graph.root, Handle::NONE);
-        assert_eq!(graph.inner.alive_count(), 1);
-    }
-
-    #[test]
-    fn graph_node_test() {
-        let mut graph = Graph::new();
-        graph.add_node(Node::new(Pivot::default()));
-        graph.add_node(Node::new(Pivot::default()));
-        graph.add_node(Node::new(Pivot::default()));
-        assert_eq!(graph.inner.alive_count(), 4);
-    }
-
-    #[test]
-    fn test_graph_search() {
-        let mut graph = Graph::new();
-
-        // Root_
-        //      |_A_
-        //          |_B
-        //          |_C_
-        //             |_D
-        let b;
-        let c;
-        let d;
-        let a = PivotBuilder::new(BaseBuilder::new().with_name("A").with_children(&[
-            {
-                b = PivotBuilder::new(BaseBuilder::new().with_name("B")).build(&mut graph);
-                b
-            },
-            {
-                c = PivotBuilder::new(BaseBuilder::new().with_name("C").with_children(&[{
-                    d = PivotBuilder::new(BaseBuilder::new().with_name("D")).build(&mut graph);
-                    d
-                }]))
-                .build(&mut graph);
-                c
-            },
-        ]))
-        .build(&mut graph);
-
-        // Test down search.
-        assert!(graph.find_by_name(a, "X").is_none());
-        assert_eq!(graph.find_by_name(a, "A").unwrap().0, a);
-        assert_eq!(graph.find_by_name(a, "D").unwrap().0, d);
-
-        let result = graph
-            .find_map(a, &mut |n| if n.name() == "D" { Some("D") } else { None })
-            .unwrap();
-        assert_eq!(result.0, d);
-        assert_eq!(result.1, "D");
-
-        // Test up search.
-        assert!(graph.find_up_by_name(d, "X").is_none());
-        assert_eq!(graph.find_up_by_name(d, "D").unwrap().0, d);
-        assert_eq!(graph.find_up_by_name(d, "A").unwrap().0, a);
-
-        let result = graph
-            .find_up_map(d, &mut |n| if n.name() == "A" { Some("A") } else { None })
-            .unwrap();
-        assert_eq!(result.0, a);
-        assert_eq!(result.1, "A");
-    }
-
-    #[test]
-    fn test_change_root() {
-        let mut graph = Graph::new();
-
-        // Root_
-        //      |_A_
-        //          |_B
-        //          |_C_
-        //             |_D
-        let root = graph.root;
-        let b;
-        let c;
-        let d;
-        let a = PivotBuilder::new(BaseBuilder::new().with_children(&[
-            {
-                b = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
-                b
-            },
-            {
-                c = PivotBuilder::new(BaseBuilder::new().with_children(&[{
-                    d = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
-                    d
-                }]))
-                .build(&mut graph);
-                c
-            },
-        ]))
-        .build(&mut graph);
-
-        dbg!(root, a, b, c, d);
-
-        graph.change_root_inplace(c);
-
-        // C_
-        //      |_D
-        //      |_A_
-        //          |_B
-        //      |_Root
-        assert_eq!(graph.root, c);
-
-        assert_eq!(graph[graph.root].parent, Handle::NONE);
-        assert_eq!(graph[graph.root].children.len(), 3);
-
-        assert_eq!(graph[graph.root].children[0], d);
-        assert_eq!(graph[d].parent, graph.root);
-        assert!(graph[d].children.is_empty());
-
-        assert_eq!(graph[graph.root].children[1], a);
-        assert_eq!(graph[a].parent, graph.root);
-
-        assert_eq!(graph[graph.root].children[2], root);
-        assert_eq!(graph[root].parent, graph.root);
-
-        assert_eq!(graph[a].children.len(), 1);
-        assert_eq!(graph[a].children[0], b);
-        assert_eq!(graph[b].parent, a);
-
-        assert!(graph[b].children.is_empty());
-    }
 
     fn create_scene() -> Scene {
         let mut scene = Scene::new();

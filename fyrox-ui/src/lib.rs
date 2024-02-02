@@ -697,7 +697,7 @@ impl Clone for UserInterface {
     fn clone(&self) -> Self {
         let (sender, receiver) = mpsc::channel();
         let (layout_events_sender, layout_events_receiver) = mpsc::channel();
-        let mut inner = fyrox_graph::Graph::new();
+        let mut inner = fyrox_graph::Graph::new_empty();
         for (handle, node) in self.inner.pair_iter() {
             let mut clone = node.clone_boxed();
             clone.layout_events_sender = Some(layout_events_sender.clone());
@@ -847,7 +847,7 @@ impl UserInterface {
             receiver,
             visual_debug: false,
             captured_node: Handle::NONE,
-            inner: fyrox_graph::Graph::new(),
+            inner: fyrox_graph::Graph::new_empty(),
             cursor_position: Vector2::new(0.0, 0.0),
             drawing_context: DrawingContext::new(),
             picked_node: Handle::NONE,

@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     cmp::Ordering,
     fmt::Debug,
-    ops::{Deref, DerefMut},
+    ops::{Deref, DerefMut, Index, IndexMut},
 };
 
 /// Unique id of a node, that could be used as a reliable "index" of the node. This id is mostly
@@ -60,6 +60,60 @@ where
 
     #[reflect(hidden)]
     pub children: Vec<Handle<N>>,
+}
+
+pub struct BaseNodeBuilder<N>
+where
+    N: Debug,
+{
+    name: String,
+
+    instance_id: NodeId,
+
+    children: Vec<Handle<N>>,
+}
+
+impl<N: Debug + 'static> BaseNodeBuilder<N> {
+    pub fn new() -> Self {
+        Self {
+            name: Default::default(),
+            instance_id: Default::default(),
+            children: Default::default(),
+        }
+    }
+
+    /// Sets desired list of children nodes.
+    #[inline]
+    pub fn with_children<'a, I: IntoIterator<Item = &'a Handle<N>>>(mut self, children: I) -> Self {
+        for &child in children.into_iter() {
+            if child.is_some() {
+                self.children.push(child)
+            }
+        }
+        self
+    }
+
+    /// Sets new instance id.
+    pub fn with_instance_id(mut self, id: Uuid) -> Self {
+        self.instance_id = NodeId(id);
+        self
+    }
+
+    /// Sets desired name.
+    #[inline]
+    pub fn with_name<P: AsRef<str>>(mut self, name: P) -> Self {
+        self.name = name.as_ref().to_owned();
+        self
+    }
+
+    pub fn build(self) -> BaseNode<N> {
+        BaseNode {
+            name: self.name,
+            instance_id: self.instance_id,
+            parent: Default::default(),
+            children: self.children,
+        }
+    }
 }
 
 impl<N: Debug> BaseNode<N> {
@@ -191,7 +245,7 @@ where
     P: PayloadContainer<Element = N> + Debug + Default + Visit + 'static,
 {
     #[inline]
-    pub fn new() -> Self {
+    pub fn new_empty() -> Self {
         Self {
             root: Default::default(),
             pool: Pool::new(),
@@ -312,16 +366,30 @@ where
         root_node: Handle<N>,
         mut cmp: impl FnMut(&N) -> Option<&T>,
     ) -> Option<(Handle<N>, &T)> {
-        self.pool.try_borrow(root_node).and_then(|root| {
-            if let Some(x) = cmp(root) {
-                Some((root_node, x))
-            } else {
-                root.as_base_node()
-                    .children()
-                    .iter()
-                    .find_map(|c| self.find_map(*c, &mut cmp))
-            }
-        })
+        fn find_map<'a, T, C, N, P>(
+            pool: &'a Pool<N, P>,
+            root_node: Handle<N>,
+            cmp: &mut C,
+        ) -> Option<(Handle<N>, &'a T)>
+        where
+            C: FnMut(&'a N) -> Option<&'a T>,
+            N: GraphNode<N>,
+            P: PayloadContainer<Element = N> + Debug + 'static,
+            T: ?Sized,
+        {
+            pool.try_borrow(root_node).and_then(|root| {
+                if let Some(x) = cmp(root) {
+                    Some((root_node, x))
+                } else {
+                    root.as_base_node()
+                        .children()
+                        .iter()
+                        .find_map(|c| find_map(pool, *c, cmp))
+                }
+            })
+        }
+
+        find_map(self, root_node, &mut cmp)
     }
 
     /// Searches for a node up the tree starting from the specified node using the specified closure. Returns a tuple
@@ -529,6 +597,35 @@ where
             .and_then(|h| self.pool.try_borrow_mut(*h).map(|n| (*h, n)))
     }
 
+    /// Sets new root of the graph and attaches the old root to the new root. Old root becomes a child
+    /// node of the new root.
+    pub fn change_root(&mut self, root: N) {
+        let prev_root = self.root;
+        self.root = Handle::NONE;
+        let handle = self.add_node(root);
+        assert_eq!(self.root, handle);
+        self.link_nodes(prev_root, handle, false);
+    }
+
+    /// Makes a node in the graph the new root of the graph. All children nodes of the previous root will
+    /// become children nodes of the new root. Old root will become a child node of the new root.
+    pub fn change_root_inplace(&mut self, new_root: Handle<N>) {
+        let prev_root = self.root;
+        self.unlink(new_root);
+        let prev_root_children = self
+            .pool
+            .try_borrow(prev_root)
+            .map(|r| r.as_base_node().children.clone())
+            .unwrap_or_default();
+        for child in prev_root_children {
+            self.link_nodes(child, new_root, false);
+        }
+        if prev_root.is_some() {
+            self.link_nodes(prev_root, new_root, false);
+        }
+        self.root = new_root;
+    }
+
     #[inline]
     pub fn visit(
         &mut self,
@@ -539,5 +636,245 @@ where
         self.root.visit(root_name, visitor)?;
         self.pool.visit(pool_name, visitor)?;
         Ok(())
+    }
+}
+
+impl<N, P> Index<Handle<N>> for Graph<N, P>
+where
+    N: GraphNode<N>,
+    P: PayloadContainer<Element = N> + Debug + 'static,
+{
+    type Output = N;
+
+    #[inline]
+    fn index(&self, index: Handle<N>) -> &Self::Output {
+        &self.pool[index]
+    }
+}
+
+impl<N, P> IndexMut<Handle<N>> for Graph<N, P>
+where
+    N: GraphNode<N>,
+    P: PayloadContainer<Element = N> + Debug + 'static,
+{
+    #[inline]
+    fn index_mut(&mut self, index: Handle<N>) -> &mut Self::Output {
+        &mut self.pool[index]
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{BaseNode, BaseNodeBuilder, Graph, GraphNode};
+    use fyrox_core::{pool::Handle, reflect::prelude::*, visitor::prelude::*};
+
+    #[derive(Debug, Reflect, Clone, Visit, Default)]
+    struct MyNode {
+        base: BaseNode<MyNode>,
+    }
+
+    impl GraphNode<MyNode> for MyNode {
+        fn as_base_node_mut(&mut self) -> &mut BaseNode<MyNode> {
+            &mut self.base
+        }
+
+        fn as_base_node(&self) -> &BaseNode<MyNode> {
+            &self.base
+        }
+    }
+
+    struct MyNodeBuilder {
+        base_builder: BaseNodeBuilder<MyNode>,
+    }
+
+    impl MyNodeBuilder {
+        fn new(base_builder: BaseNodeBuilder<MyNode>) -> Self {
+            Self { base_builder }
+        }
+
+        pub fn build(self, graph: &mut Graph<MyNode>) -> Handle<MyNode> {
+            graph.add_node(MyNode {
+                base: self.base_builder.build(),
+            })
+        }
+    }
+
+    #[test]
+    fn graph_init_test() {
+        let graph = Graph::<MyNode>::new_empty();
+        assert_eq!(graph.root, Handle::NONE);
+        assert_eq!(graph.pool.alive_count(), 0);
+    }
+
+    #[test]
+    fn graph_node_test() {
+        let mut graph = Graph::<MyNode>::new_empty();
+        graph.add_node(MyNode::default());
+        graph.add_node(MyNode::default());
+        graph.add_node(MyNode::default());
+        assert_eq!(graph.pool.alive_count(), 3);
+    }
+
+    #[test]
+    fn test_graph_structure() {
+        let mut graph = Graph::new_empty();
+
+        let root = graph.add_node(MyNode::default());
+
+        // Root_
+        //      |_A_
+        //          |_B
+        //          |_C_
+        //             |_D
+        let b;
+        let c;
+        let d;
+        let a = MyNodeBuilder::new(BaseNodeBuilder::new().with_name("A").with_children(&[
+            {
+                b = MyNodeBuilder::new(BaseNodeBuilder::new().with_name("B")).build(&mut graph);
+                b
+            },
+            {
+                c = MyNodeBuilder::new(BaseNodeBuilder::new().with_name("C").with_children(&[{
+                    d = MyNodeBuilder::new(BaseNodeBuilder::new().with_name("D")).build(&mut graph);
+                    d
+                }]))
+                .build(&mut graph);
+                c
+            },
+        ]))
+        .build(&mut graph);
+
+        assert_eq!(graph.root, root);
+        assert_eq!(graph[root].as_base_node().children, vec![a]);
+        assert_eq!(graph[a].as_base_node().children, vec![b, c]);
+        assert!(graph[b].as_base_node().children.is_empty());
+        assert_eq!(graph[c].as_base_node().children, vec![d]);
+    }
+
+    #[test]
+    fn test_graph_search() {
+        let mut graph = Graph::new_empty();
+
+        let _root = graph.add_node(MyNode::default());
+
+        // Root_
+        //      |_A_
+        //          |_B
+        //          |_C_
+        //             |_D
+        let b;
+        let c;
+        let d;
+        let a = MyNodeBuilder::new(BaseNodeBuilder::new().with_name("A").with_children(&[
+            {
+                b = MyNodeBuilder::new(BaseNodeBuilder::new().with_name("B")).build(&mut graph);
+                b
+            },
+            {
+                c = MyNodeBuilder::new(BaseNodeBuilder::new().with_name("C").with_children(&[{
+                    d = MyNodeBuilder::new(BaseNodeBuilder::new().with_name("D")).build(&mut graph);
+                    d
+                }]))
+                .build(&mut graph);
+                c
+            },
+        ]))
+        .build(&mut graph);
+
+        // Test down search.
+        assert!(graph.find_by_name(a, "X").is_none());
+        assert_eq!(graph.find_by_name(a, "A").unwrap().0, a);
+        assert_eq!(graph.find_by_name(a, "D").unwrap().0, d);
+
+        let result = graph
+            .find_map(a, |n| {
+                if n.as_base_node().name == "D" {
+                    Some("D")
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        assert_eq!(result.0, d);
+        assert_eq!(result.1, "D");
+
+        // Test up search.
+        assert!(graph.find_up_by_name(d, "X").is_none());
+        assert_eq!(graph.find_up_by_name(d, "D").unwrap().0, d);
+        assert_eq!(graph.find_up_by_name(d, "A").unwrap().0, a);
+
+        let result = graph
+            .find_up_map(d, |n| {
+                if n.as_base_node().name == "A" {
+                    Some("A")
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        assert_eq!(result.0, a);
+        assert_eq!(result.1, "A");
+    }
+
+    #[test]
+    fn test_change_root() {
+        let mut graph = Graph::new_empty();
+
+        let root = graph.add_node(MyNode::default());
+
+        // Root_
+        //      |_A_
+        //          |_B
+        //          |_C_
+        //             |_D
+        let b;
+        let c;
+        let d;
+        let a = MyNodeBuilder::new(BaseNodeBuilder::new().with_children(&[
+            {
+                b = MyNodeBuilder::new(BaseNodeBuilder::new()).build(&mut graph);
+                b
+            },
+            {
+                c = MyNodeBuilder::new(BaseNodeBuilder::new().with_children(&[{
+                    d = MyNodeBuilder::new(BaseNodeBuilder::new()).build(&mut graph);
+                    d
+                }]))
+                .build(&mut graph);
+                c
+            },
+        ]))
+        .build(&mut graph);
+
+        dbg!(root, a, b, c, d);
+
+        graph.change_root_inplace(c);
+
+        // C_
+        //      |_D
+        //      |_A_
+        //          |_B
+        //      |_Root
+        assert_eq!(graph.root, c);
+
+        assert_eq!(graph[graph.root].as_base_node().parent, Handle::NONE);
+        assert_eq!(graph[graph.root].as_base_node().children.len(), 3);
+
+        assert_eq!(graph[graph.root].as_base_node().children[0], d);
+        assert_eq!(graph[d].as_base_node().parent, graph.root);
+        assert!(graph[d].as_base_node().children.is_empty());
+
+        assert_eq!(graph[graph.root].as_base_node().children[1], a);
+        assert_eq!(graph[a].as_base_node().parent, graph.root);
+
+        assert_eq!(graph[graph.root].as_base_node().children[2], root);
+        assert_eq!(graph[root].as_base_node().parent, graph.root);
+
+        assert_eq!(graph[a].as_base_node().children.len(), 1);
+        assert_eq!(graph[a].as_base_node().children[0], b);
+        assert_eq!(graph[b].as_base_node().parent, a);
+
+        assert!(graph[b].as_base_node().children.is_empty());
     }
 }
