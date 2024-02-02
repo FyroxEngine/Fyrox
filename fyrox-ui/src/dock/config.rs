@@ -101,7 +101,7 @@ impl TileDescriptor {
                     if window_handle.is_none() {
                         for other_window_handle in windows.iter().cloned() {
                             if let Some(window_node) = ui.try_get_node(other_window_handle) {
-                                if &window_node.name() == window_name {
+                                if window_node.name() == window_name {
                                     window_handle = other_window_handle;
                                 }
                             }

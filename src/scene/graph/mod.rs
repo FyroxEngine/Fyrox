@@ -204,7 +204,8 @@ fn isometric_global_transform(nodes: &LowLevelGraph, node: Handle<Node>) -> Matr
 // cases (mostly when copying a node), because `Graph::add_node` uses children list to attach
 // children to the given node, and when copying a node it is important that this step is skipped.
 fn clear_links(mut node: Node) -> Node {
-    node.base_node = Default::default();
+    node.base_node.children.clear();
+    node.base_node.parent = Handle::NONE;
     node
 }
 
@@ -463,7 +464,7 @@ impl Graph {
         sound_context: &mut SoundContext,
     ) {
         node.on_removed_from_graph(&mut GenericContext {
-            nodes: &mbc,
+            nodes: mbc,
             physics,
             physics2d,
             sound_context,

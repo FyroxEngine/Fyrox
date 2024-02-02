@@ -104,7 +104,7 @@ pub trait Control:
     ///         let mut size: Vector2<f32> = Vector2::default();
     ///
     ///         // Measure children nodes and find the largest size of them.
-    ///         for &child in self.children.iter() {
+    ///         for &child in self.children().iter() {
     ///             // Recursively measure children nodes. Measured size will be put in `desired_size`
     ///             // of the widget.
     ///             ui.measure_node(child, available_size);
@@ -172,7 +172,7 @@ pub trait Control:
     ///         let final_rect = Rect::new(0.0, 0.0, final_size.x, final_size.y);
     ///
     ///         // Commit final locations and size for each child node.
-    ///         for &child in self.children.iter() {
+    ///         for &child in self.children().iter() {
     ///             ui.arrange_node(child, &final_rect);
     ///         }
     ///

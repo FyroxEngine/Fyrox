@@ -73,6 +73,12 @@ where
     children: Vec<Handle<N>>,
 }
 
+impl<N: Debug + 'static> Default for BaseNodeBuilder<N> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<N: Debug + 'static> BaseNodeBuilder<N> {
     pub fn new() -> Self {
         Self {
