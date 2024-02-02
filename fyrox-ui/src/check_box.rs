@@ -16,9 +16,8 @@ use crate::{
     message::{MessageDirection, UiMessage},
     vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, HorizontalAlignment, MouseButton, NodeHandleMapping, Thickness, UiNode,
-    UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE, BRUSH_DARKEST, BRUSH_LIGHT,
-    BRUSH_TEXT,
+    BuildContext, Control, HorizontalAlignment, MouseButton, Thickness, UiNode, UserInterface,
+    VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE, BRUSH_DARKEST, BRUSH_LIGHT, BRUSH_TEXT,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -146,12 +145,6 @@ pub struct CheckBox {
 crate::define_widget_deref!(CheckBox);
 
 impl Control for CheckBox {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.check_mark);
-        node_map.resolve(&mut self.uncheck_mark);
-        node_map.resolve(&mut self.undefined_mark);
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

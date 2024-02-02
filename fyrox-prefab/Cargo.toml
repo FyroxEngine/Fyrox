@@ -1,0 +1,19 @@
+[package]
+name = "fyrox-prefab"
+version = "0.1.0"
+authors = ["Dmitry Stepanov <d1maxa@yandex.ru>"]
+edition = "2021"
+license = "MIT"
+description = "Prefab management crate for the Fyrox engine"
+keywords = ["asset", "prefab"]
+categories = ["game-development"]
+include = ["/src/**/*", "/Cargo.toml", "/LICENSE"]
+homepage = "https://fyrox.rs"
+documentation = "https://docs.rs/fyrox-resource"
+repository = "https://github.com/FyroxEngine/Fyrox"
+resolver = "2"
+rust-version = "1.72"
+
+[dependencies]
+fyrox-core = { path = "../fyrox-core", version = "0.27.0" }
+fxhash = "0.2.1"

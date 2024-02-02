@@ -1,34 +1,61 @@
-//! An `OriginalHandle -> CopyHandle` map. It is used to map handles to nodes after copying.
-//!
-//! See [NodeHandleMap] docs for more info.
+//! Prefab utilities.
 
-use crate::{
-    core::{log::Log, pool::Handle, reflect::prelude::*, variable::InheritableVariable},
-    scene::node::Node,
-};
 use fxhash::FxHashMap;
-use std::any::TypeId;
-use std::ops::{Deref, DerefMut};
+use fyrox_core::{
+    log::Log, pool::Handle, reflect::prelude::*, variable::InheritableVariable, NameProvider,
+};
+use std::{
+    any::TypeId,
+    ops::{Deref, DerefMut},
+};
 
 /// A `OriginalHandle -> CopyHandle` map. It is used to map handles to nodes after copying.
 ///
-/// Scene nodes have lots of cross references, the simplest cross reference is a handle to parent node,
-/// and a set of handles to children nodes. Skinned meshes also store handles to scenes nodes that
-/// serve as bones. When you copy a node, you need handles of the copy to point to respective copies.
-/// This map allows you to do this.
+/// For example, scene nodes have lots of cross references, the simplest cross reference is a handle
+/// to parent node, and a set of handles to children nodes. Skinned meshes also store handles to
+/// scenes nodes that serve as bones. When you copy a node, you need handles of the copy to point
+/// to respective copies. This map allows you to do this.
 ///
-/// Mapping could fail if you do a partial copy of some hierarchy that does not have respective copies of
-/// nodes that must be remapped. For example you can copy just a skinned mesh, but not its bones - in this
-/// case mapping will fail, but you still can use old handles even it does not make any sense.
-#[derive(Default, Clone)]
-pub struct NodeHandleMap {
-    pub(crate) map: FxHashMap<Handle<Node>, Handle<Node>>,
+/// Mapping could fail if you do a partial copy of some hierarchy that does not have respective
+/// copies of nodes that must be remapped. For example you can copy just a skinned mesh, but not
+/// its bones - in this case mapping will fail, but you still can use old handles even it does not
+/// make any sense.
+pub struct NodeHandleMap<N> {
+    pub(crate) map: FxHashMap<Handle<N>, Handle<N>>,
 }
 
-impl NodeHandleMap {
+impl<N> Default for NodeHandleMap<N> {
+    fn default() -> Self {
+        Self {
+            map: Default::default(),
+        }
+    }
+}
+
+impl<N> Clone for NodeHandleMap<N> {
+    fn clone(&self) -> Self {
+        Self {
+            map: self.map.clone(),
+        }
+    }
+}
+
+impl<N> NodeHandleMap<N>
+where
+    N: Reflect + NameProvider,
+{
+    /// Adds new `original -> copy` handle mapping.
+    pub fn insert(
+        &mut self,
+        original_handle: Handle<N>,
+        copy_handle: Handle<N>,
+    ) -> Option<Handle<N>> {
+        self.map.insert(original_handle, copy_handle)
+    }
+
     /// Maps a handle to a handle of its origin, or sets it to [Handle::NONE] if there is no such node.
     /// It should be used when you are sure that respective origin exists.
-    pub fn map(&self, handle: &mut Handle<Node>) -> &Self {
+    pub fn map(&self, handle: &mut Handle<N>) -> &Self {
         *handle = self.map.get(handle).cloned().unwrap_or_default();
         self
     }
@@ -37,7 +64,7 @@ impl NodeHandleMap {
     /// It should be used when you are sure that respective origin exists.
     pub fn map_slice<T>(&self, handles: &mut [T]) -> &Self
     where
-        T: Deref<Target = Handle<Node>> + DerefMut,
+        T: Deref<Target = Handle<N>> + DerefMut,
     {
         for handle in handles {
             self.map(handle);
@@ -47,7 +74,7 @@ impl NodeHandleMap {
 
     /// Tries to map a handle to a handle of its origin. If it exists, the method returns true or false otherwise.
     /// It should be used when you not sure that respective origin exists.
-    pub fn try_map(&self, handle: &mut Handle<Node>) -> bool {
+    pub fn try_map(&self, handle: &mut Handle<N>) -> bool {
         if let Some(new_handle) = self.map.get(handle) {
             *handle = *new_handle;
             true
@@ -60,7 +87,7 @@ impl NodeHandleMap {
     /// It should be used when you not sure that respective origin exists.
     pub fn try_map_slice<T>(&self, handles: &mut [T]) -> bool
     where
-        T: Deref<Target = Handle<Node>> + DerefMut,
+        T: Deref<Target = Handle<N>> + DerefMut,
     {
         let mut success = true;
         for handle in handles {
@@ -72,10 +99,7 @@ impl NodeHandleMap {
     /// Tries to silently map (without setting `modified` flag) a templated handle to a handle of its origin.
     /// If it exists, the method returns true or false otherwise. It should be used when you not sure that respective
     /// origin exists.
-    pub fn try_map_silent(
-        &self,
-        inheritable_handle: &mut InheritableVariable<Handle<Node>>,
-    ) -> bool {
+    pub fn try_map_silent(&self, inheritable_handle: &mut InheritableVariable<Handle<N>>) -> bool {
         if let Some(new_handle) = self.map.get(inheritable_handle) {
             inheritable_handle.set_value_silent(*new_handle);
             true
@@ -85,20 +109,20 @@ impl NodeHandleMap {
     }
 
     /// Returns a shared reference to inner map.
-    pub fn inner(&self) -> &FxHashMap<Handle<Node>, Handle<Node>> {
+    pub fn inner(&self) -> &FxHashMap<Handle<N>, Handle<N>> {
         &self.map
     }
 
     /// Returns inner map.
-    pub fn into_inner(self) -> FxHashMap<Handle<Node>, Handle<Node>> {
+    pub fn into_inner(self) -> FxHashMap<Handle<N>, Handle<N>> {
         self.map
     }
 
     /// Tries to remap handles to nodes in a given entity using reflection. It finds all supported fields recursively
     /// (`Handle<Node>`, `Vec<Handle<Node>>`, `InheritableVariable<Handle<Node>>`, `InheritableVariable<Vec<Handle<Node>>>`)
     /// and automatically maps old handles to new.
-    pub fn remap_handles(&self, node: &mut Node, ignored_types: &[TypeId]) {
-        let name = node.name_owned();
+    pub fn remap_handles(&self, node: &mut N, ignored_types: &[TypeId]) {
+        let name = node.name().to_string();
         node.as_reflect_mut(&mut |node| self.remap_handles_internal(node, &name, ignored_types));
     }
 
@@ -114,7 +138,7 @@ impl NodeHandleMap {
 
         let mut mapped = false;
 
-        entity.downcast_mut::<Handle<Node>>(&mut |handle| {
+        entity.downcast_mut::<Handle<N>>(&mut |handle| {
             if let Some(handle) = handle {
                 if handle.is_some() && !self.try_map(handle) {
                     Log::warn(format!(
@@ -130,7 +154,7 @@ impl NodeHandleMap {
             return;
         }
 
-        entity.downcast_mut::<Vec<Handle<Node>>>(&mut |vec| {
+        entity.downcast_mut::<Vec<Handle<N>>>(&mut |vec| {
             if let Some(vec) = vec {
                 for handle in vec {
                     if handle.is_some() && !self.try_map(handle) {
@@ -192,8 +216,8 @@ impl NodeHandleMap {
         })
     }
 
-    pub(crate) fn remap_inheritable_handles(&self, node: &mut Node, ignored_types: &[TypeId]) {
-        let name = node.name_owned();
+    pub fn remap_inheritable_handles(&self, node: &mut N, ignored_types: &[TypeId]) {
+        let name = node.name().to_string();
         node.as_reflect_mut(&mut |node| {
             self.remap_inheritable_handles_internal(node, &name, false, ignored_types)
         });
@@ -233,7 +257,7 @@ impl NodeHandleMap {
             return;
         }
 
-        entity.downcast_mut::<Handle<Node>>(&mut |result| {
+        entity.downcast_mut::<Handle<N>>(&mut |result| {
             if let Some(handle) = result {
                 if do_map && handle.is_some() && !self.try_map(handle) {
                     Log::warn(format!(
@@ -249,7 +273,7 @@ impl NodeHandleMap {
             return;
         }
 
-        entity.downcast_mut::<Vec<Handle<Node>>>(&mut |result| {
+        entity.downcast_mut::<Vec<Handle<N>>>(&mut |result| {
             if let Some(vec) = result {
                 if do_map {
                     for handle in vec {

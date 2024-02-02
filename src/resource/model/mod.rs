@@ -34,11 +34,12 @@ use crate::{
         TypeUuidProvider,
     },
     engine::SerializationContext,
+    prefab::NodeHandleMap,
     resource::fbx::{self, error::FbxError},
     scene::{
         animation::{Animation, AnimationPlayer},
         base::SceneNodeId,
-        graph::{map::NodeHandleMap, Graph},
+        graph::Graph,
         node::Node,
         transform::Transform,
         Scene, SceneLoader,
@@ -181,7 +182,7 @@ pub trait ModelResourceExtension: Sized {
         handle: Handle<Node>,
         dest_graph: &mut Graph,
         pre_processing_callback: &mut Pre,
-    ) -> (Handle<Node>, NodeHandleMap)
+    ) -> (Handle<Node>, NodeHandleMap<Node>)
     where
         Pre: FnMut(Handle<Node>, &mut Node);
 
@@ -261,7 +262,7 @@ impl ModelResourceExtension for ModelResource {
         handle: Handle<Node>,
         dest_graph: &mut Graph,
         pre_processing_callback: &mut Pre,
-    ) -> (Handle<Node>, NodeHandleMap)
+    ) -> (Handle<Node>, NodeHandleMap<Node>)
     where
         Pre: FnMut(Handle<Node>, &mut Node),
     {

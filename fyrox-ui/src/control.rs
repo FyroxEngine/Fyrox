@@ -5,7 +5,7 @@ use crate::{
     draw::DrawingContext,
     message::{OsEvent, UiMessage},
     widget::Widget,
-    NodeHandleMapping, UiNode, UserInterface,
+    UiNode, UserInterface,
 };
 use fyrox_core::{ComponentProvider, TypeUuidProvider};
 use std::{
@@ -62,10 +62,6 @@ where
 pub trait Control:
     BaseControl + Deref<Target = Widget> + DerefMut + Reflect + Visit + ComponentProvider
 {
-    /// This method will be called right after the widget was cloned. It is used remap handles in the widgets
-    /// to their respective copies from the copied hierarchy.
-    fn resolve(&mut self, #[allow(unused_variables)] node_map: &NodeHandleMapping) {}
-
     /// This method will be called before the widget is destroyed (dropped). At the moment, when this
     /// method is called, the widget is still in the widget graph and can be accessed via handles. It
     /// is guaranteed to be called once, and only if the widget is deleted via [`crate::widget::WidgetMessage::remove`].

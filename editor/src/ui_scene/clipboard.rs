@@ -34,7 +34,7 @@ fn deep_clone_nodes(
     for &root_node in root_nodes.iter() {
         let (_, old_to_new) = source_graph.copy_node_to(root_node, dest_ui);
         // Merge mappings.
-        for (old, new) in old_to_new.hash_map {
+        for (old, new) in old_to_new.into_inner() {
             old_new_mapping.insert(old, new);
         }
     }

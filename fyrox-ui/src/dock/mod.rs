@@ -21,7 +21,7 @@ use crate::{
     dock::config::{DockingManagerLayoutDescriptor, FloatingWindowDescriptor, TileDescriptor},
     message::{MessageDirection, UiMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, NodeHandleMapping, UiNode, UserInterface,
+    BuildContext, Control, UiNode, UserInterface,
 };
 
 pub use tile::*;
@@ -50,10 +50,6 @@ crate::define_widget_deref!(DockingManager);
 uuid_provider!(DockingManager = "b04299f7-3f6b-45f1-89a6-0dce4ad929e1");
 
 impl Control for DockingManager {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve_slice(&mut self.floating_windows.borrow_mut());
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

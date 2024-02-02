@@ -19,8 +19,7 @@ use fyrox::{
         tree::{Tree, TreeBuilder, TreeRootBuilder, TreeRootMessage},
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{Window, WindowBuilder, WindowMessage},
-        BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness,
-        UiNode, UserInterface,
+        BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
     },
 };
 use std::{
@@ -436,10 +435,6 @@ impl DerefMut for PropertySelectorWindow {
 uuid_provider!(PropertySelectorWindow = "725e4a10-eca6-4345-9833-d54dae2f20f2");
 
 impl Control for PropertySelectorWindow {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        self.window.resolve(node_map)
-    }
-
     fn on_remove(&self, sender: &Sender<UiMessage>) {
         self.window.on_remove(sender)
     }

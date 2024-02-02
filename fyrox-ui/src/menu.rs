@@ -20,9 +20,8 @@ use crate::{
     utils::{make_arrow_primitives, ArrowDirection},
     vector_image::VectorImageBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, RestrictionEntry,
-    Thickness, UiNode, UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE,
-    BRUSH_PRIMARY,
+    BuildContext, Control, HorizontalAlignment, Orientation, RestrictionEntry, Thickness, UiNode,
+    UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
 };
 use std::{
     ops::{Deref, DerefMut},
@@ -351,11 +350,6 @@ impl Control for MenuItem {
                 MessageDirection::ToWidget,
             ))
             .unwrap();
-    }
-
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve_slice(&mut self.items);
-        node_map.resolve(&mut self.popup);
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

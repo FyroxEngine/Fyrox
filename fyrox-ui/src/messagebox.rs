@@ -19,8 +19,8 @@ use crate::{
     text::{TextBuilder, TextMessage},
     widget::{Widget, WidgetBuilder},
     window::{Window, WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, RestrictionEntry,
-    Thickness, UiNode, UserInterface,
+    BuildContext, Control, HorizontalAlignment, Orientation, RestrictionEntry, Thickness, UiNode,
+    UserInterface,
 };
 use fyrox_core::uuid_provider;
 use std::{
@@ -190,14 +190,6 @@ uuid_provider!(MessageBox = "b14c0012-4383-45cf-b9a1-231415d95373");
 // Message box extends Window widget so it delegates most of calls
 // to inner window.
 impl Control for MessageBox {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        self.window.resolve(node_map);
-        node_map.resolve(&mut self.ok_yes);
-        node_map.resolve(&mut self.no);
-        node_map.resolve(&mut self.cancel);
-        node_map.resolve(&mut self.text);
-    }
-
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         self.window.measure_override(ui, available_size)
     }

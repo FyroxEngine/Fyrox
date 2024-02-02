@@ -16,8 +16,8 @@ use crate::{
     text::{Text, TextBuilder, TextMessage},
     vector_image::{Primitive, VectorImageBuilder},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, RestrictionEntry, Thickness,
-    UiNode, UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_LIGHT, BRUSH_LIGHTEST,
+    BuildContext, Control, HorizontalAlignment, RestrictionEntry, Thickness, UiNode, UserInterface,
+    VerticalAlignment, BRUSH_BRIGHT, BRUSH_LIGHT, BRUSH_LIGHTEST,
 };
 use fyrox_core::uuid_provider;
 use std::{
@@ -343,16 +343,6 @@ crate::define_widget_deref!(Window);
 uuid_provider!(Window = "9331bf32-8614-4005-874c-5239e56bb15e");
 
 impl Control for Window {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.header);
-        node_map.resolve(&mut self.minimize_button);
-        node_map.resolve(&mut self.maximize_button);
-        node_map.resolve(&mut self.close_button);
-        node_map.resolve(&mut self.title);
-        node_map.resolve(&mut self.title_grid);
-        node_map.resolve(&mut self.content);
-    }
-
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 

@@ -16,8 +16,7 @@ use fyrox::{
         tree::{Tree, TreeBuilder},
         utils::make_simple_tooltip,
         widget::{Widget, WidgetBuilder, WidgetMessage},
-        BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface,
-        VerticalAlignment,
+        BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
     },
 };
 use std::{
@@ -95,11 +94,6 @@ impl DerefMut for SceneItem {
 uuid_provider!(SceneItem = "16f35257-a250-413b-ab51-b1ad086a3a9c");
 
 impl Control for SceneItem {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        self.tree.resolve(node_map);
-        node_map.resolve(&mut self.text_name);
-    }
-
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         self.tree.measure_override(ui, available_size)
     }

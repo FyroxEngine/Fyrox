@@ -17,8 +17,7 @@ use crate::{
     scroll_viewer::{ScrollViewer, ScrollViewerBuilder, ScrollViewerMessage},
     stack_panel::StackPanelBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface, BRUSH_DARK,
-    BRUSH_LIGHT,
+    BuildContext, Control, Thickness, UiNode, UserInterface, BRUSH_DARK, BRUSH_LIGHT,
 };
 use fyrox_core::uuid_provider;
 use std::ops::{Deref, DerefMut};
@@ -344,12 +343,6 @@ impl Control for ListViewItem {
 uuid_provider!(ListView = "5832a643-5bf9-4d84-8358-b4c45bb440e8");
 
 impl Control for ListView {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.panel);
-        node_map.resolve_slice(&mut self.items);
-        node_map.resolve_slice(&mut self.item_containers);
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

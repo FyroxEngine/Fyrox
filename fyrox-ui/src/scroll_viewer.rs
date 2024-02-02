@@ -16,7 +16,7 @@ use crate::{
     scroll_bar::{ScrollBar, ScrollBarBuilder, ScrollBarMessage},
     scroll_panel::{ScrollPanelBuilder, ScrollPanelMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, NodeHandleMapping, Orientation, UiNode, UserInterface,
+    BuildContext, Control, Orientation, UiNode, UserInterface,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -164,13 +164,6 @@ crate::define_widget_deref!(ScrollViewer);
 uuid_provider!(ScrollViewer = "173e869f-7da0-4ae2-915a-5d545d8150cc");
 
 impl Control for ScrollViewer {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.content);
-        node_map.resolve(&mut self.scroll_panel);
-        node_map.resolve(&mut self.v_scroll_bar);
-        node_map.resolve(&mut self.h_scroll_bar);
-    }
-
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 

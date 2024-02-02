@@ -14,8 +14,8 @@ use crate::{
     draw::DrawingContext,
     message::{MessageDirection, UiMessage},
     widget::{Widget, WidgetMessage},
-    BuildContext, Control, NodeHandleMapping, UiNode, UserInterface, BRUSH_BRIGHT, BRUSH_DARKER,
-    BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
+    BuildContext, Control, UiNode, UserInterface, BRUSH_BRIGHT, BRUSH_DARKER, BRUSH_LIGHT,
+    BRUSH_LIGHTER, BRUSH_LIGHTEST,
 };
 use fyrox_core::uuid_provider;
 use std::{
@@ -126,10 +126,6 @@ impl DerefMut for Decorator {
 uuid_provider!(Decorator = "bb4b60aa-c657-4ed6-8db6-d7f374397c73");
 
 impl Control for Decorator {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        self.border.resolve(node_map)
-    }
-
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         self.border.measure_override(ui, available_size)
     }

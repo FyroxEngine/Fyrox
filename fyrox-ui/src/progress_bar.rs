@@ -14,7 +14,7 @@ use crate::{
     define_constructor,
     message::{MessageDirection, UiMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, NodeHandleMapping, UiNode, UserInterface,
+    BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_core::uuid_provider;
 use std::ops::{Deref, DerefMut};
@@ -86,11 +86,6 @@ crate::define_widget_deref!(ProgressBar);
 uuid_provider!(ProgressBar = "d6ebb853-d945-46bc-86db-4c8b5d5faf8e");
 
 impl Control for ProgressBar {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.indicator);
-        node_map.resolve(&mut self.body);
-    }
-
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 

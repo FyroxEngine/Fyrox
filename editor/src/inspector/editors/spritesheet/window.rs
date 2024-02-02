@@ -19,8 +19,8 @@ use fyrox::{
         utils::make_simple_tooltip,
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{Window, WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness,
-        UiNode, UserInterface, VerticalAlignment,
+        BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+        VerticalAlignment,
     },
     scene::animation::spritesheet::prelude::*,
 };
@@ -62,10 +62,6 @@ impl DerefMut for SpriteSheetFramesEditorWindow {
 uuid_provider!(SpriteSheetFramesEditorWindow = "55607fe0-2996-418d-ad31-a5b96fdfa4b7");
 
 impl Control for SpriteSheetFramesEditorWindow {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        self.window.resolve(node_map);
-    }
-
     fn on_remove(&self, sender: &Sender<UiMessage>) {
         self.window.on_remove(sender);
     }

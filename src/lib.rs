@@ -9,7 +9,6 @@
 #![allow(clippy::from_over_into)]
 #![allow(clippy::approx_constant)]
 
-pub use fyrox_animation as generic_animation;
 pub mod engine;
 pub mod material;
 pub mod plugin;
@@ -25,6 +24,12 @@ pub use lazy_static;
 pub use tbc;
 pub use walkdir;
 pub use winit::*;
+
+#[doc(inline)]
+pub use fyrox_animation as generic_animation;
+
+#[doc(inline)]
+pub use fyrox_prefab as prefab;
 
 #[doc(inline)]
 pub use fyrox_core as core;

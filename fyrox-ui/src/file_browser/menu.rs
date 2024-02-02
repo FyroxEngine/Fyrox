@@ -15,8 +15,7 @@ use crate::{
     text_box::TextBoxBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     window::{WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness, UiNode,
-    UserInterface,
+    BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
 };
 use fyrox_core::uuid_provider;
 use std::{
@@ -62,10 +61,6 @@ impl DerefMut for ItemContextMenu {
 uuid_provider!(ItemContextMenu = "6a9d597f-6a9f-4bad-b569-4cff1a6deff7");
 
 impl Control for ItemContextMenu {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        self.popup.resolve(node_map)
-    }
-
     fn on_remove(&self, sender: &Sender<UiMessage>) {
         self.popup.on_remove(sender)
     }

@@ -668,7 +668,7 @@ impl WidgetMessage {
 pub struct Widget {
     /// Self handle of the widget. It is valid **only**, if the widget is added to the user interface, in other
     /// cases it will most likely be [`Handle::NONE`].
-    #[reflect(read_only)]
+    #[reflect(hidden)]
     pub handle: Handle<UiNode>,
     /// Name of the widget. Could be useful for debugging purposes.
     pub name: String,

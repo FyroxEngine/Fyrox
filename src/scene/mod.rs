@@ -39,13 +39,14 @@ use crate::{
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     engine::SerializationContext,
+    prefab::NodeHandleMap,
     renderer::framework::state::PolygonFillMode,
     resource::texture::TextureResource,
     scene::{
         base::BaseBuilder,
         camera::Camera,
         debug::SceneDrawingContext,
-        graph::{map::NodeHandleMap, Graph, GraphPerformanceStatistics, GraphUpdateSwitches},
+        graph::{Graph, GraphPerformanceStatistics, GraphUpdateSwitches},
         navmesh::NavigationalMeshBuilder,
         node::Node,
         sound::SoundEngine,
@@ -418,7 +419,7 @@ impl Scene {
         filter: &mut F,
         pre_process_callback: &mut Pre,
         post_process_callback: &mut Post,
-    ) -> (Self, NodeHandleMap)
+    ) -> (Self, NodeHandleMap<Node>)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
         Pre: FnMut(Handle<Node>, &mut Node),

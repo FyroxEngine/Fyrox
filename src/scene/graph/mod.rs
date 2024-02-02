@@ -36,6 +36,7 @@ use crate::{
         visitor::{Visit, VisitResult, Visitor},
     },
     material::{shader::SamplerFallback, MaterialResource, PropertyValue},
+    prefab::NodeHandleMap,
     resource::model::{ModelResource, ModelResourceExtension, NodeMapping},
     scene::{
         base::{NodeScriptMessage, SceneNodeId},
@@ -43,7 +44,6 @@ use crate::{
         dim2::{self},
         graph::{
             event::{GraphEvent, GraphEventBroadcaster},
-            map::NodeHandleMap,
             physics::{PhysicsPerformanceStatistics, PhysicsWorld},
         },
         mesh::buffer::{
@@ -70,7 +70,6 @@ use std::{
 };
 
 pub mod event;
-pub mod map;
 pub mod physics;
 
 /// Graph performance statistics. Allows you to find out "hot" parts of the scene graph, which
@@ -189,7 +188,7 @@ pub struct SubGraph {
     pub parent: Handle<Node>,
 }
 
-fn remap_handles(old_new_mapping: &NodeHandleMap, dest_graph: &mut Graph) {
+fn remap_handles(old_new_mapping: &NodeHandleMap<Node>, dest_graph: &mut Graph) {
     // Iterate over instantiated nodes and remap handles.
     for (_, &new_node_handle) in old_new_mapping.inner().iter() {
         old_new_mapping.remap_handles(
@@ -743,7 +742,7 @@ impl Graph {
         filter: &mut F,
         pre_process_callback: &mut Pre,
         post_process_callback: &mut Post,
-    ) -> (Handle<Node>, NodeHandleMap)
+    ) -> (Handle<Node>, NodeHandleMap<Node>)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
         Pre: FnMut(Handle<Node>, &mut Node),
@@ -783,7 +782,7 @@ impl Graph {
         &mut self,
         node_handle: Handle<Node>,
         filter: &mut F,
-    ) -> (Handle<Node>, NodeHandleMap)
+    ) -> (Handle<Node>, NodeHandleMap<Node>)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
     {
@@ -800,7 +799,7 @@ impl Graph {
             // Copy parent first.
             let parent_copy = clear_links(self.pool[*parent].clone_box());
             let parent_copy_handle = self.add_node(parent_copy);
-            old_new_mapping.map.insert(*parent, parent_copy_handle);
+            old_new_mapping.insert(*parent, parent_copy_handle);
 
             if root_handle.is_none() {
                 root_handle = parent_copy_handle;
@@ -811,7 +810,7 @@ impl Graph {
                 if filter(child, &self.pool[child]) {
                     let child_copy = clear_links(self.pool[child].clone_box());
                     let child_copy_handle = self.add_node(child_copy);
-                    old_new_mapping.map.insert(child, child_copy_handle);
+                    old_new_mapping.insert(child, child_copy_handle);
                     self.link_nodes(child_copy_handle, parent_copy_handle);
                 }
             }
@@ -843,7 +842,7 @@ impl Graph {
         &self,
         root_handle: Handle<Node>,
         dest_graph: &mut Graph,
-        old_new_mapping: &mut NodeHandleMap,
+        old_new_mapping: &mut NodeHandleMap<Node>,
         filter: &mut F,
         pre_process_callback: &mut Pre,
         post_process_callback: &mut Post,
@@ -857,7 +856,7 @@ impl Graph {
         let mut dest_node = clear_links(src_node.clone_box());
         pre_process_callback(root_handle, &mut dest_node);
         let dest_copy_handle = dest_graph.add_node(dest_node);
-        old_new_mapping.map.insert(root_handle, dest_copy_handle);
+        old_new_mapping.insert(root_handle, dest_copy_handle);
         for &src_child_handle in src_node.children() {
             if filter(src_child_handle, &self.pool[src_child_handle]) {
                 let dest_child_handle = self.copy_node_raw(
@@ -1002,9 +1001,8 @@ impl Graph {
                 if let Some(node_resource) = node.resource().as_ref() {
                     // We're interested only in instance nodes.
                     if node_resource == resource {
-                        let previous_mapping = old_new_mapping
-                            .map
-                            .insert(node.original_handle_in_resource, node_handle);
+                        let previous_mapping =
+                            old_new_mapping.insert(node.original_handle_in_resource, node_handle);
                         // There should be no such node.
                         if previous_mapping.is_some() {
                             Log::warn(format!(
@@ -1021,7 +1019,7 @@ impl Graph {
 
             // Lastly, remap handles. We can't do this in single pass because there could
             // be cross references.
-            for (_, handle) in old_new_mapping.map.iter() {
+            for (_, handle) in old_new_mapping.inner().iter() {
                 old_new_mapping.remap_inheritable_handles(
                     &mut self.pool[*handle],
                     &[TypeId::of::<UntypedResource>()],
@@ -1145,7 +1143,7 @@ impl Graph {
                             &mut |_, _| {},
                         );
 
-                        restored_count += old_to_new_mapping.map.len();
+                        restored_count += old_to_new_mapping.inner().len();
 
                         // Link it with existing node.
                         if resource_node.parent().is_some() {
@@ -1824,7 +1822,7 @@ impl Graph {
         filter: &mut F,
         pre_process_callback: &mut Pre,
         post_process_callback: &mut Post,
-    ) -> (Self, NodeHandleMap)
+    ) -> (Self, NodeHandleMap<Node>)
     where
         F: FnMut(Handle<Node>, &Node) -> bool,
         Pre: FnMut(Handle<Node>, &mut Node),

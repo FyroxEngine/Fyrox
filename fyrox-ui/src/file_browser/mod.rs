@@ -15,8 +15,7 @@ use crate::{
     text_box::{TextBoxBuilder, TextCommitMode},
     tree::{Tree, TreeBuilder, TreeMessage, TreeRoot, TreeRootBuilder, TreeRootMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, NodeHandleMapping, RcUiNodeHandle, Thickness, UiNode, UserInterface,
-    VerticalAlignment,
+    BuildContext, Control, RcUiNodeHandle, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
 use core::time;
 use std::{
@@ -208,12 +207,6 @@ impl FileBrowser {
 uuid_provider!(FileBrowser = "b7f4610e-4b0c-4671-9b4a-60bb45268928");
 
 impl Control for FileBrowser {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.tree_root);
-        node_map.resolve(&mut self.path_text);
-        node_map.resolve(&mut self.scroll_viewer);
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

@@ -12,8 +12,8 @@ use crate::{
     define_constructor,
     message::{ButtonState, MessageDirection, OsEvent, UiMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, NodeHandleMapping, RestrictionEntry, Thickness, UiNode, UserInterface,
-    BRUSH_DARKEST, BRUSH_PRIMARY,
+    BuildContext, Control, RestrictionEntry, Thickness, UiNode, UserInterface, BRUSH_DARKEST,
+    BRUSH_PRIMARY,
 };
 use fyrox_core::uuid_provider;
 use std::ops::{Deref, DerefMut};
@@ -337,11 +337,6 @@ impl Popup {
 uuid_provider!(Popup = "1c641540-59eb-4ccd-a090-2173dab02245");
 
 impl Control for Popup {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.content);
-        node_map.resolve(&mut self.body);
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

@@ -17,7 +17,7 @@ use crate::{
     message::{MessageDirection, UiMessage},
     numeric::{NumericType, NumericUpDownBuilder, NumericUpDownMessage},
     widget::WidgetBuilder,
-    BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface, Widget,
+    BuildContext, Control, Thickness, UiNode, UserInterface, Widget,
 };
 use std::ops::{Deref, DerefMut};
 
@@ -170,10 +170,6 @@ impl<T, const D: usize> Control for VecEditor<T, D>
 where
     T: NumericType,
 {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve_slice(&mut self.fields);
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

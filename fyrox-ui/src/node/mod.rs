@@ -4,6 +4,7 @@ use crate::{
     core::{reflect::prelude::*, visitor::prelude::*},
     BaseControl, Control,
 };
+use fyrox_core::NameProvider;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -19,6 +20,12 @@ pub mod container;
 /// casting, component querying, etc. You could also be interested in [`Control`] docs, since it
 /// contains all the interesting stuff and detailed description for each method.
 pub struct UiNode(pub Box<dyn Control>);
+
+impl NameProvider for UiNode {
+    fn name(&self) -> &str {
+        &self.0.name
+    }
+}
 
 impl Debug for UiNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

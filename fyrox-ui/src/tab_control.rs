@@ -18,8 +18,7 @@ use crate::{
     stack_panel::StackPanelBuilder,
     utils::make_cross,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, NodeHandleMapping, Orientation, UiNode, UserInterface, BRUSH_BRIGHT,
-    BRUSH_LIGHT,
+    BuildContext, Control, Orientation, UiNode, UserInterface, BRUSH_BRIGHT, BRUSH_LIGHT,
 };
 use fyrox_core::uuid_provider;
 use std::sync::Arc;
@@ -221,13 +220,6 @@ crate::define_widget_deref!(TabControl);
 uuid_provider!(TabControl = "d54cfac3-0afc-464b-838a-158b3a2253f5");
 
 impl Control for TabControl {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        for tab in self.tabs.iter_mut() {
-            node_map.resolve(&mut tab.header_button);
-            node_map.resolve(&mut tab.content);
-        }
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

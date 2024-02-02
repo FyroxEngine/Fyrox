@@ -57,8 +57,8 @@ use fyrox::{
         utils::{make_cross, make_simple_tooltip},
         widget::{Widget, WidgetBuilder, WidgetMessage},
         window::{WindowBuilder, WindowMessage, WindowTitle},
-        BuildContext, Control, NodeHandleMapping, Orientation, RcUiNodeHandle, Thickness, UiNode,
-        UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_TEXT,
+        BuildContext, Control, Orientation, RcUiNodeHandle, Thickness, UiNode, UserInterface,
+        VerticalAlignment, BRUSH_BRIGHT, BRUSH_TEXT,
     },
     resource::texture::TextureBytes,
     scene::{animation::prelude::*, graph::Graph, node::Node, Scene},
@@ -274,10 +274,6 @@ impl DerefMut for TrackView {
 uuid_provider!(TrackView = "c1e930da-d55d-492e-b87b-16c1adf03319");
 
 impl Control for TrackView {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        self.tree.resolve(node_map)
-    }
-
     fn on_remove(&self, sender: &Sender<UiMessage>) {
         self.tree.on_remove(sender)
     }

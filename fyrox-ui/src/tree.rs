@@ -18,8 +18,8 @@ use crate::{
     stack_panel::StackPanelBuilder,
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, MouseButton, NodeHandleMapping, Thickness, UiNode, UserInterface,
-    VerticalAlignment, BRUSH_DARK, BRUSH_DARKEST,
+    BuildContext, Control, MouseButton, Thickness, UiNode, UserInterface, VerticalAlignment,
+    BRUSH_DARK, BRUSH_DARKEST,
 };
 use fyrox_core::uuid_provider;
 use std::ops::{Deref, DerefMut};
@@ -227,13 +227,6 @@ crate::define_widget_deref!(Tree);
 uuid_provider!(Tree = "e090e913-393a-4192-a220-e1d87e272170");
 
 impl Control for Tree {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.content);
-        node_map.resolve(&mut self.expander);
-        node_map.resolve(&mut self.panel);
-        node_map.resolve(&mut self.background);
-    }
-
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 
@@ -705,11 +698,6 @@ crate::define_widget_deref!(TreeRoot);
 uuid_provider!(TreeRoot = "cf7c0476-f779-4e4b-8b7e-01a23ff51a72");
 
 impl Control for TreeRoot {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.panel);
-        node_map.resolve_slice(&mut self.selected);
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

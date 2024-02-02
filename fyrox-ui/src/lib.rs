@@ -267,9 +267,10 @@ use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_resource::{io::ResourceIo, manager::ResourceManager, ResourceData};
 use serde::{Deserialize, Serialize};
+use std::any::TypeId;
 use std::{
     any::Any,
-    cell::{Cell, Ref, RefCell, RefMut},
+    cell::{Ref, RefCell, RefMut},
     collections::{btree_set::BTreeSet, hash_map::Entry, VecDeque},
     error::Error,
     fmt::{Debug, Formatter},
@@ -285,7 +286,9 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
+use fyrox_prefab::NodeHandleMap;
 use fyrox_resource::io::FsResourceIo;
+use fyrox_resource::untyped::UntypedResource;
 pub use node::*;
 pub use thickness::*;
 
@@ -422,51 +425,6 @@ pub enum Orientation {
 }
 
 uuid_provider!(Orientation = "1c6ad1b0-3f4c-48be-87dd-6929cb3577bf");
-
-type NodeHandle = Handle<UiNode>;
-
-/// Node handle mapping is used to map handles when copying an arbitrary hierarchy of widgets. This
-/// is needed, because internally, widgets could contain handles to some other widgets which must
-/// point to their respective copies when a widget hierarchy was copied.
-#[derive(Default)]
-pub struct NodeHandleMapping {
-    /// Internal old-handle-to-new-handle mapping.
-    pub hash_map: FxHashMap<NodeHandle, NodeHandle>,
-}
-
-impl NodeHandleMapping {
-    /// Adds new old -> new mapping.
-    pub fn add_mapping(&mut self, old: Handle<UiNode>, new: Handle<UiNode>) {
-        self.hash_map.insert(old, new);
-    }
-
-    /// Tries to fetch new handle of a node using its old handle.
-    pub fn resolve(&self, old: &mut Handle<UiNode>) {
-        // None handles aren't mapped.
-        if old.is_some() {
-            if let Some(clone) = self.hash_map.get(old) {
-                *old = *clone;
-            }
-        }
-    }
-
-    /// The same as [`Self::resolve`], but for case when a handle is wrapped into [`Cell`].
-    pub fn resolve_cell(&self, old: &mut Cell<Handle<UiNode>>) {
-        // None handles aren't mapped.
-        if Cell::get(old).is_some() {
-            if let Some(clone) = self.hash_map.get(&old.get()) {
-                Cell::set(old, *clone)
-            }
-        }
-    }
-
-    /// The same as [`Self::resolve`], but for case when you have a slice of handles.
-    pub fn resolve_slice(&self, slice: &mut [Handle<UiNode>]) {
-        for item in slice {
-            self.resolve(item);
-        }
-    }
-}
 
 #[derive(Default, Clone)]
 pub struct NodeStatistics(pub FxHashMap<&'static str, isize>);
@@ -820,6 +778,16 @@ pub struct SubGraph {
     pub descendants: Vec<(Ticket<UiNode>, UiNode)>,
 
     pub parent: Handle<UiNode>,
+}
+
+fn remap_handles(old_new_mapping: &NodeHandleMap<UiNode>, ui: &mut UserInterface) {
+    // Iterate over instantiated nodes and remap handles.
+    for (_, &new_node_handle) in old_new_mapping.inner().iter() {
+        old_new_mapping.remap_handles(
+            &mut ui.nodes[new_node_handle],
+            &[TypeId::of::<UntypedResource>()],
+        );
+    }
 }
 
 impl UserInterface {
@@ -2754,13 +2722,11 @@ impl UserInterface {
     }
 
     pub fn copy_node(&mut self, node: Handle<UiNode>) -> Handle<UiNode> {
-        let mut map = NodeHandleMapping::default();
+        let mut old_new_mapping = NodeHandleMap::default();
 
-        let root = self.copy_node_recursive(node, &mut map);
+        let root = self.copy_node_recursive(node, &mut old_new_mapping);
 
-        for &node_handle in map.hash_map.values() {
-            self.nodes[node_handle].resolve(&map);
-        }
+        remap_handles(&old_new_mapping, self);
 
         root
     }
@@ -2769,7 +2735,7 @@ impl UserInterface {
     fn copy_node_recursive(
         &mut self,
         node_handle: Handle<UiNode>,
-        map: &mut NodeHandleMapping,
+        old_new_mapping: &mut NodeHandleMap<UiNode>,
     ) -> Handle<UiNode> {
         let node = self.nodes.borrow(node_handle);
         let mut cloned = UiNode(node.clone_boxed());
@@ -2777,12 +2743,12 @@ impl UserInterface {
 
         let mut cloned_children = Vec::new();
         for child in node.children().to_vec() {
-            cloned_children.push(self.copy_node_recursive(child, map));
+            cloned_children.push(self.copy_node_recursive(child, old_new_mapping));
         }
 
         cloned.set_children(cloned_children);
         let copy_handle = self.add_node(cloned);
-        map.add_mapping(node_handle, copy_handle);
+        old_new_mapping.insert(node_handle, copy_handle);
         copy_handle
     }
 
@@ -2790,23 +2756,21 @@ impl UserInterface {
         &self,
         node: Handle<UiNode>,
         dest: &mut UserInterface,
-    ) -> (Handle<UiNode>, NodeHandleMapping) {
-        let mut map = NodeHandleMapping::default();
+    ) -> (Handle<UiNode>, NodeHandleMap<UiNode>) {
+        let mut old_new_mapping = NodeHandleMap::default();
 
-        let root = self.copy_node_to_recursive(node, dest, &mut map);
+        let root = self.copy_node_to_recursive(node, dest, &mut old_new_mapping);
 
-        for &node_handle in map.hash_map.values() {
-            dest.nodes[node_handle].resolve(&map);
-        }
+        remap_handles(&old_new_mapping, dest);
 
-        (root, map)
+        (root, old_new_mapping)
     }
 
     fn copy_node_to_recursive(
         &self,
         node_handle: Handle<UiNode>,
         dest: &mut UserInterface,
-        map: &mut NodeHandleMapping,
+        old_new_mapping: &mut NodeHandleMap<UiNode>,
     ) -> Handle<UiNode> {
         let node = self.nodes.borrow(node_handle);
         let children = node.children.clone();
@@ -2818,11 +2782,12 @@ impl UserInterface {
         let cloned_node_handle = dest.add_node(cloned);
 
         for child in children {
-            let cloned_child_node_handle = self.copy_node_to_recursive(child, dest, map);
+            let cloned_child_node_handle =
+                self.copy_node_to_recursive(child, dest, old_new_mapping);
             dest.link_nodes(cloned_child_node_handle, cloned_node_handle, false);
         }
 
-        map.add_mapping(node_handle, cloned_node_handle);
+        old_new_mapping.insert(node_handle, cloned_node_handle);
         cloned_node_handle
     }
 
@@ -2831,14 +2796,13 @@ impl UserInterface {
         node: Handle<UiNode>,
         limit: Option<usize>,
     ) -> Handle<UiNode> {
-        let mut map = NodeHandleMapping::default();
+        let mut old_new_mapping = NodeHandleMap::default();
         let mut counter = 0;
 
-        let root = self.copy_node_recursive_with_limit(node, &mut map, limit, &mut counter);
+        let root =
+            self.copy_node_recursive_with_limit(node, &mut old_new_mapping, limit, &mut counter);
 
-        for &node_handle in map.hash_map.values() {
-            self.nodes[node_handle].resolve(&map);
-        }
+        remap_handles(&old_new_mapping, self);
 
         root
     }
@@ -2847,7 +2811,7 @@ impl UserInterface {
     fn copy_node_recursive_with_limit(
         &mut self,
         node_handle: Handle<UiNode>,
-        map: &mut NodeHandleMapping,
+        old_new_mapping: &mut NodeHandleMap<UiNode>,
         limit: Option<usize>,
         counter: &mut usize,
     ) -> Handle<UiNode> {
@@ -2863,7 +2827,8 @@ impl UserInterface {
 
         let mut cloned_children = Vec::new();
         for child in node.children().to_vec() {
-            let cloned_child = self.copy_node_recursive_with_limit(child, map, limit, counter);
+            let cloned_child =
+                self.copy_node_recursive_with_limit(child, old_new_mapping, limit, counter);
             if cloned_child.is_some() {
                 cloned_children.push(cloned_child);
             } else {
@@ -2873,7 +2838,7 @@ impl UserInterface {
 
         cloned.set_children(cloned_children);
         let copy_handle = self.add_node(cloned);
-        map.add_mapping(node_handle, copy_handle);
+        old_new_mapping.insert(node_handle, copy_handle);
 
         *counter += 1;
 

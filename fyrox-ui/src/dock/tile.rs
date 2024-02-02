@@ -9,7 +9,7 @@ use crate::{
     message::{CursorIcon, MessageDirection, UiMessage},
     widget::{Widget, WidgetBuilder, WidgetMessage},
     window::{Window, WindowMessage},
-    BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface,
+    BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 use fyrox_core::uuid_provider;
 use std::{
@@ -81,26 +81,6 @@ crate::define_widget_deref!(Tile);
 uuid_provider!(Tile = "8ed17fa9-890e-4dd7-b4f9-a24660882234");
 
 impl Control for Tile {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve_cell(&mut self.drop_anchor);
-        node_map.resolve(&mut self.splitter);
-        node_map.resolve(&mut self.center_anchor);
-        node_map.resolve(&mut self.bottom_anchor);
-        node_map.resolve(&mut self.top_anchor);
-        node_map.resolve(&mut self.right_anchor);
-        node_map.resolve(&mut self.left_anchor);
-        match &mut self.content {
-            TileContent::Empty => {}
-            TileContent::Window(window) => node_map.resolve(window),
-            TileContent::VerticalTiles { tiles, .. }
-            | TileContent::HorizontalTiles { tiles, .. } => {
-                for tile in tiles {
-                    node_map.resolve(tile);
-                }
-            }
-        }
-    }
-
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         for &child_handle in self.children() {
             // Determine available size for each child by its kind:

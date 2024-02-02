@@ -12,8 +12,7 @@ use crate::{
     popup::{Placement, PopupBuilder, PopupMessage},
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, NodeHandleMapping, Thickness, UiNode, UserInterface, BRUSH_DARKER,
-    BRUSH_LIGHT,
+    BuildContext, Control, Thickness, UiNode, UserInterface, BRUSH_DARKER, BRUSH_LIGHT,
 };
 use fyrox_core::uuid_provider;
 use std::{
@@ -64,14 +63,6 @@ impl Control for DropdownList {
                 MessageDirection::ToWidget,
             ))
             .unwrap();
-    }
-
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.popup);
-        node_map.resolve(&mut self.list_view);
-        node_map.resolve(&mut self.current);
-        node_map.resolve(&mut self.main_grid);
-        node_map.resolve_slice(&mut self.items);
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

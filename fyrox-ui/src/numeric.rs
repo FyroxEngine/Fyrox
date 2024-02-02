@@ -26,8 +26,8 @@ use crate::{
     text_box::{TextBox, TextBoxBuilder},
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
-    UserInterface, VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT,
+    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
+    VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT,
 };
 use std::{
     cmp::Ordering,
@@ -386,12 +386,6 @@ where
 }
 
 impl<T: NumericType> Control for NumericUpDown<T> {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.field);
-        node_map.resolve(&mut self.increase);
-        node_map.resolve(&mut self.decrease);
-    }
-
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {
         self.widget.handle_routed_message(ui, message);
 

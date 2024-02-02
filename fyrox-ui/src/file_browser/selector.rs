@@ -14,8 +14,8 @@ use crate::{
     text_box::TextBoxBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
     window::{Window, WindowBuilder, WindowMessage, WindowTitle},
-    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness, UiNode,
-    UserInterface, VerticalAlignment,
+    BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+    VerticalAlignment,
 };
 use fyrox_core::uuid_provider;
 use std::{
@@ -71,12 +71,6 @@ uuid_provider!(FileSelector = "878b2220-03e6-4a50-a97d-3a8e5397b6cb");
 // File selector extends Window widget so it delegates most of calls
 // to inner window.
 impl Control for FileSelector {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        self.window.resolve(node_map);
-        node_map.resolve(&mut self.ok);
-        node_map.resolve(&mut self.cancel);
-    }
-
     fn measure_override(&self, ui: &UserInterface, available_size: Vector2<f32>) -> Vector2<f32> {
         self.window.measure_override(ui, available_size)
     }

@@ -19,8 +19,8 @@ use crate::{
     text::{TextBuilder, TextMessage},
     utils::{make_arrow, ArrowDirection},
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Orientation, Thickness, UiNode,
-    UserInterface, VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
+    BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
+    VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
 };
 use fyrox_core::uuid_provider;
 use std::ops::{Deref, DerefMut};
@@ -154,16 +154,6 @@ crate::define_widget_deref!(ScrollBar);
 uuid_provider!(ScrollBar = "92accc96-b334-424d-97ea-332c4787acf6");
 
 impl Control for ScrollBar {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.increase);
-        node_map.resolve(&mut self.decrease);
-        node_map.resolve(&mut self.indicator);
-        if self.value_text.is_some() {
-            node_map.resolve(&mut self.value_text);
-        }
-        node_map.resolve(&mut self.indicator_canvas);
-    }
-
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         let size = self.widget.arrange_override(ui, final_size);
 

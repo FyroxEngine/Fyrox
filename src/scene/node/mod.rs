@@ -39,7 +39,7 @@ use crate::{
         Scene,
     },
 };
-use fyrox_core::ComponentProvider;
+use fyrox_core::{ComponentProvider, NameProvider};
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -305,6 +305,12 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
 /// consumption, only disk space usage is reduced.
 #[derive(Debug)]
 pub struct Node(Box<dyn NodeTrait>);
+
+impl NameProvider for Node {
+    fn name(&self) -> &str {
+        &self.0.name
+    }
+}
 
 impl ComponentProvider for Node {
     fn query_component_ref(&self, type_id: TypeId) -> Option<&dyn Any> {

@@ -14,8 +14,8 @@ use crate::{
     message::{MessageDirection, UiMessage},
     text::TextBuilder,
     widget::{Widget, WidgetBuilder, WidgetMessage},
-    BuildContext, Control, HorizontalAlignment, NodeHandleMapping, Thickness, UiNode,
-    UserInterface, VerticalAlignment, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
+    BuildContext, Control, HorizontalAlignment, Thickness, UiNode, UserInterface,
+    VerticalAlignment, BRUSH_DARKER, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
 };
 use std::{
     cell::RefCell,
@@ -117,11 +117,6 @@ pub struct Button {
 crate::define_widget_deref!(Button);
 
 impl Control for Button {
-    fn resolve(&mut self, node_map: &NodeHandleMapping) {
-        node_map.resolve(&mut self.content);
-        node_map.resolve(&mut self.decorator);
-    }
-
     fn update(&mut self, dt: f32, sender: &Sender<UiMessage>, _screen_size: Vector2<f32>) {
         let mut repeat_timer = self.repeat_timer.borrow_mut();
         if let Some(repeat_timer) = &mut *repeat_timer {
