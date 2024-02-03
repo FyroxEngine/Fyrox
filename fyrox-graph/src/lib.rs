@@ -408,28 +408,113 @@ pub trait SceneGraph: Sized + 'static {
         self.try_get_mut(handle).expect("The handle must be valid!")
     }
 
-    /// Create a graph depth traversal iterator.
-    fn traverse_iter(&self, from: Handle<Self::Node>) -> impl Iterator<Item = &Self::Node> {
-        GraphTraverseIterator {
-            graph: self,
-            stack: vec![from],
-        }
+    /// Searches for a node down the tree starting from the specified node using the specified closure. Returns a tuple
+    /// with a handle and a reference to the mapped value. If nothing is found, it returns [`None`].
+    #[inline]
+    fn find_map<C, T>(
+        &self,
+        root_node: Handle<Self::Node>,
+        cmp: &mut C,
+    ) -> Option<(Handle<Self::Node>, &T)>
+    where
+        C: FnMut(&Self::Node) -> Option<&T>,
+        T: ?Sized,
+    {
+        self.try_get(root_node).and_then(|root| {
+            if let Some(x) = cmp(root) {
+                Some((root_node, x))
+            } else {
+                root.children().iter().find_map(|c| self.find_map(*c, cmp))
+            }
+        })
     }
 
-    /// Create a graph depth traversal iterator.
-    fn traverse_handle_iter(
+    /// Searches for a node up the tree starting from the specified node using the specified closure. Returns a tuple
+    /// with a handle and a reference to the found node. If nothing is found, it returns [`None`].
+    #[inline]
+    fn find_up<C>(
         &self,
-        from: Handle<Self::Node>,
-    ) -> impl Iterator<Item = Handle<Self::Node>> {
-        GraphHandleTraverseIterator {
-            graph: self,
-            stack: vec![from],
+        root_node: Handle<Self::Node>,
+        cmp: &mut C,
+    ) -> Option<(Handle<Self::Node>, &Self::Node)>
+    where
+        C: FnMut(&Self::Node) -> bool,
+    {
+        let mut handle = root_node;
+        while let Some(node) = self.try_get(handle) {
+            if cmp(node) {
+                return Some((handle, node));
+            }
+            handle = node.parent();
         }
+        None
+    }
+
+    /// Searches for a node up the tree starting from the specified node using the specified closure. Returns a tuple
+    /// with a handle and a reference to the mapped value. If nothing is found, it returns [`None`].
+    #[inline]
+    fn find_up_map<C, T>(
+        &self,
+        root_node: Handle<Self::Node>,
+        cmp: &mut C,
+    ) -> Option<(Handle<Self::Node>, &T)>
+    where
+        C: FnMut(&Self::Node) -> Option<&T>,
+        T: ?Sized,
+    {
+        let mut handle = root_node;
+        while let Some(node) = self.try_get(handle) {
+            if let Some(x) = cmp(node) {
+                return Some((handle, x));
+            }
+            handle = node.parent();
+        }
+        None
+    }
+
+    /// Searches for a node with the specified name down the tree starting from the specified node. Returns a tuple with
+    /// a handle and a reference to the found node. If nothing is found, it returns [`None`].
+    #[inline]
+    fn find_by_name(
+        &self,
+        root_node: Handle<Self::Node>,
+        name: &str,
+    ) -> Option<(Handle<Self::Node>, &Self::Node)> {
+        self.find(root_node, &mut |node| node.name() == name)
+    }
+
+    /// Searches for a node with the specified name up the tree starting from the specified node. Returns a tuple with a
+    /// handle and a reference to the found node. If nothing is found, it returns [`None`].
+    #[inline]
+    fn find_up_by_name(
+        &self,
+        root_node: Handle<Self::Node>,
+        name: &str,
+    ) -> Option<(Handle<Self::Node>, &Self::Node)> {
+        self.find_up(root_node, &mut |node| node.name() == name)
+    }
+
+    /// Searches for a node with the specified name down the tree starting from the graph root. Returns a tuple with a
+    /// handle and a reference to the found node. If nothing is found, it returns [`None`].
+    #[inline]
+    fn find_by_name_from_root(&self, name: &str) -> Option<(Handle<Self::Node>, &Self::Node)> {
+        self.find_by_name(self.root(), name)
+    }
+
+    /// Searches node using specified compare closure starting from root. Returns a tuple with a handle and
+    /// a reference to the found node. If nothing is found, it returns [`None`].
+    #[inline]
+    fn find_from_root<C>(&self, cmp: &mut C) -> Option<(Handle<Self::Node>, &Self::Node)>
+    where
+        C: FnMut(&Self::Node) -> bool,
+    {
+        self.find(self.root(), cmp)
     }
 
     /// Searches for a node down the tree starting from the specified node using the specified closure.
     /// Returns a tuple with a handle and a reference to the found node. If nothing is found, it
     /// returns [`None`].
+    #[inline]
     fn find<C>(
         &self,
         root_node: Handle<Self::Node>,
@@ -445,6 +530,27 @@ pub trait SceneGraph: Sized + 'static {
                 root.children().iter().find_map(|c| self.find(*c, cmp))
             }
         })
+    }
+
+    /// Create a graph depth traversal iterator.
+    #[inline]
+    fn traverse_iter(&self, from: Handle<Self::Node>) -> impl Iterator<Item = &Self::Node> {
+        GraphTraverseIterator {
+            graph: self,
+            stack: vec![from],
+        }
+    }
+
+    /// Create a graph depth traversal iterator.
+    #[inline]
+    fn traverse_handle_iter(
+        &self,
+        from: Handle<Self::Node>,
+    ) -> impl Iterator<Item = Handle<Self::Node>> {
+        GraphHandleTraverseIterator {
+            graph: self,
+            stack: vec![from],
+        }
     }
 
     /// This method checks integrity of the graph and restores it if needed. For example, if a node

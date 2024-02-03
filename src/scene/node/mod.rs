@@ -661,6 +661,7 @@ mod test {
         },
         script::{Script, ScriptTrait},
     };
+    use fyrox_graph::SceneGraph;
     use std::{fs, path::Path, sync::Arc};
 
     #[derive(Debug, Clone, Reflect, Visit, Default)]

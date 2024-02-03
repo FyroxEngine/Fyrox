@@ -537,113 +537,6 @@ impl Graph {
             .set_position(Vector3::default());
     }
 
-    /// Tries to find a copy of `node_handle` in hierarchy tree starting from `root_handle`.
-    #[inline]
-    pub fn find_copy_of(
-        &self,
-        root_handle: Handle<Node>,
-        node_handle: Handle<Node>,
-    ) -> Handle<Node> {
-        let root = &self.pool[root_handle];
-        if root.original_handle_in_resource() == node_handle {
-            return root_handle;
-        }
-
-        for child_handle in root.children() {
-            let out = self.find_copy_of(*child_handle, node_handle);
-            if out.is_some() {
-                return out;
-            }
-        }
-
-        Handle::NONE
-    }
-
-    /// Searches for a node down the tree starting from the specified node using the specified closure. Returns a tuple
-    /// with a handle and a reference to the mapped value. If nothing is found, it returns [`None`].
-    #[inline]
-    pub fn find_map<C, T>(&self, root_node: Handle<Node>, cmp: &mut C) -> Option<(Handle<Node>, &T)>
-    where
-        C: FnMut(&Node) -> Option<&T>,
-        T: ?Sized,
-    {
-        self.pool.try_borrow(root_node).and_then(|root| {
-            if let Some(x) = cmp(root) {
-                Some((root_node, x))
-            } else {
-                root.children().iter().find_map(|c| self.find_map(*c, cmp))
-            }
-        })
-    }
-
-    /// Searches for a node up the tree starting from the specified node using the specified closure. Returns a tuple
-    /// with a handle and a reference to the found node. If nothing is found, it returns [`None`].
-    #[inline]
-    pub fn find_up<C>(&self, root_node: Handle<Node>, cmp: &mut C) -> Option<(Handle<Node>, &Node)>
-    where
-        C: FnMut(&Node) -> bool,
-    {
-        let mut handle = root_node;
-        while let Some(node) = self.pool.try_borrow(handle) {
-            if cmp(node) {
-                return Some((handle, node));
-            }
-            handle = node.parent;
-        }
-        None
-    }
-
-    /// Searches for a node up the tree starting from the specified node using the specified closure. Returns a tuple
-    /// with a handle and a reference to the mapped value. If nothing is found, it returns [`None`].
-    #[inline]
-    pub fn find_up_map<C, T>(
-        &self,
-        root_node: Handle<Node>,
-        cmp: &mut C,
-    ) -> Option<(Handle<Node>, &T)>
-    where
-        C: FnMut(&Node) -> Option<&T>,
-        T: ?Sized,
-    {
-        let mut handle = root_node;
-        while let Some(node) = self.pool.try_borrow(handle) {
-            if let Some(x) = cmp(node) {
-                return Some((handle, x));
-            }
-            handle = node.parent;
-        }
-        None
-    }
-
-    /// Searches for a node with the specified name down the tree starting from the specified node. Returns a tuple with
-    /// a handle and a reference to the found node. If nothing is found, it returns [`None`].
-    #[inline]
-    pub fn find_by_name(
-        &self,
-        root_node: Handle<Node>,
-        name: &str,
-    ) -> Option<(Handle<Node>, &Node)> {
-        self.find(root_node, &mut |node| node.name() == name)
-    }
-
-    /// Searches for a node with the specified name up the tree starting from the specified node. Returns a tuple with a
-    /// handle and a reference to the found node. If nothing is found, it returns [`None`].
-    #[inline]
-    pub fn find_up_by_name(
-        &self,
-        root_node: Handle<Node>,
-        name: &str,
-    ) -> Option<(Handle<Node>, &Node)> {
-        self.find_up(root_node, &mut |node| node.name() == name)
-    }
-
-    /// Searches for a node with the specified name down the tree starting from the graph root. Returns a tuple with a
-    /// handle and a reference to the found node. If nothing is found, it returns [`None`].
-    #[inline]
-    pub fn find_by_name_from_root(&self, name: &str) -> Option<(Handle<Node>, &Node)> {
-        self.find_by_name(self.root, name)
-    }
-
     /// Searches for a **first** node with a script of the given type `S` in the hierarchy starting from the
     /// given `root_node`.
     #[inline]
@@ -654,16 +547,6 @@ impl Graph {
         self.find(root_node, &mut |n| {
             n.script().and_then(|s| s.cast::<S>()).is_some()
         })
-    }
-
-    /// Searches node using specified compare closure starting from root. Returns a tuple with a handle and
-    /// a reference to the found node. If nothing is found, it returns [`None`].
-    #[inline]
-    pub fn find_from_root<C>(&self, cmp: &mut C) -> Option<(Handle<Node>, &Node)>
-    where
-        C: FnMut(&Node) -> bool,
-    {
-        self.find(self.root, cmp)
     }
 
     /// Creates deep copy of node with all children. This is relatively heavy operation!

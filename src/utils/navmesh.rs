@@ -358,9 +358,10 @@ impl Navmesh {
     ///
     /// Example:
     /// ```
-    /// use fyrox::scene::Scene;
-    /// use fyrox::utils::navmesh::Navmesh;
-    ///
+    /// # use fyrox::scene::Scene;
+    /// # use fyrox::utils::navmesh::Navmesh;
+    /// # use fyrox_graph::SceneGraph;
+    /// #
     /// fn make_navmesh(scene: &Scene, navmesh_name: &str) -> Navmesh {
     ///     // Find mesh node in existing scene and create navigation mesh from it.
     ///     let navmesh_node_handle = scene.graph.find_by_name_from_root(navmesh_name).unwrap().0;
