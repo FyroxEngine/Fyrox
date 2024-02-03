@@ -386,7 +386,7 @@ impl WorldViewer {
         if let Some(&first_selected) = data_provider.selection().first() {
             let mut node_handle = first_selected;
             while node_handle.is_some() && node_handle != data_provider.root_node() {
-                let view = ui.find_by_criteria_down(self.tree_root, &|n| {
+                let view = ui.find_handle(self.tree_root, &mut |n| {
                     n.cast::<SceneItem>()
                         .map(|i| i.entity_handle == node_handle)
                         .unwrap_or_default()
@@ -838,7 +838,7 @@ fn map_selection(
     selection
         .iter()
         .filter_map(|&handle| {
-            let item = ui.find_by_criteria_down(root_node, &|n| {
+            let item = ui.find_handle(root_node, &mut |n| {
                 n.cast::<SceneItem>()
                     .map(|n| n.entity_handle == handle)
                     .unwrap_or_default()

@@ -97,7 +97,7 @@ impl TileDescriptor {
                 TileContentDescriptor::Empty => TileContent::Empty,
                 TileContentDescriptor::Window(window_name) => {
                     let mut window_handle =
-                        ui.find_by_criteria_down(ui.root(), &|n| n.name() == window_name);
+                        ui.find_handle(ui.root(), &mut |n| n.name() == window_name);
 
                     if window_handle.is_none() {
                         for other_window_handle in windows.iter().cloned() {

@@ -6,7 +6,7 @@ use crate::{
     BaseControl, Control, UserInterface,
 };
 use fyrox_core::pool::Handle;
-use fyrox_core::NameProvider;
+use fyrox_core::{ComponentProvider, NameProvider};
 use fyrox_graph::SceneGraphNode;
 use fyrox_resource::Resource;
 use std::{
@@ -25,7 +25,20 @@ pub mod container;
 /// contains all the interesting stuff and detailed description for each method.
 pub struct UiNode(pub Box<dyn Control>);
 
+impl ComponentProvider for UiNode {
+    #[inline]
+    fn query_component_ref(&self, type_id: TypeId) -> Option<&dyn Any> {
+        self.0.query_component_ref(type_id)
+    }
+
+    #[inline]
+    fn query_component_mut(&mut self, type_id: TypeId) -> Option<&mut dyn Any> {
+        self.0.query_component_mut(type_id)
+    }
+}
+
 impl Clone for UiNode {
+    #[inline]
     fn clone(&self) -> Self {
         Self(self.0.clone_boxed())
     }

@@ -471,7 +471,7 @@ impl Control for Tile {
                                 ));
 
                                 if let Some((_, docking_manager)) =
-                                    ui.try_borrow_by_type_up::<DockingManager>(self.parent())
+                                    ui.find_component_up::<DockingManager>(self.parent())
                                 {
                                     docking_manager
                                         .floating_windows
@@ -553,7 +553,7 @@ impl Control for Tile {
                                     }
 
                                     if let Some((_, docking_manager)) =
-                                        ui.try_borrow_by_type_up::<DockingManager>(self.parent())
+                                        ui.find_component_up::<DockingManager>(self.parent())
                                     {
                                         docking_manager
                                             .floating_windows
@@ -578,7 +578,7 @@ impl Control for Tile {
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         if let Some(msg) = message.data::<WindowMessage>() {
             if let Some((_, docking_manager)) =
-                ui.try_borrow_by_type_up::<DockingManager>(self.parent())
+                ui.find_component_up::<DockingManager>(self.parent())
             {
                 // Make sure we are dragging one of floating windows of parent docking manager.
                 if message.direction() == MessageDirection::FromWidget

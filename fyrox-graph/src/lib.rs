@@ -8,7 +8,7 @@ use fyrox_core::{
     pool::Handle,
     reflect::prelude::*,
     variable::{self, InheritableVariable},
-    NameProvider,
+    ComponentProvider, NameProvider,
 };
 use fyrox_resource::{untyped::UntypedResource, Resource, TypedResourceData};
 use std::{
@@ -59,6 +59,7 @@ where
     N: Reflect + NameProvider,
 {
     /// Adds new `original -> copy` handle mapping.
+    #[inline]
     pub fn insert(
         &mut self,
         original_handle: Handle<N>,
@@ -69,6 +70,7 @@ where
 
     /// Maps a handle to a handle of its origin, or sets it to [Handle::NONE] if there is no such node.
     /// It should be used when you are sure that respective origin exists.
+    #[inline]
     pub fn map(&self, handle: &mut Handle<N>) -> &Self {
         *handle = self.map.get(handle).cloned().unwrap_or_default();
         self
@@ -76,6 +78,8 @@ where
 
     /// Maps each handle in the slice to a handle of its origin, or sets it to [Handle::NONE] if there is no such node.
     /// It should be used when you are sure that respective origin exists.
+
+    #[inline]
     pub fn map_slice<T>(&self, handles: &mut [T]) -> &Self
     where
         T: Deref<Target = Handle<N>> + DerefMut,
@@ -88,6 +92,7 @@ where
 
     /// Tries to map a handle to a handle of its origin. If it exists, the method returns true or false otherwise.
     /// It should be used when you not sure that respective origin exists.
+    #[inline]
     pub fn try_map(&self, handle: &mut Handle<N>) -> bool {
         if let Some(new_handle) = self.map.get(handle) {
             *handle = *new_handle;
@@ -99,6 +104,7 @@ where
 
     /// Tries to map each handle in the slice to a handle of its origin. If it exists, the method returns true or false otherwise.
     /// It should be used when you not sure that respective origin exists.
+    #[inline]
     pub fn try_map_slice<T>(&self, handles: &mut [T]) -> bool
     where
         T: Deref<Target = Handle<N>> + DerefMut,
@@ -113,6 +119,7 @@ where
     /// Tries to silently map (without setting `modified` flag) a templated handle to a handle of its origin.
     /// If it exists, the method returns true or false otherwise. It should be used when you not sure that respective
     /// origin exists.
+    #[inline]
     pub fn try_map_silent(&self, inheritable_handle: &mut InheritableVariable<Handle<N>>) -> bool {
         if let Some(new_handle) = self.map.get(inheritable_handle) {
             inheritable_handle.set_value_silent(*new_handle);
@@ -123,11 +130,13 @@ where
     }
 
     /// Returns a shared reference to inner map.
+    #[inline]
     pub fn inner(&self) -> &FxHashMap<Handle<N>, Handle<N>> {
         &self.map
     }
 
     /// Returns inner map.
+    #[inline]
     pub fn into_inner(self) -> FxHashMap<Handle<N>, Handle<N>> {
         self.map
     }
@@ -135,6 +144,7 @@ where
     /// Tries to remap handles to nodes in a given entity using reflection. It finds all supported fields recursively
     /// (`Handle<Node>`, `Vec<Handle<Node>>`, `InheritableVariable<Handle<Node>>`, `InheritableVariable<Vec<Handle<Node>>>`)
     /// and automatically maps old handles to new.
+    #[inline]
     pub fn remap_handles(&self, node: &mut N, ignored_types: &[TypeId]) {
         let name = node.name().to_string();
         node.as_reflect_mut(&mut |node| self.remap_handles_internal(node, &name, ignored_types));
@@ -230,6 +240,7 @@ where
         })
     }
 
+    #[inline]
     pub fn remap_inheritable_handles(&self, node: &mut N, ignored_types: &[TypeId]) {
         let name = node.name().to_string();
         node.as_reflect_mut(&mut |node| {
@@ -347,7 +358,9 @@ where
     }
 }
 
-pub trait SceneGraphNode: Reflect + NameProvider + Sized + Clone + 'static {
+pub trait SceneGraphNode:
+    Reflect + NameProvider + Sized + Clone + ComponentProvider + 'static
+{
     type Base: Clone;
     type ResourceData: TypedResourceData;
 
@@ -450,6 +463,43 @@ pub trait SceneGraph: Sized + 'static {
         None
     }
 
+    /// The same as [`Self::find_up`], but only returns node handle which will be [`Handle::NONE`]
+    /// if nothing is found.
+    #[inline]
+    fn find_up_handle<C>(&self, root_node: Handle<Self::Node>, cmp: &mut C) -> Handle<Self::Node>
+    where
+        C: FnMut(&Self::Node) -> bool,
+    {
+        self.find_up(root_node, cmp)
+            .map(|(h, _)| h)
+            .unwrap_or_default()
+    }
+
+    #[inline]
+    fn find_component_up<T>(
+        &self,
+        node_handle: Handle<Self::Node>,
+    ) -> Option<(Handle<Self::Node>, &T)>
+    where
+        T: 'static,
+    {
+        self.find_up_map(node_handle, &mut |node| {
+            node.query_component_ref(TypeId::of::<T>())
+        })
+        .and_then(|(handle, c)| c.downcast_ref::<T>().map(|typed| (handle, typed)))
+    }
+
+    #[inline]
+    fn find_component<T>(&self, node_handle: Handle<Self::Node>) -> Option<(Handle<Self::Node>, &T)>
+    where
+        T: 'static,
+    {
+        self.find_map(node_handle, &mut |node| {
+            node.query_component_ref(TypeId::of::<T>())
+        })
+        .and_then(|(handle, c)| c.downcast_ref::<T>().map(|typed| (handle, typed)))
+    }
+
     /// Searches for a node up the tree starting from the specified node using the specified closure. Returns a tuple
     /// with a handle and a reference to the mapped value. If nothing is found, it returns [`None`].
     #[inline]
@@ -530,6 +580,18 @@ pub trait SceneGraph: Sized + 'static {
                 root.children().iter().find_map(|c| self.find(*c, cmp))
             }
         })
+    }
+
+    /// The same as [`Self::find`], but only returns node handle which will be [`Handle::NONE`]
+    /// if nothing is found.
+    #[inline]
+    fn find_handle<C>(&self, root_node: Handle<Self::Node>, cmp: &mut C) -> Handle<Self::Node>
+    where
+        C: FnMut(&Self::Node) -> bool,
+    {
+        self.find(root_node, cmp)
+            .map(|(h, _)| h)
+            .unwrap_or_default()
     }
 
     /// Create a graph depth traversal iterator.
@@ -874,6 +936,7 @@ where
 {
     type Item = &'a N;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(handle) = self.stack.pop() {
             let node = self.graph.node(handle);
@@ -902,6 +965,7 @@ where
 {
     type Item = Handle<N>;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(handle) = self.stack.pop() {
             for child_handle in self.graph.node(handle).children() {

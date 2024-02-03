@@ -288,14 +288,14 @@ crate::define_widget_deref!(MenuItem);
 fn find_menu(from: Handle<UiNode>, ui: &UserInterface) -> Handle<UiNode> {
     let mut handle = from;
     while handle.is_some() {
-        if let Some((_, popup)) = ui.try_borrow_by_type_up::<Popup>(handle) {
+        if let Some((_, popup)) = ui.find_component_up::<Popup>(handle) {
             // Continue search from parent menu item of popup.
             handle = popup
                 .user_data_cloned::<Handle<UiNode>>()
                 .unwrap_or_default();
         } else {
             // Maybe we have Menu as parent for MenuItem.
-            return ui.find_by_criteria_up(handle, |n| n.cast::<Menu>().is_some());
+            return ui.find_up_handle(handle, &mut |n| n.cast::<Menu>().is_some());
         }
     }
     Default::default()
@@ -307,7 +307,7 @@ fn is_any_menu_item_contains_point(ui: &UserInterface, pt: Vector2<f32>) -> bool
         .pair_iter()
         .filter_map(|(h, n)| n.query_component::<MenuItem>().map(|menu| (h, menu)))
     {
-        if ui.try_borrow_by_type_up::<Menu>(handle).is_none()
+        if ui.find_component_up::<Menu>(handle).is_none()
             && menu.is_globally_visible()
             && menu.screen_bounds().contains(pt)
         {
@@ -320,7 +320,7 @@ fn is_any_menu_item_contains_point(ui: &UserInterface, pt: Vector2<f32>) -> bool
 fn close_menu_chain(from: Handle<UiNode>, ui: &UserInterface) {
     let mut handle = from;
     while handle.is_some() {
-        let popup_handle = ui.find_by_criteria_up(handle, |n| n.has_component::<Popup>());
+        let popup_handle = ui.find_up_handle(handle, &mut |n| n.has_component::<Popup>());
 
         if let Some(popup) = ui.node(popup_handle).query_component::<Popup>() {
             ui.send_message(PopupMessage::close(

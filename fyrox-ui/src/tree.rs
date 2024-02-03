@@ -263,7 +263,7 @@ impl Control for Tree {
                         // Prevent selection changes by Alt+Click to be able to drag'n'drop tree items.
                         if !keyboard_modifiers.alt {
                             if let Some((tree_root_handle, tree_root)) =
-                                ui.try_borrow_by_type_up::<TreeRoot>(self.parent())
+                                ui.find_component_up::<TreeRoot>(self.parent())
                             {
                                 let selection = if keyboard_modifiers.control {
                                     let mut selection = tree_root.selected.clone();
