@@ -266,7 +266,7 @@ use crate::{
 use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
 use fyrox_resource::{
-    io::FsResourceIo, io::ResourceIo, manager::ResourceManager, untyped::UntypedResource,
+    io::FsResourceIo, io::ResourceIo, manager::ResourceManager, untyped::UntypedResource, Resource,
     ResourceData,
 };
 use serde::{Deserialize, Serialize};
@@ -2995,6 +2995,22 @@ impl SceneGraph for UserInterface {
     #[inline]
     fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
         self.nodes.try_borrow_mut(handle)
+    }
+}
+
+pub trait UserInterfaceResourceExtension {
+    fn instantiate(&self, ui: &mut UserInterface) -> (Handle<UiNode>, NodeHandleMap<UiNode>);
+}
+
+impl UserInterfaceResourceExtension for Resource<UserInterface> {
+    fn instantiate(&self, ui: &mut UserInterface) -> (Handle<UiNode>, NodeHandleMap<UiNode>) {
+        let resource = self.clone();
+        let mut data = self.state();
+        let data = data.data().expect("The resource must be loaded!");
+
+        data.copy_node_to(ui.root_canvas, ui, &mut |_, original_handle, node| {
+            node.set_inheritance_data(original_handle, resource.clone());
+        })
     }
 }
 
