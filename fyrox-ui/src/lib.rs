@@ -3008,9 +3008,15 @@ impl UserInterfaceResourceExtension for Resource<UserInterface> {
         let mut data = self.state();
         let data = data.data().expect("The resource must be loaded!");
 
-        data.copy_node_to(ui.root_canvas, ui, &mut |_, original_handle, node| {
-            node.set_inheritance_data(original_handle, resource.clone());
-        })
+        let (root, mapping) =
+            data.copy_node_to(ui.root_canvas, ui, &mut |_, original_handle, node| {
+                node.set_inheritance_data(original_handle, resource.clone());
+            });
+
+        // Explicitly mark as root node.
+        ui.node_mut(root).is_resource_instance_root = true;
+
+        (root, mapping)
     }
 }
 
