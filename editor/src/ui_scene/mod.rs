@@ -6,6 +6,7 @@ pub mod selection;
 pub mod utils;
 
 use crate::{
+    asset::item::AssetItem,
     inspector::editors::handle::HandlePropertyEditorMessage,
     message::MessageSender,
     scene::{controller::SceneController, selector::HierarchyNode, Selection},
@@ -13,30 +14,33 @@ use crate::{
     ui_scene::{
         clipboard::Clipboard,
         commands::{
-            make_set_widget_property_command, ChangeUiSelectionCommand, UiCommand, UiCommandGroup,
-            UiCommandStack, UiSceneContext,
+            graph::AddUiPrefabCommand, make_set_widget_property_command, ChangeUiSelectionCommand,
+            UiCommand, UiCommandGroup, UiCommandStack, UiSceneCommand, UiSceneContext,
         },
         selection::UiSelection,
     },
     Message,
 };
-use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{
-        algebra::Vector2,
+        algebra::{Vector2, Vector3},
         color::Color,
+        futures::executor::block_on,
         log::Log,
+        make_relative_path,
         math::Rect,
         pool::{ErasedHandle, Handle},
         reflect::Reflect,
     },
     engine::Engine,
+    fxhash::FxHashSet,
+    graph::SceneGraph,
     gui::{
         brush::Brush,
         draw::{CommandTexture, Draw},
         inspector::PropertyChanged,
         message::{KeyCode, MessageDirection, MouseButton},
-        UiNode, UserInterface,
+        UiNode, UserInterface, UserInterfaceResourceExtension,
     },
     renderer::framework::gpu_texture::PixelKind,
     resource::texture::{TextureKind, TextureResource, TextureResourceExtension},
@@ -44,12 +48,18 @@ use fyrox::{
 };
 use std::{any::Any, fs::File, io::Write, path::Path};
 
+pub struct PreviewInstance {
+    pub instance: Handle<UiNode>,
+    pub nodes: FxHashSet<Handle<UiNode>>,
+}
+
 pub struct UiScene {
     pub ui: UserInterface,
     pub render_target: TextureResource,
     pub command_stack: UiCommandStack,
     pub message_sender: MessageSender,
     pub clipboard: Clipboard,
+    pub preview_instance: Option<PreviewInstance>,
 }
 
 impl UiScene {
@@ -60,6 +70,7 @@ impl UiScene {
             command_stack: UiCommandStack::new(false),
             message_sender,
             clipboard: Default::default(),
+            preview_instance: None,
         }
     }
 
@@ -156,21 +167,81 @@ impl SceneController for UiScene {
 
     fn on_drag_over(
         &mut self,
-        _handle: Handle<UiNode>,
-        _screen_bounds: Rect<f32>,
-        _engine: &mut Engine,
-        _settings: &Settings,
+        handle: Handle<UiNode>,
+        screen_bounds: Rect<f32>,
+        engine: &mut Engine,
+        settings: &Settings,
     ) {
+        match self.preview_instance.as_ref() {
+            None => {
+                if let Some(item) = engine.user_interface.node(handle).cast::<AssetItem>() {
+                    // Make sure all resources loaded with relative paths only.
+                    // This will make scenes portable.
+                    if let Ok(relative_path) = make_relative_path(&item.path) {
+                        // No model was loaded yet, do it.
+                        if let Some(prefab) = engine
+                            .resource_manager
+                            .try_request::<UserInterface>(relative_path)
+                            .and_then(|m| block_on(m).ok())
+                        {
+                            // Instantiate the model.
+                            let (instance, _) = prefab.instantiate(&mut self.ui);
+
+                            let nodes = self
+                                .ui
+                                .traverse_handle_iter(instance)
+                                .collect::<FxHashSet<Handle<UiNode>>>();
+
+                            self.preview_instance = Some(PreviewInstance { instance, nodes });
+                        }
+                    }
+                }
+            }
+            Some(preview) => {
+                let cursor_pos = engine.user_interface.cursor_position();
+                let rel_pos = cursor_pos - screen_bounds.position;
+
+                self.ui
+                    .node_mut(preview.instance)
+                    .set_desired_local_position(
+                        settings
+                            .move_mode_settings
+                            .try_snap_vector_to_grid(Vector3::new(rel_pos.x, rel_pos.y, 0.0))
+                            .xy(),
+                    );
+            }
+        }
     }
 
     fn on_drop(
         &mut self,
-        _handle: Handle<UiNode>,
+        handle: Handle<UiNode>,
         _screen_bounds: Rect<f32>,
         _engine: &mut Engine,
         _settings: &Settings,
-        _editor_selection: &Selection,
+        editor_selection: &Selection,
     ) {
+        if handle.is_none() {
+            return;
+        }
+
+        if let Some(preview) = self.preview_instance.take() {
+            // Immediately after extract if from the scene to subgraph. This is required to not violate
+            // the rule of one place of execution, only commands allowed to modify the scene.
+            let sub_graph = self.ui.take_reserve_sub_graph(preview.instance);
+
+            let group = vec![
+                UiSceneCommand::new(AddUiPrefabCommand::new(sub_graph)),
+                // We also want to select newly instantiated model.
+                UiSceneCommand::new(ChangeUiSelectionCommand::new(
+                    Selection::Ui(UiSelection::single_or_empty(preview.instance)),
+                    editor_selection.clone(),
+                )),
+            ];
+
+            self.message_sender
+                .do_ui_scene_command(UiCommandGroup::from(group));
+        }
     }
 
     fn render_target(&self, _engine: &Engine) -> Option<TextureResource> {

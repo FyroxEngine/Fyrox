@@ -272,3 +272,42 @@ impl UiCommand for PasteWidgetCommand {
         }
     }
 }
+
+#[derive(Debug)]
+pub struct AddUiPrefabCommand {
+    model: Handle<UiNode>,
+    sub_graph: Option<SubGraph>,
+}
+
+impl AddUiPrefabCommand {
+    pub fn new(sub_graph: SubGraph) -> Self {
+        Self {
+            model: Default::default(),
+            sub_graph: Some(sub_graph),
+        }
+    }
+}
+
+impl UiCommand for AddUiPrefabCommand {
+    fn name(&mut self, _context: &UiSceneContext) -> String {
+        "Instantiate Prefab".to_owned()
+    }
+
+    fn execute(&mut self, context: &mut UiSceneContext) {
+        // A model was loaded, but change was reverted and here we must put all nodes
+        // back to graph.
+        self.model = context
+            .ui
+            .put_sub_graph_back(self.sub_graph.take().unwrap());
+    }
+
+    fn revert(&mut self, context: &mut UiSceneContext) {
+        self.sub_graph = Some(context.ui.take_reserve_sub_graph(self.model));
+    }
+
+    fn finalize(&mut self, context: &mut UiSceneContext) {
+        if let Some(sub_graph) = self.sub_graph.take() {
+            context.ui.forget_sub_graph(sub_graph)
+        }
+    }
+}

@@ -9,7 +9,7 @@ use crate::{
     },
     world::WorldViewerDataProvider,
 };
-use fyrox::graph::SceneGraph;
+use fyrox::graph::{SceneGraph, SceneGraphNode};
 use fyrox::{
     asset::untyped::UntypedResource,
     core::{make_pretty_type_name, pool::ErasedHandle, pool::Handle, reflect::Reflect},
@@ -79,8 +79,10 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
         None
     }
 
-    fn is_instance(&self, _node: ErasedHandle) -> bool {
-        false
+    fn is_instance(&self, node: ErasedHandle) -> bool {
+        self.ui
+            .try_get(node.into())
+            .map_or(false, |n| n.resource().is_some())
     }
 
     fn selection(&self) -> Vec<ErasedHandle> {
