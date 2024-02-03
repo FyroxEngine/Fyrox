@@ -3,6 +3,7 @@
 
 use crate::{make_scene_file_filter, Message};
 use fyrox::asset::untyped::ResourceKind;
+use fyrox::graph::SceneGraph;
 use fyrox::{
     asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{

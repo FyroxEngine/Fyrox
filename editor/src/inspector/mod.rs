@@ -8,6 +8,7 @@ use crate::{
     utils::window_content,
     Brush, Engine, Message, Mode, WidgetMessage, WrapMode, MSG_SYNC_FLAG,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::{
     asset::manager::ResourceManager,
     core::{

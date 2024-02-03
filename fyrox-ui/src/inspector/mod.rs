@@ -32,6 +32,7 @@ use crate::{
 };
 use copypasta::ClipboardProvider;
 use fyrox_core::uuid_provider;
+use fyrox_graph::SceneGraph;
 use std::sync::Arc;
 use std::{
     any::{Any, TypeId},
@@ -937,7 +938,7 @@ impl Control for Inspector {
                     let mut parent_handle =
                         ui.hit_test_unrestricted(position - Vector2::new(1.0, 1.0));
 
-                    while let Some(parent) = ui.try_get_node(parent_handle) {
+                    while let Some(parent) = ui.try_get(parent_handle) {
                         for entry in self.context.entries.iter() {
                             if entry.property_container == parent_handle {
                                 let _ = ui

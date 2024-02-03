@@ -5,6 +5,7 @@ use crate::{
     world::graph::item::SceneItem,
     Message, UiMessage, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{
         color::Color, pool::ErasedHandle, pool::Handle, reflect::prelude::*,

@@ -1,4 +1,5 @@
 use crate::inspector::editors::spritesheet::SpriteSheetFramesPropertyEditorMessage;
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{
         algebra::Vector2, color::Color, parking_lot::Mutex, pool::Handle, reflect::prelude::*,

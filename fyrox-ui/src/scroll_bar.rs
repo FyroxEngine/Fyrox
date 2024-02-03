@@ -23,6 +23,7 @@ use crate::{
     VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT, BRUSH_LIGHTER, BRUSH_LIGHTEST,
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::SceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// A set of messages that can be accepted by [`ScrollBar`] widget.

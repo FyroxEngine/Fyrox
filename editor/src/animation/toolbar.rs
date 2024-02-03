@@ -18,6 +18,7 @@ use crate::{
     },
     send_sync_message,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::{
     asset::manager::ResourceManager,
     core::{algebra::Vector2, futures::executor::block_on, log::Log, math::Rect, pool::Handle},

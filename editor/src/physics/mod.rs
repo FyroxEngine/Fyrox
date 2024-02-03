@@ -6,6 +6,7 @@ use crate::{
     },
     Message,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{algebra::Vector3, pool::Handle, reflect::Reflect},
     engine::Engine,

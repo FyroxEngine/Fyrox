@@ -3,6 +3,7 @@ use crate::{
     absm::command::parameter::make_set_parameters_property_command,
     inspector::editors::make_property_editors_container, Message, MessageDirection, MSG_SYNC_FLAG,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{log::Log, pool::Handle},
     gui::{

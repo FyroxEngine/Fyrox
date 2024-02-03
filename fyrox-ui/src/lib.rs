@@ -289,7 +289,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
-use fyrox_graph::NodeHandleMap;
+use fyrox_graph::{NodeHandleMap, PrefabData, SceneGraph};
 pub use node::*;
 pub use thickness::*;
 
@@ -1637,7 +1637,7 @@ impl UserInterface {
                             // Keep order of children of a parent node of a node that changed z-index
                             // the same as z-index of children.
                             if let Some(parent) =
-                                self.try_get_node(message.destination()).map(|n| n.parent())
+                                self.try_get(message.destination()).map(|n| n.parent())
                             {
                                 self.stack.clear();
                                 for child in self.nodes.borrow(parent).children() {
@@ -1783,8 +1783,8 @@ impl UserInterface {
                             margin,
                         } => {
                             if let (Some(node), Some(relative_node)) = (
-                                self.try_get_node(message.destination()),
-                                self.try_get_node(*relative_to),
+                                self.try_get(message.destination()),
+                                self.try_get(*relative_to),
                             ) {
                                 // Calculate new anchor point in screen coordinate system.
                                 let relative_node_screen_size = relative_node.screen_bounds().size;
@@ -1840,7 +1840,7 @@ impl UserInterface {
                                     }
                                 }
 
-                                if let Some(parent) = self.try_get_node(node.parent()) {
+                                if let Some(parent) = self.try_get(node.parent()) {
                                     // Transform screen anchor point into the local coordinate system
                                     // of the parent node.
                                     let local_anchor_point =
@@ -2627,39 +2627,6 @@ impl UserInterface {
         self.picking_stack.last().cloned()
     }
 
-    /// Use WidgetMessage::remove(...) to remove node.
-    fn remove_node(&mut self, node: Handle<UiNode>) {
-        self.unlink_node_internal(node);
-
-        let sender = self.sender.clone();
-        let mut stack = vec![node];
-        while let Some(handle) = stack.pop() {
-            if self.prev_picked_node == handle {
-                self.prev_picked_node = Handle::NONE;
-            }
-            if self.picked_node == handle {
-                self.try_set_picked_node(Handle::NONE);
-            }
-            if self.captured_node == handle {
-                self.captured_node = Handle::NONE;
-            }
-            if self.keyboard_focus_node == handle {
-                self.keyboard_focus_node = Handle::NONE;
-            }
-            self.remove_picking_restriction(handle);
-
-            let node_ref = self.nodes.borrow(handle);
-            stack.extend_from_slice(node_ref.children());
-
-            // Notify node that it is about to be deleted so it will have a chance to remove
-            // other widgets (like popups).
-            node_ref.on_remove(&sender);
-
-            self.nodes.free(handle);
-            self.preview_set.remove(&handle);
-        }
-    }
-
     pub fn drag_context(&self) -> &DragContext {
         &self.drag_context
     }
@@ -2700,16 +2667,6 @@ impl UserInterface {
     pub fn unlink_node(&mut self, node_handle: Handle<UiNode>) {
         self.unlink_node_internal(node_handle);
         self.link_nodes(node_handle, self.root_canvas, false);
-    }
-
-    #[inline]
-    pub fn node(&self, node_handle: Handle<UiNode>) -> &UiNode {
-        self.nodes.borrow(node_handle)
-    }
-
-    #[inline]
-    pub fn try_get_node(&self, node_handle: Handle<UiNode>) -> Option<&UiNode> {
-        self.nodes.try_borrow(node_handle)
     }
 
     #[inline]
@@ -2886,6 +2843,82 @@ impl UserInterface {
             widget.invalidate_layout();
         }
         Ok(ui)
+    }
+}
+
+impl PrefabData for UserInterface {
+    type Graph = Self;
+
+    fn graph(&self) -> &Self::Graph {
+        self
+    }
+}
+
+impl SceneGraph for UserInterface {
+    type Prefab = Self;
+    type Node = UiNode;
+
+    #[inline]
+    fn root(&self) -> Handle<Self::Node> {
+        self.root_canvas
+    }
+
+    #[inline]
+    fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
+        self.nodes.pair_iter()
+    }
+
+    #[inline]
+    fn is_valid_handle(&self, handle: Handle<Self::Node>) -> bool {
+        self.nodes.is_valid_handle(handle)
+    }
+
+    #[inline]
+    fn remove_node(&mut self, node: Handle<Self::Node>) {
+        self.unlink_node_internal(node);
+
+        let sender = self.sender.clone();
+        let mut stack = vec![node];
+        while let Some(handle) = stack.pop() {
+            if self.prev_picked_node == handle {
+                self.prev_picked_node = Handle::NONE;
+            }
+            if self.picked_node == handle {
+                self.try_set_picked_node(Handle::NONE);
+            }
+            if self.captured_node == handle {
+                self.captured_node = Handle::NONE;
+            }
+            if self.keyboard_focus_node == handle {
+                self.keyboard_focus_node = Handle::NONE;
+            }
+            self.remove_picking_restriction(handle);
+
+            let node_ref = self.nodes.borrow(handle);
+            stack.extend_from_slice(node_ref.children());
+
+            // Notify node that it is about to be deleted so it will have a chance to remove
+            // other widgets (like popups).
+            node_ref.on_remove(&sender);
+
+            self.nodes.free(handle);
+            self.preview_set.remove(&handle);
+        }
+    }
+
+    #[inline]
+    fn link_nodes(&mut self, child: Handle<Self::Node>, parent: Handle<Self::Node>) {
+        self.link_nodes(child, parent, false)
+    }
+
+    #[inline]
+    fn node(&self, handle: Handle<Self::Node>) -> &Self::Node {
+        self.nodes.borrow(handle)
+    }
+
+    #[inline]
+    fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
+        self.nodes.try_borrow(handle)
     }
 }
 
@@ -3112,6 +3145,7 @@ mod test {
         widget::{WidgetBuilder, WidgetMessage},
         OsEvent, UserInterface,
     };
+    use fyrox_graph::SceneGraph;
 
     #[test]
     fn test_transform_size() {

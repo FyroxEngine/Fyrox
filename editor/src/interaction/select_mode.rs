@@ -10,6 +10,7 @@ use crate::{
 };
 use fyrox::core::uuid::{uuid, Uuid};
 use fyrox::core::TypeUuidProvider;
+use fyrox::graph::SceneGraph;
 use fyrox::gui::BuildContext;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle},

@@ -23,6 +23,7 @@ use crate::{
     },
     send_sync_message,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::pool::Handle,
     gui::{

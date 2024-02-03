@@ -16,6 +16,7 @@ use crate::{
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::parking_lot::Mutex;
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{futures::executor::block_on, pool::Handle},
     engine::Engine,

@@ -1,3 +1,4 @@
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{algebra::Vector2, pool::ErasedHandle, pool::Handle, visitor::Visitor},
     gui::{
@@ -81,7 +82,7 @@ pub fn fetch_node_screen_center(handle: Handle<UiNode>, ctx: &BuildContext) -> V
 }
 
 pub fn fetch_node_screen_center_ui(handle: Handle<UiNode>, ui: &UserInterface) -> Vector2<f32> {
-    ui.try_get_node(handle)
+    ui.try_get(handle)
         .map(|node| node.screen_bounds().center())
         .unwrap_or_default()
 }

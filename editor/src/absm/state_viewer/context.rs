@@ -18,6 +18,7 @@ use crate::{
         Selection,
     },
 };
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{algebra::Vector2, pool::Handle},
     gui::{

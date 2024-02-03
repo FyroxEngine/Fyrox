@@ -1,4 +1,4 @@
-//! Prefab utilities.
+//! Graph utilities and common algorithms.
 
 use fxhash::FxHashMap;
 use fyrox_core::{
@@ -365,9 +365,6 @@ pub trait SceneGraph: Sized + 'static {
     /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)>;
 
-    /// Create a graph depth traversal iterator.
-    fn traverse_iter(&self, from: Handle<Self::Node>) -> impl Iterator<Item = &Self::Node>;
-
     /// Checks whether the given node handle is valid or not.
     fn is_valid_handle(&self, handle: Handle<Self::Node>) -> bool;
 
@@ -380,6 +377,28 @@ pub trait SceneGraph: Sized + 'static {
     /// Borrows a node by its handle.
     fn node(&self, handle: Handle<Self::Node>) -> &Self::Node;
 
+    /// Tries to borrow a node, returns Some(node) if the handle is valid, None - otherwise.
+    fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node>;
+
+    /// Create a graph depth traversal iterator.
+    fn traverse_iter(&self, from: Handle<Self::Node>) -> impl Iterator<Item = &Self::Node> {
+        GraphTraverseIterator {
+            graph: self,
+            stack: vec![from],
+        }
+    }
+
+    /// Create a graph depth traversal iterator.
+    fn traverse_handle_iter(
+        &self,
+        from: Handle<Self::Node>,
+    ) -> impl Iterator<Item = Handle<Self::Node>> {
+        GraphHandleTraverseIterator {
+            graph: self,
+            stack: vec![from],
+        }
+    }
+
     /// Searches for a node down the tree starting from the specified node using the specified closure.
     /// Returns a tuple with a handle and a reference to the found node. If nothing is found, it
     /// returns [`None`].
@@ -389,7 +408,16 @@ pub trait SceneGraph: Sized + 'static {
         cmp: &mut C,
     ) -> Option<(Handle<Self::Node>, &Self::Node)>
     where
-        C: FnMut(&Self::Node) -> bool;
+        C: FnMut(&Self::Node) -> bool,
+    {
+        self.try_get(root_node).and_then(|root| {
+            if cmp(root) {
+                Some((root_node, root))
+            } else {
+                root.children().iter().find_map(|c| self.find(*c, cmp))
+            }
+        })
+    }
 
     /// This method checks integrity of the graph and restores it if needed. For example, if a node
     /// was added in a parent asset, then it must be added in the graph. Alternatively, if a node was
@@ -545,5 +573,58 @@ pub trait SceneGraph: Sized + 'static {
         );
 
         instances
+    }
+}
+
+/// Iterator that traverses tree in depth and returns shared references to nodes.
+pub struct GraphTraverseIterator<'a, G, N> {
+    graph: &'a G,
+    stack: Vec<Handle<N>>,
+}
+
+impl<'a, G, N> Iterator for GraphTraverseIterator<'a, G, N>
+where
+    G: SceneGraph<Node = N>,
+    N: SceneGraphNode,
+{
+    type Item = &'a N;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(handle) = self.stack.pop() {
+            let node = self.graph.node(handle);
+
+            for child_handle in node.children() {
+                self.stack.push(*child_handle);
+            }
+
+            return Some(node);
+        }
+
+        None
+    }
+}
+
+/// Iterator that traverses tree in depth and returns handles to nodes.
+pub struct GraphHandleTraverseIterator<'a, G, N> {
+    graph: &'a G,
+    stack: Vec<Handle<N>>,
+}
+
+impl<'a, G, N> Iterator for GraphHandleTraverseIterator<'a, G, N>
+where
+    G: SceneGraph<Node = N>,
+    N: SceneGraphNode,
+{
+    type Item = Handle<N>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(handle) = self.stack.pop() {
+            for child_handle in self.graph.node(handle).children() {
+                self.stack.push(*child_handle);
+            }
+
+            return Some(handle);
+        }
+        None
     }
 }

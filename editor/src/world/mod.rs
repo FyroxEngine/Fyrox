@@ -8,6 +8,7 @@ use crate::{
     Mode, Settings,
 };
 use fyrox::asset::untyped::UntypedResource;
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{
         color::Color,
@@ -554,7 +555,7 @@ impl WorldViewer {
         self.colorize(ui);
 
         self.node_to_view_map
-            .retain(|k, v| data_provider.is_valid_handle(*k) && ui.try_get_node(*v).is_some());
+            .retain(|k, v| data_provider.is_valid_handle(*k) && ui.try_get(*v).is_some());
     }
 
     pub fn colorize(&mut self, ui: &UserInterface) {
@@ -633,7 +634,7 @@ impl WorldViewer {
             if let Some(&view) = self.breadcrumbs.get(&message.destination()) {
                 if let Some(graph_node) = engine
                     .user_interface
-                    .try_get_node(view)
+                    .try_get(view)
                     .and_then(|n| n.cast::<SceneItem>())
                 {
                     data_provider.on_selection_changed(&[graph_node.entity_handle]);

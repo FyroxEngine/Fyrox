@@ -18,6 +18,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
+use fyrox_graph::SceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// A set of messages that could be used to alternate the state of a [`ScrollViewer`] widget.

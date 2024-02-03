@@ -26,6 +26,7 @@ use crate::{
     },
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::SceneGraph;
 use rapier2d::geometry::ColliderHandle;
 use std::{
     cell::Cell,

@@ -14,6 +14,7 @@ use crate::{
     scene::{commands::ChangeSelectionCommand, GameScene, Selection},
     send_sync_message, Message,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{algebra::Vector2, math::Rect, pool::Handle, uuid::Uuid},
     engine::Engine,

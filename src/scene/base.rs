@@ -19,6 +19,7 @@ use crate::{
     script::{Script, ScriptTrait},
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::SceneGraph;
 use serde::{Deserialize, Serialize};
 use std::{any::Any, cell::Cell, sync::mpsc::Sender};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};

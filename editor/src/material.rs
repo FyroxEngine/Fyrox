@@ -8,6 +8,7 @@ use crate::{
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::parking_lot::Mutex;
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{
         algebra::{Matrix4, Vector2, Vector3, Vector4},

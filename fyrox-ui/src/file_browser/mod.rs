@@ -40,6 +40,7 @@ pub use selector::*;
 use fyrox_core::algebra::Vector2;
 use fyrox_core::parking_lot::Mutex;
 use fyrox_core::uuid_provider;
+use fyrox_graph::SceneGraph;
 use notify::Watcher;
 #[cfg(not(target_arch = "wasm32"))]
 use sysinfo::{DiskExt, RefreshKind, SystemExt};

@@ -22,6 +22,7 @@ use crate::{
     BRUSH_DARK, BRUSH_DARKEST,
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::SceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// Opaque selection state of a tree.

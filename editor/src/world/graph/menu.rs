@@ -16,6 +16,7 @@ use crate::{
     world::WorldViewerItemContextMenu,
     Engine, Message, MessageDirection, PasteCommand,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::{
     asset::untyped::UntypedResource,
     core::{algebra::Vector2, pool::Handle, reflect::Reflect, scope_profile},

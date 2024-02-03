@@ -23,6 +23,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Orientation, RestrictionEntry, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
 };
+use fyrox_graph::SceneGraph;
 use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,

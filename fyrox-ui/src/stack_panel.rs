@@ -14,6 +14,7 @@ use crate::{
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::SceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// A set of possible [`StackPanel`] widget messages.

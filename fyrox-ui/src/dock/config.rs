@@ -6,6 +6,7 @@ use crate::{
     window::WindowMessage,
     Orientation, UiNode, UserInterface,
 };
+use fyrox_graph::SceneGraph;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Clone, Default, Serialize, Deserialize)]
@@ -42,7 +43,7 @@ impl TileContentDescriptor {
         match tile_content {
             TileContent::Empty => Self::Empty,
             TileContent::Window(window) => Self::Window(
-                ui.try_get_node(*window)
+                ui.try_get(*window)
                     .map(|w| w.name.clone())
                     .unwrap_or_default(),
             ),
@@ -71,7 +72,7 @@ pub struct TileDescriptor {
 
 impl TileDescriptor {
     pub(super) fn from_tile_handle(handle: Handle<UiNode>, ui: &UserInterface) -> Self {
-        ui.try_get_node(handle)
+        ui.try_get(handle)
             .and_then(|t| t.query_component::<Tile>())
             .map(|t| Self {
                 content: TileContentDescriptor::from_tile(&t.content, ui),
@@ -100,7 +101,7 @@ impl TileDescriptor {
 
                     if window_handle.is_none() {
                         for other_window_handle in windows.iter().cloned() {
-                            if let Some(window_node) = ui.try_get_node(other_window_handle) {
+                            if let Some(window_node) = ui.try_get(other_window_handle) {
                                 if &window_node.name == window_name {
                                     window_handle = other_window_handle;
                                 }

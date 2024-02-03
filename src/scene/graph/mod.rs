@@ -424,12 +424,6 @@ impl Graph {
         self.root
     }
 
-    /// Tries to borrow a node, returns Some(node) if the handle is valid, None - otherwise.
-    #[inline]
-    pub fn try_get(&self, handle: Handle<Node>) -> Option<&Node> {
-        self.pool.try_borrow(handle)
-    }
-
     /// Tries to borrow a node and fetch its component of specified type.
     #[inline]
     pub fn try_get_of_type<T>(&self, handle: Handle<Node>) -> Option<&T>
@@ -1577,20 +1571,6 @@ impl Graph {
         self.pool.alive_count()
     }
 
-    /// Create a graph depth traversal iterator which will emit *handles* to nodes.
-    ///
-    /// # Notes
-    ///
-    /// This method allocates temporal array so it is not cheap! Should not be
-    /// used on each frame.
-    #[inline]
-    pub fn traverse_handle_iter(&self, from: Handle<Node>) -> GraphHandleTraverseIterator {
-        GraphHandleTraverseIterator {
-            graph: self,
-            stack: vec![from],
-        }
-    }
-
     /// Creates deep copy of graph. Allows filtering while copying, returns copy and
     /// old-to-new node mapping.
     #[inline]
@@ -1859,51 +1839,6 @@ where
     }
 }
 
-/// Iterator that traverses tree in depth and returns shared references to nodes.
-pub struct GraphTraverseIterator<'a> {
-    graph: &'a Graph,
-    stack: Vec<Handle<Node>>,
-}
-
-impl<'a> Iterator for GraphTraverseIterator<'a> {
-    type Item = &'a Node;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(handle) = self.stack.pop() {
-            let node = &self.graph[handle];
-
-            for child_handle in node.children() {
-                self.stack.push(*child_handle);
-            }
-
-            return Some(node);
-        }
-
-        None
-    }
-}
-
-/// Iterator that traverses tree in depth and returns handles to nodes.
-pub struct GraphHandleTraverseIterator<'a> {
-    graph: &'a Graph,
-    stack: Vec<Handle<Node>>,
-}
-
-impl<'a> Iterator for GraphHandleTraverseIterator<'a> {
-    type Item = Handle<Node>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(handle) = self.stack.pop() {
-            for child_handle in self.graph[handle].children() {
-                self.stack.push(*child_handle);
-            }
-
-            return Some(handle);
-        }
-        None
-    }
-}
-
 impl Visit for Graph {
     fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
         // Pool must be empty, otherwise handles will be invalid and everything will blow up.
@@ -1936,14 +1871,6 @@ impl SceneGraph for Graph {
     #[inline]
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
         self.pool.pair_iter()
-    }
-
-    #[inline]
-    fn traverse_iter(&self, from: Handle<Self::Node>) -> impl Iterator<Item = &Self::Node> {
-        GraphTraverseIterator {
-            graph: self,
-            stack: vec![from],
-        }
     }
 
     #[inline]
@@ -1985,21 +1912,8 @@ impl SceneGraph for Graph {
     }
 
     #[inline]
-    fn find<C>(
-        &self,
-        root_node: Handle<Self::Node>,
-        cmp: &mut C,
-    ) -> Option<(Handle<Self::Node>, &Self::Node)>
-    where
-        C: FnMut(&Self::Node) -> bool,
-    {
-        self.pool.try_borrow(root_node).and_then(|root| {
-            if cmp(root) {
-                Some((root_node, root))
-            } else {
-                root.children().iter().find_map(|c| self.find(*c, cmp))
-            }
-        })
+    fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
+        self.pool.try_borrow(handle)
     }
 }
 

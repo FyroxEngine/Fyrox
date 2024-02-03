@@ -3,6 +3,7 @@ use crate::{
     message::MessageSender,
     Message,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::pool::Handle,
     gui::{

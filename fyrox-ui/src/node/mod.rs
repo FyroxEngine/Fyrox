@@ -2,9 +2,12 @@
 
 use crate::{
     core::{reflect::prelude::*, visitor::prelude::*},
-    BaseControl, Control,
+    BaseControl, Control, UserInterface,
 };
+use fyrox_core::pool::Handle;
 use fyrox_core::NameProvider;
+use fyrox_graph::SceneGraphNode;
+use fyrox_resource::Resource;
 use std::{
     any::{Any, TypeId},
     fmt::{Debug, Formatter},
@@ -20,6 +23,34 @@ pub mod container;
 /// casting, component querying, etc. You could also be interested in [`Control`] docs, since it
 /// contains all the interesting stuff and detailed description for each method.
 pub struct UiNode(pub Box<dyn Control>);
+
+impl SceneGraphNode for UiNode {
+    type ResourceData = UserInterface;
+
+    fn is_resource_instance_root(&self) -> bool {
+        self.is_resource_instance_root
+    }
+
+    fn original_handle_in_resource(&self) -> Handle<Self> {
+        self.original_handle_in_resource
+    }
+
+    fn resource(&self) -> Option<Resource<Self::ResourceData>> {
+        self.resource.clone()
+    }
+
+    fn self_handle(&self) -> Handle<Self> {
+        self.handle
+    }
+
+    fn parent(&self) -> Handle<Self> {
+        self.parent
+    }
+
+    fn children(&self) -> &[Handle<Self>] {
+        &self.children
+    }
+}
 
 impl NameProvider for UiNode {
     fn name(&self) -> &str {

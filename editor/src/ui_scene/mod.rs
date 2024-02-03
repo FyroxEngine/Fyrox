@@ -20,6 +20,7 @@ use crate::{
     },
     Message,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{
         algebra::Vector2,
@@ -82,7 +83,7 @@ impl UiScene {
     }
 
     fn select_object(&mut self, handle: ErasedHandle, selection: &Selection) {
-        if self.ui.try_get_node(handle.into()).is_some() {
+        if self.ui.try_get(handle.into()).is_some() {
             self.message_sender
                 .do_ui_scene_command(ChangeUiSelectionCommand::new(
                     Selection::Ui(UiSelection::single_or_empty(handle.into())),
@@ -249,7 +250,7 @@ impl SceneController for UiScene {
         // Draw selection on top.
         if let Selection::Ui(selection) = editor_selection {
             for node in selection.widgets.iter() {
-                if let Some(node) = self.ui.try_get_node(*node) {
+                if let Some(node) = self.ui.try_get(*node) {
                     let bounds = node.screen_bounds();
                     let clip_bounds = node.clip_bounds();
                     let drawing_context = self.ui.get_drawing_context_mut();
@@ -336,7 +337,7 @@ impl SceneController for UiScene {
                         *view,
                         MessageDirection::ToWidget,
                         self.ui
-                            .try_get_node((*handle).into())
+                            .try_get((*handle).into())
                             .map(|n| n.name().to_owned()),
                     ));
             }
@@ -382,7 +383,7 @@ impl SceneController for UiScene {
     ) {
         if let Selection::Ui(selection) = selection {
             if let Some(first) = selection.widgets.first() {
-                if let Some(node) = self.ui.try_get_node(*first).map(|n| n as &dyn Reflect) {
+                if let Some(node) = self.ui.try_get(*first).map(|n| n as &dyn Reflect) {
                     (callback)(node)
                 }
             }
@@ -400,7 +401,7 @@ impl SceneController for UiScene {
                 .widgets
                 .iter()
                 .filter_map(|&node_handle| {
-                    if self.ui.try_get_node(node_handle).is_some() {
+                    if self.ui.try_get(node_handle).is_some() {
                         make_set_widget_property_command(node_handle, args)
                     } else {
                         None
@@ -428,7 +429,7 @@ impl SceneController for UiScene {
             Selection::Ui(selection) => selection
                 .widgets
                 .first()
-                .and_then(|h| self.ui.try_get_node(*h).map(|n| n.doc().to_string())),
+                .and_then(|h| self.ui.try_get(*h).map(|n| n.doc().to_string())),
             _ => None,
         }
     }

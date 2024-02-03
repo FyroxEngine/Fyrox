@@ -21,6 +21,7 @@ use crate::{
     widget::{Widget, WidgetBuilder, WidgetMessage},
     BuildContext, Control, RcUiNodeHandle, UiNode, UserInterface,
 };
+use fyrox_graph::SceneGraph;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
@@ -228,7 +229,7 @@ impl Control for ColorGradientEditor {
                     gradient,
                 ));
             } else if message.destination() == self.remove_point
-                && ui.try_get_node(self.context_menu_target.get()).is_some()
+                && ui.try_get(self.context_menu_target.get()).is_some()
             {
                 let gradient = self.fetch_gradient(self.context_menu_target.get(), ui);
 
@@ -276,7 +277,7 @@ impl Control for ColorGradientEditor {
 
                 if message.destination() == self.point_context_menu.handle() {
                     if let Some(point) = ui
-                        .try_get_node(self.context_menu_target.get())
+                        .try_get(self.context_menu_target.get())
                         .and_then(|n| n.query_component::<ColorPoint>())
                     {
                         let mut msg = ColorFieldMessage::color(

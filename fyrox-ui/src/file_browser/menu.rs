@@ -18,6 +18,7 @@ use crate::{
     BuildContext, Control, HorizontalAlignment, Orientation, Thickness, UiNode, UserInterface,
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::SceneGraph;
 use std::{
     cell::{Cell, RefCell},
     ops::{Deref, DerefMut},
@@ -335,7 +336,7 @@ impl ItemContextMenu {
     }
 
     fn item_path(&self, ui: &UserInterface) -> Option<PathBuf> {
-        ui.try_get_node(self.popup.placement.target())
+        ui.try_get(self.popup.placement.target())
             .and_then(|n| n.user_data_cloned::<PathBuf>())
     }
 }

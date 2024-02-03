@@ -16,6 +16,7 @@ use crate::{
     BRUSH_PRIMARY,
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::SceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// A set of messages for [`Popup`] widget.
@@ -300,13 +301,13 @@ fn adjust_placement_position(
 
 impl Popup {
     fn left_top_placement(&self, ui: &UserInterface, target: Handle<UiNode>) -> Vector2<f32> {
-        ui.try_get_node(target)
+        ui.try_get(target)
             .map(|n| n.screen_position())
             .unwrap_or_default()
     }
 
     fn right_top_placement(&self, ui: &UserInterface, target: Handle<UiNode>) -> Vector2<f32> {
-        ui.try_get_node(target)
+        ui.try_get(target)
             .map(|n| n.screen_position() + Vector2::new(n.actual_global_size().x, 0.0))
             .unwrap_or_else(|| {
                 Vector2::new(ui.screen_size().x - self.widget.actual_global_size().x, 0.0)
@@ -314,13 +315,13 @@ impl Popup {
     }
 
     fn center_placement(&self, ui: &UserInterface, target: Handle<UiNode>) -> Vector2<f32> {
-        ui.try_get_node(target)
+        ui.try_get(target)
             .map(|n| n.screen_position() + n.actual_global_size().scale(0.5))
             .unwrap_or_else(|| (ui.screen_size - self.widget.actual_global_size()).scale(0.5))
     }
 
     fn left_bottom_placement(&self, ui: &UserInterface, target: Handle<UiNode>) -> Vector2<f32> {
-        ui.try_get_node(target)
+        ui.try_get(target)
             .map(|n| n.screen_position() + Vector2::new(0.0, n.actual_global_size().y))
             .unwrap_or_else(|| {
                 Vector2::new(0.0, ui.screen_size().y - self.widget.actual_global_size().y)
@@ -328,7 +329,7 @@ impl Popup {
     }
 
     fn right_bottom_placement(&self, ui: &UserInterface, target: Handle<UiNode>) -> Vector2<f32> {
-        ui.try_get_node(target)
+        ui.try_get(target)
             .map(|n| n.screen_position() + n.actual_global_size())
             .unwrap_or_else(|| ui.screen_size - self.widget.actual_global_size())
     }

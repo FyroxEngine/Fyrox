@@ -2,6 +2,7 @@ use crate::{
     gui::{make_dropdown_list_option, make_image_button_with_tooltip},
     load_image, Brush, Color, DropdownListBuilder, Engine,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{
         log::{LogMessage, MessageKind},
@@ -67,7 +68,7 @@ impl ContextMenu {
             if message.destination() == self.copy {
                 if let Some(field) = engine
                     .user_interface
-                    .try_get_node(self.placement_target)
+                    .try_get(self.placement_target)
                     .and_then(|n| n.query_component::<Text>())
                 {
                     let text = field.text();

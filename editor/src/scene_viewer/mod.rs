@@ -9,6 +9,7 @@ use crate::{
     BuildProfile, DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
     SceneContainer, Selection, Settings,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{color::Color, math::Rect, pool::Handle, uuid::Uuid},
     engine::Engine,

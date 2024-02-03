@@ -13,6 +13,7 @@ use crate::{
     scene::{GameScene, Selection},
     Message,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{color::Color, pool::Handle},
     engine::Engine,

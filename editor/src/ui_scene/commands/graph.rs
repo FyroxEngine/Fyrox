@@ -9,6 +9,7 @@ use crate::{
     },
     Message,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::pool::Handle,
     gui::{SubGraph, UiNode, UserInterface},

@@ -9,6 +9,7 @@ use crate::{
     },
     world::WorldViewerDataProvider,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::{
     asset::untyped::UntypedResource,
     core::{make_pretty_type_name, pool::ErasedHandle, pool::Handle, reflect::Reflect},
@@ -34,33 +35,33 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
 
     fn children_of(&self, node: ErasedHandle) -> Vec<ErasedHandle> {
         self.ui
-            .try_get_node(node.into())
+            .try_get(node.into())
             .map(|n| n.children.iter().map(|c| (*c).into()).collect::<Vec<_>>())
             .unwrap_or_default()
     }
 
     fn child_count_of(&self, node: ErasedHandle) -> usize {
         self.ui
-            .try_get_node(node.into())
+            .try_get(node.into())
             .map(|n| n.children.len())
             .unwrap_or_default()
     }
 
     fn is_node_has_child(&self, node: ErasedHandle, child: ErasedHandle) -> bool {
         self.ui
-            .try_get_node(node.into())
+            .try_get(node.into())
             .map_or(false, |n| n.children().iter().any(|c| *c == child.into()))
     }
 
     fn parent_of(&self, node: ErasedHandle) -> ErasedHandle {
         self.ui
-            .try_get_node(node.into())
+            .try_get(node.into())
             .map(|n| n.parent().into())
             .unwrap_or_default()
     }
 
     fn name_of(&self, node: ErasedHandle) -> Option<Cow<str>> {
-        self.ui.try_get_node(node.into()).map(|n| {
+        self.ui.try_get(node.into()).map(|n| {
             Cow::Owned(format!(
                 "{} [{}]",
                 n.name(),
@@ -70,7 +71,7 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
     }
 
     fn is_valid_handle(&self, node: ErasedHandle) -> bool {
-        self.ui.try_get_node(node.into()).is_some()
+        self.ui.try_get(node.into()).is_some()
     }
 
     fn icon_of(&self, _node: ErasedHandle) -> Option<UntypedResource> {

@@ -30,6 +30,7 @@ use crate::{
     },
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::SceneGraph;
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},

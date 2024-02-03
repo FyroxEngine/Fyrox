@@ -11,6 +11,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_graph::SceneGraph;
 use fyrox_resource::untyped::UntypedResource;
 use std::ops::{Deref, DerefMut};
 

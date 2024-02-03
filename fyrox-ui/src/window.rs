@@ -20,6 +20,7 @@ use crate::{
     VerticalAlignment, BRUSH_BRIGHT, BRUSH_LIGHT, BRUSH_LIGHTEST,
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::SceneGraph;
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},

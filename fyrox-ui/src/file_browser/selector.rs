@@ -18,6 +18,7 @@ use crate::{
     VerticalAlignment,
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::SceneGraph;
 use std::{
     ops::{Deref, DerefMut},
     path::{Path, PathBuf},

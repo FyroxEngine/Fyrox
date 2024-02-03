@@ -26,6 +26,7 @@ use crate::{
 };
 use fxhash::FxHashSet;
 use fyrox_core::uuid_provider;
+use fyrox_graph::SceneGraph;
 use std::sync::mpsc::Sender;
 use std::{
     cell::{Cell, RefCell},
