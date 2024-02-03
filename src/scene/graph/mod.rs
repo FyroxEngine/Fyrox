@@ -32,12 +32,11 @@ use crate::{
         pool::{Handle, MultiBorrowContext, Pool, Ticket},
         reflect::prelude::*,
         sstorage::ImmutableString,
-        variable::{self, try_inherit_properties},
         visitor::{Visit, VisitResult, Visitor},
     },
     graph::{NodeHandleMap, SceneGraph},
     material::{shader::SamplerFallback, MaterialResource, PropertyValue},
-    resource::model::{Model, ModelResource, ModelResourceExtension, NodeMapping},
+    resource::model::{Model, ModelResource, ModelResourceExtension},
     scene::{
         base::{NodeScriptMessage, SceneNodeId},
         camera::Camera,
@@ -827,110 +826,6 @@ impl Graph {
         dest_copy_handle
     }
 
-    fn restore_original_handles_and_inherit_properties(&mut self) {
-        // Iterate over each node in the graph and resolve original handles. Original handle is a handle
-        // to a node in resource from which a node was instantiated from. Also sync inheritable properties
-        // if needed.
-        for node in self.pool.iter_mut() {
-            if let Some(model) = node.resource() {
-                let mut header = model.state();
-                let model_kind = header.kind().clone();
-                if let Some(data) = header.data() {
-                    let resource_graph = &data.get_scene().graph;
-
-                    let resource_node = match data.mapping {
-                        NodeMapping::UseNames => {
-                            // For some models we can resolve it only by names of nodes, but this is not
-                            // reliable way of doing this, because some editors allow nodes to have same
-                            // names for objects, but here we'll assume that modellers will not create
-                            // models with duplicated names and user of the engine reads log messages.
-                            resource_graph
-                                .pair_iter()
-                                .find_map(|(handle, resource_node)| {
-                                    if resource_node.name() == node.name() {
-                                        Some((resource_node, handle))
-                                    } else {
-                                        None
-                                    }
-                                })
-                        }
-                        NodeMapping::UseHandles => {
-                            // Use original handle directly.
-                            resource_graph
-                                .pool
-                                .try_borrow(node.original_handle_in_resource)
-                                .map(|resource_node| {
-                                    (resource_node, node.original_handle_in_resource)
-                                })
-                        }
-                    };
-
-                    if let Some((resource_node, original)) = resource_node {
-                        node.original_handle_in_resource = original;
-                        node.inv_bind_pose_transform = resource_node.inv_bind_pose_transform();
-
-                        // Check if the actual node types (this and parent's) are equal, and if not - copy the
-                        // node and replace its base.
-                        let mut types_match = true;
-                        node.as_reflect(&mut |node_reflect| {
-                            resource_node.as_reflect(&mut |resource_node_reflect| {
-                                types_match =
-                                    node_reflect.type_id() == resource_node_reflect.type_id();
-
-                                if !types_match {
-                                    Log::warn(format!(
-                                        "Node {}({}:{}) instance \
-                                        have different type than in the respective parent \
-                                        asset {}. The type will be fixed.",
-                                        node.name(),
-                                        node.self_handle.index(),
-                                        node.self_handle.generation(),
-                                        model_kind
-                                    ));
-                                }
-                            })
-                        });
-                        if !types_match {
-                            let base = (**node).clone();
-                            let mut resource_node_clone = resource_node.clone_box();
-                            variable::mark_inheritable_properties_non_modified(
-                                &mut resource_node_clone as &mut dyn Reflect,
-                                &[
-                                    TypeId::of::<UntypedResource>(),
-                                    TypeId::of::<navmesh::Container>(),
-                                ],
-                            );
-                            **resource_node_clone = base;
-                            *node = resource_node_clone;
-                        }
-
-                        // Then try to inherit properties.
-                        node.as_reflect_mut(&mut |node_reflect| {
-                            resource_node.as_reflect(&mut |resource_node_reflect| {
-                                Log::verify(try_inherit_properties(
-                                    node_reflect,
-                                    resource_node_reflect,
-                                    // Do not try to inspect resources, because it most likely cause a deadlock.
-                                    &[
-                                        std::any::TypeId::of::<UntypedResource>(),
-                                        TypeId::of::<navmesh::Container>(),
-                                    ],
-                                ));
-                            })
-                        })
-                    } else {
-                        Log::warn(format!(
-                            "Unable to find original handle for node {}. The node will be removed!",
-                            node.name(),
-                        ))
-                    }
-                }
-            }
-        }
-
-        Log::writeln(MessageKind::Information, "Original handles resolved!");
-    }
-
     // Maps handles in properties of instances after property inheritance. It is needed, because when a
     // property contains node handle, the handle cannot be used directly after inheritance. Instead, it
     // must be mapped to respective instance first.
@@ -997,7 +892,12 @@ impl Graph {
 
         self.restore_dynamic_node_data();
         self.mark_ancestor_nodes_as_modified();
-        self.restore_original_handles_and_inherit_properties();
+        self.restore_original_handles_and_inherit_properties(
+            &[TypeId::of::<navmesh::Container>()],
+            |resource_node, node| {
+                node.inv_bind_pose_transform = resource_node.inv_bind_pose_transform;
+            },
+        );
         self.update_hierarchical_data();
         let instances = self.restore_integrity(|model, model_data, handle, dest_graph| {
             ModelResource::instantiate_from(model, model_data, handle, dest_graph, &mut |_, _| {})
@@ -1461,13 +1361,6 @@ impl Graph {
         self.pool.iter()
     }
 
-    /// Creates an iterator that has linear iteration order over internal collection
-    /// of nodes. It does *not* perform any tree traversal!
-    #[inline]
-    pub fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Node> {
-        self.pool.iter_mut()
-    }
-
     /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
     #[inline]
     pub fn pair_iter_mut(&mut self) -> impl Iterator<Item = (Handle<Node>, &mut Node)> {
@@ -1871,6 +1764,11 @@ impl SceneGraph for Graph {
     #[inline]
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
         self.pool.pair_iter()
+    }
+
+    #[inline]
+    fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
+        self.pool.iter_mut()
     }
 
     #[inline]

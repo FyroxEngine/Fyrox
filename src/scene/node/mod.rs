@@ -309,8 +309,23 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
 #[derive(Debug)]
 pub struct Node(Box<dyn NodeTrait>);
 
+impl Clone for Node {
+    fn clone(&self) -> Self {
+        self.0.clone_box()
+    }
+}
+
 impl SceneGraphNode for Node {
+    type Base = Base;
     type ResourceData = Model;
+
+    fn base(&self) -> &Self::Base {
+        self.0.deref()
+    }
+
+    fn set_base(&mut self, base: Self::Base) {
+        ***self = base;
+    }
 
     fn is_resource_instance_root(&self) -> bool {
         self.is_resource_instance_root
@@ -318,6 +333,10 @@ impl SceneGraphNode for Node {
 
     fn original_handle_in_resource(&self) -> Handle<Self> {
         self.original_handle_in_resource
+    }
+
+    fn set_original_handle_in_resource(&mut self, handle: Handle<Self>) {
+        self.original_handle_in_resource = handle;
     }
 
     fn resource(&self) -> Option<Resource<Self::ResourceData>> {

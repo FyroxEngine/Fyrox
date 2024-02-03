@@ -29,7 +29,7 @@ use crate::{
     renderer::{framework::error::FrameworkError, framework::state::GlKind, Renderer},
     resource::{
         curve::{loader::CurveLoader, CurveResourceState},
-        model::{loader::ModelLoader, Model, ModelResource, NodeMapping},
+        model::{loader::ModelLoader, Model, ModelResource},
         texture::{loader::TextureLoader, Texture, TextureKind},
     },
     scene::{
@@ -77,6 +77,7 @@ use crate::resource::texture;
 use crate::scene::navmesh;
 use crate::script::PluginsRefMut;
 use fyrox_core::task::TaskPool;
+use fyrox_graph::NodeMapping;
 use fyrox_resource::Resource;
 use fyrox_ui::font::BUILT_IN_FONT;
 use fyrox_ui::loader::UserInterfaceLoader;

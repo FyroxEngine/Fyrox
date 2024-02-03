@@ -1,5 +1,6 @@
 //! UI node is a type-agnostic wrapper for any widget type. See [`UiNode`] docs for more info.
 
+use crate::widget::Widget;
 use crate::{
     core::{reflect::prelude::*, visitor::prelude::*},
     BaseControl, Control, UserInterface,
@@ -24,8 +25,23 @@ pub mod container;
 /// contains all the interesting stuff and detailed description for each method.
 pub struct UiNode(pub Box<dyn Control>);
 
+impl Clone for UiNode {
+    fn clone(&self) -> Self {
+        Self(self.0.clone_boxed())
+    }
+}
+
 impl SceneGraphNode for UiNode {
+    type Base = Widget;
     type ResourceData = UserInterface;
+
+    fn base(&self) -> &Self::Base {
+        self.0.deref()
+    }
+
+    fn set_base(&mut self, base: Self::Base) {
+        ***self = base;
+    }
 
     fn is_resource_instance_root(&self) -> bool {
         self.is_resource_instance_root
@@ -33,6 +49,10 @@ impl SceneGraphNode for UiNode {
 
     fn original_handle_in_resource(&self) -> Handle<Self> {
         self.original_handle_in_resource
+    }
+
+    fn set_original_handle_in_resource(&mut self, handle: Handle<Self>) {
+        self.original_handle_in_resource = handle;
     }
 
     fn resource(&self) -> Option<Resource<Self::ResourceData>> {

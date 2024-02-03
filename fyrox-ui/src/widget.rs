@@ -786,6 +786,8 @@ pub struct Widget {
     pub layout_events_sender: Option<Sender<LayoutEvent>>,
     /// Unique identifier of the widget.
     pub id: Uuid,
+    /// A flag, that indicates whether this widget is a root widget of a hierarchy of widgets
+    /// instantiated from a resource.
     #[reflect(hidden)]
     #[visit(optional)]
     pub is_resource_instance_root: bool,

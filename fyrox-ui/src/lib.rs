@@ -289,7 +289,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
-use fyrox_graph::{NodeHandleMap, PrefabData, SceneGraph};
+use fyrox_graph::{NodeHandleMap, NodeMapping, PrefabData, SceneGraph};
 pub use node::*;
 pub use thickness::*;
 
@@ -2849,8 +2849,14 @@ impl UserInterface {
 impl PrefabData for UserInterface {
     type Graph = Self;
 
+    #[inline]
     fn graph(&self) -> &Self::Graph {
         self
+    }
+
+    #[inline]
+    fn mapping(&self) -> NodeMapping {
+        NodeMapping::UseHandles
     }
 }
 
@@ -2866,6 +2872,11 @@ impl SceneGraph for UserInterface {
     #[inline]
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
         self.nodes.pair_iter()
+    }
+
+    #[inline]
+    fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
+        self.nodes.iter_mut()
     }
 
     #[inline]

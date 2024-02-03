@@ -46,6 +46,7 @@ use crate::{
     },
 };
 use fxhash::FxHashMap;
+use fyrox_graph::NodeMapping;
 use serde::{Deserialize, Serialize};
 use std::{
     any::Any,
@@ -57,13 +58,6 @@ use std::{
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 pub mod loader;
-
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Reflect)]
-#[repr(u32)]
-pub(crate) enum NodeMapping {
-    UseNames = 0,
-    UseHandles = 1,
-}
 
 /// See module docs.
 #[derive(Debug, Visit, Reflect)]
@@ -77,8 +71,14 @@ pub struct Model {
 impl PrefabData for Model {
     type Graph = Graph;
 
+    #[inline]
     fn graph(&self) -> &Self::Graph {
         &self.scene.graph
+    }
+
+    #[inline]
+    fn mapping(&self) -> NodeMapping {
+        self.mapping
     }
 }
 

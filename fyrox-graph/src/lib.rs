@@ -5,14 +5,21 @@ use fyrox_core::{
     log::{Log, MessageKind},
     pool::Handle,
     reflect::prelude::*,
-    variable::InheritableVariable,
+    variable::{self, InheritableVariable},
     NameProvider,
 };
-use fyrox_resource::{Resource, TypedResourceData};
+use fyrox_resource::{untyped::UntypedResource, Resource, TypedResourceData};
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
 };
+
+#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Reflect)]
+#[repr(u32)]
+pub enum NodeMapping {
+    UseNames = 0,
+    UseHandles = 1,
+}
 
 /// A `OriginalHandle -> CopyHandle` map. It is used to map handles to nodes after copying.
 ///
@@ -338,11 +345,15 @@ where
     }
 }
 
-pub trait SceneGraphNode: Reflect + NameProvider + Sized + 'static {
+pub trait SceneGraphNode: Reflect + NameProvider + Sized + Clone + 'static {
+    type Base: Clone;
     type ResourceData: TypedResourceData;
 
+    fn base(&self) -> &Self::Base;
+    fn set_base(&mut self, base: Self::Base);
     fn is_resource_instance_root(&self) -> bool;
     fn original_handle_in_resource(&self) -> Handle<Self>;
+    fn set_original_handle_in_resource(&mut self, handle: Handle<Self>);
     fn resource(&self) -> Option<Resource<Self::ResourceData>>;
     fn self_handle(&self) -> Handle<Self>;
     fn parent(&self) -> Handle<Self>;
@@ -353,6 +364,7 @@ pub trait PrefabData: TypedResourceData + 'static {
     type Graph: SceneGraph;
 
     fn graph(&self) -> &Self::Graph;
+    fn mapping(&self) -> NodeMapping;
 }
 
 pub trait SceneGraph: Sized + 'static {
@@ -364,6 +376,10 @@ pub trait SceneGraph: Sized + 'static {
 
     /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)>;
+
+    /// Creates an iterator that has linear iteration order over internal collection
+    /// of nodes. It does *not* perform any tree traversal!
+    fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node>;
 
     /// Checks whether the given node handle is valid or not.
     fn is_valid_handle(&self, handle: Handle<Self::Node>) -> bool;
@@ -573,6 +589,113 @@ pub trait SceneGraph: Sized + 'static {
         );
 
         instances
+    }
+
+    fn restore_original_handles_and_inherit_properties<F>(
+        &mut self,
+        ignored_types: &[TypeId],
+        mut before_inherit: F,
+    ) where
+        F: FnMut(&Self::Node, &mut Self::Node),
+    {
+        let mut ignored_types = ignored_types.to_vec();
+        // Do not try to inspect resources, because it most likely cause a deadlock.
+        ignored_types.push(TypeId::of::<UntypedResource>());
+
+        // Iterate over each node in the graph and resolve original handles. Original handle is a handle
+        // to a node in resource from which a node was instantiated from. Also sync inheritable properties
+        // if needed.
+        for node in self.linear_iter_mut() {
+            if let Some(model) = node.resource() {
+                let mut header = model.state();
+                let model_kind = header.kind().clone();
+                if let Some(data) = header.data() {
+                    let resource_graph = data.graph();
+
+                    let resource_node = match data.mapping() {
+                        NodeMapping::UseNames => {
+                            // For some models we can resolve it only by names of nodes, but this is not
+                            // reliable way of doing this, because some editors allow nodes to have same
+                            // names for objects, but here we'll assume that modellers will not create
+                            // models with duplicated names and user of the engine reads log messages.
+                            resource_graph
+                                .pair_iter()
+                                .find_map(|(handle, resource_node)| {
+                                    if resource_node.name() == node.name() {
+                                        Some((resource_node, handle))
+                                    } else {
+                                        None
+                                    }
+                                })
+                        }
+                        NodeMapping::UseHandles => {
+                            // Use original handle directly.
+                            resource_graph
+                                .try_get(node.original_handle_in_resource())
+                                .map(|resource_node| {
+                                    (resource_node, node.original_handle_in_resource())
+                                })
+                        }
+                    };
+
+                    if let Some((resource_node, original)) = resource_node {
+                        node.set_original_handle_in_resource(original);
+
+                        before_inherit(resource_node, node);
+
+                        // Check if the actual node types (this and parent's) are equal, and if not - copy the
+                        // node and replace its base.
+                        let mut types_match = true;
+                        node.as_reflect(&mut |node_reflect| {
+                            resource_node.as_reflect(&mut |resource_node_reflect| {
+                                types_match =
+                                    node_reflect.type_id() == resource_node_reflect.type_id();
+
+                                if !types_match {
+                                    Log::warn(format!(
+                                        "Node {}({}:{}) instance \
+                                        have different type than in the respective parent \
+                                        asset {}. The type will be fixed.",
+                                        node.name(),
+                                        node.self_handle().index(),
+                                        node.self_handle().generation(),
+                                        model_kind
+                                    ));
+                                }
+                            })
+                        });
+                        if !types_match {
+                            let base = node.base().clone();
+                            let mut resource_node_clone = resource_node.clone();
+                            variable::mark_inheritable_properties_non_modified(
+                                &mut resource_node_clone as &mut dyn Reflect,
+                                &ignored_types,
+                            );
+                            resource_node_clone.set_base(base);
+                            *node = resource_node_clone;
+                        }
+
+                        // Then try to inherit properties.
+                        node.as_reflect_mut(&mut |node_reflect| {
+                            resource_node.as_reflect(&mut |resource_node_reflect| {
+                                Log::verify(variable::try_inherit_properties(
+                                    node_reflect,
+                                    resource_node_reflect,
+                                    &ignored_types,
+                                ));
+                            })
+                        })
+                    } else {
+                        Log::warn(format!(
+                            "Unable to find original handle for node {}. The node will be removed!",
+                            node.name(),
+                        ))
+                    }
+                }
+            }
+        }
+
+        Log::writeln(MessageKind::Information, "Original handles resolved!");
     }
 }
 
