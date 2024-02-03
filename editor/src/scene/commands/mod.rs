@@ -11,6 +11,7 @@ use crate::{
 };
 use fyrox::asset::untyped::UntypedResource;
 use fyrox::core::variable::mark_inheritable_properties_non_modified;
+use fyrox::graph::SceneGraph;
 use fyrox::{
     asset::manager::ResourceManager,
     core::{log::Log, pool::Handle, reflect::prelude::*},

@@ -34,7 +34,7 @@ use crate::{
         TypeUuidProvider,
     },
     engine::SerializationContext,
-    prefab::NodeHandleMap,
+    graph::{NodeHandleMap, PrefabData, SceneGraph},
     resource::fbx::{self, error::FbxError},
     scene::{
         animation::{Animation, AnimationPlayer},
@@ -72,6 +72,14 @@ pub struct Model {
     pub(crate) mapping: NodeMapping,
     #[visit(skip)]
     pub(crate) scene: Scene,
+}
+
+impl PrefabData for Model {
+    type Graph = Graph;
+
+    fn graph(&self) -> &Self::Graph {
+        &self.scene.graph
+    }
 }
 
 impl TypeUuidProvider for Model {

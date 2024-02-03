@@ -2,8 +2,13 @@
 
 use fxhash::FxHashMap;
 use fyrox_core::{
-    log::Log, pool::Handle, reflect::prelude::*, variable::InheritableVariable, NameProvider,
+    log::{Log, MessageKind},
+    pool::Handle,
+    reflect::prelude::*,
+    variable::InheritableVariable,
+    NameProvider,
 };
+use fyrox_resource::{Resource, TypedResourceData};
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
@@ -330,5 +335,215 @@ where
                 );
             }
         })
+    }
+}
+
+pub trait SceneGraphNode: Reflect + NameProvider + Sized + 'static {
+    type ResourceData: TypedResourceData;
+
+    fn is_resource_instance_root(&self) -> bool;
+    fn original_handle_in_resource(&self) -> Handle<Self>;
+    fn resource(&self) -> Option<Resource<Self::ResourceData>>;
+    fn self_handle(&self) -> Handle<Self>;
+    fn parent(&self) -> Handle<Self>;
+    fn children(&self) -> &[Handle<Self>];
+}
+
+pub trait PrefabData: TypedResourceData + 'static {
+    type Graph: SceneGraph;
+
+    fn graph(&self) -> &Self::Graph;
+}
+
+pub trait SceneGraph: Sized + 'static {
+    type Prefab: PrefabData<Graph = Self>;
+    type Node: SceneGraphNode<ResourceData = Self::Prefab>;
+
+    /// Returns a handle of the root node of the graph.
+    fn root(&self) -> Handle<Self::Node>;
+
+    /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
+    fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)>;
+
+    /// Create a graph depth traversal iterator.
+    fn traverse_iter(&self, from: Handle<Self::Node>) -> impl Iterator<Item = &Self::Node>;
+
+    /// Checks whether the given node handle is valid or not.
+    fn is_valid_handle(&self, handle: Handle<Self::Node>) -> bool;
+
+    /// Destroys the node and its children recursively.
+    fn remove_node(&mut self, node_handle: Handle<Self::Node>);
+
+    /// Links specified child with specified parent.
+    fn link_nodes(&mut self, child: Handle<Self::Node>, parent: Handle<Self::Node>);
+
+    /// Borrows a node by its handle.
+    fn node(&self, handle: Handle<Self::Node>) -> &Self::Node;
+
+    /// Searches for a node down the tree starting from the specified node using the specified closure.
+    /// Returns a tuple with a handle and a reference to the found node. If nothing is found, it
+    /// returns [`None`].
+    fn find<C>(
+        &self,
+        root_node: Handle<Self::Node>,
+        cmp: &mut C,
+    ) -> Option<(Handle<Self::Node>, &Self::Node)>
+    where
+        C: FnMut(&Self::Node) -> bool;
+
+    /// This method checks integrity of the graph and restores it if needed. For example, if a node
+    /// was added in a parent asset, then it must be added in the graph. Alternatively, if a node was
+    /// deleted in a parent asset, then its instance must be deleted in the graph.
+    #[allow(clippy::type_complexity)]
+    fn restore_integrity<F>(
+        &mut self,
+        mut instantiate: F,
+    ) -> Vec<(Handle<Self::Node>, Resource<Self::Prefab>)>
+    where
+        F: FnMut(
+            Resource<Self::Prefab>,
+            &Self::Prefab,
+            Handle<Self::Node>,
+            &mut Self,
+        ) -> (Handle<Self::Node>, NodeHandleMap<Self::Node>),
+    {
+        Log::writeln(MessageKind::Information, "Checking integrity...");
+
+        let instances = self
+            .pair_iter()
+            .filter_map(|(h, n)| {
+                if n.is_resource_instance_root() {
+                    Some((h, n.resource().unwrap()))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let instance_count = instances.len();
+        let mut restored_count = 0;
+
+        for (instance_root, resource) in instances.iter().cloned() {
+            // Step 1. Find and remove orphaned nodes.
+            let mut nodes_to_delete = Vec::new();
+            for node in self.traverse_iter(instance_root) {
+                if let Some(resource) = node.resource() {
+                    let kind = resource.kind().clone();
+                    if let Some(model) = resource.state().data() {
+                        if !model
+                            .graph()
+                            .is_valid_handle(node.original_handle_in_resource())
+                        {
+                            nodes_to_delete.push(node.self_handle());
+
+                            Log::warn(format!(
+                                "Node {} ({}:{}) and its children will be deleted, because it \
+                    does not exist in the parent asset `{}`!",
+                                node.name(),
+                                node.self_handle().index(),
+                                node.self_handle().generation(),
+                                kind
+                            ))
+                        }
+                    } else {
+                        Log::warn(format!(
+                            "Node {} ({}:{}) and its children will be deleted, because its \
+                    parent asset `{}` failed to load!",
+                            node.name(),
+                            node.self_handle().index(),
+                            node.self_handle().generation(),
+                            kind
+                        ))
+                    }
+                }
+            }
+
+            for node_to_delete in nodes_to_delete {
+                if self.is_valid_handle(node_to_delete) {
+                    self.remove_node(node_to_delete);
+                }
+            }
+
+            // Step 2. Look for missing nodes and create appropriate instances for them.
+            let mut model = resource.state();
+            let model_kind = model.kind().clone();
+            if let Some(data) = model.data() {
+                let resource_graph = data.graph();
+
+                let resource_instance_root = self.node(instance_root).original_handle_in_resource();
+
+                if resource_instance_root.is_none() {
+                    let instance = self.node(instance_root);
+                    Log::writeln(
+                        MessageKind::Warning,
+                        format!(
+                            "There is an instance of resource {} \
+                    but original node {} cannot be found!",
+                            model_kind,
+                            instance.name()
+                        ),
+                    );
+
+                    continue;
+                }
+
+                let mut traverse_stack = vec![resource_instance_root];
+                while let Some(resource_node_handle) = traverse_stack.pop() {
+                    let resource_node = resource_graph.node(resource_node_handle);
+
+                    // Root of the resource is not belongs to resource, it is just a convenient way of
+                    // consolidation all descendants under a single node.
+                    let mut compare =
+                        |n: &Self::Node| n.original_handle_in_resource() == resource_node_handle;
+
+                    if resource_node_handle != resource_graph.root()
+                        && self.find(instance_root, &mut compare).is_none()
+                    {
+                        Log::writeln(
+                            MessageKind::Warning,
+                            format!(
+                                "Instance of node {} is missing. Restoring integrity...",
+                                resource_node.name()
+                            ),
+                        );
+
+                        // Instantiate missing node.
+                        let (copy, old_to_new_mapping) =
+                            instantiate(resource.clone(), data, resource_node_handle, self);
+
+                        restored_count += old_to_new_mapping.inner().len();
+
+                        // Link it with existing node.
+                        if resource_node.parent().is_some() {
+                            let parent = self.find(instance_root, &mut |n| {
+                                n.original_handle_in_resource() == resource_node.parent()
+                            });
+
+                            if let Some((parent_handle, _)) = parent {
+                                self.link_nodes(copy, parent_handle);
+                            } else {
+                                // Fail-safe route - link with root of instance.
+                                self.link_nodes(copy, instance_root);
+                            }
+                        } else {
+                            // Fail-safe route - link with root of instance.
+                            self.link_nodes(copy, instance_root);
+                        }
+                    }
+
+                    traverse_stack.extend_from_slice(resource_node.children());
+                }
+            }
+        }
+
+        Log::writeln(
+            MessageKind::Information,
+            format!(
+                "Integrity restored for {} instances! {} new nodes were added!",
+                instance_count, restored_count
+            ),
+        );
+
+        instances
     }
 }

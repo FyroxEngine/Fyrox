@@ -265,7 +265,10 @@ use crate::{
 };
 use copypasta::ClipboardContext;
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_resource::{io::ResourceIo, manager::ResourceManager, ResourceData};
+use fyrox_resource::{
+    io::FsResourceIo, io::ResourceIo, manager::ResourceManager, untyped::UntypedResource,
+    ResourceData,
+};
 use serde::{Deserialize, Serialize};
 use std::any::TypeId;
 use std::{
@@ -286,9 +289,7 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
-use fyrox_prefab::NodeHandleMap;
-use fyrox_resource::io::FsResourceIo;
-use fyrox_resource::untyped::UntypedResource;
+use fyrox_graph::NodeHandleMap;
 pub use node::*;
 pub use thickness::*;
 

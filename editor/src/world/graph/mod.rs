@@ -11,6 +11,7 @@ use crate::{
     world::WorldViewerDataProvider,
 };
 use fyrox::asset::untyped::UntypedResource;
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::pool::{ErasedHandle, Handle},
     scene::{node::Node, Scene},

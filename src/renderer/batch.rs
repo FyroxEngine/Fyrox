@@ -7,6 +7,7 @@ use crate::{
         pool::Handle,
         sstorage::ImmutableString,
     },
+    graph::SceneGraph,
     material::MaterialResource,
     renderer::{cache::TimeToLive, framework::geometry_buffer::ElementRange},
     scene::{

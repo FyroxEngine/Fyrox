@@ -39,7 +39,7 @@ use crate::{
         visitor::{Visit, VisitError, VisitResult, Visitor},
     },
     engine::SerializationContext,
-    prefab::NodeHandleMap,
+    graph::NodeHandleMap,
     renderer::framework::state::PolygonFillMode,
     resource::texture::TextureResource,
     scene::{

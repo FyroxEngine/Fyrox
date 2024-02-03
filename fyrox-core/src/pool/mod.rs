@@ -1445,7 +1445,7 @@ where
 #[cfg(test)]
 mod test {
     use crate::{
-        pool::{AtomicHandle, Handle, Pool, PoolRecord, Ticket, INVALID_GENERATION},
+        pool::{AtomicHandle, Handle, Pool, PoolRecord, INVALID_GENERATION},
         visitor::{Visit, Visitor},
     };
 
@@ -1651,16 +1651,6 @@ mod test {
     }
 
     #[test]
-    fn pool_take_reserve() {
-        let mut pool = Pool::<u32>::new();
-        let a = pool.spawn(42);
-
-        let (t, payload) = pool.take_reserve(a);
-        assert_eq!(t.index, 0);
-        assert_eq!(payload, 42);
-    }
-
-    #[test]
     fn pool_try_take_reserve() {
         let mut pool = Pool::<u32>::new();
 
@@ -1669,27 +1659,22 @@ mod test {
 
         let b = pool.spawn(42);
 
-        let (t, payload) = pool.try_take_reserve(b).unwrap();
-        assert_eq!(t.index, 0);
+        let (ticket, payload) = pool.try_take_reserve(b).unwrap();
+        assert_eq!(ticket.index, 0);
         assert_eq!(payload, 42);
 
         assert!(pool.try_take_reserve(a).is_none());
         assert!(pool.try_take_reserve(b).is_none());
+
+        pool.forget_ticket(ticket);
     }
 
     #[test]
     fn pool_put_back() {
         let mut pool = Pool::<u32>::new();
         let a = pool.spawn(42);
-        pool.take_reserve(a);
-
-        let b = pool.put_back(
-            Ticket::<u32> {
-                index: 0,
-                marker: std::marker::PhantomData,
-            },
-            42,
-        );
+        let (ticket, value) = pool.take_reserve(a);
+        let b = pool.put_back(ticket, value);
 
         assert_eq!(a, b);
     }
@@ -1698,12 +1683,9 @@ mod test {
     fn pool_forget_ticket() {
         let mut pool = Pool::<u32>::new();
         let a = pool.spawn(42);
-        pool.take_reserve(a);
+        let (ticket, _) = pool.take_reserve(a);
 
-        pool.forget_ticket(Ticket::<u32> {
-            index: 0,
-            marker: std::marker::PhantomData,
-        });
+        pool.forget_ticket(ticket);
 
         let b = pool.spawn(42);
 
@@ -1765,7 +1747,8 @@ mod test {
         let mut pool = Pool::<u32>::new();
         let a = pool.spawn(42);
         let _ = pool.spawn(5);
-        pool.take_reserve(a);
+        let (ticket, _) = pool.take_reserve(a);
+        pool.forget_ticket(ticket);
 
         assert_eq!(pool.alive_count(), 1);
     }
@@ -1775,9 +1758,11 @@ mod test {
         let mut pool = Pool::<u32>::new();
         let a = pool.spawn(42);
         let _ = pool.spawn(5);
-        pool.take_reserve(a);
+        let (ticket, _) = pool.take_reserve(a);
 
         assert_eq!(pool.total_count(), 2);
+
+        pool.forget_ticket(ticket);
     }
 
     #[test]

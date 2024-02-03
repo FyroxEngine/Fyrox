@@ -1184,7 +1184,7 @@ macro_rules! newtype_reflect {
         }
 
         fn into_any(self: Box<Self>) -> Box<dyn Any> {
-            (*self.0).into_any()
+            self
         }
 
         fn as_any(&self, func: &mut dyn FnMut(&dyn Any)) {

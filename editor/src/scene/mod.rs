@@ -36,6 +36,7 @@ use crate::{
     world::graph::selection::GraphSelection,
     Message, Settings,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{
         algebra::{Vector2, Vector3},

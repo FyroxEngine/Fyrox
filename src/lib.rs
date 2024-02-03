@@ -29,7 +29,7 @@ pub use winit::*;
 pub use fyrox_animation as generic_animation;
 
 #[doc(inline)]
-pub use fyrox_prefab as prefab;
+pub use fyrox_graph as graph;
 
 #[doc(inline)]
 pub use fyrox_core as core;

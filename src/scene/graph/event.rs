@@ -44,6 +44,7 @@ impl GraphEventBroadcaster {
     /// # use fyrox::scene::graph::event::GraphEvent;
     /// # use fyrox::scene::graph::Graph;
     /// # use fyrox::scene::pivot::PivotBuilder;
+    /// # use fyrox::graph::SceneGraph;
     ///
     /// let mut graph = Graph::new();
     ///

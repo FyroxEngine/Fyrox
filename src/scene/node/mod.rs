@@ -4,6 +4,7 @@
 
 #![warn(missing_docs)]
 
+use crate::resource::model::Model;
 use crate::{
     asset::untyped::UntypedResource,
     core::{
@@ -16,6 +17,7 @@ use crate::{
         variable::mark_inheritable_properties_non_modified,
         visitor::{Visit, VisitResult, Visitor},
     },
+    graph::SceneGraphNode,
     renderer::batch::RenderContext,
     resource::model::ModelResource,
     scene::{
@@ -40,6 +42,7 @@ use crate::{
     },
 };
 use fyrox_core::{ComponentProvider, NameProvider};
+use fyrox_resource::Resource;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -305,6 +308,34 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
 /// consumption, only disk space usage is reduced.
 #[derive(Debug)]
 pub struct Node(Box<dyn NodeTrait>);
+
+impl SceneGraphNode for Node {
+    type ResourceData = Model;
+
+    fn is_resource_instance_root(&self) -> bool {
+        self.is_resource_instance_root
+    }
+
+    fn original_handle_in_resource(&self) -> Handle<Self> {
+        self.original_handle_in_resource
+    }
+
+    fn resource(&self) -> Option<Resource<Self::ResourceData>> {
+        self.resource.clone()
+    }
+
+    fn self_handle(&self) -> Handle<Self> {
+        self.self_handle
+    }
+
+    fn parent(&self) -> Handle<Self> {
+        self.parent
+    }
+
+    fn children(&self) -> &[Handle<Self>] {
+        &self.children
+    }
+}
 
 impl NameProvider for Node {
     fn name(&self) -> &str {

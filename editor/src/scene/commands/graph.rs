@@ -2,6 +2,7 @@ use crate::{
     command::GameSceneCommandTrait, scene::commands::GameSceneContext, scene::Selection,
     world::graph::selection::GraphSelection, Message,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
