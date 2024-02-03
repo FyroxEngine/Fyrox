@@ -826,50 +826,6 @@ impl Graph {
         dest_copy_handle
     }
 
-    // Maps handles in properties of instances after property inheritance. It is needed, because when a
-    // property contains node handle, the handle cannot be used directly after inheritance. Instead, it
-    // must be mapped to respective instance first.
-    //
-    // To do so, we at first, build node handle mapping (original handle -> instance handle) starting from
-    // instance root. Then we must find all inheritable properties and try to remap them to instance handles.
-    fn remap_handles(&mut self, instances: &[(Handle<Node>, ModelResource)]) {
-        for (instance_root, resource) in instances {
-            // Prepare old -> new handle mapping first by walking over the graph
-            // starting from instance root.
-            let mut old_new_mapping = NodeHandleMap::default();
-            let mut traverse_stack = vec![*instance_root];
-            while let Some(node_handle) = traverse_stack.pop() {
-                let node = &self.pool[node_handle];
-                if let Some(node_resource) = node.resource().as_ref() {
-                    // We're interested only in instance nodes.
-                    if node_resource == resource {
-                        let previous_mapping =
-                            old_new_mapping.insert(node.original_handle_in_resource, node_handle);
-                        // There should be no such node.
-                        if previous_mapping.is_some() {
-                            Log::warn(format!(
-                                "There are multiple original nodes for {:?}! Previous was {:?}. \
-                                This can happen if a respective node was deleted.",
-                                node_handle, node.original_handle_in_resource
-                            ))
-                        }
-                    }
-                }
-
-                traverse_stack.extend_from_slice(node.children());
-            }
-
-            // Lastly, remap handles. We can't do this in single pass because there could
-            // be cross references.
-            for (_, handle) in old_new_mapping.inner().iter() {
-                old_new_mapping.remap_inheritable_handles(
-                    &mut self.pool[*handle],
-                    &[TypeId::of::<UntypedResource>()],
-                );
-            }
-        }
-    }
-
     fn restore_dynamic_node_data(&mut self) {
         for (handle, node) in self.pool.pair_iter_mut() {
             node.self_handle = handle;
@@ -1805,13 +1761,13 @@ impl SceneGraph for Graph {
     }
 
     #[inline]
-    fn node(&self, handle: Handle<Self::Node>) -> &Self::Node {
-        &self.pool[handle]
+    fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
+        self.pool.try_borrow(handle)
     }
 
     #[inline]
-    fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
-        self.pool.try_borrow(handle)
+    fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
+        self.pool.try_borrow_mut(handle)
     }
 }
 

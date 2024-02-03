@@ -1,3 +1,5 @@
+#![allow(clippy::type_complexity)]
+
 //! Graph utilities and common algorithms.
 
 use fxhash::FxHashMap;
@@ -390,11 +392,21 @@ pub trait SceneGraph: Sized + 'static {
     /// Links specified child with specified parent.
     fn link_nodes(&mut self, child: Handle<Self::Node>, parent: Handle<Self::Node>);
 
-    /// Borrows a node by its handle.
-    fn node(&self, handle: Handle<Self::Node>) -> &Self::Node;
-
     /// Tries to borrow a node, returns Some(node) if the handle is valid, None - otherwise.
     fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node>;
+
+    /// Tries to borrow a node, returns Some(node) if the handle is valid, None - otherwise.
+    fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node>;
+
+    /// Borrows a node by its handle.
+    fn node(&self, handle: Handle<Self::Node>) -> &Self::Node {
+        self.try_get(handle).expect("The handle must be valid!")
+    }
+
+    /// Borrows a node by its handle.
+    fn node_mut(&mut self, handle: Handle<Self::Node>) -> &mut Self::Node {
+        self.try_get_mut(handle).expect("The handle must be valid!")
+    }
 
     /// Create a graph depth traversal iterator.
     fn traverse_iter(&self, from: Handle<Self::Node>) -> impl Iterator<Item = &Self::Node> {
@@ -438,7 +450,6 @@ pub trait SceneGraph: Sized + 'static {
     /// This method checks integrity of the graph and restores it if needed. For example, if a node
     /// was added in a parent asset, then it must be added in the graph. Alternatively, if a node was
     /// deleted in a parent asset, then its instance must be deleted in the graph.
-    #[allow(clippy::type_complexity)]
     fn restore_integrity<F>(
         &mut self,
         mut instantiate: F,
@@ -696,6 +707,51 @@ pub trait SceneGraph: Sized + 'static {
         }
 
         Log::writeln(MessageKind::Information, "Original handles resolved!");
+    }
+
+    /// Maps handles in properties of instances after property inheritance. It is needed, because when a
+    /// property contains node handle, the handle cannot be used directly after inheritance. Instead, it
+    /// must be mapped to respective instance first.
+    ///
+    /// To do so, we at first, build node handle mapping (original handle -> instance handle) starting from
+    /// instance root. Then we must find all inheritable properties and try to remap them to instance handles.
+    fn remap_handles(&mut self, instances: &[(Handle<Self::Node>, Resource<Self::Prefab>)]) {
+        for (instance_root, resource) in instances {
+            // Prepare old -> new handle mapping first by walking over the graph
+            // starting from instance root.
+            let mut old_new_mapping = NodeHandleMap::default();
+            let mut traverse_stack = vec![*instance_root];
+            while let Some(node_handle) = traverse_stack.pop() {
+                let node = self.node(node_handle);
+                if let Some(node_resource) = node.resource().as_ref() {
+                    // We're interested only in instance nodes.
+                    if node_resource == resource {
+                        let previous_mapping =
+                            old_new_mapping.insert(node.original_handle_in_resource(), node_handle);
+                        // There should be no such node.
+                        if previous_mapping.is_some() {
+                            Log::warn(format!(
+                                "There are multiple original nodes for {:?}! Previous was {:?}. \
+                                This can happen if a respective node was deleted.",
+                                node_handle,
+                                node.original_handle_in_resource()
+                            ))
+                        }
+                    }
+                }
+
+                traverse_stack.extend_from_slice(node.children());
+            }
+
+            // Lastly, remap handles. We can't do this in single pass because there could
+            // be cross references.
+            for (_, handle) in old_new_mapping.inner().iter() {
+                old_new_mapping.remap_inheritable_handles(
+                    self.node_mut(*handle),
+                    &[TypeId::of::<UntypedResource>()],
+                );
+            }
+        }
     }
 }
 

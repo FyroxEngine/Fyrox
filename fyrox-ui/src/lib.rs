@@ -2923,13 +2923,13 @@ impl SceneGraph for UserInterface {
     }
 
     #[inline]
-    fn node(&self, handle: Handle<Self::Node>) -> &Self::Node {
-        self.nodes.borrow(handle)
+    fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
+        self.nodes.try_borrow(handle)
     }
 
     #[inline]
-    fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
-        self.nodes.try_borrow(handle)
+    fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
+        self.nodes.try_borrow_mut(handle)
     }
 }
 
