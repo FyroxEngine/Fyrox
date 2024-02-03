@@ -289,6 +289,8 @@ use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 pub use alignment::*;
 pub use build::*;
 pub use control::*;
+use fyrox_core::futures::future::join_all;
+use fyrox_core::log::Log;
 use fyrox_graph::{NodeHandleMap, NodeMapping, PrefabData, SceneGraph};
 pub use node::*;
 pub use thickness::*;
@@ -2710,26 +2712,35 @@ impl UserInterface {
         copy_handle
     }
 
-    pub fn copy_node_to(
+    pub fn copy_node_to<Post>(
         &self,
         node: Handle<UiNode>,
         dest: &mut UserInterface,
-    ) -> (Handle<UiNode>, NodeHandleMap<UiNode>) {
+        post_process_callback: &mut Post,
+    ) -> (Handle<UiNode>, NodeHandleMap<UiNode>)
+    where
+        Post: FnMut(Handle<UiNode>, Handle<UiNode>, &mut UiNode),
+    {
         let mut old_new_mapping = NodeHandleMap::default();
 
-        let root = self.copy_node_to_recursive(node, dest, &mut old_new_mapping);
+        let root =
+            self.copy_node_to_recursive(node, dest, &mut old_new_mapping, post_process_callback);
 
         remap_handles(&old_new_mapping, dest);
 
         (root, old_new_mapping)
     }
 
-    fn copy_node_to_recursive(
+    fn copy_node_to_recursive<Post>(
         &self,
         node_handle: Handle<UiNode>,
         dest: &mut UserInterface,
         old_new_mapping: &mut NodeHandleMap<UiNode>,
-    ) -> Handle<UiNode> {
+        post_process_callback: &mut Post,
+    ) -> Handle<UiNode>
+    where
+        Post: FnMut(Handle<UiNode>, Handle<UiNode>, &mut UiNode),
+    {
         let node = self.nodes.borrow(node_handle);
         let children = node.children.clone();
 
@@ -2741,11 +2752,18 @@ impl UserInterface {
 
         for child in children {
             let cloned_child_node_handle =
-                self.copy_node_to_recursive(child, dest, old_new_mapping);
+                self.copy_node_to_recursive(child, dest, old_new_mapping, post_process_callback);
             dest.link_nodes(cloned_child_node_handle, cloned_node_handle, false);
         }
 
         old_new_mapping.insert(node_handle, cloned_node_handle);
+
+        post_process_callback(
+            cloned_node_handle,
+            node_handle,
+            dest.try_get_node_mut(cloned_node_handle).unwrap(),
+        );
+
         cloned_node_handle
     }
 
@@ -2824,6 +2842,36 @@ impl UserInterface {
         .await
     }
 
+    fn restore_dynamic_node_data(&mut self) {
+        for (handle, widget) in self.nodes.pair_iter_mut() {
+            widget.handle = handle;
+            widget.layout_events_sender = Some(self.layout_events_sender.clone());
+            widget.invalidate_layout();
+        }
+    }
+
+    pub fn resolve(&mut self) {
+        self.restore_dynamic_node_data();
+        self.restore_original_handles_and_inherit_properties(&[], |_, _| {});
+        self.update_visual_transform();
+        self.update_global_visibility(self.root_canvas);
+        let instances = self.restore_integrity(|model, model_data, handle, dest_graph| {
+            model_data.copy_node_to(handle, dest_graph, &mut |_, original_handle, node| {
+                node.set_inheritance_data(original_handle, model.clone());
+            })
+        });
+        self.remap_handles(&instances);
+    }
+
+    /// Collects all resources used by the user interface. It uses reflection to "scan" the contents
+    /// of the user interface, so if some fields marked with `#[reflect(hidden)]` attribute, then
+    /// such field will be ignored!
+    pub fn collect_used_resources(&self) -> FxHashSet<UntypedResource> {
+        let mut collection = FxHashSet::default();
+        fyrox_resource::collect_used_resources(self, &mut collection);
+        collection
+    }
+
     #[allow(clippy::arc_with_non_send_sync)]
     pub async fn load_from_file_ex<P: AsRef<Path>>(
         path: P,
@@ -2831,17 +2879,34 @@ impl UserInterface {
         resource_manager: ResourceManager,
         io: &dyn ResourceIo,
     ) -> Result<Self, VisitError> {
-        let mut visitor = Visitor::load_from_memory(&io.load_file(path.as_ref()).await?)?;
-        let (sender, receiver) = mpsc::channel();
-        visitor.blackboard.register(constructors);
-        visitor.blackboard.register(Arc::new(sender.clone()));
-        visitor.blackboard.register(Arc::new(resource_manager));
-        let mut ui = UserInterface::new_with_channel(sender, receiver, Vector2::new(100.0, 100.0));
-        ui.visit("Ui", &mut visitor)?;
-        for widget in ui.nodes.iter_mut() {
-            widget.layout_events_sender = Some(ui.layout_events_sender.clone());
-            widget.invalidate_layout();
-        }
+        let mut ui = {
+            let mut visitor = Visitor::load_from_memory(&io.load_file(path.as_ref()).await?)?;
+            let (sender, receiver) = mpsc::channel();
+            visitor.blackboard.register(constructors);
+            visitor.blackboard.register(Arc::new(sender.clone()));
+            visitor.blackboard.register(Arc::new(resource_manager));
+            let mut ui =
+                UserInterface::new_with_channel(sender, receiver, Vector2::new(100.0, 100.0));
+            ui.visit("Ui", &mut visitor)?;
+            ui
+        };
+
+        Log::info("UserInterface - Collecting resources used by the scene...");
+
+        let used_resources = ui.collect_used_resources();
+
+        let used_resources_count = used_resources.len();
+
+        Log::info(format!(
+            "UserInterface - {} resources collected. Waiting them to load...",
+            used_resources_count
+        ));
+
+        // Wait everything.
+        join_all(used_resources.into_iter()).await;
+
+        ui.resolve();
+
         Ok(ui)
     }
 }
