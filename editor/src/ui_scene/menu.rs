@@ -2,7 +2,10 @@ use crate::{
     menu::{create_menu_item, create_menu_item_shortcut, ui::UiMenu},
     message::MessageSender,
     scene::{controller::SceneController, Selection},
-    ui_scene::{commands::graph::PasteWidgetCommand, UiScene},
+    ui_scene::{
+        commands::graph::{PasteWidgetCommand, SetUiRootCommand},
+        UiScene,
+    },
     world::WorldViewerItemContextMenu,
     Engine, Message, MessageDirection,
 };
@@ -25,6 +28,7 @@ pub struct WidgetContextMenu {
     widgets_menu: UiMenu,
     placement_target: Handle<UiNode>,
     paste: Handle<UiNode>,
+    make_root: Handle<UiNode>,
 }
 
 impl WorldViewerItemContextMenu for WidgetContextMenu {
@@ -38,6 +42,7 @@ impl WidgetContextMenu {
         let delete_selection;
         let copy_selection;
         let paste;
+        let make_root;
 
         let widgets_menu = UiMenu::new(UiMenu::default_entries(), "Create Child Widget", ctx);
 
@@ -59,6 +64,10 @@ impl WidgetContextMenu {
                             paste = create_menu_item("Paste As Child", vec![], ctx);
                             paste
                         })
+                        .with_child({
+                            make_root = create_menu_item("Make Root", vec![], ctx);
+                            make_root
+                        })
                         .with_child(widgets_menu.menu),
                 )
                 .build(ctx),
@@ -73,6 +82,7 @@ impl WidgetContextMenu {
             copy_selection,
             placement_target: Default::default(),
             paste,
+            make_root,
         }
     }
 
@@ -108,6 +118,15 @@ impl WidgetContextMenu {
                             if !ui_scene.clipboard.is_empty() {
                                 sender.do_ui_scene_command(PasteWidgetCommand::new(*first));
                             }
+                        }
+                    }
+                } else if message.destination() == self.make_root {
+                    if let Selection::Ui(selection) = editor_selection {
+                        if let Some(first) = selection.widgets.first() {
+                            sender.do_ui_scene_command(SetUiRootCommand {
+                                root: *first,
+                                link_scheme: Default::default(),
+                            });
                         }
                     }
                 }

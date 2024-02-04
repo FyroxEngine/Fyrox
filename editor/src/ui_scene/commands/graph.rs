@@ -9,7 +9,7 @@ use crate::{
     },
     Message,
 };
-use fyrox::graph::SceneGraph;
+use fyrox::graph::{LinkScheme, SceneGraph};
 use fyrox::{
     core::pool::Handle,
     gui::{SubGraph, UiNode, UserInterface},
@@ -309,5 +309,29 @@ impl UiCommand for AddUiPrefabCommand {
         if let Some(sub_graph) = self.sub_graph.take() {
             context.ui.forget_sub_graph(sub_graph)
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct SetUiRootCommand {
+    pub root: Handle<UiNode>,
+    pub link_scheme: LinkScheme<UiNode>,
+}
+
+impl UiCommand for SetUiRootCommand {
+    fn name(&mut self, _context: &UiSceneContext) -> String {
+        "Set Root".to_string()
+    }
+
+    fn execute(&mut self, ctx: &mut UiSceneContext) {
+        let prev_root = ctx.ui.root();
+        self.link_scheme = ctx.ui.change_hierarchy_root(prev_root, self.root);
+        self.root = prev_root;
+    }
+
+    fn revert(&mut self, ctx: &mut UiSceneContext) {
+        ctx.ui
+            .apply_link_scheme(std::mem::take(&mut self.link_scheme));
+        self.root = self.link_scheme.root;
     }
 }

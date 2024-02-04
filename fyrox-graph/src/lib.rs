@@ -480,8 +480,8 @@ pub trait PrefabData: TypedResourceData + 'static {
 
 #[derive(Debug)]
 pub struct LinkScheme<N> {
-    root: Handle<N>,
-    links: Vec<(Handle<N>, Handle<N>)>,
+    pub root: Handle<N>,
+    pub links: Vec<(Handle<N>, Handle<N>)>,
 }
 
 impl<N> Default for LinkScheme<N> {
