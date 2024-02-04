@@ -140,7 +140,7 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
     }
 
     fn on_asset_dropped(&mut self, path: PathBuf, node: ErasedHandle) {
-        if let Ok(relative_path) = make_relative_path(&path) {
+        if let Ok(relative_path) = make_relative_path(path) {
             // No model was loaded yet, do it.
             if let Some(prefab) = self
                 .resource_manager

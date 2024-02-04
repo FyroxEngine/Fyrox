@@ -751,20 +751,17 @@ impl WorldViewer {
 
         if let Some(item) = engine.user_interface.node(dropped).cast::<AssetItem>() {
             if let Some(parent) = ui.node(target).cast::<SceneItem>() {
-                data_provider.on_asset_dropped(item.path.clone(), parent.entity_handle.into());
+                data_provider.on_asset_dropped(item.path.clone(), parent.entity_handle);
             }
-        } else {
-            if ui.is_node_child_of(dropped, self.tree_root)
-                && ui.is_node_child_of(target, self.tree_root)
-                && dropped != target
-            {
-                if let (Some(child), Some(parent)) = (
-                    ui.node(dropped).cast::<SceneItem>(),
-                    ui.node(target).cast::<SceneItem>(),
-                ) {
-                    data_provider
-                        .on_change_hierarchy_request(child.entity_handle, parent.entity_handle)
-                }
+        } else if ui.is_node_child_of(dropped, self.tree_root)
+            && ui.is_node_child_of(target, self.tree_root)
+            && dropped != target
+        {
+            if let (Some(child), Some(parent)) = (
+                ui.node(dropped).cast::<SceneItem>(),
+                ui.node(target).cast::<SceneItem>(),
+            ) {
+                data_provider.on_change_hierarchy_request(child.entity_handle, parent.entity_handle)
             }
         }
     }
