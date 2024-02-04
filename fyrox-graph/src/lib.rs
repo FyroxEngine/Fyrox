@@ -584,7 +584,7 @@ pub trait SceneGraph: Sized + 'static {
     /// The same as [`Self::find_up`], but only returns node handle which will be [`Handle::NONE`]
     /// if nothing is found.
     #[inline]
-    fn find_up_handle<C>(&self, root_node: Handle<Self::Node>, cmp: &mut C) -> Handle<Self::Node>
+    fn find_handle_up<C>(&self, root_node: Handle<Self::Node>, cmp: &mut C) -> Handle<Self::Node>
     where
         C: FnMut(&Self::Node) -> bool,
     {
@@ -667,6 +667,13 @@ pub trait SceneGraph: Sized + 'static {
     #[inline]
     fn find_by_name_from_root(&self, name: &str) -> Option<(Handle<Self::Node>, &Self::Node)> {
         self.find_by_name(self.root(), name)
+    }
+
+    #[inline]
+    fn find_handle_by_name_from_root(&self, name: &str) -> Handle<Self::Node> {
+        self.find_by_name(self.root(), name)
+            .map(|(h, _)| h)
+            .unwrap_or_default()
     }
 
     /// Searches node using specified compare closure starting from root. Returns a tuple with a handle and
