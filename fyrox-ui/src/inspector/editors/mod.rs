@@ -353,6 +353,8 @@ impl PropertyEditorDefinitionContainer {
         container.insert(Utf32StringPropertyEditorDefinition);
         container.insert(InheritablePropertyEditorDefinition::<Vec<char>>::new());
 
+        container.insert(InheritablePropertyEditorDefinition::<Thickness>::new());
+
         reg_inspectables!(
             container,
             // Widgets
