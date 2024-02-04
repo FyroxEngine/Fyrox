@@ -3,25 +3,30 @@ use crate::{
     scene::Selection,
     ui_scene::{
         commands::{
-            graph::LinkWidgetsCommand, ChangeUiSelectionCommand, UiCommandGroup, UiSceneCommand,
+            graph::{AddUiPrefabCommand, LinkWidgetsCommand},
+            ChangeUiSelectionCommand, UiCommandGroup, UiSceneCommand,
         },
         selection::UiSelection,
     },
     world::WorldViewerDataProvider,
 };
-use fyrox::graph::{SceneGraph, SceneGraphNode};
 use fyrox::{
-    asset::untyped::UntypedResource,
-    core::{make_pretty_type_name, pool::ErasedHandle, pool::Handle, reflect::Reflect},
-    gui::{UiNode, UserInterface},
+    asset::{manager::ResourceManager, untyped::UntypedResource},
+    core::{
+        futures::executor::block_on, make_pretty_type_name, make_relative_path, pool::ErasedHandle,
+        pool::Handle, reflect::Reflect,
+    },
+    graph::{SceneGraph, SceneGraphNode},
+    gui::{UiNode, UserInterface, UserInterfaceResourceExtension},
 };
-use std::{borrow::Cow, path::Path};
+use std::{borrow::Cow, path::Path, path::PathBuf};
 
 pub struct UiSceneWorldViewerDataProvider<'a> {
-    pub ui: &'a UserInterface,
+    pub ui: &'a mut UserInterface,
     pub path: Option<&'a Path>,
     pub selection: &'a Selection,
     pub sender: &'a MessageSender,
+    pub resource_manager: &'a ResourceManager,
 }
 
 impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
@@ -97,7 +102,7 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
         }
     }
 
-    fn on_drop(&self, child: ErasedHandle, parent: ErasedHandle) {
+    fn on_change_hierarchy_request(&self, child: ErasedHandle, parent: ErasedHandle) {
         let child: Handle<UiNode> = child.into();
         let parent: Handle<UiNode> = parent.into();
 
@@ -130,6 +135,33 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
                     self.sender
                         .do_ui_scene_command(UiCommandGroup::from(commands));
                 }
+            }
+        }
+    }
+
+    fn on_asset_dropped(&mut self, path: PathBuf, node: ErasedHandle) {
+        if let Ok(relative_path) = make_relative_path(&path) {
+            // No model was loaded yet, do it.
+            if let Some(prefab) = self
+                .resource_manager
+                .try_request::<UserInterface>(relative_path)
+                .and_then(|m| block_on(m).ok())
+            {
+                let (instance, _) = prefab.instantiate(self.ui);
+
+                let sub_graph = self.ui.take_reserve_sub_graph(instance);
+
+                let group = vec![
+                    UiSceneCommand::new(AddUiPrefabCommand::new(sub_graph)),
+                    UiSceneCommand::new(LinkWidgetsCommand::new(instance, node.into())),
+                    // We also want to select newly instantiated model.
+                    UiSceneCommand::new(ChangeUiSelectionCommand::new(
+                        Selection::Ui(UiSelection::single_or_empty(instance)),
+                        self.selection.clone(),
+                    )),
+                ];
+
+                self.sender.do_ui_scene_command(UiCommandGroup::from(group));
             }
         }
     }

@@ -1281,7 +1281,7 @@ impl Editor {
                 );
                 self.world_viewer.handle_ui_message(
                     message,
-                    &EditorSceneWrapper {
+                    &mut EditorSceneWrapper {
                         selection: &current_scene_entry.selection,
                         game_scene,
                         scene: &engine.scenes[game_scene.scene],
@@ -1298,11 +1298,12 @@ impl Editor {
             {
                 self.world_viewer.handle_ui_message(
                     message,
-                    &UiSceneWorldViewerDataProvider {
-                        ui: &ui_scene.ui,
+                    &mut UiSceneWorldViewerDataProvider {
+                        ui: &mut ui_scene.ui,
                         path: current_scene_entry.path.as_deref(),
                         selection: &current_scene_entry.selection,
                         sender: &self.message_sender,
+                        resource_manager: &engine.resource_manager,
                     },
                     engine,
                     &mut self.settings,
@@ -1528,15 +1529,15 @@ impl Editor {
                     &current_scene_entry.selection,
                     game_scene,
                 );
-            } else if let Some(game_scene) =
-                current_scene_entry.controller.downcast_mut::<UiScene>()
+            } else if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>()
             {
                 self.world_viewer.sync_to_model(
                     &UiSceneWorldViewerDataProvider {
-                        ui: &game_scene.ui,
+                        ui: &mut ui_scene.ui,
                         path: current_scene_entry.path.as_deref(),
                         selection: &current_scene_entry.selection,
                         sender: &self.message_sender,
+                        resource_manager: &engine.resource_manager,
                     },
                     &mut engine.user_interface,
                     &self.settings,
@@ -1549,7 +1550,7 @@ impl Editor {
     }
 
     fn post_update(&mut self) {
-        if let Some(entry) = self.scenes.current_scene_entry_ref() {
+        if let Some(entry) = self.scenes.current_scene_entry_mut() {
             if let Some(game_scene) = entry.controller.downcast_ref::<GameScene>() {
                 self.world_viewer.post_update(
                     &EditorSceneWrapper {
@@ -1562,13 +1563,14 @@ impl Editor {
                     &mut self.engine.user_interface,
                     &self.settings,
                 );
-            } else if let Some(game_scene) = entry.controller.downcast_ref::<UiScene>() {
+            } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
                 self.world_viewer.post_update(
                     &UiSceneWorldViewerDataProvider {
-                        ui: &game_scene.ui,
+                        ui: &mut ui_scene.ui,
                         path: entry.path.as_deref(),
                         selection: &entry.selection,
                         sender: &self.message_sender,
+                        resource_manager: &self.engine.resource_manager,
                     },
                     &mut self.engine.user_interface,
                     &self.settings,

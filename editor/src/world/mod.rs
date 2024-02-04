@@ -1,3 +1,4 @@
+use crate::asset::item::AssetItem;
 use crate::{
     gui::make_image_button_with_tooltip,
     load_image,
@@ -40,6 +41,7 @@ use fyrox::{
     },
 };
 use rust_fuzzy_search::fuzzy_compare;
+use std::path::PathBuf;
 use std::{
     borrow::Cow, cell::RefCell, cmp::Ordering, collections::HashMap, ops::Deref, path::Path, rc::Rc,
 };
@@ -69,7 +71,9 @@ pub trait WorldViewerDataProvider {
 
     fn selection(&self) -> Vec<ErasedHandle>;
 
-    fn on_drop(&self, child: ErasedHandle, parent: ErasedHandle);
+    fn on_change_hierarchy_request(&self, child: ErasedHandle, parent: ErasedHandle);
+
+    fn on_asset_dropped(&mut self, path: PathBuf, node: ErasedHandle);
 
     fn validate(&self) -> Vec<(ErasedHandle, Result<(), String>)>;
 
@@ -616,7 +620,7 @@ impl WorldViewer {
     pub fn handle_ui_message(
         &mut self,
         message: &UiMessage,
-        data_provider: &dyn WorldViewerDataProvider,
+        data_provider: &mut dyn WorldViewerDataProvider,
         engine: &Engine,
         settings: &mut Settings,
     ) {
@@ -739,21 +743,28 @@ impl WorldViewer {
     fn handle_drop(
         &self,
         engine: &Engine,
-        data_provider: &dyn WorldViewerDataProvider,
+        data_provider: &mut dyn WorldViewerDataProvider,
         target: Handle<UiNode>,
         dropped: Handle<UiNode>,
     ) {
         let ui = &engine.user_interface;
 
-        if ui.is_node_child_of(dropped, self.tree_root)
-            && ui.is_node_child_of(target, self.tree_root)
-            && dropped != target
-        {
-            if let (Some(child), Some(parent)) = (
-                ui.node(dropped).cast::<SceneItem>(),
-                ui.node(target).cast::<SceneItem>(),
-            ) {
-                data_provider.on_drop(child.entity_handle, parent.entity_handle)
+        if let Some(item) = engine.user_interface.node(dropped).cast::<AssetItem>() {
+            if let Some(parent) = ui.node(target).cast::<SceneItem>() {
+                data_provider.on_asset_dropped(item.path.clone(), parent.entity_handle.into());
+            }
+        } else {
+            if ui.is_node_child_of(dropped, self.tree_root)
+                && ui.is_node_child_of(target, self.tree_root)
+                && dropped != target
+            {
+                if let (Some(child), Some(parent)) = (
+                    ui.node(dropped).cast::<SceneItem>(),
+                    ui.node(target).cast::<SceneItem>(),
+                ) {
+                    data_provider
+                        .on_change_hierarchy_request(child.entity_handle, parent.entity_handle)
+                }
             }
         }
     }

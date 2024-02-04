@@ -16,6 +16,7 @@ use fyrox::{
     core::pool::{ErasedHandle, Handle},
     scene::{node::Node, Scene},
 };
+use std::path::PathBuf;
 use std::{borrow::Cow, path::Path};
 
 pub mod item;
@@ -121,7 +122,7 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
         }
     }
 
-    fn on_drop(&self, child: ErasedHandle, parent: ErasedHandle) {
+    fn on_change_hierarchy_request(&self, child: ErasedHandle, parent: ErasedHandle) {
         let child: Handle<Node> = child.into();
         let parent: Handle<Node> = parent.into();
 
@@ -155,6 +156,10 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
                 }
             }
         }
+    }
+
+    fn on_asset_dropped(&mut self, _path: PathBuf, _node: ErasedHandle) {
+        // TODO
     }
 
     fn validate(&self) -> Vec<(ErasedHandle, Result<(), String>)> {
