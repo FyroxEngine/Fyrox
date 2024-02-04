@@ -11,6 +11,7 @@ use fyrox_core::{
     ComponentProvider, NameProvider,
 };
 use fyrox_resource::{untyped::UntypedResource, Resource, TypedResourceData};
+use std::fmt::Debug;
 use std::{
     any::TypeId,
     ops::{Deref, DerefMut},
@@ -477,12 +478,30 @@ pub trait PrefabData: TypedResourceData + 'static {
     fn mapping(&self) -> NodeMapping;
 }
 
+#[derive(Debug)]
+pub struct LinkScheme<N> {
+    root: Handle<N>,
+    links: Vec<(Handle<N>, Handle<N>)>,
+}
+
+impl<N> Default for LinkScheme<N> {
+    fn default() -> Self {
+        Self {
+            root: Default::default(),
+            links: Default::default(),
+        }
+    }
+}
+
 pub trait SceneGraph: Sized + 'static {
     type Prefab: PrefabData<Graph = Self>;
     type Node: SceneGraphNode<SceneGraph = Self, ResourceData = Self::Prefab>;
 
     /// Returns a handle of the root node of the graph.
     fn root(&self) -> Handle<Self::Node>;
+
+    /// Sets the new root of the graph. If used incorrectly, it may create isolated sub-graphs.
+    fn set_root(&mut self, root: Handle<Self::Node>);
 
     /// Creates new iterator that iterates over internal collection giving (handle; node) pairs.
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)>;
@@ -499,6 +518,10 @@ pub trait SceneGraph: Sized + 'static {
 
     /// Links specified child with specified parent.
     fn link_nodes(&mut self, child: Handle<Self::Node>, parent: Handle<Self::Node>);
+
+    /// Detaches the node from its parent, making the node unreachable from any other node in the
+    /// graph.
+    fn isolate_node(&mut self, node_handle: Handle<Self::Node>);
 
     /// Tries to borrow a node, returns Some(node) if the handle is valid, None - otherwise.
     fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node>;
@@ -675,6 +698,84 @@ pub trait SceneGraph: Sized + 'static {
                 root.children().iter().find_map(|c| self.find(*c, cmp))
             }
         })
+    }
+
+    /// Reorders the node hierarchy so the `new_root` becomes the root node for the entire hierarchy
+    /// under the `prev_root` node. For example, if we have this hierarchy and want to set `C` as
+    /// the new root:
+    ///
+    /// ```text
+    /// Root_
+    ///      |_A_
+    ///          |_B
+    ///          |_C_
+    ///             |_D
+    /// ```
+    ///
+    /// The new hierarchy will become:
+    ///
+    /// ```text
+    /// C_
+    ///   |_D
+    ///   |_A_
+    ///   |   |_B
+    ///   |_Root
+    /// ```    
+    ///
+    /// This method returns an instance of [`LinkScheme`], that could be used to revert the hierarchy
+    /// back to its original. See [`Self::apply_link_scheme`] for more info.
+    #[inline]
+    #[allow(clippy::unnecessary_to_owned)] // False-positive
+    fn change_hierarchy_root(
+        &mut self,
+        prev_root: Handle<Self::Node>,
+        new_root: Handle<Self::Node>,
+    ) -> LinkScheme<Self::Node> {
+        let mut scheme = LinkScheme::default();
+
+        if prev_root == new_root {
+            return scheme;
+        }
+
+        scheme
+            .links
+            .push((prev_root, self.node(prev_root).parent()));
+
+        scheme.links.push((new_root, self.node(new_root).parent()));
+
+        self.isolate_node(new_root);
+
+        for prev_root_child in self.node(prev_root).children().to_vec() {
+            self.link_nodes(prev_root_child, new_root);
+            scheme.links.push((prev_root_child, prev_root));
+        }
+
+        self.link_nodes(prev_root, new_root);
+
+        if prev_root == self.root() {
+            self.set_root(new_root);
+            scheme.root = prev_root;
+        } else {
+            scheme.root = self.root();
+        }
+
+        scheme
+    }
+
+    /// Applies the given link scheme to the graph, basically reverting graph structure to the one
+    /// that was before the call of [`Self::change_hierarchy_root`].
+    #[inline]
+    fn apply_link_scheme(&mut self, mut scheme: LinkScheme<Self::Node>) {
+        for (child, parent) in scheme.links.drain(..) {
+            if parent.is_some() {
+                self.link_nodes(child, parent);
+            } else {
+                self.isolate_node(child);
+            }
+        }
+        if scheme.root.is_some() {
+            self.set_root(scheme.root);
+        }
     }
 
     /// The same as [`Self::find`], but only returns node handle which will be [`Handle::NONE`]
@@ -1070,5 +1171,320 @@ where
             return Some(handle);
         }
         None
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{NodeMapping, PrefabData, SceneGraph, SceneGraphNode};
+    use fyrox_core::{
+        pool::{Handle, Pool},
+        reflect::prelude::*,
+        type_traits::prelude::*,
+        visitor::prelude::*,
+        NameProvider,
+    };
+    use fyrox_resource::{Resource, ResourceData};
+    use std::{
+        any::Any,
+        error::Error,
+        ops::{Deref, DerefMut, Index, IndexMut},
+        path::Path,
+    };
+
+    #[derive(Default, Visit, Reflect, Debug, Clone)]
+    struct Base {
+        name: String,
+        self_handle: Handle<Node>,
+        is_resource_instance_root: bool,
+        original_handle_in_resource: Handle<Node>,
+        resource: Option<Resource<Graph>>,
+        parent: Handle<Node>,
+        children: Vec<Handle<Node>>,
+    }
+
+    #[derive(Clone, ComponentProvider, Visit, Reflect, Debug, Default)]
+    struct Node {
+        base: Base,
+    }
+
+    impl NameProvider for Node {
+        fn name(&self) -> &str {
+            &self.base.name
+        }
+    }
+
+    impl Deref for Node {
+        type Target = Base;
+
+        fn deref(&self) -> &Self::Target {
+            &self.base
+        }
+    }
+
+    impl DerefMut for Node {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            &mut self.base
+        }
+    }
+
+    impl SceneGraphNode for Node {
+        type Base = Base;
+        type SceneGraph = Graph;
+        type ResourceData = Graph;
+
+        fn base(&self) -> &Self::Base {
+            &self.base
+        }
+
+        fn set_base(&mut self, base: Self::Base) {
+            self.base = base;
+        }
+
+        fn is_resource_instance_root(&self) -> bool {
+            self.base.is_resource_instance_root
+        }
+
+        fn original_handle_in_resource(&self) -> Handle<Self> {
+            self.base.original_handle_in_resource
+        }
+
+        fn set_original_handle_in_resource(&mut self, handle: Handle<Self>) {
+            self.base.original_handle_in_resource = handle;
+        }
+
+        fn resource(&self) -> Option<Resource<Self::ResourceData>> {
+            self.base.resource.clone()
+        }
+
+        fn self_handle(&self) -> Handle<Self> {
+            self.base.self_handle
+        }
+
+        fn parent(&self) -> Handle<Self> {
+            self.base.parent
+        }
+
+        fn children(&self) -> &[Handle<Self>] {
+            &self.base.children
+        }
+    }
+
+    #[derive(Default, TypeUuidProvider, Visit, Reflect, Debug)]
+    #[type_uuid(id = "fc887063-7780-44af-8710-5e0bcf9a83fd")]
+    struct Graph {
+        root: Handle<Node>,
+        nodes: Pool<Node>,
+    }
+
+    impl ResourceData for Graph {
+        fn as_any(&self) -> &dyn Any {
+            self
+        }
+
+        fn as_any_mut(&mut self) -> &mut dyn Any {
+            self
+        }
+
+        fn type_uuid(&self) -> Uuid {
+            <Graph as TypeUuidProvider>::type_uuid()
+        }
+
+        fn save(&mut self, _path: &Path) -> Result<(), Box<dyn Error>> {
+            Ok(())
+        }
+
+        fn can_be_saved(&self) -> bool {
+            false
+        }
+    }
+
+    impl PrefabData for Graph {
+        type Graph = Graph;
+
+        fn graph(&self) -> &Self::Graph {
+            self
+        }
+
+        fn mapping(&self) -> NodeMapping {
+            NodeMapping::UseHandles
+        }
+    }
+
+    impl Index<Handle<Node>> for Graph {
+        type Output = Node;
+
+        #[inline]
+        fn index(&self, index: Handle<Node>) -> &Self::Output {
+            &self.nodes[index]
+        }
+    }
+
+    impl IndexMut<Handle<Node>> for Graph {
+        #[inline]
+        fn index_mut(&mut self, index: Handle<Node>) -> &mut Self::Output {
+            &mut self.nodes[index]
+        }
+    }
+
+    impl Graph {
+        #[inline]
+        pub fn add_node(&mut self, mut node: Node) -> Handle<Node> {
+            let children = node.base.children.clone();
+            node.base.children.clear();
+            let handle = self.nodes.spawn(node);
+
+            if self.root.is_none() {
+                self.root = handle;
+            } else {
+                self.link_nodes(handle, self.root);
+            }
+
+            for child in children {
+                self.link_nodes(child, handle);
+            }
+
+            let node = &mut self.nodes[handle];
+            node.base.self_handle = handle;
+            handle
+        }
+    }
+
+    impl SceneGraph for Graph {
+        type Prefab = Graph;
+        type Node = Node;
+
+        fn root(&self) -> Handle<Self::Node> {
+            self.root
+        }
+
+        fn set_root(&mut self, root: Handle<Self::Node>) {
+            self.root = root;
+        }
+
+        fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
+            self.nodes.pair_iter()
+        }
+
+        fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
+            self.nodes.iter_mut()
+        }
+
+        fn is_valid_handle(&self, handle: Handle<Self::Node>) -> bool {
+            self.nodes.is_valid_handle(handle)
+        }
+
+        fn remove_node(&mut self, node_handle: Handle<Self::Node>) {
+            self.isolate_node(node_handle);
+            let mut stack = vec![node_handle];
+            while let Some(handle) = stack.pop() {
+                stack.extend_from_slice(self.nodes[handle].children());
+                self.nodes.free(handle);
+            }
+        }
+
+        fn link_nodes(&mut self, child: Handle<Self::Node>, parent: Handle<Self::Node>) {
+            self.isolate_node(child);
+            self.nodes[child].base.parent = parent;
+            self.nodes[parent].base.children.push(child);
+        }
+
+        fn isolate_node(&mut self, node_handle: Handle<Self::Node>) {
+            let parent_handle =
+                std::mem::replace(&mut self.nodes[node_handle].base.parent, Handle::NONE);
+
+            if let Some(parent) = self.nodes.try_borrow_mut(parent_handle) {
+                if let Some(i) = parent.children().iter().position(|h| *h == node_handle) {
+                    parent.base.children.remove(i);
+                }
+            }
+        }
+
+        fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
+            self.nodes.try_borrow(handle)
+        }
+
+        fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
+            self.nodes.try_borrow_mut(handle)
+        }
+    }
+
+    #[test]
+    fn test_change_root() {
+        let mut graph = Graph::default();
+
+        // Root_
+        //      |_A_
+        //          |_B
+        //          |_C_
+        //             |_D
+        let root = graph.add_node(Node {
+            base: Base::default(),
+        });
+        let d = graph.add_node(Node {
+            base: Base::default(),
+        });
+        let c = graph.add_node(Node {
+            base: Base {
+                children: vec![d],
+                ..Default::default()
+            },
+        });
+        let b = graph.add_node(Node {
+            base: Base::default(),
+        });
+        let a = graph.add_node(Node {
+            base: Base {
+                children: vec![b, c],
+                ..Default::default()
+            },
+        });
+        graph.link_nodes(a, root);
+
+        dbg!(root, a, b, c, d);
+
+        let link_scheme = graph.change_hierarchy_root(root, c);
+
+        // C_
+        //   |_D
+        //   |_A_
+        //       |_B
+        //   |_Root
+        assert_eq!(graph.root, c);
+
+        assert_eq!(graph[graph.root].parent, Handle::NONE);
+        assert_eq!(graph[graph.root].children.len(), 3);
+
+        assert_eq!(graph[graph.root].children[0], d);
+        assert_eq!(graph[d].parent, graph.root);
+        assert!(graph[d].children.is_empty());
+
+        assert_eq!(graph[graph.root].children[1], a);
+        assert_eq!(graph[a].parent, graph.root);
+
+        assert_eq!(graph[graph.root].children[2], root);
+        assert_eq!(graph[root].parent, graph.root);
+
+        assert_eq!(graph[a].children.len(), 1);
+        assert_eq!(graph[a].children[0], b);
+        assert_eq!(graph[b].parent, a);
+
+        assert!(graph[b].children.is_empty());
+
+        // Revert
+        graph.apply_link_scheme(link_scheme);
+
+        assert_eq!(graph.root, root);
+        assert_eq!(graph[graph.root].parent, Handle::NONE);
+        assert_eq!(graph[graph.root].children, vec![a]);
+
+        assert_eq!(graph[a].parent, root);
+        assert_eq!(graph[a].children, vec![b, c]);
+
+        assert_eq!(graph[b].parent, a);
+        assert_eq!(graph[b].children, vec![]);
+
+        assert_eq!(graph[c].parent, a);
+        assert_eq!(graph[c].children, vec![d]);
     }
 }

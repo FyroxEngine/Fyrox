@@ -127,7 +127,7 @@ impl GameScene {
 
         scene
             .graph
-            .change_root(PivotBuilder::new(BaseBuilder::new()).build_node());
+            .change_root_node(PivotBuilder::new(BaseBuilder::new()).build_node());
 
         let editor_objects_root = PivotBuilder::new(BaseBuilder::new()).build(&mut scene.graph);
         let camera_controller = CameraController::new(

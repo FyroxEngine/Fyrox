@@ -246,7 +246,7 @@ impl SceneNodeContextMenu {
                         if let Some(first) = graph_selection.nodes.first() {
                             sender.do_scene_command(SetGraphRootCommand {
                                 root: *first,
-                                revert_list: Default::default(),
+                                link_scheme: Default::default(),
                             });
                         }
                     }

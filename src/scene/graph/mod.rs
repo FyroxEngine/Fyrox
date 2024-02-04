@@ -305,30 +305,12 @@ impl Graph {
 
     /// Sets new root of the graph and attaches the old root to the new root. Old root becomes a child
     /// node of the new root.
-    pub fn change_root(&mut self, root: Node) {
+    pub fn change_root_node(&mut self, root: Node) {
         let prev_root = self.root;
         self.root = Handle::NONE;
         let handle = self.add_node(root);
         assert_eq!(self.root, handle);
         self.link_nodes(prev_root, handle);
-    }
-
-    /// Makes a node in the graph the new root of the graph. All children nodes of the previous root will
-    /// become children nodes of the new root. Old root will become a child node of the new root.
-    pub fn change_root_inplace(&mut self, new_root: Handle<Node>) {
-        let prev_root = self.root;
-        self.unlink_internal(new_root);
-        let prev_root_children = self
-            .try_get(prev_root)
-            .map(|r| r.children.clone())
-            .unwrap_or_default();
-        for child in prev_root_children {
-            self.link_nodes(child, new_root);
-        }
-        if prev_root.is_some() {
-            self.link_nodes(prev_root, new_root);
-        }
-        self.root = new_root;
     }
 
     /// Adds new node to the graph. Node will be transferred into implementation-defined
@@ -488,22 +470,6 @@ impl Graph {
         self.pool.begin_multi_borrow()
     }
 
-    fn unlink_internal(&mut self, node_handle: Handle<Node>) {
-        // Replace parent handle of child
-        let parent_handle = std::mem::replace(&mut self.pool[node_handle].parent, Handle::NONE);
-
-        // Remove child from parent's children list
-        if let Some(parent) = self.pool.try_borrow_mut(parent_handle) {
-            if let Some(i) = parent.children().iter().position(|h| *h == node_handle) {
-                parent.children.remove(i);
-            }
-        }
-
-        let (ticket, mut node) = self.pool.take_reserve(node_handle);
-        node.on_unlink(self);
-        self.pool.put_back(ticket, node);
-    }
-
     /// Links specified child with specified parent while keeping the
     /// child's global position and rotation.
     #[inline]
@@ -530,7 +496,7 @@ impl Graph {
     /// Unlinks specified node from its parent and attaches it to root graph node.
     #[inline]
     pub fn unlink_node(&mut self, node_handle: Handle<Node>) {
-        self.unlink_internal(node_handle);
+        self.isolate_node(node_handle);
         self.link_nodes(node_handle, self.root);
         self.pool[node_handle]
             .local_transform_mut()
@@ -1211,7 +1177,7 @@ impl Graph {
     /// detached from its parent!
     #[inline]
     pub fn take_reserve(&mut self, handle: Handle<Node>) -> (Ticket<Node>, Node) {
-        self.unlink_internal(handle);
+        self.isolate_node(handle);
         let (ticket, node) = self.take_reserve_internal(handle);
         self.instance_id_map.remove(&node.instance_id);
         (ticket, node)
@@ -1601,6 +1567,11 @@ impl SceneGraph for Graph {
     }
 
     #[inline]
+    fn set_root(&mut self, root: Handle<Self::Node>) {
+        self.root = root;
+    }
+
+    #[inline]
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
         self.pool.pair_iter()
     }
@@ -1617,7 +1588,7 @@ impl SceneGraph for Graph {
 
     #[inline]
     fn remove_node(&mut self, node_handle: Handle<Self::Node>) {
-        self.unlink_internal(node_handle);
+        self.isolate_node(node_handle);
 
         self.stack.clear();
         self.stack.push(node_handle);
@@ -1638,9 +1609,26 @@ impl SceneGraph for Graph {
 
     #[inline]
     fn link_nodes(&mut self, child: Handle<Self::Node>, parent: Handle<Self::Node>) {
-        self.unlink_internal(child);
+        self.isolate_node(child);
         self.pool[child].parent = parent;
         self.pool[parent].children.push(child);
+    }
+
+    #[inline]
+    fn isolate_node(&mut self, node_handle: Handle<Self::Node>) {
+        // Replace parent handle of child
+        let parent_handle = std::mem::replace(&mut self.pool[node_handle].parent, Handle::NONE);
+
+        // Remove child from parent's children list
+        if let Some(parent) = self.pool.try_borrow_mut(parent_handle) {
+            if let Some(i) = parent.children().iter().position(|h| *h == node_handle) {
+                parent.children.remove(i);
+            }
+        }
+
+        let (ticket, mut node) = self.pool.take_reserve(node_handle);
+        node.on_unlink(self);
+        self.pool.put_back(ticket, node);
     }
 
     #[inline]
@@ -1747,66 +1735,6 @@ mod test {
             .unwrap();
         assert_eq!(result.0, a);
         assert_eq!(result.1, "A");
-    }
-
-    #[test]
-    fn test_change_root() {
-        let mut graph = Graph::new();
-
-        // Root_
-        //      |_A_
-        //          |_B
-        //          |_C_
-        //             |_D
-        let root = graph.root;
-        let b;
-        let c;
-        let d;
-        let a = PivotBuilder::new(BaseBuilder::new().with_children(&[
-            {
-                b = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
-                b
-            },
-            {
-                c = PivotBuilder::new(BaseBuilder::new().with_children(&[{
-                    d = PivotBuilder::new(BaseBuilder::new()).build(&mut graph);
-                    d
-                }]))
-                .build(&mut graph);
-                c
-            },
-        ]))
-        .build(&mut graph);
-
-        dbg!(root, a, b, c, d);
-
-        graph.change_root_inplace(c);
-
-        // C_
-        //      |_D
-        //      |_A_
-        //          |_B
-        //      |_Root
-        assert_eq!(graph.root, c);
-
-        assert_eq!(graph[graph.root].parent, Handle::NONE);
-        assert_eq!(graph[graph.root].children.len(), 3);
-
-        assert_eq!(graph[graph.root].children[0], d);
-        assert_eq!(graph[d].parent, graph.root);
-        assert!(graph[d].children.is_empty());
-
-        assert_eq!(graph[graph.root].children[1], a);
-        assert_eq!(graph[a].parent, graph.root);
-
-        assert_eq!(graph[graph.root].children[2], root);
-        assert_eq!(graph[root].parent, graph.root);
-
-        assert_eq!(graph[a].children.len(), 1);
-        assert_eq!(graph[a].children[0], b);
-        assert_eq!(graph[b].parent, a);
-
-        assert!(graph[b].children.is_empty());
     }
 
     fn create_scene() -> Scene {

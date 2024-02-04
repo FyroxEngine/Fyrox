@@ -2392,7 +2392,7 @@ impl UserInterface {
     /// widget is detached from its parent!
     #[inline]
     pub fn take_reserve(&mut self, handle: Handle<UiNode>) -> (Ticket<UiNode>, UiNode) {
-        self.unlink_node_internal(handle);
+        self.isolate_node(handle);
         self.nodes.take_reserve(handle)
     }
 
@@ -2500,23 +2500,9 @@ impl UserInterface {
         in_front: bool,
     ) {
         assert_ne!(child_handle, parent_handle);
-        self.unlink_node_internal(child_handle);
+        self.isolate_node(child_handle);
         self.nodes[child_handle].set_parent(parent_handle);
         self.nodes[parent_handle].add_child(child_handle, in_front);
-    }
-
-    /// Unlinks the specified widget from its parent, so the widget will become root.
-    #[inline]
-    fn unlink_node_internal(&mut self, node_handle: Handle<UiNode>) {
-        // Replace parent handle of child
-        let node = self.nodes.borrow_mut(node_handle);
-        let parent_handle = node.parent();
-        if parent_handle.is_some() {
-            node.set_parent(Handle::NONE);
-
-            // Remove child from parent's children list
-            self.nodes[parent_handle].remove_child(node_handle);
-        }
     }
 
     /// Unlinks specified node from its parent and attaches back to root canvas.
@@ -2525,7 +2511,7 @@ impl UserInterface {
     /// a node at runtime!
     #[inline]
     pub fn unlink_node(&mut self, node_handle: Handle<UiNode>) {
-        self.unlink_node_internal(node_handle);
+        self.isolate_node(node_handle);
         self.link_nodes(node_handle, self.root_canvas, false);
     }
 
@@ -2793,6 +2779,11 @@ impl SceneGraph for UserInterface {
     }
 
     #[inline]
+    fn set_root(&mut self, root: Handle<Self::Node>) {
+        self.root_canvas = root;
+    }
+
+    #[inline]
     fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
         self.nodes.pair_iter()
     }
@@ -2809,7 +2800,7 @@ impl SceneGraph for UserInterface {
 
     #[inline]
     fn remove_node(&mut self, node: Handle<Self::Node>) {
-        self.unlink_node_internal(node);
+        self.isolate_node(node);
 
         let sender = self.sender.clone();
         let mut stack = vec![node];
@@ -2843,6 +2834,18 @@ impl SceneGraph for UserInterface {
     #[inline]
     fn link_nodes(&mut self, child: Handle<Self::Node>, parent: Handle<Self::Node>) {
         self.link_nodes(child, parent, false)
+    }
+
+    #[inline]
+    fn isolate_node(&mut self, node_handle: Handle<Self::Node>) {
+        let node = self.nodes.borrow_mut(node_handle);
+        let parent_handle = node.parent();
+        if parent_handle.is_some() {
+            node.set_parent(Handle::NONE);
+
+            // Remove child from parent's children list
+            self.nodes[parent_handle].remove_child(node_handle);
+        }
     }
 
     #[inline]

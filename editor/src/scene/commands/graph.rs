@@ -2,7 +2,7 @@ use crate::{
     command::GameSceneCommandTrait, scene::commands::GameSceneContext, scene::Selection,
     world::graph::selection::GraphSelection, Message,
 };
-use fyrox::graph::SceneGraph;
+use fyrox::graph::{LinkScheme, SceneGraph};
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -439,7 +439,7 @@ impl GameSceneCommandTrait for ReplaceNodeCommand {
 #[derive(Debug)]
 pub struct SetGraphRootCommand {
     pub root: Handle<Node>,
-    pub revert_list: Vec<(Handle<Node>, Handle<Node>)>,
+    pub link_scheme: LinkScheme<Node>,
 }
 
 impl GameSceneCommandTrait for SetGraphRootCommand {
@@ -449,25 +449,18 @@ impl GameSceneCommandTrait for SetGraphRootCommand {
 
     #[allow(clippy::unnecessary_to_owned)] // false positive
     fn execute(&mut self, context: &mut GameSceneContext) {
-        let graph = &mut context.scene.graph;
-        let prev_root = *context.scene_content_root;
-        self.revert_list
-            .push((self.root, graph[self.root].parent()));
-        graph.link_nodes(self.root, graph.get_root());
-        for prev_root_child in graph[prev_root].children().to_vec() {
-            graph.link_nodes(prev_root_child, self.root);
-            self.revert_list.push((prev_root_child, prev_root));
-        }
-        graph.link_nodes(prev_root, self.root);
-        self.revert_list.push((prev_root, graph.get_root()));
-
+        self.link_scheme = context
+            .scene
+            .graph
+            .change_hierarchy_root(*context.scene_content_root, self.root);
         self.root = std::mem::replace(context.scene_content_root, self.root);
     }
 
     fn revert(&mut self, context: &mut GameSceneContext) {
-        for (child, parent) in self.revert_list.drain(..) {
-            context.scene.graph.link_nodes(child, parent);
-        }
+        context
+            .scene
+            .graph
+            .apply_link_scheme(std::mem::take(&mut self.link_scheme));
         self.root = std::mem::replace(context.scene_content_root, self.root);
     }
 }
