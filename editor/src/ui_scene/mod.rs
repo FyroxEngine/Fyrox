@@ -201,14 +201,14 @@ impl SceneController for UiScene {
                 let cursor_pos = engine.user_interface.cursor_position();
                 let rel_pos = cursor_pos - screen_bounds.position;
 
-                self.ui
-                    .node_mut(preview.instance)
-                    .set_desired_local_position(
-                        settings
-                            .move_mode_settings
-                            .try_snap_vector_to_grid(Vector3::new(rel_pos.x, rel_pos.y, 0.0))
-                            .xy(),
-                    );
+                let root = self.ui.node_mut(preview.instance);
+                root.set_desired_local_position(
+                    settings
+                        .move_mode_settings
+                        .try_snap_vector_to_grid(Vector3::new(rel_pos.x, rel_pos.y, 0.0))
+                        .xy(),
+                );
+                root.invalidate_layout();
             }
         }
     }
