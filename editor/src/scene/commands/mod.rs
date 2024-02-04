@@ -29,19 +29,6 @@ pub mod navmesh;
 pub mod sound_context;
 pub mod terrain;
 
-#[macro_export]
-macro_rules! get_set_swap {
-    ($self:ident, $host:expr, $get:ident, $set:ident) => {
-        match $host {
-            host => {
-                let old = host.$get();
-                let _ = host.$set($self.value.clone());
-                $self.value = old;
-            }
-        }
-    };
-}
-
 pub struct GameSceneContext<'a> {
     pub selection: &'a mut Selection,
     pub scene: &'a mut Scene,
