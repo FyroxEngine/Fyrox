@@ -46,6 +46,7 @@ impl Clone for UiNode {
 
 impl SceneGraphNode for UiNode {
     type Base = Widget;
+    type SceneGraph = UserInterface;
     type ResourceData = UserInterface;
 
     fn base(&self) -> &Self::Base {

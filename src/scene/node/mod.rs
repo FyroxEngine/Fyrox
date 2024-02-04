@@ -317,6 +317,7 @@ impl Clone for Node {
 
 impl SceneGraphNode for Node {
     type Base = Base;
+    type SceneGraph = Graph;
     type ResourceData = Model;
 
     fn base(&self) -> &Self::Base {

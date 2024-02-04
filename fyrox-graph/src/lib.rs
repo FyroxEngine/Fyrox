@@ -358,11 +358,23 @@ where
     }
 }
 
+fn reset_property_modified_flag(entity: &mut dyn Reflect, path: &str) {
+    entity.as_reflect_mut(&mut |entity| {
+        entity.resolve_path_mut(path, &mut |result| {
+            variable::mark_inheritable_properties_non_modified(
+                result.unwrap(),
+                &[TypeId::of::<UntypedResource>()],
+            );
+        })
+    })
+}
+
 pub trait SceneGraphNode:
     Reflect + NameProvider + Sized + Clone + ComponentProvider + 'static
 {
     type Base: Clone;
-    type ResourceData: TypedResourceData;
+    type SceneGraph: SceneGraph<Node = Self>;
+    type ResourceData: PrefabData<Graph = Self::SceneGraph>;
 
     fn base(&self) -> &Self::Base;
     fn set_base(&mut self, base: Self::Base);
@@ -373,6 +385,89 @@ pub trait SceneGraphNode:
     fn self_handle(&self) -> Handle<Self>;
     fn parent(&self) -> Handle<Self>;
     fn children(&self) -> &[Handle<Self>];
+
+    fn revert_inheritable_property(&mut self, path: &str) -> Option<Box<dyn Reflect>> {
+        let mut previous_value = None;
+
+        // Revert only if there's parent resource (the node is an instance of some resource).
+        if let Some(resource) = self.resource().as_ref() {
+            let resource_data = resource.data_ref();
+            let parent = &resource_data
+                .graph()
+                .node(self.original_handle_in_resource());
+
+            let mut parent_value = None;
+
+            // Find and clone parent's value first.
+            parent.as_reflect(&mut |parent| {
+                parent.resolve_path(path, &mut |result| match result {
+                    Ok(parent_field) => parent_field.as_inheritable_variable(&mut |parent_field| {
+                        if let Some(parent_inheritable) = parent_field {
+                            parent_value = Some(parent_inheritable.clone_value_box());
+                        }
+                    }),
+                    Err(e) => Log::err(format!(
+                        "Failed to resolve parent path {}. Reason: {:?}",
+                        path, e
+                    )),
+                })
+            });
+
+            // Check whether the child's field is inheritable and modified.
+            let mut need_revert = false;
+
+            self.as_reflect_mut(&mut |child| {
+                child.resolve_path_mut(path, &mut |result| match result {
+                    Ok(child_field) => {
+                        child_field.as_inheritable_variable_mut(&mut |child_inheritable| {
+                            if let Some(child_inheritable) = child_inheritable {
+                                need_revert = child_inheritable.is_modified();
+                            } else {
+                                Log::err(format!("Property {} is not inheritable!", path))
+                            }
+                        })
+                    }
+                    Err(e) => Log::err(format!(
+                        "Failed to resolve child path {}. Reason: {:?}",
+                        path, e
+                    )),
+                });
+            });
+
+            // Try to apply it to the child.
+            if need_revert {
+                if let Some(parent_value) = parent_value {
+                    let mut was_set = false;
+
+                    let mut parent_value = Some(parent_value);
+                    self.as_reflect_mut(&mut |child| {
+                        child.set_field_by_path(
+                            path,
+                            parent_value.take().unwrap(),
+                            &mut |result| match result {
+                                Ok(old_value) => {
+                                    previous_value = Some(old_value);
+
+                                    was_set = true;
+                                }
+                                Err(_) => Log::err(format!(
+                                    "Failed to revert property {}. Reason: no such property!",
+                                    path
+                                )),
+                            },
+                        );
+                    });
+
+                    if was_set {
+                        // Reset modified flag.
+                        reset_property_modified_flag(self, path);
+                    }
+                }
+            }
+        }
+
+        previous_value
+    }
 }
 
 pub trait PrefabData: TypedResourceData + 'static {
@@ -384,7 +479,7 @@ pub trait PrefabData: TypedResourceData + 'static {
 
 pub trait SceneGraph: Sized + 'static {
     type Prefab: PrefabData<Graph = Self>;
-    type Node: SceneGraphNode<ResourceData = Self::Prefab>;
+    type Node: SceneGraphNode<SceneGraph = Self, ResourceData = Self::Prefab>;
 
     /// Returns a handle of the root node of the graph.
     fn root(&self) -> Handle<Self::Node>;
