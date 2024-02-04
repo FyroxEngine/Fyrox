@@ -1235,38 +1235,39 @@ impl Control for TextBox {
                             }
                             KeyCode::End => {
                                 let text = self.formatted_text.borrow();
-                                let line = &text.get_lines()[self.caret_position.line];
-                                if ui.keyboard_modifiers().control {
-                                    let new_position = Position {
-                                        line: text.get_lines().len() - 1,
-                                        offset: line.end - line.begin,
-                                    };
-                                    drop(text);
-                                    self.set_caret_position(new_position);
-                                    self.selection_range = None;
-                                } else if ui.keyboard_modifiers().shift {
-                                    let prev_position = self.caret_position;
-                                    let new_position = Position {
-                                        line: self.caret_position.line,
-                                        offset: line.end - line.begin,
-                                    };
-                                    drop(text);
-                                    self.set_caret_position(new_position);
-                                    self.selection_range = Some(SelectionRange {
-                                        begin: prev_position,
-                                        end: Position {
+                                if let Some(line) = text.get_lines().get(self.caret_position.line) {
+                                    if ui.keyboard_modifiers().control {
+                                        let new_position = Position {
+                                            line: text.get_lines().len() - 1,
+                                            offset: line.end - line.begin,
+                                        };
+                                        drop(text);
+                                        self.set_caret_position(new_position);
+                                        self.selection_range = None;
+                                    } else if ui.keyboard_modifiers().shift {
+                                        let prev_position = self.caret_position;
+                                        let new_position = Position {
                                             line: self.caret_position.line,
-                                            offset: self.caret_position.offset,
-                                        },
-                                    });
-                                } else {
-                                    let new_position = Position {
-                                        line: self.caret_position.line,
-                                        offset: line.end - line.begin,
-                                    };
-                                    drop(text);
-                                    self.set_caret_position(new_position);
-                                    self.selection_range = None;
+                                            offset: line.end - line.begin,
+                                        };
+                                        drop(text);
+                                        self.set_caret_position(new_position);
+                                        self.selection_range = Some(SelectionRange {
+                                            begin: prev_position,
+                                            end: Position {
+                                                line: self.caret_position.line,
+                                                offset: self.caret_position.offset,
+                                            },
+                                        });
+                                    } else {
+                                        let new_position = Position {
+                                            line: self.caret_position.line,
+                                            offset: line.end - line.begin,
+                                        };
+                                        drop(text);
+                                        self.set_caret_position(new_position);
+                                        self.selection_range = None;
+                                    }
                                 }
                             }
                             KeyCode::Home => {
