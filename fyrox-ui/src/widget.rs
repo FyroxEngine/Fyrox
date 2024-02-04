@@ -20,6 +20,7 @@ use crate::{
 };
 use fyrox_core::parking_lot::Mutex;
 use fyrox_core::variable;
+use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::SceneGraph;
 use fyrox_resource::untyped::UntypedResource;
 use fyrox_resource::Resource;
@@ -680,41 +681,41 @@ pub struct Widget {
     /// will be stored in the `actual_local_position` field and can be fetched using [`Widget::actual_local_position`]
     /// method.
     #[reflect(setter = "set_desired_local_position_notify")]
-    pub desired_local_position: Vector2<f32>,
+    pub desired_local_position: InheritableVariable<Vector2<f32>>,
     /// Explicit width for the widget, or automatic if [`f32::NAN`] (means the value is undefined). Default is [`f32::NAN`].
     #[reflect(setter = "set_width_notify")]
-    pub width: f32,
+    pub width: InheritableVariable<f32>,
     /// Explicit height for the widget, or automatic if [`f32::NAN`] (means the value is undefined). Default is [`f32::NAN`].
     #[reflect(setter = "set_height_notify")]
-    pub height: f32,
+    pub height: InheritableVariable<f32>,
     /// Minimum width and height. Default is 0.0 for both axes.
     #[reflect(setter = "set_min_size_notify")]
-    pub min_size: Vector2<f32>,
+    pub min_size: InheritableVariable<Vector2<f32>>,
     /// Maximum width and height. Default is [`f32::INFINITY`] for both axes.
     #[reflect(setter = "set_max_size_notify")]
-    pub max_size: Vector2<f32>,
+    pub max_size: InheritableVariable<Vector2<f32>>,
     /// Background brush of the widget.
-    pub background: Brush,
+    pub background: InheritableVariable<Brush>,
     /// Foreground brush of the widget.
-    pub foreground: Brush,
+    pub foreground: InheritableVariable<Brush>,
     /// Index of the row to which this widget belongs to. It is valid only in when used in [`crate::grid::Grid`] widget.
     #[reflect(setter = "set_row_notify")]
-    pub row: usize,
+    pub row: InheritableVariable<usize>,
     /// Index of the column to which this widget belongs to. It is valid only in when used in [`crate::grid::Grid`] widget.
     #[reflect(setter = "set_column_notify")]
-    pub column: usize,
+    pub column: InheritableVariable<usize>,
     /// Vertical alignment of the widget.
     #[reflect(setter = "set_vertical_alignment_notify")]
-    pub vertical_alignment: VerticalAlignment,
+    pub vertical_alignment: InheritableVariable<VerticalAlignment>,
     /// Horizontal alignment of the widget.
     #[reflect(setter = "set_horizontal_alignment_notify")]
-    pub horizontal_alignment: HorizontalAlignment,
+    pub horizontal_alignment: InheritableVariable<HorizontalAlignment>,
     /// Margin for every sides of bounding rectangle. See [`Thickness`] docs for more info.
     #[reflect(setter = "set_margin_notify")]
-    pub margin: Thickness,
+    pub margin: InheritableVariable<Thickness>,
     /// Current, **local**, visibility state of the widget.
     #[reflect(setter = "set_visibility_notify")]
-    pub visibility: bool,
+    pub visibility: InheritableVariable<bool>,
     /// Current, **global** (including the chain of parent widgets), visibility state of the widget.
     #[reflect(hidden)]
     pub global_visibility: bool,
@@ -734,27 +735,27 @@ pub struct Widget {
     pub is_mouse_directly_over: bool,
     /// A flag, that defines whether the widget is "visible" for hit testing (picking). Could be useful to prevent some widgets
     /// from any interactions with mouse.
-    pub hit_test_visibility: bool,
+    pub hit_test_visibility: InheritableVariable<bool>,
     /// Index of the widget in parent's children list that defines its order in drawing and picking.
-    pub z_index: usize,
+    pub z_index: InheritableVariable<usize>,
     /// A flag, that defines whether the drag from drag'n'drop functionality can be started by the widget or not.
-    pub allow_drag: bool,
+    pub allow_drag: InheritableVariable<bool>,
     /// A flag, that defines whether the drop from drag'n'drop functionality can be accepted by the widget or not.
-    pub allow_drop: bool,
+    pub allow_drop: InheritableVariable<bool>,
     /// Optional, user-defined data.
     #[reflect(hidden)]
     #[visit(skip)]
     pub user_data: Option<Arc<Mutex<dyn Any + Send>>>,
     /// A flag, that defines whether the widget should be drawn in a separate drawind pass after any other widget that draws
     /// normally.
-    pub draw_on_top: bool,
+    pub draw_on_top: InheritableVariable<bool>,
     /// A flag, that defines whether the widget is enabled or not. Disabled widgets cannot be interacted by used and they're
     /// greyed out.
-    pub enabled: bool,
+    pub enabled: InheritableVariable<bool>,
     /// Optional cursor icon that will be used for mouse cursor when hovering over the widget.
-    pub cursor: Option<CursorIcon>,
+    pub cursor: InheritableVariable<Option<CursorIcon>>,
     /// Optional opacity of the widget. It should be in `[0.0..1.0]` range, where 0.0 - fully transparent, 1.0 - fully opaque.
-    pub opacity: Option<f32>,
+    pub opacity: InheritableVariable<Option<f32>>,
     /// An optional ref counted handle to a tooltip used by the widget.
     #[visit(optional)]
     pub tooltip: Option<RcUiNodeHandle>,
@@ -764,7 +765,7 @@ pub struct Widget {
     #[visit(optional)]
     pub context_menu: Option<RcUiNodeHandle>,
     /// A flag, that defines whether the widget should be clipped by the parent bounds or not.
-    pub clip_to_bounds: bool,
+    pub clip_to_bounds: InheritableVariable<bool>,
     /// Current render transform of the node. It modifies layout information of the widget, as well as it affects visual transform
     /// of the widget.
     #[reflect(hidden)]
@@ -892,13 +893,13 @@ impl Widget {
     /// Sets the new minimum size of the widget.
     #[inline]
     pub fn set_min_size(&mut self, value: Vector2<f32>) -> &mut Self {
-        self.min_size = value;
+        self.min_size.set_value_and_mark_modified(value);
         self
     }
 
     fn set_min_size_notify(&mut self, value: Vector2<f32>) -> Vector2<f32> {
         self.invalidate_layout();
-        std::mem::replace(&mut self.min_size, value)
+        self.min_size.set_value_and_mark_modified(value)
     }
 
     /// Sets the new minimum width of the widget.
@@ -918,7 +919,7 @@ impl Widget {
     /// Sets the new minimum size of the widget.
     #[inline]
     pub fn min_size(&self) -> Vector2<f32> {
-        self.min_size
+        *self.min_size
     }
 
     /// Returns the minimum width of the widget.
@@ -936,13 +937,13 @@ impl Widget {
     /// Return `true` if the dragging of the widget is allowed, `false` - otherwise.
     #[inline]
     pub fn is_drag_allowed(&self) -> bool {
-        self.allow_drag
+        *self.allow_drag
     }
 
     /// Return `true` if the dropping of other widgets is allowed on this widget, `false` - otherwise.
     #[inline]
     pub fn is_drop_allowed(&self) -> bool {
-        self.allow_drop
+        *self.allow_drop
     }
 
     /// Maps the given point from screen to local widget's coordinates.
@@ -991,13 +992,13 @@ impl Widget {
     /// Returns `true` if the widget is able to participate in hit testing, `false` - otherwise.
     #[inline]
     pub fn is_hit_test_visible(&self) -> bool {
-        self.hit_test_visibility
+        *self.hit_test_visibility
     }
 
     /// Sets the new maximum size of the widget.
     #[inline]
     pub fn set_max_size(&mut self, value: Vector2<f32>) -> &mut Self {
-        self.max_size = value;
+        self.max_size.set_value_and_mark_modified(value);
         self
     }
 
@@ -1009,7 +1010,7 @@ impl Widget {
     /// Returns current maximum size of the widget.
     #[inline]
     pub fn max_size(&self) -> Vector2<f32> {
-        self.max_size
+        *self.max_size
     }
 
     /// Returns maximum width of the widget.
@@ -1028,46 +1029,47 @@ impl Widget {
     /// in the correct order.
     #[inline]
     pub fn set_z_index(&mut self, z_index: usize) -> &mut Self {
-        self.z_index = z_index;
+        self.z_index.set_value_and_mark_modified(z_index);
         self
     }
 
     /// Returns current Z index of the widget.
     #[inline]
     pub fn z_index(&self) -> usize {
-        self.z_index
+        *self.z_index
     }
 
     /// Sets the new background of the widget.
     #[inline]
     pub fn set_background(&mut self, brush: Brush) -> &mut Self {
-        self.background = brush;
+        self.background.set_value_and_mark_modified(brush);
         self
     }
 
     /// Returns current background of the widget.
     #[inline]
     pub fn background(&self) -> Brush {
-        self.background.clone()
+        (*self.background).clone()
     }
 
     /// Sets new foreground of the widget.
     #[inline]
     pub fn set_foreground(&mut self, brush: Brush) -> &mut Self {
-        self.foreground = brush;
+        self.foreground.set_value_and_mark_modified(brush);
         self
     }
 
     /// Returns current foreground of the widget.
     #[inline]
     pub fn foreground(&self) -> Brush {
-        self.foreground.clone()
+        (*self.foreground).clone()
     }
 
     /// Sets new width of the widget.
     #[inline]
     pub fn set_width(&mut self, width: f32) -> &mut Self {
-        self.width = width.clamp(self.min_size.x, self.max_size.x);
+        self.width
+            .set_value_and_mark_modified(width.clamp(self.min_size.x, self.max_size.x));
         self
     }
 
@@ -1079,18 +1081,19 @@ impl Widget {
     /// Returns current width of the widget.
     #[inline]
     pub fn width(&self) -> f32 {
-        self.width
+        *self.width
     }
 
     /// Return `true` if the widget is set to be drawn on top of every other, normally drawn, widgets, `false` - otherwise.
     pub fn is_draw_on_top(&self) -> bool {
-        self.draw_on_top
+        *self.draw_on_top
     }
 
     /// Sets new height of the widget.
     #[inline]
     pub fn set_height(&mut self, height: f32) -> &mut Self {
-        self.height = height.clamp(self.min_size.y, self.max_size.y);
+        self.height
+            .set_value_and_mark_modified(height.clamp(self.min_size.y, self.max_size.y));
         self
     }
 
@@ -1102,13 +1105,13 @@ impl Widget {
     /// Returns current height of the widget.
     #[inline]
     pub fn height(&self) -> f32 {
-        self.height
+        *self.height
     }
 
     /// Sets the desired local position of the widget.
     #[inline]
     pub fn set_desired_local_position(&mut self, pos: Vector2<f32>) -> &mut Self {
-        self.desired_local_position = pos;
+        self.desired_local_position.set_value_and_mark_modified(pos);
         self
     }
 
@@ -1163,7 +1166,7 @@ impl Widget {
     /// Sets new column of the widget. Columns are used only by [`crate::grid::Grid`] widget.
     #[inline]
     pub fn set_column(&mut self, column: usize) -> &mut Self {
-        self.column = column;
+        self.column.set_value_and_mark_modified(column);
         self
     }
 
@@ -1175,13 +1178,13 @@ impl Widget {
     /// Returns current column of the widget. Columns are used only by [`crate::grid::Grid`] widget.
     #[inline]
     pub fn column(&self) -> usize {
-        self.column
+        *self.column
     }
 
     /// Sets new row of the widget. Rows are used only by [`crate::grid::Grid`] widget.
     #[inline]
     pub fn set_row(&mut self, row: usize) -> &mut Self {
-        self.row = row;
+        self.row.set_value_and_mark_modified(row);
         self
     }
 
@@ -1193,7 +1196,7 @@ impl Widget {
     /// Returns current row of the widget. Rows are used only by [`crate::grid::Grid`] widget.
     #[inline]
     pub fn row(&self) -> usize {
-        self.row
+        *self.row
     }
 
     /// Returns the desired size of the widget.
@@ -1205,12 +1208,13 @@ impl Widget {
     /// Returns current desired local position of the widget.
     #[inline]
     pub fn desired_local_position(&self) -> Vector2<f32> {
-        self.desired_local_position
+        *self.desired_local_position
     }
 
     fn set_desired_local_position_notify(&mut self, position: Vector2<f32>) -> Vector2<f32> {
         self.invalidate_layout();
-        std::mem::replace(&mut self.desired_local_position, position)
+        self.desired_local_position
+            .set_value_and_mark_modified(position)
     }
 
     /// Returns current screen-space bounds of the widget.
@@ -1317,71 +1321,80 @@ impl Widget {
         if msg.destination() == self.handle() && msg.direction() == MessageDirection::ToWidget {
             if let Some(msg) = msg.data::<WidgetMessage>() {
                 match msg {
-                    &WidgetMessage::Opacity(opacity) => self.opacity = opacity,
-                    WidgetMessage::Background(background) => self.background = background.clone(),
-                    WidgetMessage::Foreground(foreground) => self.foreground = foreground.clone(),
+                    &WidgetMessage::Opacity(opacity) => {
+                        self.opacity.set_value_and_mark_modified(opacity);
+                    }
+                    WidgetMessage::Background(background) => {
+                        self.background
+                            .set_value_and_mark_modified(background.clone());
+                    }
+                    WidgetMessage::Foreground(foreground) => {
+                        self.foreground
+                            .set_value_and_mark_modified(foreground.clone());
+                    }
                     WidgetMessage::Name(name) => self.name = name.clone(),
                     &WidgetMessage::Width(width) => {
-                        if self.width != width {
+                        if *self.width != width {
                             self.set_width_notify(width);
                         }
                     }
                     &WidgetMessage::Height(height) => {
-                        if self.height != height {
+                        if *self.height != height {
                             self.set_height_notify(height);
                         }
                     }
                     WidgetMessage::VerticalAlignment(vertical_alignment) => {
-                        if self.vertical_alignment != *vertical_alignment {
+                        if *self.vertical_alignment != *vertical_alignment {
                             self.set_vertical_alignment(*vertical_alignment);
                         }
                     }
                     WidgetMessage::HorizontalAlignment(horizontal_alignment) => {
-                        if self.horizontal_alignment != *horizontal_alignment {
+                        if *self.horizontal_alignment != *horizontal_alignment {
                             self.set_horizontal_alignment(*horizontal_alignment);
                         }
                     }
                     WidgetMessage::MaxSize(max_size) => {
-                        if self.max_size != *max_size {
+                        if *self.max_size != *max_size {
                             self.set_max_size_notify(*max_size);
                         }
                     }
                     WidgetMessage::MinSize(min_size) => {
-                        if self.min_size != *min_size {
+                        if *self.min_size != *min_size {
                             self.set_min_size_notify(*min_size);
                         }
                     }
                     &WidgetMessage::Row(row) => {
-                        if self.row != row {
+                        if *self.row != row {
                             self.set_row_notify(row);
                         }
                     }
                     &WidgetMessage::Column(column) => {
-                        if self.column != column {
+                        if *self.column != column {
                             self.set_column_notify(column);
                         }
                     }
                     &WidgetMessage::Margin(margin) => {
-                        if self.margin != margin {
+                        if *self.margin != margin {
                             self.set_margin_notify(margin);
                         }
                     }
                     WidgetMessage::HitTestVisibility(hit_test_visibility) => {
-                        self.hit_test_visibility = *hit_test_visibility
+                        self.hit_test_visibility
+                            .set_value_and_mark_modified(*hit_test_visibility);
                     }
                     &WidgetMessage::Visibility(visibility) => {
                         self.set_visibility(visibility);
                     }
                     &WidgetMessage::DesiredPosition(pos) => {
-                        if self.desired_local_position != pos {
+                        if *self.desired_local_position != pos {
                             self.set_desired_local_position_notify(pos);
                         }
                     }
                     &WidgetMessage::Enabled(enabled) => {
-                        self.enabled = enabled;
+                        self.enabled.set_value_and_mark_modified(enabled);
                     }
                     &WidgetMessage::Cursor(icon) => {
-                        self.cursor = icon;
+                        self.cursor.set_value_and_mark_modified(icon);
                     }
                     WidgetMessage::LayoutTransform(transform) => {
                         if &self.layout_transform != transform {
@@ -1401,7 +1414,8 @@ impl Widget {
     /// Sets new vertical alignment of the widget.
     #[inline]
     pub fn set_vertical_alignment(&mut self, vertical_alignment: VerticalAlignment) -> &mut Self {
-        self.vertical_alignment = vertical_alignment;
+        self.vertical_alignment
+            .set_value_and_mark_modified(vertical_alignment);
         self
     }
 
@@ -1410,13 +1424,14 @@ impl Widget {
         vertical_alignment: VerticalAlignment,
     ) -> VerticalAlignment {
         self.invalidate_layout();
-        std::mem::replace(&mut self.vertical_alignment, vertical_alignment)
+        self.vertical_alignment
+            .set_value_and_mark_modified(vertical_alignment)
     }
 
     /// Returns current vertical alignment of the widget.
     #[inline]
     pub fn vertical_alignment(&self) -> VerticalAlignment {
-        self.vertical_alignment
+        *self.vertical_alignment
     }
 
     /// Sets new horizontal alignment of the widget.
@@ -1425,7 +1440,8 @@ impl Widget {
         &mut self,
         horizontal_alignment: HorizontalAlignment,
     ) -> &mut Self {
-        self.horizontal_alignment = horizontal_alignment;
+        self.horizontal_alignment
+            .set_value_and_mark_modified(horizontal_alignment);
         self
     }
 
@@ -1434,31 +1450,32 @@ impl Widget {
         horizontal_alignment: HorizontalAlignment,
     ) -> HorizontalAlignment {
         self.invalidate_layout();
-        std::mem::replace(&mut self.horizontal_alignment, horizontal_alignment)
+        self.horizontal_alignment
+            .set_value_and_mark_modified(horizontal_alignment)
     }
 
     /// Returns current horizontal alignment of the widget.
     #[inline]
     pub fn horizontal_alignment(&self) -> HorizontalAlignment {
-        self.horizontal_alignment
+        *self.horizontal_alignment
     }
 
     /// Sets new margin of the widget.
     #[inline]
     pub fn set_margin(&mut self, margin: Thickness) -> &mut Self {
-        self.margin = margin;
+        self.margin.set_value_and_mark_modified(margin);
         self
     }
 
     fn set_margin_notify(&mut self, margin: Thickness) -> Thickness {
         self.invalidate_layout();
-        std::mem::replace(&mut self.margin, margin)
+        self.margin.set_value_and_mark_modified(margin)
     }
 
     /// Returns current margin of the widget.
     #[inline]
     pub fn margin(&self) -> Thickness {
-        self.margin
+        *self.margin
     }
 
     /// Performs standard measurement of children nodes. It provides available size as a constraint and returns
@@ -1556,7 +1573,7 @@ impl Widget {
     /// Sets new visibility of the widget.
     #[inline]
     pub fn set_visibility(&mut self, visibility: bool) -> &mut Self {
-        if self.visibility != visibility {
+        if *self.visibility != visibility {
             self.set_visibility_notify(visibility);
         }
         self
@@ -1579,32 +1596,32 @@ impl Widget {
     /// Returns current visibility of the widget.
     #[inline]
     pub fn visibility(&self) -> bool {
-        self.visibility
+        *self.visibility
     }
 
     /// Enables or disables the widget. Disabled widgets does not interact with user and usually greyed out.
     #[inline]
     pub fn set_enabled(&mut self, enabled: bool) -> &mut Self {
-        self.enabled = enabled;
+        self.enabled.set_value_and_mark_modified(enabled);
         self
     }
 
     /// Returns `true` if the widget if enabled, `false` - otherwise.
     #[inline]
     pub fn enabled(&self) -> bool {
-        self.enabled
+        *self.enabled
     }
 
     /// Sets new cursor of the widget.
     #[inline]
     pub fn set_cursor(&mut self, cursor: Option<CursorIcon>) {
-        self.cursor = cursor;
+        self.cursor.set_value_and_mark_modified(cursor);
     }
 
     /// Returns current cursor of the widget.
     #[inline]
     pub fn cursor(&self) -> Option<CursorIcon> {
-        self.cursor
+        *self.cursor
     }
 
     /// Tries to fetch user-defined data of the specified type `T`.
@@ -1625,14 +1642,14 @@ impl Widget {
     /// Set new opacity of the widget. Opacity should be in `[0.0..1.0]` range.
     #[inline]
     pub fn set_opacity(&mut self, opacity: Option<f32>) -> &mut Self {
-        self.opacity = opacity;
+        self.opacity.set_value_and_mark_modified(opacity);
         self
     }
 
     /// Returns current opacity of the widget.
     #[inline]
     pub fn opacity(&self) -> Option<f32> {
-        self.opacity
+        *self.opacity
     }
 
     /// Returns current tooltip handle of the widget.
@@ -2045,24 +2062,31 @@ impl WidgetBuilder {
         Widget {
             handle: Default::default(),
             name: self.name,
-            desired_local_position: self.desired_position,
-            width: self.width,
-            height: self.height,
+            desired_local_position: self.desired_position.into(),
+            width: self.width.into(),
+            height: self.height.into(),
             desired_size: Cell::new(Vector2::default()),
             actual_local_position: Cell::new(Vector2::default()),
             actual_local_size: Cell::new(Vector2::default()),
-            min_size: self.min_size.unwrap_or_default(),
+            min_size: self.min_size.unwrap_or_default().into(),
             max_size: self
                 .max_size
-                .unwrap_or_else(|| Vector2::new(f32::INFINITY, f32::INFINITY)),
-            background: self.background.unwrap_or_else(|| BRUSH_PRIMARY.clone()),
-            foreground: self.foreground.unwrap_or_else(|| BRUSH_FOREGROUND.clone()),
-            row: self.row,
-            column: self.column,
-            vertical_alignment: self.vertical_alignment,
-            horizontal_alignment: self.horizontal_alignment,
-            margin: self.margin,
-            visibility: self.visibility,
+                .unwrap_or_else(|| Vector2::new(f32::INFINITY, f32::INFINITY))
+                .into(),
+            background: self
+                .background
+                .unwrap_or_else(|| BRUSH_PRIMARY.clone())
+                .into(),
+            foreground: self
+                .foreground
+                .unwrap_or_else(|| BRUSH_FOREGROUND.clone())
+                .into(),
+            row: self.row.into(),
+            column: self.column.into(),
+            vertical_alignment: self.vertical_alignment.into(),
+            horizontal_alignment: self.horizontal_alignment.into(),
+            margin: self.margin.into(),
+            visibility: self.visibility.into(),
             global_visibility: true,
             prev_global_visibility: false,
             children: self.children,
@@ -2071,18 +2095,18 @@ impl WidgetBuilder {
             is_mouse_directly_over: false,
             measure_valid: Cell::new(false),
             arrange_valid: Cell::new(false),
-            hit_test_visibility: self.is_hit_test_visible,
+            hit_test_visibility: self.is_hit_test_visible.into(),
             prev_measure: Default::default(),
             prev_arrange: Default::default(),
-            z_index: self.z_index,
-            allow_drag: self.allow_drag,
-            allow_drop: self.allow_drop,
+            z_index: self.z_index.into(),
+            allow_drag: self.allow_drag.into(),
+            allow_drop: self.allow_drop.into(),
             user_data: self.user_data.clone(),
-            draw_on_top: self.draw_on_top,
-            enabled: self.enabled,
-            cursor: self.cursor,
+            draw_on_top: self.draw_on_top.into(),
+            enabled: self.enabled.into(),
+            cursor: self.cursor.into(),
             clip_bounds: Cell::new(Default::default()),
-            opacity: self.opacity,
+            opacity: self.opacity.into(),
             tooltip: self.tooltip,
             tooltip_time: self.tooltip_time,
             context_menu: self.context_menu,
@@ -2092,7 +2116,7 @@ impl WidgetBuilder {
             layout_transform: self.layout_transform,
             render_transform: self.render_transform,
             visual_transform: Matrix3::identity(),
-            clip_to_bounds: self.clip_to_bounds,
+            clip_to_bounds: self.clip_to_bounds.into(),
             id: self.id,
             is_resource_instance_root: false,
             resource: None,

@@ -1397,7 +1397,7 @@ impl UserInterface {
     fn calculate_clip_bounds(&self, node: Handle<UiNode>, parent_bounds: Rect<f32>) {
         let node = &self.nodes[node];
 
-        let screen_bounds = if node.clip_to_bounds {
+        let screen_bounds = if *node.clip_to_bounds {
             node.screen_bounds()
         } else {
             Rect::new(0.0, 0.0, self.screen_size.x, self.screen_size.y)
@@ -2044,7 +2044,7 @@ impl UserInterface {
                     let mut stack = vec![self.drag_context.drag_preview];
                     while let Some(handle) = stack.pop() {
                         let preview_node = &mut self.nodes[handle];
-                        preview_node.hit_test_visibility = false;
+                        preview_node.hit_test_visibility.set_value_silent(false);
                         stack.extend_from_slice(preview_node.children());
                     }
 

@@ -200,7 +200,7 @@ impl Control for Ruler {
         ctx.push_rect_filled(&local_bounds, None);
         ctx.commit(
             self.clip_bounds(),
-            self.background.clone(),
+            self.background(),
             CommandTexture::None,
             None,
         );
@@ -228,7 +228,7 @@ impl Control for Ruler {
         }
         ctx.commit(
             self.clip_bounds(),
-            self.foreground.clone(),
+            self.foreground(),
             CommandTexture::None,
             None,
         );

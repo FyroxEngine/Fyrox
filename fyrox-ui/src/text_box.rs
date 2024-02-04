@@ -726,7 +726,7 @@ impl TextBox {
             .get_font()
             .state()
             .data()
-            .map(|font| font.ascender(self.height))
+            .map(|font| font.ascender(*self.height))
             .unwrap_or_default();
         let spacing = spacing_step * 3.0;
         let top_left_corner = local_bounds.left_top_corner();

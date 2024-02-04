@@ -549,7 +549,7 @@ impl Control for ColorPoint {
 
 impl ColorPoint {
     fn color(&self) -> Color {
-        if let Brush::Solid(color) = self.foreground {
+        if let Brush::Solid(color) = *self.foreground {
             color
         } else {
             unreachable!()

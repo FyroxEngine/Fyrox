@@ -75,7 +75,7 @@ impl Control for Thumb {
         ctx.push_line(origin, origin + Vector2::new(0.0, local_bounds.h()), 1.0);
         ctx.commit(
             self.clip_bounds(),
-            self.foreground.clone(),
+            self.foreground(),
             CommandTexture::None,
             None,
         );
