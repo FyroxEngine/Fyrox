@@ -6,8 +6,9 @@ use crate::{
     BaseControl, Control, UserInterface,
 };
 use fyrox_core::pool::Handle;
-use fyrox_core::{ComponentProvider, NameProvider};
+use fyrox_core::{variable, ComponentProvider, NameProvider};
 use fyrox_graph::SceneGraphNode;
+use fyrox_resource::untyped::UntypedResource;
 use fyrox_resource::Resource;
 use std::{
     any::{Any, TypeId},
@@ -209,6 +210,31 @@ impl UiNode {
         T: 'static,
     {
         self.query_component::<T>().is_some()
+    }
+
+    pub(crate) fn set_inheritance_data(
+        &mut self,
+        original_handle: Handle<UiNode>,
+        model: Resource<UserInterface>,
+    ) {
+        // Notify instantiated node about resource it was created from.
+        self.resource = Some(model.clone());
+
+        // Reset resource instance root flag, this is needed because a node after instantiation cannot
+        // be a root anymore.
+        self.is_resource_instance_root = false;
+
+        // Reset inheritable properties, so property inheritance system will take properties
+        // from parent objects on resolve stage.
+        self.as_reflect_mut(&mut |reflect| {
+            variable::mark_inheritable_properties_non_modified(
+                reflect,
+                &[TypeId::of::<UntypedResource>()],
+            )
+        });
+
+        // Fill original handles to instances.
+        self.original_handle_in_resource = original_handle;
     }
 }
 

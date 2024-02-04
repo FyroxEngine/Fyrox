@@ -18,18 +18,13 @@ use crate::{
     HorizontalAlignment, LayoutEvent, MouseButton, MouseState, RcUiNodeHandle, Thickness, UiNode,
     UserInterface, VerticalAlignment, BRUSH_FOREGROUND, BRUSH_PRIMARY,
 };
-use fyrox_core::parking_lot::Mutex;
-use fyrox_core::variable;
-use fyrox_core::variable::InheritableVariable;
+use fyrox_core::{parking_lot::Mutex, variable::InheritableVariable};
 use fyrox_graph::SceneGraph;
-use fyrox_resource::untyped::UntypedResource;
 use fyrox_resource::Resource;
-use std::any::TypeId;
-use std::sync::Arc;
 use std::{
     any::Any,
     cell::{Cell, RefCell},
-    sync::mpsc::Sender,
+    sync::{mpsc::Sender, Arc},
 };
 
 /// A set of messages for any kind of widgets (including user controls). These messages provides basic
@@ -1288,31 +1283,6 @@ impl Widget {
             }
         }
         Handle::NONE
-    }
-
-    pub(crate) fn set_inheritance_data(
-        &mut self,
-        original_handle: Handle<UiNode>,
-        model: Resource<UserInterface>,
-    ) {
-        // Notify instantiated node about resource it was created from.
-        self.resource = Some(model.clone());
-
-        // Reset resource instance root flag, this is needed because a node after instantiation cannot
-        // be a root anymore.
-        self.is_resource_instance_root = false;
-
-        // Reset inheritable properties, so property inheritance system will take properties
-        // from parent objects on resolve stage.
-        self.as_reflect_mut(&mut |reflect| {
-            variable::mark_inheritable_properties_non_modified(
-                reflect,
-                &[TypeId::of::<UntypedResource>()],
-            )
-        });
-
-        // Fill original handles to instances.
-        self.original_handle_in_resource = original_handle;
     }
 
     /// Handles incoming [`WidgetMessage`]s. This method **must** be called in [`crate::control::Control::handle_routed_message`]
