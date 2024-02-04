@@ -2870,7 +2870,7 @@ impl UserInterfaceResourceExtension for Resource<UserInterface> {
         let data = data.data().expect("The resource must be loaded!");
 
         let (root, mapping) =
-            data.copy_node_to(ui.root_canvas, ui, &mut |_, original_handle, node| {
+            data.copy_node_to(data.root_canvas, ui, &mut |_, original_handle, node| {
                 node.set_inheritance_data(original_handle, resource.clone());
             });
 
