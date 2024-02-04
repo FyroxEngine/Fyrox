@@ -245,9 +245,10 @@ where
     }
 }
 
-impl<T> Default for Pool<T>
+impl<T, P> Default for Pool<T, P>
 where
     T: 'static,
+    P: PayloadContainer<Element = T> + 'static,
 {
     #[inline]
     fn default() -> Self {
