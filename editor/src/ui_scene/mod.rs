@@ -14,8 +14,9 @@ use crate::{
     ui_scene::{
         clipboard::Clipboard,
         commands::{
-            graph::AddUiPrefabCommand, make_set_widget_property_command, ChangeUiSelectionCommand,
-            UiCommand, UiCommandGroup, UiCommandStack, UiSceneCommand, UiSceneContext,
+            graph::AddUiPrefabCommand, make_set_widget_property_command,
+            widget::RevertWidgetPropertyCommand, ChangeUiSelectionCommand, UiCommand,
+            UiCommandGroup, UiCommandStack, UiSceneCommand, UiSceneContext,
         },
         selection::UiSelection,
     },
@@ -34,7 +35,7 @@ use fyrox::{
     },
     engine::Engine,
     fxhash::FxHashSet,
-    graph::SceneGraph,
+    graph::{SceneGraph, SceneGraphNode},
     gui::{
         brush::Brush,
         draw::{CommandTexture, Draw},
@@ -479,8 +480,20 @@ impl SceneController for UiScene {
                 .widgets
                 .iter()
                 .filter_map(|&node_handle| {
-                    if self.ui.try_get(node_handle).is_some() {
-                        make_set_widget_property_command(node_handle, args)
+                    if let Some(node) = self.ui.try_get(node_handle) {
+                        if args.is_inheritable() {
+                            // Prevent reverting property value if there's no parent resource.
+                            if node.resource().is_some() {
+                                Some(UiSceneCommand::new(RevertWidgetPropertyCommand::new(
+                                    args.path(),
+                                    node_handle,
+                                )))
+                            } else {
+                                None
+                            }
+                        } else {
+                            make_set_widget_property_command(node_handle, args)
+                        }
                     } else {
                         None
                     }
