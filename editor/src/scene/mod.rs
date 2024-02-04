@@ -853,7 +853,17 @@ impl SceneController for GameScene {
         self.camera_controller.is_interacting()
     }
 
-    fn on_destroy(&mut self, engine: &mut Engine) {
+    fn on_destroy(&mut self, engine: &mut Engine, selection: &mut Selection) {
+        self.command_stack.clear(GameSceneContext {
+            selection,
+            scene: &mut engine.scenes[self.scene],
+            message_sender: self.sender.clone(),
+            scene_content_root: &mut self.scene_content_root,
+            clipboard: &mut self.clipboard,
+            resource_manager: engine.resource_manager.clone(),
+            serialization_context: engine.serialization_context.clone(),
+        });
+
         engine.scenes.remove(self.scene);
     }
 

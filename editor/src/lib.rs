@@ -1836,8 +1836,8 @@ impl Editor {
         self.try_leave_preview_mode();
 
         let engine = &mut self.engine;
-        if let Some(mut game_scene_entry) = self.scenes.take_scene(id) {
-            game_scene_entry.controller.on_destroy(engine);
+        if let Some(mut entry) = self.scenes.take_scene(id) {
+            entry.controller.on_destroy(engine, &mut entry.selection);
 
             // Preview frame has scene frame texture assigned, it must be cleared explicitly,
             // otherwise it will show last rendered frame in preview which is not what we want.
@@ -1847,7 +1847,7 @@ impl Editor {
             self.scene_viewer
                 .set_title(&engine.user_interface, "Scene Preview".to_string());
 
-            game_scene_entry.before_drop(engine);
+            entry.before_drop(engine);
 
             self.on_scene_changed();
 

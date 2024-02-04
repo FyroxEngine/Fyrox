@@ -111,7 +111,7 @@ pub trait SceneController: 'static {
 
     fn is_interacting(&self) -> bool;
 
-    fn on_destroy(&mut self, engine: &mut Engine);
+    fn on_destroy(&mut self, engine: &mut Engine, selection: &mut Selection);
 
     fn on_message(&mut self, message: &Message, selection: &Selection, engine: &mut Engine)
         -> bool;

@@ -389,7 +389,14 @@ impl SceneController for UiScene {
         false
     }
 
-    fn on_destroy(&mut self, _engine: &mut Engine) {}
+    fn on_destroy(&mut self, _engine: &mut Engine, selection: &mut Selection) {
+        self.command_stack.clear(UiSceneContext {
+            ui: &mut self.ui,
+            selection,
+            message_sender: &self.message_sender,
+            clipboard: &mut self.clipboard,
+        });
+    }
 
     fn on_message(
         &mut self,
