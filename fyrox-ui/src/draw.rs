@@ -721,15 +721,15 @@ impl DrawingContext {
         }
 
         // Draw shadow, if any.
-        if formatted_text.shadow {
+        if *formatted_text.shadow {
             draw(
                 formatted_text,
                 self,
                 clip_bounds,
                 position,
-                formatted_text.shadow_dilation,
-                formatted_text.shadow_offset,
-                formatted_text.shadow_brush.clone(),
+                *formatted_text.shadow_dilation,
+                *formatted_text.shadow_offset,
+                (*formatted_text.shadow_brush).clone(),
                 &font,
             );
         }

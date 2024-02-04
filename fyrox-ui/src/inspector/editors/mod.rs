@@ -80,6 +80,7 @@ use crate::{
 };
 use fxhash::FxHashMap;
 use fyrox_core::parking_lot::{RwLock, RwLockReadGuard};
+use std::cell::RefCell;
 use std::sync::Arc;
 use std::{any::TypeId, fmt::Debug, ops::Range, str::FromStr};
 use strum::VariantNames;
@@ -325,22 +326,33 @@ impl PropertyEditorDefinitionContainer {
         container.insert(InheritablePropertyEditorDefinition::<Curve>::new());
 
         // UI
-        container.insert(EnumPropertyEditorDefinition::<Brush>::new());
-        container.insert(EnumPropertyEditorDefinition::<Orientation>::new());
-        container.insert(EnumPropertyEditorDefinition::<VerticalAlignment>::new());
-        container.insert(EnumPropertyEditorDefinition::<HorizontalAlignment>::new());
-        container.insert(EnumPropertyEditorDefinition::<WrapMode>::new());
-        container.insert(EnumPropertyEditorDefinition::<Primitive>::new());
-        container.insert(EnumPropertyEditorDefinition::<SizeMode>::new());
+        container.register_inheritable_enum::<Brush, _>();
+        container.register_inheritable_enum::<Orientation, _>();
+        container.register_inheritable_enum::<VerticalAlignment, _>();
+        container.register_inheritable_enum::<HorizontalAlignment, _>();
+        container.register_inheritable_enum::<WrapMode, _>();
+        container.register_inheritable_enum::<Primitive, _>();
+        container.register_inheritable_enum::<SizeMode, _>();
         container.insert(EnumPropertyEditorDefinition::<CursorIcon>::new());
         container.insert(EnumPropertyEditorDefinition::<CursorIcon>::new_optional());
         container.insert(EnumPropertyEditorDefinition::<bool>::new_optional());
-        container.insert(VecCollectionPropertyEditorDefinition::<GradientPoint>::new());
-        container.insert(VecCollectionPropertyEditorDefinition::<Primitive>::new());
+        container.insert(InheritablePropertyEditorDefinition::<Option<bool>>::new());
+        container.insert(InheritablePropertyEditorDefinition::<Option<CursorIcon>>::new());
+
+        container.register_inheritable_vec_collection::<GradientPoint>();
+        container.register_inheritable_vec_collection::<Primitive>();
+
         container.insert(RefCellPropertyEditorDefinition::<FormattedText>::new());
-        container.insert(RefCellPropertyEditorDefinition::<Vec<GridDimension>>::new());
+
         container.insert(VecCollectionPropertyEditorDefinition::<GridDimension>::new());
+        container.insert(RefCellPropertyEditorDefinition::<Vec<GridDimension>>::new());
+        container.insert(InheritablePropertyEditorDefinition::<
+            RefCell<Vec<GridDimension>>,
+        >::new());
+
         container.insert(Utf32StringPropertyEditorDefinition);
+        container.insert(InheritablePropertyEditorDefinition::<Vec<char>>::new());
+
         reg_inspectables!(
             container,
             // Widgets

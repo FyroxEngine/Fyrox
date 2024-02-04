@@ -1482,7 +1482,7 @@ impl Control for TextBox {
                             }
                         }
                         &TextMessage::Shadow(shadow) => {
-                            if text.shadow != shadow {
+                            if *text.shadow != shadow {
                                 text.set_shadow(shadow);
                                 drop(text);
                                 self.invalidate_layout();
@@ -1490,7 +1490,7 @@ impl Control for TextBox {
                             }
                         }
                         TextMessage::ShadowBrush(brush) => {
-                            if &text.shadow_brush != brush {
+                            if &*text.shadow_brush != brush {
                                 text.set_shadow_brush(brush.clone());
                                 drop(text);
                                 self.invalidate_layout();
@@ -1498,7 +1498,7 @@ impl Control for TextBox {
                             }
                         }
                         &TextMessage::ShadowDilation(dilation) => {
-                            if text.shadow_dilation != dilation {
+                            if *text.shadow_dilation != dilation {
                                 text.set_shadow_dilation(dilation);
                                 drop(text);
                                 self.invalidate_layout();
@@ -1506,7 +1506,7 @@ impl Control for TextBox {
                             }
                         }
                         &TextMessage::ShadowOffset(offset) => {
-                            if text.shadow_offset != offset {
+                            if *text.shadow_offset != offset {
                                 text.set_shadow_offset(offset);
                                 drop(text);
                                 self.invalidate_layout();

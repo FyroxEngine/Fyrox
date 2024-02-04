@@ -15,6 +15,7 @@ use crate::{
     },
     message::MessageSender,
 };
+use fyrox::gui::font::FontResource;
 use fyrox::{
     asset::{manager::ResourceManager, Resource},
     core::{
@@ -126,6 +127,7 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(TexturePropertyEditorDefinition { untyped: false });
     container.insert(TexturePropertyEditorDefinition { untyped: true });
     container.insert(FontPropertyEditorDefinition);
+    container.insert(InheritablePropertyEditorDefinition::<FontResource>::new());
     container.insert(InheritablePropertyEditorDefinition::<Option<TextureResource>>::new());
     container.register_inheritable_vec_collection::<Option<TextureResource>>();
 
