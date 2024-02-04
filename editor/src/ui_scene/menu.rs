@@ -6,9 +6,11 @@ use crate::{
         commands::graph::{PasteWidgetCommand, SetUiRootCommand},
         UiScene,
     },
+    utils,
     world::WorldViewerItemContextMenu,
     Engine, Message, MessageDirection,
 };
+use fyrox::graph::{SceneGraph, SceneGraphNode};
 use fyrox::{
     core::pool::Handle,
     gui::{
@@ -20,6 +22,7 @@ use fyrox::{
         BuildContext, RcUiNodeHandle, UiNode,
     },
 };
+use std::path::PathBuf;
 
 pub struct WidgetContextMenu {
     menu: RcUiNodeHandle,
@@ -29,6 +32,7 @@ pub struct WidgetContextMenu {
     placement_target: Handle<UiNode>,
     paste: Handle<UiNode>,
     make_root: Handle<UiNode>,
+    open_asset: Handle<UiNode>,
 }
 
 impl WorldViewerItemContextMenu for WidgetContextMenu {
@@ -37,12 +41,27 @@ impl WorldViewerItemContextMenu for WidgetContextMenu {
     }
 }
 
+fn resource_path_of_first_selected_node(
+    editor_selection: &Selection,
+    ui_scene: &UiScene,
+) -> Option<PathBuf> {
+    if let Selection::Ui(ui_selection) = editor_selection {
+        if let Some(first) = ui_selection.widgets.first() {
+            if let Some(resource) = ui_scene.ui.try_get(*first).and_then(|n| n.resource()) {
+                return resource.kind().into_path();
+            }
+        }
+    }
+    None
+}
+
 impl WidgetContextMenu {
     pub fn new(ctx: &mut BuildContext) -> Self {
         let delete_selection;
         let copy_selection;
         let paste;
         let make_root;
+        let open_asset;
 
         let widgets_menu = UiMenu::new(UiMenu::default_entries(), "Create Child Widget", ctx);
 
@@ -68,6 +87,10 @@ impl WidgetContextMenu {
                             make_root = create_menu_item("Make Root", vec![], ctx);
                             make_root
                         })
+                        .with_child({
+                            open_asset = create_menu_item("Open Asset", vec![], ctx);
+                            open_asset
+                        })
                         .with_child(widgets_menu.menu),
                 )
                 .build(ctx),
@@ -83,6 +106,7 @@ impl WidgetContextMenu {
             placement_target: Default::default(),
             paste,
             make_root,
+            open_asset,
         }
     }
 
@@ -127,6 +151,14 @@ impl WidgetContextMenu {
                                 root: *first,
                                 link_scheme: Default::default(),
                             });
+                        }
+                    }
+                } else if message.destination() == self.open_asset {
+                    if let Some(path) =
+                        resource_path_of_first_selected_node(editor_selection, ui_scene)
+                    {
+                        if utils::is_native_scene(&path) {
+                            sender.send(Message::LoadScene(path));
                         }
                     }
                 }
