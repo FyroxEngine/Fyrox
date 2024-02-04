@@ -154,7 +154,7 @@ fn colorize(handle: Handle<UiNode>, ui: &UserInterface, index: &mut usize) {
                 Color::opaque(60, 60, 60)
             });
 
-            if decorator.normal_brush != new_brush {
+            if *decorator.normal_brush != new_brush {
                 ui.send_message(DecoratorMessage::normal_brush(
                     handle,
                     MessageDirection::ToWidget,

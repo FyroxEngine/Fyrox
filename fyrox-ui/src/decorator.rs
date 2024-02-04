@@ -18,6 +18,7 @@ use crate::{
     BRUSH_LIGHTER, BRUSH_LIGHTEST,
 };
 use fyrox_core::uuid_provider;
+use fyrox_core::variable::InheritableVariable;
 use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
@@ -96,17 +97,17 @@ pub struct Decorator {
     #[component(include)]
     pub border: Border,
     /// Current brush used for `Normal` state.
-    pub normal_brush: Brush,
+    pub normal_brush: InheritableVariable<Brush>,
     /// Current brush used for `Hovered` state.
-    pub hover_brush: Brush,
+    pub hover_brush: InheritableVariable<Brush>,
     /// Current brush used for `Pressed` state.
-    pub pressed_brush: Brush,
+    pub pressed_brush: InheritableVariable<Brush>,
     /// Current brush used for `Selected` state.
-    pub selected_brush: Brush,
+    pub selected_brush: InheritableVariable<Brush>,
     /// Whether the decorator is in `Selected` state or not.
-    pub is_selected: bool,
+    pub is_selected: InheritableVariable<bool>,
     /// Whether the decorator should react to mouse clicks and switch its state to `Pressed` or not.
-    pub is_pressable: bool,
+    pub is_pressable: InheritableVariable<bool>,
 }
 
 impl Deref for Decorator {
@@ -148,53 +149,55 @@ impl Control for Decorator {
         if let Some(msg) = message.data::<DecoratorMessage>() {
             match msg {
                 &DecoratorMessage::Select(value) => {
-                    if self.is_selected != value {
-                        self.is_selected = value;
-                        if self.is_selected {
+                    if *self.is_selected != value {
+                        self.is_selected.set_value_and_mark_modified(value);
+                        if *self.is_selected {
                             ui.send_message(WidgetMessage::background(
                                 self.handle(),
                                 MessageDirection::ToWidget,
-                                self.selected_brush.clone(),
+                                (*self.selected_brush).clone(),
                             ));
                         } else {
                             ui.send_message(WidgetMessage::background(
                                 self.handle(),
                                 MessageDirection::ToWidget,
-                                self.normal_brush.clone(),
+                                (*self.normal_brush).clone(),
                             ));
                         }
                     }
                 }
                 DecoratorMessage::HoverBrush(brush) => {
-                    self.hover_brush = brush.clone();
+                    self.hover_brush.set_value_and_mark_modified(brush.clone());
                     if self.is_mouse_directly_over {
                         ui.send_message(WidgetMessage::background(
                             self.handle(),
                             MessageDirection::ToWidget,
-                            self.hover_brush.clone(),
+                            (*self.hover_brush).clone(),
                         ));
                     }
                 }
                 DecoratorMessage::NormalBrush(brush) => {
-                    self.normal_brush = brush.clone();
-                    if !self.is_selected && !self.is_mouse_directly_over {
+                    self.normal_brush.set_value_and_mark_modified(brush.clone());
+                    if !*self.is_selected && !self.is_mouse_directly_over {
                         ui.send_message(WidgetMessage::background(
                             self.handle(),
                             MessageDirection::ToWidget,
-                            self.normal_brush.clone(),
+                            (*self.normal_brush).clone(),
                         ));
                     }
                 }
                 DecoratorMessage::PressedBrush(brush) => {
-                    self.pressed_brush = brush.clone();
+                    self.pressed_brush
+                        .set_value_and_mark_modified(brush.clone());
                 }
                 DecoratorMessage::SelectedBrush(brush) => {
-                    self.selected_brush = brush.clone();
-                    if self.is_selected {
+                    self.selected_brush
+                        .set_value_and_mark_modified(brush.clone());
+                    if *self.is_selected {
                         ui.send_message(WidgetMessage::background(
                             self.handle(),
                             MessageDirection::ToWidget,
-                            self.selected_brush.clone(),
+                            (*self.selected_brush).clone(),
                         ));
                     }
                 }
@@ -205,17 +208,17 @@ impl Control for Decorator {
             {
                 match msg {
                     WidgetMessage::MouseLeave => {
-                        if self.is_selected {
+                        if *self.is_selected {
                             ui.send_message(WidgetMessage::background(
                                 self.handle(),
                                 MessageDirection::ToWidget,
-                                self.selected_brush.clone(),
+                                (*self.selected_brush).clone(),
                             ));
                         } else {
                             ui.send_message(WidgetMessage::background(
                                 self.handle(),
                                 MessageDirection::ToWidget,
-                                self.normal_brush.clone(),
+                                (*self.normal_brush).clone(),
                             ));
                         }
                     }
@@ -223,28 +226,28 @@ impl Control for Decorator {
                         ui.send_message(WidgetMessage::background(
                             self.handle(),
                             MessageDirection::ToWidget,
-                            self.hover_brush.clone(),
+                            (*self.hover_brush).clone(),
                         ));
                     }
-                    WidgetMessage::MouseDown { .. } if self.is_pressable => {
+                    WidgetMessage::MouseDown { .. } if *self.is_pressable => {
                         ui.send_message(WidgetMessage::background(
                             self.handle(),
                             MessageDirection::ToWidget,
-                            self.pressed_brush.clone(),
+                            (*self.pressed_brush).clone(),
                         ));
                     }
                     WidgetMessage::MouseUp { .. } => {
-                        if self.is_selected {
+                        if *self.is_selected {
                             ui.send_message(WidgetMessage::background(
                                 self.handle(),
                                 MessageDirection::ToWidget,
-                                self.selected_brush.clone(),
+                                (*self.selected_brush).clone(),
                             ));
                         } else {
                             ui.send_message(WidgetMessage::background(
                                 self.handle(),
                                 MessageDirection::ToWidget,
-                                self.normal_brush.clone(),
+                                (*self.normal_brush).clone(),
                             ));
                         }
                     }
@@ -335,12 +338,12 @@ impl DecoratorBuilder {
 
         let node = UiNode::new(Decorator {
             border,
-            normal_brush,
-            hover_brush: self.hover_brush,
-            pressed_brush: self.pressed_brush,
-            selected_brush,
-            is_selected: self.selected,
-            is_pressable: self.pressable,
+            normal_brush: normal_brush.into(),
+            hover_brush: self.hover_brush.into(),
+            pressed_brush: self.pressed_brush.into(),
+            selected_brush: selected_brush.into(),
+            is_selected: self.selected.into(),
+            is_pressable: self.pressable.into(),
         });
         ui.add_node(node)
     }

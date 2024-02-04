@@ -14,6 +14,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, MessageDirection, Thickness, UiNode, UserInterface, BRUSH_PRIMARY,
 };
+use fyrox_core::variable::InheritableVariable;
 use std::ops::{Deref, DerefMut};
 
 /// The Border widget provides a stylized, static border around its child widget. Below is an example of creating a 1 pixel
@@ -84,7 +85,7 @@ pub struct Border {
     /// Base widget of the border. See [`Widget`] docs for more info.
     pub widget: Widget,
     /// Stroke thickness for each side of the border.
-    pub stroke_thickness: Thickness,
+    pub stroke_thickness: InheritableVariable<Thickness>,
 }
 
 crate::define_widget_deref!(Border);
@@ -158,7 +159,7 @@ impl Control for Border {
             None,
         );
 
-        drawing_context.push_rect_vary(&bounds, self.stroke_thickness);
+        drawing_context.push_rect_vary(&bounds, *self.stroke_thickness);
         drawing_context.commit(
             self.clip_bounds(),
             self.widget.foreground(),
@@ -174,8 +175,9 @@ impl Control for Border {
             && message.direction() == MessageDirection::ToWidget
         {
             if let Some(BorderMessage::StrokeThickness(thickness)) = message.data() {
-                if *thickness != self.stroke_thickness {
-                    self.stroke_thickness = *thickness;
+                if *thickness != *self.stroke_thickness {
+                    self.stroke_thickness
+                        .set_value_and_mark_modified(*thickness);
                     ui.send_message(message.reverse());
                     self.invalidate_layout();
                 }
@@ -214,7 +216,7 @@ impl BorderBuilder {
         }
         Border {
             widget: self.widget_builder.build(),
-            stroke_thickness: self.stroke_thickness,
+            stroke_thickness: self.stroke_thickness.into(),
         }
     }
 
