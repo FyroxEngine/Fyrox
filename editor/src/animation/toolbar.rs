@@ -347,7 +347,7 @@ impl RootMotionDropdownArea {
                 send_sync_message(
                     ui,
                     TextMessage::text(
-                        ui.node(self.select_node)
+                        *ui.node(self.select_node)
                             .query_component::<Button>()
                             .unwrap()
                             .content,

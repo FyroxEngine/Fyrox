@@ -625,12 +625,12 @@ impl MaterialEditor {
                 if message.destination() == self.texture_context_menu.show_in_asset_browser
                     && self.texture_context_menu.target.is_some()
                 {
-                    let path = engine
+                    let path = (*engine
                         .user_interface
                         .node(self.texture_context_menu.target)
                         .cast::<Image>()
                         .unwrap()
-                        .texture
+                        .texture)
                         .clone()
                         .and_then(|t| t.kind().into_path());
 

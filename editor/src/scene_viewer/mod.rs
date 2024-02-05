@@ -330,7 +330,7 @@ impl SceneViewer {
         if let Message::SetInteractionMode(mode) = message {
             if let Some(&active_button) = self.interaction_modes.get(mode) {
                 for &mode_button in self.interaction_modes.values() {
-                    let decorator = engine
+                    let decorator = *engine
                         .user_interface
                         .node(mode_button)
                         .query_component::<Button>()
