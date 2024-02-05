@@ -27,6 +27,7 @@ use crate::{
     BRUSH_DARKER, BRUSH_TEXT,
 };
 use copypasta::ClipboardProvider;
+use fyrox_core::variable::InheritableVariable;
 use std::sync::Arc;
 use std::{
     cell::RefCell,
@@ -372,39 +373,39 @@ pub struct TextBox {
     /// Base widget of the text box.
     pub widget: Widget,
     /// Current position of the caret in the text box.
-    pub caret_position: Position,
+    pub caret_position: InheritableVariable<Position>,
     /// Whether the caret is visible or not.
-    pub caret_visible: bool,
+    pub caret_visible: InheritableVariable<bool>,
     /// Internal blinking timer.
-    pub blink_timer: f32,
+    pub blink_timer: InheritableVariable<f32>,
     /// Blinking interval in seconds.
-    pub blink_interval: f32,
+    pub blink_interval: InheritableVariable<f32>,
     /// Formatted text that stores actual text and performs its layout. See [`FormattedText`] docs for more info.
     pub formatted_text: RefCell<FormattedText>,
     /// Current selection range.
-    pub selection_range: Option<SelectionRange>,
+    pub selection_range: InheritableVariable<Option<SelectionRange>>,
     /// `true` if the text box is in selection mode.
     pub selecting: bool,
     /// `true` if the text box is focused.
     pub has_focus: bool,
     /// Current caret brush of the text box.
-    pub caret_brush: Brush,
+    pub caret_brush: InheritableVariable<Brush>,
     /// Current selection brush of the text box.
-    pub selection_brush: Brush,
+    pub selection_brush: InheritableVariable<Brush>,
     /// Current character filter of the text box.
     #[visit(skip)]
     #[reflect(hidden)]
     pub filter: Option<Arc<Mutex<FilterCallback>>>,
     /// Current text commit mode of the text box.
-    pub commit_mode: TextCommitMode,
+    pub commit_mode: InheritableVariable<TextCommitMode>,
     /// `true` if the the multiline mode is active.
-    pub multiline: bool,
+    pub multiline: InheritableVariable<bool>,
     /// `true` if the text box is editable.
-    pub editable: bool,
+    pub editable: InheritableVariable<bool>,
     /// Position of the local "camera" (viewing rectangle) of the text box.
-    pub view_position: Vector2<f32>,
+    pub view_position: InheritableVariable<Vector2<f32>>,
     /// A list of custom characters that will be treated as whitespace.
-    pub skip_chars: Vec<char>,
+    pub skip_chars: InheritableVariable<Vec<char>>,
 }
 
 impl Debug for TextBox {
@@ -417,20 +418,21 @@ crate::define_widget_deref!(TextBox);
 
 impl TextBox {
     fn reset_blink(&mut self) {
-        self.caret_visible = true;
-        self.blink_timer = 0.0;
+        self.caret_visible.set_value_and_mark_modified(true);
+        self.blink_timer.set_value_and_mark_modified(0.0);
     }
 
     fn move_caret_x(&mut self, mut offset: usize, direction: HorizontalDirection, select: bool) {
         if select {
             if self.selection_range.is_none() {
-                self.selection_range = Some(SelectionRange {
-                    begin: self.caret_position,
-                    end: self.caret_position,
-                });
+                self.selection_range
+                    .set_value_and_mark_modified(Some(SelectionRange {
+                        begin: *self.caret_position,
+                        end: *self.caret_position,
+                    }));
             }
         } else {
-            self.selection_range = None;
+            self.selection_range.set_value_and_mark_modified(None);
         }
 
         self.reset_blink();
@@ -475,7 +477,7 @@ impl TextBox {
 
         if let Some(selection_range) = self.selection_range.as_mut() {
             if select {
-                selection_range.end = self.caret_position;
+                selection_range.end = *self.caret_position;
             }
         }
 
@@ -487,13 +489,14 @@ impl TextBox {
     fn move_caret_y(&mut self, offset: usize, direction: VerticalDirection, select: bool) {
         if select {
             if self.selection_range.is_none() {
-                self.selection_range = Some(SelectionRange {
-                    begin: self.caret_position,
-                    end: self.caret_position,
-                });
+                self.selection_range
+                    .set_value_and_mark_modified(Some(SelectionRange {
+                        begin: *self.caret_position,
+                        end: *self.caret_position,
+                    }));
             }
         } else {
-            self.selection_range = None;
+            self.selection_range.set_value_and_mark_modified(None);
         }
 
         let text = self.formatted_text.borrow();
@@ -524,7 +527,7 @@ impl TextBox {
 
         if let Some(selection_range) = self.selection_range.as_mut() {
             if select {
-                selection_range.end = self.caret_position;
+                selection_range.end = *self.caret_position;
             }
         }
 
@@ -632,7 +635,7 @@ impl TextBox {
     /// Inserts given character at current caret position.
     fn insert_char(&mut self, c: char, ui: &UserInterface) {
         let position = self
-            .position_to_char_index_unclamped(self.caret_position)
+            .position_to_char_index_unclamped(*self.caret_position)
             .unwrap_or_default();
         self.formatted_text
             .borrow_mut()
@@ -642,7 +645,7 @@ impl TextBox {
             self.char_index_to_position(position + 1)
                 .unwrap_or_default(),
         );
-        if self.commit_mode == TextCommitMode::Immediate {
+        if *self.commit_mode == TextCommitMode::Immediate {
             ui.send_message(TextMessage::text(
                 self.handle,
                 MessageDirection::FromWidget,
@@ -653,7 +656,7 @@ impl TextBox {
 
     fn insert_str(&mut self, str: &str, ui: &UserInterface) {
         let position = self
-            .position_to_char_index_unclamped(self.caret_position)
+            .position_to_char_index_unclamped(*self.caret_position)
             .unwrap_or_default();
         let mut text = self.formatted_text.borrow_mut();
         text.insert_str(str, position);
@@ -663,7 +666,7 @@ impl TextBox {
             self.char_index_to_position(position + str.chars().count())
                 .unwrap_or_default(),
         );
-        if self.commit_mode == TextCommitMode::Immediate {
+        if *self.commit_mode == TextCommitMode::Immediate {
             ui.send_message(TextMessage::text(
                 self.handle,
                 MessageDirection::FromWidget,
@@ -708,11 +711,11 @@ impl TextBox {
     }
 
     fn point_to_view_pos(&self, position: Vector2<f32>) -> Vector2<f32> {
-        position - self.view_position
+        position - *self.view_position
     }
 
     fn rect_to_view_pos(&self, mut rect: Rect<f32>) -> Rect<f32> {
-        rect.position -= self.view_position;
+        rect.position -= *self.view_position;
         rect
     }
 
@@ -748,7 +751,7 @@ impl TextBox {
     }
 
     fn remove_char(&mut self, direction: HorizontalDirection, ui: &UserInterface) {
-        if let Some(position) = self.position_to_char_index_unclamped(self.caret_position) {
+        if let Some(position) = self.position_to_char_index_unclamped(*self.caret_position) {
             let text_len = self.get_text_len();
             if text_len != 0 {
                 let position = match direction {
@@ -771,7 +774,7 @@ impl TextBox {
                 text.build();
                 drop(text);
 
-                if self.commit_mode == TextCommitMode::Immediate {
+                if *self.commit_mode == TextCommitMode::Immediate {
                     ui.send_message(TextMessage::text(
                         self.handle(),
                         MessageDirection::FromWidget,
@@ -791,7 +794,7 @@ impl TextBox {
                 self.formatted_text.borrow_mut().remove_range(begin..end);
                 self.formatted_text.borrow_mut().build();
 
-                if self.commit_mode == TextCommitMode::Immediate {
+                if *self.commit_mode == TextCommitMode::Immediate {
                     ui.send_message(TextMessage::text(
                         self.handle(),
                         MessageDirection::FromWidget,
@@ -814,7 +817,7 @@ impl TextBox {
     }
 
     fn set_caret_position(&mut self, position: Position) {
-        self.caret_position = position;
+        self.caret_position.set_value_and_mark_modified(position);
         self.ensure_caret_visible();
         self.reset_blink();
     }
@@ -965,10 +968,11 @@ impl TextBox {
                 self.char_index_to_position(left_index),
                 self.char_index_to_position(right_index),
             ) {
-                self.selection_range = Some(SelectionRange {
-                    begin: left,
-                    end: right,
-                });
+                self.selection_range
+                    .set_value_and_mark_modified(Some(SelectionRange {
+                        begin: left,
+                        end: right,
+                    }));
                 self.set_caret_position(right);
             }
         }
@@ -1063,7 +1067,7 @@ impl Control for TextBox {
         }
         drawing_context.commit(
             self.clip_bounds(),
-            self.selection_brush.clone(),
+            (*self.selection_brush).clone(),
             CommandTexture::None,
             None,
         );
@@ -1075,7 +1079,7 @@ impl Control for TextBox {
             &self.formatted_text.borrow(),
         );
 
-        if self.caret_visible {
+        if *self.caret_visible {
             let caret_pos = self.point_to_view_pos(self.caret_local_position());
             let caret_bounds = Rect::new(
                 caret_pos.x,
@@ -1086,7 +1090,7 @@ impl Control for TextBox {
             drawing_context.push_rect_filled(&caret_bounds, None);
             drawing_context.commit(
                 self.clip_bounds(),
-                self.caret_brush.clone(),
+                (*self.caret_brush).clone(),
                 CommandTexture::None,
                 None,
             );
@@ -1095,13 +1099,14 @@ impl Control for TextBox {
 
     fn update(&mut self, dt: f32, _sender: &Sender<UiMessage>, _screen_size: Vector2<f32>) {
         if self.has_focus {
-            self.blink_timer += dt;
-            if self.blink_timer >= self.blink_interval {
-                self.blink_timer = 0.0;
-                self.caret_visible = !self.caret_visible;
+            *self.blink_timer += dt;
+            if *self.blink_timer >= *self.blink_interval {
+                self.blink_timer.set_value_and_mark_modified(0.0);
+                self.caret_visible
+                    .set_value_and_mark_modified(!*self.caret_visible);
             }
         } else {
-            self.caret_visible = false;
+            self.caret_visible.set_value_and_mark_modified(false);
         }
     }
 
@@ -1114,7 +1119,7 @@ impl Control for TextBox {
                     WidgetMessage::Text(text)
                         if !ui.keyboard_modifiers().control
                             && !ui.keyboard_modifiers().alt
-                            && self.editable =>
+                            && *self.editable =>
                     {
                         for symbol in text.chars() {
                             let insert = if let Some(filter) = self.filter.as_ref() {
@@ -1124,9 +1129,9 @@ impl Control for TextBox {
                                 true
                             };
                             if insert {
-                                if let Some(range) = self.selection_range {
+                                if let Some(range) = *self.selection_range {
                                     self.remove_range(ui, range);
-                                    self.selection_range = None;
+                                    self.selection_range.set_value_and_mark_modified(None);
                                 }
                                 if !symbol.is_control() {
                                     self.insert_char(symbol, ui);
@@ -1152,9 +1157,9 @@ impl Control for TextBox {
                             }
                             KeyCode::ArrowRight => {
                                 if ui.keyboard_modifiers.control {
-                                    let prev_position = self.caret_position;
+                                    let prev_position = *self.caret_position;
                                     let next_word_position =
-                                        self.find_next_word(self.caret_position);
+                                        self.find_next_word(*self.caret_position);
                                     self.set_caret_position(next_word_position);
                                     self.reset_blink();
                                     if ui.keyboard_modifiers.shift {
@@ -1162,13 +1167,15 @@ impl Control for TextBox {
                                         {
                                             selection_range.end = next_word_position;
                                         } else {
-                                            self.selection_range = Some(SelectionRange {
-                                                begin: prev_position,
-                                                end: next_word_position,
-                                            });
+                                            self.selection_range.set_value_and_mark_modified(Some(
+                                                SelectionRange {
+                                                    begin: prev_position,
+                                                    end: next_word_position,
+                                                },
+                                            ));
                                         }
                                     } else {
-                                        self.selection_range = None;
+                                        self.selection_range.set_value_and_mark_modified(None);
                                     }
                                 } else {
                                     self.move_caret_x(
@@ -1180,22 +1187,24 @@ impl Control for TextBox {
                             }
                             KeyCode::ArrowLeft => {
                                 if ui.keyboard_modifiers.control {
-                                    let prev_position = self.caret_position;
+                                    let prev_position = *self.caret_position;
                                     let prev_word_position =
-                                        self.find_prev_word(self.caret_position);
+                                        self.find_prev_word(*self.caret_position);
                                     self.set_caret_position(prev_word_position);
                                     if ui.keyboard_modifiers.shift {
                                         if let Some(selection_range) = self.selection_range.as_mut()
                                         {
                                             selection_range.end = prev_word_position;
                                         } else {
-                                            self.selection_range = Some(SelectionRange {
-                                                begin: prev_position,
-                                                end: prev_word_position,
-                                            });
+                                            self.selection_range.set_value_and_mark_modified(Some(
+                                                SelectionRange {
+                                                    begin: prev_position,
+                                                    end: prev_word_position,
+                                                },
+                                            ));
                                         }
                                     } else {
-                                        self.selection_range = None;
+                                        self.selection_range.set_value_and_mark_modified(None);
                                     }
                                 } else {
                                     self.move_caret_x(
@@ -1205,18 +1214,18 @@ impl Control for TextBox {
                                     );
                                 }
                             }
-                            KeyCode::Delete if !message.handled() && self.editable => {
-                                if let Some(range) = self.selection_range {
+                            KeyCode::Delete if !message.handled() && *self.editable => {
+                                if let Some(range) = *self.selection_range {
                                     self.remove_range(ui, range);
-                                    self.selection_range = None;
+                                    self.selection_range.set_value_and_mark_modified(None);
                                 } else {
                                     self.remove_char(HorizontalDirection::Right, ui);
                                 }
                             }
-                            KeyCode::NumpadEnter | KeyCode::Enter if self.editable => {
-                                if self.multiline {
+                            KeyCode::NumpadEnter | KeyCode::Enter if *self.editable => {
+                                if *self.multiline {
                                     self.insert_char('\n', ui);
-                                } else if self.commit_mode == TextCommitMode::LostFocusPlusEnter {
+                                } else if *self.commit_mode == TextCommitMode::LostFocusPlusEnter {
                                     ui.send_message(TextMessage::text(
                                         self.handle,
                                         MessageDirection::FromWidget,
@@ -1225,10 +1234,10 @@ impl Control for TextBox {
                                     self.has_focus = false;
                                 }
                             }
-                            KeyCode::Backspace if self.editable => {
-                                if let Some(range) = self.selection_range {
+                            KeyCode::Backspace if *self.editable => {
+                                if let Some(range) = *self.selection_range {
                                     self.remove_range(ui, range);
-                                    self.selection_range = None;
+                                    self.selection_range.set_value_and_mark_modified(None);
                                 } else {
                                     self.remove_char(HorizontalDirection::Left, ui);
                                 }
@@ -1243,22 +1252,24 @@ impl Control for TextBox {
                                         };
                                         drop(text);
                                         self.set_caret_position(new_position);
-                                        self.selection_range = None;
+                                        self.selection_range.set_value_and_mark_modified(None);
                                     } else if ui.keyboard_modifiers().shift {
-                                        let prev_position = self.caret_position;
+                                        let prev_position = *self.caret_position;
                                         let new_position = Position {
                                             line: self.caret_position.line,
                                             offset: line.end - line.begin,
                                         };
                                         drop(text);
                                         self.set_caret_position(new_position);
-                                        self.selection_range = Some(SelectionRange {
-                                            begin: prev_position,
-                                            end: Position {
-                                                line: self.caret_position.line,
-                                                offset: self.caret_position.offset,
+                                        self.selection_range.set_value_and_mark_modified(Some(
+                                            SelectionRange {
+                                                begin: prev_position,
+                                                end: Position {
+                                                    line: self.caret_position.line,
+                                                    offset: self.caret_position.offset,
+                                                },
                                             },
-                                        });
+                                        ));
                                     } else {
                                         let new_position = Position {
                                             line: self.caret_position.line,
@@ -1266,45 +1277,49 @@ impl Control for TextBox {
                                         };
                                         drop(text);
                                         self.set_caret_position(new_position);
-                                        self.selection_range = None;
+                                        self.selection_range.set_value_and_mark_modified(None);
                                     }
                                 }
                             }
                             KeyCode::Home => {
                                 if ui.keyboard_modifiers().control {
                                     self.set_caret_position(Position { line: 0, offset: 0 });
-                                    self.selection_range = None;
+                                    self.selection_range.set_value_and_mark_modified(None);
                                 } else if ui.keyboard_modifiers().shift {
-                                    let prev_position = self.caret_position;
+                                    let prev_position = *self.caret_position;
                                     self.set_caret_position(Position {
                                         line: self.caret_position.line,
                                         offset: 0,
                                     });
-                                    self.selection_range = Some(SelectionRange {
-                                        begin: self.caret_position,
-                                        end: Position {
-                                            line: prev_position.line,
-                                            offset: prev_position.offset,
+                                    self.selection_range.set_value_and_mark_modified(Some(
+                                        SelectionRange {
+                                            begin: *self.caret_position,
+                                            end: Position {
+                                                line: prev_position.line,
+                                                offset: prev_position.offset,
+                                            },
                                         },
-                                    });
+                                    ));
                                 } else {
                                     self.set_caret_position(Position {
                                         line: self.caret_position.line,
                                         offset: 0,
                                     });
-                                    self.selection_range = None;
+                                    self.selection_range.set_value_and_mark_modified(None);
                                 }
                             }
                             KeyCode::KeyA if ui.keyboard_modifiers().control => {
                                 let text = self.formatted_text.borrow();
                                 if let Some(last_line) = &text.get_lines().last() {
-                                    self.selection_range = Some(SelectionRange {
-                                        begin: Position { line: 0, offset: 0 },
-                                        end: Position {
-                                            line: text.get_lines().len() - 1,
-                                            offset: last_line.end - last_line.begin,
+                                    self.selection_range.set_value_and_mark_modified(Some(
+                                        SelectionRange {
+                                            begin: Position { line: 0, offset: 0 },
+                                            end: Position {
+                                                line: text.get_lines().len() - 1,
+                                                offset: last_line.end - last_line.begin,
+                                            },
                                         },
-                                    });
+                                    ));
                                 }
                             }
                             KeyCode::KeyC if ui.keyboard_modifiers().control => {
@@ -1332,9 +1347,9 @@ impl Control for TextBox {
                             KeyCode::KeyV if ui.keyboard_modifiers().control => {
                                 if let Some(mut clipboard) = ui.clipboard_mut() {
                                     if let Ok(content) = clipboard.get_contents() {
-                                        if let Some(selection_range) = self.selection_range {
+                                        if let Some(selection_range) = *self.selection_range {
                                             self.remove_range(ui, selection_range);
-                                            self.selection_range = None;
+                                            self.selection_range.set_value_and_mark_modified(None);
                                         }
 
                                         self.insert_str(&content, ui);
@@ -1351,17 +1366,17 @@ impl Control for TextBox {
                     WidgetMessage::Focus => {
                         if message.direction() == MessageDirection::FromWidget {
                             self.reset_blink();
-                            self.selection_range = None;
+                            self.selection_range.set_value_and_mark_modified(None);
                             self.has_focus = true;
                         }
                     }
                     WidgetMessage::Unfocus => {
                         if message.direction() == MessageDirection::FromWidget {
-                            self.selection_range = None;
+                            self.selection_range.set_value_and_mark_modified(None);
                             self.has_focus = false;
 
-                            if self.commit_mode == TextCommitMode::LostFocus
-                                || self.commit_mode == TextCommitMode::LostFocusPlusEnter
+                            if *self.commit_mode == TextCommitMode::LostFocus
+                                || *self.commit_mode == TextCommitMode::LostFocusPlusEnter
                             {
                                 ui.send_message(TextMessage::text(
                                     self.handle,
@@ -1373,7 +1388,7 @@ impl Control for TextBox {
                     }
                     WidgetMessage::MouseDown { pos, button } => {
                         if *button == MouseButton::Left {
-                            self.selection_range = None;
+                            self.selection_range.set_value_and_mark_modified(None);
                             self.selecting = true;
                             self.has_focus = true;
 
@@ -1394,14 +1409,16 @@ impl Control for TextBox {
                     WidgetMessage::MouseMove { pos, .. } => {
                         if self.selecting {
                             if let Some(position) = self.screen_pos_to_text_pos(*pos) {
-                                if let Some(ref mut selection_range) = self.selection_range {
+                                if let Some(ref mut selection_range) = *self.selection_range {
                                     selection_range.end = position;
                                     self.set_caret_position(position);
-                                } else if position != self.caret_position {
-                                    self.selection_range = Some(SelectionRange {
-                                        begin: self.caret_position,
-                                        end: position,
-                                    })
+                                } else if position != *self.caret_position {
+                                    self.selection_range.set_value_and_mark_modified(Some(
+                                        SelectionRange {
+                                            begin: *self.caret_position,
+                                            end: position,
+                                        },
+                                    ));
                                 }
                             }
                         }
@@ -1445,7 +1462,7 @@ impl Control for TextBox {
                                 self.invalidate_layout();
                                 self.formatted_text.borrow_mut().build();
 
-                                if self.commit_mode == TextCommitMode::Immediate {
+                                if *self.commit_mode == TextCommitMode::Immediate {
                                     ui.send_message(message.reverse());
                                 }
                             }
@@ -1528,32 +1545,33 @@ impl Control for TextBox {
                 if message.direction() == MessageDirection::ToWidget {
                     match msg {
                         TextBoxMessage::SelectionBrush(brush) => {
-                            if &self.selection_brush != brush {
-                                self.selection_brush = brush.clone();
+                            if &*self.selection_brush != brush {
+                                self.selection_brush
+                                    .set_value_and_mark_modified(brush.clone());
                                 ui.send_message(message.reverse());
                             }
                         }
                         TextBoxMessage::CaretBrush(brush) => {
-                            if &self.caret_brush != brush {
-                                self.caret_brush = brush.clone();
+                            if &*self.caret_brush != brush {
+                                self.caret_brush.set_value_and_mark_modified(brush.clone());
                                 ui.send_message(message.reverse());
                             }
                         }
                         TextBoxMessage::TextCommitMode(mode) => {
-                            if &self.commit_mode != mode {
-                                self.commit_mode = *mode;
+                            if &*self.commit_mode != mode {
+                                self.commit_mode.set_value_and_mark_modified(*mode);
                                 ui.send_message(message.reverse());
                             }
                         }
                         TextBoxMessage::Multiline(multiline) => {
-                            if &self.multiline != multiline {
-                                self.multiline = *multiline;
+                            if &*self.multiline != multiline {
+                                self.multiline.set_value_and_mark_modified(*multiline);
                                 ui.send_message(message.reverse());
                             }
                         }
                         TextBoxMessage::Editable(editable) => {
-                            if &self.editable != editable {
-                                self.editable = *editable;
+                            if &*self.editable != editable {
+                                self.editable.set_value_and_mark_modified(*editable);
                                 ui.send_message(message.reverse());
                             }
                         }
@@ -1739,10 +1757,10 @@ impl TextBoxBuilder {
 
         let text_box = TextBox {
             widget: self.widget_builder.build(),
-            caret_position: Position::default(),
-            caret_visible: false,
-            blink_timer: 0.0,
-            blink_interval: 0.5,
+            caret_position: Position::default().into(),
+            caret_visible: false.into(),
+            blink_timer: 0.0.into(),
+            blink_interval: 0.5.into(),
             formatted_text: RefCell::new(
                 FormattedTextBuilder::new(self.font.unwrap_or_else(|| ctx.default_font()))
                     .with_text(self.text)
@@ -1757,17 +1775,17 @@ impl TextBoxBuilder {
                     .with_font_size(self.font_size)
                     .build(),
             ),
-            selection_range: None,
+            selection_range: None.into(),
             selecting: false,
-            selection_brush: self.selection_brush,
-            caret_brush: self.caret_brush,
+            selection_brush: self.selection_brush.into(),
+            caret_brush: self.caret_brush.into(),
             has_focus: false,
             filter: self.filter,
-            commit_mode: self.commit_mode,
-            multiline: self.multiline,
-            editable: self.editable,
+            commit_mode: self.commit_mode.into(),
+            multiline: self.multiline.into(),
+            editable: self.editable.into(),
             view_position: Default::default(),
-            skip_chars: self.skip_chars,
+            skip_chars: self.skip_chars.into(),
         };
 
         ctx.add_node(UiNode::new(text_box))
