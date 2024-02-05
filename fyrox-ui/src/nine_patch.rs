@@ -11,6 +11,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, UiNode, UserInterface,
 };
+use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::SceneGraph;
 use fyrox_resource::untyped::UntypedResource;
 use std::ops::{Deref, DerefMut};
@@ -19,16 +20,16 @@ use std::ops::{Deref, DerefMut};
 #[derive(Default, Clone, Visit, Reflect, Debug, ComponentProvider)]
 pub struct NinePatch {
     pub widget: Widget,
-    pub texture: Option<UntypedResource>,
-    pub bottom_margin_uv: f32,
-    pub left_margin_uv: f32,
-    pub right_margin_uv: f32,
-    pub top_margin_uv: f32,
+    pub texture: InheritableVariable<Option<UntypedResource>>,
+    pub bottom_margin_uv: InheritableVariable<f32>,
+    pub left_margin_uv: InheritableVariable<f32>,
+    pub right_margin_uv: InheritableVariable<f32>,
+    pub top_margin_uv: InheritableVariable<f32>,
 
-    pub bottom_margin_pixel: u32,
-    pub left_margin_pixel: u32,
-    pub right_margin_pixel: u32,
-    pub top_margin_pixel: u32,
+    pub bottom_margin_pixel: InheritableVariable<u32>,
+    pub left_margin_pixel: InheritableVariable<u32>,
+    pub right_margin_pixel: InheritableVariable<u32>,
+    pub top_margin_pixel: InheritableVariable<u32>,
 }
 
 crate::define_widget_deref!(NinePatch);
@@ -40,11 +41,11 @@ impl Control for NinePatch {
         scope_profile!();
         let mut size: Vector2<f32> = available_size;
 
-        let column1_width_pixels = self.left_margin_pixel as f32;
-        let column3_width_pixels = self.right_margin_pixel as f32;
+        let column1_width_pixels = *self.left_margin_pixel as f32;
+        let column3_width_pixels = *self.right_margin_pixel as f32;
 
-        let row1_height_pixels = self.top_margin_pixel as f32;
-        let row3_height_pixels = self.bottom_margin_pixel as f32;
+        let row1_height_pixels = *self.top_margin_pixel as f32;
+        let row3_height_pixels = *self.bottom_margin_pixel as f32;
 
         let x_overflow = column1_width_pixels + column3_width_pixels;
         let y_overflow = row1_height_pixels + row3_height_pixels;
@@ -64,11 +65,11 @@ impl Control for NinePatch {
     fn arrange_override(&self, ui: &UserInterface, final_size: Vector2<f32>) -> Vector2<f32> {
         scope_profile!();
 
-        let column1_width_pixels = self.left_margin_pixel as f32;
-        let column3_width_pixels = self.right_margin_pixel as f32;
+        let column1_width_pixels = *self.left_margin_pixel as f32;
+        let column3_width_pixels = *self.right_margin_pixel as f32;
 
-        let row1_height_pixels = self.top_margin_pixel as f32;
-        let row3_height_pixels = self.bottom_margin_pixel as f32;
+        let row1_height_pixels = *self.top_margin_pixel as f32;
+        let row3_height_pixels = *self.bottom_margin_pixel as f32;
 
         let x_overflow = column1_width_pixels + column3_width_pixels;
         let y_overflow = row1_height_pixels + row3_height_pixels;
@@ -92,16 +93,16 @@ impl Control for NinePatch {
 
         let patch_bounds = self.widget.bounding_rect();
 
-        let column1_width_pixels = self.left_margin_pixel as f32;
-        let column3_width_pixels = self.right_margin_pixel as f32;
+        let column1_width_pixels = *self.left_margin_pixel as f32;
+        let column3_width_pixels = *self.right_margin_pixel as f32;
 
-        let row1_height_pixels = self.top_margin_pixel as f32;
-        let row3_height_pixels = self.bottom_margin_pixel as f32;
+        let row1_height_pixels = *self.top_margin_pixel as f32;
+        let row3_height_pixels = *self.bottom_margin_pixel as f32;
 
-        let x_fence_post1_uv = self.left_margin_uv;
-        let x_fence_post2_uv = 1.0 - self.right_margin_uv;
-        let y_fence_post1_uv = self.top_margin_uv;
-        let y_fence_post2_uv = 1.0 - self.bottom_margin_uv;
+        let x_fence_post1_uv = *self.left_margin_uv;
+        let x_fence_post2_uv = 1.0 - *self.right_margin_uv;
+        let y_fence_post1_uv = *self.top_margin_uv;
+        let y_fence_post2_uv = 1.0 - *self.bottom_margin_uv;
 
         let x_overflow = column1_width_pixels + column3_width_pixels;
         let y_overlfow = row1_height_pixels + row3_height_pixels;
@@ -429,15 +430,15 @@ impl NinePatchBuilder {
 
         let grid = NinePatch {
             widget: self.widget_builder.build(),
-            texture: self.texture,
-            bottom_margin_pixel,
-            bottom_margin_uv,
-            left_margin_pixel,
-            left_margin_uv,
-            right_margin_pixel,
-            right_margin_uv,
-            top_margin_pixel,
-            top_margin_uv,
+            texture: self.texture.into(),
+            bottom_margin_pixel: bottom_margin_pixel.into(),
+            bottom_margin_uv: bottom_margin_uv.into(),
+            left_margin_pixel: left_margin_pixel.into(),
+            left_margin_uv: left_margin_uv.into(),
+            right_margin_pixel: right_margin_pixel.into(),
+            right_margin_uv: right_margin_uv.into(),
+            top_margin_pixel: top_margin_pixel.into(),
+            top_margin_uv: top_margin_uv.into(),
         };
         ui.add_node(UiNode::new(grid))
     }

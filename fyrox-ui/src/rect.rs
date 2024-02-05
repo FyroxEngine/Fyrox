@@ -24,6 +24,7 @@ use crate::{
     widget::{Widget, WidgetBuilder},
     BuildContext, Control, Thickness, UiNode, UserInterface, VerticalAlignment,
 };
+use fyrox_core::variable::InheritableVariable;
 use std::{
     fmt::Debug,
     ops::{Deref, DerefMut},
@@ -117,11 +118,11 @@ where
     /// Base widget of the rect editor.
     pub widget: Widget,
     /// A handle to a widget, that is used to show/edit position part of the rect.
-    pub position: Handle<UiNode>,
+    pub position: InheritableVariable<Handle<UiNode>>,
     /// A handle to a widget, that is used to show/edit size part of the rect.
-    pub size: Handle<UiNode>,
+    pub size: InheritableVariable<Handle<UiNode>>,
     /// Current value of the rect editor.
-    pub value: Rect<T>,
+    pub value: InheritableVariable<Rect<T>>,
 }
 
 impl<T> Deref for RectEditor<T>
@@ -166,9 +167,9 @@ where
         if let Some(RectEditorMessage::Value(value)) = message.data::<RectEditorMessage<T>>() {
             if message.destination() == self.handle
                 && message.direction() == MessageDirection::ToWidget
-                && *value != self.value
+                && *value != *self.value
             {
-                self.value = *value;
+                self.value.set_value_and_mark_modified(*value);
 
                 ui.send_message(message.reverse());
             }
@@ -176,7 +177,7 @@ where
             message.data::<VecEditorMessage<T, 2>>()
         {
             if message.direction() == MessageDirection::FromWidget {
-                if message.destination() == self.position {
+                if message.destination() == *self.position {
                     if self.value.position != *value {
                         ui.send_message(RectEditorMessage::value(
                             self.handle,
@@ -184,7 +185,7 @@ where
                             Rect::new(value.x, value.y, self.value.size.x, self.value.size.y),
                         ));
                     }
-                } else if message.destination() == self.size && self.value.size != *value {
+                } else if message.destination() == *self.size && self.value.size != *value {
                     ui.send_message(RectEditorMessage::value(
                         self.handle,
                         MessageDirection::ToWidget,
@@ -278,9 +279,9 @@ where
                     .build(ctx),
                 )
                 .build(),
-            value: self.value,
-            position,
-            size,
+            value: self.value.into(),
+            position: position.into(),
+            size: size.into(),
         };
 
         ctx.add_node(UiNode::new(node))

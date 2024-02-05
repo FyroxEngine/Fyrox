@@ -14,6 +14,7 @@ use crate::{
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
 use fyrox_core::uuid_provider;
+use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::SceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -99,7 +100,7 @@ pub struct StackPanel {
     /// Base widget of the stack panel.
     pub widget: Widget,
     /// Current orientation of the stack panel.
-    pub orientation: Orientation,
+    pub orientation: InheritableVariable<Orientation>,
 }
 
 crate::define_widget_deref!(StackPanel);
@@ -112,7 +113,7 @@ impl Control for StackPanel {
 
         let mut child_constraint = Vector2::new(f32::INFINITY, f32::INFINITY);
 
-        match self.orientation {
+        match *self.orientation {
             Orientation::Vertical => {
                 child_constraint.x = available_size.x;
 
@@ -142,7 +143,7 @@ impl Control for StackPanel {
 
             let child = ui.node(*child_handle);
             let desired = child.desired_size();
-            match self.orientation {
+            match *self.orientation {
                 Orientation::Vertical => {
                     if desired.x > measured_size.x {
                         measured_size.x = desired.x;
@@ -167,14 +168,14 @@ impl Control for StackPanel {
         let mut width = final_size.x;
         let mut height = final_size.y;
 
-        match self.orientation {
+        match *self.orientation {
             Orientation::Vertical => height = 0.0,
             Orientation::Horizontal => width = 0.0,
         }
 
         for child_handle in self.widget.children() {
             let child = ui.node(*child_handle);
-            match self.orientation {
+            match *self.orientation {
                 Orientation::Vertical => {
                     let child_bounds = Rect::new(
                         0.0,
@@ -200,7 +201,7 @@ impl Control for StackPanel {
             }
         }
 
-        match self.orientation {
+        match *self.orientation {
             Orientation::Vertical => {
                 height = height.max(final_size.y);
             }
@@ -218,8 +219,8 @@ impl Control for StackPanel {
         if message.destination() == self.handle && message.direction() == MessageDirection::ToWidget
         {
             if let Some(StackPanelMessage::Orientation(orientation)) = message.data() {
-                if *orientation != self.orientation {
-                    self.orientation = *orientation;
+                if *orientation != *self.orientation {
+                    self.orientation.set_value_and_mark_modified(*orientation);
                     self.invalidate_layout();
                 }
             }
@@ -253,7 +254,7 @@ impl StackPanelBuilder {
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         let stack_panel = StackPanel {
             widget: self.widget_builder.build(),
-            orientation: self.orientation.unwrap_or(Orientation::Vertical),
+            orientation: self.orientation.unwrap_or(Orientation::Vertical).into(),
         };
 
         ctx.add_node(UiNode::new(stack_panel))

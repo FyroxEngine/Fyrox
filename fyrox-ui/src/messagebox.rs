@@ -23,6 +23,7 @@ use crate::{
     UserInterface,
 };
 use fyrox_core::uuid_provider;
+use fyrox_core::variable::InheritableVariable;
 use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,
@@ -160,15 +161,15 @@ pub struct MessageBox {
     #[component(include)]
     pub window: Window,
     /// Current set of buttons of the message box.
-    pub buttons: MessageBoxButtons,
+    pub buttons: InheritableVariable<MessageBoxButtons>,
     /// A handle of `Ok`/`Yes` buttons.
-    pub ok_yes: Handle<UiNode>,
+    pub ok_yes: InheritableVariable<Handle<UiNode>>,
     /// A handle of `No` button.
-    pub no: Handle<UiNode>,
+    pub no: InheritableVariable<Handle<UiNode>>,
     /// A handle of `Cancel` button.
-    pub cancel: Handle<UiNode>,
+    pub cancel: InheritableVariable<Handle<UiNode>>,
     /// A handle of text widget.
-    pub text: Handle<UiNode>,
+    pub text: InheritableVariable<Handle<UiNode>>,
 }
 
 impl Deref for MessageBox {
@@ -210,8 +211,8 @@ impl Control for MessageBox {
         self.window.handle_routed_message(ui, message);
 
         if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
-            if message.destination() == self.ok_yes {
-                let result = match self.buttons {
+            if message.destination() == *self.ok_yes {
+                let result = match *self.buttons {
                     MessageBoxButtons::Ok => MessageBoxResult::Ok,
                     MessageBoxButtons::YesNo => MessageBoxResult::Yes,
                     MessageBoxButtons::YesNoCancel => MessageBoxResult::Yes,
@@ -221,13 +222,13 @@ impl Control for MessageBox {
                     MessageDirection::ToWidget,
                     result,
                 ));
-            } else if message.destination() == self.cancel {
+            } else if message.destination() == *self.cancel {
                 ui.send_message(MessageBoxMessage::close(
                     self.handle(),
                     MessageDirection::ToWidget,
                     MessageBoxResult::Cancel,
                 ));
-            } else if message.destination() == self.no {
+            } else if message.destination() == *self.no {
                 ui.send_message(MessageBoxMessage::close(
                     self.handle(),
                     MessageDirection::ToWidget,
@@ -247,7 +248,7 @@ impl Control for MessageBox {
 
                     if let Some(text) = text {
                         ui.send_message(TextMessage::text(
-                            self.text,
+                            *self.text,
                             MessageDirection::ToWidget,
                             text.clone(),
                         ));
@@ -455,12 +456,12 @@ impl<'b> MessageBoxBuilder<'b> {
         let is_open = self.window_builder.open;
 
         let message_box = MessageBox {
-            buttons: self.buttons,
+            buttons: self.buttons.into(),
             window: self.window_builder.with_content(content).build_window(ctx),
-            ok_yes,
-            no,
-            cancel,
-            text,
+            ok_yes: ok_yes.into(),
+            no: no.into(),
+            cancel: cancel.into(),
+            text: text.into(),
         };
 
         let handle = ctx.add_node(UiNode::new(message_box));

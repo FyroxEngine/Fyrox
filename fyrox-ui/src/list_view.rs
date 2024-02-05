@@ -20,6 +20,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface, BRUSH_DARK, BRUSH_LIGHT,
 };
 use fyrox_core::uuid_provider;
+use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::SceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -223,14 +224,14 @@ pub struct ListView {
     #[reflect(hidden)]
     pub selected_index: Option<usize>,
     /// An array of handle of item containers, which wraps the actual items.
-    pub item_containers: Vec<Handle<UiNode>>,
+    pub item_containers: InheritableVariable<Vec<Handle<UiNode>>>,
     /// Current panel widget that is used to arrange the items.
-    pub panel: Handle<UiNode>,
+    pub panel: InheritableVariable<Handle<UiNode>>,
     /// Current items of the list view.
-    pub items: Vec<Handle<UiNode>>,
+    pub items: InheritableVariable<Vec<Handle<UiNode>>>,
     /// Current scroll viewer instance that is used to provide scrolling functionality, when items does
     /// not fit in the view entirely.
-    pub scroll_viewer: Handle<UiNode>,
+    pub scroll_viewer: InheritableVariable<Handle<UiNode>>,
 }
 
 crate::define_widget_deref!(ListView);
@@ -354,7 +355,7 @@ impl Control for ListView {
                 match msg {
                     ListViewMessage::Items(items) => {
                         // Remove previous items.
-                        for child in ui.node(self.panel).children() {
+                        for child in ui.node(*self.panel).children() {
                             ui.send_message(WidgetMessage::remove(
                                 *child,
                                 MessageDirection::ToWidget,
@@ -368,12 +369,13 @@ impl Control for ListView {
                             ui.send_message(WidgetMessage::link(
                                 *item_container,
                                 MessageDirection::ToWidget,
-                                self.panel,
+                                *self.panel,
                             ));
                         }
 
-                        self.item_containers = item_containers;
-                        self.items = items.clone();
+                        self.item_containers
+                            .set_value_and_mark_modified(item_containers);
+                        self.items.set_value_and_mark_modified(items.clone());
 
                         self.fix_selection(ui);
                         self.sync_decorators(ui);
@@ -384,7 +386,7 @@ impl Control for ListView {
                         ui.send_message(WidgetMessage::link(
                             item_container,
                             MessageDirection::ToWidget,
-                            self.panel,
+                            *self.panel,
                         ));
 
                         self.item_containers.push(item_container);
@@ -416,7 +418,7 @@ impl Control for ListView {
                     &ListViewMessage::BringItemIntoView(item) => {
                         if self.items.contains(&item) {
                             ui.send_message(ScrollViewerMessage::bring_into_view(
-                                self.scroll_viewer,
+                                *self.scroll_viewer,
                                 MessageDirection::ToWidget,
                                 item,
                             ));
@@ -500,10 +502,10 @@ impl ListViewBuilder {
         let list_box = ListView {
             widget: self.widget_builder.with_child(back).build(),
             selected_index: None,
-            item_containers,
-            items: self.items,
-            panel,
-            scroll_viewer,
+            item_containers: item_containers.into(),
+            items: self.items.into(),
+            panel: panel.into(),
+            scroll_viewer: scroll_viewer.into(),
         };
 
         ctx.add_node(UiNode::new(list_box))

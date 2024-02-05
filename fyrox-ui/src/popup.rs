@@ -16,6 +16,7 @@ use crate::{
     BRUSH_PRIMARY,
 };
 use fyrox_core::uuid_provider;
+use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::SceneGraph;
 use std::ops::{Deref, DerefMut};
 
@@ -268,18 +269,18 @@ pub struct Popup {
     /// Base widget of the popup.
     pub widget: Widget,
     /// Current placement of the popup.
-    pub placement: Placement,
+    pub placement: InheritableVariable<Placement>,
     /// A flag, that defines whether the popup will stay open if a user click outside of its bounds.
-    pub stays_open: bool,
+    pub stays_open: InheritableVariable<bool>,
     /// A flag, that defines whether the popup is open or not.
-    pub is_open: bool,
+    pub is_open: InheritableVariable<bool>,
     /// Current content of the popup.
-    pub content: Handle<UiNode>,
+    pub content: InheritableVariable<Handle<UiNode>>,
     /// Background widget of the popup. It is used as a container for the content.
-    pub body: Handle<UiNode>,
+    pub body: InheritableVariable<Handle<UiNode>>,
     /// Smart placement prevents the popup from going outside of the screen bounds. It is usually used for tooltips,
     /// dropdown lists, etc. to prevent the content from being outside of the screen.
-    pub smart_placement: bool,
+    pub smart_placement: InheritableVariable<bool>,
 }
 
 crate::define_widget_deref!(Popup);
@@ -345,8 +346,8 @@ impl Control for Popup {
             if message.destination() == self.handle() {
                 match msg {
                     PopupMessage::Open => {
-                        if !self.is_open {
-                            self.is_open = true;
+                        if !*self.is_open {
+                            self.is_open.set_value_and_mark_modified(true);
                             ui.send_message(WidgetMessage::visibility(
                                 self.handle(),
                                 MessageDirection::ToWidget,
@@ -360,7 +361,7 @@ impl Control for Popup {
                                 self.handle(),
                                 MessageDirection::ToWidget,
                             ));
-                            let position = match self.placement {
+                            let position = match *self.placement {
                                 Placement::LeftTop(target) => self.left_top_placement(ui, target),
                                 Placement::RightTop(target) => self.right_top_placement(ui, target),
                                 Placement::Center(target) => self.center_placement(ui, target),
@@ -379,7 +380,7 @@ impl Control for Popup {
                                 MessageDirection::ToWidget,
                                 ui.screen_to_root_canvas_space(position),
                             ));
-                            if self.smart_placement {
+                            if *self.smart_placement {
                                 ui.send_message(PopupMessage::adjust_position(
                                     self.handle,
                                     MessageDirection::ToWidget,
@@ -388,8 +389,8 @@ impl Control for Popup {
                         }
                     }
                     PopupMessage::Close => {
-                        if self.is_open {
-                            self.is_open = false;
+                        if *self.is_open {
+                            self.is_open.set_value_and_mark_modified(false);
                             ui.send_message(WidgetMessage::visibility(
                                 self.handle(),
                                 MessageDirection::ToWidget,
@@ -404,20 +405,20 @@ impl Control for Popup {
                     PopupMessage::Content(content) => {
                         if self.content.is_some() {
                             ui.send_message(WidgetMessage::remove(
-                                self.content,
+                                *self.content,
                                 MessageDirection::ToWidget,
                             ));
                         }
-                        self.content = *content;
+                        self.content.set_value_and_mark_modified(*content);
 
                         ui.send_message(WidgetMessage::link(
-                            self.content,
+                            *self.content,
                             MessageDirection::ToWidget,
-                            self.body,
+                            *self.body,
                         ));
                     }
                     PopupMessage::Placement(placement) => {
-                        self.placement = *placement;
+                        self.placement.set_value_and_mark_modified(*placement);
                         self.invalidate_layout();
                     }
                     PopupMessage::AdjustPosition => {
@@ -447,10 +448,10 @@ impl Control for Popup {
             if let Some(top_restriction) = ui.top_picking_restriction() {
                 if *state == ButtonState::Pressed
                     && top_restriction.handle == self_handle
-                    && self.is_open
+                    && *self.is_open
                 {
                     let pos = ui.cursor_position();
-                    if !self.widget.screen_bounds().contains(pos) && !self.stays_open {
+                    if !self.widget.screen_bounds().contains(pos) && !*self.stays_open {
                         ui.send_message(PopupMessage::close(
                             self.handle(),
                             MessageDirection::ToWidget,
@@ -526,12 +527,12 @@ impl PopupBuilder {
                 .with_visibility(false)
                 .with_handle_os_events(true)
                 .build(),
-            placement: self.placement,
-            stays_open: self.stays_open,
-            is_open: false,
-            content: self.content,
-            smart_placement: self.smart_placement,
-            body,
+            placement: self.placement.into(),
+            stays_open: self.stays_open.into(),
+            is_open: false.into(),
+            content: self.content.into(),
+            smart_placement: self.smart_placement.into(),
+            body: body.into(),
         }
     }
 

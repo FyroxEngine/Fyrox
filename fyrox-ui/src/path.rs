@@ -17,6 +17,7 @@ use crate::{
     BuildContext, Control, Thickness, UiNode, UserInterface,
 };
 use fyrox_core::uuid_provider;
+use fyrox_core::variable::InheritableVariable;
 use std::{
     ops::{Deref, DerefMut},
     path::Path,
@@ -64,13 +65,13 @@ pub struct PathEditor {
     /// Base widget of the editor.
     pub widget: Widget,
     /// A handle of the text field, that is used to show current path.
-    pub text_field: Handle<UiNode>,
+    pub text_field: InheritableVariable<Handle<UiNode>>,
     /// A button, that opens a file selection.
-    pub select: Handle<UiNode>,
+    pub select: InheritableVariable<Handle<UiNode>>,
     /// Current file selector instance, could be [`Handle::NONE`] if the selector is closed.
-    pub selector: Handle<UiNode>,
+    pub selector: InheritableVariable<Handle<UiNode>>,
     /// Current path.
-    pub path: PathBuf,
+    pub path: InheritableVariable<PathBuf>,
 }
 
 crate::define_widget_deref!(PathEditor);
@@ -82,21 +83,25 @@ impl Control for PathEditor {
         self.widget.handle_routed_message(ui, message);
 
         if let Some(ButtonMessage::Click) = message.data() {
-            if message.destination() == self.select {
-                self.selector = FileSelectorBuilder::new(
-                    WindowBuilder::new(WidgetBuilder::new().with_width(300.0).with_height(450.0))
+            if message.destination() == *self.select {
+                self.selector.set_value_and_mark_modified(
+                    FileSelectorBuilder::new(
+                        WindowBuilder::new(
+                            WidgetBuilder::new().with_width(300.0).with_height(450.0),
+                        )
                         .open(false)
                         .with_title(WindowTitle::text("Select a Path")),
-                )
-                .build(&mut ui.build_ctx());
+                    )
+                    .build(&mut ui.build_ctx()),
+                );
 
                 ui.send_message(FileSelectorMessage::path(
-                    self.selector,
+                    *self.selector,
                     MessageDirection::ToWidget,
-                    self.path.clone(),
+                    (*self.path).clone(),
                 ));
                 ui.send_message(WindowMessage::open_modal(
-                    self.selector,
+                    *self.selector,
                     MessageDirection::ToWidget,
                     true,
                 ));
@@ -104,12 +109,12 @@ impl Control for PathEditor {
         } else if let Some(PathEditorMessage::Path(path)) = message.data() {
             if message.destination() == self.handle
                 && message.direction() == MessageDirection::ToWidget
-                && &self.path != path
+                && &*self.path != path
             {
-                self.path = path.clone();
+                self.path.set_value_and_mark_modified(path.clone());
 
                 ui.send_message(TextMessage::text(
-                    self.text_field,
+                    *self.text_field,
                     MessageDirection::ToWidget,
                     path.to_string_lossy().to_string(),
                 ));
@@ -120,9 +125,9 @@ impl Control for PathEditor {
 
     fn preview_message(&self, ui: &UserInterface, message: &mut UiMessage) {
         if let Some(FileSelectorMessage::Commit(path)) = message.data() {
-            if message.destination() == self.selector && &self.path != path {
+            if message.destination() == *self.selector && &*self.path != path {
                 ui.send_message(WidgetMessage::remove(
-                    self.selector,
+                    *self.selector,
                     MessageDirection::ToWidget,
                 ));
 
@@ -197,10 +202,10 @@ impl PathEditorBuilder {
                 .with_child(grid)
                 .with_preview_messages(true)
                 .build(),
-            text_field,
-            select,
+            text_field: text_field.into(),
+            select: select.into(),
             selector: Default::default(),
-            path: self.path,
+            path: self.path.into(),
         };
         ctx.add_node(UiNode::new(canvas))
     }
