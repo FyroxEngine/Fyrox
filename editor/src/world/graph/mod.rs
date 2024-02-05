@@ -3,21 +3,26 @@ use crate::{
     message::MessageSender,
     scene::{
         commands::{
-            graph::LinkNodesCommand, ChangeSelectionCommand, CommandGroup, GameSceneCommand,
+            graph::{AddModelCommand, LinkNodesCommand},
+            ChangeSelectionCommand, CommandGroup, GameSceneCommand,
         },
         GameScene, Selection,
     },
-    world::graph::selection::GraphSelection,
-    world::WorldViewerDataProvider,
+    world::{graph::selection::GraphSelection, WorldViewerDataProvider},
 };
-use fyrox::asset::untyped::UntypedResource;
-use fyrox::graph::SceneGraph;
 use fyrox::{
-    core::pool::{ErasedHandle, Handle},
+    asset::{manager::ResourceManager, untyped::UntypedResource},
+    core::{
+        algebra::Vector3,
+        futures::executor::block_on,
+        make_relative_path,
+        pool::{ErasedHandle, Handle},
+    },
+    graph::SceneGraph,
+    resource::model::{Model, ModelResourceExtension},
     scene::{node::Node, Scene},
 };
-use std::path::PathBuf;
-use std::{borrow::Cow, path::Path};
+use std::{borrow::Cow, path::Path, path::PathBuf};
 
 pub mod item;
 pub mod menu;
@@ -26,9 +31,11 @@ pub mod selection;
 pub struct EditorSceneWrapper<'a> {
     pub selection: &'a Selection,
     pub game_scene: &'a GameScene,
-    pub scene: &'a Scene,
+    pub scene: &'a mut Scene,
     pub path: Option<&'a Path>,
     pub sender: &'a MessageSender,
+    pub resource_manager: &'a ResourceManager,
+    pub instantiation_scale: Vector3<f32>,
 }
 
 impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
@@ -158,8 +165,34 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
         }
     }
 
-    fn on_asset_dropped(&mut self, _path: PathBuf, _node: ErasedHandle) {
-        // TODO
+    fn on_asset_dropped(&mut self, path: PathBuf, node: ErasedHandle) {
+        if let Ok(relative_path) = make_relative_path(path) {
+            if let Some(model) = self
+                .resource_manager
+                .try_request::<Model>(relative_path)
+                .and_then(|m| block_on(m).ok())
+            {
+                // Instantiate the model.
+                let instance = model.instantiate(self.scene);
+
+                self.scene.graph[instance]
+                    .local_transform_mut()
+                    .set_scale(self.instantiation_scale);
+
+                let sub_graph = self.scene.graph.take_reserve_sub_graph(instance);
+
+                let group = vec![
+                    GameSceneCommand::new(AddModelCommand::new(sub_graph)),
+                    GameSceneCommand::new(LinkNodesCommand::new(instance, node.into())),
+                    GameSceneCommand::new(ChangeSelectionCommand::new(
+                        Selection::Graph(GraphSelection::single_or_empty(instance)),
+                        self.selection.clone(),
+                    )),
+                ];
+
+                self.sender.do_scene_command(CommandGroup::from(group));
+            }
+        }
     }
 
     fn validate(&self) -> Vec<(ErasedHandle, Result<(), String>)> {

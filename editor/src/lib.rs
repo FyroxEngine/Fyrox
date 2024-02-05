@@ -1284,11 +1284,13 @@ impl Editor {
                     &mut EditorSceneWrapper {
                         selection: &current_scene_entry.selection,
                         game_scene,
-                        scene: &engine.scenes[game_scene.scene],
+                        scene: &mut engine.scenes[game_scene.scene],
                         sender: &self.message_sender,
                         path: current_scene_entry.path.as_deref(),
+                        resource_manager: &engine.resource_manager,
+                        instantiation_scale: self.settings.model.instantiation_scale,
                     },
-                    engine,
+                    &engine.user_interface,
                     &mut self.settings,
                 );
 
@@ -1305,7 +1307,7 @@ impl Editor {
                         sender: &self.message_sender,
                         resource_manager: &engine.resource_manager,
                     },
-                    engine,
+                    &engine.user_interface,
                     &mut self.settings,
                 );
 
@@ -1513,9 +1515,11 @@ impl Editor {
                     &EditorSceneWrapper {
                         selection: &current_scene_entry.selection,
                         game_scene,
-                        scene: &engine.scenes[game_scene.scene],
+                        scene: &mut engine.scenes[game_scene.scene],
                         sender,
                         path: current_scene_entry.path.as_deref(),
+                        resource_manager: &engine.resource_manager,
+                        instantiation_scale: self.settings.model.instantiation_scale,
                     },
                     &mut engine.user_interface,
                     &self.settings,
@@ -1556,9 +1560,11 @@ impl Editor {
                     &EditorSceneWrapper {
                         selection: &entry.selection,
                         game_scene,
-                        scene: &self.engine.scenes[game_scene.scene],
+                        scene: &mut self.engine.scenes[game_scene.scene],
                         sender: &self.message_sender,
                         path: entry.path.as_deref(),
+                        resource_manager: &self.engine.resource_manager,
+                        instantiation_scale: self.settings.model.instantiation_scale,
                     },
                     &mut self.engine.user_interface,
                     &self.settings,

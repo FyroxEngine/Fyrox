@@ -1,5 +1,5 @@
-use crate::asset::item::AssetItem;
 use crate::{
+    asset::item::AssetItem,
     gui::make_image_button_with_tooltip,
     load_image,
     message::MessageSender,
@@ -8,15 +8,14 @@ use crate::{
     world::graph::item::{SceneItem, SceneItemBuilder, SceneItemMessage},
     Mode, Settings,
 };
-use fyrox::asset::untyped::UntypedResource;
-use fyrox::graph::SceneGraph;
 use fyrox::{
+    asset::untyped::UntypedResource,
     core::{
         color::Color,
         pool::{ErasedHandle, Handle},
         scope_profile,
     },
-    engine::Engine,
+    graph::SceneGraph,
     gui::{
         border::BorderBuilder,
         brush::Brush,
@@ -41,9 +40,14 @@ use fyrox::{
     },
 };
 use rust_fuzzy_search::fuzzy_compare;
-use std::path::PathBuf;
 use std::{
-    borrow::Cow, cell::RefCell, cmp::Ordering, collections::HashMap, ops::Deref, path::Path, rc::Rc,
+    borrow::Cow,
+    cell::RefCell,
+    cmp::Ordering,
+    collections::HashMap,
+    ops::Deref,
+    path::{Path, PathBuf},
+    rc::Rc,
 };
 
 pub mod graph;
@@ -621,7 +625,7 @@ impl WorldViewer {
         &mut self,
         message: &UiMessage,
         data_provider: &mut dyn WorldViewerDataProvider,
-        engine: &Engine,
+        ui: &UserInterface,
         settings: &mut Settings,
     ) {
         scope_profile!();
@@ -630,53 +634,44 @@ impl WorldViewer {
             if message.destination() == self.tree_root
                 && message.direction() == MessageDirection::FromWidget
             {
-                self.handle_selection(selection, data_provider, engine);
+                self.handle_selection(selection, data_provider, ui);
             }
         } else if let Some(&WidgetMessage::Drop(node)) = message.data::<WidgetMessage>() {
-            self.handle_drop(engine, data_provider, message.destination(), node);
+            self.handle_drop(ui, data_provider, message.destination(), node);
         } else if let Some(ButtonMessage::Click) = message.data::<ButtonMessage>() {
             if let Some(&view) = self.breadcrumbs.get(&message.destination()) {
-                if let Some(graph_node) = engine
-                    .user_interface
-                    .try_get(view)
-                    .and_then(|n| n.cast::<SceneItem>())
-                {
+                if let Some(graph_node) = ui.try_get(view).and_then(|n| n.cast::<SceneItem>()) {
                     data_provider.on_selection_changed(&[graph_node.entity_handle]);
                 }
             } else if message.destination() == self.collapse_all {
-                engine
-                    .user_interface
-                    .send_message(TreeRootMessage::collapse_all(
-                        self.tree_root,
-                        MessageDirection::ToWidget,
-                    ));
+                ui.send_message(TreeRootMessage::collapse_all(
+                    self.tree_root,
+                    MessageDirection::ToWidget,
+                ));
             } else if message.destination() == self.expand_all {
-                engine
-                    .user_interface
-                    .send_message(TreeRootMessage::expand_all(
-                        self.tree_root,
-                        MessageDirection::ToWidget,
-                    ));
+                ui.send_message(TreeRootMessage::expand_all(
+                    self.tree_root,
+                    MessageDirection::ToWidget,
+                ));
             } else if message.destination() == self.locate_selection {
-                self.locate_selection(&data_provider.selection(), &engine.user_interface)
+                self.locate_selection(&data_provider.selection(), ui)
             }
         } else if let Some(CheckBoxMessage::Check(Some(value))) = message.data::<CheckBoxMessage>()
         {
             if message.destination() == self.track_selection {
                 settings.selection.track_selection = *value;
                 if *value {
-                    self.locate_selection(&data_provider.selection(), &engine.user_interface);
+                    self.locate_selection(&data_provider.selection(), ui);
                 }
             }
         } else if let Some(SearchBarMessage::Text(text)) = message.data() {
             if message.destination() == self.search_bar
                 && message.direction == MessageDirection::FromWidget
             {
-                self.set_filter(text.clone(), data_provider, &engine.user_interface);
+                self.set_filter(text.clone(), data_provider, ui);
             }
         } else if let Some(TreeMessage::Expand { expand, .. }) = message.data() {
-            if let Some(scene_view_item) = engine
-                .user_interface
+            if let Some(scene_view_item) = ui
                 .node(message.destination())
                 .query_component::<SceneItem>()
             {
@@ -721,15 +716,13 @@ impl WorldViewer {
         &self,
         selection: &[Handle<UiNode>],
         data_provider: &dyn WorldViewerDataProvider,
-        engine: &Engine,
+        ui: &UserInterface,
     ) {
         data_provider.on_selection_changed(
             &selection
                 .iter()
                 .map(|selected_item| {
-                    engine
-                        .user_interface
-                        .node(*selected_item)
+                    ui.node(*selected_item)
                         .cast::<SceneItem>()
                         .unwrap()
                         .entity_handle
@@ -742,14 +735,12 @@ impl WorldViewer {
     /// `dropped` - is a node which was dropped at `target`.
     fn handle_drop(
         &self,
-        engine: &Engine,
+        ui: &UserInterface,
         data_provider: &mut dyn WorldViewerDataProvider,
         target: Handle<UiNode>,
         dropped: Handle<UiNode>,
     ) {
-        let ui = &engine.user_interface;
-
-        if let Some(item) = engine.user_interface.node(dropped).cast::<AssetItem>() {
+        if let Some(item) = ui.node(dropped).cast::<AssetItem>() {
             if let Some(parent) = ui.node(target).cast::<SceneItem>() {
                 data_provider.on_asset_dropped(item.path.clone(), parent.entity_handle);
             }
