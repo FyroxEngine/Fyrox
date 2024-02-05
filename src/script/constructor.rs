@@ -8,6 +8,7 @@ use crate::{
     },
     script::{Script, ScriptTrait},
 };
+use fyrox_core::script::ScriptSourcePathProvider;
 use std::collections::BTreeMap;
 
 /// Script constructor contains all required data and methods to create script instances
@@ -18,6 +19,9 @@ pub struct ScriptConstructor {
 
     /// Script name.
     pub name: String,
+
+    /// Script source path.
+    pub source_path: Option<String>,
 }
 
 /// A special container that is able to create nodes by their type UUID.
@@ -47,6 +51,31 @@ impl ScriptConstructorContainer {
             ScriptConstructor {
                 constructor: Box::new(|| Script::new(T::default())),
                 name: name.to_owned(),
+                source_path: None,
+            },
+        );
+
+        assert!(old.is_none());
+
+        self
+    }
+
+    /// Adds new type constructor for a given type.
+    /// The script should use `ScriptSourcePathProvider` deriver trait to generate the script source path.
+    ///
+    /// # Panic
+    ///
+    /// The method will panic if there is already a constructor for given type uuid.
+    pub fn add_with_source_path<T>(&self, name: &str) -> &Self
+    where
+        T: TypeUuidProvider + ScriptTrait + Default + ScriptSourcePathProvider,
+    {
+        let old = self.map.lock().insert(
+            T::type_uuid(),
+            ScriptConstructor {
+                constructor: Box::new(|| Script::new(T::default())),
+                name: name.to_owned(),
+                source_path: Some(T::script_source_path().to_owned()),
             },
         );
 

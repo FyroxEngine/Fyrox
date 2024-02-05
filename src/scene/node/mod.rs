@@ -186,7 +186,7 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
     /// Synchronizes internal state of the node with components of scene graph. It has limited usage
     /// and mostly allows you to sync the state of backing entity with the state of the node.
     /// For example the engine use it to sync native rigid body properties after some property was
-    /// changed in the [`crate::scene::rigidbody::RigidBody`] node.  
+    /// changed in the [`crate::scene::rigidbody::RigidBody`] node.
     fn sync_native(
         &self,
         #[allow(unused_variables)] self_handle: Handle<Node>,
@@ -468,7 +468,7 @@ impl Node {
     /// # use fyrox::scene::light::BaseLight;
     /// # use fyrox::scene::light::directional::DirectionalLight;
     /// # use fyrox::scene::node::{Node};
-    ///  
+    ///
     /// fn base_light_ref(directional_light: &Node) -> &BaseLight {
     ///     directional_light.query_component_ref::<BaseLight>().expect("Must have base light")
     /// }
@@ -496,7 +496,7 @@ impl Node {
     /// # use fyrox::scene::light::BaseLight;
     /// # use fyrox::scene::light::directional::DirectionalLight;
     /// # use fyrox::scene::node::{Node};
-    ///  
+    ///
     /// fn base_light_mut(directional_light: &mut Node) -> &mut BaseLight {
     ///     directional_light.query_component_mut::<BaseLight>().expect("Must have base light")
     /// }
@@ -643,6 +643,7 @@ mod test {
             futures::executor::block_on,
             impl_component_provider,
             reflect::prelude::*,
+            script::prelude::*,
             uuid::{uuid, Uuid},
             variable::InheritableVariable,
             visitor::{prelude::*, Visitor},
@@ -665,7 +666,7 @@ mod test {
     use fyrox_graph::SceneGraph;
     use std::{fs, path::Path, sync::Arc};
 
-    #[derive(Debug, Clone, Reflect, Visit, Default)]
+    #[derive(Debug, Clone, Reflect, Visit, Default, ScriptSourcePathProvider)]
     struct MyScript {
         some_field: InheritableVariable<String>,
         some_collection: InheritableVariable<Vec<u32>>,
@@ -745,7 +746,15 @@ mod test {
         let serialization_context = SerializationContext::new();
         serialization_context
             .script_constructors
-            .add::<MyScript>("MyScript");
+            .add_with_source_path::<MyScript>("MyScript");
+
+        assert!(serialization_context
+            .script_constructors
+            .map()
+            .iter()
+            .find(|s| s.1.source_path == Some(file!().to_string()))
+            .is_some());
+
         engine::initialize_resource_manager_loaders(
             &resource_manager,
             Arc::new(serialization_context),

@@ -2,11 +2,20 @@ use crate::{
     inspector::editors::make_property_editors_container,
     message::MessageSender,
     settings::{
-        camera::CameraSettings, debugging::DebuggingSettings, general::GeneralSettings,
-        graphics::GraphicsSettings, keys::KeyBindings, keys::TerrainKeyBindings,
-        model::ModelSettings, move_mode::MoveInteractionModeSettings, navmesh::NavmeshSettings,
-        recent::RecentFiles, rotate_mode::RotateInteractionModeSettings, scene::SceneSettings,
-        selection::SelectionSettings, windows::WindowsSettings,
+        camera::CameraSettings,
+        debugging::DebuggingSettings,
+        general::{GeneralSettings, ScriptEditor},
+        graphics::GraphicsSettings,
+        keys::KeyBindings,
+        keys::TerrainKeyBindings,
+        model::ModelSettings,
+        move_mode::MoveInteractionModeSettings,
+        navmesh::NavmeshSettings,
+        recent::RecentFiles,
+        rotate_mode::RotateInteractionModeSettings,
+        scene::SceneSettings,
+        selection::SelectionSettings,
+        windows::WindowsSettings,
     },
     Engine, MSG_SYNC_FLAG,
 };
@@ -184,6 +193,7 @@ impl SettingsData {
         container.insert(InspectablePropertyEditorDefinition::<GraphicsSettings>::new());
         container.insert(InspectablePropertyEditorDefinition::<SelectionSettings>::new());
         container.insert(EnumPropertyEditorDefinition::<ShadowMapPrecision>::new());
+        container.insert(EnumPropertyEditorDefinition::<ScriptEditor>::new());
         container.insert(InspectablePropertyEditorDefinition::<DebuggingSettings>::new());
         container.insert(InspectablePropertyEditorDefinition::<CsmSettings>::new());
         container.insert(InspectablePropertyEditorDefinition::<QualitySettings>::new());
