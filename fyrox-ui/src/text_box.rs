@@ -1756,7 +1756,7 @@ impl TextBoxBuilder {
         }
 
         let text_box = TextBox {
-            widget: self.widget_builder.build(),
+            widget: self.widget_builder.with_need_update(true).build(),
             caret_position: Position::default().into(),
             caret_visible: false.into(),
             blink_timer: 0.0.into(),

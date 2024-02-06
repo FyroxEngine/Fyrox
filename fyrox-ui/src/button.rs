@@ -339,7 +339,11 @@ impl ButtonBuilder {
         }
 
         UiNode::new(Button {
-            widget: self.widget_builder.with_child(back).build(),
+            widget: self
+                .widget_builder
+                .with_need_update(true)
+                .with_child(back)
+                .build(),
             decorator: back.into(),
             content: content.into(),
             repeat_interval: self.repeat_interval.into(),

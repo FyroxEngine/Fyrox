@@ -976,7 +976,11 @@ impl FileBrowserBuilder {
             FileBrowserMode::Open => Default::default(),
         };
 
-        let widget = self.widget_builder.with_child(grid).build();
+        let widget = self
+            .widget_builder
+            .with_need_update(true)
+            .with_child(grid)
+            .build();
 
         let the_path = match &self.root {
             Some(path) => path.clone(),

@@ -271,6 +271,7 @@ use fyrox_resource::{
 };
 use serde::{Deserialize, Serialize};
 use std::any::TypeId;
+use std::ops::Deref;
 use std::{
     any::Any,
     cell::{Ref, RefCell, RefMut},
@@ -291,7 +292,7 @@ pub use build::*;
 pub use control::*;
 use fyrox_core::futures::future::join_all;
 use fyrox_core::log::Log;
-use fyrox_graph::{NodeHandleMap, NodeMapping, PrefabData, SceneGraph};
+use fyrox_graph::{NodeHandleMap, NodeMapping, PrefabData, SceneGraph, SceneGraphNode};
 pub use node::*;
 pub use thickness::*;
 
@@ -585,11 +586,41 @@ impl Debug for Clipboard {
     }
 }
 
-#[derive(Visit, Reflect, Debug)]
+#[derive(Default, Debug, Clone)]
+struct WidgetMethodsRegistry {
+    preview_message: FxHashSet<Handle<UiNode>>,
+    on_update: FxHashSet<Handle<UiNode>>,
+    handle_os_event: FxHashSet<Handle<UiNode>>,
+}
+
+impl WidgetMethodsRegistry {
+    fn register<T: Control + ?Sized>(&mut self, node: &T) {
+        let node_handle = node.handle();
+
+        if node.preview_messages {
+            assert!(self.preview_message.insert(node_handle));
+        }
+        if node.handle_os_events {
+            assert!(self.handle_os_event.insert(node_handle));
+        }
+        if node.need_update {
+            assert!(self.on_update.insert(node_handle));
+        }
+    }
+
+    fn unregister<T: Control + ?Sized>(&mut self, node: &T) {
+        let node_handle = node.handle();
+
+        self.preview_message.remove(&node_handle);
+        self.on_update.remove(&node_handle);
+        self.handle_os_event.remove(&node_handle);
+    }
+}
+
+#[derive(Reflect, Debug)]
 pub struct UserInterface {
     screen_size: Vector2<f32>,
     nodes: Pool<UiNode, WidgetContainer>,
-    #[visit(skip)]
     #[reflect(hidden)]
     drawing_context: DrawingContext,
     visual_debug: bool,
@@ -599,45 +630,65 @@ pub struct UserInterface {
     captured_node: Handle<UiNode>,
     keyboard_focus_node: Handle<UiNode>,
     cursor_position: Vector2<f32>,
-    #[visit(skip)]
     #[reflect(hidden)]
     receiver: Receiver<UiMessage>,
-    #[visit(skip)]
     #[reflect(hidden)]
     sender: Sender<UiMessage>,
     stack: Vec<Handle<UiNode>>,
     picking_stack: Vec<RestrictionEntry>,
-    #[visit(skip)]
     #[reflect(hidden)]
     bubble_queue: VecDeque<Handle<UiNode>>,
     drag_context: DragContext,
     mouse_state: MouseState,
     keyboard_modifiers: KeyboardModifiers,
     cursor_icon: CursorIcon,
-    #[visit(skip)]
     #[reflect(hidden)]
     active_tooltip: Option<TooltipEntry>,
-    #[visit(skip)]
     #[reflect(hidden)]
-    preview_set: FxHashSet<Handle<UiNode>>,
-    #[visit(skip)]
+    methods_registry: WidgetMethodsRegistry,
     #[reflect(hidden)]
     clipboard: Clipboard,
-    #[visit(skip)]
     #[reflect(hidden)]
     layout_events_receiver: Receiver<LayoutEvent>,
-    #[visit(skip)]
     #[reflect(hidden)]
     layout_events_sender: Sender<LayoutEvent>,
-    #[visit(skip)]
     need_update_global_transform: bool,
-    #[visit(skip)]
     #[reflect(hidden)]
     pub default_font: FontResource,
-    #[visit(skip)]
     #[reflect(hidden)]
     double_click_entries: FxHashMap<MouseButton, DoubleClickEntry>,
     pub double_click_time_slice: f32,
+}
+
+impl Visit for UserInterface {
+    fn visit(&mut self, name: &str, visitor: &mut Visitor) -> VisitResult {
+        let mut region = visitor.enter_region(name)?;
+
+        self.screen_size.visit("ScreenSize", &mut region)?;
+        self.nodes.visit("Nodes", &mut region)?;
+        self.visual_debug.visit("VisualDebug", &mut region)?;
+        self.root_canvas.visit("RootCanvas", &mut region)?;
+        self.picked_node.visit("PickedNode", &mut region)?;
+        self.prev_picked_node.visit("PrevPickedNode", &mut region)?;
+        self.captured_node.visit("CapturedNode", &mut region)?;
+        self.keyboard_focus_node
+            .visit("KeyboardFocusNode", &mut region)?;
+        self.cursor_position.visit("CursorPosition", &mut region)?;
+        self.picking_stack.visit("PickingStack", &mut region)?;
+        self.drag_context.visit("DragContext", &mut region)?;
+        self.mouse_state.visit("MouseState", &mut region)?;
+        self.keyboard_modifiers
+            .visit("KeyboardModifiers", &mut region)?;
+        self.cursor_icon.visit("CursorIcon", &mut region)?;
+        self.double_click_time_slice
+            .visit("DoubleClickTimeSlice", &mut region)?;
+
+        for node in self.nodes.iter() {
+            self.methods_registry.register(node.deref());
+        }
+
+        Ok(())
+    }
 }
 
 impl Clone for UserInterface {
@@ -672,7 +723,7 @@ impl Clone for UserInterface {
             keyboard_modifiers: self.keyboard_modifiers,
             cursor_icon: self.cursor_icon,
             active_tooltip: self.active_tooltip.clone(),
-            preview_set: self.preview_set.clone(),
+            methods_registry: self.methods_registry.clone(),
             clipboard: Clipboard(ClipboardContext::new().ok().map(RefCell::new)),
             layout_events_receiver,
             layout_events_sender,
@@ -826,7 +877,7 @@ impl UserInterface {
             keyboard_modifiers: Default::default(),
             cursor_icon: Default::default(),
             active_tooltip: Default::default(),
-            preview_set: Default::default(),
+            methods_registry: Default::default(),
             clipboard: Clipboard(ClipboardContext::new().ok().map(RefCell::new)),
             layout_events_receiver,
             layout_events_sender,
@@ -1021,9 +1072,13 @@ impl UserInterface {
         }
 
         let sender = self.sender.clone();
-        for node in self.nodes.iter_mut() {
-            node.update(dt, &sender, self.screen_size)
+        let update_subs = std::mem::take(&mut self.methods_registry.on_update);
+        for &handle in update_subs.iter() {
+            let (ticket, mut node) = self.nodes.take_reserve(handle);
+            node.update(dt, &sender, self.screen_size);
+            self.nodes.put_back(ticket, node);
         }
+        self.methods_registry.on_update = update_subs;
 
         self.update_tooltips(dt);
 
@@ -1483,7 +1538,7 @@ impl UserInterface {
                     self.update(self.screen_size, 0.0);
                 }
 
-                for &handle in self.preview_set.iter() {
+                for &handle in self.methods_registry.preview_message.iter() {
                     if let Some(node_ref) = self.nodes.try_borrow(handle) {
                         node_ref.preview_message(self, &mut message);
                     }
@@ -2339,19 +2394,15 @@ impl UserInterface {
 
         self.prev_picked_node = self.picked_node;
 
-        for i in 0..self.nodes.get_capacity() {
-            let handle = self.nodes.handle_from_index(i);
+        let on_os_event_subs = std::mem::take(&mut self.methods_registry.handle_os_event);
 
-            if let Some(node_ref) = self.nodes.try_borrow(handle) {
-                if node_ref.handle_os_events {
-                    let (ticket, mut node) = self.nodes.take_reserve(handle);
-
-                    node.handle_os_event(handle, self, event);
-
-                    self.nodes.put_back(ticket, node);
-                }
-            }
+        for &handle in on_os_event_subs.iter() {
+            let (ticket, mut node) = self.nodes.take_reserve(handle);
+            node.handle_os_event(handle, self, event);
+            self.nodes.put_back(ticket, node);
         }
+
+        self.methods_registry.handle_os_event = on_os_event_subs;
 
         event_processed
     }
@@ -2778,10 +2829,8 @@ impl SceneGraph for UserInterface {
         }
         let node = self.nodes[node_handle].deref_mut();
         node.layout_events_sender = Some(self.layout_events_sender.clone());
-        if node.preview_messages {
-            self.preview_set.insert(node_handle);
-        }
         node.handle = node_handle;
+        self.methods_registry.register(node);
         node.invalidate_layout();
         self.layout_events_sender
             .send(LayoutEvent::VisibilityChanged(node_handle))
@@ -2817,8 +2866,8 @@ impl SceneGraph for UserInterface {
             // other widgets (like popups).
             node_ref.on_remove(&sender);
 
+            self.methods_registry.unregister(node_ref.deref());
             self.nodes.free(handle);
-            self.preview_set.remove(&handle);
         }
     }
 

@@ -773,12 +773,14 @@ pub struct Widget {
     pub visual_transform: Matrix3<f32>,
     /// A flag, that defines whether the widget will preview UI messages or not. Basically, it defines whether [crate::Control::preview_message]
     /// is called or not.
-    #[reflect(hidden)]
     pub preview_messages: bool,
     /// A flag, that defines whether the widget will receive any OS events or not. Basically, it defines whether [crate::Control::handle_os_event]
     /// is called or not.
-    #[reflect(hidden)]
     pub handle_os_events: bool,
+    /// A flag, that defines whether the widget will be update or not. Basically, it defines whether [crate::Control::update]
+    /// is called or not.
+    #[visit(optional)]
+    pub need_update: bool,
     /// Internal sender for layout events.
     #[reflect(hidden)]
     #[visit(skip)]
@@ -1743,6 +1745,8 @@ pub struct WidgetBuilder {
     pub preview_messages: bool,
     /// Whether the widget will handle OS events or not.
     pub handle_os_events: bool,
+    /// Whether the widget will be updated or not.
+    pub need_update: bool,
     /// Layout transform of the widget.
     pub layout_transform: Matrix3<f32>,
     /// Render transform of the widget.
@@ -1792,6 +1796,7 @@ impl WidgetBuilder {
             context_menu: Default::default(),
             preview_messages: false,
             handle_os_events: false,
+            need_update: false,
             layout_transform: Matrix3::identity(),
             render_transform: Matrix3::identity(),
             clip_to_bounds: true,
@@ -1810,6 +1815,13 @@ impl WidgetBuilder {
     /// be called or not.
     pub fn with_handle_os_events(mut self, state: bool) -> Self {
         self.handle_os_events = state;
+        self
+    }
+
+    /// Enables or disables updating of the widget. It basically defines whether the [`crate::Control::update`] will
+    /// be called or not.
+    pub fn with_need_update(mut self, state: bool) -> Self {
+        self.need_update = state;
         self
     }
 
@@ -2082,6 +2094,7 @@ impl WidgetBuilder {
             context_menu: self.context_menu,
             preview_messages: self.preview_messages,
             handle_os_events: self.handle_os_events,
+            need_update: self.need_update,
             layout_events_sender: None,
             layout_transform: self.layout_transform,
             render_transform: self.render_transform,

@@ -185,6 +185,7 @@ impl TransitionBuilder {
                 .widget_builder
                 .with_foreground(NORMAL_BRUSH.clone())
                 .with_clip_to_bounds(false)
+                .with_need_update(true)
                 .build(),
             segment: Segment {
                 source: self.source,

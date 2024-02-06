@@ -1428,6 +1428,7 @@ impl CurveEditorBuilder {
                 .widget_builder
                 .with_context_menu(context_menu.clone())
                 .with_preview_messages(true)
+                .with_need_update(true)
                 .build(),
             key_container: keys,
             zoom: Vector2::new(1.0, 1.0),

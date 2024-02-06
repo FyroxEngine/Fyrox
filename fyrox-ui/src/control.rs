@@ -254,6 +254,11 @@ pub trait Control:
     /// can be used to animated your widget. Its main difference from other methods, is that it does **not**
     /// provide access to any other widget in the UI. Instead, you can only send messages to widgets to
     /// force them to change their state.
+    ///
+    /// ## Important notes
+    ///
+    /// Due to performance reasons, you **must** set `.with_need_update(true)` in widget builder to
+    /// force library to call `update` method!
     fn update(
         &mut self,
         #[allow(unused_variables)] dt: f32,
