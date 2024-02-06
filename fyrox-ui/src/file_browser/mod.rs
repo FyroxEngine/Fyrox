@@ -26,7 +26,7 @@ use std::{
     ops::{Deref, DerefMut},
     path::{Component, Path, PathBuf, Prefix},
     sync::{
-        mpsc::{self, Receiver, Sender},
+        mpsc::{self, Receiver},
         Arc,
     },
     thread,
@@ -35,13 +35,11 @@ use std::{
 mod menu;
 mod selector;
 
-pub use selector::*;
-
-use fyrox_core::algebra::Vector2;
 use fyrox_core::parking_lot::Mutex;
 use fyrox_core::uuid_provider;
 use fyrox_graph::SceneGraph;
 use notify::Watcher;
+pub use selector::*;
 #[cfg(not(target_arch = "wasm32"))]
 use sysinfo::{DiskExt, RefreshKind, SystemExt};
 
@@ -472,10 +470,10 @@ impl Control for FileBrowser {
         }
     }
 
-    fn update(&mut self, _dt: f32, sender: &Sender<UiMessage>, _screen_size: Vector2<f32>) {
+    fn update(&mut self, _dt: f32, ui: &mut UserInterface) {
         if let Ok(event) = self.fs_receiver.as_ref().unwrap().try_recv() {
             if event.need_rescan() {
-                let _ = sender.send(FileBrowserMessage::rescan(
+                ui.send_message(FileBrowserMessage::rescan(
                     self.handle,
                     MessageDirection::ToWidget,
                 ));
@@ -483,14 +481,14 @@ impl Control for FileBrowser {
                 for path in event.paths.iter() {
                     match event.kind {
                         notify::EventKind::Remove(_) => {
-                            let _ = sender.send(FileBrowserMessage::remove(
+                            ui.send_message(FileBrowserMessage::remove(
                                 self.handle,
                                 MessageDirection::ToWidget,
                                 path.clone(),
                             ));
                         }
                         notify::EventKind::Create(_) => {
-                            let _ = sender.send(FileBrowserMessage::add(
+                            ui.send_message(FileBrowserMessage::add(
                                 self.handle,
                                 MessageDirection::ToWidget,
                                 path.clone(),

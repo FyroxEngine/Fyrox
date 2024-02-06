@@ -34,7 +34,6 @@ use std::{
     cmp::Ordering,
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
 };
 
 /// A message that could be used to alternate text box widget's state or receive changes from it.
@@ -1097,7 +1096,7 @@ impl Control for TextBox {
         }
     }
 
-    fn update(&mut self, dt: f32, _sender: &Sender<UiMessage>, _screen_size: Vector2<f32>) {
+    fn update(&mut self, dt: f32, _ui: &mut UserInterface) {
         if self.has_focus {
             *self.blink_timer += dt;
             if *self.blink_timer >= *self.blink_interval {

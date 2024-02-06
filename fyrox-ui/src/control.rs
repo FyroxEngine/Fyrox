@@ -262,8 +262,7 @@ pub trait Control:
     fn update(
         &mut self,
         #[allow(unused_variables)] dt: f32,
-        #[allow(unused_variables)] sender: &Sender<UiMessage>,
-        #[allow(unused_variables)] screen_size: Vector2<f32>,
+        #[allow(unused_variables)] ui: &mut UserInterface,
     ) {
     }
 

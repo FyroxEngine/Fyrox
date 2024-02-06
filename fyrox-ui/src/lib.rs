@@ -1071,11 +1071,10 @@ impl UserInterface {
             );
         }
 
-        let sender = self.sender.clone();
         let update_subs = std::mem::take(&mut self.methods_registry.on_update);
         for &handle in update_subs.iter() {
             let (ticket, mut node) = self.nodes.take_reserve(handle);
-            node.update(dt, &sender, self.screen_size);
+            node.update(dt, self);
             self.nodes.put_back(ticket, node);
         }
         self.methods_registry.on_update = update_subs;

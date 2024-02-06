@@ -79,18 +79,16 @@ impl Control for SpriteSheetFramesEditorWindow {
         self.window.draw(drawing_context)
     }
 
-    fn update(&mut self, dt: f32, sender: &Sender<UiMessage>, screen_size: Vector2<f32>) {
-        self.window.update(dt, sender, screen_size);
+    fn update(&mut self, dt: f32, ui: &mut UserInterface) {
+        self.window.update(dt, ui);
 
         self.animation.update(dt);
         self.animation.play();
-        sender
-            .send(ImageMessage::uv_rect(
-                self.preview_image,
-                MessageDirection::ToWidget,
-                self.animation.current_frame_uv_rect().unwrap_or_default(),
-            ))
-            .unwrap();
+        ui.send_message(ImageMessage::uv_rect(
+            self.preview_image,
+            MessageDirection::ToWidget,
+            self.animation.current_frame_uv_rect().unwrap_or_default(),
+        ));
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

@@ -15,7 +15,6 @@ use crate::{
 use std::{
     cell::Cell,
     ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
 };
 
 /// Screen is a widget that always has the size of the screen of the UI in which it is used. It is
@@ -121,10 +120,10 @@ impl Control for Screen {
         ui.screen_size()
     }
 
-    fn update(&mut self, _dt: f32, _sender: &Sender<UiMessage>, screen_size: Vector2<f32>) {
-        if self.last_screen_size.get() != screen_size {
+    fn update(&mut self, _dt: f32, ui: &mut UserInterface) {
+        if self.last_screen_size.get() != ui.screen_size {
             self.invalidate_layout();
-            self.last_screen_size.set(screen_size);
+            self.last_screen_size.set(ui.screen_size);
         }
     }
 

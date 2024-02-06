@@ -591,11 +591,11 @@ impl Control for CurveEditor {
         }
     }
 
-    fn update(&mut self, _dt: f32, sender: &Sender<UiMessage>, _screen_size: Vector2<f32>) {
+    fn update(&mut self, _dt: f32, ui: &mut UserInterface) {
         if let Some(timer) = self.zoom_to_fit_timer.as_mut() {
             *timer = timer.saturating_sub(1);
             if *timer == 0 {
-                self.zoom_to_fit(sender);
+                self.zoom_to_fit(&ui.sender);
                 self.zoom_to_fit_timer = None;
             }
         }

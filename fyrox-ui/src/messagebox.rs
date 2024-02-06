@@ -24,10 +24,7 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
-use std::{
-    ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
-};
+use std::ops::{Deref, DerefMut};
 
 /// A set of messages that can be used to communicate with message boxes.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -203,8 +200,8 @@ impl Control for MessageBox {
         self.window.draw(drawing_context)
     }
 
-    fn update(&mut self, dt: f32, sender: &Sender<UiMessage>, screen_size: Vector2<f32>) {
-        self.window.update(dt, sender, screen_size);
+    fn update(&mut self, dt: f32, ui: &mut UserInterface) {
+        self.window.update(dt, ui);
     }
 
     fn handle_routed_message(&mut self, ui: &mut UserInterface, message: &mut UiMessage) {

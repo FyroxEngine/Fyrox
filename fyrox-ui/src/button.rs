@@ -4,10 +4,7 @@
 
 use crate::{
     border::BorderBuilder,
-    core::{
-        algebra::Vector2, pool::Handle, reflect::prelude::*, type_traits::prelude::*,
-        visitor::prelude::*,
-    },
+    core::{pool::Handle, reflect::prelude::*, type_traits::prelude::*, visitor::prelude::*},
     decorator::DecoratorBuilder,
     define_constructor,
     font::FontResource,
@@ -21,7 +18,6 @@ use fyrox_core::variable::InheritableVariable;
 use std::{
     cell::RefCell,
     ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
 };
 
 /// Messages that can be emitted by [`Button`] widget (or can be sent to the widget).
@@ -118,12 +114,12 @@ pub struct Button {
 crate::define_widget_deref!(Button);
 
 impl Control for Button {
-    fn update(&mut self, dt: f32, sender: &Sender<UiMessage>, _screen_size: Vector2<f32>) {
+    fn update(&mut self, dt: f32, ui: &mut UserInterface) {
         let mut repeat_timer = self.repeat_timer.borrow_mut();
         if let Some(repeat_timer) = &mut *repeat_timer {
             *repeat_timer -= dt;
             if *repeat_timer <= 0.0 {
-                let _ = sender.send(ButtonMessage::click(
+                ui.send_message(ButtonMessage::click(
                     self.handle(),
                     MessageDirection::FromWidget,
                 ));

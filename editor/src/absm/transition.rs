@@ -26,10 +26,7 @@ use fyrox::{
     },
     scene::animation::absm::prelude::*,
 };
-use std::{
-    ops::{Deref, DerefMut},
-    sync::mpsc::Sender,
-};
+use std::ops::{Deref, DerefMut};
 
 const PICKED_COLOR: Color = Color::opaque(100, 100, 100);
 const NORMAL_COLOR: Color = Color::opaque(80, 80, 80);
@@ -148,7 +145,7 @@ impl Control for TransitionView {
         }
     }
 
-    fn update(&mut self, dt: f32, _sender: &Sender<UiMessage>, _screen_size: Vector2<f32>) {
+    fn update(&mut self, dt: f32, _ui: &mut UserInterface) {
         // Slowly fade.
         self.activity_factor = (self.activity_factor - dt).max(0.0);
     }
