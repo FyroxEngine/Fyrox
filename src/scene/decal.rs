@@ -20,6 +20,7 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
+use fyrox_graph::SceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// Decal is an image that gets projected to a geometry of a scene. Blood splatters, bullet holes, scratches

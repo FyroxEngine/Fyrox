@@ -2,6 +2,7 @@ use crate::{
     scene::{GameScene, Selection},
     send_sync_message, Message, FIXED_TIMESTEP,
 };
+use fyrox::graph::SceneGraph;
 use fyrox::gui::HorizontalAlignment;
 use fyrox::{
     core::pool::Handle,

@@ -513,11 +513,17 @@ pub trait SceneGraph: Sized + 'static {
     /// Checks whether the given node handle is valid or not.
     fn is_valid_handle(&self, handle: Handle<Self::Node>) -> bool;
 
+    /// Adds a new node to the graph.
+    fn add_node(&mut self, node: Self::Node) -> Handle<Self::Node>;
+
     /// Destroys the node and its children recursively.
     fn remove_node(&mut self, node_handle: Handle<Self::Node>);
 
     /// Links specified child with specified parent.
     fn link_nodes(&mut self, child: Handle<Self::Node>, parent: Handle<Self::Node>);
+
+    /// Unlinks specified node from its parent and attaches it to root graph node.
+    fn unlink_node(&mut self, node_handle: Handle<Self::Node>);
 
     /// Detaches the node from its parent, making the node unreachable from any other node in the
     /// graph.
@@ -537,6 +543,28 @@ pub trait SceneGraph: Sized + 'static {
     /// Borrows a node by its handle.
     fn node_mut(&mut self, handle: Handle<Self::Node>) -> &mut Self::Node {
         self.try_get_mut(handle).expect("The handle must be valid!")
+    }
+
+    /// Tries to borrow a node and fetch its component of specified type.
+    #[inline]
+    fn try_get_of_type<T>(&self, handle: Handle<Self::Node>) -> Option<&T>
+    where
+        T: 'static,
+    {
+        self.try_get(handle)
+            .and_then(|n| n.query_component_ref(TypeId::of::<T>()))
+            .and_then(|c| c.downcast_ref())
+    }
+
+    /// Tries to mutably borrow a node and fetch its component of specified type.
+    #[inline]
+    fn try_get_mut_of_type<T>(&mut self, handle: Handle<Self::Node>) -> Option<&mut T>
+    where
+        T: 'static,
+    {
+        self.try_get_mut(handle)
+            .and_then(|n| n.query_component_mut(TypeId::of::<T>()))
+            .and_then(|c| c.downcast_mut())
     }
 
     /// Searches for a node down the tree starting from the specified node using the specified closure. Returns a tuple
@@ -1334,29 +1362,6 @@ mod test {
         }
     }
 
-    impl Graph {
-        #[inline]
-        pub fn add_node(&mut self, mut node: Node) -> Handle<Node> {
-            let children = node.base.children.clone();
-            node.base.children.clear();
-            let handle = self.nodes.spawn(node);
-
-            if self.root.is_none() {
-                self.root = handle;
-            } else {
-                self.link_nodes(handle, self.root);
-            }
-
-            for child in children {
-                self.link_nodes(child, handle);
-            }
-
-            let node = &mut self.nodes[handle];
-            node.base.self_handle = handle;
-            handle
-        }
-    }
-
     impl SceneGraph for Graph {
         type Prefab = Graph;
         type Node = Node;
@@ -1381,6 +1386,26 @@ mod test {
             self.nodes.is_valid_handle(handle)
         }
 
+        fn add_node(&mut self, mut node: Self::Node) -> Handle<Self::Node> {
+            let children = node.base.children.clone();
+            node.base.children.clear();
+            let handle = self.nodes.spawn(node);
+
+            if self.root.is_none() {
+                self.root = handle;
+            } else {
+                self.link_nodes(handle, self.root);
+            }
+
+            for child in children {
+                self.link_nodes(child, handle);
+            }
+
+            let node = &mut self.nodes[handle];
+            node.base.self_handle = handle;
+            handle
+        }
+
         fn remove_node(&mut self, node_handle: Handle<Self::Node>) {
             self.isolate_node(node_handle);
             let mut stack = vec![node_handle];
@@ -1394,6 +1419,11 @@ mod test {
             self.isolate_node(child);
             self.nodes[child].base.parent = parent;
             self.nodes[parent].base.children.push(child);
+        }
+
+        fn unlink_node(&mut self, node_handle: Handle<Self::Node>) {
+            self.isolate_node(node_handle);
+            self.link_nodes(node_handle, self.root);
         }
 
         fn isolate_node(&mut self, node_handle: Handle<Self::Node>) {

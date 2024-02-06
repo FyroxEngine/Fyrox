@@ -313,43 +313,6 @@ impl Graph {
         self.link_nodes(prev_root, handle);
     }
 
-    /// Adds new node to the graph. Node will be transferred into implementation-defined
-    /// storage and you'll get a handle to the node. Node will be automatically attached
-    /// to root node of graph, it is required because graph can contain only one root.
-    #[inline]
-    pub fn add_node(&mut self, mut node: Node) -> Handle<Node> {
-        let children = node.children.clone();
-        node.children.clear();
-        let has_script = node.script.is_some();
-        let handle = self.pool.spawn(node);
-
-        if self.root.is_none() {
-            self.root = handle;
-        } else {
-            self.link_nodes(handle, self.root);
-        }
-
-        for child in children {
-            self.link_nodes(child, handle);
-        }
-
-        self.event_broadcaster.broadcast(GraphEvent::Added(handle));
-        if has_script {
-            self.script_message_sender
-                .send(NodeScriptMessage::InitializeScript { handle })
-                .unwrap();
-        }
-
-        let sender = self.script_message_sender.clone();
-        let node = &mut self.pool[handle];
-        node.self_handle = handle;
-        node.script_message_sender = Some(sender);
-
-        self.instance_id_map.insert(node.instance_id, handle);
-
-        handle
-    }
-
     /// Tries to find references of the given node in other scene nodes. It could be used to check if the node is
     /// used by some other scene node or not. Returns an array of nodes, that references the given node. This method
     /// is reflection-based, so it is quite slow and should not be used every frame.
@@ -405,30 +368,10 @@ impl Graph {
         self.root
     }
 
-    /// Tries to borrow a node and fetch its component of specified type.
-    #[inline]
-    pub fn try_get_of_type<T>(&self, handle: Handle<Node>) -> Option<&T>
-    where
-        T: 'static,
-    {
-        self.try_get(handle)
-            .and_then(|n| n.query_component_ref::<T>())
-    }
-
     /// Tries to mutably borrow a node, returns Some(node) if the handle is valid, None - otherwise.
     #[inline]
     pub fn try_get_mut(&mut self, handle: Handle<Node>) -> Option<&mut Node> {
         self.pool.try_borrow_mut(handle)
-    }
-
-    /// Tries to mutably borrow a node and fetch its component of specified type.
-    #[inline]
-    pub fn try_get_mut_of_type<T>(&mut self, handle: Handle<Node>) -> Option<&mut T>
-    where
-        T: 'static,
-    {
-        self.try_get_mut(handle)
-            .and_then(|n| n.query_component_mut::<T>())
     }
 
     /// Begins multi-borrow that allows you borrow to as many shared references to the graph
@@ -491,16 +434,6 @@ impl Graph {
             .set_position(local_position)
             .set_rotation(local_rotation);
         self.link_nodes(child, parent);
-    }
-
-    /// Unlinks specified node from its parent and attaches it to root graph node.
-    #[inline]
-    pub fn unlink_node(&mut self, node_handle: Handle<Node>) {
-        self.isolate_node(node_handle);
-        self.link_nodes(node_handle, self.root);
-        self.pool[node_handle]
-            .local_transform_mut()
-            .set_position(Vector3::default());
     }
 
     /// Searches for a **first** node with a script of the given type `S` in the hierarchy starting from the
@@ -1117,9 +1050,10 @@ impl Graph {
     /// available indices and try to convert them to handles.
     ///
     /// ```
-    /// use fyrox::scene::node::Node;
-    /// use fyrox::scene::graph::Graph;
-    /// use fyrox::scene::pivot::Pivot;
+    /// # use fyrox::scene::node::Node;
+    /// # use fyrox::scene::graph::Graph;
+    /// # use fyrox::scene::pivot::Pivot;
+    /// # use fyrox_graph::SceneGraph;
     /// let mut graph = Graph::new();
     /// graph.add_node(Node::new(Pivot::default()));
     /// graph.add_node(Node::new(Pivot::default()));
@@ -1140,9 +1074,10 @@ impl Graph {
     /// or point to a vacant pool entry.
     ///
     /// ```
-    /// use fyrox::scene::node::Node;
-    /// use fyrox::scene::graph::Graph;
-    /// use fyrox::scene::pivot::Pivot;
+    /// # use fyrox::scene::node::Node;
+    /// # use fyrox::scene::graph::Graph;
+    /// # use fyrox::scene::pivot::Pivot;
+    /// # use fyrox_graph::SceneGraph;
     /// let mut graph = Graph::new();
     /// graph.add_node(Node::new(Pivot::default()));
     /// graph.add_node(Node::new(Pivot::default()));
@@ -1587,6 +1522,40 @@ impl SceneGraph for Graph {
     }
 
     #[inline]
+    fn add_node(&mut self, mut node: Self::Node) -> Handle<Self::Node> {
+        let children = node.children.clone();
+        node.children.clear();
+        let has_script = node.script.is_some();
+        let handle = self.pool.spawn(node);
+
+        if self.root.is_none() {
+            self.root = handle;
+        } else {
+            self.link_nodes(handle, self.root);
+        }
+
+        for child in children {
+            self.link_nodes(child, handle);
+        }
+
+        self.event_broadcaster.broadcast(GraphEvent::Added(handle));
+        if has_script {
+            self.script_message_sender
+                .send(NodeScriptMessage::InitializeScript { handle })
+                .unwrap();
+        }
+
+        let sender = self.script_message_sender.clone();
+        let node = &mut self.pool[handle];
+        node.self_handle = handle;
+        node.script_message_sender = Some(sender);
+
+        self.instance_id_map.insert(node.instance_id, handle);
+
+        handle
+    }
+
+    #[inline]
     fn remove_node(&mut self, node_handle: Handle<Self::Node>) {
         self.isolate_node(node_handle);
 
@@ -1612,6 +1581,15 @@ impl SceneGraph for Graph {
         self.isolate_node(child);
         self.pool[child].parent = parent;
         self.pool[parent].children.push(child);
+    }
+
+    #[inline]
+    fn unlink_node(&mut self, node_handle: Handle<Node>) {
+        self.isolate_node(node_handle);
+        self.link_nodes(node_handle, self.root);
+        self.pool[node_handle]
+            .local_transform_mut()
+            .set_position(Vector3::default());
     }
 
     #[inline]

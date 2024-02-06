@@ -19,6 +19,7 @@ use crate::{
         node::{Node, NodeTrait, UpdateContext},
     },
 };
+use fyrox_graph::SceneGraph;
 use std::ops::{Deref, DerefMut};
 
 pub mod absm;

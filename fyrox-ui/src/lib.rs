@@ -2364,29 +2364,6 @@ impl UserInterface {
         self.root_canvas
     }
 
-    pub fn add_node(&mut self, mut node: UiNode) -> Handle<UiNode> {
-        let children = node.children().to_vec();
-        node.clear_children();
-        let node_handle = self.nodes.spawn(node);
-        if self.root_canvas.is_some() {
-            self.link_nodes(node_handle, self.root_canvas, false);
-        }
-        for child in children {
-            self.link_nodes(child, node_handle, false)
-        }
-        let node = self.nodes[node_handle].deref_mut();
-        node.layout_events_sender = Some(self.layout_events_sender.clone());
-        if node.preview_messages {
-            self.preview_set.insert(node_handle);
-        }
-        node.handle = node_handle;
-        node.invalidate_layout();
-        self.layout_events_sender
-            .send(LayoutEvent::VisibilityChanged(node_handle))
-            .unwrap();
-        node_handle
-    }
-
     /// Extracts a widget from the user interface and reserves its handle. It is used to temporarily take
     /// ownership over the widget, and then put the widget back using the returned ticket. Extracted
     /// widget is detached from its parent!
@@ -2503,16 +2480,6 @@ impl UserInterface {
         self.isolate_node(child_handle);
         self.nodes[child_handle].set_parent(parent_handle);
         self.nodes[parent_handle].add_child(child_handle, in_front);
-    }
-
-    /// Unlinks specified node from its parent and attaches back to root canvas.
-    ///
-    /// Use [WidgetMessage::remove](enum.WidgetMessage.html#method.remove) to unlink
-    /// a node at runtime!
-    #[inline]
-    pub fn unlink_node(&mut self, node_handle: Handle<UiNode>) {
-        self.isolate_node(node_handle);
-        self.link_nodes(node_handle, self.root_canvas, false);
     }
 
     #[inline]
@@ -2799,6 +2766,30 @@ impl SceneGraph for UserInterface {
     }
 
     #[inline]
+    fn add_node(&mut self, mut node: Self::Node) -> Handle<Self::Node> {
+        let children = node.children().to_vec();
+        node.clear_children();
+        let node_handle = self.nodes.spawn(node);
+        if self.root_canvas.is_some() {
+            self.link_nodes(node_handle, self.root_canvas, false);
+        }
+        for child in children {
+            self.link_nodes(child, node_handle, false)
+        }
+        let node = self.nodes[node_handle].deref_mut();
+        node.layout_events_sender = Some(self.layout_events_sender.clone());
+        if node.preview_messages {
+            self.preview_set.insert(node_handle);
+        }
+        node.handle = node_handle;
+        node.invalidate_layout();
+        self.layout_events_sender
+            .send(LayoutEvent::VisibilityChanged(node_handle))
+            .unwrap();
+        node_handle
+    }
+
+    #[inline]
     fn remove_node(&mut self, node: Handle<Self::Node>) {
         self.isolate_node(node);
 
@@ -2834,6 +2825,12 @@ impl SceneGraph for UserInterface {
     #[inline]
     fn link_nodes(&mut self, child: Handle<Self::Node>, parent: Handle<Self::Node>) {
         self.link_nodes(child, parent, false)
+    }
+
+    #[inline]
+    fn unlink_node(&mut self, node_handle: Handle<Self::Node>) {
+        self.isolate_node(node_handle);
+        self.link_nodes(node_handle, self.root_canvas, false);
     }
 
     #[inline]

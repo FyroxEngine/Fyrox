@@ -127,15 +127,16 @@ impl LayerMaskExt for LayerMask {
 /// procedural animations), then the following example is for you.
 ///
 /// ```rust
-/// use fyrox::{
-///     core::pool::Handle,
-///     scene::{
-///         animation::{absm::prelude::*, prelude::*},
-///         base::BaseBuilder,
-///         graph::Graph,
-///         node::Node,
-///     },
-/// };
+/// # use fyrox::{
+/// #     core::pool::Handle,
+/// #     scene::{
+/// #         animation::{absm::prelude::*, prelude::*},
+/// #         base::BaseBuilder,
+/// #         graph::Graph,
+/// #         node::Node,
+/// #     },
+/// # };
+/// # use fyrox_graph::SceneGraph;
 ///
 /// fn create_walk_idle_state_machine(
 ///     animation_player_handle: Handle<Node>,

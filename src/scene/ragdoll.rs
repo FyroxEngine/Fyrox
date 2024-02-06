@@ -20,6 +20,7 @@ use crate::{
     },
 };
 use fyrox_core::uuid_provider;
+use fyrox_graph::SceneGraph;
 use std::{
     any::{type_name, Any, TypeId},
     ops::{Deref, DerefMut},

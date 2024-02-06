@@ -30,6 +30,7 @@ use crate::{
         node::{Node, NodeTrait},
     },
 };
+use fyrox_graph::SceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// A vertex for sprites.
