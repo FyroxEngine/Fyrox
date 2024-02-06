@@ -186,7 +186,7 @@ pub trait NodeTrait: BaseNodeTrait + Reflect + Visit {
     /// Synchronizes internal state of the node with components of scene graph. It has limited usage
     /// and mostly allows you to sync the state of backing entity with the state of the node.
     /// For example the engine use it to sync native rigid body properties after some property was
-    /// changed in the [`crate::scene::rigidbody::RigidBody`] node.  
+    /// changed in the [`crate::scene::rigidbody::RigidBody`] node.
     fn sync_native(
         &self,
         #[allow(unused_variables)] self_handle: Handle<Node>,
@@ -468,7 +468,7 @@ impl Node {
     /// # use fyrox::scene::light::BaseLight;
     /// # use fyrox::scene::light::directional::DirectionalLight;
     /// # use fyrox::scene::node::{Node};
-    ///  
+    ///
     /// fn base_light_ref(directional_light: &Node) -> &BaseLight {
     ///     directional_light.query_component_ref::<BaseLight>().expect("Must have base light")
     /// }
@@ -496,7 +496,7 @@ impl Node {
     /// # use fyrox::scene::light::BaseLight;
     /// # use fyrox::scene::light::directional::DirectionalLight;
     /// # use fyrox::scene::node::{Node};
-    ///  
+    ///
     /// fn base_light_mut(directional_light: &mut Node) -> &mut BaseLight {
     ///     directional_light.query_component_mut::<BaseLight>().expect("Must have base light")
     /// }
@@ -572,6 +572,10 @@ impl Visit for Node {
 }
 
 impl Reflect for Node {
+    fn source_path() -> &'static str {
+        file!()
+    }
+
     fn type_name(&self) -> &'static str {
         self.0.deref().type_name()
     }
@@ -746,6 +750,13 @@ mod test {
         serialization_context
             .script_constructors
             .add::<MyScript>("MyScript");
+
+        assert!(serialization_context
+            .script_constructors
+            .map()
+            .iter()
+            .any(|s| &s.1.source_path == file!()));
+
         engine::initialize_resource_manager_loaders(
             &resource_manager,
             Arc::new(serialization_context),

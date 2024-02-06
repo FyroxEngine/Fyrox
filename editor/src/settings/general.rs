@@ -1,5 +1,6 @@
-use fyrox::core::reflect::prelude::*;
+use fyrox::core::{reflect::prelude::*, uuid_provider};
 use serde::{Deserialize, Serialize};
+use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 #[derive(Deserialize, Serialize, PartialEq, Clone, Debug, Reflect)]
 pub struct GeneralSettings {
@@ -14,17 +15,50 @@ pub struct GeneralSettings {
     )]
     #[serde(default = "default_suspension_state")]
     pub suspend_unfocused_editor: bool,
+
+    #[serde(default = "default_script_editor")]
+    pub script_editor: ScriptEditor,
 }
 
 fn default_suspension_state() -> bool {
     true
 }
 
+fn default_script_editor() -> ScriptEditor {
+    ScriptEditor::SystemDefault
+}
+
+#[derive(
+    Copy,
+    Clone,
+    Hash,
+    PartialOrd,
+    PartialEq,
+    Eq,
+    Ord,
+    Debug,
+    Serialize,
+    Deserialize,
+    Reflect,
+    AsRefStr,
+    EnumString,
+    EnumVariantNames,
+)]
+pub enum ScriptEditor {
+    SystemDefault,
+    VSCode,
+    Emacs,
+    XCode,
+}
+
+uuid_provider!(ScriptEditor = "d0c942e8-24e4-40f2-ad2e-1b9f189d3ca2");
+
 impl Default for GeneralSettings {
     fn default() -> Self {
         Self {
             show_node_removal_dialog: true,
             suspend_unfocused_editor: default_suspension_state(),
+            script_editor: default_script_editor(),
         }
     }
 }

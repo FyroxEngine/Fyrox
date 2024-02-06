@@ -65,6 +65,11 @@ where
     P: PayloadContainer<Element = T> + Reflect,
 {
     #[inline]
+    fn source_path() -> &'static str {
+        file!()
+    }
+
+    #[inline]
     fn type_name(&self) -> &'static str {
         std::any::type_name::<Self>()
     }
