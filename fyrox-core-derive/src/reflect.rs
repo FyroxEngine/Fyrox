@@ -420,6 +420,10 @@ fn gen_impl(
     quote! {
         #[allow(warnings)]
         impl #impl_generics Reflect for #ty_ident #ty_generics #where_clause {
+            fn source_path() -> &'static str {
+                file!()
+            }
+
             fn type_name(&self) -> &'static str {
                 std::any::type_name::<Self>()
             }

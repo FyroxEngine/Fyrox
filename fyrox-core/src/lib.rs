@@ -43,7 +43,6 @@ pub mod profiler;
 pub mod quadtree;
 pub mod rectpack;
 pub mod reflect;
-pub mod script;
 pub mod sparse;
 pub mod sstorage;
 pub mod task;

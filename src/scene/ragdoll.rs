@@ -37,6 +37,10 @@ uuid_provider!(Limb = "6d5bc2f7-8acc-4b64-8e4b-65d4551150bf");
 
 // Rust has a compiler bug `overflow evaluating the requirement` that prevents deriving this impl.
 impl Reflect for Limb {
+    fn source_path() -> &'static str {
+        file!()
+    }
+
     fn type_name(&self) -> &'static str {
         type_name::<Self>()
     }

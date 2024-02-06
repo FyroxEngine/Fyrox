@@ -161,6 +161,10 @@ impl<'a, 'b> PartialEq<Self> for FieldInfo<'a, 'b> {
 /// for every type that should support `Reflect` trait. It is a good compromise between development speed
 /// and the quality of the string output.
 pub trait Reflect: Any + Debug {
+    fn source_path() -> &'static str
+    where
+        Self: Sized;
+
     fn type_name(&self) -> &'static str;
 
     fn doc(&self) -> &'static str;
@@ -1056,6 +1060,10 @@ impl dyn ReflectList {
 #[macro_export]
 macro_rules! blank_reflect {
     () => {
+        fn source_path() -> &'static str {
+            file!()
+        }
+
         fn type_name(&self) -> &'static str {
             std::any::type_name::<Self>()
         }
@@ -1106,6 +1114,10 @@ macro_rules! blank_reflect {
 #[macro_export]
 macro_rules! delegate_reflect {
     () => {
+        fn source_path() -> &'static str {
+            file!()
+        }
+
         fn type_name(&self) -> &'static str {
             self.deref().type_name()
         }

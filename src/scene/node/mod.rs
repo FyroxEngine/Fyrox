@@ -572,6 +572,10 @@ impl Visit for Node {
 }
 
 impl Reflect for Node {
+    fn source_path() -> &'static str {
+        file!()
+    }
+
     fn type_name(&self) -> &'static str {
         self.0.deref().type_name()
     }
@@ -643,7 +647,6 @@ mod test {
             futures::executor::block_on,
             impl_component_provider,
             reflect::prelude::*,
-            script::prelude::*,
             uuid::{uuid, Uuid},
             variable::InheritableVariable,
             visitor::{prelude::*, Visitor},
@@ -666,7 +669,7 @@ mod test {
     use fyrox_graph::SceneGraph;
     use std::{fs, path::Path, sync::Arc};
 
-    #[derive(Debug, Clone, Reflect, Visit, Default, ScriptSourcePathProvider)]
+    #[derive(Debug, Clone, Reflect, Visit, Default)]
     struct MyScript {
         some_field: InheritableVariable<String>,
         some_collection: InheritableVariable<Vec<u32>>,
@@ -746,14 +749,13 @@ mod test {
         let serialization_context = SerializationContext::new();
         serialization_context
             .script_constructors
-            .add_with_source_path::<MyScript>("MyScript");
+            .add::<MyScript>("MyScript");
 
         assert!(serialization_context
             .script_constructors
             .map()
             .iter()
-            .find(|s| s.1.source_path == Some(file!().to_string()))
-            .is_some());
+            .any(|s| &s.1.source_path == file!()));
 
         engine::initialize_resource_manager_loaders(
             &resource_manager,

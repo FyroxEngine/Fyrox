@@ -280,6 +280,10 @@ impl<T: ?Sized + Reflect> Reflect for Box<T> {
 
 macro_rules! impl_reflect_inner_mutability {
     ($self:ident, $acquire_lock_guard:block, $into_inner:block) => {
+        fn source_path() -> &'static str {
+            file!()
+        }
+
         fn type_name(&$self) -> &'static str {
             std::any::type_name::<T>()
         }
