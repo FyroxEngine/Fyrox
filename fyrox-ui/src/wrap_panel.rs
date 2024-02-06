@@ -15,6 +15,7 @@ use crate::{
     BuildContext, Control, Orientation, UiNode, UserInterface,
 };
 use fyrox_core::uuid_provider;
+use fyrox_core::variable::InheritableVariable;
 use fyrox_graph::SceneGraph;
 use std::{
     cell::RefCell,
@@ -68,7 +69,7 @@ pub struct WrapPanel {
     /// Base widget of the wrap panel.
     pub widget: Widget,
     /// Current orientation of the wrap panel.
-    pub orientation: Orientation,
+    pub orientation: InheritableVariable<Orientation>,
     /// Internal lines storage.
     #[visit(skip)]
     #[reflect(hidden)]
@@ -105,7 +106,7 @@ impl Control for WrapPanel {
             let child = ui.node(*child_handle);
             ui.measure_node(*child_handle, available_size);
             let desired = child.desired_size();
-            match self.orientation {
+            match *self.orientation {
                 Orientation::Vertical => {
                     if line_size.y + desired.y > available_size.y {
                         // Commit column.
@@ -130,7 +131,7 @@ impl Control for WrapPanel {
         }
 
         // Commit rest.
-        match self.orientation {
+        match *self.orientation {
             Orientation::Vertical => {
                 measured_size.y = measured_size.y.max(line_size.y);
                 measured_size.x += line_size.x;
@@ -152,7 +153,7 @@ impl Control for WrapPanel {
         for child_handle in self.widget.children() {
             let child = ui.node(*child_handle);
             let desired = child.desired_size();
-            match self.orientation {
+            match *self.orientation {
                 Orientation::Vertical => {
                     if line.bounds.h() + desired.y > final_size.y {
                         // Commit column.
@@ -203,7 +204,7 @@ impl Control for WrapPanel {
                 let child_handle = self.children()[child_index];
                 let child = ui.node(child_handle);
                 let desired = child.desired_size();
-                match self.orientation {
+                match *self.orientation {
                     Orientation::Vertical => {
                         let child_bounds =
                             Rect::new(line.bounds.x(), cursor.y, line.bounds.w(), desired.y);
@@ -218,7 +219,7 @@ impl Control for WrapPanel {
                     }
                 }
             }
-            match self.orientation {
+            match *self.orientation {
                 Orientation::Vertical => {
                     full_size.x += line.bounds.w();
                     full_size.y = final_size.y.max(line.bounds.h());
@@ -239,8 +240,8 @@ impl Control for WrapPanel {
         if message.destination() == self.handle && message.direction() == MessageDirection::ToWidget
         {
             if let Some(WrapPanelMessage::Orientation(orientation)) = message.data() {
-                if *orientation != self.orientation {
-                    self.orientation = *orientation;
+                if *orientation != *self.orientation {
+                    self.orientation.set_value_and_mark_modified(*orientation);
                     self.invalidate_layout();
                 }
             }
@@ -273,7 +274,7 @@ impl WrapPanelBuilder {
     pub fn build_node(self) -> UiNode {
         let stack_panel = WrapPanel {
             widget: self.widget_builder.build(),
-            orientation: self.orientation.unwrap_or(Orientation::Vertical),
+            orientation: self.orientation.unwrap_or(Orientation::Vertical).into(),
             lines: Default::default(),
         };
 

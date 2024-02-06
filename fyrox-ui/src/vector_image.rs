@@ -15,11 +15,12 @@ use crate::{
     BuildContext, Control, UiNode, UserInterface,
 };
 use fyrox_core::uuid_provider;
+use fyrox_core::variable::InheritableVariable;
 use std::ops::{Deref, DerefMut};
 use strum_macros::{AsRefStr, EnumString, EnumVariantNames};
 
 /// Primitive is a simplest shape, that consists of one or multiple lines of the same thickness.
-#[derive(Clone, Debug, Visit, Reflect, AsRefStr, EnumString, EnumVariantNames)]
+#[derive(Clone, Debug, PartialEq, Visit, Reflect, AsRefStr, EnumString, EnumVariantNames)]
 pub enum Primitive {
     /// Solid triangle primitive.
     Triangle {
@@ -166,7 +167,7 @@ pub struct VectorImage {
     /// Base widget of the image.
     pub widget: Widget,
     /// Current set of primitives that will be drawn.
-    pub primitives: Vec<Primitive>,
+    pub primitives: InheritableVariable<Vec<Primitive>>,
 }
 
 crate::define_widget_deref!(VectorImage);
@@ -270,7 +271,7 @@ impl VectorImageBuilder {
     pub fn build_node(self) -> UiNode {
         let image = VectorImage {
             widget: self.widget_builder.build(),
-            primitives: self.primitives,
+            primitives: self.primitives.into(),
         };
         UiNode::new(image)
     }
