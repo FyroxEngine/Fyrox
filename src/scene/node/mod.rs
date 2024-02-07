@@ -355,6 +355,10 @@ impl SceneGraphNode for Node {
     fn children(&self) -> &[Handle<Self>] {
         &self.children
     }
+
+    fn children_mut(&mut self) -> &mut [Handle<Self>] {
+        &mut self.children
+    }
 }
 
 impl NameProvider for Node {

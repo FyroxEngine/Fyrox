@@ -386,6 +386,29 @@ pub trait SceneGraphNode:
     fn self_handle(&self) -> Handle<Self>;
     fn parent(&self) -> Handle<Self>;
     fn children(&self) -> &[Handle<Self>];
+    fn children_mut(&mut self) -> &mut [Handle<Self>];
+
+    #[inline]
+    fn set_child_position(&mut self, child: Handle<Self>, pos: usize) -> Option<usize> {
+        let children = self.children_mut();
+
+        if pos >= children.len() {
+            return None;
+        }
+
+        if let Some(current_position) = children.iter().position(|c| *c == child) {
+            children.swap(current_position, pos);
+
+            Some(current_position)
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    fn has_child(&self, child: Handle<Self>) -> bool {
+        self.children().contains(&child)
+    }
 
     fn revert_inheritable_property(&mut self, path: &str) -> Option<Box<dyn Reflect>> {
         let mut previous_value = None;
@@ -1302,6 +1325,10 @@ mod test {
 
         fn children(&self) -> &[Handle<Self>] {
             &self.base.children
+        }
+
+        fn children_mut(&mut self) -> &mut [Handle<Self>] {
+            &mut self.base.children
         }
     }
 
