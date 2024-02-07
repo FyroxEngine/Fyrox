@@ -406,6 +406,11 @@ pub trait SceneGraphNode:
     }
 
     #[inline]
+    fn child_position(&self, child: Handle<Self>) -> Option<usize> {
+        self.children().iter().position(|c| *c == child)
+    }
+
+    #[inline]
     fn has_child(&self, child: Handle<Self>) -> bool {
         self.children().contains(&child)
     }
@@ -867,6 +872,33 @@ pub trait SceneGraph: Sized + 'static {
             graph: self,
             stack: vec![from],
         }
+    }
+
+    /// Returns position of the node in its parent children list and the handle to the parent. Adds
+    /// given `offset` to the position. For example, if you have the following hierarchy:
+    ///
+    /// ```text
+    /// A_
+    ///  |B
+    ///  |C
+    /// ```
+    ///
+    /// Calling this method with a handle of `C` will return `Some((handle_of(A), 1))`. The returned
+    /// value will be clamped in the `0..parent_child_count` range. `None` will be returned only if
+    /// the given handle is invalid, or it is the root node.
+    #[inline]
+    fn relative_position(
+        &self,
+        child: Handle<Self::Node>,
+        offset: usize,
+    ) -> Option<(Handle<Self::Node>, usize)> {
+        let parents_parent_handle = self.try_get(child)?.parent();
+        let parents_parent_ref = self.try_get(parents_parent_handle)?;
+        let position = parents_parent_ref.child_position(child)?;
+        Some((
+            parents_parent_handle,
+            (position + offset).min(parents_parent_ref.children().len()),
+        ))
     }
 
     /// This method checks integrity of the graph and restores it if needed. For example, if a node
