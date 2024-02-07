@@ -250,6 +250,9 @@ pub trait Control:
     /// for [`DrawingContext`] for more info.
     fn draw(&self, #[allow(unused_variables)] drawing_context: &mut DrawingContext) {}
 
+    /// The same as [`Self::draw`], but it runs after all descendant widgets are rendered.
+    fn post_draw(&self, #[allow(unused_variables)] drawing_context: &mut DrawingContext) {}
+
     /// This method is called every frame and can be used to update internal variables of the widget, that
     /// can be used to animated your widget. Its main difference from other methods, is that it does **not**
     /// provide access to any other widget in the UI. Instead, you can only send messages to widgets to

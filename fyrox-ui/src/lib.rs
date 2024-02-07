@@ -774,8 +774,6 @@ fn draw_node(
         return;
     }
 
-    let start_index = drawing_context.get_commands().len();
-
     let pushed = if !is_node_enabled(nodes, node_handle) {
         drawing_context.push_opacity(0.4);
         true
@@ -788,11 +786,14 @@ fn draw_node(
 
     drawing_context.transform_stack.push(node.visual_transform);
 
-    node.draw(drawing_context);
-
-    let end_index = drawing_context.get_commands().len();
-    for i in start_index..end_index {
-        node.command_indices.borrow_mut().push(i);
+    // Draw
+    {
+        let start_index = drawing_context.get_commands().len();
+        node.draw(drawing_context);
+        let end_index = drawing_context.get_commands().len();
+        node.command_indices
+            .borrow_mut()
+            .extend(start_index..end_index);
     }
 
     // Continue on children
@@ -801,6 +802,16 @@ fn draw_node(
         if !nodes[child_node].is_draw_on_top() {
             draw_node(nodes, child_node, drawing_context);
         }
+    }
+
+    // Post draw.
+    {
+        let start_index = drawing_context.get_commands().len();
+        node.post_draw(drawing_context);
+        let end_index = drawing_context.get_commands().len();
+        node.command_indices
+            .borrow_mut()
+            .extend(start_index..end_index);
     }
 
     drawing_context.transform_stack.pop();
