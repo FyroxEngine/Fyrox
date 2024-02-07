@@ -8,7 +8,7 @@ use crate::{
         },
         selection::UiSelection,
     },
-    world::WorldViewerDataProvider,
+    world::{graph::item::DropAnchor, WorldViewerDataProvider},
 };
 use fyrox::{
     asset::{manager::ResourceManager, untyped::UntypedResource},
@@ -50,6 +50,16 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
             .try_get(node.into())
             .map(|n| n.children.len())
             .unwrap_or_default()
+    }
+
+    fn nth_child(&self, node: ErasedHandle, i: usize) -> ErasedHandle {
+        self.ui
+            .node(node.into())
+            .children()
+            .get(i)
+            .cloned()
+            .unwrap_or_default()
+            .into()
     }
 
     fn is_node_has_child(&self, node: ErasedHandle, child: ErasedHandle) -> bool {
@@ -102,7 +112,12 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
         }
     }
 
-    fn on_change_hierarchy_request(&self, child: ErasedHandle, parent: ErasedHandle) {
+    fn on_change_hierarchy_request(
+        &self,
+        child: ErasedHandle,
+        parent: ErasedHandle,
+        _anchor: DropAnchor, // TODO
+    ) {
         let child: Handle<UiNode> = child.into();
         let parent: Handle<UiNode> = parent.into();
 

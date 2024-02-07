@@ -66,7 +66,7 @@ impl GameSceneCommand {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CommandGroup {
     commands: Vec<GameSceneCommand>,
     custom_name: String,
@@ -82,13 +82,21 @@ impl From<Vec<GameSceneCommand>> for CommandGroup {
 }
 
 impl CommandGroup {
-    pub fn push(&mut self, command: GameSceneCommand) {
-        self.commands.push(command)
+    pub fn push<C: GameSceneCommandTrait>(&mut self, command: C) {
+        self.commands.push(GameSceneCommand::new(command))
     }
 
     pub fn with_custom_name<S: AsRef<str>>(mut self, name: S) -> Self {
         self.custom_name = name.as_ref().to_string();
         self
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.commands.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.commands.len()
     }
 }
 
@@ -175,7 +183,7 @@ pub fn make_delete_selection_command(
     let root_nodes = selection.root_nodes(graph);
 
     for root_node in root_nodes {
-        command_group.push(GameSceneCommand::new(DeleteSubGraphCommand::new(root_node)));
+        command_group.push(DeleteSubGraphCommand::new(root_node));
     }
 
     GameSceneCommand::new(command_group)

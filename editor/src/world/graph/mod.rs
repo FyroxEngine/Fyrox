@@ -1,3 +1,4 @@
+use crate::scene::commands::graph::SetGraphNodeChildPosition;
 use crate::{
     load_image,
     message::MessageSender,
@@ -8,8 +9,12 @@ use crate::{
         },
         GameScene, Selection,
     },
-    world::{graph::selection::GraphSelection, WorldViewerDataProvider},
+    world::{
+        graph::{item::DropAnchor, selection::GraphSelection},
+        WorldViewerDataProvider,
+    },
 };
+use fyrox::graph::SceneGraphNode;
 use fyrox::{
     asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
@@ -65,6 +70,17 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
             .graph
             .try_get(node.into())
             .map_or(0, |node| node.children().len())
+    }
+
+    fn nth_child(&self, node: ErasedHandle, i: usize) -> ErasedHandle {
+        self.scene
+            .graph
+            .node(node.into())
+            .children()
+            .get(i)
+            .cloned()
+            .unwrap_or_default()
+            .into()
     }
 
     fn is_node_has_child(&self, node: ErasedHandle, child: ErasedHandle) -> bool {
@@ -129,37 +145,59 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
         }
     }
 
-    fn on_change_hierarchy_request(&self, child: ErasedHandle, parent: ErasedHandle) {
+    fn on_change_hierarchy_request(
+        &self,
+        child: ErasedHandle,
+        parent: ErasedHandle,
+        anchor: DropAnchor,
+    ) {
         let child: Handle<Node> = child.into();
         let parent: Handle<Node> = parent.into();
 
         if let Selection::Graph(ref selection) = self.selection {
             if selection.nodes.contains(&child) {
-                let mut commands = Vec::new();
+                let mut commands = CommandGroup::default();
 
-                for &node_handle in selection.nodes.iter() {
+                'selection_loop: for &node_handle in selection.nodes.iter() {
                     // Make sure we won't create any loops - child must not have parent in its
                     // descendants.
-                    let mut attach = true;
                     let mut p = parent;
                     while p.is_some() {
                         if p == node_handle {
-                            attach = false;
-                            break;
+                            continue 'selection_loop;
                         }
                         p = self.scene.graph[p].parent();
                     }
 
-                    if attach {
-                        commands.push(GameSceneCommand::new(LinkNodesCommand::new(
-                            node_handle,
-                            parent,
-                        )));
+                    match anchor {
+                        DropAnchor::Side { index_offset, .. } => {
+                            if let Some((parents_parent, position)) =
+                                self.scene.graph.relative_position(parent, index_offset)
+                            {
+                                if let Some(node) = self.scene.graph.try_get(node_handle) {
+                                    if node.parent() != parents_parent {
+                                        commands.push(LinkNodesCommand::new(
+                                            node_handle,
+                                            parents_parent,
+                                        ));
+                                    }
+                                }
+
+                                commands.push(SetGraphNodeChildPosition {
+                                    node: parents_parent,
+                                    child: node_handle,
+                                    position,
+                                });
+                            }
+                        }
+                        DropAnchor::OnTop => {
+                            commands.push(LinkNodesCommand::new(node_handle, parent));
+                        }
                     }
                 }
 
                 if !commands.is_empty() {
-                    self.sender.do_scene_command(CommandGroup::from(commands));
+                    self.sender.do_scene_command(commands);
                 }
             }
         }

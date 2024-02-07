@@ -5,7 +5,7 @@ use crate::{
     message::MessageSender,
     send_sync_message,
     utils::window_content,
-    world::graph::item::{SceneItem, SceneItemBuilder, SceneItemMessage},
+    world::graph::item::{DropAnchor, SceneItem, SceneItemBuilder, SceneItemMessage},
     Mode, Settings,
 };
 use fyrox::{
@@ -61,6 +61,8 @@ pub trait WorldViewerDataProvider {
 
     fn child_count_of(&self, node: ErasedHandle) -> usize;
 
+    fn nth_child(&self, node: ErasedHandle, i: usize) -> ErasedHandle;
+
     fn is_node_has_child(&self, node: ErasedHandle, child: ErasedHandle) -> bool;
 
     fn parent_of(&self, node: ErasedHandle) -> ErasedHandle;
@@ -75,7 +77,12 @@ pub trait WorldViewerDataProvider {
 
     fn selection(&self) -> Vec<ErasedHandle>;
 
-    fn on_change_hierarchy_request(&self, child: ErasedHandle, parent: ErasedHandle);
+    fn on_change_hierarchy_request(
+        &self,
+        child: ErasedHandle,
+        parent: ErasedHandle,
+        anchor: DropAnchor,
+    );
 
     fn on_asset_dropped(&mut self, path: PathBuf, node: ErasedHandle);
 
@@ -429,7 +436,8 @@ impl WorldViewer {
 
             if let Some(item) = ui_node.cast::<SceneItem>() {
                 let child_count = data_provider.child_count_of(node_handle);
-                let items = item.tree.items.clone();
+                let mut items = item.tree.items.clone();
+                let item_panel = item.tree.panel;
 
                 match child_count.cmp(&items.len()) {
                     Ordering::Less => {
@@ -495,10 +503,35 @@ impl WorldViewer {
                                         graph_node_item,
                                     ),
                                 );
+                                items.push(graph_node_item);
                                 self.node_to_view_map.insert(child_handle, graph_node_item);
                                 self.stack.push((graph_node_item, child_handle));
                             }
                         }
+                    }
+                }
+
+                // Check order
+                {
+                    let mut is_order_match = true;
+                    for (i, &child_tree) in items.iter().enumerate() {
+                        let child_node = tree_node(ui, child_tree);
+                        if is_order_match && data_provider.nth_child(node_handle, i) != child_node {
+                            is_order_match = false;
+                            break;
+                        }
+                    }
+
+                    if !is_order_match {
+                        let panel = ui.node_mut(item_panel);
+                        panel.children.clear();
+                        panel.children.extend(
+                            data_provider
+                                .children_of(node_handle)
+                                .into_iter()
+                                .map(|c| self.node_to_view_map.get(&c).cloned().unwrap()),
+                        );
+                        panel.invalidate_layout();
                     }
                 }
             } else if let Some(tree_root) = ui_node.cast::<TreeRoot>() {
@@ -752,7 +785,11 @@ impl WorldViewer {
                 ui.node(dropped).cast::<SceneItem>(),
                 ui.node(target).cast::<SceneItem>(),
             ) {
-                data_provider.on_change_hierarchy_request(child.entity_handle, parent.entity_handle)
+                data_provider.on_change_hierarchy_request(
+                    child.entity_handle,
+                    parent.entity_handle,
+                    parent.drop_anchor,
+                )
             }
         }
     }

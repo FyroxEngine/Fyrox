@@ -11,6 +11,7 @@ use fyrox_core::{
     ComponentProvider, NameProvider,
 };
 use fyrox_resource::{untyped::UntypedResource, Resource, TypedResourceData};
+use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::{
     any::TypeId,
@@ -388,8 +389,9 @@ pub trait SceneGraphNode:
     fn children(&self) -> &[Handle<Self>];
     fn children_mut(&mut self) -> &mut [Handle<Self>];
 
+    /// Puts the given `child` handle to the given position `pos`, by swapping positions.
     #[inline]
-    fn set_child_position(&mut self, child: Handle<Self>, pos: usize) -> Option<usize> {
+    fn swap_child_position(&mut self, child: Handle<Self>, pos: usize) -> Option<usize> {
         let children = self.children_mut();
 
         if pos >= children.len() {
@@ -400,6 +402,41 @@ pub trait SceneGraphNode:
             children.swap(current_position, pos);
 
             Some(current_position)
+        } else {
+            None
+        }
+    }
+
+    #[inline]
+    fn set_child_position(&mut self, child: Handle<Self>, dest_pos: usize) -> Option<usize> {
+        let children = self.children_mut();
+
+        if dest_pos >= children.len() {
+            return None;
+        }
+
+        if let Some(mut current_position) = children.iter().position(|c| *c == child) {
+            let prev_position = current_position;
+
+            match current_position.cmp(&dest_pos) {
+                Ordering::Less => {
+                    while current_position != dest_pos {
+                        let next = current_position.saturating_add(1);
+                        children.swap(current_position, next);
+                        current_position = next;
+                    }
+                }
+                Ordering::Equal => {}
+                Ordering::Greater => {
+                    while current_position != dest_pos {
+                        let prev = current_position.saturating_sub(1);
+                        children.swap(current_position, prev);
+                        current_position = prev;
+                    }
+                }
+            }
+
+            Some(prev_position)
         } else {
             None
         }
@@ -890,14 +927,14 @@ pub trait SceneGraph: Sized + 'static {
     fn relative_position(
         &self,
         child: Handle<Self::Node>,
-        offset: usize,
+        offset: isize,
     ) -> Option<(Handle<Self::Node>, usize)> {
         let parents_parent_handle = self.try_get(child)?.parent();
         let parents_parent_ref = self.try_get(parents_parent_handle)?;
         let position = parents_parent_ref.child_position(child)?;
         Some((
             parents_parent_handle,
-            (position + offset).min(parents_parent_ref.children().len()),
+            ((position as isize + offset) as usize).clamp(0, parents_parent_ref.children().len()),
         ))
     }
 
@@ -1503,6 +1540,57 @@ mod test {
         fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
             self.nodes.try_borrow_mut(handle)
         }
+    }
+
+    #[test]
+    fn test_set_child_position() {
+        let mut graph = Graph::default();
+
+        let root = graph.add_node(Node::default());
+        let a = graph.add_node(Node::default());
+        let b = graph.add_node(Node::default());
+        let c = graph.add_node(Node::default());
+        let d = graph.add_node(Node::default());
+        graph.link_nodes(a, root);
+        graph.link_nodes(b, root);
+        graph.link_nodes(c, root);
+        graph.link_nodes(d, root);
+
+        let root_ref = &mut graph[root];
+        assert_eq!(root_ref.set_child_position(a, 0), Some(0));
+        assert_eq!(root_ref.set_child_position(b, 1), Some(1));
+        assert_eq!(root_ref.set_child_position(c, 2), Some(2));
+        assert_eq!(root_ref.set_child_position(d, 3), Some(3));
+        assert_eq!(root_ref.children[0], a);
+        assert_eq!(root_ref.children[1], b);
+        assert_eq!(root_ref.children[2], c);
+        assert_eq!(root_ref.children[3], d);
+
+        let initial_pos = root_ref.set_child_position(a, 3);
+        assert_eq!(initial_pos, Some(0));
+        assert_eq!(root_ref.children[0], b);
+        assert_eq!(root_ref.children[1], c);
+        assert_eq!(root_ref.children[2], d);
+        assert_eq!(root_ref.children[3], a);
+
+        let prev_pos = root_ref.set_child_position(a, initial_pos.unwrap());
+        assert_eq!(prev_pos, Some(3));
+        assert_eq!(root_ref.children[0], a);
+        assert_eq!(root_ref.children[1], b);
+        assert_eq!(root_ref.children[2], c);
+        assert_eq!(root_ref.children[3], d);
+
+        assert_eq!(root_ref.set_child_position(d, 1), Some(3));
+        assert_eq!(root_ref.children[0], a);
+        assert_eq!(root_ref.children[1], d);
+        assert_eq!(root_ref.children[2], b);
+        assert_eq!(root_ref.children[3], c);
+
+        assert_eq!(root_ref.set_child_position(d, 0), Some(1));
+        assert_eq!(root_ref.children[0], d);
+        assert_eq!(root_ref.children[1], a);
+        assert_eq!(root_ref.children[2], b);
+        assert_eq!(root_ref.children[3], c);
     }
 
     #[test]

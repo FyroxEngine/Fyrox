@@ -2,7 +2,7 @@ use crate::{
     command::GameSceneCommandTrait, scene::commands::GameSceneContext, scene::Selection,
     world::graph::selection::GraphSelection, Message,
 };
-use fyrox::graph::{LinkScheme, SceneGraph};
+use fyrox::graph::{LinkScheme, SceneGraph, SceneGraphNode};
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},
@@ -181,6 +181,36 @@ impl GameSceneCommandTrait for LinkNodesCommand {
 
     fn revert(&mut self, context: &mut GameSceneContext) {
         self.link(&mut context.scene.graph);
+    }
+}
+
+#[derive(Debug)]
+pub struct SetGraphNodeChildPosition {
+    pub node: Handle<Node>,
+    pub child: Handle<Node>,
+    pub position: usize,
+}
+
+impl SetGraphNodeChildPosition {
+    fn swap(&mut self, context: &mut GameSceneContext) {
+        let prev_pos = context.scene.graph[self.node]
+            .set_child_position(self.child, self.position)
+            .unwrap();
+        self.position = prev_pos;
+    }
+}
+
+impl GameSceneCommandTrait for SetGraphNodeChildPosition {
+    fn name(&mut self, _context: &GameSceneContext) -> String {
+        "Set Child Position".to_string()
+    }
+
+    fn execute(&mut self, context: &mut GameSceneContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut GameSceneContext) {
+        self.swap(context)
     }
 }
 
