@@ -92,9 +92,7 @@ impl UiSelection {
         let root_nodes = self.root_widgets(ui);
 
         for root_node in root_nodes {
-            command_group.push(UiSceneCommand::new(DeleteWidgetsSubGraphCommand::new(
-                root_node,
-            )));
+            command_group.push(DeleteWidgetsSubGraphCommand::new(root_node));
         }
 
         UiSceneCommand::new(command_group)

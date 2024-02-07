@@ -1,3 +1,4 @@
+use crate::ui_scene::commands::graph::SetWidgetChildPosition;
 use crate::{
     message::MessageSender,
     scene::Selection,
@@ -116,39 +117,55 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
         &self,
         child: ErasedHandle,
         parent: ErasedHandle,
-        _anchor: DropAnchor, // TODO
+        anchor: DropAnchor,
     ) {
         let child: Handle<UiNode> = child.into();
         let parent: Handle<UiNode> = parent.into();
 
         if let Selection::Ui(ref selection) = self.selection {
             if selection.widgets.contains(&child) {
-                let mut commands = Vec::new();
+                let mut commands = UiCommandGroup::default();
 
-                for &widget_handle in selection.widgets.iter() {
+                'selection_loop: for &widget_handle in selection.widgets.iter() {
                     // Make sure we won't create any loops - child must not have parent in its
                     // descendants.
-                    let mut attach = true;
                     let mut p = parent;
                     while p.is_some() {
                         if p == widget_handle {
-                            attach = false;
-                            break;
+                            continue 'selection_loop;
                         }
                         p = self.ui.node(p).parent();
                     }
 
-                    if attach {
-                        commands.push(UiSceneCommand::new(LinkWidgetsCommand::new(
-                            widget_handle,
-                            parent,
-                        )));
+                    match anchor {
+                        DropAnchor::Side { index_offset, .. } => {
+                            if let Some((parents_parent, position)) =
+                                self.ui.relative_position(parent, index_offset)
+                            {
+                                if let Some(node) = self.ui.try_get(widget_handle) {
+                                    if node.parent() != parents_parent {
+                                        commands.push(LinkWidgetsCommand::new(
+                                            widget_handle,
+                                            parents_parent,
+                                        ));
+                                    }
+                                }
+
+                                commands.push(SetWidgetChildPosition {
+                                    node: parents_parent,
+                                    child: widget_handle,
+                                    position,
+                                });
+                            }
+                        }
+                        DropAnchor::OnTop => {
+                            commands.push(LinkWidgetsCommand::new(widget_handle, parent));
+                        }
                     }
                 }
 
                 if !commands.is_empty() {
-                    self.sender
-                        .do_ui_scene_command(UiCommandGroup::from(commands));
+                    self.sender.do_ui_scene_command(commands);
                 }
             }
         }

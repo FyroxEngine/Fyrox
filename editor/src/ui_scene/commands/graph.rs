@@ -9,7 +9,7 @@ use crate::{
     },
     Message,
 };
-use fyrox::graph::{LinkScheme, SceneGraph};
+use fyrox::graph::{LinkScheme, SceneGraph, SceneGraphNode};
 use fyrox::{
     core::pool::Handle,
     gui::{SubGraph, UiNode, UserInterface},
@@ -333,5 +333,37 @@ impl UiCommand for SetUiRootCommand {
         ctx.ui
             .apply_link_scheme(std::mem::take(&mut self.link_scheme));
         self.root = self.link_scheme.root;
+    }
+}
+
+#[derive(Debug)]
+pub struct SetWidgetChildPosition {
+    pub node: Handle<UiNode>,
+    pub child: Handle<UiNode>,
+    pub position: usize,
+}
+
+impl SetWidgetChildPosition {
+    fn swap(&mut self, context: &mut UiSceneContext) {
+        let prev_pos = context
+            .ui
+            .node_mut(self.node)
+            .set_child_position(self.child, self.position)
+            .unwrap();
+        self.position = prev_pos;
+    }
+}
+
+impl UiCommand for SetWidgetChildPosition {
+    fn name(&mut self, _context: &UiSceneContext) -> String {
+        "Set Widget Position".to_string()
+    }
+
+    fn execute(&mut self, context: &mut UiSceneContext) {
+        self.swap(context)
+    }
+
+    fn revert(&mut self, context: &mut UiSceneContext) {
+        self.swap(context)
     }
 }

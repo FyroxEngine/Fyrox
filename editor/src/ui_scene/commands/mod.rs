@@ -51,7 +51,7 @@ impl UiSceneCommand {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct UiCommandGroup {
     commands: Vec<UiSceneCommand>,
     custom_name: String,
@@ -67,13 +67,21 @@ impl From<Vec<UiSceneCommand>> for UiCommandGroup {
 }
 
 impl UiCommandGroup {
-    pub fn push(&mut self, command: UiSceneCommand) {
-        self.commands.push(command)
+    pub fn push<C: UiCommand>(&mut self, command: C) {
+        self.commands.push(UiSceneCommand::new(command))
     }
 
     pub fn with_custom_name<S: AsRef<str>>(mut self, name: S) -> Self {
         self.custom_name = name.as_ref().to_string();
         self
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.commands.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.commands.len()
     }
 }
 
