@@ -291,10 +291,10 @@ impl SceneItemBuilder {
                 .with_child(
                     ImageBuilder::new(
                         WidgetBuilder::new()
-                            .with_width(16.0)
-                            .with_height(16.0)
+                            .with_width(14.0)
+                            .with_height(14.0)
                             .on_column(0)
-                            .with_margin(Thickness::uniform(1.0))
+                            .with_margin(Thickness::left_right(1.0))
                             .with_visibility(self.icon.is_some()),
                     )
                     .with_opt_texture(self.icon)
@@ -307,7 +307,7 @@ impl SceneItemBuilder {
                                 self.text_brush
                                     .unwrap_or(Brush::Solid(fyrox::gui::COLOR_FOREGROUND)),
                             )
-                            .with_margin(Thickness::uniform(1.0))
+                            .with_margin(Thickness::left(1.0))
                             .on_column(1)
                             .with_vertical_alignment(VerticalAlignment::Center),
                     )

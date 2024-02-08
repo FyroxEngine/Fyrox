@@ -130,12 +130,7 @@ fn make_graph_node_item(
     SceneItemBuilder::new(
         TreeBuilder::new(
             WidgetBuilder::new()
-                .with_margin(Thickness {
-                    left: 1.0,
-                    top: 1.0,
-                    right: 0.0,
-                    bottom: 0.0,
-                })
+                .with_margin(Thickness::left(1.0))
                 .with_context_menu(context_menu),
         )
         .with_expanded(is_expanded),
