@@ -102,17 +102,17 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
         // all icons are able to be used freely
         // todo: add more icons
         if node.cast::<Canvas>().is_some() {
-            return load_image(include_bytes!("../../resources/canvas-icon.png"));
+            load_image(include_bytes!("../../resources/canvas-icon.png"))
         } else if node.cast::<Screen>().is_some() {
-            return load_image(include_bytes!("../../resources/screen-icon.png"));
+            load_image(include_bytes!("../../resources/screen-icon.png"))
         } else if node.cast::<Grid>().is_some() {
-            return load_image(include_bytes!("../../resources/grid-icon.png"));
+            load_image(include_bytes!("../../resources/grid-icon.png"))
         } else if node.cast::<Text>().is_some() {
-            return load_image(include_bytes!("../../resources/text-icon.png"));
+            load_image(include_bytes!("../../resources/text-icon.png"))
         } else if node.cast::<Button>().is_some() {
-            return load_image(include_bytes!("../../resources/button-icon.png"));
+            load_image(include_bytes!("../../resources/button-icon.png"))
         } else {
-            return None;
+            None
         }
     }
 
