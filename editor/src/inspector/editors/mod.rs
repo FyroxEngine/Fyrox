@@ -23,6 +23,7 @@ use fyrox::{
         parking_lot::Mutex,
         pool::{ErasedHandle, Handle},
     },
+    gui,
     gui::inspector::editors::{
         bit::BitFieldPropertyEditorDefinition, collection::VecCollectionPropertyEditorDefinition,
         enumeration::EnumPropertyEditorDefinition, inherit::InheritablePropertyEditorDefinition,
@@ -43,8 +44,9 @@ use fyrox::{
             TextureResource, TextureWrapMode,
         },
     },
+    scene,
     scene::{
-        animation::{absm::prelude::*, prelude::*},
+        animation::absm::prelude::*,
         base::{Base, LevelOfDetail, LodGroup, Mobility, Property, PropertyValue},
         camera::{
             ColorGradingLut, Exposure, OrthographicProjection, PerspectiveProjection, Projection,
@@ -367,11 +369,30 @@ pub fn make_property_editors_container(sender: MessageSender) -> PropertyEditorD
     container.insert(InspectablePropertyEditorDefinition::<Handle<PoseNode>>::new());
     container.insert(InspectablePropertyEditorDefinition::<Handle<State>>::new());
 
-    container.insert(VecCollectionPropertyEditorDefinition::<Handle<Animation>>::new());
-    container.insert(AnimationPropertyEditorDefinition);
+    container.insert(VecCollectionPropertyEditorDefinition::<
+        Handle<scene::animation::Animation>,
+    >::new());
+    container.insert(AnimationPropertyEditorDefinition::<
+        scene::animation::Animation,
+    >::default());
 
-    container.insert(AnimationContainerPropertyEditorDefinition);
-    container.insert(InheritablePropertyEditorDefinition::<AnimationContainer>::new());
+    container.insert(VecCollectionPropertyEditorDefinition::<
+        Handle<gui::animation::Animation>,
+    >::new());
+    container.insert(AnimationPropertyEditorDefinition::<gui::animation::Animation>::default());
+
+    container.insert(AnimationContainerPropertyEditorDefinition::<
+        scene::animation::AnimationContainer,
+    >::default());
+    container.insert(AnimationContainerPropertyEditorDefinition::<
+        gui::animation::AnimationContainer,
+    >::default());
+    container.insert(InheritablePropertyEditorDefinition::<
+        scene::animation::AnimationContainer,
+    >::new());
+    container.insert(InheritablePropertyEditorDefinition::<
+        gui::animation::AnimationContainer,
+    >::new());
 
     container.insert(MachinePropertyEditorDefinition);
     container.insert(InheritablePropertyEditorDefinition::<Machine>::new());

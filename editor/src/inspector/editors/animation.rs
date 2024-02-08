@@ -16,23 +16,45 @@ use fyrox::{
         message::{MessageDirection, UiMessage},
         widget::WidgetBuilder,
     },
-    scene::{animation::absm::prelude::*, animation::prelude::*},
+    scene::animation::absm::prelude::*,
 };
-use std::any::TypeId;
+use std::{
+    any::TypeId,
+    fmt::{Debug, Formatter},
+    marker::PhantomData,
+};
 
-#[derive(Debug)]
-pub struct AnimationPropertyEditorDefinition;
+pub struct AnimationPropertyEditorDefinition<T> {
+    phantom: PhantomData<T>,
+}
 
-impl PropertyEditorDefinition for AnimationPropertyEditorDefinition {
+impl<T> Debug for AnimationPropertyEditorDefinition<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "AnimationPropertyEditorDefinition")
+    }
+}
+
+impl<T> Default for AnimationPropertyEditorDefinition<T> {
+    fn default() -> Self {
+        Self {
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<T> PropertyEditorDefinition for AnimationPropertyEditorDefinition<T>
+where
+    T: Send + Sync + 'static,
+{
     fn value_type_id(&self) -> TypeId {
-        TypeId::of::<Handle<Animation>>()
+        TypeId::of::<Handle<T>>()
     }
 
     fn create_instance(
         &self,
         ctx: PropertyEditorBuildContext,
     ) -> Result<PropertyEditorInstance, InspectorError> {
-        let value = ctx.property_info.cast_value::<Handle<Animation>>()?;
+        let value = ctx.property_info.cast_value::<Handle<T>>()?;
         if let Some(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
             Ok(PropertyEditorInstance::Simple {
                 editor: DropdownListBuilder::new(WidgetBuilder::new())
@@ -55,7 +77,13 @@ impl PropertyEditorDefinition for AnimationPropertyEditorDefinition {
                             .available_animations
                             .iter()
                             .enumerate()
-                            .find_map(|(i, d)| if d.handle == *value { Some(i) } else { None }),
+                            .find_map(|(i, d)| {
+                                if *value == d.handle.into() {
+                                    Some(i)
+                                } else {
+                                    None
+                                }
+                            }),
                     )
                     .build(ctx.build_context),
             })
@@ -68,12 +96,12 @@ impl PropertyEditorDefinition for AnimationPropertyEditorDefinition {
         &self,
         ctx: PropertyEditorMessageContext,
     ) -> Result<Option<UiMessage>, InspectorError> {
-        let value = ctx.property_info.cast_value::<Handle<Animation>>()?;
+        let value = ctx.property_info.cast_value::<Handle<T>>()?;
         if let Some(environment) = EditorEnvironment::try_get_from(&ctx.environment) {
             if let Some(index) = environment
                 .available_animations
                 .iter()
-                .position(|d| d.handle == *value)
+                .position(|d| *value == d.handle.into())
             {
                 Ok(Some(DropdownListMessage::selection(
                     ctx.instance,
@@ -98,7 +126,7 @@ impl PropertyEditorDefinition for AnimationPropertyEditorDefinition {
                         return Some(PropertyChanged {
                             name: ctx.name.to_string(),
                             owner_type_id: ctx.owner_type_id,
-                            value: FieldKind::object(definition.handle),
+                            value: FieldKind::object(Handle::<T>::from(definition.handle)),
                         });
                     }
                 }
@@ -108,12 +136,30 @@ impl PropertyEditorDefinition for AnimationPropertyEditorDefinition {
     }
 }
 
-#[derive(Debug)]
-pub struct AnimationContainerPropertyEditorDefinition;
+pub struct AnimationContainerPropertyEditorDefinition<T> {
+    phantom: PhantomData<T>,
+}
 
-impl PropertyEditorDefinition for AnimationContainerPropertyEditorDefinition {
+impl<T> Debug for AnimationContainerPropertyEditorDefinition<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "AnimationContainerPropertyEditorDefinition")
+    }
+}
+
+impl<T> Default for AnimationContainerPropertyEditorDefinition<T> {
+    fn default() -> Self {
+        Self {
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<T> PropertyEditorDefinition for AnimationContainerPropertyEditorDefinition<T>
+where
+    T: Send + Sync + 'static,
+{
     fn value_type_id(&self) -> TypeId {
-        TypeId::of::<AnimationContainer>()
+        TypeId::of::<T>()
     }
 
     fn create_instance(

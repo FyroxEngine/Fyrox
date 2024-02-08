@@ -3,6 +3,7 @@ use crate::{
     menu::create_menu_item, message::MessageSender, ui_scene::commands::graph::AddWidgetCommand,
     ui_scene::UiScene,
 };
+use fyrox::gui::animation::AnimationPlayerBuilder;
 use fyrox::gui::screen::ScreenBuilder;
 use fyrox::{
     core::pool::Handle,
@@ -187,6 +188,9 @@ impl UiMenu {
             }),
             UiMenuEntry::new("WrapPanel", |name, ctx| {
                 WrapPanelBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
+            }),
+            UiMenuEntry::new("AnimationPlayer", |name, ctx| {
+                AnimationPlayerBuilder::new(WidgetBuilder::new().with_name(name)).build(ctx)
             }),
         ]
     }

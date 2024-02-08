@@ -19,15 +19,15 @@ use crate::{
 use fyrox_graph::SceneGraph;
 use std::ops::{Deref, DerefMut};
 
-/// Scene specific animation.
+/// UI-specific animation.
 pub type Animation = crate::generic_animation::Animation<Handle<UiNode>>;
-/// Scene specific animation track.
+/// UI-specific animation track.
 pub type Track = crate::generic_animation::track::Track<Handle<UiNode>>;
-/// Scene specific animation container.
+/// UI-specific animation container.
 pub type AnimationContainer = crate::generic_animation::AnimationContainer<Handle<UiNode>>;
-/// Scene specific animation pose.
+/// UI-specific animation pose.
 pub type AnimationPose = crate::generic_animation::AnimationPose<Handle<UiNode>>;
-/// Scene specific animation node pose.
+/// UI-specific animation node pose.
 pub type NodePose = crate::generic_animation::NodePose<Handle<UiNode>>;
 
 /// Standard prelude for animations, that contains all most commonly used types and traits.
@@ -65,7 +65,7 @@ impl AnimationContainerExt for AnimationContainer {
 
 /// Extension trait for [`AnimationPose`].
 pub trait AnimationPoseExt {
-    /// Tries to set each value to the each property from the animation pose to respective scene nodes.
+    /// Tries to set each value to the each property from the animation pose to respective widgets.
     fn apply(&self, ui: &mut UserInterface);
 }
 
@@ -83,7 +83,8 @@ impl AnimationPoseExt for AnimationPose {
 
 /// Extension trait for [`BoundValueCollection`].
 pub trait BoundValueCollectionExt {
-    /// Tries to set each value from the collection to the respective property (by binding) of the given scene node.
+    /// Tries to set each value from the collection to the respective property (by binding) of the
+    /// given widget.
     fn apply(&self, node_ref: &mut UiNode);
 }
 
@@ -221,7 +222,7 @@ impl AnimationPlayerBuilder {
         })
     }
 
-    /// Creates an instance of [`AnimationPlayer`] node and adds it to the given scene graph.
+    /// Creates an instance of [`AnimationPlayer`] node and adds it to the given user interface.
     pub fn build(self, ctx: &mut BuildContext) -> Handle<UiNode> {
         ctx.add_node(self.build_node())
     }
