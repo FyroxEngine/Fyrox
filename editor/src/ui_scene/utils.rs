@@ -1,3 +1,4 @@
+use crate::load_image;
 use crate::ui_scene::commands::graph::SetWidgetChildPosition;
 use crate::{
     message::MessageSender,
@@ -11,6 +12,11 @@ use crate::{
     },
     world::{graph::item::DropAnchor, WorldViewerDataProvider},
 };
+use fyrox::gui::button::Button;
+use fyrox::gui::canvas::Canvas;
+use fyrox::gui::grid::Grid;
+use fyrox::gui::screen::Screen;
+use fyrox::gui::text::Text;
 use fyrox::{
     asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
@@ -90,9 +96,24 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
         self.ui.try_get(node.into()).is_some()
     }
 
-    fn icon_of(&self, _node: ErasedHandle) -> Option<UntypedResource> {
-        // TODO
-        None
+    fn icon_of(&self, node: ErasedHandle) -> Option<UntypedResource> {
+        let node: &UiNode = self.ui.try_get(node.into()).unwrap();
+
+        // all icons are able to be used freely
+        // todo: add more icons
+        if node.cast::<Canvas>().is_some() {
+            load_image(include_bytes!("../../resources/canvas-icon.png"))
+        } else if node.cast::<Screen>().is_some() {
+            load_image(include_bytes!("../../resources/screen-icon.png"))
+        } else if node.cast::<Grid>().is_some() {
+            load_image(include_bytes!("../../resources/grid-icon.png"))
+        } else if node.cast::<Text>().is_some() {
+            load_image(include_bytes!("../../resources/text-icon.png"))
+        } else if node.cast::<Button>().is_some() {
+            load_image(include_bytes!("../../resources/button-icon.png"))
+        } else {
+            None
+        }
     }
 
     fn is_instance(&self, node: ErasedHandle) -> bool {
