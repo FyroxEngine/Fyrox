@@ -208,7 +208,7 @@ impl Control for SceneItem {
                             if cursor_pos.y < deflated_bounds.y() {
                                 self.drop_anchor = DropAnchor::Side {
                                     visual_offset: 0.0,
-                                    index_offset: -1,
+                                    index_offset: 0,
                                 };
                             } else if deflated_bounds.contains(cursor_pos) {
                                 self.drop_anchor = DropAnchor::OnTop;
@@ -291,8 +291,8 @@ impl SceneItemBuilder {
                 .with_child(
                     ImageBuilder::new(
                         WidgetBuilder::new()
-                            .with_width(14.0)
-                            .with_height(14.0)
+                            .with_width(16.0)
+                            .with_height(16.0)
                             .on_column(0)
                             .with_margin(Thickness::left_right(1.0))
                             .with_visibility(self.icon.is_some()),
