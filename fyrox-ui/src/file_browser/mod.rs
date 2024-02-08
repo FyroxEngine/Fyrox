@@ -404,6 +404,7 @@ impl Control for FileBrowser {
                     message.destination(),
                     MessageDirection::ToWidget,
                     vec![],
+                    true,
                 ));
             }
         } else if let Some(WidgetMessage::Drop(dropped)) = message.data() {

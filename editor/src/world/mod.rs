@@ -437,11 +437,13 @@ impl WorldViewer {
             if let Some(item) = ui_node.cast::<SceneItem>() {
                 let child_count = data_provider.child_count_of(node_handle);
                 let mut items = item.tree.items.clone();
-                let item_panel = item.tree.panel;
 
                 match child_count.cmp(&items.len()) {
                     Ordering::Less => {
-                        for &item in items.iter() {
+                        let mut i = 0;
+                        while i < items.len() {
+                            let item = items[i];
+
                             let child_node = tree_node(ui, item);
                             if !data_provider.is_node_has_child(node_handle, child_node) {
                                 send_sync_message(
@@ -458,8 +460,10 @@ impl WorldViewer {
                                         self.node_to_view_map.remove(&child_node);
                                     }
                                 }
+                                items.remove(i);
                             } else {
                                 self.stack.push((item, child_node));
+                                i += 1;
                             }
                         }
                     }
@@ -515,23 +519,24 @@ impl WorldViewer {
                 {
                     let mut is_order_match = true;
                     for (i, &child_tree) in items.iter().enumerate() {
-                        let child_node = tree_node(ui, child_tree);
-                        if is_order_match && data_provider.nth_child(node_handle, i) != child_node {
+                        let nth_child = data_provider.nth_child(node_handle, i);
+                        if nth_child != tree_node(ui, child_tree) {
                             is_order_match = false;
                             break;
                         }
                     }
 
                     if !is_order_match {
-                        let panel = ui.node_mut(item_panel);
-                        panel.children.clear();
-                        panel.children.extend(
+                        ui.send_message(TreeMessage::set_items(
+                            tree_handle,
+                            MessageDirection::ToWidget,
                             data_provider
                                 .children_of(node_handle)
                                 .into_iter()
-                                .map(|c| self.node_to_view_map.get(&c).cloned().unwrap()),
-                        );
-                        panel.invalidate_layout();
+                                .map(|c| self.node_to_view_map.get(&c).cloned().unwrap())
+                                .collect(),
+                            false,
+                        ));
                     }
                 }
             } else if let Some(tree_root) = ui_node.cast::<TreeRoot>() {

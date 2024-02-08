@@ -59,7 +59,13 @@ pub enum TreeMessage {
     /// any child items.
     SetExpanderShown(bool),
     /// A message, that is use to specify a new set of children items of a tree.
-    SetItems(Vec<Handle<UiNode>>),
+    SetItems {
+        /// A set of handles to new tree items.
+        items: Vec<Handle<UiNode>>,
+        /// A flag, that defines whether the previous items should be deleted or not. `false` is
+        /// usually used to reorder existing items.
+        remove_previous: bool,
+    },
     // Private, do not use. For internal needs only. Use TreeRootMessage::Selected.
     #[doc(hidden)]
     Select(SelectionState),
@@ -84,7 +90,7 @@ impl TreeMessage {
     );
     define_constructor!(
         /// Creates [`TreeMessage::SetItems`] message.
-        TreeMessage:SetItems => fn set_items(Vec<Handle<UiNode >>), layout: false
+        TreeMessage:SetItems => fn set_items(items: Vec<Handle<UiNode>>, remove_previous: bool), layout: false
     );
     define_constructor!(
         /// Creates [`TreeMessage::Select`] message.
@@ -453,12 +459,17 @@ impl Control for Tree {
                             self.items.remove(pos);
                         }
                     }
-                    TreeMessage::SetItems(items) => {
-                        for &item in self.items.iter() {
-                            ui.send_message(WidgetMessage::remove(
-                                item,
-                                MessageDirection::ToWidget,
-                            ));
+                    TreeMessage::SetItems {
+                        items,
+                        remove_previous,
+                    } => {
+                        if *remove_previous {
+                            for &item in self.items.iter() {
+                                ui.send_message(WidgetMessage::remove(
+                                    item,
+                                    MessageDirection::ToWidget,
+                                ));
+                            }
                         }
                         for &item in items {
                             ui.send_message(WidgetMessage::link(
