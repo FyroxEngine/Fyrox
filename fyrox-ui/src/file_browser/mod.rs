@@ -750,7 +750,7 @@ fn build_all(
             entries.sort_unstable_by(sort_dir_entries);
             for entry in entries {
                 let path = entry.path();
-                #[allow(clippy::blocks_in_if_conditions)]
+                #[allow(clippy::blocks_in_conditions)]
                 if filter
                     .as_mut()
                     .map_or(true, |f| f.0.borrow_mut().deref_mut().lock()(&path))
