@@ -126,14 +126,14 @@ impl Control for SceneItem {
                 drawing_context.push_line(
                     Vector2::new(0.0, visual_offset),
                     Vector2::new(width, visual_offset),
-                    1.0,
+                    2.0,
                 );
             }
             DropAnchor::OnTop => {}
         }
         drawing_context.commit(
             self.clip_bounds().inflate(0.0, 2.0),
-            Brush::Solid(Color::GREEN),
+            Brush::Solid(Color::CORN_FLOWER_BLUE),
             CommandTexture::None,
             None,
         );
@@ -200,9 +200,9 @@ impl Control for SceneItem {
         } else if let Some(msg) = message.data::<WidgetMessage>() {
             match msg {
                 WidgetMessage::DragOver(_) => {
-                    if let Some(content) = ui.try_get(self.tree.content) {
+                    if let Some(background) = ui.try_get(self.tree.background) {
                         let cursor_pos = ui.cursor_position();
-                        let bounds = content.screen_bounds();
+                        let bounds = background.screen_bounds();
                         let deflated_bounds = bounds.deflate(0.0, 5.0);
                         if bounds.contains(cursor_pos) {
                             if cursor_pos.y < deflated_bounds.y() {
@@ -214,7 +214,7 @@ impl Control for SceneItem {
                                 self.drop_anchor = DropAnchor::OnTop;
                             } else if cursor_pos.y > deflated_bounds.y() + deflated_bounds.h() {
                                 self.drop_anchor = DropAnchor::Side {
-                                    visual_offset: bounds.h(),
+                                    visual_offset: bounds.h() - 1.0,
                                     index_offset: 0,
                                 };
                             }
