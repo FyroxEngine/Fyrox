@@ -184,6 +184,7 @@ pub use fyrox_core as core;
 use message::TouchPhase;
 
 mod alignment;
+pub mod animation;
 pub mod bit;
 pub mod border;
 pub mod brush;
@@ -295,6 +296,8 @@ use fyrox_core::log::Log;
 use fyrox_graph::{NodeHandleMap, NodeMapping, PrefabData, SceneGraph, SceneGraphNode};
 pub use node::*;
 pub use thickness::*;
+
+pub use fyrox_animation as generic_animation;
 
 // TODO: Make this part of UserInterface struct.
 pub const COLOR_COAL_BLACK: Color = Color::opaque(10, 10, 10);

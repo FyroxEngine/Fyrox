@@ -8,6 +8,7 @@ use crate::core::{
     reflect::prelude::*,
     visitor::prelude::*,
 };
+use fyrox_core::log::Log;
 use std::fmt::{Debug, Display, Formatter};
 
 /// An actual type of a property value.
@@ -303,6 +304,38 @@ impl BoundValue {
     pub fn blend_with(&mut self, other: &Self, weight: f32) {
         assert_eq!(self.binding, other.binding);
         self.value.blend_with(&other.value, weight);
+    }
+
+    /// Sets a property of the given object.
+    pub fn apply_to_object(
+        &self,
+        object: &mut dyn Reflect,
+        property_name: &str,
+        value_type: ValueType,
+    ) {
+        if let Some(casted) = self.value.numeric_type_cast(value_type) {
+            let mut casted = Some(casted);
+            object.as_reflect_mut(&mut |object_ref| {
+                object_ref.set_field_by_path(property_name, casted.take().unwrap(), &mut |result| {
+                    if let Err(err) = result {
+                        match err {
+                            SetFieldByPathError::InvalidPath { reason, .. } => {
+                                Log::err(format!(
+                                    "Failed to set property {}! Invalid path: {}",
+                                    property_name, reason
+                                ));
+                            }
+                            SetFieldByPathError::InvalidValue(_) => {
+                                Log::err(format!(
+                                    "Failed to set property {}! Types mismatch!",
+                                    property_name
+                                ));
+                            }
+                        }
+                    }
+                })
+            })
+        }
     }
 }
 

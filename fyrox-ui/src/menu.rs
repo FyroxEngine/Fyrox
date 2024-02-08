@@ -740,7 +740,6 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                     .with_child(
                         TextBuilder::new(
                             WidgetBuilder::new()
-                                .with_vertical_alignment(VerticalAlignment::Center)
                                 .with_margin(Thickness::left(2.0))
                                 .on_column(1),
                         )
@@ -750,7 +749,6 @@ impl<'a, 'b> MenuItemBuilder<'a, 'b> {
                     .with_child(
                         TextBuilder::new(
                             WidgetBuilder::new()
-                                .with_vertical_alignment(VerticalAlignment::Center)
                                 .with_horizontal_alignment(HorizontalAlignment::Right)
                                 .with_margin(Thickness::uniform(1.0))
                                 .on_column(2),

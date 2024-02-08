@@ -155,35 +155,7 @@ impl BoundValueCollectionExt for BoundValueCollection {
                 ValueBinding::Property {
                     name: ref property_name,
                     value_type,
-                } => {
-                    if let Some(casted) = bound_value.value.numeric_type_cast(value_type) {
-                        let mut casted = Some(casted);
-                        node_ref.as_reflect_mut(&mut |node_ref| {
-                            node_ref.set_field_by_path(
-                                property_name,
-                                casted.take().unwrap(),
-                                &mut |result| {
-                                    if let Err(err) = result {
-                                        match err {
-                                            SetFieldByPathError::InvalidPath { reason, .. } => {
-                                                Log::err(format!(
-                                                    "Failed to set property {}! Invalid path: {}",
-                                                    property_name, reason
-                                                ));
-                                            }
-                                            SetFieldByPathError::InvalidValue(_) => {
-                                                Log::err(format!(
-                                                    "Failed to set property {}! Types mismatch!",
-                                                    property_name
-                                                ));
-                                            }
-                                        }
-                                    }
-                                },
-                            )
-                        })
-                    }
-                }
+                } => bound_value.apply_to_object(node_ref, property_name, value_type),
             }
         }
     }
