@@ -83,7 +83,7 @@ impl GameSceneCommandTrait for AddNavmeshEdgeCommand {
                     vec![NavmeshEntity::Edge(TriangleEdge { a: begin, b: end })],
                 );
 
-                self.new_selection = Selection::Navmesh(navmesh_selection);
+                self.new_selection = Selection::new(navmesh_selection);
             }
             _ => unreachable!(),
         }

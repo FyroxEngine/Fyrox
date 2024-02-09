@@ -224,12 +224,12 @@ impl NodeContextMenu {
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.remove {
-                if let Selection::Absm(ref selection) = editor_selection {
+                if let Some(selection) = editor_selection.as_absm() {
                     let mut new_selection = selection.clone();
                     new_selection.entities.clear();
 
                     let mut group = vec![GameSceneCommand::new(ChangeSelectionCommand::new(
-                        Selection::Absm(new_selection),
+                        Selection::new(new_selection),
                         editor_selection.clone(),
                     ))];
 

@@ -191,7 +191,7 @@ impl Toolbar {
                 new_selection.layer = Some(*index);
                 new_selection.entities.clear();
                 sender.do_scene_command(ChangeSelectionCommand::new(
-                    Selection::Absm(new_selection),
+                    Selection::new(new_selection),
                     editor_selection.clone(),
                 ));
             }
@@ -306,7 +306,7 @@ impl Toolbar {
                         let mut commands = Vec::new();
 
                         commands.push(GameSceneCommand::new(ChangeSelectionCommand::new(
-                            Selection::Absm(AbsmSelection {
+                            Selection::new(AbsmSelection {
                                 absm_node_handle: selection.absm_node_handle,
                                 layer: if absm_node.machine().layers().len() > 1 {
                                     Some(0)

@@ -1,3 +1,4 @@
+use crate::scene::SelectionContainer;
 use crate::{
     camera::PickingOptions,
     interaction::{
@@ -60,15 +61,12 @@ pub struct NavmeshPanel {
 }
 
 fn fetch_selection(editor_selection: &Selection) -> Option<NavmeshSelection> {
-    if let Selection::Navmesh(ref selection) = editor_selection {
+    if let Some(selection) = editor_selection.as_navmesh() {
         Some(selection.clone())
-    } else if let Selection::Graph(ref selection) = editor_selection {
-        Some(NavmeshSelection::new(
-            selection.nodes.first().cloned().unwrap_or_default(),
-            vec![],
-        ))
     } else {
-        None
+        editor_selection.as_graph().map(|selection| {
+            NavmeshSelection::new(selection.nodes.first().cloned().unwrap_or_default(), vec![])
+        })
     }
 }
 
@@ -317,7 +315,7 @@ impl InteractionMode for EditNavmeshMode {
                     }
                 }
 
-                let new_selection = Selection::Navmesh(new_selection);
+                let new_selection = Selection::new(new_selection);
 
                 if &new_selection != editor_selection {
                     self.message_sender
@@ -468,7 +466,7 @@ impl InteractionMode for EditNavmeshMode {
                             // Discard selection.
                             self.message_sender
                                 .do_scene_command(ChangeSelectionCommand::new(
-                                    Selection::Navmesh(NavmeshSelection::empty(
+                                    Selection::new(NavmeshSelection::empty(
                                         selection.navmesh_node(),
                                     )),
                                     editor_selection.clone(),
@@ -626,7 +624,7 @@ impl InteractionMode for EditNavmeshMode {
                         }
 
                         commands.push(GameSceneCommand::new(ChangeSelectionCommand::new(
-                            Selection::Navmesh(NavmeshSelection::empty(selection.navmesh_node())),
+                            Selection::new(NavmeshSelection::empty(selection.navmesh_node())),
                             editor_selection.clone(),
                         )));
 
@@ -654,7 +652,7 @@ impl InteractionMode for EditNavmeshMode {
 
                         self.message_sender
                             .do_scene_command(ChangeSelectionCommand::new(
-                                Selection::Navmesh(selection),
+                                Selection::new(selection),
                                 editor_selection.clone(),
                             ));
                     }

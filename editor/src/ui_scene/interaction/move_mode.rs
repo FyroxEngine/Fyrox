@@ -61,7 +61,7 @@ impl InteractionMode for MoveWidgetsInteractionMode {
             return;
         };
 
-        if let Selection::Ui(selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_ui() {
             let mut in_bounds = false;
             let entries = selection
                 .widgets
@@ -126,8 +126,8 @@ impl InteractionMode for MoveWidgetsInteractionMode {
         } else {
             let picked = ui_scene.ui.hit_test(mouse_pos);
             if picked.is_some() {
-                let mut new_selection = if let (Selection::Ui(current), true) = (
-                    editor_selection,
+                let mut new_selection = if let (Some(current), true) = (
+                    editor_selection.as_ui(),
                     engine.user_interface.keyboard_modifiers().control,
                 ) {
                     current.clone()
@@ -137,7 +137,7 @@ impl InteractionMode for MoveWidgetsInteractionMode {
                 new_selection.insert_or_exclude(picked);
                 self.sender
                     .do_ui_scene_command(ChangeUiSelectionCommand::new(
-                        Selection::Ui(new_selection),
+                        Selection::new(new_selection),
                         editor_selection.clone(),
                     ));
             }

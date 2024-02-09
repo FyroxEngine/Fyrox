@@ -1019,7 +1019,7 @@ impl Editor {
                     }
                 } else if hot_key == key_bindings.copy_selection {
                     if let Some(entry) = self.scenes.current_scene_entry_mut() {
-                        if let Selection::Graph(graph_selection) = &entry.selection {
+                        if let Some(graph_selection) = entry.selection.as_graph() {
                             if let Some(game_scene) = entry.controller.downcast_mut::<GameScene>() {
                                 game_scene.clipboard.fill_from_selection(
                                     graph_selection,
@@ -1029,7 +1029,7 @@ impl Editor {
                             } else if let Some(ui_scene) =
                                 entry.controller.downcast_mut::<UiScene>()
                             {
-                                if let Selection::Ui(ref selection) = entry.selection {
+                                if let Some(selection) = entry.selection.as_ui() {
                                     ui_scene
                                         .clipboard
                                         .fill_from_selection(selection, &ui_scene.ui);
@@ -1062,48 +1062,42 @@ impl Editor {
                 } else if hot_key == key_bindings.remove_selection {
                     if let Some(entry) = self.scenes.current_scene_entry_mut() {
                         if !entry.selection.is_empty() {
-                            match entry.selection {
-                                Selection::Graph(_) => {
-                                    if let Some(game_scene) =
-                                        entry.controller.downcast_mut::<GameScene>()
+                            if entry.selection.is_graph() {
+                                if let Some(game_scene) =
+                                    entry.controller.downcast_mut::<GameScene>()
+                                {
+                                    if self.settings.general.show_node_removal_dialog
+                                        && game_scene.is_current_selection_has_external_refs(
+                                            &entry.selection,
+                                            &engine.scenes[game_scene.scene].graph,
+                                        )
                                     {
-                                        if self.settings.general.show_node_removal_dialog
-                                            && game_scene.is_current_selection_has_external_refs(
+                                        sender.send(Message::OpenNodeRemovalDialog);
+                                    } else {
+                                        sender.send(Message::DoGameSceneCommand(
+                                            make_delete_selection_command(
                                                 &entry.selection,
-                                                &engine.scenes[game_scene.scene].graph,
-                                            )
-                                        {
-                                            sender.send(Message::OpenNodeRemovalDialog);
-                                        } else {
-                                            sender.send(Message::DoGameSceneCommand(
-                                                make_delete_selection_command(
-                                                    &entry.selection,
-                                                    game_scene,
-                                                    engine,
-                                                ),
-                                            ));
-                                        }
-                                    }
-                                }
-                                Selection::Ui(ref selection) => {
-                                    if let Some(ui_scene) =
-                                        entry.controller.downcast_mut::<UiScene>()
-                                    {
-                                        sender.send(Message::DoUiSceneCommand(
-                                            selection.make_deletion_command(
-                                                &ui_scene.ui,
-                                                entry.selection.clone(),
+                                                game_scene,
+                                                engine,
                                             ),
                                         ));
                                     }
                                 }
-                                _ => {}
+                            } else if let Some(selection) = entry.selection.as_ui() {
+                                if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
+                                    sender.send(Message::DoUiSceneCommand(
+                                        selection.make_deletion_command(
+                                            &ui_scene.ui,
+                                            entry.selection.clone(),
+                                        ),
+                                    ));
+                                }
                             }
                         }
                     }
                 } else if hot_key == key_bindings.focus {
                     if let Some(entry) = self.scenes.current_scene_entry_mut() {
-                        if let Selection::Graph(selection) = &entry.selection {
+                        if let Some(selection) = entry.selection.as_graph() {
                             if let Some(first) = selection.nodes.first() {
                                 sender.send(Message::FocusObject(*first));
                             }

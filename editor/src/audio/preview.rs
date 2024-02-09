@@ -186,7 +186,7 @@ impl AudioPreviewPanel {
 
         if let Message::SelectionChanged { .. } = message {
             let scene = &engine.scenes[game_scene.scene];
-            if let Selection::Graph(ref selection) = editor_selection {
+            if let Some(selection) = editor_selection.as_graph() {
                 let any_sound_selected = selection
                     .nodes
                     .iter()
@@ -225,7 +225,7 @@ impl AudioPreviewPanel {
         let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
 
         let mut set = false;
-        if let Selection::Graph(ref new_graph_selection) = editor_selection {
+        if let Some(new_graph_selection) = editor_selection.as_graph() {
             for &node_handle in &new_graph_selection.nodes {
                 if let Some(sound) = scene.graph.try_get_of_type::<Sound>(node_handle) {
                     if !set {
@@ -290,7 +290,7 @@ impl AudioPreviewPanel {
 
     pub fn update(&self, editor_selection: &Selection, game_scene: &GameScene, engine: &Engine) {
         let scene = &engine.scenes[game_scene.scene];
-        if let Selection::Graph(ref new_graph_selection) = editor_selection {
+        if let Some(new_graph_selection) = editor_selection.as_graph() {
             for &node_handle in &new_graph_selection.nodes {
                 if let Some(sound) = scene.graph.try_get_of_type::<Sound>(node_handle) {
                     send_sync_message(
@@ -315,7 +315,7 @@ impl AudioPreviewPanel {
         game_scene: &mut GameScene,
         engine: &mut Engine,
     ) {
-        if let Selection::Graph(ref selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_graph() {
             if let Some(ButtonMessage::Click) = message.data() {
                 let scene = &mut engine.scenes[game_scene.scene];
 

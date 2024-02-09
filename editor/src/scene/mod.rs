@@ -76,6 +76,7 @@ use fyrox::{
     },
 };
 use std::cell::RefCell;
+use std::fmt::Debug;
 use std::rc::Rc;
 use std::{any::Any, fs::File, io::Write, path::Path};
 
@@ -230,7 +231,7 @@ impl GameScene {
 
         scene.drawing_context.clear_lines();
 
-        if let Selection::Graph(selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_graph() {
             for &node in selection.nodes() {
                 let node = &scene.graph[node];
                 scene.drawing_context.draw_oob(
@@ -291,11 +292,7 @@ impl GameScene {
                 }
             } else if let Some(navmesh) = node.query_component_ref::<NavigationalMesh>() {
                 if settings.navmesh.draw_all {
-                    let selection = if let Selection::Navmesh(ref selection) = editor_selection {
-                        Some(selection)
-                    } else {
-                        None
-                    };
+                    let selection = editor_selection.as_navmesh();
 
                     for (index, vertex) in navmesh.navmesh_ref().vertices().iter().enumerate() {
                         ctx.draw_sphere(
@@ -355,7 +352,7 @@ impl GameScene {
         editor_selection: &Selection,
         graph: &Graph,
     ) -> bool {
-        if let Selection::Graph(selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_graph() {
             for node in selection.nodes() {
                 for descendant in graph.traverse_handle_iter(*node) {
                     for reference in graph.find_references_to(descendant) {
@@ -372,7 +369,7 @@ impl GameScene {
     fn try_save_selection_as_prefab(&self, path: &Path, selection: &Selection, engine: &Engine) {
         let source_scene = &engine.scenes[self.scene];
         let mut dest_scene = Scene::new();
-        if let Selection::Graph(ref graph_selection) = selection {
+        if let Some(graph_selection) = selection.as_graph() {
             for root_node in graph_selection.root_nodes(&source_scene.graph) {
                 source_scene.graph.copy_node(
                     root_node,
@@ -414,7 +411,7 @@ impl GameScene {
             .is_valid_handle(handle.into())
         {
             self.sender.do_scene_command(ChangeSelectionCommand::new(
-                Selection::Graph(GraphSelection::single_or_empty(handle.into())),
+                Selection::new(GraphSelection::single_or_empty(handle.into())),
                 selection.clone(),
             ))
         }
@@ -652,7 +649,7 @@ impl SceneController for GameScene {
                         GameSceneCommand::new(AddModelCommand::new(sub_graph)),
                         // We also want to select newly instantiated model.
                         GameSceneCommand::new(ChangeSelectionCommand::new(
-                            Selection::Graph(GraphSelection::single_or_empty(preview.instance)),
+                            Selection::new(GraphSelection::single_or_empty(preview.instance)),
                             editor_selection.clone(),
                         )),
                     ];
@@ -839,7 +836,7 @@ impl SceneController for GameScene {
             highlighter.nodes_to_highlight.clear();
 
             highlighter.scene_handle = self.scene;
-            if let Selection::Graph(ref selection) = editor_selection {
+            if let Some(selection) = editor_selection.as_graph() {
                 for &handle in selection.nodes() {
                     highlighter.nodes_to_highlight.insert(handle);
                 }
@@ -955,60 +952,54 @@ impl SceneController for GameScene {
         callback: &mut dyn FnMut(&dyn Reflect),
     ) {
         let scene = &scenes[self.scene];
-        match selection {
-            Selection::Graph(selection) => {
-                if let Some(node) = scene.graph.try_get(selection.nodes()[0]) {
-                    (callback)(node as &dyn Reflect);
-                }
+        if let Some(selection) = selection.as_graph() {
+            if let Some(node) = scene.graph.try_get(selection.nodes()[0]) {
+                (callback)(node as &dyn Reflect);
             }
-            Selection::AudioBus(selection) => {
-                let state = scene.graph.sound_context.state();
-                if let Some(effect) = state.bus_graph_ref().try_get_bus_ref(selection.buses[0]) {
-                    (callback)(effect as &dyn Reflect);
-                }
+        } else if let Some(selection) = selection.as_audio_bus() {
+            let state = scene.graph.sound_context.state();
+            if let Some(effect) = state.bus_graph_ref().try_get_bus_ref(selection.buses[0]) {
+                (callback)(effect as &dyn Reflect);
             }
-            Selection::Animation(selection) => {
-                if let Some(animation) = scene
-                    .graph
-                    .try_get_of_type::<AnimationPlayer>(selection.animation_player)
-                    .and_then(|player| player.animations().try_get(selection.animation))
+        } else if let Some(selection) = selection.as_animation() {
+            if let Some(animation) = scene
+                .graph
+                .try_get_of_type::<AnimationPlayer>(selection.animation_player)
+                .and_then(|player| player.animations().try_get(selection.animation))
+            {
+                if let Some(animation::selection::SelectedEntity::Signal(id)) =
+                    selection.entities.first()
                 {
-                    if let Some(animation::selection::SelectedEntity::Signal(id)) =
-                        selection.entities.first()
-                    {
-                        if let Some(signal) = animation.signals().iter().find(|s| s.id == *id) {
-                            (callback)(signal as &dyn Reflect);
+                    if let Some(signal) = animation.signals().iter().find(|s| s.id == *id) {
+                        (callback)(signal as &dyn Reflect);
+                    }
+                }
+            }
+        } else if let Some(selection) = selection.as_absm() {
+            if let Some(node) = scene
+                .graph
+                .try_get_of_type::<AnimationBlendingStateMachine>(selection.absm_node_handle)
+            {
+                if let Some(first) = selection.entities.first() {
+                    let machine = node.machine();
+                    if let Some(layer_index) = selection.layer {
+                        if let Some(layer) = machine.layers().get(layer_index) {
+                            match first {
+                                SelectedEntity::Transition(transition) => {
+                                    (callback)(&layer.transitions()[*transition] as &dyn Reflect)
+                                }
+                                SelectedEntity::State(state) => {
+                                    (callback)(&layer.states()[*state] as &dyn Reflect)
+                                }
+                                SelectedEntity::PoseNode(pose) => {
+                                    (callback)(&layer.nodes()[*pose] as &dyn Reflect)
+                                }
+                            };
                         }
                     }
                 }
             }
-            Selection::Absm(selection) => {
-                if let Some(node) = scene
-                    .graph
-                    .try_get_of_type::<AnimationBlendingStateMachine>(selection.absm_node_handle)
-                {
-                    if let Some(first) = selection.entities.first() {
-                        let machine = node.machine();
-                        if let Some(layer_index) = selection.layer {
-                            if let Some(layer) = machine.layers().get(layer_index) {
-                                match first {
-                                    SelectedEntity::Transition(transition) => (callback)(
-                                        &layer.transitions()[*transition] as &dyn Reflect,
-                                    ),
-                                    SelectedEntity::State(state) => {
-                                        (callback)(&layer.states()[*state] as &dyn Reflect)
-                                    }
-                                    SelectedEntity::PoseNode(pose) => {
-                                        (callback)(&layer.nodes()[*pose] as &dyn Reflect)
-                                    }
-                                };
-                            }
-                        }
-                    }
-                }
-            }
-            _ => (),
-        };
+        }
     }
 
     fn on_property_changed(
@@ -1019,8 +1010,8 @@ impl SceneController for GameScene {
     ) {
         let scene = &mut engine.scenes[self.scene];
 
-        let group = match selection {
-            Selection::Graph(selection) => selection
+        let group = if let Some(selection) = selection.as_graph() {
+            selection
                 .nodes
                 .iter()
                 .filter_map(|&node_handle| {
@@ -1034,81 +1025,81 @@ impl SceneController for GameScene {
                         None
                     }
                 })
-                .collect::<Vec<_>>(),
-            Selection::AudioBus(selection) => selection
+                .collect::<Vec<_>>()
+        } else if let Some(selection) = selection.as_audio_bus() {
+            selection
                 .buses
                 .iter()
                 .filter_map(|&handle| make_set_audio_bus_property_command(handle, args))
-                .collect::<Vec<_>>(),
-            Selection::Animation(selection) => {
-                if scene
-                    .graph
-                    .try_get_of_type::<AnimationPlayer>(selection.animation_player)
-                    .and_then(|player| player.animations().try_get(selection.animation))
-                    .is_some()
-                {
+                .collect::<Vec<_>>()
+        } else if let Some(selection) = selection.as_animation() {
+            if scene
+                .graph
+                .try_get_of_type::<AnimationPlayer>(selection.animation_player)
+                .and_then(|player| player.animations().try_get(selection.animation))
+                .is_some()
+            {
+                selection
+                    .entities
+                    .iter()
+                    .filter_map(|e| {
+                        if let animation::selection::SelectedEntity::Signal(id) = e {
+                            make_animation_signal_property_command(
+                                *id,
+                                args,
+                                selection.animation_player,
+                                selection.animation,
+                            )
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            } else {
+                vec![]
+            }
+        } else if let Some(selection) = selection.as_absm() {
+            if scene
+                .graph
+                .try_get(selection.absm_node_handle)
+                .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())
+                .is_some()
+            {
+                if let Some(layer_index) = selection.layer {
                     selection
                         .entities
                         .iter()
-                        .filter_map(|e| {
-                            if let animation::selection::SelectedEntity::Signal(id) = e {
-                                make_animation_signal_property_command(
-                                    *id,
+                        .filter_map(|ent| match ent {
+                            SelectedEntity::Transition(transition) => {
+                                make_set_transition_property_command(
+                                    *transition,
                                     args,
-                                    selection.animation_player,
-                                    selection.animation,
+                                    selection.absm_node_handle,
+                                    layer_index,
                                 )
-                            } else {
-                                None
                             }
+                            SelectedEntity::State(state) => make_set_state_property_command(
+                                *state,
+                                args,
+                                selection.absm_node_handle,
+                                layer_index,
+                            ),
+                            SelectedEntity::PoseNode(pose) => make_set_pose_property_command(
+                                *pose,
+                                args,
+                                selection.absm_node_handle,
+                                layer_index,
+                            ),
                         })
                         .collect()
                 } else {
                     vec![]
                 }
+            } else {
+                vec![]
             }
-            Selection::Absm(selection) => {
-                if scene
-                    .graph
-                    .try_get(selection.absm_node_handle)
-                    .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())
-                    .is_some()
-                {
-                    if let Some(layer_index) = selection.layer {
-                        selection
-                            .entities
-                            .iter()
-                            .filter_map(|ent| match ent {
-                                SelectedEntity::Transition(transition) => {
-                                    make_set_transition_property_command(
-                                        *transition,
-                                        args,
-                                        selection.absm_node_handle,
-                                        layer_index,
-                                    )
-                                }
-                                SelectedEntity::State(state) => make_set_state_property_command(
-                                    *state,
-                                    args,
-                                    selection.absm_node_handle,
-                                    layer_index,
-                                ),
-                                SelectedEntity::PoseNode(pose) => make_set_pose_property_command(
-                                    *pose,
-                                    args,
-                                    selection.absm_node_handle,
-                                    layer_index,
-                                ),
-                            })
-                            .collect()
-                    } else {
-                        vec![]
-                    }
-                } else {
-                    vec![]
-                }
-            }
-            _ => vec![],
+        } else {
+            vec![]
         };
 
         if group.is_empty() {
@@ -1127,85 +1118,185 @@ impl SceneController for GameScene {
     fn provide_docs(&self, selection: &Selection, engine: &Engine) -> Option<String> {
         let scene = &engine.scenes[self.scene];
 
-        match selection {
-            Selection::Graph(graph_selection) => graph_selection
+        if let Some(graph_selection) = selection.as_graph() {
+            graph_selection
                 .nodes
                 .first()
-                .map(|h| scene.graph[*h].doc().to_string()),
-            Selection::Navmesh(navmesh_selection) => Some(
+                .map(|h| scene.graph[*h].doc().to_string())
+        } else if let Some(navmesh_selection) = selection.as_navmesh() {
+            Some(
                 scene.graph[navmesh_selection.navmesh_node()]
                     .doc()
                     .to_string(),
-            ),
-            Selection::AudioBus(audio_bus_selection) => {
-                audio_bus_selection.buses.first().and_then(|h| {
-                    scene
-                        .graph
-                        .sound_context
-                        .state()
-                        .bus_graph_ref()
-                        .try_get_bus_ref(*h)
-                        .map(|bus| bus.doc().to_string())
-                })
-            }
-            Selection::Absm(absm_selection) => Some(
+            )
+        } else if let Some(audio_bus_selection) = selection.as_audio_bus() {
+            audio_bus_selection.buses.first().and_then(|h| {
+                scene
+                    .graph
+                    .sound_context
+                    .state()
+                    .bus_graph_ref()
+                    .try_get_bus_ref(*h)
+                    .map(|bus| bus.doc().to_string())
+            })
+        } else if let Some(absm_selection) = selection.as_absm() {
+            Some(
                 scene.graph[absm_selection.absm_node_handle]
                     .doc()
                     .to_string(),
-            ),
-            Selection::Animation(animation_selection) => Some(
+            )
+        } else {
+            selection.as_animation().map(|animation_selection| {
                 scene.graph[animation_selection.animation_player]
                     .doc()
-                    .to_string(),
-            ),
-            _ => None,
+                    .to_string()
+            })
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Selection {
-    None,
-    Graph(GraphSelection),
-    Navmesh(NavmeshSelection),
-    AudioBus(AudioBusSelection),
-    Absm(AbsmSelection),
-    Animation(AnimationSelection),
-    Ui(UiSelection),
+pub trait BaseSelectionContainer: Debug + 'static {
+    fn clone_boxed(&self) -> Box<dyn SelectionContainer>;
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn eq_ref(&self, other: &dyn SelectionContainer) -> bool;
 }
 
-impl Default for Selection {
-    fn default() -> Self {
-        Self::None
+impl<T> BaseSelectionContainer for T
+where
+    T: Clone + SelectionContainer + PartialEq + 'static,
+{
+    fn clone_boxed(&self) -> Box<dyn SelectionContainer> {
+        Box::new(self.clone())
     }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn eq_ref(&self, other: &dyn SelectionContainer) -> bool {
+        if let Some(other) = other.downcast_ref::<T>() {
+            self == other
+        } else {
+            false
+        }
+    }
+}
+
+pub trait SelectionContainer: BaseSelectionContainer {
+    fn len(&self) -> usize;
+
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    fn is_single_selection(&self) -> bool {
+        self.len() == 1
+    }
+
+    fn is_multi_selection(&self) -> bool {
+        self.len() > 1
+    }
+}
+
+impl dyn SelectionContainer {
+    fn downcast_ref<T: SelectionContainer>(&self) -> Option<&T> {
+        self.as_any().downcast_ref()
+    }
+
+    fn downcast_mut<T: SelectionContainer>(&mut self) -> Option<&mut T> {
+        self.as_any_mut().downcast_mut()
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct Selection(pub Option<Box<dyn SelectionContainer>>);
+
+impl PartialEq for Selection {
+    fn eq(&self, other: &Self) -> bool {
+        if let (Some(this), Some(other)) = (self.0.as_ref(), other.0.as_ref()) {
+            this.eq_ref(&**other)
+        } else {
+            false
+        }
+    }
+}
+
+impl Clone for Selection {
+    fn clone(&self) -> Self {
+        match self.0.as_ref() {
+            Some(inner) => Self(Some(inner.clone_boxed())),
+            None => Self::default(),
+        }
+    }
+}
+
+macro_rules! define_downcast {
+    ($ty:ty, $as_ref:ident, $as_mut:ident, $is:ident) => {
+        pub fn $as_ref(&self) -> Option<&$ty> {
+            self.0.as_ref().and_then(|s| s.downcast_ref())
+        }
+        pub fn $as_mut(&mut self) -> Option<&mut $ty> {
+            self.0.as_mut().and_then(|s| s.downcast_mut())
+        }
+        pub fn $is(&mut self) -> bool {
+            self.$as_ref().is_some()
+        }
+    };
 }
 
 impl Selection {
+    pub fn new<T: SelectionContainer>(container: T) -> Self {
+        Self(Some(Box::new(container)))
+    }
+
+    pub fn new_empty() -> Self {
+        Self::default()
+    }
+
+    pub fn is_none(&self) -> bool {
+        self.0.is_none()
+    }
+
     pub fn is_empty(&self) -> bool {
-        match self {
-            Selection::None => true,
-            Selection::Graph(graph) => graph.is_empty(),
-            Selection::Navmesh(navmesh) => navmesh.is_empty(),
-            Selection::AudioBus(effect) => effect.is_empty(),
-            Selection::Absm(absm) => absm.is_empty(),
-            Selection::Animation(animation) => animation.is_empty(),
-            Selection::Ui(ui) => ui.is_empty(),
-        }
+        self.0.as_ref().map_or(false, |s| s.is_empty())
     }
 
     pub fn len(&self) -> usize {
-        match self {
-            Selection::None => 0,
-            Selection::Graph(graph) => graph.len(),
-            Selection::Navmesh(navmesh) => navmesh.len(),
-            Selection::AudioBus(effect) => effect.len(),
-            Selection::Absm(absm) => absm.len(),
-            Selection::Animation(animation) => animation.len(),
-            Selection::Ui(ui) => ui.len(),
-        }
+        self.0.as_ref().map_or(0, |s| s.len())
     }
 
     pub fn is_single_selection(&self) -> bool {
-        self.len() == 1
+        self.0.as_ref().map_or(false, |s| s.is_single_selection())
     }
+
+    pub fn is_multi_selection(&self) -> bool {
+        self.0.as_ref().map_or(false, |s| s.is_multi_selection())
+    }
+
+    define_downcast!(GraphSelection, as_graph, as_graph_mut, is_graph);
+
+    define_downcast!(NavmeshSelection, as_navmesh, as_navmesh_mut, is_navmesh);
+
+    define_downcast!(
+        AudioBusSelection,
+        as_audio_bus,
+        as_audio_bus_mut,
+        is_audio_bus
+    );
+
+    define_downcast!(AbsmSelection, as_absm, as_absm_mut, is_absm);
+
+    define_downcast!(
+        AnimationSelection,
+        as_animation,
+        as_animation_mut,
+        is_animation
+    );
+
+    define_downcast!(UiSelection, as_ui, as_ui_mut, is_ui);
 }

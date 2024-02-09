@@ -269,7 +269,7 @@ impl StateViewer {
                         }
                         AbsmCanvasMessage::SelectionChanged(selection) => {
                             if message.direction() == MessageDirection::FromWidget {
-                                let selection = Selection::Absm(AbsmSelection {
+                                let selection = Selection::new(AbsmSelection {
                                     absm_node_handle,
                                     layer: Some(layer_index),
                                     entities: selection

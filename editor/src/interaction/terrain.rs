@@ -1,5 +1,6 @@
 use crate::interaction::make_interaction_mode_button;
 use crate::scene::controller::SceneController;
+use crate::scene::SelectionContainer;
 use crate::{
     interaction::InteractionMode,
     make_color_material,
@@ -158,7 +159,7 @@ impl InteractionMode for TerrainInteractionMode {
             return;
         };
 
-        if let Selection::Graph(selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_graph() {
             if selection.is_single_selection() {
                 let graph = &mut engine.scenes[game_scene.scene].graph;
                 let handle = selection.nodes()[0];
@@ -210,7 +211,7 @@ impl InteractionMode for TerrainInteractionMode {
             return;
         };
 
-        if let Selection::Graph(selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_graph() {
             if selection.is_single_selection() {
                 let graph = &mut engine.scenes[game_scene.scene].graph;
                 let handle = selection.nodes()[0];
@@ -267,7 +268,7 @@ impl InteractionMode for TerrainInteractionMode {
             return;
         };
 
-        if let Selection::Graph(selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_graph() {
             if selection.is_single_selection() {
                 let graph = &mut engine.scenes[game_scene.scene].graph;
                 let handle = selection.nodes()[0];
@@ -369,7 +370,7 @@ impl InteractionMode for TerrainInteractionMode {
         _controller: &mut dyn SceneController,
         _engine: &mut Engine,
     ) {
-        if let Selection::Graph(selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_graph() {
             if selection.is_single_selection() {
                 self.brush_panel.handle_ui_message(message, &mut self.brush);
             }

@@ -318,7 +318,7 @@ impl InteractionMode for MoveInteractionMode {
             only_meshes: false,
         }) {
             if let Some(plane_kind) = self.move_gizmo.handle_pick(result.node, graph) {
-                if let Selection::Graph(selection) = editor_selection {
+                if let Some(selection) = editor_selection.as_graph() {
                     self.move_context = Some(MoveContext::from_graph_selection(
                         selection,
                         scene,
@@ -397,18 +397,18 @@ impl InteractionMode for MoveInteractionMode {
                     only_meshes: false,
                 })
                 .map(|result| {
-                    if let (Selection::Graph(selection), true) = (
-                        editor_selection,
+                    if let (Some(selection), true) = (
+                        editor_selection.as_graph(),
                         engine.user_interface.keyboard_modifiers().control,
                     ) {
                         let mut selection = selection.clone();
                         selection.insert_or_exclude(result.node);
-                        Selection::Graph(selection)
+                        Selection::new(selection)
                     } else {
-                        Selection::Graph(GraphSelection::single_or_empty(result.node))
+                        Selection::new(GraphSelection::single_or_empty(result.node))
                     }
                 })
-                .unwrap_or_else(|| Selection::Graph(GraphSelection::default()));
+                .unwrap_or_else(|| Selection::new(GraphSelection::default()));
 
             if &new_selection != editor_selection {
                 self.message_sender

@@ -55,14 +55,14 @@ pub struct AnimationEditor {
 }
 
 fn fetch_selection(editor_selection: &Selection) -> AnimationSelection {
-    if let Selection::Animation(ref selection) = editor_selection {
+    if let Some(selection) = editor_selection.as_animation() {
         // Some selection in an animation.
         AnimationSelection {
             animation_player: selection.animation_player,
             animation: selection.animation,
             entities: selection.entities.clone(),
         }
-    } else if let Selection::Graph(ref selection) = editor_selection {
+    } else if let Some(selection) = editor_selection.as_graph() {
         // Only some AnimationPlayer is selected.
         AnimationSelection {
             animation_player: selection.nodes.first().cloned().unwrap_or_default(),
@@ -306,7 +306,7 @@ impl AnimationEditor {
                         }
                         RulerMessage::SelectSignal(id) => {
                             sender.do_scene_command(ChangeSelectionCommand::new(
-                                Selection::Animation(AnimationSelection {
+                                Selection::new(AnimationSelection {
                                     animation_player: selection.animation_player,
                                     animation: selection.animation,
                                     entities: vec![SelectedEntity::Signal(*id)],

@@ -979,7 +979,7 @@ impl RagdollPreset {
             GameSceneCommand::new(AddModelCommand::new(sub_graph)),
             // We also want to select newly instantiated model.
             GameSceneCommand::new(ChangeSelectionCommand::new(
-                Selection::Graph(GraphSelection::single_or_empty(ragdoll)),
+                Selection::new(GraphSelection::single_or_empty(ragdoll)),
                 editor_selection.clone(),
             )),
         ];

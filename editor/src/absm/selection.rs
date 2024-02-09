@@ -1,3 +1,4 @@
+use crate::scene::SelectionContainer;
 use fyrox::{
     core::pool::Handle,
     scene::{animation::absm::prelude::*, node::Node},
@@ -17,12 +18,8 @@ pub struct AbsmSelection {
     pub entities: Vec<SelectedEntity>,
 }
 
-impl AbsmSelection {
-    pub fn is_empty(&self) -> bool {
-        self.entities.is_empty()
-    }
-
-    pub fn len(&self) -> usize {
+impl SelectionContainer for AbsmSelection {
+    fn len(&self) -> usize {
         self.entities.len()
     }
 }

@@ -1,4 +1,5 @@
 use crate::scene::commands::sound_context::SetHrtfRendererHrirSphereResource;
+use crate::scene::SelectionContainer;
 use crate::{
     audio::bus::{AudioBusView, AudioBusViewBuilder, AudioBusViewMessage},
     gui::make_dropdown_list_option,
@@ -48,12 +49,8 @@ pub struct AudioBusSelection {
     pub buses: Vec<Handle<AudioBus>>,
 }
 
-impl AudioBusSelection {
-    pub fn is_empty(&self) -> bool {
-        self.buses.is_empty()
-    }
-
-    pub fn len(&self) -> usize {
+impl SelectionContainer for AudioBusSelection {
+    fn len(&self) -> usize {
         self.buses.len()
     }
 }
@@ -262,9 +259,9 @@ impl AudioPanel {
                     "AudioBus".to_string(),
                 )))
             } else if message.destination() == self.remove_bus {
-                if let Selection::AudioBus(ref selection) = editor_selection {
+                if let Some(selection) = editor_selection.as_audio_bus() {
                     let mut commands = vec![GameSceneCommand::new(ChangeSelectionCommand::new(
-                        Selection::None,
+                        Selection::new_empty(),
                         editor_selection.clone(),
                     ))];
 
@@ -290,7 +287,7 @@ impl AudioPanel {
                 );
 
                 sender.do_scene_command(ChangeSelectionCommand::new(
-                    Selection::AudioBus(AudioBusSelection {
+                    Selection::new(AudioBusSelection {
                         buses: vec![effect],
                     }),
                     editor_selection.clone(),
@@ -416,7 +413,7 @@ impl AudioPanel {
         let mut selection_index = None;
         let mut is_primary_bus_selected = false;
 
-        if let Selection::AudioBus(ref selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_audio_bus() {
             for (index, item) in items.into_iter().enumerate() {
                 let bus_handle = item_bus(item, ui);
 

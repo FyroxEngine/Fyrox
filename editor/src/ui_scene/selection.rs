@@ -1,3 +1,4 @@
+use crate::scene::SelectionContainer;
 use crate::{
     scene::Selection,
     ui_scene::commands::{
@@ -11,6 +12,12 @@ use fyrox::{core::pool::Handle, gui::UiNode, gui::UserInterface};
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct UiSelection {
     pub widgets: Vec<Handle<UiNode>>,
+}
+
+impl SelectionContainer for UiSelection {
+    fn len(&self) -> usize {
+        self.widgets.len()
+    }
 }
 
 impl UiSelection {

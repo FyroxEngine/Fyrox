@@ -223,7 +223,7 @@ impl UiMenu {
             if let Some(entry) = self.constructors.get_mut(&message.destination()) {
                 let ui_node_handle = (entry.constructor)(&entry.name, &mut scene.ui.build_ctx());
                 let sub_graph = scene.ui.take_reserve_sub_graph(ui_node_handle);
-                let parent = if let Selection::Ui(selection) = selection {
+                let parent = if let Some(selection) = selection.as_ui() {
                     selection.widgets.first().cloned().unwrap_or_default()
                 } else {
                     Handle::NONE

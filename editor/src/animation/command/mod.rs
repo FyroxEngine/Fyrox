@@ -187,7 +187,7 @@ impl GameSceneCommandTrait for AddAnimationCommand {
 
                 let old_selection = std::mem::replace(
                     context.selection,
-                    Selection::Animation(AnimationSelection {
+                    Selection::new(AnimationSelection {
                         animation_player,
                         animation: handle,
                         entities: vec![],

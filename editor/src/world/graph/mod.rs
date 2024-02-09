@@ -134,7 +134,7 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
     }
 
     fn selection(&self) -> Vec<ErasedHandle> {
-        if let Selection::Graph(ref graph_selection) = self.selection {
+        if let Some(graph_selection) = self.selection.as_graph() {
             graph_selection
                 .nodes
                 .iter()
@@ -154,7 +154,7 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
         let child: Handle<Node> = child.into();
         let parent: Handle<Node> = parent.into();
 
-        if let Selection::Graph(ref selection) = self.selection {
+        if let Some(selection) = self.selection.as_graph() {
             if selection.nodes.contains(&child) {
                 let mut commands = CommandGroup::default();
 
@@ -223,7 +223,7 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
                     GameSceneCommand::new(AddModelCommand::new(sub_graph)),
                     GameSceneCommand::new(LinkNodesCommand::new(instance, node.into())),
                     GameSceneCommand::new(ChangeSelectionCommand::new(
-                        Selection::Graph(GraphSelection::single_or_empty(instance)),
+                        Selection::new(GraphSelection::single_or_empty(instance)),
                         self.selection.clone(),
                     )),
                 ];
@@ -242,17 +242,14 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
     }
 
     fn on_selection_changed(&self, selection: &[ErasedHandle]) {
-        let mut new_selection = Selection::None;
+        let mut new_selection = Selection::default();
         for &selected_item in selection {
-            match new_selection {
-                Selection::None => {
+            match new_selection.as_graph_mut() {
+                Some(selection) => selection.insert_or_exclude(selected_item.into()),
+                None => {
                     new_selection =
-                        Selection::Graph(GraphSelection::single_or_empty(selected_item.into()));
+                        Selection::new(GraphSelection::single_or_empty(selected_item.into()));
                 }
-                Selection::Graph(ref mut selection) => {
-                    selection.insert_or_exclude(selected_item.into())
-                }
-                _ => (),
             }
         }
 

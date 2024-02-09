@@ -216,7 +216,7 @@ impl NodeContextMenu {
                     },
                 ))
             } else if message.destination == self.remove {
-                if let Selection::Absm(ref selection) = editor_selection {
+                if let Some(selection) = editor_selection.as_absm() {
                     let states_to_remove = selection
                         .entities
                         .iter()
@@ -249,7 +249,7 @@ impl NodeContextMenu {
                     new_selection.entities.clear();
 
                     let mut group = vec![GameSceneCommand::new(ChangeSelectionCommand::new(
-                        Selection::Absm(new_selection),
+                        Selection::new(new_selection),
                         editor_selection.clone(),
                     ))];
 
@@ -351,7 +351,7 @@ impl TransitionContextMenu {
     ) {
         if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination == self.remove {
-                if let Selection::Absm(ref selection) = editor_selection {
+                if let Some(selection) = editor_selection.as_absm() {
                     let mut new_selection = selection.clone();
                     new_selection.entities.clear();
 
@@ -362,7 +362,7 @@ impl TransitionContextMenu {
 
                     let group = vec![
                         GameSceneCommand::new(ChangeSelectionCommand::new(
-                            Selection::Absm(new_selection),
+                            Selection::new(new_selection),
                             editor_selection.clone(),
                         )),
                         GameSceneCommand::new(DeleteTransitionCommand::new(

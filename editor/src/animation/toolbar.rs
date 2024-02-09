@@ -872,7 +872,7 @@ impl Toolbar {
                     .user_data_cloned::<Handle<Animation>>()
                     .unwrap();
                 sender.do_scene_command(ChangeSelectionCommand::new(
-                    Selection::Animation(AnimationSelection {
+                    Selection::new(AnimationSelection {
                         animation_player: animation_player_handle,
                         animation,
                         entities: vec![],
@@ -904,7 +904,7 @@ impl Toolbar {
                 {
                     let group = vec![
                         GameSceneCommand::new(ChangeSelectionCommand::new(
-                            Selection::Animation(AnimationSelection {
+                            Selection::new(AnimationSelection {
                                 animation_player: animation_player_handle,
                                 animation: Default::default(),
                                 entities: vec![],
@@ -1097,7 +1097,7 @@ impl Toolbar {
                                 sender.do_scene_command(group);
                             }
                             ImportMode::Reimport => {
-                                if let Selection::Animation(ref selection) = editor_selection {
+                                if let Some(selection) = editor_selection.as_animation() {
                                     if animations.len() > 1 {
                                         Log::warn("More than one animation found! Only first will be used");
                                     }

@@ -61,14 +61,14 @@ struct PreviewModeData {
 }
 
 fn fetch_selection(editor_selection: &Selection) -> AbsmSelection {
-    if let Selection::Absm(ref selection) = editor_selection {
+    if let Some(selection) = editor_selection.as_absm() {
         // Some selection in an animation.
         AbsmSelection {
             absm_node_handle: selection.absm_node_handle,
             layer: selection.layer,
             entities: selection.entities.clone(),
         }
-    } else if let Selection::Graph(ref selection) = editor_selection {
+    } else if let Some(selection) = editor_selection.as_graph() {
         // Only some AnimationPlayer is selected.
         AbsmSelection {
             absm_node_handle: selection.nodes.first().cloned().unwrap_or_default(),

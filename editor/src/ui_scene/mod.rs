@@ -98,7 +98,7 @@ impl UiScene {
         if self.ui.try_get(handle.into()).is_some() {
             self.message_sender
                 .do_ui_scene_command(ChangeUiSelectionCommand::new(
-                    Selection::Ui(UiSelection::single_or_empty(handle.into())),
+                    Selection::new(UiSelection::single_or_empty(handle.into())),
                     selection.clone(),
                 ))
         }
@@ -235,7 +235,7 @@ impl SceneController for UiScene {
                 UiSceneCommand::new(AddUiPrefabCommand::new(sub_graph)),
                 // We also want to select newly instantiated model.
                 UiSceneCommand::new(ChangeUiSelectionCommand::new(
-                    Selection::Ui(UiSelection::single_or_empty(preview.instance)),
+                    Selection::new(UiSelection::single_or_empty(preview.instance)),
                     editor_selection.clone(),
                 )),
             ];
@@ -320,7 +320,7 @@ impl SceneController for UiScene {
         self.ui.draw();
 
         // Draw selection on top.
-        if let Selection::Ui(selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_ui() {
             for node in selection.widgets.iter() {
                 if let Some(node) = self.ui.try_get(*node) {
                     let bounds = node.screen_bounds();
@@ -460,7 +460,7 @@ impl SceneController for UiScene {
         _scenes: &SceneContainer,
         callback: &mut dyn FnMut(&dyn Reflect),
     ) {
-        if let Selection::Ui(selection) = selection {
+        if let Some(selection) = selection.as_ui() {
             if let Some(first) = selection.widgets.first() {
                 if let Some(node) = self.ui.try_get(*first).map(|n| n as &dyn Reflect) {
                     (callback)(node)
@@ -475,8 +475,8 @@ impl SceneController for UiScene {
         selection: &Selection,
         _engine: &mut Engine,
     ) {
-        let group = match selection {
-            Selection::Ui(selection) => selection
+        let group = if let Some(selection) = selection.as_ui() {
+            selection
                 .widgets
                 .iter()
                 .filter_map(|&node_handle| {
@@ -498,8 +498,9 @@ impl SceneController for UiScene {
                         None
                     }
                 })
-                .collect::<Vec<_>>(),
-            _ => vec![],
+                .collect::<Vec<_>>()
+        } else {
+            vec![]
         };
 
         if group.is_empty() {
@@ -516,12 +517,13 @@ impl SceneController for UiScene {
     }
 
     fn provide_docs(&self, selection: &Selection, _engine: &Engine) -> Option<String> {
-        match selection {
-            Selection::Ui(selection) => selection
+        if let Some(selection) = selection.as_ui() {
+            selection
                 .widgets
                 .first()
-                .and_then(|h| self.ui.try_get(*h).map(|n| n.doc().to_string())),
-            _ => None,
+                .and_then(|h| self.ui.try_get(*h).map(|n| n.doc().to_string()))
+        } else {
+            None
         }
     }
 }

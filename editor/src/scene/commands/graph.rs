@@ -362,7 +362,7 @@ impl AddNodeCommand {
             node: Some(node),
             parent,
             select_added,
-            prev_selection: Selection::None,
+            prev_selection: Selection::new_empty(),
         }
     }
 }
@@ -389,7 +389,7 @@ impl GameSceneCommandTrait for AddNodeCommand {
         if self.select_added {
             self.prev_selection = std::mem::replace(
                 context.selection,
-                Selection::Graph(GraphSelection::single_or_empty(self.handle)),
+                Selection::new(GraphSelection::single_or_empty(self.handle)),
             );
             context.message_sender.send(Message::SelectionChanged {
                 old_selection: self.prev_selection.clone(),

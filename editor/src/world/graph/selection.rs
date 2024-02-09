@@ -1,3 +1,4 @@
+use crate::scene::SelectionContainer;
 use crate::utils;
 use fyrox::{
     asset::core::algebra::Vector3,
@@ -8,6 +9,12 @@ use fyrox::{
 #[derive(Debug, Default, Clone, Eq)]
 pub struct GraphSelection {
     pub nodes: Vec<Handle<Node>>,
+}
+
+impl SelectionContainer for GraphSelection {
+    fn len(&self) -> usize {
+        self.nodes.len()
+    }
 }
 
 impl PartialEq for GraphSelection {
@@ -49,22 +56,6 @@ impl GraphSelection {
 
     pub fn nodes(&self) -> &[Handle<Node>] {
         &self.nodes
-    }
-
-    pub fn is_multi_selection(&self) -> bool {
-        self.nodes.len() > 1
-    }
-
-    pub fn is_single_selection(&self) -> bool {
-        self.nodes.len() == 1
-    }
-
-    pub fn len(&self) -> usize {
-        self.nodes.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.nodes.is_empty()
     }
 
     pub fn extend(&mut self, other: &GraphSelection) {

@@ -45,7 +45,7 @@ fn resource_path_of_first_selected_node(
     editor_selection: &Selection,
     ui_scene: &UiScene,
 ) -> Option<PathBuf> {
-    if let Selection::Ui(ui_selection) = editor_selection {
+    if let Some(ui_selection) = editor_selection.as_ui() {
         if let Some(first) = ui_selection.widgets.first() {
             if let Some(resource) = ui_scene.ui.try_get(*first).and_then(|n| n.resource()) {
                 return resource.kind().into_path();
@@ -124,20 +124,20 @@ impl WidgetContextMenu {
 
             if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
                 if message.destination() == self.delete_selection {
-                    if let Selection::Ui(ui_selection) = editor_selection {
+                    if let Some(ui_selection) = editor_selection.as_ui() {
                         sender.send(Message::DoUiSceneCommand(
                             ui_selection
                                 .make_deletion_command(&ui_scene.ui, editor_selection.clone()),
                         ));
                     }
                 } else if message.destination() == self.copy_selection {
-                    if let Selection::Ui(ui_selection) = editor_selection {
+                    if let Some(ui_selection) = editor_selection.as_ui() {
                         ui_scene
                             .clipboard
                             .fill_from_selection(ui_selection, &ui_scene.ui);
                     }
                 } else if message.destination() == self.paste {
-                    if let Selection::Ui(ui_selection) = editor_selection {
+                    if let Some(ui_selection) = editor_selection.as_ui() {
                         if let Some(first) = ui_selection.widgets.first() {
                             if !ui_scene.clipboard.is_empty() {
                                 sender.do_ui_scene_command(PasteWidgetCommand::new(*first));
@@ -145,7 +145,7 @@ impl WidgetContextMenu {
                         }
                     }
                 } else if message.destination() == self.make_root {
-                    if let Selection::Ui(selection) = editor_selection {
+                    if let Some(selection) = editor_selection.as_ui() {
                         if let Some(first) = selection.widgets.first() {
                             sender.do_ui_scene_command(SetUiRootCommand {
                                 root: *first,

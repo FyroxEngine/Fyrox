@@ -788,7 +788,7 @@ impl TrackList {
 
                 if filter_text.is_empty() {
                     // Focus currently selected entity when clearing the filter.
-                    if let Selection::Animation(ref scene_selection) = editor_selection {
+                    if let Some(scene_selection) = editor_selection.as_animation() {
                         if let Some(first) = scene_selection.entities.first() {
                             let ui_node = match first {
                                 SelectedEntity::Track(id) => {
@@ -855,7 +855,7 @@ impl TrackList {
                     }
                 }
             } else if message.destination() == self.context_menu.target_node_selector {
-                if let Selection::Animation(ref scene_selection) = editor_selection {
+                if let Some(scene_selection) = editor_selection.as_animation() {
                     if let Some(first) = node_selection.first() {
                         let mut commands = Vec::new();
 
@@ -928,7 +928,7 @@ impl TrackList {
             if message.destination() == self.tree_root
                 && message.direction == MessageDirection::FromWidget
             {
-                let selection = Selection::Animation(AnimationSelection {
+                let selection = Selection::new(AnimationSelection {
                     animation_player,
                     animation,
                     entities: selection
@@ -956,7 +956,7 @@ impl TrackList {
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.context_menu.remove_track {
-                if let Selection::Animation(ref selection) = editor_selection {
+                if let Some(selection) = editor_selection.as_animation() {
                     if let Some(animation_player) = scene
                         .graph
                         .try_get(selection.animation_player)
@@ -967,7 +967,7 @@ impl TrackList {
                         {
                             let mut commands =
                                 vec![GameSceneCommand::new(ChangeSelectionCommand::new(
-                                    Selection::Animation(AnimationSelection {
+                                    Selection::new(AnimationSelection {
                                         animation_player: selection.animation_player,
                                         animation: selection.animation,
                                         // Just reset inner selection.
@@ -1016,7 +1016,7 @@ impl TrackList {
             } else if message.destination() == self.context_menu.rebind {
                 self.on_rebind_clicked(&scene.graph, editor_selection, ui);
             } else if message.destination() == self.context_menu.duplicate {
-                if let Selection::Animation(ref selection) = editor_selection {
+                if let Some(selection) = editor_selection.as_animation() {
                     if let Some(animation_player) = scene
                         .graph
                         .try_get(selection.animation_player)
@@ -1057,7 +1057,7 @@ impl TrackList {
             }
         } else if let Some(TrackViewMessage::TrackEnabled(enabled)) = message.data() {
             if message.direction() == MessageDirection::FromWidget {
-                if let Selection::Animation(ref selection) = editor_selection {
+                if let Some(selection) = editor_selection.as_animation() {
                     if let Some(animation_player) = scene
                         .graph
                         .try_get(selection.animation_player)
@@ -1143,7 +1143,7 @@ impl TrackList {
         editor_selection: &Selection,
         ui: &mut UserInterface,
     ) {
-        let Selection::Animation(ref selection) = editor_selection else {
+        let Some(selection) = editor_selection.as_animation() else {
             return;
         };
 
@@ -1179,7 +1179,7 @@ impl TrackList {
         editor_selection: &Selection,
         sender: &MessageSender,
     ) {
-        let Selection::Animation(ref selection) = editor_selection else {
+        let Some(selection) = editor_selection.as_animation() else {
             return;
         };
 
@@ -1425,7 +1425,7 @@ impl TrackList {
             }
         }
 
-        if let Selection::Animation(ref selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_animation() {
             let mut any_track_selected = false;
             let tree_selection = selection
                 .entities

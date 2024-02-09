@@ -334,7 +334,7 @@ impl MoveGizmo {
 
     pub fn sync_transform(&self, scene: &mut Scene, selection: &Selection, scale: Vector3<f32>) {
         let graph = &mut scene.graph;
-        if let Selection::Graph(selection) = selection {
+        if let Some(selection) = selection.as_graph() {
             if let Some((rotation, position)) = selection.global_rotation_position(graph) {
                 let node = &mut graph[self.origin];
                 node.set_visibility(true);

@@ -123,7 +123,7 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
     }
 
     fn selection(&self) -> Vec<ErasedHandle> {
-        if let Selection::Ui(ref selection) = self.selection {
+        if let Some(selection) = self.selection.as_ui() {
             selection
                 .widgets
                 .iter()
@@ -143,7 +143,7 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
         let child: Handle<UiNode> = child.into();
         let parent: Handle<UiNode> = parent.into();
 
-        if let Selection::Ui(ref selection) = self.selection {
+        if let Some(selection) = self.selection.as_ui() {
             if selection.widgets.contains(&child) {
                 let mut commands = UiCommandGroup::default();
 
@@ -209,7 +209,7 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
                     UiSceneCommand::new(LinkWidgetsCommand::new(instance, node.into())),
                     // We also want to select newly instantiated model.
                     UiSceneCommand::new(ChangeUiSelectionCommand::new(
-                        Selection::Ui(UiSelection::single_or_empty(instance)),
+                        Selection::new(UiSelection::single_or_empty(instance)),
                         self.selection.clone(),
                     )),
                 ];
@@ -224,17 +224,14 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
     }
 
     fn on_selection_changed(&self, selection: &[ErasedHandle]) {
-        let mut new_selection = Selection::None;
+        let mut new_selection = Selection::new_empty();
         for &selected_item in selection {
-            match new_selection {
-                Selection::None => {
+            match new_selection.as_ui_mut() {
+                Some(selection) => selection.insert_or_exclude(selected_item.into()),
+                None => {
                     new_selection =
-                        Selection::Ui(UiSelection::single_or_empty(selected_item.into()));
+                        Selection::new(UiSelection::single_or_empty(selected_item.into()));
                 }
-                Selection::Ui(ref mut selection) => {
-                    selection.insert_or_exclude(selected_item.into())
-                }
-                _ => (),
             }
         }
 

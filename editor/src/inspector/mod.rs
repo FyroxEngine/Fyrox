@@ -130,7 +130,7 @@ fn fetch_available_animations(
 ) -> Vec<AnimationDefinition> {
     if let Some(game_scene) = controller.downcast_ref::<GameScene>() {
         let graph = &engine.scenes[game_scene.scene].graph;
-        if let Selection::Absm(absm_selection) = selection {
+        if let Some(absm_selection) = selection.as_absm() {
             if let Some(animation_player) = graph
                 .try_get(absm_selection.absm_node_handle)
                 .and_then(|n| n.query_component_ref::<AnimationBlendingStateMachine>())

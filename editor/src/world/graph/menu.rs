@@ -59,7 +59,7 @@ fn resource_path_of_first_selected_node(
     game_scene: &GameScene,
     engine: &Engine,
 ) -> Option<PathBuf> {
-    if let Selection::Graph(graph_selection) = editor_selection {
+    if let Some(graph_selection) = editor_selection.as_graph() {
         if let Some(first) = graph_selection.nodes.first() {
             let scene = &engine.scenes[game_scene.scene];
             if let Some(resource) = scene.graph.try_get(*first).and_then(|n| n.resource()) {
@@ -174,7 +174,7 @@ impl SceneNodeContextMenu {
             self.create_entity_menu
                 .handle_ui_message(message, sender, controller, editor_selection)
         {
-            if let Selection::Graph(graph_selection) = editor_selection {
+            if let Some(graph_selection) = editor_selection.as_graph() {
                 if let Some(first) = graph_selection.nodes().first() {
                     sender.do_scene_command(AddNodeCommand::new(node, *first, true));
                 }
@@ -183,7 +183,7 @@ impl SceneNodeContextMenu {
             self.replace_with_menu
                 .handle_ui_message(message, sender, controller, editor_selection)
         {
-            if let Selection::Graph(graph_selection) = editor_selection {
+            if let Some(graph_selection) = editor_selection.as_graph() {
                 if let Some(first) = graph_selection.nodes().first() {
                     sender.do_scene_command(ReplaceNodeCommand {
                         handle: *first,
@@ -211,7 +211,7 @@ impl SceneNodeContextMenu {
                         )));
                     }
                 } else if message.destination() == self.copy_selection {
-                    if let Selection::Graph(graph_selection) = editor_selection {
+                    if let Some(graph_selection) = editor_selection.as_graph() {
                         game_scene.clipboard.fill_from_selection(
                             graph_selection,
                             game_scene.scene,
@@ -219,7 +219,7 @@ impl SceneNodeContextMenu {
                         );
                     }
                 } else if message.destination() == self.paste {
-                    if let Selection::Graph(graph_selection) = editor_selection {
+                    if let Some(graph_selection) = editor_selection.as_graph() {
                         if let Some(first) = graph_selection.nodes.first() {
                             if !game_scene.clipboard.is_empty() {
                                 sender.do_scene_command(PasteCommand::new(*first));
@@ -242,7 +242,7 @@ impl SceneNodeContextMenu {
                             Some(std::env::current_dir().unwrap()),
                         ));
                 } else if message.destination() == self.make_root {
-                    if let Selection::Graph(graph_selection) = editor_selection {
+                    if let Some(graph_selection) = editor_selection.as_graph() {
                         if let Some(first) = graph_selection.nodes.first() {
                             sender.do_scene_command(SetGraphRootCommand {
                                 root: *first,
@@ -259,7 +259,7 @@ impl SceneNodeContextMenu {
                         }
                     }
                 } else if message.destination() == self.reset_inheritable_properties {
-                    if let Selection::Graph(graph_selection) = editor_selection {
+                    if let Some(graph_selection) = editor_selection.as_graph() {
                         let scene = &engine.scenes[game_scene.scene];
                         let mut commands = Vec::new();
                         for node_handle in graph_selection.nodes.iter() {

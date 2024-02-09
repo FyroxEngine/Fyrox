@@ -71,7 +71,7 @@ impl EditMenu {
     ) {
         if let Some(MenuItemMessage::Click) = message.data::<MenuItemMessage>() {
             if message.destination() == self.copy {
-                if let Selection::Graph(selection) = editor_selection {
+                if let Some(selection) = editor_selection.as_graph() {
                     if let Some(game_scene) = controller.downcast_mut::<GameScene>() {
                         game_scene.clipboard.fill_from_selection(
                             selection,

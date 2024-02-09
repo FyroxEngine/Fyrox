@@ -120,7 +120,7 @@ impl InteractionMode for UiSelectInteractionMode {
             self.stack.extend_from_slice(node.children());
         }
 
-        let new_selection = Selection::Ui(ui_selection);
+        let new_selection = Selection::new(ui_selection);
 
         if &new_selection != editor_selection {
             self.message_sender

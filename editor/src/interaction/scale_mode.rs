@@ -1,3 +1,4 @@
+use crate::scene::SelectionContainer;
 use crate::{
     camera::PickingOptions,
     interaction::{
@@ -64,7 +65,7 @@ impl InteractionMode for ScaleInteractionMode {
             return;
         };
 
-        if let Selection::Graph(selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_graph() {
             let graph = &mut engine.scenes[game_scene.scene].graph;
 
             // Pick gizmo nodes.
@@ -108,7 +109,7 @@ impl InteractionMode for ScaleInteractionMode {
         self.scale_gizmo.reset_state(graph);
 
         if self.interacting {
-            if let Selection::Graph(selection) = editor_selection {
+            if let Some(selection) = editor_selection.as_graph() {
                 if !selection.is_empty() {
                     self.interacting = false;
                     let current_scales = selection.local_scales(graph);
@@ -146,18 +147,18 @@ impl InteractionMode for ScaleInteractionMode {
                     only_meshes: false,
                 })
                 .map(|result| {
-                    if let (Selection::Graph(selection), true) = (
-                        editor_selection,
+                    if let (Some(selection), true) = (
+                        editor_selection.as_graph(),
                         engine.user_interface.keyboard_modifiers().control,
                     ) {
                         let mut selection = selection.clone();
                         selection.insert_or_exclude(result.node);
-                        Selection::Graph(selection)
+                        Selection::new(selection)
                     } else {
-                        Selection::Graph(GraphSelection::single_or_empty(result.node))
+                        Selection::new(GraphSelection::single_or_empty(result.node))
                     }
                 })
-                .unwrap_or_else(|| Selection::Graph(GraphSelection::default()));
+                .unwrap_or_else(|| Selection::new(GraphSelection::default()));
 
             if &new_selection != editor_selection {
                 self.message_sender
@@ -185,7 +186,7 @@ impl InteractionMode for ScaleInteractionMode {
 
         let graph = &mut engine.scenes[game_scene.scene].graph;
 
-        if let Selection::Graph(selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_graph() {
             if self.interacting {
                 let scale_delta = self.scale_gizmo.calculate_scale_delta(
                     game_scene.camera_controller.camera,
@@ -235,7 +236,7 @@ impl InteractionMode for ScaleInteractionMode {
             return;
         };
 
-        if let Selection::Graph(selection) = editor_selection {
+        if let Some(selection) = editor_selection.as_graph() {
             let graph = &mut engine.scenes[game_scene.scene].graph;
             if editor_selection.is_empty() || game_scene.preview_camera.is_some() {
                 self.scale_gizmo.set_visible(graph, false);

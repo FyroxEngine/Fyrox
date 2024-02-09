@@ -7,7 +7,7 @@ use crate::{
     send_sync_message,
     utils::enable_widget,
     BuildProfile, DropdownListBuilder, GameScene, Message, Mode, SaveSceneConfirmationDialogAction,
-    SceneContainer, Selection, Settings,
+    SceneContainer, Settings,
 };
 use fyrox::graph::SceneGraph;
 use fyrox::{
@@ -683,9 +683,9 @@ impl SceneViewer {
                 ),
             );
 
-            if let (Some(game_scene), Selection::Graph(selection)) = (
+            if let (Some(game_scene), Some(selection)) = (
                 entry.controller.downcast_ref::<GameScene>(),
-                &entry.selection,
+                entry.selection.as_graph(),
             ) {
                 let scene = &engine.scenes[game_scene.scene];
                 if let Some((_, position)) = selection.global_rotation_position(&scene.graph) {

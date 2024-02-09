@@ -90,7 +90,7 @@ impl ColliderControlPanel {
         if let Message::SelectionChanged { .. } = message {
             let mut collider_selected = false;
 
-            if let Selection::Graph(selection) = selection {
+            if let Some(selection) = selection.as_graph() {
                 for selected in selection.nodes() {
                     let scene = &engine.scenes[game_scene.scene];
 
@@ -133,7 +133,7 @@ impl ColliderControlPanel {
                 return;
             };
 
-            let Selection::Graph(selection) = selection else {
+            let Some(selection) = selection.as_graph() else {
                 return;
             };
 

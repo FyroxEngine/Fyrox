@@ -131,7 +131,7 @@ impl InteractionMode for SelectInteractionMode {
             self.stack.extend_from_slice(node.children());
         }
 
-        let new_selection = Selection::Graph(graph_selection);
+        let new_selection = Selection::new(graph_selection);
 
         if &new_selection != editor_selection {
             self.message_sender

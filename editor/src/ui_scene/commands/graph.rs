@@ -31,7 +31,7 @@ impl AddWidgetCommand {
             handle: Default::default(),
             parent,
             select_added,
-            prev_selection: Selection::None,
+            prev_selection: Selection::new_empty(),
         }
     }
 }
@@ -49,7 +49,7 @@ impl UiCommand for AddWidgetCommand {
         if self.select_added {
             self.prev_selection = std::mem::replace(
                 context.selection,
-                Selection::Ui(UiSelection::single_or_empty(self.handle)),
+                Selection::new(UiSelection::single_or_empty(self.handle)),
             );
             context.message_sender.send(Message::SelectionChanged {
                 old_selection: self.prev_selection.clone(),
@@ -204,7 +204,7 @@ impl UiCommand for PasteWidgetCommand {
                     context.ui.link_nodes(handle, self.parent, false);
                 }
 
-                let mut selection = Selection::Ui(UiSelection {
+                let mut selection = Selection::new(UiSelection {
                     widgets: paste_result.root_nodes.clone(),
                 });
                 std::mem::swap(context.selection, &mut selection);

@@ -1,3 +1,4 @@
+use crate::scene::SelectionContainer;
 use fyrox::{
     core::{pool::Handle, uuid::Uuid},
     scene::{animation::prelude::*, node::Node},
@@ -17,15 +18,13 @@ pub struct AnimationSelection {
     pub entities: Vec<SelectedEntity>,
 }
 
-impl AnimationSelection {
-    pub fn is_empty(&self) -> bool {
-        self.entities.is_empty()
-    }
-
-    pub fn len(&self) -> usize {
+impl SelectionContainer for AnimationSelection {
+    fn len(&self) -> usize {
         self.entities.len()
     }
+}
 
+impl AnimationSelection {
     pub fn first_selected_track(&self) -> Option<Uuid> {
         self.entities.iter().find_map(|e| {
             if let SelectedEntity::Track(id) = e {

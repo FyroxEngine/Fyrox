@@ -136,7 +136,7 @@ impl GameSceneCommandTrait for CommandGroup {
 
 pub fn selection_to_delete(editor_selection: &Selection, game_scene: &GameScene) -> GraphSelection {
     // Graph's root is non-deletable.
-    let mut selection = if let Selection::Graph(selection) = editor_selection {
+    let mut selection = if let Some(selection) = editor_selection.as_graph() {
         selection.clone()
     } else {
         Default::default()
@@ -166,7 +166,7 @@ pub fn make_delete_selection_command(
 
     // Change selection first.
     let mut command_group = CommandGroup::from(vec![GameSceneCommand::new(
-        ChangeSelectionCommand::new(Default::default(), Selection::Graph(selection.clone())),
+        ChangeSelectionCommand::new(Default::default(), Selection::new(selection.clone())),
     )]);
 
     // Find sub-graphs to delete - we need to do this because we can end up in situation like this:
@@ -279,7 +279,7 @@ impl GameSceneCommandTrait for PasteCommand {
                 }
 
                 let mut selection =
-                    Selection::Graph(GraphSelection::from_list(paste_result.root_nodes.clone()));
+                    Selection::new(GraphSelection::from_list(paste_result.root_nodes.clone()));
                 std::mem::swap(context.selection, &mut selection);
 
                 self.state = PasteCommandState::Executed {
