@@ -1,4 +1,5 @@
-use crate::{command::GameSceneCommandTrait, scene::commands::GameSceneContext};
+use crate::command::CommandContext;
+use crate::{command::CommandTrait, scene::commands::GameSceneContext};
 use fyrox::{
     core::{pool::Handle, sstorage::ImmutableString},
     material::{shader::SamplerFallback, PropertyValue},
@@ -27,12 +28,13 @@ impl SetMeshTextureCommand {
     }
 }
 
-impl GameSceneCommandTrait for SetMeshTextureCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl CommandTrait for SetMeshTextureCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Texture".to_owned()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         if let TextureSet::Single(texture) = &self.set {
             let mesh: &mut Mesh = context.scene.graph[self.node].as_mesh_mut();
             let old_set = mesh
@@ -70,7 +72,8 @@ impl GameSceneCommandTrait for SetMeshTextureCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         if let TextureSet::Multiple(set) = &self.set {
             let mesh: &mut Mesh = context.scene.graph[self.node].as_mesh_mut();
             let new_value = mesh.surfaces_mut()[0]

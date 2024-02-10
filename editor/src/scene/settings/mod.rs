@@ -1,7 +1,6 @@
 use crate::{
-    inspector::editors::make_property_editors_container, message::MessageSender,
-    scene::settings::command::make_set_scene_property_command, GameScene, Message,
-    MessageDirection, MSG_SYNC_FLAG,
+    inspector::editors::make_property_editors_container, message::MessageSender, GameScene,
+    Message, MessageDirection, MSG_SYNC_FLAG,
 };
 use fyrox::{
     core::{color::Color, pool::Handle},
@@ -31,9 +30,10 @@ use fyrox::{
     utils::lightmap::Lightmap,
 };
 
+use crate::command::make_command;
+use crate::scene::commands::GameSceneContext;
+use fyrox::core::reflect::Reflect;
 use std::sync::Arc;
-
-mod command;
 
 pub struct SceneSettingsWindow {
     pub window: Handle<UiNode>,
@@ -129,7 +129,9 @@ impl SceneSettingsWindow {
     pub fn handle_ui_message(&self, message: &UiMessage, sender: &MessageSender) {
         if let Some(InspectorMessage::PropertyChanged(property_changed)) = message.data() {
             if message.destination() == self.inspector {
-                if let Some(command) = make_set_scene_property_command((), property_changed) {
+                if let Some(command) = make_command(property_changed, |ctx| {
+                    ctx.get_mut::<GameSceneContext>().scene as &mut dyn Reflect
+                }) {
                     sender.send(Message::DoGameSceneCommand(command));
                 }
             }

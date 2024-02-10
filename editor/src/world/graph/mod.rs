@@ -1,3 +1,4 @@
+use crate::command::{Command, CommandGroup};
 use crate::scene::commands::graph::SetGraphNodeChildPosition;
 use crate::{
     load_image,
@@ -5,7 +6,7 @@ use crate::{
     scene::{
         commands::{
             graph::{AddModelCommand, LinkNodesCommand},
-            ChangeSelectionCommand, CommandGroup, GameSceneCommand,
+            ChangeSelectionCommand,
         },
         GameScene, Selection,
     },
@@ -220,9 +221,9 @@ impl<'a> WorldViewerDataProvider for EditorSceneWrapper<'a> {
                 let sub_graph = self.scene.graph.take_reserve_sub_graph(instance);
 
                 let group = vec![
-                    GameSceneCommand::new(AddModelCommand::new(sub_graph)),
-                    GameSceneCommand::new(LinkNodesCommand::new(instance, node.into())),
-                    GameSceneCommand::new(ChangeSelectionCommand::new(
+                    Command::new(AddModelCommand::new(sub_graph)),
+                    Command::new(LinkNodesCommand::new(instance, node.into())),
+                    Command::new(ChangeSelectionCommand::new(
                         Selection::new(GraphSelection::single_or_empty(instance)),
                         self.selection.clone(),
                     )),

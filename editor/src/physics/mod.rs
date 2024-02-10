@@ -1,9 +1,8 @@
+use crate::command::{Command, CommandGroup, SetPropertyCommand};
+use crate::scene::commands::GameSceneContext;
 use crate::{
     message::MessageSender,
-    scene::{
-        commands::{CommandGroup, GameSceneCommand, SetPropertyCommand},
-        GameScene, Selection,
-    },
+    scene::{GameScene, Selection},
     Message,
 };
 use fyrox::graph::SceneGraph;
@@ -34,13 +33,18 @@ pub struct ColliderControlPanel {
 fn set_property<T: Reflect>(
     name: &str,
     value: T,
-    commands: &mut Vec<GameSceneCommand>,
+    commands: &mut Vec<Command>,
     selected_collider: Handle<Node>,
 ) {
-    commands.push(GameSceneCommand::new(SetPropertyCommand::new(
-        selected_collider,
+    commands.push(Command::new(SetPropertyCommand::new(
         name.into(),
         Box::new(value) as Box<dyn Reflect>,
+        move |ctx| {
+            ctx.get_mut::<GameSceneContext>()
+                .scene
+                .graph
+                .node_mut(selected_collider)
+        },
     )));
 }
 

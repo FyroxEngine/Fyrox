@@ -1,12 +1,10 @@
 //! Ui graph manipulation commands.
 
+use crate::command::{CommandContext, CommandTrait};
 use crate::ui_scene::clipboard::DeepCloneResult;
 use crate::{
     scene::Selection,
-    ui_scene::{
-        commands::{UiCommand, UiSceneContext},
-        UiSelection,
-    },
+    ui_scene::{commands::UiSceneContext, UiSelection},
     Message,
 };
 use fyrox::graph::{LinkScheme, SceneGraph, SceneGraphNode};
@@ -36,12 +34,14 @@ impl AddWidgetCommand {
     }
 }
 
-impl UiCommand for AddWidgetCommand {
-    fn name(&mut self, _context: &UiSceneContext) -> String {
+impl CommandTrait for AddWidgetCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Add Widget".to_string()
     }
 
-    fn execute(&mut self, context: &mut UiSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<UiSceneContext>();
+
         self.handle = context
             .ui
             .put_sub_graph_back(self.sub_graph.take().unwrap());
@@ -67,7 +67,9 @@ impl UiCommand for AddWidgetCommand {
         )
     }
 
-    fn revert(&mut self, context: &mut UiSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<UiSceneContext>();
+
         // No need to unlink node from its parent because .take_reserve_sub_graph() does that for us.
         self.sub_graph = Some(context.ui.take_reserve_sub_graph(self.handle));
 
@@ -79,7 +81,9 @@ impl UiCommand for AddWidgetCommand {
         }
     }
 
-    fn finalize(&mut self, context: &mut UiSceneContext) {
+    fn finalize(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<UiSceneContext>();
+
         if let Some(sub_graph) = self.sub_graph.take() {
             context.ui.forget_sub_graph(sub_graph)
         }
@@ -104,17 +108,17 @@ impl LinkWidgetsCommand {
     }
 }
 
-impl UiCommand for LinkWidgetsCommand {
-    fn name(&mut self, _context: &UiSceneContext) -> String {
+impl CommandTrait for LinkWidgetsCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Link Widgets".to_owned()
     }
 
-    fn execute(&mut self, context: &mut UiSceneContext) {
-        self.link(context.ui);
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        self.link(context.get_mut::<UiSceneContext>().ui);
     }
 
-    fn revert(&mut self, context: &mut UiSceneContext) {
-        self.link(context.ui);
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        self.link(context.get_mut::<UiSceneContext>().ui);
     }
 }
 
@@ -135,17 +139,21 @@ impl DeleteWidgetsSubGraphCommand {
     }
 }
 
-impl UiCommand for DeleteWidgetsSubGraphCommand {
-    fn name(&mut self, _context: &UiSceneContext) -> String {
+impl CommandTrait for DeleteWidgetsSubGraphCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Delete Sub Graph".to_owned()
     }
 
-    fn execute(&mut self, context: &mut UiSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<UiSceneContext>();
+
         self.parent = context.ui.node(self.sub_graph_root).parent();
         self.sub_graph = Some(context.ui.take_reserve_sub_graph(self.sub_graph_root));
     }
 
-    fn revert(&mut self, context: &mut UiSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<UiSceneContext>();
+
         context
             .ui
             .put_sub_graph_back(self.sub_graph.take().unwrap());
@@ -154,7 +162,9 @@ impl UiCommand for DeleteWidgetsSubGraphCommand {
             .link_nodes(self.sub_graph_root, self.parent, false);
     }
 
-    fn finalize(&mut self, context: &mut UiSceneContext) {
+    fn finalize(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<UiSceneContext>();
+
         if let Some(sub_graph) = self.sub_graph.take() {
             context.ui.forget_sub_graph(sub_graph)
         }
@@ -190,24 +200,26 @@ impl PasteWidgetCommand {
     }
 }
 
-impl UiCommand for PasteWidgetCommand {
-    fn name(&mut self, _context: &UiSceneContext) -> String {
+impl CommandTrait for PasteWidgetCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Paste".to_owned()
     }
 
-    fn execute(&mut self, context: &mut UiSceneContext) {
+    fn execute(&mut self, ctx: &mut dyn CommandContext) {
+        let ctx = ctx.get_mut::<UiSceneContext>();
+
         match std::mem::replace(&mut self.state, PasteWidgetCommandState::Undefined) {
             PasteWidgetCommandState::NonExecuted => {
-                let paste_result = context.clipboard.paste(context.ui);
+                let paste_result = ctx.clipboard.paste(ctx.ui);
 
                 for &handle in paste_result.root_nodes.iter() {
-                    context.ui.link_nodes(handle, self.parent, false);
+                    ctx.ui.link_nodes(handle, self.parent, false);
                 }
 
                 let mut selection = Selection::new(UiSelection {
                     widgets: paste_result.root_nodes.clone(),
                 });
-                std::mem::swap(context.selection, &mut selection);
+                std::mem::swap(ctx.selection, &mut selection);
 
                 self.state = PasteWidgetCommandState::Executed {
                     paste_result,
@@ -225,14 +237,14 @@ impl UiCommand for PasteWidgetCommand {
                 for subgraph in subgraphs {
                     paste_result
                         .root_nodes
-                        .push(context.ui.put_sub_graph_back(subgraph));
+                        .push(ctx.ui.put_sub_graph_back(subgraph));
                 }
 
                 for &handle in paste_result.root_nodes.iter() {
-                    context.ui.link_nodes(handle, self.parent, false);
+                    ctx.ui.link_nodes(handle, self.parent, false);
                 }
 
-                std::mem::swap(context.selection, &mut selection);
+                std::mem::swap(ctx.selection, &mut selection);
                 self.state = PasteWidgetCommandState::Executed {
                     paste_result,
                     last_selection: selection,
@@ -242,7 +254,9 @@ impl UiCommand for PasteWidgetCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut UiSceneContext) {
+    fn revert(&mut self, ctx: &mut dyn CommandContext) {
+        let ctx = ctx.get_mut::<UiSceneContext>();
+
         if let PasteWidgetCommandState::Executed {
             paste_result,
             mut last_selection,
@@ -250,10 +264,10 @@ impl UiCommand for PasteWidgetCommand {
         {
             let mut subgraphs = Vec::new();
             for root_node in paste_result.root_nodes {
-                subgraphs.push(context.ui.take_reserve_sub_graph(root_node));
+                subgraphs.push(ctx.ui.take_reserve_sub_graph(root_node));
             }
 
-            std::mem::swap(context.selection, &mut last_selection);
+            std::mem::swap(ctx.selection, &mut last_selection);
 
             self.state = PasteWidgetCommandState::Reverted {
                 subgraphs,
@@ -262,12 +276,14 @@ impl UiCommand for PasteWidgetCommand {
         }
     }
 
-    fn finalize(&mut self, context: &mut UiSceneContext) {
+    fn finalize(&mut self, ctx: &mut dyn CommandContext) {
+        let ctx = ctx.get_mut::<UiSceneContext>();
+
         if let PasteWidgetCommandState::Reverted { subgraphs, .. } =
             std::mem::replace(&mut self.state, PasteWidgetCommandState::Undefined)
         {
             for subgraph in subgraphs {
-                context.ui.forget_sub_graph(subgraph);
+                ctx.ui.forget_sub_graph(subgraph);
             }
         }
     }
@@ -288,26 +304,27 @@ impl AddUiPrefabCommand {
     }
 }
 
-impl UiCommand for AddUiPrefabCommand {
-    fn name(&mut self, _context: &UiSceneContext) -> String {
+impl CommandTrait for AddUiPrefabCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Instantiate Prefab".to_owned()
     }
 
-    fn execute(&mut self, context: &mut UiSceneContext) {
+    fn execute(&mut self, ctx: &mut dyn CommandContext) {
+        let ctx = ctx.get_mut::<UiSceneContext>();
         // A model was loaded, but change was reverted and here we must put all nodes
         // back to graph.
-        self.model = context
-            .ui
-            .put_sub_graph_back(self.sub_graph.take().unwrap());
+        self.model = ctx.ui.put_sub_graph_back(self.sub_graph.take().unwrap());
     }
 
-    fn revert(&mut self, context: &mut UiSceneContext) {
-        self.sub_graph = Some(context.ui.take_reserve_sub_graph(self.model));
+    fn revert(&mut self, ctx: &mut dyn CommandContext) {
+        let ctx = ctx.get_mut::<UiSceneContext>();
+        self.sub_graph = Some(ctx.ui.take_reserve_sub_graph(self.model));
     }
 
-    fn finalize(&mut self, context: &mut UiSceneContext) {
+    fn finalize(&mut self, ctx: &mut dyn CommandContext) {
+        let ctx = ctx.get_mut::<UiSceneContext>();
         if let Some(sub_graph) = self.sub_graph.take() {
-            context.ui.forget_sub_graph(sub_graph)
+            ctx.ui.forget_sub_graph(sub_graph)
         }
     }
 }
@@ -318,18 +335,20 @@ pub struct SetUiRootCommand {
     pub link_scheme: LinkScheme<UiNode>,
 }
 
-impl UiCommand for SetUiRootCommand {
-    fn name(&mut self, _context: &UiSceneContext) -> String {
+impl CommandTrait for SetUiRootCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Root".to_string()
     }
 
-    fn execute(&mut self, ctx: &mut UiSceneContext) {
+    fn execute(&mut self, ctx: &mut dyn CommandContext) {
+        let ctx = ctx.get_mut::<UiSceneContext>();
         let prev_root = ctx.ui.root();
         self.link_scheme = ctx.ui.change_hierarchy_root(prev_root, self.root);
         self.root = prev_root;
     }
 
-    fn revert(&mut self, ctx: &mut UiSceneContext) {
+    fn revert(&mut self, ctx: &mut dyn CommandContext) {
+        let ctx = ctx.get_mut::<UiSceneContext>();
         ctx.ui
             .apply_link_scheme(std::mem::take(&mut self.link_scheme));
         self.root = self.link_scheme.root;
@@ -344,8 +363,9 @@ pub struct SetWidgetChildPosition {
 }
 
 impl SetWidgetChildPosition {
-    fn swap(&mut self, context: &mut UiSceneContext) {
+    fn swap(&mut self, context: &mut dyn CommandContext) {
         let prev_pos = context
+            .get_mut::<UiSceneContext>()
             .ui
             .node_mut(self.node)
             .set_child_position(self.child, self.position)
@@ -354,16 +374,16 @@ impl SetWidgetChildPosition {
     }
 }
 
-impl UiCommand for SetWidgetChildPosition {
-    fn name(&mut self, _context: &UiSceneContext) -> String {
+impl CommandTrait for SetWidgetChildPosition {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Widget Position".to_string()
     }
 
-    fn execute(&mut self, context: &mut UiSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
         self.swap(context)
     }
 
-    fn revert(&mut self, context: &mut UiSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
         self.swap(context)
     }
 }

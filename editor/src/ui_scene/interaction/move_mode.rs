@@ -1,22 +1,18 @@
 use crate::{
+    command::{Command, CommandGroup},
     interaction::{make_interaction_mode_button, InteractionMode},
     message::MessageSender,
-    scene::{controller::SceneController, Selection},
+    scene::{commands::ChangeSelectionCommand, controller::SceneController, Selection},
     settings::Settings,
-    ui_scene::{
-        commands::{
-            widget::MoveWidgetCommand, ChangeUiSelectionCommand, UiCommandGroup, UiSceneCommand,
-        },
-        UiScene,
-    },
+    ui_scene::{commands::widget::MoveWidgetCommand, UiScene},
 };
-use fyrox::graph::SceneGraph;
 use fyrox::{
     core::{
         algebra::Point2, algebra::Vector2, pool::Handle, uuid::Uuid, uuid_provider,
         TypeUuidProvider,
     },
     engine::Engine,
+    graph::SceneGraph,
     gui::{BuildContext, UiNode},
 };
 
@@ -113,7 +109,7 @@ impl InteractionMode for MoveWidgetsInteractionMode {
                     .entries
                     .into_iter()
                     .map(|e| {
-                        UiSceneCommand::new(MoveWidgetCommand::new(
+                        Command::new(MoveWidgetCommand::new(
                             e.widget,
                             e.initial_local_position,
                             e.new_local_position,
@@ -121,7 +117,7 @@ impl InteractionMode for MoveWidgetsInteractionMode {
                     })
                     .collect::<Vec<_>>();
                 self.sender
-                    .do_ui_scene_command(UiCommandGroup::from(commands));
+                    .do_ui_scene_command(CommandGroup::from(commands));
             }
         } else {
             let picked = ui_scene.ui.hit_test(mouse_pos);
@@ -135,11 +131,10 @@ impl InteractionMode for MoveWidgetsInteractionMode {
                     Default::default()
                 };
                 new_selection.insert_or_exclude(picked);
-                self.sender
-                    .do_ui_scene_command(ChangeUiSelectionCommand::new(
-                        Selection::new(new_selection),
-                        editor_selection.clone(),
-                    ));
+                self.sender.do_ui_scene_command(ChangeSelectionCommand::new(
+                    Selection::new(new_selection),
+                    editor_selection.clone(),
+                ));
             }
         }
     }

@@ -1,3 +1,4 @@
+use crate::command::CommandGroup;
 use crate::scene::commands::sound_context::SetHrtfRendererHrirSphereResource;
 use crate::scene::SelectionContainer;
 use crate::{
@@ -8,12 +9,11 @@ use crate::{
     scene::commands::{
         effect::{AddAudioBusCommand, LinkAudioBuses, RemoveAudioBusCommand},
         sound_context::{SetDistanceModelCommand, SetRendererCommand},
-        CommandGroup,
     },
     send_sync_message,
     utils::window_content,
-    ChangeSelectionCommand, GameScene, GameSceneCommand, GridBuilder, MessageDirection, Mode,
-    Selection, UserInterface,
+    ChangeSelectionCommand, Command, GameScene, GridBuilder, MessageDirection, Mode, Selection,
+    UserInterface,
 };
 use fyrox::asset::manager::ResourceManager;
 use fyrox::core::parking_lot::Mutex;
@@ -260,13 +260,13 @@ impl AudioPanel {
                 )))
             } else if message.destination() == self.remove_bus {
                 if let Some(selection) = editor_selection.as_audio_bus() {
-                    let mut commands = vec![GameSceneCommand::new(ChangeSelectionCommand::new(
+                    let mut commands = vec![Command::new(ChangeSelectionCommand::new(
                         Selection::new_empty(),
                         editor_selection.clone(),
                     ))];
 
                     for &bus in &selection.buses {
-                        commands.push(GameSceneCommand::new(RemoveAudioBusCommand::new(bus)));
+                        commands.push(Command::new(RemoveAudioBusCommand::new(bus)));
                     }
 
                     sender.do_scene_command(CommandGroup::from(commands));

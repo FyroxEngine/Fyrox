@@ -1,4 +1,4 @@
-use crate::{command::GameSceneCommandTrait, scene::commands::GameSceneContext};
+use crate::{command::CommandTrait, scene::commands::GameSceneContext};
 use fyrox::{
     asset::ResourceData,
     core::{log::Log, sstorage::ImmutableString},
@@ -11,6 +11,7 @@ pub struct SetMaterialPropertyValueCommand {
     name: ImmutableString,
     value: PropertyValue,
 }
+use crate::command::CommandContext;
 
 fn try_save(material: &MaterialResource) {
     let header = material.header();
@@ -43,16 +44,16 @@ impl SetMaterialPropertyValueCommand {
     }
 }
 
-impl GameSceneCommandTrait for SetMaterialPropertyValueCommand {
-    fn name(&mut self, _: &GameSceneContext) -> String {
+impl CommandTrait for SetMaterialPropertyValueCommand {
+    fn name(&mut self, _: &dyn CommandContext) -> String {
         format!("Set Material {} Property Value", self.name)
     }
 
-    fn execute(&mut self, _: &mut GameSceneContext) {
+    fn execute(&mut self, _: &mut dyn CommandContext) {
         self.swap();
     }
 
-    fn revert(&mut self, _: &mut GameSceneContext) {
+    fn revert(&mut self, _: &mut dyn CommandContext) {
         self.swap();
     }
 }
@@ -79,7 +80,8 @@ impl SetMaterialShaderCommand {
         }
     }
 
-    fn swap(&mut self, context: &mut GameSceneContext) {
+    fn swap(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         match std::mem::replace(&mut self.state, SetMaterialShaderCommandState::Undefined) {
             SetMaterialShaderCommandState::Undefined => {
                 unreachable!()
@@ -114,16 +116,16 @@ impl SetMaterialShaderCommand {
     }
 }
 
-impl GameSceneCommandTrait for SetMaterialShaderCommand {
-    fn name(&mut self, _: &GameSceneContext) -> String {
+impl CommandTrait for SetMaterialShaderCommand {
+    fn name(&mut self, _: &dyn CommandContext) -> String {
         "Set Material Shader".to_owned()
     }
 
-    fn execute(&mut self, ctx: &mut GameSceneContext) {
+    fn execute(&mut self, ctx: &mut dyn CommandContext) {
         self.swap(ctx);
     }
 
-    fn revert(&mut self, ctx: &mut GameSceneContext) {
+    fn revert(&mut self, ctx: &mut dyn CommandContext) {
         self.swap(ctx);
     }
 }

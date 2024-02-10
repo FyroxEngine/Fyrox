@@ -1,3 +1,4 @@
+use crate::command::{Command, CommandGroup};
 use crate::{
     animation::{
         command::{
@@ -12,7 +13,7 @@ use crate::{
     load_image,
     message::MessageSender,
     scene::{
-        commands::{ChangeSelectionCommand, CommandGroup, GameSceneCommand},
+        commands::ChangeSelectionCommand,
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
         GameScene, Selection,
     },
@@ -903,7 +904,7 @@ impl Toolbar {
                     .is_some()
                 {
                     let group = vec![
-                        GameSceneCommand::new(ChangeSelectionCommand::new(
+                        Command::new(ChangeSelectionCommand::new(
                             Selection::new(AnimationSelection {
                                 animation_player: animation_player_handle,
                                 animation: Default::default(),
@@ -911,7 +912,7 @@ impl Toolbar {
                             }),
                             editor_selection.clone(),
                         )),
-                        GameSceneCommand::new(RemoveAnimationCommand::new(
+                        Command::new(RemoveAnimationCommand::new(
                             animation_player_handle,
                             selection.animation,
                         )),
@@ -1086,7 +1087,7 @@ impl Toolbar {
                                     animations
                                         .into_iter()
                                         .map(|a| {
-                                            GameSceneCommand::new(AddAnimationCommand::new(
+                                            Command::new(AddAnimationCommand::new(
                                                 animation_player_handle,
                                                 a,
                                             ))

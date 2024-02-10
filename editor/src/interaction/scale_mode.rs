@@ -1,3 +1,4 @@
+use crate::command::{Command, CommandGroup};
 use crate::scene::SelectionContainer;
 use crate::{
     camera::PickingOptions,
@@ -7,9 +8,7 @@ use crate::{
     },
     message::MessageSender,
     scene::{
-        commands::{
-            graph::ScaleNodeCommand, ChangeSelectionCommand, CommandGroup, GameSceneCommand,
-        },
+        commands::{graph::ScaleNodeCommand, ChangeSelectionCommand},
         controller::SceneController,
         GameScene, Selection,
     },
@@ -121,9 +120,7 @@ impl InteractionMode for ScaleInteractionMode {
                                 .iter()
                                 .zip(self.initial_scales.iter().zip(current_scales.iter()))
                                 .map(|(&node, (&old_scale, &new_scale))| {
-                                    GameSceneCommand::new(ScaleNodeCommand::new(
-                                        node, old_scale, new_scale,
-                                    ))
+                                    Command::new(ScaleNodeCommand::new(node, old_scale, new_scale))
                                 })
                                 .collect::<Vec<_>>(),
                         );

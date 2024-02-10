@@ -46,7 +46,7 @@ use crate::{
     audio::{preview::AudioPreviewPanel, AudioPanel},
     build::BuildWindow,
     camera::panel::CameraPreviewControlPanel,
-    command::{panel::CommandStackViewer, GameSceneCommandTrait},
+    command::{panel::CommandStackViewer, CommandTrait},
     configurator::Configurator,
     curve_editor::CurveEditorWindow,
     highlight::HighlightRenderPass,
@@ -70,8 +70,7 @@ use crate::{
     plugin::EditorPlugin,
     scene::{
         commands::{
-            make_delete_selection_command, ChangeSelectionCommand, GameSceneCommand,
-            GameSceneContext, PasteCommand,
+            make_delete_selection_command, ChangeSelectionCommand, GameSceneContext, PasteCommand,
         },
         container::{EditorSceneEntry, SceneContainer},
         dialog::NodeRemovalDialog,
@@ -81,7 +80,7 @@ use crate::{
     scene_viewer::SceneViewer,
     settings::Settings,
     ui_scene::{
-        commands::graph::PasteWidgetCommand, commands::UiSceneCommand, menu::WidgetContextMenu,
+        commands::graph::PasteWidgetCommand, menu::WidgetContextMenu,
         utils::UiSceneWorldViewerDataProvider, UiScene,
     },
     utils::{doc::DocWindow, path_fixer::PathFixer, ragdoll::RagdollWizard},
@@ -156,6 +155,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::command::Command;
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -1581,15 +1581,11 @@ impl Editor {
         for_each_plugin!(self.plugins => on_post_update(self));
     }
 
-    fn do_game_scene_command(&mut self, command: GameSceneCommand) -> bool {
+    fn do_game_scene_command(&mut self, command: Command) -> bool {
         let engine = &mut self.engine;
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
             if let Some(game_scene) = current_scene_entry.controller.downcast_mut::<GameScene>() {
-                game_scene.do_command(
-                    command.into_inner(),
-                    &mut current_scene_entry.selection,
-                    engine,
-                );
+                game_scene.do_command(command, &mut current_scene_entry.selection, engine);
             }
 
             current_scene_entry.has_unsaved_changes = true;
@@ -1600,15 +1596,11 @@ impl Editor {
         }
     }
 
-    fn do_ui_scene_command(&mut self, command: UiSceneCommand) -> bool {
+    fn do_ui_scene_command(&mut self, command: Command) -> bool {
         let engine = &mut self.engine;
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
             if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>() {
-                ui_scene.do_command(
-                    command.into_inner(),
-                    &mut current_scene_entry.selection,
-                    engine,
-                );
+                ui_scene.do_command(command, &mut current_scene_entry.selection, engine);
             }
 
             current_scene_entry.has_unsaved_changes = true;

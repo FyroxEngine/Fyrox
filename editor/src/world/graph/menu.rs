@@ -1,3 +1,4 @@
+use crate::command::{Command, CommandGroup};
 use crate::{
     make_save_file_selector,
     menu::{create::CreateEntityMenu, create_menu_item, create_menu_item_shortcut},
@@ -5,8 +6,7 @@ use crate::{
     scene::{
         commands::{
             graph::{AddNodeCommand, ReplaceNodeCommand, SetGraphRootCommand},
-            make_delete_selection_command, CommandGroup, GameSceneCommand,
-            RevertSceneNodePropertyCommand,
+            make_delete_selection_command, RevertSceneNodePropertyCommand,
         },
         controller::SceneController,
         GameScene, Selection,
@@ -268,7 +268,7 @@ impl SceneNodeContextMenu {
                                     &mut |path, _, val| {
                                         val.as_inheritable_variable(&mut |inheritable| {
                                             if inheritable.is_some() {
-                                                commands.push(GameSceneCommand::new(
+                                                commands.push(Command::new(
                                                     RevertSceneNodePropertyCommand::new(
                                                         path.to_string(),
                                                         *node_handle,

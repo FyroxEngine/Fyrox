@@ -1,22 +1,14 @@
-use crate::load_image;
-use crate::ui_scene::commands::graph::SetWidgetChildPosition;
 use crate::{
+    command::{Command, CommandGroup},
+    load_image,
     message::MessageSender,
-    scene::Selection,
+    scene::{commands::ChangeSelectionCommand, Selection},
     ui_scene::{
-        commands::{
-            graph::{AddUiPrefabCommand, LinkWidgetsCommand},
-            ChangeUiSelectionCommand, UiCommandGroup, UiSceneCommand,
-        },
+        commands::graph::{AddUiPrefabCommand, LinkWidgetsCommand, SetWidgetChildPosition},
         selection::UiSelection,
     },
     world::{graph::item::DropAnchor, WorldViewerDataProvider},
 };
-use fyrox::gui::button::Button;
-use fyrox::gui::canvas::Canvas;
-use fyrox::gui::grid::Grid;
-use fyrox::gui::screen::Screen;
-use fyrox::gui::text::Text;
 use fyrox::{
     asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
@@ -24,7 +16,10 @@ use fyrox::{
         pool::Handle, reflect::Reflect,
     },
     graph::{SceneGraph, SceneGraphNode},
-    gui::{UiNode, UserInterface, UserInterfaceResourceExtension},
+    gui::{
+        button::Button, canvas::Canvas, grid::Grid, screen::Screen, text::Text, UiNode,
+        UserInterface, UserInterfaceResourceExtension,
+    },
 };
 use std::{borrow::Cow, path::Path, path::PathBuf};
 
@@ -145,7 +140,7 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
 
         if let Some(selection) = self.selection.as_ui() {
             if selection.widgets.contains(&child) {
-                let mut commands = UiCommandGroup::default();
+                let mut commands = CommandGroup::default();
 
                 'selection_loop: for &widget_handle in selection.widgets.iter() {
                     // Make sure we won't create any loops - child must not have parent in its
@@ -205,16 +200,16 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
                 let sub_graph = self.ui.take_reserve_sub_graph(instance);
 
                 let group = vec![
-                    UiSceneCommand::new(AddUiPrefabCommand::new(sub_graph)),
-                    UiSceneCommand::new(LinkWidgetsCommand::new(instance, node.into())),
+                    Command::new(AddUiPrefabCommand::new(sub_graph)),
+                    Command::new(LinkWidgetsCommand::new(instance, node.into())),
                     // We also want to select newly instantiated model.
-                    UiSceneCommand::new(ChangeUiSelectionCommand::new(
+                    Command::new(ChangeSelectionCommand::new(
                         Selection::new(UiSelection::single_or_empty(instance)),
                         self.selection.clone(),
                     )),
                 ];
 
-                self.sender.do_ui_scene_command(UiCommandGroup::from(group));
+                self.sender.do_ui_scene_command(CommandGroup::from(group));
             }
         }
     }
@@ -236,11 +231,10 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
         }
 
         if &new_selection != self.selection {
-            self.sender
-                .do_ui_scene_command(ChangeUiSelectionCommand::new(
-                    new_selection,
-                    self.selection.clone(),
-                ));
+            self.sender.do_ui_scene_command(ChangeSelectionCommand::new(
+                new_selection,
+                self.selection.clone(),
+            ));
         }
     }
 }

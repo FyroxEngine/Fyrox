@@ -1,3 +1,4 @@
+use crate::command::{Command, CommandGroup};
 use crate::scene::SelectionContainer;
 use crate::{
     camera::PickingOptions,
@@ -16,7 +17,7 @@ use crate::{
                 AddNavmeshEdgeCommand, ConnectNavmeshEdgesCommand, DeleteNavmeshVertexCommand,
                 MoveNavmeshVertexCommand,
             },
-            ChangeSelectionCommand, CommandGroup, GameSceneCommand,
+            ChangeSelectionCommand,
         },
         controller::SceneController,
         GameScene, Selection,
@@ -356,14 +357,12 @@ impl InteractionMode for EditNavmeshMode {
                     match drag_context {
                         DragContext::MoveSelection { initial_positions } => {
                             for vertex in selection.unique_vertices().iter() {
-                                commands.push(GameSceneCommand::new(
-                                    MoveNavmeshVertexCommand::new(
-                                        selection.navmesh_node(),
-                                        *vertex,
-                                        *initial_positions.get(vertex).unwrap(),
-                                        navmesh.vertices()[*vertex],
-                                    ),
-                                ));
+                                commands.push(Command::new(MoveNavmeshVertexCommand::new(
+                                    selection.navmesh_node(),
+                                    *vertex,
+                                    *initial_positions.get(vertex).unwrap(),
+                                    navmesh.vertices()[*vertex],
+                                )));
                             }
                         }
                         DragContext::EdgeDuplication {
@@ -373,7 +372,7 @@ impl InteractionMode for EditNavmeshMode {
                             let va = vertices[0];
                             let vb = vertices[1];
 
-                            commands.push(GameSceneCommand::new(AddNavmeshEdgeCommand::new(
+                            commands.push(Command::new(AddNavmeshEdgeCommand::new(
                                 selection.navmesh_node(),
                                 (va, vb),
                                 opposite_edge,
@@ -617,13 +616,13 @@ impl InteractionMode for EditNavmeshMode {
                         let mut commands = Vec::new();
 
                         for vertex in selection.unique_vertices().iter().rev().cloned() {
-                            commands.push(GameSceneCommand::new(DeleteNavmeshVertexCommand::new(
+                            commands.push(Command::new(DeleteNavmeshVertexCommand::new(
                                 selection.navmesh_node(),
                                 vertex,
                             )));
                         }
 
-                        commands.push(GameSceneCommand::new(ChangeSelectionCommand::new(
+                        commands.push(Command::new(ChangeSelectionCommand::new(
                             Selection::new(NavmeshSelection::empty(selection.navmesh_node())),
                             editor_selection.clone(),
                         )));

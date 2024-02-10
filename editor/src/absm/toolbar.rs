@@ -1,3 +1,4 @@
+use crate::command::{Command, CommandGroup};
 use crate::{
     absm::{
         command::{AddLayerCommand, RemoveLayerCommand, SetLayerMaskCommand, SetLayerNameCommand},
@@ -8,7 +9,7 @@ use crate::{
     load_image,
     message::MessageSender,
     scene::{
-        commands::{ChangeSelectionCommand, CommandGroup, GameSceneCommand},
+        commands::ChangeSelectionCommand,
         selector::{HierarchyNode, NodeSelectorMessage, NodeSelectorWindowBuilder},
         GameScene, Selection,
     },
@@ -305,7 +306,7 @@ impl Toolbar {
                     if let Some(layer_index) = selection.layer {
                         let mut commands = Vec::new();
 
-                        commands.push(GameSceneCommand::new(ChangeSelectionCommand::new(
+                        commands.push(Command::new(ChangeSelectionCommand::new(
                             Selection::new(AbsmSelection {
                                 absm_node_handle: selection.absm_node_handle,
                                 layer: if absm_node.machine().layers().len() > 1 {
@@ -318,7 +319,7 @@ impl Toolbar {
                             editor_selection.clone(),
                         )));
 
-                        commands.push(GameSceneCommand::new(RemoveLayerCommand::new(
+                        commands.push(Command::new(RemoveLayerCommand::new(
                             selection.absm_node_handle,
                             layer_index,
                         )));

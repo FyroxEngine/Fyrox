@@ -1,3 +1,4 @@
+use crate::command::{Command, CommandGroup};
 use crate::scene::SelectionContainer;
 use crate::{
     camera::PickingOptions,
@@ -7,9 +8,7 @@ use crate::{
     },
     message::MessageSender,
     scene::{
-        commands::{
-            graph::RotateNodeCommand, ChangeSelectionCommand, CommandGroup, GameSceneCommand,
-        },
+        commands::{graph::RotateNodeCommand, ChangeSelectionCommand},
         controller::SceneController,
         GameScene, Selection,
     },
@@ -124,13 +123,13 @@ impl InteractionMode for RotateInteractionMode {
                                 .iter()
                                 .zip(self.initial_rotations.iter().zip(current_rotation.iter()))
                                 .map(|(&node, (&old_rotation, &new_rotation))| {
-                                    GameSceneCommand::new(RotateNodeCommand::new(
+                                    Command::new(RotateNodeCommand::new(
                                         node,
                                         old_rotation,
                                         new_rotation,
                                     ))
                                 })
-                                .collect::<Vec<GameSceneCommand>>(),
+                                .collect::<Vec<Command>>(),
                         );
                         // Commit changes.
                         self.message_sender.do_scene_command(commands);

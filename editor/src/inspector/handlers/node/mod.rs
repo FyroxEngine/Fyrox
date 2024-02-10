@@ -1,11 +1,10 @@
-use crate::scene::commands::RevertSceneNodePropertyCommand;
+use crate::command::make_command;
+use crate::scene::commands::{GameSceneContext, RevertSceneNodePropertyCommand};
 use crate::{
-    scene::commands::{
-        make_set_node_property_command,
-        terrain::{AddTerrainLayerCommand, DeleteTerrainLayerCommand},
-    },
-    GameSceneCommand,
+    scene::commands::terrain::{AddTerrainLayerCommand, DeleteTerrainLayerCommand},
+    Command,
 };
+use fyrox::core::reflect::Reflect;
 use fyrox::{
     core::pool::Handle,
     gui::inspector::{CollectionChanged, FieldKind, PropertyChanged},
@@ -21,17 +20,17 @@ impl SceneNodePropertyChangedHandler {
         args: &PropertyChanged,
         handle: Handle<Node>,
         _node: &mut Node,
-    ) -> Option<GameSceneCommand> {
+    ) -> Option<Command> {
         // Terrain is special and have its own commands for specific properties.
         if args.path() == Terrain::LAYERS && args.owner_type_id == TypeId::of::<Terrain>() {
             match args.value {
                 FieldKind::Collection(ref collection_changed) => match **collection_changed {
                     CollectionChanged::Add(_) => {
-                        Some(GameSceneCommand::new(AddTerrainLayerCommand::new(handle)))
+                        Some(Command::new(AddTerrainLayerCommand::new(handle)))
                     }
-                    CollectionChanged::Remove(index) => Some(GameSceneCommand::new(
-                        DeleteTerrainLayerCommand::new(handle, index),
-                    )),
+                    CollectionChanged::Remove(index) => {
+                        Some(Command::new(DeleteTerrainLayerCommand::new(handle, index)))
+                    }
                     CollectionChanged::ItemChanged { .. } => None,
                 },
                 _ => None,
@@ -48,12 +47,12 @@ impl SceneNodePropertyChangedHandler {
         args: &PropertyChanged,
         handle: Handle<Node>,
         node: &mut Node,
-    ) -> Option<GameSceneCommand> {
+    ) -> Option<Command> {
         self.try_get_command(args, handle, node).or_else(|| {
             if args.is_inheritable() {
                 // Prevent reverting property value if there's no parent resource.
                 if node.resource().is_some() {
-                    Some(GameSceneCommand::new(RevertSceneNodePropertyCommand::new(
+                    Some(Command::new(RevertSceneNodePropertyCommand::new(
                         args.path(),
                         handle,
                     )))
@@ -61,7 +60,9 @@ impl SceneNodePropertyChangedHandler {
                     None
                 }
             } else {
-                make_set_node_property_command(handle, args)
+                make_command(args, move |ctx| {
+                    &mut ctx.get_mut::<GameSceneContext>().scene.graph[handle] as &mut dyn Reflect
+                })
             }
         })
     }

@@ -87,7 +87,7 @@ pub struct Inspector {
 #[macro_export]
 macro_rules! make_command {
     ($cmd:ty, $handle:expr, $value:expr) => {
-        Some($crate::scene::commands::GameSceneCommand::new(<$cmd>::new(
+        Some($crate::scene::commands::Command::new(<$cmd>::new(
             $handle,
             $value.cast_value().cloned()?,
         )))
