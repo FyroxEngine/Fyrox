@@ -81,7 +81,7 @@ use crate::{
     scene_viewer::SceneViewer,
     settings::Settings,
     ui_scene::{
-        commands::graph::PasteWidgetCommand, commands::UiSceneCommand, menu::WidgetContextMenu,
+        commands::graph::PasteWidgetCommand, menu::WidgetContextMenu,
         utils::UiSceneWorldViewerDataProvider, UiScene,
     },
     utils::{doc::DocWindow, path_fixer::PathFixer, ragdoll::RagdollWizard},
@@ -156,6 +156,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::command::Command;
 pub use message::Message;
 
 pub const FIXED_TIMESTEP: f32 = 1.0 / 60.0;
@@ -1600,15 +1601,11 @@ impl Editor {
         }
     }
 
-    fn do_ui_scene_command(&mut self, command: UiSceneCommand) -> bool {
+    fn do_ui_scene_command(&mut self, command: Command) -> bool {
         let engine = &mut self.engine;
         if let Some(current_scene_entry) = self.scenes.current_scene_entry_mut() {
             if let Some(ui_scene) = current_scene_entry.controller.downcast_mut::<UiScene>() {
-                ui_scene.do_command(
-                    command.into_inner(),
-                    &mut current_scene_entry.selection,
-                    engine,
-                );
+                ui_scene.do_command(command, &mut current_scene_entry.selection, engine);
             }
 
             current_scene_entry.has_unsaved_changes = true;

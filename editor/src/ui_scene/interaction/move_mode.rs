@@ -1,12 +1,11 @@
+use crate::command::{Command, CommandGroup};
 use crate::{
     interaction::{make_interaction_mode_button, InteractionMode},
     message::MessageSender,
     scene::{controller::SceneController, Selection},
     settings::Settings,
     ui_scene::{
-        commands::{
-            widget::MoveWidgetCommand, ChangeUiSelectionCommand, UiCommandGroup, UiSceneCommand,
-        },
+        commands::{widget::MoveWidgetCommand, ChangeUiSelectionCommand},
         UiScene,
     },
 };
@@ -113,7 +112,7 @@ impl InteractionMode for MoveWidgetsInteractionMode {
                     .entries
                     .into_iter()
                     .map(|e| {
-                        UiSceneCommand::new(MoveWidgetCommand::new(
+                        Command::new(MoveWidgetCommand::new(
                             e.widget,
                             e.initial_local_position,
                             e.new_local_position,
@@ -121,7 +120,7 @@ impl InteractionMode for MoveWidgetsInteractionMode {
                     })
                     .collect::<Vec<_>>();
                 self.sender
-                    .do_ui_scene_command(UiCommandGroup::from(commands));
+                    .do_ui_scene_command(CommandGroup::from(commands));
             }
         } else {
             let picked = ui_scene.ui.hit_test(mouse_pos);

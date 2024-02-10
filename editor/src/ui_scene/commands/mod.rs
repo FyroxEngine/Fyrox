@@ -1,21 +1,15 @@
 pub mod graph;
 pub mod widget;
 
-use crate::ui_scene::clipboard::Clipboard;
 use crate::{
-    define_command_stack, define_universal_commands, message::MessageSender, scene::Selection,
+    command::{CommandContext, CommandTrait},
+    message::MessageSender,
+    scene::Selection,
+    ui_scene::clipboard::Clipboard,
     Message,
 };
-use fyrox::{
-    core::pool::Handle,
-    core::reflect::prelude::*,
-    core::reflect::SetFieldByPathError,
-    gui::{UiNode, UserInterface},
-};
+use fyrox::gui::UserInterface;
 use std::fmt::Debug;
-use std::ops::{Deref, DerefMut};
-
-define_command_stack!(UiCommand, UiCommandStack, UiSceneContext);
 
 pub struct UiSceneContext<'a> {
     pub ui: &'a mut UserInterface,
@@ -24,100 +18,31 @@ pub struct UiSceneContext<'a> {
     pub clipboard: &'a mut Clipboard,
 }
 
-#[derive(Debug)]
-pub struct UiSceneCommand(pub Box<dyn UiCommand>);
-
-impl Deref for UiSceneCommand {
-    type Target = dyn UiCommand;
-
-    fn deref(&self) -> &Self::Target {
-        &*self.0
+impl<'a> UiSceneContext<'a> {
+    pub fn exec<F>(
+        ui: &'a mut UserInterface,
+        selection: &'a mut Selection,
+        message_sender: &'a MessageSender,
+        clipboard: &'a mut Clipboard,
+        func: F,
+    ) where
+        F: FnOnce(&mut UiSceneContext<'static>),
+    {
+        // SAFETY: Temporarily extend lifetime to 'static and execute external closure with it.
+        // The closure accepts this extended context by reference, so there's no way it escapes to
+        // outer world. The initial lifetime is still preserved by this function call.
+        func(unsafe {
+            &mut std::mem::transmute::<UiSceneContext<'a>, UiSceneContext<'static>>(Self {
+                ui,
+                selection,
+                message_sender,
+                clipboard,
+            })
+        });
     }
 }
 
-impl DerefMut for UiSceneCommand {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut *self.0
-    }
-}
-
-impl UiSceneCommand {
-    pub fn new<C: UiCommand>(cmd: C) -> Self {
-        Self(Box::new(cmd))
-    }
-
-    pub fn into_inner(self) -> Box<dyn UiCommand> {
-        self.0
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct UiCommandGroup {
-    commands: Vec<UiSceneCommand>,
-    custom_name: String,
-}
-
-impl From<Vec<UiSceneCommand>> for UiCommandGroup {
-    fn from(commands: Vec<UiSceneCommand>) -> Self {
-        Self {
-            commands,
-            custom_name: Default::default(),
-        }
-    }
-}
-
-impl UiCommandGroup {
-    pub fn push<C: UiCommand>(&mut self, command: C) {
-        self.commands.push(UiSceneCommand::new(command))
-    }
-
-    pub fn with_custom_name<S: AsRef<str>>(mut self, name: S) -> Self {
-        self.custom_name = name.as_ref().to_string();
-        self
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.commands.is_empty()
-    }
-
-    pub fn len(&self) -> usize {
-        self.commands.len()
-    }
-}
-
-impl UiCommand for UiCommandGroup {
-    fn name(&mut self, context: &UiSceneContext) -> String {
-        if self.custom_name.is_empty() {
-            let mut name = String::from("Command group: ");
-            for cmd in self.commands.iter_mut() {
-                name.push_str(&cmd.name(context));
-                name.push_str(", ");
-            }
-            name
-        } else {
-            self.custom_name.clone()
-        }
-    }
-
-    fn execute(&mut self, context: &mut UiSceneContext) {
-        for cmd in self.commands.iter_mut() {
-            cmd.execute(context);
-        }
-    }
-
-    fn revert(&mut self, context: &mut UiSceneContext) {
-        // revert must be done in reverse order.
-        for cmd in self.commands.iter_mut().rev() {
-            cmd.revert(context);
-        }
-    }
-
-    fn finalize(&mut self, context: &mut UiSceneContext) {
-        for mut cmd in self.commands.drain(..) {
-            cmd.finalize(context);
-        }
-    }
-}
+impl CommandContext for UiSceneContext<'static> {}
 
 #[derive(Debug)]
 pub struct ChangeUiSelectionCommand {
@@ -139,7 +64,8 @@ impl ChangeUiSelectionCommand {
         selection
     }
 
-    fn exec(&mut self, context: &mut UiSceneContext) {
+    fn exec(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<UiSceneContext>();
         let old_selection = self.old_selection.clone();
         let new_selection = self.swap();
         if &new_selection != context.selection {
@@ -151,28 +77,16 @@ impl ChangeUiSelectionCommand {
     }
 }
 
-impl UiCommand for ChangeUiSelectionCommand {
-    fn name(&mut self, _context: &UiSceneContext) -> String {
+impl CommandTrait for ChangeUiSelectionCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Change Selection".to_string()
     }
 
-    fn execute(&mut self, context: &mut UiSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
         self.exec(context);
     }
 
-    fn revert(&mut self, context: &mut UiSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
         self.exec(context);
     }
 }
-
-define_universal_commands!(
-    make_set_widget_property_command,
-    UiCommand,
-    UiSceneCommand,
-    UiSceneContext,
-    Handle<UiNode>,
-    ctx,
-    handle,
-    self,
-    { &mut *ctx.ui.node_mut(self.handle) as &mut dyn Reflect },
-);

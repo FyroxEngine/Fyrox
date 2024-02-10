@@ -5,6 +5,7 @@ pub mod menu;
 pub mod selection;
 pub mod utils;
 
+use crate::command::{make_command, Command, CommandGroup, CommandStack};
 use crate::{
     asset::item::AssetItem,
     inspector::editors::handle::HandlePropertyEditorMessage,
@@ -14,9 +15,8 @@ use crate::{
     ui_scene::{
         clipboard::Clipboard,
         commands::{
-            graph::AddUiPrefabCommand, make_set_widget_property_command,
-            widget::RevertWidgetPropertyCommand, ChangeUiSelectionCommand, UiCommand,
-            UiCommandGroup, UiCommandStack, UiSceneCommand, UiSceneContext,
+            graph::AddUiPrefabCommand, widget::RevertWidgetPropertyCommand,
+            ChangeUiSelectionCommand, UiSceneContext,
         },
         selection::UiSelection,
     },
@@ -57,7 +57,7 @@ pub struct PreviewInstance {
 pub struct UiScene {
     pub ui: UserInterface,
     pub render_target: TextureResource,
-    pub command_stack: UiCommandStack,
+    pub command_stack: CommandStack,
     pub message_sender: MessageSender,
     pub clipboard: Clipboard,
     pub preview_instance: Option<PreviewInstance>,
@@ -68,7 +68,7 @@ impl UiScene {
         Self {
             ui,
             render_target: TextureResource::new_render_target(200, 200),
-            command_stack: UiCommandStack::new(false),
+            command_stack: CommandStack::new(false),
             message_sender,
             clipboard: Default::default(),
             preview_instance: None,
@@ -77,17 +77,17 @@ impl UiScene {
 
     pub fn do_command(
         &mut self,
-        command: Box<dyn UiCommand>,
+        command: Command,
         selection: &mut Selection,
         _engine: &mut Engine,
     ) {
-        self.command_stack.do_command(
-            command,
-            UiSceneContext {
-                ui: &mut self.ui,
-                selection,
-                message_sender: &self.message_sender,
-                clipboard: &mut self.clipboard,
+        UiSceneContext::exec(
+            &mut self.ui,
+            selection,
+            &self.message_sender,
+            &mut self.clipboard,
+            |ctx| {
+                self.command_stack.do_command(command, ctx);
             },
         );
 
@@ -232,16 +232,16 @@ impl SceneController for UiScene {
             let sub_graph = self.ui.take_reserve_sub_graph(preview.instance);
 
             let group = vec![
-                UiSceneCommand::new(AddUiPrefabCommand::new(sub_graph)),
+                Command::new(AddUiPrefabCommand::new(sub_graph)),
                 // We also want to select newly instantiated model.
-                UiSceneCommand::new(ChangeUiSelectionCommand::new(
+                Command::new(ChangeUiSelectionCommand::new(
                     Selection::new(UiSelection::single_or_empty(preview.instance)),
                     editor_selection.clone(),
                 )),
             ];
 
             self.message_sender
-                .do_ui_scene_command(UiCommandGroup::from(group));
+                .do_ui_scene_command(CommandGroup::from(group));
         }
     }
 
@@ -284,34 +284,37 @@ impl SceneController for UiScene {
     }
 
     fn undo(&mut self, selection: &mut Selection, _engine: &mut Engine) {
-        self.command_stack.undo(UiSceneContext {
-            ui: &mut self.ui,
+        UiSceneContext::exec(
+            &mut self.ui,
             selection,
-            message_sender: &self.message_sender,
-            clipboard: &mut self.clipboard,
-        });
+            &self.message_sender,
+            &mut self.clipboard,
+            |ctx| self.command_stack.undo(ctx),
+        );
 
         self.ui.invalidate_layout();
     }
 
     fn redo(&mut self, selection: &mut Selection, _engine: &mut Engine) {
-        self.command_stack.redo(UiSceneContext {
-            ui: &mut self.ui,
+        UiSceneContext::exec(
+            &mut self.ui,
             selection,
-            message_sender: &self.message_sender,
-            clipboard: &mut self.clipboard,
-        });
+            &self.message_sender,
+            &mut self.clipboard,
+            |ctx| self.command_stack.redo(ctx),
+        );
 
         self.ui.invalidate_layout();
     }
 
     fn clear_command_stack(&mut self, selection: &mut Selection, _engine: &mut Engine) {
-        self.command_stack.clear(UiSceneContext {
-            ui: &mut self.ui,
+        UiSceneContext::exec(
+            &mut self.ui,
             selection,
-            message_sender: &self.message_sender,
-            clipboard: &mut self.clipboard,
-        });
+            &self.message_sender,
+            &mut self.clipboard,
+            |ctx| self.command_stack.clear(ctx),
+        );
 
         self.ui.invalidate_layout();
     }
@@ -391,12 +394,13 @@ impl SceneController for UiScene {
     }
 
     fn on_destroy(&mut self, _engine: &mut Engine, selection: &mut Selection) {
-        self.command_stack.clear(UiSceneContext {
-            ui: &mut self.ui,
+        UiSceneContext::exec(
+            &mut self.ui,
             selection,
-            message_sender: &self.message_sender,
-            clipboard: &mut self.clipboard,
-        });
+            &self.message_sender,
+            &mut self.clipboard,
+            |ctx| self.command_stack.clear(ctx),
+        );
     }
 
     fn on_message(
@@ -444,12 +448,17 @@ impl SceneController for UiScene {
             .commands
             .iter_mut()
             .map(|c| {
-                c.name(&UiSceneContext {
-                    ui: &mut self.ui,
+                let mut name = String::new();
+                UiSceneContext::exec(
+                    &mut self.ui,
                     selection,
-                    message_sender: &self.message_sender,
-                    clipboard: &mut self.clipboard,
-                })
+                    &self.message_sender,
+                    &mut self.clipboard,
+                    |ctx| {
+                        name = c.name(ctx);
+                    },
+                );
+                name
             })
             .collect::<Vec<_>>()
     }
@@ -484,7 +493,7 @@ impl SceneController for UiScene {
                         if args.is_inheritable() {
                             // Prevent reverting property value if there's no parent resource.
                             if node.resource().is_some() {
-                                Some(UiSceneCommand::new(RevertWidgetPropertyCommand::new(
+                                Some(Command::new(RevertWidgetPropertyCommand::new(
                                     args.path(),
                                     node_handle,
                                 )))
@@ -492,7 +501,9 @@ impl SceneController for UiScene {
                                 None
                             }
                         } else {
-                            make_set_widget_property_command(node_handle, args)
+                            make_command(args, move |ctx| {
+                                ctx.get_mut::<UiSceneContext>().ui.node_mut(node_handle)
+                            })
                         }
                     } else {
                         None
@@ -512,7 +523,7 @@ impl SceneController for UiScene {
                 .send(Message::DoUiSceneCommand(group.into_iter().next().unwrap()))
         } else {
             self.message_sender
-                .do_ui_scene_command(UiCommandGroup::from(group));
+                .do_ui_scene_command(CommandGroup::from(group));
         }
     }
 

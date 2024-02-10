@@ -6,6 +6,7 @@ use fyrox::{
 use std::{
     any::{type_name, Any},
     fmt::{Debug, Formatter},
+    ops::{Deref, DerefMut},
 };
 
 pub mod panel;
@@ -184,15 +185,106 @@ impl dyn CommandContext {
     }
 }
 
-pub trait Command: Debug {
+pub trait CommandTrait: Debug + 'static {
     fn name(&mut self, context: &dyn CommandContext) -> String;
     fn execute(&mut self, context: &mut dyn CommandContext);
     fn revert(&mut self, context: &mut dyn CommandContext);
     fn finalize(&mut self, _: &mut dyn CommandContext) {}
 }
 
+#[derive(Debug)]
+pub struct Command(Box<dyn CommandTrait>);
+
+impl Command {
+    pub fn new<C: CommandTrait>(cmd: C) -> Self {
+        Self(Box::new(cmd))
+    }
+}
+
+impl Deref for Command {
+    type Target = dyn CommandTrait;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
+
+impl DerefMut for Command {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut *self.0
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct CommandGroup {
+    commands: Vec<Command>,
+    custom_name: String,
+}
+
+impl From<Vec<Command>> for CommandGroup {
+    fn from(commands: Vec<Command>) -> Self {
+        Self {
+            commands,
+            custom_name: Default::default(),
+        }
+    }
+}
+
+impl CommandGroup {
+    pub fn push<C: CommandTrait>(&mut self, command: C) {
+        self.commands.push(Command::new(command))
+    }
+
+    pub fn with_custom_name<S: AsRef<str>>(mut self, name: S) -> Self {
+        self.custom_name = name.as_ref().to_string();
+        self
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.commands.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.commands.len()
+    }
+}
+
+impl CommandTrait for CommandGroup {
+    fn name(&mut self, context: &dyn CommandContext) -> String {
+        if self.custom_name.is_empty() {
+            let mut name = String::from("Command group: ");
+            for cmd in self.commands.iter_mut() {
+                name.push_str(&cmd.name(context));
+                name.push_str(", ");
+            }
+            name
+        } else {
+            self.custom_name.clone()
+        }
+    }
+
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        for cmd in self.commands.iter_mut() {
+            cmd.execute(context);
+        }
+    }
+
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        // revert must be done in reverse order.
+        for cmd in self.commands.iter_mut().rev() {
+            cmd.revert(context);
+        }
+    }
+
+    fn finalize(&mut self, context: &mut dyn CommandContext) {
+        for mut cmd in self.commands.drain(..) {
+            cmd.finalize(context);
+        }
+    }
+}
+
 pub struct CommandStack {
-    pub commands: Vec<Box<dyn Command>>,
+    pub commands: Vec<Command>,
     pub top: Option<usize>,
     debug: bool,
 }
@@ -206,7 +298,7 @@ impl CommandStack {
         }
     }
 
-    pub fn do_command(&mut self, mut command: Box<dyn Command>, context: &mut dyn CommandContext) {
+    pub fn do_command(&mut self, mut command: Command, context: &mut dyn CommandContext) {
         if self.commands.is_empty() {
             self.top = Some(0);
         } else {
@@ -291,29 +383,24 @@ impl CommandStack {
     }
 }
 
-pub fn make_command<F>(
-    property_changed: &PropertyChanged,
-    entity_getter: F,
-) -> Option<Box<dyn Command>>
+pub fn make_command<F>(property_changed: &PropertyChanged, entity_getter: F) -> Option<Command>
 where
     F: 'static + FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
 {
     match PropertyAction::from_field_kind(&property_changed.value) {
-        PropertyAction::Modify { value } => Some(Box::new(SetPropertyCommand::new(
+        PropertyAction::Modify { value } => Some(Command::new(SetPropertyCommand::new(
             property_changed.path(),
             value,
             entity_getter,
         ))),
-        PropertyAction::AddItem { value } => Some(Box::new(AddCollectionItemCommand::new(
+        PropertyAction::AddItem { value } => Some(Command::new(AddCollectionItemCommand::new(
             property_changed.path(),
             value,
             entity_getter,
         ))),
-        PropertyAction::RemoveItem { index } => Some(Box::new(RemoveCollectionItemCommand::new(
-            property_changed.path(),
-            index,
-            entity_getter,
-        ))),
+        PropertyAction::RemoveItem { index } => Some(Command::new(
+            RemoveCollectionItemCommand::new(property_changed.path(), index, entity_getter),
+        )),
         // Must be handled outside, there is not enough context and it near to impossible to create universal reversion
         // for InheritableVariable<T>.
         PropertyAction::Revert => None,
@@ -423,9 +510,9 @@ where
     }
 }
 
-impl<F> Command for SetPropertyCommand<F>
+impl<F> CommandTrait for SetPropertyCommand<F>
 where
-    F: FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
+    F: 'static + FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
 {
     fn name(&mut self, _: &dyn CommandContext) -> String {
         format!("Set {} property", self.path)
@@ -442,7 +529,7 @@ where
 
 pub struct AddCollectionItemCommand<F>
 where
-    F: FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
+    F: 'static + FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
 {
     path: String,
     item: Option<Box<dyn Reflect>>,
@@ -451,7 +538,7 @@ where
 
 impl<F> Debug for AddCollectionItemCommand<F>
 where
-    F: FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
+    F: 'static + FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "AddCollectionItemCommand")
@@ -460,7 +547,7 @@ where
 
 impl<F> AddCollectionItemCommand<F>
 where
-    F: FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
+    F: 'static + FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
 {
     pub fn new(path: String, item: Box<dyn Reflect>, entity_getter: F) -> Self {
         Self {
@@ -471,9 +558,9 @@ where
     }
 }
 
-impl<F> Command for AddCollectionItemCommand<F>
+impl<F> CommandTrait for AddCollectionItemCommand<F>
 where
-    F: FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
+    F: 'static + FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
 {
     fn name(&mut self, _: &dyn CommandContext) -> String {
         format!("Add item to {} collection", self.path)
@@ -527,7 +614,7 @@ where
 
 pub struct RemoveCollectionItemCommand<F>
 where
-    F: FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
+    F: 'static + FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
 {
     path: String,
     index: usize,
@@ -537,7 +624,7 @@ where
 
 impl<F> Debug for RemoveCollectionItemCommand<F>
 where
-    F: FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
+    F: 'static + FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "RemoveCollectionItemCommand")
@@ -546,7 +633,7 @@ where
 
 impl<F> RemoveCollectionItemCommand<F>
 where
-    F: FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
+    F: 'static + FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
 {
     pub fn new(path: String, index: usize, entity_getter: F) -> Self {
         Self {
@@ -558,9 +645,9 @@ where
     }
 }
 
-impl<F> Command for RemoveCollectionItemCommand<F>
+impl<F> CommandTrait for RemoveCollectionItemCommand<F>
 where
-    F: FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
+    F: 'static + FnMut(&mut dyn CommandContext) -> &mut dyn Reflect,
 {
     fn name(&mut self, _: &dyn CommandContext) -> String {
         format!("Remove collection {} item {}", self.path, self.index)
