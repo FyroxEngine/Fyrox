@@ -1,20 +1,14 @@
-use crate::highlight::HighlightRenderPass;
 use crate::{
     absm::{
-        command::{
-            pose::make_set_pose_property_command, state::make_set_state_property_command,
-            transition::make_set_transition_property_command,
-        },
+        command::fetch_machine,
         selection::{AbsmSelection, SelectedEntity},
     },
-    animation::{
-        self, command::signal::make_animation_signal_property_command,
-        selection::AnimationSelection,
-    },
+    animation::{self, command::fetch_animation_player, selection::AnimationSelection},
     asset::item::AssetItem,
     audio::AudioBusSelection,
     camera::{CameraController, PickingOptions},
-    command::{GameSceneCommandStack, GameSceneCommandTrait},
+    command::{make_command, Command, CommandGroup, CommandStack},
+    highlight::HighlightRenderPass,
     inspector::{
         editors::handle::HandlePropertyEditorMessage,
         handlers::node::SceneNodePropertyChangedHandler,
@@ -23,10 +17,9 @@ use crate::{
     message::MessageSender,
     scene::{
         clipboard::Clipboard,
-        commands::effect::make_set_audio_bus_property_command,
         commands::{
             graph::AddModelCommand, mesh::SetMeshTextureCommand, ChangeSelectionCommand,
-            CommandGroup, GameSceneCommand, GameSceneContext,
+            GameSceneContext,
         },
         controller::SceneController,
         selector::HierarchyNode,
@@ -36,7 +29,7 @@ use crate::{
     world::graph::selection::GraphSelection,
     Message, Settings,
 };
-use fyrox::graph::SceneGraph;
+use fyrox::scene::sound::AudioBus;
 use fyrox::{
     core::{
         algebra::{Vector2, Vector3},
@@ -51,6 +44,7 @@ use fyrox::{
     },
     engine::Engine,
     fxhash::FxHashSet,
+    graph::SceneGraph,
     gui::{
         inspector::PropertyChanged,
         message::{KeyCode, MessageDirection, MouseButton},
@@ -105,7 +99,7 @@ pub struct GameScene {
     pub camera_controller: CameraController,
     pub preview_camera: Handle<Node>,
     pub graph_switches: GraphUpdateSwitches,
-    pub command_stack: GameSceneCommandStack,
+    pub command_stack: CommandStack,
     pub preview_instance: Option<PreviewInstance>,
     pub sender: MessageSender,
     pub camera_state: Vec<(Handle<Node>, bool)>,
@@ -146,7 +140,7 @@ impl GameScene {
             editor_objects_root,
             scene_content_root,
             camera_controller,
-            command_stack: GameSceneCommandStack::new(false),
+            command_stack: CommandStack::new(false),
             preview_instance: None,
             scene: engine.scenes.add(scene),
             clipboard: Default::default(),
@@ -417,24 +411,17 @@ impl GameScene {
         }
     }
 
-    pub fn do_command(
-        &mut self,
-        command: Box<dyn GameSceneCommandTrait>,
-        selection: &mut Selection,
-        engine: &mut Engine,
-    ) {
-        self.command_stack.do_command(
-            command,
-            GameSceneContext {
-                selection,
-                scene: &mut engine.scenes[self.scene],
-                message_sender: self.sender.clone(),
-                scene_content_root: &mut self.scene_content_root,
-                clipboard: &mut self.clipboard,
-                resource_manager: engine.resource_manager.clone(),
-                serialization_context: engine.serialization_context.clone(),
-            },
-        );
+    pub fn do_command(&mut self, command: Command, selection: &mut Selection, engine: &mut Engine) {
+        GameSceneContext::exec(
+            selection,
+            &mut engine.scenes[self.scene],
+            &mut self.scene_content_root,
+            &mut self.clipboard,
+            self.sender.clone(),
+            engine.resource_manager.clone(),
+            engine.serialization_context.clone(),
+            |ctx| self.command_stack.do_command(command, ctx),
+        )
     }
 }
 
@@ -646,9 +633,9 @@ impl SceneController for GameScene {
                     let sub_graph = scene.graph.take_reserve_sub_graph(preview.instance);
 
                     let group = vec![
-                        GameSceneCommand::new(AddModelCommand::new(sub_graph)),
+                        Command::new(AddModelCommand::new(sub_graph)),
                         // We also want to select newly instantiated model.
-                        GameSceneCommand::new(ChangeSelectionCommand::new(
+                        Command::new(ChangeSelectionCommand::new(
                             Selection::new(GraphSelection::single_or_empty(preview.instance)),
                             editor_selection.clone(),
                         )),
@@ -712,39 +699,42 @@ impl SceneController for GameScene {
     }
 
     fn undo(&mut self, selection: &mut Selection, engine: &mut Engine) {
-        self.command_stack.undo(GameSceneContext {
+        GameSceneContext::exec(
             selection,
-            scene: &mut engine.scenes[self.scene],
-            message_sender: self.sender.clone(),
-            scene_content_root: &mut self.scene_content_root,
-            clipboard: &mut self.clipboard,
-            resource_manager: engine.resource_manager.clone(),
-            serialization_context: engine.serialization_context.clone(),
-        });
+            &mut engine.scenes[self.scene],
+            &mut self.scene_content_root,
+            &mut self.clipboard,
+            self.sender.clone(),
+            engine.resource_manager.clone(),
+            engine.serialization_context.clone(),
+            |ctx| self.command_stack.undo(ctx),
+        );
     }
 
     fn redo(&mut self, selection: &mut Selection, engine: &mut Engine) {
-        self.command_stack.redo(GameSceneContext {
+        GameSceneContext::exec(
             selection,
-            scene: &mut engine.scenes[self.scene],
-            message_sender: self.sender.clone(),
-            scene_content_root: &mut self.scene_content_root,
-            clipboard: &mut self.clipboard,
-            resource_manager: engine.resource_manager.clone(),
-            serialization_context: engine.serialization_context.clone(),
-        });
+            &mut engine.scenes[self.scene],
+            &mut self.scene_content_root,
+            &mut self.clipboard,
+            self.sender.clone(),
+            engine.resource_manager.clone(),
+            engine.serialization_context.clone(),
+            |ctx| self.command_stack.redo(ctx),
+        );
     }
 
     fn clear_command_stack(&mut self, selection: &mut Selection, engine: &mut Engine) {
-        self.command_stack.clear(GameSceneContext {
+        GameSceneContext::exec(
             selection,
-            scene: &mut engine.scenes[self.scene],
-            message_sender: self.sender.clone(),
-            scene_content_root: &mut self.scene_content_root,
-            clipboard: &mut self.clipboard,
-            resource_manager: engine.resource_manager.clone(),
-            serialization_context: engine.serialization_context.clone(),
-        });
+            &mut engine.scenes[self.scene],
+            &mut self.scene_content_root,
+            &mut self.clipboard,
+            self.sender.clone(),
+            engine.resource_manager.clone(),
+            engine.serialization_context.clone(),
+            |ctx| self.command_stack.clear(ctx),
+        );
     }
 
     fn on_before_render(&mut self, _editor_selection: &Selection, engine: &mut Engine) {
@@ -851,15 +841,16 @@ impl SceneController for GameScene {
     }
 
     fn on_destroy(&mut self, engine: &mut Engine, selection: &mut Selection) {
-        self.command_stack.clear(GameSceneContext {
+        GameSceneContext::exec(
             selection,
-            scene: &mut engine.scenes[self.scene],
-            message_sender: self.sender.clone(),
-            scene_content_root: &mut self.scene_content_root,
-            clipboard: &mut self.clipboard,
-            resource_manager: engine.resource_manager.clone(),
-            serialization_context: engine.serialization_context.clone(),
-        });
+            &mut engine.scenes[self.scene],
+            &mut self.scene_content_root,
+            &mut self.clipboard,
+            self.sender.clone(),
+            engine.resource_manager.clone(),
+            engine.serialization_context.clone(),
+            |ctx| self.command_stack.clear(ctx),
+        );
 
         engine.scenes.remove(self.scene);
     }
@@ -932,15 +923,20 @@ impl SceneController for GameScene {
             .commands
             .iter_mut()
             .map(|c| {
-                c.name(&GameSceneContext {
+                let mut name = String::new();
+                GameSceneContext::exec(
                     selection,
-                    scene: &mut engine.scenes[self.scene],
-                    scene_content_root: &mut self.scene_content_root,
-                    clipboard: &mut self.clipboard,
-                    message_sender: self.sender.clone(),
-                    resource_manager: engine.resource_manager.clone(),
-                    serialization_context: engine.serialization_context.clone(),
-                })
+                    &mut engine.scenes[self.scene],
+                    &mut self.scene_content_root,
+                    &mut self.clipboard,
+                    self.sender.clone(),
+                    engine.resource_manager.clone(),
+                    engine.serialization_context.clone(),
+                    |ctx| {
+                        name = c.name(ctx);
+                    },
+                );
+                name
             })
             .collect::<Vec<_>>()
     }
@@ -1030,7 +1026,21 @@ impl SceneController for GameScene {
             selection
                 .buses
                 .iter()
-                .filter_map(|&handle| make_set_audio_bus_property_command(handle, args))
+                .filter_map(|&handle| {
+                    make_command(args, move |ctx| {
+                        let mut state = ctx
+                            .get_mut::<GameSceneContext>()
+                            .scene
+                            .graph
+                            .sound_context
+                            .state();
+                        let bus = state.bus_graph_mut().try_get_bus_mut(handle).unwrap();
+                        // FIXME: HACK!
+                        unsafe {
+                            std::mem::transmute::<&'_ mut AudioBus, &'static mut AudioBus>(bus)
+                        }
+                    })
+                })
                 .collect::<Vec<_>>()
         } else if let Some(selection) = selection.as_animation() {
             if scene
@@ -1039,17 +1049,21 @@ impl SceneController for GameScene {
                 .and_then(|player| player.animations().try_get(selection.animation))
                 .is_some()
             {
+                let animation_player = selection.animation_player;
+                let animation = selection.animation;
                 selection
                     .entities
                     .iter()
                     .filter_map(|e| {
-                        if let animation::selection::SelectedEntity::Signal(id) = e {
-                            make_animation_signal_property_command(
-                                *id,
-                                args,
-                                selection.animation_player,
-                                selection.animation,
-                            )
+                        if let &animation::selection::SelectedEntity::Signal(id) = e {
+                            make_command(args, move |ctx| {
+                                fetch_animation_player(animation_player, ctx.get_mut())
+                                    .animations_mut()[animation]
+                                    .signals_mut()
+                                    .iter_mut()
+                                    .find(|s| s.id == id)
+                                    .unwrap()
+                            })
                         } else {
                             None
                         }
@@ -1066,30 +1080,26 @@ impl SceneController for GameScene {
                 .is_some()
             {
                 if let Some(layer_index) = selection.layer {
+                    let absm_node_handle = selection.absm_node_handle;
                     selection
                         .entities
                         .iter()
-                        .filter_map(|ent| match ent {
+                        .filter_map(|ent| match *ent {
                             SelectedEntity::Transition(transition) => {
-                                make_set_transition_property_command(
-                                    *transition,
-                                    args,
-                                    selection.absm_node_handle,
-                                    layer_index,
-                                )
+                                make_command(args, move |ctx| {
+                                    let machine = fetch_machine(ctx, absm_node_handle);
+                                    &mut machine.layers_mut()[layer_index].transitions_mut()
+                                        [transition]
+                                })
                             }
-                            SelectedEntity::State(state) => make_set_state_property_command(
-                                *state,
-                                args,
-                                selection.absm_node_handle,
-                                layer_index,
-                            ),
-                            SelectedEntity::PoseNode(pose) => make_set_pose_property_command(
-                                *pose,
-                                args,
-                                selection.absm_node_handle,
-                                layer_index,
-                            ),
+                            SelectedEntity::State(state) => make_command(args, move |ctx| {
+                                let machine = fetch_machine(ctx, absm_node_handle);
+                                &mut machine.layers_mut()[layer_index].states_mut()[state]
+                            }),
+                            SelectedEntity::PoseNode(pose) => make_command(args, move |ctx| {
+                                let machine = fetch_machine(ctx, absm_node_handle);
+                                &mut machine.layers_mut()[layer_index].nodes_mut()[pose]
+                            }),
                         })
                         .collect()
                 } else {

@@ -1,5 +1,6 @@
+use crate::command::CommandContext;
 use crate::{
-    command::GameSceneCommandTrait, scene::commands::GameSceneContext, scene::Selection,
+    command::CommandTrait, scene::commands::GameSceneContext, scene::Selection,
     world::graph::selection::GraphSelection, Message,
 };
 use fyrox::graph::{LinkScheme, SceneGraph, SceneGraphNode};
@@ -44,17 +45,19 @@ impl MoveNodeCommand {
     }
 }
 
-impl GameSceneCommandTrait for MoveNodeCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl CommandTrait for MoveNodeCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Move Node".to_owned()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         let position = self.swap();
         self.set_position(&mut context.scene.graph, position);
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         let position = self.swap();
         self.set_position(&mut context.scene.graph, position);
     }
@@ -87,17 +90,19 @@ impl ScaleNodeCommand {
     }
 }
 
-impl GameSceneCommandTrait for ScaleNodeCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl CommandTrait for ScaleNodeCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Scale Node".to_owned()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         let scale = self.swap();
         self.set_scale(&mut context.scene.graph, scale);
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         let scale = self.swap();
         self.set_scale(&mut context.scene.graph, scale);
     }
@@ -136,17 +141,19 @@ impl RotateNodeCommand {
     }
 }
 
-impl GameSceneCommandTrait for RotateNodeCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl CommandTrait for RotateNodeCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Rotate Node".to_owned()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         let rotation = self.swap();
         self.set_rotation(&mut context.scene.graph, rotation);
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         let rotation = self.swap();
         self.set_rotation(&mut context.scene.graph, rotation);
     }
@@ -170,16 +177,18 @@ impl LinkNodesCommand {
     }
 }
 
-impl GameSceneCommandTrait for LinkNodesCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl CommandTrait for LinkNodesCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Link Nodes".to_owned()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         self.link(&mut context.scene.graph);
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         self.link(&mut context.scene.graph);
     }
 }
@@ -192,7 +201,8 @@ pub struct SetGraphNodeChildPosition {
 }
 
 impl SetGraphNodeChildPosition {
-    fn swap(&mut self, context: &mut GameSceneContext) {
+    fn swap(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         let prev_pos = context.scene.graph[self.node]
             .set_child_position(self.child, self.position)
             .unwrap();
@@ -200,16 +210,16 @@ impl SetGraphNodeChildPosition {
     }
 }
 
-impl GameSceneCommandTrait for SetGraphNodeChildPosition {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl CommandTrait for SetGraphNodeChildPosition {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Child Position".to_string()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
         self.swap(context)
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
         self.swap(context)
     }
 }
@@ -222,19 +232,21 @@ pub struct DeleteNodeCommand {
     parent: Handle<Node>,
 }
 
-impl GameSceneCommandTrait for DeleteNodeCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl CommandTrait for DeleteNodeCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Delete Node".to_owned()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         self.parent = context.scene.graph[self.handle].parent();
         let (ticket, node) = context.scene.graph.take_reserve(self.handle);
         self.node = Some(node);
         self.ticket = Some(ticket);
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         self.handle = context
             .scene
             .graph
@@ -242,7 +254,8 @@ impl GameSceneCommandTrait for DeleteNodeCommand {
         context.scene.graph.link_nodes(self.handle, self.parent);
     }
 
-    fn finalize(&mut self, context: &mut GameSceneContext) {
+    fn finalize(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         if let Some(ticket) = self.ticket.take() {
             context
                 .scene
@@ -267,12 +280,13 @@ impl AddModelCommand {
     }
 }
 
-impl GameSceneCommandTrait for AddModelCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl CommandTrait for AddModelCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Load Model".to_owned()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         // A model was loaded, but change was reverted and here we must put all nodes
         // back to graph.
         self.model = context
@@ -281,11 +295,13 @@ impl GameSceneCommandTrait for AddModelCommand {
             .put_sub_graph_back(self.sub_graph.take().unwrap());
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         self.sub_graph = Some(context.scene.graph.take_reserve_sub_graph(self.model));
     }
 
-    fn finalize(&mut self, context: &mut GameSceneContext) {
+    fn finalize(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         if let Some(sub_graph) = self.sub_graph.take() {
             context.scene.graph.forget_sub_graph(sub_graph)
         }
@@ -309,12 +325,13 @@ impl DeleteSubGraphCommand {
     }
 }
 
-impl GameSceneCommandTrait for DeleteSubGraphCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl CommandTrait for DeleteSubGraphCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Delete Sub Graph".to_owned()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         self.parent = context.scene.graph[self.sub_graph_root].parent();
         self.sub_graph = Some(
             context
@@ -324,7 +341,8 @@ impl GameSceneCommandTrait for DeleteSubGraphCommand {
         );
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         context
             .scene
             .graph
@@ -335,7 +353,8 @@ impl GameSceneCommandTrait for DeleteSubGraphCommand {
             .link_nodes(self.sub_graph_root, self.parent);
     }
 
-    fn finalize(&mut self, context: &mut GameSceneContext) {
+    fn finalize(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         if let Some(sub_graph) = self.sub_graph.take() {
             context.scene.graph.forget_sub_graph(sub_graph)
         }
@@ -367,12 +386,13 @@ impl AddNodeCommand {
     }
 }
 
-impl GameSceneCommandTrait for AddNodeCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl CommandTrait for AddNodeCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         self.cached_name.clone()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         match self.ticket.take() {
             None => {
                 self.handle = context.scene.graph.add_node(self.node.take().unwrap());
@@ -406,7 +426,8 @@ impl GameSceneCommandTrait for AddNodeCommand {
         )
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         // No need to unlink node from its parent because .take_reserve() does that for us.
         let (ticket, node) = context.scene.graph.take_reserve(self.handle);
         self.ticket = Some(ticket);
@@ -420,7 +441,8 @@ impl GameSceneCommandTrait for AddNodeCommand {
         }
     }
 
-    fn finalize(&mut self, context: &mut GameSceneContext) {
+    fn finalize(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         if let Some(ticket) = self.ticket.take() {
             context
                 .scene
@@ -437,7 +459,8 @@ pub struct ReplaceNodeCommand {
 }
 
 impl ReplaceNodeCommand {
-    fn swap(&mut self, context: &mut GameSceneContext) {
+    fn swap(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         let existing = &mut context.scene.graph[self.handle];
 
         // Swap `Base` part, this is needed because base part contains hierarchy info.
@@ -452,16 +475,16 @@ impl ReplaceNodeCommand {
     }
 }
 
-impl GameSceneCommandTrait for ReplaceNodeCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl CommandTrait for ReplaceNodeCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Replace Node".to_owned()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
         self.swap(context);
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
         self.swap(context);
     }
 }
@@ -472,13 +495,14 @@ pub struct SetGraphRootCommand {
     pub link_scheme: LinkScheme<Node>,
 }
 
-impl GameSceneCommandTrait for SetGraphRootCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl CommandTrait for SetGraphRootCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Set Graph Root".to_string()
     }
 
     #[allow(clippy::unnecessary_to_owned)] // false positive
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         self.link_scheme = context
             .scene
             .graph
@@ -486,7 +510,8 @@ impl GameSceneCommandTrait for SetGraphRootCommand {
         self.root = std::mem::replace(context.scene_content_root, self.root);
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         context
             .scene
             .graph

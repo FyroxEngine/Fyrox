@@ -1,3 +1,4 @@
+use crate::command::{Command, CommandGroup};
 use crate::{
     absm::{
         command::{
@@ -13,10 +14,7 @@ use crate::{
     },
     menu::create_menu_item,
     message::MessageSender,
-    scene::{
-        commands::{ChangeSelectionCommand, CommandGroup, GameSceneCommand},
-        Selection,
-    },
+    scene::{commands::ChangeSelectionCommand, Selection},
 };
 use fyrox::graph::SceneGraph;
 use fyrox::{
@@ -228,14 +226,14 @@ impl NodeContextMenu {
                     let mut new_selection = selection.clone();
                     new_selection.entities.clear();
 
-                    let mut group = vec![GameSceneCommand::new(ChangeSelectionCommand::new(
+                    let mut group = vec![Command::new(ChangeSelectionCommand::new(
                         Selection::new(new_selection),
                         editor_selection.clone(),
                     ))];
 
                     group.extend(selection.entities.iter().filter_map(|entry| {
                         if let SelectedEntity::PoseNode(pose_node) = entry {
-                            Some(GameSceneCommand::new(DeletePoseNodeCommand::new(
+                            Some(Command::new(DeletePoseNodeCommand::new(
                                 absm_node_handle,
                                 layer_index,
                                 *pose_node,

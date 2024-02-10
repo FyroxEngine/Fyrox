@@ -1,3 +1,4 @@
+use crate::command::{Command, CommandGroup};
 use crate::message::MessageSender;
 use crate::{
     absm::{
@@ -17,10 +18,7 @@ use crate::{
         state_viewer::context::{CanvasContextMenu, ConnectionContextMenu, NodeContextMenu},
         NORMAL_BACKGROUND, NORMAL_ROOT_COLOR, SELECTED_BACKGROUND, SELECTED_ROOT_COLOR,
     },
-    scene::{
-        commands::{ChangeSelectionCommand, CommandGroup, GameSceneCommand},
-        Selection,
-    },
+    scene::{commands::ChangeSelectionCommand, Selection},
     send_sync_message,
 };
 use fyrox::graph::SceneGraph;
@@ -255,7 +253,7 @@ impl StateViewer {
                                     let pose_handle = fetch_pose_node_model_handle(e.node, ui);
                                     let new_position = ui.node(e.node).actual_local_position();
 
-                                    GameSceneCommand::new(MovePoseNodeCommand::new(
+                                    Command::new(MovePoseNodeCommand::new(
                                         absm_node_handle,
                                         pose_handle,
                                         layer_index,

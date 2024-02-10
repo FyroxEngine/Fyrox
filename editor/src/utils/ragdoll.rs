@@ -1,10 +1,9 @@
+use crate::command::{Command, CommandGroup};
 use crate::{
     inspector::editors::make_property_editors_container,
     message::MessageSender,
     scene::{
-        commands::{
-            graph::AddModelCommand, ChangeSelectionCommand, CommandGroup, GameSceneCommand,
-        },
+        commands::{graph::AddModelCommand, ChangeSelectionCommand},
         GameScene, Selection,
     },
     world::graph::selection::GraphSelection,
@@ -976,9 +975,9 @@ impl RagdollPreset {
         let sub_graph = graph.take_reserve_sub_graph(ragdoll);
 
         let group = vec![
-            GameSceneCommand::new(AddModelCommand::new(sub_graph)),
+            Command::new(AddModelCommand::new(sub_graph)),
             // We also want to select newly instantiated model.
-            GameSceneCommand::new(ChangeSelectionCommand::new(
+            Command::new(ChangeSelectionCommand::new(
                 Selection::new(GraphSelection::single_or_empty(ragdoll)),
                 editor_selection.clone(),
             )),

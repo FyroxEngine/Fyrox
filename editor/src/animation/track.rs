@@ -1,5 +1,6 @@
 #![allow(clippy::manual_map)]
 
+use crate::command::{Command, CommandGroup};
 use crate::{
     animation::{
         command::{
@@ -13,7 +14,7 @@ use crate::{
     menu::create_menu_item,
     message::MessageSender,
     scene::{
-        commands::{ChangeSelectionCommand, CommandGroup, GameSceneCommand},
+        commands::ChangeSelectionCommand,
         property::{
             object_to_property_tree, PropertyDescriptorData, PropertySelectorMessage,
             PropertySelectorWindowBuilder,
@@ -861,7 +862,7 @@ impl TrackList {
 
                         for entity in scene_selection.entities.iter() {
                             if let SelectedEntity::Track(id) = entity {
-                                commands.push(GameSceneCommand::new(SetTrackTargetCommand {
+                                commands.push(Command::new(SetTrackTargetCommand {
                                     animation_player_handle: scene_selection.animation_player,
                                     animation_handle: scene_selection.animation,
                                     track: *id,
@@ -965,16 +966,15 @@ impl TrackList {
                         if let Some(animation) =
                             animation_player.animations().try_get(selection.animation)
                         {
-                            let mut commands =
-                                vec![GameSceneCommand::new(ChangeSelectionCommand::new(
-                                    Selection::new(AnimationSelection {
-                                        animation_player: selection.animation_player,
-                                        animation: selection.animation,
-                                        // Just reset inner selection.
-                                        entities: vec![],
-                                    }),
-                                    editor_selection.clone(),
-                                ))];
+                            let mut commands = vec![Command::new(ChangeSelectionCommand::new(
+                                Selection::new(AnimationSelection {
+                                    animation_player: selection.animation_player,
+                                    animation: selection.animation,
+                                    // Just reset inner selection.
+                                    entities: vec![],
+                                }),
+                                editor_selection.clone(),
+                            ))];
 
                             for entity in selection.entities.iter() {
                                 if let SelectedEntity::Track(id) = entity {
@@ -984,7 +984,7 @@ impl TrackList {
                                         .position(|t| t.id() == *id)
                                         .unwrap();
 
-                                    commands.push(GameSceneCommand::new(RemoveTrackCommand::new(
+                                    commands.push(Command::new(RemoveTrackCommand::new(
                                         selection.animation_player,
                                         selection.animation,
                                         index,
@@ -1040,7 +1040,7 @@ impl TrackList {
 
                                         track.set_id(Uuid::new_v4());
 
-                                        Some(GameSceneCommand::new(AddTrackCommand::new(
+                                        Some(Command::new(AddTrackCommand::new(
                                             selection.animation_player,
                                             selection.animation,
                                             track,

@@ -1,3 +1,4 @@
+use crate::command::{Command, CommandGroup};
 use crate::message::MessageSender;
 use crate::{
     absm::{
@@ -10,10 +11,7 @@ use crate::{
         transition::{TransitionBuilder, TransitionMessage, TransitionView},
         NORMAL_BACKGROUND, NORMAL_ROOT_COLOR, SELECTED_BACKGROUND, SELECTED_ROOT_COLOR,
     },
-    scene::{
-        commands::{ChangeSelectionCommand, CommandGroup, GameSceneCommand},
-        Selection,
-    },
+    scene::{commands::ChangeSelectionCommand, Selection},
     send_sync_message,
 };
 use fyrox::graph::SceneGraph;
@@ -162,7 +160,7 @@ impl StateGraphViewer {
                                 let state_handle = fetch_state_node_model_handle(e.node, ui);
                                 let new_position = ui.node(e.node).actual_local_position();
 
-                                GameSceneCommand::new(MoveStateNodeCommand::new(
+                                Command::new(MoveStateNodeCommand::new(
                                     absm_node_handle,
                                     state_handle,
                                     layer_index,
@@ -219,7 +217,7 @@ impl StateGraphViewer {
                                 .iter()
                                 .map(|node| {
                                     let dest_state = fetch_state_node_model_handle(*node, ui);
-                                    GameSceneCommand::new(AddTransitionCommand::new(
+                                    Command::new(AddTransitionCommand::new(
                                         absm_node_handle,
                                         layer_index,
                                         Transition::new("Transition", source, dest_state, 1.0, ""),

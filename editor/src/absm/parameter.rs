@@ -1,6 +1,7 @@
+use crate::absm::command::fetch_machine;
+use crate::command::make_command;
 use crate::message::MessageSender;
 use crate::{
-    absm::command::parameter::make_set_parameters_property_command,
     inspector::editors::make_property_editors_container, Message, MessageDirection, MSG_SYNC_FLAG,
 };
 use fyrox::graph::SceneGraph;
@@ -149,7 +150,10 @@ impl ParameterPanel {
                     );
                 } else {
                     sender.send(Message::DoGameSceneCommand(
-                        make_set_parameters_property_command((), args, absm_node_handle).unwrap(),
+                        make_command(args, move |ctx| {
+                            fetch_machine(ctx, absm_node_handle).parameters_mut()
+                        })
+                        .unwrap(),
                     ));
                 }
             }

@@ -1,9 +1,5 @@
 use crate::command::{Command, CommandTrait};
-use crate::{
-    command::GameSceneCommandTrait,
-    scene::{commands::GameSceneCommand, Selection},
-    BuildProfile, SaveSceneConfirmationDialogAction,
-};
+use crate::{scene::Selection, BuildProfile, SaveSceneConfirmationDialogAction};
 use fyrox::{
     core::{
         log::Log,
@@ -18,7 +14,7 @@ use std::{path::PathBuf, sync::mpsc::Sender};
 
 #[derive(Debug)]
 pub enum Message {
-    DoGameSceneCommand(GameSceneCommand),
+    DoGameSceneCommand(Command),
     DoUiSceneCommand(Command),
     UndoCurrentSceneCommand,
     RedoCurrentSceneCommand,
@@ -91,9 +87,9 @@ unsafe impl Sync for MessageSender {}
 impl MessageSender {
     pub fn do_scene_command<C>(&self, cmd: C)
     where
-        C: GameSceneCommandTrait,
+        C: CommandTrait,
     {
-        self.send(Message::DoGameSceneCommand(GameSceneCommand::new(cmd)))
+        self.send(Message::DoGameSceneCommand(Command::new(cmd)))
     }
 
     pub fn do_ui_scene_command<C>(&self, cmd: C)

@@ -1,4 +1,3 @@
-use crate::scene::commands::GameSceneContext;
 use fyrox::{
     core::reflect::{is_path_to_array_element, Reflect, ResolvePath, SetFieldByPathError},
     gui::inspector::{PropertyAction, PropertyChanged},
@@ -10,7 +9,6 @@ use std::{
 };
 
 pub mod panel;
-pub mod universal;
 
 #[macro_export]
 macro_rules! define_command_stack {
@@ -128,12 +126,6 @@ macro_rules! define_command_stack {
     };
 }
 
-define_command_stack!(
-    GameSceneCommandTrait,
-    GameSceneCommandStack,
-    GameSceneContext
-);
-
 pub trait BaseCommandContext: Any {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -193,7 +185,7 @@ pub trait CommandTrait: Debug + 'static {
 }
 
 #[derive(Debug)]
-pub struct Command(Box<dyn CommandTrait>);
+pub struct Command(pub Box<dyn CommandTrait>);
 
 impl Command {
     pub fn new<C: CommandTrait>(cmd: C) -> Self {

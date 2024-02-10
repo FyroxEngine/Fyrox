@@ -1,5 +1,6 @@
+use crate::command::CommandContext;
 use crate::{
-    command::GameSceneCommandTrait,
+    command::CommandTrait,
     interaction::navmesh::selection::{NavmeshEntity, NavmeshSelection},
     scene::{commands::GameSceneContext, Selection},
 };
@@ -57,12 +58,13 @@ impl AddNavmeshEdgeCommand {
     }
 }
 
-impl GameSceneCommandTrait for AddNavmeshEdgeCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl CommandTrait for AddNavmeshEdgeCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Add Navmesh Edge".to_owned()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         let mut navmesh = fetch_navmesh(context, self.navmesh_node);
 
         match std::mem::replace(&mut self.state, AddNavmeshEdgeCommandState::Undefined) {
@@ -95,7 +97,8 @@ impl GameSceneCommandTrait for AddNavmeshEdgeCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         if self.select {
             std::mem::swap(context.selection, &mut self.new_selection);
         }
@@ -139,12 +142,13 @@ impl ConnectNavmeshEdgesCommand {
     }
 }
 
-impl GameSceneCommandTrait for ConnectNavmeshEdgesCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl CommandTrait for ConnectNavmeshEdgesCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Connect Navmesh Edges".to_owned()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         let mut navmesh = fetch_navmesh(context, self.navmesh_node);
         let mut ctx = navmesh.modify();
 
@@ -165,7 +169,8 @@ impl GameSceneCommandTrait for ConnectNavmeshEdgesCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         let mut navmesh = fetch_navmesh(context, self.navmesh_node);
         let mut ctx = navmesh.modify();
 
@@ -211,12 +216,13 @@ impl DeleteNavmeshVertexCommand {
     }
 }
 
-impl GameSceneCommandTrait for DeleteNavmeshVertexCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl CommandTrait for DeleteNavmeshVertexCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Delete Navmesh Vertex".to_owned()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         let mut navmesh = fetch_navmesh(context, self.navmesh_node);
 
         match std::mem::replace(&mut self.state, DeleteNavmeshVertexCommandState::Undefined) {
@@ -240,7 +246,8 @@ impl GameSceneCommandTrait for DeleteNavmeshVertexCommand {
         }
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         let mut navmesh = fetch_navmesh(context, self.navmesh_node);
 
         match std::mem::replace(&mut self.state, DeleteNavmeshVertexCommandState::Undefined) {
@@ -300,17 +307,19 @@ impl MoveNavmeshVertexCommand {
     }
 }
 
-impl GameSceneCommandTrait for MoveNavmeshVertexCommand {
-    fn name(&mut self, _context: &GameSceneContext) -> String {
+impl CommandTrait for MoveNavmeshVertexCommand {
+    fn name(&mut self, _context: &dyn CommandContext) -> String {
         "Move Navmesh Vertex".to_owned()
     }
 
-    fn execute(&mut self, context: &mut GameSceneContext) {
+    fn execute(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         let position = self.swap();
         self.set_position(fetch_navmesh(context, self.navmesh_node), position);
     }
 
-    fn revert(&mut self, context: &mut GameSceneContext) {
+    fn revert(&mut self, context: &mut dyn CommandContext) {
+        let context = context.get_mut::<GameSceneContext>();
         let position = self.swap();
         self.set_position(fetch_navmesh(context, self.navmesh_node), position);
     }
