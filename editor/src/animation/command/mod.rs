@@ -21,10 +21,10 @@ use std::{
     ops::{IndexMut, Range},
 };
 
-pub fn fetch_animation_player<'a>(
+pub fn fetch_animation_player(
     handle: Handle<Node>,
-    context: &'a mut GameSceneContext,
-) -> &'a mut AnimationPlayer {
+    context: &mut GameSceneContext,
+) -> &mut AnimationPlayer {
     context.scene.graph[handle]
         .query_component_mut::<AnimationPlayer>()
         .unwrap()
@@ -427,11 +427,11 @@ macro_rules! define_animation_swap_command {
     };
 }
 
-fn fetch_animation<'a>(
+fn fetch_animation(
     animation_player: Handle<Node>,
     animation: Handle<Animation>,
-    ctx: &'a mut GameSceneContext,
-) -> &'a mut Animation {
+    ctx: &mut GameSceneContext,
+) -> &mut Animation {
     fetch_animation_player(animation_player, ctx)
         .animations_mut()
         .index_mut(animation)

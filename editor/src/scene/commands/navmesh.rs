@@ -24,10 +24,7 @@ pub struct AddNavmeshEdgeCommand {
     new_selection: Selection,
 }
 
-fn fetch_navmesh<'a>(
-    ctx: &'a mut GameSceneContext,
-    node: Handle<Node>,
-) -> RwLockWriteGuard<'a, Navmesh> {
+fn fetch_navmesh(ctx: &mut GameSceneContext, node: Handle<Node>) -> RwLockWriteGuard<Navmesh> {
     ctx.scene.graph[node]
         .as_navigational_mesh_mut()
         .navmesh_mut()

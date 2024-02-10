@@ -2,12 +2,9 @@ use crate::{
     command::{Command, CommandGroup},
     load_image,
     message::MessageSender,
-    scene::Selection,
+    scene::{commands::ChangeSelectionCommand, Selection},
     ui_scene::{
-        commands::{
-            graph::{AddUiPrefabCommand, LinkWidgetsCommand, SetWidgetChildPosition},
-            ChangeUiSelectionCommand,
-        },
+        commands::graph::{AddUiPrefabCommand, LinkWidgetsCommand, SetWidgetChildPosition},
         selection::UiSelection,
     },
     world::{graph::item::DropAnchor, WorldViewerDataProvider},
@@ -206,7 +203,7 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
                     Command::new(AddUiPrefabCommand::new(sub_graph)),
                     Command::new(LinkWidgetsCommand::new(instance, node.into())),
                     // We also want to select newly instantiated model.
-                    Command::new(ChangeUiSelectionCommand::new(
+                    Command::new(ChangeSelectionCommand::new(
                         Selection::new(UiSelection::single_or_empty(instance)),
                         self.selection.clone(),
                     )),
@@ -234,11 +231,10 @@ impl<'a> WorldViewerDataProvider for UiSceneWorldViewerDataProvider<'a> {
         }
 
         if &new_selection != self.selection {
-            self.sender
-                .do_ui_scene_command(ChangeUiSelectionCommand::new(
-                    new_selection,
-                    self.selection.clone(),
-                ));
+            self.sender.do_ui_scene_command(ChangeSelectionCommand::new(
+                new_selection,
+                self.selection.clone(),
+            ));
         }
     }
 }

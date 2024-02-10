@@ -7,8 +7,8 @@ use crate::{
 use fyrox::{
     asset::{untyped::ResourceKind, Resource},
     core::{
-        color::Color, curve::Curve, futures::executor::block_on, pool::Handle, visitor::prelude::*,
-        visitor::Visitor,
+        color::Color, curve::Curve, futures::executor::block_on, pool::Handle,
+        type_traits::prelude::*, visitor::prelude::*, visitor::Visitor,
     },
     engine::Engine,
     gui::{
@@ -30,7 +30,7 @@ use fyrox::{
 };
 use std::{fmt::Debug, path::PathBuf};
 
-#[derive(Debug)]
+#[derive(Debug, ComponentProvider)]
 pub struct CurveEditorContext {}
 
 impl CommandContext for CurveEditorContext {}

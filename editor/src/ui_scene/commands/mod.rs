@@ -2,91 +2,43 @@ pub mod graph;
 pub mod widget;
 
 use crate::{
-    command::{CommandContext, CommandTrait},
-    message::MessageSender,
-    scene::Selection,
+    command::CommandContext, message::MessageSender, scene::Selection,
     ui_scene::clipboard::Clipboard,
-    Message,
 };
-use fyrox::gui::UserInterface;
-use std::fmt::Debug;
+use fyrox::{core::type_traits::prelude::*, gui::UserInterface};
 
-pub struct UiSceneContext<'a> {
-    pub ui: &'a mut UserInterface,
-    pub selection: &'a mut Selection,
-    pub message_sender: &'a MessageSender,
-    pub clipboard: &'a mut Clipboard,
+#[derive(ComponentProvider)]
+pub struct UiSceneContext {
+    pub ui: &'static mut UserInterface,
+    #[component(include)]
+    pub selection: &'static mut Selection,
+    #[component(include)]
+    pub message_sender: MessageSender,
+    pub clipboard: &'static mut Clipboard,
 }
 
-impl<'a> UiSceneContext<'a> {
-    pub fn exec<F>(
+impl UiSceneContext {
+    pub fn exec<'a, F>(
         ui: &'a mut UserInterface,
         selection: &'a mut Selection,
-        message_sender: &'a MessageSender,
+        message_sender: MessageSender,
         clipboard: &'a mut Clipboard,
         func: F,
     ) where
-        F: FnOnce(&mut UiSceneContext<'static>),
+        F: FnOnce(&mut UiSceneContext),
     {
         // SAFETY: Temporarily extend lifetime to 'static and execute external closure with it.
         // The closure accepts this extended context by reference, so there's no way it escapes to
         // outer world. The initial lifetime is still preserved by this function call.
         func(unsafe {
-            &mut std::mem::transmute::<UiSceneContext<'a>, UiSceneContext<'static>>(Self {
-                ui,
-                selection,
+            &mut Self {
+                ui: std::mem::transmute::<&'a mut _, &'static mut _>(ui),
+                selection: std::mem::transmute::<&'a mut _, &'static mut _>(selection),
                 message_sender,
-                clipboard,
-            })
+                clipboard: std::mem::transmute::<&'a mut _, &'static mut _>(clipboard),
+            }
         });
     }
 }
 
-impl CommandContext for UiSceneContext<'static> {}
-
-#[derive(Debug)]
-pub struct ChangeUiSelectionCommand {
-    new_selection: Selection,
-    old_selection: Selection,
-}
-
-impl ChangeUiSelectionCommand {
-    pub fn new(new_selection: Selection, old_selection: Selection) -> Self {
-        Self {
-            new_selection,
-            old_selection,
-        }
-    }
-
-    fn swap(&mut self) -> Selection {
-        let selection = self.new_selection.clone();
-        std::mem::swap(&mut self.new_selection, &mut self.old_selection);
-        selection
-    }
-
-    fn exec(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<UiSceneContext>();
-        let old_selection = self.old_selection.clone();
-        let new_selection = self.swap();
-        if &new_selection != context.selection {
-            *context.selection = new_selection;
-            context
-                .message_sender
-                .send(Message::SelectionChanged { old_selection });
-        }
-    }
-}
-
-impl CommandTrait for ChangeUiSelectionCommand {
-    fn name(&mut self, _context: &dyn CommandContext) -> String {
-        "Change Selection".to_string()
-    }
-
-    fn execute(&mut self, context: &mut dyn CommandContext) {
-        self.exec(context);
-    }
-
-    fn revert(&mut self, context: &mut dyn CommandContext) {
-        self.exec(context);
-    }
-}
+impl CommandContext for UiSceneContext {}

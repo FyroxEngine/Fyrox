@@ -1,49 +1,42 @@
 use fyrox::{
-    core::reflect::{is_path_to_array_element, Reflect, ResolvePath, SetFieldByPathError},
+    core::{
+        reflect::{is_path_to_array_element, Reflect, ResolvePath, SetFieldByPathError},
+        ComponentProvider,
+    },
     gui::inspector::{PropertyAction, PropertyChanged},
 };
 use std::{
-    any::{type_name, Any},
+    any::{type_name, TypeId},
     fmt::{Debug, Formatter},
     ops::{Deref, DerefMut},
 };
 
 pub mod panel;
 
-pub trait BaseCommandContext: Any {
-    fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-}
+pub trait CommandContext: ComponentProvider {}
 
-impl<T: CommandContext> BaseCommandContext for T {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-}
-
-pub trait CommandContext: BaseCommandContext {}
-
-impl dyn CommandContext {
-    pub fn downcast<T>(&self) -> Option<&T>
+impl dyn CommandContext + '_ {
+    pub fn component_ref<T>(&self) -> Option<&T>
     where
-        T: CommandContext,
+        T: 'static,
     {
-        self.as_any().downcast_ref()
+        self.query_component_ref(TypeId::of::<T>())
+            .and_then(|c| c.downcast_ref())
     }
 
-    pub fn downcast_mut<T>(&mut self) -> Option<&mut T>
+    pub fn component_mut<T>(&mut self) -> Option<&mut T>
     where
-        T: CommandContext,
+        T: 'static,
     {
-        self.as_any_mut().downcast_mut()
+        self.query_component_mut(TypeId::of::<T>())
+            .and_then(|c| c.downcast_mut())
     }
 
-    pub fn get<T: CommandContext>(&self) -> &T {
-        self.downcast().unwrap_or_else(|| {
+    pub fn get<T>(&self) -> &T
+    where
+        T: 'static,
+    {
+        self.component_ref().unwrap_or_else(|| {
             panic!(
                 "Unable to downcast command context to {} type",
                 type_name::<T>()
@@ -51,8 +44,11 @@ impl dyn CommandContext {
         })
     }
 
-    pub fn get_mut<T: CommandContext>(&mut self) -> &mut T {
-        self.downcast_mut().unwrap_or_else(|| {
+    pub fn get_mut<T>(&mut self) -> &mut T
+    where
+        T: 'static,
+    {
+        self.component_mut().unwrap_or_else(|| {
             panic!(
                 "Unable to downcast command context to {} type",
                 type_name::<T>()

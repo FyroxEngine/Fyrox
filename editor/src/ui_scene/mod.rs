@@ -5,18 +5,20 @@ pub mod menu;
 pub mod selection;
 pub mod utils;
 
-use crate::command::{make_command, Command, CommandGroup, CommandStack};
 use crate::{
     asset::item::AssetItem,
+    command::{make_command, Command, CommandGroup, CommandStack},
     inspector::editors::handle::HandlePropertyEditorMessage,
     message::MessageSender,
-    scene::{controller::SceneController, selector::HierarchyNode, Selection},
+    scene::{
+        commands::ChangeSelectionCommand, controller::SceneController, selector::HierarchyNode,
+        Selection,
+    },
     settings::{keys::KeyBindings, Settings},
     ui_scene::{
         clipboard::Clipboard,
         commands::{
-            graph::AddUiPrefabCommand, widget::RevertWidgetPropertyCommand,
-            ChangeUiSelectionCommand, UiSceneContext,
+            graph::AddUiPrefabCommand, widget::RevertWidgetPropertyCommand, UiSceneContext,
         },
         selection::UiSelection,
     },
@@ -84,7 +86,7 @@ impl UiScene {
         UiSceneContext::exec(
             &mut self.ui,
             selection,
-            &self.message_sender,
+            self.message_sender.clone(),
             &mut self.clipboard,
             |ctx| {
                 self.command_stack.do_command(command, ctx);
@@ -97,7 +99,7 @@ impl UiScene {
     fn select_object(&mut self, handle: ErasedHandle, selection: &Selection) {
         if self.ui.try_get(handle.into()).is_some() {
             self.message_sender
-                .do_ui_scene_command(ChangeUiSelectionCommand::new(
+                .do_ui_scene_command(ChangeSelectionCommand::new(
                     Selection::new(UiSelection::single_or_empty(handle.into())),
                     selection.clone(),
                 ))
@@ -234,7 +236,7 @@ impl SceneController for UiScene {
             let group = vec![
                 Command::new(AddUiPrefabCommand::new(sub_graph)),
                 // We also want to select newly instantiated model.
-                Command::new(ChangeUiSelectionCommand::new(
+                Command::new(ChangeSelectionCommand::new(
                     Selection::new(UiSelection::single_or_empty(preview.instance)),
                     editor_selection.clone(),
                 )),
@@ -287,7 +289,7 @@ impl SceneController for UiScene {
         UiSceneContext::exec(
             &mut self.ui,
             selection,
-            &self.message_sender,
+            self.message_sender.clone(),
             &mut self.clipboard,
             |ctx| self.command_stack.undo(ctx),
         );
@@ -299,7 +301,7 @@ impl SceneController for UiScene {
         UiSceneContext::exec(
             &mut self.ui,
             selection,
-            &self.message_sender,
+            self.message_sender.clone(),
             &mut self.clipboard,
             |ctx| self.command_stack.redo(ctx),
         );
@@ -311,7 +313,7 @@ impl SceneController for UiScene {
         UiSceneContext::exec(
             &mut self.ui,
             selection,
-            &self.message_sender,
+            self.message_sender.clone(),
             &mut self.clipboard,
             |ctx| self.command_stack.clear(ctx),
         );
@@ -397,7 +399,7 @@ impl SceneController for UiScene {
         UiSceneContext::exec(
             &mut self.ui,
             selection,
-            &self.message_sender,
+            self.message_sender.clone(),
             &mut self.clipboard,
             |ctx| self.command_stack.clear(ctx),
         );
@@ -452,7 +454,7 @@ impl SceneController for UiScene {
                 UiSceneContext::exec(
                     &mut self.ui,
                     selection,
-                    &self.message_sender,
+                    self.message_sender.clone(),
                     &mut self.clipboard,
                     |ctx| {
                         name = c.name(ctx);

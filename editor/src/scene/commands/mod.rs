@@ -1,6 +1,5 @@
-use crate::command::{Command, CommandContext, CommandGroup};
 use crate::{
-    command::CommandTrait,
+    command::{Command, CommandContext, CommandGroup, CommandTrait},
     message::MessageSender,
     scene::{
         clipboard::{Clipboard, DeepCloneResult},
@@ -11,7 +10,7 @@ use crate::{
 };
 use fyrox::{
     asset::manager::ResourceManager,
-    core::{log::Log, pool::Handle, reflect::prelude::*},
+    core::{log::Log, pool::Handle, reflect::prelude::*, type_traits::prelude::*},
     engine::SerializationContext,
     graph::{SceneGraph, SceneGraphNode},
     scene::{graph::SubGraph, node::Node, Scene},
@@ -26,18 +25,21 @@ pub mod navmesh;
 pub mod sound_context;
 pub mod terrain;
 
-pub struct GameSceneContext<'a> {
-    pub selection: &'a mut Selection,
-    pub scene: &'a mut Scene,
-    pub scene_content_root: &'a mut Handle<Node>,
-    pub clipboard: &'a mut Clipboard,
+#[derive(ComponentProvider)]
+pub struct GameSceneContext {
+    #[component(include)]
+    pub selection: &'static mut Selection,
+    pub scene: &'static mut Scene,
+    pub scene_content_root: &'static mut Handle<Node>,
+    pub clipboard: &'static mut Clipboard,
+    #[component(include)]
     pub message_sender: MessageSender,
     pub resource_manager: ResourceManager,
     pub serialization_context: Arc<SerializationContext>,
 }
 
-impl<'a> GameSceneContext<'a> {
-    pub fn exec<F>(
+impl GameSceneContext {
+    pub fn exec<'a, F>(
         selection: &'a mut Selection,
         scene: &'a mut Scene,
         scene_content_root: &'a mut Handle<Node>,
@@ -47,26 +49,28 @@ impl<'a> GameSceneContext<'a> {
         serialization_context: Arc<SerializationContext>,
         func: F,
     ) where
-        F: FnOnce(&mut GameSceneContext<'static>),
+        F: FnOnce(&mut GameSceneContext),
     {
         // SAFETY: Temporarily extend lifetime to 'static and execute external closure with it.
         // The closure accepts this extended context by reference, so there's no way it escapes to
         // outer world. The initial lifetime is still preserved by this function call.
         func(unsafe {
-            &mut std::mem::transmute::<GameSceneContext<'a>, GameSceneContext<'static>>(Self {
-                selection,
-                scene,
-                scene_content_root,
-                clipboard,
+            &mut Self {
+                selection: std::mem::transmute::<&'a mut _, &'static mut _>(selection),
+                scene: std::mem::transmute::<&'a mut _, &'static mut _>(scene),
+                scene_content_root: std::mem::transmute::<&'a mut _, &'static mut _>(
+                    scene_content_root,
+                ),
+                clipboard: std::mem::transmute::<&'a mut _, &'static mut _>(clipboard),
                 message_sender,
                 resource_manager,
                 serialization_context,
-            })
+            }
         });
     }
 }
 
-impl CommandContext for GameSceneContext<'static> {}
+impl CommandContext for GameSceneContext {}
 
 pub fn selection_to_delete(editor_selection: &Selection, game_scene: &GameScene) -> GraphSelection {
     // Graph's root is non-deletable.
@@ -145,13 +149,13 @@ impl ChangeSelectionCommand {
     }
 
     fn exec(&mut self, context: &mut dyn CommandContext) {
-        let context = context.get_mut::<GameSceneContext>();
+        let current_selection = context.get_mut::<&mut Selection>();
         let old_selection = self.old_selection.clone();
         let new_selection = self.swap();
-        if &new_selection != context.selection {
-            *context.selection = new_selection;
+        if &new_selection != *current_selection {
+            **current_selection = new_selection;
             context
-                .message_sender
+                .get::<MessageSender>()
                 .send(Message::SelectionChanged { old_selection });
         }
     }
