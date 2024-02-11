@@ -228,7 +228,6 @@ impl NodeContextMenu {
 
                     let mut group = vec![Command::new(ChangeSelectionCommand::new(
                         Selection::new(new_selection),
-                        editor_selection.clone(),
                     ))];
 
                     group.extend(selection.entities.iter().filter_map(|entry| {

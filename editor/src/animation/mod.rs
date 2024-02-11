@@ -201,7 +201,6 @@ impl AnimationEditor {
                 &mut engine.user_interface,
                 selection.animation_player,
                 animation_player_ref.animations(),
-                editor_selection,
                 game_scene,
                 &selection,
             );
@@ -298,14 +297,13 @@ impl AnimationEditor {
                             });
                         }
                         RulerMessage::SelectSignal(id) => {
-                            sender.do_scene_command(ChangeSelectionCommand::new(
-                                Selection::new(AnimationSelection {
+                            sender.do_scene_command(ChangeSelectionCommand::new(Selection::new(
+                                AnimationSelection {
                                     animation_player: selection.animation_player,
                                     animation: selection.animation,
                                     entities: vec![SelectedEntity::Signal(*id)],
-                                }),
-                                editor_selection.clone(),
-                            ));
+                                },
+                            )));
                         }
                         _ => (),
                     }

@@ -399,15 +399,15 @@ impl GameScene {
         }
     }
 
-    fn select_object(&mut self, handle: ErasedHandle, engine: &Engine, selection: &Selection) {
+    fn select_object(&mut self, handle: ErasedHandle, engine: &Engine) {
         if engine.scenes[self.scene]
             .graph
             .is_valid_handle(handle.into())
         {
-            self.sender.do_scene_command(ChangeSelectionCommand::new(
-                Selection::new(GraphSelection::single_or_empty(handle.into())),
-                selection.clone(),
-            ))
+            self.sender
+                .do_scene_command(ChangeSelectionCommand::new(Selection::new(
+                    GraphSelection::single_or_empty(handle.into()),
+                )))
         }
     }
 
@@ -613,7 +613,6 @@ impl SceneController for GameScene {
         screen_bounds: Rect<f32>,
         engine: &mut Engine,
         settings: &Settings,
-        editor_selection: &Selection,
     ) {
         if handle.is_none() {
             return;
@@ -635,10 +634,9 @@ impl SceneController for GameScene {
                     let group = vec![
                         Command::new(AddModelCommand::new(sub_graph)),
                         // We also want to select newly instantiated model.
-                        Command::new(ChangeSelectionCommand::new(
-                            Selection::new(GraphSelection::single_or_empty(preview.instance)),
-                            editor_selection.clone(),
-                        )),
+                        Command::new(ChangeSelectionCommand::new(Selection::new(
+                            GraphSelection::single_or_empty(preview.instance),
+                        ))),
                     ];
 
                     self.sender.do_scene_command(CommandGroup::from(group));
@@ -873,7 +871,7 @@ impl SceneController for GameScene {
                 false
             }
             Message::SelectObject { handle } => {
-                self.select_object(*handle, engine, selection);
+                self.select_object(*handle, engine);
                 false
             }
             Message::FocusObject(handle) => {

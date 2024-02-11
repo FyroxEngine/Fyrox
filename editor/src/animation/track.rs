@@ -951,10 +951,7 @@ impl TrackList {
                         .collect(),
                 });
 
-                sender.do_scene_command(ChangeSelectionCommand::new(
-                    new_selection,
-                    Selection::new(selection.clone()),
-                ));
+                sender.do_scene_command(ChangeSelectionCommand::new(new_selection));
             }
         } else if let Some(MenuItemMessage::Click) = message.data() {
             if message.destination() == self.context_menu.remove_track {
@@ -966,7 +963,6 @@ impl TrackList {
                             // Just reset inner selection.
                             entities: vec![],
                         }),
-                        Selection::new(selection.clone()),
                     ))];
 
                     for entity in selection.entities.iter() {

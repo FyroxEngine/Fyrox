@@ -835,7 +835,6 @@ impl Toolbar {
         ui: &mut UserInterface,
         animation_player_handle: Handle<Node>,
         animations: &AnimationContainer,
-        editor_selection: &Selection,
         game_scene: &GameScene,
         selection: &AnimationSelection,
     ) -> ToolbarAction {
@@ -857,14 +856,13 @@ impl Toolbar {
                     .node(item)
                     .user_data_cloned::<Handle<Animation>>()
                     .unwrap();
-                sender.do_scene_command(ChangeSelectionCommand::new(
-                    Selection::new(AnimationSelection {
+                sender.do_scene_command(ChangeSelectionCommand::new(Selection::new(
+                    AnimationSelection {
                         animation_player: animation_player_handle,
                         animation,
                         entities: vec![],
-                    }),
-                    editor_selection.clone(),
-                ));
+                    },
+                )));
                 return ToolbarAction::SelectAnimation(animation);
             }
         } else if let Some(ButtonMessage::Click) = message.data() {
@@ -885,14 +883,13 @@ impl Toolbar {
             } else if message.destination() == self.remove_current_animation {
                 if animations.try_get(selection.animation).is_some() {
                     let group = vec![
-                        Command::new(ChangeSelectionCommand::new(
-                            Selection::new(AnimationSelection {
+                        Command::new(ChangeSelectionCommand::new(Selection::new(
+                            AnimationSelection {
                                 animation_player: animation_player_handle,
                                 animation: Default::default(),
                                 entities: vec![],
-                            }),
-                            editor_selection.clone(),
-                        )),
+                            },
+                        ))),
                         Command::new(RemoveAnimationCommand::new(
                             animation_player_handle,
                             selection.animation,

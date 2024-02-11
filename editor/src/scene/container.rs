@@ -363,7 +363,7 @@ impl EditorSceneEntry {
         settings: &Settings,
     ) {
         self.controller
-            .on_drop(handle, screen_bounds, engine, settings, &self.selection)
+            .on_drop(handle, screen_bounds, engine, settings)
     }
 }
 

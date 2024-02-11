@@ -105,7 +105,6 @@ pub fn make_delete_selection_command(
     // Change selection first.
     let mut command_group = CommandGroup::from(vec![Command::new(ChangeSelectionCommand::new(
         Default::default(),
-        Selection::new(selection.clone()),
     ))]);
 
     // Find sub-graphs to delete - we need to do this because we can end up in situation like this:
@@ -131,29 +130,21 @@ pub fn make_delete_selection_command(
 #[derive(Debug)]
 pub struct ChangeSelectionCommand {
     new_selection: Selection,
-    old_selection: Selection,
 }
 
 impl ChangeSelectionCommand {
-    pub fn new(new_selection: Selection, old_selection: Selection) -> Self {
-        Self {
-            new_selection,
-            old_selection,
-        }
-    }
-
-    fn swap(&mut self) -> Selection {
-        let selection = self.new_selection.clone();
-        std::mem::swap(&mut self.new_selection, &mut self.old_selection);
-        selection
+    pub fn new(new_selection: Selection) -> Self {
+        Self { new_selection }
     }
 
     fn exec(&mut self, context: &mut dyn CommandContext) {
         let current_selection = context.get_mut::<&mut Selection>();
-        let old_selection = self.old_selection.clone();
-        let new_selection = self.swap();
-        if &new_selection != *current_selection {
-            **current_selection = new_selection;
+
+        if &self.new_selection != *current_selection {
+            let old_selection = current_selection.clone();
+
+            std::mem::swap(*current_selection, &mut self.new_selection);
+
             context
                 .get::<MessageSender>()
                 .send(Message::SelectionChanged { old_selection });

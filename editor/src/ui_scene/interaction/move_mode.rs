@@ -131,10 +131,10 @@ impl InteractionMode for MoveWidgetsInteractionMode {
                     Default::default()
                 };
                 new_selection.insert_or_exclude(picked);
-                self.sender.do_ui_scene_command(ChangeSelectionCommand::new(
-                    Selection::new(new_selection),
-                    editor_selection.clone(),
-                ));
+                self.sender
+                    .do_ui_scene_command(ChangeSelectionCommand::new(Selection::new(
+                        new_selection,
+                    )));
             }
         }
     }

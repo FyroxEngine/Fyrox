@@ -96,13 +96,12 @@ impl UiScene {
         self.ui.invalidate_layout();
     }
 
-    fn select_object(&mut self, handle: ErasedHandle, selection: &Selection) {
+    fn select_object(&mut self, handle: ErasedHandle) {
         if self.ui.try_get(handle.into()).is_some() {
             self.message_sender
-                .do_ui_scene_command(ChangeSelectionCommand::new(
-                    Selection::new(UiSelection::single_or_empty(handle.into())),
-                    selection.clone(),
-                ))
+                .do_ui_scene_command(ChangeSelectionCommand::new(Selection::new(
+                    UiSelection::single_or_empty(handle.into()),
+                )))
         }
     }
 }
@@ -222,7 +221,6 @@ impl SceneController for UiScene {
         _screen_bounds: Rect<f32>,
         _engine: &mut Engine,
         _settings: &Settings,
-        editor_selection: &Selection,
     ) {
         if handle.is_none() {
             return;
@@ -236,10 +234,9 @@ impl SceneController for UiScene {
             let group = vec![
                 Command::new(AddUiPrefabCommand::new(sub_graph)),
                 // We also want to select newly instantiated model.
-                Command::new(ChangeSelectionCommand::new(
-                    Selection::new(UiSelection::single_or_empty(preview.instance)),
-                    editor_selection.clone(),
-                )),
+                Command::new(ChangeSelectionCommand::new(Selection::new(
+                    UiSelection::single_or_empty(preview.instance),
+                ))),
             ];
 
             self.message_sender
@@ -408,12 +405,12 @@ impl SceneController for UiScene {
     fn on_message(
         &mut self,
         message: &Message,
-        selection: &Selection,
+        _selection: &Selection,
         engine: &mut Engine,
     ) -> bool {
         match message {
             Message::SelectObject { handle } => {
-                self.select_object(*handle, selection);
+                self.select_object(*handle);
             }
             Message::SyncNodeHandleName { view, handle } => {
                 engine

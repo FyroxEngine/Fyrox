@@ -75,7 +75,6 @@ pub trait SceneController: 'static {
         screen_bounds: Rect<f32>,
         engine: &mut Engine,
         settings: &Settings,
-        editor_selection: &Selection,
     );
 
     fn render_target(&self, engine: &Engine) -> Option<TextureResource>;

@@ -126,8 +126,7 @@ impl WidgetContextMenu {
                 if message.destination() == self.delete_selection {
                     if let Some(ui_selection) = editor_selection.as_ui() {
                         sender.send(Message::DoUiSceneCommand(
-                            ui_selection
-                                .make_deletion_command(&ui_scene.ui, editor_selection.clone()),
+                            ui_selection.make_deletion_command(&ui_scene.ui),
                         ));
                     }
                 } else if message.destination() == self.copy_selection {

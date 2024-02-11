@@ -411,10 +411,7 @@ impl InteractionMode for MoveInteractionMode {
 
             if &new_selection != editor_selection {
                 self.message_sender
-                    .do_scene_command(ChangeSelectionCommand::new(
-                        new_selection,
-                        editor_selection.clone(),
-                    ));
+                    .do_scene_command(ChangeSelectionCommand::new(new_selection));
             }
         }
     }

@@ -1,6 +1,6 @@
 use crate::{
     command::{Command, CommandGroup},
-    scene::{commands::ChangeSelectionCommand, Selection, SelectionContainer},
+    scene::{commands::ChangeSelectionCommand, SelectionContainer},
     ui_scene::commands::graph::DeleteWidgetsSubGraphCommand,
 };
 use fyrox::{
@@ -86,10 +86,10 @@ impl UiSelection {
         root_widgets
     }
 
-    pub fn make_deletion_command(&self, ui: &UserInterface, old_selection: Selection) -> Command {
+    pub fn make_deletion_command(&self, ui: &UserInterface) -> Command {
         // Change selection first.
         let mut command_group = CommandGroup::from(vec![Command::new(
-            ChangeSelectionCommand::new(Default::default(), old_selection),
+            ChangeSelectionCommand::new(Default::default()),
         )]);
 
         let root_nodes = self.root_widgets(ui);

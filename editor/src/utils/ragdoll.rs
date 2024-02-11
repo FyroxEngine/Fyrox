@@ -457,7 +457,6 @@ impl RagdollPreset {
     pub fn create_and_send_command(
         &self,
         graph: &mut Graph,
-        editor_selection: &Selection,
         game_scene: &GameScene,
         sender: &MessageSender,
     ) {
@@ -977,10 +976,9 @@ impl RagdollPreset {
         let group = vec![
             Command::new(AddModelCommand::new(sub_graph)),
             // We also want to select newly instantiated model.
-            Command::new(ChangeSelectionCommand::new(
-                Selection::new(GraphSelection::single_or_empty(ragdoll)),
-                editor_selection.clone(),
-            )),
+            Command::new(ChangeSelectionCommand::new(Selection::new(
+                GraphSelection::single_or_empty(ragdoll),
+            ))),
         ];
 
         sender.do_scene_command(CommandGroup::from(group).with_custom_name("Generate Ragdoll"));
@@ -1116,7 +1114,6 @@ impl RagdollWizard {
         message: &UiMessage,
         ui: &mut UserInterface,
         graph: &mut Graph,
-        editor_selection: &Selection,
         game_scene: &GameScene,
         sender: &MessageSender,
     ) {
@@ -1135,7 +1132,7 @@ impl RagdollWizard {
         } else if let Some(ButtonMessage::Click) = message.data() {
             if message.destination() == self.ok {
                 self.preset
-                    .create_and_send_command(graph, editor_selection, game_scene, sender);
+                    .create_and_send_command(graph, game_scene, sender);
 
                 ui.send_message(WindowMessage::close(
                     self.window,

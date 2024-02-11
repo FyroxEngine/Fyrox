@@ -1086,10 +1086,7 @@ impl Editor {
                             } else if let Some(selection) = entry.selection.as_ui() {
                                 if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
                                     sender.send(Message::DoUiSceneCommand(
-                                        selection.make_deletion_command(
-                                            &ui_scene.ui,
-                                            entry.selection.clone(),
-                                        ),
+                                        selection.make_deletion_command(&ui_scene.ui),
                                     ));
                                 }
                             }
@@ -1196,7 +1193,6 @@ impl Editor {
                     message,
                     &mut engine.user_interface,
                     &mut engine.scenes[game_scene.scene].graph,
-                    &current_scene_entry.selection,
                     game_scene,
                     &self.message_sender,
                 );

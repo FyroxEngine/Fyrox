@@ -200,10 +200,7 @@ impl StateGraphViewer {
                             });
 
                             if !selection.is_empty() && &selection != editor_selection {
-                                sender.do_scene_command(ChangeSelectionCommand::new(
-                                    selection,
-                                    editor_selection.clone(),
-                                ));
+                                sender.do_scene_command(ChangeSelectionCommand::new(selection));
                             }
                         }
                     }
