@@ -1,3 +1,4 @@
+use crate::command::CommandStack;
 use crate::{
     highlight::HighlightRenderPass,
     interaction::{
@@ -30,6 +31,7 @@ pub struct EditorSceneEntry {
     pub has_unsaved_changes: bool,
     pub path: Option<PathBuf>,
     pub selection: Selection,
+    pub command_stack: CommandStack,
     pub controller: Box<dyn SceneController>,
     pub interaction_modes: InteractionModeContainer,
     pub current_interaction_mode: Option<Uuid>,
@@ -103,6 +105,7 @@ impl EditorSceneEntry {
             id: Uuid::new_v4(),
             path,
             selection: Default::default(),
+            command_stack: CommandStack::new(false),
         };
 
         entry.set_interaction_mode(engine, Some(MoveInteractionMode::type_uuid()));
@@ -136,6 +139,7 @@ impl EditorSceneEntry {
             id: Uuid::new_v4(),
             path,
             selection: Default::default(),
+            command_stack: CommandStack::new(false),
         };
 
         entry.set_interaction_mode(engine, Some(UiSelectInteractionMode::type_uuid()));

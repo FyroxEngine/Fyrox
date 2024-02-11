@@ -564,7 +564,7 @@ impl AnimationEditor {
         N: SceneGraphNode<SceneGraph = G>,
     {
         // Leave preview mode before execution of any scene command.
-        if let Message::DoGameSceneCommand(_)
+        if let Message::DoCommand(_)
         | Message::UndoCurrentSceneCommand
         | Message::RedoCurrentSceneCommand = message
         {

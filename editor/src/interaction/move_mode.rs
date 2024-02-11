@@ -378,7 +378,7 @@ impl InteractionMode for MoveInteractionMode {
 
                 // Commit changes.
                 self.message_sender
-                    .send(Message::DoGameSceneCommand(Command::new(commands)));
+                    .send(Message::DoCommand(Command::new(commands)));
             }
         } else {
             let new_selection = game_scene

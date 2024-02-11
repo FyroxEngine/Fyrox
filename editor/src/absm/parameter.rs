@@ -149,7 +149,7 @@ impl ParameterPanel {
                         },
                     );
                 } else {
-                    sender.send(Message::DoGameSceneCommand(
+                    sender.send(Message::DoCommand(
                         make_command(args, move |ctx| {
                             fetch_machine(ctx, absm_node_handle).parameters_mut()
                         })

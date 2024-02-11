@@ -101,7 +101,6 @@ pub struct GameScene {
     pub camera_controller: CameraController,
     pub preview_camera: Handle<Node>,
     pub graph_switches: GraphUpdateSwitches,
-    pub command_stack: CommandStack,
     pub preview_instance: Option<PreviewInstance>,
     pub sender: MessageSender,
     pub camera_state: Vec<(Handle<Node>, bool)>,
@@ -142,7 +141,6 @@ impl GameScene {
             editor_objects_root,
             scene_content_root,
             camera_controller,
-            command_stack: CommandStack::new(false),
             preview_instance: None,
             scene: engine.scenes.add(scene),
             clipboard: Default::default(),
@@ -411,19 +409,6 @@ impl GameScene {
                     GraphSelection::single_or_empty(handle.into()),
                 )))
         }
-    }
-
-    pub fn do_command(&mut self, command: Command, selection: &mut Selection, engine: &mut Engine) {
-        GameSceneContext::exec(
-            selection,
-            &mut engine.scenes[self.scene],
-            &mut self.scene_content_root,
-            &mut self.clipboard,
-            self.sender.clone(),
-            engine.resource_manager.clone(),
-            engine.serialization_context.clone(),
-            |ctx| self.command_stack.do_command(command, ctx),
-        )
     }
 }
 
@@ -698,7 +683,13 @@ impl SceneController for GameScene {
         self.save(path, settings, engine)
     }
 
-    fn undo(&mut self, selection: &mut Selection, engine: &mut Engine) {
+    fn do_command(
+        &mut self,
+        command_stack: &mut CommandStack,
+        command: Command,
+        selection: &mut Selection,
+        engine: &mut Engine,
+    ) {
         GameSceneContext::exec(
             selection,
             &mut engine.scenes[self.scene],
@@ -707,11 +698,34 @@ impl SceneController for GameScene {
             self.sender.clone(),
             engine.resource_manager.clone(),
             engine.serialization_context.clone(),
-            |ctx| self.command_stack.undo(ctx),
+            |ctx| command_stack.do_command(command, ctx),
+        )
+    }
+
+    fn undo(
+        &mut self,
+        command_stack: &mut CommandStack,
+        selection: &mut Selection,
+        engine: &mut Engine,
+    ) {
+        GameSceneContext::exec(
+            selection,
+            &mut engine.scenes[self.scene],
+            &mut self.scene_content_root,
+            &mut self.clipboard,
+            self.sender.clone(),
+            engine.resource_manager.clone(),
+            engine.serialization_context.clone(),
+            |ctx| command_stack.undo(ctx),
         );
     }
 
-    fn redo(&mut self, selection: &mut Selection, engine: &mut Engine) {
+    fn redo(
+        &mut self,
+        command_stack: &mut CommandStack,
+        selection: &mut Selection,
+        engine: &mut Engine,
+    ) {
         GameSceneContext::exec(
             selection,
             &mut engine.scenes[self.scene],
@@ -720,11 +734,16 @@ impl SceneController for GameScene {
             self.sender.clone(),
             engine.resource_manager.clone(),
             engine.serialization_context.clone(),
-            |ctx| self.command_stack.redo(ctx),
+            |ctx| command_stack.redo(ctx),
         );
     }
 
-    fn clear_command_stack(&mut self, selection: &mut Selection, engine: &mut Engine) {
+    fn clear_command_stack(
+        &mut self,
+        command_stack: &mut CommandStack,
+        selection: &mut Selection,
+        engine: &mut Engine,
+    ) {
         GameSceneContext::exec(
             selection,
             &mut engine.scenes[self.scene],
@@ -733,7 +752,7 @@ impl SceneController for GameScene {
             self.sender.clone(),
             engine.resource_manager.clone(),
             engine.serialization_context.clone(),
-            |ctx| self.command_stack.clear(ctx),
+            |ctx| command_stack.clear(ctx),
         );
     }
 
@@ -840,7 +859,12 @@ impl SceneController for GameScene {
         self.camera_controller.is_interacting()
     }
 
-    fn on_destroy(&mut self, engine: &mut Engine, selection: &mut Selection) {
+    fn on_destroy(
+        &mut self,
+        command_stack: &mut CommandStack,
+        engine: &mut Engine,
+        selection: &mut Selection,
+    ) {
         GameSceneContext::exec(
             selection,
             &mut engine.scenes[self.scene],
@@ -849,7 +873,7 @@ impl SceneController for GameScene {
             self.sender.clone(),
             engine.resource_manager.clone(),
             engine.serialization_context.clone(),
-            |ctx| self.command_stack.clear(ctx),
+            |ctx| command_stack.clear(ctx),
         );
 
         engine.scenes.remove(self.scene);
@@ -914,12 +938,13 @@ impl SceneController for GameScene {
         }
     }
 
-    fn top_command_index(&self) -> Option<usize> {
-        self.command_stack.top
-    }
-
-    fn command_names(&mut self, selection: &mut Selection, engine: &mut Engine) -> Vec<String> {
-        self.command_stack
+    fn command_names(
+        &mut self,
+        command_stack: &mut CommandStack,
+        selection: &mut Selection,
+        engine: &mut Engine,
+    ) -> Vec<String> {
+        command_stack
             .commands
             .iter_mut()
             .map(|c| {
@@ -1116,9 +1141,8 @@ impl SceneController for GameScene {
                 Log::err(format!("Failed to handle a property {}", args.path()))
             }
         } else if group.len() == 1 {
-            self.sender.send(Message::DoGameSceneCommand(
-                group.into_iter().next().unwrap(),
-            ))
+            self.sender
+                .send(Message::DoCommand(group.into_iter().next().unwrap()))
         } else {
             self.sender.do_scene_command(CommandGroup::from(group));
         }

@@ -14,8 +14,7 @@ use std::{path::PathBuf, sync::mpsc::Sender};
 
 #[derive(Debug)]
 pub enum Message {
-    DoGameSceneCommand(Command),
-    DoUiSceneCommand(Command),
+    DoCommand(Command),
     UndoCurrentSceneCommand,
     RedoCurrentSceneCommand,
     ClearCurrentSceneCommandStack,
@@ -89,14 +88,14 @@ impl MessageSender {
     where
         C: CommandTrait,
     {
-        self.send(Message::DoGameSceneCommand(Command::new(cmd)))
+        self.send(Message::DoCommand(Command::new(cmd)))
     }
 
     pub fn do_ui_scene_command<C>(&self, cmd: C)
     where
         C: CommandTrait,
     {
-        self.send(Message::DoUiSceneCommand(Command::new(cmd)))
+        self.send(Message::DoCommand(Command::new(cmd)))
     }
 
     pub fn send(&self, message: Message) {

@@ -132,7 +132,7 @@ impl SceneSettingsWindow {
                 if let Some(command) = make_command(property_changed, |ctx| {
                     ctx.get_mut::<GameSceneContext>().scene as &mut dyn Reflect
                 }) {
-                    sender.send(Message::DoGameSceneCommand(command));
+                    sender.send(Message::DoCommand(command));
                 }
             }
         }

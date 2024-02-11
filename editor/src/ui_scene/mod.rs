@@ -60,7 +60,6 @@ pub struct PreviewInstance {
 pub struct UiScene {
     pub ui: UserInterface,
     pub render_target: TextureResource,
-    pub command_stack: CommandStack,
     pub message_sender: MessageSender,
     pub clipboard: Clipboard,
     pub preview_instance: Option<PreviewInstance>,
@@ -71,30 +70,10 @@ impl UiScene {
         Self {
             ui,
             render_target: TextureResource::new_render_target(200, 200),
-            command_stack: CommandStack::new(false),
             message_sender,
             clipboard: Default::default(),
             preview_instance: None,
         }
-    }
-
-    pub fn do_command(
-        &mut self,
-        command: Command,
-        selection: &mut Selection,
-        _engine: &mut Engine,
-    ) {
-        UiSceneContext::exec(
-            &mut self.ui,
-            selection,
-            self.message_sender.clone(),
-            &mut self.clipboard,
-            |ctx| {
-                self.command_stack.do_command(command, ctx);
-            },
-        );
-
-        self.ui.invalidate_layout();
     }
 
     fn select_object(&mut self, handle: ErasedHandle) {
@@ -283,37 +262,72 @@ impl SceneController for UiScene {
         }
     }
 
-    fn undo(&mut self, selection: &mut Selection, _engine: &mut Engine) {
+    fn do_command(
+        &mut self,
+        command_stack: &mut CommandStack,
+        command: Command,
+        selection: &mut Selection,
+        _engine: &mut Engine,
+    ) {
         UiSceneContext::exec(
             &mut self.ui,
             selection,
             self.message_sender.clone(),
             &mut self.clipboard,
-            |ctx| self.command_stack.undo(ctx),
+            |ctx| {
+                command_stack.do_command(command, ctx);
+            },
         );
 
         self.ui.invalidate_layout();
     }
 
-    fn redo(&mut self, selection: &mut Selection, _engine: &mut Engine) {
+    fn undo(
+        &mut self,
+        command_stack: &mut CommandStack,
+        selection: &mut Selection,
+        _engine: &mut Engine,
+    ) {
         UiSceneContext::exec(
             &mut self.ui,
             selection,
             self.message_sender.clone(),
             &mut self.clipboard,
-            |ctx| self.command_stack.redo(ctx),
+            |ctx| command_stack.undo(ctx),
         );
 
         self.ui.invalidate_layout();
     }
 
-    fn clear_command_stack(&mut self, selection: &mut Selection, _engine: &mut Engine) {
+    fn redo(
+        &mut self,
+        command_stack: &mut CommandStack,
+        selection: &mut Selection,
+        _engine: &mut Engine,
+    ) {
         UiSceneContext::exec(
             &mut self.ui,
             selection,
             self.message_sender.clone(),
             &mut self.clipboard,
-            |ctx| self.command_stack.clear(ctx),
+            |ctx| command_stack.redo(ctx),
+        );
+
+        self.ui.invalidate_layout();
+    }
+
+    fn clear_command_stack(
+        &mut self,
+        command_stack: &mut CommandStack,
+        selection: &mut Selection,
+        _engine: &mut Engine,
+    ) {
+        UiSceneContext::exec(
+            &mut self.ui,
+            selection,
+            self.message_sender.clone(),
+            &mut self.clipboard,
+            |ctx| command_stack.clear(ctx),
         );
 
         self.ui.invalidate_layout();
@@ -393,13 +407,18 @@ impl SceneController for UiScene {
         false
     }
 
-    fn on_destroy(&mut self, _engine: &mut Engine, selection: &mut Selection) {
+    fn on_destroy(
+        &mut self,
+        command_stack: &mut CommandStack,
+        _engine: &mut Engine,
+        selection: &mut Selection,
+    ) {
         UiSceneContext::exec(
             &mut self.ui,
             selection,
             self.message_sender.clone(),
             &mut self.clipboard,
-            |ctx| self.command_stack.clear(ctx),
+            |ctx| command_stack.clear(ctx),
         );
     }
 
@@ -439,12 +458,13 @@ impl SceneController for UiScene {
         false
     }
 
-    fn top_command_index(&self) -> Option<usize> {
-        self.command_stack.top
-    }
-
-    fn command_names(&mut self, selection: &mut Selection, _engine: &mut Engine) -> Vec<String> {
-        self.command_stack
+    fn command_names(
+        &mut self,
+        command_stack: &mut CommandStack,
+        selection: &mut Selection,
+        _engine: &mut Engine,
+    ) -> Vec<String> {
+        command_stack
             .commands
             .iter_mut()
             .map(|c| {
@@ -520,7 +540,7 @@ impl SceneController for UiScene {
             }
         } else if group.len() == 1 {
             self.message_sender
-                .send(Message::DoUiSceneCommand(group.into_iter().next().unwrap()))
+                .send(Message::DoCommand(group.into_iter().next().unwrap()))
         } else {
             self.message_sender
                 .do_ui_scene_command(CommandGroup::from(group));
