@@ -1,5 +1,5 @@
 use crate::{load_image, Engine};
-use fyrox::graph::SceneGraph;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::scene::SceneRenderingOptions;
 use fyrox::{
     core::{

@@ -15,7 +15,7 @@ use crate::{
     },
     send_sync_message,
 };
-use fyrox::graph::SceneGraph;
+use fyrox::graph::{BaseSceneGraph, SceneGraph};
 use fyrox::{
     core::{pool::ErasedHandle, pool::Handle},
     fxhash::FxHashSet,

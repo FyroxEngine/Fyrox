@@ -9,7 +9,7 @@ use crate::{
     world::graph::selection::GraphSelection,
     MSG_SYNC_FLAG,
 };
-use fyrox::graph::SceneGraph;
+use fyrox::graph::{BaseSceneGraph, SceneGraph};
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},

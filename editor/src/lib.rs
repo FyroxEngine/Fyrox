@@ -87,7 +87,7 @@ use crate::{
     world::{graph::menu::SceneNodeContextMenu, graph::EditorSceneWrapper, WorldViewer},
 };
 use fyrox::dpi::LogicalSize;
-use fyrox::graph::SceneGraph;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     asset::{io::FsResourceIo, manager::ResourceManager, untyped::UntypedResource},
     core::{

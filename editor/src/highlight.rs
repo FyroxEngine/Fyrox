@@ -1,4 +1,4 @@
-use fyrox::graph::SceneGraph;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     core::{
         algebra::{Matrix4, Vector3},

@@ -17,7 +17,7 @@ use crate::{
 };
 use fyrox_core::uuid_provider;
 use fyrox_core::variable::InheritableVariable;
-use fyrox_graph::SceneGraph;
+use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// A set of messages for [`Popup`] widget.

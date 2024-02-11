@@ -4,7 +4,7 @@ use crate::{
     scene::{GameScene, Selection},
     set_mesh_diffuse_color, Engine,
 };
-use fyrox::graph::SceneGraph;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     core::{
         algebra::{Matrix4, UnitQuaternion, Vector2, Vector3},

@@ -24,7 +24,7 @@ use crate::{
     },
     send_sync_message, utils,
 };
-use fyrox::graph::SceneGraph;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector2, Vector3, Vector4},

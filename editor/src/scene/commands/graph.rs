@@ -3,7 +3,7 @@ use crate::{
     command::CommandTrait, scene::commands::GameSceneContext, scene::Selection,
     world::graph::selection::GraphSelection, Message,
 };
-use fyrox::graph::{LinkScheme, SceneGraph, SceneGraphNode};
+use fyrox::graph::{BaseSceneGraph, LinkScheme, SceneGraphNode};
 use fyrox::{
     core::{
         algebra::{UnitQuaternion, Vector3},

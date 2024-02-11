@@ -30,7 +30,7 @@ use crate::{
     VerticalAlignment, BRUSH_DARK, BRUSH_LIGHT,
 };
 use fyrox_core::variable::InheritableVariable;
-use fyrox_graph::SceneGraph;
+use fyrox_graph::BaseSceneGraph;
 use std::{
     cmp::Ordering,
     fmt::{Debug, Display},

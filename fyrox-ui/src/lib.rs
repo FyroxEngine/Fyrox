@@ -293,7 +293,9 @@ pub use build::*;
 pub use control::*;
 use fyrox_core::futures::future::join_all;
 use fyrox_core::log::Log;
-use fyrox_graph::{NodeHandleMap, NodeMapping, PrefabData, SceneGraph, SceneGraphNode};
+use fyrox_graph::{
+    BaseSceneGraph, NodeHandleMap, NodeMapping, PrefabData, SceneGraph, SceneGraphNode,
+};
 pub use node::*;
 pub use thickness::*;
 
@@ -2800,7 +2802,7 @@ impl PrefabData for UserInterface {
     }
 }
 
-impl SceneGraph for UserInterface {
+impl BaseSceneGraph for UserInterface {
     type Prefab = Self;
     type Node = UiNode;
 
@@ -2815,13 +2817,13 @@ impl SceneGraph for UserInterface {
     }
 
     #[inline]
-    fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
-        self.nodes.pair_iter()
+    fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
+        self.nodes.try_borrow(handle)
     }
 
     #[inline]
-    fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
-        self.nodes.iter_mut()
+    fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
+        self.nodes.try_borrow_mut(handle)
     }
 
     #[inline]
@@ -2906,15 +2908,17 @@ impl SceneGraph for UserInterface {
             self.nodes[parent_handle].remove_child(node_handle);
         }
     }
+}
 
+impl SceneGraph for UserInterface {
     #[inline]
-    fn try_get(&self, handle: Handle<Self::Node>) -> Option<&Self::Node> {
-        self.nodes.try_borrow(handle)
+    fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
+        self.nodes.pair_iter()
     }
 
     #[inline]
-    fn try_get_mut(&mut self, handle: Handle<Self::Node>) -> Option<&mut Self::Node> {
-        self.nodes.try_borrow_mut(handle)
+    fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
+        self.nodes.iter_mut()
     }
 }
 
@@ -3163,7 +3167,7 @@ mod test {
         widget::{WidgetBuilder, WidgetMessage},
         OsEvent, UserInterface,
     };
-    use fyrox_graph::SceneGraph;
+    use fyrox_graph::BaseSceneGraph;
 
     #[test]
     fn test_transform_size() {

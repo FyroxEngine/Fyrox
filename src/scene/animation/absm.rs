@@ -19,7 +19,7 @@ use crate::{
         Scene,
     },
 };
-use fyrox_graph::SceneGraph;
+use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// Scene specific root motion settings.

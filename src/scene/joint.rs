@@ -22,7 +22,7 @@ use crate::{
 };
 use fyrox_core::algebra::{Isometry3, Vector3};
 use fyrox_core::uuid_provider;
-use fyrox_graph::SceneGraph;
+use fyrox_graph::BaseSceneGraph;
 use rapier2d::na::UnitQuaternion;
 use rapier3d::dynamics::ImpulseJointHandle;
 use std::cell::RefCell;

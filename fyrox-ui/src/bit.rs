@@ -19,7 +19,7 @@ use crate::{
     BuildContext, Control, MessageDirection, MouseButton, Orientation, Thickness, UiNode,
     UserInterface, WidgetMessage,
 };
-use fyrox_graph::SceneGraph;
+use fyrox_graph::BaseSceneGraph;
 use std::{
     fmt::Debug,
     mem,

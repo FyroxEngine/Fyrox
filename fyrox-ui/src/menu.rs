@@ -24,7 +24,7 @@ use crate::{
     UserInterface, VerticalAlignment, BRUSH_BRIGHT, BRUSH_BRIGHT_BLUE, BRUSH_PRIMARY,
 };
 use fyrox_core::variable::InheritableVariable;
-use fyrox_graph::SceneGraph;
+use fyrox_graph::{BaseSceneGraph, SceneGraph};
 use std::{
     ops::{Deref, DerefMut},
     sync::mpsc::Sender,

@@ -18,7 +18,7 @@ use crate::{
         node::{Node, NodeTrait, SyncContext},
     },
 };
-use fyrox_graph::SceneGraph;
+use fyrox_graph::BaseSceneGraph;
 use std::ops::{Deref, DerefMut};
 
 /// Listener represents directional microphone-like device. It receives sound from surroundings

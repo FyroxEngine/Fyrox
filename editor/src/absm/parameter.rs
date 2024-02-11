@@ -4,7 +4,7 @@ use crate::message::MessageSender;
 use crate::{
     inspector::editors::make_property_editors_container, Message, MessageDirection, MSG_SYNC_FLAG,
 };
-use fyrox::graph::SceneGraph;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     core::{log::Log, pool::Handle},
     gui::{

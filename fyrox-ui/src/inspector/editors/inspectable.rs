@@ -13,7 +13,7 @@ use crate::{
 };
 use fyrox_core::pool::Handle;
 use fyrox_core::PhantomDataSendSync;
-use fyrox_graph::SceneGraph;
+use fyrox_graph::BaseSceneGraph;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},

@@ -28,7 +28,7 @@ use crate::{
     VerticalAlignment,
 };
 use fyrox_core::ComponentProvider;
-use fyrox_graph::SceneGraph;
+use fyrox_graph::BaseSceneGraph;
 use std::{
     any::TypeId,
     fmt::{Debug, Formatter},

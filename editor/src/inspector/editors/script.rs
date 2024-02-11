@@ -11,7 +11,7 @@ use fyrox::{
         uuid::Uuid, uuid_provider, visitor::prelude::*,
     },
     engine::SerializationContext,
-    graph::SceneGraph,
+    graph::BaseSceneGraph,
     gui::{
         button::{ButtonBuilder, ButtonMessage},
         define_constructor,

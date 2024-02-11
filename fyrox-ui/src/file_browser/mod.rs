@@ -37,7 +37,7 @@ mod selector;
 
 use fyrox_core::parking_lot::Mutex;
 use fyrox_core::uuid_provider;
-use fyrox_graph::SceneGraph;
+use fyrox_graph::BaseSceneGraph;
 use notify::Watcher;
 pub use selector::*;
 #[cfg(not(target_arch = "wasm32"))]

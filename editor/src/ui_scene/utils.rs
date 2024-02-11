@@ -9,13 +9,14 @@ use crate::{
     },
     world::{graph::item::DropAnchor, WorldViewerDataProvider},
 };
+use fyrox::graph::SceneGraphNode;
 use fyrox::{
     asset::{manager::ResourceManager, untyped::UntypedResource},
     core::{
         futures::executor::block_on, make_pretty_type_name, make_relative_path, pool::ErasedHandle,
         pool::Handle, reflect::Reflect,
     },
-    graph::{SceneGraph, SceneGraphNode},
+    graph::{BaseSceneGraph, SceneGraph},
     gui::{
         button::Button, canvas::Canvas, grid::Grid, screen::Screen, text::Text, UiNode,
         UserInterface, UserInterfaceResourceExtension,

@@ -5,7 +5,7 @@ use crate::{
 };
 use fyrox::{
     core::pool::Handle,
-    graph::SceneGraph,
+    graph::BaseSceneGraph,
     gui::{UiNode, UserInterface},
 };
 

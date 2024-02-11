@@ -29,6 +29,7 @@ use crate::{
     world::graph::selection::GraphSelection,
     Message, Settings,
 };
+use fyrox::graph::BaseSceneGraph;
 use fyrox::scene::sound::AudioBus;
 use fyrox::{
     core::{

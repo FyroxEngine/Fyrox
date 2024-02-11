@@ -14,7 +14,7 @@ use crate::{
 };
 use fyrox::core::uuid::{uuid, Uuid};
 use fyrox::core::TypeUuidProvider;
-use fyrox::graph::SceneGraph;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::gui::{HorizontalAlignment, Thickness, VerticalAlignment};
 use fyrox::{
     core::{

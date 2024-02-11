@@ -8,6 +8,7 @@ use crate::{
     world::graph::item::{DropAnchor, SceneItem, SceneItemBuilder, SceneItemMessage},
     Mode, Settings,
 };
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     asset::untyped::UntypedResource,
     core::{

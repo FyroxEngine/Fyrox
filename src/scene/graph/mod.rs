@@ -60,6 +60,7 @@ use crate::{
     utils::lightmap::Lightmap,
 };
 use fxhash::{FxHashMap, FxHashSet};
+use fyrox_graph::BaseSceneGraph;
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -1053,7 +1054,7 @@ impl Graph {
     /// # use fyrox::scene::node::Node;
     /// # use fyrox::scene::graph::Graph;
     /// # use fyrox::scene::pivot::Pivot;
-    /// # use fyrox_graph::SceneGraph;
+    /// # use fyrox_graph::BaseSceneGraph;
     /// let mut graph = Graph::new();
     /// graph.add_node(Node::new(Pivot::default()));
     /// graph.add_node(Node::new(Pivot::default()));
@@ -1077,7 +1078,7 @@ impl Graph {
     /// # use fyrox::scene::node::Node;
     /// # use fyrox::scene::graph::Graph;
     /// # use fyrox::scene::pivot::Pivot;
-    /// # use fyrox_graph::SceneGraph;
+    /// # use fyrox_graph::BaseSceneGraph;
     /// let mut graph = Graph::new();
     /// graph.add_node(Node::new(Pivot::default()));
     /// graph.add_node(Node::new(Pivot::default()));
@@ -1492,7 +1493,7 @@ impl Visit for Graph {
     }
 }
 
-impl SceneGraph for Graph {
+impl BaseSceneGraph for Graph {
     type Prefab = Model;
     type Node = Node;
 
@@ -1504,16 +1505,6 @@ impl SceneGraph for Graph {
     #[inline]
     fn set_root(&mut self, root: Handle<Self::Node>) {
         self.root = root;
-    }
-
-    #[inline]
-    fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
-        self.pool.pair_iter()
-    }
-
-    #[inline]
-    fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
-        self.pool.iter_mut()
     }
 
     #[inline]
@@ -1620,6 +1611,18 @@ impl SceneGraph for Graph {
     }
 }
 
+impl SceneGraph for Graph {
+    #[inline]
+    fn pair_iter(&self) -> impl Iterator<Item = (Handle<Self::Node>, &Self::Node)> {
+        self.pool.pair_iter()
+    }
+
+    #[inline]
+    fn linear_iter_mut(&mut self) -> impl Iterator<Item = &mut Self::Node> {
+        self.pool.iter_mut()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::graph::SceneGraph;
@@ -1646,6 +1649,7 @@ mod test {
             Scene, SceneLoader,
         },
     };
+    use fyrox_graph::BaseSceneGraph;
     use std::{fs, path::Path, sync::Arc};
 
     #[test]

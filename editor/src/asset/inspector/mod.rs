@@ -2,7 +2,7 @@ use crate::{
     inspector::editors::make_property_editors_container, message::MessageSender, MSG_SYNC_FLAG,
 };
 use fyrox::core::reflect::Reflect;
-use fyrox::graph::SceneGraph;
+use fyrox::graph::BaseSceneGraph;
 use fyrox::{
     asset::{manager::ResourceManager, options::BaseImportOptions},
     core::{append_extension, futures::executor::block_on, log::Log, pool::Handle},

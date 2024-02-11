@@ -19,7 +19,7 @@ use crate::{
     UserInterface, VerticalAlignment, BRUSH_FOREGROUND, BRUSH_PRIMARY,
 };
 use fyrox_core::{parking_lot::Mutex, variable::InheritableVariable};
-use fyrox_graph::SceneGraph;
+use fyrox_graph::BaseSceneGraph;
 use fyrox_resource::Resource;
 use std::{
     any::Any,
