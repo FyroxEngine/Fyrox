@@ -60,7 +60,8 @@ use crate::{
     utils::lightmap::Lightmap,
 };
 use fxhash::{FxHashMap, FxHashSet};
-use fyrox_graph::BaseSceneGraph;
+use fyrox_core::pool::ErasedHandle;
+use fyrox_graph::{AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph};
 use std::{
     any::{Any, TypeId},
     fmt::Debug,
@@ -1490,6 +1491,23 @@ impl Visit for Graph {
         let _ = self.lightmap.visit("Lightmap", &mut region);
 
         Ok(())
+    }
+}
+
+impl AbstractSceneGraph for Graph {
+    fn try_get_node_untyped(&self, handle: ErasedHandle) -> Option<&dyn AbstractSceneNode> {
+        self.pool
+            .try_borrow(handle.into())
+            .map(|n| n as &dyn AbstractSceneNode)
+    }
+
+    fn try_get_node_untyped_mut(
+        &mut self,
+        handle: ErasedHandle,
+    ) -> Option<&mut dyn AbstractSceneNode> {
+        self.pool
+            .try_borrow_mut(handle.into())
+            .map(|n| n as &mut dyn AbstractSceneNode)
     }
 }
 

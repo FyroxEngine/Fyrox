@@ -3,6 +3,7 @@
 //! Graph utilities and common algorithms.
 
 use fxhash::FxHashMap;
+use fyrox_core::pool::ErasedHandle;
 use fyrox_core::{
     log::{Log, MessageKind},
     pool::Handle,
@@ -371,9 +372,11 @@ fn reset_property_modified_flag(entity: &mut dyn Reflect, path: &str) {
     })
 }
 
-pub trait SceneGraphNode:
-    Reflect + NameProvider + Sized + Clone + ComponentProvider + 'static
-{
+pub trait AbstractSceneNode: ComponentProvider + Reflect + NameProvider {}
+
+impl<T: SceneGraphNode> AbstractSceneNode for T {}
+
+pub trait SceneGraphNode: AbstractSceneNode + Clone + 'static {
     type Base: Clone;
     type SceneGraph: SceneGraph<Node = Self>;
     type ResourceData: PrefabData<Graph = Self::SceneGraph>;
@@ -558,7 +561,15 @@ impl<N> Default for LinkScheme<N> {
     }
 }
 
-pub trait BaseSceneGraph: 'static {
+pub trait AbstractSceneGraph: 'static {
+    fn try_get_node_untyped(&self, handle: ErasedHandle) -> Option<&dyn AbstractSceneNode>;
+    fn try_get_node_untyped_mut(
+        &mut self,
+        handle: ErasedHandle,
+    ) -> Option<&mut dyn AbstractSceneNode>;
+}
+
+pub trait BaseSceneGraph: AbstractSceneGraph {
     type Prefab: PrefabData<Graph = Self>;
     type Node: SceneGraphNode<SceneGraph = Self, ResourceData = Self::Prefab>;
 
@@ -1308,7 +1319,11 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::{BaseSceneGraph, NodeMapping, PrefabData, SceneGraph, SceneGraphNode};
+    use crate::{
+        AbstractSceneGraph, AbstractSceneNode, BaseSceneGraph, NodeMapping, PrefabData, SceneGraph,
+        SceneGraphNode,
+    };
+    use fyrox_core::pool::ErasedHandle;
     use fyrox_core::{
         pool::{Handle, Pool},
         reflect::prelude::*,
@@ -1460,6 +1475,23 @@ mod test {
         #[inline]
         fn index_mut(&mut self, index: Handle<Node>) -> &mut Self::Output {
             &mut self.nodes[index]
+        }
+    }
+
+    impl AbstractSceneGraph for Graph {
+        fn try_get_node_untyped(&self, handle: ErasedHandle) -> Option<&dyn AbstractSceneNode> {
+            self.nodes
+                .try_borrow(handle.into())
+                .map(|n| n as &dyn AbstractSceneNode)
+        }
+
+        fn try_get_node_untyped_mut(
+            &mut self,
+            handle: ErasedHandle,
+        ) -> Option<&mut dyn AbstractSceneNode> {
+            self.nodes
+                .try_borrow_mut(handle.into())
+                .map(|n| n as &mut dyn AbstractSceneNode)
         }
     }
 
