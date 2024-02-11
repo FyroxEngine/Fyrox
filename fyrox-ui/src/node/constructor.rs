@@ -1,6 +1,6 @@
 //! A special container that is able to create widgets by their type UUID.
-use crate::screen::Screen;
 use crate::{
+    animation::AnimationPlayer,
     bit::BitField,
     border::Border,
     button::Button,
@@ -28,6 +28,7 @@ use crate::{
     progress_bar::ProgressBar,
     range::RangeEditor,
     rect::RectEditor,
+    screen::Screen,
     scroll_bar::ScrollBar,
     scroll_panel::ScrollPanel,
     scroll_viewer::ScrollViewer,
@@ -198,6 +199,7 @@ impl WidgetConstructorContainer {
         container.add::<Text>();
         container.add::<TextBox>();
         container.add::<Screen>();
+        container.add::<AnimationPlayer>();
 
         container
     }
