@@ -1191,6 +1191,7 @@ impl Editor {
                     &mut engine.user_interface,
                     &engine.resource_manager,
                     &self.message_sender,
+                    game_scene.graph_switches.node_overrides.as_mut().unwrap(),
                 );
                 self.ragdoll_wizard.handle_ui_message(
                     message,
@@ -1300,6 +1301,7 @@ impl Editor {
                     &mut engine.user_interface,
                     &engine.resource_manager,
                     &self.message_sender,
+                    &mut Default::default(), // TODO
                 );
                 self.world_viewer.handle_ui_message(
                     message,
@@ -1672,12 +1674,16 @@ impl Editor {
                 self.animation_editor.try_leave_preview_mode(
                     &mut engine.scenes[game_scene.scene].graph,
                     &engine.user_interface,
+                    game_scene.graph_switches.node_overrides.as_mut().unwrap(),
                 );
                 self.absm_editor
                     .try_leave_preview_mode(&entry.selection, game_scene, engine);
             } else if let Some(ui_scene) = entry.controller.downcast_mut::<UiScene>() {
-                self.animation_editor
-                    .try_leave_preview_mode(&mut ui_scene.ui, &self.engine.user_interface);
+                self.animation_editor.try_leave_preview_mode(
+                    &mut ui_scene.ui,
+                    &self.engine.user_interface,
+                    &mut Default::default(), // TODO
+                );
             }
         }
     }
@@ -2157,6 +2163,7 @@ impl Editor {
                             &message,
                             &mut self.engine.scenes[game_scene.scene].graph,
                             &self.engine.user_interface,
+                            game_scene.graph_switches.node_overrides.as_mut().unwrap(),
                         );
                         self.absm_editor.handle_message(
                             &message,
@@ -2169,6 +2176,7 @@ impl Editor {
                             &message,
                             &mut ui_scene.ui,
                             &self.engine.user_interface,
+                            &mut Default::default(), // TODO
                         );
                     }
 

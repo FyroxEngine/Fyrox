@@ -34,7 +34,7 @@ use fyrox::{
         BuildContext, UiNode, UserInterface, BRUSH_DARK, BRUSH_PRIMARY,
     },
 };
-use std::any::TypeId;
+use std::any::{Any, TypeId};
 
 pub mod command;
 mod ruler;
@@ -47,8 +47,8 @@ pub trait PreviewData {
     fn enter(&mut self);
 }
 
-struct PreviewModeData {
-    // nodes: Vec<(Handle<Node>, Node)>,
+struct PreviewModeData<N: 'static> {
+    nodes: Vec<(Handle<N>, N)>,
 }
 
 pub struct AnimationEditor {
@@ -58,7 +58,7 @@ pub struct AnimationEditor {
     toolbar: Toolbar,
     content: Handle<UiNode>,
     ruler: Handle<UiNode>,
-    preview_mode_data: Option<PreviewModeData>,
+    preview_mode_data: Option<Box<dyn Any>>,
     thumb: Handle<UiNode>,
 }
 
@@ -246,6 +246,7 @@ impl AnimationEditor {
         ui: &mut UserInterface,
         resource_manager: &ResourceManager,
         sender: &MessageSender,
+        node_overrides: &mut FxHashSet<Handle<N>>,
     ) where
         G: SceneGraph<Node = N>,
         N: SceneGraphNode<SceneGraph = G>,
@@ -367,9 +368,6 @@ impl AnimationEditor {
             match toolbar_action {
                 ToolbarAction::None => {}
                 ToolbarAction::EnterPreviewMode => {
-                    // TODO
-                    /*
-                    let node_overrides = game_scene.graph_switches.node_overrides.as_mut().unwrap();
                     assert!(node_overrides.insert(selection.animation_player));
 
                     let animation_player_node =
@@ -377,17 +375,12 @@ impl AnimationEditor {
 
                     // Save state of animation player first.
                     let initial_animation_player_handle = selection.animation_player;
-                    let initial_animation_player = animation_player_node.clone_box();
+                    let initial_animation_player = animation_player_node.clone();
 
                     // Now we can freely modify the state of the animation player in the scene - all
                     // changes will be reverted at the exit of the preview mode.
-                    let animation_player = animation_player_node
-                        .query_component_mut::<AnimationPlayer>()
-                        .unwrap();
-
-                    animation_player.set_auto_apply(true);
-
-                    let animations = animation_player.animations_mut();
+                    let animations =
+                        animation_container(graph, selection.animation_player).unwrap();
 
                     // Disable every animation, except preview one.
                     for (handle, animation) in animations.pair_iter_mut() {
@@ -408,21 +401,15 @@ impl AnimationEditor {
                             initial_animation_player,
                             animation_targets,
                             graph,
-                            &engine.user_interface,
+                            ui,
                             node_overrides,
                         );
-                    }*/
+                    }
                 }
                 ToolbarAction::LeavePreviewMode => {
-                    // TODO
-                    /*
                     if self.preview_mode_data.is_some() {
-                        self.leave_preview_mode(
-                            graph,
-                            &engine.user_interface,
-                            game_scene.graph_switches.node_overrides.as_mut().unwrap(),
-                        );
-                    }*/
+                        self.leave_preview_mode(graph, ui, node_overrides);
+                    }
                 }
                 ToolbarAction::SelectAnimation(animation) => {
                     let animation_ref = &animations[animation.into()];
@@ -487,8 +474,6 @@ impl AnimationEditor {
         G: SceneGraph<Node = N>,
         N: SceneGraphNode,
     {
-        // TODO
-        /*
         assert!(self.preview_mode_data.is_none());
 
         self.toolbar.on_preview_mode_changed(ui, true);
@@ -500,7 +485,7 @@ impl AnimationEditor {
         let mut data = PreviewModeData {
             nodes: animation_targets
                 .into_iter()
-                .map(|t| (t, graph[t].clone_box()))
+                .map(|t| (t, graph.node(t).clone()))
                 .collect(),
         };
 
@@ -508,7 +493,7 @@ impl AnimationEditor {
             .push((initial_animation_player_handle, initial_animation_player));
 
         // Save state of affected nodes.
-        self.preview_mode_data = Some(data);*/
+        self.preview_mode_data = Some(Box::new(data));
     }
 
     fn leave_preview_mode<G, N>(
@@ -522,44 +507,43 @@ impl AnimationEditor {
     {
         self.toolbar.on_preview_mode_changed(ui, false);
 
-        // TODO
-        /*
         let preview_data = self
             .preview_mode_data
             .take()
             .expect("Unable to leave animation preview mode!");
 
         // Revert state of nodes.
-        for (handle, node) in preview_data.nodes {
+        for (handle, node) in preview_data.downcast::<PreviewModeData<N>>().unwrap().nodes {
             assert!(node_overrides.remove(&handle));
-            graph[handle] = node;
-        }*/
+            *graph.node_mut(handle) = node;
+        }
     }
 
-    pub fn try_leave_preview_mode<G, N>(&mut self, graph: &mut G, ui: &UserInterface)
-    where
+    pub fn try_leave_preview_mode<G, N>(
+        &mut self,
+        graph: &mut G,
+        ui: &UserInterface,
+        node_overrides: &mut FxHashSet<Handle<N>>,
+    ) where
         G: SceneGraph<Node = N>,
         N: SceneGraphNode<SceneGraph = G>,
     {
-        // TODO
-        /*
         if self.preview_mode_data.is_some() {
-            let scene = &mut engine.scenes[game_scene.scene];
-
-            self.leave_preview_mode(
-                scene,
-                &engine.user_interface,
-                game_scene.graph_switches.node_overrides.as_mut().unwrap(),
-            );
-        }*/
+            self.leave_preview_mode(graph, ui, node_overrides);
+        }
     }
 
     pub fn is_in_preview_mode(&self) -> bool {
         self.preview_mode_data.is_some()
     }
 
-    pub fn handle_message<G, N>(&mut self, message: &Message, graph: &mut G, ui: &UserInterface)
-    where
+    pub fn handle_message<G, N>(
+        &mut self,
+        message: &Message,
+        graph: &mut G,
+        ui: &UserInterface,
+        node_overrides: &mut FxHashSet<Handle<N>>,
+    ) where
         G: SceneGraph<Node = N>,
         N: SceneGraphNode<SceneGraph = G>,
     {
@@ -568,7 +552,7 @@ impl AnimationEditor {
         | Message::UndoCurrentSceneCommand
         | Message::RedoCurrentSceneCommand = message
         {
-            self.try_leave_preview_mode(graph, ui);
+            self.try_leave_preview_mode(graph, ui, node_overrides);
         }
     }
 
